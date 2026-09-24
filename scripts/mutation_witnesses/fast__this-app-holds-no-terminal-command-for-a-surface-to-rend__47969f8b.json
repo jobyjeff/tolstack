@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "this app holds no terminal command for a surface to render",
+  "mutations": [
+    {
+      "contract": "The viewer holds no table of terminal-command strings for a surface to render. VA.CONFIG.rebuild is gone, and its absence is what makes the banner's copy rule enforceable rather than a habit.",
+      "issue": "docs/issues/ISSUE_20260922_the_policy_free_residue_guards_have_no_mutation_witness_entry.md",
+      "note": "The FIRST of that guard's two independent halves -- the live VA.CONFIG probe. Its sibling `no-view-reads-the-command-table` witnesses the second (the static codeOnly() scan of seven view files); one entry cannot cover both, because either half alone reddens the check and the other would never be exercised. Both declare the same sub-check on purpose, the way the three topology-preference siblings do.",
+      "file": "apps/viewer/config.js",
+      "find": "    drawingCheckerWebui:",
+      "replace": "    rebuild: { results: \"x\" },\n    drawingCheckerWebui:"
+    },
+    {
+      "contract": "...and no view SOURCE reads such a table either. A file that reads it is the supply route, whether or not any state in the suite happens to render what it read.",
+      "issue": "docs/issues/ISSUE_20260922_the_policy_free_residue_guards_have_no_mutation_witness_entry.md",
+      "note": "The SECOND half of the same guard, and the reason it needs an entry of its own: with the table itself still absent, only the static codeOnly() scan can bite. Planted in a view rather than in config.js for exactly that reason. See `no-command-table-in-the-config` for the first half.",
+      "file": "apps/viewer/views/banner.js",
+      "find": "  function button(label, className, onClick) {",
+      "replace": "  function button(label, className, onClick) {\n    var cmd = VA.CONFIG.rebuild;"
+    }
+  ]
+}

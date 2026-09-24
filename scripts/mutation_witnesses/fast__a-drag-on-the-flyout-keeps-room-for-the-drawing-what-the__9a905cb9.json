@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a drag on the flyout keeps room for THE DRAWING -- what the caller measured, not a pixel constant and not the drawing's scrollport",
+  "mutations": [
+    {
+      "contract": "However far it is dragged, the flyout leaves the page a strip to be adjacent TO -- bounded by the current viewport, not by a pixel constant.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Adjacency IS the deliverable (\"the DAG must remain visible beside it\"), and a px-only max cannot deliver it: at VA.FLYOUT_WIDTH.max on a 1280px window the panel would leave 80px of page. The mutation is the obvious simplification -- clamp to the window instead of to the window minus the reserve -- which reads as correct and covers the page. The reserve is measured against the room left BESIDE THE PREVIEW PANE, not against the viewport: reserving 420px of window handed the reader back 420px of PANE and covered the diagram completely (measured in Chrome at 1600px with the panel at 1100 -- #topopane at 300..1038, wholly underneath). See the lesson, section 2. Re-anchored 2026-09-16 after review: the clamp now takes a MEASURED `keep` (the drawing's own width) beside the room, so the arithmetic moved one line. The browser-tier claim it used to be mistaken for now has its own entry, `flyout-yield-short-of-the-drawing`.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      ? Math.min(VA.FLYOUT_WIDTH.max, have - reserve)",
+      "replace": "      ? Math.min(VA.FLYOUT_WIDTH.max, have)"
+    }
+  ]
+}

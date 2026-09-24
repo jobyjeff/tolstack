@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: low
-status: open
+status: resolved
 area: scripts/mutation_witnesses
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260922_stack_page_alert_marks_and_drawn_glyph.md
@@ -59,3 +59,28 @@ Owner note: `scripts/mutation_witnesses.json`,
 are the declared scope of
 `HANDOFF_20260922_mutation_witness_repair_and_enrollment`, which is active as of
 filing.
+
+
+---
+
+## Resolved 2026-09-23 — at the root: the test is gone, because the comparison it policed is gone
+
+`mutation_witness_derived_enrollment_and_gating`. This issue proposed guarding
+the `source.index(...)` so the zero-match case falls to the pairing test above
+it. That fix is no longer the right one, because the defect underneath it was
+repaired instead.
+
+`test_no_expect_red_is_a_truncated_check_name` existed because the cheap half
+compared `expect_red` **loosely** (a substring count of the check source) and
+the runner compared it for **equality**, so a prefix resolved cheaply and could
+never be witnessed. The cheap half now checks `expect_red` for **membership** of
+the enumeration of guards the tree declares
+(`scripts/guard_enumeration.mjs`) — an exact match against a parsed declaration,
+which a prefix cannot satisfy and a name sitting in a comment cannot satisfy
+either. So the truncation test had nothing left to add, was retired with the
+crash inside it, and `test_every_expect_red_names_a_guard_the_enumeration_found`
+is the one red a rotted or truncated name now produces.
+
+The non-vacuity this issue asked to watch is preserved by construction rather
+than by a replay: membership is strictly stronger than the substring check plus
+the truncation check together.

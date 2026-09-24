@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate face suggestions (candidate colours, the pick, the switch)",
+  "expect_red": "...and the solid body survives the next suggestion run -- the suggestion display asks what See-through says, it never decides",
+  "mutations": [
+    {
+      "contract": "Translucency has ONE owner -- the `transparency` verb and its See-through parts checkbox. The face-suggestion display asks for whatever that says and never forces it, so both switches are live at once and each does its own job.",
+      "issue": null,
+      "note": "This is not a hypothetical: the first build of the suggestion display faded the suggested body unconditionally, and this tier is what caught it. The witnessing sub-check is the one that RE-RUNS the suggestion after the switch is unticked, and that is the whole finding here -- the first version of the guard only unticked the switch, which the mutated build still honoured, because nothing had re-run `suggest` yet. A display state has to be checked after the thing that draws it runs again, not only after the setting changes.",
+      "file": "apps/annotate/app.js",
+      "find": "    state.scene.setGhost(sha, state.transparentParts);",
+      "replace": "    state.scene.setGhost(sha, true);"
+    }
+  ]
+}

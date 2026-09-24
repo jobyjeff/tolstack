@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "no banner state prints a terminal command, a repo path, a field name or a checksum at the reader",
+  "mutations": [
+    {
+      "contract": "No banner state prints a terminal command, a repo path, a field name or a checksum at the reader -- Jeff's standing web-UI rule, which is about the SURFACE and not about any one call site.",
+      "issue": "docs/issues/ISSUE_20260922_the_policy_free_residue_guards_have_no_mutation_witness_entry.md",
+      "note": "Reddens on the shared SHAPE ban naming \"python.exe\" (apps/viewer/reader_facing_bans.js), not on a literal script name -- which is the half of that handoff worth pinning, since four live command sites passed the old literal list for as long as it existed.",
+      "file": "apps/viewer/views/banner.js",
+      "find": "      root.appendChild(missing(labels.missing));",
+      "replace": "      root.appendChild(missing(labels.missing + \" Build it: venv-win/Scripts/python.exe scripts/build_viewer_projection.py\"));"
+    }
+  ]
+}

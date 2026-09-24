@@ -1,0 +1,31 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "[real] switching topology keeps the density, the length mode and the value-only rows as well",
+  "mutations": [
+    {
+      "contract": "state.rowDensity is a display preference, so selectTopology() never resets it -- the precedent the other three preferences' comments all invoke.",
+      "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
+      "note": "Found chasing that issue's closing question -- whether the OLDER preferences had the same hole. They did: this reddened nothing in any tier on 2026-09-15, for the same reason leaderStyle did not, and is entered beside the two below it as one contract in three parts.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.studyId = null;\n    state.selection = null;",
+      "replace": "    state.studyId = null;\n    state.rowDensity = \"comfortable\";\n    state.selection = null;"
+    },
+    {
+      "contract": "state.edgeLengthMode is a display preference, so selectTopology() never resets it.",
+      "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
+      "note": "The sibling of the entry above; see its note.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.studyId = null;\n    state.selection = null;\n    state.detailImage = null;",
+      "replace": "    state.studyId = null;\n    state.edgeLengthMode = \"uniform\";\n    state.selection = null;\n    state.detailImage = null;"
+    },
+    {
+      "contract": "state.edgeValueOnly is a display preference, so selectTopology() never resets it.",
+      "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
+      "note": "The sibling of the two entries above; see the first one's note.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.studyId = null;\n    state.selection = null;\n    state.detailImage = null;\n  }",
+      "replace": "    state.studyId = null;\n    state.edgeValueOnly = false;\n    state.selection = null;\n    state.detailImage = null;\n  }"
+    }
+  ]
+}

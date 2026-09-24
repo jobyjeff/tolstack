@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] a row whose number has no plus/minus behind it says so in the grid too",
+  "mutations": [
+    {
+      "contract": "A grid row whose number carries no plus/minus says so, in the reader's own words: VA.edgeAttention raises the `no tolerance recorded` badge on every zero-width edge, one per row.",
+      "issue": "docs/issues/ISSUE_20260915_the_grids_no_tolerance_badge_is_unguarded_in_every_tier.md",
+      "note": "viewer_study_verdicts_and_gaps introduced this badge and in the same change REMOVED the chip--zero-width chip that used to mark the same rows -- the replacement is right and had nothing standing on it. Measured 2026-09-16 with the line deleted: 367/367 passed and the marking simply left the grid, in every tier. The sibling `unverified` badge was already pinned count for count; this is the other half. The witness needs `rotor_fastener_length`: it is the only live topology with a zero-width edge (2 of 12), and the issue's claim that pitch_link_to_pitch_plate has 2 is wrong -- it has 0.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (edge.zero_width) badges.push(badge(\"no_tolerance\"));",
+      "replace": "    /* mutated: a zero-width row is no longer marked */"
+    }
+  ]
+}

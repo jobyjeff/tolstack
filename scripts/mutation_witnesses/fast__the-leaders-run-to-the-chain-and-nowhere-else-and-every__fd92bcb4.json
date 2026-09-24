@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the leaders run to the chain and nowhere else, and every one of them lands on a seam one of its OWN edges bounds",
+  "mutations": [
+    {
+      "contract": "A leader is drawn only where it points at a CHAIN node. The absence of a line -- not a faded one -- is the emphasis signal Jeff asked for first: \"it should be fairly obvious that there are no leader lines pointing to certain elements\".",
+      "issue": null,
+      "note": "Declared in review of viewer_respine_whole_walk (2026-09-15), the third of the three emphasis contracts. `rail__leader--off` was deleted with this change, so nothing in the CSS can express the old faded-leader state any more -- which means a regression here shows up as leaders to non-members at full strength, not as a fade.",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (!internal[row.id] && (!focusNodes || focusNodes[row.id])) {",
+      "replace": "        if (!internal[row.id]) {"
+    }
+  ]
+}

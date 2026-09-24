@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the flyout is pinned to the LEFT edge, not the right",
+  "mutations": [
+    {
+      "contract": "The annotator flyout is pinned to the window's LEFT edge, adjacent to the DAG -- the whole reason it moved, and a one-word CSS property is all that holds it there.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Jeff, 2026-09-16: \"I actually want the 3d flyout on the left side, adjacent to the DAG.\" The witness is the exact revert: `inset: 0 0 0 auto` is what the panel carried until this handoff, so this mutation IS the previous build. Nothing but a measured box can catch it -- the class names, the markup and every JS path are identical either way, which is why a class-name check was not enough here.",
+      "file": "apps/viewer/topology.css",
+      "find": "  position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0;",
+      "replace": "  position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0;"
+    }
+  ]
+}

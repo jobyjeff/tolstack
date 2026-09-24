@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every live part with no drawing names the document its own dimensions come off, or says nothing at all",
+  "mutations": [
+    {
+      "contract": "A component card whose HEADING already carries the drawing number drops the number from its drawing line -- and never the noun with it. The line says \"drawing rev A\", never a bare \"rev A\".",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Should-fix 5 of REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md. The de-duplication shipped returning the bare revision, so three live parts (pitch_link_to_pitch_plate/pitch_plate_215197, vpa_output_to_pitch_plate/pitch_flange_215197, pitch_system/gas_spring_mount_213668_002) rendered a where-line whose entire content was \"rev A\" -- a revision modifying nothing, on the surface this pass exists to de-slop. The witness needs a part named after its own drawing AND carrying a revision; the owning test counts those itself and fails if the live data stops providing one.",
+      "file": "apps/viewer/topology.js",
+      "find": "      return rev ? \"drawing \" + rev : null;",
+      "replace": "      return rev;"
+    }
+  ]
+}

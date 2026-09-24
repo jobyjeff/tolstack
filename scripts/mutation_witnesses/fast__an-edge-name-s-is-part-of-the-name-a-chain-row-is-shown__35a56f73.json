@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an edge name's ` -- ` is part of the NAME: a chain row is shown whole while an excluded term beside it still splits",
+  "mutations": [
+    {
+      "contract": "VA.STUDY_FINDING_SOURCES says, per gap kind, whether the strings in that bucket follow the ` -- ` split convention. Only the excluded-terms bucket does; the other two hold edge names, whose own ` -- ` is part of the name.",
+      "issue": "docs/issues/ISSUE_20260922_the_findings_splitter_scoping_guard_has_no_mutation_witness_entry.md",
+      "note": "The guard asserts BOTH halves of one rule -- names whole, terms still split -- so either half alone leaves the other unwitnessed, which is why this spec carries two mutations. This one puts the two name-carrying buckets back to splitting: a chain row whose edge name contains ` -- ` is cut in half. Measured in review of findings_splitter_scopes_to_excluded_terms (2026-09-22) at 496/497, and replayed here before it was declared.",
+      "file": "apps/viewer/topology.js",
+      "find": "    unverified_value: { bucket: \"unverified\", reasonSplit: false },\n    no_tolerance_recorded: { bucket: \"noTolerance\", reasonSplit: false },",
+      "replace": "    unverified_value: { bucket: \"unverified\", reasonSplit: true },\n    no_tolerance_recorded: { bucket: \"noTolerance\", reasonSplit: true },"
+    },
+    {
+      "contract": "...and the other half: the excluded-terms bucket DOES follow the convention, so an authored term's rationale still goes one fold deep instead of onto the row.",
+      "issue": "docs/issues/ISSUE_20260922_the_findings_splitter_scoping_guard_has_no_mutation_witness_entry.md",
+      "note": "Stops the one bucket that should split from splitting. Measured at 494/497 in the same review -- this guard plus two others -- which is fine here: the runner needs the DECLARED check among the reds, not alone.",
+      "file": "apps/viewer/topology.js",
+      "find": "    excluded_from_model: { bucket: \"excluded\", reasonSplit: true },",
+      "replace": "    excluded_from_model: { bucket: \"excluded\", reasonSplit: false },"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "[real] and with no border, no corner radius and no outline — the chip framing is gone, not just unclassed",
+  "mutations": [
+    {
+      "contract": "The rail's mark is the mark and nothing else -- no border, no corner radius, no outline. The retired `.chip--alert` framing put a rounded 1px box around an 11px character, which is two marks where the row needs one; Jeff asked for the box gone, not merely unclassed.",
+      "issue": "docs/issues/ISSUE_20260922_the_nav_status_icon_guards_have_no_mutation_witness_entry.md",
+      "note": "The source issue set this row aside as \"not paste-ready\" because one mutation of the shared .navstatus block reddens several checks at once and `expect_red` \"would need care about which fires first\". That care is not needed: the runner asks whether the declared name is AMONG the failures, not whether it is the only one. What the anchor does need is to leave the other two claims alone, and it does -- `measure()` reads the SVG's own bounding box, so a border on the host element moves neither the legibility check's size nor the two-colour check's `currentColor`. The remaining two of that trio are unenrollable for a different reason: both names are template literals (see ISSUE_20260922_forty_five_browser_check_names_are_interpolated_so_no_guard_behind_them_can_be_enrolled).",
+      "file": "apps/viewer/topology.css",
+      "find": ".navstatus {\n  display: inline-flex; align-self: center; flex: none; line-height: 0;\n}",
+      "replace": ".navstatus {\n  display: inline-flex; align-self: center; flex: none; line-height: 0;\n  border: 1px solid currentColor; border-radius: 3px;\n}"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the live material entries show the provenance of their CTE -- the row compactly, the pane in full",
+  "mutations": [
+    {
+      "contract": "The material preview pane carries the CTE's values line (div.mat__values) in full -- the other half of the row/pane split, standing beside materials-row-keeps-only-the-click-decider.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md as '[real] the live material entries show the provenance of their CTE... either half of the split' -- this is the PANE half; materials-row-keeps-only-the-click-decider is the ROW half.",
+      "file": "apps/viewer/views/detail.js",
+      "find": "    root.appendChild(VA.el(\"div\",\n      \"mat__values\" + (values.loud ? \" mat__values--loud\" : \"\"),\n      values.text));",
+      "replace": "    /* mutated: the pane no longer carries the values line */"
+    }
+  ]
+}

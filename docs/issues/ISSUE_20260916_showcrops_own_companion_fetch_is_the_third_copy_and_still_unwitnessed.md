@@ -47,3 +47,19 @@ which is a statement about the index that is not true. Low rather than med
 because the same revert on either of the other two sites is now loud, so the
 whole-line deletion the three copies invite is already caught — what is
 uncovered is site 2 alone.
+
+
+---
+
+## 2026-09-23 — not cleared by derived enrollment, and worth saying why
+
+`mutation_witness_derived_enrollment_and_gating`. This issue survives the
+2026-09-23 rework untouched, which is the honest outcome rather than an
+oversight: the guard census computes *guards declared with no mutation spec*,
+and site 2 has **no guard at all**. There is nothing for the enumeration to
+count and nothing for a spec to name.
+
+Its cost is also unchanged — the obstacle was never writing the row, it was
+reaching `showCrop` at all (a nav click into a loose stack plus an element
+selection, in a suite that does not drive stack mode today). That is an
+assertion to write, not an enrollment.

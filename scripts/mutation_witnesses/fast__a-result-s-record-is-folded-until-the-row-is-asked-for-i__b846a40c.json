@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a result's record is folded until the row is asked for it",
+  "mutations": [
+    {
+      "contract": "A result row's record starts folded. The table is a scan surface; a page that opens every record on load is the wall of cards it replaced.",
+      "issue": "docs/issues/ISSUE_20260923_the_results_table_guards_have_no_mutation_witness_entry.md",
+      "note": "The initial `set(false)` is the whole of the claim -- the toggle, the classes and the aria state all follow it. Measured in review 2026-09-23 at 511/513, this guard plus the [real] row-count walk.",
+      "file": "apps/viewer/views/stack.js",
+      "find": "    set(false);",
+      "replace": "    set(true);"
+    }
+  ]
+}

@@ -1246,7 +1246,7 @@ async function hoverRailBar(page, id) {
 // That is the behaviour you want almost everywhere, and it is exactly wrong for
 // the out-of-flow contract below -- because the mutation that contract exists to
 // catch (`.croppop` back on `position: absolute`,
-// `scripts/mutation_witnesses.json`) places the open card ON TOP OF the trigger
+// `scripts/mutation_witnesses/`) places the open card ON TOP OF the trigger
 // it was opened from. The first hover opens the card, the card occludes the
 // trigger, and every retry from then on sees the occlusion and backs off. So the
 // suite died on a 30-second timeout ONE sub-check before the check that names
@@ -2757,7 +2757,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       });
       // The two-line COUNT is printed beside the check, never inside its name.
       // A name built by interpolation cannot be declared in
-      // scripts/mutation_witnesses.json at all: `expect_red` is compared to the
+      // scripts/mutation_witnesses/ at all: `expect_red` is compared to the
       // printed name for EQUALITY, and it is paired against this file's source
       // on every pytest run, where `${wrapped.twoLine}` is what is written. So
       // an interpolated name is a guard that can never be enrolled -- which is
@@ -4055,7 +4055,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
       // for, and a timeout thrown from here would take the whole suite down as
       // an ERROR -- which carries no check name, so the mutation-witness tier
       // reports it as a MISS rather than as the red it is
-      // (scripts/mutation_witnesses.json, "ONE THING AN ENTRY CANNOT DECLARE").
+      // (scripts/mutation_witnesses/README.md, "One thing a spec cannot declare").
       await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = false; });
     }
     push("a read that works clears the banner a failed one wrote", cleared);
@@ -4406,8 +4406,8 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
   // annotator's banner wait below makes and for the same reason: a timeout
   // thrown from here takes the suite down as an ERROR, which carries no
   // check name, so the mutation-witness tier reads it as a MISS instead of
-  // the red it is (scripts/mutation_witnesses.json, "ONE THING AN ENTRY
-  // CANNOT DECLARE"). A pane that never settles has to fail with a name on
+  // the red it is (scripts/mutation_witnesses/README.md, "One thing a spec
+  // cannot declare"). A pane that never settles has to fail with a name on
   // it.
   const paneSettled = async () => {
     try {
@@ -7567,7 +7567,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     // apart. (They used to be two copies — for most suites the same string
     // twice on one line, and for four of them a `const label = "..."` hundreds
     // of lines away in the function body. All nineteen agreed; nothing made
-    // them. `scripts/mutation_witnesses.json`'s `suite` fields are a third
+    // them. The `suite` field of a mutation spec is a third
     // copy, and the one that cannot be single-sourced away because it lives in
     // another file — `tests/test_mutation_witnesses.py` pairs those against
     // this table on every pytest run.)
@@ -7632,7 +7632,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     // The registry key IS the label a suite prints -- that is the whole point
     // of single-sourcing it (mutation_witness_tier_repair): a filter can be
     // copied straight off a failing line, and every `suite` in
-    // scripts/mutation_witnesses.json is a whole copy of one of these keys.
+    // scripts/mutation_witnesses/ is a whole copy of one of these keys.
     // What replaced the four in-body `const label = "..."` copies is now ONE
     // ARGUMENT, and nothing observed it: measured 2026-09-16, dropping it from
     // this call left every tier green and printed `[undefined] 2/2 sub-checks
@@ -7662,7 +7662,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         console.log("    FAIL sub-check: " +
           "every suite prints the registry key it was dispatched under — a " +
           "--only filter is copied straight off that line, and every `suite` " +
-          "in scripts/mutation_witnesses.json is a whole copy of one");
+          "in scripts/mutation_witnesses/ is a whole copy of one");
         if (result) result.ok = false;
       }
       results.push(result || { label, ok: false });

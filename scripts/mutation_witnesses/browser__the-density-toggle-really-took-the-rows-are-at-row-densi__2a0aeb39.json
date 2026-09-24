@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology height budget",
+  "expect_red": "the density toggle really took — the rows are at ROW_DENSITIES' compact pitch, and were at its comfortable one before the click",
+  "mutations": [
+    {
+      "contract": "The row-density toggle actually changes the row pitch, to VA.ROW_DENSITIES' own compact number.",
+      "issue": "docs/issues/ISSUE_20260914_compact_density_correspondence_check_has_no_positive_anchor.md",
+      "note": "The correspondence check beside it re-derives both leader ends from the live DOM, so it holds at either density and anchors nothing on its own. The mutation is the toggle quietly becoming a no-op.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          state.rowDensity = state.rowDensity === \"compact\" ? \"comfortable\" : \"compact\";",
+      "replace": "          state.rowDensity = \"comfortable\";"
+    }
+  ]
+}

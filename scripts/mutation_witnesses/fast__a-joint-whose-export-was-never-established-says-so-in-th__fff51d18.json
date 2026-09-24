@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a joint whose export was never established says so in the JOINT's words, not a value's, and a joint with no export key grows no box",
+  "mutations": [
+    {
+      "contract": "A joint block renders VA.exportProvenance with VA.JOINT_EXPORT_SUBJECT, so an unestablished joint export says so in the JOINT's own words, never a value's.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md; see materials-vocabulary-scanned-for-schema-jargon's note for why it arrived unenrolled.",
+      "file": "apps/viewer/views/stack.js",
+      "find": "        VA.exportProvenance({ export: exportRef }, null, VA.JOINT_EXPORT_SUBJECT),",
+      "replace": "        VA.exportProvenance({ export: exportRef }, null),"
+    }
+  ]
+}

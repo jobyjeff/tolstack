@@ -518,8 +518,8 @@ layout here. It is measured box against box in
 `scripts/run_viewer_browser_tests.mjs`'s `annotate top bar + entry context
 (auto-filter, see-through)` suite, together with the arrival actually
 selecting/showing what it says and the switches actually switching; four
-entries in `scripts/mutation_witnesses.json` pin that those measurements
-bite.
+mutation specs under `scripts/mutation_witnesses/` pin that those
+measurements bite.
 
 It also carries a `[real]` tier that resolves every shipped alias in
 `docs/topologies/part_mesh_aliases.json` against the main checkout's

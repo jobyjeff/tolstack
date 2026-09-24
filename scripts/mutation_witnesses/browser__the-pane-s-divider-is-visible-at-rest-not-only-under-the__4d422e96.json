@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "the pane's divider is visible at rest, not only under the pointer",
+  "mutations": [
+    {
+      "contract": "The preview pane's drag divider is visible without the pointer on it: a hairline in --line, the same register the grid's own column grips have always had.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "The other half of blocker 2. It was `background: transparent` until :hover, so the one control that answers \"the pane is too narrow\" announced itself only to a reader who already knew where to put the pointer -- an affordance that is invisible is not an affordance. The sibling `::after` grip mark is pinned by the check named beside this one; this entry is the seam itself, because the two are separate declarations and reverting either alone is silent. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/topology.css",
+      "find": "  width: 1px; background: var(--line);\n}\n.tv__divider:hover::before",
+      "replace": "  width: 1px; background: transparent;\n}\n.tv__divider:hover::before"
+    }
+  ]
+}

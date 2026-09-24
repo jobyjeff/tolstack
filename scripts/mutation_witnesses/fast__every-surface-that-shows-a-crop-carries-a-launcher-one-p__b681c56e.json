@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every surface that shows a crop carries a launcher, one per picture — because there is one crop builder and the button is on it",
+  "mutations": [
+    {
+      "contract": "There is one crop builder and the launch button is on it, so every picture on every surface has exactly one way into the lightbox -- parity, not a constant.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_lightboxs_new_guards_carry_no_mutation_witnesses.md",
+      "note": "The second of the three that issue names. The mutation is a dropped negation rather than a deleted line, which is the plausible slip and is strictly worse than deletion: every reader-facing surface loses its launcher AND the lightbox's own figure gains one, which is the second launcher back into itself that the sibling check forbids. Review of crop_lightbox_zoom_viewer measured the deletion at fast 450/453, red on the two parity walks and the no-op click check; the declared check here is the stack-side walk. That issue's THIRD prediction -- dropping the frame's pixel sizing -- does not reproduce and is deliberately not entered; it needs an assertion written first, which is ISSUE_20260917_the_crop_lightboxs_fit_clamp_and_hairline_are_unwitnessed_in_every_tier.",
+      "file": "apps/viewer/views/crop.js",
+      "find": "    if (!(opts && opts.omitLaunch)) frame.appendChild(launchButton(entry, image));",
+      "replace": "    if (opts && opts.omitLaunch) frame.appendChild(launchButton(entry, image));"
+    }
+  ]
+}

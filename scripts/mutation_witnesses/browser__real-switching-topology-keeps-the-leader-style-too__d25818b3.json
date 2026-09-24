@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "[real] switching topology keeps the leader STYLE too",
+  "mutations": [
+    {
+      "contract": "state.leaderStyle is a display preference, so selectTopology() never resets it -- the claim apps/viewer/topology_app.js and apps/viewer/README.md both make in prose.",
+      "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
+      "note": "The suite used to toggle the style back to its jogged default BEFORE its only topology switch, where a reset and a non-reset are indistinguishable. The sibling preference (jogZoneScale) was covered all along. REPAIRED 2026-09-22: the `replace` planted the literal \"jogged\", which was the default when this entry was written and stopped being it on 2026-09-21 (viewer_nav_alert_badge_and_angled_default moved VA.DEFAULT_LEADER_STYLE to \"angled\"). So the mutation no longer reset the preference -- it changed the BOOT state, and five earlier checks about the default reddened before the declared one was reached (ATTRIBUTED_ELSEWHERE, the ISSUE_20260915_card_layout_out_of_flow shape). It plants the CONSTANT now, which is what the defect actually looks like and what the guard's own comment describes -- and it cannot rot again the next time the default flips.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.studyId = null;\n    state.selection = null;\n    state.detailImage = null;\n  }\n\n  function selectElement(kind, id) {",
+      "replace": "    state.studyId = null;\n    state.leaderStyle = VA.DEFAULT_LEADER_STYLE;\n    state.selection = null;\n    state.detailImage = null;\n  }\n\n  function selectElement(kind, id) {"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "THE FENCE: the suggestion path colours faces and does nothing else -- it never selects, never highlights, never builds an event",
+  "mutations": [
+    {
+      "contract": "A face suggestion is a PROPOSAL IN THE UI and never a binding: the suggestion path colours candidates and does nothing else. It never picks one, and it never writes a feature-identity event -- the hard fence on handoff annotate_face_suggestions, and the whole reason the engine was allowed to exist.",
+      "issue": null,
+      "note": "The mutation is the exact temptation the fence is about, and the cheapest possible version of it: when the narrowing gets down to ONE candidate, select it for the reader. That is one line, it looks helpful, and it turns an eager-until-one-way-door surface into one that quietly makes identity decisions.",
+      "file": "apps/annotate/app.js",
+      "find": "  faces.forEach((f) => state.scene.markFace(f.sha256, f.faceId, \"suggested\"));",
+      "replace": "  faces.forEach((f) => state.scene.markFace(f.sha256, f.faceId, \"suggested\"));\n  if (faces.length === 1) {\n    AA.exec([\"select-face\", faces[0].sha256, String(faces[0].faceId)]);\n  }"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "no rendered topology surface prints an internal id, a field name, a checksum or a workstation path",
+  "mutations": [
+    {
+      "contract": "No surface renders an absolute workstation path. It was the fallback for a link that could not navigate; the link now renders only where it works, so the fallback has nothing to fall back from -- Jeff, 2026-09-15: \"full workstation file paths -- never rendered when the link works\".",
+      "issue": null,
+      "note": "Puts the path line back where it used to be, in the ONE shared crop builder, so the mutation reaches all four crop surfaces at once. The declared check is the fixture-tier banned-string walk; the [real] walk over every live topology reddens too. Reasoning and the measurements: docs/sessions/lessons/LESSONS_20260915_viewer_component_names_and_reference_copy.md.",
+      "file": "apps/viewer/views/crop.js",
+      "find": "      box.appendChild(fold.box);\n    }\n    return box;",
+      "replace": "      box.appendChild(fold.box);\n    }\n    box.appendChild(VA.el(\"div\", base + \"path\", entry.pdf));\n    return box;"
+    }
+  ]
+}

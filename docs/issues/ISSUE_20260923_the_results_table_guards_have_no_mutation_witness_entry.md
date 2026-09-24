@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
 area: tests/mutation-witnesses
 reporter: agent
 audience: strategy
@@ -94,3 +94,37 @@ already `status: triaged` onto
 
 Full evidence:
 `docs/sessions/reviews/REVIEW_20260923_stack_page_check_card_balance_sheet.md`.
+
+
+---
+
+## Resolved 2026-09-23 — the four that reproduce are enrolled; the two that do not are deliberately still not declared
+
+`mutation_witness_derived_enrollment_and_gating`. The review appended above
+replayed the six candidates and found four reproducing. All four are enrolled,
+and each was replayed again here before it was declared (the 2026-09-21 pass's
+lesson: 4 of 26 transcribed rows stopped reproducing within days):
+
+| guard | spec | replay |
+|---|---|---|
+| `every check's authored guidance is in its fold…` | `fast__every-check-s-authored-guidance-is-in-its-fold-word-for__68317efe.json` | 1/1 witnessed |
+| `an excluded term's name is on the row…` | `fast__an-excluded-term-s-name-is-on-the-row-and-its-rationale__e9f0f2f6.json` | 1/1 witnessed |
+| `a path states it has no verdict…` | `fast__a-path-states-it-has-no-verdict-rather-than-leaving-the__ad530583.json` | 1/1 witnessed |
+| `a result's record is folded until the row is asked for it` | `fast__a-result-s-record-is-folded-until-the-row-is-asked-for-i__b846a40c.json` | 1/1 witnessed |
+
+The guidance row is declared with a narrower mutation than the review's — the
+guidance is blanked rather than also printed on the row — so what reddens is the
+*word for word* half the guard's name leads with, and not a second check beside
+it.
+
+**The two that do not reproduce remain undeclared**, and their subject is not
+enrollment at all: the sub-check named for the results table's column geometry
+cannot fail on it. That is
+`ISSUE_20260923_the_results_tables_column_geometry_is_unwitnessed_and_its_alignment_check_cannot_fail_on_it.md`,
+still open, and it wants an assertion before it wants a witness row.
+
+**On routing this "with the enrollment stream":** there is no enrollment stream
+any more. A guard has no witness only until somebody writes one file, whose name
+is derived, and the per-source guard census reddens `pytest -q` the moment a
+guard arrives without one. A fifteenth independent filing would not be needed
+today because the gap would have been red in the session that opened it.

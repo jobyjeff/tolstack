@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "typography pass's visual rules (live stack view)",
+  "expect_red": "every filled mark on the page is one of the two claims allowed to spend fill — provenance at its two worst states, and the verdict — and every flag, qualifier and trigger is outlined instead; emphasis is a budget, and a qualifier rendered as loudly as the thing it qualifies leaves a reader unable to tell which is which",
+  "mutations": [
+    {
+      "contract": "`.crop-trigger` is outlined, not filled -- emphasis is a budget, and only provenance-at-its-worst and a verdict may spend a background of their own.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_from_visual_rules_nothing_checks_have_no_mutation_witness_entry.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4. The lesson paired this with a sibling entry on `.tvflag` (attention-flag-is-not-filled) sharing the same expect_red -- excluded on transcription: `.tvflag` renders only in the topology/DAG grid (views/topology.js), never on the stack view this suite navigates to, so the fill census's MARKS selector matches zero `.tvflag` elements here and the mutation has nothing to bite. Measured NOT WITNESSED (stayed green) on 2026-09-22; see LESSONS_20260921_mutation_witness_enrollment_backlog.md.",
+      "file": "apps/viewer/style.css",
+      "find": "  background: transparent; color: var(--ink);",
+      "replace": "  background: var(--on); color: #fff;"
+    }
+  ]
+}

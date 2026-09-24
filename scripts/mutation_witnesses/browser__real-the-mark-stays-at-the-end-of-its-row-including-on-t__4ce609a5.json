@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "[real] the mark stays at the end of its row, including on the rows whose name needs two lines",
+  "mutations": [
+    {
+      "contract": "The rail's status mark sits at the END of its row, on the rows that make it a question -- a study name needing two lines in 300px must not push the icon onto a third line of its own, left-aligned under the text.",
+      "issue": "docs/issues/ISSUE_20260922_the_nav_status_icon_guards_have_no_mutation_witness_entry.md",
+      "note": "The browser-only defect of that handoff: markup, classes and the DOM shim's geometry are identical either way, so only a layout engine can see it. Enrolling it needed a guard edit first -- the check's name was built by template interpolation (`${wrapped.twoLine} rows`), and an interpolated name can never be declared here: `expect_red` is compared to the printed name for EQUALITY and paired against this file's SOURCE on every pytest run. The count moved to the diagnostic line beside the check.",
+      "file": "apps/viewer/topology.css",
+      "find": ".navtree__row--study, .navtree__row--stack { flex-wrap: nowrap; }",
+      "replace": ""
+    }
+  ]
+}

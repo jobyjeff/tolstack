@@ -49,3 +49,24 @@ expensive to leave as a rule nobody's repo can act on.
 
 The measured regression this came from is covered where it happened. This is
 the generalisation only.
+
+
+---
+
+## 2026-09-23 — tolstack's half is done; the principle is still un-generalised
+
+`mutation_witness_derived_enrollment_and_gating`. Two things landed that this
+issue's tolstack half was about:
+
+- `CLAUDE.md`'s pre-batch-merge list (*"before trusting any green — a batch
+  merge's most of all — run in the main checkout"*) now names
+  `node scripts/run_mutation_witness_tests.mjs` beside the two tiers already
+  there, with the reason written beside it.
+- The runner's exit code means something in all three of its failure classes: a
+  guard that stopped reddening, a spec naming a guard the tree no longer
+  declares, and a guard added with no spec. The 2026-09-22 measurement behind
+  this issue — *"the runner prints them and exits 0"* — no longer reproduces.
+
+What this issue is actually for is unchanged, and it is why it stays open:
+`audience: strategy`, the principle is not repo-specific, and it lives in
+tolstack's review override rather than anywhere dispatch serves from.

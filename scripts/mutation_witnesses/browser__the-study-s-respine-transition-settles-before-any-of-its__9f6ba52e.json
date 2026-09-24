@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the study's respine transition settles before any of its rows are addressed -- no ghost of the walk still holds a second copy of them",
+  "mutations": [
+    {
+      "contract": "A suite that addresses this pane's rows waits for !lastTopoRender.tweening first. Mid-transition the document holds TWO .tv__hscroll panes -- the live one and VA.animateTopoPane's inert div.tv__ghost -- so every edge in both serialisations has two tr.tvrow with the same data-id.",
+      "issue": "docs/issues/ISSUE_20260915_annotate_flyout_suite_is_red_alone_and_green_in_a_full_run.md",
+      "note": "The cause inverted: a transition that never ends, so the ghost is permanent. Deterministic, unlike the original defect -- that one was a race against VA.RESPINE.duration (260 ms) and reproduced 5 times in 6. The suite can carry a browser entry at all only since js_guards_and_suite_isolation: before it, `--only` on it was red with no mutation applied, which the runner reports as SKIPPED. The mutation is BROAD -- a never-ending tween hangs 12 other settle-waits across the viewer's browser suites -- which is harmless as declared, since the runner applies one mutation and runs one named suite; a narrower one (letting the tween settle but re-appending the ghost on the settled frame) would be a better entry if someone writes it.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      var settling = !(t < 1);",
+      "replace": "      var settling = false;"
+    }
+  ]
+}

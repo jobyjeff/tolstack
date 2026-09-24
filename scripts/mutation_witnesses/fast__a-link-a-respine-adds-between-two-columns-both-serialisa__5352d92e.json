@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a link a respine ADDS between two columns BOTH serialisations have fades in — the column unfold cannot cover it, because neither column is one the transition adds",
+  "mutations": [
+    {
+      "contract": "A link belongs to a PAIR of columns and cannot be in the store's keyed alpha map, so it carries an opacity of its own: a link a respine adds between two columns BOTH serialisations have fades in instead of appearing whole on rails that never move.",
+      "issue": "docs/issues/ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_has_no_fade.md",
+      "note": "Unobservable in the committed corpus and deliberately witnessed synthetically: all 21 study chains are linear (columns 1, links []), so every link a respine adds today arrives on a column the respine also adds and the unfold covers it. The mutation is the pre-fix behaviour -- every drawn link opaque at every e.",
+      "file": "apps/viewer/topology.js",
+      "find": "      out[link.key] = prev + (1 - prev) * t;",
+      "replace": "      out[link.key] = 1;"
+    }
+  ]
+}

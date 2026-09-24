@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "an open card is placed in the WINDOW's frame, not the document's — it still sits against its trigger with the page scrolled",
+  "mutations": [
+    {
+      "contract": "Hover chrome is out of flow: an open card is placed in the window's frame, not the document's, so it disturbs no layout and follows its trigger at any scroll.",
+      "issue": "docs/issues/ISSUE_20260914_card_layout_guard_cannot_see_the_absolute_popover_again.md",
+      "note": "The room cap made the original witness unreachable -- the card is now always wholly inside the window, and at scrollY 0 document and viewport coordinates coincide. The witness had to move to a scrolled document (CARD_SCROLL_VIEWPORT).",
+      "file": "apps/viewer/style.css",
+      "find": "  display: none; position: fixed; z-index: 20; width: 540px;",
+      "replace": "  display: none; position: absolute; z-index: 20; width: 540px;"
+    }
+  ]
+}

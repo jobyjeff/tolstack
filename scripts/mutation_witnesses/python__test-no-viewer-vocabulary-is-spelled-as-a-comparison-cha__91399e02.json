@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_js_python_vocabulary.py",
+  "expect_red": "test_no_viewer_vocabulary_is_spelled_as_a_comparison_chain",
+  "mutations": [
+    {
+      "contract": "No VA table's words are re-spelled as `x === \"a\" || x === \"b\"`. A vocabulary spelled in a function body is invisible to every pairing this module has, so it drifts from the Python side it must agree with and nothing can compare them.",
+      "issue": "docs/issues/ISSUE_20260916_the_reader_facing_copy_guards_have_no_mutation_witness_entry.md",
+      "note": "The pytest tier's first entry and its worked example (2026-09-18). reader_facing_copy_and_vocabulary watched this guard redden by hand and could not declare it -- `tier` had no word for pytest -- and said so in that issue's last section: \"leave the third until that issue is resolved, and enroll it then\". This is that. The mutation is the state VA.needsAnnotation was actually in until 2026-09-16, and it is narrow on purpose: the TABLE stays, so the set-pairing against build_topology_projection.py's UNVERIFIED_CONFIDENCES is still green and what reddens is only the scan that says a chain is there at all.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    return VA.UNVERIFIED_CONFIDENCES.indexOf(confidence) !== -1;",
+      "replace": "    return confidence === \"untraced\" || confidence === \"no_source_ref\";"
+    }
+  ]
+}

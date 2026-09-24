@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the materials ROW keeps only what decides whether to click it",
+  "mutations": [
+    {
+      "contract": "The materials table row keeps only chips and one ellipsised where-line -- everything else (values line, designation citation, note, callout, request) moved to the preview pane.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md; see materials-vocabulary-scanned-for-schema-jargon's note for why it arrived unenrolled.",
+      "file": "apps/viewer/views/stack.js",
+      "find": "    cell.appendChild(where);\n    return cell;",
+      "replace": "    cell.appendChild(where);\n    cell.appendChild(VA.el(\"div\", \"mat__values\", \"mutated\"));\n    return cell;"
+    }
+  ]
+}

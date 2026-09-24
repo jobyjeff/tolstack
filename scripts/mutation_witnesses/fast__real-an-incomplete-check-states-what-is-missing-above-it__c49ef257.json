@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] an incomplete check states what is missing ABOVE its number, and its verdict is visibly qualified",
+  "mutations": [
+    {
+      "contract": "A findings row's line is the NAME the author wrote, not the argument: VA.splitAuthoredFinding cuts at the separator every authored excluded term already uses, so the row is short without a fact being dropped.",
+      "issue": "docs/issues/ISSUE_20260922_the_balance_sheet_guards_have_no_mutation_witness_entry.md",
+      "note": "The witness is the length claim on the live cotter-budget finding (< 90 chars): with the split disabled the whole authored paragraph becomes the name. HANDOFF_20260922_findings_splitter_scopes_to_excluded_terms is staged against this same function and was still in review when this entry was measured (2026-09-22) -- it changes which buckets reach the splitter, not what the splitter does to the text, but re-measure this row rather than trusting it if that handoff has landed.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var at = whole.match(AUTHORED_REASON_SPLIT);",
+      "replace": "    var at = null;"
+    }
+  ]
+}

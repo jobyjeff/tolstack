@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
 area: tests/mutation-witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_findings_splitter_scopes_to_excluded_terms.md
@@ -37,3 +37,24 @@ guard alone), second mutation `494/497` (the new guard plus the two named
 above). Re-plant before declaring either row anyway — the 2026-09-22
 enrollment review measured 4 of 26 transcribed rows failing to reproduce
 3–4 days later.
+
+
+---
+
+## Resolved 2026-09-23 — enrolled, both mutations, replayed first
+
+`mutation_witness_derived_enrollment_and_gating`. The guard is enrolled at
+`scripts/mutation_witnesses/fast__an-edge-name-s-is-part-of-the-name-a-chain-row-is-shown__35a56f73.json`,
+carrying **both** mutations this issue said it needs — the spec format is one
+file per guard holding a list of mutations, which is exactly the shape a guard
+that asserts two halves of one rule wanted.
+
+Replayed before declaring, as the filing insists: `node
+scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only "an
+edge name's"` → **2/2 witnessed**, both on the declared check.
+
+Note for the next filing of this shape: the row did not have to be written "from
+the enrollment rail" any more. A spec is one file, named for the guard by
+`scripts/guard_enumeration.mjs`, so the handoff that adds a guard can enrol it
+without colliding with anyone — and since the per-source guard count is pinned,
+it is red until it does.

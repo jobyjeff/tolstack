@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "typography pass's visual rules (live stack view)",
+  "expect_red": "...and its own cells are the table's weight and the table's colour — a rule keyed on a confidence token alone hands `color: #fff` and `font-weight: 700`, written for an 11px pill, to all eleven columns of the row by inheritance",
+  "mutations": [
+    {
+      "contract": "`.conf--untraced`'s loud styling (color: #fff, font-weight: 700) is scoped to `.chip.conf--untraced`, never to the bare token -- five kinds of element wear a confidence class, so an unscoped rule hands the chip's styling to whichever of the five it lands on by inheritance.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_from_visual_rules_nothing_checks_have_no_mutation_witness_entry.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4. Registers no new suite -- 'typography pass's visual rules (live stack view)' was already in scripts/run_viewer_browser_tests.mjs's SUITES registry when this handoff started.",
+      "file": "apps/viewer/style.css",
+      "find": ".chip.conf--untraced { color: #fff; background: var(--untraced); border-color: var(--untraced); font-weight: 700; }",
+      "replace": ".conf--untraced { color: #fff; background: var(--untraced); border-color: var(--untraced); font-weight: 700; }"
+    }
+  ]
+}

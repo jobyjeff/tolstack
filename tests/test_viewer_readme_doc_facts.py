@@ -4,11 +4,11 @@ that has already moved.
 **The mutation-witness tier's own count.** The paragraph used to say "three
 of the declared witnesses are `[real]` checks" -- true when written, wrong
 twice since (measured 12 -> 27 declared, 6 -> 7 `[real]` across two days), and
-about to move again the moment a parallel handoff appends to
-``scripts/mutation_witnesses.json``. ``scripts/mutation_witnesses.json``'s own
-``about`` block already made this retreat once ("all eighteen" -> "a full run
-of every suite"); this module pins the same retreat here so a future author
-cannot quietly put the digit back. The trap this repo already recorded
+about to move again the moment a parallel handoff enrols a guard under
+``scripts/mutation_witnesses/``. The prose that lived in the table those specs
+replaced already made this retreat once ("all eighteen" -> "a full run of every
+suite"); this module pins the same retreat here so a future author cannot
+quietly put the digit back. The trap this repo already recorded
 (``apps/viewer/tests.js`` ~9578, the README's hover-card divergence count) is
 pinning a digit without pinning the noun it is a count OF -- a bare
 digit/number-word scan would flag both "the other two do" (the other two test
@@ -159,8 +159,9 @@ def test_the_mutation_tier_section_states_no_witness_count(mutation_tier_section
     assert problems == [], (
         "apps/viewer/README.md's mutation-witness tier section counts the "
         f"declared witnesses or the `[real]` checks again: {problems}. That "
-        "count has been wrong twice already and a parallel handoff appends "
-        "to scripts/mutation_witnesses.json, so state it without a number -- "
+        "count has been wrong twice already and a parallel handoff enrols "
+        "a guard under scripts/mutation_witnesses/, so state it without a "
+        "number -- "
         "'some of the declared witnesses are `[real]` checks' -- and point at "
         "the runner's own printed output for the exact figure."
     )

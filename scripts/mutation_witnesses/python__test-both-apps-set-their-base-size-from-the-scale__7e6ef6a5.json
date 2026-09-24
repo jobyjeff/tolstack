@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_app_type_scale.py",
+  "expect_red": "test_both_apps_set_their_base_size_from_the_scale",
+  "mutations": [
+    {
+      "contract": "apps/annotate/style.css sets its base font size from the shared type scale (--t-body), the same as the viewer, rather than leaving font-family to declare the font with no size of its own.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_from_visual_rules_nothing_checks_have_no_mutation_witness_entry.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4.",
+      "file": "apps/annotate/style.css",
+      "find": "  font: var(--t-body)/1.5 \"Segoe UI\", system-ui, sans-serif;",
+      "replace": "  font-family: \"Segoe UI\", system-ui, sans-serif;"
+    }
+  ]
+}

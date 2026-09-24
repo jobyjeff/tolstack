@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "a total lands in the column it totals, to the pixel",
+  "mutations": [
+    {
+      "contract": "A total lands in the column it totals, to the pixel. `table-layout: fixed` plus the shared <colgroup> of the BODY table is what makes that true, and a second table below would be a second set of widths to keep in step with a column a reader can drag.",
+      "issue": "docs/issues/ISSUE_20260922_the_balance_sheet_guards_have_no_mutation_witness_entry.md",
+      "note": "Only a real browser can see this: the DOM shim has no layout, so the same markup in a second table measures identically there. The mutation keeps every footer row and moves only which table they hang off.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var foot = totalsFoot(marking ? ctx.study : null);\n    if (foot) table.appendChild(foot);\n    box.appendChild(table);",
+      "replace": "    var foot = totalsFoot(marking ? ctx.study : null);\n    box.appendChild(table);\n    if (foot) {\n      var footTable = VA.el(\"table\", \"tvtable\");\n      footTable.style.width = tableWidth() + \"px\";\n      footTable.appendChild(foot);\n      box.appendChild(footTable);\n    }"
+    }
+  ]
+}

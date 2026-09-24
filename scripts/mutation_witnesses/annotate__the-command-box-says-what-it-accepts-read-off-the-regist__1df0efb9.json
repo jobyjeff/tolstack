@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the command box says what it accepts, read off the registry rather than written down",
+  "mutations": [
+    {
+      "contract": "The console input's placeholder is the plain word 'command', with the list of commands it actually accepts read off the command registry onto its `title` at boot -- never a hand-written example naming an internal module path or a backend id.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md; see annotate-markup-names-no-repo-path's note on the `annotate` tier.",
+      "file": "apps/annotate/index.html",
+      "find": "          <input id=\"console-input\" type=\"text\" placeholder=\"command\" />",
+      "replace": "          <input id=\"console-input\" type=\"text\" placeholder=\"command, e.g. isolate machined_213668 (window.AnnotateApp.exec)\" />"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] no rendered stack surface of any live stack prints an internal id, a field name, a checksum or a workstation path",
+  "mutations": [
+    {
+      "contract": "BANNED_IN_RENDERED_TEXT carries SHAPES as well as literals, and the surface walk reaches the stack-side element pane. A drawing-checker run id printed as reader-facing text reddens.",
+      "issue": "docs/issues/ISSUE_20260916_the_element_pane_still_prints_bare_drawing_checker_run_ids_as_link_text.md",
+      "note": "This is the exact defect the eight-literal ban could not see for as long as it existed: no literal in it spells a run id and none could, and no walk reached views/detail.js. The mutation restores the shipped-until-2026-09-16 line, so a live element pane prints `20260723_163810` and three more. The declared check is a [real] one -- it reads the projections under data/, so a run without --repo pointed at the main checkout skips it and proves nothing.",
+      "file": "apps/viewer/views/detail.js",
+      "find": "    var summary = VA.el(\"span\", \"muted\", VA.exportRunsText(exportBlock));",
+      "replace": "    var summary = VA.el(\"span\", \"muted\", \"drawing-checker runs: \" + VA.exportRunIds(exportBlock).join(\", \"));"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the live worksheet renders paragraphs by its BLANK LINES, not by its newlines, and its bold survives a wrap",
+  "mutations": [
+    {
+      "contract": "[real] the live worksheet renders paragraphs by its blank lines, not by counting newlines -- the bound (paragraphs <= blank-line-separated chunks) is derived from the source, so it cannot agree with a broken parser by construction.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "The [real] twin of hard-wrapped-paragraph-is-one-paragraph, named as its own row in LESSONS_20260918_reader_facing_surfaces_second_pass.md. Same find/replace -- one mutation, two declared checks, matching the a-link-a-respine-adds-fades-in / the-view-puts-a-links-fade-on-the-path precedent of entering a shared defect twice when the lesson names it as two rows.",
+      "file": "apps/viewer/vendor/markdown.js",
+      "find": "      var para = [];\n      while (i < lines.length && lines[i].trim() !== \"\" && !startsBlock(lines, i)) {\n        para.push(lines[i].trim());\n        i++;\n      }\n      html.push(\"<p>\" + inline(para.join(\"\\n\")) + \"</p>\");",
+      "replace": "      html.push(\"<p>\" + inline(lines[i].trim()) + \"</p>\");\n      i++;"
+    }
+  ]
+}

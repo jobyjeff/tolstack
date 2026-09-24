@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail filter + face deselect",
+  "expect_red": "...and no state has quietly fallen back to the unstyled border",
+  "mutations": [
+    {
+      "contract": "Rolling the annotator rail's words into one hover badge did NOT take the colour off the row: each binding state is still distinguishable at a glance, without hovering anything.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Jeff asked to \"keep the *color* signal on the row\" while collapsing the words, so the colour moved from a word-bearing badge to the row's own left border. That makes a deleted CSS rule a silent loss of the at-a-glance signal -- the rows would still render, still be clickable, and simply stop saying anything. The mutation neutralises one state's colour; the check compares all three, so it cannot be satisfied by a stylesheet that colours them all the same. The witness is a state falling back to `.el-row`'s own neutral border, and the DISTINCTNESS check cannot see that -- the neutral is a fourth colour, so a state that lost its rule stays distinct from the other two while saying nothing. Found by this runner; the suite gained a check that compares each stripe against a clone stripped of its state class.",
+      "file": "apps/annotate/style.css",
+      "find": ".el-row--owner_not_in_set { border-left-color: #d6a15b; }",
+      "replace": ".el-row--owner_not_in_set { border-left-color: #4a515a; }"
+    }
+  ]
+}

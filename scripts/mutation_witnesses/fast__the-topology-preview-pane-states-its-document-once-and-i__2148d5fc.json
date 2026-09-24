@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the topology preview pane states its document ONCE, and its crop block carries THIS pane's class prefix, separator and all",
+  "mutations": [
+    {
+      "contract": "The topology preview pane's crop block renders under the same prefix, and is guarded separately: the argument is passed per call site, so a wrong one on either pane is invisible to the other's test.",
+      "issue": "docs/issues/ISSUE_20260915_the_shared_crop_renderers_class_prefix_argument_is_unguarded_in_every_tier.md",
+      "note": "The prefix carries its own SEPARATOR, which is the one argument of VA.cropReference with no natural shape to it. This exact one-character edit shipped once (viewer_component_names_and_reference_copy, caught by eye) and was replayed in review on 2026-09-15: fast tier 386/386, browser 33/33, because every assertion on this block reads textContent -- right for copy, blind to a class name.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    VA.cropReference(box, entry, ctx.config, \"detail__crop-\", VA.PANE_CROP);",
+      "replace": "    VA.cropReference(box, entry, ctx.config, \"detail__crop\", VA.PANE_CROP);"
+    },
+    {
+      "contract": "The topology preview pane's crop block renders under the same VA.PANE_CROP, guarded separately because the argument is passed per call site.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "The topology pane's half of stack-pane-states-its-document-once; see its note.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    VA.cropReference(box, entry, ctx.config, \"detail__crop-\", VA.PANE_CROP);",
+      "replace": "    VA.cropReference(box, entry, ctx.config, \"detail__crop-\");"
+    }
+  ]
+}

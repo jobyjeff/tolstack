@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a path states it has no verdict rather than leaving the cell blank",
+  "mutations": [
+    {
+      "contract": "A path row's verdict and criterion cells carry the page's own 'nothing here' mark rather than nothing at all: an empty verdict cell reads exactly like a passing one.",
+      "issue": "docs/issues/ISSUE_20260923_the_results_table_guards_have_no_mutation_witness_entry.md",
+      "note": "Empties the two cells and leaves the hover title in place, so what is witnessed is the MARK and not the whole cell going missing. Measured in review 2026-09-23 at 512/513 on this guard alone.",
+      "file": "apps/viewer/views/stack.js",
+      "find": "      var td = VA.el(\"td\", className + \" muted\", \"—\");",
+      "replace": "      var td = VA.el(\"td\", className + \" muted\", \"\");"
+    }
+  ]
+}

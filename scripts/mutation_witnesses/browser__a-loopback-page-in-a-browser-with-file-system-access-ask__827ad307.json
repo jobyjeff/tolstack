@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate hosted posture (no folder grant off-machine)",
+  "expect_red": "a loopback page in a browser WITH File System Access asks for the folder, and says nothing about the API",
+  "mutations": [
+    {
+      "contract": "A loopback page in a browser WITH File System Access asks for the FOLDER and says nothing about the API. The check read `/Connect folder|File System Access/` until 2026-09-22 and was satisfied by either state, so it was a claim about neither.",
+      "issue": "docs/issues/ISSUE_20260922_the_policy_free_residue_guards_have_no_mutation_witness_entry.md",
+      "note": "The source issue proposed witnessing this by mutating the ENVIRONMENT (deleting window.showDirectoryPicker before the goto), which this table cannot express -- it patches files in the shadow tree, not the browser. It does not need to: the guard's subject is the COPY, so making the pre-grant banner name the API is the defect, and it is exactly the one the retired disjunction would have accepted. Its twin `flyout-pre-grant-banner-asks-for-the-folder` declares the same mutation against the embedded surface's own suite.",
+      "file": "apps/annotate/app.js",
+      "find": "    setBanner(\"Click \\\"Connect folder\\\" and pick the tolstack repo root, grant read/write.\" +",
+      "replace": "    setBanner(\"Pick the tolstack repo root with the File System Access API, grant read/write.\" +"
+    }
+  ]
+}

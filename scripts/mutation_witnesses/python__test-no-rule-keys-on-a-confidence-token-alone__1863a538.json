@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_app_type_scale.py",
+  "expect_red": "test_no_rule_keys_on_a_confidence_token_alone",
+  "mutations": [
+    {
+      "contract": "A CSS rule may not key on a confidence token alone -- `.conf--untraced` must always be scoped to the element that wears it (`.chip.conf--untraced`), or it hands its styling to whatever ELSE carries that token by inheritance.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_from_visual_rules_nothing_checks_have_no_mutation_witness_entry.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4. Same one-line find as conf-token-is-scoped-to-the-chip, on purpose: one mutation, two tiers, two different questions -- did the row's cells inherit the chip's white? (browser) versus may a rule name a confidence token with nothing to scope it? (python).",
+      "file": "apps/viewer/style.css",
+      "find": ".chip.conf--untraced { color: #fff; background: var(--untraced); border-color: var(--untraced); font-weight: 700; }",
+      "replace": ".conf--untraced { color: #fff; background: var(--untraced); border-color: var(--untraced); font-weight: 700; }"
+    }
+  ]
+}

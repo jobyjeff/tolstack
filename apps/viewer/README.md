@@ -1961,26 +1961,40 @@ re-derives whatever is on screen); the app changes *correctly*; the coupling
 breaks; the guard goes on passing and witnessing nothing, with nothing red to
 announce that the coverage left.
 
-`scripts/mutation_witnesses.json` declares, per guard, the exact edit it must
-redden on, the tier that owns it, and the name of the check that must fail.
+`scripts/mutation_witnesses/` holds one **mutation spec** per witnessed
+guard — the exact edit it must redden on, the tier that owns it, and the name of
+the check that must fail. The file is *named for the guard*
+(`scripts/guard_enumeration.mjs` derives the name), so a spec and the guard it
+witnesses cannot drift apart silently: a reworded check leaves its spec at a name
+nothing matches, and `pytest -q` says so in a second with the name to rename it
+to.
 `scripts/run_mutation_witness_tests.mjs` copies everything a tier reads — its
 `SHADOWED` list, which is where that set is written down — to a shadow tree
 under `tmp/`, patches the copy, runs the owning tier — clean first,
 which must be green, or nothing the mutation does proves anything — and fails
 unless the **declared** check goes red. It takes `--repo` for the same reason
 the other two do: some of the declared witnesses redden `[real]` checks, which
-skip without a projection — no count here, because the table this tier reads
-gains entries faster than any digit written in prose would stay true; the
-runner prints each entry's id as it runs. This tree is never written to.
+skip without a projection — no count here, because this tier gains specs
+faster than any digit written in prose would stay true; the runner prints each
+spec's derived name as it runs, and ends on the enrollment census. This tree is
+never written to.
 
-Adding an entry is meant to be cheaper than filing an issue: copy the nearest
-one and change five strings. If you find a guard that shrugs off a hand
-mutation, that is exactly what the table is for.
+**A guard is enrolled by existing, plus one mutation spec in the same change.**
+Nothing else — the identity is derived, so there is no id to pick and no shared
+table to edit. `node scripts/run_mutation_witness_tests.mjs --unenrolled` prints
+the file name to write for any guard that has none, and
+`scripts/mutation_witnesses/README.md` is the page that says what goes in it. The
+guard count per source is pinned in `DECLARED_GUARDS`, so a guard added without a
+spec reddens `pytest -q` rather than becoming somebody else's backlog: that gap
+used to be recorded by hand, one issue at a time, and fourteen of those were open
+at once. If you find a guard that shrugs off a hand mutation, that is exactly what
+a spec is for.
 
 Its cheap half runs on every `pytest -q`: `tests/test_mutation_witnesses.py`
 requires every declared `find` to still resolve to exactly one place in the
-file it names. An anchor that rots — a rename in `topology_app.js` can rot
-several at once — is an entry that quietly stopped being checked, which is the
+file it names, every `expect_red` to *be* a guard the tree declares, and the
+guard census to hold. An anchor that rots — a rename in `topology_app.js` can rot
+several at once — is a spec that quietly stopped being checked, which is the
 tier's own failure mode one level up, so it goes red in a second rather than
 waiting for someone to make time for a browser run.
 

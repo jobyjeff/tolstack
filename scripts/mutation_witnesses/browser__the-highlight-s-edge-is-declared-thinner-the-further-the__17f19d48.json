@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "crop lightbox (launch, zoom, pan on the live crops)",
+  "expect_red": "the highlight's edge is declared THINNER the further the reader zooms in — the transform scales borders along with everything else, so without dividing the weight back out a 2px frame is a 16px amber band over the cell that was zoomed in on",
+  "mutations": [
+    {
+      "contract": "The highlight box's border-width divides `--lightbox-scale` back out, so the painted edge gets thinner as the reader zooms in rather than scaling up with everything else.",
+      "issue": "docs/issues/ISSUE_20260917_the_crop_lightboxs_fit_clamp_and_hairline_are_unwitnessed_in_every_tier.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4. A CSS calc() over a custom property -- the fast tier has no stylesheet, so the browser tier is the only place this is checkable.",
+      "file": "apps/viewer/style.css",
+      "find": "  border-width: calc(2px / var(--lightbox-scale, 1)); box-shadow: none;",
+      "replace": "  border-width: 2px; box-shadow: none;"
+    }
+  ]
+}

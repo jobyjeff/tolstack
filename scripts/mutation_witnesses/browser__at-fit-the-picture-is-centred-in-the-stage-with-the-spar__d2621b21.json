@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "crop lightbox (launch, zoom, pan on the live crops)",
+  "expect_red": "at fit the picture is CENTRED in the stage, with the spare width split evenly — the clamp's other job, and the one the check above cannot see: `scale` is 1 whether or not the picture was ever positioned, so a crop hard against the left edge with 776px of empty stage beside it reads as a remembered pan",
+  "mutations": [
+    {
+      "contract": "apply() clamps the view through VA.lightboxClamp, so at fit the picture is centred in the stage with no blank stage beside it.",
+      "issue": "docs/issues/ISSUE_20260917_the_crop_lightboxs_fit_clamp_and_hairline_are_unwitnessed_in_every_tier.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4. `scale` is 1 whether or not the picture was ever positioned, so the check right above this one (asserting scale === 1) cannot see this defect -- this entry needs the laid-out rects.",
+      "file": "apps/viewer/views/lightbox.js",
+      "find": "        view = VA.lightboxClamp(view, fit, stageBox());",
+      "replace": "        view = view;"
+    }
+  ]
+}

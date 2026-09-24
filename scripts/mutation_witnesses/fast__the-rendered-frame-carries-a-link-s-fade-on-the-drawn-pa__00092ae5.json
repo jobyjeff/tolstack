@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the rendered frame carries a link's fade on the drawn path, and a settled frame carries none",
+  "mutations": [
+    {
+      "contract": "The link opacity the geometry computes reaches the DOM: railsSvg draws each fan-out and loop closure through fadeLink, so a link the respine adds wears its own inline opacity and a settled frame wears none.",
+      "issue": "docs/issues/ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_has_no_fade.md",
+      "note": "The other half of a-link-a-respine-adds-fades-in: that entry breaks the number, this one breaks the wiring. VA.linkOpacity staying correct while the view stops reading it is the exact shape of a guard that quietly witnesses nothing.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      svg.appendChild(fadeLink(VA.svg(\"path\",\n        \"rail__link rail__link--\" + link.kind, { d: link.d }), link.key));",
+      "replace": "      svg.appendChild(VA.svg(\"path\",\n        \"rail__link rail__link--\" + link.kind, { d: link.d }));"
+    }
+  ]
+}

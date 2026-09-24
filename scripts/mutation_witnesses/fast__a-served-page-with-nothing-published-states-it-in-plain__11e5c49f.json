@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a served page with nothing published states it in plain words and offers NO control -- never Connect folder, which a hosted visitor could not satisfy",
+  "mutations": [
+    {
+      "contract": "views/banner.js has a branch for UNPUBLISHED at all -- the plain sentence, with no Connect folder button under it.",
+      "issue": null,
+      "note": "The other half of the unpublished bar, and already sound: this one pins the sentence, the entry above pins 'and nothing else'. Entered together so the pair is visible as a pair.",
+      "file": "apps/viewer/views/banner.js",
+      "find": "    if (state.transport === VA.TRANSPORT.UNPUBLISHED) {",
+      "replace": "    if (false) {"
+    }
+  ]
+}

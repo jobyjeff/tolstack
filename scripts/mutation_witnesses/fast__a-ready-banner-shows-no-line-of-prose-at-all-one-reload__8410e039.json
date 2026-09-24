@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a READY banner shows no line of prose at all — one Reload button, one closed fold, and nothing else",
+  "mutations": [
+    {
+      "contract": "A READY banner is one closed \"Data source\" fold and a Reload button, and nothing else -- no build stamp, no crop-rule rollup, no provenance line standing in front of a reader who came to read a stack.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Jeff, 2026-09-16: \"These 5 lines at the top of the page are meaningless to the user. Delete.\" Pinned by the bar's ordered child list rather than by the absence of five particular strings, so a SIXTH stamp added later fails too -- which the absence check would not. The fast tier owns it because the banner's shape needs no browser; the alarm's own place outside the fold has its own check beside it. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/views/banner.js",
+      "find": "      source(root, state, labels);",
+      "replace": "      source(root, state, labels);\n      root.appendChild(VA.el(\"span\", \"banner__built\", VA.builtLine(state.results, state.crops, state.projection)));"
+    }
+  ]
+}
