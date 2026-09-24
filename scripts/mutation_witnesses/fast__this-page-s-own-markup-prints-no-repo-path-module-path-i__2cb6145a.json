@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "this page's own markup prints no repo path, module path, id or command at the reader",
+  "mutations": [
+    {
+      "contract": "The viewer's own static markup (topology.html, index.html) prints no repo path, module path, id or command at the reader -- the same shared ban list the annotate app scans its markup against.",
+      "issue": "docs/issues/ISSUE_20260922_the_markup_scan_twin_is_enrollable_now_that_a_skip_arm_no_longer_counts_as_a_declaration.md",
+      "note": "The mutation restores the repo path this subtitle used to print. The tier MUST be `fast`: apps/viewer/run_tests.cjs injects VIEWER_SRC, and without it the guard's `skip(...)` arm fires instead -- the same words, and an arm that can never print a FAIL line. That twin declaration is why this row was called permanently unenrollable in LESSONS_20260921_mutation_witness_enrollment_backlog; the enumeration passes a `skip(` arm over, so the name resolves once now.",
+      "file": "apps/viewer/topology.html",
+      "find": "renders the built projections",
+      "replace": "renders data/projections/viewer/"
+    }
+  ]
+}

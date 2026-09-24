@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an excluded term's name is on the row and its rationale one fold deep",
+  "mutations": [
+    {
+      "contract": "An excluded term's NAME goes on the scan line and its rationale one fold deep, through VA.splitAuthoredFinding -- so the row stays scannable and the author's reason is still a click away.",
+      "issue": "docs/issues/ISSUE_20260923_the_results_table_guards_have_no_mutation_witness_entry.md",
+      "note": "Reverts the split at the call site: the row prints the whole authored string, rationale and all. Measured in review 2026-09-23 at 512/513 on this guard alone.",
+      "file": "apps/viewer/views/stack.js",
+      "find": "        return VA.splitAuthoredFinding(term).name;",
+      "replace": "        return VA.splitAuthoredFinding(term).whole;"
+    }
+  ]
+}

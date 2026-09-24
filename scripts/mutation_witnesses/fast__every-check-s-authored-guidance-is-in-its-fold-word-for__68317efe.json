@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every check's authored guidance is in its fold, word for word, and never on the scan line",
+  "mutations": [
+    {
+      "contract": "A check's authored guidance is reproduced in its fold word for word, and never on the scan line -- the row is for numbers, the fold is for the sentence somebody wrote.",
+      "issue": "docs/issues/ISSUE_20260923_the_results_table_guards_have_no_mutation_witness_entry.md",
+      "note": "Blanks the guidance while still appending the element, so the failure is 'not word for word' rather than 'no such node' -- the narrower of the two. The issue's own candidate (printing it on the row as well) also reproduces, at 511/513 with the [real] walk red beside it; this one is declared because it fails the half the name leads with.",
+      "file": "apps/viewer/views/stack.js",
+      "find": "      body.appendChild(VA.el(\"p\", \"check__guidance\", check.guidance));",
+      "replace": "      body.appendChild(VA.el(\"p\", \"check__guidance\", \"\"));"
+    }
+  ]
+}
