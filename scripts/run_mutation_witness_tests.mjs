@@ -189,8 +189,9 @@ if (process.argv.includes("--list")) {
 }
 
 // The gap, and the file name that closes each line of it. Deliberately a
-// separate flag rather than something the full run prints in full: it is ~1,070
-// lines long, and the run's own summary needs to stay readable.
+// separate flag rather than something the full run prints in full: it runs to
+// more lines than the registry has specs, and the run's own summary has to stay
+// readable.
 if (process.argv.includes("--unenrolled")) {
   console.log(censusReport(STATE.rows) + "\n");
   for (const guard of STATE.guards) {
