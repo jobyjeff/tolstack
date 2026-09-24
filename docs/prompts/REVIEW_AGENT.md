@@ -1149,6 +1149,30 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       The prose half of the bullet is untouched: the SOP's pipe-lists are still
       paired against `tolerance_stack/` by `tests/test_sop_vocabulary.py`, and a
       *sentence about a rule* is still yours.
+      **And a (d) the same review added, because generation created it:** a
+      per-value table **keyed by** a generated vocabulary but not routed through
+      `VOCAB.table(name, {...})`. It reads as converted — same file, same shape,
+      the `VOCAB.list` call often two lines above — and nothing compares its
+      keys to anything. `VA.CONFIDENCE_LABEL` is the found instance
+      (`ISSUE_20260923_confidence_label_is_keyed_by_a_generated_vocabulary_...`),
+      and the tell is `VA.TABLE[x] || x` at the read sites: the fallback that
+      makes the miss quiet also prints a raw machine word at a reader. One
+      grep settles it —
+      `grep -nE "(VA|AA)\.[A-Z][A-Z0-9_]*\s*=\s*\{" apps/**/*.js`, then ask of
+      each hit whether Python owns its **keys**. Compositions
+      (`AA.BINDING_STATES`, `VA.NAV_VERDICT_LEVELS`) and deliberate subsets are
+      legitimate answers — but they owe the sentence beside them saying so.
+- [ ] **An AST reader in `scripts/js_vocabulary.py` that skips instead of
+      raising.** New 2026-09-23. Six of the registry's readers walk source
+      rather than importing a constant, and a reader that silently drops a
+      value makes the generated vocabulary **short** — which the byte
+      comparison cannot see, because a word that was never read was never
+      written. Removing a word is loud; failing to see a *newly minted* one is
+      not. Check each new or edited reader for the `else: raise LookupError`
+      arm (`worksheet_sources_from_source` and `identity_rules` are the model)
+      and for its own can-fail test against text, not a file.
+      `crop_rules`/`crop_placements` are the two that skip
+      (`ISSUE_20260923_two_crop_vocabulary_readers_skip_a_minted_value_silently`).
 - [ ] **A web surface saying something only its author can read.** New
       2026-09-15 (`viewer_component_names_and_reference_copy`), off Jeff's own
       review of the live pitch-link topology — and it is the same class of

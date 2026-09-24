@@ -89,6 +89,14 @@ block and the `STUDY_ERRORS` pairing in `tests/test_topology_projection.py`; the
 `apps/annotate/run_tests.cjs` that had been spelling the Python tuples a *third*
 time. Net: **-934 lines of test, +26 generated vocabularies.**
 
+> **Correction, review 2026-09-23.** The net across `tests/` is **-547**
+> (`git diff --numstat integration...HEAD -- tests/`: +503 / -1050). The 934 is
+> the pairing machinery alone — 1044 lines deleted from the three vocabulary
+> modules, less the 110 that stayed behind in
+> `tests/test_js_python_vocabulary.py` — and it is a fair measure of what the
+> generation retired, but it is not the net line count of the suite, which the
+> new 334-line `tests/test_js_vocabulary_is_generated.py` is part of.
+
 `tests/test_js_python_vocabulary.py` survives for the one drift generation
 cannot reach: a vocabulary re-spelled as `x === "a" || x === "b"` in a function
 body. That is not a copy of a table, it is a second table with no name, and
@@ -217,6 +225,22 @@ What was tolstack-specific:
   registry. A repo whose vocabularies are all named constants gets this for a
   tenth of the work — and a repo whose readers are all AST walks should first ask
   why there is no constant.
+
+  > **Correction, review 2026-09-23.** Three of the six have a can-fail test,
+  > not all six: `worksheet_sources_from_source`, `_values_statuses_from_source`
+  > and `study_error_names`. `crop_rules`, `crop_placements` and
+  > `identity_rules` are exercised only through the byte comparison, which sees
+  > a reader that *shrinks* on a word already in the generated file but not one
+  > that never sees a **newly minted** value. And the six do not refuse alike:
+  > `worksheet_sources` and `identity_rules` raise on a return they cannot
+  > follow, while `crop_rules` and `crop_placements` skip a non-literal
+  > `"resolved_by": rule` silently — measured by pointing `crop_rules` at a
+  > mutated copy of the crop builder, which came back three words short with no
+  > error. Filed as
+  > `ISSUE_20260923_two_crop_vocabulary_readers_skip_a_minted_value_silently.md`.
+  > The recipe's point stands — these readers are the expensive part — but a
+  > repo copying it should write the can-fail test **with** each reader, and
+  > make every reader raise rather than skip.
 * The **CRLF/LF** handling (`core.autocrlf=true`, LF in git) means the comparison
   is text-with-line-endings-normalised rather than literally bytes. Everything
   inside a line, trailing whitespace included, is exact.
