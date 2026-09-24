@@ -5,7 +5,7 @@ Branch cut from `integration` at `c7915c7`, which `master` also pointed at, so
 the baseline below was measured in the main checkout against exactly this
 branch's parent tree.
 
-## 1. The baseline the brief has been waiting on: **108/108**
+## 1. The baseline the brief has been waiting on: **108/108** (and **115/115** after)
 
 `node scripts/run_mutation_witness_tests.mjs`, main checkout, `master` @
 `c7915c7`, clean tree, no `--only`. **108 declared mutations, 108 witnessed,
@@ -204,7 +204,7 @@ cannot answer the git-dependent tests. So:
 | `node apps/viewer/run_tests.cjs` | scratch tree of this branch, `data/` + `node_modules/` junctioned from the main checkout | 513/513, `[real]` tier included — which is precisely the tier the worktree failure is about |
 | `node apps/annotate/run_tests.cjs` | same | 154/154 |
 | `node scripts/run_viewer_browser_tests.mjs` | same | 25/25 suites |
-| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | same | see the report |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | same | **115/115 declared mutations witnessed**, exit 0, census holds, no orphans -- 48 minutes |
 
 The junction trick (`mklink /J`) is what makes a scratch tree able to run the
 browser tier at all: node resolves `playwright-core` by walking up from the
