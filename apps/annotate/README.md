@@ -460,7 +460,7 @@ is deferred by spec, so `window.AnnotateApp` is fully built by the time
 
 ```powershell
 node apps\annotate\run_tests.cjs
-venv-win/Scripts/python.exe -m pytest tests\test_annotate_js_vocabulary.py -q
+venv-win/Scripts/python.exe -m pytest tests\test_js_vocabulary_is_generated.py -q
 ```
 
 `run_tests.cjs` covers `binding_state.js` (stack-key equality, binding-state
@@ -526,14 +526,18 @@ It also carries a `[real]` tier that resolves every shipped alias in
 installed meshes through `resolveMeshIdentifier` itself, skipping honestly
 where `data/meshes/` is absent; `tests/test_part_mesh_aliases.py` owns the
 table's own shape and its two vocabulary pairings.
-`tests/test_annotate_js_vocabulary.py`
-(pytest, not the node harness) pairs `binding_state.js`'s five hand-copied
-vocabulary arrays (`STACK_KEY_KINDS`, `VERDICTS`, `DIRECTIONS`, `PATH_KINDS`,
-`GDT_MODIFIERS`) against `tolerance_stack/feature_identity.py`'s own
-definitions — the `tests/test_js_python_vocabulary.py` shape, generalised to
-a second app's namespace — so a vocabulary word added to one side with no
-matching literal on the other fails there, structurally, rather than only
-being caught if a value drift happens to reach live data.
+`binding_state.js`'s five vocabulary arrays (`STACK_KEY_KINDS`, `VERDICTS`,
+`DIRECTIONS`, `PATH_KINDS`, `GDT_MODIFIERS`) are **generated** from
+`tolerance_stack/feature_identity.py` into `../viewer/vocab.gen.js`
+(`scripts/generate_js_vocabulary.py`), so there is no copy of one here to
+drift. `tests/test_js_vocabulary_is_generated.py` (pytest, not the node
+harness) regenerates and compares: a word added on the Python side with
+nobody regenerating is red there, structurally, rather than only being caught
+if the drift happens to reach live data. A hand edit to the generated file is
+red the same way — that direction had no analogue while these were hand
+copies. `run_tests.cjs` carries the other half: that `VOCAB.table()` refuses a
+rendered table whose key set has drifted from the vocabulary, and freezes the
+one it returns.
 
 `scene.js` (three.js, WebGL, real click raycasting) is **not** exercised by
 `run_tests.cjs` — there is no WebGL in Node, and this repo's own

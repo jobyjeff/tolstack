@@ -2061,7 +2061,19 @@ apps/viewer/
                       lightbox's rules are in style.css, beside the crop rules
                       they extend)
   test.html           browser test page; publishes window.__TEST_RESULTS__
-  config.js           paths, the drawing-checker webui base, rebuild commands
+  vocab.gen.js        GENERATED, and tracked: every vocabulary Python owns
+                      that either app renders, written by
+                      scripts/generate_js_vocabulary.py from the definitions
+                      named beside each one. apps/annotate loads it as a
+                      sibling the way it loads warning_icon.js. Change a word
+                      in PYTHON and regenerate;
+                      tests/test_js_vocabulary_is_generated.py is red on a
+                      hand edit here and on a Python edit nobody regenerated
+  config.js           paths and the drawing-checker webui base. Deliberately
+                      no rebuild commands: they were strings this page
+                      RENDERED at a reader, which is the shape ruled out for
+                      every web surface here (config.js's own note carries the
+                      argument and the date)
   viewer.js           pure view-model logic — no DOM, no IO, and no
                       arithmetic on a projection's numbers; the crop
                       lightbox's view (VA.lightboxFitSize / ZoomAt /

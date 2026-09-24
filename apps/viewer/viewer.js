@@ -85,12 +85,12 @@
   // and studies wear the `unverified` badge and offer the annotate link, chosen
   // here. Drift between them means the panel lists rows the grid does not badge
   // -- on the one page whose whole job is to say what cannot be trusted. It is
-  // a TABLE now rather than two literals inside `needsAnnotation` for exactly
-  // that reason: a vocabulary spelled in a function body cannot be paired, and
-  // `tests/test_js_python_vocabulary.py` now pairs this one word for word
-  // against `scripts/build_topology_projection.py`'s UNVERIFIED_CONFIDENCES.
-  // `no_source_ref` has ZERO live instances, so the pairing is the only thing
-  // that could ever catch a drift in that half.
+  // read out of the generated module rather than spelled as two literals
+  // inside `needsAnnotation` for exactly that reason: a vocabulary spelled in a
+  // function body has no owner, and this one's owner is
+  // `scripts/build_topology_projection.py`'s UNVERIFIED_CONFIDENCES.
+  // `no_source_ref` has ZERO live instances, so nothing that reads live data
+  // could ever catch a drift in that half.
   VA.UNVERIFIED_CONFIDENCES = VOCAB.list("UNVERIFIED_CONFIDENCES");
 
   // Class suffix for the colour system.
@@ -217,9 +217,10 @@
   // VA.VERDICT_SCOPES is one: a fourth verdict must gain a branch on screen, not
   // arrive silently.
   //
-  // Paired against tolerance_stack/stack.py's VERDICTS by
-  // tests/test_js_python_vocabulary.py: one definition in Python, one rendering
-  // here.
+  // The keys are tolerance_stack/stack.py's VERDICTS, compared against the
+  // generated vocabulary at load: one definition in Python, one rendering here.
+  // The key ORDER is a second fact and NOT checked there -- VA.worstVerdict
+  // ranks by it, weakest last, and a mutation witness is what watches that.
   VA.VERDICTS = VOCAB.table("VERDICTS", {
     pass: {
       says: "every build clears it",
@@ -273,8 +274,8 @@
   // which is the whole reason the field exists
   // (ISSUE_20260805_check_result_has_no_complete_flag).
   //
-  // Paired against that tuple by tests/test_js_python_vocabulary.py: one
-  // definition in Python, one rendering here.
+  // The keys are that tuple, compared against the generated vocabulary at
+  // load: one definition in Python, one rendering here.
   VA.VERDICT_SCOPES = VOCAB.table("VERDICT_SCOPES", {
     joint: {
       chip: null,
@@ -1386,8 +1387,8 @@
   // else, so the fourth value (`declared_region`, added 2026-09-14 by the
   // crop-region registry) would have dropped the whole "where on the sheet"
   // clause without a mark — the same silence that let a stale `resolved_by` go
-  // unexplained for four days. Paired against the crop script's literals by
-  // tests/test_js_python_vocabulary.py.
+  // unexplained for four days. The keys are the crop script's own literals,
+  // read out of the generated module.
   VA.CROP_PLACEMENTS = VOCAB.table("CROP_PLACEMENTS", {
     zone_cell: {
       text: function (e) {
@@ -1449,11 +1450,11 @@
     },
   });
 
-  // What a box drawn over a crop CLAIMS. Paired against
-  // scripts/build_viewer_crops.py's HIGHLIGHT_KINDS by
-  // tests/test_js_python_vocabulary.py — a third kind arriving with no branch
-  // here would draw nothing at all, which reads as "nothing on this sheet was
-  // marked" rather than as a viewer that cannot tell.
+  // What a box drawn over a crop CLAIMS. The keys are
+  // scripts/build_viewer_crops.py's HIGHLIGHT_KINDS — a third kind arriving
+  // with no branch here would draw nothing at all, which reads as "nothing on
+  // this sheet was marked" rather than as a viewer that cannot tell, so the
+  // generated module refuses the table instead.
   //
   // `solid` is the whole visual distinction and it is the point of there being
   // two kinds: a solid box says the citation's own text or balloon was FOUND

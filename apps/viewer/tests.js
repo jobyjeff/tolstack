@@ -314,9 +314,9 @@
 
     // The severity ranking, pinned as BEHAVIOUR. VA.worstVerdict reads
     // "worst last" off the insertion order of the VA.VERDICTS object literal,
-    // so that order IS the rule -- and nothing else checks it. The Python/JS
-    // pairing in tests/test_js_python_vocabulary.py compares the two
-    // vocabularies as SETS, so every permutation of the three keys is green
+    // so that order IS the rule -- and nothing else checks it. What the table
+    // IS paired against compares key SETS -- VOCAB.table, at load, against the
+    // generated vocabulary -- so every permutation of the three keys is green
     // there; reordering VA.VERDICTS to `fail, marginal, pass` (plausible: both
     // alphabetical and "worst first", matching the CSS block below it) leaves
     // the whole suite green while every rollup badge reports the BEST verdict
@@ -4675,8 +4675,8 @@
     //
     // Why a synthesised entry and not a fixture row: two of the four branches
     // below are shapes the BUILDER CANNOT EMIT. A `values_status` outside the
-    // vocabulary is what tests/test_js_python_vocabulary.py exists to make
-    // impossible, and a fixture carrying one would describe a materials record
+    // vocabulary is what the generated module makes impossible (the table is
+    // keyed by it), and a fixture carrying one would describe a materials record
     // the loader refuses to read -- the defect `viewer_fixture_shape_guards`
     // exists against. So the unreachable-by-data branches are reached the only
     // way they can be: by calling the total function with each member of its
@@ -11275,9 +11275,10 @@
         // them apart. The empty-collector arm below is what fires on it.
         //
         // The other direction is already covered and needs nothing here:
-        // tests/test_js_python_vocabulary.py pairs VA.CROP_HIGHLIGHT_KINDS
-        // against the importable HIGHLIGHT_KINDS, and `highlight()` refuses a
-        // kind outside it, so a NEW WORD cannot reach crops.json unannounced.
+        // VA.CROP_HIGHLIGHT_KINDS is keyed by the generated vocabulary, which
+        // is build_viewer_crops.py's own HIGHLIGHT_KINDS, and `highlight()`
+        // refuses a kind outside it -- so a NEW WORD cannot reach crops.json
+        // unannounced, and a table with no branch for one does not load.
         { field: "crop entry highlights[].kind, crop and companion alike",
           branch: "VA.CROP_HIGHLIGHT_KINDS, through views/crop.js's " +
             "highlightBox — an unknown kind still draws the rect and reads as " +
@@ -14697,10 +14698,10 @@
           //
           // This row does not close an open hole, and the issue that asked
           // for it is honest about why it is `low`: the field is already
-          // covered twice over -- tests/test_topology_projection.py's
-          // JS_PAIRINGS pairs VA.GAP_KINDS' keys against the builder's
-          // TOPOLOGY_GAP_KINDS word for word (the EARLIER signal, firing the
-          // moment Python's tuple changes and before any data moves), and a
+          // covered twice over -- VA.GAP_KINDS is keyed by the generated
+          // vocabulary, which IS the builder's TOPOLOGY_GAP_KINDS (the EARLIER
+          // signal: the page refuses to load the moment Python's tuple changes
+          // and the table does not follow, before any data moves), and a
           // [real] test above walks every live gap row. What it does is put
           // `kind` in the same live-data sweep as every other enumerated field
           // of this projection, reported the same way, so the answer to "is

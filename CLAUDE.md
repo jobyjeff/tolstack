@@ -162,6 +162,15 @@ Know these before you write code; each has a test standing on it.
   count and what each one taught. The fix shape is one named tuple plus a test
   pairing the prose against it, and a test now scans for the inline-literal
   shape, so a new one fails rather than teaching a word the constructor refuses.
+- **The JavaScript half of that class is not paired, it is generated** (since
+  2026-09-23). Every vocabulary the two web apps render that Python owns is
+  written into `apps/viewer/vocab.gen.js` by `scripts/generate_js_vocabulary.py`,
+  from the registry in `scripts/js_vocabulary.py`. A word is changed in **Python**
+  and regenerated — `tests/test_js_vocabulary_is_generated.py` is red on a Python
+  edit nobody regenerated *and* on a hand edit to the generated file, and a
+  rendered table whose keys have drifted throws when the app loads. Adding a
+  vocabulary the JS reads means adding a registry row; nothing else here is a
+  place to write words down.
 - **`kind: "parts_list"` can never be `traced`.** A parts-list row carries a
   nominal, never a tolerance band. Three elements seeded at founding claimed it
   anyway — honest `note`, wrong machine field, and the field is what every

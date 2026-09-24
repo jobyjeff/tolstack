@@ -15,12 +15,12 @@
 
   // --- the vocabularies the projection can write ---------------------------
   //
-  // Hand-copies of scripts/build_topology_projection.py's module-level tuples,
-  // paired word for word by tests/test_topology_projection.py — the same
-  // discipline tests/test_js_python_vocabulary.py applies to the stack viewer's
-  // six tables, and for the same reason: a rename in Python is silent here until
-  // data moves, and the first symptom is a loud "no branch for this" on a
-  // reader's screen.
+  // Read out of apps/viewer/vocab.gen.js, which scripts/generate_js_vocabulary.py
+  // renders from scripts/build_topology_projection.py's module-level tuples.
+  // They were hand-copies here, paired word for word by a pytest module, until
+  // 2026-09-23: a rename in Python is silent on this page until data moves, and
+  // the first symptom is a loud "no branch for this" on a reader's screen, so
+  // the copy is gone rather than checked.
 
   VA.TOPO_ROW_KINDS = VOCAB.list("TOPO_ROW_KINDS");
   VA.TOPO_LINK_KINDS = VOCAB.list("TOPO_LINK_KINDS");
@@ -40,9 +40,11 @@
   // `datum_feature` gets a filled dot, a `gap` gets a dashed bar and its own
   // chip, a non-`identity` transform raises the sensitivity chip) and each
   // branch has a silent default arm. They were written out a second time inside
-  // tests.js's TOPO_VALUE_GUARDS until this review; nothing paired those copies
-  // to Python, which is the one thing an `inList` guard cannot do for itself.
-  // Paired by tests/test_topology_projection.py alongside the others.
+  // tests.js's TOPO_VALUE_GUARDS until review/dag_viewer_poc; nothing paired
+  // those copies to Python, which is the one thing an `inList` guard cannot do
+  // for itself. Generated alongside the others since 2026-09-23 — the one
+  // difference is which Python file the generator reads them from
+  // (tolerance_stack/topology.py, named beside each in vocab.gen.js).
   VA.NODE_KINDS = VOCAB.list("NODE_KINDS");
   VA.EDGE_KINDS = VOCAB.list("EDGE_KINDS");
   VA.TRANSFORM_KINDS = VOCAB.list("TRANSFORM_KINDS");
@@ -879,11 +881,16 @@
 
   // --- what is missing ------------------------------------------------------
 
-  // What each kind of gap IS and what would close it, in plain words. The
-  // hand-copy of scripts/build_topology_projection.py's TOPOLOGY_GAP_KINDS,
-  // paired word for word by tests/test_topology_projection.py — the projection
-  // writes the kind and the text, this table writes the heading and the way
-  // out, and neither side restates the other.
+  // What each kind of gap IS and what would close it, in plain words. The keys
+  // are scripts/build_topology_projection.py's TOPOLOGY_GAP_KINDS, compared
+  // against the generated vocabulary at load — the projection writes the kind
+  // and the text, this table writes the heading and the way out, and neither
+  // side restates the other.
+  //
+  // The KEY ORDER is this page's own and not the tuple's: the panel groups
+  // worst first, which is the order the builder writes its rows in, and
+  // VOCAB.table compares the key SET rather than the sequence precisely so a
+  // display decision stays a display decision.
   // `says` is the same fact at ROW scale — what one line of the findings table
   // admits about itself, in a phrase short enough to sit in a column beside a
   // name (viewer_summary_balance_sheet, 2026-09-22). It is here rather than in

@@ -1128,6 +1128,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`test_the_vocabulary_pairing_can_fail`) rather than re-deriving the diff by
       hand — that is the one thing left for you: whether a *sentence about a rule*
       (not a word list) drifted, which no vocabulary-vs-constant pairing can see.
+      **Fifth sighting (`js_vocabulary_generated_from_python`, 2026-09-23), and
+      it retires a question rather than adding one:** the JS half of this class
+      — twenty-six vocabularies defined in Python and hand-copied into
+      `apps/viewer/` and `apps/annotate/`, with three pytest modules pairing
+      each copy through a character scanner over the JS — is **generated** now.
+      `scripts/js_vocabulary.py` says where each one lives on the Python side,
+      `scripts/generate_js_vocabulary.py` renders `apps/viewer/vocab.gen.js`,
+      and `tests/test_js_vocabulary_is_generated.py` regenerates and compares
+      text. So **do not ask whether a JS table matches its Python tuple** — the
+      words are not there to match. Ask instead:
+      (a) did a diff touching a Python vocabulary **regenerate**? (If not, that
+      test is red; if it is green, this is answered.)
+      (b) is there a **new** vocabulary the JS reads that Python owns and the
+      registry does not carry? That is the gap generation cannot self-report,
+      and it is a registry row, not a test.
+      (c) is a vocabulary spelled as a comparison chain in a function body
+      rather than read from a table? Generation has no purchase on that —
+      `tests/test_js_python_vocabulary.py` is what stayed behind for it.
+      The prose half of the bullet is untouched: the SOP's pipe-lists are still
+      paired against `tolerance_stack/` by `tests/test_sop_vocabulary.py`, and a
+      *sentence about a rule* is still yours.
 - [ ] **A web surface saying something only its author can read.** New
       2026-09-15 (`viewer_component_names_and_reference_copy`), off Jeff's own
       review of the live pitch-link topology — and it is the same class of

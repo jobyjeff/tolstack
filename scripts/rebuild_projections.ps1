@@ -1,14 +1,30 @@
 <#
 .SYNOPSIS
-    Rebuilds all three viewer projections, in order, from the MAIN checkout.
+    Regenerates everything Python derives for the viewer, in order, from the
+    MAIN checkout: the JS vocabulary module, then all three projections.
 
 .DESCRIPTION
     Runs, in this order:
+      0. venv-win\Scripts\python.exe scripts\generate_js_vocabulary.py
       1. venv-win\Scripts\python.exe scripts\build_topology_projection.py
       2. venv-win\Scripts\python.exe scripts\build_viewer_projection.py
       3. <drawing-checker's venv> scripts\build_viewer_crops.py
     (PyMuPDF lives only in drawing-checker's venv -- build_viewer_crops.py's own
     docstring says so, and that fallback stays intact here.)
+
+    Step 0 is unlike the three below it in one way worth knowing. It writes a
+    TRACKED file -- apps/viewer/vocab.gen.js, which both web apps read their
+    vocabularies out of -- rather than something under the gitignored data/. So
+    it is the one step whose output belongs in a commit, and the one step an
+    agent working in a worktree can and should run on its own:
+
+        venv-win\Scripts\python.exe scripts\generate_js_vocabulary.py
+
+    It is on this rail anyway, because this script is the answer to "regenerate
+    what Python derives" and a second rail for one command is how the two come
+    to disagree about which tree they were run against. It is FIRST because it
+    is the cheap one and it needs no data: a run that stops at the crops leg
+    still leaves the vocabulary correct.
 
     Fails loud on any non-zero exit, including the provenance gate's exit 3 --
     --allow-older-tree is never passed from this script, so a refused rebuild
@@ -97,6 +113,10 @@ function Invoke-Step {
         exit $code
     }
 }
+
+Invoke-Step -Name "js vocabulary" -Exe $TolstackPython -Arguments @(
+    (Join-Path $ScriptsDir "generate_js_vocabulary.py")
+)
 
 Invoke-Step -Name "topology projection" -Exe $TolstackPython -Arguments @(
     (Join-Path $ScriptsDir "build_topology_projection.py")

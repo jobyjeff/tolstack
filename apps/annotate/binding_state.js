@@ -4,14 +4,20 @@
 // specifically so the interesting logic lives here instead of spread across
 // DOM event handlers.
 //
-// The vocabularies below are a HAND-COPY of tolerance_stack/feature_identity.py's
+// The five vocabularies below are tolerance_stack/feature_identity.py's
 // module-level constants (STACK_KEY_KINDS, VERDICTS, DIRECTIONS, PATH_KINDS,
-// GDT_MODIFIERS) -- this repo's most-repeated defect is exactly this kind of
-// drift (ARCHITECTURE.md, "A field vocabulary is a module-level constant").
-// tests/test_annotate_js_vocabulary.py pairs all five against their Python
-// definitions (the apps/viewer/tests/test_js_python_vocabulary.py shape,
-// generalised to a second app's namespace) -- a value added to one side with
-// no matching literal on the other fails there, not silently here.
+// GDT_MODIFIERS), read out of ../viewer/vocab.gen.js. They were hand copies
+// until 2026-09-23, with a pytest module pairing each against its definition --
+// this repo's most-repeated defect is exactly that kind of drift (CLAUDE.md,
+// "A field vocabulary is a module-level constant"), so the copies are gone
+// rather than checked. scripts/generate_js_vocabulary.py renders that module
+// and tests/test_js_vocabulary_is_generated.py compares it, so a word added on
+// the Python side with nobody regenerating is red there.
+//
+// It lives under apps/viewer/ rather than an apps/shared/ of its own -- the
+// fourth file this app reads across that boundary, for the reason the other
+// three are there (scripts/generate_js_vocabulary.py's docstring: the browser
+// tier serves apps/viewer as a server root and 403s anything above it).
 (function (AA, VOCAB) {
   "use strict";
 

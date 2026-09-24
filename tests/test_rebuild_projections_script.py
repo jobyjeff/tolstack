@@ -21,6 +21,7 @@ Handoff: projections_rebuild_script (2026-09-08).
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -66,8 +67,12 @@ def test_a_missing_drawing_checker_interpreter_is_refused_and_named():
     combined = proc.stdout + proc.stderr
     assert proc.returncode != 0
     assert str(bogus) in combined
-    # It refused before building anything -- neither topology projection step
-    # (the first real step, run before the crops leg) printed its header.
+    # It refused before building anything, and "anything" includes the two
+    # steps that need neither drawing-checker nor PyMuPDF: the vocabulary
+    # generation (step 0, which writes a TRACKED file) and the topology
+    # projection. A preflight that lets the cheap steps through first is a
+    # preflight that leaves the tree half-rebuilt when it refuses.
+    assert "js vocabulary" not in combined
     assert "topology projection" not in combined
 
 
@@ -83,3 +88,40 @@ def test_the_script_itself_declares_no_cmdletbinding():
     """
     lines = SCRIPT.read_text(encoding="utf-8").splitlines()
     assert not any(line.strip() == "[CmdletBinding()]" for line in lines)
+
+
+def test_the_js_vocabulary_is_regenerated_on_this_rail_and_first():
+    """Step 0, and its order, read out of the script rather than from prose.
+
+    ``apps/viewer/vocab.gen.js`` is the other thing Python derives for the
+    viewer, and it is on this rail rather than a second one for the reason the
+    script's own ``.DESCRIPTION`` gives: a second rail for one command is how
+    two rails come to disagree about which tree they were run against.
+
+    Its order is load-bearing in one direction only: it is cheap, it reads
+    nothing under ``data/``, and it writes a tracked file -- so a run that stops
+    at the crops leg has still left the vocabulary correct. Running it after a
+    projection would throw that away for nothing.
+
+    Read as a step invocation, not as a mention: the script names the file in
+    its docstring too, and a scan that matched prose would pass on a rail that
+    only *talks* about the generator. Driving the real script is not an option
+    here the way it is for the kill-a-leg test above -- a successful run would
+    rebuild the main checkout's projections as a side effect of a test.
+    """
+    text = SCRIPT.read_text(encoding="utf-8")
+    steps = re.findall(r'Invoke-Step -Name "([^"]+)" -Exe (\$\w+) -Arguments @\(\s*'
+                       r'\(Join-Path \$ScriptsDir "([^"]+)"\)', text)
+    assert steps, "no Invoke-Step calls found -- this reader has drifted"
+    names = [name for name, _, _ in steps]
+    scripts = {name: script for name, _, script in steps}
+    interpreters = {name: exe for name, exe, _ in steps}
+
+    assert names[0] == "js vocabulary", (
+        f"the vocabulary generation must be the first step; the rail runs {names}"
+    )
+    assert scripts["js vocabulary"] == "generate_js_vocabulary.py"
+    # tolstack's own interpreter, not drawing-checker's: the generator is
+    # stdlib-only and must not acquire a dependency on the venv that exists for
+    # PyMuPDF.
+    assert interpreters["js vocabulary"] == "$TolstackPython"
