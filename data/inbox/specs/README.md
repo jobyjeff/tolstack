@@ -35,11 +35,6 @@ its three tolerance stacks could be traced to an actual document. The rest were
 "the workbook says so", which is not a source. This pile is the trace target
 that closes that gap — and it already holds the top-priority one:
 
-```claim
-metric: traced_ratio
-value: 5 of 26
-```
-
 > **Correction, 2026-08-06** (handoff `traced_labels_and_ratio`). This read
 > *"1 of 17"* until 2026-08-06; neither number reproduced from the stacks. The
 > definition of the ratio now lives in one place —
@@ -63,6 +58,11 @@ value: 5 of 26
 > `untraced`/`inferred` *element, is the document that would close it now in the
 > pile?* — and it is filed as
 > `docs/issues/ISSUE_20260810_nothing_sweeps_the_spec_pile_against_open_gaps.md`.
+
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
 
 | slice-1 gap | file here |
 |---|---|
