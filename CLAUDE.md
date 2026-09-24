@@ -114,7 +114,17 @@ Know these before you write code; each has a test standing on it.
   `tests/test_viewer_js_suite.py` (deliberately, since 2026-09-18: a skipped
   tier is not a passed one), and before trusting any green — a batch merge's
   most of all — run **in the main checkout**:
-  `node apps/viewer/run_tests.cjs` and `node scripts/run_viewer_browser_tests.mjs`.
+  `node apps/viewer/run_tests.cjs`, `node scripts/run_viewer_browser_tests.mjs`
+  and `node scripts/run_mutation_witness_tests.mjs`.
+- **The mutation-witness tier is on that list because a witness decays between
+  the branch that measured it and the trunk that runs it.** Three declared
+  mutations were `WITNESSED` on their own review branches and `NOT WITNESSED`
+  on trunk a day later, and nothing in the pipeline failed: the runner printed
+  them and exited 0. It exits non-zero now — on a guard that stopped reddening,
+  on a spec that names a guard the tree no longer declares, and on a guard added
+  without a spec — so the merge is where that is caught rather than the next
+  audit. It is the slow one (a browser, the whole registry, tens of minutes),
+  which is the argument for running it at the merge and not per-branch.
 - `tests/debug_*.py` are inspection tools, run by hand, never by pytest.
 - **Ops verbs:** `ops.toml` (forge CONVENTIONS.md §8) — the only place a deploy
   command should live.
@@ -132,6 +142,15 @@ Know these before you write code; each has a test standing on it.
   shared projection goes through the same gate — `scripts/projection_provenance.py`
   owns that list, and `ARCHITECTURE.md`'s inventory pairs it against the modules
   that actually import it, so don't keep a second copy of the count here.
+- **A guard you add is enrolled in the same change: it needs one mutation spec
+  under `scripts/mutation_witnesses/`.** Nothing else — the file's name is
+  derived from the guard's own name, so there is no id to pick and no shared
+  table to edit (`node scripts/run_mutation_witness_tests.mjs --unenrolled`
+  prints the name to write). The per-source guard count is pinned, so a guard
+  added without one reddens `pytest -q`; raising the pin instead is allowed and
+  says, in the diff, that this guard cannot be witnessed. Enrollment used to be
+  a later session's job and six of those in eight days did not move the arrival
+  rate.
 - **A field vocabulary is a module-level constant, never an inline literal and
   never an end-of-line comment.** A vocabulary drifting between the code, the SOP
   and the viewer is this repo's most-repeated defect — `docs/prompts/REVIEW_AGENT.md`,

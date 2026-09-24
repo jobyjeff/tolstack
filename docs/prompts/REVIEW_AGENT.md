@@ -463,9 +463,15 @@ problem as an unrecorded full suite one step later.
 - **A CSS rule in either app** → `pytest -q tests/test_app_type_scale.py` (the
   two apps' `:root` scales are paired against each other there), plus the browser
   tier as above.
-- **A guard, a witness, or `scripts/mutation_witnesses.json`** → `pytest -q
+- **A guard, a witness, or `scripts/mutation_witnesses/`** → `pytest -q
   tests/test_mutation_witnesses.py` plus `node
-  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`. This tier
+  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`.
+  **Any diff that adds a guard at all** is in this row since 2026-09-23: the
+  per-source guard count is pinned (`DECLARED_GUARDS`,
+  `scripts/guard_enumeration.mjs`), so a guard added without a mutation spec
+  reddens `pytest -q`. Check that the author wrote the spec rather than only
+  raising the number — raising it is allowed, and is then a claim in the diff
+  that this guard cannot be witnessed, which is a claim you review. This tier
   also owes a **post-merge** run, for a reason the merge itself creates — see the
   "After you merge `integration` into your review branch, re-run" entry, which is
   not covered by this pre-merge row.
@@ -736,21 +742,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       guards.
       **What that handoff left behind (2026-09-15), and what it asks of you:**
       the mutation is now a **declared** thing, not a thing a reviewer happened
-      to try. `scripts/mutation_witnesses.json` holds, per guard, the exact edit
+      to try. `scripts/mutation_witnesses/` holds, per guard, the exact edit
       it must redden on and the name of the check that must fail;
       `scripts/run_mutation_witness_tests.mjs` patches a shadow tree and fails
       unless that check goes red (`apps/viewer/README.md`, "The mutation-witness
       tier"). So the standing ask is no longer "mutate the line and watch it go
       red" and stop there — **when a mutation you tried by hand belongs to a
-      guard that should keep catching it, add the entry**. It is five strings
-      copied off the nearest one, which is deliberately cheaper than filing an
-      issue about it. Conversely: a guard added by a handoff, with no entry and
-      no hand mutation recorded anywhere, is a guard nobody has watched fail.
+      guard that should keep catching it, add the spec**. **Updated
+      2026-09-23:** enrollment is derived, so it is no longer five strings and
+      an id somebody invents — `node scripts/run_mutation_witness_tests.mjs
+      --unenrolled` prints the file name to write, and the only authored part
+      is the mutation itself. Conversely: a guard added by a handoff, with no
+      spec and no hand mutation recorded anywhere, is a guard nobody has
+      watched fail — and since 2026-09-23 it also reddens `pytest -q`, so a
+      green suite beside a new guard means the author either enrolled it or
+      raised the census pin, and which of those it was is worth looking at.
 - [ ] **A guard that couples to the tree by TWO strings, with only one of them
       paired.** New 2026-09-15, reviewing the tier above. A
-      `mutation_witnesses.json` entry names both where the mutation lands
+      mutation spec names both where the mutation lands
       (`find`, in the app) and the sub-check that must print (`expect_red`, in
-      the test file); `tests/test_mutation_witnesses.py` pairs only the first,
+      the test file); `tests/test_mutation_witnesses.py` paired only the first,
       so rewording a check name leaves an entry that can never be witnessed and
       a green pytest run —
       `ISSUE_20260915_expect_red_is_the_half_of_a_mutation_entry_nothing_cheap_checks.md`.
@@ -2868,7 +2879,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       two halves -- the hosted page *shows* nothing about the bind workflow,
       and the controls it withholds are *never wired* -- and the author said so
       in the lesson ("two separate defects, two separate fixes"), asserted both
-      in the browser tier, and declared a `mutation_witnesses.json` entry for
+      in the browser tier, and declared a mutation spec for
       the first only. So the rule is wider than "mutate the predicates the list
       does not name": **count the contracts the deliverable states and the
       entries declared for it, and mutate any half without one.** Confirmed by
@@ -2995,9 +3006,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       six, while the full nineteen-suite run passes it 18/18, on `integration`
       as well as on the branch --
       `ISSUE_20260915_annotate_flyout_suite_is_red_alone_and_green_in_a_full_run.md`.
-      Because `mutation_witnesses.json` dispatches one suite per mutation, such
+      Because the mutation tier dispatches one suite per mutation, such
       a suite can carry no declared witness at all (the clean run comes back
-      RED and the entry is reported `SKIPPED`). When a review's evidence is a
+      RED and the spec is reported `SKIPPED`). When a review's evidence is a
       full run, spot-check the one suite the work touched with `--only` too.
       **Cause found and fixed 2026-09-16** (`js_guards_and_suite_isolation`),
       and the general rule is worth more than the instance: it was not order
@@ -3306,9 +3317,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       time in the table's own prose.** Same handoff, and the near-miss worth
       carrying: `tier` went from two words to three, `TIER_HARNESS` (runner) and
       `TIERS`/`CHECK_SOURCE` (pytest) were correctly paired by a new test — and
-      `mutation_witnesses.json`'s `about` block then enumerated all three words
+      the witness table's `about` block then enumerated all three words
       with per-word descriptions *and* asserted *"written in exactly two
-      places"*. Nothing pairs that block. Whenever a diff widens a vocabulary,
+      places"*. Nothing paired that block. **Closed 2026-09-23:** the block is
+      now `scripts/mutation_witnesses/README.md` and its tier list is read back
+      and paired against `TIERS`
+      (`test_the_spec_readme_lists_the_tier_vocabulary_and_nothing_else`), so a
+      fifth tier documented nowhere — or nowhere but the code — is red. The
+      class is not closed with it: the question below is still the one to ask
+      of any other declaring data file. Whenever a diff widens a vocabulary,
       grep the declaring data file's own header for the words it just added:
       the header is the one copy the pairing test cannot see. (The enumeration
       is legitimate documentation and was kept; *"Those three words"* was fixed
@@ -3813,15 +3830,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 - [ ] **A declaration two consumers read, where the cheap one compares it
       loosely and the expensive one compares it exactly.** New 2026-09-18, same
       handoff, and it is the shape behind "verified, paste-ready, and wrong".
-      `mutation_witnesses.json`'s `expect_red` is counted as a **substring** by
+A mutation spec's `expect_red` was counted as a **substring** by
       `tests/test_mutation_witnesses.py` (0.6s) and matched for **equality** by
       the runner (minutes, behind a browser). Two entries were filed with the
       name deliberately truncated *so that the cheap checker would resolve
       them*, were called paste-ready, and were a guaranteed `NOT WITNESSED`.
       The question to ask of any new declared-string field: *what does the
       slow half compare, and does the fast half compare it the same way?* If
-      not, the fast half needs the extra assertion — which is what
-      `test_no_expect_red_is_a_truncated_check_name` now is.
+      not, the fast half needs the extra assertion.
+      **Resolved at the root 2026-09-23**, which is the better answer and the
+      one to reach for next time: the cheap half stopped comparing loosely. It
+      now checks `expect_red` for **membership** of the enumeration of guards
+      the tree declares (`scripts/guard_enumeration.mjs`), which a prefix
+      cannot satisfy, so the extra assertion
+      (`test_no_expect_red_is_a_truncated_check_name`) was retired with it.
+      Making the two halves compare the same thing beats adding a third check
+      that watches them disagree.
 
 - [ ] **A per-suite SKIP that returns `ok: true` is counted in the runner's own
       green total.** New 2026-09-18 (`visual_rules_nothing_checks`).
@@ -3902,7 +3926,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       - **Before you accept a suppression** (`omitX`, an early return, a node
         moved to another surface), `grep` the suppressed class/selector across
         `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs` and
-        `scripts/mutation_witnesses.json`. A guard that only ever saw the app
+        `scripts/mutation_witnesses/`. A guard that only ever saw the app
         through that node is now vacuous, and it will not say so.
       - **An anti-vacuity anchor must be a node the mutated argument actually
         produces**, not merely a node that is present. Re-anchoring on
@@ -4152,7 +4176,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       nothing_witnesses.md`). A deferred finding has no owner unless a
       deliverable names it: **grep the previous review report for "not filed"
       and re-check each one against the diff in front of you.**
-- [ ] **A handoff FENCED OUT of `scripts/mutation_witnesses.json` hands you a
+- [ ] **A handoff FENCED OUT of the witness registry hands you a
       red registry, and that is the fence working — repair it in your own
       merge.** New 2026-09-22 (`stack_page_alert_marks_and_drawn_glyph`), and
       it is the second face of "The anchor check fires at MERGE time"
@@ -4160,7 +4184,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       here the handoff's **own** diff rotted an entry (`.chip--alert`'s
       declaration deleted, its browser sub-check reworded) while its scope said
       in as many words *"Do NOT touch `scripts/mutation_witnesses.json`"*,
-      because a sibling handoff owns that file. Three
+      because a sibling handoff owned that file. (**That fence should stop
+      being written 2026-09-23:** the table is one file per guard now, named
+      for the guard, precisely so two handoffs enrolling two guards cannot
+      collide. A handoff still fenced out of the whole directory is worth
+      questioning.) Three
       `tests/test_mutation_witnesses.py` guards were red on the branch, filed
       not fixed, with a paste-ready repair. **Check the owner-handoff story
       before you take "someone else will" on faith:** the sibling was in flight
@@ -4170,7 +4198,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       only done when you have run BOTH halves: `pytest -q
       tests/test_mutation_witnesses.py` **and** `node
       scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
-      --only <id>`. An entry whose anchors resolve and whose mutation has never
+      --only "<a few words of the guard's name>"`. An entry whose anchors resolve and whose mutation has never
       been replayed is the unwitnessed guard this whole tier exists to prevent,
       and pytest cannot tell you which you have.
 - [ ] **A new TOP-LEVEL file under `apps/viewer/` and an unchanged `## Layout`
@@ -4959,7 +4987,8 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       wait that must be *attributable* is to catch the timeout and return a
       boolean, because a thrown timeout takes the suite down as an unnamed
       `ERROR` — a MISS to the mutation tier, not a red
-      (`scripts/mutation_witnesses.json`, "ONE THING AN ENTRY CANNOT DECLARE").
+      (`scripts/mutation_witnesses/README.md`, "One thing a spec cannot
+      declare").
       The helper only delivers that if **every** caller pushes the result:
       `testAnnotateFlyout`'s `paneSettled()` is pushed in the mounted half and
       called bare in the `file://` half three lines before the same

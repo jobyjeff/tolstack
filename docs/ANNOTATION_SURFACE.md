@@ -159,8 +159,9 @@ faces to look at. Concretely, the fence is three statements:
 - **The engine colours; the human selects.** It never picks a candidate, not
   even when the narrowing gets down to one, and it never writes an event. A
   binding is still a human-ratified `feature-identity/v0` event through the same
-  write path (`scripts/mutation_witnesses.json`'s
-  `a-suggestion-never-selects-a-face` is the mutation that has to redden).
+  write path; the mutation spec under `scripts/mutation_witnesses/` for the
+  guard *"THE FENCE: the suggestion path colours faces and does nothing
+  else"* is the one that has to redden).
 - **It reads a shape, never a dimension.** `apps/annotate/face_geometry.js`
   extracts a face's plane or its axis and radius, because a *relation* between
   two faces (parallel, coaxial, matching radius) cannot be tested without them.

@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "index redirect file://",
-  "expect_red": "every suite prints the registry key it was dispatched under — a --only filter is copied straight off that line, and every `suite` in scripts/mutation_witnesses.json is a whole copy of one",
+  "expect_red": "every suite prints the registry key it was dispatched under — a --only filter is copied straight off that line, and every `suite` in scripts/mutation_witnesses/ is a whole copy of one",
   "mutations": [
     {
       "contract": "A browser suite prints the label the SUITES registry dispatches it under. The key is the label, so a `--only` filter can be copied straight off a failing line and mutation_witnesses.json's `suite` values mean what they say.",
