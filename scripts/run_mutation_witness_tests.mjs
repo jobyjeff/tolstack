@@ -30,7 +30,7 @@
 //
 // Unenrollment is measured against a pinned census
 // (`DECLARED_GUARDS`, scripts/guard_enumeration.mjs) rather than against zero:
-// requiring all 1,173 of this repo's guards to carry a spec would fail nothing
+// requiring every guard in this repo to carry a spec would fail nothing
 // usefully. What the pin buys is that a guard ADDED and not enrolled moves a
 // number, and the run says so, naming the file to write. That is the half of
 // the enrollment problem no checklist entry ever moved -- five of them are in

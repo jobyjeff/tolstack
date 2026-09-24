@@ -105,7 +105,7 @@ export const GUARD_SOURCES = {
 // (docs/strategy/BRIEF_20260915_mutation_witness_enrollment.md).
 //
 // Raising a number without writing a spec is a legitimate move -- some guards
-// cannot be witnessed, and one of them is measured below -- but it is now a
+// cannot be witnessed, and the census counts those separately -- but it is now a
 // line in a diff a reviewer reads, instead of nothing at all.
 export const DECLARED_GUARDS = {
   fast: 513,
