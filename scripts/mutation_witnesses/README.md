@@ -67,7 +67,10 @@ handoffs in eight days moved the backlog without moving the rate
 witnessing is often worth witnessing from more than one direction (three ways to
 break the topology switch, two to break the command-table ban). Everything above
 that list is derived — the file's own name is a slug of `tier` and `expect_red`
-plus a digest of all three, so two agents enrolling two guards cannot collide,
+plus a digest of those two (**not** `suite`: a browser guard is declared once
+and may be run by more than one suite, so keying on `suite` would put the file
+name beyond what the enumeration can see, and `--unenrolled` could no longer
+print it), so two agents enrolling two guards cannot collide,
 and a **renamed guard is a loud orphan**: its spec no longer matches any
 declaration and pytest says so, naming the file to rename it to.
 

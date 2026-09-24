@@ -64,8 +64,14 @@ issue's tolstack half was about:
   there, with the reason written beside it.
 - The runner's exit code means something in all three of its failure classes: a
   guard that stopped reddening, a spec naming a guard the tree no longer
-  declares, and a guard added with no spec. The 2026-09-22 measurement behind
-  this issue — *"the runner prints them and exits 0"* — no longer reproduces.
+  declares, and a guard added with no spec. Only the last two are new:
+  *"the runner prints them and exits 0"* — the sentence this issue and
+  `ISSUE_20260921_three_declared_mutations_are_unwitnessed_on_trunk_after_the_batch_merge.md`
+  both carry — never reproduced.
+  `LESSONS_20260922_mutation_witness_repair_and_enrollment.md` measured
+  `EXIT=1` at the very commit the claim was made against and traced the real
+  cause to **nothing calling the tier**, which is the half this handoff closed
+  by putting it on `CLAUDE.md`'s pre-batch-merge list.
 
 What this issue is actually for is unchanged, and it is why it stays open:
 `audience: strategy`, the principle is not repo-specific, and it lives in

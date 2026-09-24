@@ -3830,7 +3830,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 - [ ] **A declaration two consumers read, where the cheap one compares it
       loosely and the expensive one compares it exactly.** New 2026-09-18, same
       handoff, and it is the shape behind "verified, paste-ready, and wrong".
-A mutation spec's `expect_red` was counted as a **substring** by
+      A mutation spec's `expect_red` was counted as a **substring** by
       `tests/test_mutation_witnesses.py` (0.6s) and matched for **equality** by
       the runner (minutes, behind a browser). Two entries were filed with the
       name deliberately truncated *so that the cheap checker would resolve
@@ -4286,6 +4286,34 @@ A mutation spec's `expect_red` was counted as a **substring** by
       *dashed card*. Both directions, one commit: after a rename, grep the
       retired noun across `apps/*/**.js` **and** `apps/viewer/README.md`, and
       do not let the one you fixed stand in for the other.
+- [ ] **A measured failure a LESSON already corrected, re-asserted as the
+      motivation for a new change.** New 2026-09-23
+      (`mutation_witness_derived_enrollment_and_gating`). The 09-22 lesson had
+      measured `EXIT=1` and written, in as many words, that *"the runner prints
+      the NOT WITNESSED list and still exits 0"* is **false** and *"do not file
+      a third issue about the exit code"* — the real cause being that nothing
+      calls the tier. The next handoff wrote the corrected claim into
+      `CLAUDE.md` and into an issue annotation as the reason for its own work.
+      Corrections live in lessons, which nothing greps, while the claim lives in
+      the issues, which everything reads: **when a diff's prose justifies itself
+      with a measured failure, grep `docs/sessions/lessons/` for that
+      measurement before accepting it**, and check the code path yourself — a
+      one-line `grep -n "process.exit" <script>` settled this one. The
+      conclusion can survive a wrong premise (the tier *does* belong on the
+      pre-merge list), which is what makes this easy to wave through.
+- [ ] **A derived-identity mechanism gated on a COUNT of the things it
+      derives.** New 2026-09-23, same handoff, and the general form of the
+      entry above it about registries restated by hand. `DECLARED_GUARDS` pins
+      how many guards each source declares, so a guard arriving unenrolled
+      reddens pytest — but a cardinality cannot see a delete-plus-add, a name
+      that collides with an existing one (the enumeration deduplicates, by
+      design), or a declaration shape the scanner does not match. Ask of any
+      pinned count: *what pair of changes leaves this number alone?* And look
+      for the free pairing the author left unclaimed — here `declared` equalled
+      the fast tiers' own printed totals exactly (513/513, 154/154) and nothing
+      asserted it, so the scanner's accuracy was a reviewer's measurement
+      rather than a standing check
+      (`ISSUE_20260923_the_guard_census_pins_a_count_not_a_set_so_three_arrivals_are_silent.md`).
 
 ## Architectural errors to check
 

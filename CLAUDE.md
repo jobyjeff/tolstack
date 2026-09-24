@@ -119,10 +119,14 @@ Know these before you write code; each has a test standing on it.
 - **The mutation-witness tier is on that list because a witness decays between
   the branch that measured it and the trunk that runs it.** Three declared
   mutations were `WITNESSED` on their own review branches and `NOT WITNESSED`
-  on trunk a day later, and nothing in the pipeline failed: the runner printed
-  them and exited 0. It exits non-zero now — on a guard that stopped reddening,
-  on a spec that names a guard the tree no longer declares, and on a guard added
-  without a spec — so the merge is where that is caught rather than the next
+  on trunk a day later, and nothing in the pipeline failed — **because nothing
+  ran the tier**, not because the tier was quiet about it: it has exited
+  non-zero on a decayed witness since `9c6c4a4`, and
+  `LESSONS_20260922_mutation_witness_repair_and_enrollment.md` measured that
+  and corrected the "exits 0" claim the issues carry. What 2026-09-23 added is
+  two more non-zero classes — a spec naming a guard the tree no longer
+  declares, and a guard added without a spec — and this list, which is what
+  makes the merge the place any of the three is caught rather than the next
   audit. It is the slow one (a browser, the whole registry, tens of minutes),
   which is the argument for running it at the merge and not per-branch.
 - `tests/debug_*.py` are inspection tools, run by hand, never by pytest.
