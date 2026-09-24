@@ -12,7 +12,6 @@ Handoff: tolerance_stack_slice1 (2026-07-29).
 from __future__ import annotations
 
 import ast
-import fnmatch
 import json
 import os
 import re
@@ -32,6 +31,10 @@ from tolerance_stack.stack import (
     JOINT_EXPORT_KEY,
     JOINT_EXPORT_PROSE_KEY,
     VERDICTS,
+)
+from tests.claims_registry import (
+    GIT_TRACKED, HISTORICAL_NAMES as CLAIM_HISTORICAL_NAMES,
+    HISTORICAL_PREFIXES, check, claim_corpus, declared_claims,
 )
 
 # `scripts/` is not a package, hence the path insert -- the same thing every
@@ -2217,38 +2220,24 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
     assert sum(1 for e in elements if e.hardware_ref) == 19
 
 
-# --- what both doc-level scans share: the QUOTATION rule and the CORPUS ------
+# --- the live-document walk, and what is left of it --------------------------
 #
-# Two guards in this file read prose for a number that has gone stale: the
-# traced ratio, immediately below, and hardware-entry counts, in the section
-# further down. Both need the same exemption and until 2026-08-12 they had two
-# different ones -- this one knew only about blockquotes, which is exactly why
-# the second superseded ratio could not be added to it (see the list below).
-# One definition, two callers.
+# This used to be the shared corpus of two prose scans -- the traced ratio and
+# the hardware-entry counts -- plus the quotation rule both needed to tell a
+# dated correction from a claim. Both scans are gone (2026-09-23,
+# `claims_registry_guards_read_declarations_not_prose`): a document that makes a
+# checkable claim declares it, and `tests/claims_registry.py` derives its own,
+# git-aware corpus. `_quoted_spans()` went with them, because a declaration has
+# nothing to exempt -- quoting one means putting the fence in a blockquote,
+# which is a property of the fence rather than a guess about the English around
+# a match.
 #
-# `live_documents()` and `_prose_blocks()` moved up here on 2026-09-03 (handoff
-# `doc_coverage_sets_derived`) for the same reason and by the same move: they
-# were defined below the hardware-count section and above nothing, while the
-# traced-ratio scan two hundred lines *above* them kept a five-entry literal of
-# its own. Three live documents (`README.md`, `CLAUDE.md`, `docs/DAG_TOPOLOGY.md`)
-# were therefore unread by it, two of them added to the live set after the
-# literal was written
-# (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Unchanged
-# apart from position; one corpus, visibly serving both scans.
-
-def _quoted_spans(text: str) -> list[tuple[int, int]]:
-    """Where a superseded number is allowed to survive: inside a quotation.
-
-    This repo corrects a number a review already read by leaving the old one
-    visible rather than overwriting it -- as a markdown blockquote line, or
-    quoted inline (`that clause read "The other twelve entries..."`, which is how
-    the correction inside `NAS6403U11D`'s `library_ref_note` is written, where
-    JSON gives you no blockquote). A quoted number is a report, not a claim.
-    """
-    spans = [(m.start(), m.end()) for m in re.finditer(r'"[^"\n]{0,300}"', text)]
-    spans += [(m.start(), m.end()) for m in re.finditer(r"(?m)^\s*>.*$", text)]
-    return spans
-
+# `live_documents()` stays, with one caller: the enumerated-state guard further
+# down, which needs "this README stopped being live" to be loud and is a walk
+# over what is on disk rather than over what states a fact. It is deliberately a
+# walk and not a hand-kept list -- a document nobody thought to enumerate is
+# exactly how this repo's doc bugs recur
+# (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`).
 
 # Records of what someone believed on a date, not statements of what is true
 # now. Rewriting them would destroy the evidence the corrections rest on --
@@ -2297,117 +2286,6 @@ def live_documents(repo_root: Path) -> list[Path]:
                     name.endswith(".json") and rel_dir.split("/")[0] == "docs"):
                 found.append(here / name)
     return found
-
-
-# --- the claim-shape corpus: live documents MINUS the triage briefs ---------
-#
-# Added 2026-09-17 (handoff `prose_guards_scope_out_strategy_briefs`), after the
-# same defect was measured twice in three days. The scans below read prose for a
-# *claim shape* and recount it against this repo's data. A `docs/strategy/BRIEF_*`
-# is an inbox artifact about an undecided question -- triage writes it, a strategy
-# session consumes it -- and it is not a document that states this repo's facts.
-# Ordinary English in one matches these shapes anyway:
-#
-#   * 2026-09-15: a sentence asserting that the viewer's *behaviour* was what a
-#     named handoff shipped, phrased with the byte-identity idiom, reddened
-#     `tests/test_provenance.py`'s byte-identity guard and gated a 129-commit
-#     batch merge
-#     (`ISSUE_20260916_byte_identity_guard_is_red_on_master_from_a_triage_brief.md`;
-#     the sentence itself is replayed in that module, which is the only file the
-#     scan exempts from itself).
-#   * 2026-09-17: "for a reason the other three do not have", in the *same* brief,
-#     was recounted against `hardware_entries.json`'s `not_library` by the shape
-#     `other\s+(N)\s+do\s+not` and gated a 104-commit batch merge
-#     (`ISSUE_20260917_hardware_count_guard_red_on_master_from_unrelated_prose.md`).
-#
-# Neither sentence was making a claim about this repo's data. Cost: two blocked
-# batch merges, thirteen duplicate issue filings, two rewords of prose that is
-# not these guards' business.
-#
-# The rejected alternative was to tighten each shape to require its subject
-# (`other\s+(N)\s+do\s+not\s+defer`). Rejected because the shape set is
-# open-ended -- nine shapes today, and the hardware guard's own docstring says
-# "a shape not listed in `_COUNT_CLAIMS` is not caught" -- so every shape added
-# re-opens the exposure, and narrowing shapes trades this false-positive class
-# for a false-*negative* class on the real tolerance-stack documents the guards
-# exist for.
-#
-# `live_documents()` is deliberately left alone: a brief still *is* a live file,
-# and the coverage guard and the enumerated-state guard below both want the
-# unfiltered walk (see `_surface_readme_text`, which needs "this README stopped
-# being live" to be loud). The exclusion lives here instead, in the corpus the
-# claim scans read -- one definition, every claim scan, in this file and in the
-# two other modules that share the walk.
-
-#: Repo-relative `fnmatch` globs the claim-shape scans do not read.
-_CLAIM_SCAN_EXEMPT_GLOBS = ("docs/strategy/BRIEF_*.md",)
-
-
-def is_claim_scanned(rel: str) -> bool:
-    """Is the repo-relative path ``rel`` read by the claim-shape scans?
-
-    A *predicate* rather than a filtered list, because not every claim scan walks
-    `live_documents()`: `tests/test_provenance.py`'s byte-identity scan derives
-    its corpus from `git ls-files` (it reads `.py`/`.json`/`.toml` too), and it
-    has to make the same scope call from a different starting set.
-
-    `fnmatchcase`, not `fnmatch`: the latter runs `os.path.normcase` first, so on
-    Windows the exemption would be case-insensitive and on Linux it would not.
-    `BRIEF_` is the naming convention; a file spelled some other way is scanned,
-    which is the loud direction.
-    """
-    return not any(fnmatch.fnmatchcase(rel, glob)
-                   for glob in _CLAIM_SCAN_EXEMPT_GLOBS)
-
-
-def claim_scanned_documents(repo_root: Path) -> list[Path]:
-    """`live_documents()` minus the triage briefs -- the corpus of the scans that
-    recount a claim shape against this repo's data.
-
-    Measured 2026-09-17: **92** live documents, of which 24 are
-    `docs/strategy/BRIEF_*.md`, leaving **68**. Nothing else lives under
-    `docs/strategy/` in this walk.
-
-    This read 94/70 "at trunk `efa5c4c`, and a worktree sees two fewer of each
-    because the `data/` documents are gitignored" until
-    `review/prose_guards_scope_out_strategy_briefs` re-derived it. Both halves
-    were wrong and in a way worth knowing: every `data/` document here is
-    *tracked*, so no worktree is missing one, and the two extra files the main
-    checkout reported were `tmp/mutation-witness/apps/{viewer,annotate}/README.md`
-    -- gitignored scratch a 2026-09-16 session left behind. `live_documents()`
-    is a bare `os.walk` that never consults git, so untracked dirt joins this
-    corpus; filed as
-    `docs/issues/ISSUE_20260917_live_documents_walks_gitignored_scratch_in_the_main_checkout.md`.
-    92/68 is the tracked-tree count and is the same in both checkouts.
-    """
-    return [p for p in live_documents(repo_root)
-            if is_claim_scanned(p.relative_to(repo_root).as_posix())]
-
-
-def _prose_blocks(path: Path, repo_root: Path) -> list[tuple[str, str]]:
-    """``(location, text)`` -- a markdown file is one block; a JSON file is one
-    block per string value, since that is where its prose lives."""
-    rel = path.relative_to(repo_root).as_posix()
-    text = path.read_text(encoding="utf-8")
-    if path.suffix == ".md":
-        return [(rel, text)]
-    blocks: list[tuple[str, str]] = []
-
-    def walk(node, trail):
-        if isinstance(node, str):
-            blocks.append((f"{rel} [{trail}]", node))
-        elif isinstance(node, dict):
-            for k, v in node.items():
-                walk(v, f"{trail}.{k}" if trail else k)
-        elif isinstance(node, list):
-            for i, v in enumerate(node):
-                walk(v, f"{trail}[{i}]")
-
-    try:
-        walk(json.loads(text), "")
-    except json.JSONDecodeError:      # not our problem to diagnose here
-        return []
-    return blocks
 
 
 # A coverage set that silently comes back empty is worse than no guard: the scan
@@ -2464,13 +2342,14 @@ _DOCUMENTS_THE_DOC_SCANS_COVER = (
 #: between them are `PROVENANCE.md`s, which `_HISTORICAL_NAMES` drops anyway.
 _LIVE_DOCUMENT_FLOOR = 40
 
-#: Floor for `claim_scanned_documents()`. Its own constant, not a share of the
-#: one above, so the two corpora can move independently -- the whole point of
-#: splitting them. Left at the same **40**: the exclusion took 92 live documents
-#: to 68 on 2026-09-17, so both sets clear this by a wide margin and lowering
-#: either would be lowering a floor that is not being pressed. The number's job is unchanged -- catch the derivation coming back
-#: empty or a fraction of itself, not fence the corpus's size.
-_CLAIM_SCANNED_DOCUMENT_FLOOR = 40
+#: Floor for the claim corpus (`tests/claims_registry.py::claim_corpus`). Its
+#: own constant and not a share of the one above: the two sets are derived
+#: differently -- a walk for `.md` plus `docs/*.json`, against `git ls-files`
+#: over eight suffixes -- so they move independently, which is the point of
+#: having two. Measured at 273 on 2026-09-23 in the worktree; the floor's job is
+#: the same as every other here, catching the derivation coming back empty or a
+#: fraction of itself rather than fencing the corpus's size.
+_CLAIM_CORPUS_FLOOR = 200
 
 # The documents that must **publish** the current traced ratio, as opposed to
 # merely not contradicting it. This one stays curated, and the argument is:
@@ -2508,16 +2387,49 @@ def traced_ratio_publishers(repo_root: Path) -> list[Path]:
         (repo_root / "docs" / "tolerance_stacks").glob("WORKSHEET_*.md"))
 
 
+def test_the_claim_corpus_exempts_dated_history_on_purpose():
+    """Every dated-record exemption, shown excluding something that is there.
+
+    An exemption glob matching nothing is a comment, not a scope decision --
+    the failure that reports green is one quietly widened, and the one that
+    loses coverage is one pointed at a directory this repo no longer has.
+    ``docs/sessions/``, ``docs/issues/`` and ``docs/reference/`` are records of
+    what someone believed on a date, and ``PROVENANCE.md`` is the same thing one
+    row at a time; a lesson or an issue explaining this format quotes a
+    declaration as an **example**, and an example is not a claim.
+
+    Lives here rather than beside the registry's other guards because proving
+    an exemption excludes something real needs the directories to exist, and
+    ``tests/test_claims_registry.py`` has to stay green inside the
+    mutation-witness shadow tree, which copies none of them.
+    """
+    repo_root = STACKS_DIR.parent.parent
+    _, corpus = claim_corpus(repo_root)
+    rel = {p.relative_to(repo_root).as_posix() for p in corpus}
+
+    for prefix in HISTORICAL_PREFIXES:
+        assert (repo_root / prefix.rstrip("/")).is_dir(), (
+            f"{prefix!r} is exempt from the claim corpus and is not a directory "
+            f"in this repo, so the exemption excludes nothing"
+        )
+        leaked = sorted(r for r in rel if r.startswith(prefix))
+        assert leaked == [], leaked
+    for name in CLAIM_HISTORICAL_NAMES:
+        assert (repo_root / name).is_file(), name
+        assert name not in rel, name
+
+
 def test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete():
     """The set a guard walks, guarded -- because an empty set reports green.
 
-    Both halves of the traced-ratio scan below, and the two hardware/enumerated
-    -state scans further down, run over a set derived here. Until 2026-09-03 the
-    traced-ratio scan's set was a five-entry literal and the three live documents
-    it did not name were *invisible* rather than unpaired
-    (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Deriving
-    the set fixes that; asserting the derived set is what stops the next failure,
-    where the walk quietly returns nothing.
+    Three derived sets, all asserted here: `live_documents()` (the enumerated
+    -state guard below), the **claim corpus** (every guard that reads a
+    declaration, in this module and three others), and the curated traced-ratio
+    publishers. Until 2026-09-03 the traced-ratio scan's set was a five-entry
+    literal and the three live documents it did not name were *invisible* rather
+    than unpaired (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`).
+    Deriving the set fixes that; asserting the derived set is what stops the
+    next failure, where the derivation quietly returns nothing.
     """
     repo_root = STACKS_DIR.parent.parent
 
@@ -2532,27 +2444,31 @@ def test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete():
         f"second is how this class of bug stays invisible."
     )
 
-    # The claim-shape corpus is a *derived subset*, so it needs the same two
-    # assertions one ring in: non-empty above its own floor, and still holding
-    # every document this repo says the scans read. A narrowing that quietly
-    # took one of those with it would be the exclusion overshooting -- the
-    # false-negative direction, which is the one that reports green.
-    claim_scanned = claim_scanned_documents(repo_root)
-    assert_coverage_set("claim-scanned documents", claim_scanned,
-                        _CLAIM_SCANNED_DOCUMENT_FLOOR)
-    claim_rel = {p.relative_to(repo_root).as_posix() for p in claim_scanned}
-    dropped = [name for name in _DOCUMENTS_THE_DOC_SCANS_COVER
-               if name not in claim_rel]
-    assert dropped == [], (
-        f"{dropped} are documented as being read by this repo's doc scans and "
-        f"_CLAIM_SCAN_EXEMPT_GLOBS has excluded them from the claim-shape "
-        f"corpus. The exclusion is for triage briefs; it has caught a document "
-        f"that states this repo's facts."
+    # The claim corpus is the other derived set the doc guards stand on, and it
+    # is a **different** derivation rather than a filter over this one: it asks
+    # git what is tracked (`tests/claims_registry.py::claim_corpus`) instead of
+    # walking, which is what took untracked scratch out of it
+    # (`ISSUE_20260917_live_documents_walks_gitignored_scratch_in_the_main_checkout.md`).
+    # So it needs its own two assertions -- non-empty, and still reaching every
+    # document this repo says its guards read. The second is the one that stops
+    # the failure reporting green: a corpus narrowed to nothing has no claim to
+    # disagree with and passes.
+    mode, corpus = claim_corpus(repo_root)
+    assert mode == GIT_TRACKED, (
+        f"the claim corpus fell back to a walk in this repo (mode={mode!r}). "
+        f"The fallback is for the mutation-witness shadow tree and for a "
+        f"tmp_path; here it means git could not be asked, and untracked scratch "
+        f"is back in the corpus."
     )
-    assert claim_rel <= rel, (
-        f"the claim-shape corpus holds {sorted(claim_rel - rel)}, which "
-        f"live_documents() does not. It is supposed to be a filter over that "
-        f"walk, not a second walk."
+    assert_coverage_set("claim-corpus files", corpus, _CLAIM_CORPUS_FLOOR)
+    corpus_rel = {p.relative_to(repo_root).as_posix() for p in corpus}
+    dropped = [name for name in _DOCUMENTS_THE_DOC_SCANS_COVER
+               if name not in corpus_rel]
+    assert dropped == [], (
+        f"{dropped} are documented as being read by this repo's doc guards and "
+        f"the claim corpus does not reach them, so a declaration written in one "
+        f"would never be checked. Either the file moved or an exemption in "
+        f"tests/claims_registry.py has overshot."
     )
 
     publishers = traced_ratio_publishers(repo_root)
@@ -2565,217 +2481,63 @@ def test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete():
     )
 
 
-def _retired_ratio_pattern(figure: str) -> re.Pattern:
-    """``3 of 26`` is also written ``3 traced of 26`` and ``3 traced out of 26``.
-
-    Anchored on **both** numbers, which the bare ``"of 17"`` substring this
-    replaced was not: reading the denominator alone flags a perfectly correct
-    ``4 of 17`` and cannot see any figure that shares its denominator with the
-    live one -- and ``3 of 26`` shares 26 with the current figure. That is a
-    second reason the list below could not grow past one entry.
-
-    The numerator must be **the traced count**, not any number that happens to
-    sit within reach of the denominator, so the wildcard span is only reachable
-    behind the literal word ``traced``. A free ``\\b<n>\\b[^.\\n]{0,40}?of <m>``
-    reads the repo's own long form -- ``N traced / M inferred / K untraced, out
-    of T element instances``, the shape the review checklist asks every report to
-    state -- and matches on the *inferred* column: the **current** figure written
-    out long (``5 traced / 3 inferred / 18 untraced, out of 26``) was flagged as
-    the retired ``3 of 26``, i.e. the guard fired on the one number it exists to
-    protect, and the natural repair is to delete a correct figure. Narrowed
-    during `review/traced_ratio_guard_freshness`; the retired figure in that same
-    long form is still caught, because there the retired numerator *is* the
-    traced column.
-    """
-    traced, instances = figure.split(" of ")
-    return re.compile(
-        rf"\b{traced}\s+of\s+{instances}\b"
-        rf"|\b{traced}\s+traced\b[^.\n]{{0,40}}?\bof\s+{instances}\b"
-    )
+# The traced ratio is DECLARED by the documents that publish it, and the
+# declaration is re-derived from the seeded stacks on every run
+# (`tests/claims_registry.py`, metric `traced_ratio`). Two halves, as before,
+# and the split is the same one -- but neither half reads prose now.
+#
+# Rule 1, presence: a document that is supposed to publish the figure still
+# does. That cannot be derived from the documents, because the evidence is
+# *absent* from exactly the file you need to catch
+# (`ISSUE_20260812_the_doc_scan_guards_cannot_fail_on_a_deleted_section.md`,
+# shape 1), so the publisher set stays curated and is asserted `exact=True`.
+# What changed is what "publishes" means: carrying a `traced_ratio` declaration,
+# not containing a substring.
+#
+# Rule 2, freshness: every declared figure agrees with the recount. This used to
+# be a scan for RETIRED figures -- a two-entry list of superseded ratios, each
+# compiled into a pattern anchored on both numbers, hunting live prose for an
+# assertion outside a quotation. It caught real staleness and it also fired on
+# the repo's own long form of the CURRENT figure, which is the guard reddening
+# on the one number it exists to protect. The declaration check is both
+# stricter and narrower: any wrong value is caught, not just the two registered
+# retirements, and a sentence carrying a retired figure without declaring it is
+# not read at all. `_RETIRED_TRACED_RATIOS` is gone with the scan that used it;
+# the history it held lives in the dated corrections in these documents, which
+# is where it was always the real record.
 
 
-# Every traced ratio this repo has retired, oldest first. This is history and
-# history does not move, so it is not the cached-copy-of-a-live-number mistake
-# the guard below exists against. The one manual step: **the handoff that moves
-# the ratio appends the figure it retires here.** That handoff is forced to look
-# -- moving the ratio fails the `missing` half against every live doc -- and that
-# failure message says so.
-_RETIRED_TRACED_RATIOS = tuple(
-    (figure, _retired_ratio_pattern(figure), why) for figure, why in (
-        ("1 of 17", "founding 2026-07-29 -> 2026-08-06 (`traced_labels_and_ratio`); "
-                    "wrong in both halves rather than merely superseded"),
-        ("3 of 26", "2026-08-06 -> 2026-08-10 (`fastener_citations_and_confidence`), "
-                    "which re-cited two grips up and pushed two elements down"),
-    ))
+def test_every_traced_ratio_publisher_declares_the_current_figure():
+    """The stale-number bug this repo keeps having, caught where the number is
+    published rather than wherever a regex found a digit.
 
-
-def _current_traced_ratio() -> str:
-    """The live figure, recomputed from the stacks -- never a literal, and in
-    this file least of all: a cached copy of this number beside the code that
-    computes it is the exact defect the guard below exists against, and it is
-    what an inline comment here had been for two days."""
-    from tests.debug_report_tolerance_stacks import SEEDED_STACK_FILES, _counts
-
-    c = _counts(STACKS_DIR / n for n in SEEDED_STACK_FILES)
-    return f"{c['traced']} of {c['instances']}"
-
-
-def retired_traced_ratio_claims(text: str) -> list[tuple[str, int]]:
-    """``(figure, offset)`` for every retired ratio ``text`` states as a claim.
-
-    A figure inside a quotation -- a blockquote line or a double-quoted phrase,
-    see ``_quoted_spans`` -- is a report of what a document used to say, not an
-    assertion about now. That exemption is what lets this list hold more than one
-    entry: the dated corrections in `ARCHITECTURE.md` and the four worksheets
-    legitimately state ``3 of 26``, and deleting them to get the suite green
-    would destroy the evidence the correction rests on.
-    """
-    quoted = _quoted_spans(text)
-    return [(figure, m.start())
-            for figure, pattern, _ in _RETIRED_TRACED_RATIOS
-            for m in pattern.finditer(text)
-            if not any(a <= m.start() < b for a, b in quoted)]
-
-
-def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
-    """The stale-number bug this repo keeps having, caught at the doc level.
-
-    ``1 of 17`` reached eleven files and survived three reviews. Prose cannot be
-    parsed, but two mechanical rules cover the failure that actually happened:
-
-    1. every live doc that discusses the ratio states the **current** figure; and
-    2. **every** retired figure appears only inside a quotation -- a dated
-       correction note, never an assertion. That is the repo's rule for a number
-       a review already read: correct it in place and leave the old one visible,
-       don't silently overwrite it.
-
-    Rule 2 said *the* superseded figure and meant ``1 of 17`` alone until
-    2026-08-12, so ``3 of 26`` -- retired on 2026-08-10 and still written in six
-    live docs -- was unguarded. It is on the list now because the exemption is
-    "inside a quotation" rather than "inside a blockquote"; the blockquote-only
-    rule would have made a correction note written inline (the SOP's *"took it
-    from `3 of 26` to 5"*) impossible to write truthfully.
-
-    Historical records are deliberately out of scope: `docs/sessions/reviews/`
-    and `docs/sessions/completed/` are what someone believed on a date, and
-    rewriting them would destroy the evidence this correction rests on.
-
-    **The two halves read two different sets, since 2026-09-03** (handoff
-    `doc_coverage_sets_derived`). Rule 2 is a property of any text, so it walks
-    `claim_scanned_documents()` -- every live document except the triage briefs,
-    derived, no list; it read the unfiltered `live_documents()` until 2026-09-17,
-    and the argument for the narrowing is written above that function. Rule 1 is a
-    presence check and reads the curated `traced_ratio_publishers()`; the
-    argument for keeping that one curated is written above it. Both sets are
-    asserted by `test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete`.
-    Until then both halves shared one five-entry literal, and `README.md`,
-    `CLAUDE.md` and `docs/DAG_TOPOLOGY.md` were unread by either -- a retired
-    ratio asserted in any of the three was not caught
-    (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`).
+    ``1 of 17`` reached eleven files and survived three reviews. Each of those
+    files now carries a declaration, the declaration is recounted from the
+    seeded stacks, and
+    ``tests/test_claims_registry.py::test_a_document_that_declares_a_rendered_value_also_states_it``
+    pairs the declared string against the sentence beside it -- so source,
+    declaration and prose are three links and all three are checked.
     """
     repo_root = STACKS_DIR.parent.parent
-    current = _current_traced_ratio()
+    declared = {c.path: c for c in declared_claims(repo_root)
+                if c.metric == "traced_ratio"}
 
-    retired = {figure for figure, _, _ in _RETIRED_TRACED_RATIOS}
-    assert current not in retired, (
-        f"the live traced ratio {current!r} is registered as retired in "
-        f"_RETIRED_TRACED_RATIOS -- the ratio moved back, or an entry was added "
-        f"one handoff early"
-    )
-
-    missing = []
-    for p in traced_ratio_publishers(repo_root):
-        if not p.exists() or current not in p.read_text(encoding="utf-8"):
-            missing.append(str(p.relative_to(repo_root)))
-
-    asserted_stale = []
-    for p in claim_scanned_documents(repo_root):
-        for location, text in _prose_blocks(p, repo_root):
-            for figure, offset in retired_traced_ratio_claims(text):
-                line = text[:offset].count("\n") + 1
-                where = (f"{location}:{line}" if p.suffix == ".md" else location)
-                asserted_stale.append(f"{where}: {figure}")
-
+    missing = [str(p.relative_to(repo_root))
+               for p in traced_ratio_publishers(repo_root)
+               if p.relative_to(repo_root).as_posix() not in declared]
     assert missing == [], (
-        f"traced ratio not stated as {current!r} in {missing}. If the ratio just "
-        f"moved, the figure it replaced is now retired and unguarded: append it "
-        f"to _RETIRED_TRACED_RATIOS in this file as you update these documents."
-    )
-    assert asserted_stale == [], (
-        f"retired traced ratio asserted outside a quotation at {asserted_stale}. "
-        f"A dated correction may state it -- as a blockquote line or inside "
-        f"double quotes; a live sentence may not."
+        f"{missing} are required to publish the traced ratio and carry no "
+        f"`traced_ratio` claim declaration. If one of them stopped being a "
+        f"publisher, take it off _RATIO_PUBLISHER_NAMES and say why; a document "
+        f"that quietly stops stating the figure is the deletion this half "
+        f"exists to see."
     )
 
-
-def test_the_traced_ratio_guard_can_fail():
-    """A guard nobody has watched fail is not yet a guard.
-
-    The scan above is worth its lines only if it tells a claim from a quotation,
-    so the newly-covered figure is put through all three shapes here. The bare
-    sentence is `docs/SOP_TOLERANCE_STACK.md`'s own, as it read from 2026-08-10
-    until this handoff quoted its retired figure.
-    """
-    stale = ("The 2026-08-10 change took it from 3 of 26 to 5 by re-citing two "
-             "elements up to a standard")
-    assert [f for f, _ in retired_traced_ratio_claims(stale)] == ["3 of 26"]
-
-    # ...and the same sentence as a quotation is silent, in both of the two forms
-    # this repo writes a correction in -- blockquote for markdown, inline double
-    # quotes for JSON, which has no blockquote.
-    assert retired_traced_ratio_claims(f"> {stale}") == []
-    assert retired_traced_ratio_claims(f'it read "{stale}" until 2026-08-12') == []
-
-    # The older figure, in the wordier form the worksheets use for it.
-    assert [f for f, _ in retired_traced_ratio_claims(
-        "Slice 1 scored 1 traced out of 17 across three stacks")] == ["1 of 17"]
-
-    # Not flagged: the live figure, and the arithmetic that explains the
-    # denominator -- "17 of 26" is how the founding count's omission is shown.
-    assert retired_traced_ratio_claims(
-        f"**{_current_traced_ratio()} element instances** are `traced`, and the "
-        f"founding denominator silently omitted take2 (11 + 6 = 17 of 26)") == []
-
-    # The repo's long form, both ways round, added during
-    # `review/traced_ratio_guard_freshness`. This is the shape the review
-    # checklist asks every report to state, so both directions need pinning: a
-    # RETIRED figure written long is still a claim...
-    assert [f for f, _ in retired_traced_ratio_claims(
-        "3 traced / 7 inferred / 16 untraced, out of 26 element instances"
-    )] == ["3 of 26"]
-    # ...and a *current* figure written long is not, even when a retired
-    # numerator sits in its `inferred` column within reach of the denominator.
-    # An unanchored wildcard flagged exactly that -- the guard firing on the one
-    # number it exists to protect. Built from the list itself, so this case can
-    # neither go vacuous nor go stale as the list grows.
-    for figure, _, _ in _RETIRED_TRACED_RATIOS:
-        numerator, instances = figure.split(" of ")
-        assert retired_traced_ratio_claims(
-            f"9 traced / {numerator} inferred / 4 untraced, out of {instances} "
-            f"element instances") == [], figure
-
-
-def test_the_stale_half_now_reads_a_document_outside_the_curated_publisher_set(tmp_path):
-    """The defect the hand-kept list hid, replayed on a document nobody curated.
-
-    `CLAUDE.md` was the file the 2026-09-01 review injected `3 of 26` into by
-    hand: the hardware-count guard fired and the traced-ratio guard stayed green,
-    because its list did not name the file. The same injection is done here on a
-    throwaway tree, so the evidence lives with the guard rather than in a review
-    report -- and on a file whose *name* the scan has never heard of, which is
-    the whole point of walking rather than listing.
-    """
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "NOTES_NOBODY_CURATED.md").write_text(
-        "Slice 1 scored 3 of 26 element instances traced.\n", encoding="utf-8")
-    (tmp_path / "docs" / "quiet.md").write_text(
-        "> Slice 1 scored 3 of 26 element instances traced.\n", encoding="utf-8")
-
-    found = [f"{loc}: {figure}"
-             for p in claim_scanned_documents(tmp_path)
-             for loc, text in _prose_blocks(p, tmp_path)
-             for figure, _ in retired_traced_ratio_claims(text)]
-    assert found == ["NOTES_NOBODY_CURATED.md: 3 of 26"], found
+    stale = [f"{c.location}: {check(c, repo_root).detail}"
+             for c in declared.values() if not check(c, repo_root).ok]
+    assert stale == [], (
+        "declared traced ratios that the seeded stacks do not give:\n  "
+        + "\n  ".join(stale))
 
 
 def test_the_coverage_set_assertions_go_red_on_a_derivation_pointed_nowhere(tmp_path):
@@ -2783,23 +2545,24 @@ def test_the_coverage_set_assertions_go_red_on_a_derivation_pointed_nowhere(tmp_
 
     This is the failure the assertions exist for and the one that reports green
     without them: a walk over a directory that no longer holds the documents
-    finds no stale figure anywhere and every scan passes. `tmp_path` is a real
-    directory that simply is not this repo -- the same shape as a renamed folder
-    or a `repo_root` computed one level wrong.
+    finds nothing to check and every scan passes. `tmp_path` is a real directory
+    that simply is not this repo -- the same shape as a renamed folder or a
+    `repo_root` computed one level wrong.
     """
     assert live_documents(tmp_path) == []
     with pytest.raises(AssertionError, match="coverage set is EMPTY"):
         assert_coverage_set("live documents", live_documents(tmp_path),
                             _LIVE_DOCUMENT_FLOOR)
 
-    # The claim-shape corpus is a filter over that walk, so it fails the same
-    # way and needs watching separately: a filter that excluded *everything*
-    # would leave every claim scan green with nothing scanned.
-    assert claim_scanned_documents(tmp_path) == []
+    # The claim corpus is the other derived set these guards stand on, and it
+    # fails the same way: a reader pointed at a tree with no declarations in it
+    # has nothing to disagree with and reports green.
+    assert declared_claims(tmp_path) == []
     with pytest.raises(AssertionError, match="coverage set is EMPTY"):
-        assert_coverage_set("claim-scanned documents",
-                            claim_scanned_documents(tmp_path),
-                            _CLAIM_SCANNED_DOCUMENT_FLOOR)
+        assert_coverage_set("declared hardware-entry counts",
+                            [c for c in declared_claims(tmp_path)
+                             if c.metric == "hardware_entry_count"],
+                            _DECLARED_HARDWARE_COUNT_FLOOR)
 
     # The curated set is never empty -- it is built from names -- so its failure
     # mode is the other one: the derived half of it, the worksheet glob, coming
@@ -2887,286 +2650,75 @@ def test_hardware_entry_values_source_counts_match_the_description():
         assert phrase in text, f"description no longer says {phrase!r}"
 
 
-# --- the doc-level guard on hardware-entry counts ----------------------------
+# --- hardware-entry counts: DECLARED, never found in prose -------------------
 #
 # ``test_hardware_entry_values_source_counts_match_the_description`` above pins
-# ONE file's copy of these counts. The counts kept going stale in the OTHER
-# copies: docs/tolerance_stacks/README.md said "eight of the eleven inline
-# entries" from 2026-08-10 (when three bolts were re-sourced to the NAS standard)
-# to 2026-08-12, and that same sentence ended by telling the reader a test
-# asserted its numbers -- it did, against a different file. Everything below is
-# the same doc-level scan ``test_every_document_quoting_the_traced_ratio_...``
-# uses, applied to these counts: find the claim wherever it lives, recount it
-# against hardware_entries.json, name the document and line when it disagrees.
+# one file's own copy of these counts, phrase by phrase. The counts kept going
+# stale in the OTHER copies -- docs/tolerance_stacks/README.md said "eight of
+# the eleven inline entries" from 2026-08-10 to 2026-08-12 -- and from
+# 2026-08-12 to 2026-09-23 what caught that was a regex over every live
+# document for nine count-claim SHAPES, recounted against hardware_entries.json.
+#
+# It is a declaration now (handoff `claims_registry_guards_read_declarations_
+# not_prose`). Nine shapes was always an open-ended list -- the guard's own
+# docstring said "a shape not listed is not caught" -- and the open end bit from
+# the other side: `other\s+(N)\s+do\s+not` recounted a triage brief's "for a
+# reason the other three do not have" against `not_library` and gated a
+# 104-commit batch merge
+# (`ISSUE_20260917_hardware_count_guard_red_on_master_from_unrelated_prose.md`).
+# A document that states one of these counts declares it; `tests/claims_registry.py`
+# re-derives every declared count from the file on every run, which is stricter
+# than the regex was (any count key, any wrong value -- not just nine phrasings)
+# and cannot fire on a sentence that was never making the claim.
 
-_NUMBER_WORDS = {
-    w: i for i, w in enumerate(
-        "zero one two three four five six seven eight nine ten eleven twelve "
-        "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
-        .split())
-}
+#: Floor for the declared hardware counts. A floor rather than an exact count
+#: for the reason ``assert_coverage_set`` gives: a document may declare one more
+#: of these tomorrow without an edit here. It catches the failure that actually
+#: happens -- the declarations deleted, or the reader pointed somewhere wrong.
+_DECLARED_HARDWARE_COUNT_FLOOR = 6
 
-# longest-first so "sixteen" is not matched as "six"; \b so the 6403 in NAS6403
-# is not read as a number
-_NUM = r"\b(?:\d{1,3}|" + "|".join(
-    sorted(_NUMBER_WORDS, key=len, reverse=True)) + r")\b"
-
-
-def _stated_number(token: str) -> int:
-    t = token.lower()
-    return int(t) if t.isdigit() else _NUMBER_WORDS[t]
-
-
-def hardware_entry_counts() -> dict[str, int]:
-    """Every count this repo's prose has ever quoted, recounted from the file."""
-    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
-    entries = data["entries"]
-    src = lambda e: e.get("values_source") or {}                     # noqa: E731
-    n = lambda pred: sum(1 for e in entries if pred(e))              # noqa: E731
-    c = {
-        "total": len(entries),
-        "sourced": n(lambda e: bool(src(e))),
-        "workbook": n(lambda e: src(e).get("kind") == "workbook"),
-        "spec": n(lambda e: src(e).get("kind") == "spec"),
-        "drawing": n(lambda e: src(e).get("kind") == "drawing"),
-        "traced": n(lambda e: src(e).get("confidence") == "traced"),
-        # The NAS bolts specifically, not everything spec-sourced: "the thirteen
-        # NAS bolts" stopped equalling the spec count on 2026-09-15, when the RBC
-        # bearing/bushing entries joined the spec-sourced set.
-        "nas_bolts": n(lambda e: (e.get("standard") or "").startswith("NAS64")),
-        "inline": n(lambda e: e["values_status"] == "inline"),
-        "library": n(lambda e: e["values_status"] == "library"),
-        "not_transcribed": n(lambda e: e["values_status"] == "not_transcribed"),
-    }
-    c["safe"] = c["sourced"] - c["workbook"]
-    c["not_library"] = c["total"] - c["library"]
-    return c
-
-
-# (label, pattern, the count key each capture group must equal). A key may be a
-# tuple, which means "either denominator is legitimate": the JSON description
-# counts all fifteen entries, the README sentence counted only the eleven that
-# carry a values_source, and both readings are correct. `[^.]{0,N}?` keeps a
-# match inside roughly one sentence.
-_COUNT_CLAIMS = [
-    ("entries sourced kind=workbook, out of",
-     rf"({_NUM})\s+of\s+the\s+({_NUM})[^.]{{0,100}}?\bentries\b[^.]{{0,200}}?workbook",
-     ("workbook", ("total", "sourced"))),
-    ("entries whose values_source is not the workbook",
-     rf"other\s+({_NUM})\s+are\s+safe", ("safe",)),
-    ("entries with a traced values_source",
-     rf"({_NUM})\s+entries\s+are\s+traced", ("traced",)),
-    ("entries traced to the NAS standard",
-     rf"({_NUM})\s+traced\s+to\s+the\s+NAS", (("spec", "nas_bolts"),)),
-    ("entries traced to the NAS standard",
-     rf"the\s+({_NUM})\s+NAS\s+bolts", (("spec", "nas_bolts"),)),
-    ("entries traced to a source-control drawing",
-     rf"({_NUM})\s+(?:traced\s+)?to\s+(?:their\s+own\s+)?source.control\s+drawings",
-     ("drawing",)),
-    ("entries with values_status not_transcribed",
-     rf"({_NUM})\s+entries\s+are\s+`?not_transcribed", ("not_transcribed",)),
-    ("entries that do not defer to the spec library",
-     rf"other\s+({_NUM})\s+do\s+not", ("not_library",)),
-    ("entries with values_status inline / not_transcribed",
-     rf"\(({_NUM})\s+`?inline`?,\s+({_NUM})\s+`?not_transcribed",
-     ("inline", "not_transcribed")),
-]
-_COUNT_CLAIMS = [(lbl, re.compile(p, re.I | re.S), keys)
-                 for lbl, p, keys in _COUNT_CLAIMS]
-
-def hardware_entry_count_claims(text: str) -> list[tuple[str, str, int, int]]:
-    """``(label, count_key, stated, offset)`` for every count claim in ``text``."""
-    quoted = _quoted_spans(text)
-    claims = []
-    for label, pattern, keys in _COUNT_CLAIMS:
-        for m in pattern.finditer(text):
-            for group, key in enumerate(keys, 1):
-                start = m.start(group)
-                if any(a <= start < b for a, b in quoted):
-                    continue
-                claims.append((label, key, _stated_number(m.group(group)), start))
-    return claims
-
-
-def test_no_live_document_states_an_unguarded_hardware_entry_count():
-    """The stale-count bug caught wherever the count lives, not where it was last.
-
-    Prose cannot be parsed, so this scans for the claim *shapes* that have
-    actually appeared in this repo ("N of the M entries ... workbook", "N entries
-    are traced", "the other N are safe", ...) and recounts each one against
-    ``hardware_entries.json``. Two consequences worth knowing before you edit a
-    doc:
-
-    * a live document may state these counts -- it just cannot state them wrongly,
-      and it will be named with a line number when it does; and
-    * the corpus is ``claim_scanned_documents()``, so a ``docs/strategy/BRIEF_*``
-      is **not** read. One of them reddened this guard on 2026-09-17 with a
-      sentence about something else entirely; the argument is above that
-      function. A brief that really does need to state one of these counts has
-      to state it in a document that owns the fact instead; and
-    * a shape not listed in ``_COUNT_CLAIMS`` is not caught. If you invent new
-      phrasing for one of these counts, add the shape. The honest reading of this
-      test is "the ways this repo has gone stale before are now mechanical", not
-      "prose is now safe".
-
-    ``docs/tolerance_stacks/README.md`` chose the other way out and states no
-    count at all; this test is what makes that choice stick.
-    """
-    repo_root = STACKS_DIR.parent.parent
-    counts = hardware_entry_counts()
-
-    wrong = []
-    for path in claim_scanned_documents(repo_root):
-        for location, text in _prose_blocks(path, repo_root):
-            for label, key, stated, offset in hardware_entry_count_claims(text):
-                expected = ({counts[k] for k in key} if isinstance(key, tuple)
-                            else {counts[key]})
-                if stated in expected:
-                    continue
-                where = (f"{location}:{text[:offset].count(chr(10)) + 1}"
-                         if path.suffix == ".md" else location)
-                wrong.append(
-                    f"{where}: says {stated} {label}; hardware_entries.json has "
-                    f"{'/'.join(str(e) for e in sorted(expected))}")
-
-    assert wrong == [], (
-        "live documents state hardware-entry counts that disagree with "
-        "docs/tolerance_stacks/hardware_entries.json:\n  " + "\n  ".join(wrong))
-
-
-def test_the_hardware_entry_count_guard_can_fail():
-    """A guard nobody has watched fail is not yet a guard.
-
-    The scan above is only worth its lines if it catches the exact sentence that
-    went stale, so that sentence is replayed here -- README.md's, verbatim as it
-    read from 2026-08-10 to 2026-08-12 -- along with the correction convention it
-    must NOT flag.
-    """
-    stale = ('**Eight of the eleven inline entries say `kind: "workbook"`**, '
-             "which is the point: those numbers are slice-1 transcriptions. The "
-             "other three are safe -- one traced to the NAS6403 standard, two to "
-             "their own source-control drawings")
-    claims = hardware_entry_count_claims(stale)
-    assert [(str(k), s) for _, k, s, _ in claims] == [
-        ("workbook", 8), ("('total', 'sourced')", 11), ("safe", 3),
-        ("('spec', 'nas_bolts')", 1), ("drawing", 2)]
-
-    # Asserted by count KEY, not by the stale digits: which of those digits still
-    # disagrees depends on the size of hardware_entries.json, and that file changes
-    # with every new stack (PROVENANCE.md says so). Pinning the digits made adding
-    # one drawing-sourced entry fail this test with a bare ``[8, 11, 3, 1, 2] ==
-    # [8, 3, 1]`` -- the same hard-coded-live-total coupling
-    # ``test_the_export_is_a_sibling_of_the_feature_identity_slot_not_a_filling_in``
-    # already had to give up. The durable claim is about the three NUMERATORS the
-    # sentence got wrong; the denominator ("eleven") was legitimate in 2026-08-12's
-    # file and may not stay so. Narrowed during review/hardware_counts_doc_guard.
-    counts = hardware_entry_counts()
-    flagged = {str(k) for _, k, s, _ in claims
-               if s not in ({counts[x] for x in k} if isinstance(k, tuple)
-                            else {counts[k]})}
-    assert {"workbook", "safe", "('spec', 'nas_bolts')"} <= flagged, (
-        "the scan no longer flags the numerators the 2026-08-10 README sentence "
-        f"got wrong; it flags {sorted(flagged)}")
-
-    # ... and the same numbers quoted as a correction are silent, which is what
-    # keeps a dated "this used to say X" from being a permanent test failure.
-    assert hardware_entry_count_claims(f'> {stale}') == []
-    assert hardware_entry_count_claims(f'it read "{stale}" until 2026-08-12') == []
-
-
-# The sentence from `BRIEF_20260915_origin_posture_and_absent_feature_rule.md:152`
-# that reddened the hardware-count guard on 2026-09-17 and gated a 104-commit
-# batch merge. It is prose about *why* one thing differs from three others; the
-# `other\s+(N)\s+do\s+not` shape recounted its "three" against
-# `hardware_entries.json`'s `not_library`. Kept verbatim so the witness below
-# replays the real defect rather than a sentence built to fail.
-_BRIEF_SENTENCE_THAT_REDDENED_THE_COUNT_GUARD = (
-    "that is the posture this repo already holds for an absent feature, and it "
-    "is load-bearing for a reason the other three do not have"
+#: The count keys that have actually been published wrongly in this repo, each
+#: one a recorded defect rather than an entry somebody liked the look of:
+#: ``workbook`` and ``total`` in README.md's 2026-08-10 sentence, ``traced`` and
+#: ``nas_bolts`` in the same, ``not_transcribed`` in the description, and
+#: ``not_library`` in the entry note that said "the other 28 do not". Exactly
+#: these must stay declared.
+_HARDWARE_COUNTS_THAT_HAVE_GONE_STALE = (
+    "workbook", "total", "traced", "nas_bolts", "not_transcribed", "not_library",
 )
 
 
-def test_the_claim_scans_skip_a_triage_brief_and_still_catch_a_real_document(tmp_path):
-    """The 2026-09-17 defect, and the coverage it was protecting, in one place.
+def test_the_hardware_entry_counts_are_declared_and_checked():
+    """The declarations exist, cover the counts that have gone stale here, and
+    agree with the file.
 
-    Both halves, because either one alone proves nothing. The exclusion half:
-    the real brief sentence, in a brief-shaped file, is not scanned. The
-    coverage half: **the same sentence** in a real tolerance-stack document
-    still is -- otherwise "scope the briefs out" could have been implemented as
-    "stop scanning", and the suite would have agreed.
-
-    The count in the sentence is asserted to be *wrong* for this repo first, so
-    the exclusion half cannot go vacuous on the day `hardware_entries.json`
-    happens to hold `not_library == 3`.
-    """
-    sentence = _BRIEF_SENTENCE_THAT_REDDENED_THE_COUNT_GUARD
-    counts = hardware_entry_counts()
-    assert counts["not_library"] != 3, (
-        "this witness needs the brief's 'three' to disagree with the live "
-        "not_library count, or the exclusion half proves nothing"
-    )
-
-    (tmp_path / "docs" / "strategy").mkdir(parents=True)
-    (tmp_path / "docs" / "tolerance_stacks").mkdir(parents=True)
-    brief = tmp_path / "docs" / "strategy" / "BRIEF_20260915_origin_posture.md"
-    brief.write_text(f"# A question nobody has decided\n\n{sentence}\n",
-                     encoding="utf-8")
-    worksheet = tmp_path / "docs" / "tolerance_stacks" / "WORKSHEET_witness.md"
-    worksheet.write_text(f"# A stack that states a count\n\n{sentence}\n",
-                         encoding="utf-8")
-
-    # The brief is still a live file -- the walk did not stop seeing it, the
-    # claim scans stopped reading it. That distinction is the fix.
-    live = set(live_documents(tmp_path))
-    assert {brief, worksheet} <= live, sorted(str(p) for p in live)
-    assert set(claim_scanned_documents(tmp_path)) == {worksheet}
-
-    flagged = [
-        location
-        for path in claim_scanned_documents(tmp_path)
-        for location, text in _prose_blocks(path, tmp_path)
-        for _, key, stated, _ in hardware_entry_count_claims(text)
-        if stated not in ({counts[k] for k in key} if isinstance(key, tuple)
-                          else {counts[key]})
-    ]
-    assert flagged == ["docs/tolerance_stacks/WORKSHEET_witness.md"], flagged
-
-    # ...and the shape itself is untouched: narrowing the corpus must not have
-    # been done by narrowing what counts as a claim.
-    assert [(str(k), s) for _, k, s, _ in
-            hardware_entry_count_claims(sentence)] == [("not_library", 3)]
-
-
-def test_no_document_that_states_this_repos_facts_is_exempt_from_the_claim_scans():
-    """The exclusion, measured against the real corpus rather than a tmp tree.
-
-    Two things this cannot get from `tmp_path`: that `docs/strategy/BRIEF_*.md`
-    files actually exist here (an exemption glob matching nothing is a comment,
-    not a fix), and that the exemption removes **only** those -- the failure
-    that would report green is a glob quietly widened to `docs/*`.
+    The agreement half is
+    ``tests/test_claims_registry.py::test_every_declared_claim_agrees_with_its_source``,
+    which reads every metric. This one is the **coverage** half, and it is the
+    half that cannot live there: a corpus with no ``hardware_entry_count``
+    declaration in it at all passes that guard by having nothing to check, which
+    is the empty-coverage-set failure this file has been converting into red
+    since 2026-09-03.
     """
     repo_root = STACKS_DIR.parent.parent
-    live = {p.relative_to(repo_root).as_posix() for p in live_documents(repo_root)}
-    scanned = {p.relative_to(repo_root).as_posix()
-               for p in claim_scanned_documents(repo_root)}
+    declared = [c for c in declared_claims(repo_root)
+                if c.metric == "hardware_entry_count"]
+    assert_coverage_set("declared hardware-entry counts", declared,
+                        _DECLARED_HARDWARE_COUNT_FLOOR)
 
-    exempt = live - scanned
-    assert exempt, (
-        "no live document is exempt from the claim scans, so "
-        "_CLAIM_SCAN_EXEMPT_GLOBS matches nothing in this repo. Either the "
-        "briefs moved out of docs/strategy/ or the glob went stale -- and a "
-        "stale exemption is invisible: the guards simply go back to reddening "
-        "on brief prose."
-    )
-    unexpected = sorted(r for r in exempt
-                        if not (r.startswith("docs/strategy/BRIEF_")
-                                and r.endswith(".md")))
-    assert unexpected == [], (
-        f"{unexpected} are live documents the claim scans no longer read. The "
-        f"exemption is for triage briefs only; anything else here is coverage "
-        f"lost, not a false positive avoided."
+    keys = {c.fields["count"] for c in declared}
+    unguarded = [k for k in _HARDWARE_COUNTS_THAT_HAVE_GONE_STALE if k not in keys]
+    assert unguarded == [], (
+        f"{unguarded} are counts this repo has published wrongly before and "
+        f"nothing declares them now. A count with no declaration is not a count "
+        f"that cannot go stale -- it is one nothing re-derives."
     )
 
+    wrong = [f"{c.location}: {check(c, repo_root).detail}"
+             for c in declared if not check(c, repo_root).ok]
+    assert wrong == [], (
+        "declared hardware-entry counts that disagree with "
+        "docs/tolerance_stacks/hardware_entries.json:\n  " + "\n  ".join(wrong))
 
 # --------------------------------------------------------------------------- #
 # The enumerated-state doc guard (review/enumerated_state_doc_guard,         #
@@ -3183,9 +2735,12 @@ def test_no_document_that_states_this_repos_facts_is_exempt_from_the_claim_scans
 #   1. A required-heading manifest -- explicit, but hand-kept, and prose gets
 #      restructured legitimately, so it goes stale exactly like a hand-kept
 #      state list would (`live_documents()`'s own docstring names that trap).
-#   3. A stored baseline of how many claims `hardware_entry_count_claims()`
-#      finds -- catches deletion generically, but the baseline is itself a
-#      number nobody re-derives, i.e. its own staleness surface.
+#   3. A stored baseline of how many claims the hardware-count scan finds --
+#      catches deletion generically, but the baseline is itself a number nobody
+#      re-derives, i.e. its own staleness surface. (That scan is gone as of
+#      2026-09-23; the declared-count floor above is the nearest thing to this
+#      shape that survived, and it is a floor rather than a baseline for
+#      exactly the reason written here.)
 #   4. Do nothing here; treat this as working-tree hygiene (the 2026-08-12
 #      cause really was a stale editor buffer, not an author). Real, but it
 #      leaves the *documentation* gap unguarded even when the cause next time
@@ -3232,8 +2787,8 @@ def test_no_document_that_states_this_repos_facts_is_exempt_from_the_claim_scans
 # Why the search is scoped to the owning README rather than "anywhere in
 # `live_documents()`": every stack/materials JSON under docs/ carries these
 # same words as literal FIELD VALUES (`"status": "established"` on a
-# `source_ref.export`), which `_prose_blocks` walks like any other string --
-# so a corpus-wide search never goes empty and the guard could never fail.
+# `source_ref.export`), indistinguishable from prose to any corpus-wide reader
+# -- so a corpus-wide search never goes empty and the guard could never fail.
 # Scoping to one Markdown file sidesteps that: a `.md` file has exactly one
 # prose block (its own text), no embedded data values to confuse with prose.
 _ENUMERATED_STATE_VOCABULARIES = [

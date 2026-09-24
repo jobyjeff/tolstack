@@ -1,0 +1,23 @@
+{
+  "tier": "python",
+  "suite": "tests/test_claims_registry.py",
+  "expect_red": "test_every_declared_claim_agrees_with_its_source",
+  "mutations": [
+    {
+      "contract": "A declared claim's value is compared against the source its metric names, and a value the source refutes reddens. This is the guard that keeps the claims registry from being ceremony: a declaration naming a source but never checked against it is exactly as unverified as the prose it replaced.",
+      "issue": null,
+      "note": "The mutation is on a DOCUMENT, not on the checker, which is the direction that matters: the failure being witnessed is a published number going stale, and a mutation of the checker would only prove the checker can break. hardware_entries.json is chosen over the other declaring documents because it is inside SHADOWED (docs/tolerance_stacks/), its source is the same file's own `entries` list so the check needs nothing under data/, and `workbook: 5` is the count README.md actually published wrongly (as \"eight of the eleven\") from 2026-08-10 to 2026-08-12 -- the real defect, replayed rather than mimicked.",
+      "file": "docs/tolerance_stacks/hardware_entries.json",
+      "find": "    {\"metric\": \"hardware_entry_count\", \"count\": \"workbook\", \"value\": \"5\"},",
+      "replace": "    {\"metric\": \"hardware_entry_count\", \"count\": \"workbook\", \"value\": \"8\"},"
+    },
+    {
+      "contract": "The same guard, from the other declaration carrier: a fenced ```claim``` block in a markdown document, whose value is re-derived from a different source (the seeded stacks) by a different metric.",
+      "issue": null,
+      "note": "Two carriers and two metrics, because a witness on one proves nothing about the other: the JSON path goes through declarations_in_json and the fence path through declarations_in_text, and a reader that stopped finding fences would leave the first mutation still WITNESSED. WORKSHEET_pitch_link_to_pitch_plate.md is in SHADOWED for the same reason hardware_entries.json is, and `5 of 26` is the figure this repo has had wrong twice (`1 of 17` reached eleven files; `3 of 26` reached six).",
+      "file": "docs/tolerance_stacks/WORKSHEET_pitch_link_to_pitch_plate.md",
+      "find": "```claim\nmetric: traced_ratio\nvalue: 5 of 26\n```",
+      "replace": "```claim\nmetric: traced_ratio\nvalue: 3 of 26\n```"
+    }
+  ]
+}

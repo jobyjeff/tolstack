@@ -38,6 +38,11 @@ case in its own docstring. See ARCHITECTURE.md, "Where computation may live -- a
 the coefficient", for the rule and its exception, and
 ``tests/test_thermal_exception_list.py`` for the walker that enforces both.
 
+```claim
+metric: one_fold_rule
+exceptions: workbook_corner
+```
+
 Sign convention: interference is POSITIVE
 -----------------------------------------
 The workbook's fit rows are signed the other way ("negative is inx"). The checks

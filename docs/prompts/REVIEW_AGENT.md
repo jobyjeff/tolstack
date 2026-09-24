@@ -273,6 +273,11 @@ proportionally more scrutiny per `traced` value, not less. **A high traced count
 is a reason to audit harder, not a reason to relax** — it is what an invented
 number looks like from the outside.
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 > **Correction, 2026-08-06.** This paragraph read *"slice 1 traced 1 of 17"*
 > from 2026-07-29 until 2026-08-06, and every document in the repo quoted it.
 > Neither half reproduced: the denominator dropped `take2` (11 + 6 = 17 of 26),
@@ -377,22 +382,25 @@ must be confirmed before the property is looked up.
   `test_hardware_entry_values_source_counts_match_the_description`, which pins
   `hardware_entries.json`'s own `description`; read the count there, and treat a
   workbook-sourced band as the failure to hunt regardless of how many there are.
-  Since 2026-08-12 (`hardware_counts_doc_guard`) a second test,
-  `test_no_live_document_states_an_unguarded_hardware_entry_count`, recounts these
-  counts **wherever a document states this repo's facts** — every live `.md` plus
-  the `.json` under `docs/`, less the exemptions below. Know its blind spots
-  before you treat its green as "the prose was checked": it matches the claim
-  *shapes* the repo has already written (`_COUNT_CLAIMS`), so new phrasing is
-  invisible; a number inside a blockquote or a `"…"` span is exempt by design;
-  `docs/sessions/`, `docs/issues/`, `docs/reference/` and `PROVENANCE.md` are out
-  of scope as dated history; and since 2026-09-17
-  (`prose_guards_scope_out_strategy_briefs`) so is `docs/strategy/BRIEF_*.md` —
-  an inbox artifact about an undecided question, not a document that states this
-  repo's facts. That last one is a *class* of exemption, not a file: it applies
-  to every claim-shape scan (`claim_scanned_documents()`, and
-  `is_claim_scanned()` for the byte-identity scan, which derives its corpus from
-  `git ls-files` instead). `CLAUDE.md` was on the dated-history list until
-  2026-09-01; now that it is tracked, the scan reads it.
+  Since 2026-09-23 (`claims_registry_guards_read_declarations_not_prose`) a
+  second test, `test_the_hardware_entry_counts_are_declared_and_checked`, pairs
+  the counts **a document has declared** against a recount of
+  `hardware_entries.json`. Know what that does and does not cover before you
+  treat its green as "the prose was checked":
+  - **A count in free prose is not read at all.** Nothing scans English for a
+    count shape any more. A document that wants one of these numbers checked
+    declares it in a ```claim``` block (`tests/claims_registry.py`, metric
+    `hardware_entry_count`); a document that writes a digit into a sentence and
+    declares nothing is on its author.
+  - **What a declaration buys is stricter than the old scan was**: any count key
+    and any wrong value, rather than the nine phrasings `_COUNT_CLAIMS` happened
+    to list, and no quotation exemption to reason about.
+  - From 2026-08-12 to 2026-09-23 this was
+    `test_no_live_document_states_an_unguarded_hardware_entry_count`, a regex
+    over every live document. It was retired because reading English for a claim
+    shape put `master` and `integration` red three times on sentences that were
+    not making claims (`REPORT_20260921_bug_pareto.md`, pattern C2), and four
+    rounds of narrowing its scope each left a new blind spot.
 - **Checks the source does not contain** are marked `workbook_cells: null` and
   `[NOT IN WORKBOOK]` in the label, with a test asserting it.
 - **Scope is stated**, including what was excluded and why.
@@ -484,12 +492,15 @@ problem as an unrecorded full suite one step later.
   tests/test_thermal_exception_list.py`. The doc-scan, claim-shape and
   byte-identity guards read `docs/` as a live corpus, so a docs-only diff can
   legitimately go red — that is the design, not a nuisance (repo `CLAUDE.md`).
-  **Three modules share that walk, not two** — `claim_scanned_documents()` is
-  defined in `tests/test_tolerance_stack.py` and imported by the other two, so
-  `grep -rl claim_scanned_documents tests/` is how you check this row is still
-  complete. `docs/prompts/` is inside the corpus; `docs/sessions/`,
-  `docs/issues/` and `docs/reference/` are not (`_HISTORICAL_DIRS`), so a diff
-  of only lessons and issues cannot red these — measured 2026-09-21.
+  **Add `tests/test_claims_registry.py` to that list**, and note that the shared
+  thing is now a module rather than a function: every one of these reads
+  declarations through `tests/claims_registry.py`, so
+  `grep -rl claims_registry tests/` is how you check this row is still complete.
+  `docs/prompts/` is inside the corpus; `docs/sessions/`, `docs/issues/` and
+  `docs/reference/` are not (`HISTORICAL_PREFIXES`), so a diff of only lessons
+  and issues cannot red these — measured 2026-09-21, and unchanged by the
+  2026-09-23 move to declarations, which kept those exemptions for a new reason
+  (a lesson quotes a declaration as an example).
 - **`ARCHITECTURE.md`, `README.md`, `PROVENANCE.md`, `ops.toml`** → `pytest -q
   tests/test_architecture_inventory.py tests/test_provenance.py
   tests/test_ops_toml_serve_verb.py`.
@@ -1398,11 +1409,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       including the file the handoff was told not to touch, which is a finding to
       *file*, not to fix. Ten lines of Python over `git ls-files`, and it is the
       only thing that turns "every" from a claim into a measurement.
-      **For this particular rule the ten lines are now a test**
-      (`rule_statements()` in `tests/test_thermal_exception_list.py`, 2026-09-03),
-      so the reviewer's job moved up a level: not "did they find every passage"
-      but *is the scan's corpus, pattern and qualifier set still the right ones* —
-      a derivation that quietly stops matching is the same silence one level up.
+      **For this particular rule there is no grep to run any more** (2026-09-23,
+      `claims_registry_guards_read_declarations_not_prose`): each of the six
+      sources that state the one-fold rule carries a declaration naming its
+      exceptions, and
+      `test_every_source_believed_to_state_the_one_fold_rule_declares_it` pairs
+      those against `DECLARED_COMBINING_EXCEPTIONS`. The absolute form is
+      **inexpressible** as a declaration rather than detected in prose. The
+      reviewer's job moved with it: not "did they find every passage" and no
+      longer "is the pattern still right", but *does every source that should
+      declare still declare* — a file that drops its declaration is the failure,
+      and it is the one a search could never see. From 2026-09-03 to 2026-09-23
+      this was a search (`rule_statements()`), and the three exemptions it
+      accumulated are why it is not one now.
 - [ ] **The drawing-checker snapshot taken with something other than
       `scripts/snapshot_drawing_checker.py`.** New 2026-09-01
       (`endstop_vision_baseline`). The attempt evidenced the read-only invariant
@@ -1952,6 +1971,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       vacuous nor go stale as the list grows. Generalise: a matcher with a wide
       wildcard is a second matcher for shapes nobody enumerated; a green suite
       only proves no *live* doc trips it *today*.
+      **The matcher itself is gone as of 2026-09-23**
+      (`claims_registry_guards_read_declarations_not_prose`) — the traced ratio
+      is declared and recounted, so there is no wildcard left to reach into a
+      neighbouring column. Both durable moves outlive it, and the second is
+      exactly what the new guard's negative controls do (build the wrong value
+      from the source, not from a literal). Kept here because the *shape* recurs
+      wherever a repo matches text for a number.
 - [ ] **A doc citing a symbol by name — resolve the name to the thing that
       actually changed, not to *a* thing that exists.** New 2026-08-18
       (`confidence_vocabulary_single_definition`), and it is the stale-count
@@ -1974,7 +2000,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tests/test_architecture_inventory.py` module docstring named
       `test_hardware_entry_count_claims` in `tests/test_tolerance_stack.py` as
       "the count-claim scanner" — no such test exists anywhere in the repo. The
-      actual scanner is `test_no_live_document_states_an_unguarded_hardware_entry_count`.
+      actual scanner was `test_no_live_document_states_an_unguarded_hardware_entry_count`
+      (retired 2026-09-23; the declaration-reading guard that replaced it is
+      `test_the_hardware_entry_counts_are_declared_and_checked`).
       A one-command check would have caught it: `grep -rn <name> tests/`
       returning nothing is a stronger tell than a name that resolves to the
       wrong symbol, and it costs the same command. Fixed inline in review.
@@ -2216,7 +2244,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       applies to it in full.
 
 - [ ] **A derived doc scan whose *unit* is bigger than the claim it judges.**
-      New 2026-09-03 (`doc_coverage_sets_derived`). `rule_statements()` splits a
+      New 2026-09-03 (`doc_coverage_sets_derived`). **The scan below was retired
+      on 2026-09-23** — this defect is one of the three that argued prose should
+      not be scanned at all — and the check it teaches is kept because the shape
+      is general: it applies to any guard that classifies a *region* by a token
+      found anywhere in it. `rule_statements()` split a
       file on **blank lines**, takes the first match per unit, and then asks
       whether *the unit* carries a qualifier — so one "exception" at the top of a
       block covers an absolute at the bottom. The handoff spotted this for
@@ -3761,7 +3793,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       until it closes, a mutation-witness copy left in `C:\workspace\tolstack`
       is inside every claim-shape scan the operator's batch merge runs.
 - [ ] **A floor "set *at* the count" has drifted, so `old_floor − removed` is
-      not the new floor.** Same review. `RULE_STATEMENT_FLOOR` was documented
+      not the new floor.** Same review; `RULE_STATEMENT_FLOOR` was retired with
+      its scan on 2026-09-23, and the check below still applies to the several
+      floors this repo does keep. It was documented
       as 15 → 14 with "two of the fifteen were in the brief" — which reaches 13.
       The missing step: the count was 15 when the floor was set (`c95ef61`,
       2026-09-03) but ARCHITECTURE.md gained a passage afterwards, so the live
@@ -4060,9 +4094,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       found in the *same commit* that introduced the list. "Choosing the risky
       subset" above maps a diff shape to the modules to run; its prose row named
       `test_tolerance_stack.py` and `test_provenance.py`, and the corpus walk is
-      shared by **three** modules — `test_thermal_exception_list.py` imports
-      `claim_scanned_documents()` too, and `docs/prompts/` is inside its rule-scan
-      corpus, so this very file can red it. A module list cannot be pinned by a
+      shared by **three** modules — `test_thermal_exception_list.py` imported
+      `claim_scanned_documents()` too, and `docs/prompts/` was inside its
+      rule-scan corpus, so this very file could red it. (Since 2026-09-23 the
+      shared thing is `tests/claims_registry.py` and there are **five** readers;
+      the row above names them and the grep that regenerates it.) A module list cannot be pinned by a
       test the way a field vocabulary is (no constructor refuses a missing row),
       so the only thing standing between it and drift is **the grep that
       regenerates it, written into the row beside the list**. When a review adds
@@ -4680,17 +4716,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tests/test_tolerance_stack.py` and `scripts/build_viewer_projection.py`
       both glob `stack_*.json` under `docs/tolerance_stacks/` and would apply
       grip-stack schema hygiene to a topology dropped in beside the stacks.
-      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, and since 2026-09-03
-      (`doc_coverage_sets_derived`) the traced-ratio scanner's stale half walks
-      the same corpus, so a retired ratio asserted there is caught now. (That
-      half reads `claim_scanned_documents()` since 2026-09-17, which is
-      `live_documents()` minus the triage briefs; `docs/DAG_TOPOLOGY.md` is in
-      both.)
+      `docs/DAG_TOPOLOGY.md` **is** in the claim corpus, and it carries a
+      `one_fold_rule` declaration of its own. Since 2026-09-23 a *stale ratio
+      quoted there in prose is not caught by anything* — no guard reads prose —
+      and what is caught is a declaration whose value the source refutes.
       This clause read *"the **traced-ratio** scanner does not walk
       `live_documents()` at all … so a stale ratio quoted there is not caught"*
-      until then — correct when it was written on 2026-09-01, and the defect
-      `ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md` filed. What
-      is still scanner-specific is the *shapes* each one knows, not the corpus.
+      on 2026-09-01 (correct then, and the defect
+      `ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md` filed),
+      then *"the stale half walks the same corpus, so a retired ratio asserted
+      there is caught now"* from 2026-09-03 to 2026-09-23. What is
+      guard-specific is now the *metric*, not the corpus.
 
 - [ ] **A projection field derived twice, once by the module and once inline.**
       New 2026-09-01 (`dag_viewer_poc`), the `Contribution`/`fold()` entry above
@@ -4715,29 +4751,33 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `docs/DAG_TOPOLOGY.md`
       (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Two
       documents asserted the wrong coverage before anyone injected a figure to
-      check. There are **two derived corpora and one curated set** as of
-      2026-09-17, and telling them apart is the whole of this check:
+      check. There are **two derived corpora and several curated presence sets** as of
+      2026-09-23, and telling them apart is the whole of this check:
 
-      * `live_documents()` — the `os.walk`. Read by the coverage guard and by
-        the enumerated-state surface lookup, which needs "this README stopped
-        being live" to be *loud*.
-      * `claim_scanned_documents()` — that walk minus `docs/strategy/BRIEF_*.md`.
-        Read by every scan that recounts a claim *shape* against this repo's
-        data: hardware-entry counts, the traced-ratio stale half, and the
-        one-fold-rule scan in `tests/test_thermal_exception_list.py`. The
-        byte-identity scan in `tests/test_provenance.py` makes the same scope
-        call through `is_claim_scanned()`, from a `git ls-files` corpus of its
-        own (it reads `.py`/`.json`/`.toml` too, not only live documents).
-      * `traced_ratio_publishers()` — curated, and stays that way: the
-        traced-ratio guard's *other* half is a presence check, and the evidence
-        it needs is absent from exactly the file it must catch (the argument is
-        written above that function).
+      * `live_documents()` (`tests/test_tolerance_stack.py`) — the `os.walk`,
+        with one caller left: the enumerated-state surface lookup, which needs
+        "this README stopped being live" to be *loud*.
+      * `claim_corpus()` (`tests/claims_registry.py`) — **not** a filter over
+        that walk but a separate derivation: `git ls-files` over eight suffixes,
+        less dated history (`docs/sessions/`, `docs/issues/`, `docs/reference/`,
+        `PROVENANCE.md`, `apps/viewer/vendor/`) and less `tests/`. Every guard
+        that reads a declaration reads this. Asking git rather than walking is
+        what took untracked scratch out of it
+        (`ISSUE_20260917_live_documents_walks_gitignored_scratch_in_the_main_checkout.md`);
+        it falls back to a walk **only** outside a work-tree root, and returns
+        which mode it used so that fallback can be asserted rather than guessed.
+      * The **presence** sets — `traced_ratio_publishers()`,
+        `RULE_PASSAGE_SOURCES`, `ROUTE_CLAIM_SOURCES` — curated, and each stays
+        that way for the same reason: "this document stopped declaring the fact"
+        is evidence that is *absent* from exactly the file you need to catch, so
+        it cannot be derived from the documents.
 
-      So when work claims a document is now covered by a scan, **inject the
-      defect and watch the named test go red** — the hardware-count guard
-      firing is not evidence that the traced-ratio guard would, and "it walks
-      `live_documents()`" is not evidence that the half you care about does,
-      because most of the claim scans no longer walk it.
+      So when work claims a document is now covered, **inject the defect and
+      watch the named test go red** — and know which defect. Writing a wrong
+      number into a *sentence* reddens nothing anywhere, by design; writing one
+      into a *declaration* reddens
+      `test_every_declared_claim_agrees_with_its_source`; deleting a declaration
+      reddens that document's presence guard and nothing else.
 
 - [ ] **A tool that summarizes "the" sign/coefficient for an element, where the
       element is referenced by more than one check/path.** New 2026-09-04

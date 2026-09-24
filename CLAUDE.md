@@ -155,6 +155,20 @@ Know these before you write code; each has a test standing on it.
   says, in the diff, that this guard cannot be witnessed. Enrollment used to be
   a later session's job and six of those in eight days did not move the arrival
   rate.
+- **A number or a rule a guard checks is *declared*, never written in English
+  and matched.** Since 2026-09-23. A document that states a checkable fact —
+  the traced ratio, a hardware-entry count, the one-fold rule's exception list,
+  a byte identity, the route set behind `data/meshes/` — carries a fenced
+  `claim` block (a `claims` array, in a JSON document) naming the metric and
+  the value, and the guards read **only** those. `tests/claims_registry.py`
+  owns the format, the corpus and the registry of metrics; adding a checkable
+  fact means adding a registry row with the source its value is re-derived
+  from. Two consequences worth knowing before you edit a document here: a
+  figure you write into a sentence and declare nowhere is checked by nothing,
+  and a declaration whose value its source refutes reddens `pytest -q` naming
+  the file and line. Five prose scans were retired for this; the argument is in
+  `ARCHITECTURE.md`, "A document's checkable facts are declared, not written in
+  English".
 - **A field vocabulary is a module-level constant, never an inline literal and
   never an end-of-line comment.** A vocabulary drifting between the code, the SOP
   and the viewer is this repo's most-repeated defect — `docs/prompts/REVIEW_AGENT.md`,

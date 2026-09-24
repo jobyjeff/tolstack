@@ -323,6 +323,11 @@ himself before there was an SOP that asked for citations, and it says so in
 its own comments ("estimate," "probably," "need to correct," "does not exist
 yet," "needs updating").
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 The 11 geometry/sensitivity inputs in §1 are excluded from this count for the
 same reason the hub-bearing worksheet excluded CTEs and temperatures: they
 are model parameters (a pitch radius, a link length, a CAD-sourced motion

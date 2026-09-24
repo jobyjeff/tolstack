@@ -89,6 +89,11 @@ geometry source and hash, the tessellation tier, and the rotorkit run that
 produced it. See `data/meshes/README.md` for what the sidecar carries on
 each of the two routes a mesh can arrive by.
 
+```claim
+metric: mesh_routes
+value: scripts/extract_assembly_parts.py, scripts/tessellate_parts.py
+```
+
 ### The projection
 
 `scripts/build_feature_identity_projection.py` folds

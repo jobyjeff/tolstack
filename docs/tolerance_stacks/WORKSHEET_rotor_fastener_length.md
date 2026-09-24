@@ -317,6 +317,11 @@ them. Across all seven stacks now in this repo (the three seeded,
 see `docs/SOP_TOLERANCE_STACK.md`, "The traced ratio", for the single
 definition, and `tests\debug_report_tolerance_stacks.py --ratio` to reproduce.
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 - **The high traced count here is a reason to audit harder, not to relax** —
   nine of the eleven element instances are one document (`NAS6403-NAS6420 Rev
   4.pdf`), read the same way as the other three joints' bolts. The two

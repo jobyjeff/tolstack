@@ -405,19 +405,31 @@ function here that reads `lmc`/`mmc`.
 The list is not prose. It is `DECLARED_COMBINING_EXCEPTIONS` in
 `tests/test_thermal_exception_list.py`, which walks `thermal.py` for arithmetic
 over two element-derived values and reddens on any site not on it — and pairs
-the list against each exception's own docstring and against every passage that
-same module **finds** stating this rule, so the rule, the list and the code
-cannot drift apart one at a time.
+the list against each exception's own docstring and against every **declaration**
+of this rule in the tree, so the rule, the list and the code cannot drift apart
+one at a time.
 
-The passages are searched for, not registered, since 2026-09-03
-(`doc_coverage_sets_derived`). Until then they were a hand-kept dict of three,
-which read as coverage and was not: a passage outside it was *invisible* rather
-than unpaired, and four live sentences still asserted the absolute — one of them
-four paragraphs above this one, inside the very section the pairing reads. So a
-passage that states this rule must now either carry its exceptions or defer by
-name to this section; a passage that mentions no exception is claiming more than
-is true, and the scan says so naming the file and line. That is the line, and it
-is the one to hold if a fourth archetype wants its own layer.
+A document that states this rule declares it, and the declaration is what the
+guard reads:
+
+```claim
+metric: one_fold_rule
+exceptions: workbook_corner
+```
+
+Each of the files believed to state the rule carries one of those, and each one
+is checked against `DECLARED_COMBINING_EXCEPTIONS`. A declaration *cannot* state
+the absolute form — naming the exceptions is the only way to write one — which
+is the difference from what stood here until 2026-09-23. Until then the passages
+were **searched for**: a regex over the repo's live prose for the rule's own
+words, demanding a qualifier in the same passage. It caught the four absolute
+sentences a hand-kept dict of three had left invisible, and then it spent three
+sessions on its own scope — a qualifier anywhere in a 15 kB bulleted block
+covering every bare statement in it, a triage brief that *asked* whether the rule
+was absolute reddening the suite for stating the belief it questioned. Prose
+around a declaration is free to say this any way it likes; the declaration is
+what is paired. That is the line, and it is the one to hold if a fourth archetype
+wants its own layer.
 
 ### Material condition is not an extreme
 
@@ -443,6 +455,39 @@ Two element kinds in the seeded stacks are not:
 So RSS is a **relative softening indicator**, not a probability statement, and
 is not directly comparable to the worst-case columns. `CheckResult.verdict`
 deliberately never reads RSS.
+
+### A document's checkable facts are declared, not written in English
+
+Since 2026-09-23 (`claims_registry_guards_read_declarations_not_prose`). A live
+document that states a fact this repo can re-derive — the traced ratio, a
+hardware-entry count, the one-fold rule's exception list, a byte identity, the
+route set behind `data/meshes/` — **declares** it in a fenced `claim` block
+(or, in a JSON document, a `claims` array beside the prose it backs). The guards
+read only those declarations, and every declared value is re-derived from the
+source its metric names on every run. **Free prose is never scanned.**
+
+The reader, the registry of metrics and the sources each one derives from are
+`tests/claims_registry.py`; the guard that keeps a declaration from being
+decorative is `tests/test_claims_registry.py::test_every_declared_claim_agrees_with_its_source`,
+enrolled under `scripts/mutation_witnesses/`.
+
+What this replaced, and why, matters more than the format. Five guards used to
+search live documents for a claim *shape* — `N of M`, `byte-identical`, `the
+other N do not`, `combines element values` — and recount whatever matched. That
+design has one failure mode and this repo measured it fifteen times in two
+months (`REPORT_20260921_bug_pareto.md`, pattern C2): ordinary English matches a
+shape, a guard goes red on a sentence that was never making a claim, and it does
+so on the branch every worktree is cut from. Four separate narrowings — a
+quotation exemption, a bullet split, a free-form-block exemption, a triage-brief
+exclusion — each closed one case and opened a new blind spot, because a prose
+scanner's own scope logic is text-shaped too. A declaration cannot be written by
+accident, so the exemptions went with the scans.
+
+The cost is stated rather than hidden: a wrong number written into a *sentence*
+and declared nowhere is caught by nothing now. That is the trade, and the
+mitigation is the third link — a metric marked `rendered` (today, the traced
+ratio) also requires its declared value to appear literally in the document's
+own prose, so source, declaration and sentence are checked end to end.
 
 ## Data flow
 
@@ -613,6 +658,11 @@ Read-only, one way:
   `source_step_sha256` hashes in that case; see `data/meshes/README.md`,
   "Two ways a mesh gets here."
 
+```claim
+metric: mesh_routes
+value: scripts/extract_assembly_parts.py, scripts/tessellate_parts.py
+```
+
 ## Imported material — what may change, and how it is recorded
 
 `PROVENANCE.md` is the register of everything copied in at founding, one row per
@@ -676,6 +726,11 @@ stacks are `traced`** (3 `inferred`, 18 `untraced`). That library now exists
 (`docs/spec_library/`), holds the two bolts and both nuts, and carries its own
 intake queue — the per-entry `gaps` lists in `hardware_entries.json` are being
 superseded by it one entry at a time, starting with `NAS6403U11D`.
+
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
 
 **What that ratio means and how to compute it is defined in exactly one place**
 — `docs/SOP_TOLERANCE_STACK.md`, "The traced ratio" — and reproduced by

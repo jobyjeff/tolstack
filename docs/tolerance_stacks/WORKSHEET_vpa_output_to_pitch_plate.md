@@ -265,6 +265,11 @@ Across all three seeded stacks: **5 of 26 `traced`**, 12 `inferred`, 9
 `untraced`. The definition lives in `docs/SOP_TOLERANCE_STACK.md` ("The traced
 ratio"); reproduce with `tests\debug_report_tolerance_stacks.py --ratio`.
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 > **Moved, 2026-09-15** (handoff `stack_fable_audit`), from *"1 traced /
 > 2 inferred / 3 untraced"* here and a seeded split of *"3 inferred, 18
 > untraced"*: element 3 went `untraced` → `inferred` on the NAS77 page (see the

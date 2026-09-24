@@ -66,8 +66,6 @@ from pathlib import Path
 
 import pytest
 
-from tests.test_tolerance_stack import is_claim_scanned
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROVENANCE_PATH = REPO_ROOT / "PROVENANCE.md"
 TRUNK = "master"
@@ -647,231 +645,96 @@ def test_docs_reference_imports_are_insert_only(rows, facts, source_repo):
 
 
 # --------------------------------------------------------------------------- #
-# 5. the claim outside PROVENANCE                                             #
+# 5. byte identity outside PROVENANCE -- DECLARED, and actually compared      #
 # --------------------------------------------------------------------------- #
+#
+# Sighting 3 was the phrase escaping PROVENANCE.md into prose nobody diffed: a
+# stack note, a worksheet headline and two test comments all said two workbook
+# sheets were "byte-identical" over rows 31-44 while the test compared only the
+# NUMERIC cells. Four cells differed and one was the hub part number the whole
+# identity argument rested on. Nothing was lying; the claim was simply stronger
+# than its evidence.
+#
+# What stood here from 2026-08-10 to 2026-09-23 was a grep: every tracked file
+# outside dated history, scanned for `byte[- ]identical|byte[- ]for[- ]byte`,
+# each hit required to name a `sha256`, a `git diff`, a blob, a test or
+# PROVENANCE.md **in the same block of prose**. Two things were wrong with it,
+# and they are the two halves of this repo's whole prose-guard problem:
+#
+#   * it read English, so it reddened on sentences that were not claims -- a
+#     triage brief describing the viewer's *behaviour* with the byte idiom gated
+#     a 129-commit batch merge and was filed as its own issue by eight sessions
+#     (`ISSUE_20260916_byte_identity_guard_is_red_on_master_from_a_triage_brief.md`);
+#     and
+#   * what it checked was a POINTER, one step short of the comparison. A claim
+#     was discharged by naming something that might check it. That is how the
+#     enclosing `def test_...` line came to satisfy the search all by itself and
+#     needed `_DEFINITION_RE` to exclude it -- a check that a test's own name
+#     discharges the claim inside it is the vacuous check in a new costume.
+#
+# A byte-identity claim is a declaration now, and the declaration names both
+# sides, so the guard **does the comparison** instead of trusting that something
+# else did. `tests/claims_registry.py`'s `byte_identity` metric resolves each
+# side to bytes -- a tracked path, a `<rev>:<path>` git blob, or a
+# `<path>#/<json pointer>` region -- and compares them. Prose may use the phrase
+# however it likes; nothing reads it.
+#
+# PROVENANCE.md's own byte-identical rows are not in this: they are checked from
+# the other end, by `unamended_rows` and the sighting replays below, against the
+# import commit. That was always the arrangement -- `_HISTORICAL` excluded them
+# from the grep too -- and it is why the file is out of the claim corpus.
 
-_CLAIM_RE = re.compile(r"byte[- ]identical|byte[- ]for[- ]byte", re.I)
-_NEGATED_RE = re.compile(r"(not|no longer|never|isn't|aren't|n't)\s*$", re.I)
-_POINTER_RE = re.compile(
-    r"sha256|hash-object|git diff|blob|test_[a-z0-9_]+|tests/|PROVENANCE\.md", re.I
-)
-# Historical records: what someone believed on a date. Rewriting them destroys
-# the evidence this module's own history rests on, so they are out of scope --
-# the same scoping test_every_document_quoting_the_traced_ratio_quotes_the_
-# current_number uses. docs/reference/ is an import and is checked above instead.
-_HISTORICAL = ("docs/sessions/", "docs/issues/", "docs/reference/",
-               "apps/viewer/vendor/")
-# The *other* out-of-scope class, and it is not history: `docs/strategy/BRIEF_*`
-# is an inbox artifact about an undecided question. One of them reddened this
-# guard on 2026-09-15 and gated a 129-commit batch merge. The call is shared with
-# the three other claim-shape scans rather than re-made here -- `is_claim_scanned`
-# in tests/test_tolerance_stack.py carries the argument, and this scan consults
-# it from a different starting set (`git ls-files`, not the live-document walk).
-
-_SCANNED_SUFFIXES = {".md", ".py", ".json", ".js", ".cjs", ".toml", ".txt", ".ps1"}
-# A definition line is not evidence. Without this the pointer search is nearly
-# vacuous inside a test module: `test_[a-z0-9_]+` matches the enclosing
-# `def test_...` line, so a claim in a test body cites the very test whose
-# comparison is in question. That is sighting 3 exactly -- its comment sat in
-# the body of `test_workbook_inputs_are_transcribed_consistently_on_both_sheets`,
-# whose comparison was numeric-cells-only. Added in review, 2026-08-10; pinned by
-# test_the_grep_catches_the_reconstructed_sighting_three.
-_DEFINITION_RE = re.compile(r"\s*(async\s+)?(def|class)\s", re.I)
-
-
-@dataclass(frozen=True)
-class Claim:
-    path: str
-    line: int
-    kind: str           # "asserted" | "denied"
-    pointer: str        # the verification named in the same block, or ""
-    excerpt: str
-
-
-def _blocks(lines: list[str]) -> list[tuple[int, int]]:
-    """Maximal runs of consecutive non-blank lines, as 1-based inclusive spans."""
-    spans, start = [], None
-    for n, line in enumerate(lines, 1):
-        if line.strip():
-            start = start or n
-        elif start:
-            spans.append((start, n - 1))
-            start = None
-    if start:
-        spans.append((start, len(lines)))
-    return spans
+#: Floor for the declared byte-identity claims. A floor, for the reason
+#: `assert_coverage_set` gives everywhere else in this suite: the set may grow
+#: without an edit here, and what has to be caught is it coming back empty --
+#: the guard scanning nothing and reporting green.
+_DECLARED_BYTE_IDENTITY_FLOOR = 4
 
 
-def claims_in(rel: str, text: str) -> list[Claim]:
-    """Every byte-identity claim in one file's text.
+def test_every_declared_byte_identity_claim_is_verified_by_comparing_bytes():
+    """The claim, and the bytes, in the same assertion.
 
-    Pure, for the same reason :func:`unamended_rows` is: the scan that guards
-    the working tree can then be replayed against a blob out of history -- see
-    ``test_the_grep_catches_the_reconstructed_sighting_three``.
+    The declarations live where the claim is made -- today the two end-stop
+    studies, whose notes say their `selection` and `transforms` are
+    byte-for-byte their source study's and which are now compared rather than
+    cross-referenced to the test that compares them.
     """
-    out: list[Claim] = []
-    lines = text.splitlines()
-    spans = _blocks(lines)
-    for n, line in enumerate(lines, 1):
-        for m in _CLAIM_RE.finditer(line):
-            before = line[max(0, m.start() - 24):m.start()]
-            kind = "denied" if _NEGATED_RE.search(before.rstrip()) else "asserted"
-            span = next((s for s in spans if s[0] <= n <= s[1]), (n, n))
-            block = [
-                b for b in lines[span[0] - 1:span[1]]
-                if not _DEFINITION_RE.match(b)
-            ]
-            found = _POINTER_RE.search("\n".join(block))
-            out.append(Claim(
-                path=rel, line=n, kind=kind,
-                pointer=found.group(0) if found else "",
-                excerpt=line.strip()[:110],
-            ))
-    return out
+    from tests.claims_registry import check, declared_claims
+    from tests.test_tolerance_stack import assert_coverage_set
 
+    declared = [c for c in declared_claims(REPO_ROOT)
+                if c.metric == "byte_identity"]
+    assert_coverage_set("declared byte-identity claims", declared,
+                        _DECLARED_BYTE_IDENTITY_FLOOR)
 
-def _scanned_paths() -> list[str]:
-    """The repo-relative paths this scan reads.
-
-    The file list comes from ``git ls-files`` rather than from a list in here --
-    sighting 3 was the phrase escaping PROVENANCE.md into a stack note, a
-    worksheet headline and two test comments, i.e. exactly the files a
-    hand-kept list would not have contained.
-
-    Split out from :func:`claim_inventory` on 2026-09-17 so that each scope call
-    -- this file, dated history, a triage brief -- can be asserted as an
-    *exemption* rather than being indistinguishable from a path the derivation
-    never reached (``test_the_byte_identity_scan_does_not_read_a_triage_brief``).
-    """
-    out: list[str] = []
-    for rel in _git("ls-files").splitlines():
-        rel = rel.strip().replace("\\", "/")
-        if not rel or rel == _SELF or rel.startswith(_HISTORICAL):
-            continue
-        if not is_claim_scanned(rel):
-            continue
-        if Path(rel).suffix.lower() not in _SCANNED_SUFFIXES:
-            continue
-        if not (REPO_ROOT / rel).exists():
-            continue
-        out.append(rel)
-    return out
-
-
-def claim_inventory() -> list[Claim]:
-    """Every byte-identity claim in a live, tracked file."""
-    out: list[Claim] = []
-    for rel in _scanned_paths():
-        text = (REPO_ROOT / rel).read_text(encoding="utf-8", errors="replace")
-        out += claims_in(rel, text)
-    return out
-
-
-def test_every_byte_identity_claim_in_a_live_file_names_its_verification():
-    """Sighting 3: the claim had escaped PROVENANCE.md into prose nobody diffed.
-
-    A stack note, a worksheet headline and two test comments all said two
-    workbook sheets were "byte-identical" over rows 31-44 while the test
-    actually compared only the *numeric* cells. Four cells differed and one was
-    the hub part number the whole identity argument rested on. Nothing was
-    lying; the claim was simply stronger than its evidence.
-
-    So: anywhere outside the historical record, an asserted byte-identity must
-    name what checks it -- a ``sha256``, a ``git diff``, a blob, a test or
-    ``PROVENANCE.md`` -- in the same block of prose. A *denied* identity
-    ("**not** byte-identical, because the comment column differs") is not a
-    claim to verify and is only reported.
-    """
-    inventory = claim_inventory()
-    assert inventory, "the scan found nothing at all -- it is no longer scanning"
-    unbacked = [c for c in inventory if c.kind == "asserted" and not c.pointer]
-    assert unbacked == [], (
-        "byte-identity asserted with nothing named that checks it:\n"
-        + "\n".join(f"  {c.path}:{c.line}  {c.excerpt}" for c in unbacked)
-        + "\n\nName the verification in the same paragraph (a test name, a sha256, a "
-          "`git diff`), or weaken the claim to what is actually checked. "
-          "'byte-identical' is a claim about bytes; a cached numeric table is not "
-          "the sheet."
+    broken = [f"{c.location}: {check(c, REPO_ROOT).detail}"
+              for c in declared if not check(c, REPO_ROOT).ok]
+    assert broken == [], (
+        "declared byte identities that do not hold:\n  " + "\n  ".join(broken)
+        + "\n\nEither the two artifacts diverged -- in which case the claim is "
+          "the thing that is now false and the document has to say what is "
+          "actually true -- or a side was renamed out from under the "
+          "declaration."
     )
 
 
-def test_the_byte_identity_scan_does_not_read_a_triage_brief():
-    """The 2026-09-15 defect: the sentence that gated a 129-commit batch merge.
+def test_the_byte_identity_check_can_fail():
+    """A guard nobody has watched fail is not yet a guard.
 
-    ``BRIEF_20260915_origin_posture_and_absent_feature_rule.md:62`` said the
-    viewer's *behaviour* was "byte-for-byte what ``viewer_transport_honest_
-    hosted`` shipped". That is a real overclaim -- bytes cannot carry a
-    behaviour -- and the reword (``1f62803``) was worth making on its own. But
-    the brief is an inbox artifact about an undecided question, not a document
-    that states this repo's facts, and this guard exists for the second kind.
-    Eight sessions each filed their own issue for the red before it was
-    collapsed (``ISSUE_20260916_byte_identity_guard_is_red_on_master_from_a_
-    triage_brief.md``).
-
-    So the corpus now consults ``is_claim_scanned()`` -- shared with the
-    traced-ratio, hardware-count and one-fold-rule scans, which read the same
-    scope call off ``claim_scanned_documents()``.
-
-    Three things are asserted, since this scan derives its corpus from
-    ``git ls-files`` rather than from that walk:
-
-    1. the briefs are **tracked** here, so this is an exemption and not a glob
-       that happens to match nothing;
-    2. none of them reaches the scan; and
-    3. the sentence itself is still an unbacked asserted claim -- so the
-       exemption is about *where* it was written, and moving it into a document
-       that states repo facts brings the guard straight back.
+    Sighting 3's shape, replayed as a declaration: two artifacts asserted
+    identical that are not. The old scan could only ever ask whether a
+    *verification was named*; this asks the question the claim actually makes.
     """
-    briefs = {rel.strip().replace("\\", "/")
-              for rel in _git("ls-files", "docs/strategy").splitlines()
-              if rel.strip().endswith(".md")
-              and Path(rel.strip()).name.startswith("BRIEF_")}
-    assert briefs, (
-        "no docs/strategy/BRIEF_*.md is tracked, so this test proves nothing "
-        "about an exemption -- the briefs moved, or this repo stopped holding "
-        "them"
-    )
-    reached = briefs & set(_scanned_paths())
-    assert reached == set(), sorted(reached)
+    from tests.claims_registry import Claim, DISAGREES, check
 
-    sentence = ("the viewer's behaviour is byte-for-byte what "
-                "`viewer_transport_honest_hosted` shipped")
-    in_brief = claims_in("docs/strategy/BRIEF_20260915_origin_posture.md", sentence)
-    in_doc = claims_in("ARCHITECTURE.md", sentence)
-    assert [c.kind for c in in_brief] == ["asserted"], in_brief
-    assert [(c.kind, c.pointer) for c in in_doc] == [("asserted", "")], in_doc
-    assert not is_claim_scanned(in_brief[0].path)
-    assert is_claim_scanned(in_doc[0].path)
+    study = "docs/topologies/study_pitch_system_end_stop_minus7.json"
+    outcome = check(Claim("d.md", 1, "byte_identity", {
+        "subject": f"{study}#/selection",
+        "against": f"{study}#/transforms",
+    }), REPO_ROOT)
+    assert outcome.status == DISAGREES, outcome
+    assert "not identical" in outcome.detail, outcome
 
-
-# The tip of `hub_bearing_thermal_stack` before its review corrected the claim.
-# Permanent history (an ancestor of master), like the _SIGHTINGS commits.
-_SIGHTING_THREE = ("46a450a", "tests/test_hub_bearing_rederivation.py", 539)
-
-
-def test_the_grep_catches_the_reconstructed_sighting_three():
-    """Sighting 3 replayed, not mimicked -- and the reason for ``_DEFINITION_RE``.
-
-    The comment claiming two sheets byte-identical sat in the body of the very
-    test whose comparison was numeric-cells-only, so the enclosing
-    ``def test_workbook_inputs_are_transcribed_consistently_on_both_sheets``
-    line satisfied the pointer search all by itself and the claim came back
-    backed. A check that a test's own name discharges the claim inside it is the
-    vacuous check in a new costume; definition lines are excluded, and this pins
-    it against the real blob.
-    """
-    rev, rel, line = _SIGHTING_THREE
-    text = _blob(REPO_ROOT, f"{rev}:{rel}")
-    assert text, f"{rev}:{rel} is not in this repo's history"
-    claims = {c.line: c for c in claims_in(rel, text)}
-    assert line in claims, f"the phrase is no longer found at {rel}:{line} in {rev}"
-    caught = claims[line]
-    assert caught.kind == "asserted", caught
-    assert not caught.pointer, (
-        f"sighting 3 must be caught, but the scan backed it with "
-        f"{caught.pointer!r} -- if that came off a `def`/`class` line the "
-        "exclusion has regressed"
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -938,6 +801,3 @@ def test_the_check_catches_the_reconstructed_sightings_four_and_five(slug):
     )
 
 
-if __name__ == "__main__":                      # the inventory, as a report
-    for c in claim_inventory():
-        print(f"{c.kind:9} {c.path}:{c.line}  pointer={c.pointer or '-':<22} {c.excerpt}")

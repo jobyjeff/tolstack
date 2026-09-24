@@ -148,6 +148,11 @@ here rather than deleted, per the rule below). `tests/test_tolerance_stack.py`
 pins both, so a doc quoting a stale number fails the suite rather than merely
 being wrong.
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 **A retired figure may still appear — as a quotation.** Correct a number a
 review already read by leaving the old one visible, inside a blockquote or
 inside double quotes, in a dated note. A bare `"3 of 26"` in a live sentence

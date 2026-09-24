@@ -8,31 +8,33 @@ always copies the mesh output in. Measured 2026-09-16 from every installed
 ``scripts/extract_assembly_parts.py`` (an assembly-STEP extraction, no
 per-part STEP upstream and no copy step) and 2 from
 ``scripts/tessellate_parts.py`` (the single-part route, which does copy)** --
-so the old wording was two of twenty-four, not the whole store, and this
-module is a scan against the CLAIM SHAPE, not a re-transcription of that
-count (``data/meshes/README.md``'s own "What's here today" is exactly the
-cautionary instance of writing a count from this store into prose).
+so the old wording was two of twenty-four, not the whole store. Neither the
+documents nor this module re-transcribe that **count**: the declared value
+is the set of route *commands*, re-read from the store, and
+``data/meshes/README.md``'s own "What's here today" is the cautionary
+instance of writing a count from this store into prose.
 
-Precedent and its rule
------------------------
+What this does not do any more
+------------------------------
 
-``tests/test_architecture_inventory.py`` is the shape this module copies:
-every extraction is asserted non-empty before anything is compared (a scan
-that silently finds nothing is a guard that passes against anything), and
-``test_the_quantifier_scan_can_fail`` there is the reason this module also
-carries a negative control -- a guard nobody has watched fail is not a
-guard.
+Until 2026-09-23 the pairing here was a **prose scan**: a named-phrase
+allowlist ("STEP file"/"STEP export"/"STEP path", or this repo "copying"
+the mesh output) crossed with a route-qualifier allowlist
+(``single-part``, ``two routes``, ``one of two``, ...), failing any passage
+that used the first with none of the second. Two allowlists over English,
+which is the pattern ``REPORT_20260921_bug_pareto.md`` measured as C/C2 and
+the 2026-09-23 refactor decision retired: it could only ever ask whether a
+sentence was *shaped* like a whole-store claim, and both lists were open
+ended -- a new phrasing on either side is a silent miss on one and a false
+positive on the other.
 
-What this does not do
-----------------------
-
-The scan matches a **named phrase plus a route-name allowlist**, not
-English: a mention of "STEP file"/"STEP export"/"STEP path", or of this repo
-"copying" the mesh output, is fine when the passage also says which single
-route it is talking about (``single-part``, ``two routes``, ``two ways``,
-``one of two``, or an explicit denial that a per-part STEP exists). A
-passage that uses the phrase with no such qualifier is indistinguishable
-from the old, wrong, whole-store claim, so it fails.
+Both documents **declare** the route set now, and the declaration is
+compared against the store itself (``tests/claims_registry.py``, metric
+``mesh_routes``: every ``produced_by.command`` across every installed
+``provenance.json``). That is strictly stronger than the scan on the thing
+that matters -- a third route appearing upstream reddens both declarations,
+where the old scan would have gone on approving the word "two" forever --
+and strictly weaker on prose, which is no longer read at all.
 """
 
 from __future__ import annotations
@@ -44,8 +46,6 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-ARCHITECTURE = REPO_ROOT / "ARCHITECTURE.md"
-ANNOTATION_SURFACE = REPO_ROOT / "docs" / "ANNOTATION_SURFACE.md"
 
 #: Where installed meshes may live, in resolution order -- the repo-relative
 #: path (real in the main checkout), then the main checkout absolute (a
@@ -58,126 +58,32 @@ MESHES_DIR_CANDIDATES = (
 )
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
-#: A mesh-source claim that is true of only ONE of the two routes. Matched
-#: as a bare phrase; whether its use is legitimate is decided by whether a
-#: qualifier from ROUTE_QUALIFIER also appears in the same passage.
-STEP_SOURCE_CLAIM = re.compile(r"\bSTEP (?:file|export|path)\b", re.IGNORECASE)
-COPY_CLAIM = re.compile(r"\bcopies? (?:the )?(?:binary )?mesh output\b", re.IGNORECASE)
-
-#: Present in a passage that is honestly scoped to one route (or that says
-#: outright there are two). A passage using STEP_SOURCE_CLAIM or COPY_CLAIM
-#: with none of these present is making the claim about the whole store.
-ROUTE_QUALIFIER = re.compile(
-    r"single-part|two routes|two ways|one of two|either route|"
-    r"no per-part STEP|not a per-part STEP|which route",
-    re.IGNORECASE,
-)
-
-
-def unqualified_route_claims(text: str) -> list[str]:
-    """Every STEP-source / copy claim in ``text`` with no route qualifier.
-
-    Returns the matched phrases (not just a bool) so a failing assertion
-    names what it found, the same reporting style every guard in this repo
-    uses.
-    """
-    matches = [m.group(0) for m in STEP_SOURCE_CLAIM.finditer(text)]
-    matches += [m.group(0) for m in COPY_CLAIM.finditer(text)]
-    if matches and not ROUTE_QUALIFIER.search(text):
-        return matches
-    return []
-
-
 # --------------------------------------------------------------------------- #
-# 1. extraction -- the document side, asserted found before anything else     #
+# 1. the declarations -- present, and in the passage that makes the claim     #
 # --------------------------------------------------------------------------- #
 
-def _section(markdown: str, heading: str, path_for_errors: Path) -> str:
-    """The prose under ``heading``, up to the next heading of equal or
-    shallower depth. Raises rather than returning empty -- an empty
-    extraction would make every scan below pass vacuously."""
-    lines = markdown.splitlines()
-    level = len(heading) - len(heading.lstrip("#"))
-    start = None
-    for i, line in enumerate(lines):
-        if line.strip() == heading:
-            start = i + 1
-            break
-    if start is None:
-        raise LookupError(f"{path_for_errors}: no {heading!r} heading found")
-    end = start
-    while end < len(lines):
-        stripped = lines[end].strip()
-        if stripped.startswith("#"):
-            this_level = len(stripped) - len(stripped.lstrip("#"))
-            if this_level <= level:
-                break
-        end += 1
-    section = "\n".join(lines[start:end]).strip()
-    if not section:
-        raise ValueError(f"{path_for_errors}: {heading!r} section is empty")
-    return section
+#: The two documents that describe where a mesh comes from, and therefore the
+#: two that must declare the route set rather than describe it. Curated for the
+#: reason every presence check in this repo is: the evidence for "this document
+#: stopped saying it" is absent from exactly the file you need to catch.
+ROUTE_CLAIM_SOURCES = ("ARCHITECTURE.md", "docs/ANNOTATION_SURFACE.md")
 
 
-def _rotorkit_bullet(markdown: str) -> str:
-    match = re.search(
-        r"- \*\*rotorkit\*\*.*?(?=\n- \*\*|\n#{1,6} )", markdown, re.DOTALL
-    )
-    if not match:
-        raise LookupError("ARCHITECTURE.md: no '- **rotorkit**' bullet found")
-    return match.group(0)
+def test_both_documents_declare_the_route_set():
+    """Presence. Agreement is the ``mesh_routes`` deriver, asserted for every
+    declaration in the tree by ``tests/test_claims_registry.py`` and skipped
+    honestly in a worktree, where ``data/meshes/`` is gitignored away."""
+    from tests.claims_registry import declarations_in_file
 
-
-@pytest.fixture(scope="module")
-def architecture_rotorkit_bullet() -> str:
-    return _rotorkit_bullet(ARCHITECTURE.read_text(encoding="utf-8"))
-
-
-@pytest.fixture(scope="module")
-def annotation_surface_mesh_format() -> str:
-    return _section(
-        ANNOTATION_SURFACE.read_text(encoding="utf-8"),
-        "### The mesh format",
-        ANNOTATION_SURFACE,
-    )
-
-
-def test_the_extractions_are_not_vacuous(
-    architecture_rotorkit_bullet, annotation_surface_mesh_format
-):
-    assert "rotorkit" in architecture_rotorkit_bullet
-    assert "data/meshes" in architecture_rotorkit_bullet
-    assert "data/meshes" in annotation_surface_mesh_format
-
-
-# --------------------------------------------------------------------------- #
-# 2. the pairings                                                             #
-# --------------------------------------------------------------------------- #
-
-def test_architecture_rotorkit_bullet_makes_no_unqualified_route_claim(
-    architecture_rotorkit_bullet,
-):
-    problems = unqualified_route_claims(architecture_rotorkit_bullet)
-    assert problems == [], (
-        "ARCHITECTURE.md's rotorkit bullet asserts, with no route qualifier "
-        f"nearby, {problems} -- there are two routes into data/meshes/ "
-        "(a single-part STEP export and an assembly extraction with no "
-        "per-part STEP upstream), and this repo copies the mesh output on "
-        "only one of them. Scope the claim to the route it is actually "
-        "about, or point at data/meshes/README.md instead of restating it."
-    )
-
-
-def test_annotation_surface_mesh_format_makes_no_unqualified_route_claim(
-    annotation_surface_mesh_format,
-):
-    problems = unqualified_route_claims(annotation_surface_mesh_format)
-    assert problems == [], (
-        "docs/ANNOTATION_SURFACE.md's mesh format passage asserts, with no "
-        f"route qualifier nearby, {problems} -- 22 of 24 installed meshes "
-        "have no per-part STEP upstream at all (data/meshes/README.md, "
-        "\"Two ways a mesh gets here\"). Let the pointer to that README "
-        "carry the route detail instead of restating it here."
+    silent = [rel for rel in ROUTE_CLAIM_SOURCES
+              if not any(c.metric == "mesh_routes" for c in
+                         declarations_in_file(REPO_ROOT / rel, rel))]
+    assert silent == [], (
+        f"{silent} describe where an installed mesh comes from and declare no "
+        f"`mesh_routes` claim. 22 of 24 installed meshes have no per-part STEP "
+        f"upstream at all (data/meshes/README.md, \"Two ways a mesh gets "
+        f"here\"), which is the fact both documents once had wrong; a document "
+        f"that stops declaring it is back to describing it."
     )
 
 
@@ -219,62 +125,37 @@ def live_route_commands(meshes_dir: Path) -> set[str]:
            "only -- see data/meshes/README.md); this pairing needs real data",
 )
 def test_the_live_mesh_store_actually_has_two_routes():
-    """[real]: grounds "two routes" (not a count) against the tree. If a
-    third route script ever installs a mesh, this does not fail -- there is
-    no claimed total here for it to violate -- but it would be a prompt to
-    revisit ARCHITECTURE.md and ANNOTATION_SURFACE.md's "two routes" framing.
+    """[real]: the declared route set, grounded against the tree.
+
+    The set is **read off the declaration** rather than written here: it is
+    already stated in ``ARCHITECTURE.md`` and ``docs/ANNOTATION_SURFACE.md``,
+    and a literal copy in this file would be a third place for it to be wrong
+    -- the defect the whole registry exists against, committed by the guard
+    that enforces it.
+
+    If a third route script ever installs a mesh this goes red, naming both
+    sides, which is the prompt to revisit those documents' framing.
     """
+    from tests.claims_registry import declarations_in_file
+
+    declared = {c.fields["value"] for rel in ROUTE_CLAIM_SOURCES
+                for c in declarations_in_file(REPO_ROOT / rel, rel)
+                if c.metric == "mesh_routes"}
+    assert len(declared) == 1, (
+        f"the two documents declare different route sets: {sorted(declared)}. "
+        f"One of them is stale -- the registry checks each against the store, "
+        f"so whichever disagrees is already named there."
+    )
+    expected = {part.strip() for part in declared.pop().split(",") if part.strip()}
+
     meshes_dir = installed_meshes_dir()
     commands = live_route_commands(meshes_dir)
     assert commands, (
         f"{meshes_dir} has mesh directories but no readable provenance.json "
         "produced_by.command -- the pairing below would pass vacuously"
     )
-    assert commands == {
-        "scripts/extract_assembly_parts.py",
-        "scripts/tessellate_parts.py",
-    }, (
-        f"the live mesh store's routes are {sorted(commands)}, which is not "
-        "the two routes data/meshes/README.md documents -- a route was added, "
-        "removed, or renamed upstream in rotorkit"
+    assert commands == expected, (
+        f"the live mesh store's routes are {sorted(commands)}; the documents "
+        f"declare {sorted(expected)} -- a route was added, removed, or renamed "
+        f"upstream in rotorkit"
     )
-
-
-# --------------------------------------------------------------------------- #
-# 4. negative control -- the scan, shown catching what it exists to catch     #
-# --------------------------------------------------------------------------- #
-
-def test_the_route_claim_scan_can_fail():
-    """Replays both documents' pre-fix wording verbatim (reconstructed, not
-    read from git history), plus the qualified phrasing each was rewritten
-    to use, so this test is known to be checking something."""
-    stale_architecture = (
-        "- **rotorkit** -- `data/meshes/<sha>/` is tessellated from a STEP "
-        "file by rotorkit's `stepgeom.tessellate` "
-        "(`scripts/tessellate_parts.py`, run from rotorkit's own checkout "
-        "and venv). This repo never patches rotorkit or imports its code; "
-        "it copies the binary mesh output, unmodified, plus a provenance "
-        "sidecar."
-    )
-    assert unqualified_route_claims(stale_architecture) != []
-
-    stale_annotation_surface = (
-        "a `provenance.json` sidecar (source STEP path, sha256, "
-        "tessellation tier, the rotorkit command that produced it)."
-    )
-    assert unqualified_route_claims(stale_annotation_surface) != []
-
-    # The qualified shape each document was rewritten to use: the same
-    # phrase, but naming that it is scoped to one of two routes.
-    qualified = (
-        "a single-part STEP export (`scripts/tessellate_parts.py`), one of "
-        "two routes into data/meshes/; the other has no per-part STEP "
-        "upstream at all."
-    )
-    assert unqualified_route_claims(qualified) == []
-
-    # And a passage that names neither phrase at all is untouched by the
-    # scan -- it is not a blanket ban on the word "STEP".
-    assert unqualified_route_claims(
-        "see data/meshes/README.md for what the sidecar carries."
-    ) == []

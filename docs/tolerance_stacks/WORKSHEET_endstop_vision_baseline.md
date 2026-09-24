@@ -21,6 +21,11 @@ and flags sheet-side uncertainty rather than guessing Jeff's intent.
 For orientation against this repo's SOP-grade work: the three seeded stacks
 currently trace **5 of 26** element instances.
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 **Variant arm — checked, not available.** The handoff's optional arm (repeat the
 attempt against CAD section-view screenshots with per-component colours, if Jeff
 has dropped them into `data/inbox/tolerance_stacks/`) was checked at session

@@ -53,6 +53,11 @@ fields and introduce no third:
   thermal ``1 + dT*alpha``, a stiffness split ``k``). No element values are
   combined here. See ARCHITECTURE.md, "Where computation may live".
 
+```claim
+metric: one_fold_rule
+exceptions: workbook_corner
+```
+
 Why edges carry a ``Dimension`` and not a ``StackElement``
 ----------------------------------------------------------
 

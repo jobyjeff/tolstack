@@ -370,6 +370,11 @@ Across all three seeded stacks: **5 of 26 `traced`**, 12 `inferred`, 9
 ("The traced ratio"); reproduce it with
 `tests\debug_report_tolerance_stacks.py --ratio` rather than reading it here.
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 > **Moved, 2026-09-15** (handoff `stack_fable_audit`), from *"3 traced /
 > 1 inferred / 7 untraced"* on this stack and a seeded split of *"3 inferred,
 > 18 untraced"*: the four catalog re-citations above (elements 1, 2, 3, 5) each

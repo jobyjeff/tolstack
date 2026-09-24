@@ -791,6 +791,11 @@ because the two are not the same shape of work:
 > `inferred` → `untraced`, because their only support was the source workbook.
 > This stack's own 4/2/0 is unchanged.
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 - **The ratio improved mostly because the documents were there.** Three of the
   four traced values are the NAS6403 bolt, which was in `data/inbox/specs/` the
   whole time and which slice 1 (working inside drawing-checker, before the spec

@@ -142,6 +142,11 @@ and combines element values nowhere, **except the sites on the declared exceptio
 list** — today `workbook_corner()` and nothing else. **That is the line to hold
 for the next archetype.**
 
+```claim
+metric: one_fold_rule
+exceptions: workbook_corner
+```
+
 That exception is also the module's one reader of `lmc`/`mmc`: it exists solely
 to reproduce a source spreadsheet's coherent-corner method for comparison, which
 is a single-valued evaluation of one point rather than a fold over a band, so a

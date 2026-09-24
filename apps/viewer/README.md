@@ -806,6 +806,19 @@ from the walk: every study dropped its non-chain rows and none of them dimmed
 anything, so there was nothing on screen to notice was missing. One layout,
 varying emphasis, is the fix.
 
+That paragraph used to reconstruct which of `pitch_link_to_pitch_plate`'s three
+studies dropped what, and it had the sizes backwards
+(`ISSUE_20260915_the_readmes_inconsistency_premise_for_the_whole_walk_change_does_not_reproduce.md`).
+The reconstruction is gone; the one fact it got wrong is declared instead, so it
+is re-derived from the live topology projection on every run rather than argued
+from memory — the smallest chain of the three is `pitch_link_thread_region_t`:
+
+```claim
+metric: smallest_chain
+topology: pitch_link_to_pitch_plate
+value: pitch_link_thread_region_t
+```
+
 `study.layout` is still in the projection and still built by
 `scripts/build_topology_projection.py` — nothing about the data changed, only
 which serialisation this page draws. The viewer no longer reads it; the

@@ -35,6 +35,11 @@ its three tolerance stacks could be traced to an actual document. The rest were
 "the workbook says so", which is not a source. This pile is the trace target
 that closes that gap — and it already holds the top-priority one:
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 > **Correction, 2026-08-06** (handoff `traced_labels_and_ratio`). This read
 > *"1 of 17"* until 2026-08-06; neither number reproduced from the stacks. The
 > definition of the ratio now lives in one place —

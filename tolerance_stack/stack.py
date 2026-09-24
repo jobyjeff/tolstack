@@ -587,6 +587,11 @@ def fold(terms: Iterable[Term]) -> Interval:
     A ``Term``'s weight is ``sign * coefficient`` and defaults to the ``+-1`` this
     function has always used, so every stack authored before coefficients existed
     folds to the same numbers.
+
+    ```claim
+    metric: one_fold_rule
+    exceptions: workbook_corner
+    ```
     """
     terms = list(terms)
     if not terms:

@@ -581,6 +581,11 @@ diligence, it is that **Jeff supplied the five part drawings**. Every traced
 element here points at a released drawing that landed in the repo on the day the
 stack was built. The lesson is about the inputs, not the method.
 
+```claim
+metric: traced_ratio
+value: 5 of 26
+```
+
 > **Correction, 2026-08-06** (handoff `traced_labels_and_ratio`). This line read
 > *"slice 1 traced 1 of 17"*. That figure was wrong in both halves and is now
 > 3 of 26; see `ARCHITECTURE.md` for what happened. The definition of the ratio
