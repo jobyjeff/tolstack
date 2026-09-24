@@ -60,8 +60,8 @@ vm.runInContext(fs.readFileSync(MARK, "utf8"), sandbox,
 // its own because the browser tier serves apps/viewer as a server root and
 // 403s anything above it -- scripts/generate_js_vocabulary.py's docstring
 // carries that. Defines only; no DOM, no fetch.
-const VOCAB = path.join(here, "..", "viewer", "vocab.gen.js");
-vm.runInContext(fs.readFileSync(VOCAB, "utf8"), sandbox,
+const VOCAB_GEN = path.join(here, "..", "viewer", "vocab.gen.js");
+vm.runInContext(fs.readFileSync(VOCAB_GEN, "utf8"), sandbox,
   { filename: "../viewer/vocab.gen.js" });
 
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js",
