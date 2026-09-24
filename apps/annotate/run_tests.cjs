@@ -262,19 +262,57 @@ check("every word table this app renders survives the shared ban list", () => {
   }
 });
 
-// --- vocabulary sanity (hand-copy against tolerance_stack/feature_identity.py) ---
-check("STACK_KEY_KINDS matches the Python tuple", () => {
-  assertEqual(AA.STACK_KEY_KINDS, ["topology_edge", "stack_element"]);
-});
-check("VERDICTS matches the Python tuple", () => {
-  assertEqual(AA.VERDICTS, ["bound", "owner_not_in_set"]);
-});
-check("DIRECTIONS matches the Python tuple", () => {
-  assertEqual(AA.DIRECTIONS, ["from", "to"]);
-});
-check("GDT_MODIFIERS matches the Python tuple", () => {
-  assertEqual(AA.GDT_MODIFIERS, ["M", "L"]);
-});
+// --- the generated vocabularies -------------------------------------------
+//
+// Four checks here spelled out the Python tuples they were pairing --
+// `assertEqual(AA.VERDICTS, ["bound", "owner_not_in_set"])` -- which made them
+// a THIRD copy of each vocabulary, in a file nothing compares against Python
+// at all. They went on 2026-09-23 with the hand copies in binding_state.js:
+// this app's five word-lists are read out of ../viewer/vocab.gen.js, generated
+// from tolerance_stack/feature_identity.py and compared byte for byte by
+// tests/test_js_vocabulary_is_generated.py.
+//
+// What is worth a check here is the refusal that replaced them, because it is
+// the thing running code depends on. Synthetic tables, not the live lists: if
+// a live one had drifted this runner would have thrown while loading
+// binding_state.js and no check in it would have run.
+check("the generated vocabulary module refuses a table whose keys have " +
+  "drifted from it, and freezes the one it returns", () => {
+    const VOCAB = sandbox.TolstackVocab.annotate;
+    const words = VOCAB.list("PATH_KINDS");
+    if (words.length < 2) throw new Error("the fixture below needs two words");
+
+    const entriesFor = (names) =>
+      Object.fromEntries(names.map((name) => [name, { note: name }]));
+
+    // Python emits a word this app has no branch for.
+    assertThrows(() => VOCAB.table("PATH_KINDS", entriesFor([words[0]])),
+      "a table missing a word must be refused");
+    // ...and a branch for a word Python cannot emit.
+    assertThrows(
+      () => VOCAB.table("PATH_KINDS", entriesFor([...words, "guessed"])),
+      "a table with an impossible word must be refused");
+    // A vocabulary this module does not carry -- what a rename leaves behind.
+    assertThrows(() => VOCAB.list("NO_SUCH_VOCABULARY"),
+      "an unknown vocabulary must be refused");
+
+    // The returned table is frozen, which closes the hole the retired Python
+    // scanner documented and could not see: a key attached from outside the
+    // literal, by assignment or by Object.assign.
+    const table = VOCAB.table("PATH_KINDS", entriesFor([...words]));
+    // The directive is not decoration: this runner is a sloppy-mode CommonJS
+    // module, where an assignment to a frozen object fails SILENTLY. Every
+    // file it loads is strict and throws; the check has to opt in to say so.
+    assertThrows(() => { "use strict"; table.sneaky = {}; },
+      "a frozen table must refuse a key");
+    assertThrows(() => Object.assign(table, { sneaky2: {} }),
+      "a frozen table must refuse Object.assign");
+    if (table.sneaky !== undefined) throw new Error("a key was added");
+
+    // ...and so is the word list itself.
+    assertThrows(() => words.push("sneaky"), "a frozen list must refuse a push");
+    if (words.indexOf("sneaky") !== -1) throw new Error("a word was added");
+  });
 
 // --- stack keys ---
 check("topologyEdgeKey and stackElementKey are not equal for the same names", () => {

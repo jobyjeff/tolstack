@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the generated vocabulary module refuses a table whose keys have drifted from it, and freezes the one it returns",
+  "mutations": [
+    {
+      "contract": "VOCAB.table() refuses a rendered table whose key set has drifted from the generated vocabulary -- in BOTH directions. A word Python emits with no entry here renders as the loud unlabelled treatment for an ordinary value; an entry for a word Python cannot emit reads as `this case is handled` to the next author.",
+      "issue": null,
+      "note": "This half is the one a set comparison written in a hurry drops: `extra` is the obvious direction and `missing` is the one that costs a reader a page. Mutating the generated file's fixed template rather than a word list, because the template is what the refusal IS -- a mutated word list would redden the python tier's byte comparison instead and say nothing about this guard. Enrolled with the guard, 2026-09-23 (js_vocabulary_generated_from_python). Run under the ANNOTATE namespace here; the viewer tier asks the same question of its own. Same mutations, two harnesses: the module builds a `namespace()` per app and each app's runtime is a separate load.",
+      "file": "apps/viewer/vocab.gen.js",
+      "find": "      var missing = expected.filter(function (word) {\n        return !Object.prototype.hasOwnProperty.call(entries, word);\n      });",
+      "replace": "      var missing = [];"
+    },
+    {
+      "contract": "The table VOCAB.table() returns is FROZEN, so a key attached from outside the literal -- `VA.GAP_KINDS.x = {}` ten screens down, or an Object.assign -- throws in strict mode, which every app file is. That was the one hole the retired character scanner documented and could not see.",
+      "issue": "docs/issues/ISSUE_20260812_no_test_pairs_the_js_status_tables_with_the_python_vocabularies.md",
+      "note": "The freeze is not decoration: tests/test_js_python_vocabulary.py used to carry a static scan (js_table_mutations) refusing `VA.NAME.foo =`, and its own docstring admitted that scan did not match Object.assign and that the Object.assign case was silent to everything. Deleting the scan was only safe because of this line, so this line is witnessed.",
+      "file": "apps/viewer/vocab.gen.js",
+      "find": "      return Object.freeze(entries);",
+      "replace": "      return entries;"
+    }
+  ]
+}

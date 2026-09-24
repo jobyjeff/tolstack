@@ -1,0 +1,23 @@
+{
+  "tier": "python",
+  "suite": "tests/test_js_vocabulary_is_generated.py",
+  "expect_red": "test_the_generated_vocabulary_module_is_up_to_date",
+  "mutations": [
+    {
+      "contract": "apps/viewer/vocab.gen.js is exactly what scripts/generate_js_vocabulary.py writes today. A Python vocabulary that moved with nobody regenerating leaves the two apps rendering the OLD word, which is the drift twenty-six hand copies and three pairing modules used to be arranged against.",
+      "issue": null,
+      "note": "The first of the two directions this guard replaced the pairing modules to cover: Python moved, the generated file did not. Mutating VERDICTS rather than a vocabulary with no live instances on purpose -- `marginal` is rendered on real studies, so the mutation is the shape of a real rename rather than a synthetic one. Enrolled with the guard, 2026-09-23 (js_vocabulary_generated_from_python).",
+      "file": "tolerance_stack/stack.py",
+      "find": "VERDICTS = (\"pass\", \"marginal\", \"fail\")",
+      "replace": "VERDICTS = (\"pass\", \"qualified\", \"fail\")"
+    },
+    {
+      "contract": "A hand edit to apps/viewer/vocab.gen.js is red on its own. The file says GENERATED at the top; the words in it belong to the Python definition named beside each one, and an edit here is a change nobody can find from the owning side.",
+      "issue": null,
+      "note": "The second direction, and the one that had NO analogue before generation: editing a hand copy was only wrong once it disagreed with Python, so there was nothing to catch an edit as such. `budget` is picked because VERDICT_SCOPES is short enough that the whole array is one unique line.",
+      "file": "apps/viewer/vocab.gen.js",
+      "find": "    VERDICT_SCOPES: [\"joint\", \"budget\"],",
+      "replace": "    VERDICT_SCOPES: [\"joint\", \"budget_only\"],"
+    }
+  ]
+}

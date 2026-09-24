@@ -108,8 +108,8 @@ export const GUARD_SOURCES = {
 // cannot be witnessed, and the census counts those separately -- but it is now a
 // line in a diff a reviewer reads, instead of nothing at all.
 export const DECLARED_GUARDS = {
-  fast: 513,
-  annotate: 154,
+  fast: 514,
+  annotate: 151,
   browser: 506,
 };
 
