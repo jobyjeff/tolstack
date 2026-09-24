@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: scripts/mutation-witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
@@ -57,3 +57,23 @@ under the same sentence without noticing. Found in review of that handoff
 (`docs/sessions/reviews/REVIEW_20260918_mutation_witness_enrollment_gaps.md`),
 which APPROVEd — this is not a defect in that work, it is the shape that work
 made one word larger.
+
+
+---
+
+## Resolved 2026-09-23 — the block moved, and the list is paired now
+
+`mutation_witness_derived_enrollment_and_gating`. The `about` block is gone with
+the table it was in: the prose now lives at `scripts/mutation_witnesses/README.md`,
+beside the one-file-per-guard specs that replaced the rows.
+
+The fix is the one this issue asked for rather than the prose one it warned
+against. `tests/test_mutation_witnesses.py::test_the_spec_readme_lists_the_tier_vocabulary_and_nothing_else`
+reads the tier bullets back out of that README (anchored on the list's own
+column and its backticks, per this issue's second bullet) and asserts the set
+equals `TIERS`. A fifth tier added to the code and not to the page an author
+enrols from is now red on the next `pytest -q`, and so is a tier renamed in the
+code alone.
+
+The count-of-places sentence went with the block. The README states where the
+words are written and says the pairing exists, without asserting a number.

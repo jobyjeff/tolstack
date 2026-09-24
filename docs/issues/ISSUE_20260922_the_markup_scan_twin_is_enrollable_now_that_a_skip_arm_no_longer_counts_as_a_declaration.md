@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
 area: guards/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
@@ -49,3 +49,24 @@ command-table guard enrolled on 2026-09-22, one (`worksheet sits below the
 table; the right pane is its own element`) was never blocked by this at all --
 its `test(` arm is worded differently, so the name already resolved once -- and
 this is the third.
+
+
+---
+
+## Resolved 2026-09-23 — enrolled on the `fast` tier, replayed first
+
+`mutation_witness_derived_enrollment_and_gating`. Enrolled at
+`scripts/mutation_witnesses/fast__this-page-s-own-markup-prints-no-repo-path-module-path-i__2cb6145a.json`,
+with the one thing this issue said to check first written into its `note`: the
+tier is `fast` (`apps/viewer/run_tests.cjs` injects `VIEWER_SRC`), never
+`browser`, because the `skip(` arm is the one that fires without it and an arm
+that cannot print a FAIL line cannot be attributed a red.
+
+The mutation is the one from Set A of
+`LESSONS_20260918_reader_facing_surfaces_second_pass.md` — the subtitle in
+`apps/viewer/topology.html` goes back to naming `data/projections/viewer/`.
+Replayed before declaring: **1/1 witnessed**, on the declared check.
+
+The skip-arm rule that unblocked it is now in the enumeration rather than in the
+pairing module, and `test_passing_over_the_skip_arm_is_load_bearing` still holds
+it honest — this guard is one of the enrolled names that exercises it.

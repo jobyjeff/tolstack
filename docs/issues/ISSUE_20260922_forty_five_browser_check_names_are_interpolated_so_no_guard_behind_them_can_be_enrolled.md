@@ -64,3 +64,34 @@ There are at least three answers and they are not equivalent:
 ```
 node -e "const s=require('fs').readFileSync('scripts/run_viewer_browser_tests.mjs','utf8');const n=[...s.matchAll(/push\(`([^`]*)`/g)].map(m=>m[1]);console.log(n.length, n.filter(x=>x.includes('${')).length)"
 ```
+
+
+---
+
+## 2026-09-23 — the population is measured continuously now, and it is smaller than 45
+
+`mutation_witness_derived_enrollment_and_gating`. This issue's sharpest sentence
+was *"nothing anywhere says so"* — the cost only surfaced when an author
+transcribed a paste-ready row and found pytest red. Something says so now:
+
+```
+node scripts/guard_enumeration.mjs
+```
+
+prints, per guard source, `enrolled / enrollable / declared`. The gap between
+the last two columns **is** this issue's population, computed on every run, and
+`node scripts/run_mutation_witness_tests.mjs --unenrolled` names each one with
+the reason it cannot be enrolled.
+
+**Today's number is 31 of 506 browser guards, not 45 of 51 names**, and the
+difference is real rather than a re-count. The old measurement counted template
+*literals* in the source; the enumeration counts *guards*, after closing
+adjacent-literal seams and after collapsing a name declared at more than one
+call site into the one unattributable guard it is. 27 of the 31 are
+interpolated; the other 4 are names declared more than once, which is a second
+way to be unenrollable that this issue did not name and the enumeration reports
+separately.
+
+The three answers this issue lays out are unchanged and the decision is still
+open. What has changed is that whichever is chosen can now be measured against
+a number that moves.

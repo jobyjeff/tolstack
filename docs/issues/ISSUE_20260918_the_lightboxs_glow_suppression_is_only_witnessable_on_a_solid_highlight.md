@@ -71,3 +71,16 @@ assert `getComputedStyle(box).boxShadow === "none"` at fit, and assert the
 non-vacuity witness that the box is `.crophl--solid` (so the base rule's glow
 was the thing being suppressed). That is one extra open/close cycle in a suite
 that already runs 21 sub-checks, which is the only reason it was not folded in.
+
+
+---
+
+## 2026-09-23 — not cleared by derived enrollment
+
+`mutation_witness_derived_enrollment_and_gating`. Same reading as the
+`showCrop` issue beside it: the 2026-09-23 census computes guards that exist and
+have no mutation spec, and the glow half has no sub-check — the one that was
+written was measured vacuous and removed rather than shipped. The route to
+closing it (a second subject derived as the first live `verified_match`
+highlight) is an assertion, and until it exists there is nothing enrollment can
+do here.

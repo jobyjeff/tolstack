@@ -59,3 +59,16 @@ narrower census scoped to the DAG page. Not attempted here:
 measured mutations, not writing new assertions — the corresponding table row
 is excluded from `scripts/mutation_witnesses.json` with this issue cited
 rather than enrolled against a census that cannot see it.
+
+
+---
+
+## 2026-09-23 — not cleared by derived enrollment
+
+`mutation_witness_derived_enrollment_and_gating`. The title is precise and it is
+why this one is untouched by the rework: the claim has no witness **anywhere**,
+so there is no guard for the enumeration to count. A census of guards cannot
+report a rule that nobody wrote a check for. The fix shape in this filing — widen
+`testTypographyRules`' fill census to a page `.tvflag` actually renders on, or
+add a second one scoped to the DAG — is still the work, and the witness row
+follows it rather than replacing it.
