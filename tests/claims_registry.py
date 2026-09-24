@@ -226,9 +226,12 @@ def declarations_in_text(rel: str, text: str) -> list[Claim]:
     Pure, and takes the path only to name it in errors, so a parser failure can
     be replayed against a string in a test rather than against a file on disk.
 
-    The opening fence's own indentation (and any blockquote ``>`` markers in
-    front of it) is remembered and stripped from the body, so a declaration
-    nested in a list item or quoted into a blockquote parses as the same claim.
+    The opening fence's own indentation is remembered and stripped from the
+    body, so a declaration nested in a list item parses as the same claim. A
+    leading ``>`` is **not** indentation: :data:`_FENCE_OPEN` does not match it,
+    so a fence opened inside a blockquote yields no claim at all -- see that
+    pattern's own comment, and
+    ``test_a_blockquoted_declaration_is_a_quotation_not_a_claim``.
     """
     out: list[Claim] = []
     lines = text.splitlines()

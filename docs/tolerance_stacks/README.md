@@ -146,9 +146,21 @@ sentence that used to stand here got the count wrong twice — and the second ti
 the stale sentence was the one carrying the warning not to quote counts from here.
 A prose warning is not a guard. The live tally is
 `hardware_entries.json`'s own `description`, recounted from the entries by
-`test_hardware_entry_values_source_counts_match_the_description`; and
-`test_no_live_document_states_an_unguarded_hardware_entry_count` fails the suite
-if any live document — this one included — grows its own copy of it again.
+`test_hardware_entry_values_source_counts_match_the_description`, and the
+`claims` array beside that description, which
+`tests/test_claims_registry.py::test_every_declared_claim_agrees_with_its_source`
+re-derives from the entries on every run.
+
+**Nothing stops this paragraph growing its own copy again.** From 2026-08-12 to
+2026-09-23 `test_no_live_document_states_an_unguarded_hardware_entry_count`
+scanned every live document for a count shape and reddened on a wrong one; that
+scan was retired with the rest of the prose scans
+(`claims_registry_guards_read_declarations_not_prose`), because reading English
+for a claim put shared branches red on sentences that were making no claim. So
+the choice above is a *convention* now, not a guarded one: a count written here
+in prose and declared nowhere is checked by nothing. If you need one of these
+numbers in a document, declare it — `tests/claims_registry.py`, metric
+`hardware_entry_count`.
 
 **check result** (`joby.tolerance_stack/check_result/v0`) — produced, not
 stored: `worst_case_min/max`, `rss_min/max`, and a verdict of

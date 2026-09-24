@@ -74,3 +74,11 @@ stop seeing an untracked-but-real document, which today is nothing under
 Whatever the shape, it needs the both-halves witness the 2026-09-17 handoff
 established: a gitignored scratch `.md` carrying a wrong count is **not**
 scanned, and the same file tracked **is**.
+
+---
+
+## Note, 2026-09-24 — the consequence is fixed, the title is still true
+
+`claims_registry_guards_read_declarations_not_prose` (2026-09-23) replaced every claim scan's corpus with `tests/claims_registry.py::claim_corpus()`, which asks `git ls-files` rather than walking — so untracked scratch cannot join a claim scan's corpus any more, and `test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete` asserts this repo resolves to the git-tracked mode rather than to the walk.
+
+**Left open on purpose.** `live_documents()` itself is still a bare `os.walk`, with one consumer: the enumerated-state surface guard, which wants "this README stopped being live" to be loud and is about what is on disk rather than what states a fact. Whoever closes this decides whether that caller wants the git-aware set too. Do not close it as a side effect of the 2026-09-23 handoff — the scan-corpus half is done, this half is not.

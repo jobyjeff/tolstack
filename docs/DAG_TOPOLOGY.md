@@ -94,15 +94,15 @@ combined (ARCHITECTURE.md, "Why one `fold()`"; this archetype adds no exception
 of its own). The traversal produces exactly two things and both map onto
 `Term`'s existing fields:
 
-```claim
-metric: one_fold_rule
-exceptions: workbook_corner
-```
-
 | the traversal produces | it becomes | why that is not a second combiner |
 |---|---|---|
 | direction | `Term.sign` | an edge crossed from its `from` to its `to` enters `+1`, against its orientation `-1` |
 | transform | `Term.coefficient` | a positive per-term weight, exactly like the thermal archetype's `2`, `1 + ΔT·α` and `k` |
+
+```claim
+metric: one_fold_rule
+exceptions: workbook_corner
+```
 
 **No sign is authored in any topology or study document.** They are read off the
 graph. That is the one arithmetic thing this archetype makes *safer* than a

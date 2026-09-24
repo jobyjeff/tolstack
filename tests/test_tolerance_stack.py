@@ -2346,7 +2346,9 @@ _LIVE_DOCUMENT_FLOOR = 40
 #: own constant and not a share of the one above: the two sets are derived
 #: differently -- a walk for `.md` plus `docs/*.json`, against `git ls-files`
 #: over eight suffixes -- so they move independently, which is the point of
-#: having two. Measured at 273 on 2026-09-23 in the worktree; the floor's job is
+#: having two. Measured at 274 on 2026-09-24 in both checkouts (273 while this
+#: handoff was being written, before it enrolled its own mutation spec -- a
+#: tracked `.json` under `scripts/` is in the corpus like any other); the floor's job is
 #: the same as every other here, catching the derivation coming back empty or a
 #: fraction of itself rather than fencing the corpus's size.
 _CLAIM_CORPUS_FLOOR = 200
@@ -2354,9 +2356,11 @@ _CLAIM_CORPUS_FLOOR = 200
 # The documents that must **publish** the current traced ratio, as opposed to
 # merely not contradicting it. This one stays curated, and the argument is:
 #
-# * The other half of the guard (`asserted_stale`) asks "does any live document
-#   assert a *retired* figure?", which is a property of the text and derives
-#   perfectly -- every live document, no list.
+# * The other half of the guard asks "does every *declared* figure agree with
+#   the recount?", which is a property of the declarations and derives perfectly
+#   -- the whole claim corpus, no list. (Until 2026-09-23 it was `asserted_stale`
+#   and asked whether any live document asserted a *retired* figure in prose;
+#   that question is not asked any more, by design.)
 # * This half asks "did a document that is supposed to publish the figure stop
 #   publishing it?" That cannot be derived from the documents, because the
 #   evidence is *absent* from exactly the file you need to catch: a scan of

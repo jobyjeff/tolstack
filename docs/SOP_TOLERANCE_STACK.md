@@ -144,9 +144,15 @@ nine long-untraced seeded values (the two link bearings and the flanged-bushing
 trio) were re-cited to the RBC catalog pages that had been in the spec pile all
 along — and **30 of 61 across all seven stacks** (previously `"30 of 59"` as of
 2026-08-25's `fastener_stack_shadow`, and `"21 of 48"` before that; both quoted
-here rather than deleted, per the rule below). `tests/test_tolerance_stack.py`
-pins both, so a doc quoting a stale number fails the suite rather than merely
-being wrong.
+here rather than deleted, per the rule below).
+
+**What is checked, since 2026-09-23, is the *declaration* and not the
+sentence.** A document required to publish the seeded-stack figure carries a
+`claim` block naming `traced_ratio`, and `tests/claims_registry.py` recounts it
+from the stacks on every run — so a stale figure in a declaration fails the
+suite naming the file and line. A figure written into a sentence and declared
+nowhere is checked by nothing, including the seven-stack `30 of 61` above, which
+no test has ever read. Do not read the paragraph below as a guard.
 
 ```claim
 metric: traced_ratio
@@ -155,8 +161,11 @@ value: 5 of 26
 
 **A retired figure may still appear — as a quotation.** Correct a number a
 review already read by leaving the old one visible, inside a blockquote or
-inside double quotes, in a dated note. A bare `"3 of 26"` in a live sentence
-fails the same test, which is why this one and the figure below it are quoted.
+inside double quotes, in a dated note. This is house style and the reason this
+one and the figure below it are quoted; it stopped being test-enforced on
+2026-09-23, when the scan that hunted retired figures in prose was retired with
+the rest of the prose scans. A bare `"3 of 26"` in a live sentence is now wrong
+without being red — write it as a quotation anyway.
 
 **Expect it to move in both directions at once.** The 2026-08-10 change
 (`fastener_citations_and_confidence`) took it from `"3 of 26"` to 5 by re-citing two

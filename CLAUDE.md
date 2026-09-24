@@ -166,7 +166,14 @@ Know these before you write code; each has a test standing on it.
   from. Two consequences worth knowing before you edit a document here: a
   figure you write into a sentence and declare nowhere is checked by nothing,
   and a declaration whose value its source refutes reddens `pytest -q` naming
-  the file and line. Five prose scans were retired for this; the argument is in
+  the file and line. **To write *about* the format — an example fence in a
+  brief, a report, a prompt — open the fence inside a blockquote (`> ` on every
+  line).** A bare example fence anywhere the corpus reaches (every tracked
+  `.md`/`.py`/`.js`/`.json` outside `docs/sessions/`, `docs/issues/`,
+  `docs/reference/`, `PROVENANCE.md` and `tests/`) is parsed as a real
+  declaration and reddens the suite for everybody — including
+  `docs/strategy/`, which the retired prose scans used to exempt. Five prose
+  scans were retired for this; the argument is in
   `ARCHITECTURE.md`, "A document's checkable facts are declared, not written in
   English".
 - **A field vocabulary is a module-level constant, never an inline literal and

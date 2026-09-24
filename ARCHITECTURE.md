@@ -692,8 +692,9 @@ there rather than restating it. Two rules, both enforced by
   directory is a *source*, so a reader who follows a pointer into it and finds a
   figure the repo has since corrected is misled by the rule that was supposed to
   protect them; and correct-in-place-leave-the-old-visible is already the house
-  pattern for a superseded number everywhere else
-  (`test_every_document_quoting_the_traced_ratio_quotes_the_current_number`).
+  pattern for a superseded number everywhere else (house style, and enforced at
+  the declaration rather than in the prose since 2026-09-23 —
+  `test_every_traced_ratio_publisher_declares_the_current_figure`).
   Reverting a true correction to satisfy a freeze is the wrong trade. The
   freeze's one real benefit — you can tell at a glance that nobody rewrote
   history — is what the insert-only test now provides instead, and it is

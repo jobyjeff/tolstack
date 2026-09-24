@@ -4395,6 +4395,40 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       asserted it, so the scanner's accuracy was a reviewer's measurement
       rather than a standing check
       (`ISSUE_20260923_the_guard_census_pins_a_count_not_a_set_so_three_arrivals_are_silent.md`).
+- [ ] **A retired guard leaves live documents still promising it.** New
+      2026-09-24 (`claims_registry_guards_read_declarations_not_prose`), and
+      this repo will keep meeting it, because it now deletes guards on purpose
+      (R3) rather than only adding them. When a diff **removes** a check, grep
+      the tree for the removed test's name *and* for the sentences that
+      described what it did — they are not the same search, and the second one
+      is where the damage is. Four sites survived that migration: the SOP told
+      authors "a doc quoting a stale number fails the suite" and set out a
+      quoting convention "because a bare `3 of 26` fails the same test";
+      `docs/tolerance_stacks/README.md` said a named test "fails the suite if
+      any live document — this one included — grows its own copy of it again";
+      `ARCHITECTURE.md` and `tests/test_architecture_inventory.py`'s docstring
+      each cited a retired test by name. All four read as coverage and were
+      none, which is the exact shape
+      `docs/tolerance_stacks/README.md`'s own paragraph is *about* ("the stale
+      sentence was the one carrying the warning not to quote counts from
+      here"). Two cheap commands, and run both: `git grep -l <removed test
+      name>` over the tracked tree, and `git diff` the removal hunk for the
+      guard's docstring — whatever it claimed, some document repeats. Fixed
+      inline in review; a sentence promising a guard that no longer exists is
+      worse than no sentence, because the next author trusts it.
+- [ ] **A claims-registry review re-derives from the registry's own report,
+      not from the lesson.** New 2026-09-24. `PYTHONIOENCODING=utf-8
+      venv-win/Scripts/python.exe -m tests.claims_registry` prints every
+      declaration with its status and its re-derived detail, one line each — so
+      "how many declarations, in how many documents, and do they agree" is one
+      command rather than a count to trust. The enrolling lesson's own figures
+      were off in both terms (22 documents / 32 declarations against a real
+      21 / 33, because `ARCHITECTURE.md` is in three metric groups), which the
+      canonical checklist's lesson-arithmetic entry predicts and this command
+      settles in seconds. Also check the corpus size the floor's comment
+      records: a handoff that enrols its own mutation spec adds a tracked
+      `.json` under `scripts/`, which is in the corpus, so a number measured
+      mid-session is one low.
 
 ## Architectural errors to check
 

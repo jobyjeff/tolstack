@@ -76,6 +76,15 @@ named speculatively:
 
 **Migrated (22 documents, 32 declarations):**
 
+> **Correction, 2026-09-24 (`review/claims_registry_guards_read_declarations_not_prose`).**
+> Both numbers are wrong and the itemised list below is right: the registry
+> reports **33 declarations across 21 documents**
+> (`venv-win/Scripts/python.exe -m tests.claims_registry`, and the per-metric
+> tally is 11 `traced_ratio` + 9 `hardware_entry_count` + 6 `one_fold_rule`
+> + 4 `byte_identity` + 2 `mesh_routes` + 1 `smallest_chain` = 33). 21, not 22,
+> because `ARCHITECTURE.md` appears in three of the groups below and
+> `docs/ANNOTATION_SURFACE.md` in one.
+
 - 11 traced-ratio publishers — `ARCHITECTURE.md`, `docs/SOP_TOLERANCE_STACK.md`,
   `docs/prompts/REVIEW_AGENT.md`, `data/inbox/specs/README.md`, and the seven
   `WORKSHEET_*.md`.

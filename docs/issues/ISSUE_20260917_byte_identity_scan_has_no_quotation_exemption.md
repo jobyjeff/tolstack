@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: open
+status: resolved
 area: tests/doc-scans
 reporter: agent
 audience: strategy
@@ -81,3 +81,11 @@ line-oriented) and add the two-form silence assertions to
 way the other three guards pin theirs. If the answer is "against", the asymmetry
 should be written into `claims_in`'s docstring as a decision, so the next author
 reads it as a choice rather than an oversight.
+
+---
+
+## Resolved 2026-09-24 — the third way out was taken
+
+Neither "for" nor "against": `claims_registry_guards_read_declarations_not_prose` (2026-09-23) deleted the scan. `claims_in()`, `_CLAIM_RE`, `_POINTER_RE` and `_DEFINITION_RE` are gone from `tests/test_provenance.py`; a byte-identity claim is now a `byte_identity` declaration naming both sides, and `tests/claims_registry.py` **compares the bytes** instead of asking the prose to name a verification. So there is no prose scan to exempt anything from, and the "against" argument's worry is answered from the other direction rather than traded away: a declared identity is re-derived on every run, so silencing it with a blockquote is not available — deleting the declaration is, and the presence guard `test_every_declared_byte_identity_claim_is_verified_by_comparing_bytes` reddens on that.
+
+Verified in review rather than taken from the handoff's summary: the four declared claims (the two end-stop studies' `#/selection` and `#/transforms`) resolve and agree, and appending the verbatim claim sentence unbacked to a live document flags nothing anywhere.

@@ -26,8 +26,10 @@ Precedent and its rule
 
 ``tests/test_js_python_vocabulary.py`` and ``tests/test_sop_vocabulary.py`` pair a
 document against the code it describes, and
-``test_no_live_document_states_an_unguarded_hardware_entry_count`` in
-``tests/test_tolerance_stack.py`` is the count-claim scanner. What is borrowed
+``test_the_hardware_entry_counts_are_declared_and_checked`` in
+``tests/test_tolerance_stack.py`` pairs a document's *declared* counts against
+``hardware_entries.json`` (it replaced a count-claim prose scanner on
+2026-09-23). What is borrowed
 is their rule: **never restate the thing being guarded.** No import list, no
 importer list and no module list is written out below -- each is read from the
 tree, and every extraction is asserted non-empty before anything is compared,
@@ -41,13 +43,15 @@ What this does not do
   ``## Package layout``. The rest of ``ARCHITECTURE.md`` carries quantifiers of
   its own (the traced ratio and its two dated corrections, ``6.4e-15``, ``29%``);
   the ratio is guarded by
-  ``test_every_document_quoting_the_traced_ratio_quotes_the_current_number`` and
-  the others are not in this block's scope.
+  ``test_every_traced_ratio_publisher_declares_the_current_figure`` (which reads
+  this file's ``traced_ratio`` declaration, not its prose) and the others are not
+  in this block's scope.
 * The quantifier scan matches **shapes**, not English: digits and the number
   words below. "A few hundred lines" spelled without a digit or a listed word
   passes. Add the word rather than widening the regex into prose.
-* A claim inside a ``"..."`` span is exempt, the same rule the hardware-count
-  guard uses, so the block can preserve a superseded figure as a quotation
+* A claim inside a ``"..."`` span is exempt -- a rule this module now carries
+  alone, since the hardware-count guard it was borrowed from stopped reading
+  prose on 2026-09-23 -- so the block can preserve a superseded figure as a quotation
   (``snapshot_drawing_checker.py``'s *"nothing was written there"* is the only
   live instance).
 * Dates are exempt outright. A dated claim is history and reads as history --
