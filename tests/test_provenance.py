@@ -70,13 +70,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PROVENANCE_PATH = REPO_ROOT / "PROVENANCE.md"
 TRUNK = "master"
 
-# The one path that is deliberately not scanned by the "claims name their
-# verification" test below: this file, whose every occurrence of the phrase is a
-# pattern or a docstring rather than a claim about an artifact. Narrow and named
-# on purpose -- an exclusion by directory would be a place to hide a claim.
-_SELF = "tests/test_provenance.py"
-
-
 # --------------------------------------------------------------------------- #
 # git, read-only                                                              #
 # --------------------------------------------------------------------------- #
