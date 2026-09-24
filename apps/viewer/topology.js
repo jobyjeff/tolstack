@@ -10,7 +10,7 @@
 // the one thing the projection deliberately does not carry (a column index is
 // not a colour and a row index is not a y), and it is arithmetic about the
 // screen, not about a tolerance.
-(function (VA) {
+(function (VA, VOCAB) {
   "use strict";
 
   // --- the vocabularies the projection can write ---------------------------
@@ -22,16 +22,16 @@
   // data moves, and the first symptom is a loud "no branch for this" on a
   // reader's screen.
 
-  VA.TOPO_ROW_KINDS = ["node", "edge"];
-  VA.TOPO_LINK_KINDS = ["branch", "close"];
-  VA.STUDY_STATUSES = ["ok", "error"];
+  VA.TOPO_ROW_KINDS = VOCAB.list("TOPO_ROW_KINDS");
+  VA.TOPO_LINK_KINDS = VOCAB.list("TOPO_LINK_KINDS");
+  VA.STUDY_STATUSES = VOCAB.list("STUDY_STATUSES");
   // What a projected part's `mesh` block says (handoff
   // annotate_affordances_flyout_and_mesh_gating). Every part carries the block,
   // so a missing one means the projection predates the field rather than that
   // no mesh is installed — but VA.partMeshFact below deliberately reads BOTH as
   // "no mesh" and surfaces nothing about the difference. Rebuilding the
   // projection is the only thing that tells the two apart.
-  VA.MESH_FACT_FIELDS = ["installed", "part_id"];
+  VA.MESH_FACT_FIELDS = VOCAB.list("MESH_FACT_FIELDS");
 
   // These three are the DOCUMENTS' vocabularies rather than the projection's --
   // tolerance_stack.topology's NODE_KINDS, EDGE_KINDS and TRANSFORM_KINDS, which
@@ -43,16 +43,16 @@
   // tests.js's TOPO_VALUE_GUARDS until this review; nothing paired those copies
   // to Python, which is the one thing an `inList` guard cannot do for itself.
   // Paired by tests/test_topology_projection.py alongside the others.
-  VA.NODE_KINDS = ["mating_surface", "datum_feature"];
-  VA.EDGE_KINDS = ["structural", "gap"];
-  VA.TRANSFORM_KINDS = ["identity", "ratio", "linear_to_rotary"];
+  VA.NODE_KINDS = VOCAB.list("NODE_KINDS");
+  VA.EDGE_KINDS = VOCAB.list("EDGE_KINDS");
+  VA.TRANSFORM_KINDS = VOCAB.list("TRANSFORM_KINDS");
 
   // Where an edge's value comes from. A total function with a loud fallback: the
   // three states read differently and collapsing any two is a lie. In
   // particular a `derived` gap has NO value on purpose — it is the quantity a
   // study computes — and rendering it like a dimension nobody filled in would
   // invert the meaning.
-  VA.VALUE_SOURCES = {
+  VA.VALUE_SOURCES = VOCAB.table("VALUE_SOURCES", {
     inline: {
       label: "authored in the topology",
       title: "This edge's dimension is written in the topology document itself " +
@@ -72,7 +72,7 @@
         "This is the answer, not a term — a study is refused if it puts this edge " +
         "in its selection, and names it in `closes` instead.",
     },
-  };
+  });
 
   VA.valueSourceText = function (source) {
     return "value source `" + String(source) + "`, which this viewer has no " +
@@ -85,7 +85,7 @@
   // locked decision that makes them the archetype's most useful output, and the
   // messages carried in `error.message` are written for a human author. This
   // table adds the *next step*, which the exception cannot know.
-  VA.STUDY_ERRORS = {
+  VA.STUDY_ERRORS = VOCAB.table("STUDY_ERRORS", {
     BranchAmbiguity: {
       headline: "The selection reaches a fork",
       advice: "Two selected edges are unconsumed at one node, so the chain has a " +
@@ -110,7 +110,7 @@
         "Converting every contributor into one output quantity is the author's " +
         "job; declare the transforms, or stop the study before the coupling.",
     },
-  };
+  });
 
   VA.unlabelledStudyErrorText = function (type) {
     return "the study raised `" + String(type) + "`, an error this viewer has no " +
@@ -890,7 +890,7 @@
   // a second table because a reader meets both: the heading groups a panel of
   // gaps for the whole assembly, the phrase labels one row of one study's
   // findings, and the two must not describe the same kind in two vocabularies.
-  VA.GAP_KINDS = {
+  VA.GAP_KINDS = VOCAB.table("GAP_KINDS", {
     excluded_from_model: {
       heading: "Left out of the chain",
       says: "not folded into the total",
@@ -916,7 +916,7 @@
       closes: "Each is a question recorded against a part when it was " +
         "transcribed; closing one takes a source for what it asks about.",
     },
-  };
+  });
 
   VA.unlabelledGapKindText = function (kind) {
     return "This page has no words for a gap of kind " +
@@ -3207,4 +3207,4 @@
         row.topology + "`, which no document in docs/topologies/ declares";
     });
   };
-})(window.ViewerApp = window.ViewerApp || {});
+})(window.ViewerApp = window.ViewerApp || {}, window.TolstackVocab.viewer);

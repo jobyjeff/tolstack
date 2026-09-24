@@ -9,7 +9,7 @@
 // line where a sign can be wrong"). A second fold in JS would be a second such
 // line, so `fmt` below does not even round: the projection already rounded, in
 // Python, where the arithmetic lives.
-(function (VA) {
+(function (VA, VOCAB) {
   "use strict";
 
   // --- formatting ---------------------------------------------------------
@@ -64,7 +64,7 @@
 
   // --- provenance ---------------------------------------------------------
 
-  VA.CONFIDENCES = ["traced", "inferred", "untraced", "no_source_ref"];
+  VA.CONFIDENCES = VOCAB.list("CONFIDENCES");
 
   VA.CONFIDENCE_LABEL = {
     traced: "traced",
@@ -91,7 +91,7 @@
   // against `scripts/build_topology_projection.py`'s UNVERIFIED_CONFIDENCES.
   // `no_source_ref` has ZERO live instances, so the pairing is the only thing
   // that could ever catch a drift in that half.
-  VA.UNVERIFIED_CONFIDENCES = ["untraced", "no_source_ref"];
+  VA.UNVERIFIED_CONFIDENCES = VOCAB.list("UNVERIFIED_CONFIDENCES");
 
   // Class suffix for the colour system.
   VA.confidenceClass = function (confidence) {
@@ -129,7 +129,7 @@
   // lookup's key to a string, so `VA.WORKSHEET_SOURCES[null]` finds it and the
   // renderer needs no null check; `null` is also literally what the projection
   // JSON carries in that field.
-  VA.WORKSHEET_SOURCES = {
+  VA.WORKSHEET_SOURCES = VOCAB.table("WORKSHEET_SOURCES", {
     declared: {
       // The only value a reader can be surprised by: the sheet's name will not
       // match the document they opened, and this says why rather than leaving
@@ -143,7 +143,7 @@
     // No worksheet at all, so no source for one either. The pane says that much
     // above this line and has nothing to add here.
     "null": { note: null },
-  };
+  });
 
   // Pure string-building (no URL API -- this file is also loaded into the
   // node-vm fast tier, which has no browser URL global). Relative, not an
@@ -220,7 +220,7 @@
   // Paired against tolerance_stack/stack.py's VERDICTS by
   // tests/test_js_python_vocabulary.py: one definition in Python, one rendering
   // here.
-  VA.VERDICTS = {
+  VA.VERDICTS = VOCAB.table("VERDICTS", {
     pass: {
       says: "every build clears it",
       title: "The worst case still satisfies the criterion, so no build of " +
@@ -236,7 +236,7 @@
       says: "does not clear, even on average",
       title: "Neither the worst case nor nominal satisfies the criterion.",
     },
-  };
+  });
 
   VA.verdictClass = function (verdict) {
     return "verdict--" + (VA.VERDICTS[verdict] ? verdict : "unknown");
@@ -275,7 +275,7 @@
   //
   // Paired against that tuple by tests/test_js_python_vocabulary.py: one
   // definition in Python, one rendering here.
-  VA.VERDICT_SCOPES = {
+  VA.VERDICT_SCOPES = VOCAB.table("VERDICT_SCOPES", {
     joint: {
       chip: null,
       title: "Every term this check needs is in the model.",
@@ -286,7 +286,7 @@
         "the missing term, not a verdict on the joint. A `fail` here is true of " +
         "the model and false of the hardware.",
     },
-  };
+  });
 
   VA.isBudgetScope = function (check) {
     return !!check && check.verdict_scope === "budget";
@@ -578,7 +578,7 @@
   // argument. `established` ignores it — "Read from 217755 A.1.pdf" is true of a
   // value and of a joint in the same words — and `unestablished` is the one
   // status whose sentence and register are the subject's, not the status's.
-  VA.EXPORT_STATUSES = {
+  VA.EXPORT_STATUSES = VOCAB.table("EXPORT_STATUSES", {
     established: {
       loud: function () { return false; },
       headline: function (x) {
@@ -589,7 +589,7 @@
       loud: function (x, subject) { return subject.unestablished.loud; },
       headline: function (x, subject) { return subject.unestablished.headline; },
     },
-  };
+  });
 
   // A citation with no `export` key at all. Distinct from `unestablished`: that
   // one is a recorded finding with a reason, this one is a citation nobody has
@@ -620,14 +620,14 @@
   // Not loud, on purpose: this states that the bytes ARE identified, by a rule
   // this repo argued for on 2026-08-06. It reads like an established export,
   // because that is what it is a sibling of — not an alarm.
-  VA.IDENTITY_RULES = {
+  VA.IDENTITY_RULES = VOCAB.table("IDENTITY_RULES", {
     spec_pile_filename: {
       headline: "A standard-spec document, identified by its filename",
       detail: "nothing is missing here: the standard-spec library is only " +
         "ever added to — never renamed, never written over — so the filename " +
         "above IS which file this was read from",
     },
-  };
+  });
 
   // The row chip's wording, per loud export/identity state. A table because
   // there are three loud states and the third is not about export status at
@@ -969,7 +969,7 @@
   // else changed) says the same thing in words an author and a reviewer both
   // read. The names are on the hover (views/stack.js), where an author looking
   // for the key finds it and a reviewer reading the page does not.
-  VA.VALUES_STATUSES = {
+  VA.VALUES_STATUSES = VOCAB.table("VALUES_STATUSES", {
     inline: {
       loud: function () { return false; },
       text: function () {
@@ -998,7 +998,7 @@
           "the schema lets such an entry state no CTE at all";
       },
     },
-  };
+  });
 
   VA.unlabelledValuesStatusText = function (status) {
     return "values status " + JSON.stringify(status === undefined ? null : status) +
@@ -1347,7 +1347,7 @@
   //     whose `joint.assembly_export` names a drawing-checker run id. No stack
   //     in the repo is shaped that way any more, but one written before
   //     2026-08-06 is, and the script still resolves it.
-  VA.CROP_RULES = {
+  VA.CROP_RULES = VOCAB.table("CROP_RULES", {
     source_ref_export: {
       legacy: false,
       text: function (e) {
@@ -1378,7 +1378,7 @@
           ") — " + VA.cropShaText(e);
       },
     },
-  };
+  });
 
   // WHERE on the sheet a crop was taken — one entry per `located_by` value
   // `locate()` in scripts/build_viewer_crops.py can write. A table for exactly
@@ -1388,7 +1388,7 @@
   // clause without a mark — the same silence that let a stale `resolved_by` go
   // unexplained for four days. Paired against the crop script's literals by
   // tests/test_js_python_vocabulary.py.
-  VA.CROP_PLACEMENTS = {
+  VA.CROP_PLACEMENTS = VOCAB.table("CROP_PLACEMENTS", {
     zone_cell: {
       text: function (e) {
         // Name the string that corroborated, never just "found". The needle is
@@ -1447,7 +1447,7 @@
     sheet_full: {
       text: function (e) { return e.note || "whole sheet"; },
     },
-  };
+  });
 
   // What a box drawn over a crop CLAIMS. Paired against
   // scripts/build_viewer_crops.py's HIGHLIGHT_KINDS by
@@ -1462,7 +1462,7 @@
   // the provenance line has always spelled out in words ("the crop is the
   // citation, not a match") — now carried by the picture, which is what a
   // reader actually looks at.
-  VA.CROP_HIGHLIGHT_KINDS = {
+  VA.CROP_HIGHLIGHT_KINDS = VOCAB.table("CROP_HIGHLIGHT_KINDS", {
     verified_match: {
       solid: true,
       text: function (label) {
@@ -1476,7 +1476,7 @@
           "a declared region, not a match on the page";
       },
     },
-  };
+  });
 
   // The boxes to draw over a crop (or over its companion image), always an
   // array. An entry written before highlights existed carries none, which is
@@ -2039,4 +2039,4 @@
     });
     return alarms;
   };
-})(window.ViewerApp = window.ViewerApp || {});
+})(window.ViewerApp = window.ViewerApp || {}, window.TolstackVocab.viewer);

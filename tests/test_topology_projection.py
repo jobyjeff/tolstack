@@ -33,20 +33,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import build_topology_projection as B  # noqa: E402
-from tests.test_js_python_vocabulary import (  # noqa: E402
-    js_array_strings,
-    js_object_keys,
-    js_table_mutations,
-)
 from tolerance_stack.stack import (  # noqa: E402
     SCHEMA_HARDWARE,
     SourceExport,
     SourceRef,
 )
 from tolerance_stack.topology import (  # noqa: E402
-    EDGE_KINDS,
-    NODE_KINDS,
-    TRANSFORM_KINDS,
     Dimension,
     Edge,
     Node,
@@ -59,7 +51,6 @@ from tolerance_stack.topology import (  # noqa: E402
 )
 
 TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
-TOPOLOGY_JS = REPO_ROOT / "apps" / "viewer" / "topology.js"
 
 
 @pytest.fixture(scope="module")
@@ -760,142 +751,21 @@ def test_every_confidence_the_projection_writes_is_a_word_the_viewer_knows(proje
     )
 
 
-# --------------------------------------------------------------------------- #
-# 5. the JS hand-copies                                                        #
-# --------------------------------------------------------------------------- #
-
-#: Each pairing: the JS name, the extractor that reads it out of
-#: ``apps/viewer/topology.js``, and the Python tuple that defines it. Same rule
-#: as ``tests/test_js_python_vocabulary.py``, which owns the extractors: **never
-#: restate a vocabulary in a third place** -- both sides are read, neither is
-#: written out here.
-#:
-#: ``NODE_KINDS``, ``EDGE_KINDS`` and ``TRANSFORM_KINDS`` are the **documents'**
-#: vocabularies rather than the projection's (named, not counted off the end of
-#: the tuple -- "the last three" stopped being true the first time a row was
-#: appended after them): they are validated by ``Node``/``Edge``/``Transform``'s
-#: own ``__post_init__`` and ride through :func:`project_node` /
-#: :func:`project_edge` untouched, and the page branches on each with a silent
-#: default arm. Added in
-#: ``review/dag_viewer_poc``: they shipped written out a third time inside
-#: ``apps/viewer/tests.js``'s ``TOPO_VALUE_GUARDS``, where an ``inList`` copy
-#: fails loudly on a new **live** value but nothing tells it that Python's
-#: vocabulary grew -- which for a documents' vocabulary is the earlier signal.
-JS_PAIRINGS = (
-    ("TOPO_ROW_KINDS", js_array_strings, B.ROW_KINDS),
-    ("TOPO_LINK_KINDS", js_array_strings, B.LINK_KINDS),
-    ("STUDY_STATUSES", js_array_strings, B.STUDY_STATUSES),
-    ("VALUE_SOURCES", js_object_keys, B.VALUE_SOURCES),
-    ("NODE_KINDS", js_array_strings, NODE_KINDS),
-    ("EDGE_KINDS", js_array_strings, EDGE_KINDS),
-    ("TRANSFORM_KINDS", js_array_strings, TRANSFORM_KINDS),
-    ("MESH_FACT_FIELDS", js_array_strings, B.MESH_FACT_FIELDS),
-    # Added 2026-09-15 (viewer_study_verdicts_and_gaps). An object literal, not
-    # an array, because each kind earns a heading and a "what would close it"
-    # sentence on the page -- so this pairing is the strong kind: the table it
-    # checks is the one the reader actually sees, and a kind the builder starts
-    # writing that the page has no words for renders as a loud "this page
-    # cannot describe this gap" block rather than as a silently dropped row.
-    ("GAP_KINDS", js_object_keys, B.TOPOLOGY_GAP_KINDS),
-)
-
-
-@pytest.fixture(scope="module")
-def topology_js() -> str:
-    return TOPOLOGY_JS.read_text(encoding="utf-8")
-
-
-@pytest.mark.parametrize("name,extractor,python", JS_PAIRINGS,
-                         ids=[p[0] for p in JS_PAIRINGS])
-def test_the_js_copy_spells_exactly_what_python_enumerates(
-        name, extractor, python, topology_js):
-    table = extractor(topology_js, name)
-    assert table.keys, f"VA.{name} extracted empty -- the reader has drifted"
-    assert set(table.keys) == set(python), (
-        f"apps/viewer/topology.js:{table.line} VA.{name} and "
-        f"scripts/build_topology_projection.py disagree:\n"
-        f"  Python writes, JS has no branch for: {sorted(set(python) - table.keys)}\n"
-        f"  JS branches on, Python cannot write: {sorted(table.keys - set(python))}"
-    )
-
-
-def test_no_key_is_attached_to_a_topology_table_from_outside_its_literal(
-        topology_js):
-    """The hole the pairing above has by construction.
-
-    ``VA.VALUE_SOURCES.provisional = {...}`` ten screens down is a fourth branch
-    the extractor cannot see, so the pairing would read as equal while the page
-    branched on a word Python cannot write. ``viewer.js``'s six tables have been
-    refused this pattern since ``js_python_vocabulary_pairing`` (2026-08-12);
-    ``topology.js``'s shipped without it and it is the same file's rule, so it is
-    the same test. Added in ``review/dag_viewer_poc``.
-    """
-    problems = []
-    for name, extractor, _ in JS_PAIRINGS:
-        table = extractor(topology_js, name)
-        problems += [f"VA.{name} mutated at {m}"
-                     for m in js_table_mutations(topology_js, table)]
-    # STUDY_ERRORS is paired by its own test below, not through JS_PAIRINGS, and
-    # is exactly as reachable from outside its literal.
-    errors = js_object_keys(topology_js, "STUDY_ERRORS")
-    problems += [f"VA.STUDY_ERRORS mutated at {m}"
-                 for m in js_table_mutations(topology_js, errors)]
-    assert problems == [], (
-        "these assignments add to an enumerated table from outside its literal, "
-        "which puts part of a vocabulary somewhere no reader and no pairing test "
-        "will look for it:\n" + "\n".join(f"  {p}" for p in problems)
-    )
-
-
-def test_the_mutation_scan_can_fail(topology_js):
-    """...and the scan itself, watched failing, on each shape it refuses."""
-    table = js_array_strings(topology_js, "TOPO_ROW_KINDS")
-    assert js_table_mutations(topology_js, table) == [], "the live file is clean"
-    assert js_table_mutations(
-        topology_js + '\n  VA.TOPO_ROW_KINDS.push("sneaky");\n', table)
-    assert js_table_mutations(
-        topology_js + '\n  VA.TOPO_ROW_KINDS[2] = "sneaky";\n', table)
-    obj = js_object_keys(topology_js, "VALUE_SOURCES")
-    assert js_table_mutations(
-        topology_js + "\n  VA.VALUE_SOURCES.sneaky = {};\n", obj)
-
-
 def test_the_projection_publishes_its_own_vocabularies(projection):
     """The four tuples ride in the file's top level too.
 
-    Not for the viewer -- it holds its own copies, paired above -- but so that
-    anything else reading ``topologies.json`` can see what an enumerated field's
-    domain was **when the file was built**, rather than having to find the script
-    that wrote it.
+    Not for the viewer -- since 2026-09-23 it reads every one of these out of
+    ``apps/viewer/vocab.gen.js``, generated from these same tuples and compared
+    by ``tests/test_js_vocabulary_is_generated.py`` -- but so that anything else
+    reading ``topologies.json`` can see what an enumerated field's domain was
+    **when the file was built**, rather than having to find the script that
+    wrote it. That is a fact about the artifact, which the generated module
+    (a fact about the tree) cannot answer.
     """
     assert projection["row_kinds"] == list(B.ROW_KINDS)
     assert projection["link_kinds"] == list(B.LINK_KINDS)
     assert projection["value_sources"] == list(B.VALUE_SOURCES)
     assert projection["study_statuses"] == list(B.STUDY_STATUSES)
-
-
-def test_the_study_error_table_covers_every_exception_the_module_raises():
-    """Every ``StudyError`` subclass gets a headline and a next step in the JS.
-
-    The exceptions carry messages written for a human; ``VA.STUDY_ERRORS`` adds
-    what the exception cannot know, which is what to DO. A subclass missing from
-    it renders as the loud unlabelled fallback -- correct, but a state nobody
-    should be able to reach by adding an exception and forgetting the page.
-    """
-    from tolerance_stack import topology as T
-
-    raised = {cls.__name__ for cls in vars(T).values()
-              if isinstance(cls, type) and issubclass(cls, T.StudyError)
-              and cls is not T.StudyError}
-    assert raised, "no StudyError subclasses found -- the scan drifted"
-    source = TOPOLOGY_JS.read_text(encoding="utf-8")
-    table = js_object_keys(source, "STUDY_ERRORS")
-    assert set(table.keys) == raised, (
-        f"apps/viewer/topology.js:{table.line} VA.STUDY_ERRORS and "
-        f"tolerance_stack/topology.py's StudyError subclasses disagree:\n"
-        f"  raised, no branch here: {sorted(raised - table.keys)}\n"
-        f"  branched on, never raised: {sorted(table.keys - raised)}"
-    )
 
 
 # ---------------------------------------------------------------------------

@@ -317,6 +317,7 @@ function startRebuildFailOrigin() {
 vm.createContext(sandbox);
 
 const files = [
+  "vocab.gen.js",
   "reader_facing_bans.js",
   "config.js",
   "viewer.js",

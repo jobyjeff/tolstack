@@ -52,6 +52,18 @@ const MARK = path.join(here, "..", "viewer", "warning_icon.js");
 vm.runInContext(fs.readFileSync(MARK, "utf8"), sandbox,
   { filename: "../viewer/warning_icon.js" });
 
+// ...and the GENERATED vocabularies, the fourth file loaded across that
+// boundary and the reason the other three's argument now has a mechanism:
+// binding_state.js's five word-lists were a hand copy of
+// tolerance_stack/feature_identity.py's until 2026-09-23 and are read out of
+// this module now. It lives under apps/viewer/ rather than an apps/shared/ of
+// its own because the browser tier serves apps/viewer as a server root and
+// 403s anything above it -- scripts/generate_js_vocabulary.py's docstring
+// carries that. Defines only; no DOM, no fetch.
+const VOCAB = path.join(here, "..", "viewer", "vocab.gen.js");
+vm.runInContext(fs.readFileSync(VOCAB, "utf8"), sandbox,
+  { filename: "../viewer/vocab.gen.js" });
+
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js",
   "commands.js", "face_geometry.js", "suggestions.js", "exec_queue.js", "fixtures.js"];
 for (const f of files) {

@@ -16,6 +16,7 @@ import fnmatch
 import json
 import os
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,7 +34,10 @@ from tolerance_stack.stack import (
     VERDICTS,
 )
 
-from tests.test_js_python_vocabulary import python_values_statuses
+# `scripts/` is not a package, hence the path insert -- the same thing every
+# other reader of a builder-side vocabulary in this suite does.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+from js_vocabulary import values_statuses as python_values_statuses  # noqa: E402
 
 STACKS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tolerance_stacks"
 TOLERANCE_STACK_PACKAGE = Path(__file__).resolve().parent.parent / "tolerance_stack"
@@ -3678,9 +3682,9 @@ def hardware_entry_problems(entry: dict) -> list[str]:
 
     `values_status` itself is one vocabulary, not two: `hardware_entry` and
     `MaterialEntry` mean the same three words by it, so this reads the domain
-    through `python_values_statuses()` (the same AST-read `MaterialEntry`'s own
-    `__post_init__` check is compared against in
-    `tests/test_js_python_vocabulary.py`) instead of re-spelling the tuple --
+    through `scripts/js_vocabulary.py`'s `values_statuses()` (the AST read of
+    `MaterialEntry`'s own `__post_init__` check, which is also what the viewer's
+    copy of this vocabulary is generated from) instead of re-spelling the tuple --
     `hardware_entry` is a dict, not a dataclass, so this is the shared-source-
     of-truth the two schemas can have without `hardware_entry` becoming one.
     """

@@ -71,6 +71,22 @@ scripts/
                                sheet it names, previews it, and appends the entry.
                                Added 2026-09-14; needs PyMuPDF, like the crop
                                builder it feeds.
+  js_vocabulary.py             the registry of the vocabularies apps/ renders
+                               that Python defines, plus the readers that take
+                               them out of their definitions -- an import where
+                               there is a constant, an AST walk where the words
+                               are literals in a function that mints them. The
+                               words themselves are never written here; that
+                               would be the defect it exists to end. stdlib
+                               only. Added 2026-09-23.
+  generate_js_vocabulary.py    renders that registry into
+                               apps/viewer/vocab.gen.js, the module apps/ reads
+                               its vocabularies out of. `--check` exits
+                               non-zero with a diff instead of writing, which
+                               is the whole pairing across the language
+                               boundary (see
+                               tests/test_js_vocabulary_is_generated.py).
+                               stdlib only. Added 2026-09-23.
   snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
                                the evidence for "nothing was written there"
   run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code).

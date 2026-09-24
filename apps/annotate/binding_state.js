@@ -12,14 +12,14 @@
 // definitions (the apps/viewer/tests/test_js_python_vocabulary.py shape,
 // generalised to a second app's namespace) -- a value added to one side with
 // no matching literal on the other fails there, not silently here.
-(function (AA) {
+(function (AA, VOCAB) {
   "use strict";
 
-  AA.STACK_KEY_KINDS = ["topology_edge", "stack_element"];
-  AA.VERDICTS = ["bound", "owner_not_in_set"];
-  AA.DIRECTIONS = ["from", "to"];
-  AA.PATH_KINDS = ["direct", "hypothesis"];
-  AA.GDT_MODIFIERS = ["M", "L"];
+  AA.STACK_KEY_KINDS = VOCAB.list("STACK_KEY_KINDS");
+  AA.VERDICTS = VOCAB.list("VERDICTS");
+  AA.DIRECTIONS = VOCAB.list("DIRECTIONS");
+  AA.PATH_KINDS = VOCAB.list("PATH_KINDS");
+  AA.GDT_MODIFIERS = VOCAB.list("GDT_MODIFIERS");
 
   // The COARSE state a list row shows. "unbound" is never written by the
   // fold (tolerance_stack.feature_identity.StackKeyBindings.state has no
@@ -227,4 +227,4 @@
     var n = String(max + 1).padStart(4, "0");
     return n + "_" + slug + ".json";
   };
-})(window.AnnotateApp = window.AnnotateApp || {});
+})(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);
