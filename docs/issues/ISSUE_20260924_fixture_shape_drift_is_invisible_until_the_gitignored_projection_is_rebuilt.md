@@ -5,7 +5,7 @@ status: open
 area: tests/viewer-fixtures
 reporter: agent
 audience: tactical
-found_by: triage batch merge 2026-09-24 (integration -> master, d6f766a -> 4cb6a1d)
+found_by: dispatch/docs/sessions/lessons/LESSONS_20260924_triage_sweep_403_burst_and_the_merge_gate_ordering.md
 ---
 
 # `hardware_entries` gained a `claims` key that `apps/viewer/fixtures.js` does not carry — and the guard that pairs them could not see it until after the merge
