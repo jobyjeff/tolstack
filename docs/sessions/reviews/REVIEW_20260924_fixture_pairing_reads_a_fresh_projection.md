@@ -126,14 +126,49 @@ checkout sits on trunk and measures trunk):
 venv-win/Scripts/python.exe -m pytest -q   ->  1 failed, 1243 passed
 ```
 
-Same single failure, same cause. **Then armed and re-run**: copying the live
-projection into this worktree's own gitignored `data/projections/viewer/` gives
-the tier something to read, the new freshness check pairs it with *this* tree
-and passes, and the suite is green — see "the armed run" below.
+Same single failure, same cause.
+
+**…then armed, and green.** The canonical cadence asks for everything a worktree
+CAN be given, so: the three live projection JSONs copied into this worktree's own
+gitignored `data/projections/viewer/`, and the 35 MB `crops/` PNG tree reached by
+a directory junction (both gitignored, both die with the worktree). The new
+freshness check then pairs the borrowed projection against *this* tree and
+passes, the `[real]` tier runs in full, and
+
+```
+venv-win/Scripts/python.exe -m pytest -q   ->  1244 passed
+```
+
+Worth recording for the next reviewer that the first armed attempt was
+`514/516`: a copied `crops.json` without `data/projections/viewer/crops/`
+fails `[real] every resolved crop's PNG is actually on disk` on 45 rules. The
+projection JSONs alone are not the whole arming.
 
 **Mutation-witness tier, post-merge** — the run the overlay asks for because a
-review merge is the one point in the lifecycle where nothing else re-runs it:
-see "the tier" below.
+review merge is the one point in the lifecycle where nothing else re-runs it,
+and the only tier whose answer can change *as a result of* a merge:
+
+```
+node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
+      -> 125/125 declared mutations witnessed   (exit 0)
+         apps/viewer/tests.js                   50 enrolled / 516 declared
+         apps/annotate/run_tests.cjs             9 enrolled / 151 declared
+         scripts/run_viewer_browser_tests.mjs   49 enrolled / 506 declared
+```
+
+No drop, nothing NOT WITNESSED, and both of this handoff's new specs fire:
+`fast__a-hardware-pile-s-claims-…` reddens on the planted metric name in a
+fixture element's `name`, and `fast__real-the-projection-this-tier-reads-…`
+reddens on one more declaration added to `hardware_entries.json` — the original
+defect replayed rather than mimicked. The browser half needed
+`node_modules`, which a fresh review worktree never has; a directory junction to
+the main checkout's is what makes those 49 real rather than a wall of misses.
+
+**Production data untouched.** After every run above, the main checkout's
+`data/projections/viewer/*` still stamp `43d7052cb540 / master`, `built_at
+21:23`, with unchanged mtimes, and `git status` there is clean. Nothing in this
+review wrote to the shared `data/`, and nothing rebuilt the shared projection
+from a worktree.
 
 **Lesson and issue arithmetic, re-derived** (the canonical checklist's
 lesson-audit entry):
