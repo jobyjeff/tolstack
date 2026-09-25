@@ -1,0 +1,16 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the projection this tier reads was built from this tree",
+  "mutations": [
+    {
+      "contract": "Every [real] check compares THIS checkout's fixtures and views against `data/projections/viewer/*`, which is gitignored, shared by every worktree and rebuilt by hand -- so the two can be from different trees, and when they are the comparison agrees with itself. The tier therefore pairs the projection's provenance stamp against this tree before it trusts one line of it: a projection whose inputs have moved on here is a stale tier, and a stale tier is loud.",
+      "issue": "docs/issues/ISSUE_20260924_fixture_shape_drift_is_invisible_until_the_gitignored_projection_is_rebuilt.md",
+      "note": "REPLAYS THE DEFECT rather than mimicking it. On 2026-09-24 `hardware_entries.json` gained a top-level `claims` array on the branch being merged, the projection on disk had been built before it, and the fixture-shape guard reported 514/514 against the old projection -- then 513/514 out of the same code once the rebuild ran, after the merge was already on trunk. The mutation moves that same file in the same direction (one more declaration), which is exactly what the tree doing so looks like to a projection built before it. It is witnessable only because the freshness check names the SHADOW as git's work tree (`--work-tree`, apps/viewer/run_tests.cjs): with a bare `git -C` git would read straight past tmp/mutation-witness/ to the real checkout and the patched file would be invisible. Exactly one check reddens, because the failing freshness check takes the ~450 [real] checks behind it out of the run."
+      ,
+      "file": "docs/tolerance_stacks/hardware_entries.json",
+      "find": "    {\"metric\": \"hardware_entry_count\", \"count\": \"not_library\", \"value\": \"28\"},",
+      "replace": "    {\"metric\": \"hardware_entry_count\", \"count\": \"not_library\", \"value\": \"28\"},\n    {\"metric\": \"hardware_entry_count\", \"count\": \"mutated_for_the_witness\", \"value\": \"0\"},"
+    }
+  ]
+}

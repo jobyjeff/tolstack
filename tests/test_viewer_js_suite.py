@@ -22,6 +22,20 @@ holds the projection, and the message below names that command. Red because the
 suite could not be run is a different fact from green, and only one of them may
 be mistaken for the other.
 
+**AND A STALE TIER IS THE SAME DEFECT WEARING A GREEN** (2026-09-24). The
+``[real]`` checks compare a checkout's ``fixtures.js`` and views against
+``data/projections/viewer/``, which is gitignored, shared by every worktree and
+rebuilt by hand -- so the two can be from different trees, and when they are the
+comparison agrees with itself. The batch merge of 2026-09-24 ran the tier at
+514/514 against a projection built before the merge and got 513/514 out of the
+same code once it was rebuilt, after the merge was on trunk
+(ISSUE_20260924_fixture_shape_drift_is_invisible_until_the_gitignored_projection_is_rebuilt).
+The runner now pairs each projection's provenance stamp against the tree under
+test before the tier is trusted, so that case arrives here as a non-zero exit
+whose stdout names the file, the commit and the rebuild -- caught by the
+``returncode`` assertion below rather than by the skip one, and carried into the
+message by the same ``proc.stdout``.
+
 The projection's own correctness is pinned by ``test_viewer_projection.py``,
 which needs no node.
 

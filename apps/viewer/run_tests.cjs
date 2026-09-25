@@ -9,6 +9,9 @@
 // The --repo argument is the worktree escape hatch: data/ (and therefore
 // data/projections/viewer/) exists only in the MAIN checkout, so from a worktree
 // point the node-fs tier at the main checkout or it reports itself skipped.
+// A BORROWED PROJECTION IS STILL PAIRED AGAINST THIS TREE -- see "is the
+// projection this run will read built from THIS tree?" below; --repo says where
+// the file is, never that its contents may be taken on trust.
 //
 // The DOM shim is forge apps/notes/run_tests.cjs's, extended with the few things
 // the viewer's views touch (style, remove-by-tag queries, getAttribute defaults).
@@ -16,6 +19,7 @@ const vm = require("vm");
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
+const { execFileSync } = require("child_process");
 
 const here = __dirname;
 const argv = process.argv.slice(2);
@@ -23,6 +27,10 @@ const repoFlag = argv.indexOf("--repo");
 const repoRoot = repoFlag === -1
   ? path.resolve(here, "..", "..")
   : path.resolve(argv[repoFlag + 1]);
+// The tree whose SOURCE is under test -- always this checkout, never --repo,
+// for the same reason VIEWER_SRC is: `fixtures.js` is read from `here`, so the
+// tree the projection has to be paired against is the one `here` sits in.
+const sourceRoot = path.resolve(here, "..", "..");
 
 // --- minimal DOM shim ---------------------------------------------------
 function makeDocument() {
@@ -137,10 +145,192 @@ sandbox.URL = { createObjectURL: function () { return "blob:x"; } };
 sandbox.setTimeout = setTimeout;
 sandbox.clearTimeout = clearTimeout;
 
+// --- is the projection this run will read built from THIS tree? -----------
+//
+// The [real] tier compares `apps/viewer/fixtures.js` — read from `here`, this
+// checkout — against `data/projections/viewer/*`, which is gitignored, shared
+// by every worktree, and rebuilt by hand. Those two can come from different
+// trees, and when they do the comparison is not a check at all: on 2026-09-24
+// the batch merge's candidate ran this tier at 514/514 against a projection
+// built BEFORE the merge, merged, rebuilt, and got 513/514 out of exactly the
+// same code (ISSUE_20260924_fixture_shape_drift_is_invisible_until_the_
+// gitignored_projection_is_rebuilt). The fixture-shape guard was comparing the
+// new fixtures against the old projection and agreeing with itself.
+//
+// So the tier asks first. Each projection carries a provenance stamp naming the
+// commit it was built from (`scripts/projection_provenance.py`), and the
+// question put to git is deliberately not "which branch" or "how far behind"
+// but the only one that decides whether the comparison means anything: ARE THE
+// INPUTS IT WAS BUILT FROM STILL WHAT IS ON DISK HERE? One answer covers a
+// stale projection, a newer one, a divergent branch and an uncommitted edit,
+// and it is quiet on every branch that touches none of them — two of the thirty
+// commits before this one moved a projected input, so this is not an alarm that
+// is always on.
+//
+// WHAT A WORKTREE IS SUPPOSED TO DO, decided here rather than left to the
+// caller (the handoff asked for the reasoning in the diff). `--repo` borrows
+// the main checkout's projection; the borrowed projection is freshness-checked
+// against THIS worktree's tree, and a borrow that fails is loud — a failed
+// check and a skipped tier, not a downgraded pass. The alternative considered
+// was accepting the borrow and softening the verdict, and it was rejected
+// because it makes the pre-merge candidate test unable to produce a trustworthy
+// answer at all: the merge candidate is exactly the moment the pairing has to
+// be falsifiable, and "this cannot be read as a pass" is not the same as "this
+// would have caught it". A worktree must NOT rebuild the shared projection to
+// clear the red — `data/` is one directory shared by every live worktree — so
+// the remedy the message names is a rebuild in the checkout that owns it.
+const PROJECTION_DIR = ["data", "projections", "viewer"];
+// The projection files the [real] tier reads. A file that is not there is not
+// stale: `topologies.json`'s own sub-tier already skips itself when it is
+// absent, and `results.json`'s absence is the tier's existing skip.
+const PROJECTION_FILES = ["results.json", "topologies.json", "crops.json"];
+// The one input that is NOT derivable from a stamp. All three builders import
+// it — build_viewer_projection and build_topology_projection through
+// `tolerance_stack.stack`/`.topology`, build_viewer_crops through
+// `tolerance_stack.spec_crop_regions` — so a change in it can change what any
+// of the three writes, and the stamp records only the builder's own path and
+// its source directory.
+const SHARED_BUILDER_LIB = "tolerance_stack";
+
+// `git <args>` in `cwd`, or null if it failed — same "null covers every cannot
+// know" posture projection_provenance.git takes on the write side.
+function gitOut(cwd, args) {
+  try {
+    return execFileSync("git", args, {
+      cwd: cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (_) {
+    return null;
+  }
+}
+
+// The repo-relative inputs a stamp names. The KEY its source directory is filed
+// under is the builder's choice — `stacks_dir` for the two viewer projections,
+// `events_dir` for the spec library, and projection_provenance.py calls it "a
+// label for the reader" precisely so it can differ — so it is found by SHAPE
+// rather than by name: it is the value that is an absolute path inside the
+// recorded repo root. Spelling the key here would be a second copy of a fact
+// Python owns, and it would go quietly wrong the day a fourth builder picks a
+// third word.
+function inputsOf(stamp) {
+  const root = String(stamp.repo_root || "").replace(/\/+$/, "");
+  const inputs = [];
+  if (root) {
+    for (const key of Object.keys(stamp)) {
+      const value = stamp[key];
+      if (key !== "repo_root" && typeof value === "string" &&
+          value.indexOf(root + "/") === 0) {
+        inputs.push(value.slice(root.length + 1));
+      }
+    }
+  }
+  if (typeof stamp.built_by === "string" && stamp.built_by) inputs.push(stamp.built_by);
+  inputs.push(SHARED_BUILDER_LIB);
+  return inputs;
+}
+
+function short(sha) {
+  return String(sha || "?").slice(0, 12);
+}
+
+function projectionFreshness(dataRoot, treeRoot) {
+  // `--git-dir` + `--work-tree` rather than a bare `git -C`, and it is
+  // load-bearing twice over: a linked worktree's `.git` is a file, and the
+  // mutation-witness shadow (tmp/mutation-witness/, a copy of the tracked tree
+  // inside the repo) is a directory git would otherwise read straight past to
+  // the real working tree. Naming the work tree explicitly is what makes this
+  // guard answer for the files the tier is actually reading, and therefore what
+  // makes it witnessable at all. `--no-optional-locks` so a run from a shadow
+  // cannot write the real checkout's index.
+  const gitDir = gitOut(treeRoot, ["rev-parse", "--absolute-git-dir"]);
+  if (gitDir === null) {
+    return {
+      fresh: false,
+      why: "git could not be asked which tree " + treeRoot + " is, so the " +
+        "projection under " + dataRoot + " could not be paired with it. A " +
+        "[real] comparison against a projection of unknown provenance is not " +
+        "a check — see the note in apps/viewer/run_tests.cjs.",
+    };
+  }
+  const gitArgs = ["--no-optional-locks", "--git-dir=" + gitDir.trim(),
+                   "--work-tree=" + treeRoot];
+
+  const stale = [];
+  const paired = [];
+  for (const name of PROJECTION_FILES) {
+    const full = path.join(dataRoot, ...PROJECTION_DIR, name);
+    if (!fs.existsSync(full)) continue;
+    let stamp = null;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(full, "utf8"));
+      stamp = parsed && parsed.provenance;
+    } catch (_) {
+      stamp = null;
+    }
+    if (!stamp || typeof stamp.head_sha !== "string" || !stamp.head_sha) {
+      stale.push(name + " carries no provenance stamp, so which tree built it " +
+        "cannot be established — it was built before stamping, or hand-edited");
+      continue;
+    }
+    const sha = stamp.head_sha;
+    if (gitOut(treeRoot, ["cat-file", "-e", sha + "^{commit}"]) === null) {
+      stale.push(name + " was built from commit " + short(sha) +
+        ", which is not in this tree at all");
+      continue;
+    }
+    const inputs = inputsOf(stamp);
+    const diff = gitOut(treeRoot,
+      gitArgs.concat(["diff", "--name-only", sha, "--"], inputs));
+    if (diff === null) {
+      stale.push(name + ": git could not diff this tree against " + short(sha) +
+        ", the commit it was built from");
+      continue;
+    }
+    const changed = diff.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (!changed.length) {
+      paired.push(name + " @ " + short(sha));
+      continue;
+    }
+    const shown = changed.slice(0, 6).join(", ") +
+      (changed.length > 6 ? ", and " + (changed.length - 6) + " more" : "");
+    stale.push(name + " was built from " + short(sha) + ", and " +
+      changed.length + " of its input file(s) differ in this tree: " + shown);
+  }
+
+  if (!stale.length) return { fresh: true, why: "", paired: paired };
+  const head = gitOut(treeRoot, ["rev-parse", "HEAD"]);
+  return {
+    fresh: false,
+    paired: paired,
+    why: [
+      "the projection this tier reads was NOT built from this tree, so every " +
+      "[real] check would be comparing this checkout's fixtures against " +
+      "another tree's projection:",
+      ...stale.map((line) => "  - " + line),
+      "",
+      "  projection: " + path.join(dataRoot, ...PROJECTION_DIR).replace(/\\/g, "/"),
+      "  this tree:  " + treeRoot.replace(/\\/g, "/") + " @ " + short(head),
+      "",
+      "A stale projection makes the fixture pairing agree with itself: on " +
+      "2026-09-24 the batch merge's candidate reported 514/514 against a " +
+      "projection built before the merge and 513/514 out of the same code " +
+      "once it was rebuilt.",
+      "",
+      "Rebuild in the checkout that owns data/ -- never from a worktree, " +
+      "which would overwrite the shared artifact for everyone:",
+      "    powershell -ExecutionPolicy Bypass -File scripts/rebuild_projections.ps1",
+      "then run this tier again against that checkout.",
+    ].join("\n"),
+  };
+}
+
 // The node-fs shim the real-data tier reads through. POSIX, repo-root-relative,
 // absence is null/false — never a throw.
 sandbox.NODE_FS = {
   root: repoRoot.replace(/\\/g, "/"),
+  // The verdict above, computed here because the suite runs in a vm sandbox
+  // with no `require` and so can no more run git than it can read a file.
+  freshness: projectionFreshness(repoRoot, sourceRoot),
   io: {
     readText: function (relPath) {
       const full = path.join(repoRoot, relPath);
@@ -383,6 +573,14 @@ for (const f of files) {
   };
 
   console.log(`repo root for the node-fs tier: ${repoRoot}`);
+  // Printed before the checks rather than only inside the failure, because
+  // "which projection did this run actually read, and does it match the tree
+  // I am testing?" is the question the 2026-09-24 merge could not answer from
+  // its own log afterwards.
+  const freshness = sandbox.NODE_FS.freshness;
+  console.log(freshness.fresh
+    ? `projection paired with this tree: ${(freshness.paired || []).join(", ") || "(none on disk)"}`
+    : "projection NOT paired with this tree -- the [real] tier is stale");
   let results;
   try {
     results = await sandbox.ViewerApp.runTests();
