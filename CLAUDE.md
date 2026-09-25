@@ -116,6 +116,14 @@ Know these before you write code; each has a test standing on it.
   most of all — run **in the main checkout**:
   `node apps/viewer/run_tests.cjs`, `node scripts/run_viewer_browser_tests.mjs`
   and `node scripts/run_mutation_witness_tests.mjs`.
+  **Rebuild the projections BEFORE those three, never after**
+  (`scripts/rebuild_projections.ps1`): the `[real]` checks read
+  `data/projections/`, so a tier run against a projection built from an older
+  tree is comparing this tree's fixtures with that tree's data and agreeing
+  with itself. The 2026-09-24 sweep ran them in the other order and put a red
+  fixture pairing on trunk. Since then the tier refuses a projection whose
+  inputs have moved on here rather than quietly passing, so the wrong order is
+  now loud instead of green — but it is still a rerun.
 - **The mutation-witness tier is on that list because a witness decays between
   the branch that measured it and the trunk that runs it.** Three declared
   mutations were `WITNESSED` on their own review branches and `NOT WITNESSED`

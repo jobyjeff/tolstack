@@ -324,6 +324,20 @@
             "what puts a hardware gap on the washer row and a gap in the list " +
             "below. An entry here would delete the state this fixture exists to " +
             "show.",
+          // The machine-readable declaration block `hardware_entries.json` grew
+          // on 2026-09-23 (CLAUDE.md, "a number or a rule a guard checks is
+          // *declared*, never written in English"): tests/claims_registry.py
+          // re-derives each value from the `entries` list beside it, and nobody
+          // else is addressed by it. The builder carries the whole file through
+          // verbatim, so it lands in every projection the viewer loads -- which
+          // is how the [real] shape guard found it missing from here
+          // (ISSUE_20260924_fixture_shape_drift_is_invisible_until_the_
+          // gitignored_projection_is_rebuilt). Declared against THIS pile's own
+          // deliberately-empty entries list rather than copied from trunk's
+          // counts, so the fixture states something true about itself.
+          claims: [
+            { metric: "hardware_entry_count", count: "total", value: "0" },
+          ],
           provenance: {
             transcribed_by: "nobody — apps/viewer/fixtures.js authored this block",
           },

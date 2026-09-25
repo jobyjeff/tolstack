@@ -5199,6 +5199,51 @@
         ok(surfaces.length > 10, "the walk must not be vacuous: " + surfaces.length);
       });
 
+    // ...and the one block on those surfaces' own projection that is addressed
+    // to a TEST and not to a reader.
+    //
+    // `hardware_entries.claims` arrived in the projection on 2026-09-23: a
+    // document that states a checkable fact declares it, and
+    // tests/claims_registry.py reads the declaration
+    // (CLAUDE.md, "a number or a rule a guard checks is *declared*"). The
+    // builder carries `hardware_entries.json` through verbatim, so the block
+    // rides into every projection the viewer loads, and the honest answer to
+    // the shape guard's "pin how the viewer renders them" is that it must not
+    // render them at all: `hardware_entry_count` is a key out of a test
+    // registry, which is the same class of thing as `source_ref` and
+    // `crops.json` on the banned list above.
+    //
+    // Whole textContent here, not `viewerAuthoredText`: a metric name is not
+    // something the RECORD legitimately says either, so the verbatim-prose
+    // exemptions the walk above needs would only be places for this to hide.
+    await test("a hardware pile's claims are addressed to the guards, and no " +
+      "surface of this page prints one", function () {
+        var pile = FIXTURE.results.hardware_entries;
+        var metrics = (pile.claims || []).map(function (claim) {
+          return String(claim.metric);
+        });
+        // The metric NAME, never the value: a declaration's value is a bare
+        // number and this page is made of numbers, so scanning for `"0"` would
+        // match a tolerance and mean nothing. The name is the string that
+        // could only have come from the block.
+        ok(metrics.length >= 1,
+           "the scan must not be vacuous — the fixture's hardware pile carries " +
+           "no claim to look for: " + JSON.stringify(pile.claims));
+        var surfaces = [];
+        [DEMO, GEN].forEach(function (stackProj) {
+          surfaces = surfaces.concat(stackSurfaces(stackProj, CROPS));
+        });
+        ok(surfaces.length > 10, "the walk must not be vacuous: " + surfaces.length);
+        surfaces.forEach(function (pair) {
+          var text = String(pair[1].textContent || "");
+          metrics.forEach(function (metric) {
+            ok(text.indexOf(metric) === -1,
+               pair[0] + " prints " + JSON.stringify(metric) + ", a metric name " +
+               "out of the hardware pile's machine-readable claim block: " + text);
+          });
+        });
+      });
+
     // ...and this page's own MARKUP, which no walk above reaches.
     //
     // Every scan in this file renders a JS surface. The copy AROUND those
@@ -10685,12 +10730,46 @@
     // --- node-fs tier: the REAL projection ----------------------------------
 
     var nodeFs = typeof NODE_FS !== "undefined" ? NODE_FS : null;
+    // WHICH TREE BUILT THE PROJECTION THIS TIER IS ABOUT TO TRUST. The runner
+    // computes the verdict (git lives out there; this file runs in a vm
+    // sandbox with no `require`) and this is where it is read.
+    //
+    // It is a CHECK and not a skip, and that is the whole point: every guard
+    // below compares this checkout's `fixtures.js` and this checkout's views
+    // against a projection that is gitignored, shared by every worktree and
+    // rebuilt by hand, so the two can be from different trees. When they are,
+    // the comparison agrees with itself — the batch merge of 2026-09-24 ran
+    // this tier at 514/514 against a projection built before the merge and got
+    // 513/514 out of the same code once it was rebuilt
+    // (ISSUE_20260924_fixture_shape_drift_is_invisible_until_the_gitignored_
+    // projection_is_rebuilt). A stale tier is the same defect as the skipped
+    // one this file's harness turned red on 2026-09-18, wearing a green
+    // instead of a SKIP line, so it reads the same way: the tier is loud, the
+    // checks behind it do not run, and the exit code is non-zero.
+    var freshness = (nodeFs && nodeFs.freshness) || {
+      fresh: false,
+      why: "the runner injected no freshness verdict, so which tree built the " +
+        "projection under " + ((nodeFs && nodeFs.root) || "(unknown)") +
+        " was never established — and a [real] comparison against an unknown " +
+        "tree's projection is not a check. Run this tier through " +
+        "apps/viewer/run_tests.cjs.",
+    };
+    if (nodeFs && nodeFs.io.exists("data/projections/viewer/results.json")) {
+      await test("[real] the projection this tier reads was built from this tree",
+        function () { ok(freshness.fresh, freshness.why); });
+    }
     if (!nodeFs) {
       skip("node-fs tier", "no NODE_FS injected (browser tier, or no runner shim)");
     } else if (!nodeFs.io.exists("data/projections/viewer/results.json")) {
       skip("node-fs tier",
            "no projection at " + nodeFs.root + "/data/projections/viewer/results.json " +
            "— run scripts/build_viewer_projection.py");
+    } else if (!freshness.fresh) {
+      skip("node-fs tier",
+           "the projection at " + nodeFs.root + "/data/projections/viewer/ was " +
+           "not built from this tree, so the [real] checks did not run — the " +
+           "failed check above says which file, which commit and what to " +
+           "rebuild");
     } else {
       var real = new VA.NodeFsAdapter(nodeFs.root, nodeFs.io);
       var realResults = await real.readResults();

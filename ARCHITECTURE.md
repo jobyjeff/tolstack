@@ -168,6 +168,16 @@ the three viewer builders it stamps the tree it built from and **exits 3 rather
 than overwrite** a projection built from a tree this one does not contain;
 `--allow-older-tree` overrides that, loudly. See `scripts/projection_provenance.py`.
 
+**The stamp has a reader as well as a writer**, since 2026-09-24. The viewer's
+`[real]` tier pairs hand-authored fixtures against whatever projection is on
+disk, and a projection built from an older tree makes that pairing agree with
+itself — so before it trusts one line of the projection, `apps/viewer/run_tests.cjs`
+reads each file's stamp and asks git whether the inputs it names still match the
+tree under test. A projection that fails is a **failed check and a skipped tier**,
+never a quiet pass; the argument for that posture, and for checking a *borrowed*
+projection (`--repo`) against the borrowing worktree rather than softening the
+verdict, is written where the check is.
+
 ### The thermal-fit archetype (`thermal.py`)
 
 The repo's **second** archetype, added 2026-08-05 by `hub_bearing_thermal_stack`:

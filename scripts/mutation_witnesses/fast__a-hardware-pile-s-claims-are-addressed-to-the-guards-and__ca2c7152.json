@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a hardware pile's claims are addressed to the guards, and no surface of this page prints one",
+  "mutations": [
+    {
+      "contract": "`hardware_entries.claims` is a machine-readable declaration addressed to tests/claims_registry.py, and the builder carries it into every projection the viewer loads. A metric name is a key out of a test registry: it is the same class of thing as `source_ref` and `crops.json` on the reader-facing banned list, and no surface of this page may print one.",
+      "issue": "docs/issues/ISSUE_20260924_fixture_shape_drift_is_invisible_until_the_gitignored_projection_is_rebuilt.md",
+      "note": "PLANTS A POSITIVE rather than removing a wire, because there is no wire: nothing in apps/viewer reads `results.hardware_entries` at all, so a mutation that deleted a renderer would have nothing to delete and the guard would pass over a tree in which its subject had ceased to exist. What has to be proved instead is that the scan REACHES the surfaces it walks -- the failure mode this repo has measured twice (`new RegExp(\"\b\" + name + \"\b\")` with one backslash, matching nothing ever, and `div.worksheet__body` selecting no node on any surface the walk built). So the metric name is planted in a fixture element's NAME, which every stack-side surface renders, and the guard must find it.",
+      "file": "apps/viewer/fixtures.js",
+      "find": "                id: \"washer\", name: \"washer thickness\", role: \"washer\",",
+      "replace": "                id: \"washer\", name: \"hardware_entry_count thickness\", role: \"washer\","
+    }
+  ]
+}
