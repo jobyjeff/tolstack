@@ -116,8 +116,11 @@ owns `data/`.
 
 **Witnessed, not merely asserted.** Pointed at a projection stamped
 `76cb8179bbc9`, the tier exits 1, names the stale commit and the thirteen input
-files that have moved, and reports `421/422 passed, 1 TIER SKIPPED -- NOT RUN,
-NOT PASSED`. The mutation spec
+files that have moved, and reports `422/423 passed, 1 TIER SKIPPED -- NOT RUN,
+NOT PASSED`. (Re-measured in review on the merged tree, 2026-09-24: the
+`421/422` first written here was taken before this handoff's *second* guard
+existed, so the shipped tree runs one check more than the figure describes.
+The 13 input files and the exit code reproduce exactly.) The mutation spec
 `fast__real-the-projection-this-tier-reads-was-built-from-this__ea8930ee.json`
 replays the original defect (one more declaration added to
 `hardware_entries.json`) and is `WITNESSED`.

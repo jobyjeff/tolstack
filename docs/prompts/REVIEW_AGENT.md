@@ -4430,6 +4430,36 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `.json` under `scripts/`, which is in the corpus, so a number measured
       mid-session is one low.
 
+- [ ] **A freshness/pairing check built on `git diff <sha> -- <paths>` measures
+      TRACKED CONTENT, not the tree -- so it answers "fresh" for an untracked
+      addition and for a `dirty: true` stamp.** New 2026-09-24
+      (`fixture_pairing_reads_a_fresh_projection`). `projectionFreshness` in
+      `apps/viewer/run_tests.cjs` bites correctly on all three arms it was
+      written for, and is still quiet in three false-YES directions: an
+      untracked `stack_*.json` dropped into `docs/tolerance_stacks/` (the
+      builder globs the directory, `git diff` does not list untracked files --
+      measured, the banner still says paired and the total is still 516/516); a
+      stamp whose own `dirty: true` says `head_sha` does not identify the
+      content that was built; and a builder's sibling imports, since the input
+      set is `[source dir, built_by, tolerance_stack]` while
+      `build_topology_projection.py` imports `build_viewer_projection`. Ask of
+      any "is X built from this tree" guard: *what changes the output and is not
+      a modification to a tracked file at HEAD?*
+      (`ISSUE_20260924_the_projection_freshness_pairing_reads_tracked_head_content_only.md`.)
+- [ ] **A fast-tier guard that shells out to git needs `--work-tree`, and its
+      path set must be inside `SHADOWED`.** Same handoff, and it is the reason
+      that guard is witnessable at all. The mutation shadow is
+      `tmp/mutation-witness/` **inside the repo**, so a bare `git -C <shadow>`
+      walks up to the real `.git` and diffs the real working tree -- the patched
+      file is invisible and the spec can never be witnessed. Naming
+      `--git-dir=<resolved> --work-tree=<shadow>` fixes that and creates a
+      second coupling nobody declares: the shadow holds only `SHADOWED`
+      (`scripts/run_mutation_witness_tests.mjs`), so any path the guard diffs
+      that is *not* copied there reads as a deletion, and the guard is red on
+      the **clean** run -- `TIER_ALREADY_RED` for every witness in that tier,
+      not just the new one. When a diff adds a git-reading guard, check both
+      lists against each other.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
