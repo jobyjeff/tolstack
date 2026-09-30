@@ -1,8 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: guards/mutation-witness
+class: guard_cannot_fail
+handoff: docs/sessions/HANDOFF_20260930_guard_census_pins_the_set_not_the_count.md
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260923_mutation_witness_derived_enrollment_and_gating.md
 ---

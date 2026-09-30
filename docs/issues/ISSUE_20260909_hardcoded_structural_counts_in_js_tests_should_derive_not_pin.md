@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: deferred
 area: apps/viewer/tests.js
 reporter: agent
 audience: strategy
-strategy: dispatch/docs/strategy/BRIEF_20260906_guard_coverage_set_size_assertions.md
-resolution: parent brief consumed 2026-09-23 (framework + R1-R8 agenda adopted, triage standing owner); this issue's class is routed via the refactor agenda, not a single handoff — re-checked by the 2026-09-23 triage sweep
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
+resolution: re-dispositioned by the 2026-09-30 triage sweep -- the strategy: back-link named a CONSUMED brief, which every sweep is told to skip and which close-out refuses to advance, so the issue had left the process silently; deferred under its class program instead. Prior note: parent brief consumed 2026-09-23 (framework + R1-R8 agenda adopted, triage standing owner); this issue's class is routed via the refactor agenda, not a single handoff — re-checked by the 2026-09-23 triage sweep
 ---
 
 # A bare literal structural count (`branch_nodes.length === N`) in a JS test can go stale for months under "one pre-existing unrelated failure" cover
