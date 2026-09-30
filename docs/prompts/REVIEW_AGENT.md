@@ -4462,19 +4462,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 - [ ] **A freshness/pairing check built on `git diff <sha> -- <paths>` measures
       TRACKED CONTENT, not the tree -- so it answers "fresh" for an untracked
       addition and for a `dirty: true` stamp.** New 2026-09-24
-      (`fixture_pairing_reads_a_fresh_projection`). `projectionFreshness` in
-      `apps/viewer/run_tests.cjs` bites correctly on all three arms it was
-      written for, and is still quiet in three false-YES directions: an
-      untracked `stack_*.json` dropped into `docs/tolerance_stacks/` (the
-      builder globs the directory, `git diff` does not list untracked files --
-      measured, the banner still says paired and the total is still 516/516); a
-      stamp whose own `dirty: true` says `head_sha` does not identify the
-      content that was built; and a builder's sibling imports, since the input
-      set is `[source dir, built_by, tolerance_stack]` while
-      `build_topology_projection.py` imports `build_viewer_projection`. Ask of
-      any "is X built from this tree" guard: *what changes the output and is not
-      a modification to a tracked file at HEAD?*
-      (`ISSUE_20260924_the_projection_freshness_pairing_reads_tracked_head_content_only.md`.)
+      (`fixture_pairing_reads_a_fresh_projection`); the three instances it was
+      raised for are closed (`projection_freshness_pairs_with_the_tree`,
+      2026-09-30 -- an untracked `stack_*.json` in a globbed input directory, a
+      `dirty: true` stamp, and a builder's sibling imports now that the input
+      set is the stamp plus the builder's derived import closure). **The
+      question is what survives, not the instance.** Ask of any "is X built from
+      this tree" guard: *what changes the output and is not a modification to a
+      tracked file at HEAD?* tolstack's own answer is written out at the top of
+      `scripts/projection_freshness.cjs` and still names live residue -- a
+      builder's GITIGNORED inputs (`build_viewer_crops.py` reads the datasheet
+      pile under `data/inbox/specs/`, which git has never heard of), anything a
+      builder reads by path rather than imports, and the builder's environment.
+      A widening declined with a reason in the diff is a fine answer; a check
+      whose description outruns its measurement is the defect
+      (`ISSUE_20260924_the_projection_freshness_pairing_reads_tracked_head_content_only.md`).
 - [ ] **A fast-tier guard that shells out to git needs `--work-tree`, and its
       path set must be inside `SHADOWED`.** Same handoff, and it is the reason
       that guard is witnessable at all. The mutation shadow is
@@ -4486,8 +4488,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`scripts/run_mutation_witness_tests.mjs`), so any path the guard diffs
       that is *not* copied there reads as a deletion, and the guard is red on
       the **clean** run -- `TIER_ALREADY_RED` for every witness in that tier,
-      not just the new one. When a diff adds a git-reading guard, check both
-      lists against each other.
+      not just the new one. Since 2026-09-30 the freshness check's own path set
+      no longer has to be checked by hand: it is derived, and
+      `node scripts/run_mutation_witness_tests.mjs
+      --check-shadow-covers-projection-inputs --repo <main checkout>` refuses in
+      under a second, naming the path (the slow run does the same preflight
+      before it builds the shadow, and `tests/test_projection_freshness.py` runs
+      it). That covers **one** guard's path set. When a diff adds a *different*
+      git-reading guard, the two lists are still yours to check against each
+      other.
 
 ## Architectural errors to check
 

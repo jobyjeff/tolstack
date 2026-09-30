@@ -11,6 +11,14 @@
       "file": "docs/tolerance_stacks/hardware_entries.json",
       "find": "    {\"metric\": \"hardware_entry_count\", \"count\": \"not_library\", \"value\": \"28\"},",
       "replace": "    {\"metric\": \"hardware_entry_count\", \"count\": \"not_library\", \"value\": \"28\"},\n    {\"metric\": \"hardware_entry_count\", \"count\": \"mutated_for_the_witness\", \"value\": \"0\"},"
+    },
+    {
+      "contract": "A projected input is not only the directory a stamp names and the script it names: it is everything that script IMPORTS. `scripts/build_topology_projection.py` imports `projection_provenance`, `build_viewer_projection` and `build_viewer_crops`, and no stamp records any of them -- so an edit to one changes what a rebuild would write and, until 2026-09-30, left the projection reading `paired with this tree`. The input set is now the stamp's source directory plus the builder's own Python import closure, walked out of the tree rather than hand-listed, because a hand list is the drift this repo keeps paying for.",
+      "issue": "docs/issues/ISSUE_20260924_the_projection_freshness_pairing_reads_tracked_head_content_only.md",
+      "note": "`scripts/projection_provenance.py` is the sharpest anchor for this arm, for two reasons. It is in NO stamp -- it is not any projection's `built_by` -- so before the closure existed this edit moved nothing in the check's path list and all three projections still read fresh. And it is the module that writes the stamp itself, so an edit to it genuinely changes every projection's bytes. The mutation is the schema version the stamp carries, which is as close to 'a rebuild would write something else' as one line gets. Exactly one check reddens, because the failing freshness check takes the ~450 [real] checks behind it out of the run.",
+      "file": "scripts/projection_provenance.py",
+      "find": "SCHEMA_PROVENANCE = \"joby.tolerance_stack/projection_provenance/v0\"",
+      "replace": "SCHEMA_PROVENANCE = \"joby.tolerance_stack/projection_provenance/v1\""
     }
   ]
 }

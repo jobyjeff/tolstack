@@ -58,6 +58,18 @@ scripts/
                                and `scripts/export_stack_tabular.py`, 2026-09-04 --
                                for its provenance stamp: that script writes no
                                shared projection and does not call the gate).
+  projection_freshness.cjs     the READ side of that stamp (test tooling, not
+                               app code): was the projection a tier is about to
+                               trust built from the tree it is running against?
+                               It puts a named list of questions to git -- the
+                               commit is in this tree, the stamp is not `dirty`,
+                               the inputs' tracked content still matches, no
+                               untracked file sits in an input directory a
+                               builder globs -- over an input set derived from
+                               the stamp plus the builder's own Python import
+                               closure, never a hand-written list. Required by
+                               apps/viewer/run_tests.cjs and runnable on its own.
+                               Added 2026-09-30.
   export_stack_tabular.py      a stack or topology study -> a spreadsheet-shaped
                                CSV, straight from the stored JSON and fold() /
                                summarize() -- no second arithmetic path and no

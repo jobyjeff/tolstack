@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_projection_freshness.py",
+  "expect_red": "test_the_mutation_shadow_covers_every_input_the_freshness_check_names",
+  "mutations": [
+    {
+      "contract": "The viewer's `fast` tier asks whether the projection it is about to read was built from the tree it is running against, and under this runner that tree is the SHADOW (`--work-tree=<shadow>`, which is what makes the freshness check witnessable at all). The shadow holds only what `SHADOWED` copies, so a path the freshness check's input set NAMES and the shadow does not HOLD is read by git as a deletion: the freshness check is red on the CLEAN run and every `fast` witness after it reports TIER_ALREADY_RED. The input set is DERIVED -- a stamp's source directory plus the builder's Python import closure -- so it can grow without anybody editing SHADOWED, and this guard is what makes that growth arrive as a refusal naming the path rather than as a whole tier proving nothing.",
+      "issue": "docs/issues/ISSUE_20260924_the_projection_freshness_pairing_reads_tracked_head_content_only.md",
+      "note": "Drops `tolerance_stack` from SHADOWED, which is the entry the closure DERIVES rather than the ones a stamp names -- so the mutation is the exact shape the failure takes in practice: nobody removes a SHADOWED entry, a builder grows an import and the derived set reaches past the list. The shadow itself is built before the mutation is applied, so `tolerance_stack/` is still on disk there; what the mutation changes is the runner's own answer to `--check-shadow-covers-projection-inputs`, which is the one form of this failure that can be asked in under a second instead of after a browser sweep.",
+      "file": "scripts/run_mutation_witness_tests.mjs",
+      "find": "                  [\"tests\"], [\"tolerance_stack\"], [\".gitignore\"]];",
+      "replace": "                  [\"tests\"], [\".gitignore\"]];"
+    }
+  ]
+}

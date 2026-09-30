@@ -84,9 +84,12 @@
 import { spawn } from "node:child_process";
 import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { dirname, join, normalize } from "node:path";
 import { census, censusReport, specFileName, SPEC_DIR }
   from "./guard_enumeration.mjs";
+
+const { projectionInputs } = createRequire(import.meta.url)("./projection_freshness.cjs");
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
@@ -120,9 +123,20 @@ const SHADOW = join(REPO, "tmp", "mutation-witness");
 // tests resolve citations out of, and the crop-region registry
 // (tolerance_stack/spec_crop_regions.py's REGISTRY_RELPATH). Named one at a
 // time, same as docs/topologies/ above, rather than copying all of docs/.
+//
+// `.gitignore` is the one FILE in this list, and it is here because the shadow
+// is a work tree git is asked questions about, not just a directory a tier
+// reads. The freshness check (scripts/projection_freshness.cjs) runs
+// `git ls-files --others --exclude-standard` with `--work-tree=<shadow>`, and
+// git reads exclude patterns out of the WORK TREE -- so without this file the
+// shadow has no ignore rules at all, `__pycache__/` under scripts/ and
+// tolerance_stack/ reads as untracked input drift, and the freshness check is
+// red on the CLEAN run with every `fast` witness then reporting
+// TIER_ALREADY_RED. 40 lines of patterns, and it makes the shadow answer git
+// the way the checkout it was copied from does.
 const SHADOWED = [["apps"], ["scripts"], ["docs", "topologies"],
                   ["docs", "tolerance_stacks"], ["docs", "spec_library"],
-                  ["tests"], ["tolerance_stack"]];
+                  ["tests"], ["tolerance_stack"], [".gitignore"]];
 
 const argFlag = (name) => {
   const i = process.argv.indexOf(name);
@@ -213,6 +227,68 @@ if (process.argv.includes("--unenrolled")) {
 function oneLine(text) {
   const flat = text.replace(/\s+/g, " ").trim();
   return flat.length > 96 ? flat.slice(0, 93) + "..." : flat;
+}
+
+// --- SHADOWED against the freshness check's input set ----------------------
+//
+// THE TRAP, computed instead of remembered. The viewer's `fast` tier asks
+// whether the projection it is about to read was built from the tree it is
+// running against (scripts/projection_freshness.cjs), and here that tree is the
+// SHADOW -- `--work-tree=<shadow>`, which is what makes the check witnessable
+// at all. The shadow holds only what `SHADOWED` copies, so a path the input set
+// NAMES and the shadow does not HOLD is read by git as a deletion: the
+// freshness check goes red on the CLEAN run, and every `fast` witness after it
+// reports TIER_ALREADY_RED -- a whole tier proving nothing, for a reason that
+// is nowhere in its output. The input set is derived (a stamp's source
+// directory plus the builder's import closure), so it can grow without anybody
+// editing this file, which is exactly why this is a check and not a comment.
+//
+// It runs before the shadow is built, and it stops the run rather than counting
+// misses: a table defect, like the re-entrant pytest suite below it.
+function shadowGaps() {
+  const inputs = projectionInputs(DATA_REPO, REPO);
+  const covered = (rel) => SHADOWED.some((parts) => {
+    const prefix = parts.join("/");
+    return rel === prefix || rel.startsWith(prefix + "/");
+  });
+  return { inputs, gaps: inputs.filter((rel) => !covered(rel)) };
+}
+
+/** Print the verdict; 0 when the shadow covers the input set, 1 when it does not. */
+function reportShadowGaps() {
+  const { inputs, gaps } = shadowGaps();
+  if (!inputs.length) {
+    console.log(`note: no stamped projection under ${DATA_REPO} (looked under ` +
+      "data/projections/viewer/), so the input set the freshness check will name " +
+      "is empty and SHADOWED's coverage of it could not be checked. Pass --repo " +
+      "<main checkout>.");
+    return 0;
+  }
+  if (!gaps.length) {
+    console.log(`SHADOWED covers all ${inputs.length} input path(s) the freshness ` +
+      `check names: ${inputs.join(", ")}`);
+    return 0;
+  }
+  console.log("REFUSED: the mutation shadow would not hold " +
+    `${gaps.length} of the ${inputs.length} input path(s) the viewer tier's ` +
+    "freshness check names:" + gaps.map((rel) => `\n  ${rel}`).join(""));
+  console.log("\nThose paths exist at the commit each projection was stamped " +
+    "with, and the shadow copies only SHADOWED -- so git, asked with " +
+    "--work-tree=<shadow>, reads every one of them as a DELETION. The freshness " +
+    "check would be red on the CLEAN run and every `fast` witness would report " +
+    `${JSON.stringify(MISS.TIER_ALREADY_RED)}, proving nothing.\n`);
+  console.log("Add each path (or the directory that contains it) to SHADOWED in " +
+    "scripts/run_mutation_witness_tests.mjs, with the reason written beside it " +
+    "the way the entries there already are.");
+  return 1;
+}
+
+// Askable on its own, in under a second, because the whole run is a browser and
+// the whole registry and tens of minutes -- and this is the one failure in it
+// that a caller can be told about before paying for any of that.
+// tests/test_projection_freshness.py runs exactly this.
+if (process.argv.includes("--check-shadow-covers-projection-inputs")) {
+  process.exit(reportShadowGaps());
 }
 
 // --- running a tier --------------------------------------------------------
@@ -439,6 +515,14 @@ function anchorHits(mutation) {
         ? "That path is this tree; venv-win/ lives only in the MAIN checkout, " +
           "so pass --repo <main checkout>."
         : "That path is the one --repo named.") + "\n");
+  }
+
+  // A table defect too, and cheaper than every other one: it is the reason a
+  // whole tier would report TIER_ALREADY_RED with nothing in its output saying
+  // why. See shadowGaps above.
+  if (reportShadowGaps() !== 0) {
+    process.exitCode = 1;
+    return;
   }
 
   console.log(`building the shadow tree at ${SHADOW}`);
