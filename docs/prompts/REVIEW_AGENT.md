@@ -604,6 +604,35 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A guard whose stated claim is wider than what it measures — promoted
+      2026-09-30 by the triage sweep, on three sightings from three separate
+      reviews in eight days.** This is now the most reliably recurring finding
+      in this repo, and all three were found by a reviewer rather than by a
+      check:
+      - `REVIEW_20260923_js_vocabulary_generated_from_python` → the byte
+        comparison covers `vocab.gen.js` only, so `VA.CONFIDENCE_LABEL`'s
+        hand-spelled keys sit two lines from the generated list and are paired
+        with nothing.
+      - `REVIEW_20260923_mutation_witness_derived_enrollment_and_gating` →
+        `DECLARED_GUARDS` pins a **cardinality** standing in for a **set**, so a
+        delete-plus-add in one change moves no number.
+      - `REVIEW_20260924_fixture_pairing_reads_a_fresh_projection` →
+        `git diff <sha> -- <inputs>` answers *"do the **tracked** files at
+        `<sha>` still match?"* while the comment, the lesson and the closing
+        resolution all claim it answers *"was this built from this tree?"*.
+
+      **What to do with it.** When the work adds or changes a guard, read its
+      **claim** — the comment above it, the lesson's description, the
+      `resolution:` line it will close an issue with — against what the code
+      actually compares, and treat any gap as a finding even when the guard
+      genuinely bites. All three of these *worked*; each was still wrong about
+      its own scope, and in each case the overreaching sentence is what the
+      next author will trust. Two specific shapes worth naming on sight: a
+      **count pinned as a proxy for a set** (any `=== N` or `len(...) == N` over
+      a population that can change by substitution), and a **tracked-content
+      check standing in for "what a rebuild would write"** (untracked files,
+      `dirty` flags and import closures are all invisible to `git diff <sha>`).
+
 - [ ] **`--repo` with backslashes under the BASH tool skips the whole `[real]`
       tier, and the runner still prints a clean total.** New 2026-09-15
       (`review/viewer_study_verdicts_and_gaps`). Every doc here spells it
