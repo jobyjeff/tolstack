@@ -15,8 +15,9 @@ plus a list of what is outside them. `apps/viewer/run_tests.cjs` points at it
 and deliberately does not restate it.
 
 **Asked:** is the stamped commit in this tree; was the stamping tree `dirty`; do
-the inputs' tracked files still match that commit; does an input **directory**
-hold an untracked file a rebuild would glob in.
+the inputs' tracked files still match that commit; does **the source directory
+the stamp names** — the one a builder globs, and only that one — hold an
+untracked file a rebuild would read.
 
 **Not asked, and not close:** a builder's **gitignored** inputs
 (`build_viewer_crops.py` reads the datasheet pile under `data/inbox/specs/` —
@@ -29,54 +30,107 @@ that append-only directory is for. That is the false-alarm failure
 `projection_provenance.py` already wrote down, so it is a decision about
 evidence rather than an implementation.
 
-## Arm 3: I implemented it, and it made the input set *narrower*, not wider
+## Arm 3: I implemented it, and it cost one path, not three
+
+> **Corrected 2026-09-30, in review.** This section first said arm 3 "added
+> three `scripts/*.py` files" and called that the "net false-alarm surface",
+> and the diagram annotated all three as "in no stamp". Both are wrong: three
+> is *`topologies.json`'s own* set, and two of those three were already inputs
+> as `results.json`'s and `crops.json`'s `built_by`. The union went from **six
+> paths to seven**. The numbers below are the corrected ones; the number was
+> worth correcting because it is the one a reader quotes forward when they
+> weigh widening this check again.
 
 The handoff allowed declining arm 3 with a reason, on the grounds that an
 over-wide input set is where this change would start crying wolf. It turned out
 not to be the trade-off it looked like, and that is worth knowing before anyone
 re-litigates it.
 
-The pre-existing input set was `[stamp's source dir, stamp's built_by,
-"tolerance_stack"]` — and that last entry was a **hand-written whole directory**.
-Deriving the closure from the builder's own imports replaced it with:
+The pre-existing input set was, per projection, `[stamp's source dir, stamp's
+built_by, "tolerance_stack"]` — and that last entry was a **hand-written whole
+directory**. Deriving the closure from the builder's own imports replaced it
+with:
 
 ```
-docs/tolerance_stacks            (stamp)          docs/topologies      (stamp)
-scripts/build_topology_projection.py  (built_by)
-scripts/build_viewer_projection.py    \
-scripts/build_viewer_crops.py          }  derived — none of these is in any stamp
-scripts/projection_provenance.py      /
-tolerance_stack                       (derived: the PACKAGE, because __init__ runs)
+docs/tolerance_stacks   (stamp: results, crops)    docs/topologies  (stamp: topologies)
+scripts/build_topology_projection.py   (built_by: topologies)
+scripts/build_viewer_projection.py     (built_by: results;  derived for topologies)
+scripts/build_viewer_crops.py          (built_by: crops;    derived for topologies)
+scripts/projection_provenance.py       (derived for all three -- in NO stamp)
+tolerance_stack                        (derived: the PACKAGE, because __init__ runs)
 ```
 
-So arm 3 *added* three `scripts/*.py` files and **did not** add `scripts/` as a
-directory. A tracked file in `scripts/` that no builder reaches — there is one
-in the fixture on purpose — cannot redden the tier, which is what the previous
-`tolerance_stack`-shaped input would have implied if anyone had extended it by
-hand. Net false-alarm surface: three files that genuinely change what a rebuild
-writes. `scripts/projection_provenance.py` is the sharpest of them: it is in no
-stamp at all, and it is the module that writes the stamp.
+So the union grew by exactly one path, `scripts/projection_provenance.py`, and
+that is the sharpest one available: it is no projection's `built_by` and every
+builder's import, and it is the module that writes the stamp. What arm 3 mostly
+did was make each projection's set *right* — `topologies.json` picked up the two
+sibling builders it imports, which is the measured defect the issue named.
 
-Two implementation notes on the closure, since it is a static reader:
+And it **did not** add `scripts/` as a directory. A tracked file in `scripts/`
+that no builder reaches — there is one in the fixture on purpose — cannot redden
+the tier, which is what a hand-extended `tolerance_stack`-shaped input would
+have implied.
+
+Three implementation notes on the closure, since it is a static reader:
 
 - **It reads source text, not a real interpreter, and that is deliberate** —
   `venv-win/` exists only in the main checkout, which is the situation a tier is
   most often run from a worktree to escape. A module name that resolves to no
-  file in the tree (`import fitz`) is dropped, so a false positive out of a
+  file at either end (`import fitz`) is dropped, so a false positive out of a
   docstring costs nothing.
 - **A package is named as a directory, not as the one module that resolved.**
   `tolerance_stack/stack.py` resolving means `tolerance_stack` is the input:
-  `__init__.py` runs on import, siblings are reachable by attribute, and a
-  directory is also what makes an untracked new module inside it visible to
-  question 4. "Is this a package?" is answered by looking for `__init__.py`, so
-  no package name is written down.
-- **The closure is walked in the work tree under test, so a PARTIAL tree
-  narrows it silently.** Remove `tolerance_stack/` and it leaves the input set
-  rather than being reported absent. That is a coverage loss, not a false red,
-  and the thing that covers it is the preflight below — which derives the set
-  from the *full* checkout. A test pins this
-  (`test_an_input_absent_from_the_work_tree_names_the_shadow` removes a
-  stamp-named path instead, with the reasoning in a comment).
+  `__init__.py` runs on import and siblings are reachable by attribute. "Is
+  this a package?" is answered by looking for `__init__.py`, so no package name
+  is written down. Known consequence, in the header rather than special-cased:
+  an `__init__.py` in `scripts/` would collapse the three builder files into
+  the whole directory.
+- **The closure resolves imports against `<sha>`'s tracked listing UNION the
+  work tree, and that union is load-bearing.** See the next section — it is the
+  half of the review's B2 that was not in the review.
+
+## What review sent back, and the two things worth carrying forward
+
+`REVIEW_20260930_projection_freshness_pairs_with_the_tree.md` returned this with
+two blockers, and both are the same shape as the defect the handoff existed to
+fix — **a claim written next to code that does something else.** The fixes are in
+the tree; these are the generalisations.
+
+### A derived set drops what a hand list asserted unconditionally
+
+The review's B2: replacing `inputs.push(stamp.built_by)` with "walk the closure
+starting at `built_by` and keep what comes back" lost the `built_by` assertion,
+because the walk reads files and an unreadable entry contributes nothing. A
+projection whose builder had been **renamed** read *paired with this tree*,
+where the hand list it replaced caught it as a deletion. That is the whole
+hazard of turning a list into a derivation in one step: the list's *floor* is
+invisible in the diff.
+
+Fixing only the measured site would have left the same false green one site over,
+so I went looking for the class and found it: **rename
+`scripts/projection_provenance.py`** — no projection's `built_by`, every
+builder's import — and before this pass all three projections went quiet. So the
+fix is not just "seed `built_by`", it is that the closure now resolves imports
+against **`<sha>`'s tracked listing union the work tree** (`treeAt`), one
+`ls-tree` per commit plus a `git show` only for files the work tree does not
+have. A module that was local at *either* end stays in the set, where the diff
+reports its disappearance; `import fitz`, local at neither, stays invisible,
+which is what keeps the alarm off. That union also retired a caveat this lesson
+used to carry — the closure no longer narrows silently against a partial work
+tree, because `<sha>`'s listing is in the object database whatever the work tree
+holds.
+
+### A question asked of the wrong half of a derived set
+
+The review's S1: question 4 (untracked files) was asked of every *directory* in
+the input set, and two different things are directories there — the source
+directory a builder really does glob, and a **package** the closure derived. The
+module's own comment gave the reason a package needs no asking and then asked
+anyway. One untracked scratch file in `tolerance_stack/` took all three
+projections stale and printed *rebuild the projections* as the remedy. Asked of
+the stamp-named directories only now, and both halves have a test: the same file
+in `docs/tolerance_stacks/` must stay loud, in `tolerance_stack/` must stay
+quiet.
 
 ## The SHADOWED coupling did not cost me a red clean run — because of a file nobody would think to copy
 
@@ -129,6 +183,33 @@ Its honest limit, which is in the review prompt too: it covers **one** guard's
 path set. A different git-reading guard still has to be checked against
 `SHADOWED` by hand.
 
+### And its refusal arm crashed for one commit — read this before you add a flag like it
+
+**A module-scope `if (process.argv.includes(...)) process.exit(f())` runs during
+module initialisation, so every `const` declared below it is in its temporal
+dead zone.** `reportShadowGaps` names `MISS.TIER_ALREADY_RED`, and only on its
+**refusal** arm. Placed above `const MISS`, it printed the path and then
+`ReferenceError: Cannot access 'MISS' before initialization` exactly where the
+remedy goes — a node stack trace in place of reader-facing copy, on the one
+surface this lesson and the reviewer checklist both advertise.
+
+Three things about it are worth more than the fix (the block now sits below
+`MISS`, and its position is commented as load-bearing):
+
+- **The success arm touches no constant, so the path that was run was the path
+  that worked.** An early-exit flag has two arms and only one of them is the
+  reason the flag exists.
+- **Its own mutation witness reported `WITNESSED` over it**, because the pytest
+  guard asserted `returncode == 0` and a crash exits non-zero just like a
+  refusal does. *A verdict built on an exit code cannot tell refusing from
+  dying.* Both arms now assert on what is **printed**, and the discriminator is
+  the last paragraph — the one emitted after the reference that threw.
+- **Reaching the refusal arm needed no edit to `SHADOWED`** (the thing under
+  test). A doctored data root whose stamp points `stacks_dir` at
+  `docs/reference/` — a real directory `SHADOWED` does not copy — produces a
+  gap, because the source directory is found by *shape*. That trick is worth
+  remembering for anything else that refuses on a derived set.
+
 ## Extractability, and the issue that asks where this belongs
 
 `ISSUE_20260924_other_real_tiers_still_read_the_shared_projection_untested_for_freshness`
@@ -159,6 +240,28 @@ alone — dispositions are triage's.
   `FAIL [real] the projection this tier reads was built from this tree` naming
   the file, with the `[real]` tier skipped behind it. It takes ten seconds and it
   is the arm a synthetic fixture can most easily be wrong about.
+
+## What I ran, and what I could not run here
+
+The review pointed out that the first version of this lesson recorded the node
+tiers and said nothing about `pytest -q`, which the definition of done asked
+for — so the reviewer ran the full suite on both sides of the merge rather than
+taking the branch on trust. Recorded properly this time, from the runs' own
+output:
+
+| command | where | result |
+| --- | --- | --- |
+| `venv-win/Scripts/python.exe -m pytest -q` | this worktree | 1 failed, 1260 passed (~75s) |
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | worktree source, main-checkout data | 516/516 passed |
+| `node scripts/run_mutation_witness_tests.mjs --only fast__real-the-projection --repo <main>` | this worktree | 2/2 witnessed, clean run green |
+| `node scripts/run_mutation_witness_tests.mjs --only python__test-the-mutation-shadow --repo <main>` | this worktree | 1/1 witnessed, clean run green |
+| two unrelated entries (one `fast`, one `annotate`) | this worktree | 1/1 each |
+
+The one pytest failure is `test_viewer_js_suite.py::test_viewer_js_suite_is_green`
+— the deliberate worktree red `CLAUDE.md` documents, because `data/` exists only
+in the main checkout. It is the same failure before and after this change, and
+the row above it is that tier armed the way the module's own message says to arm
+it.
 
 ## What I could not run here
 
