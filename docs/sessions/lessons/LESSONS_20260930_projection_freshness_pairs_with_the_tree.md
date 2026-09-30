@@ -251,7 +251,7 @@ output:
 
 | command | where | result |
 | --- | --- | --- |
-| `venv-win/Scripts/python.exe -m pytest -q` | this worktree | 1 failed, 1260 passed (~75s) |
+| `venv-win/Scripts/python.exe -m pytest -q` | this worktree | 1 failed, 1260 passed in 58.6s |
 | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | worktree source, main-checkout data | 516/516 passed |
 | `node scripts/run_mutation_witness_tests.mjs --only fast__real-the-projection --repo <main>` | this worktree | 2/2 witnessed, clean run green |
 | `node scripts/run_mutation_witness_tests.mjs --only python__test-the-mutation-shadow --repo <main>` | this worktree | 1/1 witnessed, clean run green |
