@@ -4499,6 +4499,28 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       not just the new one. When a diff adds a git-reading guard, check both
       lists against each other.
 
+- [ ] **A guard that SPAWNS another runner and reads only its stdout — ask what
+      it says when the child CRASHES, not when it fails.** New 2026-09-30
+      (`guard_census_pins_the_set_not_the_count`), and the shape is spreading:
+      this repo now has several guards whose subject is another process's
+      output (`pairExecuted` in `scripts/guard_enumeration.mjs`,
+      `tests/test_viewer_js_suite.py`, the mutation tier's clean/mutated runs).
+      There are **three** outcomes, not two, and the middle one is the one that
+      gets skipped: the child ran and reported a failure (usually *not* a guard
+      failure — a red fast tier is somebody else's question), the child ran and
+      reported success, and **the child never got to reporting anything**.
+      `spawnSync`'s `proc.error` covers only "could not start" and "killed on
+      timeout"; a child that started, threw and exited non-zero leaves
+      `error === undefined`, and a helper that returns `{stdout, failure: null}`
+      there hands its caller an empty parse to misdiagnose. Measured: a planted
+      module-scope `throw` in `apps/viewer/tests.js` is reported as *"the line
+      shape this file parses (RESULT_LINE) and the one that runner prints have
+      parted company"* — the wrong reason, with the stack trace that held the
+      right one discarded unread
+      (`ISSUE_20260930_the_pairings_spawned_runner_reports_a_crash_as_a_parse_divergence.md`).
+      Two questions: *is `proc.stderr` read anywhere on the failure path?* and
+      *does the message distinguish "ran and said no" from "never ran"?*
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
