@@ -4507,45 +4507,51 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       other.
 - [ ] **A module-scope `if (process.argv.includes(...)) process.exit(f())` runs
       in the temporal dead zone of every `const` below it.** New 2026-09-30
-      (`projection_freshness_pairs_with_the_tree`, round 1). The
-      "askable on its own in under a second" flag is a good shape and this repo
-      now has several; the trap is that the early-exit block is written where
-      the function is, near the top, while the vocabulary constant it prints
-      (`MISS`, `TIER_HARNESS`) is declared 90 lines lower. The SUCCESS arm
-      touches no constant and passes; the REFUSAL arm dies with
-      `ReferenceError: Cannot access 'MISS' before initialization` after
-      printing its first line, so the reader gets half a message and a node
-      stack trace instead of the remedy. Run the flag's **failing** arm, not
-      just its green one -- and note that a mutation witness does **not** cover
-      this: the spec only asks whether the pytest guard went red, and a crash
-      exits non-zero too, so it reports `WITNESSED` over a broken message.
-- [ ] **Replacing a hand-written path list with a DERIVED one silently drops
-      what the list guaranteed unconditionally.** Same handoff. `inputsOf` used
-      to do `inputs.push(stamp.built_by)`; the derived version walks that file's
-      import closure and `continue`s when the file cannot be read -- so a
-      builder that has been RENAMED or DELETED between the stamped commit and
-      the tree under test leaves the input set with no mention of it, and the
-      check reports *paired with this tree* where the old list reported the
-      deletion. Measured: `mv scripts/build_viewer_projection.py <other name>`,
-      `node scripts/projection_freshness.cjs --repo <main> --tree .` -> exit 0.
-      Derivation is the right direction here (it is how the drift this repo pays
-      for stops), but ask of every switch: *what did the literal list assert
+      (`projection_freshness_pairs_with_the_tree`, found round 1, fixed round 2
+      -- the block now sits below `MISS` with its position commented as
+      load-bearing). The "askable on its own in under a second" flag is a good
+      shape and this repo now has several; the trap is that the block is written
+      where the function is, near the top, while the vocabulary constant it
+      prints (`MISS`, `TIER_HARNESS`) is declared 90 lines lower. **The success
+      arm touches no constant and passes; the refusal arm dies** with
+      `ReferenceError: Cannot access 'MISS' before initialization` after its
+      first line, so the reader gets half a message and a node stack trace where
+      the remedy goes. Two questions survive the fix: *has the flag's FAILING
+      arm been run, or only its green one?* and *does the test read what it
+      PRINTED, or only its exit code?* -- a mutation witness reported
+      `WITNESSED` over this for a whole commit, because a crash exits non-zero
+      exactly like a refusal.
+- [ ] **Replacing a hand-written list with a DERIVED one drops the floor the
+      list asserted unconditionally.** Same handoff, same round. `inputsOf` used
+      to `push(stamp.built_by)`; the derived version walked that file's import
+      closure and kept what came back, and `importClosure` reads files -- so a
+      builder RENAMED or DELETED between the stamped commit and the tree under
+      test left the input set with no mention of it and the check reported
+      *paired with this tree*. **The list's floor is invisible in the diff**,
+      which is the whole hazard: ask *what did the literal list assert
       unconditionally that the walk now asserts only when its inputs resolve?*
-      The
-      fix shape is to keep the unconditional seed **and** the closure, not one
-      or the other.
-- [ ] **A freshness/glob question asked of a DERIVED directory input, not only
-      of the one a builder globs.** Same handoff. Question 4 of the freshness
-      check (does an input directory hold an untracked file a rebuild would read)
-      is correct for the stamp's source directory -- `stacks_dir.glob("stack_*.json")`
-      really does pick a new file up -- and over-wide for a package directory the
-      import closure derived: an untracked, unimported `tolerance_stack/scratch.py`
-      cannot change what a rebuild writes, and it reddens all three projections
-      and skips the `[real]` tier. Measured. The module's own comment reasons
-      the right way ("a new module becomes an input only when some tracked file
-      starts importing it, and that edit is in the diff above") and the code
-      then asks anyway, which is the same claim-vs-measurement gap one direction
-      over. Check which HALF of a two-half input set each question is asked of.
+      Derivation is still the right direction here. Two notes from the fix,
+      which are the reusable part: resolving names against **`<sha>`'s tracked
+      listing union the work tree** (`treeAt`) is what covers the class rather
+      than the one measured site -- the measured site was `built_by`, but
+      `scripts/projection_provenance.py` is no projection's `built_by` and every
+      builder's import, and renaming it silenced all three projections; and a
+      belt-and-braces seed added alongside a fix like that is **not witnessed by
+      the test written for it** unless a mutation removes the union too
+      (measured: dropping the `built_by` seed alone leaves all 17 tests green).
+- [ ] **A question asked of the wrong HALF of a two-half derived set.** Same
+      handoff, same round. The freshness check's input set is the stamp's own
+      paths plus an import closure, and question 4 (does an input directory hold
+      an untracked file a rebuild would read) is right for the first half and
+      wrong for the second: a builder globs its source directory, while a new
+      module in a derived PACKAGE directory becomes an input only when some
+      tracked file starts importing it -- an edit the diff already reports.
+      Asked of both, one untracked scratch file in `tolerance_stack/` took all
+      three projections stale and printed *rebuild the projections* as the
+      remedy. The module's own comment had the reasoning right and the code
+      asked anyway, which is the claim-vs-measurement gap one direction over.
+      Ask of any derived set: *which half is this question true of, and does the
+      code distinguish them?*
 
 ## Architectural errors to check
 

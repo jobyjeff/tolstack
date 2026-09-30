@@ -3,11 +3,17 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260930_projection_freshness_pairs_with_the_tree.md
 reviewer: agent
 date: 2026-09-30
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE
+blockers: 0
 ---
 
 # REVIEW 2026-09-30 — projection_freshness_pairs_with_the_tree
+
+> **Round 2, 2026-09-30: APPROVE.** The frontmatter verdict is round 2's.
+> The `## Round 2` section at the end is the second reading; everything
+> above it is round 1, kept verbatim including the REQUEST CHANGES verdict it
+> reached, because the round-2 fixes are only legible against what was
+> measured the first time.
 
 Branch `handoff/projection_freshness_pairs_with_the_tree` (3 commits, tip
 `03ef162`), merged into `review/projection_freshness_pairs_with_the_tree`
@@ -319,3 +325,156 @@ from a worktree (`--repo C:/workspace/tolstack`), and B1's repro is one `sed` on
 `SHADOWED` plus the standalone flag. Re-run the two mutation entries this change
 owns after the fix — and read their **output**, not their verdict, because B1 is
 the case where the verdict lies.
+
+---
+
+## Round 2 — 2026-09-30 — APPROVE
+
+Rework arrived as two commits on `handoff/projection_freshness_pairs_with_the_tree`:
+`d6b9158` (review fixes) and `ceda6db` (the lesson's run record). `+518 / -124`
+across `scripts/projection_freshness.cjs`,
+`scripts/run_mutation_witness_tests.mjs`, `tests/test_projection_freshness.py`
+and the lesson. Merged into `review/projection_freshness_pairs_with_the_tree` as
+`c007f89` (merge commit, no conflicts — my round-1 report sat on top of the
+branch point).
+
+Both blockers are fixed, both should-fixes are fixed, and three of the four nits
+are fixed. Each fix is witnessed by a test that I confirmed goes red when the fix
+is reverted.
+
+### B1 — fixed, and now witnessable
+
+The `--check-shadow-covers-projection-inputs` block moved below `const MISS`,
+with a comment saying its position is load-bearing and why. The new test
+`test_the_shadow_coverage_refusal_names_the_path_and_the_remedy` drives the
+**refusal** arm directly and asserts on what is printed, choosing as its
+discriminator the *last* paragraph — the one emitted after the reference that
+threw — which is the right choice.
+
+Adversarially witnessed: I moved the early-exit block back above `const MISS` and
+re-ran the suite →
+`FAILED tests/test_projection_freshness.py::test_the_shadow_coverage_refusal_names_the_path_and_the_remedy`,
+`1 failed, 16 passed`. Reaching that arm without editing `SHADOWED` (the thing
+under test) is done by pointing a doctored stamp's `stacks_dir` at
+`docs/reference/` — a real directory `SHADOWED` does not copy — which works
+because the source key is found by shape. Good trick; the lesson writes it down.
+
+### B2 — fixed twice over, and the second half is the one that mattered
+
+`built_by` is now seeded into the input set unconditionally *and* the closure
+resolves names against **`<sha>`'s tracked listing union the work tree**
+(`treeAt`, one `ls-tree` per commit plus a `git show` only for files the work
+tree lacks). The author went looking for the class rather than the site and found
+the case I had not: `scripts/projection_provenance.py` is no projection's
+`built_by` and every builder's import, so renaming it silenced all three
+projections, and the seed alone would not have caught that.
+
+Measured on the merged tree, against the main checkout's projection:
+
+- `mv scripts/build_viewer_projection.py ...` → `results.json` **and**
+  `topologies.json` (which imports it) both report `names input(s) that are not
+  in this work tree at all: scripts/build_viewer_projection.py`.
+- `mv scripts/projection_provenance.py ...` → all three projections report it.
+- Clean tree → `projection paired with this tree: ... @ fbbba37ab8e7` x3.
+- Input set unchanged at 7 paths.
+
+The `missing` message now gives **both** readings — moved in this tree (drift,
+wants a rebuild) vs. partial work tree (the shadow, wants `SHADOWED`) — instead
+of asserting the one the check cannot actually distinguish. That is the right
+call and is better than what I asked for.
+
+Reverting the union (`tracked = new Set()`) →
+`FAILED ... test_a_module_the_builder_imports_going_missing_is_not_paired`.
+
+### S1 — fixed, with both halves pinned
+
+Question 4 is asked of `stampNamed` directories only, header question 4 restated
+to say so, and the `scripts/__init__.py` consequence I flagged is written down as
+a known consequence rather than special-cased. Measured: an untracked
+`tolerance_stack/zzz_scratch.py` is now **quiet**; the same file in
+`docs/tolerance_stacks/` is still **loud**, naming it. Reverting to
+`inputs.filter(...)` →
+`FAILED ... test_an_untracked_file_in_a_derived_package_directory_is_not_drift`.
+
+### S2 — fixed
+
+The lesson carries a dated `> **Corrected 2026-09-30, in review.**` blockquote,
+the union arithmetic is now six→seven paths, and the diagram's per-projection
+annotations are right (`build_viewer_projection.py` and `build_viewer_crops.py`
+labelled as `built_by` for their own projections and derived for
+`topologies.json`). The section heading changed from "narrower, not wider" to
+"cost one path, not three", which is the honest framing.
+
+### Nits
+
+Fixed: the two em-dashes; `flag()` (a bare trailing `--repo` now prints
+`--repo needs a path after it -- the checkout to read data/projections/viewer/ from.`
+and exits 2); `from . import x` (now resolves to the package's `__init__.py`,
+witnessed by `test_a_relative_import_is_followed_out_of_its_package` on a tree of
+its own — reverting to `continue` reds exactly that test).
+
+Not fixed, and not asked to be: the overlay-ownership note stands as a note.
+
+Two new nits, neither worth another round:
+
+- **`treeAt` returns a `knowsCommit` field that nothing reads.** One line, dead
+  on arrival. Removing it is a refactor, not a fix, so it stays.
+- **The unconditional `built_by` seed is defence in depth, not the fix, and no
+  single-mechanism test isolates it.** Measured: delete `paths.add(stamp.built_by)`
+  with `treeAt`'s union in place and **all 17 tests stay green** — the union
+  reads the builder's source out of `<sha>`'s blob, so the seed's only observable
+  contribution is when the union is broken too (dropping the union alone reds the
+  *other* test, which the seed then covers). The code is right and more robust
+  for having both; the comment calling the seed's position "the reason the two
+  lines below are in this order" reads as though the order were load-bearing, and
+  it is not. Left alone rather than edited inline, since it is the author's
+  rationale for their own fix. Carried into the overlay entry instead, where the
+  general shape is the useful part.
+
+### Filed
+
+`docs/issues/ISSUE_20260930_projection_inputs_reads_a_git_failure_as_no_stamped_projection.md`
+(`bug` / `low` / `open`) — `projectionInputs` returns `[]` both when no projection
+carries a stamp and when git could not be asked which tree it is looking at, so
+the preflight prints "no stamped projection ... Pass --repo <main checkout>" and
+exits **0** for a coverage check it could not perform, with a remedy naming the
+wrong root. `projectionFreshness` gets the identical condition right (exit 1,
+message naming the tree), which is the asymmetry. Measured against a non-repo
+`--tree`; unreachable on any path this repo runs, hence `low` and hence an issue
+rather than a blocker.
+
+### Tests — round 2
+
+- **Full suite, post-merge, review worktree: `1 failed, 1260 passed` in 55.7s.**
+  The one failure is the documented worktree condition
+  (`test_viewer_js_suite.py::test_viewer_js_suite_is_green`, node-fs tier skipped
+  because `data/` is main-checkout-only), unchanged from round 1's baseline. The
+  count matches the lesson's own recorded run exactly, which is the first time
+  this handoff's record could be checked against a rerun.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` → **516/516
+  passed**, `[real]` tier running.
+- `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only
+  fast__real-the-projection-...` → clean run green, **2/2 witnessed**.
+- `... --only python__test-the-mutation-shadow-...` → clean run green, **1/1
+  witnessed**.
+- Preflight both arms: success prints `SHADOWED covers all 7 input path(s)...`
+  and exits 0; refusal prints the path, the consequence and the remedy and exits 1
+  (driven through the new test's doctored data root).
+- `tests/test_projection_freshness.py` alone: **17 passed** in ~13s.
+- Five reverts, four reds, each naming the one test written for it (B1, the
+  union, question 4's fence, the relative import) plus the one revert that stayed
+  green (the `built_by` seed, reported above).
+- **Still not exercised here:** the browser tier and the browser entries of the
+  mutation registry (`node_modules/playwright-core` is main-checkout-only), and
+  the full mutation sweep. Unchanged from round 1: no CSS and nothing positional
+  in the diff, and the full sweep is the batch merge's, in `CLAUDE.md`'s order
+  (rebuild the projections **first**).
+- No pollution: `data/projections/viewer/` mtimes still 13:34–13:35, main
+  checkout `git status` clean, review worktree clean.
+
+### Verdict — round 2
+
+**APPROVE.** Merged to `integration`. The overlay's three round-1 entries were
+rewritten to carry the surviving *question* rather than the closed instance,
+which is how this repo's checklist is written, and the `built_by`-seed
+measurement above went into the derived-list entry.
