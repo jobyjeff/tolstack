@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 class: unpaired_hand_copy
 handoff: docs/sessions/HANDOFF_20260930_confidence_label_is_paired_to_its_vocabulary.md
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260923_js_vocabulary_generated_from_python.md
+resolution: handoff completed 2026-09-30 -- closed automatically by dispatch when handoff `confidence_label_is_paired_to_its_vocabulary` moved to completed/; not independently verified.
 ---
 
 # `VA.CONFIDENCE_LABEL`'s keys are the generated `CONFIDENCES` vocabulary, hand-spelled two lines below `VOCAB.list("CONFIDENCES")`
