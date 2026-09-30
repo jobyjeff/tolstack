@@ -27,12 +27,16 @@ not record the gap anywhere: the gap is computed.
 
 1. Write the guard.
 2. Run `node scripts/guard_enumeration.mjs`. The census is one line per guard
-   source; the tier you touched is now one guard over its pin.
+   source; the tier you touched no longer agrees with its pin, and the report
+   prints the line to write back.
 3. Write the spec. `node scripts/run_mutation_witness_tests.mjs --unenrolled`
    prints the file name to write and the shape to put in it — the file name is
    **derived from the guard's own name**, so it is not yours to choose.
-4. Raise that tier's number in `DECLARED_GUARDS`
-   (`scripts/guard_enumeration.mjs`).
+4. Paste that line into `DECLARED_GUARDS` (`scripts/guard_enumeration.mjs`).
+   Three values per source, not one: `declared` (how many guards), `enrollable`
+   (how many a spec could ever name) and `names` (a digest of the name set).
+   The digest is why a guard *swapped* for another, or renamed, moves a pin at
+   all — a bare count did not (2026-09-30).
 5. Run it: `node scripts/run_mutation_witness_tests.mjs --only "<a few words
    of the guard's name>" --repo C:\workspace\tolstack`.
 

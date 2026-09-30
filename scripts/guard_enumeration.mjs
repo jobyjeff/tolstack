@@ -30,6 +30,9 @@
 //
 //   node scripts/guard_enumeration.mjs            # the census, for a reader
 //   node scripts/guard_enumeration.mjs --json     # the payload, for a machine
+//   node scripts/guard_enumeration.mjs --executed # ...and run the two fast
+//                                                 # tiers, to pair the scan
+//                                                 # against what they ran
 //
 // The JSON payload is what tests/test_mutation_witnesses.py reads (it spawns
 // this file; node is already a hard requirement of that suite through
@@ -38,6 +41,7 @@
 // same answer, and the runner cannot call the venv interpreter -- venv-win/
 // exists only in the main checkout, which is the one situation the tier is
 // most often run from a worktree to escape.
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -63,10 +67,16 @@ export const GUARD_SOURCES = {
   // The viewer's fast tier. Note the file is NOT the harness
   // (apps/viewer/run_tests.cjs): the harness runs the names, the suite it
   // loads declares them.
-  fast: { file: "apps/viewer/tests.js", call: "test", skip: "skip" },
+  fast: {
+    file: "apps/viewer/tests.js", call: "test", skip: "skip",
+    runner: "apps/viewer/run_tests.cjs",
+  },
   // The annotate app's fast tier, which is both harness and name source --
   // it loads no separate suite. The asymmetry with the row above is real.
-  annotate: { file: "apps/annotate/run_tests.cjs", call: "check", skip: null },
+  annotate: {
+    file: "apps/annotate/run_tests.cjs", call: "check", skip: null,
+    runner: "apps/annotate/run_tests.cjs",
+  },
   // The browser tier. Every suite opens `const push = (name, cond) =>
   // checks.push({ name, cond: !!cond });` and then calls that closure, so the
   // declaration is a BARE `push(`; the `checks.push(` inside the closure is a
@@ -83,6 +93,21 @@ export const GUARD_SOURCES = {
     call: "push",
     skip: null,
     printed: "FAIL sub-check: ",
+    // ...and the one source whose scan cannot be paired against a run. Two
+    // independent reasons, and the second is the one that matters: even with
+    // unlimited time the relation would not be EQUALITY.
+    //   cost      it needs a real Chrome and several minutes, so it cannot sit
+    //             inside `pytest -q` the way the two fast runners do.
+    //   relation  a declared name may be RUN BY MORE THAN ONE SUITE (which is
+    //             why a browser spec has to name its `suite` by hand), and
+    //             most of its template names interpolate a live number (see
+    //             `interpolated` below), so the string the tier prints is not
+    //             the string the scan read. Set equality between "declared"
+    //             and "executed" is false here by construction, not by cost.
+    // So the browser row is pinned (count, enrollable, digest) like the other
+    // two and is NOT pair-checked, and `CENSUS_LIMITS.browser_scan_unverified`
+    // is what says so out loud on every census.
+    runner: null,
   },
   // `python` is deliberately absent, and the absence is a statement: pytest
   // has no one file its guards are written in, and -- unlike the three above
@@ -94,23 +119,85 @@ export const GUARD_SOURCES = {
   // ISSUE_20260923_the_guard_census_cannot_see_a_pytest_guard.md
 };
 
-// HOW MANY GUARDS EACH SOURCE DECLARES, pinned. The number is not decoration
-// and it is not documentation: it is the whole gate. Adding a guard moves it,
-// and a moved census is red -- in pytest in under a second, and in the tier --
-// with a message naming the file to write. That is the one mechanism that
-// makes enrolling a guard the job of the session that WROTE the guard, rather
-// than of a later enrollment handoff that has to rediscover what the guard was
-// for. Six of those ran between 2026-09-15 and 2026-09-22 and the arrival rate
-// of unenrolled guards did not move
-// (docs/strategy/BRIEF_20260915_mutation_witness_enrollment.md).
+// WHAT EACH SOURCE DECLARES, pinned. Not decoration and not documentation: it
+// is the whole gate. Adding a guard moves it, and a moved census is red -- in
+// pytest in under a second, and in the tier -- with a message naming the file
+// to write. That is the one mechanism that makes enrolling a guard the job of
+// the session that WROTE the guard, rather than of a later enrollment handoff
+// that has to rediscover what the guard was for. Six of those ran between
+// 2026-09-15 and 2026-09-22 and the arrival rate of unenrolled guards did not
+// move (docs/strategy/BRIEF_20260915_mutation_witness_enrollment.md).
 //
 // Raising a number without writing a spec is a legitimate move -- some guards
 // cannot be witnessed, and the census counts those separately -- but it is now a
 // line in a diff a reviewer reads, instead of nothing at all.
+//
+// THREE VALUES PER SOURCE, not one, since 2026-09-30. Until then the pin was a
+// bare cardinality standing in for a SET, and three ways of arriving unenrolled
+// moved no number at all
+// (ISSUE_20260923_the_guard_census_pins_a_count_not_a_set_so_three_arrivals_are_silent).
+// Each value closes a different one:
+//
+//   declared    how many guards the source declares. The readable half, and
+//               the only one whose failure message can say anything useful on
+//               its own ("516 declared, pinned at 517").
+//   enrollable  how many of those a spec could ever name. It moves when a
+//               SECOND declaration of an existing name appears: `enumerateGuards`
+//               folds the two into one unattributable guard, so `declared`
+//               holds still while an already-enrolled guard slides into the
+//               population no entry can witness. Nothing pinned this before.
+//   names       a digest of the sorted name set. This is the one that makes
+//               the pin a SET rather than a count: one guard deleted and one
+//               added in the same change leaves `declared` at 516 and moves
+//               this. Sorted, so reordering a file is not a diff; twelve hex
+//               characters, so the churn of a guard rename is one line and not
+//               a merge conflict in a 516-name manifest (the option rejected
+//               here -- see the lesson for the churn argument).
+//
+// The cost of the digest is that it says the set MOVED and not WHICH name
+// moved; `CENSUS_LIMITS.digest_names_no_name` states that, and
+// `node scripts/run_mutation_witness_tests.mjs --unenrolled` is what names the
+// guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
-  fast: 516,
-  annotate: 151,
-  browser: 506,
+  fast: { declared: 516, enrollable: 516, names: "9feff19206f8" },
+  annotate: { declared: 151, enrollable: 151, names: "fafa07c40543" },
+  browser: { declared: 506, enrollable: 475, names: "b8dd5066e237" },
+};
+
+// WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
+// by every census run and pinned key-for-key by
+// tests/test_mutation_witnesses.py.
+//
+// A gate with known bypasses is worth having; an UNDOCUMENTED one is not. Each
+// of the three arrivals the 2026-09-30 pass closed had been sitting in the
+// mechanism since it was built, invisible until a reviewer went looking -- so
+// what is left over is emitted by the tooling rather than left in a review
+// report for the next reviewer to rediscover.
+export const CENSUS_LIMITS = {
+  python_not_censused:
+    "the `python` tier is not censused at all: pytest has no one file its " +
+    "guards are written in, so a pytest guard can arrive unenrolled and move " +
+    "nothing here (ISSUE_20260923_the_guard_census_cannot_see_a_pytest_guard)",
+  browser_scan_unverified:
+    "the browser source's scan is pinned but never paired against a run -- " +
+    "the tier needs a real Chrome, and its declared names are templates one " +
+    "suite or two may print, so `declared == executed` is false there by " +
+    "construction. A browser guard written in a shape the scan does not match " +
+    "is therefore still invisible in both directions",
+  incomplete_run_pairs_one_way:
+    "a fast tier that reports a SKIP ran a SUBSET, so only `everything that " +
+    "ran was declared` is checked and `everything declared ran` is not. This " +
+    "is the normal state in a worktree, where data/ is gitignored and the " +
+    "viewer's [real] tier has no projection -- tests/test_viewer_js_suite.py " +
+    "is the red that says so for the viewer; the annotate tier has no such " +
+    "gate (ISSUE_20260918_the_annotate_js_suite_is_run_by_no_gate)",
+  digest_names_no_name:
+    "the `names` pin says the guard set moved, never which name moved -- run " +
+    "`node scripts/run_mutation_witness_tests.mjs --unenrolled` for the guards " +
+    "with no spec",
+  pin_raised_without_a_spec:
+    "raising a pin instead of writing a spec is allowed and is not detected " +
+    "as anything: it is a line in a diff and a reviewer is the only check on it",
 };
 
 // The directory of mutation specs -- one file per witnessed guard, named for
@@ -244,6 +331,158 @@ export function enumerateGuards(repoRoot = REPO) {
 }
 
 /**
+ * A guard name SET, as twelve hex characters.
+ *
+ * Sorted before hashing, so moving a guard within its file is not a diff and
+ * only the membership of the set is pinned. Twelve characters rather than the
+ * whole digest because this is read and retyped by people: it has to fit on
+ * the line it is pinned on, and 48 bits is far more collision headroom than a
+ * set that changes a few times a week will ever spend.
+ */
+export function guardNameDigest(names) {
+  // NUL-joined, not space-joined: a guard name is a prose sentence, so any
+  // separator a name could itself contain would let two different sets hash
+  // alike. The same separator the census keys (tier, name) on.
+  return createHash("sha256")
+    .update([...names].sort().join("\u0000"))
+    .digest("hex").slice(0, 12);
+}
+
+// THE LINE SHAPE BOTH FAST RUNNERS PRINT, and the one this file parses to find
+// out which guards a tier ACTUALLY RAN. `apps/viewer/run_tests.cjs` and
+// `apps/annotate/run_tests.cjs` each print `PASS  <name>` / `FAIL  <name>`,
+// two spaces, with any detail indented under it; a tier that could not run
+// prints `SKIP  <name>` instead, and that run is a subset.
+//
+// `run_mutation_witness_tests.mjs`'s `TIER_HARNESS` holds the FAIL half of the
+// same shape, for its own purposes. The two copies are paired on every pytest
+// run through the runner PATH -- `GUARD_SOURCES[tier].runner` against that
+// object's `script` -- rather than by sharing a regex, because the two files
+// cannot import each other: the runner already imports this one.
+export const RESULT_LINE = /^(?:PASS|FAIL) {2}(.+)$/;
+export const SKIP_LINE = /^SKIP {2}(.+)$/;
+// The runner's own arithmetic: `<ran - failed>/<ran> passed`, possibly with a
+// skipped-tier clause after it. Read so the parse above is CHECKED against the
+// runner's count rather than trusted -- see `pairExecuted`.
+export const TOTAL_LINE = /^(\d+)\/(\d+) passed/;
+
+/** Run one source's tier and return its stdout, or the reason it did not. */
+function runTier(repoRoot, runner) {
+  const proc = spawnSync(
+    process.execPath, [join(repoRoot, ...runner.split("/"))],
+    { cwd: repoRoot, encoding: "utf8", maxBuffer: 1 << 26, timeout: 300000 });
+  if (proc.error) return { stdout: "", failure: String(proc.error.message) };
+  if (typeof proc.stdout !== "string") {
+    return { stdout: "", failure: `${runner} printed nothing on stdout` };
+  }
+  return { stdout: proc.stdout.replace(/\r\n/g, "\n"), failure: null };
+}
+
+/**
+ * The scan, paired against what the tier actually ran.
+ *
+ * THIS IS WHAT MAKES THE SCANNER FALSIFIABLE. Everything else here trusts
+ * `declarationsIn` to have found every guard: the pin says how many the scan
+ * found, never whether the scan is right. A guard written in a shape the regex
+ * does not match -- `test('…')` in single quotes, or a name handed in by a
+ * helper or a loop -- is invisible in BOTH directions at once: not censused,
+ * therefore not enrollable, therefore never printed by `--unenrolled`.
+ * Measured 2026-09-23: zero such declarations exist, which is a fact with a
+ * shelf life and not a property of the mechanism.
+ *
+ * A reviewer established this pairing by hand on 2026-09-23 -- 516/516 and
+ * 151/151, exact agreement twice. This is that measurement made to happen on
+ * every run instead of once.
+ *
+ * Note what is NOT read: the exit code. A guard that ran and FAILED still ran,
+ * and whether the fast tiers are green is `tests/test_viewer_js_suite.py`'s
+ * question rather than this one. This function asks only *which names the tier
+ * put on its own output*, so a legitimately red suite does not also produce a
+ * spurious census failure -- and so spawning the annotate runner here does not
+ * quietly become the gate
+ * ISSUE_20260918_the_annotate_js_suite_is_run_by_no_gate.md is still open for.
+ *
+ * Two directions, and only one of them survives an incomplete run:
+ *
+ *   ran but not declared   always checked. A subset run is still a subset, so
+ *                          a name the tier printed that the scan never found
+ *                          is a scanner miss whatever else was skipped.
+ *   declared but not run   checked only when the tier reported no SKIP. From a
+ *                          worktree the viewer's [real] tier has no projection
+ *                          and ~94 checks do not run at all, so this direction
+ *                          would say nothing there but "you are in a worktree"
+ *                          -- which pytest already says, once, through
+ *                          tests/test_viewer_js_suite.py.
+ */
+export function pairExecuted(repoRoot = REPO) {
+  const guards = enumerateGuards(repoRoot);
+  return Object.entries(GUARD_SOURCES).map(([tier, source]) => {
+    const declared = new Set(
+      guards.filter((g) => g.tier === tier).map((g) => g.name));
+    const row = {
+      tier, source: source.file, runner: source.runner,
+      declared: declared.size, paired: false, complete: false,
+      executed: null, ranNotDeclared: [], declaredNotRun: [], ranTwice: [],
+      skipped: [], failure: null,
+    };
+    if (!source.runner) return row;
+    const { stdout, failure } = runTier(repoRoot, source.runner);
+    if (failure) return { ...row, failure };
+
+    const ran = [];
+    for (const line of stdout.split("\n")) {
+      const hit = RESULT_LINE.exec(line);
+      if (hit) ran.push(hit[1]);
+      const skip = SKIP_LINE.exec(line);
+      if (skip) row.skipped.push(skip[1]);
+    }
+    // The parse, checked against the runner's own arithmetic before anything
+    // is concluded from it. A scan that finds nothing satisfies every subset
+    // test there is; and a FAIL whose error text begins a line with `PASS  `
+    // would otherwise be read as a guard nobody declared.
+    const totals = [...stdout.matchAll(new RegExp(TOTAL_LINE.source, "gm"))];
+    const reported = totals.length ? Number(totals[totals.length - 1][2]) : null;
+    if (reported !== ran.length) {
+      return { ...row, failure:
+        `read ${ran.length} PASS/FAIL lines out of ${source.runner}, which ` +
+        `reports ${reported === null ? "no total line at all" : reported + " ran"}` +
+        ". The line shape this file parses (RESULT_LINE) and the one that " +
+        "runner prints have parted company, so the pairing would be measuring " +
+        "its own parse." };
+    }
+
+    const counted = new Map();
+    for (const name of ran) counted.set(name, (counted.get(name) || 0) + 1);
+    return {
+      ...row,
+      paired: true,
+      complete: row.skipped.length === 0,
+      executed: ran.length,
+      ranNotDeclared: [...counted.keys()].filter((n) => !declared.has(n)).sort(),
+      ranTwice: [...counted].filter(([, n]) => n > 1).map(([name]) => name).sort(),
+      declaredNotRun: row.skipped.length
+        ? [] : [...declared].filter((n) => !counted.has(n)).sort(),
+    };
+  });
+}
+
+/** Every way one source's pairing came out wrong, in words. */
+export function pairingFaults(row) {
+  const faults = row.failure ? [row.failure] : [];
+  for (const name of row.ranNotDeclared) {
+    faults.push(`ran, and the scan never found it: ${JSON.stringify(name)}`);
+  }
+  for (const name of row.ranTwice) {
+    faults.push("ran more than once, so a red cannot be attributed to it: " +
+      JSON.stringify(name));
+  }
+  for (const name of row.declaredNotRun) {
+    faults.push(`the scan found it and the tier never ran it: ${JSON.stringify(name)}`);
+  }
+  return faults;
+}
+
+/**
  * The file name a spec for this guard must be written at.
  *
  * Derived, and derived HERE only -- the Python half reads it out of this
@@ -321,17 +560,29 @@ export function census(repoRoot = REPO) {
   const rows = Object.keys(GUARD_SOURCES).map((tier) => {
     const mine = guards.filter((g) => g.tier === tier);
     const enrolled = mine.filter((g) => spec_of.has(key(tier, g.name)));
+    const pin = DECLARED_GUARDS[tier];
     return {
       tier,
       source: GUARD_SOURCES[tier].file,
       declared: mine.length,
-      pinned: DECLARED_GUARDS[tier],
+      // `pinned` stays the bare count it always was, and the two new pins sit
+      // beside it under their own names: `scripts/run_mutation_witness_tests.mjs`
+      // reads `r.declared !== r.pinned` off these rows.
+      pinned: pin.declared,
       enrollable: mine.filter((g) => g.enrollable).length,
+      pinnedEnrollable: pin.enrollable,
+      names: guardNameDigest(mine.map((g) => g.name)),
+      pinnedNames: pin.names,
       enrolled: enrolled.length,
       mutations: enrolled.reduce(
         (n, g) => n + spec_of.get(key(tier, g.name)).mutations.length, 0),
     };
-  });
+  }).map((row) => ({
+    // The line to paste back when a pin moves, carried on the row so the
+    // remedy is written HERE -- where the literal it replaces lives -- and not
+    // re-derived by every reader that has to print one.
+    ...row, pinLine: pinLine(row),
+  }));
   return {
     guards: guards.map((g) => ({
       ...g,
@@ -340,9 +591,37 @@ export function census(repoRoot = REPO) {
     specs,
     orphans,
     rows,
-    // The pin, answered. Nothing else in this payload is a pass/fail.
-    censusHolds: rows.every((r) => r.declared === r.pinned),
+    // The pins, answered -- all three of them, per source. Nothing else in
+    // this payload is a pass/fail.
+    censusHolds: rows.every((r) => !pinsMoved(r).length),
   };
+}
+
+/** Every pin of one source that its tree no longer agrees with, in words. */
+export function pinsMoved(row) {
+  const moved = [];
+  if (row.declared !== row.pinned) {
+    moved.push(`${row.declared} declared, pinned at ${row.pinned}`);
+  }
+  if (row.enrollable !== row.pinnedEnrollable) {
+    moved.push(`${row.enrollable} enrollable, pinned at ${row.pinnedEnrollable}` +
+      " -- a guard has moved into or out of the population no spec can name, " +
+      "which `declared` alone does not show");
+  }
+  if (row.names !== row.pinnedNames) {
+    moved.push(`the guard NAME SET is ${row.names}, pinned at ${row.pinnedNames}` +
+      (row.declared === row.pinned
+        ? " -- the count did not move, so this is a guard swapped for another " +
+          "or a guard renamed"
+        : ""));
+  }
+  return moved;
+}
+
+/** The line to paste back into DECLARED_GUARDS, for the source that moved. */
+export function pinLine(row) {
+  return `  ${row.tier}: { declared: ${row.declared}, ` +
+    `enrollable: ${row.enrollable}, names: "${row.names}" },`;
 }
 
 /** One line per source, for a human. Numbers right-aligned, no chrome. */
@@ -350,23 +629,66 @@ export function censusReport(rows) {
   const width = (pick) => Math.max(...rows.map((r) => String(pick(r)).length));
   const w1 = Math.max(...rows.map((r) => r.source.length));
   const w2 = Math.max(width((r) => r.declared), 8);
-  return rows.map((r) =>
-    `  ${r.source.padEnd(w1)}  ${String(r.enrolled).padStart(w2)} enrolled` +
-    ` / ${String(r.enrollable).padStart(w2)} enrollable` +
-    ` / ${String(r.declared).padStart(w2)} declared` +
-    (r.declared === r.pinned ? "" : `   <-- PINNED AT ${r.pinned}`)).join("\n");
+  return rows.map((r) => {
+    const moved = pinsMoved(r);
+    return `  ${r.source.padEnd(w1)}  ${String(r.enrolled).padStart(w2)} enrolled` +
+      ` / ${String(r.enrollable).padStart(w2)} enrollable` +
+      ` / ${String(r.declared).padStart(w2)} declared` +
+      moved.map((why) => `\n  ${" ".repeat(w1)}  <-- ${why}`).join("");
+  }).join("\n");
+}
+
+/** What the census cannot see, for a human. One line per limit. */
+export function limitsReport() {
+  return Object.entries(CENSUS_LIMITS)
+    .map(([key, why]) => `  ${key}\n${wrap(why, 72, "    ")}`).join("\n");
+}
+
+function wrap(text, cap, indent) {
+  const lines = [];
+  let line = indent;
+  for (const word of text.split(" ")) {
+    if (line.length > indent.length && line.length + 1 + word.length > cap) {
+      lines.push(line);
+      line = indent;
+    }
+    line += (line.length > indent.length ? " " : "") + word;
+  }
+  return lines.concat(line).join("\n");
+}
+
+/** The pairing of scan against run, for a human. */
+export function pairingReport(pairs) {
+  return pairs.map((p) => {
+    const faults = pairingFaults(p);
+    if (!p.runner) {
+      return `  ${p.source}\n    not paired against a run -- see ` +
+        "CENSUS_LIMITS.browser_scan_unverified";
+    }
+    const how = p.complete
+      ? `${p.executed} ran, ${p.declared} declared, both directions checked`
+      : `${p.executed} of ${p.declared} ran (${p.skipped.length} SKIP), so only ` +
+        "`everything that ran was declared` was checked";
+    return `  ${p.source}\n    ${p.failure ? "COULD NOT PAIR" : how}` +
+      faults.map((f) => `\n    <-- ${f}`).join("");
+  }).join("\n");
 }
 
 if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url))) {
   const state = census();
+  // The pairing runs the two fast tiers, so it is opt-in on BOTH modes rather
+  // than something every reader of the census pays a few seconds for.
+  const pairs = process.argv.includes("--executed") ? pairExecuted() : null;
   if (process.argv.includes("--json")) {
     console.log(JSON.stringify({
       sources: GUARD_SOURCES,
       pinned: DECLARED_GUARDS,
+      limits: CENSUS_LIMITS,
       specDir: SPEC_DIR.join("/"),
       specDirReadme: SPEC_DIR_README,
       guards: state.guards,
       rows: state.rows,
+      pairs,
       orphans: state.orphans.map((s) => ({
         specFile: s.specFile, tier: s.tier, expect_red: s.expect_red })),
       specNames: Object.fromEntries(
@@ -374,5 +696,20 @@ if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(im
     }));
   } else {
     console.log(censusReport(state.rows));
+    const moved = state.rows.filter((r) => pinsMoved(r).length);
+    if (moved.length) {
+      console.log("\nthe pins to write back into DECLARED_GUARDS:");
+      console.log(moved.map(pinLine).join("\n"));
+    }
+    if (pairs) {
+      console.log("\nthe scan, paired against what the tier ran:");
+      console.log(pairingReport(pairs));
+    }
+    // ALWAYS printed, pairing or no pairing. The honest limits are not a
+    // verbose mode: the three arrivals closed on 2026-09-30 had each been
+    // sitting in this mechanism unnamed until a reviewer went looking, and a
+    // gate whose bypasses are only in a review report grows a fourth.
+    console.log("\nwhat this census cannot see:");
+    console.log(limitsReport());
   }
 }
