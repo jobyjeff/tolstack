@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: prompts/review
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
+class: fixed_at_one_of_n_sites
+defer_until: class:fixed_at_one_of_n_sites
 ---
 
 # The review-merge rule landed in tolstack's override; the principle behind it is not repo-specific

@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20260916_reader_facing_copy_and_vocabulary.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # `dd.kv__value` exempts 433 nodes from the whole surface scan — the free-form blocks are scanned for their labels and not their values

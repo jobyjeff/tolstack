@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tests/browser-tier
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260918_visual_rules_nothing_checks.md
+class: wall_clock_dependence
+defer_until: class:wall_clock_dependence
 ---
 
 # Three of the browser tier's seven `setViewportSize` calls measure straight through the app's 150ms repaint debounce

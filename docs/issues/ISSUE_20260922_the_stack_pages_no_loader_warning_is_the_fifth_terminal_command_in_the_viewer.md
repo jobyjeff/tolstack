@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # The stack page's no-loader warning is a fifth terminal command in the viewer, on a branch no tier reaches

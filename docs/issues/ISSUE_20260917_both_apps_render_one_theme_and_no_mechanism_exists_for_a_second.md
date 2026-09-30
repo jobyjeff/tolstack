@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: apps/viewer
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_design_pass_typography.md
+class: missing_capability
+defer_until: class:missing_capability
 ---
 
 # "Contrast holds in both themes" has nothing to hold in: both apps render one theme, and no mechanism for a second exists anywhere

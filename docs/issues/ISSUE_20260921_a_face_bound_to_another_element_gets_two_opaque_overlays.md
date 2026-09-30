@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260921_annotate_face_suggestions.md
+class: dedup_key_omits_a_relational_dimension
+defer_until: 2026-10-29
 ---
 
 # design: a face bound to a DIFFERENT element gets both a bound mark and a suggestion overlay, on the same face

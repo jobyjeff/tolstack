@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260923_js_vocabulary_generated_from_python.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # Four `inList([...])` rows in `apps/viewer/tests.js`'s value guards still spell a Python-owned vocabulary by hand

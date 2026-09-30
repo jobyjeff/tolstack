@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: docs/SOP
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_python_value_and_schema_pins.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # The SOP documents no `joint` block at all, so an author following it cannot know to write `joint.assembly_export_ref`

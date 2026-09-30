@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: prompts/review
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260921_review_overlay_test_cadence.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # The review overlay's "A STACK-DATA change is a viewer-test change" entry still says pytest records a *skip* in a worktree — it records a *failure*, and has since 2026-09-18

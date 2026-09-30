@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260922_stack_page_alert_marks_and_drawn_glyph.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # `apps/viewer/README.md`'s `## Layout` tree is a hand-maintained file list that nothing pairs against the directory

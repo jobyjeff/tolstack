@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
+class: stale_test_identity
+defer_until: class:stale_test_identity
 ---
 
 # The typography suite's source-note clamp checks lost their subject, and were replaced by a check on the outcome rather than re-pointed

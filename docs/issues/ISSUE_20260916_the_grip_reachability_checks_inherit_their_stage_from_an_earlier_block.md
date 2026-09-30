@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: viewer/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md
+class: test_correctness_depends_on_prior_block_order
+defer_until: 2026-10-13
 ---
 
 # The four grip-reachability sub-checks are non-vacuous only because an earlier block left the jog zone open

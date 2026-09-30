@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer/tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # The findings table's "nothing is lost" assertion is satisfied by the gap panel beside it, not by the row

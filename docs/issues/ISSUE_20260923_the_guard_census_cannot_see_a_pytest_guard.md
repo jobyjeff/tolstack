@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: guards/mutation-witness
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260923_mutation_witness_derived_enrollment_and_gating.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # The guard census covers the three JS check sources and not pytest, so a Python guard can still arrive unenrolled in silence

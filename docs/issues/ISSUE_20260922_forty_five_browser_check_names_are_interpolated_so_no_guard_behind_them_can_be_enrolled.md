@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: guards/mutation-witness
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # 45 of the browser tier's 51 template-literal check names carry a live number, so no guard behind one of them can ever be enrolled

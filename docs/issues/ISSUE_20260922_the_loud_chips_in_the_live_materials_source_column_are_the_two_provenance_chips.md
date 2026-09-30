@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: apps/viewer
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # The chip that was folded out of the materials source column was never on a live page — the two that *are* always visible there are the provenance chips

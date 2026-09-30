@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_annotate_hint_bar_and_context_autofilter.md
+class: rerender_discards_uncommitted_input
+defer_until: 2026-10-13
 ---
 
 # The annotator's Help button discards a half-filled bind form

@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260916_reader_facing_copy_and_vocabulary.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # Nothing pairs `apps/viewer/README.md` against the strings it documents, so a copy change goes green with the documentation of it left wrong

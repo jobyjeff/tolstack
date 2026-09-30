@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tolerance_stack/stack
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260916_python_value_and_schema_pins.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # A joint's prose and structured assembly exports can name different runs, and nothing fails

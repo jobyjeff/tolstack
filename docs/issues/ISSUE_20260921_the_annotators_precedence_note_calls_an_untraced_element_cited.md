@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_annotate_hint_bar_and_context_autofilter.md
+class: internals_on_a_user_surface
+defer_until: class:internals_on_a_user_surface
 ---
 
 # The annotator's precedence note calls an UNTRACED element "already cited", and prints the schema value to say so

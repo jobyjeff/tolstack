@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tests/projection-freshness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260924_fixture_pairing_reads_a_fresh_projection.md
+class: fixed_at_one_of_n_sites
+defer_until: class:fixed_at_one_of_n_sites
 ---
 
 # Three more readers still trust `data/projections/viewer/` without asking which tree built it

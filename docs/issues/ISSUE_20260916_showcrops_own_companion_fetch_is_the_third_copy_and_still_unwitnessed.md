@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer / tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # `showCrop`'s companion term is the third copy of one line, and the only one still unwitnessed

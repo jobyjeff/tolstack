@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_nav_verdict_into_alert_and_icon.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # `apps/viewer/README.md` states "11 amber and 10 red across the 21 studies" and nothing asserts either number

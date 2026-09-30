@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
+class: internals_on_a_user_surface
+defer_until: class:internals_on_a_user_surface
 ---
 
 # The disconnected banner's folder path is the one absolute workstation path the reader-facing scan cannot hold

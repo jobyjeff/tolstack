@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests/doc-scans
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260924_claims_registry_guards_read_declarations_not_prose.md
+class: scan_corpus_includes_non_target_documents
+defer_until: class:scan_corpus_includes_non_target_documents
 ---
 
 # `docs/strategy/` is inside the claim corpus, so a brief that shows the declaration format outside a blockquote reddens the shared branch

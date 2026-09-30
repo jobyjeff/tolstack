@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tests/doc-scans
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260917_prose_guards_scope_out_strategy_briefs.md
+class: scan_corpus_includes_non_target_documents
+defer_until: class:scan_corpus_includes_non_target_documents
 ---
 
 # `live_documents()` is an `os.walk` that ignores `.gitignore`, so a scratch `.md` left in the main checkout joins every claim-shape scan's corpus

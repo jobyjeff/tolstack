@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: scripts/js_vocabulary.py
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260923_js_vocabulary_generated_from_python.md
+class: silent_failure
+defer_until: class:silent_failure
 ---
 
 # `crop_rules` and `crop_placements` skip a `resolved_by`/`located_by` they cannot resolve, where the other AST readers raise

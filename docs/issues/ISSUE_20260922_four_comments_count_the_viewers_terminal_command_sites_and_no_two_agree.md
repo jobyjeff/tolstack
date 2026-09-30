@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # Four comments count "the four terminal commands in the viewer's chrome" and no two of them mean the same four

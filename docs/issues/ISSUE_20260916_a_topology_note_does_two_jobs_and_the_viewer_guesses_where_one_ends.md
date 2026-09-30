@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: docs/topologies
 reporter: agent
 audience: strategy
 found_by: docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md
+class: closed_set_needs_open_set
+defer_until: class:closed_set_needs_open_set
 ---
 
 # A topology `note` does two jobs, so the viewer has to guess where the description ends

@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: schema/citations
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260916_citation_identity_correctness.md
+class: closed_set_needs_open_set
+defer_until: class:closed_set_needs_open_set
 ---
 
 # An element whose nominal and band come from two different artifacts can cite only one of them, and the other reading survives only as prose

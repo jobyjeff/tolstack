@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tests/browser-tier
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260918_visual_rules_nothing_checks.md
+class: silent_failure
+defer_until: class:silent_failure
 ---
 
 # A browser suite that SKIPs returns `ok: true` and is counted in `23/23 browser checks passed` — the same shape that put two red `[real]` tests on trunk

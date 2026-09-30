@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/docs
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # Two comments still cite the `.tvwarn` classes this pass deleted

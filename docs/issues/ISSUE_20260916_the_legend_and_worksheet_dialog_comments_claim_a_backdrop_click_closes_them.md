@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_crop_lightbox_zoom_viewer.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # Two comments say a backdrop click closes a `<dialog>`. It does not.

@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: docs/topologies
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_viewer_hover_deslop_and_banner_purge.md
+class: closed_set_needs_open_set
+defer_until: class:closed_set_needs_open_set
 ---
 
 # Five authored notes open with "Added 2026-09-15 (handoff …)", so the one sentence the viewer shows in the open is bookkeeping

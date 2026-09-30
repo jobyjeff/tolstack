@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: docs/sessions
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # 7 of the 13 committed `design_pass_typography` screenshots no longer match what the probe takes off `integration`, so the byte-identical property the pair leaned on is gone

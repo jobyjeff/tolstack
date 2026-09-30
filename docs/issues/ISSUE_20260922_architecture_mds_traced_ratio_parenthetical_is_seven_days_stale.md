@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: docs
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # `ARCHITECTURE.md`'s traced-ratio sentence publishes a stale `inferred`/`untraced` split — the one part of that figure no guard reads

@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: tests/vocabulary
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260918_real_tier_red_and_the_skipping_tier.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # `VA.JOINT_EXPORT_KEY` is a twelfth hand-copy of a Python constant, and it is a bare string, which is the one shape `test_js_python_vocabulary.py` cannot extract

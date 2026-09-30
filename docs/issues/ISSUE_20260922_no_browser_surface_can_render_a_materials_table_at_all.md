@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # No browser surface renders a materials table, so every CSS claim about the materials row is unwitnessed

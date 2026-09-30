@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260918_reader_facing_surfaces_second_pass.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # `apps/annotate/run_tests.cjs` is run by no gate, so the annotator's guards are only ever run by hand

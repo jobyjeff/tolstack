@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260921_annotate_face_suggestions.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # `apps/annotate/README.md` now states measured geometry numbers, and it is the

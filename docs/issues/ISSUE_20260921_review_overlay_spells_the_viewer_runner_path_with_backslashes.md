@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: prompts/review
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_review_overlay_test_cadence.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # The review overlay spells the viewer runner's own script path with backslashes, in the entry that warns about backslashes

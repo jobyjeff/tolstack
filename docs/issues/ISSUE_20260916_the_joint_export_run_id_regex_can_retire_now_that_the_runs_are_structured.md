@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: scripts/build_viewer_crops
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_python_value_and_schema_pins.md
+class: guard_reads_prose
+defer_until: class:guard_reads_prose
 ---
 
 # `build_viewer_crops._RUN_ID_RE` parses run ids out of a prose sentence that now has a structured sibling

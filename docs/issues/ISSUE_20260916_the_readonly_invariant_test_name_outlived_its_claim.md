@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: tests/provenance
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_citation_identity_correctness.md
+class: stale_test_identity
+defer_until: class:stale_test_identity
 ---
 
 # `test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit` no longer describes what it checks, and six live documents name it

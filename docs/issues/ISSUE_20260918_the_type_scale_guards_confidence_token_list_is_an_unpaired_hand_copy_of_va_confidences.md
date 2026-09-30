@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: tests/vocabulary
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260918_visual_rules_nothing_checks.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # `CONFIDENCE_TOKENS` is a hand-copy of `VA.CONFIDENCES`, and the guard it parametrizes goes SILENT — not red — when it drifts

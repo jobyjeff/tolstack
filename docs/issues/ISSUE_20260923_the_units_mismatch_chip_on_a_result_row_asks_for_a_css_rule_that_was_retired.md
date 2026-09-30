@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/stack-page
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
+class: unpaired_hand_copy
+defer_until: class:unpaired_hand_copy
 ---
 
 # The results table's units-mismatch warning asks for `.chip--alert`, which was retired the day before

@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
+class: internals_on_a_user_surface
+defer_until: class:internals_on_a_user_surface
 ---
 
 # The annotator's command box is a developer affordance living in a reader's chrome, and rewording its placeholder did not settle that

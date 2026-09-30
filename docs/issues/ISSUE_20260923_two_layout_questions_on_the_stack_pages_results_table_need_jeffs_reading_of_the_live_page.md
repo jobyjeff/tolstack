@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: viewer/stack-page
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
+class: layout_measurement_awaits_human_decision
+defer_until: class:layout_measurement_awaits_human_decision
 ---
 
 # Two layout questions on the stack page's results table need Jeff's reading of the live page

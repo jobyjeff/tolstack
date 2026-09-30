@@ -1,10 +1,12 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_annotate_hint_bar_and_context_autofilter.md
+class: missing_capability
+defer_until: class:missing_capability
 ---
 
 # The viewer offers no way into 3D at TOPOLOGY scope — only per study

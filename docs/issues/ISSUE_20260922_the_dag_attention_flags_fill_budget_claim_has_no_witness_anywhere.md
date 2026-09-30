@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_mutation_witness_enrollment_backlog.md
+class: guard_cannot_fail
+defer_until: class:guard_cannot_fail
 ---
 
 # `.tvflag`'s "outlined, not filled" claim has no witness anywhere — the only fill census that exists runs on a page `.tvflag` never renders on
