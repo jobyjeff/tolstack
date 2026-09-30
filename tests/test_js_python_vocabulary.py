@@ -408,10 +408,17 @@ def viewer_tables() -> dict[str, frozenset[str]]:
     Two sources, because since 2026-09-23 a viewer vocabulary lives in one of two
     shapes and the chain scan must be able to name either:
 
-    * **hand-authored in the app** -- ``VA.CONFIDENCE_LABEL``, ``VA.ATTENTION``,
+    * **hand-authored in the app** -- ``VA.EXPORT_SUBJECTS``, ``VA.ATTENTION``,
       ``VA.MONTH_NAMES``: read with the two character scanners above. An anchor
       either extractor refuses is skipped rather than raising, because a mid-scan
       raise would drop every table after the first awkward one.
+      (``VA.CONFIDENCE_LABEL`` no longer anchors here as of
+      ``confidence_label_is_paired_to_its_vocabulary``: it is now
+      ``VOCAB.table("CONFIDENCES", {``, so this scan reads its keys under the
+      generated name ``CONFIDENCES`` -- already present below via
+      ``VA.CONFIDENCES = VOCAB.list("CONFIDENCES")`` -- and drops out of this
+      dict under its own name. No coverage is lost: the two tables share
+      one key set.)
     * **generated** -- the twenty-one the viewer reads out of
       ``apps/viewer/vocab.gen.js``. Those are taken from
       ``scripts/js_vocabulary.py``, the registry the file itself is rendered from,
@@ -541,9 +548,13 @@ def test_the_extractor_fails_loudly_when_the_table_is_not_there(viewer_js):
     out of ``viewer_tables`` and a chain that restates it is named against the
     wrong table, or against nothing.
 
-    ``VA.CONFIDENCE_LABEL`` rather than one of the generated vocabularies,
+    ``VA.EXPORT_SUBJECTS`` rather than one of the generated vocabularies,
     because a generated one has no ``VA.<NAME> = {`` line to find: what this
     scanner still reads is the hand-authored per-value copy beside them.
+    (``VA.CONFIDENCE_LABEL`` was this test's example until
+    ``confidence_label_is_paired_to_its_vocabulary`` routed it through
+    ``VOCAB.table`` too, which is exactly the shape this anchor no longer
+    matches -- so the example moved to a table that is still hand-authored.)
     """
     with pytest.raises(LookupError) as err:
         js_object_keys(viewer_js, "NO_SUCH_STATUSES")
@@ -551,9 +562,9 @@ def test_the_extractor_fails_loudly_when_the_table_is_not_there(viewer_js):
 
     # Two definitions of the same table is the other way the anchor stops being
     # meaningful -- the scan would take the first and miss the keys of the second.
-    doubled = viewer_js + "\n  VA.CONFIDENCE_LABEL = {\n    sneaky: 1,\n  };\n"
+    doubled = viewer_js + "\n  VA.EXPORT_SUBJECTS = {\n    sneaky: 1,\n  };\n"
     with pytest.raises(LookupError) as err:
-        js_object_keys(doubled, "CONFIDENCE_LABEL")
+        js_object_keys(doubled, "EXPORT_SUBJECTS")
     assert "found 2" in str(err.value)
 
 

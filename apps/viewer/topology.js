@@ -702,6 +702,15 @@
   // BINDING_STATE_ALERTS takes for `bound`.
   VA.NAV_STATUS_LOOK = "warn";
   VA.NAV_STATUS_WORST = "fail";
+
+  // A composition, not a copy: tolerance_stack/stack.py's VERDICTS
+  // (pass/marginal/fail) plus `none` and `error`, the two states a nav row
+  // can carry that no verdict ever does (no study ran at all; the study ran
+  // and raised). Same shape as apps/annotate/binding_state.js's
+  // AA.BINDING_STATES -- a real vocabulary with no single Python owner to
+  // generate from, because the extra words are this rail's own, not a
+  // definition anywhere else -- so it stays hand-written rather than routed
+  // through VOCAB.table.
   VA.NAV_VERDICT_LEVELS = {
     pass: null,
     marginal: VA.NAV_STATUS_LOOK,

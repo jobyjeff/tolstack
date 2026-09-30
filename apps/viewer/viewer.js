@@ -66,12 +66,23 @@
 
   VA.CONFIDENCES = VOCAB.list("CONFIDENCES");
 
-  VA.CONFIDENCE_LABEL = {
+  // The keys are that same vocabulary, two lines up -- compared against it at
+  // load exactly like VA.VERDICTS and the other per-value tables below. The
+  // argument for taking the behaviour change (a fifth confidence added in
+  // Python now refuses to load rather than render): every one of this
+  // table's thirteen read sites is `VA.CONFIDENCE_LABEL[x] || x`, and that
+  // fallback is for a value genuinely outside the vocabulary (an unknown
+  // stands on its own word, better than nothing) -- not for a word generation
+  // forgot to teach this table. A page that still renders cannot tell those
+  // two apart; only VOCAB.table can, and only at load, before a reader sees
+  // the raw machine word where a citation badge should be.
+  // (ISSUE_20260923_confidence_label_is_keyed_by_a_generated_vocabulary_but_not_paired_to_it.)
+  VA.CONFIDENCE_LABEL = VOCAB.table("CONFIDENCES", {
     traced: "traced",
     inferred: "inferred",
     untraced: "UNTRACED",
     no_source_ref: "NO CITATION",
-  };
+  });
 
   // The confidences that mean *nothing readable stands behind this number*: it
   // traces to no drawing or datasheet, or carries no citation at all. The loud
