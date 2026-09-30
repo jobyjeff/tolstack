@@ -55,3 +55,32 @@ stamp. What must not happen is three hand-written freshness checks that drift.
 not: a stale source for a declared value could be `UNAVAILABLE` (the outcome
 the registry already has for a source it cannot reach) rather than a failure,
 since "I could not check this" is a state it already models honestly.
+
+## Update 2026-09-30 — the implementation is no longer inside the viewer's harness
+
+`projection_freshness_pairs_with_the_tree` was scoped to *what* the check must
+measure, not *where* it should live, so this issue's question is still open and
+this is not a resolution. What changed is the cost of answering it:
+
+- The check is now `scripts/projection_freshness.cjs`, a module rather than a
+  function inside `apps/viewer/run_tests.cjs`. `projectionFreshness(dataRoot,
+  treeRoot)` and `projectionInputs(dataRoot, treeRoot)` are exported, and the
+  file is runnable on its own:
+  `node scripts/projection_freshness.cjs --repo <main checkout> [--json|--inputs]`,
+  exiting non-zero when the projection is not paired.
+- So the "second node harness" row (`apps/annotate/run_tests.cjs`) is a
+  `require` away, and the Python rows can either shell out to that CLI or keep
+  Python as the one copy — the decision this issue exists for is unchanged, but
+  neither option now starts with an extraction.
+- What the check measures also moved, and a reader of the table above should
+  know it: the input set is the stamp's source directory plus the builder's own
+  **Python import closure** (derived, not listed), a `dirty: true` stamp is
+  stale, and an untracked file in an input directory counts as drift
+  (`ISSUE_20260924_the_projection_freshness_pairing_reads_tracked_head_content_only`,
+  all three arms closed and witnessed).
+- One residue is filed separately because it needs a stamp-shape decision
+  rather than a reader:
+  `ISSUE_20260930_projection_freshness_cannot_see_a_builders_gitignored_inputs.md`.
+  Whoever answers "where should this live" should read it first — where the
+  implementation goes and what the stamp has to carry are the same design
+  conversation.
