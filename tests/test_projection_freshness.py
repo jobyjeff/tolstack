@@ -6,8 +6,8 @@ are all *negative* -- an untracked file in a globbed input directory, a stamp
 that says the builder's tree was dirty, an edit to a module the builder imports.
 Producing any of those in this checkout means dirtying it, and producing them in
 ``data/projections/viewer/`` means overwriting the artifact **every live worktree
-shares**. So each test below builds a four-file git repo in ``tmp_path``, writes
-a provenance stamp into it by hand, and asks the real check about it. The cost is
+shares**. So each test below builds a small git repo in ``tmp_path``, writes a
+provenance stamp into it by hand, and asks the real check about it. The cost is
 that the fixture is a model of this repo rather than this repo; the model's one
 load-bearing property -- that the builder's import closure is walked out of the
 tree rather than listed -- is asserted directly
@@ -27,12 +27,16 @@ edit to a module nothing imports -- because the constraint on widening this chec
 is not coverage but direction: an alarm that is always on is the failure
 ``scripts/projection_provenance.py`` already wrote down.
 
-The mutation shadow's coupling gets the last test, and it is the one that is not
-about a synthetic tree: the check runs under
+The mutation shadow's coupling gets the last two tests, and they are the ones
+that are not about a synthetic tree: the check runs under
 ``scripts/run_mutation_witness_tests.mjs`` with ``--work-tree=<shadow>``, and a
 path the input set names that the shadow does not hold reads as a *deletion* --
 red on the clean run, with every ``fast`` witness then reporting
-``TIER_ALREADY_RED`` for a reason absent from its own output.
+``TIER_ALREADY_RED`` for a reason absent from its own output. **Both arms of
+that preflight are driven, and both assert on what is PRINTED rather than on the
+exit code alone** -- for one commit the refusal arm exited non-zero by
+*crashing*, which is indistinguishable from refusing if all you read is the code
+(review, 2026-09-30).
 
 Handoff: ``projection_freshness_pairs_with_the_tree`` (2026-09-30).
 """
@@ -145,12 +149,10 @@ def _project(root: Path, stamp: dict) -> None:
     )
 
 
-@pytest.fixture()
-def tree(tmp_path: Path) -> Path:
-    """A committed synthetic repo with a projection stamped from its own HEAD."""
-    root = tmp_path / "model"
-    root.mkdir()
-    for rel, text in TREE.items():
+def _commit_tree(root: Path, files: dict) -> Path:
+    """A committed synthetic repo of ``files`` with a projection stamped from HEAD."""
+    root.mkdir(parents=True, exist_ok=True)
+    for rel, text in files.items():
         _write(root, rel, text)
     _git(root, "init", "--quiet")
     _git(root, "config", "user.email", "agent@example.invalid")
@@ -159,6 +161,12 @@ def tree(tmp_path: Path) -> Path:
     _git(root, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "the model tree")
     _project(root, _stamp(root, _git(root, "rev-parse", "HEAD")))
     return root
+
+
+@pytest.fixture()
+def tree(tmp_path: Path) -> Path:
+    """A committed synthetic repo with a projection stamped from its own HEAD."""
+    return _commit_tree(tmp_path / "model", TREE)
 
 
 def _verdict(root: Path) -> dict:
@@ -290,6 +298,87 @@ def test_an_edit_to_a_module_the_builder_imports_is_drift(tree: Path) -> None:
     assert "scripts/projection_provenance.py" in verdict["why"]
 
 
+def test_a_builder_missing_from_the_tree_is_not_paired(tree: Path) -> None:
+    # Found in review, 2026-09-30. The hand-written path list this derivation
+    # replaced pushed `built_by` UNCONDITIONALLY, so a renamed or deleted
+    # builder showed up as a deletion in the diff. Deriving the set by walking
+    # the closure and keeping only what came back lost that: `importClosure`
+    # reads files, an unreadable entry contributes nothing, and a projection
+    # whose builder is not in the tree read `paired with this tree` -- with the
+    # closure of every OTHER projection that imports it quietly narrowing in the
+    # same run. `built_by` is seeded before the walk for exactly this.
+    (tree / BUILDER).unlink()
+    verdict = _verdict(tree)
+    assert not verdict["fresh"], "a projection whose builder is gone read as paired"
+    assert BUILDER in verdict["why"]
+
+
+def test_a_module_the_builder_imports_going_missing_is_not_paired(tree: Path) -> None:
+    # The same defect one site over, and the reason the fix is not just
+    # "seed `built_by`". `scripts/projection_provenance.py` is no projection's
+    # `built_by` and every builder's import: resolving imports against the work
+    # tree alone meant renaming it dropped it from every input set and all
+    # three real projections reported paired. Resolving against `<sha>`'s
+    # tracked listing as well (`treeAt`) is what keeps a module that WAS local
+    # at the stamped commit in the set, where its disappearance is drift.
+    (tree / "scripts" / "projection_provenance.py").unlink()
+    verdict = _verdict(tree)
+    assert not verdict["fresh"], "a renamed imported module read as paired"
+    assert "scripts/projection_provenance.py" in verdict["why"]
+
+
+def test_a_third_party_import_stays_invisible(tree: Path) -> None:
+    # The twin, and the reason the union above cannot simply be "every name an
+    # import statement mentions". `fitz` (PyMuPDF) is imported by the real crop
+    # builder and is local at neither end, so it must contribute nothing --
+    # otherwise the input set names a path that is never in the tree and the
+    # check is red on every clean run forever.
+    _write(tree, BUILDER, "import fitz\nimport projection_provenance as prov\n")
+    _git(tree, "add", "--all")
+    _git(tree, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "import a stranger")
+    _project(tree, _stamp(tree, _git(tree, "rev-parse", "HEAD")))
+    assert "fitz" not in " ".join(_inputs(tree))
+    verdict = _verdict(tree)
+    assert verdict["fresh"], verdict["why"]
+
+
+def test_an_untracked_file_in_a_derived_package_directory_is_not_drift(tree: Path) -> None:
+    # The fence, on the sharpest edge of question 4. Two kinds of directory sit
+    # in the input set: the source directory the STAMP names, which a builder
+    # really does glob a new file out of, and a PACKAGE the closure derived. A
+    # new module in a package becomes an input only when some tracked file
+    # starts importing it, and that edit is in the diff -- so asking question 4
+    # of the package took all three real projections stale on one scratch file
+    # nothing imports, and printed "rebuild the projections" as the remedy
+    # (measured in review, 2026-09-30). Its twin two tests up -- the same file
+    # in the stamp's own directory -- must stay loud.
+    _write(tree, "tolerance_stack/zzz_scratch.py", "X = 1\n")
+    verdict = _verdict(tree)
+    assert verdict["fresh"], verdict["why"]
+
+
+def test_a_relative_import_is_followed_out_of_its_package(tmp_path: Path) -> None:
+    # `from . import x` resolved to nothing until review, 2026-09-30 -- the one
+    # import form the closure could not see, in a derivation whose whole claim
+    # is that it replaces a hand list. No builder in this repo writes it today,
+    # which is why it needs a tree of its own to be witnessed at all: the chain
+    # here reaches `second_pkg` ONLY through the relative import in
+    # `tolerance_stack/__init__.py`.
+    root = _commit_tree(tmp_path / "relative", {
+        ".gitignore": "__pycache__/\ndata/\n",
+        "docs/tolerance_stacks/stack_a.json": '{"schema": "stack/v0"}\n',
+        BUILDER: "import tolerance_stack\n",
+        "tolerance_stack/__init__.py": "from . import stack\n",
+        "tolerance_stack/stack.py": "from second_pkg.core import thing\n",
+        "second_pkg/__init__.py": "",
+        "second_pkg/core.py": "thing = 1\n",
+    })
+    assert "second_pkg" in _inputs(root), (
+        "the closure did not follow `from . import stack`, so it never reached "
+        "the package that module imports"
+    )
+
+
 def test_an_edit_to_a_module_nothing_imports_is_not_drift(tree: Path) -> None:
     # The fence, again, and the reason the input set is an import closure rather
     # than `scripts/`: a tracked file in the same directory that no builder
@@ -351,9 +440,8 @@ def _main_checkout() -> Path:
     return Path(common.stdout.strip()).parent
 
 
-def test_the_mutation_shadow_covers_every_input_the_freshness_check_names() -> None:
-    data_root = _main_checkout()
-    proc = subprocess.run(
+def _preflight(data_root: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
         [_node(), str(WITNESS_RUNNER),
          "--check-shadow-covers-projection-inputs", "--repo", str(data_root)],
         cwd=str(REPO_ROOT),
@@ -362,6 +450,19 @@ def test_the_mutation_shadow_covers_every_input_the_freshness_check_names() -> N
         encoding="utf-8",
         errors="replace",
         timeout=180,
+    )
+
+
+def test_the_mutation_shadow_covers_every_input_the_freshness_check_names() -> None:
+    data_root = _main_checkout()
+    proc = _preflight(data_root)
+    # An exit code alone is not enough here, and that is the whole reason this
+    # line exists: a node crash also exits non-zero, and for one commit this
+    # preflight's refusal arm did exactly that inside a `const`'s temporal dead
+    # zone while its own mutation witness reported WITNESSED over the wreckage
+    # (review, 2026-09-30). Both arms assert on what is PRINTED.
+    assert "ReferenceError" not in (proc.stdout + proc.stderr), (
+        "the preflight crashed rather than answering:\n" + proc.stdout + proc.stderr
     )
     assert proc.returncode == 0, (
         "the mutation shadow would not hold every path the viewer tier's "
@@ -378,3 +479,51 @@ def test_the_mutation_shadow_covers_every_input_the_freshness_check_names() -> N
         # about SHADOWED. It is not a failure -- `data/` is gitignored by design
         # -- but it is not coverage either.
         assert "no stamped projection" in proc.stdout, proc.stdout
+
+
+#: A path this repo really has and `SHADOWED` really does not copy. Used to
+#: reach the preflight's refusal arm without editing `SHADOWED` (which is the
+#: thing under test) -- `docs/reference/` is insert-only imported text, so it is
+#: in no tier's read set and is a fair stand-in for the next input a derivation
+#: reaches that nobody copied.
+UNSHADOWED_INPUT = "docs/reference"
+
+
+def test_the_shadow_coverage_refusal_names_the_path_and_the_remedy(tmp_path: Path) -> None:
+    """The preflight's FAILING arm, asserted on what it prints.
+
+    The success arm touches no module-level constant and the refusal arm does,
+    so for one commit this printed two lines and then
+    ``ReferenceError: Cannot access 'MISS' before initialization`` exactly where
+    the remedy goes -- a node stack trace in place of reader-facing copy, on the
+    one surface the lesson and the reviewer checklist both advertise. The
+    mutation witness could not see it either, because a crash exits non-zero
+    just like a refusal does. So this drives the arm directly, with a data root
+    whose stamp names a real path ``SHADOWED`` does not copy.
+    """
+    data_root = tmp_path / "doctored"
+    stamp = _stamp(REPO_ROOT, "0" * 40)
+    # The source directory is found BY SHAPE -- an absolute path under the
+    # recorded repo root -- so pointing `stacks_dir` at an unshadowed directory
+    # of this repo is all it takes to produce a gap.
+    stamp["stacks_dir"] = REPO_ROOT.as_posix() + "/" + UNSHADOWED_INPUT
+    stamp["built_by"] = "scripts/build_viewer_projection.py"
+    _project(data_root, stamp)
+
+    proc = _preflight(data_root)
+    out = proc.stdout + proc.stderr
+    assert "ReferenceError" not in out, (
+        "the refusal arm crashed instead of printing its remedy:\n" + out
+    )
+    assert proc.returncode == 1, out
+    assert proc.stderr == "", f"the refusal arm wrote to stderr:\n{proc.stderr}"
+    # The path, the consequence, and the remedy. The crash printed the first and
+    # lost the other two, so the discriminator is the LAST paragraph: it is
+    # emitted after the `MISS` reference that threw. The wording of the
+    # consequence itself is not asserted -- that sentence is `MISS`'s
+    # vocabulary, and a test restating it would be the hand-copy this repo keeps
+    # paying for.
+    assert UNSHADOWED_INPUT in proc.stdout, proc.stdout
+    assert "DELETION" in proc.stdout, proc.stdout
+    assert "SHADOWED" in proc.stdout, proc.stdout
+    assert "run_mutation_witness_tests.mjs" in proc.stdout, proc.stdout

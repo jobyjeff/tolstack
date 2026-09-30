@@ -23,14 +23,16 @@
 // a rebuild would write sat in the gap, each reporting fresh
 // (ISSUE_20260924_the_projection_freshness_pairing_reads_tracked_head_content_only).
 // A true check wearing an overreaching description is the defect this module
-// was re-opened to fix, so the description is now four questions and a list of
-// what is still outside them:
+// was re-opened to fix, so the description is now the questions themselves plus
+// a list of what is still outside them:
 //
 //   1. Is the commit the stamp names in this tree at all?      `cat-file -e`
 //   2. Did the tree that built it have uncommitted changes?    the stamp's `dirty`
 //   3. Do the inputs' TRACKED files still match that commit?   `diff --name-only`
-//   4. Does any input DIRECTORY hold an untracked file that a  `ls-files --others`
-//      rebuild would glob in?
+//   4. Does the source directory the STAMP names -- the one a  `ls-files --others`
+//      builder globs -- hold an untracked file a rebuild
+//      would read? (Only that one. Question 4 is the
+//      false-alarm fence's sharpest edge; see it at the call.)
 //
 // Still outside it, and not close to catching them: a builder's GITIGNORED
 // inputs (`build_viewer_crops.py` reads the datasheet pile under
@@ -123,14 +125,21 @@ function show(names) {
 //
 // Two halves, and NEITHER of them is a list written here. The first is what the
 // stamp records (its source directory, and the script that ran); the second is
-// that script's own Python import closure, walked out of the tree.
-// Hand-writing the second half is the defect this repo keeps paying for: the
-// constant that used to sit here called `tolerance_stack` "the one input that is
-// NOT derivable from a stamp", and it was not the only one --
-// `build_topology_projection.py` imports `build_viewer_projection`,
-// `build_viewer_crops` and `projection_provenance`, so an edit to the first of
-// those marked `results.json` stale (its own `built_by`) and left
-// `topologies.json`, which the same edit also changes, reading fresh.
+// that script's own Python import closure. Hand-writing the second half is the
+// defect this repo keeps paying for: the constant that used to sit here called
+// `tolerance_stack` "the one input that is NOT derivable from a stamp", and it
+// was not the only one -- `build_topology_projection.py` imports
+// `build_viewer_projection`, `build_viewer_crops` and `projection_provenance`,
+// so an edit to the first of those marked `results.json` stale (its own
+// `built_by`) and left `topologies.json`, which the same edit also changes,
+// reading fresh.
+//
+// WHICH TREE THE CLOSURE IS WALKED IN is the subtle half, and it is `<sha>`'s
+// tracked listing UNION the work tree -- see `treeAt`. Walking the work tree
+// alone let a derived input leave the set by being renamed, which is the same
+// false green in a new costume; walking `<sha>` alone would miss a module this
+// branch has newly added. The union keeps a module that was local at either end
+// in the set and leaves `import fitz`, local at neither, invisible.
 
 // Every `import x` / `from x import y` in Python source. Source text rather
 // than a real interpreter on purpose: the interpreter lives in `venv-win/`,
@@ -171,12 +180,65 @@ function importsOf(source) {
   return found;
 }
 
-// Where a dotted module name imported from `fromRel` could be in THIS tree.
-// Two search roots, and both are how the builders are actually run: the
-// importing file's own directory (every builder does
+/**
+ * How the closure sees the tree: a path EXISTS if it is tracked at the
+ * projection's own commit **or** present in the work tree, and reading it
+ * prefers the work tree and falls back to the commit's blob.
+ *
+ * THE UNION IS THE POINT, and it is what closes the class of defect found in
+ * review on 2026-09-30. A derived set drops what a hand list asserted
+ * unconditionally: resolving imports against the work tree alone meant a
+ * renamed or deleted local module simply stopped being an input, so the
+ * projection built from it read *paired with this tree*. `built_by` was the
+ * measured instance and is seeded separately, but it was not the only one --
+ * rename `scripts/projection_provenance.py`, which is no projection's
+ * `built_by` and every builder's import, and all three projections went quiet.
+ * A module that was local at `<sha>` stays in the input set, where the diff
+ * reports its disappearance as the drift it is; `import fitz`, local at neither
+ * end, stays invisible, which is what keeps the alarm off.
+ *
+ * It also retires a caveat: the closure no longer narrows silently against a
+ * PARTIAL work tree (the mutation shadow), because `<sha>`'s listing is in the
+ * object database whatever the work tree holds.
+ *
+ * One `ls-tree` per commit, cached, and a `git show` only for files the closure
+ * actually walks and the work tree does not have.
+ */
+function treeAt(treeRoot, gitArgs, sha) {
+  const listing = sha === null
+    ? null
+    : gitOut(treeRoot, gitArgs.concat(["ls-tree", "-r", "--name-only", sha]));
+  const tracked = new Set(listing === null ? [] : lines(listing));
+  const blobs = new Map();
+  return {
+    // Whether the commit could be listed at all. `false` means the union
+    // degrades to the work tree alone, which is the pre-2026-09-30 behaviour
+    // and is honest here: the caller refuses a commit it cannot read anyway.
+    knowsCommit: listing !== null,
+    tracked: tracked,
+    exists(rel) {
+      return tracked.has(rel) ||
+        fs.existsSync(path.join(treeRoot, ...rel.split("/")));
+    },
+    read(rel) {
+      const onDisk = readText(treeRoot, rel);
+      if (onDisk !== null) return onDisk;
+      if (!tracked.has(rel)) return null;
+      if (!blobs.has(rel)) {
+        const blob = gitOut(treeRoot, gitArgs.concat(["show", sha + ":" + rel]));
+        blobs.set(rel, blob === null ? null : blob.replace(/^\uFEFF/, ""));
+      }
+      return blobs.get(rel);
+    },
+  };
+}
+
+// Where a dotted module name imported from `fromRel` could be in the tree --
+// `tree` being the union above. Two search roots, and both are how the builders
+// are actually run: the importing file's own directory (every builder does
 // `sys.path.insert(0, str(Path(__file__).parent))`, so its siblings import by
 // bare name) and the repo root (where `tolerance_stack/` is).
-function candidates(treeRoot, fromRel, dotted) {
+function candidates(tree, fromRel, dotted) {
   const fromDir = fromRel.indexOf("/") === -1
     ? "" : fromRel.slice(0, fromRel.lastIndexOf("/"));
   let name = dotted;
@@ -189,14 +251,23 @@ function candidates(treeRoot, fromRel, dotted) {
     const parts = fromDir ? fromDir.split("/") : [];
     roots = [parts.slice(0, Math.max(0, parts.length - (up - 1))).join("/")];
     name = name.slice(up);
-    if (!name) return [];
   }
   const out = [];
   for (const root of roots) {
+    // `from . import x` / `from .. import x`: the module IS the package, so the
+    // candidate is its `__init__.py` and the imported names are resolved as
+    // submodules by the caller. Returning nothing here (which it did until
+    // review, 2026-09-30) made the one import form the closure could not see,
+    // in a derivation whose whole claim is that it replaces a hand list. No
+    // builder writes it today; that is why it was a note and not a defect.
+    if (!name) {
+      if (root) out.push(root + "/__init__.py");
+      continue;
+    }
     const stem = (root ? root + "/" : "") + name.split(".").join("/");
     out.push(stem + ".py", stem + "/__init__.py");
   }
-  return out.filter((rel) => readText(treeRoot, rel) !== null);
+  return out.filter((rel) => tree.exists(rel));
 }
 
 // The top-level package directory `rel` sits in, or null for a loose module. A
@@ -205,11 +276,11 @@ function candidates(treeRoot, fromRel, dotted) {
 // by attribute, and a directory is also what makes an untracked new module
 // inside it visible (question 4 above). Derived -- a directory is a package if
 // it holds `__init__.py` -- so no package name is written down here.
-function packageOf(treeRoot, rel) {
+function packageOf(tree, rel) {
   const parts = rel.split("/");
   for (let depth = 1; depth < parts.length; depth += 1) {
     const dir = parts.slice(0, depth).join("/");
-    if (readText(treeRoot, dir + "/__init__.py") !== null) return dir;
+    if (tree.exists(dir + "/__init__.py")) return dir;
   }
   return null;
 }
@@ -219,7 +290,7 @@ function packageOf(treeRoot, rel) {
  * repo-relative POSIX paths -- a loose module as its own file, a module inside
  * a package as that package's directory.
  */
-function importClosure(treeRoot, entry) {
+function importClosure(tree, entry) {
   const seen = new Set();
   const queue = [entry];
   const out = new Set();
@@ -227,12 +298,12 @@ function importClosure(treeRoot, entry) {
     const rel = queue.shift();
     if (seen.has(rel)) continue;
     seen.add(rel);
-    const source = readText(treeRoot, rel);
+    const source = tree.read(rel);
     if (source === null) continue;
-    const pkg = packageOf(treeRoot, rel);
+    const pkg = packageOf(tree, rel);
     out.add(pkg === null ? rel : pkg);
     for (const { module, names } of importsOf(source)) {
-      const hits = candidates(treeRoot, rel, module);
+      const hits = candidates(tree, rel, module);
       for (const hit of hits) {
         if (!seen.has(hit)) queue.push(hit);
         // `from pkg import mod`, where a name may be a submodule rather than
@@ -242,7 +313,7 @@ function importClosure(treeRoot, entry) {
         for (const name of names) {
           for (const sub of [dir + "/" + name + ".py",
                              dir + "/" + name + "/__init__.py"]) {
-            if (readText(treeRoot, sub) !== null && !seen.has(sub)) queue.push(sub);
+            if (tree.exists(sub) && !seen.has(sub)) queue.push(sub);
           }
         }
       }
@@ -252,7 +323,12 @@ function importClosure(treeRoot, entry) {
 }
 
 /**
- * The repo-relative inputs one projection's stamp names.
+ * The repo-relative inputs one projection's stamp names, in two groups.
+ *
+ * `paths` is every input, and `stampNamed` is the subset the STAMP itself names
+ * -- its source directory and its `built_by` -- as opposed to the subset the
+ * import closure derived. The two are not interchangeable and one question
+ * distinguishes them (see `globbed` below).
  *
  * The KEY the source directory is filed under is the builder's choice --
  * `stacks_dir` for the two viewer projections, `events_dir` for the spec
@@ -261,23 +337,37 @@ function importClosure(treeRoot, entry) {
  * is the value that is an absolute path inside the recorded repo root.
  * Spelling the key here would be a second copy of a fact Python owns, and it
  * would go quietly wrong the day a fourth builder picks a third word.
+ *
+ * `built_by` is added UNCONDITIONALLY and then walked, which is not the same as
+ * walking it and taking what comes back. `importClosure` reads files, and a
+ * file it cannot read contributes nothing -- so seeding the closure with the
+ * builder and keeping only the closure's output dropped `built_by` from the
+ * input set exactly when the builder was renamed or deleted, and a renamed
+ * builder then read *paired with this tree*. The hand-written path list this
+ * derivation replaced pushed `built_by` unconditionally and caught it; found in
+ * review, 2026-09-30, and the reason the two lines below are in this order.
+ * `treeAt`'s union is the other half of that same fix, for every module the
+ * walk reaches rather than just the one it starts at.
  */
-function inputsOf(stamp, treeRoot) {
+function inputsOf(stamp, tree) {
   const root = String(stamp.repo_root || "").replace(/\/+$/, "");
-  const inputs = new Set();
+  const stampNamed = new Set();
   if (root) {
     for (const key of Object.keys(stamp)) {
       const value = stamp[key];
       if (key !== "repo_root" && typeof value === "string" &&
           value.indexOf(root + "/") === 0) {
-        inputs.add(value.slice(root.length + 1));
+        stampNamed.add(value.slice(root.length + 1));
       }
     }
   }
+  const paths = new Set(stampNamed);
   if (typeof stamp.built_by === "string" && stamp.built_by) {
-    for (const rel of importClosure(treeRoot, stamp.built_by)) inputs.add(rel);
+    stampNamed.add(stamp.built_by);
+    paths.add(stamp.built_by);
+    for (const rel of importClosure(tree, stamp.built_by)) paths.add(rel);
   }
-  return [...inputs];
+  return { paths: [...paths], stampNamed: [...stampNamed] };
 }
 
 /** The stamp in the projection at `full`; null for absent/unreadable/unstamped. */
@@ -292,6 +382,25 @@ function stampOf(full) {
 }
 
 /**
+ * The `--git-dir`/`--work-tree` prefix every git call here carries, or null.
+ *
+ * Both flags rather than a bare `git -C`, and it is load-bearing twice over: a
+ * linked worktree's `.git` is a file, and the mutation-witness shadow
+ * (tmp/mutation-witness/, a copy of the tracked tree INSIDE the repo) is a
+ * directory git would otherwise read straight past to the real working tree.
+ * Naming the work tree explicitly is what makes this check answer for the files
+ * a tier is actually reading, and therefore what makes it witnessable at all.
+ * `--no-optional-locks` so a run from a shadow cannot write the real checkout's
+ * index.
+ */
+function gitContext(treeRoot) {
+  const gitDir = gitOut(treeRoot, ["rev-parse", "--absolute-git-dir"]);
+  if (gitDir === null) return null;
+  return ["--no-optional-locks", "--git-dir=" + gitDir.trim(),
+          "--work-tree=" + treeRoot];
+}
+
+/**
  * Every input path the projections under `dataRoot` name, as one sorted set.
  *
  * Exposed for `scripts/run_mutation_witness_tests.mjs`, which has to hold this
@@ -302,13 +411,17 @@ function stampOf(full) {
  * now rather than rediscovered by hand.
  */
 function projectionInputs(dataRoot, treeRoot) {
+  const gitArgs = gitContext(treeRoot);
+  if (gitArgs === null) return [];
   const inputs = new Set();
   for (const name of PROJECTION_FILES) {
     const full = path.join(dataRoot, ...PROJECTION_DIR, name);
     if (!fs.existsSync(full)) continue;
     const stamp = stampOf(full);
     if (!stamp) continue;
-    for (const rel of inputsOf(stamp, treeRoot)) inputs.add(rel);
+    const tree = treeAt(treeRoot, gitArgs,
+      typeof stamp.head_sha === "string" && stamp.head_sha ? stamp.head_sha : null);
+    for (const rel of inputsOf(stamp, tree).paths) inputs.add(rel);
   }
   return [...inputs].sort();
 }
@@ -318,28 +431,17 @@ function projectionInputs(dataRoot, treeRoot) {
  * the tree at `treeRoot`. `why` is the whole message a tier prints.
  */
 function projectionFreshness(dataRoot, treeRoot) {
-  // `--git-dir` + `--work-tree` rather than a bare `git -C`, and it is
-  // load-bearing twice over: a linked worktree's `.git` is a file, and the
-  // mutation-witness shadow (tmp/mutation-witness/, a copy of the tracked tree
-  // inside the repo) is a directory git would otherwise read straight past to
-  // the real working tree. Naming the work tree explicitly is what makes this
-  // guard answer for the files the tier is actually reading, and therefore what
-  // makes it witnessable at all. `--no-optional-locks` so a run from a shadow
-  // cannot write the real checkout's index.
-  const gitDir = gitOut(treeRoot, ["rev-parse", "--absolute-git-dir"]);
-  if (gitDir === null) {
+  const gitArgs = gitContext(treeRoot);
+  if (gitArgs === null) {
     return {
       fresh: false,
       paired: [],
       why: "git could not be asked which tree " + treeRoot + " is, so the " +
         "projection under " + dataRoot + " could not be paired with it. A " +
         "[real] comparison against a projection of unknown provenance is not " +
-        "a check — see the note at the top of scripts/projection_freshness.cjs.",
+        "a check -- see the note at the top of scripts/projection_freshness.cjs.",
     };
   }
-  const gitArgs = ["--no-optional-locks", "--git-dir=" + gitDir.trim(),
-                   "--work-tree=" + treeRoot];
-
   const stale = [];
   const paired = [];
   for (const name of PROJECTION_FILES) {
@@ -348,7 +450,7 @@ function projectionFreshness(dataRoot, treeRoot) {
     const stamp = stampOf(full);
     if (!stamp || typeof stamp.head_sha !== "string" || !stamp.head_sha) {
       stale.push(name + " carries no provenance stamp, so which tree built it " +
-        "cannot be established — it was built before stamping, or hand-edited");
+        "cannot be established -- it was built before stamping, or hand-edited");
       continue;
     }
     const sha = stamp.head_sha;
@@ -372,27 +474,32 @@ function projectionFreshness(dataRoot, treeRoot) {
         ", which is not in this tree at all");
       continue;
     }
-    const inputs = inputsOf(stamp, treeRoot);
+    const tree = treeAt(treeRoot, gitArgs, sha);
+    const { paths: inputs, stampNamed } = inputsOf(stamp, tree);
     const missing = inputs.filter(
       (rel) => !fs.existsSync(path.join(treeRoot, ...rel.split("/"))));
     if (missing.length) {
-      // The shadow's coupling, diagnosed rather than arriving as an unexplained
-      // deletion. run_mutation_witness_tests.mjs refuses to run at all in this
-      // state, so reaching this line means some other partial work tree is
-      // missing a path the stamp names.
+      // TWO READINGS, and the message gives both rather than picking one,
+      // because the check cannot tell them apart and they have opposite
+      // remedies. (a) The path moved in this tree -- a builder renamed or
+      // deleted, which IS drift and wants a rebuild. (b) The work tree is
+      // partial: the mutation shadow copies only `SHADOWED`, so git reads a
+      // path it does not hold as a deletion, and the remedy is SHADOWED. The
+      // preflight in run_mutation_witness_tests.mjs refuses before any tier
+      // runs in case (b), so a reader who gets here is usually in case (a).
       //
-      // Only a STAMP-named path can arrive here: the closure is walked in the
-      // work tree under test, so a tree missing `tolerance_stack/` loses it
-      // from the input set rather than reporting it absent. That narrowing is
-      // silent, and what covers it is the preflight in
-      // run_mutation_witness_tests.mjs -- it derives the input set from the
-      // FULL checkout and holds it against SHADOWED before any tier runs.
+      // A path the CLOSURE derived arrives here just as readily as one the
+      // stamp names, because the closure resolves imports against `<sha>`'s
+      // tracked listing as well as the work tree (`treeAt`) -- so a module
+      // that was local at the commit the projection was built from cannot
+      // leave the input set by being renamed away.
       stale.push(name + " names input(s) that are not in this work tree at " +
-        "all: " + show(missing) + ". Against a partial work tree (the " +
-        "mutation-witness shadow copies only `SHADOWED`) git reads those as " +
-        "deletions; add them to SHADOWED in " +
-        "scripts/run_mutation_witness_tests.mjs, or point --tree at a full " +
-        "checkout");
+        "all: " + show(missing) + ". Either they moved in this tree -- a " +
+        "renamed or deleted input is drift, and wants a rebuild -- or this " +
+        "work tree is partial: the mutation-witness shadow copies only " +
+        "`SHADOWED`, git reads a path it does not hold as a deletion, and the " +
+        "remedy there is to add them to SHADOWED in " +
+        "scripts/run_mutation_witness_tests.mjs");
       continue;
     }
     const diff = gitOut(treeRoot,
@@ -408,12 +515,27 @@ function projectionFreshness(dataRoot, treeRoot) {
     // authored-but-uncommitted `stack_*.json` is an input the projection was
     // built without and the diff says nothing. Measured: dropping
     // `docs/tolerance_stacks/ZZZ_probe.json` into a worktree left the banner at
-    // "projection paired with this tree" and the total at 516/516. Asked of
-    // DIRECTORY inputs only, which is the whole of where it can bite -- a
-    // builder globs a directory (`stacks_dir.glob("stack_*.json")`), whereas a
-    // new module becomes an input only when some tracked file starts importing
-    // it, and that edit is in the diff above.
-    const dirs = inputs.filter((rel) => isDir(treeRoot, rel));
+    // "projection paired with this tree" and the total at 516/516.
+    //
+    // Asked of the STAMP-NAMED directories only -- the source directory a
+    // builder globs (`stacks_dir.glob("stack_*.json")`) -- and not of every
+    // directory in the input set. The other kind of directory in there is a
+    // PACKAGE the closure derived (`tolerance_stack`), and a new module in a
+    // package becomes an input only when some tracked file starts importing
+    // it, which is an edit the diff above already reports. Asking it of both
+    // was measured in review (2026-09-30): one untracked scratch file in
+    // `tolerance_stack/` that nothing imports took all three projections stale
+    // and printed "rebuild the projections" as the remedy, which is right for
+    // the globbed directory and wrong for the package. That is the false-alarm
+    // direction this check is fenced against, so the fence goes here.
+    //
+    // KNOWN CONSEQUENCE of naming a package as a directory at all: were
+    // `scripts/` ever to gain an `__init__.py`, `packageOf` would collapse the
+    // three builder files into the whole `scripts/` directory, and the DIFF
+    // (not this question) would then cover every file in it. That follows from
+    // the same reasoning -- an `__init__.py` really does run on import -- and
+    // is written down here rather than special-cased.
+    const dirs = stampNamed.filter((rel) => isDir(treeRoot, rel));
     let untracked = [];
     if (dirs.length) {
       const others = gitOut(treeRoot, gitArgs.concat(
@@ -482,7 +604,15 @@ if (require.main === module) {
   const argv = process.argv.slice(2);
   const flag = (name, fallback) => {
     const at = argv.indexOf(name);
-    return at === -1 ? fallback : path.resolve(argv[at + 1]);
+    if (at === -1) return fallback;
+    // A trailing bare `--repo` used to reach path.resolve(undefined) and throw
+    // a TypeError instead of saying what it wanted.
+    if (at + 1 >= argv.length) {
+      console.log(`${name} needs a path after it -- the checkout to read ` +
+        `${name === "--repo" ? "data/projections/viewer/ from" : "as the tree under test"}.`);
+      process.exit(2);
+    }
+    return path.resolve(argv[at + 1]);
   };
   const here = path.resolve(__dirname, "..");
   const dataRoot = flag("--repo", here);

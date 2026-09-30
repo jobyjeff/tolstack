@@ -283,14 +283,6 @@ function reportShadowGaps() {
   return 1;
 }
 
-// Askable on its own, in under a second, because the whole run is a browser and
-// the whole registry and tens of minutes -- and this is the one failure in it
-// that a caller can be told about before paying for any of that.
-// tests/test_projection_freshness.py runs exactly this.
-if (process.argv.includes("--check-shadow-covers-projection-inputs")) {
-  process.exit(reportShadowGaps());
-}
-
 // --- running a tier --------------------------------------------------------
 //
 // Every tier reports the same two things this file needs: an exit code, and the
@@ -384,6 +376,26 @@ const MISS = {
   // THIS guard reddens -- is still unproved.
   ATTRIBUTED_ELSEWHERE: "another check reddened, but not the declared one",
 };
+
+// Askable on its own, in under a second, because the whole run is a browser and
+// the whole registry and tens of minutes -- and this is the one failure in it
+// that a caller can be told about before paying for any of that.
+// tests/test_projection_freshness.py runs exactly this, on BOTH arms.
+//
+// ITS POSITION IN THIS FILE IS LOAD-BEARING and must stay below `MISS`. A
+// module-scope `if (argv.includes(...)) process.exit(f())` runs during module
+// initialisation, so every `const` declared after it is in its temporal dead
+// zone -- and `reportShadowGaps` names `MISS.TIER_ALREADY_RED` on its REFUSAL
+// arm only. Placed above `MISS`, the success arm passed and the refusal arm
+// printed two lines and then a `ReferenceError: Cannot access 'MISS' before
+// initialization` exactly where the remedy goes. Its own mutation witness
+// reported WITNESSED over that, because a crash exits non-zero too (found in
+// review, 2026-09-30). Moving the block rather than inlining the string: the
+// reason `MISS` exists is that these five words are a vocabulary, not five
+// inline literals.
+if (process.argv.includes("--check-shadow-covers-projection-inputs")) {
+  process.exit(reportShadowGaps());
+}
 
 function harnessFor(mutation) {
   const harness = TIER_HARNESS[mutation.tier];
