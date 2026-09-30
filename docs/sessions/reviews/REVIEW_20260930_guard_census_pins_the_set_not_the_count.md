@@ -13,6 +13,16 @@ One commit, `0d5ab78`, merged into `review/guard_census_pins_the_set_not_the_cou
 with no conflict (`integration` had moved one commit, `a6a47d7 → fbbba37`, a
 board move for the sibling handoff; nothing in the diff's file set).
 
+`integration` then moved again mid-review — `fbbba37 → fb72445`, the sibling
+`confidence_label_is_paired_to_its_vocabulary` landing plus two `sync: merge
+master` commits — so it was merged **into** this review branch and the subset
+re-run before the integration merge, per the canonical conflict guidance. **No
+conflict, so no resolution to report**: the two file sets are disjoint
+(`apps/viewer/viewer.js`, `apps/viewer/topology.js`,
+`tests/test_js_python_vocabulary.py` against `scripts/guard_enumeration.mjs`,
+`tests/test_mutation_witnesses.py`). Its arrival did make the post-merge tier
+run owed twice — see below.
+
 Verdict: **APPROVE**, no blockers. Two should-fix findings left unfixed and
 filed as issues; one nit; one overlay entry added. The three arrivals the
 handoff named are all genuinely closed, and I replayed each one by planting the
@@ -173,10 +183,19 @@ the **guard/witness** row, the **prose in a tracked document** row
 `scripts/mutation_witnesses/README.md`), and — for `tests/test_mutation_witnesses.py`
 — the Python row's inventory pairing (inside the full suite).
 
-**The tactical record.** `LESSONS_20260930_…` describes every replay it made and
-what each proved, but **records no full-suite run and no counts** — so the
-benefit of the doubt the cadence extends to a recorded run is void here, and I
-ran the full suite on both sides of the merge rather than only after it. Nothing
+**The tactical record.** The only tracked artifact the tactical agent left is
+`LESSONS_20260930_…` (there is no handoff-side report file in this repo's
+convention, and I did not see the agent's chat report). It describes every
+replay it made and what each proved, but **records no full-suite command, no
+checkout and no result counts** — the four DoD commands are never answered. So
+the benefit of the doubt the cadence extends to a *recorded* run has nothing to
+attach to here, and I ran the full suite on both sides of the merge rather than
+only after it. This is a real omission rather than a convention this repo does
+not have: the sibling handoff that landed the same day
+(`LESSONS_20260930_confidence_label_is_paired_to_its_vocabulary.md`) records all
+four of its own — command, checkout, counts, and which failure was the expected
+worktree one. No issue filed, because the record's purpose is served by the
+table below; the sentence is the feedback loop. Nothing
 else in the record is inconsistent with the diff; the lesson's numbers all
 re-derive (≈1 173 manifest lines, 31 browser unenrollables = 506 − 475, ~94
 worktree-dropped checks, twelve hex characters).
@@ -189,6 +208,7 @@ worktree-dropped checks, twelve hex characters).
 | `node apps/annotate/run_tests.cjs` | review worktree | **151/151 passed** — equals `DECLARED_GUARDS.annotate.declared` exactly |
 | `node scripts/guard_enumeration.mjs --executed` | review worktree, armed | both fast sources *"both directions checked"*; browser *"not paired against a run"* |
 | `pytest -q` (full suite), worktree as dispatch left it | review worktree | **1 250 passed, 1 failed** — the single failure is `test_viewer_js_suite.py::test_viewer_js_suite_is_green`, the deliberate worktree red `CLAUDE.md` documents. It still names exactly one, which is the lesson's claim |
+| `pytest -q tests/test_mutation_witnesses.py tests/test_js_python_vocabulary.py` + full `pytest -q`, after merging the moved `integration` in | review worktree | **29 passed**, then **1 250 passed, 1 failed** (same one). The total is a check in itself: the sibling's review recorded 1 243 on its own branch, this handoff adds exactly 7 test functions, and 1 243 + 7 = 1 250 — so neither merge lost a test |
 | `pytest -q` (full suite), worktree **armed** (`node_modules` junctioned from the main checkout, `data/projections/viewer/` copied in) | review worktree | **1 251 passed, 0 failed** |
 | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` (post-merge, the entry that owns it) | review worktree, `node_modules` junctioned | see below |
 
@@ -222,9 +242,30 @@ node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
      19.3 minutes, review worktree, node_modules junctioned from the main checkout
 ```
 
-**No drop.** The last recorded run is `REVIEW_20260924_fixture_pairing_reads_a_fresh_projection.md`'s
-**125/125, exit 0** — same count, so this merge took no witness with it, which
-is the only thing this tier can tell you that no branch's green can.
+**Run twice, because `integration` moved between the two merges.** The numbers
+above are the first run, against `handoff/…` merged onto `fbbba37`. The sibling
+`confidence_label_is_paired_to_its_vocabulary` then landed on `integration` and
+was merged in here, touching `apps/viewer/viewer.js` and `apps/viewer/topology.js`
+— app code, inside `SHADOWED` — so the tier was re-run against the combined
+tree. That is the whole point of the entry: two branches green apart can be
+short a witness together, and the measured incident behind it
+(`ISSUE_20260916_a_review_merge_is_the_one_place_the_mutation_tier_is_never_re_run`)
+was exactly a review merge bringing siblings together.
+
+```
+after merging integration (fb72445) in
+  -> 125/125 declared mutations witnessed   (exit 0)
+     0 NOT WITNESSED, 0 TIER_ALREADY_RED, 0 ANCHOR ROTTED, no orphans
+     census unchanged: 516 / 151 / 506 (475 enrollable)
+     17.9 minutes
+```
+
+**No drop, either time.** The last recorded run is
+`REVIEW_20260924_fixture_pairing_reads_a_fresh_projection.md`'s **125/125,
+exit 0** — same count before and after both merges, so neither took a witness
+with it, which is the only thing this tier can tell you that no branch's green
+can. The sibling's own review gave its tactical agent's 125/125 the benefit of
+the doubt and did not re-run; this run covers that merge as well as mine.
 
 The tier's own census tail is worth noting as a second confirmation of the
 change: it printed the three-value report (`enrolled / enrollable / declared`)
