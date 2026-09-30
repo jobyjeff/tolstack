@@ -483,6 +483,14 @@ problem as an unrecorded full suite one step later.
   also owes a **post-merge** run, for a reason the merge itself creates — see the
   "After you merge `integration` into your review branch, re-run" entry, which is
   not covered by this pre-merge row.
+- **Test tooling under `scripts/*.cjs` / `scripts/*.mjs` that a harness
+  `require`s** (added 2026-09-30) → `pytest -q tests/test_projection_freshness.py
+  tests/test_mutation_witnesses.py`, plus the fast tier through the `--repo` seam
+  and **every CLI flag the file exposes, on its failing arm as well as its green
+  one**. These files are imported by `apps/viewer/run_tests.cjs` and by
+  `scripts/run_mutation_witness_tests.mjs`, so a throw at module scope or in a
+  rarely-taken branch takes a whole tier out; `grep -rl <file> apps/ scripts/ tests/`
+  is how you find every caller.
 - **A projection builder, or `scripts/rebuild_projections.ps1`** → `pytest -q
   tests/test_projection_provenance.py tests/test_rebuild_projections_script.py
   tests/test_rebuild_terminal_state_pairing.py`, then the rebuild itself and the
@@ -4497,6 +4505,47 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       it). That covers **one** guard's path set. When a diff adds a *different*
       git-reading guard, the two lists are still yours to check against each
       other.
+- [ ] **A module-scope `if (process.argv.includes(...)) process.exit(f())` runs
+      in the temporal dead zone of every `const` below it.** New 2026-09-30
+      (`projection_freshness_pairs_with_the_tree`, round 1). The
+      "askable on its own in under a second" flag is a good shape and this repo
+      now has several; the trap is that the early-exit block is written where
+      the function is, near the top, while the vocabulary constant it prints
+      (`MISS`, `TIER_HARNESS`) is declared 90 lines lower. The SUCCESS arm
+      touches no constant and passes; the REFUSAL arm dies with
+      `ReferenceError: Cannot access 'MISS' before initialization` after
+      printing its first line, so the reader gets half a message and a node
+      stack trace instead of the remedy. Run the flag's **failing** arm, not
+      just its green one -- and note that a mutation witness does **not** cover
+      this: the spec only asks whether the pytest guard went red, and a crash
+      exits non-zero too, so it reports `WITNESSED` over a broken message.
+- [ ] **Replacing a hand-written path list with a DERIVED one silently drops
+      what the list guaranteed unconditionally.** Same handoff. `inputsOf` used
+      to do `inputs.push(stamp.built_by)`; the derived version walks that file's
+      import closure and `continue`s when the file cannot be read -- so a
+      builder that has been RENAMED or DELETED between the stamped commit and
+      the tree under test leaves the input set with no mention of it, and the
+      check reports *paired with this tree* where the old list reported the
+      deletion. Measured: `mv scripts/build_viewer_projection.py <other name>`,
+      `node scripts/projection_freshness.cjs --repo <main> --tree .` -> exit 0.
+      Derivation is the right direction here (it is how the drift this repo pays
+      for stops), but ask of every switch: *what did the literal list assert
+      unconditionally that the walk now asserts only when its inputs resolve?*
+      The
+      fix shape is to keep the unconditional seed **and** the closure, not one
+      or the other.
+- [ ] **A freshness/glob question asked of a DERIVED directory input, not only
+      of the one a builder globs.** Same handoff. Question 4 of the freshness
+      check (does an input directory hold an untracked file a rebuild would read)
+      is correct for the stamp's source directory -- `stacks_dir.glob("stack_*.json")`
+      really does pick a new file up -- and over-wide for a package directory the
+      import closure derived: an untracked, unimported `tolerance_stack/scratch.py`
+      cannot change what a rebuild writes, and it reddens all three projections
+      and skips the `[real]` tier. Measured. The module's own comment reasons
+      the right way ("a new module becomes an input only when some tracked file
+      starts importing it, and that edit is in the diff above") and the code
+      then asks anyway, which is the same claim-vs-measurement gap one direction
+      over. Check which HALF of a two-half input set each question is asked of.
 
 ## Architectural errors to check
 
