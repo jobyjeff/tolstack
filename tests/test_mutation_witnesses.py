@@ -7,8 +7,8 @@ the owning tier to go red on a named check. That is the real tier, and it needs 
 browser, several minutes and ``--repo`` pointed at the main checkout.
 
 This module is its **cheap half**, and the half that runs on every pytest run: it
-never patches anything and never starts a browser. It asks two questions, and
-since 2026-09-23 the second one is new.
+never patches anything and never starts a browser. It asks three questions; the
+second arrived 2026-09-23 and the third 2026-09-30.
 
 **Does every mutation still describe a place in the tree?** A spec whose ``find``
 no longer resolves is not a failing guard -- it is a guard that quietly stopped
@@ -26,8 +26,22 @@ at once and six enrollment handoffs in eight days did not move the arrival rate
 (``docs/strategy/BRIEF_20260915_mutation_witness_enrollment.md``). Now the guard
 declarations in the tree ARE the enumeration
 (``scripts/guard_enumeration.mjs``), a spec is named for the guard it witnesses,
-and the count of guards per source is pinned -- so a guard added without a spec
-moves a number and is red here in under a second, naming the file to write.
+and the guard SET per source is pinned -- so a guard added without a spec moves
+a pin and is red here in under a second, naming the file to write.
+
+**And does the scan agree with what the tiers actually run?** The pins above all
+say how many guards ``scripts/guard_enumeration.mjs`` FOUND; none of them says
+whether it found them all. A guard written in a shape its regex does not match
+-- ``test('…')`` in single quotes, a name handed in by a helper -- runs, passes,
+and is invisible to the census in both directions at once: not counted, so not
+enrollable, so never reported as needing a spec. So the two fast tiers are
+spawned (``--executed``, a couple of seconds) and the names they print are
+paired against the names the scan read. A reviewer did that pairing by hand on
+2026-09-23 and got exact agreement twice; this is that measurement made to
+happen on every run. The browser tier is the one source pairable neither
+cheaply nor in principle -- ``UNPAIRED_TIER`` below says why -- and what remains
+uncovered after all of this is emitted by ``CENSUS_LIMITS`` rather than left in
+a review report (``ISSUE_20260923_the_guard_census_pins_a_count_not_a_set_so_three_arrivals_are_silent``).
 
 Three couplings follow from deriving the name, and each replaces something
 weaker:
@@ -131,6 +145,35 @@ TIERS_WITH_SUITES = frozenset({"browser", "python"})
 #: one whose ``expect_red`` is paired against the spec's own ``suite`` file.
 UNCENSUSED_TIER = "python"
 
+#: The one CENSUSED tier whose scan is never paired against a run of it. The
+#: browser tier needs a real Chrome and several minutes, and -- the reason that
+#: actually decides it -- one declared name may be run by two suites while most
+#: of its template names interpolate a live number, so ``declared == executed``
+#: is false there by construction rather than by cost. Its pins still hold;
+#: only the evidence that the SCANNER is right is missing, which is
+#: ``CENSUS_LIMITS.browser_scan_unverified``.
+UNPAIRED_TIER = "browser"
+
+#: Every value ``DECLARED_GUARDS`` pins per source, and every value
+#: ``test_the_enrollment_census_holds`` reads. Paired, so a fourth pin cannot
+#: be added on the JS side with nothing here asserting on it.
+PINS = frozenset({"declared", "enrollable", "names"})
+
+#: What the census states it cannot see, paired key-for-key against
+#: ``CENSUS_LIMITS`` (``scripts/guard_enumeration.mjs``). The limits are the
+#: deliverable, not a comment: every one of the three arrivals closed on
+#: 2026-09-30 had been sitting in the mechanism unnamed until a reviewer went
+#: looking, so what is STILL uncovered is emitted by the tooling on every
+#: census run. Pairing the keys here is what stops one being quietly dropped
+#: (a gate that grew a bypass) or added without anyone weighing it.
+CENSUS_LIMIT_KEYS = frozenset({
+    "python_not_censused",
+    "browser_scan_unverified",
+    "incomplete_run_pairs_one_way",
+    "digest_names_no_name",
+    "pin_raised_without_a_spec",
+})
+
 #: The one pytest suite a ``python`` spec may never name. This module runs
 #: inside the shadow tree when a python spec is witnessed, and with a mutation
 #: applied its own ``test_every_anchor_resolves_to_exactly_one_place`` reddens --
@@ -161,6 +204,13 @@ RUNNER = "scripts/run_mutation_witness_tests.mjs"
 #: One ``<word>: {`` key of that object, at its one indentation level.
 TIER_HARNESS_KEY = re.compile(r"^  (\w+): \{$", re.MULTILINE)
 
+#: One entry's ``script:`` -- the path array the harness spawns, or ``null``
+#: for the tier whose command is an interpreter. Paired against
+#: ``GUARD_SOURCES[tier].runner``, which is the other side's name for the same
+#: file: the census cannot pair a scan against a run of the WRONG runner.
+TIER_HARNESS_SCRIPT = re.compile(r"script: (\[[^\]]*\]|null),")
+SCRIPT_SEGMENT = re.compile(r'"([^"]+)"')
+
 #: The file holding the ``SUITES`` registry a browser spec's ``suite`` filters
 #: on. Its keys are the labels the suites print; ``--only`` matches a substring
 #: of one, and a spec holds a whole one.
@@ -189,9 +239,8 @@ README_TIER_BULLET = re.compile(r"^  - `(\w+)` — ", re.MULTILINE)
 SKIP_DECLARATION = 'skip("'
 
 
-@pytest.fixture(scope="module")
-def enumeration() -> dict:
-    """``scripts/guard_enumeration.mjs --json``: the guards the tree declares."""
+def _enumerate(*extra: str) -> dict:
+    """``scripts/guard_enumeration.mjs --json``, with whatever else is asked."""
     node = shutil.which("node")
     assert node, (
         "node is not on PATH, so the guard enumeration did not run -- which is "
@@ -199,13 +248,31 @@ def enumeration() -> dict:
         "`node scripts/guard_enumeration.mjs` wherever it is available."
     )
     proc = subprocess.run(
-        [node, str(ENUMERATION), "--json"],
+        [node, str(ENUMERATION), "--json", *extra],
         cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8",
+        timeout=600,
     )
     assert proc.returncode == 0, (
         f"{ENUMERATION.name} --json exited {proc.returncode}:\n{proc.stderr}"
     )
     return json.loads(proc.stdout)
+
+
+@pytest.fixture(scope="module")
+def enumeration() -> dict:
+    """``scripts/guard_enumeration.mjs --json``: the guards the tree declares."""
+    return _enumerate()
+
+
+@pytest.fixture(scope="module")
+def pairing() -> tuple[dict, ...]:
+    """...and what the two fast tiers ACTUALLY RAN, with ``--executed``.
+
+    A second spawn rather than a field on the fixture above, because this one
+    runs two node test suites (a couple of seconds) and every other test in
+    this module wants only the scan.
+    """
+    return tuple(_enumerate("--executed")["pairs"])
 
 
 @pytest.fixture(scope="module")
@@ -238,8 +305,8 @@ def joined_source(relative: str) -> str:
     return CONCATENATION_SEAM.sub("", source_of(relative))
 
 
-def runner_tier_harness() -> dict[str, bool]:
-    """The runner's ``TIER_HARNESS``, as ``{tier word: takes a suite}``.
+def runner_tier_blocks() -> dict[str, str]:
+    """The runner's ``TIER_HARNESS``, as ``{tier word: that entry's source}``.
 
     Read out of the source for the same reason the suite registry is: a copy
     here would be the duplication the pairing exists to catch.
@@ -249,10 +316,28 @@ def runner_tier_harness() -> dict[str, bool]:
     block = source[start:source.index("\n};", start)]
     bounds = [m.start() for m in TIER_HARNESS_KEY.finditer(block)] + [len(block)]
     keys = TIER_HARNESS_KEY.findall(block)
-    return {
-        key: "suites: true" in block[bounds[i]:bounds[i + 1]]
-        for i, key in enumerate(keys)
-    }
+    return {key: block[bounds[i]:bounds[i + 1]] for i, key in enumerate(keys)}
+
+
+def runner_tier_harness() -> dict[str, bool]:
+    """``{tier word: takes a suite}``."""
+    return {key: "suites: true" in body
+            for key, body in runner_tier_blocks().items()}
+
+
+def runner_tier_scripts() -> dict[str, str | None]:
+    """``{tier word: the repo-relative script that harness spawns}``.
+
+    ``python`` has none: its command is the venv interpreter plus ``-m
+    pytest``, which is why its ``script`` is written ``null`` rather than left
+    out.
+    """
+    out: dict[str, str | None] = {}
+    for key, body in runner_tier_blocks().items():
+        found = TIER_HARNESS_SCRIPT.search(body)
+        out[key] = None if not found or found[1] == "null" else "/".join(
+            SCRIPT_SEGMENT.findall(found[1]))
+    return out
 
 
 def suite_registry_keys() -> tuple[str, ...]:
@@ -409,24 +494,226 @@ def test_the_enrollment_census_holds(enumeration):
     a guard arrived without one. Before it, that question had no cheap answer at
     all -- it was answered by reviewers, one guard at a time, into
     ``docs/issues/``, fourteen of them open at once.
+
+    **Three pins per source, not one** (2026-09-30). A bare cardinality is a
+    proxy for a SET, and two of the three ways of arriving unenrolled move no
+    cardinality at all -- one guard deleted and one added in the same change
+    leaves ``declared`` exactly where it was, and a second declaration of an
+    existing NAME is folded into one row, so ``declared`` holds still while an
+    enrolled guard slides into the population no spec can witness
+    (``ISSUE_20260923_the_guard_census_pins_a_count_not_a_set_so_three_arrivals_are_silent``).
+    ``PINS`` below is every value the JS side pins and every value this asserts
+    on; the third one, ``names``, is what makes the pin a set.
     """
-    moved = [row for row in enumeration["rows"] if row["declared"] != row["pinned"]]
+    moved = []
+    for row in enumeration["rows"]:
+        for stated, against, what in (
+            ("declared", "pinned", "{n} declared"),
+            ("enrollable", "pinnedEnrollable",
+             "{n} enrollable -- a guard has moved into or out of the "
+             "population no spec can name, which `declared` alone does not show"),
+            ("names", "pinnedNames",
+             "the guard NAME SET is {n} -- if `declared` did not also move, "
+             "this is a guard swapped for another, or a guard renamed"),
+        ):
+            if row[stated] != row[against]:
+                moved.append(
+                    f"  {row['source']}: " + what.format(n=row[stated]) +
+                    f", pinned at {row[against]}")
     assert not moved, (
-        "the guard census has moved:\n" +
-        "\n".join(f"  {row['source']}: {row['declared']} declared, "
-                  f"pinned at {row['pinned']}" for row in moved) +
+        "the guard census has moved:\n" + "\n".join(moved) +
         "\nIf you added a guard, enrol it in this same change -- that is the "
         "whole of the rule, and it is cheap only while you still remember what "
         "the guard is for. `node scripts/run_mutation_witness_tests.mjs "
         "--unenrolled` prints the file name to write under "
         f"{SPEC_DIR.name}/ and the shape to put in it; "
         "scripts/mutation_witnesses/README.md is the one-page version. Then "
-        "raise that source's number in DECLARED_GUARDS "
-        "(scripts/guard_enumeration.mjs).\n"
-        "Raising it WITHOUT writing a spec is allowed and sometimes correct -- "
-        "a guard whose name is interpolated cannot be witnessed at all -- but "
-        "it is now a line in a diff somebody reads."
+        "write these lines back into DECLARED_GUARDS "
+        "(scripts/guard_enumeration.mjs):\n" +
+        "\n".join(row["pinLine"] for row in enumeration["rows"]) + "\n"
+        "Raising a pin WITHOUT writing a spec is allowed and sometimes "
+        "correct -- a guard whose name is interpolated cannot be witnessed at "
+        "all -- but it is now a line in a diff somebody reads."
     )
+
+
+def test_the_census_pins_exactly_the_values_this_module_checks(enumeration):
+    """``PINS``, paired against ``DECLARED_GUARDS``'s own value keys.
+
+    The test above reads three values per source by name. A fourth pinned on
+    the JS side and not read here would be a pin nothing enforces -- pinned,
+    diffed, reviewed, and asserted on by nothing -- which is the shape of
+    defect this whole module exists to make loud.
+    """
+    for tier, pin in enumeration["pinned"].items():
+        assert set(pin) == PINS, (
+            f"DECLARED_GUARDS[{tier!r}] pins {sorted(pin)}; this module checks "
+            f"{sorted(PINS)}"
+        )
+
+
+def _paired(pairing) -> tuple[dict, ...]:
+    """The rows a run was actually obtained for."""
+    return tuple(row for row in pairing if row["runner"])
+
+
+def test_the_scan_and_the_run_agree_on_which_guards_exist(pairing):
+    """The scanner, made falsifiable -- and arrival (3) closed.
+
+    Every pin in this module says how many guards the SCAN found. None of them
+    says whether the scan is *right*, and a guard the scan cannot see is
+    invisible in both directions at once: not censused, so not enrollable, so
+    never printed by ``--unenrolled``. ``declarationsIn`` requires a ``"…"`` or
+    ``` `…` ``` first argument, so ``test('…')`` in single quotes -- or a name
+    handed in by a helper or a loop -- runs, prints its name, fails nothing
+    here, and enrols in nothing. Zero such declarations existed on 2026-09-23,
+    which is a measurement with a shelf life rather than a property.
+
+    A reviewer paired these by hand that day (516/516 and 151/151, exact
+    agreement twice). This is that measurement, made to happen every run.
+
+    Two directions, and one of them survives an incomplete run:
+
+    * **ran, and the scan never found it** -- always checked. A tier that
+      skipped a sub-tier ran a SUBSET, and a subset still cannot contain a name
+      the scan missed.
+    * **the scan found it and the tier never ran it** -- checked only when the
+      tier reported no ``SKIP``. From a worktree the viewer's ``[real]`` tier
+      has no projection and ~94 checks do not run at all, so this direction
+      would say nothing there except "you are in a worktree", which
+      ``tests/test_viewer_js_suite.py`` already says once and loudly.
+    """
+    faults = []
+    for row in _paired(pairing):
+        for name in row["ranNotDeclared"]:
+            faults.append(
+                f"  {row['runner']} ran {name!r}\n    ...and "
+                f"{row['source']}'s scan never found it. Either the guard is "
+                f"written in a shape GUARD_SOURCES[{row['tier']!r}] does not "
+                f"match -- single quotes, or a name from a helper -- or the "
+                f"scanner has rotted. A guard the scan cannot see can never "
+                f"be reported unenrolled.")
+        for name in row["declaredNotRun"]:
+            faults.append(
+                f"  {row['source']} declares {name!r}\n    ...and "
+                f"{row['runner']} ran no such check. The scan is counting "
+                f"something that is not a guard -- a name in dead code, or a "
+                f"call the regex matched that is not a declaration -- so the "
+                f"census is pinned above the truth.")
+        if row["failure"]:
+            faults.append(f"  {row['source']}: {row['failure']}")
+    assert not faults, (
+        "the guard scan and the tier that runs those guards disagree:\n" +
+        "\n".join(faults))
+
+
+def test_no_fast_tier_runs_one_guard_name_twice(pairing):
+    """Arrival (2), seen from the run rather than from the pin.
+
+    ``enumerateGuards`` folds two declarations of one name into a single
+    unattributable guard, so a second ``test("<an existing name>")`` leaves
+    ``declared`` where it was; the ``enrollable`` pin is what catches it in the
+    scan. This is the independent half: the tier RUNS both, prints the name
+    twice, and a red against that name cannot be attributed to either.
+    """
+    twice = [(row["runner"], name)
+             for row in _paired(pairing) for name in row["ranTwice"]]
+    assert not twice, (
+        "a fast tier runs one guard name more than once:\n" +
+        "\n".join(f"  {runner}: {name!r}" for runner, name in twice) +
+        "\nTwo checks under one name are one guard nothing can witness -- a "
+        "red names the string, not the check that produced it. Reword one."
+    )
+
+
+def test_the_pairing_actually_ran_something(pairing):
+    """A pairing that found no names passes both directions against nothing.
+
+    The rule ``test_architecture_inventory.py`` states and this module borrows
+    everywhere else: a scan that silently finds zero is not a check. Here the
+    "scan" is a spawned test runner, so the way it finds zero is a runner that
+    fails to start -- and a subset check over an empty set is green.
+    """
+    ran = _paired(pairing)
+    assert ran, "no guard source names a runner to pair against at all"
+    for row in ran:
+        assert row["paired"], (
+            f"{row['runner']} produced no usable output, so "
+            f"{row['source']}'s scan was paired against nothing: "
+            f"{row['failure']}"
+        )
+        assert row["executed"] > 0, (
+            f"{row['runner']} ran no checks at all, so {row['source']}'s scan "
+            f"was paired against an empty set"
+        )
+
+
+def test_each_source_pairs_against_the_runner_its_harness_spawns(enumeration):
+    """``GUARD_SOURCES[tier].runner`` against ``TIER_HARNESS[tier].script``.
+
+    Two objects now name the same file: one says how to READ a tier's guard
+    names out of the tree and how to RUN that tier for the pairing, the other
+    how to run it for a mutation. Pointing the pairing at the wrong runner
+    would compare one tier's scan against another tier's output -- every name
+    on both sides wrong at once, which reads exactly like a rotted scanner.
+    """
+    spawned = runner_tier_scripts()
+    assert spawned, (
+        f"no TIER_HARNESS scripts found in {RUNNER} -- the reader has rotted, "
+        f"so this pairing is passing against nothing"
+    )
+    for tier, source in enumeration["sources"].items():
+        if source["runner"] is None:
+            continue
+        assert source["runner"] == spawned.get(tier), (
+            f"GUARD_SOURCES[{tier!r}] pairs its scan against "
+            f"{source['runner']}, and {RUNNER}'s TIER_HARNESS spawns "
+            f"{spawned.get(tier)!r} for that tier"
+        )
+
+
+def test_the_pairing_covers_every_censused_source_but_the_one_it_says_it_cannot(
+        enumeration, pairing):
+    """``UNPAIRED_TIER``, the way ``UNCENSUSED_TIER`` is handled one test over.
+
+    A source that stops being pair-checked is a scanner that stops being
+    falsifiable, and the browser tier already shows how quietly that happens:
+    it is exempt for a stated, structural reason (its names interpolate and one
+    name may be run by two suites), not because nobody got to it. A second
+    source joining it silently is the failure this pairs against.
+    """
+    unpaired = {row["tier"] for row in pairing if not row["runner"]}
+    assert unpaired == {UNPAIRED_TIER}, (
+        f"the censused sources with no run to pair against are "
+        f"{sorted(unpaired)}; {UNPAIRED_TIER!r} is the one stated to be "
+        f"unpairable. A source dropping out of the pairing is a scan nothing "
+        f"checks -- state the reason in GUARD_SOURCES and in CENSUS_LIMITS, "
+        f"or give it a runner."
+    )
+    assert enumeration["sources"][UNPAIRED_TIER]["runner"] is None
+
+
+def test_the_census_emits_what_it_cannot_see(enumeration):
+    """The honest-limits paragraph, made a thing the tooling prints.
+
+    Deliverable of ``guard_census_pins_the_set_not_the_count`` (2026-09-30) and
+    the reason this test exists at all: the three arrivals that pass closed had
+    every one of them been sitting in the mechanism since it was built, and the
+    only thing that found them was a reviewer reading the code with the
+    question in mind. A gate with known bypasses is worth having; an
+    undocumented one grows a fourth.
+    """
+    limits = enumeration["limits"]
+    assert set(limits) == CENSUS_LIMIT_KEYS, (
+        f"CENSUS_LIMITS states {sorted(limits)}; this module expects "
+        f"{sorted(CENSUS_LIMIT_KEYS)}. A limit removed is a bypass that stopped "
+        f"being printed -- which is only correct if something now covers it."
+    )
+    for key, why in limits.items():
+        assert len(why.split()) >= 12, (
+            f"CENSUS_LIMITS[{key!r}] is {why!r} -- a limit nobody can act on "
+            f"is the review-report paragraph this replaced"
+        )
 
 
 def test_the_runner_and_this_module_hold_the_same_tier_vocabulary():

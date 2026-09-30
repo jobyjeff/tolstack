@@ -475,10 +475,12 @@ problem as an unrecorded full suite one step later.
   tests/test_mutation_witnesses.py` plus `node
   scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`.
   **Any diff that adds a guard at all** is in this row since 2026-09-23: the
-  per-source guard count is pinned (`DECLARED_GUARDS`,
-  `scripts/guard_enumeration.mjs`), so a guard added without a mutation spec
-  reddens `pytest -q`. Check that the author wrote the spec rather than only
-  raising the number — raising it is allowed, and is then a claim in the diff
+  per-source guard *set* is pinned (`DECLARED_GUARDS`,
+  `scripts/guard_enumeration.mjs` — a count, an enrollable count and a digest
+  of the names since 2026-09-30), so a guard added without a mutation spec
+  reddens `pytest -q`, and so does one swapped in for a deleted one. Check that
+  the author wrote the spec rather than only
+  raising the pin — raising it is allowed, and is then a claim in the diff
   that this guard cannot be witnessed, which is a claim you review. This tier
   also owes a **post-merge** run, for a reason the merge itself creates — see the
   "After you merge `integration` into your review branch, re-run" entry, which is
@@ -4422,7 +4424,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       for the free pairing the author left unclaimed — here `declared` equalled
       the fast tiers' own printed totals exactly (513/513, 154/154) and nothing
       asserted it, so the scanner's accuracy was a reviewer's measurement
-      rather than a standing check
+      rather than a standing check. **The example is closed and the rule is
+      not** (2026-09-30, `guard_census_pins_the_set_not_the_count`): the pin
+      became three values — count, enrollable count, and a digest of the name
+      set — and the fast tiers' printed totals are now paired against the scan
+      on every pytest run. Twelve hex characters closed a hole a tracked
+      every-guard-name fixture was the obvious answer to, and that is the
+      transferable half: when
+      a count stands in for a set, a **digest of the set** is usually cheaper
+      than the set
       (`ISSUE_20260923_the_guard_census_pins_a_count_not_a_set_so_three_arrivals_are_silent.md`).
 - [ ] **A retired guard leaves live documents still promising it.** New
       2026-09-24 (`claims_registry_guards_read_declarations_not_prose`), and

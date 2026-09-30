@@ -1997,7 +1997,9 @@ Nothing else — the identity is derived, so there is no id to pick and no share
 table to edit. `node scripts/run_mutation_witness_tests.mjs --unenrolled` prints
 the file name to write for any guard that has none, and
 `scripts/mutation_witnesses/README.md` is the page that says what goes in it. The
-guard count per source is pinned in `DECLARED_GUARDS`, so a guard added without a
+guard set per source is pinned in `DECLARED_GUARDS` — a count, an enrollable
+count and a digest of the names, so a guard *swapped* for another moves a pin
+too — and a guard added without a
 spec reddens `pytest -q` rather than becoming somebody else's backlog: that gap
 used to be recorded by hand, one issue at a time, and fourteen of those were open
 at once. If you find a guard that shrugs off a hand mutation, that is exactly what
