@@ -157,6 +157,26 @@ A re-expressed stack element keeps its own word; a pitch link's length simply ha
 none, because which part a topology dimension belongs to is structural (read off
 its edge's `part`) rather than a label.
 
+### A `part`'s `drawing` names the design part, not the test article
+
+**Ruled 2026-10-01 (Jeff), and it applies to every topology.** When a build
+carries an instrumented variant of a part — a link with a proving ring in it, a
+blade with strain gauges on it — the topology part names the **design,
+non-instrumented** drawing, and `docs/topologies/part_mesh_aliases.json` points
+its row at the design part's mesh. A topology describes the mechanism; an
+instrumented article is one build of it, and the document would go stale the
+day the instrumentation came off.
+
+Two consequences the reader of a topology needs. The **geometry** behind a node
+may still have been fitted on the instrumented article, because that is the
+occurrence the mechanism's joint centres sit inside — the `part`'s `note` says
+so where it is true. And a **design mesh drawn at the instrumented occurrence**
+takes its placement from the instrumented mesh's provenance, since the design
+mesh's own instances are the other occurrences; that substitution is only sound
+when the two share a local frame, which is a measurement the alias row records
+rather than an assumption anyone makes. `pitch_link` and `blade_root` in
+`topology_vpa_pitch_linkage.json` are the worked instance of all three.
+
 ---
 
 ## The formats

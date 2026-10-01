@@ -130,6 +130,12 @@
        runs. Both are DOM-free and fetch-free, like commands.js. -->
   <script src="./face_geometry.js"></script>
   <script src="./suggestions.js"></script>
+  <!-- Sweep mode's pure half (handoff kinematic_sweep_animation): the schema
+       reader, the interpolation, the scrubber-to-driver map, the instance
+       choice and the pose composition. DOM-free, fetch-free and three.js-free
+       like the two above, which is what lets run_tests.cjs pin every number
+       this app puts on screen while the linkage is moving. -->
+  <script src="./sweep.js"></script>
   <script src="./exec_queue.js"></script>
   <script src="./fixtures.js"></script>
 
