@@ -32,9 +32,9 @@ nobody has a number for: the single most reportable kind of gap this repo has.
 ## Why it showed up now
 
 `docs/topologies/topology_vpa_pitch_linkage.json` (2026-09-30) is the first
-topology authored for a system whose numbers have *not* been acquired. Twenty of
-its twenty-one edges carry no dimension, each with a one-line `note` naming what
-would close it. The alternative — an `untraced` dimension with `nominal: 0.0,
+topology authored for a system whose numbers have *not* been acquired.
+Twenty-eight of its twenty-nine edges carry no dimension, each with a one-line
+`note` naming what would close it. The alternative — an `untraced` dimension with `nominal: 0.0,
 min: 0.0, max: 0.0` — would have put the gaps on the list at the price of
 showing a reader `0.000` where no number exists, and a reader cannot tell a
 placeholder zero from a measured one. That is the trade this repo exists to
@@ -74,4 +74,4 @@ and how its emptiness reads to a reviewer is the thing being designed.
 2. Open the viewer's DAG page on `vpa_pitch_linkage`.
 3. The gap list shows one row — `pitch_link_length`, "no tolerance recorded",
    which is correct and is the *only* edge in the document carrying a value.
-   The twenty edges with no value at all are not on it.
+   The twenty-eight edges with no value at all are not on it.
