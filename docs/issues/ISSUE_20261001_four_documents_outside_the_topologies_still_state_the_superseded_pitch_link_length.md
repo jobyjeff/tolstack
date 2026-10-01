@@ -41,3 +41,34 @@ sweep sheet carries node coordinates, not a link angle, and "link angle"
 relative to what is not stated anywhere — resolving it needs a decision about
 the reference, which is why this is `audience: strategy` rather than a tactical
 row.
+
+---
+
+> **Reviewer note, 2026-10-01
+> (`review/one_part_feature_one_value_across_topologies`), two corrections to
+> this issue's own text. Neither changes its disposition.**
+>
+> **The table lists FIVE documents, not four.** `WORKSHEET_end_stop_graft.md`,
+> `WORKSHEET_endstop_vision_baseline.md`, `BRIEF_20260911_endstop_topology_
+> retrace_and_f12.md`, `BRIEF_20260916_link_name_authority.md` and
+> `AUDIT_20260915_full_pass.md`. All five were re-greped at review and all five
+> hold `109.4` at the lines named. The title and filename say four; the slug is
+> left alone because it is already cited from
+> `LESSONS_20261001_one_part_feature_one_value_across_topologies.md`, so read
+> the table and not the count.
+>
+> **`WORKSHEET_end_stop_graft.md`'s line 88 is NOT a transcription, and its
+> disposition of "leave" needs the stronger reason.** That line records `K6`
+> as a *"Pythagorean sanity check — passes"*, which reads as corroboration of
+> `109.4` and is not: read out of the workbook at review,
+> `K3 = 109.4` is a **hand-typed constant with no formula**,
+> `K4 = K3*COS(RADIANS(K2))`, `K5 = K3*SIN(RADIANS(K2))` and
+> `K6 = SUMSQ(K4,K5)^0.5`. `K6` re-derives `K3` from two cells computed out of
+> `K3`, so it is a tautology and passes for any `K3` whatsoever. The cell
+> values are right to transcribe; the parenthetical gloss should say the check
+> is circular. This **strengthens** the 2026-10-01 correction rather than
+> troubling it: `260825_End_Stop_JC.xlsx` makes exactly **one** independent
+> statement of `109.4`, against two independent measurements agreeing on
+> `105.9908` — the sweep sheet's own cells, re-derived at review as
+> `|A − P| = 105.99079988848088` over `C83:E83`/`G83:I83` and constant to
+> 0.0019 mm across all 80 rows, and the mesh fit.

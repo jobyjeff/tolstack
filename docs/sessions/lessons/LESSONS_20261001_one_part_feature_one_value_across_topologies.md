@@ -95,7 +95,7 @@ Enumeration, done before touching the value:
 | the DAG page (`apps/viewer/topology.js`, `VA.edgeCard`) | `edge.dimension.source_ref` only — **not** `edge.properties`, **not** `edge.note`, **not** `dimension.note` | no |
 | `tests/test_fit_bound_features.py:200,472` | `pitch_link_length` on **`topology_vpa_pitch_linkage`**, not this one | no |
 
-Demonstrated rather than argued: all 22 committed studies were re-run before
+Demonstrated rather than argued: all 21 committed studies were re-run before
 and after the correction and their results and checks dumped. **1004
 numeric/boolean leaves compared, 5 moved** — and all five are
 `result.chain[7].edge.properties.nominal_length_mm`, the corrected input echoed
@@ -201,7 +201,7 @@ also means no conflict with the parallel handoff.
   `spawn C:workspacetolstack\venv-win\Scripts\python.exe ENOENT`, which looks
   like a missing venv and is not.
 - **`--only` matches the spec's file slug, not the guard's prose name.**
-  `--only "states one nominal"` matches nothing and prints all 128 entries;
+  `--only "states one nominal"` matches nothing and prints all 138 entries;
   `--only "states-one-nominal"` works.
 - **`PROVENANCE.md` row 96 needs amending for any edit to
   `tests/test_tolerance_stack.py`**, additive or not —
@@ -303,3 +303,30 @@ staled (so its `[real]` witnesses were gated off and it was measuring the
 wrong thing), the second against a tree I then edited mid-run. Check
 `projection_freshness.cjs` and `git status` immediately before arming the slow
 tier.
+
+---
+
+> **Reviewer correction, 2026-10-01
+> (`review/one_part_feature_one_value_across_topologies`).** Two counts in this
+> lesson were wrong and have been corrected in place rather than left to be
+> quoted forward:
+>
+> - **"all 22 committed studies"** → **21**. `docs/topologies/study_*.json`
+>   holds 21 files and no topology embeds a `studies` array. The before/after
+>   comparison was re-run independently at review over those 21 and reproduces
+>   this lesson's other two figures exactly — **1004 numeric/boolean leaves,
+>   5 moved**, all five
+>   `result.chain[7].edge.properties.nominal_length_mm` — so the conclusion
+>   ("nothing committed moved") is confirmed; only the study count was off.
+>   This repo has now written "22 studies" for a 21-study corpus twice
+>   (`REVIEW_20260915_respine_tween_fidelity` was the first).
+> - **"prints all 128 entries"** → **138**.
+>   `node scripts/run_mutation_witness_tests.mjs --list` prints 138 (127 spec
+>   files, 138 mutations), which is also the "~138 entries" this lesson's own
+>   Test record states — the two sentences disagreed with each other.
+>
+> Everything else re-derived at review held: the `64f6da9` provenance for the
+> already-done S1 widening, the two recurring `(part, edge id)` keys and the
+> three part-less `shank_out` edges, the zero mutation specs anchored in this
+> branch's files, the `SHADOWED` list, and the viewer's `edgeCard` exposing
+> `dimension.source_ref` and neither `edge.note` nor `edge.properties`.
