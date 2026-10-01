@@ -20,6 +20,27 @@ Assertions are on **behaviour**, not on an exact sentence: a named refusal is
 identified by containing ``REFUSED`` and naming a pid, never by matching the
 whole message verbatim, so a copy-edit to the refusal text does not retire
 this coverage.
+
+**2026-10-01 review finding, and what changed here because of it.** The first
+version of ``acquireLock``'s lock claim was a plain exclusive
+``writeFileSync(LOCK, json, { flag: "wx" })`` -- which IS an atomic *create*,
+but not an atomic *create-with-this-content*: it is `open()` then a separate
+`write()`, and a second process reading `LOCK` in the gap between them saw a
+file that existed but was still empty, failed to parse it, and -- because
+"could not parse" and "the pid inside it is dead" were the same branch --
+concluded it was abandoned and reclaimed it. **Both** processes then
+proceeded with no refusal from either. Review measured this at **3 failures in
+10 back-to-back runs** of ``test_two_concurrent_runs_against_one_repo_produce_a_
+named_refusal`` on the unfixed code -- a single passing run was not evidence it
+was closed, which is why that test now loops rather than running once, and why
+a second, fully deterministic test below exercises the "corrupt, not stale"
+branch directly rather than hoping to catch the race by timing.
+
+The fix: the lock's content is written complete to a private temp file first,
+then published at `LOCK` by `linkSync` -- one atomic, exclusive operation, so
+a reader that observes `LOCK` at all always sees it fully written. "Unparseable"
+and "parsed, pid confirmed dead" are now two different code paths with two
+different messages, and only the latter is reported as *stale*.
 """
 
 from __future__ import annotations
@@ -108,35 +129,76 @@ def _clean_lock():
     yield
 
 
+#: Review measured the pre-fix race at 3 failures in 10 back-to-back pairs.
+#: A single passing round is not evidence it's closed; this many rounds, all
+#: required to pass, is -- see the module docstring for why.
+CONCURRENT_ROUNDS = 10
+
+
 def test_two_concurrent_runs_against_one_repo_produce_a_named_refusal() -> None:
-    """The collision the issue reported, reproduced and now refused cleanly."""
-    p1 = _run(REPO_ROOT)
-    p2 = _run(REPO_ROOT)
-    code1, out1, err1 = _communicate(p1)
-    code2, out2, err2 = _communicate(p2)
+    """The collision the issue reported, reproduced and now refused cleanly,
+    every round rather than just the lucky ones."""
+    for round_ in range(CONCURRENT_ROUNDS):
+        p1 = _run(REPO_ROOT)
+        p2 = _run(REPO_ROOT)
+        code1, out1, err1 = _communicate(p1)
+        code2, out2, err2 = _communicate(p2)
 
-    results = [(code1, out1, err1), (code2, out2, err2)]
-    combined = out1 + err1 + out2 + err2
-    _assert_no_crash(combined)
+        results = [(code1, out1, err1), (code2, out2, err2)]
+        combined = out1 + err1 + out2 + err2
+        context = f"round {round_ + 1}/{CONCURRENT_ROUNDS}"
+        _assert_no_crash(combined)
 
-    refused = [(c, o, e) for c, o, e in results if "REFUSED" in o]
-    clean = [(c, o, e) for c, o, e in results if "REFUSED" not in o]
-    assert len(refused) == 1, (
-        f"expected exactly one of the two concurrent runs to be refused, got "
-        f"{len(refused)}:\n--- run 1 ---\n{out1}\n--- run 2 ---\n{out2}"
+        refused = [(c, o, e) for c, o, e in results if "REFUSED" in o]
+        clean = [(c, o, e) for c, o, e in results if "REFUSED" not in o]
+        assert len(refused) == 1, (
+            f"{context}: expected exactly one of the two concurrent runs to be "
+            f"refused, got {len(refused)}:\n--- run 1 ---\n{out1}\n--- run 2 ---\n{out2}"
+        )
+        assert len(clean) == 1, context
+
+        refused_code, refused_out, _ = refused[0]
+        assert refused_code != 0, f"{context}: a refused run must not exit 0"
+        # Identifiable by BEHAVIOUR -- it names a pid -- not by a verbatim sentence.
+        assert "REFUSED: another witness run (pid " in refused_out, f"{context}:\n{refused_out}"
+        # The exact conflation the review finding was: a corrupt-looking read
+        # of the WINNER's lock, during this very race, being treated as a dead
+        # pid instead of being left ambiguous. It must never appear here.
+        assert "clearing an unreadable lock" not in refused_out, (
+            f"{context}: the loser treated a (mid-race) unparseable lock as "
+            "abandoned instead of refusing -- the exact conflation this fix "
+            f"closes:\n{refused_out}"
+        )
+
+        clean_code, clean_out, _ = clean[0]
+        assert clean_code == 0, (
+            f"{context}: the run that was NOT refused must still succeed cleanly:\n{clean_out}"
+        )
+        assert "declared mutations witnessed" in clean_out, f"{context}:\n{clean_out}"
+
+
+def test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale() -> None:
+    """The specific conflation the review found, forced directly rather than
+    hoped for by timing: a lock file that cannot be parsed at all -- the exact
+    shape a reader caught mid-write used to produce -- must be reported as
+    corrupt, never folded into "pid confirmed dead". No second process is
+    started to race against; the file is simply malformed on disk already.
+    """
+    LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    LOCK_PATH.write_text("", encoding="utf-8")
+
+    proc = _run(REPO_ROOT)
+    code, out, err = _communicate(proc)
+
+    assert "REFUSED" not in out, out
+    assert "clearing an unreadable lock" in out, out
+    assert "clearing a stale lock" not in out, (
+        "a corrupt/unreadable lock must not be reported as a confirmed-dead-pid "
+        "stale one -- that conflation is exactly the bug this fix closes:\n" + out
     )
-    assert len(clean) == 1
-
-    refused_code, refused_out, _ = refused[0]
-    assert refused_code != 0, "a refused run must not exit 0"
-    # Identifiable by BEHAVIOUR -- it names a pid -- not by a verbatim sentence.
-    assert "REFUSED: another witness run (pid " in refused_out, refused_out
-
-    clean_code, clean_out, _ = clean[0]
-    assert clean_code == 0, (
-        "the run that was NOT refused must still succeed cleanly:\n" + clean_out
-    )
-    assert "declared mutations witnessed" in clean_out, clean_out
+    assert code == 0, out
+    assert "declared mutations witnessed" in out, out
+    assert not LOCK_PATH.exists(), "the lock this run took should be released on exit"
 
 
 def test_two_different_repo_roots_both_still_succeed(tmp_path: Path) -> None:

@@ -98,7 +98,7 @@
 // concurrency.)
 import { spawn } from "node:child_process";
 import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync, existsSync,
-         readdirSync } from "node:fs";
+         readdirSync, linkSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { dirname, join, normalize } from "node:path";
@@ -538,21 +538,77 @@ function sweepStaleShadows() {
 
 /**
  * Writes `LOCK` claiming it for this run, failing rather than overwriting if
- * it already exists. The `"wx"` flag is an exclusive create (fails EEXIST if
- * the path is already there) rather than "check then write" -- a plain
- * `existsSync` followed by `writeFileSync` leaves a window between the two
- * where a second run's check can land, and both runs would then believe they
- * hold the only lock.
+ * it already exists.
+ *
+ * NOT a plain `writeFileSync(LOCK, json, { flag: "wx" })` any more. That IS an
+ * exclusive create -- it fails EEXIST if `LOCK` is already there -- but it is
+ * still two syscalls under the hood, `open(O_CREAT|O_EXCL)` then a separate
+ * `write()`, with a real gap between them: a second process that reads `LOCK`
+ * in that gap sees a file that EXISTS but is still EMPTY, fails to parse it,
+ * and (before this fix) that read as "unreadable, therefore abandoned,
+ * therefore safe to clear and reclaim" -- found in review, 2026-10-01,
+ * measured at ~30% of back-to-back pairs on this machine, with BOTH processes
+ * then proceeding and neither ever printing a refusal.
+ *
+ * The fix is to make the content and the claim one atomic event instead of
+ * two. The JSON is written COMPLETE to a private temp file first -- nobody
+ * else is watching that path -- and only published at `LOCK` by `linkSync`:
+ * a hard link is a single filesystem operation that is ALSO exclusive (EEXIST
+ * if the destination already exists), unlike `renameSync`, which would
+ * silently OVERWRITE a live lock instead of refusing and so cannot stand in
+ * for "wx" at all. So any reader that observes `LOCK` existing, at any point,
+ * sees it fully written -- there is no window where it is present but
+ * incomplete, and no reason left to treat "unreadable" as "probably the pid
+ * is dead" (see `acquireLock` below, which no longer does).
  */
 function tryClaimLock() {
+  const tmp = join(TMP_DIR,
+    `.mutation-witness.lock.${process.pid}.${process.hrtime.bigint()}.tmp`);
+  writeFileSync(tmp, JSON.stringify(
+    { pid: process.pid, startedAt: new Date().toISOString() }));
   try {
-    writeFileSync(LOCK, JSON.stringify(
-      { pid: process.pid, startedAt: new Date().toISOString() }), { flag: "wx" });
+    linkSync(tmp, LOCK);
     return true;
   } catch (err) {
-    if (err && err.code === "EEXIST") return false;
-    throw err;
+    if (!(err && err.code === "EEXIST")) throw err;
+    return false;
+  } finally {
+    try {
+      unlinkSync(tmp);
+    } catch (_) {
+      // Best-effort: a leftover temp file is gitignored, harmless, and not
+      // something any sweep needs to know about -- it never becomes `LOCK`.
+    }
   }
+}
+
+/** A few short, synchronous pauses -- see the retry note in `acquireLock`. */
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * The current `LOCK`, classified into exactly the states `acquireLock` needs
+ * to tell apart: `"absent"` (nothing to clear), `"ok"` (parsed; `pid` and
+ * `startedAt` are meaningful), or `"corrupt"` (present, but not a lock this
+ * code wrote -- see the note on conflating this with a dead pid, below).
+ */
+function readLock() {
+  let text;
+  try {
+    text = readFileSync(LOCK, "utf8");
+  } catch (_) {
+    return { state: "absent" };
+  }
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && Number.isInteger(parsed.pid)) {
+      return { state: "ok", pid: parsed.pid, startedAt: parsed.startedAt };
+    }
+  } catch (_) {
+    // falls through to "corrupt"
+  }
+  return { state: "corrupt" };
 }
 
 /**
@@ -564,28 +620,41 @@ function acquireLock() {
   mkdirSync(TMP_DIR, { recursive: true });
   if (tryClaimLock()) return true;
 
-  let existing = null;
-  try {
-    existing = JSON.parse(readFileSync(LOCK, "utf8"));
-  } catch (_) {
-    existing = null;
+  // "Could not parse this" and "the pid inside it is dead" are DIFFERENT
+  // claims and used to be folded into one branch -- the exact conflation that
+  // let the pre-fix race slip a corrupt-looking read into "dead, so clear it"
+  // instead of leaving it ambiguous. `tryClaimLock`'s atomic publish should
+  // already make a genuinely mid-write read impossible; this retry is cheap
+  // insurance against anything else transient before a `"corrupt"` verdict is
+  // trusted (a file this code never wrote, not a timing artifact, is the only
+  // thing left that should produce one).
+  let lock = readLock();
+  for (let attempt = 0; lock.state === "corrupt" && attempt < 3; attempt += 1) {
+    sleepMs(5);
+    lock = readLock();
   }
-  const pid = existing && Number.isInteger(existing.pid) ? existing.pid : null;
-  if (pid !== null && isAlive(pid)) {
-    const when = existing.startedAt
-      ? new Date(existing.startedAt).toLocaleTimeString()
+
+  if (lock.state === "ok" && isAlive(lock.pid)) {
+    const when = lock.startedAt
+      ? new Date(lock.startedAt).toLocaleTimeString()
       : "an unknown time";
-    console.log(`REFUSED: another witness run (pid ${pid}, started ${when}) ` +
-      "is using this repo. A per-run shadow keeps two runs from wiping each " +
-      "other's patched tree, but both still spawn tiers against this repo's " +
-      "own gitignored data/ and tracked files, so only one may run at a " +
-      "time. Wait for it to finish, or point this run at a different " +
-      "checkout with --repo.");
+    console.log(`REFUSED: another witness run (pid ${lock.pid}, started ` +
+      `${when}) is using this repo. A per-run shadow keeps two runs from ` +
+      "wiping each other's patched tree, but both still spawn tiers against " +
+      "this repo's own gitignored data/ and tracked files, so only one may " +
+      "run at a time. Wait for it to finish, or point this run at a " +
+      "different checkout with --repo.");
     return false;
   }
-  console.log(pid === null
-    ? `clearing an unreadable lock at ${LOCK}`
-    : `clearing a stale lock (pid ${pid} is no longer running)`);
+
+  if (lock.state === "ok") {
+    console.log(`clearing a stale lock (pid ${lock.pid} is no longer running)`);
+  } else if (lock.state === "corrupt") {
+    console.log(`clearing an unreadable lock at ${LOCK} (could not be ` +
+      "parsed after retrying -- not a lock this code wrote)");
+  }
+  // "absent": released between the failed claim above and this read: nothing
+  // to clear, just reclaim it.
   rmSync(LOCK, { force: true });
   // A second claim can still lose a race against another run doing the same
   // stale-clear at the same moment -- rare (it needs two runs to observe the

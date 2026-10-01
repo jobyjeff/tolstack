@@ -171,3 +171,77 @@ full log.
 anything under `data/projections/` were out of scope and untouched — the
 shared-projection coupling is `docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md`'s
 live question, not this handoff's.
+
+## Re-run 2026-10-01 — after review: REQUEST CHANGES
+
+Review (`REVIEW_20261001_mutation_witness_shadow_is_per_run.md`, on
+`review/mutation_witness_shadow_is_per_run`) found the per-run shadow, the
+sweep, and the `applyToShadow` pointer comment all correct and left them
+alone. The blocker was in the lock's stale-vs-live claim, described above as
+"claimed with an exclusive `"wx"` file create so two runs can't both believe
+they got it" — true of the *claim*, but not of the *content*: `"wx"` is an
+exclusive **create**, which is `open(O_CREAT|O_EXCL)` followed by a separate
+`write()`, not one atomic "create-with-this-content" syscall. The loser of a
+near-simultaneous pair can read the winner's lock file in the gap between
+those two syscalls, get `""`, fail to parse it, and — because "could not
+parse" and "the pid inside it is dead" were the same code branch
+(`pid === null` → "clearing an unreadable lock") — concluded the lock was
+abandoned and reclaimed it. **Both processes then proceeded with no refusal
+printed by either.** Review measured this at 3 failures in 10 back-to-back
+runs of `test_two_concurrent_runs_against_one_repo_produce_a_named_refusal` —
+a real, frequent race, not a hypothetical, and squarely in scope since the
+lock *is* deliverable 2.
+
+**The fix: make the claim atomic by making the write atomic, not by patching
+the read side.** `tryClaimLock()` now writes the lock's JSON complete to a
+private temp file first (nobody else is watching that path), then publishes
+it at `LOCK` with `linkSync` — a hard link is one filesystem operation that is
+*also* exclusive (`EEXIST` if the destination already exists), which is why it
+was chosen over `renameSync`: a rename onto an existing path **replaces it
+unconditionally** on both Windows and POSIX, which would silently clobber a
+live lock instead of refusing and so cannot stand in for `"wx"`'s exclusivity
+at all — this is the detail that would have broken a naive "just use rename"
+fix. Any reader that observes `LOCK` existing now always sees it fully
+written; there is no window where it is present but incomplete.
+
+Separately, per the review's explicit ask: "could not parse this" and "parsed,
+and the pid is dead" are now two different code paths (`readLock()` returns
+`{state: "ok"|"corrupt"|"absent"}`), with two different log messages
+(`clearing a stale lock (pid N ...)` vs. `clearing an unreadable lock at ...
+(could not be parsed after retrying -- not a lock this code wrote)`), and only
+the former is ever treated as a confirmed-dead-pid stale lock. A `"corrupt"`
+read gets three short synchronous retries (`Atomics.wait` on a throwaway
+`SharedArrayBuffer`, 5ms apart — Node allows `Atomics.wait` on the main
+thread; browsers don't, which is the only reason this isn't completely
+unremarkable) before being trusted, as defense in depth against anything
+*other* than the now-closed write race; in practice a `"corrupt"` read should
+now only ever mean genuine external corruption, since a legitimate claim can
+no longer produce one.
+
+**Verification, strengthened per the review's explicit ask for a repeat count
+and a deterministic case, not a single lucky run:**
+
+- `test_two_concurrent_runs_against_one_repo_produce_a_named_refusal` now
+  loops 10 rounds internally (matching review's own measurement scale) and
+  additionally asserts the specific conflation string
+  (`"clearing an unreadable lock"`) never appears on the refused side. Run
+  four times total this session (40 rounds of the race) — **0 failures**,
+  against the pre-fix ~30% per-round rate.
+- A new test,
+  `test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale`,
+  forces the specific "unparseable lock" code path directly (writes an empty
+  `LOCK` file, no second process, no timing dependency at all) and asserts it
+  is reported as corrupt, never as a confirmed-dead-pid stale lock. This is
+  the "deterministic reproduction of the specific race" angle review asked
+  for, in the form that's actually reproducible on demand: the *end state* a
+  mid-write read used to produce, rather than the exact syscall-level timing
+  that causes it (which the fix removes the ability to produce at all).
+
+**Full-suite record review flagged as missing, now supplied:**
+`venv-win/Scripts/python.exe -m pytest -q` (main-checkout interpreter, this
+worktree as cwd) — 1440 passed, 1 deselected
+(`tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`, the
+documented worktree-only limitation per `CLAUDE.md`, independently confirmed
+non-regressing via `node apps/viewer/run_tests.cjs --repo
+C:/workspace/tolstack`: 522/522 — same as the original round, re-verified
+rather than assumed unchanged).
