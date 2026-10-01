@@ -210,8 +210,12 @@ anchor in under a second, which is how it was found.
 - `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack` —
   **25/25 suites**, every sub-check green.
 - `node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack` —
-  see the report; the five new specs were also run individually and each
-  printed `WITNESSED`.
+  the five new specs each printed `WITNESSED` when run individually, and the
+  `annotate` and `browser` halves of the full run are green (73 witnessed). The
+  `fast` half of the full run could not execute — see the section below, which
+  is not about this branch.
+
+**Read section 11 before trusting any of the four numbers above.**
 - `venv-win/Scripts/python.exe -m pytest -q` — 1267 passed, 1 failed, and the
   one failure is `tests/test_viewer_js_suite.py`, the deliberate worktree red
   `CLAUDE.md` names.
@@ -225,4 +229,49 @@ projection (no builder, no stack or topology JSON), so the existing projection
 is exactly as fresh for this tree as for trunk, and every `[real]` tier above
 ran green against it with `--repo`. The in-app "Data is older than the latest
 code" banner compares the repo's HEAD sha, not the inputs, so it says that in
-every worktree.
+every worktree regardless.
+
+## 11. The shared projection changed hands mid-session, and that invalidated two of those runs AFTER they passed
+
+Section 10's first two bullets are true of the moment they ran and **cannot be
+reproduced now**. Not because of anything in this diff.
+
+At ~19:55–20:05 the fast tier reported 522/522 with no tier skipped — and the
+522 *includes* `[real] the projection this tier reads was built from this
+tree`, so the pairing was asserted rather than assumed. The browser tier's
+25/25 ran in the same window.
+
+At **20:25:57, 20:27:17 and 20:29:00** another session rewrote all three files
+in `C:\workspace\tolstack\data\projections\viewer\`. Their stamps are
+`5e69149`, `afaa60e` and `4bbc869` — commits that exist only on
+`handoff/vpa_pitch_linkage_topology_and_feature_fits`, an in-flight branch
+`integration` does not contain. From that moment the same command here does not
+go red on a fixture; it **refuses the whole `[real]` tier**, naming four input
+files this branch has never heard of (`docs/topologies/part_mesh_aliases.json`,
+`topology_vpa_pitch_linkage.json`, `tolerance_stack/feature_geometry.py`,
+`tolerance_stack/topology.py`). A reviewer re-running them today sees the
+refusal, and the refusal is the gate working.
+
+That is also the whole of why the full mutation tier's `fast` half reports 59
+of 132 mutations as `TIER_ALREADY_RED`: the clean run is red before any
+mutation is applied, for the same reason. The runner says so and **exits 1**,
+correctly — and if you measure that exit code through a pipe (`| tail`, or
+`; echo $?` after a redirect) you read the wrapper's 0 and conclude the tier
+passed. It did not; I made exactly that mistake once in this session and
+reported it as a defect in the runner before checking.
+
+Two things that follow:
+
+* **Do not "fix" this by rebuilding.** Rebuilding from this tree does to the
+  other live worktree precisely what was done to this one, and its handoff is
+  still running. Which branch the shared directory belongs to is an operator
+  call.
+* Filed as
+  `docs/issues/ISSUE_20260930_a_rebuild_from_an_unlanded_branch_now_disarms_every_other_worktrees_real_tier.md`
+  (`audience: strategy`). The *class* is already triaged into
+  `docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md`; what
+  that brief does not have is this **consequence**. It describes two worktrees
+  reddening each other's *fixtures*, with the tier still running. Since the
+  freshness gate landed, the tier does not run at all — and a verification that
+  had already passed becomes retroactively unreproducible, which is the one
+  property a test record exists not to have.
