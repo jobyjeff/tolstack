@@ -1761,6 +1761,14 @@
   // the real pitch_system: "the DAG should start out as a right-justified
   // linear chain with legs/branches extending to the left".
   //
+  // Column 0 is still the mainline and the forks still take the ids above it,
+  // so everything below reads the same — but since columns_ordered_to_minimise_
+  // crossings (2026-09-30) the ids 1..n-1 are no longer in fork order: the
+  // projection renumbers them after the walk to cross as little as possible
+  // (order_columns, shortest leg nearest the trunk), and it does that counting
+  // leader crossings TOWARDS column 0, i.e. against this mirror. The two are a
+  // pair now; see apps/viewer/README.md, "The rails".
+  //
   // So: MIRROR the x-allocation at render time, column c → (columns − 1 − c).
   // The mainline lands in the rightmost column, directly beside the jog zone,
   // and branches extend left. This is a reflection, not a layout engine —
