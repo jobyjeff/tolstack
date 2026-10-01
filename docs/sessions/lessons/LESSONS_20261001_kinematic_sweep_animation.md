@@ -192,8 +192,9 @@ that browser automation is not run here** — that rule
 live session, which a *headful* run hijacks. Nothing here touches one, and the
 README now says so where a reader meets the rule.
 
-It earned its place immediately by finding two defects invisible to the pure
-tier:
+It is 31 checks on the mock run and 38 with `--real`, and it earned its place
+immediately by finding two defects invisible to the pure tier (plus the
+tooltip, below):
 
 * **`_loadPart` framed the camera on every part it opened**, including the ones
   sweep mode opens to anchor — so the view snapped from the swept path to a box

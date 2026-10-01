@@ -76,10 +76,10 @@ mechanism and date rather than by run id.
 
 ## 4 — `run_browser_check.mjs` is run by no gate
 
-It is green (28 checks on the mock run, 35 with `--real`) and it found two
-defects the pure tier could not see — a camera the part loader stole, and a
-viewing axis that looked straight down a planar mechanism's own plane. Nothing
-runs it. It is not in `CLAUDE.md`'s three-command merge list, and the annotate
+It is green (31 checks on the mock run, 38 with `--real`) and it found three
+things the pure tier could not see — a camera the part loader stole, a viewing
+axis that looked straight down a planar mechanism's own plane, and a joint
+tooltip that was built, tested and wired to nothing. Nothing runs it. It is not in `CLAUDE.md`'s three-command merge list, and the annotate
 fast tier has the same problem already filed
 (`ISSUE_20260918_the_annotate_js_suite_is_run_by_no_gate.md`) — so this is that
 issue's second instance rather than a new class, and it should probably be
