@@ -138,6 +138,33 @@ TOPOLOGIES_NAME = "topologies.json"
 #: document has exactly one row, one y, and one rail mark.
 ROW_KINDS = ("node", "edge")
 
+#: The walk's own mainline, and the one column whose place is not up for
+#: discussion: ``apps/viewer/topology.js``'s ``VA.spineRight`` mirrors the
+#: columns so this one lands hard against the jog zone, which is where Jeff
+#: asked for the spine (2026-09-14). :func:`order_columns` permutes every other
+#: column around it.
+TRUNK_COLUMN = 0
+
+#: How a layout's column ids were put in the order they are in -- a field the
+#: page may read, so it is a named vocabulary and not two inline strings (the
+#: house rule since ``three_field_vocabularies``, 2026-08-19). ``exact`` means
+#: :func:`order_columns` searched every permutation and this one is a minimum of
+#: :func:`layout_crossings`' total; ``shortest_first`` means the search was too
+#: wide and the layout is the **heuristic** Jeff asked for instead -- shortest
+#: leg nearest the trunk -- which is a good order and not a proven-best one.
+COLUMN_ORDERS = ("exact", "shortest_first")
+
+#: The widest exact search :func:`order_columns` will run, counted in NON-trunk
+#: columns (the trunk is pinned at :data:`TRUNK_COLUMN` and is not permuted).
+#: Nine is where it was measured (2026-09-30), on this repo's two widest
+#: topologies and in plain CPython: branch-and-bound over 9! orders settles in
+#: 0.2 s on ``pitch_system`` and 1.2 s on ``rotor_fastener_length`` -- the
+#: slower one because every order there scores the same, so nothing prunes and
+#: the whole tree is walked. Ten columns is ten times that tree. Raise this only
+#: with a fresh measurement: it runs inside ``pytest -q`` as well as inside a
+#: projection build.
+EXACT_ORDER_MAX_COLUMNS = 9
+
 #: What a link between two rails is. ``branch`` fans out of a branch node into a
 #: freshly allocated column; ``close`` is the edge that lands back on a node the
 #: walk has already emitted -- a grounded loop's closure. Both are drawn as
@@ -261,10 +288,15 @@ class Layout:
         self.rails: List[Dict[str, int]] = []
         self.links: List[Dict[str, Any]] = []
         self.columns = 0
+        #: One of :data:`COLUMN_ORDERS` -- how the column ids below were put in
+        #: the order they are in. Written by :func:`order_columns`, which every
+        #: serialisation ends with, so it is never absent.
+        self.column_order = COLUMN_ORDERS[0]
 
     def as_dict(self) -> Dict[str, Any]:
         return {
             "columns": self.columns,
+            "column_order": self.column_order,
             "rows": self.rows,
             "rails": self.rails,
             "links": self.links,
@@ -358,6 +390,284 @@ class _Serializer:
         return row
 
 
+def _as_layout_dict(layout: Any) -> Dict[str, Any]:
+    """A :class:`Layout` or an already-serialised one, as the plain dict."""
+    return layout.as_dict() if isinstance(layout, Layout) else layout
+
+
+def layout_crossings(layout: Any) -> Dict[str, int]:
+    """How many times a drawn line crosses a rail it has no business touching.
+
+    The legibility number, in three terms, because they are three different
+    lines and a reader who loses one of them loses a different thing:
+
+    ``branch``
+        a fan-out curve at a fork, drawn across a rail standing between the
+        fork's column and the freshly allocated one. **Rails opened at the same
+        fork do not count**: a fan-out into five columns is one junction, and
+        reading it as ten crossings would say the picture is worse the more
+        honestly it draws a branch point.
+    ``close``
+        a loop-closing curve, drawn from its edge's row back up to the node it
+        lands on, across any rail that occupies a column between the two and is
+        on screen anywhere in that row span.
+    ``leader``
+        a node's leader line, which leaves its dot towards the grid --
+        ``apps/viewer/topology.js`` mirrors the columns (``VA.spineRight``), so
+        "towards the grid" is **towards column 0** here -- and crosses every
+        rail in a smaller column that spans the node's row.
+
+    All three are counted per RAIL, not per column: a reused column holds
+    several disjoint rails and a line only crosses the one that is on screen at
+    its row.
+
+    One honest approximation, in the leader term: the page draws a leader for
+    every *non-internal* node (``VA.gridPlan``), and which nodes those are is a
+    fact about the topology's parts, not about a layout. So this counts a leader
+    for every node row -- a superset, and a monotone one, since dropping rows
+    from the sum cannot make a worse order look better. Measured on the live
+    ``pitch_system`` as allocated: 52 here against the 43 the page actually
+    draws.
+    """
+    d = _as_layout_dict(layout)
+    rows = d.get("rows") or []
+    rails = d.get("rails") or []
+    links = d.get("links") or []
+    counts = {"branch": 0, "close": 0, "leader": 0}
+    for link in links:
+        lo, hi = sorted((link["from_column"], link["to_column"]))
+        top, bottom = sorted((link["row"], link["to_row"]))
+        for rail in rails:
+            if not lo < rail["column"] < hi:
+                continue
+            if link["kind"] == "branch":
+                if rail["start"] == link["row"]:
+                    continue        # a sibling of this very fan-out
+                if rail["start"] <= link["row"] <= rail["end"]:
+                    counts["branch"] += 1
+            elif max(rail["start"], top) <= min(rail["end"], bottom):
+                counts["close"] += 1
+    for row in rows:
+        if row["kind"] != "node":
+            continue
+        for rail in rails:
+            if (rail["column"] < row["column"]
+                    and rail["start"] <= row["row"] <= rail["end"]):
+                counts["leader"] += 1
+    return counts
+
+
+def _crossing_incidences(layout: Layout) -> Tuple[Dict[Tuple[int, int], int],
+                                                  Dict[int, List[Tuple[int, int, int]]]]:
+    """:func:`layout_crossings`' answer, re-expressed as facts about COLUMN IDS.
+
+    Whether a line crosses a rail is two questions multiplied together: a
+    vertical one -- does the rail span the row -- and a horizontal one -- is its
+    column between the line's. Renumbering the columns cannot move a row, so the
+    vertical half is the same for every permutation and is worth computing once:
+
+    ``leaders[(c, d)]``
+        how many (node row in column ``d``, rail in column ``c`` spanning it)
+        pairs there are. The pair crosses when ``c`` ends up nearer the trunk
+        than ``d``.
+    ``triples[x]``
+        for each column ``x``, the ``(other_end, rail_column, count)`` rows of
+        every link with ``x`` at one end. The triple crosses when the rail's
+        column ends up strictly between the link's two.
+
+    That is the whole objective as a function of the ordering alone, which is
+    what makes a 9!-wide search affordable.
+    """
+    leaders: Dict[Tuple[int, int], int] = {}
+    triples: Dict[int, List[Tuple[int, int, int]]] = {}
+    pairs: Dict[Tuple[int, int, int], int] = {}
+    for link in layout.links:
+        a, b = link["from_column"], link["to_column"]
+        if a == b:
+            continue
+        top, bottom = sorted((link["row"], link["to_row"]))
+        for rail in layout.rails:
+            column = rail["column"]
+            if column in (a, b):
+                continue            # never strictly between its own endpoints
+            if link["kind"] == "branch":
+                if rail["start"] == link["row"]:
+                    continue
+                spans = rail["start"] <= link["row"] <= rail["end"]
+            else:
+                spans = max(rail["start"], top) <= min(rail["end"], bottom)
+            if spans:
+                key = (min(a, b), max(a, b), column)
+                pairs[key] = pairs.get(key, 0) + 1
+    for (a, b, column), count in pairs.items():
+        triples.setdefault(a, []).append((b, column, count))
+        triples.setdefault(b, []).append((a, column, count))
+    for row in layout.rows:
+        if row["kind"] != "node":
+            continue
+        for rail in layout.rails:
+            if rail["column"] == row["column"]:
+                continue
+            if rail["start"] <= row["row"] <= rail["end"]:
+                key = (rail["column"], row["column"])
+                leaders[key] = leaders.get(key, 0) + 1
+    return leaders, triples
+
+
+def _shortest_first(layout: Layout) -> List[int]:
+    """The non-trunk column ids, shortest leg nearest the trunk.
+
+    Jeff's own words, on the real ``pitch_system`` (2026-09-30): *"moving the
+    shorter legs to be closer to the trunk would help a lot"*. A column's leg
+    length is the last row it reaches -- the bottom of its lowest rail, since a
+    reused column holds several and they travel together -- and the allocated id
+    breaks the tie, so this is total and deterministic.
+    """
+    ends: Dict[int, int] = {}
+    for rail in layout.rails:
+        ends[rail["column"]] = max(ends.get(rail["column"], -1), rail["end"])
+    return sorted((c for c in range(layout.columns) if c != TRUNK_COLUMN),
+                  key=lambda c: (ends.get(c, -1), c))
+
+
+def _best_order(layout: Layout, candidates: Sequence[int]) -> Tuple[List[int], str]:
+    """Search the orderings of ``candidates`` for one that crosses least.
+
+    Depth-first over positions, nearest the trunk first, with the running cost
+    accumulated as each column is placed: a column's own cost is settled the
+    moment it is placed, because every leader pair and every link triple it
+    takes part in is decided by which of its members was placed last. Costs are
+    non-negative, so a partial order already at or above the best complete one
+    can be abandoned -- and the bound starts at the heuristic's own score, which
+    is why this is cheap enough to run inside ``pytest``.
+
+    Ties go to the order enumerated first, and ``candidates`` arrives in
+    shortest-first order, so a tie reads as Jeff's rule wherever the count does
+    not care. The exact minimum is therefore never worse than the heuristic and
+    agrees with it whenever both are available.
+    """
+    leaders, triples = _crossing_incidences(layout)
+    n = len(candidates)
+    if n < 2:
+        return list(candidates), COLUMN_ORDERS[0]
+
+    def score(order: Sequence[int]) -> int:
+        position = {TRUNK_COLUMN: 0}
+        for i, column in enumerate(order, start=1):
+            position[column] = i
+        total = 0
+        for (c, d), count in leaders.items():
+            if position[c] < position[d]:
+                total += count
+        for x, rows in triples.items():
+            for other, rail_column, count in rows:
+                if position[x] > position[other] and position[x] > position[rail_column] \
+                        and position[rail_column] > position[other]:
+                    total += count
+        return total
+
+    heuristic = list(candidates)
+    best_order = heuristic
+    best = score(heuristic)
+    if n > EXACT_ORDER_MAX_COLUMNS:
+        return best_order, COLUMN_ORDERS[1]
+
+    placed = [TRUNK_COLUMN]
+    position = {TRUNK_COLUMN: 0}
+    chosen: List[int] = []
+    remaining = list(candidates)
+
+    def step_cost(x: int) -> int:
+        cost = 0
+        for p in placed:
+            cost += leaders.get((p, x), 0)
+        for other, rail_column, count in triples.get(x, ()):
+            # `x` is the last of the three placed, so the triple crosses exactly
+            # when the rail's column was placed after the link's far end.
+            if other in position and rail_column in position \
+                    and position[rail_column] > position[other]:
+                cost += count
+        return cost
+
+    def descend(running: int) -> None:
+        nonlocal best, best_order
+        if not remaining:
+            if running < best:
+                best = running
+                best_order = list(chosen)
+            return
+        for i in range(len(remaining)):
+            x = remaining.pop(i)
+            cost = running + step_cost(x)
+            if cost < best:
+                position[x] = len(placed)
+                placed.append(x)
+                chosen.append(x)
+                descend(cost)
+                chosen.pop()
+                placed.pop()
+                del position[x]
+            remaining.insert(i, x)
+
+    descend(0)
+    return best_order, COLUMN_ORDERS[0]
+
+
+def order_columns(layout: Layout) -> Layout:
+    """Renumber the columns so the picture crosses itself as little as possible.
+
+    The walk (:func:`serialize_topology`) allocates the lowest free column at
+    every fork, which is a claim about *when* a branch opened and a very poor
+    claim about where it should be drawn: on the live ``pitch_system`` the two
+    branches opened at row 0 run almost the whole diagram and sit nearest the
+    trunk, so every later fork's rail is opened outside them and every one of
+    its links hops over both. Jeff, with that diagram in front of him
+    (2026-09-30): *"When possible, rearrange the dag to minimize self-crossings
+    (makes it hard to trace the lines) ... moving the shorter legs to be closer
+    to the trunk would help a lot."* That is the ruling item 2 of
+    ``docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md`` was
+    waiting for: column order **may** be chosen.
+
+    So the walk is untouched and this is a second pass over its output --
+    a **permutation of the column ids**, applied to every field that holds one.
+    A renumbering is a bijection on column indices, exactly as the page's own
+    right-justifying mirror is, so rail continuity, column reuse and the
+    one-dashed-curve-per-cycle invariant all survive it untouched: they are
+    properties of which column a row is on *relative to the others*, and every
+    one of those relations is carried through. The trunk -- the column of the
+    walk's first node -- stays :data:`TRUNK_COLUMN`, because the page mirrors it
+    to the right-hand edge and the spine is the one column whose place is
+    already decided.
+
+    What it is **not** is a solver and not a layout engine. The objective is
+    :func:`layout_crossings`' three terms, equally weighted; the search is
+    exhaustive up to :data:`EXACT_ORDER_MAX_COLUMNS` non-trunk columns and
+    Jeff's shortest-leg-first rule beyond it, and ``layout.column_order`` says
+    which, so a wide diagram never claims a minimum it did not prove. The
+    trade, which Jeff accepted when he asked for this: column order is now a
+    function of the whole graph, so **adding one edge can re-order the
+    columns**. The ROOT is still never chosen by heuristic -- the author's
+    document order picks it, and that is what stops the picture moving for
+    unrelated reasons.
+    """
+    candidates = _shortest_first(layout)
+    order, how = _best_order(layout, candidates)
+    layout.column_order = how
+    renumbered = {TRUNK_COLUMN: TRUNK_COLUMN}
+    for index, column in enumerate(order, start=1):
+        renumbered[column] = index
+    for row in layout.rows:
+        row["column"] = renumbered[row["column"]]
+        if row.get("closes_column") is not None:
+            row["closes_column"] = renumbered[row["closes_column"]]
+    for rail in layout.rails:
+        rail["column"] = renumbered[rail["column"]]
+    for link in layout.links:
+        link["from_column"] = renumbered[link["from_column"]]
+        link["to_column"] = renumbered[link["to_column"]]
+    return layout
+
+
 def serialize_topology(topology: Topology) -> Layout:
     """Depth-first serialisation of a whole topology, with rail continuity.
 
@@ -383,6 +693,14 @@ def serialize_topology(topology: Topology) -> Layout:
 
     Every node and every edge of the topology gets exactly one row. That is what
     makes the grid an index of the document rather than a view of part of it.
+
+    What the allocation above decides is **which rows share a rail**; it does
+    not decide where that rail is drawn. :func:`order_columns` runs over the
+    finished walk and renumbers the non-trunk columns to cross as little as
+    possible -- shortest leg nearest the trunk -- and that is the pass the
+    picture's left-to-right order comes out of. Eager allocation is still what
+    keeps branch 2 off branch 1's rows; it is simply no longer also a claim
+    about distance from the spine.
     """
     ser = _Serializer()
     visited: Dict[str, int] = {}
@@ -448,7 +766,7 @@ def serialize_topology(topology: Topology) -> Layout:
         walk(node, column)
         ser.release(column)
 
-    return ser.layout
+    return order_columns(ser.layout)
 
 
 def serialize_chain(chain: Sequence[Contribution]) -> Layout:
@@ -485,7 +803,7 @@ def serialize_chain(chain: Sequence[Contribution]) -> Layout:
         })
         ser._extend(column)
     ser.release(column)
-    return layout
+    return order_columns(layout)
 
 
 # ---------------------------------------------------------------------------
