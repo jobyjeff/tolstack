@@ -274,6 +274,26 @@
         "spherical_bearing_tan_link_ms14103_3"
       ],
       "kind": "datum_feature"
+    },
+    {
+      "id": "gas_spring_mount_hub_face",
+      "name": "gas-spring mount base face against the hub",
+      "parts": [
+        "gas_spring_mount_213668_002",
+        "hub"
+      ],
+      "kind": "mating_surface",
+      "note": "Where 213668-002 bolts to the hub, and therefore the mount's own datum."
+    },
+    {
+      "id": "tan_link_mount_hub_face",
+      "name": "tangential link mount base face against the hub",
+      "parts": [
+        "tan_link_mount_215175_002",
+        "hub"
+      ],
+      "kind": "mating_surface",
+      "note": "Phase 2. Where 215175-001 bolts to the hub."
     }
   ],
   "edges": [
@@ -474,6 +494,42 @@
       "from": "tan_link_upper_sphere_centre",
       "to": "pitch_plate_tan_link_attach_bore",
       "note": "No value recorded. Phase 2."
+    },
+    {
+      "id": "gas_spring_mount_height",
+      "name": "gas-spring mount base face to bushing bore",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "gas_spring_mount_hub_face",
+      "to": "gas_spring_mount_bushing_bore",
+      "note": "No value recorded. What would close it: 213668-002's own drawing, or a fit of the installed `machined_213668` mesh -- the only part of this linkage whose mesh came from a single-part STEP export rather than from the assembly, which is also why that mesh records no placement and a fit of it stands in its own frame."
+    },
+    {
+      "id": "hub_spindle_to_gas_spring_mount_face",
+      "name": "hub spindle bore axis to gas-spring mount seat",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_spindle_bore_axis",
+      "to": "gas_spring_mount_hub_face",
+      "note": "No value recorded. What would close it: 214373-002's own drawing. topology_pitch_system.json carries this quantity under `gas_spring_mount_position`, with a drawing citation that is still `untraced` (its 2026-09-06 retrace) -- read that edge before re-tracing this one, and do not copy its band across: the two documents do not measure between the same pair of interfaces."
+    },
+    {
+      "id": "tan_link_mount_height",
+      "name": "tangential link mount base face to attachment bore",
+      "kind": "structural",
+      "part": "tan_link_mount_215175_002",
+      "from": "tan_link_mount_hub_face",
+      "to": "tan_link_mount_bore",
+      "note": "No value recorded. Phase 2. What would close it: 215198 sheet 1, whose `79.00 +/-0.10` was traced on 2026-09-10 and is the mount detail's own height -- but check the endpoints before copying it, because this edge is between THIS document's two interfaces and that trace was read for a different document's."
+    },
+    {
+      "id": "hub_spindle_to_tan_link_mount_face",
+      "name": "hub spindle bore axis to tangential link mount seat",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_spindle_bore_axis",
+      "to": "tan_link_mount_hub_face",
+      "note": "No value recorded. Phase 2. What would close it: 214373-002's own drawing."
     }
   ],
   "notes": [

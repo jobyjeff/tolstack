@@ -573,8 +573,8 @@ document's "A study, in outline" section fences — see
 ### `topology_vpa_pitch_linkage.json` + no studies
 
 Handoff `vpa_pitch_linkage_topology_and_feature_fits` (2026-09-30), and the
-first committed topology with **no study at all**. The graph: 12 parts, 22
-interfaces, 21 edges, 3 branch points, 3 grounded loops, 7 gap edges. It is the
+first committed topology with **no study at all**. The graph: 12 parts, 24
+interfaces, 25 edges, 4 branch points, 5 grounded loops, 7 gap edges. It is the
 propeller pitch linkage's joints at 72 degrees blade pitch — the two pitch-link
 spherical-bearing centres, the hub and plate spindle bores, the blade-1 root
 bearing bore, the gas spring, and the tangential link as a declared phase 2.
