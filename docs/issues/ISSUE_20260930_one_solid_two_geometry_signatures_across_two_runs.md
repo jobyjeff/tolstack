@@ -65,6 +65,19 @@ Three consequences here, in order of cost:
 3. **The store grows a duplicate per re-extraction.** Each is a full
    positions/indices/face_ids triple.
 
+## A second instance of the same shape, which may or may not be the same bug
+
+The 2026-10-01 run also installed `216332-001` **twice**, as
+`asm217755_216332_001_1ed2bfd5` (20 solids) and `…_1ff0bced` (15 solids), one
+instance each, on blade positions `prd-e-03372837.2` and `.3` of a five-blade
+propeller. Unlike the `MS14101-3` pair these differ in *solid count*, so they
+are genuinely different shapes under one drawing number — a different
+situation, and quite possibly a correct one (two blades at different
+instrumentation states). It is noted here because a reader comparing suffixed
+ids will meet both cases in the same store and the two need telling apart:
+**identical in every recorded field** is the defect; **different solid counts**
+is the mechanism working.
+
 ## What would settle it
 
 A rotorkit-side answer to: *is `shape_signature` stable across producer
