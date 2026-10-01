@@ -2643,8 +2643,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (12/12 at this sighting). Two more things about that runner: its shadow
       tree is `tmp/mutation-witness` **inside your worktree**, a killed run
       leaves it undeletable from Bash (`Device or resource busy` — PowerShell
-      `Remove-Item -Recurse -Force` clears it), and two concurrent runs of the
-      tier corrupt each other's shadow tree with ENOENT mid-table.
+      `Remove-Item -Recurse -Force` clears it, and an *empty* leftover
+      directory with a lingering handle needs
+      `[System.IO.Directory]::Delete($p, $true)`), and two concurrent runs of
+      the tier corrupt each other's shadow tree with ENOENT mid-table.
+      **That last one is a REVIEWER footgun, not just a hazard — the shadow
+      path is keyed to the repo root, so running the tier inside the TACTICAL
+      worktree collides with the tactical agent still working in it.** Measured
+      2026-09-30 (`vpa_pitch_linkage_topology_and_feature_fits`): this
+      reviewer ran it there for convenience — the tactical worktree has the
+      `node_modules` a fresh review worktree lacks — and took out the author's
+      own run twice, who then read the two live node processes as orphans and
+      stopped them, which was this review's run. Neither error names
+      concurrency
+      (`ISSUE_20261001_two_mutation_witness_runs_on_one_worktree_corrupt_each_others_shadow.md`,
+      filed `high`). Run it from **your own** worktree and junction
+      `node_modules` in (`cmd /c mklink /J node_modules
+      C:\workspace\tolstack\node_modules`, `cmd /c rmdir node_modules`
+      after) — which is also what arms the browser tier there. And before
+      concluding a run has hung, sample the process list twice: a healthy run
+      spawns one child per spec, so a **pid that has changed is progress**.
 
 - [ ] **A new scanner's pattern list with no replay of its own motivating
       instances.** Second sighting of the false-positive entry above, 2026-09-14

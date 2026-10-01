@@ -3,11 +3,180 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
 reviewer: agent
 date: 2026-09-30
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE
+blockers: 0
 ---
 
 # Review — vpa_pitch_linkage_topology_and_feature_fits
+
+> **Round 2 (2026-10-01): APPROVE, 0 blockers.** Both blockers fixed, all six
+> should-fixes and all four nits addressed, and merged into `integration`.
+> Round 1 is below unchanged, from "Round 1 — REQUEST CHANGES" on; the
+> round-2 verification is the section directly under this note.
+
+## Round 2 — APPROVE (2026-10-01)
+
+The rework addressed both blockers, all six should-fixes and all four nits. On
+the two blockers it went further than the findings asked, and in both cases the
+extra distance is the part worth recording.
+
+### B1 — fixed by removing the choice rather than repairing the key
+
+I suggested stripping the suffix before counting. The author did something
+better: **the expansion is no longer a placement source at all.** Every
+placement now comes from the mesh's own sidecar, so mis-attribution is
+impossible by construction rather than gated behind a count — and the expansion
+is demoted to the *check* the sidecars could not perform alone (*is this
+extraction's instance list the whole truth for its solid?*), matched by
+**instance path**, which is the one key that crosses the suffix gap.
+`product_mesh_counts()` and `PLACEMENT_SOURCES` are gone; I grepped and nothing
+live still references them, and `tests/test_fit_bound_features.py` carries a
+positive `assert "placement_source" not in occurrence`.
+
+Verified against the live files, not the tests:
+
+| verdict | count | which |
+|---|---|---|
+| `confirmed` | 8 | sidecar set == expansion entry exactly |
+| `superset` | 3 | `MS14101-3_1ec77e91` (2 of 13), both `216332-001` geometries (1 of 4 each) |
+| `not_found` | 0 | — |
+| `absent` | 24 | the run wrote no expansion, or the mesh records no instance |
+
+The three `superset` rows are precisely the population the old count was blind
+to, so the new check reaches it and the docstring's "every unambiguous mesh came
+back `confirmed`" holds. `occurrences_for()` now takes only `provenance`.
+`test_a_placement_always_comes_from_the_mesh_that_owns_it` reproduces B1's exact
+scenario on the live ambiguous mesh and asserts the placed instance set equals
+the sidecar's. The refusal arm's failure message no longer advises retiring the
+rule — it now says *"before retiring it, confirm it against the store rather
+than assuming"*, which was the sharper half of the finding.
+
+### B2 — fixed by deriving the threshold instead of tuning it
+
+`>=` → `>`, in both readers, with the comparison now justified from the
+row-count algebra rather than from a measurement: for R rows over S segments a
+face has `2S(R-1)` triangles over `RS` nodes closed and `R(S+1)` open, so two
+rows sit *at* 1.0 or below and three rows are above it for any real S. That is
+the derivation the original comment was reaching for and got half of.
+
+Re-measured independently, and every number reconciles:
+
+| | planar | cylindrical | spherical | other | classified |
+|---|---|---|---|---|---|
+| Python, round 1 | 3866 | 6935 | 3046 | 21788 | 38.86% |
+| Python, now | 3866 | 6930 | **2902** | 21937 | 38.44% |
+| JS, now | 3866 | 6930 | **2902** | 21937 | 38.4% |
+
+`3046 − 139 (B2) − 5 (S5) = 2902`, and `6935 − 5 = 6930`, so the commit's
+"exactly 139 faces moved" is right and the remaining 10 are S5's. On the hub:
+**spherical faces at `triangles_per_vertex == 1.0` went 18 → 0**, the lowest
+accepted ratio there is now 1.0556, and 636 hub faces are correctly refused as
+bands. The new witness `annotate__a-closed-band-of-quads-is-other-too…` mutates
+the one character back and is `WITNESSED`; its note says plainly why the
+open-band sibling could not have caught it.
+
+### S5 was a real defect, not a stale claim
+
+Worth flagging because the finding understated it. The ten divergences were not
+cosmetic: Python tried each shape on its merits where the browser **stops** when
+a shape's own sub-test fails, and on two faces Python answered with a 75 mm
+sphere at RMS 0.68. `fit_face` is now `classifyOne` statement for statement, the
+refusal vocabularies are paired, and a `[real]` check compares all 35635 faces.
+I ran my own comparison against a fresh JS dump: **0 divergent faces**. The
+pairing cost 165s and prompted three genuine efficiency fixes (`Mesh.face()`
+was O(faces²), the range table and largest-face area were rebuilt per face, the
+facet loop re-normalised vectors that are unit by construction) — 27.5s → 1.1s
+on one part.
+
+### The rest
+
+- **S1** — relabelled `untraced`, with the note rewritten to separate the
+  derivation (which settles traced-vs-inferred) from the support (which is the
+  workbook alone), and stating that the fit is deliberately not leaned on. The
+  suppressed gap row is back.
+  `test_a_topology_edges_workbook_only_value_is_untraced_too` now parametrizes
+  over every committed topology, sharing `_WORKBOOK_INFERRED_ALLOWED`, with a
+  non-vacuity check beside it.
+- **S2** — the divergence is written into the edge note under "READ THIS BEFORE
+  TRUSTING THE NUMBER", with the magnitude, the evidence on both sides and the
+  issue reference. The issue stays open for the decision itself, correctly.
+- **S3** — `assert roots == topology.components()` replaces `>= 1`: a real
+  layout-against-graph comparison, and stronger than the original `== 1`, since
+  a walk root dropped or doubled now reddens. The dead local is gone.
+- **S4** — both stages routed through `VOCAB.table("SURFACE_CLASSES", …)`, the
+  branch tests `=== null`, and the pairing guard iterates the vocabulary,
+  throws on a missing entry, and derives its `other` exemption from
+  `SUGGESTION_RULES` rather than hard-coding it. The hole is closed derivably.
+- **S6** — corrected to the measured values and reframed: *"the margin is thin
+  by design, and it is not a margin."* The lowest accepted ratio store-wide is
+  1.0357 (a ~1 mm spherical feature on the instrumented blade, 29 triangles
+  over 28 nodes). `1.69` is gone. This is a better answer than the finding
+  asked for — a false margin claim replaced by the derivation plus the true
+  distribution.
+- **All four nits** fixed, including the tests.js crossings comment, which was
+  fixed by *removing* the digits and quoting the sentence's shape instead — the
+  right move for a number the test derives live.
+- **The merge conflict** is resolved and re-measured on the merged tree:
+  **265 → 0, six of the six to zero**, with the handoff's regex improvement
+  (both number words captured) surviving. The viewer tier re-derives those
+  digits from the live projection and is green, so the re-measurement is
+  checked rather than asserted.
+
+### One thing the rework changed that was not mine to ask for
+
+`64f6da9` also relaxed `order_columns`' guard in the merged-in sibling
+handoff's code, from a per-term bound (`after[branch] + after[close] <=
+before[…]`) to a strict bound on the total. `vpa_pitch_linkage` is the first
+topology where the two differ — branch+close 36 → 39 while leader went 80 → 0 —
+so the old assertion was asserting something the combined objective never
+promised, and it would have reddened on the merged tree. The new form is the
+right shape for a trade-off objective and is strict on the total. It is a
+change to another handoff's guard, prompted by this merge and explained in the
+commit message; I am flagging it rather than blocking on it, because the
+alternative was shipping a red suite or weakening this handoff's own data.
+
+### Round-2 test record
+
+Post-merge, in this review worktree, with `node_modules` junctioned in from the
+main checkout:
+
+| run | result |
+|---|---|
+| `pytest -q` | **1437 passed, 1 failed** — the documented worktree-only `test_viewer_js_suite` skip-refusal, nothing else |
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | **522/522**, `[real]` tier ran, no TIER SKIPPED |
+| `node apps/annotate/run_tests.cjs` | **157/157**, `[real]` tier ran |
+| `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | 24/25, the one red being `[annotate rail filter + face deselect]`'s known-flaky "a real click on the face tints it"; re-run with `--only` per the overlay entry: **32/32 PASS**, so effectively 25/25 |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | **138/138 declared mutations witnessed**, exit 0, every tier reached including the browser arm (the junctioned `node_modules` armed it). Enrollment matches all three pins. This is the tier `CLAUDE.md` names as the merge gate’s own check, and the author’s own lesson records that it could not be re-run on the final tree — so this run is the thing that was outstanding |
+| `tests/debug_report_tolerance_stacks.py --ratio` | 5/12/9 of 26 seeded; 30/16/15 of 61 — unmoved |
+
+Pre-merge I ran the full `pytest -q` on the branch tip as well (1437 passed, 1
+failed, same one), plus the annotate tier at 157/157 and its witnesses at
+17/17. The projection the `[real]` tiers read was built by the handoff branch
+at `6a164db`; the only files changed after it are an issue, the lesson and
+`scripts/fit_bound_features.py`, none of which is a viewer-projection input,
+and no sibling worktree holds the directory any more.
+
+**Suite runtime roughly tripled**, 90s → ~245s, almost all of it the new
+store-wide classifier pairing. That is a real cost for a real guard and the
+author already paid down the worst of it; worth watching if a third `[real]`
+pairing of this shape arrives.
+
+### My own mistake this round
+
+The author's lesson records two mutation-tier crashes they could not explain,
+and a moment where they stopped two node processes they read as their own
+orphans. Those were **mine**: I ran the witness tier inside the *tactical*
+worktree in round 1 because that is where `node_modules` lives, and the runner
+builds its shadow at one fixed path per repo root with no lock. They diagnosed
+it correctly and filed it `high`
+(`ISSUE_20261001_two_mutation_witness_runs_on_one_worktree_corrupt_each_others_shadow.md`).
+I have extended the overlay's existing shadow-tree entry to say that running
+the tier in the tactical worktree is a reviewer footgun specifically, with the
+`mklink /J node_modules` route that avoids it.
+
+---
+
+## Round 1 — REQUEST CHANGES (2026-09-30)
 
 **The deliverable's headline is right, and I re-derived it end to end.** Source B
 is in hand: fitting face 26 of `asm217755_MS14101_3_9bfdb344` and applying the
