@@ -146,7 +146,7 @@ main checkout:
 | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | **522/522**, `[real]` tier ran, no TIER SKIPPED |
 | `node apps/annotate/run_tests.cjs` | **157/157**, `[real]` tier ran |
 | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | 24/25, the one red being `[annotate rail filter + face deselect]`'s known-flaky "a real click on the face tints it"; re-run with `--only` per the overlay entry: **32/32 PASS**, so effectively 25/25 |
-| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | **138/138 declared mutations witnessed**, exit 0, every tier reached including the browser arm (the junctioned `node_modules` armed it). Enrollment matches all three pins. This is the tier `CLAUDE.md` names as the merge gate’s own check, and the author’s own lesson records that it could not be re-run on the final tree — so this run is the thing that was outstanding |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | **138/138 declared mutations witnessed**, exit 0, every tier reached including the browser arm (the junctioned `node_modules` armed it). Enrollment matches all three pins. This is the tier `CLAUDE.md` names as the merge gate’s own check. The author ran it independently on the branch tip (`13d0fae`) and got the same 138/138, on the third attempt after the shadow collisions below — so the figure has two independent runs behind it, mine on the merged tree |
 | `tests/debug_report_tolerance_stacks.py --ratio` | 5/12/9 of 26 seeded; 30/16/15 of 61 — unmoved |
 
 Pre-merge I ran the full `pytest -q` on the branch tip as well (1437 passed, 1
