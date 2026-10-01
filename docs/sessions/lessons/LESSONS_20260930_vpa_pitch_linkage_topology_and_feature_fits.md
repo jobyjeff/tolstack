@@ -62,33 +62,78 @@ for, in the two links, and none of them is in the VPA. So
 installed mesh at all, rather than an undecided one. That is recorded in the
 alias table's notes.
 
-## Was `provenance.json`'s `instances` the full expansion? **No, and it matters**
+## rotorkit's extraction landed **mid-session**, and changed four answers
 
-rotorkit's `placements.json` does not exist yet (`data/runs/<run>/` holds
-`parts/`, `products.json`, `report.json`), so the fitter fell back to the mesh
-sidecars and says so per occurrence (`placement_source: "mesh_provenance"`).
+The parallel handoff's run (`assembly_extract_20261001T022446Z`) finished while
+this one was running and installed twelve meshes — the hub, the pitch arm, the
+pitch-link body, three blades, and a `placements.json`. The store went from 24
+directories to 36 under a session that had already measured it. Everything
+below is a correction made after that, not a design revisited.
 
-What the sidecars record is **not** the whole instance tree. The pitch-link
-bearing has **2** instances — both under a single `213862-002.1` under a single
-`prd-e-03478612.1` — on an assembly with three blades. The tangential link's
-bearing has 3, one per link. Two readings fit:
+### `placements.json` exists, and its shape was not what I guessed
 
-1. the extraction's `instances` is the slice reachable from the XCAF label it
-   extracted, not a full expansion; or
-2. the other two pitch links' bearings are under one of the **other two**
-   `MS14101-3` product labels — the store's own README records three, two
-   byte-identical and deduplicated by the geometry key — so their instances
-   live under a label this directory never saw.
+It is `{product number: [instance, …]}`, not `{"instances": […]}`. The reader
+written against the guess found nothing and fell back — visibly, because of a
+stderr note added an hour earlier for exactly that case, which is the only
+reason it was not a silent fallback.
 
-Nothing on either side of the boundary settles it, and it does not block blade
-1 (which is all this handoff claims). It is the strongest argument for reading
-`placements.json` when rotorkit produces one: the fitter already prefers it and
-reports which source each occurrence came from.
+**And the real shape carries a trap worth more than the fix.** It is keyed by
+*product number*, and a product number is **not a geometry key**: `MS14101-3`
+is more than one distinct solid in this assembly under one number, so its entry
+there is every instance of all of them. Handing that list to one of them places
+a bearing where a different bearing sits — a plausible coordinate, in the right
+units, centimetres wrong, with nothing on any surface to say so. So the rule is
+not "prefer the newer file": the expansion is used only where this store holds
+exactly **one** mesh for that number, the sidecar is used otherwise, and the
+refusal is printed. Two guards, one per arm, because a bug that refused the
+expansion *always* would otherwise leave both green.
+
+### Was the sidecar the full expansion? Now answerable: **no**
+
+With the expansion to compare against, the sidecars are the slice reachable
+from the label that was extracted. The pitch-link bearing's sidecar records 2
+instances; the propeller has **five** pitch links. And the five are not the same
+part — which is the next finding.
+
+### Blade 1's pitch link is the **instrumented** `546293-002`
+
+`216231 B.1` find 29, `INSTRUMENTED PITCH LINK ASSEMBLY`. The new extraction
+puts it at instance `213862-002.1` with `213862-002` proper at `.2`–`.5`, and
+the two bearings this handoff fitted sit inside that `.1`. So the topology's
+`pitch_link` part names the design drawing and its two most important nodes get
+their geometry from the instrumented one. The same is true one level up for the
+blade (`551438-001` against `216332-001`).
+
+The kinematics are the same link — that is what the sheet agreement to under
+two microns says — so this is not a wrong number to correct but a question
+nobody has answered: **does a topology part name the design part or the article
+in the build the STEP is of?** Filed, with the three options and what each
+costs, because it applies to every topology and not only this one.
+
+### The same solid is installed twice, under two geometry signatures
+
+`asm217755_MS14101_3_9bfdb344` (2026-09-15) and `…_1ec77e91` (2026-10-01) agree
+on assembly sha, XCAF label, product name, solid count and both placement
+matrices to seven decimals. Only the signature differs — across two commits of
+the producer. `data/meshes/README.md` says that signature is "a function of the
+geometry rather than of a file with a write timestamp", and this is that claim
+failing. Filed as a `high`: it makes "how many distinct solids is `MS14101-3`?"
+unanswerable from the store, which is precisely the question the new
+placement-source rule has to answer.
+
+### What was added, and what deliberately was not
+
+Two of rotorkit's four parts became alias rows the same day — `hub` and
+`pitch_arm`, exact drawing-number matches against one installed solid each.
+`pitch_link`'s body and `blade_root` did **not**, and the reason is no longer a
+missing file: both are blocked on the instrumented-variant decision, and
+`216332-001` is installed as two distinct geometries besides.
 
 ## What Jeff clicks, in order
 
 The annotator opens on the topology; every aliased part's mesh is offered and
-the four un-meshed parts show the honest "no installed mesh" state. Deep link:
+the two parts still without a row show the honest "no installed mesh" state.
+Deep link:
 `apps/annotate/?topology=vpa_pitch_linkage&edge=<edge>`.
 
 1. **`pitch_link_bearing_bore_to_ball_centre`** — the one edge whose geometry is
@@ -112,9 +157,19 @@ the four un-meshed parts show the honest "no installed mesh" state. Deep link:
 5. **The tangential link's four**, on `asm217755_212956_005` — phase 2, and the
    mesh is a whole assembly, so `manifest.json`'s per-face `solid_id` is how to
    tell the link body from its two bearings.
-6. **Everything on the hub, the pitch arm, the pitch-link body and the blade
-   root** waits on rotorkit's extraction
-   (`ISSUE_20260930_four_pitch_linkage_alias_rows_wait_on_rotorkits_extraction.md`).
+6. **`hub_spindle_bore_axis` and `hub_blade1_root_bearing_bore`** — the two
+   Jeff named by name, and they became clickable mid-session when rotorkit's
+   extraction landed. The hub mesh is 286 solids, so expect the suggestion
+   surface to colour a great many round faces: `manifest.json`'s per-face
+   `solid_id` is how to narrow by hand.
+7. **`pitch_arm_root_seat` and `pitch_arm_link_bore`**, on
+   `asm217755_215071_001` — one solid, five instances, so this is the cheapest
+   of the un-bound parts to read.
+8. **The pitch-link body and the blade root** still have no alias row, and no
+   longer because the mesh is missing: blade 1 carries the instrumented
+   variants of both, and `216332-001` is installed as two geometries. That is a
+   decision, not a transcription —
+   `ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md`.
 
 Then: `venv-win/Scripts/python.exe scripts/build_feature_identity_projection.py`
 followed by `scripts/fit_bound_features.py`. Neither is on
@@ -154,9 +209,22 @@ With the band rule the bearing reads exactly right: 4 spherical faces (ball
 — and the 20 say *"one band of quads, which lies on a sphere whatever shape it
 is"* rather than a residual excuse.
 
-Store-wide, Python and JS agree face for face: **11075 faces over 24 meshes —
-2481 planar, 3632 cylindrical, 549 spherical, 4413 other (60.2% classified)**,
-up from 55.2% before the sphere (6113 of the same 11075 faces).
+Store-wide, Python and JS agree face for face. Measured twice, because the
+store changed mid-session:
+
+| | faces | meshes | planar | cylindrical | spherical | other | classified |
+|---|---|---|---|---|---|---|---|
+| before rotorkit's run | 11075 | 24 | 2481 | 3632 | 549 | 4413 | **60.2%** |
+| after | 35635 | 35 | 3866 | 6930 | 3041 | 21798 | **38.8%** |
+
+The first is up from 55.2% on the same faces before the sphere existed. The
+second is the store gaining three blade bonded assemblies and a 286-solid hub,
+whose swept and freeform surfaces are correctly `other` — nothing about the
+classifier moved. That took the rate under the `[real]` tier's 45% floor, which
+is the floor doing the one thing its own comment says it must not: *"a tighter
+floor would redden whenever a mesh is installed or replaced, and this check does
+not own what is in the mesh store."* Moved to 0.25, with the measurement in the
+comment beside it.
 
 ## Four things the next agent should know
 
