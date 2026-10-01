@@ -5559,6 +5559,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       needs either an atomic write (temp file + rename into place) or a short
       retry-before-conceding-unreadable, and a test that pins the race
       deterministically rather than one that happens to hit it 30% of the time.
+      **Fixed in round 2** (`8f8a667`): a temp file plus `linkSync` (exclusive
+      *and* atomic, unlike `renameSync`, which would silently overwrite a live
+      lock), `"could not parse"` and `"parsed, pid confirmed dead"` split into
+      separate code paths, and a deterministic corrupt-lock test added
+      alongside a 10-round version of the concurrency test. 80 rounds total
+      between author and reviewer, zero recurrences post-fix. The pattern above
+      is still worth checking against any *future* pidfile-style lock this repo
+      adds — it is not specific to this one file.
 
 ## Writing the review
 

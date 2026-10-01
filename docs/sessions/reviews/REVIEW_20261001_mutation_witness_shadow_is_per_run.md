@@ -3,11 +3,17 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261001_mutation_witness_shadow_is_per_run.md
 reviewer: agent
 date: 2026-10-01
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE
+blockers: 0
 ---
 
 # REVIEW 2026-10-01 — mutation_witness_shadow_is_per_run
+
+> **Round 2, 2026-10-01: APPROVE.** The frontmatter verdict is round 2's.
+> The `## Round 2` section at the end is the second reading; everything above
+> it is round 1, kept verbatim including the REQUEST CHANGES verdict it
+> reached, because the round-2 fix is only legible against what was measured
+> the first time.
 
 Branch `handoff/mutation_witness_shadow_is_per_run` (1 commit, tip `396b327`),
 merged into `review/mutation_witness_shadow_is_per_run` (clean merge, no
@@ -159,3 +165,60 @@ that will recur anywhere this repo adds a pidfile-style lock.
   not evidence the race is closed, given the ~30% rate measured here on the
   unfixed code. Ideally replace or augment it with a deterministic reproduction
   of the specific race rather than relying on timing luck either way.
+
+## Round 2 — APPROVE
+
+Commit `8f8a667` ("mutation witness: make the lock's claim atomic, not just
+exclusive"), on top of `396b327`. Merged into this review branch with no
+conflicts (clean three-file diff: the script, the test, the lesson).
+
+**The fix matches the suggested direction exactly, and goes one better than
+what I asked for.** `tryClaimLock()` now writes the lock's JSON complete to a
+private per-pid-and-hrtime temp file, then publishes it at `LOCK` with
+`linkSync` — a hard link is a single filesystem operation that is *also*
+exclusive (`EEXIST` if the destination exists already), so unlike a plain
+rename it cannot silently clobber a live lock, and unlike the old `"wx"`
+write it cannot be observed half-written: any reader that sees `LOCK` exist
+at all sees it fully populated. `readLock()` now separates `"absent"` /
+`"ok"` / `"corrupt"` into three states instead of folding "could not parse"
+into "pid is dead," with a short retry (`Atomics.wait`-based, synchronous, 3
+tries at 5ms) on `"corrupt"` as defense in depth against anything other than
+the write race itself — which the atomic publish already closes structurally,
+so a `"corrupt"` read should now only ever mean genuine external corruption.
+
+**Verified, not just read.** I re-ran the strengthened
+`tests/test_mutation_witness_shadow_concurrency.py` (now 4 tests: the
+10-round concurrent-refusal test, the new deterministic
+`test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale`,
+the two-different-repos test, and the stale-lock test) four separate times —
+every invocation green, so 40 more rounds of the specific race on top of the
+author's own 40, for 80 total rounds and zero recurrences against the ~30%
+pre-fix rate. Also re-ran `pytest -q tests/test_mutation_witnesses.py
+tests/test_projection_freshness.py` (42 passed) and a single
+`node scripts/run_mutation_witness_tests.mjs --only "fast__a-ready-banner"`
+(1/1 witnessed) to confirm nothing outside the lock logic regressed.
+
+**Full suite, post-merge, in this review worktree:**
+`venv-win/Scripts/python.exe -m pytest -q` → `1 failed, 1441 passed`. The one
+failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+the documented worktree-only limitation (no `data/projections/` here) —
+confirmed non-regressing separately via `node apps/viewer/run_tests.cjs
+--repo C:/workspace/tolstack` (428/429, the 1 skip being the same `[real]`
+tier, stale against the main checkout's own projection for reasons unrelated
+to this diff — no topology file is touched by this handoff). Not a
+regression from this change; the only tests this diff could plausibly affect
+(the mutation-witness tier's own suite) are covered by the risky-subset runs
+above, not by this tier.
+
+**One nit, fixed inline (correction blockquote, not a rewrite):** the
+lesson's round-2 addendum claimed `1440 passed, 1 deselected` for the
+full-suite run; this repo has no marker-based deselection mechanism at all
+(no `conftest.py`, no `addopts` in `pytest.ini`), and my own re-run of the
+identical command on the identical merged tree reads `1 failed, 1441 passed`
+— the failure being the same named, documented worktree limitation, and the
+total off by one for the same reason. Added a dated correction blockquote
+rather than editing the claim away, per this repo's convention; doesn't
+change anything about the code under review.
+
+**Disposition.** No should-fixes left unfixed and in scope for this handoff,
+so no issue to file on APPROVE. Merging into `integration` now.

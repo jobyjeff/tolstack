@@ -245,3 +245,14 @@ documented worktree-only limitation per `CLAUDE.md`, independently confirmed
 non-regressing via `node apps/viewer/run_tests.cjs --repo
 C:/workspace/tolstack`: 522/522 — same as the original round, re-verified
 rather than assumed unchanged).
+
+> **Correction, review/mutation_witness_shadow_is_per_run 2026-10-01.** This
+> repo has no `conftest.py` and `pytest.ini` sets no marker-based deselection,
+> so nothing here is ever reported `deselected`. Review's own re-run of the
+> identical command, same merged tree, reads `1 failed, 1441 passed` — the
+> one failure being `test_viewer_js_suite_is_green`, exactly as named above,
+> which is a documented `FAILED` in a worktree (per `CLAUDE.md`, "deliberately
+> ... a skipped tier is not a passed one"), not a `deselected`. The total is
+> also off by one against review's count for the same reason: `1440 + 1 =
+> 1441`, not `1442`. Neither discrepancy bears on the fix under review — both
+> are this paragraph's own arithmetic, not the code's.
