@@ -14,12 +14,13 @@ axes **in the assembly frame at 72 degrees pitch**, each with its provenance.
 What this is, and what it is not
 ---------------------------------
 
-**It is not a tolerance.** A fitted number is a *nominal read off a mesh*: its
-``source_ref`` kind is ``mesh``, it carries no band, no min/max and no
-plus/minus, and a drawing callout wins over it wherever one exists
-(``docs/ANNOTATION_SURFACE.md``, decision 6). This repo's one rule -- cite or
-record a gap -- is untouched by it. What a fit supplies that a drawing cannot is
-the thing drawings do not state: *where in the assembly* a feature is.
+**It is not a tolerance.** A fitted number is a *nominal read off a mesh*: it
+carries no band, no min/max and no plus/minus, and a drawing callout wins over
+it wherever one exists (``docs/ANNOTATION_SURFACE.md``, decision 6). This repo's
+one rule -- cite or record a gap -- is untouched by it. What a fit supplies that
+a drawing cannot is the thing drawings do not state: *where in the assembly* a
+feature is. Nothing writes a fit into a stack or a topology yet, which is why
+``tolerance_stack.stack.SOURCE_REF_KINDS`` still has no word for a mesh.
 
 **It is not a solver** either. It applies declared placements and reports
 coordinates. It computes no pose, resolves no redundancy and chooses no load

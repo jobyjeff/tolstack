@@ -25,12 +25,16 @@ thresholds are paired the same way, by assertion rather than by copy:
 them with :data:`FIT_TOLERANCES`, so the two readers cannot drift into
 disagreeing about what a cylinder is.
 
-**This module measures a mesh. It is not a value source for a tolerance.** A
-fitted number's ``source_ref`` kind is ``mesh``; a drawing callout still wins
-wherever one exists (``docs/ANNOTATION_SURFACE.md``, decision 6), and nothing
-here ever produces a band, a min/max or a plus/minus. The repo's one rule --
-cite or record a gap -- is untouched: a fit is a *nominal* read off geometry
-whose provenance is the mesh sha, the face id and the residual it came with.
+**This module measures a mesh. It is not a value source for a tolerance.**
+Nothing here produces a band, a min/max or a plus/minus, and a drawing callout
+still wins wherever one exists (``docs/ANNOTATION_SURFACE.md``, decision 6).
+The repo's one rule -- cite or record a gap -- is untouched: a fit is a
+*nominal* read off geometry, whose provenance is the mesh sha, the face id and
+the residual it came with. Note what follows for anyone writing one into a
+document: ``tolerance_stack.stack.SOURCE_REF_KINDS`` has no word for a mesh, on
+purpose, because no document carries a fitted value today. The first handoff
+that writes one adds the word -- and the SOP's Step 5b list it is paired
+against.
 
 Fit all three, report all three, name one
 -------------------------------------------
@@ -107,8 +111,8 @@ FITTED_SURFACE_CLASSES = tuple(c for c in SURFACE_CLASSES if c != "other")
 #: unit is -- the same reason ``area_native2``/``centroid_native`` are named the
 #: way they are.
 #:
-#: The four that also exist in the browser carry the browser's own spelling in
-#: :data:`JS_TOLERANCE_NAMES` and are paired against it by
+#: Each one that also exists in the browser carries the browser's own spelling
+#: in :data:`JS_TOLERANCE_NAMES` and is paired against it by
 #: ``tests/test_feature_geometry.py``.
 FIT_TOLERANCES: Dict[str, float] = {
     # A planar face's facet normals are parallel to machine precision.
