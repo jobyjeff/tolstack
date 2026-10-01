@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a joint centre suggests only the BALL faces, and a second centre on the same part narrows nothing and says why",
+  "mutations": [
+    {
+      "contract": "Two spherical centres on ONE part cannot be compared on this surface: the app draws each part once, at its own local origin, however many times it is fitted in the assembly -- so the two centres land on top of each other. The pitch link is exactly this case, its two joint centres being two instances of one bearing.",
+      "issue": "docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md",
+      "note": "The mutation asserts `coaxial` where the table declares a null -- the relation a reader would reach for, since a ball and its seat really are concentric on the part. Applied, the second centre's candidate list empties and the surface says 'no face lines up with the one already bound', which is a statement about the geometry rather than about the missing frame, and is false. Re-anchored twice: once when the table gained a `spherical` entry and the row wrapped, and again when it was routed through VOCAB.table so an absent key cannot survive construction. Both times the orphan check named the file, which is the mechanism working -- an anchor on a table literal moves whenever the table does.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    same_part_relation: VOCAB.table(\"SURFACE_CLASSES\", {\n      planar: \"parallel\", cylindrical: \"coaxial\", spherical: null, other: null }),",
+      "replace": "    same_part_relation: VOCAB.table(\"SURFACE_CLASSES\", {\n      planar: \"parallel\", cylindrical: \"coaxial\", spherical: \"coaxial\", other: null }),"
+    }
+  ]
+}

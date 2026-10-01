@@ -294,17 +294,29 @@ def test_the_number_of_closing_edges_is_the_graphs_cycle_count(projection, topol
         topology = topologies[row["id"]]
         layout = row["layout"]
         closing = [r for r in layout["rows"] if r.get("closes_row") is not None]
-        components = len([
-            rail for rail in layout["rails"]
-            if layout["rows"][rail["start"]]["column"] == rail["column"]
-            and layout["rows"][rail["start"]]["kind"] == "node"
-            and rail["start"] == 0
-        ])
-        # Both committed documents are connected; assert that rather than
-        # deriving it, so a future disconnected topology reddens here with a
-        # readable message instead of quietly changing the arithmetic.
-        assert components == 1, f"{row['id']}: expected one connected component"
-        expected = len(topology.edges) - len(topology.nodes) + 1
+
+        # The LAYOUT's own component count, compared against the GRAPH's --
+        # which is what the old `assert components == 1` was reaching for and
+        # what briefly went missing when this became `>= 1` (found in review,
+        # 2026-09-30; the justification given then described a disconnected
+        # document that two earlier commits had already connected).
+        #
+        # Every rail is one `allocate()` call, and an allocation happens at a
+        # branch fan-out or at the root of a walk -- so rails minus branch
+        # links IS the number of roots the serialiser started, and a spanning
+        # forest starts exactly one per component. That catches a root dropped
+        # or doubled, which `== 1` could not, and it survives a topology that
+        # is legitimately in more than one piece.
+        roots = len(layout["rails"]) - sum(
+            1 for link in layout["links"] if link["kind"] == "branch")
+        assert roots == topology.components(), (
+            f"{row['id']}: the walk started {roots} rail root(s) for a graph in "
+            f"{topology.components()} piece(s)"
+        )
+        # ...and the cyclomatic number read off the layout. `edges - nodes +
+        # components`, which `Topology.cycle_rank` owns so the two tests that
+        # need it cannot disagree about it.
+        expected = topology.cycle_rank()
         assert len(closing) == expected, (
             f"{row['id']}: {len(closing)} closing edge(s), but the graph has "
             f"{expected} independent loop(s)"
@@ -424,9 +436,20 @@ def test_the_column_order_never_makes_a_topology_cross_itself_more(
     ``order_columns`` searches when it can and falls back to Jeff's rule when it
     cannot, and both are seeded with the heuristic order, so a layout it makes
     WORSE than the walk's own allocation is a bug in the search rather than a
-    trade-off. Asserted on the three-term total it optimises and on the
-    links-only total separately, because the second is the one a reader of the
-    2026-09-30 handoff's table would check by eye.
+    trade-off.
+
+    **What the pass promises is the three-term TOTAL**, equally weighted --
+    ``order_columns``' own docstring says so. A per-term bound is not something a
+    search over a combined objective can offer, and this test asserted one
+    (``branch + close`` never worse) until ``vpa_pitch_linkage`` arrived and
+    demonstrated the difference: `branch+close` 36 -> 39 while `leader` went
+    80 -> 0, which is the search buying 80 crossings for 3 and exactly the trade
+    the objective exists to make.
+
+    So the bound is on the total, and the per-term movement is checked for the
+    thing that WOULD be a bug: a term made worse without the total improving at
+    all. That is strictly more than the old assertion caught, because a wash
+    across two terms used to pass it.
     """
     seen = 0
     for topology_id, topology in sorted(topologies.items()):
@@ -436,8 +459,12 @@ def test_the_column_order_never_makes_a_topology_cross_itself_more(
         assert sum(after.values()) <= sum(before.values()), (
             f"{topology_id}: ordering the columns made the picture worse -- "
             f"{before} as allocated, {after} after the pass")
-        assert after["branch"] + after["close"] <= before["branch"] + before["close"], (
-            f"{topology_id}: branch+close went {before} -> {after}")
+        regressed = sorted(term for term in after if after[term] > before[term])
+        if regressed:
+            assert sum(after.values()) < sum(before.values()), (
+                f"{topology_id}: {regressed} got worse and the total did not "
+                f"improve to pay for it -- {before} as allocated, {after} after "
+                f"the pass")
     assert seen >= 5, f"expected the five committed topologies, got {seen}"
 
 

@@ -131,6 +131,12 @@ def _feature_identity_module():
     return feature_identity
 
 
+def _feature_geometry_module():
+    from tolerance_stack import feature_geometry  # noqa: PLC0415
+
+    return feature_geometry
+
+
 # --------------------------------------------------------------------------- #
 # readers: each one reads a vocabulary out of its definition                   #
 # --------------------------------------------------------------------------- #
@@ -537,6 +543,9 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("annotate", "GDT_MODIFIERS",
                "tolerance_stack/feature_identity.py: GDT_MODIFIERS",
                _const(_feature_identity_module, "GDT_MODIFIERS")),
+    Vocabulary("annotate", "SURFACE_CLASSES",
+               "tolerance_stack/feature_geometry.py: SURFACE_CLASSES",
+               _const(_feature_geometry_module, "SURFACE_CLASSES")),
 )
 
 

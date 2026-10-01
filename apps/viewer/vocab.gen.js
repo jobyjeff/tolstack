@@ -163,5 +163,8 @@
 
     // tolerance_stack/feature_identity.py: GDT_MODIFIERS
     GDT_MODIFIERS: ["M", "L"],
+
+    // tolerance_stack/feature_geometry.py: SURFACE_CLASSES
+    SURFACE_CLASSES: ["planar", "cylindrical", "spherical", "other"],
   });
 })(window.TolstackVocab = window.TolstackVocab || {});

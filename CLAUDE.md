@@ -57,8 +57,15 @@ traced ratio" — never restate the rule elsewhere).
   measurement.** A binding is identity, not a value source; a drawing
   citation still wins wherever one exists. Since 2026-09-21 the surface also
   *suggests* which faces could be the feature (a diameter needs a round
-  surface, a thickness flat ones) — still colour only: it never selects a
-  face and never writes.
+  surface, a thickness flat ones, a joint centre a ball-shaped one) — still
+  colour only: it never selects a face and never writes.
+- **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
+  and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
+  becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's
+  own frame and per assembly occurrence, for a solver in another repo. It is
+  the **one place a placement matrix is applied**; the annotator applies none.
+  A fitted nominal is a measurement of a mesh, never a tolerance: it has no
+  band, and a drawing callout still wins.
 - **Writing a CSS rule in either web app** → `docs/DESIGN_TYPE_AND_COLOUR.md`.
   The type scale, the spacing convention and the one rule about *fill* the
   2026-09-17 pass settled. It states no numbers — they live in

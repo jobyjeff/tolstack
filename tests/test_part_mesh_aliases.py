@@ -237,3 +237,59 @@ def test_installed_mesh_part_ids_are_unique():
         f"than one product label) and correct provenance.json and manifest.json "
         f"in place, under {meshes_dir}"
     )
+
+
+@pytest.mark.skipif(
+    installed_meshes_dir() is None,
+    reason="no data/meshes/ with an installed mesh (gitignored, main checkout "
+           "only -- see data/meshes/README.md); this pairing needs real data",
+)
+def test_every_sha256_quoted_in_an_evidence_string_names_its_own_mesh(aliases):
+    """[real] tier: a ``sha256`` written into an ``evidence`` string must be a
+    directory whose ``part_id`` is the one that row maps to.
+
+    Added 2026-09-30, from the defect that produced it. Every pairing above is
+    on the ``mesh_part_id`` FIELD, which is what the resolvers read -- so the
+    directory names an author quotes in the prose beside it were checked by
+    nothing, and three of the six rows added that day quoted the wrong
+    directory while the whole module stayed green. A sha here is not
+    decoration: it is how the next reader re-finds the ``provenance.json`` the
+    identity claim rests on, and a wrong one sends them to a different part's
+    file to confirm a claim it does not support.
+
+    Not every row quotes one, and that is fine -- this checks the ones that do.
+    """
+    meshes_dir = installed_meshes_dir()
+    owners = installed_part_id_owners(meshes_dir)
+    assert owners, (
+        f"{meshes_dir} has mesh directories but no readable provenance.json "
+        "part_ids -- the check below would pass vacuously"
+    )
+    quoted = [
+        (entry["topology_part"], entry["mesh_part_id"], sha)
+        for entry in aliases
+        for sha in re.findall(r"[0-9a-f]{64}", entry["evidence"])
+    ]
+    assert quoted, (
+        "no alias evidence quotes a mesh directory at all -- this check would "
+        "pass vacuously; if the convention changed, drop it rather than keep a "
+        "guard that fires on nothing"
+    )
+    wrong = []
+    for topology_part, mesh_part_id, sha in quoted:
+        if sha in owners.get(mesh_part_id, []):
+            continue
+        provenance_file = meshes_dir / sha / "provenance.json"
+        actual = (
+            json.loads(provenance_file.read_text(encoding="utf-8")).get("part_id")
+            if provenance_file.is_file() else None
+        )
+        wrong.append(f"{topology_part}: quotes {sha[:12]} "
+                     f"({'part_id ' + actual if actual else 'no such mesh'}), "
+                     f"but maps to {mesh_part_id}")
+    assert wrong == [], (
+        "an alias's evidence quotes a mesh directory that is not the mesh it "
+        f"maps to: {wrong} -- correct the sha in the evidence string "
+        "(docs/topologies/part_mesh_aliases.json), reading it off the live "
+        f"provenance.json under {meshes_dir} rather than from memory"
+    )

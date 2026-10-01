@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "[real] ground truth: the MS14101-3 pitch-link bearing reads as its own catalog page, and its ball centre is the part origin",
+  "mutations": [
+    {
+      "contract": "The centre this surface reports is the FITTED centre of the face's own sphere. It is the one number a spherical joint has that a plane and a cylinder do not, and scripts/fit_bound_features.py multiplies it by an assembly placement and hands the result to a solver in another repo.",
+      "issue": null,
+      "note": "The mutation moves the centre half a millimetre along X -- small enough to look like geometry and far too large to be one. It is the shape of a sign or an index slip rather than of a deleted feature, and the [real] tier's catalog pairing is what notices it, because the installed bearing's ball really is centred on its part origin.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "      centre: fit.centre,",
+      "replace": "      centre: [fit.centre[0] + 0.5, fit.centre[1], fit.centre[2]],"
+    }
+  ]
+}

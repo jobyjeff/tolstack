@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "fitSphere recovers a sphere exactly, and refuses a plane rather than guessing a centre somewhere behind it",
+  "mutations": [
+    {
+      "contract": "A point set that does not determine a sphere gets `null`, never a pseudo-solution. A guessed centre leaves this file as a joint location in an assembly frame, and nothing downstream can tell it was guessed.",
+      "issue": null,
+      "note": "The mutation nudges a singular pivot to a tiny non-zero instead of refusing, which is the shape of the fix somebody reaches for when a solver 'randomly returns null'. Applied, a flat 4x4 grid of points comes back as a sphere centred in its own plane with a radius of 1.58 -- finite, plausible, and entirely invented.\nTwo earlier mutations here were NOT witnessed and the reason is worth keeping. Removing the singularity test outright leaves the elimination dividing by a pivot of ~0, the radius comes out NaN and the `r2 > 0` test below still returns null; removing THAT test instead leaves the pivot test returning null first. The refusal is two tests deep, and only a mutation that produces a FINITE wrong answer gets past both -- which is also the only version of this bug a consumer could not notice.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "      if (Math.abs(aug[pivot][k]) < 1e-12 * magnitude) return null;",
+      "replace": "      if (Math.abs(aug[pivot][k]) < 1e-12 * magnitude) aug[pivot][k] = 1e-9;"
+    }
+  ]
+}

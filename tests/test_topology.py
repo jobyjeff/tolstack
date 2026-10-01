@@ -1036,25 +1036,17 @@ del _NUMBER_WORDS["zero"]
 
 
 def _cycle_rank(topology) -> int:
-    """Independent cycles: ``edges - nodes + components``.
+    """Independent cycles, from the module that owns the graph.
 
-    "Grounded loop" is what this repo's prose calls a member of a cycle basis --
-    a return path to ground that closes a ring with another one. Computed rather
-    than enumerated, so an added branch cannot be described away.
+    It lived here until 2026-09-30, when a second test needed it
+    (``tests/test_topology_projection.py``'s spanning-walk check) and a graph
+    property computed in two places became a graph property that could disagree
+    with itself. ``Topology.cycle_rank`` carries the derivation and the reason
+    it counts components rather than assuming one; this stays as the name the
+    pairing below reads, because that is what this module's own
+    falsifiability check names.
     """
-    parent = {}
-
-    def find(node: str) -> str:
-        parent.setdefault(node, node)
-        while parent[node] != node:
-            parent[node] = parent[parent[node]]
-            node = parent[node]
-        return node
-
-    for edge in topology.edges:
-        parent[find(edge.from_node)] = find(edge.to_node)
-    components = len({find(n.id) for n in topology.nodes})
-    return len(topology.edges) - len(topology.nodes) + components
+    return topology.cycle_rank()
 
 
 def stated_counts(sentence: str) -> dict:

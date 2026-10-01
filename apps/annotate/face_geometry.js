@@ -9,14 +9,21 @@
 //
 // It exists for the face-suggestion surface (handoff annotate_face_suggestions,
 // 2026-09-21): a diameter needs a cylindrical face, a thickness needs planar
-// ones, and narrowing a 1621-face mesh down to the handful that could possibly
-// be the feature is the whole of the help this offers. It is NOT measurement --
-// `radius` and `offset` are computed here because a *relation* between two
-// faces (coaxial, parallel) cannot be tested without them, and they are never
-// written into a binding event, never rendered as a dimension, and never
-// allowed near a stack value. docs/ANNOTATION_SURFACE.md's decision 1 (no
-// measurement from geometry) is unchanged by this file, and the suggestion
-// surface's own section there says so in as many words.
+// ones, a joint centre needs a ball, and narrowing a 1621-face mesh down to the
+// handful that could possibly be the feature is the whole of the help this
+// offers. It is NOT measurement -- `radius`, `offset` and `centre` are computed
+// here because a *relation* between two faces (coaxial, parallel, matching
+// radius) cannot be tested without them, and they are never written into a
+// binding event, never rendered as a dimension, and never allowed near a stack
+// value. docs/ANNOTATION_SURFACE.md's decision 1 (no measurement from geometry)
+// is unchanged by this file, and the suggestion surface's own section there
+// says so in as many words.
+//
+// Its other half is tolerance_stack/feature_geometry.py, which fits the same
+// three surfaces so that a binding a human has RATIFIED can become a nominal
+// joint location for a solver (scripts/fit_bound_features.py). The vocabulary
+// is defined there and generated into the module this file reads; the
+// thresholds exist in both and are paired by tests/test_feature_geometry.py.
 //
 // The one thing to know before touching a threshold: OCC's tessellation puts
 // triangulation NODES exactly on the underlying surface, and lays a cylinder
@@ -28,20 +35,36 @@
 // grows with `linear_deflection`. Measured hit rates over the installed meshes
 // are in docs/sessions/lessons/LESSONS_20260921_annotate_face_suggestions.md,
 // and re-measured by run_tests.cjs's [real] tier on every run.
-(function (AA) {
+(function (AA, VOCAB) {
   "use strict";
 
-  // The vocabulary. A module-level constant, paired against its consumers by
-  // run_tests.cjs -- CLAUDE.md's standing rule, and a class name spelled twice
-  // is this repo's most-repeated defect.
+  // The vocabulary, and it is NOT declared here: it is read out of the
+  // generated module, whose words come from tolerance_stack/feature_geometry.py
+  // -- the Python half of this file, which fits the same three surfaces so a
+  // committed binding can be turned into a nominal for a solver. A copy of the
+  // list here would be the drift this repo pays for most often, one class name
+  // at a time (scripts/js_vocabulary.py's docstring is the argument).
   //
-  // THREE classes and not two: "other" is a first-class answer, the same
-  // posture docs/spec_library/README.md takes for an unreadable value. A
-  // sphere, a cone, a torus, a swept blade surface and a face whose triangles
-  // are too degenerate to read all land here, and a face here is suggested for
-  // nothing -- never rounded up to the nearest class that would have made the
-  // candidate list look complete.
-  AA.SURFACE_CLASSES = Object.freeze(["planar", "cylindrical", "other"]);
+  // FOUR classes, and "other" is a first-class answer -- the same posture
+  // docs/spec_library/README.md takes for an unreadable value. A cone, a
+  // torus, a swept blade surface and a face whose triangles are too degenerate
+  // to read all land there, and a face there is suggested for nothing, never
+  // rounded up to the nearest class that would have made the candidate list
+  // look complete. A SPHERE no longer does (2026-09-30): a pitch link's length
+  // is the distance between two spherical-bearing CENTRES, and until a sphere
+  // could be read there was no centre to offer.
+  AA.SURFACE_CLASSES = VOCAB.list("SURFACE_CLASSES");
+
+  // The order the classifier ASKS in, which is the answer -- not the order the
+  // vocabulary happens to be written in, and not the smallest residual. The
+  // more constrained shape is asked first, because a face tessellated as a
+  // single band of quads is two coaxial circles, and two coaxial circles lie on
+  // one sphere EXACTLY whatever the surface between them is: a cylinder band,
+  // a cone band and a real spherical band all fit a sphere to machine
+  // precision. tolerance_stack/feature_geometry.py's FITTED_SURFACE_CLASSES
+  // carries the measurement and the same order.
+  AA.FITTED_SURFACE_CLASSES = Object.freeze(
+    AA.SURFACE_CLASSES.filter(function (word) { return word !== "other"; }));
 
   // Every threshold this file applies, in one frozen block, so a run can print
   // them beside the hit rates they produced. All of them are ANGLES or
@@ -86,6 +109,42 @@
     // invited to click and cannot see. A ratio, so it needs no unit and no
     // knowledge of how big the part is.
     degenerateAreaFraction: 1e-6,
+    // A sphere's vertices are all at one radius from one centre, to the same
+    // fraction a cylinder's are: identical error source, and a second number
+    // would be a second thing to argue about.
+    sphereRadialFraction: 0.02,
+    // ...and the face has to be a PATCH, not a single band of quads. This is
+    // the sphere's equivalent of cylinderMinArcDeg and the load-bearing one:
+    // two coaxial circles lie on one sphere exactly, whatever the surface
+    // between them is, so a band's sphere residual rules out nothing.
+    //
+    // The test is on the NODE ROWS and this ratio counts them. For R rows over
+    // S segments a face has 2S(R-1) triangles over RS nodes closed, R(S+1)
+    // open -- so two rows sit AT 1.0 (closed) or below it (open), never above,
+    // and three rows are above it. The comparison is therefore STRICT; see
+    // tolerance_stack/feature_geometry.py's FIT_TOLERANCES for the derivation
+    // and for what `>=` let through until 2026-09-30 (139 faces store-wide,
+    // 18 of them fillet bands on the hub answering as 62-65 mm "balls").
+    //
+    // The lowest ratio on any ACCEPTED spherical face store-wide is 1.0357 and
+    // the distribution runs up from there, so this is a boundary rather than a
+    // margin -- exact for the degenerate case it refuses, because a regular
+    // two-row band is at or below 1 whatever S is. The MS14101-3 bearing's own
+    // four are 1.4783 twice and 1.5714 twice, MS14103-3's four are 1.2609, and
+    // its refused bands are 0.9286.
+    sphereMinTrianglesPerVertex: 1.0,
+    // ...and its facet normals point at least roughly along the radius at that
+    // facet. LOOSE on purpose, and a sanity check rather than a discriminator:
+    // a facet normal differs from its own radius by about half the facet's
+    // angular width, which is set by the tessellation deflection, and a tight
+    // value here would be absorbing exactly the deflection-dependent error
+    // these thresholds refuse to absorb.
+    sphereNormalDeg: 20.0,
+    // ...and the patch is big enough to PLACE that centre: a face whose own
+    // extent is this small a fraction of the radius it fits is a nearly-flat
+    // cap, whose radius is plausible and whose centre is wherever the noise
+    // put it.
+    sphereMinExtentFraction: 0.20,
   });
 
   // Faces are appended in face_id order (0..N-1, dense) and each face's
@@ -226,6 +285,78 @@
     return { cx: cx, cy: cy, r: Math.sqrt(r2) };
   };
 
+  // Gaussian elimination with partial pivoting; null when singular. Null is the
+  // answer and never a pseudo-solution: a singular system means the points do
+  // not determine the shape, and a guessed centre there is a guessed centre
+  // reported as a feature's location.
+  AA.solveLinear = function (matrix, rhs) {
+    var n = rhs.length, i, j, k;
+    var aug = matrix.map(function (row, r) { return row.concat([rhs[r]]); });
+    var magnitude = 0;
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) magnitude = Math.max(magnitude, Math.abs(matrix[i][j]));
+    }
+    if (!(magnitude > 0)) return null;
+    for (k = 0; k < n; k++) {
+      var pivot = k;
+      for (i = k + 1; i < n; i++) {
+        if (Math.abs(aug[i][k]) > Math.abs(aug[pivot][k])) pivot = i;
+      }
+      if (Math.abs(aug[pivot][k]) < 1e-12 * magnitude) return null;
+      var swap = aug[k]; aug[k] = aug[pivot]; aug[pivot] = swap;
+      for (i = k + 1; i < n; i++) {
+        var factor = aug[i][k] / aug[k][k];
+        for (j = k; j <= n; j++) aug[i][j] -= factor * aug[k][j];
+      }
+    }
+    var out = new Array(n);
+    for (i = n - 1; i >= 0; i--) {
+      var total = aug[i][n];
+      for (j = i + 1; j < n; j++) total -= aug[i][j] * out[j];
+      out[i] = total / aug[i][i];
+    }
+    return out;
+  };
+
+  // Algebraic sphere fit: |p - c|^2 = r^2 expands to |p|^2 = 2 p.c + (r^2 -
+  // |c|^2), which is LINEAR in the four unknowns -- one 4x4 normal system, no
+  // iteration, the Kasa circle fit one dimension up. Solved about the points'
+  // own centroid, because the normal equations of a 3 mm patch sitting 100 mm
+  // from the origin are otherwise dominated by the offset and the conditioning
+  // decides the answer.
+  //
+  // Exported, like fitCircle2, so a test can fit points it built by hand and
+  // check the fit rather than only ever seeing it through a classification.
+  AA.fitSphere = function (points) {
+    var n = points.length, i, j, k;
+    if (n < 4) return null;
+    var centroid = [0, 0, 0];
+    for (i = 0; i < n; i++) {
+      centroid[0] += points[i][0]; centroid[1] += points[i][1]; centroid[2] += points[i][2];
+    }
+    centroid = scale(centroid, 1 / n);
+    var m = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    var rhs = [0, 0, 0, 0];
+    for (i = 0; i < n; i++) {
+      var q = sub(points[i], centroid);
+      var row = [2 * q[0], 2 * q[1], 2 * q[2], 1];
+      var value = dot(q, q);
+      for (j = 0; j < 4; j++) {
+        for (k = 0; k < 4; k++) m[j][k] += row[j] * row[k];
+        rhs[j] += row[j] * value;
+      }
+    }
+    var solved = AA.solveLinear(m, rhs);
+    if (!solved) return null;
+    var local = [solved[0], solved[1], solved[2]];
+    var r2 = solved[3] + dot(local, local);
+    if (!(r2 > 0)) return null;
+    return {
+      centre: [centroid[0] + local[0], centroid[1] + local[1], centroid[2] + local[2]],
+      r: Math.sqrt(r2),
+    };
+  };
+
   function det3(m) {
     return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
       - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
@@ -249,8 +380,16 @@
   // iterations on the 2376-face pitch plate -- if a whole part is classified
   // that way.
 
+  // `fa`/`fn`/`fc` are the face's own facets kept for the second pass: area,
+  // unit normal (flat, 3 per facet) and the facet's OWN centroid (flat, 3 per
+  // facet). Kept rather than re-scanned because the sphere test asks "does this
+  // facet's normal point along the radius AT THIS FACET", which is a question
+  // about where the facet is -- and re-scanning the whole triangle buffer once
+  // per face is the O(faces x triangles) shape this file's own comment above
+  // warns against. Total storage is one entry per triangle, not per face-pair.
   function accumulator() {
-    return { area: 0, n: [0, 0, 0], m: [0, 0, 0, 0, 0, 0], triangles: 0, maxTriArea: 0 };
+    return { area: 0, n: [0, 0, 0], m: [0, 0, 0, 0, 0, 0], triangles: 0, maxTriArea: 0,
+      fa: [], fn: [], fc: [] };
   }
 
   // Per-face triangle sums: total area, the area-weighted normal, and the
@@ -268,6 +407,9 @@
       var w = tri.area, n = tri.normal;
       a.area += w;
       if (w > a.maxTriArea) a.maxTriArea = w;
+      a.fa.push(w);
+      a.fn.push(n[0], n[1], n[2]);
+      a.fc.push(tri.centroid[0], tri.centroid[1], tri.centroid[2]);
       a.n[0] += w * n[0]; a.n[1] += w * n[1]; a.n[2] += w * n[2];
       a.m[0] += w * n[0] * n[0]; a.m[1] += w * n[0] * n[1]; a.m[2] += w * n[0] * n[2];
       a.m[3] += w * n[1] * n[1]; a.m[4] += w * n[1] * n[2]; a.m[5] += w * n[2] * n[2];
@@ -286,36 +428,60 @@
     var c = cross(e1, e2);
     var twiceArea = norm(c);
     if (!(twiceArea > 0)) return null;
-    return { area: twiceArea / 2, normal: [c[0] / twiceArea, c[1] / twiceArea, c[2] / twiceArea] };
+    return {
+      area: twiceArea / 2,
+      normal: [c[0] / twiceArea, c[1] / twiceArea, c[2] / twiceArea],
+      centroid: [
+        (positions[i0] + positions[i1] + positions[i2]) / 3,
+        (positions[i0 + 1] + positions[i1 + 1] + positions[i2 + 1]) / 3,
+        (positions[i0 + 2] + positions[i1 + 2] + positions[i2 + 2]) / 3,
+      ],
+    };
   }
 
   // The widest deviation, per face, of a facet normal from (i) that face's own
   // mean normal and (ii) the plane perpendicular to that face's candidate axis
-  // -- both needing the first pass's answers, so both are a second pass.
-  // Slivers (FACE_CLASSIFY.sliverAreaFraction) are excluded from the MAXIMA
-  // only: they still carry their area weight above.
-  function accumulateDeviations(positions, indices, faceIdPerTriangle, acc, meanNormals, axes, tol) {
-    var worst = acc.map(function () { return { normalDeg: 0, axisDeg: 0 }; });
-    var triangles = faceIdPerTriangle.length;
-    for (var t = 0; t < triangles; t++) {
-      var faceId = faceIdPerTriangle[t];
-      var a = acc[faceId];
-      if (!a) continue;
-      var tri = triangleNormal(positions, indices, t);
-      if (!tri) continue;
-      if (tri.area < a.maxTriArea * tol.sliverAreaFraction) continue;
-      var w = worst[faceId];
+  // -- both needing the first pass's answers, so both are a second pass. It
+  // reads the facets the first pass kept rather than re-walking the triangle
+  // buffer. Slivers (FACE_CLASSIFY.sliverAreaFraction) are excluded from the
+  // MAXIMA only: they still carry their area weight above.
+  function accumulateDeviations(acc, meanNormals, axes, tol) {
+    return acc.map(function (a, faceId) {
+      var w = { normalDeg: 0, axisDeg: 0 };
+      if (!a) return w;
       var mean = meanNormals[faceId];
-      if (mean) {
-        var d = angleBetweenDeg(tri.normal, mean);
-        if (d > w.normalDeg) w.normalDeg = d;
-      }
       var axis = axes[faceId];
-      if (axis) {
-        // How far off perpendicular this facet is: 90 degrees is perfect.
-        var off = Math.abs(90 - angleBetweenDeg(tri.normal, axis));
-        if (off > w.axisDeg) w.axisDeg = off;
+      for (var i = 0; i < a.fa.length; i++) {
+        if (a.fa[i] < a.maxTriArea * tol.sliverAreaFraction) continue;
+        var n = [a.fn[i * 3], a.fn[i * 3 + 1], a.fn[i * 3 + 2]];
+        if (mean) {
+          var d = angleBetweenDeg(n, mean);
+          if (d > w.normalDeg) w.normalDeg = d;
+        }
+        if (axis) {
+          // How far off perpendicular this facet is: 90 degrees is perfect.
+          var off = Math.abs(90 - angleBetweenDeg(n, axis));
+          if (off > w.axisDeg) w.axisDeg = off;
+        }
       }
+      return w;
+    });
+  }
+
+  // How far any non-sliver facet's normal is from the RADIUS at its own
+  // centroid, either way round. Either way round because a sphere is convex on
+  // a ball and concave on the seat it turns in, and the MS14101-3 bearing
+  // carries both: the race seat's outward normal points AT the centre.
+  function sphereNormalSpreadDeg(a, centre, tol) {
+    var worst = 0;
+    for (var i = 0; i < a.fa.length; i++) {
+      if (a.fa[i] < a.maxTriArea * tol.sliverAreaFraction) continue;
+      var n = [a.fn[i * 3], a.fn[i * 3 + 1], a.fn[i * 3 + 2]];
+      var radius = [a.fc[i * 3] - centre[0], a.fc[i * 3 + 1] - centre[1],
+        a.fc[i * 3 + 2] - centre[2]];
+      if (!(norm(radius) > 0)) continue;
+      var off = axialAngleDeg(n, radius);
+      if (off > worst) worst = off;
     }
     return worst;
   }
@@ -355,8 +521,7 @@
       ]);
       axes[f] = unit(e.vectors[2]);
     }
-    var worst = accumulateDeviations(positions, indices, faceIdPerTriangle, acc,
-      meanNormals, axes, tol);
+    var worst = accumulateDeviations(acc, meanNormals, axes, tol);
 
     var out = new Array(nFaces);
     for (var g = 0; g < nFaces; g++) {
@@ -419,7 +584,12 @@
     // --- cylindrical --------------------------------------------------------
     if (!axis) return other(faceId, "no axis could be read");
     if (worst.axisDeg > tol.cylinderAxisDeg) {
-      return other(faceId, "facet normals do not lie in one plane -- neither a plane nor a cylinder");
+      // Not a plane and not a cylinder. A sphere is the last shape asked, and
+      // this is the only branch that reaches it: a sphere's facet normals span
+      // two dimensions, so there is no axis they all stand perpendicular to.
+      // Asking it any earlier would let a band of quads answer "sphere" for a
+      // bore -- AA.FITTED_SURFACE_CLASSES carries that measurement.
+      return sphereOrOther(faceId, vs, acc, extent, tol);
     }
     // Project the vertices into the plane perpendicular to the axis and fit a
     // circle. The basis is arbitrary but must be stable: build it off the
@@ -466,6 +636,51 @@
       radius: fit.r,
       arcDeg: arc,
       axisSpreadDeg: worst.axisDeg,
+      radialError: radial / fit.r,
+    };
+  }
+
+  // The sphere branch, and its three refusals -- each with a reason, because
+  // "other" with no reason is the shape that makes a reader distrust the whole
+  // surface.
+  function sphereOrOther(faceId, vs, acc, extent, tol) {
+    var fit = AA.fitSphere(vs);
+    if (!fit || !(fit.r > 0)) {
+      return other(faceId, "neither a plane, a cylinder nor a sphere");
+    }
+    var radial = 0;
+    for (var i = 0; i < vs.length; i++) {
+      var err = Math.abs(norm(sub(vs[i], fit.centre)) - fit.r);
+      if (err > radial) radial = err;
+    }
+    if (radial > tol.sphereRadialFraction * fit.r) {
+      return other(faceId, "neither a plane, a cylinder nor a sphere");
+    }
+    var normalSpread = sphereNormalSpreadDeg(acc, fit.centre, tol);
+    if (normalSpread > tol.sphereNormalDeg) {
+      return other(faceId, "neither a plane, a cylinder nor a sphere");
+    }
+    // A patch, or one band of quads? See FACE_CLASSIFY.sphereMinTrianglesPerVertex.
+    // The comparison is NOT strict here because the threshold is the band's own
+    // value: a closed band lands exactly on it.
+    var perVertex = vs.length ? acc.triangles / vs.length : 0;
+    if (perVertex <= tol.sphereMinTrianglesPerVertex) {
+      return other(faceId, "one band of quads, which lies on a sphere whatever shape it is");
+    }
+    if (extent < tol.sphereMinExtentFraction * fit.r) {
+      return other(faceId, "too small a patch of its own sphere to place a centre");
+    }
+    return {
+      faceId: faceId, surface: "spherical",
+      // The centre, in this mesh's own frame -- which is the whole point of
+      // reading a sphere at all: a spherical joint's location IS its centre.
+      // It is still not a value: nothing writes it into a binding event or a
+      // stack, and placing it in an assembly frame happens in
+      // scripts/fit_bound_features.py and nowhere in this app.
+      centre: fit.centre,
+      radius: fit.r,
+      normalSpreadDeg: normalSpread,
+      trianglesPerVertex: perVertex,
       radialError: radial / fit.r,
     };
   }
@@ -534,11 +749,18 @@
     return perpendicular <= tol.coaxialDistanceFraction * Math.max(a.radius, b.radius);
   };
 
+  // Two faces of the SAME class whose radii agree. Same class, because a bore
+  // and a ball of one radius are not a fit -- and a radius is the one property
+  // either of them has that belongs to one face rather than to a pair of
+  // frames, which is why this is the only relation that survives having no
+  // placement transform. It holds for a spherical pair for exactly the same
+  // reason it holds for a cylindrical one: a ball and the seat it turns in
+  // agree on a radius wherever either of them is drawn.
   AA.radiiMatch = function (a, b, tolerances) {
     var tol = Object.assign({}, AA.FACE_RELATION_TOLERANCES, tolerances || {});
-    if (!a || !b || a.surface !== "cylindrical" || b.surface !== "cylindrical") return false;
+    if (!a || !b || a.surface !== b.surface) return false;
+    if (!(a.radius > 0) || !(b.radius > 0)) return false;
     var reference = Math.max(a.radius, b.radius);
-    if (!(reference > 0)) return false;
     return Math.abs(a.radius - b.radius) <= tol.radiusFraction * reference;
   };
-})(window.AnnotateApp = window.AnnotateApp || {});
+})(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);

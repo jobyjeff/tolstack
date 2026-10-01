@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "[real] a hot rail is drawn thicker and brighter than the rails beside it, and its hit path has become a visible halo",
+  "mutations": [
+    {
+      "contract": "The emphasis is PAINTED. A hot rail is wider and brighter than its neighbours and its transparent hit path becomes a visible halo -- which is the whole of 'bold/glow etc'.",
+      "issue": null,
+      "note": "Only the browser tier can see this at all: the DOM shim has no stylesheet, so every fast guard here asserts class names and would sail straight past a deleted rule. The halo selector is the one dropped because it is the part with no fallback -- lose it and the width bump is all that is left, which is what the rails looked like before this pass.",
+      "file": "apps/viewer/topology.css",
+      "find": ".rail__hit--hot, .rail__linkhit--hot, .rail__barhit--hot,\n.rail__leaderhit--hot { stroke: var(--rail-halo); }",
+      "replace": ".rail__leaderhit--hot { stroke: var(--rail-halo); }"
+    }
+  ]
+}

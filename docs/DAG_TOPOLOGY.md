@@ -570,6 +570,67 @@ document's "A study, in outline" section fences — see
 - `study_tan_link_take2_worst_case_protrusion.json` — reproduces check
   `worst_case_protrusion` with no `limit`.
 
+### `topology_vpa_pitch_linkage.json` + no studies
+
+Handoff `vpa_pitch_linkage_topology_and_feature_fits` (2026-09-30), and the
+first committed topology with **no study at all**. The graph: 12 parts, 24
+interfaces, 29 edges, 9 branch points, 6 grounded loops, 11 gap edges. It is the
+propeller pitch linkage's joints at 72 degrees blade pitch — the two pitch-link
+spherical-bearing centres, the hub and plate spindle bores, the blade-1 root
+bearing bore, the gas spring, and the tangential link as a declared phase 2.
+
+Two things about it are unlike every section above.
+
+**It holds almost no numbers, and that is the deliverable.** Exactly one edge
+carries a value: `pitch_link_length`, derived from a 3DX sweep sheet's own two
+node columns and cited cell-for-cell. Every other edge carries **no dimension at
+all** and says, in its own `note`, what would close it — a named drawing, or a
+fit of a named mesh. That is the repo's cite-or-gap rule applied to a document
+whose numbers have not been acquired: an `untraced` band of `0.000` would put a
+plausible number in front of a reader who cannot tell a placeholder zero from a
+measured one. The cost is worth knowing before you read the DAG page: the gap
+list reports an edge whose dimension is *unverified*, not one that has no
+dimension, because a valueless edge there has always meant "the quantity a study
+computes" — so this document's gaps show on its edges rather than in the gap
+list (`ISSUE_20260930_a_valueless_structural_edge_is_invisible_to_the_gap_list.md`).
+
+**Three of its parts are piece parts rather than links in the chain.** The
+spherical bearings each carry their own small sub-graph — a ball centre against
+its seat and against its bore — because they are the features that can actually
+be selected today: the pitch-link bearing is the one part of this linkage with
+an installed mesh. Each is tied into the mechanism by a `gap` edge saying *this
+joint centre is that part's ball centre*, which is nominally zero and is the
+only thing in the document that tells a reader which geometry to click for a
+centre. They were a separate component until the viewer's `[real]` tier showed
+what a disconnected topology does to the rail serialisation; `Topology.cycle_rank`
+counts components rather than assuming one either way.
+
+---
+
+## A topology with no studies is a document kind, not an unfinished one
+
+The archetype's first three documents each existed to be *summed*, so "topology
+plus studies" read like one thing. `topology_vpa_pitch_linkage.json` separates
+them: its consumer is `C:\workspace\linkage`, a solver in another repo, and
+what that consumer wants is **where the joints are**, not what any chain of them
+totals. Joints as nodes, kinematic dimensions as edges, no `selection` anywhere.
+
+A studyless topology earns the same schema for a reason worth stating. It is
+what the 3D annotation surface binds to — `feature_identity.StackKey` names a
+*topology edge*, so a feature a human must click needs an edge with that feature
+at one end, and `scripts/fit_bound_features.py` turns those bindings into
+nominal joint locations in the assembly frame. A document built to be bound is
+therefore built edge-first, which is exactly the shape this schema already has.
+
+**The fence is unchanged by any of it.** Nothing here computes a pose, resolves
+a redundancy or chooses which of two parallel paths binds — see "Not a solver"
+above, which this section does not soften. A fitted nominal is a measurement of
+a mesh with its own provenance (mesh sha, face id, instance path, residual); it
+is not a tolerance, it carries no band, and a drawing callout wins over it
+wherever one exists (`docs/ANNOTATION_SURFACE.md`, decision 6). The solver that
+consumes `fits.json` does its own solving, in its own repo, and that is the
+point of handing it coordinates rather than an answer.
+
 ---
 
 ## What v0 cannot do

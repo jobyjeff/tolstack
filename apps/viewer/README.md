@@ -239,6 +239,16 @@ otherwise could not is the floored bar's "not to scale", which rides in as the
 edge card's `renderNote` (`VA.FLOORED_RENDER_NOTE`, one set of words for both
 carriers).
 
+Since `nav_tooltip_once_and_rail_hover_emphasis` (2026-09-30) that holds for
+the **alert mark** too, on all three surfaces it is worn (`VA.alertBadge`: the
+nav rail's rows, the elements table's source cell, the materials table's).
+Jeff, on the rail: *"there is a duplicate hover-over tooltip (unformatted and
+formatted versions) that sometimes block each other. Keep just the formatted
+one."* The same pass moved a nav row's authored `description` from the ROW onto
+its **name**, so a row with a mark offers one hover surface per target — the
+name says what the artifact is, the mark says what is wrong with it — instead
+of the browser dropping a plain box over the card.
+
 - **Edge card** — on the edge row's crop trigger (hover, focus or click; the
   trigger is the inline thumbnail once fetched) **and on the DAG's own bar**
   (`.rail__barhit`, hover or focus; the click stays selection). Same model,
@@ -282,8 +292,8 @@ carriers).
   `VA.componentLabel` text, so there is one label style where there were two
   (ids in the pane, names on the card) and the two can no longer read
   differently about the same interface. The pane printed the authored `parts`
-  list until handoff `surfaces_that_state_something_false`, which is 17 of the
-  48 live nodes answering differently hovered and clicked.
+  list until handoff `surfaces_that_state_something_false`, which is 34 of the
+  72 live nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
@@ -591,9 +601,9 @@ called once in `renderTopoPane`). Which column an edge lands on is the graph's
 business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
-between a spine node and its row is now on the far side of it. Over the five
-committed topologies, leader-vs-rail crossings went **139 → 0**, five of the
-five to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
+between a spine node and its row is now on the far side of it. Over the six
+committed topologies, leader-vs-rail crossings went **265 → 0**, six of the
+six to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
 sides of those are measured at the column order above, so the before-side is a
 counterfactual — and the zero is the two mechanisms together, not the mirror
 alone: `order_columns` minimises leader crossings counted *towards column 0*,
@@ -609,16 +619,17 @@ Three shapes come out of it, and all three are in the projection:
   which `tests/test_topology_projection.py` checks;
 * **column reuse** — a column is freed when its branch ends and the next
   allocation may take it, so a column holds a *list* of disjoint rail spans
-  rather than one extent. Measured live, 2026-09-15 (`viewer_hygiene_pass`,
-  re-measuring `review/dag_viewer_poc`'s two-topology reading now that five
-  are committed): reuse still does not fire at all — every one of the five
-  allocates exactly one rail per column: 3 over 3 for
-  `pitch_link_to_pitch_plate`, 10 over 10 for `pitch_system`, 10 over 10 for
-  `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, and 2
-  over 2 for `vpa_output_to_pitch_plate`. Since none of them exercises it,
-  disabling reuse entirely would leave every one of those numbers unchanged.
-  It is the mechanism the disjointness invariant guards, not an explanation of
-  today's widths. Guarded the way the walk/chain column counts just above are:
+  rather than one extent. Re-measured live, 2026-09-30: reuse **fires**, on
+  one topology. Rail allocations over columns, per committed topology: 3 over 3
+  for `pitch_link_to_pitch_plate`, 10 over 10 for `pitch_system`, 10 over 10
+  for `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, 2
+  over 2 for `vpa_output_to_pitch_plate`, and 12 over 11 for
+  `vpa_pitch_linkage`, where one column carries two disjoint spans. Until that
+  topology was committed the count was one-to-one everywhere, and the
+  2026-09-15 reading recorded here said so; disabling reuse would now visibly
+  widen one page. It is still the mechanism the disjointness invariant guards
+  rather than an explanation of today's widths. Guarded the way the walk/chain
+  column counts just above are:
   `apps/viewer/tests.js`'s doc-pairing test re-derives every number here from
   the live projection.
 
@@ -1175,6 +1186,51 @@ row read as values only, with the label moved to the row's own hover
 statement of an edge's name and not three). The merged component cell, and a row the projection cannot
 resolve (`missing()`), are unchanged either way: hiding a label is only ever
 dropping a redundant concatenation, never a grouping and never a diagnostic.
+
+### One hover state, two surfaces (`nav_tooltip_once_and_rail_hover_emphasis`)
+
+Jeff, 2026-09-30, tracing a leg through a crossing: *"add an emphasis
+(bold/glow etc) to the edges when you hover over them, again makes it easier to
+trace them"* — and, minutes later, *"it would be awesome if the DAG and the
+table/grid shared their highlighted state, so everything lit up together."*
+
+So hover is **state**, not a `:hover` rule: one key — an edge, an interface or a
+rail — set in one place (`setHot`, `views/topology.js`) and read by both panes.
+A stylesheet cannot light a bar from a grid row, and two stylesheets each
+lighting their own half is the pair that drifts; `.tvrow:hover` was exactly
+that half and is gone. Two levels:
+
+* **`--lead`** — what the pointer is on, and its counterpart on the other
+  surface. An edge's bar, its two dots, its leader and its grid row; an
+  interface's dot, its leader and the rows of the edges that meet there (an
+  interface has no row of its own).
+* **`--hot`** — the whole **connected line** that element sits on: the rail
+  span, the branch curve that opened it, every bar and dot on it, the close
+  curves leaving it, and those edges' grid rows at a lighter tint.
+
+Nothing is dimmed — a reader is tracing *one* line through the others, not
+hiding them — and nothing here touches selection. **Hover spends brightness and
+width only**: the accent means *selected*, so a pointer may not paint anything
+with it, and a bar keeps its provenance hue — thickened, and lightened by the
+same neutral halo as the rest of its line, never recoloured. Hovering
+opens no card either; the bars', dots' and leaders' own cards keep their
+existing triggers.
+
+Two implementation facts worth knowing before editing either file:
+
+* **The glow is the hit path, lit.** Rails and links got the same wide
+  transparent twin the bars already had (so a 2px line is pointable at all),
+  and when the line is hot that twin is stroked at a low alpha — a halo for one
+  colour change and no extra element. A CSS `drop-shadow` was the alternative
+  and was dropped because these are *vertical lines*: a zero-width object
+  bounding box is where a filter region is least dependable. The browser tier
+  reaches them exactly the way it reaches a bar (the `locator.hover()` note in
+  "Whole-edge hover" above applies verbatim — see `railPoint`).
+* **Membership is keyed by rail *position in `layout.rails`*, never by a column
+  index.** `VA.spineRight` mirrors every column at render time and the
+  projection is free to renumber, so a column number is a drawing decision. A
+  fast guard plants the mirror and requires the same edge to light the same
+  set.
 
 ### Edge-length scaling: three modes, one keyed position store
 

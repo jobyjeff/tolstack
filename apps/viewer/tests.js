@@ -6514,6 +6514,223 @@
            "topology.css must declare no column width -- COLUMNS is the source");
       });
 
+    // --- one hover state, two surfaces -----------------------------------
+    //
+    // nav_tooltip_once_and_rail_hover_emphasis (2026-09-30). Jeff: "add an
+    // emphasis (bold/glow etc) to the edges when you hover over them, again
+    // makes it easier to trace them", and "it would be awesome if the DAG and
+    // the table/grid shared their highlighted state, so everything lit up
+    // together."
+    //
+    // The demo fixture is the case these need and the reason they are here
+    // rather than only in the browser tier: TWO rails, one of them opened by a
+    // branch curve and closed by a loop curve, so "the whole connected line"
+    // is a set with a right answer that can be written down. Its mainline
+    // (rails[0]) carries five edges and six interfaces; its branch leg
+    // (rails[1]) carries one edge, both curves and no interface of its own.
+
+    // Everything the two surfaces are currently lighting, by class.
+    //
+    // A grid row and a rail HIT PATH are addressed by `data-id`; a VISIBLE bar
+    // or dot is not -- the id lives on the hit path over it, which is the one
+    // element a pointer or a browser-tier measurement ever lands on. So the
+    // drawn marks are identified by where they are, and the test below joins
+    // the two by asking the hit path with the right id where it sits.
+    function markAt(node) {
+      return node.tagName === "CIRCLE"
+        ? node.getAttribute("cx") + "," + node.getAttribute("cy")
+        : node.getAttribute("x1") + "," + node.getAttribute("y1");
+    }
+
+    function litState(root) {
+      var ids = function (sel) {
+        return all(root, sel).map(function (n) { return n.getAttribute("data-id"); });
+      };
+      var at = function (sel) { return all(root, sel).map(markAt); };
+      return {
+        rails: all(root, "line.rail--hot").length,
+        railX: all(root, "line.rail--hot").map(function (n) {
+          return n.getAttribute("x1");
+        }),
+        halos: all(root, "line.rail__hit--hot").length,
+        links: all(root, "path.rail__link--hot").length,
+        bars: all(root, "line.rail__bar--hot").length,
+        dots: all(root, "circle.rail__dot--hot").length,
+        leaders: all(root, "path.rail__leader--hot").length,
+        rows: all(root, "tr.tvrow--hot").length,
+        leadBars: at("line.rail__bar--lead"),
+        leadDots: at("circle.rail__dot--lead"),
+        leadRows: ids("tr.tvrow--lead"),
+        leadLeaders: all(root, "path.rail__leader--lead").length,
+      };
+    }
+
+    function nothingLit(root) {
+      var lit = litState(root);
+      return Object.keys(lit).every(function (k) {
+        return Array.isArray(lit[k]) ? lit[k].length === 0 : lit[k] === 0;
+      });
+    }
+
+    await test("hovering any part of a rail lights that whole connected " +
+      "line -- its span, the curve that opened it, the curve that leaves it " +
+      "and every mark on it -- and nothing on another column", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        ok(nothingLit(root), "nothing is lit before a pointer arrives");
+        var hits = all(root, "line.rail__hit");
+        eq(hits.length, 2, "one hit path per rail, so a 2px line is pointable");
+
+        // The BRANCH leg: one edge, no interface, and BOTH curves -- the
+        // branch that fans into it and the loop that closes out of it. This
+        // is the whole of item 2's claim in one hover.
+        hits[1].onmouseenter({});
+        var leg = litState(root);
+        eq(leg.rails, 1, "one rail span, not two");
+        eq(leg.halos, 1, "and its halo under it -- the glow IS the hit path");
+        eq(leg.links, 2, "the branch curve in and the close curve out");
+        eq(leg.bars, 1);
+        eq(leg.dots, 0, "the branch leg carries no interface of its own");
+        eq(leg.rows, 1, "the grid row of the one edge on it");
+        eq(leg.leadBars, [], "a rail hover leads nothing: no element is under " +
+           "the pointer, only the line");
+        eq(leg.leadLeaders, 0);
+        eq(leg.leadRows, []);
+
+        // The MAINLINE, and the two sets are disjoint: five edges, six
+        // interfaces, no curve of its own.
+        hits[1].onmouseleave({});
+        ok(nothingLit(root), "leaving clears it");
+        hits[0].onmouseenter({});
+        var main = litState(root);
+        eq(main.rails, 1);
+        eq(main.bars, 5);
+        eq(main.dots, 6);
+        eq(main.links, 0, "neither curve belongs to the line it forks off");
+        eq(main.rows, 5);
+        // ...and every lit mark really is on the one column: the rail's own x
+        // and every bar's x are one number. A membership computed off a
+        // column INDEX would survive this; one computed off the layout's own
+        // rail spans is what makes it true.
+        var x = main.railX[0];
+        ok(x, "the lit rail has an x");
+        all(root, "line.rail__bar--hot").forEach(function (bar) {
+          eq(bar.getAttribute("x1"), x, "a lit bar on another column");
+        });
+        all(root, "circle.rail__dot--hot").forEach(function (dot) {
+          eq(dot.getAttribute("cx"), x, "a lit dot on another column");
+        });
+        hits[0].onmouseleave({});
+        ok(nothingLit(root));
+      });
+
+    await test("the DAG and the grid share ONE hover state: a grid row " +
+      "lights its bar, its dots and its leader, and a bar lights its row",
+      function () {
+        var picked = [];
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({
+            onSelect: function (kind, id) { picked.push([kind, id]); },
+          }));
+        });
+        var row = all(root, "tr.tvrow")[1];
+        var edgeId = row.getAttribute("data-id");
+        ok(edgeId, "a grid row is addressed by its edge id");
+        var barHit = all(root, "line.rail__barhit").filter(function (n) {
+          return n.getAttribute("data-id") === edgeId;
+        })[0];
+        ok(barHit, "the bar's hit path is addressed by the same edge id");
+
+        // Grid -> DAG.
+        row.onmouseenter({});
+        var fromGrid = litState(root);
+        eq(fromGrid.leadBars, [markAt(barHit)],
+           "its bar, and only its bar -- the one drawn over that hit path");
+        eq(fromGrid.leadDots.length, 2, "its two interfaces");
+        eq(fromGrid.leadRows, [edgeId]);
+        ok(fromGrid.rails >= 1, "the leg it sits on glows around it");
+        ok(fromGrid.rows > 1, "and the other edges on that leg are tinted too");
+
+        // DAG -> grid, off the bar's own hit path, which is what a pointer
+        // over the drawing actually lands on.
+        row.onmouseleave({});
+        barHit.onmouseenter({});
+        eq(litState(root), fromGrid,
+           "the same state, whichever surface the pointer arrived on");
+
+        // Hover is tint and nothing else: it selects nothing. (The cards keep
+        // their own triggers -- this ctx has no card handler at all, and the
+        // bar still lit.)
+        eq(picked, [], "hovering must not select");
+        barHit.onmouseleave({});
+        ok(nothingLit(root), "leaving the drawing clears both surfaces");
+      });
+
+    await test("an interface has no grid row of its own, so hovering its dot " +
+      "lights the rows of the edges that meet there", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        // An interior interface: two edges meet at it, so two rows light.
+        var dots = all(root, "circle.rail__dot").filter(function (dot) {
+          return !hasClass(dot, "rail__dot--branch");
+        });
+        var dot = dots[1];
+        var nodeId = dot.getAttribute("data-id");
+        ok(nodeId, "a dot IS wired by (kind, id) -- it has no hit path over it");
+        dot.onmouseenter({});
+        var lit = litState(root);
+        eq(lit.leadDots, [markAt(dot)]);
+        var meeting = VA.spineRight(TOPO.layout).rows.filter(function (r) {
+          return r.kind === "edge" &&
+            (r.entered_at === nodeId || r.left_at === nodeId);
+        }).map(function (r) { return r.id; });
+        eq(meeting.length, 2, "an interior interface meets two edges");
+        eq(lit.leadRows.slice().sort(), meeting.slice().sort());
+        dot.onmouseleave({});
+        ok(nothingLit(root));
+      });
+
+    await test("hover emphasis is keyed by element, so it survives the " +
+      "respine's column renumbering", function () {
+        // The one trap this whole mechanism was written around: the drawn
+        // column index is a RENDER decision -- VA.spineRight mirrors every
+        // one of them, and the projection is free to renumber -- so a
+        // connected line resolved by column number is resolved against a
+        // number that moves. Same document, columns mirrored: the same edge
+        // must light the same set.
+        var mirrored = JSON.parse(JSON.stringify(TOPO));
+        var flip = function (c) {
+          return c === null || c === undefined ? c : 1 - c;
+        };
+        mirrored.layout.rows.forEach(function (r) {
+          r.column = flip(r.column);
+          r.closes_column = flip(r.closes_column);
+        });
+        mirrored.layout.rails.forEach(function (r) { r.column = flip(r.column); });
+        mirrored.layout.links.forEach(function (l) {
+          l.from_column = flip(l.from_column);
+          l.to_column = flip(l.to_column);
+        });
+        var lit = function (proj) {
+          var root = render(function (r) {
+            VA.renderTopoPane(r, topoCtx({ topoProj: proj }));
+          });
+          all(root, "line.rail__barhit")[0].onmouseenter({});
+          var state = litState(root);
+          // Every x on the page is SUPPOSED to move -- that is what a
+          // renumbering does. What must not move is which elements are lit,
+          // so the coordinates are counted and the grid rows named.
+          return { rails: state.rails, halos: state.halos, links: state.links,
+                   bars: state.bars, dots: state.dots, rows: state.rows,
+                   leaders: state.leaders, leadLeaders: state.leadLeaders,
+                   leadBars: state.leadBars.length,
+                   leadDots: state.leadDots.length,
+                   leadRows: state.leadRows };
+        };
+        var plain = lit(TOPO);
+        eq(lit(mirrored), plain);
+        ok(plain.bars > 1 && plain.leadRows.length === 1,
+           "anti-vacuity: the hover really lit a leg with marks on it");
+      });
+
     await test("the element cell drops its own component's name and keeps the " +
       "full label one hover away", function () {
         // A group whose rows all open with the component's name, which is
@@ -10294,6 +10511,11 @@
     // the artifact's authored `description` and surfaces here and nowhere
     // else. These pin the three cases that matter: shown when authored, absent
     // when not, and never at the cost of the topology row's own click hint.
+    //
+    // It hangs on the row's NAME since nav_tooltip_once_and_rail_hover_
+    // emphasis (2026-09-30), not on the row: on the row it was a second hover
+    // surface under the alert mark's card. The guard below this trio is the
+    // one that says so.
 
     var DESCRIBED_TREE = {
       topologies: [{
@@ -10312,13 +10534,15 @@
     };
 
     await test("a description authored on a topology, a study or a stack is " +
-      "the row's hover tooltip, and a row without one has none", function () {
+      "the hover tooltip on the row's name, and a row without one has none",
+      function () {
         var root = render(function (r) {
           VA.renderNavTree(r, DESCRIBED_TREE, { mode: "topology" }, {});
         });
         var byId = {};
         all(root, ".navtree__row").forEach(function (row) {
-          byId[row.getAttribute("data-nav-id")] = row.getAttribute("title");
+          byId[row.getAttribute("data-nav-id")] =
+            row.querySelector(".navtree__label").getAttribute("title");
         });
         has(byId.t1, "The long qualification the title shed.");
         eq(byId.s1, "Hub A datum to blade OML, in degrees.");
@@ -10333,9 +10557,65 @@
         var root = render(function (r) {
           VA.renderNavTree(r, DESCRIBED_TREE, { mode: "topology" }, {});
         });
-        var tip = all(root, ".navtree__row--topology")[0].getAttribute("title");
+        var tip = all(root, ".navtree__row--topology")[0]
+          .querySelector(".navtree__label").getAttribute("title");
         has(tip, "The long qualification the title shed.");
         has(tip, "the whole topology, depth-first, with nothing highlighted");
+      });
+
+    // nav_tooltip_once_and_rail_hover_emphasis (2026-09-30). Jeff, on the
+    // rail: "there is a duplicate hover-over tooltip (unformatted and
+    // formatted versions) that sometimes block each other. Keep just the
+    // formatted one." A row with a description AND an alert mark had three
+    // things to say on hover -- the row's native tooltip, the mark's native
+    // tooltip, and the mark's card -- and two of them landed on the same
+    // pixels. One hover surface per thing a pointer can rest on: the NAME
+    // says what the artifact is, the MARK opens the card and says nothing
+    // natively while it can.
+    await test("a nav row that has both a description and an alert mark " +
+      "offers ONE hover surface per target: the name's tooltip and the " +
+      "mark's card, never a native tooltip stacked under the card",
+      function () {
+        var described = JSON.parse(JSON.stringify(DESCRIBED_TREE));
+        described.looseStacks[0] = JSON.parse(JSON.stringify(FAILING_STACK));
+        described.looseStacks[0].description = "A loose stack's own one-liner.";
+        var shown = [];
+        var root = render(function (r) {
+          VA.renderNavTree(r, described, { mode: "topology" }, {
+            onStack: function () {},
+            onCardShow: function (card, trigger) { shown.push([card, trigger]); },
+          });
+        });
+        var row = all(root, ".navtree__row--stack")[0];
+        eq(row.getAttribute("title"), null,
+           "the row itself carries nothing: the mark sits on it, and a row " +
+           "tooltip is what showed through the card");
+        eq(row.querySelector(".navtree__label").getAttribute("title"),
+           "A loose stack's own one-liner.");
+        var mark = row.querySelector(".navstatus");
+        eq(mark.getAttribute("title"), null,
+           "the card absorbs the mark's words rather than stacking under them");
+        ok(mark.getAttribute("aria-label"),
+           "...and the accessible name stays: it is not a second hover");
+        mark.onmouseenter({});
+        eq(shown.length, 1);
+        eq(shown[0][0].kind, "alerts");
+        has(shown[0][0].alerts[0].text, "fail");
+      });
+
+    // The other arm, and the reason the title is not simply deleted: with no
+    // card machinery at all -- the DOM shim, a view called without handlers --
+    // the badge is the only place the words are, so it keeps them. The same
+    // claim views/stack.js's own badge test makes for the two tables.
+    await test("with no card handler the nav mark keeps its native tooltip: " +
+      "the alerts are never only in a hover", function () {
+        var root = render(function (r) {
+          VA.renderNavTree(r, { topologies: [], looseStacks: [FAILING_STACK] },
+            { mode: "stack" }, { onStack: function () {} });
+        });
+        var mark = all(root, ".navtree__row--stack")[0].querySelector(".navstatus");
+        has(mark.getAttribute("title"), "fail");
+        eq(mark.className.indexOf("cardtrig"), -1);
       });
 
     await test("navTree carries each artifact's description through to the " +
@@ -12757,15 +13037,23 @@
               if (mirrored === 0) zeroed++;
             });
 
-            // "leader-vs-rail crossings went **139 → 0**, five of the five to
-            // zero"
-            var totals = /crossings went \*\*(\d+) → (\d+)\*\*, (\w+) of the\s+five to zero/
+            // "leader-vs-rail crossings went **N -> M**, <word> of the <word>
+            // to zero". The SECOND number word used to be the literal `five` in
+            // this regex, which made a sixth committed topology read as "the
+            // sentence is missing" rather than "the sentence is stale" -- so
+            // both words are captured now and both are paired against the live
+            // projection, and a seventh needs no regex edit.
+            var WORDS = ["zero", "one", "two", "three", "four", "five", "six",
+              "seven", "eight", "nine", "ten"];
+            var totals = /crossings went \*\*(\d+) → (\d+)\*\*, (\w+) of the\s+(\w+) to zero/
               .exec(readme);
             ok(totals, "expected the README's crossings sentence");
             eq(Number(totals[1]), before, "README's before-total");
             eq(Number(totals[2]), after, "README's after-total");
-            eq(totals[3], ["zero", "one", "two", "three", "four", "five"][zeroed],
+            eq(totals[3], WORDS[zeroed],
                "README's count of topologies taken to zero");
+            eq(totals[4], WORDS[liveTopos.length],
+               "README's count of committed topologies");
 
             // "that one topology's total moves 90 → 0"
             var pitchTotals = /topology's total moves (\d+) → (\d+)/.exec(readme);
@@ -13625,8 +13913,16 @@
                            }) };
               };
               var walk = marks(null);
+              // `rails.length`, not `columns`: a COLUMN may hold several
+              // disjoint rails once a branch has ended and its column been
+              // reused, which is what the layout's own Layout docstring says
+              // and what makes `rails` a list of spans rather than a per-column
+              // extent. The two were equal for every committed topology until
+              // vpa_pitch_linkage (2026-09-30) became the first to reuse one,
+              // and then this read as the renderer drawing a rail that is not
+              // there.
               eq(walk.shape, [topoProj.edges.length, topoProj.nodes.length,
-                              topoProj.layout.columns,
+                              topoProj.layout.rails.length,
                               topoProj.layout.links.length], topoProj.id);
               eq(walk.rows, topoProj.edges.length, topoProj.id + " deselected");
               (topoProj.studies || []).forEach(function (study) {

@@ -29,12 +29,26 @@
 // is docs/SOP_TOLERANCE_STACK.md's "Titling an artifact"), so the rail scans
 // as a list rather than a wall of text. What a title used to carry inline now
 // lives in the artifact's authored `description`, and this is the only place
-// that renders it: as the row's hover tooltip. Progressive disclosure, no new
-// chrome — a row with no description simply has no tooltip to show.
+// that renders it: as a hover tooltip on the row's NAME. Progressive
+// disclosure, no new chrome — a row with no description simply has no tooltip
+// to show.
+//
+// On the NAME and not on the row (nav_tooltip_once_and_rail_hover_emphasis,
+// 2026-09-30). A row has two things a pointer can rest on: its label and,
+// where there is something to look at, its alert mark — and the mark opens a
+// formatted card. With the description on the ROW, hovering the mark put the
+// browser's plain tooltip and the card over each other. Jeff: "there is a
+// duplicate hover-over tooltip (unformatted and formatted versions) that
+// sometimes block each other. Keep just the formatted one." So each hover
+// surface says one thing: the name says what the artifact is, the mark says
+// what is wrong with it. It is the rule the rail bars already follow
+// (views/topology.js, viewer_dag_hover_cards 2026-09-14) — one hover surface,
+// never two stacked — and views/dom.js's VA.alertBadge now applies the other
+// half of it to every mark that opens a card.
 (function (VA) {
   "use strict";
 
-  // The row's `title=`, or null for none. Where a row already carries a hint
+  // The label's `title=`, or null for none. Where a row already carries a hint
   // about what clicking it does, the description goes ABOVE it rather than
   // replacing it: the hint is the only statement of that behaviour anywhere.
   function tooltip(description, hint) {
@@ -42,9 +56,15 @@
     return description || hint || null;
   }
 
-  function setTooltip(row, description, hint) {
-    var text = tooltip(description, hint);
-    if (text) row.setAttribute("title", text);
+  // The row's NAME, with whatever the artifact says about itself hung on it.
+  // Built here rather than at each of the three call sites so there is one
+  // place the description can land, and no way for it to creep back onto the
+  // row — which is the defect this helper replaced.
+  function label(text, description, hint) {
+    var span = VA.el("span", "navtree__label", text);
+    var tip = tooltip(description, hint);
+    if (tip) span.setAttribute("title", tip);
+    return span;
   }
 
   VA.renderNavTree = function (root, tree, state, handlers) {
@@ -68,10 +88,9 @@
     var li = VA.el("li", "navtree__item");
     var row = VA.el("div", "navtree__row navtree__row--topology" +
       (inThisTopology && !state.studyId ? " navtree__row--on" : ""));
-    row.appendChild(VA.el("span", "navtree__label", t.title));
+    row.appendChild(label(t.title, t.description,
+      "the whole topology, depth-first, with nothing highlighted"));
     row.appendChild(VA.el("code", "navtree__id", t.id));
-    setTooltip(row, t.description,
-      "the whole topology, depth-first, with nothing highlighted");
     row.setAttribute("data-nav-kind", "topology");
     row.setAttribute("data-nav-id", t.id);
     row.onclick = function () { handlers.onTopology(t.id); };
@@ -88,13 +107,12 @@
       // below, and two triangles on one row is the loudness this pass exists
       // to remove. The amber `--warn` tint stays — it is the row's state, not
       // a badge, and it is what makes the row findable without hovering.
-      srow.appendChild(VA.el("span", "navtree__label", s.title));
+      srow.appendChild(label(s.title, s.description, null));
       // One mark, and only where there is something to look at
       // (viewer_nav_verdict_into_alert_and_icon, 2026-09-22). The verdict went
       // in with it: VA.studyNavStatus (topology.js) decides both which icon
       // and what it says, and is the only place either vocabulary lives.
       statusIcon(VA.studyNavStatus(s), s.title, srow, handlers);
-      setTooltip(srow, s.description, null);
       srow.setAttribute("data-nav-kind", "study");
       srow.setAttribute("data-nav-id", s.id);
       srow.setAttribute("data-topology-id", t.id);
@@ -143,14 +161,13 @@
     var li = VA.el("li", "navtree__item");
     var row = VA.el("div", "navtree__row navtree__row--stack" +
       (active ? " navtree__row--on" : ""));
-    row.appendChild(VA.el("span", "navtree__label", stackProj.title));
+    row.appendChild(label(stackProj.title, stackProj.description, null));
     // The same mark a study row wears, over the same scheme
     // (VA.stackNavStatus). These rows printed every one of VA.summaryChips'
     // counts as its own chip until 2026-09-22 — five of them on one row, one
     // filled — which made them the loudest rows on a rail whose study rows had
     // just been quietened. The scoreboard is on the stack's own page.
     statusIcon(VA.stackNavStatus(stackProj), stackProj.title, row, handlers);
-    setTooltip(row, stackProj.description, null);
     row.setAttribute("data-nav-kind", "stack");
     row.setAttribute("data-nav-id", stackProj.id);
     row.onclick = function () { handlers.onStack(stackProj.id); };

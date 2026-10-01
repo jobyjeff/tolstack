@@ -217,13 +217,30 @@ nowhere but the comparison.
 ### What is classified, and how well
 
 `face_geometry.js` reads a face's own triangles and answers **planar**,
-**cylindrical** or **other**. A plane is facet normals that are parallel and
-vertices that lie in one plane; a cylinder is facet normals that all lie in one
-plane (so the direction they never point in is the axis) plus vertices at one
-radius over a wide enough arc to place that axis. Everything else is **other**,
-which is a first-class answer and not a near miss: a cone, a sphere, a torus, a
-fillet along a curved edge and a swept blade surface all land there, and a face
-there is suggested for nothing.
+**cylindrical**, **spherical** or **other**. A plane is facet normals that are
+parallel and vertices that lie in one plane; a cylinder is facet normals that
+all lie in one plane (so the direction they never point in is the axis) plus
+vertices at one radius over a wide enough arc to place that axis; a sphere is
+vertices at one radius from one centre, on a face that is a *patch* rather than
+a single band. Everything else is **other**, which is a first-class answer and
+not a near miss: a cone, a torus, a fillet along a curved edge and a swept blade
+surface all land there, and a face there is suggested for nothing.
+
+**The order the three are asked in is the answer, and it is not negotiable.** A
+face tessellated as one band of quads is two coaxial circles, and any two
+coaxial circles lie on one sphere *exactly* — so a cylinder band, a cone band
+and a real spherical band all fit a sphere to machine precision and their
+residuals rank nothing. The more constrained shape is asked first, and a band is
+refused on its shape rather than on a number. (A sphere joined the set on
+2026-09-30: a pitch link's length is the distance between two spherical-bearing
+**centres**, and until a sphere could be read there was no centre to offer.)
+
+The words themselves are not written in this app at all. They come from
+`tolerance_stack/feature_geometry.py` — the Python half of this file, which
+fits the same three surfaces so that a committed binding can become a nominal
+for a solver — through the generated vocabulary module. The *thresholds* live in
+both and are paired by `tests/test_feature_geometry.py`, so one tightened and
+not the other is red rather than a reader and a solver disagreeing silently.
 
 Measured hit rates over every installed mesh, the thresholds that produced them
 and what the remaining **other** actually is are in
@@ -247,16 +264,25 @@ Two tables in `suggestions.js`, both declared rather than scattered:
 2. **`AA.NARROWING_STAGES` / `AA.NARROWING_RELATIONS`** — how much further a
    face already bound nearby narrows it:
 
-| stage | what has to be known | planes | cylinders |
-|---|---|---|---|
-| `surface_class` | the element's words name a kind of surface | every flat face on the part | every round face on the part |
-| `same_part_relation` | a face on **this** part is bound at the other end of the dimension, or at the other half of this interface | parallel to it | coaxial with it |
-| `mating_fit` | a face on a **different** part is bound at this interface | *nothing* — see below | radius matches it |
+| stage | what has to be known | planes | cylinders | spheres |
+|---|---|---|---|---|
+| `surface_class` | the element's words name a kind of surface | every flat face on the part | every round face on the part | every ball-shaped face on the part |
+| `same_part_relation` | a face on **this** part is bound at the other end of the dimension, or at the other half of this interface | parallel to it | coaxial with it | *nothing* — see below |
+| `mating_fit` | a face on a **different** part is bound at this interface | *nothing* — see below | radius matches it | radius matches it |
 
-### The one narrowing this app cannot do, and why
+### The two narrowings this app cannot do, and why
 
-`mating_fit` has no answer for two flat faces, and that is a fence rather than
-a gap waiting to be filled in. This app applies **no assembly placement
+Both are fences rather than gaps waiting to be filled in, and both are the same
+fence seen from two sides.
+
+`same_part_relation` has no answer for two **centres**, because this app draws
+each part once, at its own local origin, however many times it is fitted in the
+assembly. The pitch link is exactly that case: its two joint centres are two
+instances of one MS14101-3, so on screen they land on top of each other and
+nothing there can tell them apart. (`scripts/fit_bound_features.py` is where
+they come apart — it applies the placements, which is the whole of what it adds.)
+
+`mating_fit` has no answer for two flat faces, for the same missing frame. This app applies **no assembly placement
 transforms** (see "What it does and does not do", above): every part is drawn
 at its own local origin, so a plane's normal and offset on one mesh mean
 nothing against another mesh's. Coplanar and parallel are unaskable across two
@@ -403,10 +429,10 @@ apps/annotate/
                        state-transition helper -- no DOM, no scene, no fetch.
                        app.js registers the actual (impure) handlers onto it.
   face_geometry.js     PURE geometry: classifies a mesh face as planar /
-                       cylindrical / other from its own triangles, extracts
-                       the plane or the axis and radius, and answers whether
-                       two classified faces are parallel, coaxial or of
-                       matching radius. No DOM, no fetch, no three.js -- every
+                       cylindrical / spherical / other from its own triangles,
+                       extracts the plane, the axis and radius or the centre
+                       and radius, and answers whether two classified faces
+                       are parallel, coaxial or of matching radius. No DOM, no fetch, no three.js -- every
                        threshold is a named constant in one frozen block.
   suggestions.js       PURE narrowing rules: the declared word table (which
                        kind of surface an element's own words ask for), the

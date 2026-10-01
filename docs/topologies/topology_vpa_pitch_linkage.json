@@ -1,0 +1,574 @@
+{
+  "schema": "joby.tolerance_stack/topology/v0",
+  "id": "vpa_pitch_linkage",
+  "title": "Propeller pitch linkage joints, blade 1",
+  "description": "The pitch linkage's joints and the kinematic dimensions between them, with no studies and almost no numbers: it exists to be BOUND to 3D geometry, so that the pitch-linkage solver can be handed nominal joint locations in the assembly frame. Nothing here should be quoted as a tolerance.",
+  "units": "mm",
+  "provenance": {
+    "authored_by": "handoff vpa_pitch_linkage_topology_and_feature_fits, 2026-09-30",
+    "structure_source": "Jeff, live, 2026-09-30, founding the `linkage` solver repo: the rigid bodies of the pitch linkage (base = hub + tangential-link mount + gas-spring mount; blade + pitch arm; pitch link assembly; pitch plate + piston; tangential link assembly), with the ask that this repo carry 'the right components' so that the 3D annotator can be used to select the spherical centres and the hub/gas-spring bores. The graph below is that statement of the mechanism; it is Jeff's description of his own design, not a reading of a drawing.",
+    "parts_source": "The drawing numbers on every part below are read off parts lists extracted by drawing-checker runs, not transcribed from memory: 217755-001 A.1 PROPULSION ASSEMBLY (run 20260909_174538, sheet 1 parts list) for 212956-005 find 25 'PITCH ANTI ROTATION LINK ASSEMBLY, PROPELLER' qty 3, 215175-001 find 41 '...CW' qty 1 and 215175-002 find 73 '...CCW' qty '-'; 216231 B.1 HUB AND BLADE ASSEMBLY (run 20260904_184249) for 214373-002 find 1 'DUAL BEARING GEN5 HUB ASSEMBLY', 215071-001 find 11 'PITCH ARM, PROPELLER, CLOCKWISE', 216332-001 find 19 'BLADE BONDED ASSEMBLY' and 213862-002 find 30 'PITCH LINK ASSEMBLY, PROPELLER'; 213862-002 A (run 20260922_154236) for its own two rows, 213861-002 'PITCH LINK, PROPELLER' qty 1 and MS14101-3 qty 2. tolstack's dependency on drawing-checker is read-only (scripts/snapshot_drawing_checker.py).",
+    "configuration": "The 217755-001 A.1 CW propulsion assembly as modelled at 72 degrees blade pitch -- the feather hard stop. That is the state the assembly STEP every installed mesh was extracted from is in, and the state the 3DX sweep sheet's own reference row (row 83, the row every actuator displacement in column K is measured from) describes.",
+    "no_worksheet": "This document has no `provenance.worksheet`, deliberately: there is no structured read of a source workbook behind it, because there is no source workbook. Its one cited number comes from a 3DX sweep sheet in another repo, cited inline on the edge that carries it."
+  },
+  "parts": [
+    {
+      "id": "hub",
+      "name": "propeller hub",
+      "drawing": "214373-002",
+      "note": "DUAL BEARING GEN5 HUB ASSEMBLY, 216231 B.1 find 1. The ground every load path returns to; it carries the spindle bore (the pitch system's expected CAD Z) and the blade root bearing bores (blade 1's expected CAD X). Installed 2026-10-01 by rotorkit's assembly_extract_20261001T022446Z and aliased the same day: `asm217755_214373_002`, 286 solids, the whole hub assembly."
+    },
+    {
+      "id": "pitch_arm",
+      "name": "pitch arm",
+      "drawing": "215071-001",
+      "note": "PITCH ARM, PROPELLER, CLOCKWISE, 216231 B.1 find 11. The CCW hand is 215071-002 (find 47); this topology is the CW assembly. Installed 2026-10-01 and aliased: `asm217755_215071_001`, one solid, five instances -- one per blade."
+    },
+    {
+      "id": "blade_root",
+      "name": "blade root",
+      "drawing": "216332-001",
+      "note": "BLADE BONDED ASSEMBLY, PROPELLER, 216231 B.1 find 19 (the instrumented blade is 551438-001, find 2). `blade_oml` in data/meshes/ is a clean outer-mould-line export of the blade from a separate STEP, not this assembly -- it carries no root bearing geometry, so it is not aliased to this part. The real blade arrived 2026-10-01 as TWO geometries under this drawing number, and blade 1 carries the instrumented 551438-001 besides -- so this part still has no row, for a reason that is a decision rather than a missing file (see ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md)."
+    },
+    {
+      "id": "pitch_link",
+      "name": "pitch link assembly",
+      "drawing": "213862-002",
+      "note": "PITCH LINK ASSEMBLY, PROPELLER, 216231 B.1 find 30. Its own parts list (213862-002 A) is two rows: the body 213861-002 PITCH LINK, PROPELLER x1, and MS14101-3 x2. Blade 1's link is the instrumented variant, and this part's drawing number is the standard one: rotorkit's 2026-10-01 extraction shows the propeller carries five pitch links, with 546293-002 INSTRUMENTED PITCH LINK ASSEMBLY (216231 B.1 find 29) at instance 213862-002.1 and 213862-002 itself at .2 to .5. The two joint centres this document's `pitch_link_length` is about sit inside that .1 -- so the geometry is the instrumented link's, and the two agree with the 3DX sweep sheet's own nodes to under two microns, which is what says the kinematics are the same link. Which drawing this part should carry is a decision nobody has made: ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md."
+    },
+    {
+      "id": "spherical_bearing_pitch_link",
+      "name": "pitch-link spherical bearing",
+      "note": "MS14101-3, self-lubricated self-aligning spherical bearing, narrow (AS81820) -- 213862-002 A's parts list, qty 2. The pitch link's two joint centres ARE the two ball centres of this part's two instances, which is why it is a part here and not a note. This is the one part of this linkage with an installed mesh today: `asm217755_MS14101_3_9bfdb344`, whose two instances sit at 213862-002.1/MS14101-3.1 and .2 -- that being blade 1's INSTRUMENTED link, see this document's `pitch_link` part. rotorkit's 2026-10-01 run re-extracted the same solid under a second geometry signature (`asm217755_MS14101_3_1ec77e91`, same assembly, same label, same placements), so the store now holds two directories for it; the alias table names this one and ISSUE_20260930_one_solid_two_geometry_signatures_across_two_runs.md is about the duplication."
+    },
+    {
+      "id": "pitch_plate_215177_001",
+      "name": "215177-001 pitch plate",
+      "drawing": "215177-001",
+      "note": "PITCH PLATE ASSEMBLY, PROPELLER, CW, 217755-001 A.1 find 32. The same physical part topology_pitch_system.json names; the id is reused so the declared alias table keeps resolving it to the installed mesh. That mesh is the INSTALLATION (plate plus its nine NAS77 bushings, 10 solids); its one machined detail is installed separately as `asm217755_215735_001`."
+    },
+    {
+      "id": "gas_spring",
+      "name": "gas spring",
+      "note": "PMF200521, a two-solid vendor item (body + rod) occurring three times inside 215176-002 in the assembly STEP. Note what the 217755-001 A.1 parts list does NOT carry: any gas-spring row at all. That release carries a HYDRAULIC BRAKE ASSEMBLY (217676-001, find 85) instead, so the gas spring in the STEP is the earlier configuration, which is the one this linkage describes."
+    },
+    {
+      "id": "gas_spring_mount_213668_002",
+      "name": "213668-002 gas-spring mount",
+      "drawing": "213668-002",
+      "note": "The same physical part topology_pitch_system.json names; id reused so the alias table keeps resolving it to `machined_213668`."
+    },
+    {
+      "id": "tan_link_mount_215175_002",
+      "name": "215175-002 tangential link mount",
+      "drawing": "215175-002",
+      "note": "The same id topology_pitch_system.json declares, reused. Read the alias table's row for it before assuming which hand is on screen: 217755-001 A.1's parts list carries BOTH dash numbers -- find 41, 215175-001 '...CW', qty 1, and find 73, 215175-002 '...CCW', qty '-' -- so the CW assembly every installed mesh came from contains the -001."
+    },
+    {
+      "id": "tan_link_212956_005",
+      "name": "212956-005 pitch anti-rotation link assembly",
+      "drawing": "212956-005",
+      "note": "PITCH ANTI ROTATION LINK ASSEMBLY, PROPELLER, 217755-001 A.1 find 25, qty 3 -- the TANGENTIAL (anti-rotation) link, not the pitch link. A 2026-09-14 rotorkit lesson guessed `pitch_link -> 212956-005`; the parts list refutes it and 216231 B.1 find 30 names 213862-002 as the pitch link assembly. The mesh `asm217755_212956_005` is four solids: the link body, an MS14101-3, an MS14103-3 and a bolt."
+    },
+    {
+      "id": "spherical_bearing_tan_link",
+      "name": "tangential-link bearing, narrow end",
+      "note": "MS14101-3, the narrow spherical bearing at the tangential link's mount end. Installed as `asm217755_MS14101_3_84a75703` -- a DIFFERENT solid from the pitch link's `_9bfdb344`, both named MS14101-3 in the STEP, which is why the mesh store suffixes the geometry signature."
+    },
+    {
+      "id": "spherical_bearing_tan_link_ms14103_3",
+      "name": "tangential-link bearing, wide end",
+      "note": "MS14103-3, the wide spherical bearing at the tangential link's other end: same .1900 in bore as MS14101-3, wider body (docs/spec_library, event 0006, RBC Aerospace plain bearings pp. 21-22). Installed as `asm217755_MS14103_3`, three instances, one per tangential link."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "hub_spindle_bore_axis",
+      "name": "hub spindle bore axis -- the gas-spring bushing bore",
+      "parts": [
+        "hub"
+      ],
+      "kind": "datum_feature",
+      "note": "Expected to be the CAD Z axis, and expected is the word: nothing in this repo states it, which is exactly why this node exists to be bound. Jeff, 2026-09-30: 'Might as well also select the hub/gas spring bores even though I'm fairly confident they're aligned with z and x axes.'"
+    },
+    {
+      "id": "hub_blade1_root_bearing_bore",
+      "name": "hub blade-1 root bearing bore",
+      "parts": [
+        "hub",
+        "blade_root"
+      ],
+      "kind": "mating_surface",
+      "note": "Expected to be the CAD X axis for blade 1, on the same evidence (none) as the spindle bore above."
+    },
+    {
+      "id": "pitch_arm_root_seat",
+      "name": "pitch arm root clamp face against the blade root",
+      "parts": [
+        "pitch_arm",
+        "blade_root"
+      ],
+      "kind": "mating_surface",
+      "note": "Where the pitch arm is clamped to the blade root, and therefore the arm's own end of the blade pitch axis."
+    },
+    {
+      "id": "pitch_arm_link_bore",
+      "name": "pitch arm pitch-link attachment bore",
+      "parts": [
+        "pitch_arm"
+      ],
+      "kind": "datum_feature",
+      "note": "The lug bore the pitch link's lower joint bolt passes through. One part, not two: the bolt that makes it a mate is not a part of this topology."
+    },
+    {
+      "id": "pitch_link_lower_sphere_centre",
+      "name": "pitch link lower spherical-bearing centre",
+      "parts": [
+        "pitch_link"
+      ],
+      "kind": "datum_feature",
+      "note": "The ball centre of the MS14101-3 at 213862-002.1/MS14101-3.1. On the LINK rather than on the bearing because the two joint centres are two instances of one bearing part, and a topology part id names a part, not an instance: a node on `spherical_bearing_pitch_link` could not tell the two apart. The geometry to bind is on that bearing's mesh all the same."
+    },
+    {
+      "id": "pitch_link_upper_sphere_centre",
+      "name": "pitch link upper spherical-bearing centre",
+      "parts": [
+        "pitch_link"
+      ],
+      "kind": "datum_feature",
+      "note": "The ball centre of the MS14101-3 at 213862-002.1/MS14101-3.2 -- the pitch-plate end. Same instance-versus-part reasoning as the lower centre."
+    },
+    {
+      "id": "pitch_link_bearing_seat",
+      "name": "pitch-link bearing outer-race OD",
+      "parts": [
+        "spherical_bearing_pitch_link"
+      ],
+      "kind": "datum_feature",
+      "note": "The press fit that holds the bearing in the link's housing bore. Carried as a feature of the BEARING alone: it is a mating surface in the joint, but no edge in this document is a dimension of the pitch link across it, and a part named on an interface that no incident edge uses is an authoring error the viewer reports rather than draws."
+    },
+    {
+      "id": "pitch_link_bearing_ball_centre",
+      "name": "MS14101-3 ball centre",
+      "parts": [
+        "spherical_bearing_pitch_link"
+      ],
+      "kind": "datum_feature",
+      "note": "The piece part's own spherical centre, as distinct from either joint centre above: one part, one centre, two instances of it in the assembly."
+    },
+    {
+      "id": "pitch_link_bearing_bore_axis",
+      "name": "MS14101-3 ball bore",
+      "parts": [
+        "spherical_bearing_pitch_link"
+      ],
+      "kind": "datum_feature",
+      "note": "The .1900 in bore through the ball, which the joint bolt passes through. Bore B 4.826 mm, -0.013 (docs/spec_library event 0006, RBC Aerospace plain bearings p. 21) -- cited here as context for a reader, not as this node's value; a node carries no value."
+    },
+    {
+      "id": "pitch_plate_spindle_bore_axis",
+      "name": "pitch plate spindle bore axis",
+      "parts": [
+        "pitch_plate_215177_001"
+      ],
+      "kind": "datum_feature",
+      "note": "The plate's own central bore, expected coaxial with the hub spindle bore and with CAD Z. Expected, again, is the word."
+    },
+    {
+      "id": "pitch_plate_link_attach_bore",
+      "name": "pitch plate pitch-link attachment bore",
+      "parts": [
+        "pitch_plate_215177_001"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "pitch_plate_gas_spring_bore",
+      "name": "pitch plate gas-spring attachment bore",
+      "parts": [
+        "pitch_plate_215177_001"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "pitch_plate_tan_link_attach_bore",
+      "name": "pitch plate tangential-link attachment bore",
+      "parts": [
+        "pitch_plate_215177_001"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "gas_spring_rod_end",
+      "name": "gas-spring rod-end bore",
+      "parts": [
+        "gas_spring"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "gas_spring_mount_bushing_bore",
+      "name": "gas-spring mount bushing bore",
+      "parts": [
+        "gas_spring_mount_213668_002",
+        "gas_spring"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "tan_link_mount_bore",
+      "name": "tangential link mount attachment bore",
+      "parts": [
+        "tan_link_mount_215175_002"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "tan_link_lower_sphere_centre",
+      "name": "tangential link mount-end spherical-bearing centre",
+      "parts": [
+        "tan_link_212956_005"
+      ],
+      "kind": "datum_feature",
+      "note": "Phase 2. The MS14101-3 ball centre at this end of 212956-005."
+    },
+    {
+      "id": "tan_link_upper_sphere_centre",
+      "name": "tangential link plate-end spherical-bearing centre",
+      "parts": [
+        "tan_link_212956_005"
+      ],
+      "kind": "datum_feature",
+      "note": "Phase 2. The MS14103-3 ball centre at this end of 212956-005."
+    },
+    {
+      "id": "tan_link_ms14101_seat",
+      "name": "MS14101-3 outer-race OD",
+      "parts": [
+        "spherical_bearing_tan_link"
+      ],
+      "kind": "datum_feature",
+      "note": "Phase 2. A feature of the bearing alone, for the reason the pitch-link seat's note gives."
+    },
+    {
+      "id": "tan_link_ms14101_ball_centre",
+      "name": "MS14101-3 ball centre, tangential link",
+      "parts": [
+        "spherical_bearing_tan_link"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "tan_link_ms14103_seat",
+      "name": "MS14103-3 outer-race OD",
+      "parts": [
+        "spherical_bearing_tan_link_ms14103_3"
+      ],
+      "kind": "datum_feature",
+      "note": "Phase 2. A feature of the bearing alone, for the reason the pitch-link seat's note gives."
+    },
+    {
+      "id": "tan_link_ms14103_ball_centre",
+      "name": "MS14103-3 ball centre, tangential link",
+      "parts": [
+        "spherical_bearing_tan_link_ms14103_3"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "gas_spring_mount_hub_face",
+      "name": "gas-spring mount base face against the hub",
+      "parts": [
+        "gas_spring_mount_213668_002",
+        "hub"
+      ],
+      "kind": "mating_surface",
+      "note": "Where 213668-002 bolts to the hub, and therefore the mount's own datum."
+    },
+    {
+      "id": "tan_link_mount_hub_face",
+      "name": "tangential link mount base face against the hub",
+      "parts": [
+        "tan_link_mount_215175_002",
+        "hub"
+      ],
+      "kind": "mating_surface",
+      "note": "Phase 2. Where 215175-001 bolts to the hub."
+    }
+  ],
+  "edges": [
+    {
+      "id": "pitch_link_length",
+      "name": "pitch link length between spherical-bearing centres",
+      "kind": "structural",
+      "part": "pitch_link",
+      "from": "pitch_link_lower_sphere_centre",
+      "to": "pitch_link_upper_sphere_centre",
+      "dimension": {
+        "id": "pitch_link_length",
+        "name": "pitch link length, lower bearing centre to upper bearing centre",
+        "nominal": 105.9908,
+        "min": 105.9908,
+        "max": 105.9908,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "250530_pitch_motion_ratios.xlsx",
+          "sheet": "250530 pitch sweep",
+          "cell": "C83:E83 and G83:I83",
+          "confidence": "untraced",
+          "note": "The distance between the sheet's own two node columns at 72 degrees blade pitch (row 83, the row its column K measures every actuator displacement from): Pitch Arm Node C83:E83 = (83.000, -44.550, -22.700), Pitch Plate Node G83:I83 = (84.972, -17.139, 79.666), |A - P| = 105.9908 mm. It is a rigid link, so the length must come out constant over the sweep, and it does -- over all 80 rows (blade pitch -7 to +72, rows 4 to 83) it ranges 105.9896 to 105.9915, a spread of 0.0019 mm, which is the sheet's own three-decimal rounding and not a tolerance.\n`untraced`, and the arithmetic is why it is not better rather than why it is: the subtraction and the norm settle `traced` against `inferred` -- the sheet states the endpoints and not the length -- and say nothing about the SUPPORT, which is this workbook and no second document. The SOP's rule is that a value whose only support is 'the source workbook says so' is `untraced` and goes on the gap list however reasonable it looks, and this edge does. What would move it: 213861-002's own drawing, which this repo has not acquired. This handoff's own fit of the two bearing centres agrees to 0.00023 mm and is deliberately NOT leaned on -- a fit is a measurement of a mesh, not a citation.\nThe workbook lives in another repo, read-only: C:\\workspace\\atp-post\\docs\\references\\250530_pitch_motion_ratios.xlsx.",
+          "callout": "Pitch Arm Node / Pitch Plate Node, X Y Z"
+        },
+        "note": "min == max because the sheet carries a nominal and NO tolerance -- so this edge appears on the gap list twice over: as a value with no band recorded, and as an unverified value, which workbook-only support makes it. A pitch-link length tolerance would come from 213861-002's own drawing.\nREAD THIS BEFORE TRUSTING THE NUMBER: docs/topologies/topology_pitch_system.json's own `pitch_link_length` edge states 109.4 mm for the same hole-to-hole distance on the same link, from a different workbook. The two are 3.41 mm apart and cannot both be right; a rigid link's length does not change with pitch, and the mesh fit corroborates this one to 0.00023 mm. Nothing pairs them today because that one's nominal lives in `properties` rather than in a `dimension`. ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md."
+      }
+    },
+    {
+      "id": "pitch_link_bearing_ball_centre_offset",
+      "name": "MS14101-3 ball centre offset from its outer-race seat",
+      "kind": "structural",
+      "part": "spherical_bearing_pitch_link",
+      "from": "pitch_link_bearing_seat",
+      "to": "pitch_link_bearing_ball_centre",
+      "note": "No value recorded. Nominally zero by the bearing's own construction -- a self-aligning spherical bearing's ball swivels about the centre of its race -- but no document in this repo states it, so this edge carries no dimension rather than an invented zero. What would close it: MS14101's own concentricity callout in the RBC catalog (pp. 21-22, not read for this), or this handoff's fit of the two spherical faces of `asm217755_MS14101_3_9bfdb344`."
+    },
+    {
+      "id": "pitch_link_bearing_bore_to_ball_centre",
+      "name": "MS14101-3 ball bore axis to ball centre",
+      "kind": "structural",
+      "part": "spherical_bearing_pitch_link",
+      "from": "pitch_link_bearing_bore_axis",
+      "to": "pitch_link_bearing_ball_centre",
+      "note": "No value recorded. The pair of features Jeff binds first, because both are on the one mesh of this linkage that is installed today: the ball (a spherical face) and the bore (a cylindrical one). What would close it: the same two sources as the sibling edge above."
+    },
+    {
+      "id": "pitch_arm_radius",
+      "name": "pitch arm radius, blade root clamp face to link bore",
+      "kind": "structural",
+      "part": "pitch_arm",
+      "from": "pitch_arm_root_seat",
+      "to": "pitch_arm_link_bore",
+      "note": "No value recorded. The lever arm that turns the pitch link's travel into blade pitch, and the quantity the solver most wants a number for. What would close it: 215071-001's own drawing, which this repo has not acquired, or a fit of the arm's mesh once rotorkit installs it. The 3DX sweep sheet does NOT give it -- the sheet's Pitch Arm Node is the joint centre, and the blade axis is not in it."
+    },
+    {
+      "id": "blade_root_bearing_to_pitch_arm_seat",
+      "name": "blade root bearing bore to pitch arm clamp face",
+      "kind": "structural",
+      "part": "blade_root",
+      "from": "hub_blade1_root_bearing_bore",
+      "to": "pitch_arm_root_seat",
+      "note": "No value recorded. What would close it: 216332-001's own drawing. This edge is what makes the blade pitch axis and the pitch arm one chain rather than two components."
+    },
+    {
+      "id": "hub_blade_axis_offset",
+      "name": "hub spindle axis to blade-1 root bearing axis offset",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_spindle_bore_axis",
+      "to": "hub_blade1_root_bearing_bore",
+      "note": "No value recorded. Expected to be zero -- the two axes are expected to intersect, Z and X -- and a zero written here on that expectation would be exactly the invented nominal this repo refuses. What would close it: 214373-002's own drawing, or a fit of the hub's two bores once rotorkit installs its mesh."
+    },
+    {
+      "id": "pitch_plate_attach_radius",
+      "name": "pitch plate spindle axis to pitch-link attachment bore, radius",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "pitch_plate_spindle_bore_axis",
+      "to": "pitch_plate_link_attach_bore",
+      "note": "No value recorded. Radius and height (the sibling edge) are the two components of one offset, carried as two edges because a solver wants them separately. What would close it: 215177-001 or 215735-001's drawing, or a fit of the installed `asm217755_215177_001` mesh -- whose spindle bore and link bores are both there to be bound today."
+    },
+    {
+      "id": "pitch_plate_attach_height",
+      "name": "pitch plate spindle axis to pitch-link attachment bore, height",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "pitch_plate_spindle_bore_axis",
+      "to": "pitch_plate_link_attach_bore",
+      "note": "No value recorded. The axial component of the same offset the radius edge carries -- a second edge between the same two interfaces, deliberately, because the two components answer two different questions and a single scalar would answer neither."
+    },
+    {
+      "id": "pitch_plate_gas_spring_offset",
+      "name": "pitch plate spindle axis to gas-spring attachment bore",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "pitch_plate_spindle_bore_axis",
+      "to": "pitch_plate_gas_spring_bore",
+      "note": "No value recorded. What would close it: 215177-001's drawing, or a fit of the installed mesh."
+    },
+    {
+      "id": "pitch_plate_tan_link_attach_radius",
+      "name": "pitch plate spindle axis to tangential-link attachment bore",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "pitch_plate_spindle_bore_axis",
+      "to": "pitch_plate_tan_link_attach_bore",
+      "note": "No value recorded. Phase 2. What would close it: 215177-001's drawing, or a fit of the installed mesh."
+    },
+    {
+      "id": "gas_spring_installed_length",
+      "name": "gas spring mount bushing bore to rod-end bore",
+      "kind": "structural",
+      "part": "gas_spring",
+      "from": "gas_spring_mount_bushing_bore",
+      "to": "gas_spring_rod_end",
+      "note": "No value recorded, and it is a function of stroke rather than a fixed length: what a solver wants here is the installed length AT 72 degrees, which is the state the assembly STEP is in. What would close it: a PMF200521 vendor datasheet (none in data/inbox/specs/ as of 2026-09-30), or a fit of the installed `asm217755_PMF200521` mesh's two end bores."
+    },
+    {
+      "id": "pitch_arm_link_joint",
+      "name": "pitch arm link bore to pitch link lower bearing centre",
+      "kind": "gap",
+      "from": "pitch_arm_link_bore",
+      "to": "pitch_link_lower_sphere_centre",
+      "note": "No value recorded. The lower joint's own closure: the ball centre sits on the arm bore's axis, and by how much it does not is the joint's play. What would close it: the bearing's and the lug's own fits, plus a clearance from 215071-001's drawing."
+    },
+    {
+      "id": "pitch_plate_link_joint",
+      "name": "pitch plate link bore to pitch link upper bearing centre",
+      "kind": "gap",
+      "from": "pitch_plate_link_attach_bore",
+      "to": "pitch_link_upper_sphere_centre",
+      "note": "No value recorded. The upper joint's own closure, the mirror of the lower one."
+    },
+    {
+      "id": "hub_to_pitch_plate_spindle_coaxiality",
+      "name": "hub spindle bore axis to pitch plate spindle bore axis",
+      "kind": "gap",
+      "from": "hub_spindle_bore_axis",
+      "to": "pitch_plate_spindle_bore_axis",
+      "note": "No value recorded. The plate rides on the spindle, so these two axes are expected coaxial; how far from coaxial they are allowed to be is a drawing question nobody has answered here."
+    },
+    {
+      "id": "gas_spring_bushing_coaxiality",
+      "name": "hub spindle bore axis to gas-spring mount bushing bore",
+      "kind": "gap",
+      "from": "hub_spindle_bore_axis",
+      "to": "gas_spring_mount_bushing_bore",
+      "note": "No value recorded. The hub's spindle bore IS the gas-spring bushing bore in Jeff's statement of the mechanism; this edge is where the two are compared once both are bound, and it is the reason the hub node is named for both."
+    },
+    {
+      "id": "gas_spring_rod_to_pitch_plate",
+      "name": "gas-spring rod-end bore to pitch plate gas-spring bore",
+      "kind": "gap",
+      "from": "gas_spring_rod_end",
+      "to": "pitch_plate_gas_spring_bore",
+      "note": "No value recorded."
+    },
+    {
+      "id": "tan_link_length",
+      "name": "tangential link length between spherical-bearing centres",
+      "kind": "structural",
+      "part": "tan_link_212956_005",
+      "from": "tan_link_lower_sphere_centre",
+      "to": "tan_link_upper_sphere_centre",
+      "note": "No value recorded. Phase 2. The tangential link's analogue of `pitch_link_length`, and unlike that edge the 3DX sweep sheet does not carry its endpoints. What would close it: 213863-004's drawing (acquired 2026-09-10, run 20260910_154233), or a fit of the installed `asm217755_212956_005` mesh, whose four solids include both bearings."
+    },
+    {
+      "id": "tan_link_ms14101_ball_centre_offset",
+      "name": "MS14101-3 ball centre offset from its seat, tangential link",
+      "kind": "structural",
+      "part": "spherical_bearing_tan_link",
+      "from": "tan_link_ms14101_seat",
+      "to": "tan_link_ms14101_ball_centre",
+      "note": "No value recorded. Phase 2."
+    },
+    {
+      "id": "tan_link_ms14103_ball_centre_offset",
+      "name": "MS14103-3 ball centre offset from its seat, tangential link",
+      "kind": "structural",
+      "part": "spherical_bearing_tan_link_ms14103_3",
+      "from": "tan_link_ms14103_seat",
+      "to": "tan_link_ms14103_ball_centre",
+      "note": "No value recorded. Phase 2."
+    },
+    {
+      "id": "tan_link_mount_joint",
+      "name": "tangential link mount bore to link mount-end bearing centre",
+      "kind": "gap",
+      "from": "tan_link_mount_bore",
+      "to": "tan_link_lower_sphere_centre",
+      "note": "No value recorded. Phase 2."
+    },
+    {
+      "id": "tan_link_plate_joint",
+      "name": "tangential link plate-end bearing centre to pitch plate bore",
+      "kind": "gap",
+      "from": "tan_link_upper_sphere_centre",
+      "to": "pitch_plate_tan_link_attach_bore",
+      "note": "No value recorded. Phase 2."
+    },
+    {
+      "id": "gas_spring_mount_height",
+      "name": "gas-spring mount base face to bushing bore",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "gas_spring_mount_hub_face",
+      "to": "gas_spring_mount_bushing_bore",
+      "note": "No value recorded. What would close it: 213668-002's own drawing, or a fit of the installed `machined_213668` mesh -- the only part of this linkage whose mesh came from a single-part STEP export rather than from the assembly, which is also why that mesh records no placement and a fit of it stands in its own frame."
+    },
+    {
+      "id": "hub_spindle_to_gas_spring_mount_face",
+      "name": "hub spindle bore axis to gas-spring mount seat",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_spindle_bore_axis",
+      "to": "gas_spring_mount_hub_face",
+      "note": "No value recorded. What would close it: 214373-002's own drawing. topology_pitch_system.json carries this quantity under `gas_spring_mount_position`, with a drawing citation that is still `untraced` (its 2026-09-06 retrace) -- read that edge before re-tracing this one, and do not copy its band across: the two documents do not measure between the same pair of interfaces."
+    },
+    {
+      "id": "tan_link_mount_height",
+      "name": "tangential link mount base face to attachment bore",
+      "kind": "structural",
+      "part": "tan_link_mount_215175_002",
+      "from": "tan_link_mount_hub_face",
+      "to": "tan_link_mount_bore",
+      "note": "No value recorded. Phase 2. What would close it: 215198 sheet 1, whose `79.00 +/-0.10` was traced on 2026-09-10 and is the mount detail's own height -- but check the endpoints before copying it, because this edge is between THIS document's two interfaces and that trace was read for a different document's."
+    },
+    {
+      "id": "hub_spindle_to_tan_link_mount_face",
+      "name": "hub spindle bore axis to tangential link mount seat",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_spindle_bore_axis",
+      "to": "tan_link_mount_hub_face",
+      "note": "No value recorded. Phase 2. What would close it: 214373-002's own drawing."
+    },
+    {
+      "id": "pitch_link_lower_centre_is_this_bearing",
+      "name": "MS14101-3 ball centre to the pitch link's lower joint centre",
+      "kind": "gap",
+      "from": "pitch_link_bearing_ball_centre",
+      "to": "pitch_link_lower_sphere_centre",
+      "note": "No value recorded, and nominally zero: the link's lower joint centre IS this bearing's ball centre, at instance 213862-002.1/MS14101-3.1. The edge exists because the two are different KINDS of thing -- one is a piece part's own feature, the other is a location in the mechanism -- and because it is the only thing in this document that says which geometry a reader should click to bind that centre. What would close it: the press-fit clearance off 213861-002's housing bore and the bearing's own OD."
+    },
+    {
+      "id": "pitch_link_upper_centre_is_this_bearing",
+      "name": "MS14101-3 ball centre to the pitch link's upper joint centre",
+      "kind": "gap",
+      "from": "pitch_link_bearing_ball_centre",
+      "to": "pitch_link_upper_sphere_centre",
+      "note": "The same statement for instance .2, and the reason the bearing's own centre is one node with two edges rather than two nodes: a topology part id names a part, and these are two instances of one."
+    },
+    {
+      "id": "tan_link_mount_end_centre_is_this_bearing",
+      "name": "MS14101-3 ball centre to the tangential link's mount-end joint centre",
+      "kind": "gap",
+      "from": "tan_link_ms14101_ball_centre",
+      "to": "tan_link_lower_sphere_centre",
+      "note": "No value recorded. Phase 2. The tangential link's analogue of the pitch link's lower joint."
+    },
+    {
+      "id": "tan_link_plate_end_centre_is_this_bearing",
+      "name": "MS14103-3 ball centre to the tangential link's plate-end joint centre",
+      "kind": "gap",
+      "from": "tan_link_ms14103_ball_centre",
+      "to": "tan_link_upper_sphere_centre",
+      "note": "No value recorded. Phase 2."
+    }
+  ],
+  "notes": [
+    "Studyless by design. This topology has no studies and is not an analysis. It is a map of the pitch linkage's joints built to be bound to 3D geometry in apps/annotate/, so that scripts/fit_bound_features.py can hand the `linkage` solver nominal joint locations in the assembly frame at 72 degrees. Summing anything here would be summing a document that deliberately holds almost no numbers.",
+    "The only edge that carries a value is `pitch_link_length`, derived from the 3DX sweep sheet's own two node columns and cited cell-for-cell -- and cited `untraced`, because the only support is that workbook. The derivation settles `traced` against `inferred`; it says nothing about whether a second document stands behind the number, and the SOP's rule is that workbook-only support is `untraced` and goes on the gap list however reasonable it looks. Every other edge carries no dimension at all. That is this repo's cite-or-gap rule applied honestly to a document whose numbers have not been acquired: an `untraced` band of 0.000 would put a plausible number on a reader's screen, and a reader cannot tell a placeholder zero from a measured one. Each valueless edge's own `note` says in one line what would close it -- a named drawing, or a fit of a named mesh.",
+    "A consequence worth knowing: the DAG page's gap list reports an edge whose dimension is *unverified*, not an edge that has no dimension at all (scripts/build_topology_projection.py, `topology_gaps`), because a valueless edge there has always meant 'the quantity a study computes'. So this document's gaps are visible on its edges, each rendered as a value with no source, and only `pitch_link_length` reaches the gap list -- as a value with no tolerance band recorded, which it is. Filed as ISSUE_20260930_a_valueless_structural_edge_is_invisible_to_the_gap_list.md.",
+    "What has a mesh today, which is what decides what Jeff can bind: the pitch-link bearing (`spherical_bearing_pitch_link`), the pitch plate (`pitch_plate_215177_001`), the gas spring (`gas_spring`), the gas-spring mount (`gas_spring_mount_213668_002`), the tangential link mount (`tan_link_mount_215175_002`), the whole tangential link (`tan_link_212956_005` and its two bearings), and -- since rotorkit's 2026-10-01 extraction -- the `hub` and the `pitch_arm`. Still without a row: `pitch_link`'s body and `blade_root`, whose meshes ARE installed but whose identity is open, because blade 1 carries the instrumented variants of both. The annotator's 'no installed mesh' empty state is the honest answer for those two until that is decided.",
+    "The two pitch-link joint centres are nodes of the link, not of the bearing, because they are two instances of one bearing part and a topology part id names a part. The bearing carries its own features instead -- its ball centre against its seat and against its bore -- and a `gap` edge from that ball centre to each of the link's two joint centres says which geometry a reader binds for each. Those gap edges are nominally zero and carry no value; what they carry is the identity."
+  ]
+}

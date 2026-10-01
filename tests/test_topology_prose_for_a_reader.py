@@ -98,7 +98,7 @@ MAX_PART_NAME_CHARS = 44
 def topology_documents():
     paths = sorted(TOPOLOGY_DIR.glob("topology_*.json"))
     # A scan that silently finds nothing passes against anything.
-    assert len(paths) == 5, f"expected five topologies, found {len(paths)}"
+    assert len(paths) == 6, f"expected six topologies, found {len(paths)}"
     return [(p.relative_to(REPO_ROOT).as_posix(),
              json.loads(p.read_text(encoding="utf-8"))) for p in paths]
 
