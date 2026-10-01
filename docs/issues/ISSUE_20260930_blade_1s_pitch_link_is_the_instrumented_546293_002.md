@@ -1,13 +1,14 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: topologies
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
 class: geometry_source_ambiguity
 handoff: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
+resolution: handoff completed 2026-10-01 -- closed automatically by dispatch when handoff `kinematic_sweep_animation` moved to completed/; not independently verified.
 ---
 
 # Blade 1's pitch link is `546293-002`, the instrumented variant — not `213862-002`
