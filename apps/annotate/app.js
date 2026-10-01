@@ -835,7 +835,7 @@ async function cmdSweep(target) {
   state.scene.enterSweep(Object.assign({ trails }, structure));
   for (const entry of state.sweep.restoreVisible) state.scene.setVisible(entry.sha, false);
   applySweepFrame();
-  state.scene.frameSweepPath(trails);
+  state.scene.frameSweepScene();
   renderDetail();
   // Not awaited: the stick figure is on screen and usable the moment the run
   // is read, and resolving five occurrences against fitted geometry is the
@@ -858,44 +858,55 @@ function leaveSweep() {
 // --- phase 2: the bodies -----------------------------------------------------
 
 // Every occurrence recorded anywhere in the installed store, keyed by its own
-// path through the assembly. Read once per session.
+// path through the assembly, plus which mesh recorded each and that mesh's
+// product name. Read once per session.
 //
-// WHY ALL OF THEM, and not just the aliased mesh's own: blade 1 carries the
-// INSTRUMENTED variant of both the pitch link and the blade, so the design
-// part this repo draws has no instance of its own at blade 1's occurrence --
-// that occurrence is recorded on the instrumented mesh's provenance. Choosing
-// the occurrence by geometry over the whole recorded set finds it without
-// this app having to be told which drawing substitutes for which, and that is
-// the same rule the handoff states: decided by geometry, not by name.
-// (docs/topologies/part_mesh_aliases.json's two 2026-10-01 rows carry the
-// measurement that makes drawing one part's mesh at the other's occurrence
-// sound -- they share a local frame.)
+// WHY THE WHOLE STORE, and not just the aliased mesh's own: blade 1 carries
+// the INSTRUMENTED variant of both the pitch link and the blade, so the
+// design part this repo draws has no instance of its own at blade 1's
+// occurrence -- that occurrence is recorded on the instrumented mesh's
+// provenance. AA.sweepCandidateOccurrences is what narrows this back down,
+// exactly, per part. (docs/topologies/part_mesh_aliases.json's two
+// 2026-10-01 rows carry the measurement that makes drawing one part's mesh
+// at the other's occurrence sound -- they share a local frame.)
 async function loadOccurrences() {
   if (state.occurrences) return state.occurrences;
-  const seen = {};
-  const out = [];
+  const all = [];
+  const byMesh = {};
+  const productOf = {};
   for (const mesh of state.meshList) {
     let provenance = null;
     try { provenance = await state.storage.readMeshProvenance(mesh.sha256); }
     catch (err) { provenance = null; }
-    const instances = (provenance && provenance.extraction &&
-      provenance.extraction.instances) || [];
-    for (const instance of instances) {
+    const extraction = (provenance && provenance.extraction) || {};
+    productOf[mesh.sha256] = extraction.product_name || null;
+    byMesh[mesh.sha256] = [];
+    for (const instance of extraction.instances || []) {
       const placement = instance.placement_world;
       if (!placement || placement.length !== AA.PLACEMENT_VALUES) continue;
-      const key = (instance.instance_path || [instance.instance_name]).join("/");
-      if (seen[key]) continue;
-      seen[key] = true;
-      out.push({ instance_name: instance.instance_name, key, placement });
+      const path = instance.instance_path || [instance.instance_name];
+      const occurrence = {
+        instance_name: instance.instance_name,
+        path: path,
+        key: path.join("/"),
+        placement: placement,
+        mesh: mesh.sha256,
+      };
+      byMesh[mesh.sha256].push(occurrence);
+      all.push(occurrence);
     }
   }
-  state.occurrences = out;
-  return out;
+  state.occurrences = { all, byMesh, productOf };
+  return state.occurrences;
 }
 
 // One mesh's joint-feature candidates, in its own local frame, with the word
 // for where they came from. Fitted where the part is small enough to fit;
 // the manifest's face centroids otherwise (AA.SWEEP_FEATURE_SOURCES).
+//
+// A ball gives a located POINT (its centre); a bore gives an AXIS, and it is
+// carried as one -- see AA.sweepFeatureDistance for why a bore's fitted
+// point is not where the joint is.
 async function sweepFeaturePoints(sha256) {
   if (state.sweepFeatures[sha256]) return state.sweepFeatures[sha256];
   const manifest = await state.storage.readMeshManifest(sha256);
@@ -906,10 +917,9 @@ async function sweepFeaturePoints(sha256) {
     if (classes) {
       const points = [];
       for (const face of classes) {
-        const g = face && face.geometry;
-        if (!g) continue;
-        if (g.centre) points.push(g.centre);
-        else if (g.axis_point) points.push(g.axis_point);
+        if (!face) continue;
+        if (face.centre) points.push({ p: face.centre });
+        else if (face.axisPoint) points.push({ p: face.axisPoint, d: face.axis });
       }
       if (points.length) answer = { source: "fitted", points };
     }
@@ -917,17 +927,31 @@ async function sweepFeaturePoints(sha256) {
   if (!answer) {
     const points = (manifest.faces || [])
       .map((f) => f.centroid_native)
-      .filter((c) => c && c.length === 3);
+      .filter((c) => c && c.length === 3)
+      .map((c) => ({ p: c }));
     answer = { source: "centroid", points };
   }
   state.sweepFeatures[sha256] = answer;
   return answer;
 }
 
-// For each body: resolve its parts to installed meshes, choose which recorded
-// occurrence each one is by agreement with the solved joint points, and hand
-// the scene a matrix. A body that cannot be resolved keeps its stick figure
-// and says why -- the honest state, never a mesh drawn somewhere plausible.
+// For each body: resolve its parts to installed meshes, decide which recorded
+// occurrence (or occurrences) each one is, and hand the scene a matrix per
+// occurrence. A part that cannot be resolved keeps its stick figure and says
+// why -- the honest state, never a mesh drawn somewhere plausible.
+//
+// THREE WAYS A PART GETS PLACED, in this order, and the bar names which one
+// every time:
+//
+//   ground      the body does not move, so its parts sit exactly where
+//               provenance says and there is nothing to choose. This is also
+//               what keeps the 286-solid hub off the fitting path.
+//   matched     the body moves, so an occurrence has to EARN the placement by
+//               putting one of the part's own joint features on a joint point
+//               the solver reports. More than one occurrence may earn it --
+//               the pitch link carries two spherical bearings, one at each
+//               end, and both are drawn.
+//   refused     nothing earned it. Said in words, with the distance.
 async function anchorSweepBodies() {
   const sweep = state.sweep;
   if (!sweep) return [];
@@ -936,25 +960,47 @@ async function anchorSweepBodies() {
   const occurrences = await loadOccurrences();
 
   // The link bodies are the distance-constraint members, which have a
-  // reconstructed pose of their own rather than a `bodies[]` entry.
+  // reconstructed pose of their own rather than a `bodies[]` entry. Their own
+  // two joint ends are their targets, which is how the pitch link and both
+  // its bearings find blade 1's occurrence.
   const subjects = sweep.structure.bodies.map((b) => ({
-    kind: "body", name: b.name, joints: b.joints,
+    name: b.name, ground: b.ground, riders: b.riders || [],
     parts: (artifact.bodies.filter((x) => x.name === b.name)[0] || {}).parts || [],
   })).concat((artifact.links || []).map((l) => ({
-    kind: "link", name: l.joint, joints: [l.joint], parts: l.parts || [],
+    name: l.joint, ground: false, parts: l.parts || [],
+    riders: AA.SWEEP_JOINT_ENDS.map((end) => ({ joint: l.joint, end })),
   })));
 
   const rows = [];
   for (const subject of subjects) {
-    // Where this subject's joints are in the as-modelled frame: the targets
-    // an occurrence has to agree with.
-    const targets = subject.joints
-      .map((name) => asModelled.joints[name] && asModelled.joints[name].point_a_world)
+    // Where this subject's joint ends are in the as-modelled frame: the
+    // points an occurrence has to agree with.
+    const targets = subject.riders
+      .map((r) => asModelled.joints[r.joint] && asModelled.joints[r.joint][r.end])
       .filter(Boolean);
+
     for (const partId of subject.parts) {
       const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
       if (!mesh) {
         rows.push({ subject: subject.name, part: partId, state: "no-mesh" });
+        continue;
+      }
+      const candidateOccurrences = AA.sweepCandidateOccurrences(
+        occurrences.byMesh[mesh.sha256], occurrences.all,
+        occurrences.productOf[mesh.sha256]);
+      if (!candidateOccurrences.length) {
+        rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
+          state: "no-occurrence" });
+        continue;
+      }
+      if (subject.ground) {
+        const mine = occurrences.byMesh[mesh.sha256] || candidateOccurrences;
+        rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
+          state: "ground",
+          candidates: mine.length,
+          candidateKeys: mine.map((o) => o.key),
+          placements: mine.map((o) => ({ key: o.key, instance_name: o.instance_name,
+            placement: o.placement, residual: null })) });
         continue;
       }
       if (!targets.length) {
@@ -968,42 +1014,58 @@ async function anchorSweepBodies() {
           state: "no-feature" });
         continue;
       }
-      // Each recorded occurrence, carrying THIS mesh's own features, scored
-      // against the nearest of this subject's joint points.
-      const candidates = occurrences.map((occurrence) => ({
+      const limits = AA.sweepInstanceLimits(features.source);
+      const candidates = candidateOccurrences.map((occurrence) => ({
         instance_name: occurrence.instance_name,
         key: occurrence.key,
         placement: occurrence.placement,
-        points: features.points.map((p) => AA.applyPlacement(occurrence.placement, p)),
+        points: features.points.map(
+          (f) => AA.placeSweepFeature(occurrence.placement, f)),
       }));
-      let best = null;
+      // One decision per joint end, because one part may legitimately sit at
+      // more than one of them -- and deduplicated, because one occurrence may
+      // legitimately be the nearest to both.
+      const placements = [];
+      let refusal = null;
       for (const target of targets) {
-        const answer = AA.chooseSweepInstance(candidates, target,
-          AA.sweepInstanceLimits(features.source));
-        if (!best || (answer.residual != null &&
-          (best.residual == null || answer.residual < best.residual))) best = answer;
+        const answer = AA.chooseSweepInstance(candidates, target, limits);
+        if (answer.refused) {
+          if (!refusal || (answer.residual != null && refusal.residual != null &&
+            answer.residual < refusal.residual)) refusal = answer;
+          continue;
+        }
+        if (placements.some((p) => p.key === answer.key)) continue;
+        placements.push({ key: answer.key, instance_name: answer.chosen,
+          placement: answer.candidate.placement, residual: answer.residual });
       }
-      const chosen = (best && !best.refused)
-        ? candidates.filter((c) => c.instance_name === best.chosen)[0] : null;
       rows.push({
         subject: subject.name, part: partId, sha256: mesh.sha256,
-        state: chosen ? "anchored" : "refused",
+        state: placements.length ? "matched" : "refused",
         featureSource: features.source,
-        instance: chosen ? chosen.instance_name : null,
-        residual: best ? best.residual : null,
-        reason: best && best.refused ? best.reason : null,
-        placement: chosen ? chosen.placement : null,
+        candidates: candidateOccurrences.length,
+        candidateKeys: candidateOccurrences.map((o) => o.key),
+        placements: placements,
+        residual: placements.length ? placements[0].residual : null,
+        reason: placements.length ? null : (refusal && refusal.reason),
       });
-      if (chosen && state.scene.listOpenParts().indexOf(mesh.sha256) === -1) {
-        try {
-          await AA.exec(["open-part", mesh.sha256]);
-          sweep.openedBySweep.push(mesh.sha256);
-        } catch (err) { /* the row already says what happened */ }
-      }
     }
+  }
+
+  // Open every mesh that got a placement, once.
+  for (const row of rows) {
+    if (!row.placements || !row.placements.length) continue;
+    if (state.scene.listOpenParts().indexOf(row.sha256) !== -1) continue;
+    try {
+      await AA.exec(["open-part", row.sha256]);
+      sweep.openedBySweep.push(row.sha256);
+    } catch (err) { /* the row already says what happened */ }
   }
   sweep.bodies = rows;
   applySweepFrame();
+  // The scene is only now what it is going to be, so this is where it gets
+  // framed -- a stick figure and a stick figure inside a 286-solid hub want
+  // very different camera distances.
+  state.scene.frameSweepScene();
   renderDetail();
   return rows;
 }
@@ -1020,14 +1082,23 @@ function applySweepFrame() {
   state.scene.setSweepFrame(frame, frame.nearer.converged);
 
   for (const row of sweep.bodies) {
-    if (row.state !== "anchored") continue;
-    const pose = row.subject && sweep.frame.links[row.subject]
-      ? sweep.frame.links[row.subject]
-      : sweep.frame.poses[row.subject];
-    const placement = AA.anchorPlacement(pose || null, row.placement);
-    state.scene.setPartMatrix(row.sha256, sweep.layers.bodies ? placement : null);
+    if (!row.placements || !row.placements.length) continue;
+    // A distance-constraint member's pose is the artifact's own reconstructed
+    // one (spin-free); every other body's is its `poses` entry. Ground's is
+    // the identity, which is exactly what an absent entry composes to.
+    const pose = sweep.frame.links[row.subject] || sweep.frame.poses[row.subject] || null;
+    const matrices = row.placements.map((p) => AA.anchorPlacement(pose, p.placement));
+    state.scene.setPartMatrix(row.sha256, sweep.layers.bodies ? matrices : null);
     state.scene.setVisible(row.sha256, !!sweep.layers.bodies);
-    state.scene.setSweepGhost(row.sha256, sweep.layers.ghost ? row.placement : null);
+    // THE SAME "See-through parts" PREFERENCE the rest of this app honours,
+    // and for a sharper reason here: the stick figure is sweep mode's
+    // content and the bodies are what it is attached to, so an opaque
+    // 286-solid hub hides the thing a reader opened this mode to watch.
+    // Default on; a reader who wants solid bodies unticks the box they
+    // already know.
+    state.scene.setGhost(row.sha256, state.transparentParts);
+    state.scene.setSweepGhost(row.sha256,
+      sweep.layers.ghost ? row.placements.map((p) => p.placement) : null);
   }
   return frame;
 }
@@ -1380,7 +1451,8 @@ function buildSweepBodiesDisclosure() {
   const box = document.createElement("details");
   box.className = "an__sweep-bodies";
   const head = document.createElement("summary");
-  const anchored = sweep.bodies.filter((r) => r.state === "anchored").length;
+  const anchored = sweep.bodies.filter(
+    (r) => r.placements && r.placements.length).length;
   head.textContent = anchored + " of " + sweep.bodies.length + " parts placed";
   box.appendChild(head);
   const list = document.createElement("ul");
@@ -1406,15 +1478,26 @@ function buildSweepBodiesDisclosure() {
 // shared ban list does not scan.
 const SWEEP_BODY_WORDS = Object.freeze({
   "no-mesh": "no 3D model installed for this part — stick figure only",
+  "no-occurrence": "its 3D model records no position in the assembly — stick figure only",
   "no-joint": "no solved joint point to place it against — stick figure only",
   "no-feature": "its 3D model offers nothing to match a joint against — stick figure only",
 });
 
+function occurrenceWords(row, placement) {
+  return AA.sweepOccurrenceLabel(placement.key, row.candidateKeys || []);
+}
+
 function sweepBodyWords(row) {
-  if (row.state === "anchored") {
-    return "placed at " + row.instance + ", " +
-      AA.formatSweepNumber(row.residual, "mm") + " mm from the solved joint — " +
-      AA.SWEEP_FEATURE_SOURCE_WORDS[row.featureSource];
+  if (row.state === "ground") {
+    return "fixed — drawn where the assembly records it, at " +
+      row.placements.map((p) => occurrenceWords(row, p)).join(" and ");
+  }
+  if (row.state === "matched") {
+    return "placed at " + row.placements.map((p) => occurrenceWords(row, p) + ", " +
+      AA.formatSweepNumber(p.residual, "mm") + " mm from the solved joint").join("; and at ") +
+      " — " + AA.SWEEP_FEATURE_SOURCE_WORDS[row.featureSource] +
+      ", out of " + row.candidates + " recorded position" +
+      (row.candidates === 1 ? "" : "s");
   }
   if (row.state === "refused") return row.reason + " — stick figure only";
   return SWEEP_BODY_WORDS[row.state] || row.state;
@@ -1891,6 +1974,12 @@ function renderHintPanel() {
         state.sweep.layers[layer], SWEEP_LAYER_HINTS[layer],
         ((which) => (on) => AA.exec(["layer", which, AA.onOff(on)]))(layer)));
     }
+    // ...and the app's own see-through setting, which sweep mode honours too
+    // (see applySweepFrame). The same box, the same verb, the same stored
+    // preference -- not a second answer to "what do I see".
+    display.appendChild(settingCheckbox("See-through parts", state.transparentParts,
+      "renders the bodies translucent, so the joints and links show through them",
+      (on) => AA.exec(["transparency", AA.onOff(on)])));
     el.hintPanel.appendChild(display);
     return;
   }

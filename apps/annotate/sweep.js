@@ -91,8 +91,14 @@
     centroid: "matched on face centroids — too coarse to call a millimetre",
   });
   //: Above this many triangles a part is matched on centroids instead of
-  //: being fitted. The pitch arm is one solid; the hub is 286.
-  AA.SWEEP_FIT_TRIANGLE_BUDGET = 60000;
+  //: being fitted. Measured 2026-10-01 over the installed store with this
+  //: app's own classifier: the hub (363,681 triangles, 286 solids) takes
+  //: 1.2 s and the blade (608,637) takes 2.4 s, once per mesh per session and
+  //: then cached. Both are inside this budget on purpose -- at 60,000 the
+  //: blade fell back to centroids and could not tell which of the three
+  //: installed blade geometries was blade 1, which is the one substitution
+  //: this whole surface was asked to get right.
+  AA.SWEEP_FIT_TRIANGLE_BUDGET = 700000;
   AA.SWEEP_INSTANCE_MAX_COARSE_MM = 25.0;
   AA.SWEEP_INSTANCE_TIE_COARSE_MM = 1.0;
 
@@ -440,9 +446,86 @@
 
   // --- which instance a body is ---------------------------------------------
 
-  // `candidates` are already-placed feature points, one entry per mesh
-  // instance: {instance_name, points: [[x,y,z], ...]}. `target` is the
-  // artifact's own joint point for that body at the as-modelled frame.
+  // A FEATURE is a point, or an AXIS, and the difference is the whole reason
+  // the pitch arm resolves at all. `{p: [x,y,z]}` is a located point -- a
+  // ball centre, a face centroid -- and the distance to it is the plain
+  // distance. `{p, d}` is a point ON an infinite axis with direction `d` -- a
+  // bore -- and the distance to it is the PERPENDICULAR distance, because a
+  // bore locates a joint in two degrees of freedom and says nothing about the
+  // third. Measured: the pitch arm's link bore fitted an axis point at
+  // mid-length of the bore, 4.57 mm along the axis from the ball centre the
+  // solver reports, so the plain distance refused a correct match that the
+  // perpendicular distance accepts at 0.0007 mm.
+  //
+  // A bare `[x, y, z]` is read as `{p}`, so a caller with nothing but points
+  // may hand over an array of arrays.
+  AA.sweepFeatureDistance = function (feature, target) {
+    var f = Array.isArray(feature) ? { p: feature } : feature;
+    var v = [target[0] - f.p[0], target[1] - f.p[1], target[2] - f.p[2]];
+    if (!f.d) return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    var n = Math.sqrt(f.d[0] * f.d[0] + f.d[1] * f.d[1] + f.d[2] * f.d[2]);
+    if (!(n > 0)) return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    var u = [f.d[0] / n, f.d[1] / n, f.d[2] / n];
+    var along = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+    var rx = v[0] - along * u[0], ry = v[1] - along * u[1], rz = v[2] - along * u[2];
+    return Math.sqrt(rx * rx + ry * ry + rz * rz);
+  };
+
+  // Carries a local feature into the assembly frame through an occurrence's
+  // recorded placement. A direction goes through the rotation only, which is
+  // why it cannot just be run through applyPlacement.
+  AA.placeSweepFeature = function (placement, feature) {
+    var f = Array.isArray(feature) ? { p: feature } : feature;
+    var out = { p: AA.applyPlacement(placement, f.p) };
+    if (f.d) {
+      var o = AA.applyPlacement(placement, [0, 0, 0]);
+      var q = AA.applyPlacement(placement, f.d);
+      out.d = [q[0] - o[0], q[1] - o[1], q[2] - o[2]];
+    }
+    return out;
+  };
+
+  // Which recorded occurrences are candidates for a part, and it is EXACT
+  // rather than geometric -- the geometry decides between candidates, this
+  // decides what is even in the running.
+  //
+  // Three sources, each derived from what the extraction already recorded:
+  //
+  //   * the aliased mesh's OWN occurrences;
+  //   * every occurrence sharing one of those occurrences' `instance_name`.
+  //     The five pitch arms are all named `215071-001.2` and differ only in
+  //     their path, and all three installed blade geometries are named
+  //     `211587-001.3` -- so this is what puts blade 1's slot in the running
+  //     for a design blade mesh whose own instance is blade 2's;
+  //   * every occurrence named `<this mesh's product>.<n>`. The STEP names an
+  //     instance after the DESIGN part even where the product sitting in it
+  //     is the instrumented variant, so blade 1's pitch link is recorded as
+  //     `213862-002.1` on `546293-002`'s provenance -- and this is what finds
+  //     it without this app being told which drawing substitutes for which.
+  //
+  // Occurrences are keyed by their full instance PATH, never by
+  // `instance_name`, which is not unique across the assembly.
+  AA.sweepCandidateOccurrences = function (own, all, productName) {
+    var out = (own || []).slice();
+    var seen = {};
+    var names = {};
+    out.forEach(function (o) { seen[o.key] = true; names[o.instance_name] = true; });
+    (all || []).forEach(function (o) {
+      if (seen[o.key]) return;
+      var sameSlotName = !!names[o.instance_name];
+      var sameProductSlot = !!productName &&
+        String(o.instance_name).indexOf(productName + ".") === 0;
+      if (!sameSlotName && !sameProductSlot) return;
+      seen[o.key] = true;
+      out.push(o);
+    });
+    return out;
+  };
+
+  // `candidates` are mesh occurrences carrying that mesh's own features in
+  // the assembly frame: {instance_name, key, points: [feature, ...]}, where a
+  // feature is AA.sweepFeatureDistance's own shape. `target` is the
+  // artifact's joint point for that body at the as-modelled frame.
   //
   // Nearest wins; a nearest farther than SWEEP_INSTANCE_MAX_MM refuses, and so
   // does a runner-up within SWEEP_INSTANCE_TIE_MM of it. Refusing returns a
@@ -455,12 +538,12 @@
     var tieMm = o.tieMm == null ? AA.SWEEP_INSTANCE_TIE_MM : o.tieMm;
     var scored = (candidates || []).map(function (c) {
       var best = Infinity;
-      (c.points || []).forEach(function (p) {
-        var dx = p[0] - target[0], dy = p[1] - target[1], dz = p[2] - target[2];
-        var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      (c.points || []).forEach(function (feature) {
+        var d = AA.sweepFeatureDistance(feature, target);
         if (d < best) best = d;
       });
-      return { instance_name: c.instance_name, residual: best };
+      return { instance_name: c.instance_name, key: c.key || c.instance_name,
+        candidate: c, residual: best };
     }).filter(function (s) { return isFinite(s.residual); });
 
     if (!scored.length) {
@@ -479,8 +562,33 @@
       return { chosen: null, refused: true, residual: best.residual, runnerUp: runnerUp,
         reason: "two occurrences sit the same distance from the solved joint point" };
     }
-    return { chosen: best.instance_name, refused: false,
-      residual: best.residual, runnerUp: runnerUp };
+    return { chosen: best.instance_name, key: best.key, candidate: best.candidate,
+      refused: false, residual: best.residual, runnerUp: runnerUp };
+  };
+
+  // How an occurrence is NAMED at a reader: the part of its path that tells
+  // it apart from the other candidates, and nothing else.
+  //
+  // `instance_name` cannot do this job -- all five pitch arms are named
+  // `215071-001.2` and all three installed blade geometries are named
+  // `211587-001.3`, so the name alone says the same thing for every
+  // candidate. Nor can a fixed number of trailing segments: the pitch arms
+  // differ three segments from the end and the pitch links one. So: drop the
+  // prefix every candidate shares, and show what is left. With one candidate
+  // there is nothing to distinguish and the last segment is the answer.
+  AA.sweepOccurrenceLabel = function (key, allKeys) {
+    var mine = String(key).split("/");
+    var others = (allKeys || []).filter(function (k) { return k !== key; });
+    if (!others.length) return mine[mine.length - 1];
+    var common = mine.length;
+    others.forEach(function (other) {
+      var theirs = String(other).split("/");
+      var n = 0;
+      while (n < mine.length && n < theirs.length && mine[n] === theirs[n]) n++;
+      if (n < common) common = n;
+    });
+    var tail = mine.slice(common);
+    return tail.length ? tail.join(" / ") : mine[mine.length - 1];
   };
 
   // --- readouts -------------------------------------------------------------
@@ -592,20 +700,28 @@
     return (joint && joint.axis_world) ? "axial" : "point";
   };
 
-  // Which joints ride on which body -- MEASURED, not declared. The artifact
-  // says which parts a body carries and where every joint point is, but never
-  // which joint belongs to which body, and a body's triad has to be drawn
-  // somewhere that means something. So: a joint rides on a body when that
-  // body's pose, applied to the joint's as-modelled point, reproduces the
-  // joint's own point at every sampled instant. That is a fact about the
+  // Which joint ENDS ride on which body -- MEASURED, not declared. The
+  // artifact says which parts a body carries and where every joint point is,
+  // but never which joint belongs to which body, and a body's triad has to be
+  // drawn somewhere that means something. So: an end rides on a body when
+  // that body's pose, applied to the end's as-modelled point, reproduces the
+  // end's own point at every sampled instant. That is a fact about the
   // numbers in the file rather than a convention this app and linkage would
   // both have to remember.
   //
-  // A joint that never moves matches GROUND and possibly nothing else, so a
-  // non-ground body always wins a tie: ground's identity pose reproduces a
-  // stationary point trivially, and "it is bolted to the thing that moves,
-  // at the point where it does not" is the more useful reading.
+  // BOTH ENDS, separately, and that is the whole of why this works. A joint
+  // between ground and a body has a ground-side end that never moves and a
+  // body-side end that does; taking only the `a` end hands every such joint
+  // to whatever body happens to reproduce a stationary point, and a body
+  // rotating about the origin reproduces the origin. Measured on the real P1
+  // run, where the a-end-only version put `plate_slide` and `actuator` -- the
+  // pitch plate's two joints -- on the BLADE.
+  //
+  // GROUND WINS A TIE for the same reason: a point that does not move over
+  // the whole sweep is ground's, whoever else's pose also happens to leave it
+  // alone.
   AA.SWEEP_RIDES_EPS = 1e-6; // mm
+  AA.SWEEP_JOINT_ENDS = Object.freeze(["point_a_world", "point_b_world"]);
 
   AA.sweepBodyJoints = function (artifact) {
     var points = artifact.points;
@@ -626,24 +742,26 @@
     (artifact.bodies || []).forEach(function (body) { out[body.name] = []; });
 
     Object.keys(reference.joints).forEach(function (jointName) {
-      var home = reference.joints[jointName].point_a_world;
-      if (!home) return;
-      var winner = null;
-      (artifact.bodies || []).forEach(function (body) {
-        var rides = samples.every(function (point) {
-          var joint = point.joints[jointName];
-          var pose = point.poses[body.name];
-          if (!joint || !joint.point_a_world || !pose) return false;
-          var moved = AA.applyPlacement(AA.poseToPlacement(pose), home);
-          var p = joint.point_a_world;
-          return Math.abs(moved[0] - p[0]) <= AA.SWEEP_RIDES_EPS &&
-            Math.abs(moved[1] - p[1]) <= AA.SWEEP_RIDES_EPS &&
-            Math.abs(moved[2] - p[2]) <= AA.SWEEP_RIDES_EPS;
+      AA.SWEEP_JOINT_ENDS.forEach(function (end) {
+        var home = reference.joints[jointName][end];
+        if (!home) return;
+        var winner = null;
+        (artifact.bodies || []).forEach(function (body) {
+          var rides = samples.every(function (point) {
+            var joint = point.joints[jointName];
+            var pose = point.poses[body.name];
+            if (!joint || !joint[end] || !pose) return false;
+            var moved = AA.applyPlacement(AA.poseToPlacement(pose), home);
+            var p = joint[end];
+            return Math.abs(moved[0] - p[0]) <= AA.SWEEP_RIDES_EPS &&
+              Math.abs(moved[1] - p[1]) <= AA.SWEEP_RIDES_EPS &&
+              Math.abs(moved[2] - p[2]) <= AA.SWEEP_RIDES_EPS;
+          });
+          if (!rides) return;
+          if (!winner || (!winner.ground && body.ground)) winner = body;
         });
-        if (!rides) return;
-        if (!winner || (winner.ground && !body.ground)) winner = body;
+        if (winner) out[winner.name].push({ joint: jointName, end: end });
       });
-      if (winner) out[winner.name].push(jointName);
     });
     return out;
   };
@@ -678,19 +796,25 @@
         // gets no anchor and its triad is not drawn -- better than one at the
         // assembly origin, where every body's would coincide.
         var mine = riders[b.name] || [];
+        var names = mine.map(function (r) { return r.joint; });
         // GROUND is the one body whose anchor is not measured: its frame IS
         // the assembly frame, so its triad belongs at the assembly origin and
-        // is drawn there once, muted. It would otherwise often have no
-        // anchor at all -- every joint it shares with a moving body goes to
-        // the moving one under the tie-break above.
-        if (b.ground) return { name: b.name, ground: true, joints: mine, anchor: [0, 0, 0] };
+        // is drawn there once, muted.
+        if (b.ground) {
+          return { name: b.name, ground: true, joints: names, riders: mine,
+            anchor: [0, 0, 0] };
+        }
         var sum = [0, 0, 0], n = 0;
-        mine.forEach(function (jointName) {
-          var p = asModelled.joints[jointName] && asModelled.joints[jointName].point_a_world;
+        mine.forEach(function (rider) {
+          var joint = asModelled.joints[rider.joint];
+          var p = joint && joint[rider.end];
           if (!p) return;
           sum[0] += p[0]; sum[1] += p[1]; sum[2] += p[2]; n++;
         });
-        return { name: b.name, ground: !!b.ground, joints: mine,
+        // `joints` is the names, for anything that renders them; `riders` is
+        // the {joint, end} pairs, which is what an occurrence has to agree
+        // with. Two readings of one measurement, never re-derived.
+        return { name: b.name, ground: !!b.ground, joints: names, riders: mine,
           anchor: n ? [sum[0] / n, sum[1] / n, sum[2] / n] : null };
       }),
     };

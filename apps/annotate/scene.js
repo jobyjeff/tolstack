@@ -80,6 +80,24 @@ const SWEEP_GHOST_OPACITY = 0.12;
 // that degenerate case.
 const SWEEP_VIEW_AXIS = new THREE.Vector3(0.62, -0.72, 0.31).normalize();
 
+// A 3x4 row-major placement (sweep.js's one layout) onto an object's local
+// matrix, in the ONE place that conversion happens in this app.
+// THREE.Matrix4.set takes ROW-major arguments, which is the layout sweep.js
+// speaks -- so this is a straight read and not a transpose.
+function applyPlacement4(node, placement) {
+  node.matrix.set(
+    placement[0], placement[1], placement[2], placement[3],
+    placement[4], placement[5], placement[6], placement[7],
+    placement[8], placement[9], placement[10], placement[11],
+    0, 0, 0, 1);
+}
+
+// One placement or several, as one shape -- `null` for "put it back".
+function normalisePlacements(placements) {
+  if (!placements || !placements.length) return null;
+  return Array.isArray(placements[0]) ? placements : [placements];
+}
+
 // CATIA STEP exports are Z-up (handoff annotate_deep_link_and_part_filter,
 // deliverable 5 -- Jeff's live report: horizontal drag sometimes orbits about
 // the vertical axis, sometimes about the axis normal to the screen,
@@ -254,7 +272,8 @@ export class AnnotateScene {
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
     // ...but NOT while a sweep is running. Sweep mode frames the whole swept
-    // path (frameSweepPath) and then opens each body's part, so this call
+    // path and the bodies round it (frameSweepScene) and then opens each
+    // body's part, so this call
     // would snatch the camera back to a box drawn round one frame of the
     // linkage -- which is how the first screenshot pass came out edge-on to a
     // planar mechanism. A part opened during a sweep is opened to be anchored,
@@ -560,11 +579,20 @@ export class AnnotateScene {
     }
     group.add(trailGroup);
 
+    const pathBox = new THREE.Box3();
+    for (const name of Object.keys(structure.trails || {})) {
+      for (const p of structure.trails[name]) {
+        pathBox.expandByPoint(new THREE.Vector3(p[0], p[1], p[2]));
+      }
+    }
     this.scene.add(group);
     this._sweep = {
-      group, joints, links, triads, trails, trailGroup,
+      group, joints, links, triads, trails, trailGroup, pathBox,
       // Every part's layout state, so leaving restores it exactly.
       savedParts: new Map(),
+      // sha256 -> the extra THREE.Meshes drawn for a part's second and later
+      // occurrences, and sha256 -> its translucent as-modelled copies.
+      repeats: new Map(),
       ghosts: new Map(),
     };
     return true;
@@ -587,36 +615,37 @@ export class AnnotateScene {
 
   inSweep() { return !!this._sweep; }
 
-  // Anchors one loaded part to a 3x4 row-major placement (AA.anchorPlacement's
-  // output), or releases it back to its layout position with `null`. THE ONE
-  // PLACE this app applies a placement matrix to a mesh -- the annotator
-  // applies none outside sweep mode, which is what `CLAUDE.md` records, and
-  // what makes that still true is that this is reachable only while
-  // `this._sweep` is live and is undone when it ends.
-  setPartMatrix(sha256, placement) {
+  // Anchors one loaded part to a LIST of 3x4 row-major placements
+  // (AA.anchorPlacement's output), or releases it back to its layout
+  // position with `null`. THE ONE PLACE this app applies a placement matrix
+  // to a mesh -- the annotator applies none outside sweep mode, which is what
+  // `CLAUDE.md` records, and what keeps that true is that this is reachable
+  // only while `this._sweep` is live and is undone when it ends.
+  //
+  // A LIST because one part legitimately occurs more than once on one body:
+  // the pitch link carries two spherical bearings, one at each end, and both
+  // are the same installed mesh. The first placement drives the loaded mesh
+  // itself; the rest get lightweight repeats sharing its geometry AND its
+  // material, so a second occurrence costs a matrix and a draw call rather
+  // than a second copy of the buffers.
+  setPartMatrix(sha256, placements) {
     const mesh = this.parts.get(sha256);
     if (!mesh || !this._sweep) return false;
     if (!this._sweep.savedParts.has(sha256)) {
       this._sweep.savedParts.set(sha256,
         { position: mesh.position.clone(), auto: mesh.matrixAutoUpdate });
     }
+    const list = normalisePlacements(placements);
+
     const followers = [mesh].concat(
       this._marks.filter((m) => m.sha256 === sha256).map((m) => m.mesh));
     for (const node of followers) {
-      if (placement) {
-        node.matrixAutoUpdate = false;
-        // THREE.Matrix4.set takes ROW-major arguments, which is the layout
-        // sweep.js speaks -- so this is a straight read, not a transpose.
-        node.matrix.set(
-          placement[0], placement[1], placement[2], placement[3],
-          placement[4], placement[5], placement[6], placement[7],
-          placement[8], placement[9], placement[10], placement[11],
-          0, 0, 0, 1);
-      } else {
-        node.matrixAutoUpdate = true;
-      }
+      if (list) { node.matrixAutoUpdate = false; applyPlacement4(node, list[0]); }
+      else node.matrixAutoUpdate = true;
     }
-    if (!placement) {
+    this._setRepeats(sha256, mesh, list ? list.slice(1) : []);
+
+    if (!list) {
       const saved = this._sweep.savedParts.get(sha256);
       if (saved) {
         mesh.position.copy(saved.position);
@@ -628,36 +657,61 @@ export class AnnotateScene {
     return true;
   }
 
+  // The second and later occurrences of one mesh. Kept IN STEP with the list
+  // rather than rebuilt from it: a playing sweep calls this sixty times a
+  // second, and allocating a THREE.Mesh per frame is the one thing here that
+  // would show up as a frame rate.
+  _setRepeats(sha256, mesh, placements) {
+    const repeats = this._sweep.repeats;
+    const mine = repeats.get(sha256) || [];
+    while (mine.length > placements.length) {
+      // Geometry and material are the parent's own -- removing is the whole
+      // of the cleanup, and disposing either would take the real part's down.
+      this.scene.remove(mine.pop());
+    }
+    while (mine.length < placements.length) {
+      const repeat = new THREE.Mesh(mesh.geometry, mesh.material);
+      repeat.matrixAutoUpdate = false;
+      this.scene.add(repeat);
+      mine.push(repeat);
+    }
+    placements.forEach((placement, i) => {
+      mine[i].visible = mesh.visible;
+      applyPlacement4(mine[i], placement);
+    });
+    repeats.set(sha256, mine);
+  }
+
   // A translucent copy of an anchored part at its as-modelled placement --
   // the `ghost` layer, which is what makes "how far has this moved" a thing
   // a reader can see rather than compute.
-  setSweepGhost(sha256, placement) {
+  setSweepGhost(sha256, placements) {
     if (!this._sweep) return false;
-    const existing = this._sweep.ghosts.get(sha256);
-    if (existing) {
-      this.scene.remove(existing);
+    const list = normalisePlacements(placements);
+    for (const old of this._sweep.ghosts.get(sha256) || []) {
+      this.scene.remove(old);
       // The MATERIAL only: a ghost shares its part's BufferGeometry rather
       // than copying it (a 286-solid hub twice over is not a thing to do for
       // a translucent outline), so disposing it here would take the real
       // part's buffers down with it.
-      existing.material.dispose();
-      this._sweep.ghosts.delete(sha256);
+      old.material.dispose();
     }
-    if (!placement) return true;
+    this._sweep.ghosts.delete(sha256);
+    if (!list) return true;
     const parent = this.parts.get(sha256);
     if (!parent) return false;
-    const ghost = new THREE.Mesh(parent.geometry, new THREE.MeshStandardMaterial({
-      color: 0xffffff, transparent: true, opacity: SWEEP_GHOST_OPACITY,
-      depthWrite: false, side: THREE.DoubleSide, roughness: 0.9,
-    }));
-    ghost.matrixAutoUpdate = false;
-    ghost.matrix.set(
-      placement[0], placement[1], placement[2], placement[3],
-      placement[4], placement[5], placement[6], placement[7],
-      placement[8], placement[9], placement[10], placement[11],
-      0, 0, 0, 1);
-    this.scene.add(ghost);
-    this._sweep.ghosts.set(sha256, ghost);
+    const made = [];
+    for (const placement of list) {
+      const ghost = new THREE.Mesh(parent.geometry, new THREE.MeshStandardMaterial({
+        color: 0xffffff, transparent: true, opacity: SWEEP_GHOST_OPACITY,
+        depthWrite: false, side: THREE.DoubleSide, roughness: 0.9,
+      }));
+      ghost.matrixAutoUpdate = false;
+      applyPlacement4(ghost, placement);
+      this.scene.add(ghost);
+      made.push(ghost);
+    }
+    this._sweep.ghosts.set(sha256, made);
     return true;
   }
 
@@ -731,23 +785,37 @@ export class AnnotateScene {
     return false;
   }
 
-  // Frames the camera on the whole swept path rather than on the parts: the
-  // linkage moves out of any box drawn round one frame of it.
-  frameSweepPath(trails) {
-    const box = new THREE.Box3();
-    let any = false;
-    for (const name of Object.keys(trails || {})) {
-      for (const p of trails[name]) {
-        box.expandByPoint(new THREE.Vector3(p[0], p[1], p[2]));
-        any = true;
-      }
+  //: A body more than this many times the mechanism's own size is CONTEXT and
+  //: not content, and the default view does not frame on it. The hub is about
+  //: four times the swept path; blade 1 is about nine, and framing on a
+  //: 1.5 m blade leaves the linkage a few pixels across. Measured against the
+  //: real P1 run.
+  static get SWEEP_CONTEXT_RATIO() { return 6; }
+
+  // Frames the camera on the swept path TOGETHER WITH the bodies anchored
+  // around it, which is not the same as either on its own: the path alone put
+  // the camera inside the hub, and the parts alone move out of any box drawn
+  // round one frame of them.
+  //
+  // Called again after the bodies resolve, because that is when the scene
+  // stops being a stick figure.
+  frameSweepScene() {
+    if (!this._sweep) return false;
+    const box = this._sweep.pathBox.clone();
+    if (box.isEmpty()) return false;
+    const mechanism = box.getSize(new THREE.Vector3());
+    const limit = Math.max(mechanism.x, mechanism.y, mechanism.z, 1) *
+      AnnotateScene.SWEEP_CONTEXT_RATIO;
+    for (const [sha256, mesh] of this.parts) {
+      if (!mesh.visible || mesh.matrixAutoUpdate) continue; // not anchored
+      const partBox = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrix);
+      const size = partBox.getSize(new THREE.Vector3());
+      if (Math.max(size.x, size.y, size.z) > limit) continue;
+      box.union(partBox);
+      void sha256;
     }
-    if (!any) return false;
     const centre = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
-    // The LARGEST dimension of the swept path, not the smallest: a planar
-    // mechanism has a zero one, and framing on that puts the camera inside
-    // the linkage.
     const dist = Math.max(size.x, size.y, size.z, 1) * 1.25 + 40;
     this.camera.position.copy(centre).addScaledVector(SWEEP_VIEW_AXIS, dist);
     this.camera.lookAt(centre);
@@ -759,6 +827,10 @@ export class AnnotateScene {
   exitSweep() {
     if (!this._sweep) return false;
     for (const [sha256] of this._sweep.savedParts) this.setPartMatrix(sha256, null);
+    for (const [, mine] of this._sweep.repeats) {
+      for (const repeat of mine) this.scene.remove(repeat);
+    }
+    this._sweep.repeats.clear();
     for (const [sha256] of Array.from(this._sweep.ghosts)) this.setSweepGhost(sha256, null);
     this.scene.remove(this._sweep.group);
     this._sweep.group.traverse((node) => {

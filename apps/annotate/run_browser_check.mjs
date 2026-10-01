@@ -23,7 +23,7 @@
 // from a worktree this resolves it there -- the same worktree escape hatch
 // every other real tier in this repo has.
 import { createServer } from "node:http";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep, resolve } from "node:path";
@@ -32,7 +32,10 @@ process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, "..", ".."));
-const MAIN_CHECKOUT = "C:/workspace/tolstack";
+// normalize(): the path-escape guard below compares with `startsWith(root +
+// sep)`, and a forward-slash root never prefixes a back-slash join on Windows
+// -- which 403s every real-data read with no hint as to why.
+const MAIN_CHECKOUT = normalize("C:/workspace/tolstack");
 const CHANNELS = ["chrome", "msedge"];
 
 async function loadPlaywright() {
@@ -59,10 +62,39 @@ async function loadPlaywright() {
 // ../viewer/vocab.gen.js as siblings, and a server rooted one level deeper
 // 403s all three (storage/adapter.js's own error message says so).
 const APPS_DIR = join(REPO, "apps");
+// ...and `/data/` from wherever the installed meshes and the published sweep
+// runs actually are. `data/` is gitignored and shared by every worktree (repo
+// CLAUDE.md), so from a worktree that is the main checkout.
+const DATA_ROOTS = [REPO, MAIN_CHECKOUT];
 const MIME = {
   ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",
   ".css": "text/css", ".json": "application/json", ".png": "image/png",
 };
+
+// What FsaAdapter.listMeshes() builds by enumerating data/meshes/ -- the one
+// thing a plain static server cannot answer.
+async function meshIndex() {
+  // EVERY root, first match per sha256 -- not the first root that merely has
+  // the directory. A worktree has an empty `data/meshes/` of its own (data/
+  // is gitignored and shared, repo CLAUDE.md), so "the first root that has
+  // the folder" answered with nothing and every part read as having no
+  // installed mesh.
+  const out = [];
+  const seen = {};
+  for (const root of DATA_ROOTS) {
+    const dir = join(root, "data", "meshes");
+    if (!existsSync(dir)) continue;
+    for (const name of await readdir(dir)) {
+      if (seen[name]) continue;
+      const where = join(dir, name, "provenance.json");
+      if (!existsSync(where)) continue;
+      seen[name] = true;
+      const provenance = JSON.parse(await readFile(where, "utf8"));
+      out.push({ sha256: name, label: provenance.label, part_id: provenance.part_id });
+    }
+  }
+  return out;
+}
 
 function startServer() {
   return new Promise((ok) => {
@@ -73,9 +105,25 @@ function startServer() {
         // a 404 for it would otherwise be the single entry in the "no
         // uncaught error" check and send a reader chasing the app.
         if (urlPath === "/favicon.ico") { res.writeHead(204).end(); return; }
+        // Two endpoints the real-data harness needs and no transport has:
+        // the mesh LIST (FSA enumerates a directory; HTTP cannot) and this
+        // tree's alias table, which is tracked and therefore in the worktree
+        // rather than under data/.
+        if (urlPath === "/data/meshes/index.json" || urlPath === "/data/__aliases.json") {
+          const body = JSON.stringify(urlPath.endsWith("__aliases.json")
+            ? JSON.parse(await readFile(join(REPO, "docs", "topologies", "part_mesh_aliases.json"), "utf8"))
+            : await meshIndex());
+          res.writeHead(200, { "content-type": "application/json" }).end(body);
+          return;
+        }
         const rel = normalize(urlPath).replace(/^[/\\]+/, "");
-        const full = join(APPS_DIR, rel);
-        if (full !== APPS_DIR && !full.startsWith(APPS_DIR + sep)) {
+        let root = APPS_DIR;
+        let full = join(APPS_DIR, rel);
+        if (rel.split(sep)[0] === "data") {
+          root = DATA_ROOTS.filter((r) => existsSync(join(r, rel)))[0] || DATA_ROOTS[0];
+          full = join(root, rel);
+        }
+        if (full !== root && !full.startsWith(root + sep)) {
           res.writeHead(403).end("forbidden");
           return;
         }
@@ -103,6 +151,11 @@ function check(name, condition, detail) {
 
 const shotsFlag = process.argv.indexOf("--shots");
 const SHOTS = shotsFlag === -1 ? null : resolve(process.argv[shotsFlag + 1]);
+// `--real <run-id>` runs the same page against a PUBLISHED sweep run and the
+// real installed meshes instead of the synthetic fixture. See realPass below
+// for what that costs and why it is a separate pass.
+const realFlag = process.argv.indexOf("--real");
+const REAL_RUN = realFlag === -1 ? null : process.argv[realFlag + 1];
 
 async function main() {
   const { chromium } = await loadPlaywright();
@@ -234,10 +287,13 @@ async function main() {
   // Phase 2: the one body with an installed mesh resolved to an occurrence by
   // geometry, and the three without say so honestly.
   const bodies = await page.evaluate(() => window.__sweep.bodies);
-  const anchored = bodies.filter((b) => b.state === "anchored");
+  const anchored = bodies.filter((b) => b.state === "matched");
   check("the body with an installed model was placed at an occurrence chosen by geometry",
-    anchored.length === 1 && anchored[0].instance === "demo-triangle.1" &&
-    anchored[0].residual < 1e-6, JSON.stringify(bodies));
+    anchored.length === 1 && anchored[0].placements.length === 1 &&
+    anchored[0].placements[0].instance_name === "demo-triangle.1" &&
+    anchored[0].placements[0].residual < 1e-6 &&
+    // ...and the DISTRACTOR occurrence, 200 mm away, was in the running and lost.
+    anchored[0].candidates === 2, JSON.stringify(bodies));
   check("the bodies with no installed model say exactly that, and the stick figure still draws",
     bodies.filter((b) => b.state === "no-mesh").length === 3, JSON.stringify(bodies));
   await page.locator(".an__sweep-bodies > summary").click();
@@ -258,9 +314,14 @@ async function main() {
   const helpText = await page.locator("#hint-panel").innerText();
   check("the help in sweep mode is about sweep mode, not about binding",
     helpText.includes("solver") && !helpText.includes("Click a face"), helpText);
-  const layerBoxes = await page.locator("#hint-panel input[type=checkbox]").count();
-  check("the Display panel offers exactly the four layers the verb parses",
-    layerBoxes === 4, String(layerBoxes));
+  // The four layers the `layer` verb parses, plus the app's own see-through
+  // setting, which sweep mode honours rather than answering twice.
+  const boxes = await page.locator("#hint-panel label").allInnerTexts();
+  const layerLabels = await page.evaluate(() => window.AnnotateApp.SWEEP_LAYERS.length);
+  check("the Display panel offers exactly the layers the verb parses, plus " +
+    "the see-through setting and nothing else",
+    boxes.length === layerLabels + 1 &&
+    boxes.some((t) => t.indexOf("See-through") !== -1), JSON.stringify(boxes));
   await page.evaluate(() => window.AnnotateApp.exec(["help", "off"]));
 
   // Leaving restores the scene: no sweep state, and the parts sweep mode
@@ -279,7 +340,8 @@ async function main() {
   check("nothing above produced an uncaught error", consoleErrors.length === 0,
     consoleErrors.join("\n      "));
 
-  if (SHOTS) await captureShots(page, base);
+  if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=synthetic-demo-sweep`, "mock");
+  if (REAL_RUN) await realPass(browser, base);
 
   await browser.close();
   server.close();
@@ -296,15 +358,20 @@ async function main() {
 // page twice under two emulated schemes produced two byte-identical files,
 // which is evidence of nothing. Whether a light theme is wanted is filed:
 // ISSUE_20260917_both_apps_render_one_theme_and_no_mechanism_exists_for_a_second.
-async function captureShots(page, base) {
+async function captureShots(page, url, tag) {
   await mkdir(SHOTS, { recursive: true });
   const wanted = [-7, 17, 41, 72];
   const notes = [];
+  const label = tag || "mock";
   for (const scheme of ["dark"]) {
     await page.emulateMedia({ colorScheme: scheme });
-    await page.goto(`${base}?mock=1&sweep=synthetic-demo-sweep`);
+    await page.goto(url.indexOf("?") === -1 ? `${url}?mock=1&sweep=synthetic-demo-sweep` : url);
     await page.waitForFunction(() => window.__sweep && window.__sweep.frame, null,
-      { timeout: 20000 });
+      { timeout: 60000 });
+    if (tag === "real") {
+      await page.waitForFunction(() => window.__sweep && window.__sweep.bodies.length > 0,
+        null, { timeout: 180000 });
+    }
     for (const degrees of wanted) {
       // Seek by the measure a reader thinks in, not by index: find the point
       // whose blade pitch is nearest the one asked for.
@@ -318,19 +385,196 @@ async function captureShots(page, base) {
         return best;
       }, degrees);
       await page.evaluate((i) => window.AnnotateApp.exec(["seek", "#" + i]), index);
-      await page.waitForTimeout(250);
-      const name = `sweep_${scheme}_${String(degrees).replace("-", "minus")}deg.png`;
+      // WAIT FOR A RENDERED FRAME, not for a wall-clock guess. The bar loses
+      // a line at the as-modelled pose (the picking-disabled note goes away),
+      // which grows the canvas, which resizes the drawing buffer -- and a
+      // resized buffer is blank until the next render. On a GPU that is one
+      // 16 ms frame and invisible; headless here it is software
+      // rasterisation of 1.4 million triangles at about 4 fps, and the
+      // 72-degree screenshot came out empty with a perfectly correct scene
+      // behind it. SWEEP_PROBE=1 dumps the state that showed that.
+      await page.evaluate(async () => {
+        for (let i = 0; i < 6; i++) {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+      });
+      await page.waitForTimeout(350);
+      if (process.env.SWEEP_PROBE) {
+        console.log("      probe " + degrees + "deg " + JSON.stringify(await page.evaluate(() => {
+          const s = window.__scene;
+          const parts = s.listOpenParts().map((sha) => {
+            const mesh = s.parts.get(sha);
+            return [sha.slice(0, 6), mesh.visible, mesh.matrixAutoUpdate,
+              Math.round(mesh.matrix.elements[12]), Math.round(mesh.matrix.elements[13]),
+              Math.round(mesh.matrix.elements[14])];
+          });
+          const beads = [];
+          for (const [n, b] of s._sweep.joints) beads.push([n, b.visible, b.position.toArray().map((x) => Math.round(x))]);
+          return { i: Math.round(window.__sweep.index), parts, beads,
+            cam: s.camera.position.toArray().map((x) => Math.round(x)),
+            target: s.controls.target.toArray().map((x) => Math.round(x)),
+            size: [s.renderer.domElement.width, s.renderer.domElement.height] };
+        })));
+      }
+      const name = `sweep_${label}_${scheme}_${String(degrees).replace("-", "minus")}deg.png`;
       await page.screenshot({ path: join(SHOTS, name) });
       notes.push(`${name}  point ${index}`);
     }
   }
-  await writeFile(join(SHOTS, "sweep_screenshots.txt"),
+  await writeFile(join(SHOTS, `sweep_screenshots_${label}.txt`),
     "Captured by apps/annotate/run_browser_check.mjs --shots, against ?mock=1's\n" +
     "SYNTHETIC crank-slider run (fixtures.js). Not a measurement of anything.\n" +
     "Dark only: both apps render one theme by decision, and no mechanism for a\n" +
     "second exists (docs/DESIGN_TYPE_AND_COLOUR.md, \"One theme\").\n\n" +
     notes.join("\n") + "\n", "utf8");
   console.log(`      ${notes.length} screenshots written to ${SHOTS}`);
+}
+
+// --- the real pass ---------------------------------------------------------
+//
+// The same page, against a PUBLISHED `linkage-sweep/v1` run and the real
+// installed mesh store. Everything above runs on the synthetic fixture
+// because that needs no data at all; this needs both, and both live only in
+// the main checkout, so it is a flag rather than part of the default run.
+//
+// HOW IT REACHES THE DATA, and the honest limit of that. This app has no HTTP
+// read transport of its own (ISSUE_20260910_annotate_has_no_http_read_
+// transport) -- its real transport is File System Access, which cannot be
+// granted from a script because the picker needs a user gesture. So this pass
+// boots `?mock=1` and replaces the in-memory adapter's READ methods with ones
+// that fetch the same paths over the test server. That is a harness, not a
+// transport: it exercises sweep mode's resolution and rendering against real
+// geometry, and it proves nothing whatever about FSA.
+async function realPass(browser, base) {
+  console.log(`\n--- [real] ${REAL_RUN}`);
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  const errors = [];
+  page.on("pageerror", (err) => errors.push(String(err && err.message || err)));
+  page.on("response", (res) => {
+    if (res.status() >= 400) errors.push(`${res.status()} ${res.url()}`);
+  });
+
+  await page.addInitScript(() => {
+    // Runs before the app's own scripts: wrap the in-memory adapter so every
+    // read goes to the server instead of to AA.FIXTURES.
+    const base = "/data";
+    const json = (path) => fetch(base + path).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    window.__realMeshes = null;
+    const install = () => {
+      const AA = window.AnnotateApp;
+      if (!AA || !AA.MemoryAdapter) return false;
+      const P = AA.MemoryAdapter.prototype;
+      P.listSweepRuns = async () => [{ runId: window.__realRun }];
+      P.readSweepRun = async (runId) => json(`/inbox/linkage-sweeps/${runId}.json`);
+      P.listMeshes = async () => {
+        if (!window.__realMeshes) window.__realMeshes = await json("/meshes/index.json");
+        return window.__realMeshes;
+      };
+      P.readMeshProvenance = async (sha) => json(`/meshes/${sha}/provenance.json`);
+      P.readMeshManifest = async (sha) => json(`/meshes/${sha}/manifest.json`);
+      P.readMeshBuffer = async (sha, name) =>
+        fetch(`${base}/meshes/${sha}/${name}`).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+      P.readPartMeshAliases = async () => json("/__aliases.json");
+      return true;
+    };
+    const timer = setInterval(() => { if (install()) clearInterval(timer); }, 1);
+    document.addEventListener("DOMContentLoaded", () => { install(); clearInterval(timer); });
+  });
+  await page.addInitScript((runId) => { window.__realRun = runId; }, REAL_RUN);
+
+  const started = Date.now();
+  page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
+  await page.goto(`${base}?mock=1&sweep=${encodeURIComponent(REAL_RUN)}`);
+  try {
+    await page.waitForFunction(() => window.__sweep && window.__sweep.frame, null, { timeout: 60000 });
+  } catch (err) {
+    console.log("      banner: " + (await page.locator("#banner").innerText().catch(() => "?")));
+    console.log("      errors: " + errors.join(" | "));
+    throw err;
+  }
+  // The bodies resolve off the render path, so wait for that to settle too.
+  await page.waitForFunction(() => window.__sweep && window.__sweep.bodies.length > 0,
+    null, { timeout: 180000 });
+  console.log(`      run read, geometry fitted and bodies resolved in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+
+  const summary = (await page.locator(".an__sweep-summary").textContent()) || "";
+  check(`[real] the bar names ${REAL_RUN} and where its geometry came from`,
+    summary.includes(REAL_RUN) && (summary.includes("motion sheet") || summary.includes("CAD")),
+    summary);
+
+  const bodies = await page.evaluate(() => window.__sweep.bodies.map((row) => Object.assign({}, row, {
+    placements: (row.placements || []).map((p) => Object.assign({}, p,
+      { label: window.AnnotateApp.sweepOccurrenceLabel(p.key, row.candidateKeys || []) })),
+  })));
+  for (const row of bodies) {
+    const where = (row.placements || []).map(
+      (p) => `${p.label}${p.residual == null ? "" : ` @${p.residual.toFixed(4)} mm`}`);
+    console.log(`      ${row.subject} / ${row.part}: ${row.state}` +
+      (where.length ? ` -> ${where.join(" + ")}` : "") +
+      (row.reason ? ` (${row.reason})` : ""));
+  }
+  check("[real] every body with an installed mesh and a solved joint is placed",
+    bodies.filter((b) => b.state === "matched" || b.state === "ground").length >= 4,
+    JSON.stringify(bodies.map((b) => [b.part, b.state])));
+  check("[real] no body was placed farther than a millimetre from its solved joint",
+    bodies.filter((b) => b.state === "matched")
+      .every((b) => b.placements.every((p) => p.residual <= 1.0)),
+    JSON.stringify(bodies.filter((b) => b.state === "matched")
+      .map((b) => [b.part, b.placements.map((p) => p.residual)])));
+
+  // The verification numbers, across the whole real sweep.
+  const spread = await page.evaluate(() => {
+    const AA = window.AnnotateApp, sweep = window.__sweep;
+    let worst = 0, length = null;
+    for (let i = 0; i < sweep.artifact.points.length; i++) {
+      const frame = AA.sweepFrameAt(sweep.artifact, i);
+      for (const row of AA.sweepReadouts(sweep.artifact, frame)) {
+        if (row.key.indexOf("link:") !== 0) continue;
+        length = row.expected;
+        worst = Math.max(worst, Math.abs(row.value - row.expected));
+      }
+    }
+    const hinge = sweep.artifact.points.map((p) => p.joints.blade_hinge &&
+      p.joints.blade_hinge.point_a_world).filter(Boolean);
+    let hingeMoved = 0;
+    for (const h of hinge) {
+      hingeMoved = Math.max(hingeMoved, Math.hypot(h[0] - hinge[0][0], h[1] - hinge[0][1], h[2] - hinge[0][2]));
+    }
+    return { worst, length, hingeMoved,
+      driver: [sweep.driverValues[0], sweep.driverValues[sweep.driverValues.length - 1]] };
+  });
+  console.log(`      pitch-link length ${spread.length}, worst |A-B| error ${spread.worst.toExponential(2)} mm; ` +
+    `blade hinge moved ${spread.hingeMoved.toExponential(2)} mm; ` +
+    `driver ${spread.driver[0].toFixed(3)} -> ${spread.driver[1].toFixed(3)} mm`);
+  check("[real] the pitch link holds its length to display precision across the sweep",
+    spread.worst < 5e-5, String(spread.worst));
+  check("[real] the blade hinge point does not move", spread.hingeMoved === 0,
+    String(spread.hingeMoved));
+
+  // The frame rate WITH the real meshes loaded -- the measurement the lesson
+  // is asked for, and the only place it can be taken.
+  await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
+  await page.evaluate(() => window.AnnotateApp.exec(["loop", "pingpong"]));
+  await page.evaluate(() => window.AnnotateApp.exec(["play"]));
+  await page.waitForTimeout(4000);
+  const playing = await page.evaluate(() => ({ fps: window.__sweep.fps, index: window.__sweep.index }));
+  await page.evaluate(() => window.AnnotateApp.exec(["pause"]));
+  const open = await page.evaluate(() => window.__scene.listOpenParts().length);
+  // The frame rate is REPORTED, not asserted on: this runs headless on
+  // SwiftShader, which rasterises in software, so the number here is a floor
+  // and nothing like what the same scene does on a GPU. What IS asserted is
+  // that playback advanced with the real geometry loaded -- that the clock,
+  // the anchoring and the renderer survive 1.4 million triangles at all.
+  console.log(`      playback with ${open} real meshes loaded: ${playing.fps.toFixed(1)} fps ` +
+    `(headless software rasterisation -- a floor, not the figure a GPU gives)`);
+  check("[real] playback advances with the real meshes loaded",
+    playing.index > 0, JSON.stringify(playing));
+
+  if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=${encodeURIComponent(REAL_RUN)}`, "real");
+
+  check("[real] nothing above produced an uncaught error", errors.length === 0,
+    errors.join("\n      "));
+  await page.close();
 }
 
 main().catch((err) => {
