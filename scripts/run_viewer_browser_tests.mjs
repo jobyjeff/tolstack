@@ -2794,7 +2794,271 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] the card escapes the 300px rail rather than being clipped " +
         "inside it, and lands wholly on screen",
         navCard.onScreen && navCard.wider);
+      // ONE hover surface on the mark (nav_tooltip_once_and_rail_hover_
+      // emphasis, 2026-09-30). Jeff: "there is a duplicate hover-over tooltip
+      // (unformatted and formatted versions) that sometimes block each
+      // other. Keep just the formatted one." A native `title` anywhere from
+      // the element under the pointer up to the row is a second box the
+      // browser will drop over the card, so the whole ancestor chain is
+      // asked rather than just the badge -- the defect was on the ROW, two
+      // levels above the pixel the pointer was on.
+      const navSurfaces = await page.evaluate(() => {
+        const badge = document.querySelector(
+          "#navtree .navtree__row--study .navstatus");
+        const row = badge.closest(".navtree__row");
+        const chain = [];
+        for (let n = badge; n && n !== row.parentNode; n = n.parentNode) {
+          if (n.getAttribute && n.getAttribute("title") !== null) {
+            chain.push((n.className || "") + "=" + n.getAttribute("title"));
+          }
+        }
+        const label = row.querySelector(".navtree__label");
+        return {
+          titled: chain,
+          named: badge.getAttribute("aria-label") || null,
+          labelTitle: label ? label.getAttribute("title") : null,
+          described: Array.from(
+            document.querySelectorAll("#navtree .navtree__label"))
+            .filter((n) => n.getAttribute("title")).length,
+        };
+      });
+      push("[real] a nav mark under the pointer offers the card and nothing " +
+        "else: no native tooltip on it or on any ancestor up to its row",
+        navSurfaces.titled.length === 0);
+      if (navSurfaces.titled.length) {
+        console.log("    still titled: " + navSurfaces.titled.join(" | "));
+      }
+      push("[real] ...and the description it used to collide with is still " +
+        "one hover away, on the row's NAME",
+        navSurfaces.described >= 1);
+      push("[real] the mark keeps an accessible name even with no title " +
+        "(BRIEF_20260914_hover_card_occlusion_and_a11y's own question is " +
+        "not answered here, but the name is not lost to this change)",
+        !!navSurfaces.named);
       await dismissCard(page);
+
+      // --- one hover state, two surfaces (nav_tooltip_once_and_rail_hover_
+      //     emphasis, 2026-09-30) ------------------------------------------
+      //
+      // Jeff, on the DAG: "add an emphasis (bold/glow etc) to the edges when
+      // you hover over them, again makes it easier to trace them", and then
+      // "it would be awesome if the DAG and the table/grid shared their
+      // highlighted state, so everything lit up together."
+      //
+      // pitch_system is the case: nine columns, legs that cross, and a grid
+      // long enough that a reader cannot see a bar and its row at once. What
+      // a DOM shim cannot answer and this can: whether the wide transparent
+      // hit path really makes a 2px line hoverable with a REAL pointer, and
+      // whether the emphasis is actually PAINTED -- a class name would pass
+      // through a stylesheet typo untouched.
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      await dismissCard(page);
+      // Everything lit, with the one coordinate that says which column each
+      // lit thing is on. Rails and bars are vertical lines, dots are circles.
+      const litNow = () => page.evaluate(() => {
+        const at = (sel) => Array.from(document.querySelectorAll(
+          "svg.tv__rails " + sel)).map((n) => Number(
+            n.getAttribute("x1") !== null ? n.getAttribute("x1")
+                                          : n.getAttribute("cx")));
+        return {
+          railX: at("line.rail--hot"),
+          barX: at("line.rail__bar--hot"),
+          dotX: at("circle.rail__dot--hot"),
+          links: document.querySelectorAll(
+            "svg.tv__rails path.rail__link--hot").length,
+          rows: Array.from(document.querySelectorAll("tr.tvrow--hot"))
+            .map((n) => n.getAttribute("data-id")),
+          leadRows: Array.from(document.querySelectorAll("tr.tvrow--lead"))
+            .map((n) => n.getAttribute("data-id")),
+          leadBars: document.querySelectorAll(
+            "svg.tv__rails line.rail__bar--lead").length,
+        };
+      });
+      const nothingLit = (lit) => lit.railX.length === 0 &&
+        lit.barX.length === 0 && lit.dotX.length === 0 && lit.links === 0 &&
+        lit.rows.length === 0 && lit.leadRows.length === 0;
+      push("[real] nothing on either surface is lit before a pointer arrives",
+        nothingLit(await litNow()));
+
+      // A point on rail `i` that the browser agrees is the rail's own hit
+      // path: on screen, and not behind a bar, a dot or a leader.
+      //
+      // `locator.hover()` cannot be used for any of this and that is the
+      // point of the feature rather than a quirk of the test. These are
+      // VERTICAL LINES -- a zero-width bounding box -- which Playwright's
+      // actionability check reports as "element is not visible", and a
+      // `stroke: transparent` line has nothing to see either way. What makes
+      // it hoverable is the 14px STROKE under `pointer-events: stroke`, so
+      // the pointer is driven to a real coordinate and the browser is asked
+      // what is painted there.
+      const railPoint = (i) => page.evaluate((i) => {
+        const node = document.querySelectorAll(
+          "svg.tv__rails line.rail__hit")[i];
+        // A rail that starts below the fold has no point in the window at
+        // all, and pitch_system's DAG is taller than any viewport this runs
+        // at -- so the page is scrolled to put the rail's middle on screen
+        // before anything is asked of it.
+        const span = node.getBoundingClientRect();
+        if (span.bottom < 80 || span.top > window.innerHeight - 80) {
+          window.scrollBy(0, (span.top + span.bottom) / 2 -
+            window.innerHeight / 2);
+        }
+        const box = node.getBoundingClientRect();
+        const lo = Math.max(box.top + 8, 70);
+        const hi = Math.min(box.bottom - 8, window.innerHeight - 12);
+        for (let y = lo; y <= hi; y += 4) {
+          if (document.elementFromPoint(box.left, y) === node) {
+            return { x: box.left, y };
+          }
+        }
+        return null;
+      }, i);
+
+      // Hovering a rail: every rail in turn, so the claim is about the
+      // mechanism and not about one lucky leg.
+      const railHits = await page.locator("svg.tv__rails line.rail__hit").count();
+      const legs = [];
+      const unreachable = [];
+      for (let i = 0; i < railHits; i++) {
+        const point = await railPoint(i);
+        if (!point) { unreachable.push(i); continue; }
+        await page.mouse.move(point.x, point.y);
+        const lit = await litNow();
+        await page.mouse.move(4, 4);
+        legs.push({ i, lit, cleared: nothingLit(await litNow()) });
+      }
+      // Back to the top: `railPoint` scrolls to reach a rail that starts
+      // below the fold, and every block after this one measures a pane at
+      // vertical zero.
+      await page.evaluate(() => window.scrollTo(0, 0));
+      push(`[real] every rail on pitch_system has a mid-rail point a real ` +
+        `pointer can reach -- a 2px line is hoverable because of the wide ` +
+        `transparent twin over it, not in spite of it`,
+        railHits >= 2 && unreachable.length === 0);
+      if (unreachable.length) {
+        console.log("    rails with no reachable point: " + unreachable.join(", "));
+      }
+      const offColumn = legs.filter(({ lit }) => lit.railX.length !== 1 ||
+        lit.barX.some((x) => x !== lit.railX[0]) ||
+        lit.dotX.some((x) => x !== lit.railX[0]));
+      push("[real] hovering a mid-rail point lights exactly one rail span, " +
+        "and every bar and dot it lights is on that same column",
+        railHits >= 2 && offColumn.length === 0);
+      if (offColumn.length) {
+        console.log("    legs lighting another column: " +
+          offColumn.map((l) => l.i).join(", "));
+      }
+      push("[real] a leg with a branch curve lights the curve too, so a " +
+        "reader following it across a fork does not lose the line",
+        legs.some(({ lit }) => lit.links >= 1));
+      push("[real] and the grid rows of that leg's edges light with it, " +
+        "which is the whole of 'everything lit up together'",
+        legs.some(({ lit }) => lit.rows.length >= 1));
+      push("[real] leaving a rail clears both surfaces",
+        legs.every((l) => l.cleared));
+
+      // The emphasis is PAINTED, not just classed: the lit rail is wider and
+      // brighter than its neighbours, and the transparent hit path over it
+      // has become a visible halo. A class-name check would sail past a
+      // stylesheet typo; these are computed styles.
+      const firstPoint = await railPoint(0);
+      await page.mouse.move(firstPoint.x, firstPoint.y);
+      const painted = await page.evaluate(() => {
+        const pick = (sel) => {
+          const n = document.querySelector("svg.tv__rails " + sel);
+          if (!n) return null;
+          const cs = getComputedStyle(n);
+          return { width: parseFloat(cs.strokeWidth), stroke: cs.stroke };
+        };
+        return { hot: pick("line.rail--hot"), cold: pick("line.rail:not(.rail--hot)"),
+                 halo: pick("line.rail__hit--hot"),
+                 coldHalo: pick("line.rail__hit:not(.rail__hit--hot)") };
+      });
+      push("[real] a hot rail is drawn thicker and brighter than the rails " +
+        "beside it, and its hit path has become a visible halo",
+        !!painted.hot && !!painted.cold &&
+        painted.hot.width > painted.cold.width &&
+        painted.hot.stroke !== painted.cold.stroke &&
+        painted.halo.stroke !== painted.coldHalo.stroke &&
+        !/rgba\(0, 0, 0, 0\)|transparent/.test(painted.halo.stroke));
+      await page.mouse.move(4, 4);
+
+      // The two surfaces, both directions, on a row the reader can see: a
+      // grid row lights its bar and its leader; the bar lights the row back.
+      const sharedHover = await page.evaluate(async () => {
+        const fire = (node, type) => node.dispatchEvent(
+          new MouseEvent(type, { bubbles: false }));
+        const rows = Array.from(document.querySelectorAll("tr.tvrow--edge"));
+        const hitFor = (id) => document.querySelector(
+          "svg.tv__rails line.rail__barhit[data-id='" + CSS.escape(id) + "']");
+        const state = (row) => ({
+          leadBars: document.querySelectorAll(
+            "svg.tv__rails line.rail__bar--lead").length,
+          leadLeaders: document.querySelectorAll(
+            "svg.tv__rails path.rail__leader--lead").length,
+          leadDots: document.querySelectorAll(
+            "svg.tv__rails circle.rail__dot--lead").length,
+          hotRows: Array.from(document.querySelectorAll("tr.tvrow--hot"))
+            .map((n) => n.getAttribute("data-id")),
+          leadRows: Array.from(document.querySelectorAll("tr.tvrow--lead"))
+            .map((n) => n.getAttribute("data-id")),
+          rowTint: row
+            ? getComputedStyle(row.querySelector("td.tvcell")).backgroundColor
+            : null,
+        });
+        // EVERY edge row, not one: the pair that has to agree is per-edge,
+        // and a single sample would pass on whichever row happened to be
+        // first. The rest state is re-read after each so a leak would show.
+        // Each row's own rest tint, read beside it: the two alternating
+        // bands mean no two rows need share one, so a single baseline would
+        // be comparing a b-band row against an a-band one.
+        const each = rows.map((row) => {
+          const id = row.getAttribute("data-id");
+          const rest = state(row);
+          fire(row, "mouseenter");
+          const fromRow = state(row);
+          fire(row, "mouseleave");
+          const hit = hitFor(id);
+          fire(hit, "mouseenter");
+          const fromBar = state(row);
+          fire(hit, "mouseleave");
+          return { id, rest, fromRow, fromBar, cleared: state(row) };
+        });
+        return { each, after: state(rows[0]),
+                 selected: document.querySelectorAll("tr.tvrow--selected").length };
+      });
+      const rowsLit = sharedHover.each;
+      const wrong = rowsLit.filter((r) =>
+        r.fromRow.leadBars !== 1 || r.fromRow.leadDots < 1 ||
+        r.fromRow.leadRows.join() !== r.id ||
+        r.fromRow.rowTint === r.rest.rowTint);
+      push("[real] hovering ANY grid row lights that edge's bar and its " +
+        "interfaces on the DAG, and really paints the row",
+        rowsLit.length >= 20 && wrong.length === 0);
+      if (wrong.length) {
+        console.log("    rows that did not light their edge: " +
+          wrong.map((r) => r.id + "=" + JSON.stringify(r.fromRow)).join(" | "));
+      }
+      const disagreed = rowsLit.filter((r) =>
+        JSON.stringify(r.fromBar) !== JSON.stringify(r.fromRow));
+      push("[real] and hovering the BAR lights the row back in the same " +
+        "state -- one hover model, not two that agree today",
+        disagreed.length === 0);
+      if (disagreed.length) {
+        console.log("    surfaces disagreed on: " +
+          disagreed.map((r) => r.id).join(", "));
+      }
+      push("[real] a part boundary's leader lights with the edge it bounds, " +
+        "so the eye is led from the bar to the row across the jog zone",
+        rowsLit.filter((r) => r.fromRow.leadLeaders >= 1).length >= 1);
+      push("[real] leaving clears both surfaces, every time: nothing is left " +
+        "lit behind the pointer",
+        rowsLit.every((r) => r.cleared.leadRows.length === 0 &&
+          r.cleared.rowTint === r.rest.rowTint) &&
+        sharedHover.after.leadRows.length === 0);
+      push("[real] hovering selected nothing: a pointer tints, a click picks",
+        sharedHover.selected === 0);
 
       // Edge-length scaling against the real pitch_system (the DoD's own
       // case): every edge is variation-only (nominal 0.0, a real ± band), so

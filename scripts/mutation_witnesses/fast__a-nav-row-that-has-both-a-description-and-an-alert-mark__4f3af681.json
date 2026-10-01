@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a nav row that has both a description and an alert mark offers ONE hover surface per target: the name's tooltip and the mark's card, never a native tooltip stacked under the card",
+  "mutations": [
+    {
+      "contract": "A nav row offers one hover surface per thing a pointer can rest on. The description belongs to the NAME; the alert mark opens a card and says nothing natively while it can.",
+      "issue": null,
+      "note": "The defect Jeff reported was the ROW's title showing through the mark's card -- two levels above the pixel the pointer was on -- so the mutation puts it back exactly where it was rather than on the mark. A guard that only looked at the mark would stay green on this.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    statusIcon(VA.stackNavStatus(stackProj), stackProj.title, row, handlers);\n    row.setAttribute(\"data-nav-kind\", \"stack\");",
+      "replace": "    statusIcon(VA.stackNavStatus(stackProj), stackProj.title, row, handlers);\n    if (stackProj.description) row.setAttribute(\"title\", stackProj.description);\n    row.setAttribute(\"data-nav-kind\", \"stack\");"
+    }
+  ]
+}

@@ -833,6 +833,47 @@ def _derive_smallest_chain(claim: Claim, repo_root: Path) -> Outcome:
                    f"{lengths}, so the smallest is {smallest!r}")
 
 
+# --- how much a topology's own picture crosses itself ----------------------- #
+
+def _derive_layout_crossings(claim: Claim, repo_root: Path) -> Outcome:
+    """A topology's branch/close/leader crossing counts, re-serialised.
+
+    Read off the **committed document** rather than off
+    ``data/projections/viewer/topologies.json``: the layout is a pure function
+    of the document, the projection is gitignored and shared by every live
+    worktree, and a declaration that fell back to whichever tree last built
+    that file would be comparing two trees exactly as the viewer's own
+    freshness pairing exists to stop (``scripts/projection_freshness.cjs``).
+
+    The counter is ``build_topology_projection.layout_crossings`` itself, which
+    is also what ``order_columns`` minimises -- so a document declaring these
+    numbers is declaring the objective's own output, not a re-implementation
+    of it.
+    """
+    import importlib
+    import sys
+
+    scripts = repo_root / "scripts"
+    document = repo_root / "docs" / "topologies" / f"topology_{claim.fields['topology']}.json"
+    if not document.is_file():
+        return Outcome(UNAVAILABLE, f"no {document.name} in this tree")
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    builder = importlib.import_module("build_topology_projection")
+    from tolerance_stack.topology import load_topology
+
+    live = builder.layout_crossings(builder.serialize_topology(load_topology(document)))
+    stated = {term: claim.fields[term] for term in ("branch", "close", "leader")}
+    actual = {term: str(live[term]) for term in stated}
+    if stated == actual:
+        return Outcome(AGREES,
+                       f"branch {live['branch']}, close {live['close']}, "
+                       f"leader {live['leader']}")
+    return Outcome(DISAGREES,
+                   f"declares {stated}; {claim.fields['topology']} serialises to "
+                   f"{actual}")
+
+
 #: Metric name -> what a claim about it says, and where its value comes from.
 #: **The registry is the whole point of the change**: a declaration naming a
 #: source but never compared to it is exactly as unverified as the prose it
@@ -881,6 +922,16 @@ METRICS: dict[str, Metric] = {
                    "data/meshes/<sha>/provenance.json",
             source_paths=(),
             derive=_derive_mesh_routes,
+        ),
+        Metric(
+            name="layout_crossings",
+            fields=("topology", "branch", "close", "leader"),
+            source="the committed docs/topologies/topology_<id>.json, "
+                   "serialised by scripts/build_topology_projection.py's "
+                   "serialize_topology() and counted by its layout_crossings()",
+            source_paths=("docs/topologies",
+                          "scripts/build_topology_projection.py"),
+            derive=_derive_layout_crossings,
         ),
         Metric(
             name="smallest_chain",

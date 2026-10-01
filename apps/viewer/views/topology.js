@@ -259,6 +259,10 @@
       if (a < 1) node.style.opacity = String(a);
       return node;
     };
+    // The hover state both panes below register into and read from. Rebuilt
+    // per render with the nodes it points at, so there is nothing to unwire
+    // and nothing that can outlive the elements it marks.
+    var hot = hotState(layout);
     var geometry = VA.railGeometry(layout, M, positions, { x: xTween });
     // The links' opacity, which is neither the store's business nor the
     // unfold's (VA.linkOpacity says why): a link on a column BOTH
@@ -329,8 +333,9 @@
     hscroll.appendChild(head);
     var body = VA.el("div", "tv__body");
     body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes,
-      marking, ctx, fade, fadeLink));
-    var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset, fade);
+      marking, ctx, fade, fadeLink, hot));
+    var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset,
+      fade, hot);
     // The grid is the one block a respine CROSS-FADES rather than moves. Its
     // rows are not positioned from the store at all -- the table's pitch is
     // fixed and only the block's offset tweens -- and the two serialisations
@@ -989,10 +994,190 @@
     return grip;
   }
 
+
+  // --- one hover state, two surfaces ---------------------------------------
+  //
+  // (nav_tooltip_once_and_rail_hover_emphasis, 2026-09-30.) Jeff, tracing a
+  // leg through a crossing: "add an emphasis (bold/glow etc) to the edges when
+  // you hover over them, again makes it easier to trace them" — and, a few
+  // minutes later, "it would be awesome if the DAG and the table/grid shared
+  // their highlighted state, so everything lit up together."
+  //
+  // So hover is STATE here, not a `:hover` rule. One key — an edge, a node or
+  // a rail — set from one place and read by both panes. A stylesheet cannot
+  // light a bar from a grid row or a row from a bar, and two stylesheets each
+  // lighting their own half is the pair that drifts; `.tvrow:hover` was
+  // exactly that half, and it is gone.
+  //
+  // TWO levels, which is the floor the handoff set and the ceiling this took:
+  //
+  //   --lead  the thing the pointer is actually on, and its counterpart on the
+  //           other surface: an edge's bar, its two dots, its leader and its
+  //           grid row; a node's dot, its leader and the rows of the edges
+  //           that meet there (a node has no row of its own).
+  //   --hot   the whole CONNECTED LINE that element sits on: the rail span,
+  //           the branch curve that opened it, every bar and dot on it, the
+  //           close curves leaving it, and those edges' grid rows.
+  //
+  // Nothing is dimmed. A reader is tracing ONE line through the others, not
+  // hiding them, so the rest of the drawing is left exactly as drawn — which
+  // is also what keeps this from fighting a study selection's own `--off`.
+  //
+  // And it never touches selection: `--on` / `--selected` are the ACCENT, a
+  // click, and a thing that survives the pointer leaving; hover is width and
+  // brightness and survives nothing. Hovering opens no card either — the bars',
+  // dots' and leaders' own cards keep their existing triggers, and this rides
+  // alongside them.
+
+  // Which drawn line each row, mark and curve belongs to.
+  //
+  // A rail is identified by its POSITION IN `layout.rails` and never by its
+  // column: the column index is a drawing decision (VA.spineRight mirrors
+  // every one of them before this sees them, and the projection is free to
+  // renumber), while the rails array is the serialisation's own order. The
+  // column is used only the way the layout itself uses it — matching a row to
+  // the rail drawn at the same column over the same row span — which is an
+  // equality between two numbers out of the same layout and survives any
+  // renumbering of both.
+  function hotState(layout) {
+    var rails = (layout && layout.rails) || [];
+    var rows = (layout && layout.rows) || [];
+    var links = (layout && layout.links) || [];
+    var hot = {
+      // railId -> entries lit `--hot`; key -> entries lit `--lead`.
+      rail: {}, lead: {},
+      // key (and railId) -> the railId it lights.
+      railOf: {},
+      // Parallel to layout.rails / layout.links, which VA.railGeometry walks
+      // in the same order, so the view can register a drawn thing by index.
+      rails: [], railOfLink: [],
+      // The two adjacencies the `--lead` set needs: an edge's two interfaces
+      // and an interface's edges, off the walk's own `entered_at`/`left_at`.
+      nodesOfEdge: {}, edgesAtNode: {},
+      on: null, marked: [],
+    };
+    rails.forEach(function (rail, i) {
+      var id = "rail|" + i;
+      hot.rails.push(id);
+      hot.railOf[id] = id;
+    });
+    // The rail drawn at `column` that covers `row`. A column is REUSED once a
+    // branch has ended (build_topology_projection.py's own note), so the row
+    // span is what tells two rails on one column apart.
+    var covering = function (column, row) {
+      for (var i = 0; i < rails.length; i++) {
+        if (rails[i].column === column &&
+            row >= rails[i].start && row <= rails[i].end) return hot.rails[i];
+      }
+      return null;
+    };
+    rows.forEach(function (row) {
+      hot.railOf[hotKey(row.kind, row.id)] = covering(row.column, row.row);
+      if (row.kind !== "edge") return;
+      var ends = [row.entered_at, row.left_at].filter(Boolean);
+      hot.nodesOfEdge[row.id] = ends;
+      ends.forEach(function (nodeId) {
+        (hot.edgesAtNode[nodeId] || (hot.edgesAtNode[nodeId] = [])).push(row.id);
+      });
+    });
+    links.forEach(function (link) {
+      // A branch OPENS the rail it fans out into — the one allocated at this
+      // very row — so it is matched on the start rather than on containment,
+      // which is what tells two branches out of one fork apart. A close LEAVES
+      // the rail its closing edge sits on, which is the leg a reader is
+      // tracing when they follow the dashed curve back up.
+      hot.railOfLink.push(link.kind === "branch"
+        ? opening(rails, hot.rails, link.to_column, link.row)
+        : covering(link.from_column, link.row));
+    });
+    return hot;
+  }
+
+  function opening(rails, ids, column, row) {
+    for (var i = 0; i < rails.length; i++) {
+      if (rails[i].column === column && rails[i].start === row) return ids[i];
+    }
+    return null;
+  }
+
+  // A hot key. The same (kind, id) pair every mark, every grid row and every
+  // deep link on this page is addressed by, so nothing here needs a second
+  // identity scheme.
+  function hotKey(kind, id) { return kind + "|" + id; }
+
+  // Register a drawn node under the line it belongs to, the keys that lead it,
+  // or both. `base` is the class string it was BUILT with and is passed in
+  // rather than read back: an SVG element's `className` is a read-only
+  // SVGAnimatedString (VA.svg's header), so the class has to be rewritten
+  // whole through setAttribute, and that needs the original to rewrite from.
+  function hotRegister(hot, spec) {
+    var entry = { el: spec.el, base: spec.base,
+                  hot: spec.hot || null, lead: spec.lead || null };
+    if (spec.rail && entry.hot) {
+      (hot.rail[spec.rail] || (hot.rail[spec.rail] = [])).push(entry);
+    }
+    (spec.leads || []).forEach(function (key) {
+      (hot.lead[key] || (hot.lead[key] = [])).push(entry);
+    });
+    return spec.el;
+  }
+
+  function setHot(hot, key) {
+    if (!hot || hot.on === key) return;
+    hot.on = key;
+    while (hot.marked.length) {
+      var was = hot.marked.pop();
+      was.el.setAttribute("class", was.base);
+    }
+    if (!key) return;
+    var light = function (entry, extra) {
+      entry.el.setAttribute("class", entry.base + " " + extra);
+      hot.marked.push(entry);
+    };
+    var railId = hot.railOf[key];
+    (railId ? hot.rail[railId] || [] : []).forEach(function (entry) {
+      light(entry, entry.hot);
+    });
+    // After the line, so an element that is both keeps the stronger of the
+    // two. A `--lead` carries `--hot` with it where it has one, which is what
+    // lets the browser tier ask the handoff's question ("hovering the bar
+    // marks the row `--hot`") of either level.
+    // A registered node may carry only one of the two (a hit path has a halo
+    // and no lead state of its own; a leader has a lead state and no place in
+    // the leg's glow), so the pair is joined rather than branched on -- a
+    // missing half used to arrive in the class string as the word "null".
+    (hot.lead[key] || []).forEach(function (entry) {
+      light(entry, [entry.hot, entry.lead].filter(Boolean).join(" "));
+    });
+  }
+
+  // Hover and keyboard focus drive the same state, and leaving clears it only
+  // if this element is still the one holding it: moving the pointer from a bar
+  // onto the rail under it fires the new element's `mouseenter` and the old
+  // one's `mouseleave`, and a clear that did not check would race the set.
+  //
+  // Composed onto whatever the node already carries rather than assigned: a
+  // bar's hit path opens a card on the same two events (cardOnHover above), and
+  // `onmouseenter = ...` there would have silently replaced it.
+  function hotHover(hot, node, key) {
+    chain(node, "onmouseenter", function () { setHot(hot, key); });
+    chain(node, "onfocus", function () { setHot(hot, key); });
+    chain(node, "onmouseleave", function () { if (hot.on === key) setHot(hot, null); });
+    chain(node, "onblur", function () { if (hot.on === key) setHot(hot, null); });
+    return node;
+  }
+
+  function chain(node, name, fn) {
+    var prev = node[name];
+    node[name] = typeof prev === "function"
+      ? function (event) { prev(event); fn(event); }
+      : fn;
+  }
+
   // --- the SVG -------------------------------------------------------------
 
   function railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx,
-                    fade, fadeLink) {
+                    fade, fadeLink, hot) {
     // The SVG spans the rails AND the leader jog zone: its right edge is the
     // grid table's left edge, so a leader's final horizontal segment hands off
     // to its row's boundary with no seam to keep aligned.
@@ -1029,10 +1214,24 @@
     //    transition frame alike. Every column both serialisations have has a
     //    rail on both sides, so those are the only rails a respine can add.
     //    The marks on a rail are keyed and the store fades those.
-    geometry.rails.forEach(function (rail) {
-      svg.appendChild(VA.svg("line",
-        "rail rail--" + (rail.column % 2 ? "odd" : "even"),
-        { x1: rail.x, y1: rail.y1, x2: rail.x, y2: rail.y2 }));
+    //    Each rail carries a transparent wide twin (`rail__hit`, the same
+    //    invisible-but-hoverable trick `.rail__barhit` uses) so a 2px line can
+    //    be pointed at: it is what makes "hover anywhere on this leg" a
+    //    reachable gesture rather than a pixel hunt. Drawn immediately after
+    //    its rail and therefore UNDER every bar, dot and leader, so it can
+    //    never steal a hover from a mark that has a card to open.
+    geometry.rails.forEach(function (rail, i) {
+      var railId = hot.rails[i];
+      var base = "rail rail--" + (rail.column % 2 ? "odd" : "even");
+      var ends = { x1: rail.x, y1: rail.y1, x2: rail.x, y2: rail.y2 };
+      svg.appendChild(hotRegister(hot, {
+        el: VA.svg("line", base, ends), base: base,
+        rail: railId, hot: "rail--hot",
+      }));
+      svg.appendChild(hotHover(hot, hotRegister(hot, {
+        el: VA.svg("line", "rail__hit", ends), base: "rail__hit",
+        rail: railId, hot: "rail__hit--hot",
+      }), railId));
     });
 
     // 2. the fan-outs and the loop closures. A link is the one drawn thing the
@@ -1040,9 +1239,21 @@
     //    link a respine adds between two columns BOTH serialisations have
     //    arrives on rails that never move. So it carries an opacity of its
     //    own, keyed on its two ends' elements (VA.linkOpacity).
-    geometry.links.forEach(function (link) {
-      svg.appendChild(fadeLink(VA.svg("path",
-        "rail__link rail__link--" + link.kind, { d: link.d }), link.key));
+    //    A link belongs to the leg it OPENS (a branch) or LEAVES (a close),
+    //    so hovering one lights the same line hovering its rail does -- which
+    //    is the whole of "a hovered rail is emphasised along its whole
+    //    length" at the two places a leg changes column.
+    geometry.links.forEach(function (link, i) {
+      var railId = hot.railOfLink[i];
+      var base = "rail__link rail__link--" + link.kind;
+      svg.appendChild(hotRegister(hot, {
+        el: fadeLink(VA.svg("path", base, { d: link.d }), link.key),
+        base: base, rail: railId, hot: "rail__link--hot",
+      }));
+      svg.appendChild(hotHover(hot, hotRegister(hot, {
+        el: VA.svg("path", "rail__linkhit", { d: link.d }), base: "rail__linkhit",
+        rail: railId, hot: "rail__linkhit--hot",
+      }), railId));
     });
 
     // 2b. the leaders (viewer_leader_line_grid): one jogged line per
@@ -1064,10 +1275,29 @@
       var classes = ["rail__leader"];
       if (marking) classes.push("rail__leader--on");
       if (isSelected(ctx, "node", leader.id)) classes.push("rail__leader--selected");
-      svg.appendChild(fade(VA.svg("path", classes.join(" "), { d: leader.d }),
-        "node", leader.id));
-      var hit = fade(VA.svg("path", "rail__leaderhit", { d: leader.d }),
-        "node", leader.id);
+      var leaderBase = classes.join(" ");
+      // A leader is `--lead` only, never part of the leg's own glow: it leaves
+      // the rail rather than running along it, and lighting every leader off a
+      // nine-edge mainline turns the jog zone into a fan. It leads for its own
+      // node AND for the edge whose boundary it marks, which is what makes
+      // "hover a grid row, see which seam it hangs off" work in both
+      // directions.
+      svg.appendChild(hotRegister(hot, {
+        el: fade(VA.svg("path", leaderBase, { d: leader.d }), "node", leader.id),
+        base: leaderBase,
+        leads: [hotKey("node", leader.id)].concat(
+          leader.beforeEdge ? [hotKey("edge", leader.beforeEdge)] : []),
+        hot: "rail__leader--hot", lead: "rail__leader--lead",
+      }));
+      var hit = hotRegister(hot, {
+        el: fade(VA.svg("path", "rail__leaderhit", { d: leader.d }),
+          "node", leader.id),
+        base: "rail__leaderhit",
+        leads: [hotKey("node", leader.id)].concat(
+          leader.beforeEdge ? [hotKey("edge", leader.beforeEdge)] : []),
+        lead: "rail__leaderhit--hot",
+      });
+      hotHover(hot, hit, hotKey("node", leader.id));
       hit.setAttribute("data-leader-id", leader.id);
       hit.setAttribute("data-boundary-edge", leader.beforeEdge || "");
       hit.appendChild(svgTitle(node ? node.name : leader.id));
@@ -1093,9 +1323,15 @@
         // scaled length mode a bar's slot is its own height.
         var y1 = mark.y1;
         var y2 = mark.y2;
-        var bar = fade(VA.svg("line", classes.join(" "), {
-          x1: mark.x, y1: y1, x2: mark.x, y2: y2,
-        }), "edge", mark.id);
+        var barBase = classes.join(" ");
+        var bar = hotRegister(hot, {
+          el: fade(VA.svg("line", barBase, {
+            x1: mark.x, y1: y1, x2: mark.x, y2: y2,
+          }), "edge", mark.id),
+          base: barBase, rail: hot.railOf[hotKey("edge", mark.id)],
+          leads: [hotKey("edge", mark.id)],
+          hot: "rail__bar--hot", lead: "rail__bar--lead",
+        });
         svg.appendChild(bar);
 
         // A floored bar (scaled modes only) wears a drafting-style break
@@ -1119,8 +1355,12 @@
         // responds regardless of the visible dash pattern; the visible bar
         // above is untouched, still thin and still dashed where confidence
         // or value_source says it should be.
-        var hit = fade(VA.svg("line", "rail__barhit",
-          { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), "edge", mark.id);
+        var hit = hotRegister(hot, {
+          el: fade(VA.svg("line", "rail__barhit",
+            { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), "edge", mark.id),
+          base: "rail__barhit", rail: hot.railOf[hotKey("edge", mark.id)],
+          leads: [hotKey("edge", mark.id)], hot: "rail__barhit--hot",
+        });
         // One hover surface, not two (viewer_dag_hover_cards): where a card
         // handler exists the bar opens the SAME edge card the grid's crop
         // trigger opens -- the crop thumbnail, the citation line, the deep
@@ -1140,6 +1380,7 @@
             : VA.edgeHoverTitle(edge, mark.id)));
         }
         wire(hit, ctx, "edge", mark.id);
+        hotHover(hot, hit, hotKey("edge", mark.id));
         svg.appendChild(hit);
         return;
       }
@@ -1151,9 +1392,20 @@
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
-      var dot = fade(VA.svg("circle", dotClasses.join(" "), {
-        cx: mark.x, cy: mark.y, r: mark.branch ? M.branchDot : M.dot,
-      }), "node", mark.id);
+      var dotBase = dotClasses.join(" ");
+      // The dot leads for its own node AND for every edge that meets there:
+      // "hovering a grid row marks that edge's bar, its dots and its leader".
+      var dot = hotRegister(hot, {
+        el: fade(VA.svg("circle", dotBase, {
+          cx: mark.x, cy: mark.y, r: mark.branch ? M.branchDot : M.dot,
+        }), "node", mark.id),
+        base: dotBase, rail: hot.railOf[hotKey("node", mark.id)],
+        leads: [hotKey("node", mark.id)].concat(
+          (hot.edgesAtNode[mark.id] || []).map(function (edgeId) {
+            return hotKey("edge", edgeId);
+          })),
+        hot: "rail__dot--hot", lead: "rail__dot--lead",
+      });
       // The dot's own card (viewer_dag_hover_cards): a node IS an interface,
       // so the hover says which parts meet there and shows their thumbnails,
       // which is strictly more than the name the title carried. Same
@@ -1166,6 +1418,7 @@
         dot.appendChild(svgTitle(node ? node.name : mark.id));
       }
       wire(dot, ctx, "node", mark.id);
+      hotHover(hot, dot, hotKey("node", mark.id));
       svg.appendChild(dot);
     });
     return svg;
@@ -1214,7 +1467,7 @@
   // the whole group via rowspan, so a component is said once and its
   // tolerance sub-rows read as one block. Node rows are gone — an interface
   // is its dot and (at a part boundary) its leader, both clickable.
-  function grid(plan, index, chain, marking, ctx, offset, fade) {
+  function grid(plan, index, chain, marking, ctx, offset, fade, hot) {
     var box = VA.el("div", "tv__rows");
     // Centred against the DAG beside it (viewer_dag_spine_layout): whichever
     // block is shorter is pushed down by half the difference, which is what
@@ -1234,7 +1487,7 @@
       for (var i = 0; i < group.count; i++) {
         var planRow = plan.rows[group.start + i];
         tbody.appendChild(fade(edgeRow(planRow, group, i === 0, index, chain,
-          marking, ctx, bandParity[planRow.id]), "edge", planRow.id));
+          marking, ctx, bandParity[planRow.id], hot), "edge", planRow.id));
       }
     });
     table.appendChild(tbody);
@@ -1447,7 +1700,8 @@
     return cell;
   }
 
-  function edgeRow(planRow, group, first, index, chain, marking, ctx, bandParity) {
+  function edgeRow(planRow, group, first, index, chain, marking, ctx, bandParity,
+                   hot) {
     var edge = index.edges[planRow.id];
     var hit = chain[planRow.id];
     var el = baseRow("edge", ctx, planRow.id);
@@ -1582,6 +1836,23 @@
     }
     el.appendChild(chips.cell);
     el.appendChild(edgeCropCell(edge, ctx));
+    // The grid half of the shared hover state. Registered last, because every
+    // branch above appends to `el.className` and the base this rewrites from
+    // has to be the finished string. The row LEADS for its own edge and for
+    // each interface the edge meets (a node has no row of its own, so its
+    // hover lights the rows of the edges that meet there), and it is a member
+    // of the leg its bar sits on, which is the lighter tint a reader sees on
+    // the rest of the chain they are tracing.
+    hotRegister(hot, {
+      el: el, base: el.className,
+      rail: hot.railOf[hotKey("edge", planRow.id)],
+      leads: [hotKey("edge", planRow.id)].concat(
+        (hot.nodesOfEdge[planRow.id] || []).map(function (nodeId) {
+          return hotKey("node", nodeId);
+        })),
+      hot: "tvrow--hot", lead: "tvrow--lead",
+    });
+    hotHover(hot, el, hotKey("edge", planRow.id));
     return el;
   }
 

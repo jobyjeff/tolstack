@@ -4584,6 +4584,138 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20260930_the_pairings_spawned_runner_reports_a_crash_as_a_parse_divergence.md`).
       Two questions: *is `proc.stderr` read anywhere on the failure path?* and
       *does the message distinguish "ran and said no" from "never ran"?*
+      **Second sighting the same day, same tool, other side of the same
+      question** (review `columns_ordered_to_minimise_crossings`): async
+      `spawn` in `runTier` listens for `stdout`/`stderr`/`close` and **not
+      `error`**, so a child that could not be *started* re-throws at the
+      process — the run died at the first `python__` entry, took the other
+      seven with it and printed no summary, one screen after its own preflight
+      had promised those entries would "be reported as a MISS"
+      (`ISSUE_20260930_a_missing_interpreter_crashes_the_whole_mutation_run_
+      where_the_preflight_promised_a_miss.md`). So the question has a third
+      form: *when a preflight says what WILL happen on a failure path, run that
+      path and check it is what happens.* A promise about an untaken branch is
+      the cheapest wrong sentence in a repo to write.
+- [ ] **A "this cannot be derived, so it is pinned by hand" justification, in a
+      diff whose own test derives it.** New 2026-09-30
+      (`columns_ordered_to_minimise_crossings`). The claims registry makes
+      "declare it or it is checked by nothing" the house rule, so an author who
+      leaves a figure in prose now writes a sentence explaining why — and that
+      sentence is the thing to read, because it is an argument and nothing
+      checks arguments. Measured: `apps/viewer/README.md` stated the
+      as-allocated crossing baseline (20 / 12 / 52) in prose "because a layout
+      that no longer exists cannot be re-derived from this tree", while the
+      same commit's `_as_allocated()` helper re-derives exactly that layout on
+      every test run by monkeypatching the new pass out of the walk — which is
+      what the assertion beside it compares against. The true limit was
+      narrower and fixable (the *metric* goes through `serialize_topology`,
+      which always orders). One question: **what in this diff already produces
+      the thing the sentence says is unreachable?** A "before" layout, a
+      pre-fix state, a counterfactual — if a test reaches it with a
+      `monkeypatch`, a metric can too, and the hand copy is a hand copy. Fix
+      the reason inline; file the pairing
+      (`ISSUE_20260930_the_readmes_as_allocated_baseline_is_a_hand_copy_of_a_test_literal.md`).
+- [ ] **A published before/after pair whose BEFORE side quietly became a
+      counterfactual, because the diff moved the baseline.** Same review, and
+      the live-derivation that makes the digits safe is exactly what hides it:
+      `apps/viewer/README.md`'s mirror paragraph has a `[real]` test computing
+      both sides from the live projection, so `96 → 43` became `139 → 0` with
+      no one restating anything. But the sentence around it still credited
+      `VA.spineRight` — and `139` is now "what the page would draw if it did
+      not mirror, at a column order chosen *for* the mirrored page", a state
+      that has never existed. The counterfactual entry above says a figure
+      about a world that does not exist has no source to recount; this is its
+      quiet form, where the figure recounts perfectly and the **attribution**
+      is what went stale. Ask of every surviving before/after sentence in a
+      touched document: *does the mechanism named in this sentence still own
+      the delta?*
+
+- [ ] **When a sibling worktree owns `data/projections/viewer/`, the `[real]`
+      tier is REFUSED rather than red, and a scratch `--repo` root is the
+      review's only honest route — build it, do not skip the tier.** New
+      2026-09-30 (`nav_tooltip_once_and_rail_hover_emphasis`). Since the
+      freshness gate, a rebuild from an in-flight branch does not redden the
+      other worktrees' fixtures, it **disarms** them: `node
+      apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` reports
+      `FAIL [real] the projection this tier reads was built from this tree`,
+      drops ~86 checks, and takes the whole `fast` half of the mutation tier
+      with it (`TIER_ALREADY_RED`). Do **not** rebuild the shared directory to
+      clear it while that handoff is live. The recipe that works, written down
+      here because this review re-derived it and the issue that already has it
+      (`ISSUE_20260930_a_worktree_has_no_supported_way_to_run_the_real_tiers_against_its_own_projection.md`)
+      is in `docs/issues/`, which no prompt reads: a scratch root at a SHORT
+      path (`%TEMP%\tsrev` — MAX_PATH), `cmd /c mklink /J` for
+      `data/inbox`, `data/meshes` and `venv-win` onto the main checkout's and
+      for `docs` onto your own worktree's, a real `data/projections/`
+      directory, then `build_topology_projection.py`,
+      `build_viewer_projection.py` (tolstack's venv) and
+      `build_viewer_crops.py` (drawing-checker's venv) each with
+      `--data-root <scratch>/data`, and every tier with `--repo <scratch>`.
+      Measured: `522/522` with no tier skipped, browser `25/25`, and all six of
+      the handoff's mutation specs `WITNESSED` — against a projection nobody
+      else reads. **Check the builder's own line says more than `0/N parts with
+      an installed mesh`** before you read a `[real]` result (the MAX_PATH
+      symptom), and note `venv-win` is needed in the scratch root only for the
+      mutation tier's `python` entries. Remove the junctions with
+      `cmd /c rmdir <link>`, never a recursive delete of the parent.
+- [ ] **A hand-planted mutation that silently does nothing reads exactly like a
+      guard that cannot fail — this repo's working tree is CRLF.** New
+      2026-09-30, same review. `core.autocrlf=true` here, so
+      `apps/viewer/views/topology.js` (and the rest of `apps/viewer`) is CRLF
+      **on disk** while every diff, every `grep` and every mutation spec's
+      `find` reads LF. A patch script built from `'\n'.join([...])` matches
+      nothing, and a `str.replace()` with no assertion writes the file back
+      unchanged — you then run three tiers against unmutated code and record
+      the guard as unwitnessed. Always `assert old in s` (or diff the file
+      after patching), and derive the newline from the file
+      (`nl = '\r\n' if '\r\n' in s else '\n'`). The overlay's existing
+      `guard_enumeration.mjs` CRLF entry is the write-side of this; this is the
+      read side, and it is the one that fabricates a finding.
+- [ ] **A DOM event-ORDER claim in a comment is a measurable claim, and ten
+      lines settle it.** New 2026-09-30, same review. `hotHover`'s leave arms
+      are guarded "because moving from a bar onto the rail fires the new
+      element's `mouseenter` and the old one's `mouseleave`" — the opposite of
+      what Chrome does. `page.setContent` with two sibling divs, listeners on
+      both, one `page.mouse.move` into each: `["mouseenter a", "mouseleave a",
+      "mouseenter b"]`, i.e. leave precedes enter even on a teleport, which is
+      what the spec requires. So the guard it justifies is inert, and deleting
+      both conditions is 522/522 fast and 228/228 browser
+      (`ISSUE_20260930_hothovers_leave_race_guard_is_inert_and_its_stated_event_order_is_backwards.md`).
+      Whenever a hover/focus wiring comment asserts an ordering, a bubbling
+      behaviour or "this would race", **run it** — it is the cheapest
+      measurement in this repo and it is also the one shape where a defensive
+      line and a load-bearing one are indistinguishable by reading.
+- [ ] **A TWO-LEVEL emphasis where the strong level is unpinned, because the
+      weak one the same gesture applies satisfies the assertion.** New
+      2026-09-30 (`nav_tooltip_once_and_rail_hover_emphasis`), and it is the
+      "never mutate a group of fields together" entry's hardest form, because
+      the two fields are not independent — one gesture sets both. The grid's
+      hover tint is `--hot` (.055, the rest of the leg) plus `--lead` (.125, the
+      row under the pointer), and the browser block's one paint assertion is
+      `fromRow.rowTint !== rest.rowTint` — the row against **itself at rest**.
+      A hovered row is a member of its own leg, so deleting `.tvrow--lead >
+      .tvcell` alone leaves it at .055, still different from rest: measured
+      **522/522 fast and 228/228 browser**
+      (`ISSUE_20260930_the_grids_strong_hover_tint_is_unpinned_because_the_weak_one_satisfies_the_same_assertion.md`).
+      The same diff's DAG side gets it right and is the shape to demand: a hot
+      rail is compared against a **cold** rail, not against its own rest state.
+      So whenever a deliverable is "X louder than Y", the assertion has to read
+      **X against Y in the same frame**, never X against X-not-hovered — and ask
+      which of the two levels the gesture applies *both* of.
+- [ ] **A per-ROW style written as `> .tvcell` reaches a `rowspan`ned cell and
+      paints the whole group.** New 2026-09-30, same review, and it is the
+      `.conf--*`-by-inheritance entry's sibling: the scope is wider than the
+      selector reads. The grid's new hover tint is on the CELLS for a good
+      reason (a row already carries a band colour and a provenance background
+      image), but `componentCell`'s merged `<td rowspan="N">` is a `.tvcell` of
+      the group's FIRST row, so hovering that row paints 104px of one column at
+      the strong tint while its 26px row and three `--hot` siblings sit beside
+      it (measured on live `pitch_system`,
+      `ISSUE_20260930_a_rowspanned_component_cell_takes_the_hovered_rows_tint_across_the_whole_group.md`).
+      Ask of any new row-scoped cell rule: **which of this row's cells are
+      taller than the row?** — `rowspan` is in `componentCell` and in
+      `edgeRow`'s section cell, and no tier reads a `.tvcell--component`
+      background.
 
 ## Architectural errors to check
 

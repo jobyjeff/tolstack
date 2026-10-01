@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the DAG and the grid share ONE hover state: a grid row lights its bar, its dots and its leader, and a bar lights its row",
+  "mutations": [
+    {
+      "contract": "The hover state is shared BOTH ways: the grid drives it as well as reading it. A grid that only receives is the `.tvrow:hover` rule this replaced, wearing a class name.",
+      "issue": null,
+      "note": "Dropping the row's own hover wiring leaves every registration in place and the DAG-to-grid direction working, which is exactly the half-built state a class-name check would pass. The bar-to-row direction is unaffected, so the guard fails on the asymmetry rather than on everything at once.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    hotHover(hot, el, hotKey(\"edge\", planRow.id));\n    return el;",
+      "replace": "    return el;"
+    }
+  ]
+}

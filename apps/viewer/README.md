@@ -239,6 +239,16 @@ otherwise could not is the floored bar's "not to scale", which rides in as the
 edge card's `renderNote` (`VA.FLOORED_RENDER_NOTE`, one set of words for both
 carriers).
 
+Since `nav_tooltip_once_and_rail_hover_emphasis` (2026-09-30) that holds for
+the **alert mark** too, on all three surfaces it is worn (`VA.alertBadge`: the
+nav rail's rows, the elements table's source cell, the materials table's).
+Jeff, on the rail: *"there is a duplicate hover-over tooltip (unformatted and
+formatted versions) that sometimes block each other. Keep just the formatted
+one."* The same pass moved a nav row's authored `description` from the ROW onto
+its **name**, so a row with a mark offers one hover surface per target — the
+name says what the artifact is, the mark says what is wrong with it — instead
+of the browser dropping a plain box over the card.
+
 - **Edge card** — on the edge row's crop trigger (hover, focus or click; the
   trigger is the inline thumbnail once fetched) **and on the DAG's own bar**
   (`.rail__barhit`, hover or focus; the click stays selection). Same model,
@@ -541,27 +551,63 @@ in the pane on the right).
 
 The serialisation is a depth-first walk from the **document's first node**, with
 rail continuity: a branch keeps its column until it rejoins or ends. So the
-author's node and edge order is the layout's spine — put the datum first, and
-reordering an `edges` array is how you steer the picture without touching a
-value. There is deliberately no cleverness to fight: a heuristic root would move
-the whole diagram when an unrelated edge is added.
+author's node and edge order is still the layout's spine — put the datum first,
+and reordering an `edges` array is how you steer the row order without touching
+a value. **The root is never chosen by heuristic**, and that part has not
+changed: a "lowest degree" or "most-cited" root would move the whole diagram
+when an unrelated edge is added, and the author already ordered the document.
+
+**The column order now is** (`columns_ordered_to_minimise_crossings`,
+2026-09-30).
+The walk still allocates the mainline column 0 and the lowest free column at
+each fork, git-log's convention — but that is a claim about *when* a branch
+opened, and a poor claim about where to draw it. A second pass renumbers the
+non-trunk columns so the picture crosses itself as little as possible, which
+works out as **shortest leg nearest the trunk**: Jeff, reading the real
+`pitch_system`, *"when possible, rearrange the dag to minimize self-crossings
+(makes it hard to trace the lines) … moving the shorter legs to be closer to
+the trunk would help a lot."* The objective is three kinds of line counted
+equally — a fan-out curve, a loop-closing curve, and a node's own leader on its
+way to the grid — and the search is exhaustive up to a declared width
+(`EXACT_ORDER_MAX_COLUMNS`, which every committed topology is inside), so a
+diagram this wide gets a proved minimum rather than a good guess. Past that
+width the layout is the rule above and `layout.column_order` says so, which is
+what stops a wide diagram claiming a minimum it did not prove. A renumbering is a bijection on
+column ids, so rail continuity, column reuse and the one-dashed-curve-per-cycle
+invariant all survive it untouched. The trade, taken deliberately: adding one
+edge can now re-order the columns.
+
+What that is worth on `pitch_system` is below. The three numbers it reaches are
+declared and re-derived from the committed document on every run; the baseline
+it came from — branch 20, close 12, leader 52, as the walk allocated them on
+2026-09-30 — is pinned by name in `tests/test_topology_projection.py`, which
+reaches that layout by patching the pass back out of the walk. It is pinned
+rather than declared because the `layout_crossings` metric re-derives through
+`serialize_topology`, and that always orders. So the pass takes branch and
+leader crossings to zero and pays for it in close links:
+
+```claim
+metric: layout_crossings
+topology: pitch_system
+branch: 0
+close: 17
+leader: 0
+```
 
 **The spine draws on the RIGHT**, hard against the jog zone, with branches
-extending left (`viewer_dag_spine_layout`, 2026-09-14). The projection still
-allocates the mainline column 0 and each fork a fresh column to its right —
-git-log's convention, and a claim about the graph that a pytest pins — and the
-page mirrors that allocation at render time, column `c` → `columns − 1 − c`
-(`VA.spineRight`, called once in `renderTopoPane`). Which column an edge lands
-on is the graph's business; which side the picture is justified to is a
-display preference about a page that happens to have a grid on its right, and
-the mirror is a bijection, so rail continuity, column reuse and the
-one-dashed-curve-per-cycle invariant all survive it untouched. What it buys is
-the leaders: the spine carries most of them, and every rail that used to stand
-between a spine node and its row is now on the far side of it. Over the six
-committed topologies, leader-vs-rail crossings went **167 → 98**, four of the
-six to zero; on `pitch_system` its eight spine leaders went 43 → 0 (the
-mechanism's own branch leaders pick some up in exchange, which is why that one
-topology's total only moves 47 → 43).
+extending left (`viewer_dag_spine_layout`, 2026-09-14): the page mirrors the
+column ids at render time, column `c` → `columns − 1 − c` (`VA.spineRight`,
+called once in `renderTopoPane`). Which column an edge lands on is the graph's
+business; which side the picture is justified to is a display preference about
+a page that happens to have a grid on its right. What the mirror buys is the
+leaders — the spine carries most of them, and every rail that used to stand
+between a spine node and its row is now on the far side of it. Over the five
+committed topologies, leader-vs-rail crossings went **139 → 0**, five of the
+five to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
+sides of those are measured at the column order above, so the before-side is a
+counterfactual — and the zero is the two mechanisms together, not the mirror
+alone: `order_columns` minimises leader crossings counted *towards column 0*,
+which is the side the mirror puts the grid on.
 
 Three shapes come out of it, and all three are in the projection:
 
@@ -1140,6 +1186,51 @@ row read as values only, with the label moved to the row's own hover
 statement of an edge's name and not three). The merged component cell, and a row the projection cannot
 resolve (`missing()`), are unchanged either way: hiding a label is only ever
 dropping a redundant concatenation, never a grouping and never a diagnostic.
+
+### One hover state, two surfaces (`nav_tooltip_once_and_rail_hover_emphasis`)
+
+Jeff, 2026-09-30, tracing a leg through a crossing: *"add an emphasis
+(bold/glow etc) to the edges when you hover over them, again makes it easier to
+trace them"* — and, minutes later, *"it would be awesome if the DAG and the
+table/grid shared their highlighted state, so everything lit up together."*
+
+So hover is **state**, not a `:hover` rule: one key — an edge, an interface or a
+rail — set in one place (`setHot`, `views/topology.js`) and read by both panes.
+A stylesheet cannot light a bar from a grid row, and two stylesheets each
+lighting their own half is the pair that drifts; `.tvrow:hover` was exactly
+that half and is gone. Two levels:
+
+* **`--lead`** — what the pointer is on, and its counterpart on the other
+  surface. An edge's bar, its two dots, its leader and its grid row; an
+  interface's dot, its leader and the rows of the edges that meet there (an
+  interface has no row of its own).
+* **`--hot`** — the whole **connected line** that element sits on: the rail
+  span, the branch curve that opened it, every bar and dot on it, the close
+  curves leaving it, and those edges' grid rows at a lighter tint.
+
+Nothing is dimmed — a reader is tracing *one* line through the others, not
+hiding them — and nothing here touches selection. **Hover spends brightness and
+width only**: the accent means *selected*, so a pointer may not paint anything
+with it, and a bar keeps its provenance hue — thickened, and lightened by the
+same neutral halo as the rest of its line, never recoloured. Hovering
+opens no card either; the bars', dots' and leaders' own cards keep their
+existing triggers.
+
+Two implementation facts worth knowing before editing either file:
+
+* **The glow is the hit path, lit.** Rails and links got the same wide
+  transparent twin the bars already had (so a 2px line is pointable at all),
+  and when the line is hot that twin is stroked at a low alpha — a halo for one
+  colour change and no extra element. A CSS `drop-shadow` was the alternative
+  and was dropped because these are *vertical lines*: a zero-width object
+  bounding box is where a filter region is least dependable. The browser tier
+  reaches them exactly the way it reaches a bar (the `locator.hover()` note in
+  "Whole-edge hover" above applies verbatim — see `railPoint`).
+* **Membership is keyed by rail *position in `layout.rails`*, never by a column
+  index.** `VA.spineRight` mirrors every column at render time and the
+  projection is free to renumber, so a column number is a drawing decision. A
+  fast guard plants the mirror and requires the same edge to light the same
+  set.
 
 ### Edge-length scaling: three modes, one keyed position store
 
