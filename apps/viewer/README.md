@@ -1174,7 +1174,8 @@ that half and is gone. Two levels:
 Nothing is dimmed — a reader is tracing *one* line through the others, not
 hiding them — and nothing here touches selection. **Hover spends brightness and
 width only**: the accent means *selected*, so a pointer may not paint anything
-with it, and a bar keeps its provenance colour and thickens instead. Hovering
+with it, and a bar keeps its provenance hue — thickened, and lightened by the
+same neutral halo as the rest of its line, never recoloured. Hovering
 opens no card either; the bars', dots' and leaders' own cards keep their
 existing triggers.
 

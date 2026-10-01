@@ -111,7 +111,9 @@ probe, a values status, an attention flag — and a qualifier drawn as loudly as
 the thing it qualifies leaves a reader unable to tell which is which. Emphasis
 is a budget; two claims spend it.
 
-Two corollaries worth stating, because both were being broken:
+Corollaries worth stating. The first two are here because they were being
+broken; the third because the 2026-09-30 hover pass had to answer it and the
+answer is not obvious from the fill rule alone:
 
 - **The accent is selection.** On the topology page it means *this, and not the
   others* — what is selected, and the selected study's path. A chip, an id or a
@@ -126,7 +128,8 @@ Two corollaries worth stating, because both were being broken:
   saying "selected". So the topology page's hover emphasis is width and
   brightness only — a neutral one step up from the rails, a low-alpha halo,
   a low-alpha tint on a grid row — and a bar under the pointer keeps its
-  provenance colour exactly. The declarations and the argument are in
+  provenance **hue**, lightened by the same neutral halo as everything else on
+  its line rather than recoloured. The declarations and the argument are in
   `apps/viewer/topology.css`'s "one hover state, two surfaces".
 
 ## Monospace

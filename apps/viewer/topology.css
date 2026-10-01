@@ -507,7 +507,7 @@ body { display: flex; flex-direction: column; }
    WHAT HOVER MAY SPEND, and it is one thing: brightness and width. The accent
    is selection and a branch fork; green/amber/red/magenta are provenance. A
    pointer that could paint a bar the accent would be saying "selected", so the
-   hot bar keeps its citation colour exactly and thickens instead, and the one
+   hot bar keeps its citation HUE and spends weight instead, and the one
    mark whose hot colour could collide with selection (a leader, which wears
    the accent when its node is selected) declines the brightening and keeps
    only the width.
@@ -531,9 +531,16 @@ body { display: flex; flex-direction: column; }
 
 .rail--hot { stroke: var(--rail-hot); stroke-width: 3; }
 .rail__link--hot { stroke: var(--rail-hot); stroke-width: 3; }
-/* The bar keeps its provenance colour and its dash pattern; only the weight
-   moves. `--on` (a selected chain) is 7, so hot sits above it and lead above
-   that, and a selected bar under the pointer still reads as both. */
+/* The bar keeps its provenance HUE and its dash pattern; what moves is the
+   weight. `--on` (a selected chain) is 7, so hot sits above it and lead above
+   that, and a selected bar under the pointer still reads as both.
+
+   Its halo (`.rail__barhit--hot`, above) is painted OVER it -- the hit path
+   has to sit on top of the bar or a dashed stroke's own off-intervals would
+   go unhoverable, which is the whole reason it exists -- so a hot bar is also
+   lightened by the same neutral veil every other lit element wears. That is
+   brightness, which is what a pointer is allowed to spend; it is not a second
+   hue, and an untraced bar under the pointer is still unmistakably red. */
 .rail__bar--hot { stroke-width: 8; }
 .rail__bar--lead { stroke-width: 10; }
 .rail__dot--hot { stroke-width: 3; }
