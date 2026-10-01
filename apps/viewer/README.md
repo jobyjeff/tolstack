@@ -239,6 +239,16 @@ otherwise could not is the floored bar's "not to scale", which rides in as the
 edge card's `renderNote` (`VA.FLOORED_RENDER_NOTE`, one set of words for both
 carriers).
 
+Since `nav_tooltip_once_and_rail_hover_emphasis` (2026-09-30) that holds for
+the **alert mark** too, on all three surfaces it is worn (`VA.alertBadge`: the
+nav rail's rows, the elements table's source cell, the materials table's).
+Jeff, on the rail: *"there is a duplicate hover-over tooltip (unformatted and
+formatted versions) that sometimes block each other. Keep just the formatted
+one."* The same pass moved a nav row's authored `description` from the ROW onto
+its **name**, so a row with a mark offers one hover surface per target — the
+name says what the artifact is, the mark says what is wrong with it — instead
+of the browser dropping a plain box over the card.
+
 - **Edge card** — on the edge row's crop trigger (hover, focus or click; the
   trigger is the inline thumbnail once fetched) **and on the DAG's own bar**
   (`.rail__barhit`, hover or focus; the click stays selection). Same model,
@@ -1139,6 +1149,50 @@ row read as values only, with the label moved to the row's own hover
 statement of an edge's name and not three). The merged component cell, and a row the projection cannot
 resolve (`missing()`), are unchanged either way: hiding a label is only ever
 dropping a redundant concatenation, never a grouping and never a diagnostic.
+
+### One hover state, two surfaces (`nav_tooltip_once_and_rail_hover_emphasis`)
+
+Jeff, 2026-09-30, tracing a leg through a crossing: *"add an emphasis
+(bold/glow etc) to the edges when you hover over them, again makes it easier to
+trace them"* — and, minutes later, *"it would be awesome if the DAG and the
+table/grid shared their highlighted state, so everything lit up together."*
+
+So hover is **state**, not a `:hover` rule: one key — an edge, an interface or a
+rail — set in one place (`setHot`, `views/topology.js`) and read by both panes.
+A stylesheet cannot light a bar from a grid row, and two stylesheets each
+lighting their own half is the pair that drifts; `.tvrow:hover` was exactly
+that half and is gone. Two levels:
+
+* **`--lead`** — what the pointer is on, and its counterpart on the other
+  surface. An edge's bar, its two dots, its leader and its grid row; an
+  interface's dot, its leader and the rows of the edges that meet there (an
+  interface has no row of its own).
+* **`--hot`** — the whole **connected line** that element sits on: the rail
+  span, the branch curve that opened it, every bar and dot on it, the close
+  curves leaving it, and those edges' grid rows at a lighter tint.
+
+Nothing is dimmed — a reader is tracing *one* line through the others, not
+hiding them — and nothing here touches selection. **Hover spends brightness and
+width only**: the accent means *selected*, so a pointer may not paint anything
+with it, and a bar keeps its provenance colour and thickens instead. Hovering
+opens no card either; the bars', dots' and leaders' own cards keep their
+existing triggers.
+
+Two implementation facts worth knowing before editing either file:
+
+* **The glow is the hit path, lit.** Rails and links got the same wide
+  transparent twin the bars already had (so a 2px line is pointable at all),
+  and when the line is hot that twin is stroked at a low alpha — a halo for one
+  colour change and no extra element. A CSS `drop-shadow` was the alternative
+  and was dropped because these are *vertical lines*: a zero-width object
+  bounding box is where a filter region is least dependable. The browser tier
+  reaches them exactly the way it reaches a bar (the `locator.hover()` note in
+  "Whole-edge hover" above applies verbatim — see `railPoint`).
+* **Membership is keyed by rail *position in `layout.rails`*, never by a column
+  index.** `VA.spineRight` mirrors every column at render time and the
+  projection is free to renumber, so a column number is a drawing decision. A
+  fast guard plants the mirror and requires the same edge to light the same
+  set.
 
 ### Edge-length scaling: three modes, one keyed position store
 
