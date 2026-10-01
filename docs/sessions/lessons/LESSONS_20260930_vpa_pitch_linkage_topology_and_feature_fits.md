@@ -29,7 +29,29 @@ own numbers before the mesh is involved at all.
 
 **What this is not.** It is a nominal read off a mesh. It has no band, and the
 repo's cite-or-gap rule is untouched: `topology_vpa_pitch_linkage.json` cites
-the *sheet* for that length (`inferred`, cell-for-cell), not the fit.
+the *sheet* for that length, cell-for-cell, and not the fit.
+
+The citation is **`untraced`**, and it read `inferred` until review. The
+derivation argument — the sheet states the endpoints, so the length is one
+subtraction and one norm — settles `traced` against `inferred` and says nothing
+about the *support*, which is this workbook and no second document. The SOP's
+rule is that workbook-only support is `untraced` and goes on the gap list
+however reasonable it looks, and `inferred` had quietly taken it off that list
+(`topology_gaps()` emits `unverified_value` only for `untraced`/`no_source_ref`).
+The guard that mechanises the rule was parametrized over stacks alone, so this
+was also the first workbook-cited **topology edge** anywhere in the repo; it
+reads topology edges now.
+
+**And a divergence worth knowing before quoting the number.**
+`topology_pitch_system.json`'s own `pitch_link_length` edge carries
+`properties.nominal_length_mm: 109.4`, from a different workbook, for the same
+hole-to-hole distance on the same link — **3.41 mm** from this one. A rigid
+link's length does not change with pitch (this document's own constancy argument
+establishes that), so they cannot both be right, and the mesh fit corroborates
+*this* one to 0.23 µm. Nothing pairs them, because that nominal lives in
+`properties` rather than in a `dimension`. The reviewer filed
+`ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md`; the
+cross-reference is on this edge's own note now.
 
 ## The `212956-005` correction, and the three MS141xx meshes
 
@@ -161,7 +183,9 @@ Deep link:
    Jeff named by name, and they became clickable mid-session when rotorkit's
    extraction landed. The hub mesh is 286 solids, so expect the suggestion
    surface to colour a great many round faces: `manifest.json`'s per-face
-   `solid_id` is how to narrow by hand.
+   `solid_id` is how to narrow by hand. It will no longer colour **18 fillet
+   bands as ball-shaped**, which is what the patch-gate blocker was about and
+   why it mattered on this part in particular.
 7. **`pitch_arm_root_seat` and `pitch_arm_link_bore`**, on
    `asm217755_215071_001` — one solid, five instances, so this is the cheapest
    of the un-bound parts to read.
@@ -198,24 +222,43 @@ So:
 - the **order** decides, not the residual: plane, then cylinder, then sphere,
   which is the order of how hard the test is to pass by accident. Every residual
   is still reported, so a reader can see how firmly the winner won;
-- a sphere additionally has to be a **patch**: `n_triangles / n_vertices ≥ 1`.
-  A triangulated patch has at least as many triangles as nodes; a band has
-  exactly two fewer. Over the bearing the two populations are 0.93 (every band)
-  against 1.48–1.69 (every patch, including both faces of the ball and both of
-  the race seat) — a 50% margin, no unit, no knowledge of the deflection.
+- a sphere additionally has to be a **patch**: `n_triangles / n_vertices > 1`,
+  and the comparison is strict because a *closed* band lands exactly on 1. For
+  a face of R rows over S segments the counts are `2S(R-1)` triangles over `RS`
+  nodes closed and `R(S+1)` open, so two rows are **at or below** 1 whatever S
+  is and three rows are above. That is a boundary, not a margin: the lowest
+  ratio on any accepted spherical face store-wide is **1.0357** and the
+  distribution runs up from there. The bearing's own four are 1.4783 twice (the
+  race seat) and 1.5714 twice (the ball); MS14103-3's four are 1.2609; its
+  refused bands are 0.9286.
+
+  **This shipped wrong and review caught it.** The comparison was `>=`, written
+  from the open band alone — "a patch has at least as many triangles as nodes; a
+  band has exactly two fewer", which is true of an open band and false of a
+  closed one. 139 faces store-wide answered `spherical` because of it, 18 of
+  them fillet bands on the **hub** offering a solver "ball" radii of 62–65 mm,
+  on one of the two parts Jeff was told to click by name. The witness I wrote
+  for the rule stayed WITNESSED throughout, because the band it exercises is the
+  bearing's *open* one: the arm that worked hid the arm that did not. There are
+  two specs now.
 
 With the band rule the bearing reads exactly right: 4 spherical faces (ball
 5.147, seat 5.198), 6 cylindrical (bore 2.410, OD 7.141), 6 planar, 20 `other`
 — and the 20 say *"one band of quads, which lies on a sphere whatever shape it
 is"* rather than a residual excuse.
 
-Store-wide, Python and JS agree face for face. Measured twice, because the
-store changed mid-session:
+Store-wide, Python and JS agree face for face — **now**; see "the two readers
+did not agree" below for what that sentence was worth when it was first written.
+Measured twice, because the store changed mid-session:
 
 | | faces | meshes | planar | cylindrical | spherical | other | classified |
 |---|---|---|---|---|---|---|---|
 | before rotorkit's run | 11075 | 24 | 2481 | 3632 | 549 | 4413 | **60.2%** |
 | after | 35635 | 35 | 3866 | 6930 | 3041 | 21798 | **38.8%** |
+| after the strict patch gate | 35635 | 35 | 3866 | 6930 | **2902** | **21937** | **38.4%** |
+
+The third row is the review fix: exactly 139 faces moved from `spherical` to
+`other`, which is the count measured independently in the review.
 
 The first is up from 55.2% on the same faces before the sphere existed. The
 second is the store gaining three blade bonded assemblies and a 286-solid hub,
@@ -225,6 +268,87 @@ is the floor doing the one thing its own comment says it must not: *"a tighter
 floor would redden whenever a mesh is installed or replaced, and this check does
 not own what is in the mesh store."* Moved to 0.25, with the measurement in the
 comment beside it.
+
+## What review found, and why both blockers were the same shape
+
+Two blockers, and the reviewer's own summary of them is the thing worth
+carrying: *a guard whose stated claim is wider than what it measures.* Both were
+deliberately designed, documented at length and tested on both arms, and in both
+cases the key the guard compared could not reach the thing the prose said it
+reached.
+
+### The sphere patch gate accepted the shape it refused
+
+Above, under the band rule. One character — `>=` for `>` — and the argument in
+the comment was *correct about open bands* while the code ran on both.
+
+### The placement-source rule counted an already-disambiguated label
+
+`product_mesh_counts()` decided whether rotorkit's expansion was addressable by
+counting `extraction.product_name`. That is the field rotorkit **suffixes
+precisely when a number names more than one solid** (`MS14101-3_2`,
+`216332-001_36`), while `placements.json`'s keys stay bare — so the count was 1
+for exactly the population the rule existed for, and the "shape unrecognised"
+diagnostic fired on a file whose shape was fine. My own two arm tests could not
+see it: they synthesised an expansion keyed by the store's own product names,
+which is the key the real file does not use. **A fixture built from the same
+misunderstanding that wrote the code tests the misunderstanding.**
+
+Measuring the real file answered the design question outright:
+
+| | sidecar instances | expansion's entry |
+|---|---|---|
+| every mesh whose number names **one** solid | n | **exactly n** |
+| `MS14101-3` | 2 | 13 (two links) |
+| `216332-001` (×2) | 1 each | 4 |
+
+So where the expansion is addressable it adds nothing, and where it would add
+something it cannot be attributed. It is therefore **not a source any more**:
+every placement is the mesh's own sidecar, which belongs to one extracted solid,
+and mis-attribution is impossible by construction rather than gated behind a
+count. What the expansion became is the check that answers the question the
+sidecars could not — *is an extraction's instance list the whole truth for its
+solid?* — matched by **instance path**, which crosses the suffix gap. Four
+verdicts (`confirmed`/`superset`/`not_found`/`absent`), carried per fit. Every
+unambiguous mesh is `confirmed`, which also retires the open question this
+lesson's earlier draft left: the sidecars were never slices.
+
+## The two readers did not agree, and the claim that they did was mine
+
+"Python and JS agree face for face" was false when first written: **10 of 35635
+faces** differed, all on the three blade meshes rotorkit installed mid-session.
+The cause was structural, not numerical — `apps/annotate/face_geometry.js`
+**stops** when a shape's own sub-test fails ("parallel facet normals but the
+vertices are not in one plane" ends the classification), and `fit_face` tried
+each shape on its merits. On two of those faces Python answered with a 75.7 mm
+sphere at an RMS of 0.68, accepted only because the gate is relative to a radius
+the bad fit chose.
+
+`fit_face` is now `classifyOne` statement for statement, the two refusal
+vocabularies are paired, and a `[real]` check compares every face of every
+installed mesh. Zero divergences.
+
+**That check costs about 90 seconds**, which is more than the rest of the suite
+put together, and all of it is the Python side — the browser's pass over the
+same faces is under a second. Four rounds of optimisation took it from 165s, and
+each round was a real defect of mine rather than a tuning exercise:
+
+- `Mesh.face()` scanned the face list linearly, O(faces²) over a part — 4.9s of
+  the hub's 55;
+- `faces` rebuilt a list copy on every access, several times per face;
+- the vertex-range table and the largest-face area were recomputed **per face**
+  — 15s of a 27s part;
+- `worst_deviation_deg` re-normalised vectors that are unit by construction, and
+  normalised a fixed direction once per facet instead of once;
+- the three fits each made their own centroid/extent pass, and `fit_sphere`
+  accumulated a 4×4 normal matrix with a nested loop rather than over its
+  symmetric half.
+
+27.5s → 1.1s on one part. The remaining 90s is pure-Python float arithmetic over
+a million triangles, which stdlib-only does not make cheaper. **Scoping the
+pairing to fewer meshes is the obvious saving and it is the wrong one**: the ten
+divergent faces were on the three blades, which is exactly what a subset chosen
+for speed would drop.
 
 ## Four things the next agent should know
 
@@ -287,6 +411,35 @@ one gap row (`pitch_link_length`, no tolerance recorded, which is true) and the
 other twenty-eight show on their edges as `derived`. Filed as
 `ISSUE_20260930_a_valueless_structural_edge_is_invisible_to_the_gap_list.md`;
 the fix needs a word in `TOPOLOGY_GAP_KINDS` and a branch in the fenced viewer.
+
+## Test record
+
+Run in the **handoff worktree** against the main checkout's `data/`, on the
+branch tip, after `scripts/build_topology_projection.py`,
+`build_viewer_projection.py` and `build_viewer_crops.py` were re-run from this
+tree into `C:\workspace\tolstack\data` in that order.
+
+| command | where | result |
+|---|---|---|
+| `venv-win/Scripts/python.exe -m pytest -q` | worktree | **1437 passed, 1 failed**, 4m21s |
+| `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack` | worktree, main-checkout data | **522/522**, no SKIP lines |
+| `node apps/annotate/run_tests.cjs` | worktree (resolves the main checkout's store) | **157/157**, `[real]` tier ran |
+| `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack` | worktree | **25/25 browser checks** |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack` | worktree | **132/132 witnessed** pre-review; the four specs this pass re-anchored or added re-run individually, all WITNESSED |
+| `tests/debug_report_tolerance_stacks.py --ratio` | worktree | 5/12/9 of 26 seeded; 30/16/15 of 61 all stacks — unmoved, this change adds no element |
+
+**The one failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`**,
+and it is the red `CLAUDE.md` documents for a worktree: that test refuses a
+SKIPPED tier, the viewer's `[real]` tier needs `data/projections/viewer/` which
+is gitignored into the main checkout, so it skips here. The tier itself is the
+522/522 row above, run the way the failure message tells you to.
+
+**The browser tier needed `node_modules/playwright-core`**, which exists only in
+the main checkout; I ran it through a directory junction in the worktree and
+removed the junction afterwards (`cmd /c rmdir node_modules`, which unlinks
+rather than following). If you need it again, that is the recipe — and remove it
+again, because a recursive delete that follows the junction would take the main
+checkout's copy with it.
 
 ## Things not done, and why
 
