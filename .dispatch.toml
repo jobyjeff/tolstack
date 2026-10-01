@@ -29,3 +29,20 @@ enabled = true
 root = "{repo_parent}/{repo}-worktrees"
 dir_template = "{slug}"
 remove_on_complete = true
+
+[tests]
+# Read-only [real]-tier inputs the merge candidate needs. Each is a tracked,
+# placeholder-only directory in a fresh worktree (README.md/.gitkeep/
+# PROVENANCE.md), so `bridge-test-inputs` reports every one of these as
+# `present` rather than `linked` today -- see docs/sessions/lessons/
+# LESSONS_20261001_declare_candidate_test_inputs.md and
+# dispatch/docs/issues/ISSUE_20261001_bridge_test_inputs_cannot_arm_a_directory_that_carries_a_tracked_placeholder.md.
+# The declaration stays, because it names the correct set and the moment that
+# dispatch-side gap closes it starts working with no change here.
+candidate_inputs = [
+  "data/inbox/specs",
+  "data/inbox/drawings",
+  "data/inbox/feature-identity",
+  "data/inbox/tolerance_stacks",
+  "data/meshes",
+]
