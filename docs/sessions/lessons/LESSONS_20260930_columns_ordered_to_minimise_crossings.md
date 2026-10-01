@@ -234,3 +234,12 @@ without saying what it can.
 - **`git checkout <file>` to undo a temporary probe takes the real edits with
   it.** I lost two tests.js edits that way and had to redo them. Probe on a
   copy, or re-apply from a script.
+- **A shared gitignored store can move under you mid-run, and the red lands on
+  your branch.** `node apps/annotate/run_tests.cjs` was 151/151 early in this
+  session and 150/151 at the end, same tree: five meshes were installed into
+  `C:\workspace	olstack\data\meshes\` between 20:25 and 20:28 by a parallel
+  worktree, and the whole-store face-classification rate fell under its 45%
+  floor. Nothing in this branch touches a mesh or a classifier. Filed as
+  `ISSUE_20260930_meshes_installed_into_the_shared_store_mid_session_took_the_annotate_classification_floor_red.md`.
+  If a `[real]` number moves and your diff cannot explain it, check the
+  **mtimes under `data/`** before you go looking in the code.
