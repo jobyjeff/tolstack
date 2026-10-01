@@ -1,16 +1,19 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: triaged
 area: topologies
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
 class: geometry_source_ambiguity
-defer_until: 2026-10-15
+handoff: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
 ---
 
 # Blade 1's pitch link is `546293-002`, the instrumented variant — not `213862-002`
+
+> **RULED 2026-10-01 (Jeff, strategy session).** A topology part names the **design (non-instrumented) part**, and its alias row points at the design-part mesh. Specifically: `pitch_link` → `asm217755_213862_002` (the instrumented `546293-002` has a proving ring built in, so it is not the geometry to show); `blade_root` → either installed `216332-001` mesh (the instrumented `551438-001` differs only in strain-gauge instrumentation, which is 2D — the 3D geometry is identical). None of this affects the 3D kinematics; for MVP verification it does not matter which mesh is drawn, long term the design geometry is wanted. When a design-part mesh is drawn at blade 1's occurrence, it takes the blade-1 *instance's* placement (recorded on the instrumented mesh's provenance) — the design mesh's own instances are blades 2–5. Expanded into deliverable 0 of `HANDOFF_20261001_kinematic_sweep_animation`.
+
 
 ## What the new extraction showed
 
