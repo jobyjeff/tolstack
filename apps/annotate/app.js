@@ -39,6 +39,8 @@ const el = {
   // (deliverable 5) -- position: fixed, placed by JS, the same one-node shape
   // apps/viewer's own popover machinery uses.
   alertPop: document.getElementById("alert-pop"),
+  // Sweep mode's joint tooltip -- one node, placed at the pointer.
+  sweepTip: document.getElementById("sweep-tip"),
   // The rail's "set up automatically" menu (deliverable 3) -- the <details>
   // and the box its checkbox rows are written into.
   autoSetup: document.getElementById("auto-setup"),
@@ -105,6 +107,21 @@ const state = {
   // are where the reader currently is.
   helpOpen: false,
   notInSetOpen: false,
+  // Sweep mode, or null when the app is in its ordinary bind posture
+  // (handoff kinematic_sweep_animation). One object holds the whole mode --
+  // the artifact, where the scrubber is, what is playing, which layers are
+  // drawn and what each body resolved to -- so "are we in sweep mode" is one
+  // question with one answer, and leaving is `state.sweep = null` plus the
+  // scene's own restore.
+  sweep: null,
+  // sha256 -> {source, points} -- the joint-feature candidates used to decide
+  // which occurrence a body is. Cached beside faceClasses and for the same
+  // reason: reading and fitting a part's geometry is the expensive half, and
+  // five bodies routinely ask about the same mesh.
+  sweepFeatures: {},
+  // Every occurrence recorded anywhere in the installed store, read once --
+  // see loadOccurrences for why the whole store and not one mesh's own.
+  occurrences: null,
   // The last arrival this app applied ({topologyId, edgeId, studyId, trace}),
   // so ticking an auto-setup box back ON can re-apply it rather than making
   // the reader go back to the stack viewer and click through again.
@@ -740,6 +757,775 @@ async function refreshSuggestions() {
   }
 }
 
+// --- sweep mode (handoff kinematic_sweep_animation) ------------------------
+//
+// Jeff: "I need a way to review/verify the results, and an animated sweep
+// would be the most ideal ... even better would be to anchor the 3d bodies to
+// the kinematic rigid bodies and animate those through the sweep."
+//
+// This half is the impure one, as everywhere else in this app: reading the
+// run through the storage adapter, resolving each body's parts to mesh
+// occurrences, driving the scene and painting the bar. Every number it shows
+// and every decision it makes comes out of sweep.js, which a test in Node can
+// call.
+//
+// THIS MODE WRITES NOTHING. It is a viewer of another repo's solver output;
+// `storage.writeFeatureIdentityEvent` is not reachable from anything below,
+// and face picking is switched off outright whenever the linkage is away from
+// the as-modelled pose every binding in this repo is about.
+
+// What the console says when nothing has published a run yet. Plain words and
+// nothing to paste, the posture AA.NO_PROJECTION_NOTICE set: this page has no
+// transport that could ask anything to produce one.
+const NO_SWEEP_RUNS = "No solver runs have been published into this " +
+  "repository yet. They are produced by the linkage solver, not from this page.";
+
+function sweepState() {
+  if (!state.sweep) throw new Error("not in sweep mode — load a run first");
+  return state.sweep;
+}
+
+// sweep <run-id> | latest | off
+async function cmdSweep(target) {
+  const want = String(target == null ? "" : target).trim();
+  if (!want) throw new Error("sweep takes a run, or \"latest\", or \"off\"");
+  if (want === "off") return leaveSweep();
+
+  let runId = want;
+  if (want === "latest") {
+    const runs = await state.storage.listSweepRuns();
+    if (!runs.length) throw new Error(NO_SWEEP_RUNS);
+    runId = runs[0].runId;
+  }
+  const doc = await state.storage.readSweepRun(runId);
+  if (!doc) throw new Error("there is no published run called " + runId);
+  // Throws naming the schema it found -- including the one case a reader is
+  // most likely to hit, a v0 run that carries measurements and no poses.
+  const artifact = AA.readSweepArtifact(doc);
+
+  if (state.sweep) leaveSweep();
+  const structure = AA.sweepStructure(artifact);
+  const trails = AA.sweepTrails(artifact);
+  state.sweep = {
+    artifact, structure, trails,
+    driverValues: AA.sweepDriverValues(artifact),
+    index: 0,
+    playing: false,
+    speed: AA.SWEEP_DEFAULT_SPEED,
+    // Ping-pong by default: Jeff's own description of what he wants to watch
+    // is the sweep running out "and back".
+    loop: "pingpong",
+    direction: 1,
+    layers: Object.assign({}, AA.SWEEP_DEFAULT_LAYERS),
+    // Per body: which occurrence was chosen, the residual, and the refusal
+    // when there was one. Written by anchorSweepBodies below and read by the
+    // bar's disclosure -- never by the renderer, which just gets matrices.
+    bodies: [],
+    // What was on screen before, so leaving restores it exactly.
+    restoreVisible: state.scene.listOpenParts()
+      .map((sha) => ({ sha, visible: state.scene.isVisible(sha) })),
+    // Parts this mode opened, unloaded again on the way out: "leaving sweep
+    // mode restores the scene exactly" includes not leaving five pitch arms
+    // open that nobody asked for.
+    openedBySweep: [],
+    lastTick: null,
+    // A rolling frame rate, for the dev handle only -- never on the surface.
+    // It is here because "does this run at a usable rate with the 286-solid
+    // hub loaded" is a question about a build, measurable only in one.
+    fps: 0,
+  };
+  state.scene.enterSweep(Object.assign({ trails }, structure));
+  state.scene.onSweepHover = showSweepTip;
+  for (const entry of state.sweep.restoreVisible) state.scene.setVisible(entry.sha, false);
+  applySweepFrame();
+  state.scene.frameSweepScene();
+  renderDetail();
+  // Not awaited: the stick figure is on screen and usable the moment the run
+  // is read, and resolving five occurrences against fitted geometry is the
+  // slow part. It repaints the bar when it lands.
+  anchorSweepBodies().catch((err) => setBanner(err.message, "error"));
+  return { runId, points: artifact.points.length, source: artifact.source };
+}
+
+function leaveSweep() {
+  const sweep = state.sweep;
+  if (!sweep) return null;
+  state.sweep = null;
+  showSweepTip(null, null);
+  state.scene.exitSweep();
+  for (const sha of sweep.openedBySweep) state.scene.unloadPart(sha);
+  for (const entry of sweep.restoreVisible) state.scene.setVisible(entry.sha, entry.visible);
+  renderDetail();
+  return { left: true };
+}
+
+// --- phase 2: the bodies -----------------------------------------------------
+
+// Every occurrence recorded anywhere in the installed store, keyed by its own
+// path through the assembly, plus which mesh recorded each and that mesh's
+// product name. Read once per session.
+//
+// WHY THE WHOLE STORE, and not just the aliased mesh's own: blade 1 carries
+// the INSTRUMENTED variant of both the pitch link and the blade, so the
+// design part this repo draws has no instance of its own at blade 1's
+// occurrence -- that occurrence is recorded on the instrumented mesh's
+// provenance. AA.sweepCandidateOccurrences is what narrows this back down,
+// exactly, per part. (docs/topologies/part_mesh_aliases.json's two
+// 2026-10-01 rows carry the measurement that makes drawing one part's mesh
+// at the other's occurrence sound -- they share a local frame.)
+async function loadOccurrences() {
+  if (state.occurrences) return state.occurrences;
+  const all = [];
+  const byMesh = {};
+  const productOf = {};
+  for (const mesh of state.meshList) {
+    let provenance = null;
+    try { provenance = await state.storage.readMeshProvenance(mesh.sha256); }
+    catch (err) { provenance = null; }
+    const extraction = (provenance && provenance.extraction) || {};
+    productOf[mesh.sha256] = extraction.product_name || null;
+    byMesh[mesh.sha256] = [];
+    for (const instance of extraction.instances || []) {
+      const placement = instance.placement_world;
+      if (!placement || placement.length !== AA.PLACEMENT_VALUES) continue;
+      const path = instance.instance_path || [instance.instance_name];
+      const occurrence = {
+        instance_name: instance.instance_name,
+        path: path,
+        key: path.join("/"),
+        placement: placement,
+        mesh: mesh.sha256,
+      };
+      byMesh[mesh.sha256].push(occurrence);
+      all.push(occurrence);
+    }
+  }
+  state.occurrences = { all, byMesh, productOf };
+  return state.occurrences;
+}
+
+// One mesh's joint-feature candidates, in its own local frame, with the word
+// for where they came from. Fitted where the part is small enough to fit;
+// the manifest's face centroids otherwise (AA.SWEEP_FEATURE_SOURCES).
+//
+// A ball gives a located POINT (its centre); a bore gives an AXIS, and it is
+// carried as one -- see AA.sweepFeatureDistance for why a bore's fitted
+// point is not where the joint is.
+async function sweepFeaturePoints(sha256) {
+  if (state.sweepFeatures[sha256]) return state.sweepFeatures[sha256];
+  const manifest = await state.storage.readMeshManifest(sha256);
+  if (!manifest) return null;
+  let answer = null;
+  if ((manifest.n_triangles || 0) <= AA.SWEEP_FIT_TRIANGLE_BUDGET) {
+    const classes = await ensureFaceClasses(sha256);
+    if (classes) {
+      const points = [];
+      for (const face of classes) {
+        if (!face) continue;
+        if (face.centre) points.push({ p: face.centre });
+        else if (face.axisPoint) points.push({ p: face.axisPoint, d: face.axis });
+      }
+      if (points.length) answer = { source: "fitted", points };
+    }
+  }
+  if (!answer) {
+    const points = (manifest.faces || [])
+      .map((f) => f.centroid_native)
+      .filter((c) => c && c.length === 3)
+      .map((c) => ({ p: c }));
+    answer = { source: "centroid", points };
+  }
+  state.sweepFeatures[sha256] = answer;
+  return answer;
+}
+
+// For each body: resolve its parts to installed meshes, decide which recorded
+// occurrence (or occurrences) each one is, and hand the scene a matrix per
+// occurrence. A part that cannot be resolved keeps its stick figure and says
+// why -- the honest state, never a mesh drawn somewhere plausible.
+//
+// THREE WAYS A PART GETS PLACED, in this order, and the bar names which one
+// every time:
+//
+//   ground      the body does not move, so its parts sit exactly where
+//               provenance says and there is nothing to choose. This is also
+//               what keeps the 286-solid hub off the fitting path.
+//   matched     the body moves, so an occurrence has to EARN the placement by
+//               putting one of the part's own joint features on a joint point
+//               the solver reports. More than one occurrence may earn it --
+//               the pitch link carries two spherical bearings, one at each
+//               end, and both are drawn.
+//   refused     nothing earned it. Said in words, with the distance.
+async function anchorSweepBodies() {
+  const sweep = state.sweep;
+  if (!sweep) return [];
+  const artifact = sweep.artifact;
+  const asModelled = artifact.points[artifact.points.length - 1];
+  const occurrences = await loadOccurrences();
+
+  // The link bodies are the distance-constraint members, which have a
+  // reconstructed pose of their own rather than a `bodies[]` entry. Their own
+  // two joint ends are their targets, which is how the pitch link and both
+  // its bearings find blade 1's occurrence.
+  const subjects = sweep.structure.bodies.map((b) => ({
+    name: b.name, ground: b.ground, riders: b.riders || [],
+    parts: (artifact.bodies.filter((x) => x.name === b.name)[0] || {}).parts || [],
+  })).concat((artifact.links || []).map((l) => ({
+    name: l.joint, ground: false, parts: l.parts || [],
+    riders: AA.SWEEP_JOINT_ENDS.map((end) => ({ joint: l.joint, end })),
+  })));
+
+  const rows = [];
+  for (const subject of subjects) {
+    // Where this subject's joint ends are in the as-modelled frame: the
+    // points an occurrence has to agree with.
+    const targets = subject.riders
+      .map((r) => asModelled.joints[r.joint] && asModelled.joints[r.joint][r.end])
+      .filter(Boolean);
+
+    for (const partId of subject.parts) {
+      const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
+      if (!mesh) {
+        rows.push({ subject: subject.name, part: partId, state: "no-mesh" });
+        continue;
+      }
+      const candidateOccurrences = AA.sweepCandidateOccurrences(
+        occurrences.byMesh[mesh.sha256], occurrences.all,
+        occurrences.productOf[mesh.sha256]);
+      if (!candidateOccurrences.length) {
+        rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
+          state: "no-occurrence" });
+        continue;
+      }
+      if (subject.ground) {
+        const mine = occurrences.byMesh[mesh.sha256] || candidateOccurrences;
+        rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
+          state: "ground",
+          candidates: mine.length,
+          candidateKeys: mine.map((o) => o.key),
+          placements: mine.map((o) => ({ key: o.key, instance_name: o.instance_name,
+            placement: o.placement, residual: null })) });
+        continue;
+      }
+      if (!targets.length) {
+        rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
+          state: "no-joint" });
+        continue;
+      }
+      const features = await sweepFeaturePoints(mesh.sha256);
+      if (!features || !features.points.length) {
+        rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
+          state: "no-feature" });
+        continue;
+      }
+      const limits = AA.sweepInstanceLimits(features.source);
+      const candidates = candidateOccurrences.map((occurrence) => ({
+        instance_name: occurrence.instance_name,
+        key: occurrence.key,
+        placement: occurrence.placement,
+        points: features.points.map(
+          (f) => AA.placeSweepFeature(occurrence.placement, f)),
+      }));
+      // One decision per joint end, because one part may legitimately sit at
+      // more than one of them -- and deduplicated, because one occurrence may
+      // legitimately be the nearest to both.
+      const placements = [];
+      let refusal = null;
+      for (const target of targets) {
+        const answer = AA.chooseSweepInstance(candidates, target, limits);
+        if (answer.refused) {
+          if (!refusal || (answer.residual != null && refusal.residual != null &&
+            answer.residual < refusal.residual)) refusal = answer;
+          continue;
+        }
+        if (placements.some((p) => p.key === answer.key)) continue;
+        placements.push({ key: answer.key, instance_name: answer.chosen,
+          placement: answer.candidate.placement, residual: answer.residual });
+      }
+      rows.push({
+        subject: subject.name, part: partId, sha256: mesh.sha256,
+        state: placements.length ? "matched" : "refused",
+        featureSource: features.source,
+        candidates: candidateOccurrences.length,
+        candidateKeys: candidateOccurrences.map((o) => o.key),
+        placements: placements,
+        residual: placements.length ? placements[0].residual : null,
+        reason: placements.length ? null : (refusal && refusal.reason),
+      });
+    }
+  }
+
+  // Open every mesh that got a placement, once.
+  for (const row of rows) {
+    if (!row.placements || !row.placements.length) continue;
+    if (state.scene.listOpenParts().indexOf(row.sha256) !== -1) continue;
+    try {
+      await AA.exec(["open-part", row.sha256]);
+      sweep.openedBySweep.push(row.sha256);
+    } catch (err) { /* the row already says what happened */ }
+  }
+  sweep.bodies = rows;
+  applySweepFrame();
+  // The scene is only now what it is going to be, so this is where it gets
+  // framed -- a stick figure and a stick figure inside a 286-solid hub want
+  // very different camera distances.
+  state.scene.frameSweepScene();
+  renderDetail();
+  return rows;
+}
+
+// What a hovered joint bead says. The sentence is AA.sweepJointTooltip's --
+// including the link convention, which comes out of the artifact verbatim --
+// and this is the two lines that put it on screen.
+function showSweepTip(hover, ev) {
+  if (!el.sweepTip) return;
+  const sweep = state.sweep;
+  if (!hover || !sweep || !sweep.frame || !ev) {
+    el.sweepTip.style.display = "none";
+    el.sweepTip.textContent = "";
+    return;
+  }
+  el.sweepTip.textContent = AA.sweepJointTooltip(sweep.artifact, sweep.frame, hover.name);
+  el.sweepTip.style.display = "block";
+  // Offset from the pointer rather than centred on it, so the tooltip never
+  // sits under the cursor and flickers the hover it is reporting.
+  el.sweepTip.style.left = (ev.clientX + 14) + "px";
+  el.sweepTip.style.top = (ev.clientY + 14) + "px";
+}
+
+// --- the frame -----------------------------------------------------------
+
+// Everything that depends on WHERE the scrubber is, in one function, so the
+// clock, the bar, a verb and the deep link all produce the same scene.
+function applySweepFrame() {
+  const sweep = state.sweep;
+  if (!sweep) return null;
+  const frame = AA.sweepFrameAt(sweep.artifact, sweep.index);
+  sweep.frame = frame;
+  state.scene.setSweepFrame(frame, frame.nearer.converged);
+
+  for (const row of sweep.bodies) {
+    if (!row.placements || !row.placements.length) continue;
+    // A distance-constraint member's pose is the artifact's own reconstructed
+    // one (spin-free); every other body's is its `poses` entry. Ground's is
+    // the identity, which is exactly what an absent entry composes to.
+    const pose = sweep.frame.links[row.subject] || sweep.frame.poses[row.subject] || null;
+    const matrices = row.placements.map((p) => AA.anchorPlacement(pose, p.placement));
+    state.scene.setPartMatrix(row.sha256, sweep.layers.bodies ? matrices : null);
+    state.scene.setVisible(row.sha256, !!sweep.layers.bodies);
+    // THE SAME "See-through parts" PREFERENCE the rest of this app honours,
+    // and for a sharper reason here: the stick figure is sweep mode's
+    // content and the bodies are what it is attached to, so an opaque
+    // 286-solid hub hides the thing a reader opened this mode to watch.
+    // Default on; a reader who wants solid bodies unticks the box they
+    // already know.
+    state.scene.setGhost(row.sha256, state.transparentParts);
+    state.scene.setSweepGhost(row.sha256,
+      sweep.layers.ghost ? row.placements.map((p) => p.placement) : null);
+  }
+  return frame;
+}
+
+function setSweepIndex(index) {
+  const sweep = sweepState();
+  const last = sweep.artifact.points.length - 1;
+  sweep.index = Math.min(Math.max(Number(index) || 0, 0), last);
+  // Reduced motion gets whole points and nothing between them -- the same
+  // answer apps/viewer gave its own animation.
+  if (prefersReducedMotion()) sweep.index = Math.round(sweep.index);
+  applySweepFrame();
+  renderDetail();
+  return sweep.index;
+}
+
+function prefersReducedMotion() {
+  try {
+    return !!(window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  } catch (err) {
+    return false;
+  }
+}
+
+// --- the playback verbs ----------------------------------------------------
+
+function cmdPlay() {
+  const sweep = sweepState();
+  sweep.playing = true;
+  sweep.lastTick = null;
+  renderDetail();
+  return true;
+}
+
+function cmdPause() {
+  const sweep = sweepState();
+  sweep.playing = false;
+  renderDetail();
+  return false;
+}
+
+function cmdSpeed(value) {
+  const sweep = sweepState();
+  sweep.speed = AA.parseSweepSpeed(value);
+  renderDetail();
+  return sweep.speed;
+}
+
+function cmdLoop(value) {
+  const sweep = sweepState();
+  sweep.loop = AA.parseSweepLoop(value);
+  sweep.direction = 1;
+  renderDetail();
+  return sweep.loop;
+}
+
+function cmdSeek(value) {
+  const sweep = sweepState();
+  return setSweepIndex(AA.parseSweepSeek(value, sweep.driverValues));
+}
+
+function cmdStep(delta) {
+  const sweep = sweepState();
+  const by = Number(delta);
+  return setSweepIndex(AA.sweepStepIndex(sweep.index, isFinite(by) ? by : 1,
+    sweep.artifact.points.length));
+}
+
+function cmdLayer(name, value) {
+  const sweep = sweepState();
+  const layer = AA.parseSweepLayer(name);
+  sweep.layers[layer] = value === undefined ? !sweep.layers[layer] : AA.parseOnOff(value);
+  state.scene.setSweepLayer(layer, sweep.layers[layer]);
+  applySweepFrame();
+  renderDetail();
+  return sweep.layers[layer];
+}
+
+// One frame of wall clock. Called from the app's own rAF loop (main), not
+// from the scene's -- the scene renders whatever it is told, and deciding
+// where the sweep IS is this file's job.
+function tickSweep(now) {
+  const sweep = state.sweep;
+  if (!sweep || !sweep.playing) return;
+  const last = sweep.lastTick;
+  sweep.lastTick = now;
+  if (last == null) return;
+  // A tab that was in the background hands back a gap of seconds. Capping it
+  // means coming back to where you were, not to wherever that gap landed.
+  const dt = Math.min((now - last) / 1000, 0.25);
+  if (dt > 0) sweep.fps = sweep.fps ? sweep.fps * 0.9 + (1 / dt) * 0.1 : 1 / dt;
+  const count = sweep.artifact.points.length;
+  const next = prefersReducedMotion()
+    ? Object.assign({}, AA.sweepAdvance(sweep, dt, count),
+      { index: AA.sweepStepIndex(sweep.index, sweep.direction, count) })
+    : AA.sweepAdvance(sweep, dt, count);
+  const wasPlaying = sweep.playing;
+  sweep.index = next.index;
+  sweep.direction = next.direction;
+  sweep.playing = next.playing;
+  applySweepFrame();
+  // The bar is repainted on every frame only for the numbers that move; the
+  // controls repaint when a control's own state changes, which is why the
+  // stop at the end gets a full render and a plain tick does not.
+  if (wasPlaying !== sweep.playing) renderDetail();
+  else renderSweepReadouts();
+}
+
+// --- the bar, in sweep mode ------------------------------------------------
+//
+// Three rows, and each one answers a different question:
+//
+//   1  WHAT AM I LOOKING AT -- the run, and above all where its geometry came
+//      from. Jeff's whole concern with this surface is knowing whether he is
+//      looking at the motion sheet's geometry or at geometry fitted from CAD,
+//      so that word is on screen at all times and is never the artifact's own
+//      token.
+//   2  THE CONTROLS -- transport, the draggable bar along the driver, speed
+//      and loop. One line, which is what the bar costs at rest everywhere
+//      else in this app.
+//   3  THE NUMBERS -- the solver's own, at the point nearest the handle.
+//      Right-aligned, tabular, fixed decimals per unit, so a digit never
+//      moves sideways under a scrub.
+//
+// The bind instruction is not here, because binding is not available here
+// (see the frame rule): a page that has said it cannot do a thing does not
+// also instruct the reader to do it -- the same posture the hosted page took.
+function renderSweepBar() {
+  const sweep = state.sweep;
+  el.detail.innerHTML = "";
+  sweep.nodes = {};
+
+  const summary = document.createElement("div");
+  summary.className = "an__detail-line";
+  const who = document.createElement("span");
+  who.className = "an__sweep-summary";
+  who.textContent = AA.sweepSummaryParts(sweep.artifact).join(" · ");
+  summary.appendChild(who);
+  if (sweep.artifact.notConverged) who.classList.add("an__sweep-summary--warn");
+  summary.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
+  el.detail.appendChild(summary);
+
+  const controls = document.createElement("div");
+  controls.className = "an__sweep-controls";
+  controls.appendChild(sweepButton("◀", "step back one point",
+    () => AA.exec(["step", "-1"])));
+  controls.appendChild(sweepButton(sweep.playing ? "❚❚" : "▶",
+    sweep.playing ? "pause" : "play",
+    () => AA.exec([sweep.playing ? "pause" : "play"])));
+  controls.appendChild(sweepButton("▶|", "step forward one point",
+    () => AA.exec(["step", "1"])));
+
+  const last = sweep.artifact.points.length - 1;
+  const track = document.createElement("div");
+  track.className = "an__sweep-track";
+  const range = document.createElement("input");
+  range.type = "range";
+  range.min = "0";
+  range.max = String(last);
+  // Whole points under reduced motion, a continuous scrub otherwise.
+  range.step = prefersReducedMotion() ? "1" : "0.01";
+  range.value = String(sweep.index);
+  range.className = "an__sweep-range";
+  range.setAttribute("aria-label", "position along " +
+    (sweep.artifact.driverLabel || "the sweep"));
+  range.oninput = () => {
+    sweep.playing = false;
+    setSweepIndexQuietly(Number(range.value));
+  };
+  track.appendChild(range);
+
+  // The marks under the bar: one per point the solver did not settle. They
+  // are the reason the scrubber is not just a slider -- a reader scrubbing
+  // past one should be able to see it coming.
+  const marks = document.createElement("div");
+  marks.className = "an__sweep-marks";
+  sweep.artifact.points.forEach((point, i) => {
+    if (point.converged) return;
+    const mark = document.createElement("span");
+    mark.className = "an__sweep-mark";
+    mark.style.left = (last ? (i / last) * 100 : 0) + "%";
+    mark.title = "the solver did not settle at this point";
+    marks.appendChild(mark);
+  });
+  track.appendChild(marks);
+
+  // The value at the handle: the driver, and the measure the run has a
+  // reference for -- which is blade pitch, the thing a reader is scrubbing
+  // TO. Positioned over the handle rather than parked at the end of the row,
+  // because "what is the pitch here" is a question about where the handle is.
+  const chip = document.createElement("span");
+  chip.className = "an__sweep-chip";
+  track.appendChild(chip);
+  sweep.nodes.chip = chip;
+  sweep.nodes.range = range;
+  controls.appendChild(track);
+
+  controls.appendChild(sweepSelect("speed", AA.SWEEP_SPEEDS.map((s) => ({
+    value: String(s), label: s + "×",
+  })), String(sweep.speed), (value) => AA.exec(["speed", value])));
+  controls.appendChild(sweepSelect("loop", AA.SWEEP_LOOP_MODES.map((m) => ({
+    value: m, label: SWEEP_LOOP_LABELS[m],
+  })), sweep.loop, (value) => AA.exec(["loop", value])));
+  el.detail.appendChild(controls);
+
+  const work = document.createElement("div");
+  work.className = "an__detail-work";
+  const readouts = document.createElement("dl");
+  readouts.className = "an__sweep-readouts";
+  work.appendChild(readouts);
+  sweep.nodes.readouts = readouts;
+
+  // The frame rule, said once, where the bind instruction would otherwise be.
+  const gate = document.createElement("p");
+  gate.className = "an__sweep-gate";
+  work.appendChild(gate);
+  sweep.nodes.gate = gate;
+
+  if (sweep.bodies.length) work.appendChild(buildSweepBodiesDisclosure());
+  el.detail.appendChild(work);
+  renderSweepReadouts();
+  renderHintPanel();
+}
+
+// Scrub without a full repaint: dragging the handle must not rebuild the
+// control the pointer is holding, which would drop the drag.
+function setSweepIndexQuietly(index) {
+  const sweep = state.sweep;
+  const last = sweep.artifact.points.length - 1;
+  sweep.index = Math.min(Math.max(Number(index) || 0, 0), last);
+  if (prefersReducedMotion()) sweep.index = Math.round(sweep.index);
+  applySweepFrame();
+  renderSweepReadouts();
+}
+
+const SWEEP_LOOP_LABELS = Object.freeze({
+  off: "once", on: "repeat", pingpong: "out and back",
+});
+
+// The four layers, in words, keyed by AA.SWEEP_LAYERS -- so the Display panel
+// is written FROM the vocabulary the `layer` verb parses and cannot offer a
+// fifth or miss one of the four. run_tests.cjs pairs the two.
+const SWEEP_LAYER_LABELS = Object.freeze({
+  stick: "Joints and links",
+  bodies: "3D parts",
+  trail: "Paths",
+  ghost: "Where it started",
+});
+const SWEEP_LAYER_HINTS = Object.freeze({
+  stick: "a bead at every joint, a line along every two-force member, and a " +
+    "frame on every body",
+  bodies: "the installed 3D models, carried by the bodies they belong to",
+  trail: "the whole path each joint takes over the sweep, drawn faintly",
+  ghost: "a translucent copy of each part where the model was built, to " +
+    "compare against",
+});
+
+function sweepButton(glyph, title, onClick) {
+  const button = document.createElement("button");
+  button.className = "an__sweep-btn";
+  button.textContent = glyph;
+  button.title = title;
+  button.setAttribute("aria-label", title);
+  button.onclick = () => {
+    try { onClick(); } catch (err) { setBanner(err.message, "error"); }
+  };
+  return button;
+}
+
+function sweepSelect(label, options, selected, onChange) {
+  const select = document.createElement("select");
+  select.className = "an__sweep-select";
+  select.title = label;
+  select.setAttribute("aria-label", label);
+  for (const option of options) {
+    const node = document.createElement("option");
+    node.value = option.value;
+    node.textContent = option.label;
+    if (option.value === selected) node.selected = true;
+    select.appendChild(node);
+  }
+  select.onchange = () => {
+    try { onChange(select.value); } catch (err) { setBanner(err.message, "error"); }
+  };
+  return select;
+}
+
+// The numbers, and the two things beside them that change on every frame.
+// Separated from renderSweepBar so a playing sweep repaints three text nodes
+// a frame instead of rebuilding a slider sixty times a second.
+function renderSweepReadouts() {
+  const sweep = state.sweep;
+  if (!sweep || !sweep.nodes || !sweep.nodes.readouts) return;
+  const frame = sweep.frame;
+  const rows = AA.sweepReadouts(sweep.artifact, frame);
+  const list = sweep.nodes.readouts;
+  list.innerHTML = "";
+  for (const row of rows) {
+    const term = document.createElement("dt");
+    term.textContent = row.label;
+    const value = document.createElement("dd");
+    value.textContent = AA.formatSweepNumber(row.value, row.unit) +
+      (row.unit ? " " + row.unit : "");
+    // A link's measured length carries what it is supposed to be, right
+    // beside it: that pair IS the verification, and separating them would
+    // make a reader hold one of the two numbers in their head.
+    if (row.expected != null) {
+      const against = document.createElement("span");
+      against.className = "an__sweep-against";
+      against.textContent = "/ " + AA.formatSweepNumber(row.expected, row.unit);
+      value.appendChild(against);
+    }
+    list.appendChild(term);
+    list.appendChild(value);
+  }
+
+  if (sweep.nodes.range && document.activeElement !== sweep.nodes.range) {
+    sweep.nodes.range.value = String(sweep.index);
+  }
+  if (sweep.nodes.chip) {
+    const last = sweep.artifact.points.length - 1;
+    const driver = AA.indexToDriver(sweep.driverValues, sweep.index);
+    const referenced = sweep.artifact.reference && sweep.artifact.reference.measure;
+    const headline = referenced && frame.nearer.measures[referenced] != null
+      ? AA.formatSweepNumber(frame.nearer.measures[referenced],
+        sweep.artifact.measureUnits[referenced]) + " " +
+        (sweep.artifact.measureUnits[referenced] || "")
+      : "";
+    sweep.nodes.chip.textContent =
+      AA.formatSweepNumber(driver, sweep.artifact.driverUnit) + " " +
+      (sweep.artifact.driverUnit || "") + (headline ? " · " + headline : "");
+    sweep.nodes.chip.style.left = (last ? (sweep.index / last) * 100 : 0) + "%";
+    sweep.nodes.chip.classList.toggle("an__sweep-chip--warn",
+      frame.nearer.converged === false);
+  }
+  if (sweep.nodes.gate) {
+    const atHome = AA.sweepIsAsModelled(frame);
+    sweep.nodes.gate.textContent = atHome ? "" : AA.SWEEP_PICKING_DISABLED;
+    sweep.nodes.gate.style.display = atHome ? "none" : "block";
+  }
+}
+
+// Which occurrence each body turned out to be, how far off it was, and the
+// honest state for the ones that did not resolve. A disclosure rather than a
+// row of its own: it is the answer to a question a reader only sometimes
+// asks, and the stick figure is on screen either way.
+function buildSweepBodiesDisclosure() {
+  const sweep = state.sweep;
+  const box = document.createElement("details");
+  box.className = "an__sweep-bodies";
+  const head = document.createElement("summary");
+  const anchored = sweep.bodies.filter(
+    (r) => r.placements && r.placements.length).length;
+  head.textContent = anchored + " of " + sweep.bodies.length + " parts placed";
+  box.appendChild(head);
+  const list = document.createElement("ul");
+  for (const row of sweep.bodies) {
+    const item = document.createElement("li");
+    const what = document.createElement("span");
+    what.className = "an__sweep-body-name";
+    what.textContent = AA.measureLabel(row.subject);
+    item.appendChild(what);
+    const says = document.createElement("span");
+    says.className = "an__sweep-body-state";
+    says.textContent = sweepBodyWords(row);
+    item.appendChild(says);
+    list.appendChild(item);
+  }
+  box.appendChild(list);
+  return box;
+}
+
+// What one body's row says, in words. A vocabulary rather than four inline
+// strings, for the reason every reader-facing sentence in this app is a
+// constant: run_tests.cjs has no DOM, and copy it cannot read is copy the
+// shared ban list does not scan.
+const SWEEP_BODY_WORDS = Object.freeze({
+  "no-mesh": "no 3D model installed for this part — stick figure only",
+  "no-occurrence": "its 3D model records no position in the assembly — stick figure only",
+  "no-joint": "no solved joint point to place it against — stick figure only",
+  "no-feature": "its 3D model offers nothing to match a joint against — stick figure only",
+});
+
+function occurrenceWords(row, placement) {
+  return AA.sweepOccurrenceLabel(placement.key, row.candidateKeys || []);
+}
+
+function sweepBodyWords(row) {
+  if (row.state === "ground") {
+    return "fixed — drawn where the assembly records it, at " +
+      row.placements.map((p) => occurrenceWords(row, p)).join(" and ");
+  }
+  if (row.state === "matched") {
+    return "placed at " + row.placements.map((p) => occurrenceWords(row, p) + ", " +
+      AA.formatSweepNumber(p.residual, "mm") + " mm from the solved joint").join("; and at ") +
+      " — " + AA.SWEEP_FEATURE_SOURCE_WORDS[row.featureSource] +
+      ", out of " + row.candidates + " recorded position" +
+      (row.candidates === 1 ? "" : "s");
+  }
+  if (row.state === "refused") return row.reason + " — stick figure only";
+  return SWEEP_BODY_WORDS[row.state] || row.state;
+}
+
 // help [on|off] -- the top bar's collapsible half (deliverable 1). No
 // argument toggles, which is what the button does.
 function cmdHelp(value) {
@@ -769,6 +1555,17 @@ commands.register("transparency", cmdTransparency);
 commands.register("suggest", cmdSuggest);
 commands.register("auto-suggest", cmdAutoSuggest);
 commands.register("help", cmdHelp);
+// Sweep mode (handoff kinematic_sweep_animation). Every one of them is a
+// verb for the same reason the rest are: the controls in the bar, the
+// keyboard, the deep link and the command box drive ONE state machine.
+commands.register("sweep", cmdSweep);
+commands.register("play", cmdPlay);
+commands.register("pause", cmdPause);
+commands.register("speed", cmdSpeed);
+commands.register("seek", cmdSeek);
+commands.register("step", cmdStep);
+commands.register("loop", cmdLoop);
+commands.register("layer", cmdLayer);
 AA.exec = (input) => commands.exec(input);
 
 // The last arrival, run again -- what ticking an auto-setup box back on does.
@@ -1075,6 +1872,13 @@ function selectEdge(edge) {
 // run_viewer_browser_tests.mjs) names it when it checks that a page which has
 // said it cannot annotate is not also instructing the reader to.
 function renderDetail() {
+  // Sweep mode owns the whole bar while it is on: the bind instruction, the
+  // bind form and the owner-not-in-set escape hatch are all about a workflow
+  // that is switched off here, and showing them under a line that says
+  // picking is disabled is the exact contradiction the hosted-page work was
+  // about (ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_
+  // reader_to_bind_a_face).
+  if (state.sweep) return renderSweepBar();
   el.detail.innerHTML = "";
   const edge = state.selectedEdge;
   const canWrite = !!(state.storage && state.storage.canWrite());
@@ -1175,7 +1979,7 @@ function renderHintPanel() {
   const help = group("What you can do");
   const lines = document.createElement("ul");
   lines.className = "an__hint-lines";
-  for (const text of AA.HELP_LINES) {
+  for (const text of (state.sweep ? AA.SWEEP_HELP_LINES : AA.HELP_LINES)) {
     const li = document.createElement("li");
     li.textContent = text;
     lines.appendChild(li);
@@ -1184,6 +1988,24 @@ function renderHintPanel() {
   el.hintPanel.appendChild(help);
 
   const display = group("Display");
+  if (state.sweep) {
+    // What is drawn, as four checkboxes over the one vocabulary the
+    // `layer` verb parses -- so the panel cannot offer a layer the verb refuses, or
+    // miss one it accepts.
+    for (const layer of AA.SWEEP_LAYERS) {
+      display.appendChild(settingCheckbox(SWEEP_LAYER_LABELS[layer],
+        state.sweep.layers[layer], SWEEP_LAYER_HINTS[layer],
+        ((which) => (on) => AA.exec(["layer", which, AA.onOff(on)]))(layer)));
+    }
+    // ...and the app's own see-through setting, which sweep mode honours too
+    // (see applySweepFrame). The same box, the same verb, the same stored
+    // preference -- not a second answer to "what do I see".
+    display.appendChild(settingCheckbox("See-through parts", state.transparentParts,
+      "renders the bodies translucent, so the joints and links show through them",
+      (on) => AA.exec(["transparency", AA.onOff(on)])));
+    el.hintPanel.appendChild(display);
+    return;
+  }
   display.appendChild(settingCheckbox("See-through parts", state.transparentParts,
     "renders bodies translucent, so faces already bound show through",
     (on) => AA.exec(["transparency", AA.onOff(on)])));
@@ -1474,9 +2296,13 @@ const wantIsolate = params.get("isolate");
 // ?trace=1&topology=<id>&study=<id> boots the per-study 3D trace (the `trace`
 // verb) instead of the goto/isolate pair -- the flyout's own boot shape.
 const wantTrace = params.get("trace") === "1";
+// ?sweep=<run-id|latest>&t=<driver value> -- sweep mode's own entry, through
+// the same AA.planEntryCommands list every other one takes.
+const wantSweep = params.get("sweep");
+const wantSweepAt = params.get("t");
 
 function hasPendingDeepLink() {
-  return !!(wantTopology || wantIsolate);
+  return !!(wantTopology || wantIsolate || wantSweep);
 }
 
 // FSA cannot pre-grant a folder from a URL (the handoff's own constraint) --
@@ -1501,6 +2327,7 @@ async function runPendingDeepLink() {
   for (const command of AA.planEntryCommands({
     topology: wantTopology, study: wantStudy, edge: wantEdge,
     isolate: wantIsolate, trace: wantTrace,
+    sweep: wantSweep, t: wantSweepAt,
   })) {
     try {
       await AA.exec(command);
@@ -1717,6 +2544,41 @@ async function main() {
   // highlightedFace()` is the only observable for "the orange came off", which
   // is the entire deliverable of the deselect work and was un-checkable before.
   window.__scene = state.scene;
+  // The same read-only convention, for sweep mode: a harness (and the
+  // screenshot pass) can ask where the scrubber is and what frame rate the
+  // playback is actually getting. Nothing in this app reads it, and it is
+  // not a second way to drive the mode -- every mutation is still a verb.
+  Object.defineProperty(window, "__sweep", { get: () => state.sweep });
+
+  // The clock. The scene has a requestAnimationFrame loop of its own that
+  // only renders; deciding WHERE the sweep is belongs here, with the state,
+  // so one loop advances it and the scene is told the answer.
+  const sweepClock = (now) => {
+    try { tickSweep(now); } catch (err) { setBanner(err.message, "error"); }
+    requestAnimationFrame(sweepClock);
+  };
+  requestAnimationFrame(sweepClock);
+
+  // Space, the arrows, Home and End -- the transport every video player has,
+  // and each one is the verb the button beside it runs. Ignored while the
+  // reader is typing into the command box, and while a control that uses the
+  // same keys (the scrubber itself) has focus.
+  window.addEventListener("keydown", (ev) => {
+    if (!state.sweep) return;
+    const target = ev.target;
+    if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" ||
+      target.tagName === "TEXTAREA")) return;
+    const last = state.sweep.artifact.points.length - 1;
+    let command = null;
+    if (ev.key === " ") command = [state.sweep.playing ? "pause" : "play"];
+    else if (ev.key === "ArrowLeft") command = ["step", "-1"];
+    else if (ev.key === "ArrowRight") command = ["step", "1"];
+    else if (ev.key === "Home") command = ["seek", "#0"];
+    else if (ev.key === "End") command = ["seek", "#" + last];
+    if (!command) return;
+    ev.preventDefault();
+    AA.exec(command).catch((err) => setBanner(err.message, "error"));
+  });
   // Every click in the 3D view is one of the two verbs, chosen by the pure
   // AA.planPickToggle (deliverable 3): a click into empty space and a click
   // back onto the already-picked face both DESELECT, anything else selects.
@@ -1724,6 +2586,17 @@ async function main() {
   // tint exactly where it was, and a re-click re-highlighted the same face --
   // so there were three ways to pick a face and none to unpick one.
   state.scene.onPick = (pick) => {
+    // THE FRAME RULE. A face is still the right face while the linkage is
+    // swept, but every reason a reader has to trust what they clicked is
+    // about where it was: a binding is identity, recorded against geometry
+    // sitting in the pose the model was built in. So picking is off outright
+    // away from that pose, with the reason on the bar rather than a click
+    // that quietly does nothing. At the as-modelled frame sweep mode is
+    // transparent and this behaves exactly as it always has.
+    if (state.sweep && !AA.sweepIsAsModelled(state.sweep.frame)) {
+      setBanner(AA.SWEEP_PICKING_DISABLED, "warn");
+      return;
+    }
     const plan = AA.planPickToggle(state.currentPick, pick);
     try {
       if (plan.action === "clear") AA.exec(["deselect", "face"]);

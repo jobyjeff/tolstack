@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: which occurrence a body is, is decided by distance -- nearest wins, a tie refuses, and too far refuses",
+  "mutations": [
+    {
+      "contract": "Five pitch arms, five pitch links, three mounts: which occurrence a body is, is decided by agreement with the solved joint point, and a nearest that is too far away or tied with its runner-up refuses rather than guessing.",
+      "issue": null,
+      "note": "The mutation drops the acceptance radius, keeping the nearest-wins arm that every happy-path check exercises. A body whose occurrence is simply not in the store then gets drawn at whatever was least far away -- a wrong solid, silently, which is the one failure this whole surface is supposed to make impossible.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (best.residual > maxMm) {",
+      "replace": "    if (false) {"
+    }
+  ]
+}

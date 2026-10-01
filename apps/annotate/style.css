@@ -345,3 +345,96 @@ body {
 .an__nis > summary { cursor: pointer; color: #9aa1ab; padding: 2px 0; }
 .an__nis > summary:hover, .an__nis[open] > summary { color: #cfd3d8; }
 .an__nis-body { padding-top: 6px; }
+
+/* --- sweep mode (handoff kinematic_sweep_animation, 2026-10-01) ------------
+   The bar, while a solver run is being played back. Three rows and nothing
+   else: what you are looking at, the transport, and the numbers. No panel, no
+   second column, no border between them -- whitespace separates, which is the
+   rule the rest of this bar already follows.
+
+   One accent in the view, and it is the warning: an unconverged point. The
+   joint colours live in scene.js (they are drawn into WebGL, not styled), and
+   nothing here competes with them. */
+.an__sweep-summary {
+  flex: 1; min-width: 0; color: #9aa1ab; font-size: var(--t-meta);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.an__sweep-summary--warn { color: #d6b45b; }
+
+.an__sweep-controls { display: flex; align-items: center; gap: 8px; }
+/* Quiet until hover, like every other affordance here. Fixed width so the
+   play glyph swapping for pause does not shift the row. */
+.an__sweep-btn {
+  flex: none; width: 28px; height: 24px; padding: 0;
+  background: none; border: 1px solid transparent; border-radius: 4px;
+  color: #9aa1ab; font: inherit; line-height: 1; cursor: pointer;
+}
+.an__sweep-btn:hover, .an__sweep-btn:focus {
+  color: #e8e8e8; background: #2c3138; outline: none;
+}
+.an__sweep-select {
+  flex: none; font-size: var(--t-meta); padding: 1px 4px;
+  border: 1px solid #3a4049; border-radius: 4px;
+}
+
+/* The draggable time bar, along the driver. `position: relative` because two
+   things are positioned along it: the marks for the points the solver did not
+   settle, and the value chip that rides the handle. */
+.an__sweep-track { position: relative; flex: 1; min-width: 160px; padding-top: 14px; }
+.an__sweep-range { width: 100%; margin: 0; display: block; }
+.an__sweep-marks { position: relative; height: 4px; margin-top: 2px; }
+.an__sweep-mark {
+  position: absolute; top: 0; width: 2px; height: 4px; margin-left: -1px;
+  background: #d6705b; border-radius: 1px;
+}
+/* The number at the handle. `translateX(-50%)` keeps it centred on the thumb;
+   `pointer-events: none` so it never eats a drag that starts on top of it. */
+.an__sweep-chip {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font-size: var(--t-micro); color: #cfd3d8; white-space: nowrap;
+  pointer-events: none; font-variant-numeric: tabular-nums;
+}
+.an__sweep-chip--warn { color: #d6705b; }
+
+/* The numbers. A two-column grid repeated across the bar: label muted and
+   left, value bright, right-aligned and tabular so a digit never moves
+   sideways under a scrub. */
+.an__sweep-readouts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px 20px; margin: 0; width: 100%; font-size: var(--t-meta);
+}
+.an__sweep-readouts dt {
+  grid-column: auto; color: #9aa1ab;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.an__sweep-readouts dd {
+  margin: 0; color: #e8e8e8; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* What a measured link length is supposed to be, right beside what it is. */
+.an__sweep-against { color: #9aa1ab; margin-left: 6px; }
+
+.an__sweep-gate { margin: 4px 0 0; width: 100%; color: #d6b45b; font-size: var(--t-meta); }
+
+/* Which occurrence each body turned out to be: a disclosure, because it is
+   the answer to a question a reader only sometimes asks. */
+.an__sweep-bodies { font-size: var(--t-meta); width: 100%; }
+.an__sweep-bodies > summary { cursor: pointer; color: #9aa1ab; padding: 2px 0; }
+.an__sweep-bodies > summary:hover, .an__sweep-bodies[open] > summary { color: #cfd3d8; }
+.an__sweep-bodies ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.an__sweep-bodies li { display: flex; gap: 12px; padding: 1px 0; }
+.an__sweep-body-name { flex: 0 0 150px; color: #cfd3d8; }
+.an__sweep-body-state { flex: 1; min-width: 0; color: #9aa1ab; }
+
+/* Sweep mode's joint tooltip. `position: fixed` and placed by JS at the
+   pointer, the same shape .alertpop uses -- the canvas is a box, and a popup
+   rendered inside it would be clipped at the edges. `pointer-events: none`
+   so it can never eat the hover it is reporting. `pre-line` because the
+   sentence is lines, one of which is the artifact's own convention string. */
+.sweeptip {
+  position: fixed; z-index: 20; max-width: 340px;
+  padding: 6px 8px; border: 1px solid #3a4049; border-radius: 4px;
+  background: #24282e; color: #cfd3d8;
+  font-size: var(--t-meta); line-height: 1.45; white-space: pre-line;
+  pointer-events: none;
+}

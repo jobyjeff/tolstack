@@ -65,7 +65,7 @@ vm.runInContext(fs.readFileSync(VOCAB_GEN, "utf8"), sandbox,
   { filename: "../viewer/vocab.gen.js" });
 
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js",
-  "commands.js", "face_geometry.js", "suggestions.js", "exec_queue.js", "fixtures.js"];
+  "commands.js", "face_geometry.js", "suggestions.js", "sweep.js", "exec_queue.js", "fixtures.js"];
 for (const f of files) {
   vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), sandbox, { filename: f });
 }
@@ -2709,6 +2709,885 @@ check("the face-suggestion setting round-trips through a store, defaults to " +
   const keys = Object.keys(AA.PREF_KEYS).map((k) => AA.PREF_KEYS[k]);
   assertEqual(keys.length, new Set(keys).size, "two preferences share a key");
 });
+
+// --- sweep mode (handoff kinematic_sweep_animation) ------------------------
+//
+// Every number sweep mode puts on screen is computed in sweep.js, which has
+// no DOM, no fetch and no three.js for exactly this reason. The browser half
+// (scene.js's lines, spheres and anchored groups) is screenshot-verified --
+// real click automation is not run on this machine, see this file's header --
+// so the arithmetic under it is pinned here instead, value by value.
+
+// A synthetic two-body artifact: ground, plus a body that rotates 90 degrees
+// about +X between the two points while sliding 10 mm along +Z, and one
+// distance link between them. Hand-written so every expected number below can
+// be derived with a pen.
+function sweepFixture(overrides) {
+  const doc = {
+    schema: "linkage-sweep/v1",
+    run_id: "fixture-run",
+    source: "sheet",
+    frame: "poses are relative to the as-modelled pose",
+    mechanism: { name: "fixture_mech", driver: { label: "actuator travel", unit: "mm" } },
+    measures: { names: ["blade_pitch", "actuator_travel"],
+      units: { blade_pitch: "deg", actuator_travel: "mm" } },
+    bodies: [{ name: "base", ground: true, parts: ["hub"] },
+      { name: "arm", ground: false, parts: ["pitch_arm"] }],
+    links: [{ joint: "pitch_link", parts: ["pitch_link"] }],
+    reference: { measure: "blade_pitch", values: [-7, 72] },
+    points: [
+      { index: 0, driver_value: 64.466, converged: true, residual_norm: 1e-25,
+        measures: { blade_pitch: -6.4, actuator_travel: 64.466 },
+        poses: { base: { translation: [0, 0, 0], rotvec: [0, 0, 0] },
+          arm: { translation: [0, 0, 0], rotvec: [0, 0, 0] } },
+        joints: { pitch_link: { point_a_world: [0, 0, 0], point_b_world: [0, 0, 100],
+          axis_world: null } },
+        links: { pitch_link: { translation: [0, 0, 0], rotvec: [0, 0, 0], length: 100,
+          convention: "spin-free" } } },
+      { index: 1, driver_value: 0, converged: true, residual_norm: 2e-25,
+        measures: { blade_pitch: 72, actuator_travel: 0 },
+        poses: { base: { translation: [0, 0, 0], rotvec: [0, 0, 0] },
+          arm: { translation: [0, 0, 10], rotvec: [Math.PI / 2, 0, 0] } },
+        joints: { pitch_link: { point_a_world: [0, 0, 0], point_b_world: [0, -100, 0],
+          axis_world: null } },
+        links: { pitch_link: { translation: [0, 0, 0], rotvec: [Math.PI / 2, 0, 0],
+          length: 100, convention: "spin-free" } } },
+    ],
+  };
+  return Object.assign(doc, overrides || {});
+}
+
+function assertClose(actual, expected, tol, msg) {
+  if (!(Math.abs(actual - expected) <= tol)) {
+    throw new Error((msg || "not close") + ": got " + actual + ", expected " +
+      expected + " +/- " + tol);
+  }
+}
+
+function assertVecClose(actual, expected, tol, msg) {
+  for (let i = 0; i < expected.length; i++) {
+    assertClose(actual[i], expected[i], tol, (msg || "vector") + "[" + i + "]");
+  }
+}
+
+check("sweep: the schema is read literally, and a v0 run is refused naming " +
+  "what it found and why it cannot be animated", () => {
+  const v0 = sweepFixture({ schema: "linkage-sweep/v0" });
+  let message = null;
+  try { AA.readSweepArtifact(v0); } catch (err) { message = err.message; }
+  if (message === null) throw new Error("a v0 artifact was accepted");
+  if (message.indexOf("linkage-sweep/v0") === -1) {
+    throw new Error("the refusal does not name the schema it found: " + message);
+  }
+  if (message.indexOf(AA.SWEEP_SCHEMA) === -1) {
+    throw new Error("the refusal does not name the schema it wanted: " + message);
+  }
+  // ...and v0's own reason, which is the one a reader needs: the file is a
+  // real sweep, it just has no poses in it.
+  if (message.indexOf("no body poses") === -1) {
+    throw new Error("the v0 refusal does not say why v0 cannot be animated: " + message);
+  }
+  assertNoCommandOrPath(message, "the schema refusal");
+  assertNothingBanned(message, "the schema refusal");
+
+  // A file with no schema at all, and a non-document, each get their own
+  // sentence rather than a TypeError out of the reader.
+  let noSchema = null;
+  try { AA.readSweepArtifact({ points: [] }); } catch (err) { noSchema = err.message; }
+  if (!noSchema || noSchema.indexOf("no schema") === -1) {
+    throw new Error("a schemaless file did not say so: " + noSchema);
+  }
+  let notADoc = null;
+  try { AA.readSweepArtifact(null); } catch (err) { notADoc = err.message; }
+  if (!notADoc) throw new Error("null was accepted as an artifact");
+});
+
+check("sweep: a v1 artifact is normalised, and the summary line carries the " +
+  "source in words a reader can act on", () => {
+  const art = AA.readSweepArtifact(sweepFixture());
+  assertEqual(art.runId, "fixture-run", "run id");
+  assertEqual(art.source, "sheet", "source");
+  assertEqual(art.points.length, 2, "point count");
+  assertEqual(art.notConverged, 0, "converged count");
+  assertEqual(art.bodies.length, 2, "bodies");
+  const parts = AA.sweepSummaryParts(art);
+  if (parts.indexOf("sheet") !== -1) {
+    throw new Error("the summary renders the raw source token at the reader");
+  }
+  if (parts.indexOf(AA.SWEEP_SOURCE_WORDS.sheet) === -1) {
+    throw new Error("the summary does not say where the geometry came from: " +
+      parts.join(" | "));
+  }
+  assertNoCommandOrPath(parts.join(" "), "the sweep summary");
+  assertNothingBanned(parts.join(" "), "the sweep summary");
+  // Every source the vocabulary admits has words; a token with none would
+  // render as itself, which is the drift this pairing exists to catch.
+  for (const source of AA.SWEEP_SOURCES) {
+    if (!AA.SWEEP_SOURCE_WORDS[source]) {
+      throw new Error("source \"" + source + "\" has no reader-facing words");
+    }
+  }
+  // A run with an unconverged point says so in the one line.
+  const bad = sweepFixture();
+  bad.points[0].converged = false;
+  const warned = AA.sweepSummaryParts(AA.readSweepArtifact(bad));
+  if (!warned.some((p) => p.indexOf("did not converge") !== -1)) {
+    throw new Error("an unconverged point is not on the summary line: " + warned.join(" | "));
+  }
+});
+
+check("sweep: interpolation is exact at both endpoints, and the midpoint of " +
+  "a 90-degree rotation is 45 degrees", () => {
+  const art = AA.readSweepArtifact(sweepFixture());
+
+  const start = AA.sweepFrameAt(art, 0);
+  assertVecClose(start.poses.arm.translation, [0, 0, 0], 1e-12, "start translation");
+  assertVecClose(AA.quatToRotvec(start.poses.arm.quaternion), [0, 0, 0], 1e-12, "start rotation");
+  assertEqual(start.nearerIndex, 0, "start nearer index");
+
+  const end = AA.sweepFrameAt(art, 1);
+  assertVecClose(end.poses.arm.translation, [0, 0, 10], 1e-12, "end translation");
+  assertVecClose(AA.quatToRotvec(end.poses.arm.quaternion), [Math.PI / 2, 0, 0], 1e-12,
+    "end rotation");
+  assertEqual(end.nearerIndex, 1, "end nearer index");
+
+  const mid = AA.sweepFrameAt(art, 0.5);
+  assertVecClose(mid.poses.arm.translation, [0, 0, 5], 1e-12, "midpoint translation");
+  const rv = AA.quatToRotvec(mid.poses.arm.quaternion);
+  assertClose(rv[0] * 180 / Math.PI, 45, 1e-9, "midpoint rotation about X, in degrees");
+  assertClose(rv[1], 0, 1e-12, "midpoint rotation leaked into Y");
+  assertClose(rv[2], 0, 1e-12, "midpoint rotation leaked into Z");
+
+  // Past both ends is clamped, not extrapolated -- a solver's output has no
+  // frames outside its own sweep, and inventing one is this app's own version
+  // of inventing a number.
+  assertVecClose(AA.sweepFrameAt(art, -5).poses.arm.translation, [0, 0, 0], 1e-12, "clamped low");
+  assertVecClose(AA.sweepFrameAt(art, 99).poses.arm.translation, [0, 0, 10], 1e-12, "clamped high");
+});
+
+check("sweep: the READOUTS do not interpolate -- they are the nearer point's " +
+  "own solved numbers, carried with its index", () => {
+  const art = AA.readSweepArtifact(sweepFixture());
+  const justPastStart = AA.sweepFrameAt(art, 0.4);
+  assertEqual(justPastStart.nearerIndex, 0, "0.4 should round to point 0");
+  const rows = AA.sweepReadouts(art, justPastStart);
+  const pitch = rows.filter((r) => r.key === "blade_pitch")[0];
+  assertEqual(pitch.value, -6.4, "blade pitch was interpolated instead of quoted");
+  const justBeforeEnd = AA.sweepFrameAt(art, 0.6);
+  assertEqual(justBeforeEnd.nearerIndex, 1, "0.6 should round to point 1");
+  assertEqual(AA.sweepReadouts(art, justBeforeEnd).filter((r) => r.key === "blade_pitch")[0].value,
+    72, "blade pitch at the other side of the midpoint");
+});
+
+check("sweep: the four verification numbers are all there, the reference " +
+  "difference is a subtraction, and every label is derived from the " +
+  "artifact's own measure name", () => {
+  const art = AA.readSweepArtifact(sweepFixture());
+  const rows = AA.sweepReadouts(art, AA.sweepFrameAt(art, 0));
+  const byKey = {};
+  rows.forEach((r) => { byKey[r.key] = r; });
+  for (const key of ["blade_pitch", "blade_pitch:reference", "blade_pitch:difference",
+    "actuator_travel", "link:pitch_link", "residual_norm"]) {
+    if (!byKey[key]) throw new Error("the readouts are missing " + key);
+  }
+  assertEqual(byKey["blade_pitch:reference"].value, -7, "the reference value");
+  assertClose(byKey["blade_pitch:difference"].value, -6.4 - -7, 1e-12,
+    "the difference is not solved minus reference");
+  // |A - B| against the link's declared length, measured off the joint points
+  // rather than copied from the artifact.
+  assertClose(byKey["link:pitch_link"].value, 100, 1e-12, "the measured link length");
+  assertEqual(byKey["link:pitch_link"].expected, 100, "the declared link length");
+
+  // No underscore reaches a reader, and no label is a hand-written copy of a
+  // measure name -- the derivation is the whole point.
+  rows.forEach((r) => {
+    if (/_/.test(r.label)) throw new Error("readout label renders an id: " + r.label);
+    assertNoCommandOrPath(r.label, "a sweep readout label");
+    assertNothingBanned(r.label, "a sweep readout label");
+  });
+  assertEqual(AA.measureLabel("some_new_measure"), "some new measure",
+    "a measure this app has never seen does not render as an id");
+
+  // A run with no reference block carries no reference rows at all, rather
+  // than a row saying nothing.
+  const noRefDoc = sweepFixture();
+  delete noRefDoc.reference;
+  const noRef = AA.readSweepArtifact(noRefDoc);
+  const bare = AA.sweepReadouts(noRef, AA.sweepFrameAt(noRef, 0));
+  if (bare.some((r) => /reference|difference/.test(r.key))) {
+    throw new Error("a run with no reference still rendered reference rows");
+  }
+});
+
+check("sweep: the scrubber maps to the driver both ways, is exact at both " +
+  "ends, and is monotone down a DESCENDING sweep", () => {
+  const art = AA.readSweepArtifact(sweepFixture());
+  const values = AA.sweepDriverValues(art);
+  assertEqual(values, [64.466, 0], "driver values");
+
+  assertClose(AA.driverToIndex(values, 64.466), 0, 1e-12, "the high end is index 0");
+  assertClose(AA.driverToIndex(values, 0), 1, 1e-12, "the low end is the last index");
+  assertClose(AA.driverToIndex(values, 32.233), 0.5, 1e-12, "the midpoint");
+  assertClose(AA.indexToDriver(values, 0), 64.466, 1e-12, "index 0 -> mm");
+  assertClose(AA.indexToDriver(values, 1), 0, 1e-12, "last index -> mm");
+  assertClose(AA.indexToDriver(values, 0.25), 64.466 * 0.75, 1e-9, "a fractional index -> mm");
+
+  // Round trip, and monotone: as the driver falls the index must only rise.
+  let previous = -1;
+  for (let step = 0; step <= 32; step++) {
+    const mm = 64.466 * (1 - step / 32);
+    const index = AA.driverToIndex(values, mm);
+    if (index < previous) throw new Error("the index went backwards at " + mm + " mm");
+    previous = index;
+    assertClose(AA.indexToDriver(values, index), mm, 1e-9, "round trip at " + mm + " mm");
+  }
+  // Past either end clamps rather than extrapolating.
+  assertEqual(AA.driverToIndex(values, 999), 0, "past the high end");
+  assertEqual(AA.driverToIndex(values, -999), 1, "past the low end");
+
+  // ...and the same holds for an ASCENDING driver, which neither function may
+  // assume away. A three-point ramp, so there is an interior point to land on.
+  const up = [0, 10, 20];
+  assertClose(AA.driverToIndex(up, 0), 0, 1e-12, "ascending: low end");
+  assertClose(AA.driverToIndex(up, 20), 2, 1e-12, "ascending: high end");
+  assertClose(AA.driverToIndex(up, 15), 1.5, 1e-12, "ascending: interior");
+  assertEqual(AA.driverToIndex(up, -1), 0, "ascending: past the low end");
+  assertEqual(AA.driverToIndex(up, 99), 2, "ascending: past the high end");
+});
+
+check("sweep: pose composition is pose(t) o placement_world, against a " +
+  "hand-computed matrix", () => {
+  // A quarter turn about +X, then 10 mm along +Z:
+  //   R = [[1,0,0],[0,0,-1],[0,1,0]],  t = (0,0,10)
+  const pose = { translation: [0, 0, 10], rotvec: [Math.PI / 2, 0, 0] };
+  // ...onto a mesh instance placed 5 mm along +Y with no rotation.
+  const placement = [1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1, 0];
+  const composed = AA.anchorPlacement(pose, placement);
+  // By hand: pose o placement has the pose's rotation, and a translation of
+  // R @ (0,5,0) + (0,0,10) = (0,0,5) + (0,0,10) = (0,0,15).
+  assertVecClose(composed, [1, 0, 0, 0,
+    0, 0, -1, 0,
+    0, 1, 0, 15], 1e-12, "the composed 3x4");
+
+  // The point check the composition is actually for: a mesh vertex at the
+  // instance origin lands where the instance's own placement puts it, carried
+  // by the pose. (0,0,0) local -> (0,5,0) as-modelled -> (0,0,15) now.
+  assertVecClose(AA.applyPlacement(composed, [0, 0, 0]), [0, 0, 15], 1e-12,
+    "the instance origin");
+  // ...and a vertex 1 mm along local +Y: (0,6,0) as-modelled -> (0,0,16).
+  assertVecClose(AA.applyPlacement(composed, [0, 1, 0]), [0, 0, 16], 1e-12,
+    "a vertex 1 mm along local +Y");
+
+  // An identity pose leaves the instance exactly where provenance.json put it
+  // -- the as-modelled frame, which is the frame the whole rest of this app
+  // is about.
+  const unmoved = AA.anchorPlacement({ translation: [0, 0, 0], rotvec: [0, 0, 0] }, placement);
+  assertVecClose(unmoved, placement, 1e-15, "an identity pose moved the instance");
+
+  // Order matters, and this is the check that it is the right way round:
+  // placement o pose would leave the 5 mm in Y, not carry it into Z.
+  const wrongWayRound = AA.composePlacement(placement, AA.poseToPlacement(pose));
+  if (Math.abs(wrongWayRound[7] - composed[7]) < 1e-9) {
+    throw new Error("composition is symmetric here, so this fixture cannot tell the order apart");
+  }
+});
+
+check("sweep: which occurrence a body is, is decided by distance -- nearest " +
+  "wins, a tie refuses, and too far refuses", () => {
+  const target = [10, 0, 0];
+  const candidates = [
+    { instance_name: "215071-001.1", points: [[10.0004, 0, 0], [200, 0, 0]] },
+    { instance_name: "215071-001.2", points: [[110, 0, 0]] },
+    { instance_name: "215071-001.3", points: [[-90, 0, 0]] },
+  ];
+  const won = AA.chooseSweepInstance(candidates, target);
+  assertEqual(won.refused, false, "the nearest occurrence was refused");
+  assertEqual(won.chosen, "215071-001.1", "the wrong occurrence won");
+  assertClose(won.residual, 0.0004, 1e-9, "the reported residual");
+  assertEqual(won.runnerUp.instance_name, "215071-001.2", "the runner-up");
+
+  // A tie: two occurrences the same distance away. Nothing is chosen, and the
+  // reason says what happened rather than naming a winner at random.
+  const tied = AA.chooseSweepInstance([
+    { instance_name: "a", points: [[10.1, 0, 0]] },
+    { instance_name: "b", points: [[9.9, 0, 0]] },
+  ], target);
+  assertEqual(tied.refused, true, "a tie was resolved anyway");
+  assertEqual(tied.chosen, null, "a tie named a winner");
+  if (tied.reason.indexOf("same distance") === -1) {
+    throw new Error("the tie refusal does not say it is a tie: " + tied.reason);
+  }
+
+  // Too far: the nearest is 2 mm out, past the 1 mm this surface accepts.
+  const far = AA.chooseSweepInstance([{ instance_name: "a", points: [[12, 0, 0]] }], target);
+  assertEqual(far.refused, true, "a 2 mm miss was accepted");
+  if (far.reason.indexOf("2.000") === -1) {
+    throw new Error("the distance refusal does not quote the distance: " + far.reason);
+  }
+  // ...and 0.999 mm, just inside, is not refused -- the threshold is a
+  // threshold and not a vibe.
+  assertEqual(AA.chooseSweepInstance([{ instance_name: "a", points: [[10.999, 0, 0]] }],
+    target).refused, false, "a miss just inside the limit was refused");
+
+  // Nothing to match against at all is its own refusal, not a crash.
+  const nothing = AA.chooseSweepInstance([], target);
+  assertEqual(nothing.refused, true, "an empty candidate list was not refused");
+  [won, tied, far, nothing].forEach((r) => {
+    if (r.reason) {
+      assertNoCommandOrPath(r.reason, "an instance-choice refusal");
+      assertNothingBanned(r.reason, "an instance-choice refusal");
+    }
+  });
+});
+
+check("sweep: playback advances, loops, ping-pongs and stops at the end", () => {
+  const count = 81; // 80 intervals, so a second at 1x covers 24 of them
+  const base = { index: 0, playing: true, speed: 1, loop: "off", direction: 1 };
+  // A tenth of a second, so even 4x stays well inside the sweep and these
+  // three are measuring the speed rather than the end-of-sweep behaviour
+  // (which is what the loop-mode checks below are for).
+  const tick = 0.1;
+  assertClose(AA.sweepAdvance(base, tick, count).index,
+    AA.SWEEP_POINTS_PER_SECOND * tick, 1e-12, "a tenth of a second at 1x");
+  assertClose(AA.sweepAdvance(Object.assign({}, base, { speed: 4 }), tick, count).index,
+    AA.SWEEP_POINTS_PER_SECOND * 4 * tick, 1e-12, "a tenth of a second at 4x");
+  assertClose(AA.sweepAdvance(Object.assign({}, base, { speed: 0.25 }), tick, count).index,
+    AA.SWEEP_POINTS_PER_SECOND * 0.25 * tick, 1e-12, "a tenth of a second at 0.25x");
+  // Speed is a multiplier, and 4x covers exactly sixteen times what 0.25x does.
+  assertClose(AA.sweepAdvance(Object.assign({}, base, { speed: 4 }), tick, count).index,
+    16 * AA.sweepAdvance(Object.assign({}, base, { speed: 0.25 }), tick, count).index,
+    1e-12, "the speeds are not a multiplier on one clock");
+
+  // Paused is paused, whatever the clock does.
+  assertEqual(AA.sweepAdvance(Object.assign({}, base, { playing: false }), 10, count).index, 0,
+    "a paused sweep moved");
+
+  // loop off: stops ON the last point and clears `playing`, so the button
+  // flips back by itself rather than lying.
+  const ran = AA.sweepAdvance(Object.assign({}, base, { index: 79.5 }), 1, count);
+  assertEqual(ran.index, count - 1, "loop off did not stop on the last point");
+  assertEqual(ran.playing, false, "loop off kept playing past the end");
+
+  // loop on: wraps round, still playing.
+  const wrapped = AA.sweepAdvance(Object.assign({}, base, { index: 79.5, loop: "on" }), 1, count);
+  assertEqual(wrapped.playing, true, "loop on stopped");
+  if (!(wrapped.index >= 0 && wrapped.index < count - 1)) {
+    throw new Error("loop on left the index outside the sweep: " + wrapped.index);
+  }
+
+  // ping-pong: reverses, and the overshoot is reflected rather than dropped.
+  const bounced = AA.sweepAdvance(
+    Object.assign({}, base, { index: 79.5, loop: "pingpong" }), 1, count);
+  assertEqual(bounced.direction, -1, "ping-pong did not reverse");
+  assertEqual(bounced.playing, true, "ping-pong stopped");
+  assertClose(bounced.index, (count - 1) - ((79.5 + 24) - (count - 1)), 1e-12,
+    "ping-pong dropped the overshoot instead of reflecting it");
+  // ...and back off the bottom end too.
+  const bouncedBack = AA.sweepAdvance(
+    { index: 0.5, playing: true, speed: 1, loop: "pingpong", direction: -1 }, 1, count);
+  assertEqual(bouncedBack.direction, 1, "ping-pong did not reverse at the low end");
+  if (bouncedBack.index < 0) throw new Error("ping-pong left the index below zero");
+
+  // Whole-point stepping, clamped -- the arrow keys and reduced motion.
+  assertEqual(AA.sweepStepIndex(3.4, 1, count), 4, "step forward from a fractional index");
+  assertEqual(AA.sweepStepIndex(3.6, -1, count), 3, "step back from a fractional index");
+  assertEqual(AA.sweepStepIndex(0, -1, count), 0, "step back off the start");
+  assertEqual(AA.sweepStepIndex(count - 1, 1, count), count - 1, "step forward off the end");
+});
+
+check("sweep: the frame rule -- the as-modelled pose is recognised, and any " +
+  "moved body turns picking off", () => {
+  const art = AA.readSweepArtifact(sweepFixture());
+  // This fixture's point 0 is the identity pose for every body.
+  if (!AA.sweepIsAsModelled(AA.sweepFrameAt(art, 0))) {
+    throw new Error("the identity frame was not read as the as-modelled one");
+  }
+  if (AA.sweepIsAsModelled(AA.sweepFrameAt(art, 1))) {
+    throw new Error("a rotated, translated frame was read as the as-modelled one");
+  }
+  // A hair off identity is still off: the artifact writes the as-modelled
+  // point's poses as exact identity, so there is no tolerance to spend here.
+  if (AA.sweepIsAsModelled(AA.sweepFrameAt(art, 1e-6))) {
+    throw new Error("a frame a millionth of the way in was read as as-modelled");
+  }
+  assertNoCommandOrPath(AA.SWEEP_PICKING_DISABLED, "the picking-disabled reason");
+  assertNothingBanned(AA.SWEEP_PICKING_DISABLED, "the picking-disabled reason");
+});
+
+check("sweep: every verb argument is parsed here, and a bad one answers with " +
+  "the set it had to be in", () => {
+  assertEqual(AA.parseSweepSpeed("2"), 2, "a bare number");
+  assertEqual(AA.parseSweepSpeed("0.25x"), 0.25, "a trailing x");
+  assertEqual(AA.parseSweepSpeed("4X"), 4, "a trailing capital X");
+  let speedErr = null;
+  try { AA.parseSweepSpeed("3"); } catch (err) { speedErr = err.message; }
+  if (!speedErr || AA.SWEEP_SPEEDS.some((s) => speedErr.indexOf(String(s)) === -1)) {
+    throw new Error("a bad speed does not list the speeds: " + speedErr);
+  }
+
+  assertEqual(AA.parseSweepLoop("pingpong"), "pingpong", "ping-pong");
+  assertEqual(AA.parseSweepLoop("ON"), "on", "case");
+  let loopErr = null;
+  try { AA.parseSweepLoop("bounce"); } catch (err) { loopErr = err.message; }
+  if (!loopErr || loopErr.indexOf("pingpong") === -1) {
+    throw new Error("a bad loop mode does not list the modes: " + loopErr);
+  }
+
+  const values = [64.466, 32.233, 0];
+  assertEqual(AA.parseSweepSeek("#1", values), 1, "seek by index");
+  assertEqual(AA.parseSweepSeek("#99", values), 2, "seek by index, clamped");
+  assertClose(AA.parseSweepSeek("32.233", values), 1, 1e-12, "seek by driver value");
+  let seekErr = null;
+  try { AA.parseSweepSeek("", values); } catch (err) { seekErr = err.message; }
+  if (!seekErr) throw new Error("an empty seek was accepted");
+
+  assertEqual(AA.parseSweepLayer("trail"), "trail", "a layer name");
+  let layerErr = null;
+  try { AA.parseSweepLayer("wireframe"); } catch (err) { layerErr = err.message; }
+  if (!layerErr || AA.SWEEP_LAYERS.some((l) => layerErr.indexOf(l) === -1)) {
+    throw new Error("a bad layer does not list the layers: " + layerErr);
+  }
+  // Every layer the vocabulary admits has a default; a layer with none would
+  // render as undefined on the first paint.
+  for (const layer of AA.SWEEP_LAYERS) {
+    if (typeof AA.SWEEP_DEFAULT_LAYERS[layer] !== "boolean") {
+      throw new Error("layer \"" + layer + "\" has no default");
+    }
+  }
+});
+
+check("sweep: a feature is a point or an AXIS, and an axis is measured " +
+  "perpendicular -- which is the difference between placing the pitch arm " +
+  "and refusing it", () => {
+  // A ball centre: the plain distance, and nothing clever.
+  assertClose(AA.sweepFeatureDistance({ p: [0, 0, 0] }, [3, 4, 0]), 5, 1e-12, "a point feature");
+  assertClose(AA.sweepFeatureDistance([0, 0, 0], [3, 4, 0]), 5, 1e-12,
+    "a bare [x,y,z] is read as a point feature");
+
+  // A bore along +Z through the origin: a target 5 mm off the axis is 5 mm
+  // away however far along the axis it sits. That is the whole claim -- a
+  // bore locates a joint in two degrees of freedom and says nothing about
+  // the third, and the fitted axis point sits at the bore's mid-length
+  // rather than at the joint.
+  const bore = { p: [0, 0, 0], d: [0, 0, 1] };
+  assertClose(AA.sweepFeatureDistance(bore, [5, 0, 0]), 5, 1e-12, "beside the axis");
+  assertClose(AA.sweepFeatureDistance(bore, [5, 0, 1000]), 5, 1e-12, "beside it, far along");
+  assertClose(AA.sweepFeatureDistance(bore, [0, 0, 1000]), 0, 1e-12, "on the axis, far along");
+  // A point measurement of that same pair would have been 1000.
+  if (AA.sweepFeatureDistance({ p: bore.p }, [0, 0, 1000]) < 999) {
+    throw new Error("the point reading of an on-axis target is not the distance along it");
+  }
+  // An un-normalised direction is fine, and a zero one degrades to a point.
+  assertClose(AA.sweepFeatureDistance({ p: [0, 0, 0], d: [0, 0, 7] }, [5, 0, 3]), 5, 1e-12,
+    "an un-normalised axis");
+  assertClose(AA.sweepFeatureDistance({ p: [0, 0, 0], d: [0, 0, 0] }, [3, 4, 0]), 5, 1e-12,
+    "a zero-length axis is a point");
+
+  // Placing a feature carries the POINT through the whole placement and the
+  // DIRECTION through the rotation only.
+  const quarterTurnAboutX = [1, 0, 0, 10, 0, 0, -1, 20, 0, 1, 0, 30];
+  const placed = AA.placeSweepFeature(quarterTurnAboutX, bore);
+  assertVecClose(placed.p, [10, 20, 30], 1e-12, "the placed axis point");
+  assertVecClose(placed.d, [0, -1, 0], 1e-12, "the placed axis direction");
+  const placedPoint = AA.placeSweepFeature(quarterTurnAboutX, { p: [0, 0, 0] });
+  if (placedPoint.d !== undefined) throw new Error("a point feature grew a direction");
+
+  // ...and the choice reads both kinds. A bore 4.57 mm along its own axis
+  // from the solved joint point -- the real pitch arm's own number -- is
+  // accepted as an axis and refused as a point.
+  const alongTheAxis = [{ instance_name: "arm", key: "arm",
+    points: [{ p: [0, 0, 4.57], d: [0, 0, 1] }] }];
+  assertEqual(AA.chooseSweepInstance(alongTheAxis, [0, 0, 0]).refused, false,
+    "an axis 4.57 mm along itself from the target was refused");
+  const asAPoint = [{ instance_name: "arm", key: "arm", points: [{ p: [0, 0, 4.57] }] }];
+  assertEqual(AA.chooseSweepInstance(asAPoint, [0, 0, 0]).refused, true,
+    "the same offset read as a point was accepted");
+});
+
+check("sweep: which occurrences are even candidates is EXACT -- the mesh's " +
+  "own, the ones sharing a slot name, and the ones named for its product", () => {
+  const own = [
+    { instance_name: "213862-002.2", key: "a/213862-002.2" },
+    { instance_name: "213862-002.3", key: "a/213862-002.3" },
+  ];
+  const all = own.concat([
+    // The INSTRUMENTED variant at blade 1's slot: a different product, named
+    // for the design part. This is the row the whole rule exists for.
+    { instance_name: "213862-002.1", key: "a/213862-002.1" },
+    // A different part's occurrence INSIDE one of ours -- the pitch link's
+    // own bearings. It must NOT be a candidate for the link: its placement
+    // also puts a feature on the joint, and it tied with the right answer
+    // until this rule narrowed the set.
+    { instance_name: "MS14101-3.1", key: "a/213862-002.1/MS14101-3.1" },
+    { instance_name: "NAS6403U11D.1", key: "a/NAS6403U11D.1" },
+  ]);
+  const chosen = AA.sweepCandidateOccurrences(own, all, "213862-002");
+  assertEqual(chosen.map((o) => o.key).sort(),
+    ["a/213862-002.1", "a/213862-002.2", "a/213862-002.3"],
+    "the candidate set");
+
+  // The OTHER half of the rule: three installed blade geometries all record
+  // the same `instance_name` and differ only in path, so a design mesh whose
+  // own instance is blade 2's still has blade 1's slot in the running.
+  const blades = AA.sweepCandidateOccurrences(
+    [{ instance_name: "211587-001.3", key: "x/37.2/211587-001.3" }],
+    [{ instance_name: "211587-001.3", key: "x/37.1/211587-001.3" },
+      { instance_name: "211587-001.3", key: "x/37.3/211587-001.3" },
+      { instance_name: "215071-001.2", key: "x/37.1/215071-001.2" }],
+    "216332-001_36");
+  assertEqual(blades.length, 3, "all three blade slots are candidates");
+  if (blades.some((o) => o.instance_name === "215071-001.2")) {
+    throw new Error("a different part's occurrence became a blade candidate");
+  }
+  // Nothing in the store, and no product name, are both just the own set.
+  assertEqual(AA.sweepCandidateOccurrences(own, [], null).length, 2, "no other occurrences");
+  assertEqual(AA.sweepCandidateOccurrences([], all, null).length, 0, "no own occurrences");
+});
+
+check("sweep: an occurrence is NAMED by what tells it apart from the other " +
+  "candidates, because `instance_name` does not", () => {
+  // The five pitch arms: one name, five paths, differing three segments from
+  // the end. A fixed tail of two would have said the same thing for all five.
+  const arms = [1, 2, 3, 4, 5].map(
+    (n) => `217755-001/prd-e-03478612.1/prd-e-03372837.${n}/prd-e-03262343.1/215071-001.2`);
+  const label = AA.sweepOccurrenceLabel(arms[0], arms);
+  assertEqual(label, "prd-e-03372837.1 / prd-e-03262343.1 / 215071-001.2",
+    "the arm's distinguishing label");
+  for (const other of arms.slice(1)) {
+    if (AA.sweepOccurrenceLabel(other, arms) === label) {
+      throw new Error("two of the five pitch arms label identically");
+    }
+  }
+  // The pitch links differ in the LAST segment, so that is all the label is.
+  const links = [1, 2, 3].map((n) => `217755-001/prd-e-03478612.1/213862-002.${n}`);
+  assertEqual(AA.sweepOccurrenceLabel(links[0], links), "213862-002.1", "the link's label");
+  // One candidate has nothing to be distinguished from: the last segment.
+  assertEqual(AA.sweepOccurrenceLabel(links[0], [links[0]]), "213862-002.1", "a sole candidate");
+  assertEqual(AA.sweepOccurrenceLabel(links[0], []), "213862-002.1", "no candidate list at all");
+});
+
+check("sweep: a joint's kind is DERIVED from what the artifact carries, and " +
+  "both ends of every joint are assigned to a body by measurement", () => {
+  // The ?mock=1 run, because this is the one claim that needs a CONSISTENT
+  // mechanism rather than two hand-written points: a joint end rides a body
+  // when that body's pose reproduces it, and `sweepFixture` above is a pair
+  // of poses chosen to exercise interpolation, not a linkage that closes.
+  const art = AA.readSweepArtifact(AA.FIXTURES.sweepRuns["synthetic-demo-sweep"]);
+  // distance: linkage listed it under `links`. axial: it carries an axis.
+  // point: it carries neither. No fourth word, and no joint-type vocabulary
+  // for this app to keep in step with a solver in another repo.
+  const kinds = {};
+  AA.sweepStructure(art).joints.forEach((j) => { kinds[j.name] = j.kind; });
+  assertEqual(kinds.pitch_link, "distance", "a distance constraint");
+  assertEqual(kinds.blade_hinge, "axial", "a joint with an axis");
+  for (const kind of Object.keys(kinds)) {
+    if (AA.SWEEP_JOINT_KINDS.indexOf(kinds[kind]) === -1) {
+      throw new Error(`joint kind "${kinds[kind]}" is outside the vocabulary`);
+    }
+  }
+  for (const kind of AA.SWEEP_JOINT_KINDS) {
+    if (!AA.SWEEP_JOINT_KIND_WORDS[kind]) throw new Error(`kind "${kind}" has no words`);
+    assertNoCommandOrPath(AA.SWEEP_JOINT_KIND_WORDS[kind], "a joint-kind tooltip");
+    assertNothingBanned(AA.SWEEP_JOINT_KIND_WORDS[kind], "a joint-kind tooltip");
+  }
+  // A joint with no axis that nothing lists as a link is the third kind.
+  const spherical = sweepFixture();
+  spherical.links = [];
+  assertEqual(AA.sweepJointKind(AA.readSweepArtifact(spherical), "pitch_link",
+    { axis_world: null }), "point", "a joint with neither");
+
+  // BOTH ENDS, separately. The fixture's hinge sits at the origin and never
+  // moves; its `a` end and the arm's rotation about the origin agree
+  // trivially, so an a-end-only reading hands a ground joint to a moving
+  // body -- which is what it did to the real run's pitch plate.
+  const riders = AA.sweepBodyJoints(art);
+  const ends = {};
+  Object.keys(riders).forEach((body) => {
+    riders[body].forEach((r) => { ends[r.joint + "." + r.end] = body; });
+  });
+  assertEqual(ends["blade_hinge.point_a_world"], "base",
+    "a stationary joint end belongs to ground");
+  assertEqual(ends["pitch_link.point_a_world"], "arm", "the crank tip rides the crank");
+  assertEqual(ends["pitch_link.point_b_world"], "plate", "the slider end rides the slider");
+  assertEqual(ends["plate_slide.point_b_world"], "plate", "the slide's moving end");
+  // THE DEFECT THIS REPLACES, stated as a check: the hinge sits at the
+  // origin and never moves, and the arm turns about the origin, so an
+  // a-end-only reading hands a ground joint to a moving body. It did exactly
+  // that to the real P1 run's pitch plate.
+  if (ends["blade_hinge.point_a_world"] === "arm") {
+    throw new Error("a stationary joint was handed to the body that turns through it");
+  }
+
+  // ...and the anchors that come out of it: ground at the assembly origin,
+  // every other body at the centroid of the ends it actually carries.
+  const bodies = {};
+  AA.sweepStructure(art).bodies.forEach((b) => { bodies[b.name] = b; });
+  void sweepFixture;
+  assertVecClose(bodies.base.anchor, [0, 0, 0], 1e-12, "ground's triad is at the origin");
+  if (!bodies.arm.anchor || !bodies.plate.anchor) {
+    throw new Error("a moving body came out with no triad anchor");
+  }
+  if (bodies.arm.anchor[1] === bodies.plate.anchor[1] &&
+      bodies.arm.anchor[2] === bodies.plate.anchor[2]) {
+    throw new Error("two bodies' triads landed in the same place");
+  }
+});
+
+check("sweep: the ?mock=1 run is a REAL mechanism, solved in closed form -- " +
+  "so the surface demonstrates the verification rather than miming it", () => {
+  const art = AA.readSweepArtifact(AA.FIXTURES.sweepRuns["synthetic-demo-sweep"]);
+  assertEqual(art.points.length, 80, "point count");
+  assertEqual(art.notConverged, 1, "one point is deliberately marked unconverged");
+
+  // The driver is strictly monotone, which the scrubber depends on and which
+  // an inline crank straddling its own top centre is NOT.
+  const values = AA.sweepDriverValues(art);
+  for (let i = 1; i < values.length; i++) {
+    if (values[i] >= values[i - 1]) {
+      throw new Error(`the demo driver is not strictly decreasing at point ${i}`);
+    }
+  }
+
+  // |A - B| really holds: the slider position is the root that keeps it.
+  let worstLength = 0, worstPose = 0, worstBody = 0;
+  const home = art.points[art.points.length - 1];
+  const homeA = home.joints.pitch_link.point_a_world;
+  const homeB = home.joints.pitch_link.point_b_world;
+  for (const point of art.points) {
+    const a = point.joints.pitch_link.point_a_world;
+    const b = point.joints.pitch_link.point_b_world;
+    worstLength = Math.max(worstLength, Math.abs(Math.sqrt(
+      Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2) + Math.pow(a[2] - b[2], 2)
+    ) - point.links.pitch_link.length));
+    // The link's reconstructed pose maps the AS-MODELLED far end onto the
+    // current one -- the artifact's own stated convention.
+    const mappedB = AA.applyPlacement(AA.poseToPlacement(point.links.pitch_link), homeB);
+    worstPose = Math.max(worstPose, Math.sqrt(
+      Math.pow(mappedB[0] - b[0], 2) + Math.pow(mappedB[1] - b[1], 2) +
+      Math.pow(mappedB[2] - b[2], 2)));
+    // ...and the arm's pose maps the as-modelled near end onto the current one.
+    const mappedA = AA.applyPlacement(AA.poseToPlacement(point.poses.arm), homeA);
+    worstBody = Math.max(worstBody, Math.sqrt(
+      Math.pow(mappedA[0] - a[0], 2) + Math.pow(mappedA[1] - a[1], 2) +
+      Math.pow(mappedA[2] - a[2], 2)));
+  }
+  if (worstLength > 1e-9) throw new Error(`the demo link does not hold its length: ${worstLength}`);
+  if (worstPose > 1e-9) throw new Error(`the demo link pose does not map B onto B: ${worstPose}`);
+  if (worstBody > 1e-9) throw new Error(`the demo arm pose does not map A onto A: ${worstBody}`);
+
+  // The LAST point is the as-modelled one, which is where picking is allowed
+  // and nowhere else.
+  if (!AA.sweepIsAsModelled(AA.sweepFrameAt(art, art.points.length - 1))) {
+    throw new Error("the demo run's last point is not its as-modelled pose");
+  }
+  if (AA.sweepIsAsModelled(AA.sweepFrameAt(art, 0))) {
+    throw new Error("the demo run's first point reads as as-modelled");
+  }
+  // A reader must be able to tell in one glance that none of this is a
+  // measurement of anything.
+  if (art.runId.indexOf("synthetic") === -1 ||
+      art.mechanismName.indexOf("not a measurement") === -1) {
+    throw new Error("the demo run does not say it is synthetic where a reader will see it");
+  }
+});
+
+check("sweep: index.html loads sweep.js before the module that uses it, and " +
+  "this runner loads it at all", () => {
+  const sweep = ANNOTATE_HTML.indexOf('src="./sweep.js"');
+  const app = ANNOTATE_HTML.indexOf('src="./app.js"');
+  if (sweep === -1) throw new Error("index.html does not load sweep.js");
+  if (sweep > app) throw new Error("app.js loads before sweep.js, whose verbs it registers");
+  const runner = fs.readFileSync(path.join(here, "run_tests.cjs"), "utf8");
+  if (runner.indexOf("\"sweep.js\"") === -1) {
+    throw new Error("this runner does not load sweep.js");
+  }
+});
+
+// --- [real] the published sweep runs ---------------------------------------
+//
+// `data/inbox/linkage-sweeps/` is gitignored and lives only in the main
+// checkout (repo CLAUDE.md), so this resolves the repo-relative path first
+// and falls back to the main checkout, and SKIPS honestly when neither holds
+// a run -- the same posture every other [real] tier in this file takes.
+//
+// What it is for: the consistency pins the `linkage` repo asserts on its own
+// side are value-level facts about these files, and this app READS those
+// files. If the producer changes shape, or a run is published that does not
+// close, this is what says so from the consumer's side rather than a
+// screenshot somebody has to look at.
+const SWEEPS_DIR = [
+  path.join(here, "..", "..", "data", "inbox", "linkage-sweeps"),
+  "C:/workspace/tolstack/data/inbox/linkage-sweeps",
+].find((candidate) => {
+  try { return fs.existsSync(candidate) && fs.readdirSync(candidate).some((f) => /\.json$/i.test(f)); }
+  catch (_) { return false; }
+});
+
+if (!SWEEPS_DIR) {
+  console.log("SKIP  [real] the published sweep runs -- no data/inbox/linkage-sweeps/ " +
+    "with a run in it, here or in the main checkout");
+} else {
+  const SWEEP_RUNS = fs.readdirSync(SWEEPS_DIR).filter((f) => /\.json$/i.test(f));
+
+  check("[real] every published run reads, and the one thing a reader must " +
+    "not have to guess -- where its geometry came from -- is a word this app " +
+    "has", () => {
+    const seen = [];
+    for (const file of SWEEP_RUNS) {
+      const doc = JSON.parse(fs.readFileSync(path.join(SWEEPS_DIR, file), "utf8"));
+      // A v0 run in the inbox is legitimate (they were published before the
+      // schema carried poses) and is NOT a failure here -- the surface
+      // refuses it with a reason, which the fast tier already pins.
+      if (doc.schema !== AA.SWEEP_SCHEMA) { seen.push(`${file}: ${doc.schema}`); continue; }
+      const art = AA.readSweepArtifact(doc);
+      if (AA.SWEEP_SOURCES.indexOf(art.source) === -1) {
+        throw new Error(`${file} declares source ${JSON.stringify(art.source)}, ` +
+          `which is outside ${AA.SWEEP_SOURCES.join("/")} -- this surface would ` +
+          `render the raw token at a reader`);
+      }
+      const line = AA.sweepSummaryParts(art).join(" · ");
+      assertNoCommandOrPath(line, `the summary line for ${file}`);
+      assertNothingBanned(line, `the summary line for ${file}`);
+      seen.push(`${file}: ${art.points.length} points, ${art.bodies.length} bodies, ` +
+        `${art.notConverged} unconverged`);
+    }
+    console.log("      " + seen.join("\n      "));
+  });
+
+  check("[real] every v1 run closes: its as-modelled pose is the identity, " +
+    "each two-force member holds its length, and every body pose carries the " +
+    "joint ends measured to ride on it", () => {
+    let checked = 0;
+    for (const file of SWEEP_RUNS) {
+      const doc = JSON.parse(fs.readFileSync(path.join(SWEEPS_DIR, file), "utf8"));
+      if (doc.schema !== AA.SWEEP_SCHEMA) continue;
+      const art = AA.readSweepArtifact(doc);
+      checked++;
+
+      // Exactly one point is the as-modelled pose, and the artifact's frame
+      // statement says it is where every binding in this repo sits.
+      const atHome = art.points
+        .map((_, i) => i)
+        .filter((i) => AA.sweepIsAsModelled(AA.sweepFrameAt(art, i)));
+      if (atHome.length !== 1) {
+        throw new Error(`${file} has ${atHome.length} points at the as-modelled ` +
+          `pose, not exactly one`);
+      }
+      const home = art.points[atHome[0]];
+
+      // |A - B| against the declared length, at every point, for every
+      // distance-constraint member.
+      let worstLength = 0;
+      for (const point of art.points) {
+        for (const link of art.links) {
+          const joint = point.joints[link.joint];
+          const declared = point.links[link.joint];
+          if (!joint || !declared) {
+            throw new Error(`${file} lists ${link.joint} under links but a point ` +
+              `carries no pose or no joint for it`);
+          }
+          const a = joint.point_a_world, b = joint.point_b_world;
+          const measured = Math.sqrt(Math.pow(a[0] - b[0], 2) +
+            Math.pow(a[1] - b[1], 2) + Math.pow(a[2] - b[2], 2));
+          worstLength = Math.max(worstLength, Math.abs(measured - declared.length));
+          // ...and the link's own reconstructed pose maps the as-modelled far
+          // end onto the current one, which is the convention it declares.
+          const mapped = AA.applyPlacement(AA.poseToPlacement(declared),
+            home.joints[link.joint].point_b_world);
+          const slip = Math.sqrt(Math.pow(mapped[0] - b[0], 2) +
+            Math.pow(mapped[1] - b[1], 2) + Math.pow(mapped[2] - b[2], 2));
+          if (slip > 1e-6) {
+            throw new Error(`${file}: ${link.joint}'s reconstructed pose misses its ` +
+              `own far end by ${slip} mm at point ${point.index}`);
+          }
+        }
+      }
+      if (worstLength > 1e-6) {
+        throw new Error(`${file}: a two-force member's |A - B| drifts ${worstLength} mm ` +
+          `from its declared length`);
+      }
+
+      // Every joint end this app measured as riding a body really does ride
+      // it, across the WHOLE sweep -- AA.sweepBodyJoints only samples three
+      // instants, and this is what says three was enough.
+      const riders = AA.sweepBodyJoints(art);
+      let worstRide = 0;
+      for (const body of Object.keys(riders)) {
+        for (const rider of riders[body]) {
+          const seat = home.joints[rider.joint][rider.end];
+          for (const point of art.points) {
+            const moved = AA.applyPlacement(
+              AA.poseToPlacement(point.poses[body]), seat);
+            const p = point.joints[rider.joint][rider.end];
+            worstRide = Math.max(worstRide, Math.max(
+              Math.abs(moved[0] - p[0]), Math.abs(moved[1] - p[1]),
+              Math.abs(moved[2] - p[2])));
+          }
+        }
+      }
+      if (worstRide > AA.SWEEP_RIDES_EPS) {
+        throw new Error(`${file}: a joint end measured as riding a body leaves it by ` +
+          `${worstRide} mm somewhere in the sweep -- three sampled instants was ` +
+          `not enough`);
+      }
+
+      // Every body and every distance-constraint member names parts, and
+      // every part named is a live topology part this app could alias. A
+      // part the alias table has no row for is NOT a failure -- that is the
+      // honest "no installed mesh" state -- but a part no topology declares
+      // is a producer-side name this app can never resolve.
+      const topologyParts = {};
+      for (const file2 of fs.readdirSync(path.join(here, "..", "..", "docs", "topologies"))) {
+        if (!/^topology_.*\.json$/.test(file2)) continue;
+        const topology = JSON.parse(fs.readFileSync(
+          path.join(here, "..", "..", "docs", "topologies", file2), "utf8"));
+        for (const part of topology.parts || []) topologyParts[part.id] = true;
+      }
+      for (const subject of art.bodies.concat(art.links)) {
+        for (const part of subject.parts || []) {
+          if (!topologyParts[part]) {
+            throw new Error(`${file} names part "${part}" on ` +
+              `${subject.name || subject.joint}, which no tracked topology declares`);
+          }
+        }
+      }
+
+      console.log(`      ${file}: as-modelled at point ${atHome[0]}, ` +
+        `worst |A-B| error ${worstLength.toExponential(2)} mm, ` +
+        `worst ride error ${worstRide.toExponential(2)} mm`);
+    }
+    if (!checked) {
+      throw new Error("no published run carries the schema this surface reads -- " +
+        "the tier above listed what is there");
+    }
+  });
+
+  check("[real] the scrubber is usable on every published run: the driver is " +
+    "strictly monotone, so one travel is one place on the bar", () => {
+    for (const file of SWEEP_RUNS) {
+      const doc = JSON.parse(fs.readFileSync(path.join(SWEEPS_DIR, file), "utf8"));
+      if (doc.schema !== AA.SWEEP_SCHEMA) continue;
+      const art = AA.readSweepArtifact(doc);
+      const values = AA.sweepDriverValues(art);
+      const falling = values[values.length - 1] < values[0];
+      for (let i = 1; i < values.length; i++) {
+        const ok = falling ? values[i] < values[i - 1] : values[i] > values[i - 1];
+        if (!ok) {
+          throw new Error(`${file}'s driver is not monotone at point ${i} ` +
+            `(${values[i - 1]} then ${values[i]}) -- "which point is this travel" ` +
+            `would have two answers`);
+        }
+      }
+      // ...and the map round-trips at every point, exactly.
+      for (let i = 0; i < values.length; i++) {
+        const back = AA.driverToIndex(values, values[i]);
+        if (Math.abs(back - i) > 1e-9) {
+          throw new Error(`${file}: point ${i} at ${values[i]} mm maps back to ${back}`);
+        }
+      }
+    }
+  });
+}
 
 // --- [real] the shipped alias table against the installed meshes ------------
 //

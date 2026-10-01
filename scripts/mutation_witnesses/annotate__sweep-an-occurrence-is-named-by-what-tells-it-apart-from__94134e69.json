@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: an occurrence is NAMED by what tells it apart from the other candidates, because `instance_name` does not",
+  "mutations": [
+    {
+      "contract": "All five pitch arms are recorded as `215071-001.2` and all three blade geometries as `211587-001.3`, so an occurrence is named at a reader by the part of its path that is not shared with the other candidates.",
+      "issue": null,
+      "note": "The mutation names it by the last segment always -- the obvious simplification, and the one that makes the bar say `215071-001.2` for whichever of the five arms was chosen. The residual beside it would still be right, which is what makes this the kind of wrong a reader believes.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var others = (allKeys || []).filter(function (k) { return k !== key; });\n    if (!others.length) return mine[mine.length - 1];",
+      "replace": "    var others = (allKeys || []).filter(function (k) { return k !== key; });\n    return mine[mine.length - 1];\n    // eslint-disable-next-line no-unreachable\n    if (!others.length) return mine[mine.length - 1];"
+    }
+  ]
+}

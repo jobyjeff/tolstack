@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: every verb argument is parsed here, and a bad one answers with the set it had to be in",
+  "mutations": [
+    {
+      "contract": "A verb's argument grammar is pure and lives in sweep.js, and the message a bad argument gets is the only documentation a reader of the command box has -- so it names the set the argument had to come from.",
+      "issue": null,
+      "note": "The mutation accepts any number as a speed. `speed 100` then runs the whole sweep in a frame and `speed 0` freezes playback with the play button still lit, both silently -- and the error that would have said what the four speeds are never happens.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (!isFinite(value) || AA.SWEEP_SPEEDS.indexOf(value) === -1) {",
+      "replace": "    if (!isFinite(value)) {"
+    }
+  ]
+}

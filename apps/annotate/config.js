@@ -18,6 +18,11 @@
     // in JS, the same reason apps/viewer reads projections instead of authored
     // files.
     topologyProjection: ["data", "projections", "viewer", "topologies.json"],
+    // linkage's published sweep runs (handoff kinematic_sweep_animation).
+    // READ-ONLY from here, and append-only in the repo: the `linkage` solver
+    // repo writes these and nothing in this app may add to, rename or tidy
+    // the directory. One `<run-id>.json` per run.
+    linkageSweepsDir: ["data", "inbox", "linkage-sweeps"],
     featureIdentityEventsDir: ["data", "inbox", "feature-identity"],
     featureIdentityProjection: ["data", "projections", "feature-identity", "bindings.json"],
 

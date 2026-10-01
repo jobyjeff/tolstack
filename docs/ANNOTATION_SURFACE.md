@@ -116,11 +116,16 @@ the placement matrix it used. Its consumer is outside this repo:
 `C:\workspace\linkage`, a pitch-linkage solver, which needs where the joints
 are rather than what any chain of them totals.
 
-**Placement is applied there and nowhere else.** `apps/annotate/` draws every
-part at its own local origin and applies no placement at all — which is what
-makes its cross-part face relations a declared gap rather than an omission
+**Placement is applied in two places now, and only two** (the second arrived
+2026-10-01 with sweep mode, below): this script, and `apps/annotate/`'s sweep
+mode. Outside sweep mode the app still draws every part at its own local
+origin and applies no placement at all — which is what makes its cross-part
+face relations a declared gap rather than an omission
 (`ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`), and
-what makes two centres of one part land on top of each other on screen. The
+what makes two centres of one part land on top of each other on screen. Sweep
+mode is the exception and is fenced as one: it applies a placement to *draw*
+a solver's answer, it writes nothing, and leaving it restores the layout
+exactly. The
 placements have always been recorded (each extracted mesh's `provenance.json`
 carries `extraction.instances[].placement_world`); until this script nothing
 read them. **Every placement comes from that sidecar**, because the sidecar
@@ -238,6 +243,116 @@ the rule table and the display states — is in `apps/annotate/README.md`'s "Fac
 suggestions" and in
 `docs/sessions/lessons/LESSONS_20260921_annotate_face_suggestions.md`.
 
+## Sweep mode — playing back a solver's answer
+
+Added 2026-10-01 (handoff `kinematic_sweep_animation`). Jeff: *"I need a way
+to review/verify the results, and an animated sweep would be the most ideal …
+even better would be to anchor the 3d bodies to the kinematic rigid bodies and
+animate those through the sweep."*
+
+**It is a viewer of another repo's output and it writes nothing.** The one
+write path this app has (`storage.writeFeatureIdentityEvent`) is not reachable
+from any of it. Everything below is reading, arithmetic and drawing.
+
+### What it reads
+
+`data/inbox/linkage-sweeps/<run-id>.json` — a `linkage-sweep/v1` artifact
+published by `C:\workspace\linkage`. The schema is checked **literally**: a
+`v0` run (there are some on disk) carries measurements and no body poses, and
+is refused with that as the reason rather than animated into a stick figure of
+nothing. The inbox is read-only from here and append-only in the repo; nothing
+in this app adds to it, renames it or tidies it.
+
+From the artifact: `bodies[]` and `links[]` (which parts each rigid body and
+each distance-constraint member carries, as topology part ids), and per point
+the driver value, the measures, `converged`, `residual_norm`, each body's
+`poses`, each joint's two world points and axis, and each distance joint's
+reconstructed spin-free pose.
+
+### The frame rule
+
+The artifact's poses are relative to each body's **as-modelled** configuration
+— the pose the model was built in, which the run writes as an exact identity at
+one of its points. **Face picking and binding are off outright whenever any
+body is away from that pose**, with the reason where the bind instruction would
+otherwise be. A face swept somewhere else is still the right face, but every
+reason a reader has to trust what they clicked is about where it was: a binding
+is identity recorded against geometry sitting in the as-modelled frame. At that
+frame sweep mode is transparent and picking behaves exactly as it always has.
+
+### Which occurrence a body is
+
+A topology part resolves to an installed mesh through the alias table, and that
+mesh may occur many times in the assembly — five pitch arms, five pitch links,
+three mounts. Which occurrence a body is, is decided in two steps, and the bar
+names the answer and its residual for every body:
+
+1. **What is even a candidate is exact**, from what the extraction recorded:
+   the mesh's own occurrences, plus any occurrence sharing one of their
+   `instance_name`s, plus any named `<this mesh's product>.<n>`. That last arm
+   is what finds blade 1's pitch link, whose occurrence is recorded on the
+   *instrumented* variant's provenance because a topology part names the
+   design part (`DAG_TOPOLOGY.md`, "A `part`'s `drawing` names the design
+   part"); the middle arm is what does the same for blade 1's blade, where all
+   three installed geometries record one `instance_name` and differ only in
+   path.
+2. **Geometry decides between them**: the candidate whose own joint feature —
+   a fitted ball centre, or the perpendicular distance to a fitted bore axis —
+   lands nearest the joint point the solver reports at the as-modelled frame.
+   Nearest wins; a nearest too far away, or one tied with its runner-up,
+   **refuses** and the body keeps its stick figure with the reason stated.
+
+A **ground** body is the one case with nothing to decide: it does not move, so
+its parts sit where provenance says. A part may legitimately occupy more than
+one occurrence on one body — the pitch link carries two spherical bearings, one
+at each end — and both are drawn.
+
+The thresholds, and the two ways a feature can be read (fitted, or the
+manifest's coarser face centroids for a part too big to fit), are named
+constants in `apps/annotate/sweep.js`; the bar says which reading it used,
+because they do not deserve the same trust.
+
+### The two-force members
+
+A distance constraint has no rigid body of its own, so the artifact
+reconstructs one with **spin = 0 by convention** — the minimal rotation from
+the as-modelled A→B direction to the current one — and sweep mode anchors the
+link's mesh and both its bearings to that. The bearings travel with the link.
+Whether a ball ought instead to follow the body it is pressed into is an open
+question, filed rather than guessed.
+
+### What is on screen, and the four numbers
+
+A bead at every joint (coloured by a kind **derived** from whether linkage
+listed the joint as a distance constraint and whether it carries an axis — not
+a joint-type vocabulary this app would have to keep in step with a solver in
+another repo), a line along every two-force member, a frame on every body at
+the centroid of the joint ends measured to ride on it, an optional faint trail
+of each joint's whole path, and the anchored bodies, translucent by default so
+the linkage reads through them.
+
+**Hovering a bead says what that joint is** — the kind in words, and for a
+two-force member its length and the **convention its reconstructed pose was
+built under, quoted from the artifact verbatim**. A tooltip rather than a
+legend, by the handoff's own call: a legend is permanent chrome for a question
+asked once. The convention is not re-worded here, because it is the producer's
+claim about its own numbers and this app did not compute it.
+
+The readouts are **the solver's own numbers at the point nearest the handle**,
+never blended between two points: blade pitch solved, blade pitch from the
+reference sheet, their difference, actuator travel, motor angle, each link's
+measured `|A − B|` against its declared length, and the residual norm. Those
+are the verification. A point the solver did not settle is drawn in the warning
+colour and marked under the scrubber.
+
+### The verbs
+
+`sweep <run-id | latest | off>`, `play`, `pause`, `speed`, `seek`, `step`,
+`loop`, `layer` — and `?sweep=<run-id>&t=<driver value>` as a deep link through
+the same list. Every control in the bar, every key and the command box drive
+one state machine through those verbs, which is this app's standing rule.
+`apps/annotate/README.md`'s verb table is the reference.
+
 ## What this MVP does not build
 
 - **Measurement from geometry.** Explicitly out of scope by the brief's
@@ -259,6 +374,14 @@ suggestions" and in
   instances of one bearing 105.99 mm apart and agree with a 3DX sweep sheet
   that had never seen the mesh — and it leaves the app's half exactly where it
   was: the annotator still draws every part at its own origin.
+  **Half-true of the app since 2026-10-01** (handoff
+  `kinematic_sweep_animation`): sweep mode applies the recorded placements to
+  draw the bodies of a mechanism where the assembly puts them. That is still
+  not what this entry is about — it is a *display* transform over a solver's
+  output, it is confined to one mode, and the bind workflow underneath it is
+  unchanged and still origin-drawn. In particular it does nothing for the
+  cross-part face relations, which need the placement applied while a reader
+  is *picking*, which is exactly when sweep mode is switched off.
 - **Automatic supersession / correction events**, the way
   `docs/spec_library/`'s `correction` mode works. v0's fold has no notion of
   "this binding replaces that one" — every `bound` event is a fact that

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the schema is read literally, and a v0 run is refused naming what it found and why it cannot be animated",
+  "mutations": [
+    {
+      "contract": "A `linkage-sweep/v0` run on disk carries measurements and NO body poses, so there is nothing to animate from it. The reader checks the schema literally and refuses anything else, naming what it found.",
+      "issue": null,
+      "note": "The mutation is the shape a reader reaches for when a refusal gets in the way: accept anything whose schema merely starts with the family name. That swallows every v0 run already sitting in the inbox, and the mode then boots with empty `poses` on every point -- a stick figure of nothing, with no error anywhere.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (found !== AA.SWEEP_SCHEMA) {",
+      "replace": "    if (String(found || \"\").indexOf(\"linkage-sweep/\") !== 0) {"
+    }
+  ]
+}

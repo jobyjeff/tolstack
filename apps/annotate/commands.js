@@ -485,6 +485,20 @@
   // element entry on top of it would half-undo it.
   AA.planEntryCommands = function (params) {
     var p = params || {};
+    // `?sweep=<run-id>&t=<driver value>` -- sweep mode's deep link, through
+    // the same verb list every other entry takes (handoff
+    // kinematic_sweep_animation). It is EXCLUSIVE of the bind-workflow
+    // entries: a link that both opened a solver run and put the reader on an
+    // element to bind would be asking for two different things at once, and
+    // sweep mode turns picking off anyway while the linkage is away from its
+    // as-modelled pose.
+    if (p.sweep) {
+      var sweepCommands = [["sweep", String(p.sweep)]];
+      if (p.t !== undefined && p.t !== null && String(p.t) !== "") {
+        sweepCommands.push(["seek", String(p.t)]);
+      }
+      return sweepCommands;
+    }
     if (p.trace && p.topology) return [["trace", p.topology, p.study || ""]];
     var commands = [];
     if (p.topology) {
@@ -565,6 +579,23 @@
       "through in green.",
     "Suggest likely faces colours the faces that could be the one you are " +
       "binding. You still pick.",
+  ]);
+
+  // The help sweep mode shows INSTEAD of the lines above. A reader in sweep
+  // mode cannot bind anything and is not being asked to, so the bind help
+  // would be six lines about a workflow that is switched off -- the same
+  // "a feature that is absent shows nothing" rule the hosted page follows.
+  AA.SWEEP_HELP_LINES = Object.freeze([
+    "This is a solver's answer being played back. Nothing here changes the " +
+      "model, and nothing is written.",
+    "Drag the bar to scrub, or press space to play and pause. The arrow keys " +
+      "step one point; Home and End jump to the ends.",
+    "The numbers beside the bar are the solver's own, at the point nearest " +
+      "the handle — they are not blended between points.",
+    "A point the solver could not settle is drawn in the warning colour and " +
+      "marked under the bar.",
+    "Binding is switched off until you scrub back to the pose the model was " +
+      "built in, which is where every face this app knows about sits.",
   ]);
 
   // --- remembered settings ---------------------------------------------------

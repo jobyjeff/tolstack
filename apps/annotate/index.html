@@ -97,6 +97,12 @@
        scrollport: a popup rendered inside a row would be clipped to 260px and
        a row near the bottom would open its popup below the fold. -->
   <div id="alert-pop" class="alertpop" style="display:none"></div>
+  <!-- Sweep mode's joint tooltip (handoff kinematic_sweep_animation): ONE
+       node, position: fixed, placed by JS at the pointer -- the same shape
+       #alert-pop uses and for the same reason, the canvas being a box a
+       popup rendered inside would be clipped to. A tooltip rather than a
+       legend: a legend is permanent chrome for a question asked once. -->
+  <div id="sweep-tip" class="sweeptip" style="display:none"></div>
   <div id="test-status" style="display:none"></div>
 
   <!-- Classic scripts, loaded in order -- window.AnnotateApp (AA) is built up
@@ -130,6 +136,12 @@
        runs. Both are DOM-free and fetch-free, like commands.js. -->
   <script src="./face_geometry.js"></script>
   <script src="./suggestions.js"></script>
+  <!-- Sweep mode's pure half (handoff kinematic_sweep_animation): the schema
+       reader, the interpolation, the scrubber-to-driver map, the instance
+       choice and the pose composition. DOM-free, fetch-free and three.js-free
+       like the two above, which is what lets run_tests.cjs pin every number
+       this app puts on screen while the linkage is moving. -->
+  <script src="./sweep.js"></script>
   <script src="./exec_queue.js"></script>
   <script src="./fixtures.js"></script>
 

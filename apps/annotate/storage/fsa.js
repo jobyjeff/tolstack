@@ -100,6 +100,32 @@
     return out;
   };
 
+  // linkage's published sweep runs. READ-ONLY: there is deliberately no
+  // writer for this directory on this adapter -- the inbox is linkage's to
+  // write and append-only (data/inbox/ convention, repo CLAUDE.md), and sweep
+  // mode is a viewer of a solver's output.
+  FsaAdapter.prototype.listSweepRuns = async function () {
+    AA.requireReady(this);
+    var dir = await this._dir(AA.CONFIG.linkageSweepsDir, false);
+    if (!dir) return [];
+    var out = [];
+    for await (var entry of dir.entries()) {
+      var name = entry[0], handle = entry[1];
+      if (handle.kind !== "file" || !/\.json$/i.test(name)) continue;
+      out.push({ runId: name.replace(/\.json$/i, "") });
+    }
+    out.sort(function (a, b) { return a.runId < b.runId ? 1 : (a.runId > b.runId ? -1 : 0); });
+    return out;
+  };
+
+  FsaAdapter.prototype.readSweepRun = function (runId) {
+    return this._readJson(AA.CONFIG.linkageSweepsDir.concat([runId + ".json"]));
+  };
+
+  FsaAdapter.prototype.readMeshProvenance = function (sha256) {
+    return this._readJson(AA.CONFIG.meshesDir.concat([sha256, "provenance.json"]));
+  };
+
   FsaAdapter.prototype.readMeshManifest = function (sha256) {
     return this._readJson(AA.CONFIG.meshesDir.concat([sha256, "manifest.json"]));
   };

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the READOUTS do not interpolate -- they are the nearer point's own solved numbers, carried with its index",
+  "mutations": [
+    {
+      "contract": "The numbers on the bar are the solver's own. Between two sweep points this app has nothing to solve with, so it quotes the nearer point rather than blending two answers into a third that no solver produced.",
+      "issue": null,
+      "note": "The mutation rounds the other way at exactly the midpoint, which looks like a tie-break detail and is the whole of the claim: the readout has to follow a stated rule about WHICH point it is quoting, because the index it prints beside the number is what makes the number checkable against the run file.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var nearerIndex = t < 0.5 ? i0 : i1;",
+      "replace": "    var nearerIndex = t <= 0.5 ? i1 : i0;"
+    }
+  ]
+}

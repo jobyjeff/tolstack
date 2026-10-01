@@ -47,6 +47,57 @@ const GHOST_OPACITY = 0.22;
 const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };
 const DEFAULT_MARK_ROLE = "bound";
 
+// --- sweep mode (handoff kinematic_sweep_animation) ------------------------
+//
+// The stick figure's palette, keyed by the three joint kinds AA.sweepJointKind
+// derives, plus the four fixed roles around them. Semantic, like every other
+// colour in this app: `warn` is the solver failing to converge and nothing
+// else, the three joint hues are a classification rather than decoration, and
+// the trail and the ground triad are deliberately the quietest things on
+// screen -- they are context, and the moving linkage is the content.
+const SWEEP_COLORS = {
+  distance: 0xffc14d,
+  axial: 0x7bc47f,
+  point: 0x6ea8fe,
+  warn: 0xff6b5b,
+  link: 0xc8ced6,
+  trail: 0x4e5663,
+  ground: 0x6a7380,
+};
+//: The triad's three axes, in the order X, Y, Z -- the one place this app
+//: draws a frame, and the conventional red/green/blue, muted so three of them
+//: on screen do not shout over the linkage.
+const SWEEP_TRIAD_COLORS = [0xc2706c, 0x74ac77, 0x6d93c4];
+const SWEEP_JOINT_RADIUS = 4;   // mm -- a bead on a linkage ~200 mm across
+const SWEEP_TRIAD_LENGTH = 25;  // mm
+const SWEEP_GHOST_OPACITY = 0.12;
+// Sweep mode's own default viewing direction, and it is OBLIQUE on purpose.
+// BACK_AXIS -- what every other camera here uses -- looks straight down -Y,
+// and a planar mechanism lying in the Y-Z plane projects onto a single
+// vertical line from there: three joints, one link and two trails, all on top
+// of each other. A linkage is very often planar, so the one view that must
+// not be axis-aligned is this one. Measured on the mock run, which is exactly
+// that degenerate case.
+const SWEEP_VIEW_AXIS = new THREE.Vector3(0.62, -0.72, 0.31).normalize();
+
+// A 3x4 row-major placement (sweep.js's one layout) onto an object's local
+// matrix, in the ONE place that conversion happens in this app.
+// THREE.Matrix4.set takes ROW-major arguments, which is the layout sweep.js
+// speaks -- so this is a straight read and not a transpose.
+function applyPlacement4(node, placement) {
+  node.matrix.set(
+    placement[0], placement[1], placement[2], placement[3],
+    placement[4], placement[5], placement[6], placement[7],
+    placement[8], placement[9], placement[10], placement[11],
+    0, 0, 0, 1);
+}
+
+// One placement or several, as one shape -- `null` for "put it back".
+function normalisePlacements(placements) {
+  if (!placements || !placements.length) return null;
+  return Array.isArray(placements[0]) ? placements : [placements];
+}
+
 // CATIA STEP exports are Z-up (handoff annotate_deep_link_and_part_filter,
 // deliverable 5 -- Jeff's live report: horizontal drag sometimes orbits about
 // the vertical axis, sometimes about the axis normal to the screen,
@@ -113,6 +164,26 @@ export class AnnotateScene {
     // Overridable by the app: called with {sha256, faceId, record} on a
     // successful pick, null on a miss into empty space.
     this.onPick = function () {};
+
+    // ...and the same shape for hovering a JOINT in sweep mode: the joint's
+    // name and kind, or null off one. The handoff's answer to "how does a
+    // reader learn what a bead is" -- a tooltip, not a legend, because a
+    // legend is permanent chrome for a question asked once.
+    //
+    // The raycast is against the BEADS ONLY and never the parts: a pointermove
+    // over 1.4 million triangles of anchored assembly, at pointer rate, is the
+    // one thing that would make this mode feel slow.
+    this.onSweepHover = function () {};
+    this.renderer.domElement.addEventListener("pointermove", (ev) => {
+      if (!this._sweep) return;
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+      this.onSweepHover(this.sweepHover(ndcX, ndcY), ev);
+    });
+    this.renderer.domElement.addEventListener("pointerleave", () => {
+      if (this._sweep) this.onSweepHover(null, null);
+    });
 
     // The canvas follows its host box. Until 2026-09-21 the renderer was sized
     // ONCE, at construction, and nothing resized it -- which was survivable
@@ -220,7 +291,14 @@ export class AnnotateScene {
     };
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
-    this.frameParts();
+    // ...but NOT while a sweep is running. Sweep mode frames the whole swept
+    // path and the bodies round it (frameSweepScene) and then opens each
+    // body's part, so this call
+    // would snatch the camera back to a box drawn round one frame of the
+    // linkage -- which is how the first screenshot pass came out edge-on to a
+    // planar mechanism. A part opened during a sweep is opened to be anchored,
+    // not to be looked at on its own.
+    if (!this._sweep) this.frameParts();
     return mesh;
   }
 
@@ -436,6 +514,363 @@ export class AnnotateScene {
     }
     attr.needsUpdate = true;
     this._lastPick = { sha256, faceId };
+  }
+
+  // --- sweep mode ----------------------------------------------------------
+  //
+  // One overlay group holding the stick figure, plus the ability to drive a
+  // loaded part's matrix directly instead of the side-by-side layout. Nothing
+  // here picks, marks or writes: sweep mode is a viewer of a solver's output,
+  // and the app's one write path is not reachable from any of it.
+  //
+  // Parts are NOT reparented into per-body groups. `mesh.matrix` is set
+  // directly with `matrixAutoUpdate` off, because that is the one change that
+  // is exactly undoable: `exitSweep` puts `matrixAutoUpdate` back and the
+  // saved layout position with it, and a reparent would additionally have to
+  // restore scene-graph order, the frame camera's assumptions and every
+  // mark's parent. "Leaving sweep mode restores the scene exactly" is a
+  // requirement, and this is the version of it with one thing to get right.
+
+  // `structure` is AA.sweepStructure's output plus `trails`.
+  enterSweep(structure) {
+    if (this._sweep) this.exitSweep();
+    const group = new THREE.Group();
+    const joints = new Map();
+    const triads = new Map();
+    const links = new Map();
+    const trails = new Map();
+
+    for (const joint of structure.joints) {
+      const material = new THREE.MeshStandardMaterial({
+        color: SWEEP_COLORS[joint.kind] || SWEEP_COLORS.point,
+        roughness: 0.4, metalness: 0.1,
+      });
+      const bead = new THREE.Mesh(
+        new THREE.SphereGeometry(SWEEP_JOINT_RADIUS, 20, 14), material);
+      bead.userData = { sweepJoint: joint.name, kind: joint.kind, baseColor: material.color.clone() };
+      group.add(bead);
+      joints.set(joint.name, bead);
+    }
+
+    // One line per distance-constraint member, between its own two ends.
+    for (const link of structure.links) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position",
+        new THREE.BufferAttribute(new Float32Array(6), 3));
+      const line = new THREE.Line(geometry,
+        new THREE.LineBasicMaterial({ color: SWEEP_COLORS.link }));
+      // A line between two moving ends has no meaningful bounding sphere, and
+      // three.js would frustum-cull it against the stale one it computed once.
+      line.frustumCulled = false;
+      group.add(line);
+      links.set(link.joint, line);
+    }
+
+    for (const body of structure.bodies) {
+      const triad = this._buildTriad(group, body.ground);
+      // Where this body's frame is DRAWN: the as-modelled centroid of the
+      // joints AA.sweepBodyJoints measured as riding on it (see there). A
+      // body with no anchor has no honest place to put a triad, so it has
+      // none -- the alternative is three of them stacked at the assembly
+      // origin saying nothing.
+      triad.userData = { anchor: body.anchor || null, live: !!body.anchor };
+      triad.visible = !!body.anchor;
+      triads.set(body.name, triad);
+    }
+
+    // The trail layer: one static polyline per joint, over the WHOLE sweep.
+    // Built once because it never changes -- it is the shape of the motion,
+    // not a state of it.
+    const trailGroup = new THREE.Group();
+    trailGroup.visible = false;
+    for (const name of Object.keys(structure.trails || {})) {
+      const path = structure.trails[name];
+      if (!path || path.length < 2) continue;
+      const positions = new Float32Array(path.length * 3);
+      path.forEach((p, i) => {
+        positions[i * 3] = p[0]; positions[i * 3 + 1] = p[1]; positions[i * 3 + 2] = p[2];
+      });
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const line = new THREE.Line(geometry,
+        new THREE.LineBasicMaterial({ color: SWEEP_COLORS.trail }));
+      trailGroup.add(line);
+      trails.set(name, line);
+    }
+    group.add(trailGroup);
+
+    const pathBox = new THREE.Box3();
+    for (const name of Object.keys(structure.trails || {})) {
+      for (const p of structure.trails[name]) {
+        pathBox.expandByPoint(new THREE.Vector3(p[0], p[1], p[2]));
+      }
+    }
+    this.scene.add(group);
+    this._sweep = {
+      group, joints, links, triads, trails, trailGroup, pathBox,
+      // Every part's layout state, so leaving restores it exactly.
+      savedParts: new Map(),
+      // sha256 -> the extra THREE.Meshes drawn for a part's second and later
+      // occurrences, and sha256 -> its translucent as-modelled copies.
+      repeats: new Map(),
+      ghosts: new Map(),
+    };
+    return true;
+  }
+
+  _buildTriad(parent, ground) {
+    const group = new THREE.Group();
+    for (let axis = 0; axis < 3; axis++) {
+      const positions = new Float32Array(6);
+      positions[3 + axis] = SWEEP_TRIAD_LENGTH;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      group.add(new THREE.Line(geometry, new THREE.LineBasicMaterial({
+        color: ground ? SWEEP_COLORS.ground : SWEEP_TRIAD_COLORS[axis],
+      })));
+    }
+    parent.add(group);
+    return group;
+  }
+
+  inSweep() { return !!this._sweep; }
+
+  // Which joint bead is under the pointer, or null. Read-only.
+  sweepHover(ndcX, ndcY) {
+    if (!this._sweep) return null;
+    const beads = Array.from(this._sweep.joints.values()).filter((b) => b.visible);
+    if (!beads.length) return null;
+    this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+    const hits = this.raycaster.intersectObjects(beads, false);
+    if (!hits.length) return null;
+    const bead = hits[0].object;
+    return { name: bead.userData.sweepJoint, kind: bead.userData.kind };
+  }
+
+  // Anchors one loaded part to a LIST of 3x4 row-major placements
+  // (AA.anchorPlacement's output), or releases it back to its layout
+  // position with `null`. THE ONE PLACE this app applies a placement matrix
+  // to a mesh -- the annotator applies none outside sweep mode, which is what
+  // `CLAUDE.md` records, and what keeps that true is that this is reachable
+  // only while `this._sweep` is live and is undone when it ends.
+  //
+  // A LIST because one part legitimately occurs more than once on one body:
+  // the pitch link carries two spherical bearings, one at each end, and both
+  // are the same installed mesh. The first placement drives the loaded mesh
+  // itself; the rest get lightweight repeats sharing its geometry AND its
+  // material, so a second occurrence costs a matrix and a draw call rather
+  // than a second copy of the buffers.
+  setPartMatrix(sha256, placements) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh || !this._sweep) return false;
+    if (!this._sweep.savedParts.has(sha256)) {
+      this._sweep.savedParts.set(sha256,
+        { position: mesh.position.clone(), auto: mesh.matrixAutoUpdate });
+    }
+    const list = normalisePlacements(placements);
+
+    const followers = [mesh].concat(
+      this._marks.filter((m) => m.sha256 === sha256).map((m) => m.mesh));
+    for (const node of followers) {
+      if (list) { node.matrixAutoUpdate = false; applyPlacement4(node, list[0]); }
+      else node.matrixAutoUpdate = true;
+    }
+    this._setRepeats(sha256, mesh, list ? list.slice(1) : []);
+
+    if (!list) {
+      const saved = this._sweep.savedParts.get(sha256);
+      if (saved) {
+        mesh.position.copy(saved.position);
+        for (const m of this._marks) {
+          if (m.sha256 === sha256) m.mesh.position.copy(saved.position);
+        }
+      }
+    }
+    return true;
+  }
+
+  // The second and later occurrences of one mesh. Kept IN STEP with the list
+  // rather than rebuilt from it: a playing sweep calls this sixty times a
+  // second, and allocating a THREE.Mesh per frame is the one thing here that
+  // would show up as a frame rate.
+  _setRepeats(sha256, mesh, placements) {
+    const repeats = this._sweep.repeats;
+    const mine = repeats.get(sha256) || [];
+    while (mine.length > placements.length) {
+      // Geometry and material are the parent's own -- removing is the whole
+      // of the cleanup, and disposing either would take the real part's down.
+      this.scene.remove(mine.pop());
+    }
+    while (mine.length < placements.length) {
+      const repeat = new THREE.Mesh(mesh.geometry, mesh.material);
+      repeat.matrixAutoUpdate = false;
+      this.scene.add(repeat);
+      mine.push(repeat);
+    }
+    placements.forEach((placement, i) => {
+      mine[i].visible = mesh.visible;
+      applyPlacement4(mine[i], placement);
+    });
+    repeats.set(sha256, mine);
+  }
+
+  // A translucent copy of an anchored part at its as-modelled placement --
+  // the `ghost` layer, which is what makes "how far has this moved" a thing
+  // a reader can see rather than compute.
+  setSweepGhost(sha256, placements) {
+    if (!this._sweep) return false;
+    const list = normalisePlacements(placements);
+    for (const old of this._sweep.ghosts.get(sha256) || []) {
+      this.scene.remove(old);
+      // The MATERIAL only: a ghost shares its part's BufferGeometry rather
+      // than copying it (a 286-solid hub twice over is not a thing to do for
+      // a translucent outline), so disposing it here would take the real
+      // part's buffers down with it.
+      old.material.dispose();
+    }
+    this._sweep.ghosts.delete(sha256);
+    if (!list) return true;
+    const parent = this.parts.get(sha256);
+    if (!parent) return false;
+    const made = [];
+    for (const placement of list) {
+      const ghost = new THREE.Mesh(parent.geometry, new THREE.MeshStandardMaterial({
+        color: 0xffffff, transparent: true, opacity: SWEEP_GHOST_OPACITY,
+        depthWrite: false, side: THREE.DoubleSide, roughness: 0.9,
+      }));
+      ghost.matrixAutoUpdate = false;
+      applyPlacement4(ghost, placement);
+      this.scene.add(ghost);
+      made.push(ghost);
+    }
+    this._sweep.ghosts.set(sha256, made);
+    return true;
+  }
+
+  // One frame of the stick figure. `frame` is AA.sweepFrameAt's output;
+  // `converged` is the nearer point's own flag, and it recolours EVERY bead
+  // rather than adding a badge somewhere -- a solver that did not converge
+  // did not converge about this whole configuration, not about one joint.
+  setSweepFrame(frame, converged) {
+    if (!this._sweep) return false;
+    const { joints, links, triads } = this._sweep;
+    const stick = this._sweep.stickVisible !== false;
+
+    for (const [name, bead] of joints) {
+      const joint = frame.joints[name];
+      bead.userData.live = !!(joint && joint.point_a_world);
+      if (!bead.userData.live) { bead.visible = false; continue; }
+      bead.visible = stick;
+      bead.position.fromArray(joint.point_a_world);
+      bead.material.color.set(converged === false
+        ? SWEEP_COLORS.warn
+        : bead.userData.baseColor);
+    }
+
+    for (const [name, line] of links) {
+      const joint = frame.joints[name];
+      line.userData.live = !!(joint && joint.point_a_world && joint.point_b_world);
+      if (!line.userData.live) { line.visible = false; continue; }
+      line.visible = stick;
+      const attr = line.geometry.attributes.position;
+      attr.array.set(joint.point_a_world, 0);
+      attr.array.set(joint.point_b_world, 3);
+      attr.needsUpdate = true;
+    }
+
+    // A body's triad sits at the centroid of the joint points its own pose
+    // carries, and turns with that pose. A triad at the pose's own origin
+    // would be at the assembly origin for every body at once, which says
+    // nothing; this one is where the body IS.
+    for (const [name, triad] of triads) {
+      const pose = frame.poses[name];
+      const anchor = triad.userData.anchor;
+      triad.userData.live = !!(pose && anchor);
+      if (!triad.userData.live) { triad.visible = false; continue; }
+      triad.visible = stick;
+      triad.quaternion.fromArray(pose.quaternion);
+      // The anchor is an as-modelled point, so it goes through the pose the
+      // same way every other point does: p = R a + t.
+      triad.position.set(anchor[0], anchor[1], anchor[2])
+        .applyQuaternion(triad.quaternion)
+        .add(new THREE.Vector3().fromArray(pose.translation));
+    }
+    return true;
+  }
+
+  // Which layers are drawn. `stick` covers the beads, the link lines and the
+  // body triads -- they are one reading of the mechanism, and a reader who
+  // turns the stick figure off wants the bodies on their own.
+  setSweepLayer(name, on) {
+    if (!this._sweep) return false;
+    if (name === "trail") { this._sweep.trailGroup.visible = !!on; return true; }
+    if (name === "stick") {
+      // `.visible`, not `.layers`: a Group's layer mask does not reach its
+      // children (three.js tests each object's own mask), and a triad IS a
+      // group of three lines.
+      this._sweep.stickVisible = !!on;
+      for (const [, bead] of this._sweep.joints) bead.visible = !!on && bead.userData.live !== false;
+      for (const [, line] of this._sweep.links) line.visible = !!on && line.userData.live !== false;
+      for (const [, triad] of this._sweep.triads) triad.visible = !!on && triad.userData.live !== false;
+      return true;
+    }
+    return false;
+  }
+
+  //: A body more than this many times the mechanism's own size is CONTEXT and
+  //: not content, and the default view does not frame on it. The hub is about
+  //: four times the swept path; blade 1 is about nine, and framing on a
+  //: 1.5 m blade leaves the linkage a few pixels across. Measured against the
+  //: real P1 run.
+  static get SWEEP_CONTEXT_RATIO() { return 6; }
+
+  // Frames the camera on the swept path TOGETHER WITH the bodies anchored
+  // around it, which is not the same as either on its own: the path alone put
+  // the camera inside the hub, and the parts alone move out of any box drawn
+  // round one frame of them.
+  //
+  // Called again after the bodies resolve, because that is when the scene
+  // stops being a stick figure.
+  frameSweepScene() {
+    if (!this._sweep) return false;
+    const box = this._sweep.pathBox.clone();
+    if (box.isEmpty()) return false;
+    const mechanism = box.getSize(new THREE.Vector3());
+    const limit = Math.max(mechanism.x, mechanism.y, mechanism.z, 1) *
+      AnnotateScene.SWEEP_CONTEXT_RATIO;
+    for (const [sha256, mesh] of this.parts) {
+      if (!mesh.visible || mesh.matrixAutoUpdate) continue; // not anchored
+      const partBox = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrix);
+      const size = partBox.getSize(new THREE.Vector3());
+      if (Math.max(size.x, size.y, size.z) > limit) continue;
+      box.union(partBox);
+      void sha256;
+    }
+    const centre = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const dist = Math.max(size.x, size.y, size.z, 1) * 1.25 + 40;
+    this.camera.position.copy(centre).addScaledVector(SWEEP_VIEW_AXIS, dist);
+    this.camera.lookAt(centre);
+    this.controls.target.copy(centre);
+    this.controls.update();
+    return true;
+  }
+
+  exitSweep() {
+    if (!this._sweep) return false;
+    for (const [sha256] of this._sweep.savedParts) this.setPartMatrix(sha256, null);
+    for (const [, mine] of this._sweep.repeats) {
+      for (const repeat of mine) this.scene.remove(repeat);
+    }
+    this._sweep.repeats.clear();
+    for (const [sha256] of Array.from(this._sweep.ghosts)) this.setSweepGhost(sha256, null);
+    this.scene.remove(this._sweep.group);
+    this._sweep.group.traverse((node) => {
+      if (node.geometry) node.geometry.dispose();
+      if (node.material) node.material.dispose();
+    });
+    this._sweep = null;
+    return true;
   }
 
   // Aims the camera at one part's own bounding-box center and raycasts

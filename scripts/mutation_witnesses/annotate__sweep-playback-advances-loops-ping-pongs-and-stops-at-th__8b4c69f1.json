@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: playback advances, loops, ping-pongs and stops at the end",
+  "mutations": [
+    {
+      "contract": "With loop off, playback stops ON the last point and clears `playing`, so the button flips back by itself. Out-and-back reverses instead, and reflects the overshoot rather than dropping it.",
+      "issue": null,
+      "note": "The mutation leaves `playing` true at the end. The index is right, the scene is right, and the only thing wrong is a play button that says it is still playing something that has stopped -- the kind of state lie a screenshot cannot catch and a reader notices immediately.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        next = next > last ? last : 0;\n        out.playing = false;",
+      "replace": "        next = next > last ? last : 0;"
+    }
+  ]
+}
