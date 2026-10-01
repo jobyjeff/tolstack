@@ -274,3 +274,32 @@ whole of the gap, and no other tier skipped.
 
 `node scripts/guard_enumeration.mjs` is unchanged by this branch (the `python`
 tier is not censused), so `DECLARED_GUARDS` needed no edit.
+
+**The mutation-witness tier was started and NOT run to completion**, and that
+is a gap in this record rather than a green I am implying. It was armed
+correctly the third time (projection paired, shadow built, `SHADOWED covers
+all 7 input path(s) the freshness check names`) and was running at roughly a
+minute and a half per entry against ~138 entries — several hours, most of it
+Chrome. `CLAUDE.md` puts this tier at the batch merge for exactly that reason
+and the handoff's definition of done does not list it, so it was stopped.
+
+What stands in its place, and why it is enough to hand back on:
+
+- **No existing spec can have decayed from this branch.** Every spec's
+  `mutations[].file` was checked against the set of files this branch changes
+  (`topology_pitch_system.json`, `topology_vpa_pitch_linkage.json`,
+  `SOP_TOLERANCE_STACK.md`, `test_tolerance_stack.py`, `PROVENANCE.md`):
+  **zero matches.**
+- **This branch adds no spec**, so there is no new entry to witness — the one
+  it would have added is withdrawn and filed, above.
+- **No pin moved.** `node scripts/guard_enumeration.mjs` is byte-identical
+  before and after, because the `python` tier is not censused.
+- Both node tiers that *do* exercise the changed behaviour are fully green at
+  the tip.
+
+Three runs were started in total and the first two were my own error, both
+worth not repeating: the first against a projection a later commit had
+staled (so its `[real]` witnesses were gated off and it was measuring the
+wrong thing), the second against a tree I then edited mid-run. Check
+`projection_freshness.cjs` and `git status` immediately before arming the slow
+tier.
