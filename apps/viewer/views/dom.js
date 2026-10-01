@@ -76,9 +76,19 @@
   // the hover-intent corridor, the placement, Escape and the outside-click
   // close. `cardtrig` is claimed only where a card can actually be shown: a
   // trigger cue on a badge that opens nothing is a promise the page cannot
-  // keep. The `title` is not a duplicate of the popup; it is what the badge
-  // says where there is no card machinery at all (the fast tier's DOM shim, a
-  // view called without handlers), so the information is never only in a hover.
+  // keep. The `title` is what the badge says where there is no card machinery
+  // at all (the fast tier's DOM shim, a view called without handlers), so the
+  // information is never only in a hover — and it is written ONLY there
+  // (nav_tooltip_once_and_rail_hover_emphasis, 2026-09-30). A badge that opens
+  // a card and also carries a native tooltip is two hover surfaces over one
+  // mark, saying the same thing in two formats: the browser drops its plain
+  // box over the formatted card and the reader gets whichever won. Jeff, on
+  // the nav rail where both were visible at once: "there is a duplicate
+  // hover-over tooltip (unformatted and formatted versions) that sometimes
+  // block each other. Keep just the formatted one." So the card ABSORBS the
+  // title rather than stacking under it, which is the rule views/topology.js's
+  // rail bars and the grid's component cell already follow. `aria-label` stays
+  // on both arms: it is the mark's accessible name, not a second hover.
   //
   // `opts.stopClick` — whether a click on the badge may reach the row beneath.
   // The nav rail sets it: a click there selects the study and re-renders the
@@ -117,15 +127,17 @@
     opts = opts || {};
     var badge = VA.el("span", opts.className || "rowalert",
       opts.icon || VA.warningIcon("rowalert__mark"));
-    badge.setAttribute("title", alerts.map(function (alert) {
-      return alert.text + (alert.why ? " — " + alert.why : "");
-    }).join("\n"));
     // For a reader with no pointer, and for one who cannot see the mark: the
     // icon's name is the words it stands for.
     badge.setAttribute("aria-label", alerts.map(function (alert) {
       return alert.text;
     }).join(" "));
-    if (!onCardShow) return badge;
+    if (!onCardShow) {
+      badge.setAttribute("title", alerts.map(function (alert) {
+        return alert.text + (alert.why ? " — " + alert.why : "");
+      }).join("\n"));
+      return badge;
+    }
     badge.className += " cardtrig";
     badge.setAttribute("tabindex", "0");
     var show = function (event) {
