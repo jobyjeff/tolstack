@@ -20,7 +20,7 @@
 //
 //   1. The element's own WORDS say which KIND of surface its feature is. A
 //      diameter is on a cylinder; a thickness, a length or a flange is between
-//      flat faces. That is AA.SUGGESTION_RULES.
+//      flat faces; a joint centre is on a ball. That is AA.SUGGESTION_RULES.
 //   2. A face already bound NEARBY says more. If the other end of this
 //      dimension, or the other half of the interface at this end, already has
 //      a face, the candidates that stand in a sensible geometric RELATION to
@@ -36,7 +36,7 @@
 // belongs to one face rather than to a pair of frames -- and for flat faces
 // there is none at all. The table says so rather than computing a coplanarity
 // it cannot support.
-(function (AA) {
+(function (AA, VOCAB) {
   "use strict";
 
   // --- rule table: the element's words -> the surface class it needs --------
@@ -79,6 +79,19 @@
       says: "a length between faces is on flat surfaces",
       words: Object.freeze(["thickness", "length", "width", "height", "depth",
         "grip", "flange", "face", "shoulder", "gap", "protrusion", "step", "land"]),
+    }),
+    // LAST, and the order is load-bearing rather than incidental. Three live
+    // interfaces are already named "spherical bearing face against ..." and
+    // "spherical bearing width" -- a flat face and a width, on a part that
+    // happens to be a spherical bearing. Asked before the row above, this one
+    // would take all three on the word "spherical" and colour the wrong faces.
+    // Asked last, it answers only when nothing more specific did, which is what
+    // a joint named for its CENTRE looks like.
+    Object.freeze({
+      key: "spherical_centre",
+      surface: "spherical",
+      says: "a joint centre is on a ball-shaped surface",
+      words: Object.freeze(["sphere", "spherical", "ball", "centre", "center"]),
     }),
   ]);
 
@@ -170,19 +183,34 @@
   // is the placement-transform fence, not an omission to be filled in later by
   // whoever notices the hole.
   AA.NARROWING_RELATIONS = Object.freeze({
-    same_part_relation: Object.freeze({ planar: "parallel", cylindrical: "coaxial" }),
-    mating_fit: Object.freeze({ planar: null, cylindrical: "same_radius" }),
+    same_part_relation: Object.freeze({
+      planar: "parallel", cylindrical: "coaxial", spherical: null }),
+    mating_fit: Object.freeze({
+      planar: null, cylindrical: "same_radius", spherical: "same_radius" }),
   });
   AA.NARROWING_RELATION_NAMES = Object.freeze(["parallel", "coaxial", "same_radius"]);
 
-  // Said out loud on the surface when a flat face is bound on the adjacent
-  // part and this is all the narrowing there is. Everyday words: it describes
-  // what a reader can see (the parts are side by side, not assembled), never
-  // a transform or a module.
+  // Said out loud on the surface wherever the table above declares a null.
+  // Everyday words, every one of them: each describes what a reader can see --
+  // the parts side by side rather than assembled, the two ends of a link drawn
+  // on top of each other -- and never a transform or a module.
   AA.NO_MATING_PLANE_RELATION =
     "The face bound on the other part is flat, and the parts here sit side by " +
     "side rather than assembled, so nothing on screen can say which flat face " +
     "meets it.";
+  AA.NO_SAME_PART_SPHERE_RELATION =
+    "The centre already bound is on this same part, and a part is drawn once " +
+    "here however many times it is fitted, so the two centres land on top of " +
+    "each other and nothing on screen can tell them apart.";
+
+  // One reason per null above, keyed the same way, so a null is a decision
+  // with a sentence attached rather than a hole. Paired against
+  // NARROWING_RELATIONS by run_tests.cjs in both directions: a null with no
+  // reason, and a reason for something that is not null, are both red.
+  AA.NO_RELATION_REASONS = Object.freeze({
+    same_part_relation: Object.freeze({ spherical: AA.NO_SAME_PART_SPHERE_RELATION }),
+    mating_fit: Object.freeze({ planar: AA.NO_MATING_PLANE_RELATION }),
+  });
 
   // Two faces are the same face when they are the same face of the same mesh.
   function sameFace(a, b) {
@@ -378,7 +406,7 @@
       // list actually is: the narrowing this stage would have done cannot be
       // asserted, and reporting the stage anyway would credit the list with a
       // narrowing it never got.
-      end.note = AA.NO_MATING_PLANE_RELATION;
+      end.note = AA.NO_RELATION_REASONS[stage][want.surface];
       return end;
     }
     end.stage = stage;
@@ -405,8 +433,22 @@
     return false;
   }
 
+  // The everyday word for a surface class, as a table keyed by the GENERATED
+  // vocabulary -- so a class Python can emit that this surface has no word for
+  // throws when the app loads, rather than printing the wrong word in a
+  // sentence a reader is being asked to trust. "other" has a word even though
+  // no rule may ask for one: the table is keyed by the whole vocabulary, and a
+  // key omitted because it "cannot happen" is how the next class arrives
+  // silently.
+  AA.SURFACE_WORDS = VOCAB.table("SURFACE_CLASSES", {
+    planar: "flat",
+    cylindrical: "round",
+    spherical: "ball-shaped",
+    other: "readable",
+  });
+
   function surfaceWord(surface) {
-    return surface === "cylindrical" ? "round" : "flat";
+    return AA.SURFACE_WORDS[surface];
   }
   AA.surfaceWord = surfaceWord;
 
@@ -448,4 +490,4 @@
     return plan.faces.length + " likely face" + (plan.faces.length === 1 ? "" : "s") +
       (stages.length ? " -- " + stages.join("; ") : "");
   };
-})(window.AnnotateApp = window.AnnotateApp || {});
+})(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);

@@ -1767,15 +1767,53 @@ function spherePatch(radius, segments) {
   return { verts, tris };
 }
 
-check("SURFACE_CLASSES is the closed set, and the classifier answers nothing else", () => {
-  assertEqual(AA.SURFACE_CLASSES, ["planar", "cylindrical", "other"],
-    "the surface-class vocabulary moved");
-  const classes = classify([planeFace(5, 10, 3), CYL(3, 8, 360, 24), spherePatch(4, 6)]);
+// A single band of a sphere -- nodes in exactly TWO latitude rows, which is
+// what OCC lays down for a narrow spherical band and what makes a sphere fit
+// vacuous: two coaxial circles lie on one sphere whatever surface joins them.
+// `phi0`/`phi1` are in degrees from the +Z pole.
+function sphereBand(radius, phi0Deg, phi1Deg, segments) {
+  const verts = [];
+  for (let i = 0; i <= segments; i++) {
+    const theta = (Math.PI * i) / segments;
+    for (const phiDeg of [phi0Deg, phi1Deg]) {
+      const phi = (phiDeg * Math.PI) / 180;
+      verts.push([radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.sin(phi) * Math.sin(theta),
+        radius * Math.cos(phi)]);
+    }
+  }
+  const tris = [];
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
+    tris.push([a, c, d]);
+    tris.push([a, d, b]);
+  }
+  return { verts, tris };
+}
+
+check("SURFACE_CLASSES is the GENERATED set, the classifier answers nothing " +
+  "else, and it is asked in the order the more constrained shape wins", () => {
+  // Not a literal: the words come from tolerance_stack/feature_geometry.py
+  // through apps/viewer/vocab.gen.js, so this reads the generated module
+  // rather than restating the list a third time.
+  assertEqual(AA.SURFACE_CLASSES, sandbox.TolstackVocab.annotate.list("SURFACE_CLASSES"),
+    "the classifier's vocabulary is not the generated one");
+  assertEqual(AA.FITTED_SURFACE_CLASSES, ["planar", "cylindrical", "spherical"],
+    "the fit order moved -- a sphere asked before a cylinder answers for a bore, " +
+    "because a band of quads lies on a sphere whatever shape it is");
+  if (AA.FITTED_SURFACE_CLASSES.indexOf("other") !== -1) {
+    throw new Error('"other" is what is LEFT, not something that is fitted');
+  }
+  const classes = classify([planeFace(5, 10, 3), CYL(3, 8, 360, 24), spherePatch(4, 6),
+    revolvedFace((k) => 3 + k * 2, 2, 360, 24)]);
   classes.forEach((c) => {
     if (AA.SURFACE_CLASSES.indexOf(c.surface) === -1) {
       throw new Error(`classifyPartFaces answered "${c.surface}", which is not in SURFACE_CLASSES`);
     }
   });
+  assertEqual(classes.map((c) => c.surface),
+    ["planar", "cylindrical", "spherical", "other"],
+    "each of the four classes was not answered by the shape built for it");
 });
 
 check("a plane classifies as planar, with its own normal and offset", () => {
@@ -1826,11 +1864,72 @@ check("a cone is OTHER, not a cylinder -- the chamfers on every bushing in " +
   assertEqual(cone.surface, "other", "a cone classified as something else");
 });
 
-check("a spherical patch is OTHER -- its normals span all three axes", () => {
+check("a spherical patch is SPHERICAL, and it recovers the CENTRE -- which is " +
+  "the whole reason a joint wants one read", () => {
   const [sphere] = classify([spherePatch(5, 6)]);
-  assertEqual(sphere.surface, "other", "a spherical patch classified as something else");
-  if (sphere.why.indexOf("neither a plane nor a cylinder") === -1) {
-    throw new Error("unexpected reason for a sphere: " + sphere.why);
+  assertEqual(sphere.surface, "spherical", "a spherical patch classified as something else");
+  if (Math.abs(sphere.radius - 5) > 1e-4) {
+    throw new Error("radius read as " + sphere.radius + ", not 5");
+  }
+  // spherePatch is built about the origin, so the centre is known by
+  // construction -- and a centre is the one thing a sphere has that a cylinder
+  // and a plane do not.
+  sphere.centre.forEach((c, i) => {
+    if (Math.abs(c) > 1e-4) {
+      throw new Error("the centre is off the origin: " + JSON.stringify(sphere.centre) +
+        " (component " + i + ")");
+    }
+  });
+});
+
+check("a sphere read from ONE BAND of quads is OTHER, and says which refusal " +
+  "it is -- two coaxial circles lie on a sphere whatever shape they bound", () => {
+  // The measurement the whole ordering rests on: a cylinder band, a cone band
+  // and a spherical band all fit a sphere to machine precision, because two
+  // coaxial circles determine one exactly. So a band is refused on its SHAPE
+  // (nodes in two rows), not on a residual -- no residual could tell them apart.
+  const band = sphereBand(5.147, 50, 90, 13);
+  const fit = AA.fitSphere(band.verts);
+  if (Math.abs(fit.r - 5.147) > 1e-6) {
+    throw new Error("the band's own sphere fit is not exact: r = " + fit.r);
+  }
+  const [classified] = classify([band]);
+  assertEqual(classified.surface, "other", "a single band of quads answered sphere");
+  if (classified.why.indexOf("one band of quads") === -1) {
+    throw new Error("a band was refused for the wrong reason: " + classified.why);
+  }
+  // ...and a CONE band, which is not a sphere at all, fits one just as well.
+  const cone = revolvedFace((k) => 3 + k * 1.1547, 2, 180, 13);
+  const coneFit = AA.fitSphere(cone.verts);
+  if (!coneFit || Math.abs(coneFit.r - 4.2891) > 1e-3) {
+    throw new Error("the cone band did not fit a sphere: " + JSON.stringify(coneFit));
+  }
+  assertEqual(classify([cone])[0].surface, "other", "a cone band classified as a sphere");
+});
+
+check("fitSphere recovers a sphere exactly, and refuses a plane rather than " +
+  "guessing a centre somewhere behind it", () => {
+  const points = [];
+  for (let i = 0; i < 6; i++) {
+    for (let j = 0; j < 6; j++) {
+      const phi = 0.3 + (i * 1.2) / 5, theta = (j * 2.4) / 5;
+      points.push([2 + 7 * Math.sin(phi) * Math.cos(theta),
+        -3 + 7 * Math.sin(phi) * Math.sin(theta),
+        11 + 7 * Math.cos(phi)]);
+    }
+  }
+  const fit = AA.fitSphere(points);
+  if (Math.abs(fit.r - 7) > 1e-6 || Math.abs(fit.centre[0] - 2) > 1e-6 ||
+      Math.abs(fit.centre[1] + 3) > 1e-6 || Math.abs(fit.centre[2] - 11) > 1e-6) {
+    throw new Error("sphere fit off: " + JSON.stringify(fit));
+  }
+  const flat = [];
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) flat.push([i, j, 5]);
+  if (AA.fitSphere(flat) !== null) {
+    throw new Error("a flat point set was fitted to a sphere");
+  }
+  if (AA.fitSphere([[0, 0, 0], [1, 0, 0], [0, 1, 0]]) !== null) {
+    throw new Error("three points were fitted to a sphere");
   }
 });
 
@@ -2009,9 +2108,26 @@ check("requiredSurfaceClass matches WORDS, not substrings -- and a name that " +
   });
   if (AA.requiredSurfaceClass("") !== null) throw new Error("an empty name matched a rule");
   if (AA.requiredSurfaceClass(null) !== null) throw new Error("a null name matched a rule");
-  if (AA.requiredSurfaceClass("spherical bearing ball") !== null) {
-    throw new Error("a sphere matched a rule -- neither class is right for it");
-  }
+  // "spherical bearing ball" READS as a sphere since 2026-09-30 -- but only
+  // because nothing more specific answered first. The rows below are the live
+  // interface names that contain "spherical" and are NOT spheres (two flat
+  // faces, a width and a bore), and the rule ORDER is what keeps them right.
+  assertEqual(AA.requiredSurfaceClass("spherical bearing ball").surface, "spherical",
+    "a ball did not read as a ball");
+  [["plain bushing face against the pitch-link eye (spherical bearing ball)", "planar"],
+    ["spherical bearing face against the flanged bushing's flange", "planar"],
+    ["spherical bearing width", "planar"],
+    ["pitch-link spherical bearing housing bore", "cylindrical"],
+  ].forEach(([text, want]) => {
+    const got = AA.requiredSurfaceClass(text);
+    if (!got || got.surface !== want) {
+      throw new Error(`"${text}" read as ${got ? got.surface : "nothing"}, wanted ` +
+        `${want} -- the rule ORDER decides this, and it moved`);
+    }
+  });
+  // "centre" must not fire on "centreline", which three live interfaces carry.
+  assertEqual(AA.requiredSurfaceClass("cotter-pin hole centreline").surface, "cylindrical",
+    "a centreline read as a centre");
 });
 
 check("endSurfaceClass asks the INTERFACE first: one dimension's two ends can " +
@@ -2062,6 +2178,35 @@ check("the narrowing stages and the relations they may assert are one table, " +
   assertEqual(AA.NARROWING_RELATIONS.mating_fit.planar, null,
     "mating_fit claims a relation between two flat faces on different parts -- " +
     "this app applies no placement transforms, so it cannot have one");
+  assertEqual(AA.NARROWING_RELATIONS.same_part_relation.spherical, null,
+    "same_part_relation claims a relation between two centres on ONE part -- " +
+    "a part is drawn once however many times it is fitted, so its two centres " +
+    "land on top of each other");
+});
+
+check("every null in the relations table carries a reason, and no reason " +
+  "stands for a relation that exists", () => {
+  // A null is a DECISION, and a decision a reader is shown has a sentence
+  // attached. Paired in both directions, because the failure that matters is
+  // the quiet one: a null added with no reason prints `undefined` where a
+  // sentence should be, which a reader reads as the app being broken rather
+  // than as the narrowing being impossible.
+  const missing = [];
+  const spare = [];
+  Object.keys(AA.NARROWING_RELATIONS).forEach((stage) => {
+    const perClass = AA.NARROWING_RELATIONS[stage];
+    const reasons = AA.NO_RELATION_REASONS[stage] || {};
+    Object.keys(perClass).forEach((surface) => {
+      const hasReason = typeof reasons[surface] === "string" && reasons[surface].length;
+      if (perClass[surface] === null && !hasReason) missing.push(`${stage}.${surface}`);
+      if (perClass[surface] !== null && hasReason) spare.push(`${stage}.${surface}`);
+    });
+  });
+  Object.keys(AA.NO_RELATION_REASONS).forEach((stage) => {
+    if (!AA.NARROWING_RELATIONS[stage]) spare.push(stage);
+  });
+  assertEqual(missing, [], "a null in NARROWING_RELATIONS with no reason to print");
+  assertEqual(spare, [], "a reason written for a narrowing that is not refused");
 });
 
 // --- the planner ------------------------------------------------------------
@@ -2236,6 +2381,50 @@ check("stage 3: a FLAT face bound on the adjacent part narrows nothing, says " +
   assertEqual(end.candidates, [0, 1, 2], "the candidate list was narrowed anyway");
 });
 
+check("a joint centre suggests only the BALL faces, and a second centre on " +
+  "the same part narrows nothing and says why", () => {
+  const sha = SUGGEST_MESHES[0].sha256;
+  const classes = fixtureClasses();
+  classes[sha][0] = { faceId: 0, surface: "spherical", centre: [0, 0, 0], radius: 5 };
+  classes[sha][1] = { faceId: 1, surface: "spherical", centre: [0, 0, 20], radius: 5 };
+  // The same topology ID the fixture binding helper writes, so a binding made
+  // with boundAt is actually found for this edge.
+  const sphereTopology = {
+    id: SUGGEST_TOPOLOGY.id, parts: [{ id: "plate_part" }],
+    nodes: [{ id: "lower", name: "link lower spherical-bearing centre" },
+      { id: "upper", name: "link upper spherical-bearing centre" }],
+    edges: [{ id: "link_length", part: "plate_part", from: "lower", to: "upper",
+      name: "link length between centres" }],
+  };
+  const plan = AA.planFaceSuggestions({
+    topology: sphereTopology, edgeId: "link_length", identityProjection: null,
+    meshes: SUGGEST_MESHES, aliases: [], faceClasses: classes,
+  });
+  assertEqual(plan.faces.map((f) => f.faceId).sort(), [0, 1],
+    "a joint centre did not suggest the part's ball-shaped faces");
+  plan.ends.forEach((end) => {
+    assertEqual(end.surface, "spherical", "an end of a centre-to-centre dimension " +
+      "did not ask for a ball-shaped face");
+  });
+
+  // ...and with the other end bound, on THIS part: the relation is refused,
+  // the stage stays where it was, and the list is not narrowed by a guess.
+  const bound = AA.planFaceSuggestions({
+    topology: sphereTopology, edgeId: "link_length",
+    identityProjection: boundAt("link_length", "from", sha, 0),
+    meshes: SUGGEST_MESHES, aliases: [], faceClasses: classes,
+    directions: ["to"],
+  });
+  const end = bound.ends[0];
+  assertEqual(end.stage, "surface_class",
+    "the same-part sphere case claimed a narrowing it cannot do");
+  assertEqual(end.relation, null, "a relation was asserted between two centres " +
+    "of one part drawn once");
+  assertEqual(end.note, AA.NO_SAME_PART_SPHERE_RELATION,
+    "the same-part sphere case did not say why it narrowed nothing");
+  assertEqual(end.candidates, [1], "the candidate list was narrowed anyway");
+});
+
 check("an element that names no part, and one whose words say nothing, both " +
   "suggest NOTHING and say so -- never a guessed surface", () => {
   const gap = plan("stand_off", null);
@@ -2304,8 +2493,9 @@ check("gatherFaceReferences names both kinds of neighbour, and never the " +
 
 check("every sentence the suggestion surface can print survives the shared " +
   "ban list, and carries no schema word", () => {
-  const sentences = [AA.NO_MATING_PLANE_RELATION, AA.SUGGEST_SETTING_LABEL,
-    AA.SUGGEST_SETTING_HINT]
+  const sentences = [AA.NO_MATING_PLANE_RELATION, AA.NO_SAME_PART_SPHERE_RELATION,
+    AA.SUGGEST_SETTING_LABEL, AA.SUGGEST_SETTING_HINT]
+    .concat(AA.SURFACE_CLASSES.map((w) => AA.SURFACE_WORDS[w]))
     .concat(AA.SUGGESTION_RULES.map((r) => r.says))
     .concat(AA.NARROWING_STAGES.map((s) => s.says))
     .concat(AA.NARROWING_STAGES.map((s) => s.needs))
@@ -2636,16 +2826,29 @@ if (realMeshesDir) {
 
   check("[real] every installed mesh classifies, and the rate over the whole " +
     "store stays above the floor", () => {
-    const totals = { planar: 0, cylindrical: 0, other: 0 };
+    // Keyed by the GENERATED vocabulary, not by a hand-written trio: a class
+    // Python adds and this harness has no counter for would otherwise land in
+    // neither the numerator nor the denominator, and the rate would stay
+    // comfortably above its floor while nobody could see the new faces at all.
+    const zeroed = () => {
+      const counts = {};
+      AA.SURFACE_CLASSES.forEach((word) => { counts[word] = 0; });
+      return counts;
+    };
+    const totals = zeroed();
     const reasons = {};
     const perPart = [];
     realMeshList().forEach((mesh) => {
       const classes = classifyReal(mesh.sha256);
-      const counts = { planar: 0, cylindrical: 0, other: 0 };
+      const counts = zeroed();
       classes.forEach((c, index) => {
         if (!c) throw new Error(`${mesh.part_id}: face ${index} got no classification at all`);
         if (c.surface === "other" && !c.why) {
           throw new Error(`${mesh.part_id}: face ${index} is "other" with no reason`);
+        }
+        if (!Object.prototype.hasOwnProperty.call(counts, c.surface)) {
+          throw new Error(`${mesh.part_id}: face ${index} answered "${c.surface}", ` +
+            "which is not in SURFACE_CLASSES");
         }
         counts[c.surface]++;
         if (c.surface === "other") reasons[c.why] = (reasons[c.why] || 0) + 1;
@@ -2656,12 +2859,12 @@ if (realMeshesDir) {
       Object.keys(counts).forEach((k) => { totals[k] += counts[k]; });
       perPart.push({ part: mesh.part_id, n: classes.length, counts: counts });
     });
-    const n = totals.planar + totals.cylindrical + totals.other;
+    const n = AA.SURFACE_CLASSES.reduce((sum, word) => sum + totals[word], 0);
     if (!n) throw new Error("no faces were classified at all");
-    const fraction = (totals.planar + totals.cylindrical) / n;
+    const fraction = (n - totals.other) / n;
     console.log(`      ${n} faces over ${perPart.length} meshes: ` +
-      `${totals.planar} planar, ${totals.cylindrical} cylindrical, ${totals.other} other ` +
-      `(${(100 * fraction).toFixed(1)}% classified)`);
+      AA.SURFACE_CLASSES.map((w) => `${totals[w]} ${w}`).join(", ") +
+      ` (${(100 * fraction).toFixed(1)}% classified)`);
     Object.keys(reasons).sort((a, b) => reasons[b] - reasons[a]).forEach((why) => {
       console.log(`        ${String(reasons[why]).padStart(5)}  ${why}`);
     });
@@ -2727,10 +2930,76 @@ if (realMeshesDir) {
     // would put four chamfers into every bore's candidate list.
     const others = classes.filter((c) => c.surface === "other");
     assertEqual(others.length, 8, "the bushing's chamfer count moved");
+    // A cone read as a cylinder would put four chamfers into every bore's
+    // candidate list; a cone read as a SPHERE would put a joint centre into a
+    // solver. Each chamfer is one band of quads, a shape that fits a sphere
+    // exactly and means nothing by it -- so that is the refusal to expect.
     others.forEach((c) => {
-      if (c.why.indexOf("neither a plane nor a cylinder") === -1) {
+      if (c.why.indexOf("one band of quads") === -1) {
         throw new Error("a bushing chamfer was refused for the wrong reason: " + c.why);
       }
+    });
+    if (classes.some((c) => c.surface === "spherical")) {
+      throw new Error("a chamfer on a plain bushing was read as a sphere");
+    }
+  });
+
+  check("[real] ground truth: the MS14101-3 pitch-link bearing reads as its own " +
+    "catalog page, and its ball centre is the part origin", () => {
+    const sha = byPartId("asm217755_MS14101_3_9bfdb344");
+    if (!sha) {
+      console.log("      (asm217755_MS14101_3_9bfdb344 is not installed -- nothing to check)");
+      return;
+    }
+    const classes = classifyReal(sha);
+    // The numbers come from docs/spec_library/events/0006 (RBC Aerospace plain
+    // bearings, p. 21, MS14101 grooved dash -3), which is a document this repo
+    // has read and recorded: bore B 4.826 mm (-0.013), OD D 14.288 mm (-0.013),
+    // and two width columns, 7.14 mm (+/-0.13) and 5.54 mm (+0/-0.05). What
+    // this check is: proof that the geometry reader reads a known part. It is
+    // not a measurement of the part and it supplies no stack value.
+    const diameters = classes.filter((c) => c.surface === "cylindrical")
+      .map((c) => 2 * c.radius).sort((a, b) => a - b);
+    const unique = diameters.filter((d, i) => i === 0 || Math.abs(d - diameters[i - 1]) > 1e-6);
+    assertEqual(unique.map((d) => roundTo(d, 3)), [4.820, 14.282],
+      "the bearing's two diameters are not the .1900 bore and the .5625 OD");
+    if (!(unique[0] >= 4.813 && unique[0] <= 4.826)) {
+      throw new Error("the bore " + unique[0] + " is outside the catalog's 4.813-4.826");
+    }
+    if (!(unique[1] >= 14.275 && unique[1] <= 14.288)) {
+      throw new Error("the OD " + unique[1] + " is outside the catalog's 14.275-14.288");
+    }
+    // The two plane PAIRS, as a set. Which catalog column is which is NOT
+    // asserted: the recorded event names its 5.54 column "ball width", and the
+    // mesh puts the wider pair on the solid that carries the bore. Nothing in
+    // this repo settles that, and a guard is the wrong place to decide it.
+    const offsets = classes.filter((c) => c.surface === "planar")
+      .map((c) => roundTo(Math.abs(c.offset), 3));
+    const widths = offsets.filter((o, i) => offsets.indexOf(o) === i)
+      .map((o) => roundTo(2 * o, 2)).sort((a, b) => a - b);
+    assertEqual(widths, [5.54, 5.54, 7.11],
+      "the bearing's face pairs are not the catalog's two width columns " +
+      "(5.536/5.538 read to two places is 5.54 twice -- the race's two ends)");
+    // And the sphere, which is the whole reason this part is here: four
+    // spherical faces, the ball and the seat it turns in, both centred on the
+    // part's own origin. THAT is what makes a joint centre computable from a
+    // placement alone -- it is why the two instances of this bearing stand
+    // 105.99 apart in the assembly frame without a single face being bound.
+    const spheres = classes.filter((c) => c.surface === "spherical");
+    assertEqual(spheres.length, 4, "the bearing's spherical face count moved");
+    const radii = spheres.map((c) => roundTo(c.radius, 3)).sort((a, b) => a - b);
+    assertEqual(radii, [5.147, 5.147, 5.198, 5.198],
+      "the ball and the race seat are not the two spherical radii");
+    if (!(radii[3] > radii[0])) {
+      throw new Error("the race seat is not larger than the ball it holds");
+    }
+    spheres.forEach((c) => {
+      c.centre.forEach((v) => {
+        if (Math.abs(v) > 1e-3) {
+          throw new Error("a spherical centre is off the part origin: " +
+            JSON.stringify(c.centre));
+        }
+      });
     });
   });
 
