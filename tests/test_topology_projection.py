@@ -510,6 +510,64 @@ def test_the_rotor_fasteners_close_links_are_not_a_column_order_problem(
         "close-link crossings are the minimum over every column order")
 
 
+def test_no_other_column_order_beats_the_one_the_search_chose(topologies):
+    """The search optimises the number the counter counts, and not a model of it.
+
+    ``order_columns`` does not call :func:`B.layout_crossings` per candidate --
+    it could not afford to -- it re-expresses the objective as facts about
+    column IDS (``_crossing_incidences``) and accumulates the cost as it places
+    them. Two implementations of one rule is this repo's most-repeated defect
+    shape, and the failure mode here is quiet: a model that counted *almost*
+    the same thing would still return an order, and the pinned total above
+    would simply be the minimum of the wrong function.
+
+    So this asks the counter directly. A deterministic sample of orderings is
+    applied to the real ``pitch_system`` and counted with the public function;
+    none of them may beat what the search returned. It samples rather than
+    enumerating because enumerating 9! through the un-optimised counter is the
+    56 seconds that made the incidence model necessary in the first place.
+    """
+    import itertools
+    import random
+
+    topology = topologies["pitch_system"]
+    chosen = B.serialize_topology(topology).as_dict()
+    best = sum(B.layout_crossings(chosen).values())
+
+    def renumbered(layout: dict, permutation: dict) -> dict:
+        moved = dict(layout)
+        moved["rows"] = [dict(r, column=permutation[r["column"]],
+                              closes_column=(None if r.get("closes_column") is None
+                                             else permutation[r["closes_column"]]))
+                         for r in layout["rows"]]
+        moved["rails"] = [dict(r, column=permutation[r["column"]])
+                          for r in layout["rails"]]
+        moved["links"] = [dict(l, from_column=permutation[l["from_column"]],
+                               to_column=permutation[l["to_column"]])
+                          for l in layout["links"]]
+        return moved
+
+    others = list(range(1, chosen["columns"]))
+    rng = random.Random(20260930)
+    candidates = [tuple(others)]
+    candidates += [tuple(c) for c in itertools.islice(
+        itertools.permutations(others), 60)]
+    for _ in range(240):
+        shuffled = others[:]
+        rng.shuffle(shuffled)
+        candidates.append(tuple(shuffled))
+
+    for candidate in set(candidates):
+        permutation = {B.TRUNK_COLUMN: B.TRUNK_COLUMN}
+        for index, column in enumerate(candidate, start=1):
+            permutation[column] = index
+        total = sum(B.layout_crossings(renumbered(chosen, permutation)).values())
+        assert total >= best, (
+            f"the search returned {best} but renumbering its own output by "
+            f"{candidate} reaches {total} -- so order_columns is minimising "
+            "something other than layout_crossings (see _crossing_incidences)")
+
+
 def test_every_layout_says_how_its_columns_were_ordered(projection):
     """``column_order`` is on every layout, and is one of the two words.
 
