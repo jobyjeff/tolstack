@@ -425,7 +425,7 @@ tree into `C:\workspace\tolstack\data` in that order.
 | `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack` | worktree, main-checkout data | **522/522**, no SKIP lines |
 | `node apps/annotate/run_tests.cjs` | worktree (resolves the main checkout's store) | **157/157**, `[real]` tier ran |
 | `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack` | worktree | **25/25 browser checks** |
-| `node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack` | worktree | **132/132 witnessed** before the rework. The four specs this pass re-anchored or added were re-run individually afterwards and are all WITNESSED. **The full tier has NOT been re-run on the final tree** -- see below |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack` | worktree | **138/138 declared mutations witnessed**, exit 0, on the branch tip. (132/132 before the rework; the six more are integration's, which the merge brought in.) Enrollment: 53/522 fast, 15/157 annotate, 51/521 browser |
 | `tests/debug_report_tolerance_stacks.py --ratio` | worktree | 5/12/9 of 26 seeded; 30/16/15 of 61 all stacks — unmoved, this change adds no element |
 
 **The one failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`**,
@@ -434,14 +434,17 @@ SKIPPED tier, the viewer's `[real]` tier needs `data/projections/viewer/` which
 is gitignored into the main checkout, so it skips here. The tier itself is the
 522/522 row above, run the way the failure message tells you to.
 
-**The full mutation tier could not be re-run on the final tree, and the reason
-is worth the paragraph.** Two attempts failed: one crashed at spec 44 of ~132
-with `ENOENT` *writing* a file that is present in both the real tree and the
-shadow, and the immediate retry died on `EPERM` removing the shadow. Neither
-error mentions the cause, which is that **another witness run was going against
-this same worktree at the same time** -- the runner builds its shadow at one
-fixed path with no lock, so the two wipe and re-copy each other's tree. Filed as
+**The full mutation tier took three attempts, and the first two failures are
+worth the paragraph.** One crashed at spec 44 of ~132 with `ENOENT` *writing* a
+file that is present in both the real tree and the shadow; the immediate retry
+died on `EPERM` removing the shadow. Neither error mentions the cause, which is
+that **another witness run was going against this same worktree at the same
+time** -- the runner builds its shadow at one fixed path with no lock, so the
+two wipe and re-copy each other's tree. Filed as
 `ISSUE_20261001_two_mutation_witness_runs_on_one_worktree_corrupt_each_others_shadow.md`.
+The third attempt waited for the other run's parent pid to exit and then passed
+138/138, which is also the evidence for the diagnosis: nothing about the tree
+changed between the crash and the clean run.
 
 What this session got wrong on the way there: it read the two node processes
 holding the directory as its own orphans and stopped them. They were the other
