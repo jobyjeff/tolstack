@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: tests/candidate-provisioning
 reporter: agent
 class: shared_mutable_state_across_worktrees
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261001_triage_sweep.md
 handoff: docs/sessions/HANDOFF_20261001_declare_candidate_test_inputs.md
+resolution: handoff completed 2026-10-01 -- closed automatically by dispatch when handoff `declare_candidate_test_inputs` moved to completed/; not independently verified.
 ---
 
 # tolstack declares no `[tests] candidate_inputs`, so every batch merge judges it on a candidate whose `[real]` tier could not run
