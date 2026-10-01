@@ -980,6 +980,19 @@ document would supply it. Do not fill a hole to make the stack look finished.
 >   naming the stacks — `test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it`
 >   in `tests/test_tolerance_stack.py` — and record any you are out of scope to
 >   fix as a listed divergence rather than an exemption.
+>   **"Stack" here means any document that carries a value, not only a
+>   `stack_*.json`** (amended 2026-10-01). A topology edge carries the same
+>   `Dimension` a stack element does, and two topologies stated one rigid link's
+>   length 3.41 mm apart for a day with nothing able to go red, because the test
+>   above reads stack elements — and because one of the two carried its nominal
+>   in the edge's `properties` rather than in a `dimension`, which put it outside
+>   any value-level pairing at all. Both halves are closed:
+>   `test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_it`
+>   pairs topology edges on part + edge id and reads the value from **both**
+>   places a topology may state it. So when you record a value, the question to
+>   ask is not "does another stack fold this part?" but "does another *document*
+>   state this part's feature?" — and if the answer is yes and the numbers
+>   differ, that is the defect, wherever either number is written.
 >
 > **Untouched:** the prohibition on inventing a value from training-data recall.
 > A placeholder still needs a named source; it just no longer needs a verified
