@@ -300,11 +300,16 @@ def test_the_number_of_closing_edges_is_the_graphs_cycle_count(projection, topol
             and layout["rows"][rail["start"]]["kind"] == "node"
             and rail["start"] == 0
         ])
-        # Both committed documents are connected; assert that rather than
-        # deriving it, so a future disconnected topology reddens here with a
-        # readable message instead of quietly changing the arithmetic.
-        assert components == 1, f"{row['id']}: expected one connected component"
-        expected = len(topology.edges) - len(topology.nodes) + 1
+        # The arithmetic was `+ 1` until 2026-09-30, with a comment saying a
+        # future disconnected topology should redden here rather than quietly
+        # change it. One arrived -- topology_vpa_pitch_linkage carries three
+        # spherical bearings' own features beside the mechanism's chain, which
+        # is four components -- so this is that change, made deliberately and
+        # in a diff a reviewer reads. `Topology.cycle_rank` owns the
+        # derivation; the rails count below is the LAYOUT's own idea of how
+        # many pieces it drew, and the two are compared rather than conflated.
+        assert components >= 1, f"{row['id']}: the layout drew no rail at row 0"
+        expected = topology.cycle_rank()
         assert len(closing) == expected, (
             f"{row['id']}: {len(closing)} closing edge(s), but the graph has "
             f"{expected} independent loop(s)"

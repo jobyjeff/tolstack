@@ -104,6 +104,37 @@ every `bound` event (many-to-many) plus every `owner_not_in_set` event, plus
 the full history. Gated exactly like every other shared projection in this
 repo (`scripts/projection_provenance.py`).
 
+### The fit projection — and the one place placement is applied
+
+`scripts/fit_bound_features.py` folds the same event stream a second way
+(added 2026-09-30, handoff `vpa_pitch_linkage_topology_and_feature_fits`):
+every `bound` event becomes a **fitted nominal** in
+`data/projections/feature-geometry/fits.json` — the face's shape, read by
+`tolerance_stack.feature_geometry`, reported in the part's own frame and then
+**once per occurrence of that part in the assembly**, with the instance path and
+the placement matrix it used. Its consumer is outside this repo:
+`C:\workspace\linkage`, a pitch-linkage solver, which needs where the joints
+are rather than what any chain of them totals.
+
+**Placement is applied there and nowhere else.** `apps/annotate/` draws every
+part at its own local origin and applies no placement at all — which is what
+makes its cross-part face relations a declared gap rather than an omission
+(`ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`), and
+what makes two centres of one part land on top of each other on screen. The
+placements have always been recorded (each extracted mesh's `provenance.json`
+carries `extraction.instances[].placement_world`); until this script nothing
+read them. It prefers rotorkit's full-expansion `placements.json` where a run
+has one and says, per occurrence, which of the two it used.
+
+**A fit is not a value.** It has no band, no min/max and no plus/minus; a
+drawing callout wins over it wherever one exists (decision 6, above); and the
+cite-or-gap rule is untouched by it. What a fit supplies is the thing drawings
+do not state — *where in the assembly* a feature is. A binding that cannot be
+fitted is reported with its reason (no mesh, no such face, a face no surface
+fits, or a part nothing records a placement for), never silently dropped: an
+omitted row reads as "nobody has bound this yet", which is a different and
+wrong statement.
+
 ### Staleness — three outcomes, not two
 
 When a part's STEP file is replaced and re-tessellated, a stored `face_id`
@@ -168,13 +199,17 @@ faces to look at. Concretely, the fence is three statements:
   guard *"THE FENCE: the suggestion path colours faces and does nothing
   else"* is the one that has to redden).
 - **It reads a shape, never a dimension.** `apps/annotate/face_geometry.js`
-  extracts a face's plane or its axis and radius, because a *relation* between
-  two faces (parallel, coaxial, matching radius) cannot be tested without them.
-  Those numbers are compared and discarded: none of them reaches a binding
-  event, a stack value, or the screen.
+  extracts a face's plane, its axis and radius, or its centre and radius,
+  because a *relation* between two faces (parallel, coaxial, matching radius)
+  cannot be tested without them. Those numbers are compared and discarded: none
+  of them reaches a binding event, a stack value, or the screen.
 - **A face it cannot read is `other`**, which is a first-class answer in the
-  same sense a spec library's *unreadable* is — a cone, a sphere, a torus and a
-  swept blade surface all land there, and a face there is suggested for nothing.
+  same sense a spec library's *unreadable* is — a cone, a torus and a swept
+  blade surface all land there, and a face there is suggested for nothing. A
+  **sphere** did too until 2026-09-30; it is now a fourth class, because a
+  spherical joint's location *is* its centre and a linkage topology's edges are
+  centre-to-centre. The vocabulary is `tolerance_stack/feature_geometry.py`'s,
+  generated into the module both apps read.
 
 The rules are two declared tables in `apps/annotate/suggestions.js`: which kind
 of surface an element's own words ask for, and how much further a face already
@@ -212,6 +247,13 @@ suggestions" and in
   suggestions comparing two flat faces across two parts (above), so the
   decision now has a consumer that would visibly do more if it were revisited
   (`ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`).
+  **Still true of the app, and no longer true of the repo** (2026-09-30):
+  `scripts/fit_bound_features.py` applies the recorded placements, off-screen,
+  for a consumer outside this repo. That answers the "has anything exercised
+  the placement math" half of this entry — the first thing it did was put two
+  instances of one bearing 105.99 mm apart and agree with a 3DX sweep sheet
+  that had never seen the mesh — and it leaves the app's half exactly where it
+  was: the annotator still draws every part at its own origin.
 - **Automatic supersession / correction events**, the way
   `docs/spec_library/`'s `correction` mode works. v0's fold has no notion of
   "this binding replaces that one" — every `bound` event is a fact that

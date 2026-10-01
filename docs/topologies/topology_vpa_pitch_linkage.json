@@ -72,13 +72,13 @@
     },
     {
       "id": "spherical_bearing_tan_link",
-      "name": "tangential-link spherical bearing, narrow end",
-      "note": "MS14101-3, the narrow bearing at the tangential link's mount end. Installed as `asm217755_MS14101_3_84a75703` -- a DIFFERENT solid from the pitch link's `_9bfdb344`, both named MS14101-3 in the STEP, which is why the mesh store suffixes the geometry signature."
+      "name": "tangential-link bearing, narrow end",
+      "note": "MS14101-3, the narrow spherical bearing at the tangential link's mount end. Installed as `asm217755_MS14101_3_84a75703` -- a DIFFERENT solid from the pitch link's `_9bfdb344`, both named MS14101-3 in the STEP, which is why the mesh store suffixes the geometry signature."
     },
     {
       "id": "spherical_bearing_tan_link_ms14103_3",
-      "name": "tangential-link spherical bearing, wide end",
-      "note": "MS14103-3, the wide bearing at the tangential link's other end: same .1900 in bore as MS14101-3, wider body (docs/spec_library, event 0006, RBC Aerospace plain bearings pp. 21-22). Installed as `asm217755_MS14103_3`, three instances, one per tangential link."
+      "name": "tangential-link bearing, wide end",
+      "note": "MS14103-3, the wide spherical bearing at the tangential link's other end: same .1900 in bore as MS14101-3, wider body (docs/spec_library, event 0006, RBC Aerospace plain bearings pp. 21-22). Installed as `asm217755_MS14103_3`, three instances, one per tangential link."
     }
   ],
   "nodes": [

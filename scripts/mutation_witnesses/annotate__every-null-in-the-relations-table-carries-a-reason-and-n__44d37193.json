@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "every null in the relations table carries a reason, and no reason stands for a relation that exists",
+  "mutations": [
+    {
+      "contract": "A null in the narrowing table is a decision, and a decision a reader is shown carries a sentence. Without one the surface prints `undefined` where the explanation should be, which reads as the app being broken rather than as the narrowing being impossible.",
+      "issue": "docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md",
+      "note": "The mutation drops the reason and leaves the null, which is what adding a third null without noticing the table beside it looks like. The planner still runs; the only visible difference is one sentence becoming `undefined` on a surface whose whole value is that it says what it could not do.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    same_part_relation: Object.freeze({ spherical: AA.NO_SAME_PART_SPHERE_RELATION }),",
+      "replace": "    same_part_relation: Object.freeze({}),"
+    }
+  ]
+}

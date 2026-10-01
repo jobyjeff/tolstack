@@ -34,6 +34,12 @@ tolerance_stack/
                     owner-not-in-set, and the staleness re-check. stdlib only.
                     Added 2026-09-06. Binding is identity, not a value source --
                     see the section below and docs/DAG_TOPOLOGY.md.
+  feature_geometry.py what shape a tessellated STEP face is: the mesh reader, the
+                    plane / cylinder / sphere least-squares fits, and the
+                    surface-class vocabulary apps/annotate/face_geometry.js is
+                    generated from. stdlib only. Added 2026-09-30. It measures a
+                    mesh; it is not a value source for a tolerance -- see
+                    docs/ANNOTATION_SURFACE.md.
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
@@ -51,11 +57,12 @@ scripts/
                                in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
-                               2026-08-10; stdlib only. Imported by all six
+                               2026-08-10; stdlib only. Imported by all seven
                                projection writers (the three above and
                                `tolerance_stack/spec_library.py`, 2026-08-12,
                                `tolerance_stack/feature_identity.py`, 2026-09-06,
-                               and `scripts/export_stack_tabular.py`, 2026-09-04 --
+                               `scripts/fit_bound_features.py`, 2026-09-30, and
+                               `scripts/export_stack_tabular.py`, 2026-09-04 --
                                for its provenance stamp: that script writes no
                                shared projection and does not call the gate).
   projection_freshness.cjs     the READ side of that stamp (test tooling, not
@@ -78,6 +85,14 @@ scripts/
                                tolerance_stack.feature_identity.rebuild() ->
                                data/projections/feature-identity/bindings.json.
                                Added 2026-09-06; stdlib only.
+  fit_bound_features.py        a bound face as a fitted nominal ->
+                               data/projections/feature-geometry/fits.json: the
+                               local-frame fit, and the same geometry per
+                               assembly occurrence. Where an assembly placement
+                               matrix gets applied -- the annotator does not
+                               apply any. Added 2026-09-30; stdlib plus
+                               feature_geometry, feature_identity and
+                               projection_provenance.
   record_spec_crop_region.py   the verb behind docs/spec_library/crop_regions.json:
                                validates a rect against the pile document and the
                                sheet it names, previews it, and appends the entry.

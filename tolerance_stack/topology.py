@@ -699,6 +699,43 @@ class Topology:
         self.part(part_id)
         return [n for n in self.nodes if part_id in n.parts]
 
+    def components(self) -> int:
+        """How many connected pieces this graph is in.
+
+        One, for a topology that models a mechanism end to end. More than one is
+        legitimate and is not a defect to be repaired: a document may carry a
+        piece part's own features -- a bearing's ball centre against its seat
+        and its bore -- beside the chain the mechanism makes, and those are not
+        links in it. ``topology_vpa_pitch_linkage.json`` is the first (2026-09-30).
+
+        Here rather than in a test because two tests need it and a graph
+        property computed twice is a graph property that can disagree with
+        itself.
+        """
+        parent: Dict[str, str] = {}
+
+        def find(node: str) -> str:
+            parent.setdefault(node, node)
+            while parent[node] != node:
+                parent[node] = parent[parent[node]]
+                node = parent[node]
+            return node
+
+        for edge in self.edges:
+            parent[find(edge.from_node)] = find(edge.to_node)
+        return len({find(node.id) for node in self.nodes})
+
+    def cycle_rank(self) -> int:
+        """Independent cycles: ``edges - nodes + components``.
+
+        What this repo's prose calls a *grounded loop* -- a member of a cycle
+        basis, a return path that closes a ring with another one. Computed
+        rather than enumerated, so an added branch cannot be described away, and
+        **components** rather than 1, so a document carrying a piece part's own
+        features alongside the chain still counts its loops correctly.
+        """
+        return len(self.edges) - len(self.nodes) + self.components()
+
     def branch_nodes(self) -> List[str]:
         """Node ids with three or more edges -- where a study must choose.
 
