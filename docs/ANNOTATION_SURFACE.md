@@ -123,8 +123,13 @@ makes its cross-part face relations a declared gap rather than an omission
 what makes two centres of one part land on top of each other on screen. The
 placements have always been recorded (each extracted mesh's `provenance.json`
 carries `extraction.instances[].placement_world`); until this script nothing
-read them. It prefers rotorkit's full-expansion `placements.json` where a run
-has one and says, per occurrence, which of the two it used.
+read them. **Every placement comes from that sidecar**, because the sidecar
+belongs to one extracted solid and is therefore attributable to it. rotorkit's
+`placements.json` is read as a *check* on it rather than as a source: it is
+keyed by product number, and a product number is not a geometry key — three
+solids share `MS14101-3` — so its entry cannot say which instance is whose.
+What it can do is confirm the sidecar is not a slice, matched by instance path,
+and every installed mesh came back confirmed or honestly flagged.
 
 **A fit is not a value.** It has no band, no min/max and no plus/minus; a
 drawing callout wins over it wherever one exists (decision 6, above); and the
