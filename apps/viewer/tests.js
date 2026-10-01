@@ -12757,15 +12757,23 @@
               if (mirrored === 0) zeroed++;
             });
 
-            // "leader-vs-rail crossings went **92 → 43**, four of the five to
-            // zero"
-            var totals = /crossings went \*\*(\d+) → (\d+)\*\*, (\w+) of the\s+five to zero/
+            // "leader-vs-rail crossings went **96 → 43**, four of the five to
+            // zero". The SECOND number word used to be the literal `five` in
+            // this regex, which made a sixth committed topology read as "the
+            // sentence is missing" rather than "the sentence is stale" -- so
+            // both words are captured now and both are paired against the live
+            // projection.
+            var WORDS = ["zero", "one", "two", "three", "four", "five", "six",
+              "seven", "eight", "nine", "ten"];
+            var totals = /crossings went \*\*(\d+) → (\d+)\*\*, (\w+) of the\s+(\w+) to zero/
               .exec(readme);
             ok(totals, "expected the README's crossings sentence");
             eq(Number(totals[1]), before, "README's before-total");
             eq(Number(totals[2]), after, "README's after-total");
-            eq(totals[3], ["zero", "one", "two", "three", "four", "five"][zeroed],
+            eq(totals[3], WORDS[zeroed],
                "README's count of topologies taken to zero");
+            eq(totals[4], WORDS[liveTopos.length],
+               "README's count of committed topologies");
 
             // "that one topology's total only moves 47 → 43"
             var pitchTotals = /topology's total only moves (\d+) → (\d+)/.exec(readme);
@@ -13625,8 +13633,16 @@
                            }) };
               };
               var walk = marks(null);
+              // `rails.length`, not `columns`: a COLUMN may hold several
+              // disjoint rails once a branch has ended and its column been
+              // reused, which is what the layout's own Layout docstring says
+              // and what makes `rails` a list of spans rather than a per-column
+              // extent. The two were equal for every committed topology until
+              // vpa_pitch_linkage (2026-09-30) became the first to reuse one,
+              // and then this read as the renderer drawing a rail that is not
+              // there.
               eq(walk.shape, [topoProj.edges.length, topoProj.nodes.length,
-                              topoProj.layout.columns,
+                              topoProj.layout.rails.length,
                               topoProj.layout.links.length], topoProj.id);
               eq(walk.rows, topoProj.edges.length, topoProj.id + " deselected");
               (topoProj.studies || []).forEach(function (study) {

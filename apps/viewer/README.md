@@ -282,8 +282,8 @@ carriers).
   `VA.componentLabel` text, so there is one label style where there were two
   (ids in the pane, names on the card) and the two can no longer read
   differently about the same interface. The pane printed the authored `parts`
-  list until handoff `surfaces_that_state_something_false`, which is 17 of the
-  48 live nodes answering differently hovered and clicked.
+  list until handoff `surfaces_that_state_something_false`, which is 34 of the
+  72 live nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
@@ -557,9 +557,9 @@ display preference about a page that happens to have a grid on its right, and
 the mirror is a bijection, so rail continuity, column reuse and the
 one-dashed-curve-per-cycle invariant all survive it untouched. What it buys is
 the leaders: the spine carries most of them, and every rail that used to stand
-between a spine node and its row is now on the far side of it. Over the five
-committed topologies, leader-vs-rail crossings went **96 → 43**, four of the
-five to zero; on `pitch_system` its eight spine leaders went 43 → 0 (the
+between a spine node and its row is now on the far side of it. Over the six
+committed topologies, leader-vs-rail crossings went **167 → 98**, four of the
+six to zero; on `pitch_system` its eight spine leaders went 43 → 0 (the
 mechanism's own branch leaders pick some up in exchange, which is why that one
 topology's total only moves 47 → 43).
 
@@ -573,16 +573,17 @@ Three shapes come out of it, and all three are in the projection:
   which `tests/test_topology_projection.py` checks;
 * **column reuse** — a column is freed when its branch ends and the next
   allocation may take it, so a column holds a *list* of disjoint rail spans
-  rather than one extent. Measured live, 2026-09-15 (`viewer_hygiene_pass`,
-  re-measuring `review/dag_viewer_poc`'s two-topology reading now that five
-  are committed): reuse still does not fire at all — every one of the five
-  allocates exactly one rail per column: 3 over 3 for
-  `pitch_link_to_pitch_plate`, 10 over 10 for `pitch_system`, 10 over 10 for
-  `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, and 2
-  over 2 for `vpa_output_to_pitch_plate`. Since none of them exercises it,
-  disabling reuse entirely would leave every one of those numbers unchanged.
-  It is the mechanism the disjointness invariant guards, not an explanation of
-  today's widths. Guarded the way the walk/chain column counts just above are:
+  rather than one extent. Re-measured live, 2026-09-30: reuse **fires**, on
+  one topology. Rail allocations over columns, per committed topology: 3 over 3
+  for `pitch_link_to_pitch_plate`, 10 over 10 for `pitch_system`, 10 over 10
+  for `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, 2
+  over 2 for `vpa_output_to_pitch_plate`, and 12 over 11 for
+  `vpa_pitch_linkage`, where one column carries two disjoint spans. Until that
+  topology was committed the count was one-to-one everywhere, and the
+  2026-09-15 reading recorded here said so; disabling reuse would now visibly
+  widen one page. It is still the mechanism the disjointness invariant guards
+  rather than an explanation of today's widths. Guarded the way the walk/chain
+  column counts just above are:
   `apps/viewer/tests.js`'s doc-pairing test re-derives every number here from
   the live projection.
 
