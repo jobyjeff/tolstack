@@ -119,6 +119,15 @@ Two corollaries worth stating, because both were being broken:
   a binary.
 - **Metadata is grey.** A material key, an id under a name, "authored in the
   topology" — these carry no state, so they carry no hue.
+- **A pointer spends brightness, never a hue** (2026-09-30,
+  nav_tooltip_once_and_rail_hover_emphasis). Hover is the third claimant the
+  accent rule above keeps running into: it is not selection, it does not
+  survive the pointer leaving, and a mark it could paint the accent would be
+  saying "selected". So the topology page's hover emphasis is width and
+  brightness only — a neutral one step up from the rails, a low-alpha halo,
+  a low-alpha tint on a grid row — and a bar under the pointer keeps its
+  provenance colour exactly. The declarations and the argument are in
+  `apps/viewer/topology.css`'s "one hover state, two surfaces".
 
 ## Monospace
 
