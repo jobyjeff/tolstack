@@ -547,7 +547,8 @@ a value. **The root is never chosen by heuristic**, and that part has not
 changed: a "lowest degree" or "most-cited" root would move the whole diagram
 when an unrelated edge is added, and the author already ordered the document.
 
-**The column order is** (`columns_ordered_to_minimise_crossings`, 2026-09-30).
+**The column order now is** (`columns_ordered_to_minimise_crossings`,
+2026-09-30).
 The walk still allocates the mainline column 0 and the lowest free column at
 each fork, git-log's convention — but that is a claim about *when* a branch
 opened, and a poor claim about where to draw it. A second pass renumbers the
@@ -557,9 +558,11 @@ works out as **shortest leg nearest the trunk**: Jeff, reading the real
 (makes it hard to trace the lines) … moving the shorter legs to be closer to
 the trunk would help a lot."* The objective is three kinds of line counted
 equally — a fan-out curve, a loop-closing curve, and a node's own leader on its
-way to the grid — and the search is exhaustive up to nine non-trunk columns, so
-a diagram this wide gets a proved minimum rather than a good guess
-(`layout.column_order` says which it got). A renumbering is a bijection on
+way to the grid — and the search is exhaustive up to a declared width
+(`EXACT_ORDER_MAX_COLUMNS`, which every committed topology is inside), so a
+diagram this wide gets a proved minimum rather than a good guess. Past that
+width the layout is the rule above and `layout.column_order` says so, which is
+what stops a wide diagram claiming a minimum it did not prove. A renumbering is a bijection on
 column ids, so rail continuity, column reuse and the one-dashed-curve-per-cycle
 invariant all survive it untouched. The trade, taken deliberately: adding one
 edge can now re-order the columns.
