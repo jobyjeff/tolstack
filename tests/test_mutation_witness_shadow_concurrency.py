@@ -212,7 +212,15 @@ def test_two_different_repo_roots_both_still_succeed(tmp_path: Path) -> None:
     second_repo = tmp_path / "second_repo"
     shutil.copytree(
         REPO_ROOT, second_repo,
-        ignore=shutil.ignore_patterns(".git", "tmp", "data", "node_modules", "__pycache__"),
+        # "issues" alongside the rest: none of it is in SHADOWED or read by
+        # guard_enumeration.mjs, so it isn't needed to run the tier here --
+        # and docs/issues/ is where this repo's longest filenames live, which
+        # on Windows can push a path under a pytest tmp_path over the 260-char
+        # MAX_PATH and fail the copy with WinError 3 (review, 2026-10-01: hit
+        # this for real once an issue filed by another handoff landed on
+        # integration during this review).
+        ignore=shutil.ignore_patterns(
+            ".git", "tmp", "data", "node_modules", "__pycache__", "issues"),
     )
 
     p1 = _run(REPO_ROOT)
