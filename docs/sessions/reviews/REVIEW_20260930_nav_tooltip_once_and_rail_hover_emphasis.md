@@ -19,9 +19,11 @@ is empty, so nothing else moved underneath it.
 
 **Verdict: APPROVE, 0 blockers.** Three items delivered, all three demonstrated
 in the browser tier and in the three DoD screenshots, every new guard I
-re-planted fires, and all six mutation specs (five new, one re-pointed) are
-independently `WITNESSED` on the merged tree. Four findings, none blocking, all
-filed as issues; nothing fixed inline in the work under review.
+re-planted fires, all six mutation specs (five new, one re-pointed) independently
+`WITNESSED`, and the full post-merge tier at **122/132 with the whole gap
+attributable to a pre-existing red that is not this branch's**. Five findings,
+none blocking, four filed as issues and one group of nits recorded here; nothing
+fixed inline in the work under review.
 
 ## The mandatory checks (1–7) do not apply, and that is checked, not assumed
 
@@ -188,11 +190,36 @@ its `from_column`) rather than on something obviously broken. 21 guards arrived
 specs and 16 raised the pin, which is a disclosed claim and a reasonable one for
 a change that is mostly paint.
 
-**The standing post-merge full-tier run** is recorded at the end of this report.
+### The standing post-merge full-tier run
+
+`node scripts/run_mutation_witness_tests.mjs --repo <scratch>` on the merged
+tree, start to finish: **122/132 declared mutations witnessed, 0 ANCHOR
+ROTTED**, and the whole of the gap is attributable:
+
+| tier | entries | witnessed |
+|---|---|---|
+| `fast` | 59 | 59 |
+| `browser` | 53 | 53 |
+| `python` | 10 | 10 |
+| `annotate` | 10 | **0** — every one `the tier was red before the mutation, so nothing was proved` |
+
+So **the merge dropped no witness**, which is the question this run exists to
+answer, and the merge brought the sibling `columns_ordered_to_minimise_crossings`
+(a projection builder and `VA.spineRight`) onto one line with this handoff's
+viewer changes — exactly the combination that has decayed a witness before. The
+ten annotate misses are the pre-existing classification-floor red on
+`integration` (filed, see above) gating that tier's clean run; they are not this
+branch's, and the same ten would miss on `integration` alone.
+
+Two notes for whoever re-runs this. `--repo` had to point at the scratch root,
+not the main checkout, for the same reason as everything else above — against
+`C:/workspace/tolstack` the `fast` half reports `TIER_ALREADY_RED` wholesale.
+And the scratch root needs a `venv-win` junction as well, or all ten `python`
+entries come back as MISSes for want of an interpreter.
 
 ## Mutations I planted myself
 
-Two contracts the author's spec list does not name, both measured on the merged
+Three contracts the author's spec list does not name, all measured on the merged
 tree:
 
 1. **`chain()` → plain assignment** (`node[name] = fn`). Reddens the fast tier
@@ -203,6 +230,9 @@ tree:
 2. **`hotHover`'s leave-race guard removed** (`if (hot.on === key)` dropped from
    both the `onmouseleave` and `onblur` arms). **522/522 fast, 228/228 browser,
    4/4 suites** — green everywhere. Finding 3.
+3. **`.tvrow--lead > .tvcell` deleted, on its own.** **522/522 fast, 228/228
+   browser** — green. Finding 5, and the one I would have missed by mutating the
+   two tint rules together.
 
 ## Findings
 
@@ -255,6 +285,21 @@ the one witness under which it bites (fire `mouseenter(B)` before
 `mouseleave(A)` by hand). Left to the author: it is a predicate the mutation
 list does not name, which is file-don't-fix.
 Filed: `ISSUE_20260930_hothovers_leave_race_guard_is_inert_and_its_stated_event_order_is_backwards.md`.
+
+**5. should-fix — the grid's STRONG hover tint is unpinned, because the weak one
+the same hover applies satisfies the same assertion.** Deleting *only*
+`.tvrow--lead > .tvcell` (the `.125` tint on the row under the pointer — the
+"hovered edge loudest" half of item 3) leaves **522/522 fast and 228/228
+browser** green. Cause: a hovered row is a member of its own leg, so it carries
+`tvrow--hot tvrow--lead`; with `--lead` gone it still takes `.055` from `--hot`,
+and the browser block's only paint assertion is
+`r.fromRow.rowTint !== r.rest.rowTint` — the row against *itself at rest*, which
+one level satisfies as well as two. The DAG side gets this right (a hot rail's
+stroke and width are compared against a **cold** rail's, and that spec is
+`WITNESSED`); the grid side needs the same comparison against a **sibling row on
+the same leg**, which also hands it a free non-vacuity witness. Not fixed in
+review: it needs a new assertion to be trustworthy.
+Filed: `ISSUE_20260930_the_grids_strong_hover_tint_is_unpinned_because_the_weak_one_satisfies_the_same_assertion.md`.
 
 **4. nits, grouped — not filed.**
 - The deliberate decision that the rail and link hit paths get **no**

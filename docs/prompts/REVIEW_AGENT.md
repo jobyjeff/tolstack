@@ -4685,6 +4685,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       behaviour or "this would race", **run it** — it is the cheapest
       measurement in this repo and it is also the one shape where a defensive
       line and a load-bearing one are indistinguishable by reading.
+- [ ] **A TWO-LEVEL emphasis where the strong level is unpinned, because the
+      weak one the same gesture applies satisfies the assertion.** New
+      2026-09-30 (`nav_tooltip_once_and_rail_hover_emphasis`), and it is the
+      "never mutate a group of fields together" entry's hardest form, because
+      the two fields are not independent — one gesture sets both. The grid's
+      hover tint is `--hot` (.055, the rest of the leg) plus `--lead` (.125, the
+      row under the pointer), and the browser block's one paint assertion is
+      `fromRow.rowTint !== rest.rowTint` — the row against **itself at rest**.
+      A hovered row is a member of its own leg, so deleting `.tvrow--lead >
+      .tvcell` alone leaves it at .055, still different from rest: measured
+      **522/522 fast and 228/228 browser**
+      (`ISSUE_20260930_the_grids_strong_hover_tint_is_unpinned_because_the_weak_one_satisfies_the_same_assertion.md`).
+      The same diff's DAG side gets it right and is the shape to demand: a hot
+      rail is compared against a **cold** rail, not against its own rest state.
+      So whenever a deliverable is "X louder than Y", the assertion has to read
+      **X against Y in the same frame**, never X against X-not-hovered — and ask
+      which of the two levels the gesture applies *both* of.
 - [ ] **A per-ROW style written as `> .tvcell` reaches a `rowspan`ned cell and
       paints the whole group.** New 2026-09-30, same review, and it is the
       `.conf--*`-by-inheritance entry's sibling: the scope is wider than the
