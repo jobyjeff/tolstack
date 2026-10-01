@@ -138,7 +138,9 @@ ROTORKIT_ROOT = Path("C:/workspace/rotorkit")
 #:                 extra instances are reported as a count and never merged in.
 #: ``not_found``   no entry contains the sidecar's paths. The two files disagree
 #:                 about where this solid is, which is worth a reader's time.
-#: ``absent``      the run that produced this mesh wrote no ``placements.json``.
+#: ``absent``      nothing was compared: the run that produced this mesh wrote
+#:                 no ``placements.json``, or the mesh records no instance to
+#:                 compare against one (a single-part STEP export).
 EXPANSION_CHECKS = ("confirmed", "superset", "not_found", "absent")
 
 #: What a fit can fail to produce, and why -- a first-class answer, never a
@@ -231,7 +233,11 @@ def expansion_check(provenance: Dict[str, Any],
     the entry it matched and both counts.
     """
     sidecar = instance_paths((provenance.get("extraction") or {}).get("instances"))
-    if placements is None:
+    if placements is None or not sidecar:
+        # `absent` covers both "the run wrote no expansion" and "this mesh
+        # claims no instance to check one against" -- a single-part STEP export
+        # has no `extraction` block at all. Reporting the second as `not_found`
+        # would be true and misleading: nothing was looked for.
         return {"status": "absent", "key": None,
                 "sidecar_instances": len(sidecar), "expansion_instances": None}
     holders = sorted(
