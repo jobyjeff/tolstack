@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/projection-freshness
 class: guard_cannot_fail
 handoff: docs/sessions/HANDOFF_20260930_projection_freshness_pairs_with_the_tree.md
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260924_fixture_pairing_reads_a_fresh_projection.md
+resolution: handoff completed 2026-09-30 -- closed automatically by dispatch when handoff `projection_freshness_pairs_with_the_tree` moved to completed/; not independently verified.
 ---
 
 # Three ways `projectionFreshness` answers "built from this tree" with a false YES
