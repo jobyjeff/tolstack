@@ -75,14 +75,30 @@
 //
 // THE SHADOW TREE. Everything a tier reads -- `SHADOWED` below, which is the
 // list, and the only place it is written down -- is copied to
-// tmp/mutation-witness/ and the copy is what gets patched; this tree is never
+// tmp/mutation-witness-<pid>/ (2026-10-01: one directory PER RUN, keyed on this
+// process's own pid) and the copy is what gets patched; this tree is never
 // written to. The shadow
 // has to live INSIDE the repo (tmp/ is gitignored) for one specific reason:
 // node resolves `playwright-core` by walking up from the running script's own
 // directory, so a shadow under the system temp dir would find no node_modules
-// at all. Each run restores the file it patched, so the shadow is left clean.
+// at all. Each run restores the file it patched, so the shadow is left clean --
+// but the directory itself is left behind for the next run to sweep (below),
+// rather than removed here, so a crash leaves evidence instead of silently
+// losing it.
+//
+// A per-run directory removes the two runs' CONTENTION over one shadow, but not
+// every shared resource two overlapping runs still reach: both spawn tiers
+// against this same repo's gitignored `data/`, and both read the same tracked
+// tree. `LOCK` below is the gate for those -- a second run refuses outright,
+// naming the first, rather than two runs quietly fighting over files neither
+// owns exclusively. (ISSUE_20261001_two_mutation_witness_runs_on_one_worktree_corrupt_each_others_shadow:
+// before this, a second run against the same worktree wiped and re-copied the
+// tree the first was mid-patch on, and neither failure -- an ENOENT naming a
+// file that *was* there, an EPERM on the rmSync -- said anything about
+// concurrency.)
 import { spawn } from "node:child_process";
-import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync, existsSync,
+         readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { dirname, join, normalize } from "node:path";
@@ -93,7 +109,22 @@ const { projectionInputs } = createRequire(import.meta.url)("./projection_freshn
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
-const SHADOW = join(REPO, "tmp", "mutation-witness");
+const TMP_DIR = join(REPO, "tmp");
+// Every per-run shadow shares this prefix, so a sweep can tell one apart from
+// anything else that might land in tmp/ and so the pid is recoverable from the
+// name alone -- no sidecar file, nothing to go stale on its own.
+const SHADOW_PREFIX = "mutation-witness-";
+const SHADOW = join(TMP_DIR, SHADOW_PREFIX + process.pid);
+// The one resource still shared across runs against the same REPO -- see the
+// note above. Scoped to REPO (this script's own tree, i.e. wherever THIS copy
+// of the script lives), not DATA_REPO (below, the `--repo` target): two runs
+// of two different checkouts' own scripts -- main checkout and a worktree --
+// get two different REPOs and so two different locks, which is what lets the
+// batch-merge duty and a live session's own tier run coexist. Two runs of the
+// SAME checkout's script, whatever `--repo` each passes, share one REPO and so
+// one lock -- correctly, since both would spawn tiers against that REPO's own
+// tracked tree and `tmp/` regardless of which `data/` either points at.
+const LOCK = join(TMP_DIR, "mutation-witness.lock");
 // The directories the tiers actually read, as path segments. apps/ is the app
 // under test and scripts/ is the browser runner itself. Copying data/
 // (gigabytes, gitignored, main-checkout only) would be both wrong and slow --
@@ -450,6 +481,137 @@ function runTier(mutation) {
   });
 }
 
+// --- the lock and the stale-shadow sweep ------------------------------------
+//
+// Whether `pid` is still a live process. Node has no portable "is this pid
+// alive" call, so this borrows the common `kill(pid, 0)` trick: signal 0 sends
+// nothing and only asks the OS whether it COULD signal `pid`. ESRCH means no
+// such process; EPERM means the process exists but belongs to someone else's
+// session, which on this machine still counts as alive. Anything else
+// (most commonly ESRCH) reads as dead.
+//
+// THE HONEST LIMIT, on Windows specifically: pids are recycled, often quickly,
+// so "pid N is alive" is really "SOME process is alive at pid N right now" --
+// there is no generation counter to also check. A lock or a shadow can in
+// principle be misread as live because an unrelated process landed on the same
+// number between this run starting and the check running. Nothing in Node's
+// standard library closes that gap; it is the same gap a pidfile has on any
+// OS, and is why the refusal message names the pid rather than silently
+// trusting it -- a human reading "pid N" can tell at a glance that N is, say,
+// a browser tab and not another witness run.
+function isAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err && err.code === "EPERM";
+  }
+}
+
+// Removes every per-run shadow directory whose pid is no longer running,
+// before this run creates its own. Reaps by LIVENESS, never by age -- a sweep
+// that reaped the oldest directory after some fixed time would eventually reap
+// a slow run still in progress, which is worse than the accumulation it would
+// be fixing.
+function sweepStaleShadows() {
+  if (!existsSync(TMP_DIR)) return;
+  for (const name of readdirSync(TMP_DIR)) {
+    if (!name.startsWith(SHADOW_PREFIX)) continue;
+    const pid = Number(name.slice(SHADOW_PREFIX.length));
+    if (isAlive(pid)) continue;
+    try {
+      rmSync(join(TMP_DIR, name), { recursive: true, force: true });
+    } catch (err) {
+      // `force: true` swallows "already gone"; it does NOT swallow a file a
+      // virus scanner or indexer still has a transient handle on, which is an
+      // EPERM with the dead run's OWN pid in the path -- not the collision
+      // this tier exists to refuse (that one names a LIVE pid). Reaping is a
+      // courtesy, not this run's job: skip it, say so, and let the next run's
+      // sweep try again rather than taking this one down over someone else's
+      // leftovers.
+      console.log(`note: could not reap stale shadow ${name} (pid ${pid}, not ` +
+        `running): ${err && err.message ? err.message : err}`);
+    }
+  }
+}
+
+/**
+ * Writes `LOCK` claiming it for this run, failing rather than overwriting if
+ * it already exists. The `"wx"` flag is an exclusive create (fails EEXIST if
+ * the path is already there) rather than "check then write" -- a plain
+ * `existsSync` followed by `writeFileSync` leaves a window between the two
+ * where a second run's check can land, and both runs would then believe they
+ * hold the only lock.
+ */
+function tryClaimLock() {
+  try {
+    writeFileSync(LOCK, JSON.stringify(
+      { pid: process.pid, startedAt: new Date().toISOString() }), { flag: "wx" });
+    return true;
+  } catch (err) {
+    if (err && err.code === "EEXIST") return false;
+    throw err;
+  }
+}
+
+/**
+ * Claims `LOCK` for this run, clearing it first if its pid is dead.
+ * Returns true once the lock is this run's; false (with the refusal already
+ * printed) when a live run holds it.
+ */
+function acquireLock() {
+  mkdirSync(TMP_DIR, { recursive: true });
+  if (tryClaimLock()) return true;
+
+  let existing = null;
+  try {
+    existing = JSON.parse(readFileSync(LOCK, "utf8"));
+  } catch (_) {
+    existing = null;
+  }
+  const pid = existing && Number.isInteger(existing.pid) ? existing.pid : null;
+  if (pid !== null && isAlive(pid)) {
+    const when = existing.startedAt
+      ? new Date(existing.startedAt).toLocaleTimeString()
+      : "an unknown time";
+    console.log(`REFUSED: another witness run (pid ${pid}, started ${when}) ` +
+      "is using this repo. A per-run shadow keeps two runs from wiping each " +
+      "other's patched tree, but both still spawn tiers against this repo's " +
+      "own gitignored data/ and tracked files, so only one may run at a " +
+      "time. Wait for it to finish, or point this run at a different " +
+      "checkout with --repo.");
+    return false;
+  }
+  console.log(pid === null
+    ? `clearing an unreadable lock at ${LOCK}`
+    : `clearing a stale lock (pid ${pid} is no longer running)`);
+  rmSync(LOCK, { force: true });
+  // A second claim can still lose a race against another run doing the same
+  // stale-clear at the same moment -- rare (it needs two runs to observe the
+  // same dead pid within the same instant) but real, so it is reported the
+  // same way as losing the race outright rather than assumed away.
+  if (!tryClaimLock()) {
+    console.log("REFUSED: lost a race with another run clearing the same " +
+      "stale lock. Run this again.");
+    return false;
+  }
+  return true;
+}
+
+// Only ever removes a lock THIS run wrote -- never a live lock another run
+// just took, which could happen if this run were refused (acquireLock already
+// returned false and wrote nothing) and raced a fresh acquirer on the way out.
+function releaseLock() {
+  try {
+    const existing = JSON.parse(readFileSync(LOCK, "utf8"));
+    if (existing && existing.pid === process.pid) rmSync(LOCK, { force: true });
+  } catch (_) {
+    // Already gone, unreadable, or never this run's -- nothing to release.
+  }
+}
+process.on("exit", releaseLock);
+
 // --- the shadow tree -------------------------------------------------------
 
 function buildShadow() {
@@ -472,6 +634,11 @@ const lf = (text) => text.replace(/\r\n/g, "\n");
 function applyToShadow(mutation) {
   const target = join(SHADOW, ...mutation.file.split("/"));
   const before = readFileSync(target, "utf8");
+  // An ENOENT here used to mean a second run had rebuilt this shadow out from
+  // under this one mid-patch (the shadow was one fixed path, shared by every
+  // run against this repo). Each run now owns its own tmp/mutation-witness-
+  // <pid>/, so that collision cannot reach this line any more; an ENOENT here
+  // again means a genuinely missing SHADOWED path.
   writeFileSync(target, lf(before).replace(mutation.find, mutation.replace), "utf8");
   // ...restored byte for byte, line endings included: the shadow is reused by
   // every entry after this one.
@@ -533,6 +700,15 @@ function anchorHits(mutation) {
   // whole tier would report TIER_ALREADY_RED with nothing in its output saying
   // why. See shadowGaps above.
   if (reportShadowGaps() !== 0) {
+    process.exitCode = 1;
+    return;
+  }
+
+  // Sweep before the lock, not after: a dead run's shadow is reclaimed on
+  // sight regardless of whether this run goes on to acquire the lock, so a
+  // string of refused runs does not itself make tmp/ grow.
+  sweepStaleShadows();
+  if (!acquireLock()) {
     process.exitCode = 1;
     return;
   }
