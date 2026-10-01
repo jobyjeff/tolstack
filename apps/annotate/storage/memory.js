@@ -44,6 +44,20 @@
     });
   };
 
+  MemoryAdapter.prototype.listSweepRuns = async function () {
+    var runs = this._fixtures.sweepRuns || {};
+    return Object.keys(runs).sort().reverse().map(function (runId) {
+      return { runId: runId };
+    });
+  };
+  MemoryAdapter.prototype.readSweepRun = async function (runId) {
+    return (this._fixtures.sweepRuns || {})[runId] || null;
+  };
+
+  MemoryAdapter.prototype.readMeshProvenance = async function (sha256) {
+    return (this._fixtures.meshProvenance || {})[sha256] || null;
+  };
+
   MemoryAdapter.prototype.readMeshManifest = async function (sha256) {
     var manifests = this._fixtures.meshManifests || {};
     return manifests[sha256] || null;

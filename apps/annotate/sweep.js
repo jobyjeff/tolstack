@@ -68,6 +68,41 @@
   AA.SWEEP_INSTANCE_MAX_MM = 1.0;
   AA.SWEEP_INSTANCE_TIE_MM = 0.01;
 
+  // Two ways to say where a part's joint feature is, and the surface says
+  // which one it used every time, because they do not deserve the same
+  // trust:
+  //
+  //   fitted    the part's faces classified and fitted -- a bore's axis
+  //             point, a ball's centre. The real answer, and the one the
+  //             1 mm acceptance above is calibrated for.
+  //   centroid  the manifest's per-face centroids, with no geometry read.
+  //             Good enough to tell five occurrences a hundred millimetres
+  //             apart from each other and NOT good enough to call a
+  //             millimetre: a bore face's triangle centroid sits on the axis
+  //             at mid-length, not at the joint.
+  //
+  // The fallback exists because fitting is linear in triangles and the hub is
+  // 286 solids: a surface that locked up for twenty seconds on load would get
+  // turned off, and a surface that silently guessed would be worse. So it
+  // degrades, widens its own acceptance to match, and says so.
+  AA.SWEEP_FEATURE_SOURCES = Object.freeze(["fitted", "centroid"]);
+  AA.SWEEP_FEATURE_SOURCE_WORDS = Object.freeze({
+    fitted: "matched on fitted bore and ball centres",
+    centroid: "matched on face centroids — too coarse to call a millimetre",
+  });
+  //: Above this many triangles a part is matched on centroids instead of
+  //: being fitted. The pitch arm is one solid; the hub is 286.
+  AA.SWEEP_FIT_TRIANGLE_BUDGET = 60000;
+  AA.SWEEP_INSTANCE_MAX_COARSE_MM = 25.0;
+  AA.SWEEP_INSTANCE_TIE_COARSE_MM = 1.0;
+
+  // The acceptance pair for a feature source, so no caller picks one by hand.
+  AA.sweepInstanceLimits = function (featureSource) {
+    return featureSource === "centroid"
+      ? { maxMm: AA.SWEEP_INSTANCE_MAX_COARSE_MM, tieMm: AA.SWEEP_INSTANCE_TIE_COARSE_MM }
+      : { maxMm: AA.SWEEP_INSTANCE_MAX_MM, tieMm: AA.SWEEP_INSTANCE_TIE_MM };
+  };
+
   // --- schema ---------------------------------------------------------------
 
   // Reads an artifact, or throws naming the schema it actually found. Returns
@@ -535,6 +570,146 @@
     if (!ref || !Array.isArray(ref.values)) return null;
     var v = ref.values[index];
     return typeof v === "number" ? v : null;
+  };
+
+  // --- what the stick figure is made of -------------------------------------
+  //
+  // DERIVED from the artifact, never declared by it: linkage names its joints
+  // and says which of them are distance constraints, and that plus whether a
+  // joint carries an axis is the whole of what this app can honestly say
+  // about a joint's kind. Three classes, not a catalogue of joint types this
+  // app would then have to keep in step with a solver in another repo.
+  AA.SWEEP_JOINT_KINDS = Object.freeze(["distance", "axial", "point"]);
+  AA.SWEEP_JOINT_KIND_WORDS = Object.freeze({
+    distance: "two-force member — its two ends hold a fixed distance",
+    axial: "turns or slides about one axis",
+    point: "two points held together",
+  });
+
+  AA.sweepJointKind = function (artifact, jointName, joint) {
+    var isLink = (artifact.links || []).some(function (l) { return l.joint === jointName; });
+    if (isLink) return "distance";
+    return (joint && joint.axis_world) ? "axial" : "point";
+  };
+
+  // Which joints ride on which body -- MEASURED, not declared. The artifact
+  // says which parts a body carries and where every joint point is, but never
+  // which joint belongs to which body, and a body's triad has to be drawn
+  // somewhere that means something. So: a joint rides on a body when that
+  // body's pose, applied to the joint's as-modelled point, reproduces the
+  // joint's own point at every sampled instant. That is a fact about the
+  // numbers in the file rather than a convention this app and linkage would
+  // both have to remember.
+  //
+  // A joint that never moves matches GROUND and possibly nothing else, so a
+  // non-ground body always wins a tie: ground's identity pose reproduces a
+  // stationary point trivially, and "it is bolted to the thing that moves,
+  // at the point where it does not" is the more useful reading.
+  AA.SWEEP_RIDES_EPS = 1e-6; // mm
+
+  AA.sweepBodyJoints = function (artifact) {
+    var points = artifact.points;
+    var last = points[points.length - 1];
+    // The as-modelled point is the one whose poses are identity; the artifact
+    // writes it explicitly, so find it rather than assuming an end.
+    var reference = last;
+    for (var k = points.length - 1; k >= 0; k--) {
+      if (AA.sweepIsAsModelled({ poses: posesAsQuaternions(points[k]) })) {
+        reference = points[k]; break;
+      }
+    }
+    // Three instants is enough to tell a body apart from every other body
+    // and from ground, and keeps this O(bodies x joints) rather than
+    // O(bodies x joints x points).
+    var samples = [points[0], points[Math.floor(points.length / 2)], last];
+    var out = {};
+    (artifact.bodies || []).forEach(function (body) { out[body.name] = []; });
+
+    Object.keys(reference.joints).forEach(function (jointName) {
+      var home = reference.joints[jointName].point_a_world;
+      if (!home) return;
+      var winner = null;
+      (artifact.bodies || []).forEach(function (body) {
+        var rides = samples.every(function (point) {
+          var joint = point.joints[jointName];
+          var pose = point.poses[body.name];
+          if (!joint || !joint.point_a_world || !pose) return false;
+          var moved = AA.applyPlacement(AA.poseToPlacement(pose), home);
+          var p = joint.point_a_world;
+          return Math.abs(moved[0] - p[0]) <= AA.SWEEP_RIDES_EPS &&
+            Math.abs(moved[1] - p[1]) <= AA.SWEEP_RIDES_EPS &&
+            Math.abs(moved[2] - p[2]) <= AA.SWEEP_RIDES_EPS;
+        });
+        if (!rides) return;
+        if (!winner || (winner.ground && !body.ground)) winner = body;
+      });
+      if (winner) out[winner.name].push(jointName);
+    });
+    return out;
+  };
+
+  function posesAsQuaternions(point) {
+    var out = {};
+    Object.keys(point.poses).forEach(function (name) {
+      var pose = point.poses[name];
+      out[name] = { translation: pose.translation,
+        quaternion: AA.rotvecToQuat(pose.rotvec || [0, 0, 0]) };
+    });
+    return out;
+  }
+
+  // Everything the renderer needs to BUILD the overlay once: which joints
+  // exist and what kind each is, which of them are drawn as a line between
+  // two ends, and where each body's triad is anchored. Read off the
+  // artifact's first point, which carries every joint the run has.
+  AA.sweepStructure = function (artifact) {
+    var first = artifact.points[0];
+    var joints = Object.keys(first.joints).map(function (name) {
+      return { name: name, kind: AA.sweepJointKind(artifact, name, first.joints[name]) };
+    });
+    var riders = AA.sweepBodyJoints(artifact);
+    var asModelled = artifact.points[artifact.points.length - 1];
+    return {
+      joints: joints,
+      links: (artifact.links || []).map(function (l) { return { joint: l.joint }; }),
+      bodies: (artifact.bodies || []).map(function (b) {
+        // The triad's anchor: the centroid, in the as-modelled frame, of the
+        // joints this body carries. A body with none (nothing resolved to it)
+        // gets no anchor and its triad is not drawn -- better than one at the
+        // assembly origin, where every body's would coincide.
+        var mine = riders[b.name] || [];
+        // GROUND is the one body whose anchor is not measured: its frame IS
+        // the assembly frame, so its triad belongs at the assembly origin and
+        // is drawn there once, muted. It would otherwise often have no
+        // anchor at all -- every joint it shares with a moving body goes to
+        // the moving one under the tie-break above.
+        if (b.ground) return { name: b.name, ground: true, joints: mine, anchor: [0, 0, 0] };
+        var sum = [0, 0, 0], n = 0;
+        mine.forEach(function (jointName) {
+          var p = asModelled.joints[jointName] && asModelled.joints[jointName].point_a_world;
+          if (!p) return;
+          sum[0] += p[0]; sum[1] += p[1]; sum[2] += p[2]; n++;
+        });
+        return { name: b.name, ground: !!b.ground, joints: mine,
+          anchor: n ? [sum[0] / n, sum[1] / n, sum[2] / n] : null };
+      }),
+    };
+  };
+
+  // Each joint's whole path through the sweep, for the faint trail. Computed
+  // once on load: 80 points times a handful of joints is nothing, and
+  // recomputing it per frame would be the one thing in this file that scales
+  // with the clock.
+  AA.sweepTrails = function (artifact) {
+    var trails = {};
+    artifact.points.forEach(function (point) {
+      Object.keys(point.joints).forEach(function (name) {
+        var p = point.joints[name].point_a_world;
+        if (!p) return;
+        (trails[name] = trails[name] || []).push(p);
+      });
+    });
+    return trails;
   };
 
   // --- verb arguments -------------------------------------------------------

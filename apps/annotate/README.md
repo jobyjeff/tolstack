@@ -188,6 +188,13 @@ a scope decision this handoff did not have, and it is filed.
 | `suggest` | colours the faces that could be the selected element's feature (handoff `annotate_face_suggestions`): fades the bodies carrying them, draws each candidate in the suggestion colour and the current pick in the pick colour. Recomputes every time, because the element, the pick and the bindings all change under it. Never gated by the setting below — a verb typed by hand does what it says |
 | `auto-suggest <on\|off>` | whether selecting an element runs `suggest` — the top bar's **Suggest likely faces** box. Applied to what is on screen now as well as remembered; turning it off puts the bodies back to whatever `transparency` says |
 | `help [on\|off]` | opens or closes the top bar's help/settings panel; no argument toggles |
+| `sweep <run-id\|latest\|off>` | loads a published `linkage-sweep/v1` run out of `data/inbox/linkage-sweeps/` and puts the app in **sweep mode** (below); `latest` takes the newest, `off` leaves and restores the scene. Refuses anything that is not that schema, naming the schema it found |
+| `play` / `pause` | starts and stops playback. Space does the same |
+| `speed <0.25\|0.5\|1\|2\|4>` | playback rate; a trailing `x` is accepted |
+| `seek <mm\|#index>` | moves the scrubber — a driver value in the run's own unit, or `#` and a point index. Clamped at both ends, never extrapolated |
+| `step <±n>` | moves by whole points from the nearest one. The arrow keys do the same |
+| `loop <off\|on\|pingpong>` | once, repeat, or out and back (the default) |
+| `layer <stick\|bodies\|trail\|ghost> [on\|off]` | what is drawn; no argument toggles. The same four as the **Display** boxes in sweep mode, written from one vocabulary |
 
 `resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and
 isolate state-transition helpers) and the tokenizer/dispatch registry itself
@@ -362,6 +369,12 @@ The branching itself is `AA.planEntryCommands` (`commands.js`), not
 `app.js` — the URL's params in, the ordered command list out, so the fast
 tier can read what a link actually does.
 
+`?sweep=<run-id|latest>&t=<driver value>` boots **sweep mode** on a published
+solver run, with the scrubber at that driver value. It is exclusive of the
+params above: a link that both opened a solver run and put the reader on an
+element to bind would be asking for two things at once, and sweep mode turns
+picking off anyway while the linkage is away from its as-modelled pose.
+
 **FSA cannot pre-grant the folder from a URL.** A deep link opened cold has
 no folder access yet — the banner says so ("a linked element is queued"),
 and the boot commands replay only after you click **Connect folder**.
@@ -444,6 +457,15 @@ apps/annotate/
                        or failure (markLoadFailed, naming the load error) --
                        no DOM. app.js owns the two call sites and the
                        postMessage reply shape.
+  sweep.js             PURE sweep-mode logic: reading a `linkage-sweep/v1`
+                       artifact, rotation-vector/quaternion conversion and
+                       slerp, ONE placement layout (3x4 row-major, the layout
+                       provenance.json already uses), pose-onto-placement
+                       composition, frame interpolation, the scrubber-to-
+                       driver map, playback as a pure transition, choosing
+                       which recorded occurrence a body is, the readouts and
+                       every verb's argument grammar. No DOM, no fetch, no
+                       three.js.
   scene.js             the 3D surface: three.js mesh loading (through the
                        storage adapter, never fetch() directly), raycast,
                        highlight, part show/hide/frame. ES module (ADR below).
@@ -463,8 +485,9 @@ apps/annotate/
   vendor/              three.js r169 + OrbitControls, copied verbatim from
                        rotorkit's spike (see vendor/README.md)
   run_tests.cjs        fast-tier runner for binding_state.js + commands.js +
-                       face_geometry.js + suggestions.js + storage/memory.js,
-                       plus a [real] tier over the installed meshes
+                       face_geometry.js + suggestions.js + sweep.js +
+                       storage/memory.js, plus a [real] tier over the
+                       installed meshes
 ```
 
 ### Why ES modules here, when apps/viewer is classic scripts

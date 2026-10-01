@@ -36,11 +36,26 @@
 //           provenance.json, read for its human label. This is how the app
 //           offers a part picker with no hand-maintained catalog file to go
 //           stale against data/meshes/'s own contents.
+//   readMeshProvenance(sha256): Promise<object|null>
+//        -- data/meshes/<sha256>/provenance.json, whole. `listMeshes` reads
+//           the same file for a label; sweep mode needs
+//           `extraction.instances[]`, which carries each occurrence's
+//           `instance_name`, `instance_path` and `placement_world` -- the
+//           3x4 row-major matrix a body pose is composed onto.
 //   readMeshManifest(sha256): Promise<object|null>
 //        -- data/meshes/<sha256>/manifest.json.
 //   readMeshBuffer(sha256, filename): Promise<ArrayBuffer|null>
 //        -- data/meshes/<sha256>/<filename> (positions.f32 / indices.u32 /
 //           face_ids.u32), as raw bytes for a typed-array view.
+//   listSweepRuns(): Promise<Array<{runId}>>
+//        -- every data/inbox/linkage-sweeps/<run-id>.json, newest first (the
+//           run ids linkage writes are timestamped, so a plain reverse sort
+//           IS newest-first). [] when the directory is absent -- a repo with
+//           no published sweep is the ordinary first-run state, never an
+//           error.
+//   readSweepRun(runId): Promise<object|null>
+//        -- data/inbox/linkage-sweeps/<run-id>.json. The schema is checked by
+//           AA.readSweepArtifact, not here: a transport's job is bytes.
 //   writeFeatureIdentityEvent(filename, eventObject): Promise<void>
 //        -- data/inbox/feature-identity/<filename>, JSON.stringify'd. Throws
 //           if canWrite() is false or the file already exists (append-only:
