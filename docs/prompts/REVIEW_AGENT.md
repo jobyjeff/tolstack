@@ -4630,6 +4630,86 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       touched document: *does the mechanism named in this sentence still own
       the delta?*
 
+- [ ] **An ambiguity test that groups by a label the PRODUCER already
+      disambiguated — so it cannot see the ambiguity it exists for.** New
+      2026-09-30 (`vpa_pitch_linkage_topology_and_feature_fits`, blocker 1).
+      `fit_bound_features.py` decided whether rotorkit's full placement
+      expansion was addressable by counting `extraction.product_name`, but
+      rotorkit **appends a suffix to that field exactly when one number names
+      two solids** (`MS14101-3_2`, `216332-001_36`/`_41`) while
+      `placements.json` is keyed by the bare number — so the count read 1 for
+      each of the two `216332-001` solids, and its one live firing existed only
+      because of an unrelated duplicate install. Two questions, and the second
+      is the one that was missed: *what does this key group?* and **"is the
+      field I am counting the same namespace as the file I am protecting
+      against?"** Watch for the paired tell: a guard whose only live firing
+      comes from a defect the same diff filed as a bug, so resolving that bug
+      disarms the guard — and check what the guard's own failure message then
+      advises (here: "retire the rule").
+
+- [ ] **A threshold whose justifying argument covers the OPEN case while its
+      boundary IS the closed one.** Same handoff, blocker 2, and the cheapest
+      question in this list: *what value does the refused case actually take,
+      and is the comparison `>` or `>=`?* The sphere gate
+      `triangles_per_vertex >= 1.0` was argued from "a band of quads has
+      exactly two FEWER triangles than nodes (2S over 2S+2)" — true of an open
+      band, while a **closed** band is 2S over 2S, exactly 1.0, and `>=` admits
+      it. 139 faces in the live store were accepted as spheres on that
+      boundary, 18 of them on the hub, each offering an invented centre. The
+      enrolled mutation witness was `WITNESSED` and silent here, because its
+      fixture was an open band. Where a diff adds a shape/ratio gate, demand a
+      fixture at the **boundary** and in the **periodic/closed** variant, not
+      only the one the author measured.
+
+- [ ] **Two readers of one geometry, a "they agree" claim, and a pairing only
+      over the THRESHOLDS.** Same handoff. `tolerance_stack/feature_geometry.py`
+      and `apps/annotate/face_geometry.js` are paired on every shared tolerance
+      number and on the vocabulary, and the lesson claimed "store-wide, Python
+      and JS agree face for face" — they disagree on 10 of 35635 faces, and
+      nothing compares their *output* on any mesh. The asymmetry matters here
+      because the two are used at different ends of one workflow (a human picks
+      with JS, the fitter reads with Python). Ask: *is the thing paired the
+      inputs or the answers?* A threshold pairing says the two were given the
+      same numbers, never that they return the same word.
+
+- [ ] **A guard weakened for a condition the committed data no longer has —
+      the data moved back, the test comment did not.** Same handoff.
+      `assert components == 1` became `>= 1` with a comment justifying it by
+      "vpa_pitch_linkage … is four components"; two later commits connected the
+      graph and `Topology.components()` returns 1, the document's own prose
+      correctly says "they *were* a separate component until…", and the
+      loosened assertion plus a now-dead local survived. Two cheap checks when
+      a diff relaxes an assertion: **run the justification against the
+      committed data**, and confirm any value the hunk still computes is still
+      compared to something. A `>=` guarding a count that can only be zero in a
+      crash is the vacuous shape wearing a real invariant's name.
+
+- [ ] **One vocabulary-keyed table and one hand-keyed table in the same diff.**
+      Same handoff. `AA.SURFACE_WORDS` was routed through
+      `VOCAB.table("SURFACE_CLASSES", …)` — which throws on a missing key —
+      with the argument written out: *"a key omitted because it 'cannot happen'
+      is how the next class arrives silently."* Three functions down
+      `AA.NARROWING_RELATIONS` is hand-keyed over three of the four classes, and
+      the new pairing guard iterates the table's own keys rather than the
+      vocabulary, so the gap is invisible. When a diff demonstrates the right
+      mechanism, grep the same file for the other tables keyed by the same
+      vocabulary — this is "a fix applied at one of N identical sites" with the
+      argument for N already in the diff.
+
+- [ ] **A value-level rule mechanised for `STACKS_DIR` only, now that
+      topologies carry dimensions too.** Same handoff. Two guards stop at the
+      stacks directory while a topology edge's `dimension` holds the same
+      `source_ref` shape: `test_a_workbook_only_value_is_untraced_unless_its_exception_is_registered`
+      (so the first `kind: "workbook"` / `inferred` topology dimension never
+      met the allowlist built to make each such exception deliberate) and
+      `test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it`
+      (so two topologies state the pitch link's length 3.41 mm apart —
+      `ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md`).
+      Check the `confidence` on every topology dimension by hand, and remember
+      `topology_gaps()` emits `unverified_value` only for
+      `untraced`/`no_source_ref` — so labelling a workbook-only value
+      `inferred` silently removes a gap row rather than merely overstating.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
