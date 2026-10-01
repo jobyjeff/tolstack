@@ -36,6 +36,15 @@ paragraph. **If a reviewer wants the 7, it is one weight change away and the
 counter already reports the three terms separately** — but it is a different
 decision from the one the handoff's objective states.
 
+The brief's own `PARTIALLY CONSUMED` marker (written in the main checkout, and
+still uncommitted there while this ran) quotes the links-only `7` as "the exact
+permutation minimum", so read on its own it says this work under-delivered.
+Filed as
+`ISSUE_20260930_the_dag_layout_briefs_consumption_marker_quotes_a_links_only_minimum_the_shipped_pass_does_not_reach.md`
+rather than edited — a strategy record being edited in another tree is not mine
+to touch, and the same issue carries the one-line answer item 2's open question
+now has.
+
 ## Before and after, all five committed topologies
 
 `build_topology_projection.layout_crossings`, over the committed documents
