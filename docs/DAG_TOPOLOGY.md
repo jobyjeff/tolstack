@@ -574,7 +574,7 @@ document's "A study, in outline" section fences — see
 
 Handoff `vpa_pitch_linkage_topology_and_feature_fits` (2026-09-30), and the
 first committed topology with **no study at all**. The graph: 12 parts, 24
-interfaces, 25 edges, 4 branch points, 5 grounded loops, 7 gap edges. It is the
+interfaces, 29 edges, 9 branch points, 6 grounded loops, 11 gap edges. It is the
 propeller pitch linkage's joints at 72 degrees blade pitch — the two pitch-link
 spherical-bearing centres, the hub and plate spindle bores, the blade-1 root
 bearing bore, the gas spring, and the tangential link as a declared phase 2.
@@ -594,13 +594,16 @@ dimension, because a valueless edge there has always meant "the quantity a study
 computes" — so this document's gaps show on its edges rather than in the gap
 list (`ISSUE_20260930_a_valueless_structural_edge_is_invisible_to_the_gap_list.md`).
 
-**It is not connected, deliberately.** Three of its parts are the spherical
-bearings, each carrying its own small sub-graph — a ball centre against its seat
-and against its bore. Those are piece-part features rather than links in the
-mechanism's chain, and they are here because they are the features that can
-actually be selected: the pitch-link bearing is the one part of this linkage
-with an installed mesh today. A topology is a graph, not necessarily a connected
-one, and the cycle rank above counts components rather than assuming one.
+**Three of its parts are piece parts rather than links in the chain.** The
+spherical bearings each carry their own small sub-graph — a ball centre against
+its seat and against its bore — because they are the features that can actually
+be selected today: the pitch-link bearing is the one part of this linkage with
+an installed mesh. Each is tied into the mechanism by a `gap` edge saying *this
+joint centre is that part's ball centre*, which is nominally zero and is the
+only thing in the document that tells a reader which geometry to click for a
+centre. They were a separate component until the viewer's `[real]` tier showed
+what a disconnected topology does to the rail serialisation; `Topology.cycle_rank`
+counts components rather than assuming one either way.
 
 ---
 
