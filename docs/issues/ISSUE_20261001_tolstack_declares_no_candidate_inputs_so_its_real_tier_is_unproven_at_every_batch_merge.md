@@ -5,7 +5,7 @@ status: triaged
 area: tests/candidate-provisioning
 reporter: agent
 class: shared_mutable_state_across_worktrees
-found_by: docs/sessions/lessons/LESSONS_20261001_triage_sweep.md
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261001_triage_sweep.md
 handoff: docs/sessions/HANDOFF_20261001_declare_candidate_test_inputs.md
 ---
 
