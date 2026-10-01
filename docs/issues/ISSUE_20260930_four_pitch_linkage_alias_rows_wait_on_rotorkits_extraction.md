@@ -1,16 +1,30 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: topologies/aliases
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
 class: blocked_on_an_upstream_repo
 defer_until: rotorkit/docs/sessions/HANDOFF_20261001_shape_signature_is_pure.md
+handoff: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
 resolution: woke 2026-10-01 -- shape_signature_is_pure completed; re-triage
 ---
 
 # Four parts of the pitch-linkage topology have no alias row
+
+> **All four rows now exist — added 2026-10-01 by review
+> `kinematic_sweep_animation`.** `hub` and `pitch_arm` landed with that day's
+> extraction; `pitch_link` and `blade_root` landed in deliverable 0 of
+> `HANDOFF_20261001_kinematic_sweep_animation`, under Jeff's ruling that a
+> topology part names the design (non-instrumented) part. Two notes for
+> whoever reads this next. `pitch_link` points at **`asm217755_213862_002`,
+> the pitch-link *assembly***, not at the body `asm217755_213861_002` the
+> table below expected — Jeff named that mesh explicitly, so the wrinkle
+> below is settled rather than answered in the evidence string. And
+> `blade_root` takes the 20-solid `_1ed2bfd5` geometry, with the 15-solid
+> sibling named in its evidence. `handoff:` above carries the back-link, so
+> this closes when that handoff completes.
 
 > **The wait is over and the rows are still not written.** rotorkit's
 > `assembly_extract_20261001T022446Z` landed on 2026-10-01, about an hour after

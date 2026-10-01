@@ -70,3 +70,24 @@ output during review (`bore r=2.413; bolt round faces 8 -> 4 at that radius
    but its own sentence, *"these numbers are not a claim that decays"*, is
    stronger than the guard behind it: the `[real]` tier pins a 45% aggregate
    floor, not the per-class counts.
+
+## Second sighting, 2026-10-01 — the population roughly tripled
+
+Review `kinematic_sweep_animation` added a "What it measured, 2026-10-01"
+section to the same README: a nine-row table of occurrence names and residuals
+(`0.0000`, `0.7440`, `0.0007`, `0.0001`, `42.574` mm), the pitch link's
+`105.99051337042064` held to `8.99e-11` mm, a 64.466 → 0.000 mm driver sweep,
+two triangle counts (363,681 and 608,637), two fit times (1.2 s, 2.4 s) and a
+frame rate (4 fps).
+
+Every one of them is correct today — this review re-derived the whole table by
+running `node apps/annotate/run_browser_check.mjs --real
+vpa-pitch-p1-20261001-203656`, which prints it. But the README states the
+position explicitly, which is worth recording because it is the fallacy this
+issue is about, in the author's own words: *"The numbers in this table are
+re-derived by the check itself — it prints them — rather than read from here."*
+A check that prints a number pins nothing; and `run_browser_check.mjs` is run
+by no gate at all
+(`ISSUE_20261001_four_sweep_mode_gaps_the_handoff_left_and_nobody_owns.md`,
+row 4), so this half of the README is one step further from a guard than the
+2026-09-21 half was.

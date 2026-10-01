@@ -305,11 +305,11 @@ is not a passed one (repo `CLAUDE.md`).
 Of `CLAUDE.md`'s three main-checkout commands:
 
 * `node scripts/run_mutation_witness_tests.mjs --only "sweep" --repo
-  C:\workspace	olstack` — **17/17 declared mutations witnessed**.
-* `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace	olstack` —
+  C:/workspace/tolstack` — **17/17 declared mutations witnessed**.
+* `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` —
   **25/25 browser checks passed**, including all five `[annotate …]` suites, so
   the bind workflow underneath sweep mode is unregressed.
-* `node apps/viewer/run_tests.cjs --repo C:\workspace	olstack` — **428/429,
+* `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` — **428/429,
   with the node-fs `[real]` tier SKIPPED**: it refuses a projection built from a
   tree it does not contain, and this branch has commits the main checkout does
   not. Rebuilding the shared projection would be the fix and I did not do it —

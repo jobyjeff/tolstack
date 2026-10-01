@@ -34,7 +34,14 @@ checkout. A spec for one would report `NOT WITNESSED` on any checkout without
 the inbox, which is the decay the witness tier exists to catch — so it would
 produce exactly the false alarm it is supposed to prevent. Every one of this
 repo's pre-existing `[real]` annotate guards is unenrolled for the same reason
-(27 of 177 enrolled before this change, 32 of 177 after).
+(15 of 157 enrolled before this change, 32 of 177 after).
+
+> **Corrected 2026-10-01 by review `kinematic_sweep_animation`.** The
+> parenthetical above read *"27 of 177 enrolled before this change"*, which is
+> wrong on both terms: the census pins the declared count at **157** before
+> this change, and `scripts/mutation_witnesses/annotate__*.json` held **15**
+> specs, not 27 — 32 now, which is the +17 this handoff enrolled. Re-derived
+> from `git ls-tree integration` and from the census the tier prints.
 
 **This is a question about the witness tier, not about these three guards**: is
 there a way to witness a data-dependent guard that skips honestly? If the

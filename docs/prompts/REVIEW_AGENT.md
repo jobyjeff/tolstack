@@ -461,9 +461,14 @@ problem as an unrecorded full suite one step later.
   positional, the fast tier's DOM shim **structurally cannot see the defect
   class** and the browser tier is not optional:
   `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`.
-- **`apps/annotate/`** → `pytest -q tests/test_annotate_js_vocabulary.py
-  tests/test_feature_identity.py tests/test_part_mesh_aliases.py`, plus
-  `node apps/annotate/run_tests.cjs`. That runner takes **no `--repo` flag**: its
+- **`apps/annotate/`** → `pytest -q tests/test_js_python_vocabulary.py
+  tests/test_js_vocabulary_is_generated.py tests/test_feature_identity.py
+  tests/test_part_mesh_aliases.py`, plus
+  `node apps/annotate/run_tests.cjs`. (**Corrected 2026-10-01**: this row named
+  `tests/test_annotate_js_vocabulary.py`, which has never existed in this tree
+  — `pytest` exits immediately on the missing path and runs *nothing*, so the
+  row cost a whole subset rather than one file. Re-derive a row's file names
+  against `ls tests/` before you trust them.) That runner takes **no `--repo` flag**: its
   `[real]` checks try the repo-relative projection path and then fall back to a
   hardcoded main-checkout path, so from a worktree they usually run anyway — but
   when neither path resolves they print a `SKIP  [real] ...` line and the total
@@ -4879,6 +4884,41 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       gap. Require the spec written out verbatim in the issue (every mutation,
       find and replace) so re-deriving it is minutes, and confirm the ISSUE
       exists rather than only a lesson section.
+- [ ] **Two pure helpers both pinned, and their COMPOSITION in `app.js`
+      pinned by nothing — look for the arm that throws one of them away.**
+      New 2026-10-01 (`kinematic_sweep_animation`). Both web apps' runners
+      load the pure files by name into a `vm` sandbox and **cannot boot
+      `app.js`** (ES module, `document`, WebGL), so a composition written
+      there is covered only if a browser check reaches it. The sighting:
+      `tickSweep`'s reduced-motion arm computes the wall-clock
+      `AA.sweepAdvance(...)` and then `Object.assign`s a frame-clock
+      `AA.sweepStepIndex(...)` **over its index** — so reduced motion ignores
+      the speed control and plays at the display's refresh rate, while both
+      halves pass their own checks
+      (`ISSUE_20261001_reduced_motion_playback_advances_one_point_per_animation_frame…`).
+      Read every `app.js` call site of a newly-pinned pure helper and ask
+      *which of this expression's two answers survives?*
+- [ ] **A per-frame function that re-applies state which cannot change
+      per frame.** Same handoff. `applySweepFrame` runs on every
+      `requestAnimationFrame` and calls `scene.setGhost` (which sets
+      `material.needsUpdate = true`, releasing and re-acquiring the program)
+      and `scene.setSweepGhost` (which disposes and reallocates a `THREE.Mesh`
+      and a `MeshStandardMaterial` per placement) for every anchored part —
+      from inputs that are a stored preference and an as-modelled placement,
+      neither of which moves. The tell is a sibling in the same file doing it
+      right and saying so: `_setRepeats` keeps its meshes **in step with** the
+      list for exactly this reason. Ask of every call inside a frame loop:
+      *what changed since last frame that makes this call necessary?*
+- [ ] **A measured table in `apps/annotate/README.md` — second sighting, and
+      the disclosure does not help.** `kinematic_sweep_animation` added a
+      nine-row occurrence/residual table, a fitting cost, a triangle count and
+      a frame rate to that README, with the sentence *"re-derived by the check
+      itself — it prints them — rather than read from here"* beside it. That
+      sentence is the "printing is not asserting" fallacy the 2026-09-21 entry
+      above already names, stated out loud. Nothing scans that file;
+      `ISSUE_20260921_annotate_readme_measured_numbers_are_paired_by_nothing.md`
+      is the open issue and its population just grew by about fifteen numbers.
+      Do not re-file it — say "Nth sighting" and add the numbers to it.
 
 ## Architectural errors to check
 
