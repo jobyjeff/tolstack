@@ -601,9 +601,9 @@ called once in `renderTopoPane`). Which column an edge lands on is the graph's
 business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
-between a spine node and its row is now on the far side of it. Over the five
-committed topologies, leader-vs-rail crossings went **139 → 0**, five of the
-five to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
+between a spine node and its row is now on the far side of it. Over the six
+committed topologies, leader-vs-rail crossings went **265 → 0**, six of the
+six to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
 sides of those are measured at the column order above, so the before-side is a
 counterfactual — and the zero is the two mechanisms together, not the mirror
 alone: `order_columns` minimises leader crossings counted *towards column 0*,
