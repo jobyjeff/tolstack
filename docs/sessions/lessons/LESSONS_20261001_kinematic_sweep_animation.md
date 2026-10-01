@@ -133,6 +133,35 @@ and no joint of its own anywhere near them, so it refuses; the path-inheritance
 fallback that would fix it is prototyped, unused and filed rather than shipped
 (`ISSUE_20261001_four_sweep_mode_gaps…`, row 2).
 
+## The definition of done, measured
+
+Every geometric claim in the handoff's definition of done, read off the two
+published runs rather than judged by eye:
+
+| claim | P1 | S |
+|---|---|---|
+| the driver sweeps 64.466 → 0 mm | 64.466 → 0.000, strictly monotone | same |
+| the blade hinge point stays fixed | moves 0.00e+0 mm | 0.00e+0 mm |
+| the pitch link keeps `\|A − B\| = 105.9905` | worst error 8.99e-11 mm | 7.10e-11 mm |
+| the arm's joint traces a circle about X | X span 0.000000; radius about X constant at 49.9995 mm | same |
+| the plate's point moves along Z (P1) | X span 0.0000, Y span 0.0000, **Z span 64.4660** | — |
+| …and follows the sheet's curved path (S) | — | **X span 2.5560, Y span 10.7310**, Z span 64.4660 |
+| blade pitch is a rotation about X | off-axis rotation components 2.19e-21 | 5.43e-21 |
+
+The last two rows are the pair worth keeping: the SAME joint point is a
+straight line in Z on the prismatic-plate run and a curve on the run whose
+plate point is prescribed from the sheet. That is the whole reason both runs
+exist, and it is visible on the surface at a glance — which is what the
+animation was asked for.
+
+Those are **reported here rather than pinned as guards**, deliberately: they
+are facts about one mechanism's two runs, and a consumer app's suite asserting
+the shape of a particular linkage goes stale the first time a different
+mechanism is published. What the `[real]` tier pins instead are the facts that
+hold for *any* `linkage-sweep/v1` run — exactly one as-modelled point, every
+two-force member holding its length, every measured rider still riding, a
+monotone driver, and every part name being one some topology declares.
+
 ## The frame rate, and the fitting cost
 
 Measured with this app's own classifier: the hub is **363,681 triangles / 1.2 s**
@@ -250,6 +279,41 @@ witness tier rather than about these three guards.
 * `ISSUE_20261001_the_sweep_artifact_says_which_parts_a_body_carries_but_not_which_joints.md`
   — for the `linkage` repo, filed here because an issue written into another
   repo's checkout lands as dirt in someone else's `git status`.
+
+## The suites, and the one that cannot run here
+
+`venv-win/Scripts/python.exe -m pytest -q` in this worktree: **1 failed, 1440
+passed**, and the failure is the documented worktree-only one —
+`tests/test_viewer_js_suite.py`, which is red here by design because
+`data/projections/viewer/` exists only in the main checkout and a skipped tier
+is not a passed one (repo `CLAUDE.md`).
+
+Of `CLAUDE.md`'s three main-checkout commands:
+
+* `node scripts/run_mutation_witness_tests.mjs --only "sweep" --repo
+  C:\workspace	olstack` — **17/17 declared mutations witnessed**.
+* `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace	olstack` —
+  **25/25 browser checks passed**, including all five `[annotate …]` suites, so
+  the bind workflow underneath sweep mode is unregressed.
+* `node apps/viewer/run_tests.cjs --repo C:\workspace	olstack` — **428/429,
+  with the node-fs `[real]` tier SKIPPED**: it refuses a projection built from a
+  tree it does not contain, and this branch has commits the main checkout does
+  not. Rebuilding the shared projection would be the fix and I did not do it —
+  `data/` is shared by every worktree and three other tolstack handoffs are
+  live on the board, so a projection built from THIS branch in the shared
+  directory would silently become what their `[real]` tiers compare against.
+  That is an operator call at the batch merge, which is where `CLAUDE.md` puts
+  these three anyway.
+
+**The viewer browser tier cannot run from a worktree as shipped**: it imports
+`playwright-core` by package name, which resolves out of `node_modules/` —
+gitignored, main-checkout only. I ran it by junctioning the main checkout's
+`node_modules` into this worktree and removed the junction immediately after,
+which is worth saying out loud: **a junction left in a worktree is a hazard**,
+because a cleanup that follows it would delete the main checkout's
+`node_modules`, and restoring that means `npm install` through the corporate
+proxy. `apps/annotate/run_browser_check.mjs` resolves the package by PATH with
+a main-checkout fallback for exactly this reason and needs no junction.
 
 ## Two things to know before editing any of this
 
