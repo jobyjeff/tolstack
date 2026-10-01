@@ -180,6 +180,15 @@ def occurrences_for(provenance: Dict[str, Any],
     ``placement_world`` is dropped here rather than carried forward as an
     identity transform -- an identity placement is a part at the assembly
     origin, which is a specific and usually wrong claim.
+
+    **The full-expansion branch is written against a file that does not exist
+    yet** (2026-09-30), so the shape it expects -- an ``instances`` list of
+    ``{part_id, instance_path, instance_name, placement_world}``, the same
+    fields the mesh sidecars already use -- is an expectation, not a read. It is
+    written to fail *visibly*: a file that is there and yields no usable entry
+    falls back to the sidecars and says so on stderr, rather than silently
+    producing the answer the sidecar would have given anyway and leaving a
+    reader to think the expansion was used.
     """
     out: List[Dict[str, Any]] = []
     part_id = provenance.get("part_id")
@@ -198,6 +207,11 @@ def occurrences_for(provenance: Dict[str, Any],
             })
         if out:
             return out
+        print(f"note: a placements.json was found for part "
+              f"{part_id!r} but carried no usable instance -- falling back to "
+              f"the mesh's own provenance. Check its shape against "
+              f"occurrences_for()'s docstring before trusting this run.",
+              file=sys.stderr)
     for entry in (provenance.get("extraction") or {}).get("instances", []):
         matrix = entry.get("placement_world")
         if not matrix or len(matrix) != fg.PLACEMENT_VALUES:
