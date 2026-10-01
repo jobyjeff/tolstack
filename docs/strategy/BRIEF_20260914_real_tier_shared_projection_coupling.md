@@ -89,3 +89,70 @@ they build the same coupling. Compare
 `forge/docs/strategy/BRIEF_20260914_cross_repo_jsonl_append_lock.md`, filed the
 same day, which is the same "one repo fixed it, the mechanism is workspace-wide"
 question about a different shared artifact.
+
+## 2026-10-01 triage sweep — the consequence changed from "reddens" to "disarms", and the batch-merge duty is itself one of the writers
+
+Three things this brief does not yet know, all measured since it was written.
+They do not change its question; they change what the wrong answer costs.
+
+**1. The failure mode is no longer a red fixture — it is a refused tier.**
+Since the freshness gate landed (2026-09-30), another worktree's rebuild does
+not redden your `[real]` checks, it **stops them running**: `projection NOT
+paired with this tree -- the [real] tier is stale`, ~86 `[real]` checks not
+executed, and the mutation-witness fast half reporting `TIER_ALREADY_RED` for 59
+of 132 declared mutations because the clean run is red before any mutation is
+applied. Filed as
+`docs/issues/ISSUE_20260930_a_rebuild_from_an_unlanded_branch_now_disarms_every_other_worktrees_real_tier.md`
+(`bug`, `high`), which states plainly that it is not a second report of this
+brief but a changed consequence of it. Two properties are new and both are worse
+than the brief's version:
+
+- **It is retroactive.** A session that had already finished verifying had its
+  verification invalidated by a write it did not make and cannot see. The record
+  in its report was true of the moment it ran and is unreproducible afterwards.
+- **The provenance gate cannot catch it by construction.** The builders refuse a
+  tree they do not *contain* (`scripts/projection_provenance.py`, exit 3); the
+  rebuilding branch did contain `integration`, so the gate correctly let it
+  through. The gate is about *older*; this is *divergent*, and divergence
+  between two live handoff branches is this repo's normal state.
+
+**2. The route the brief calls impossible is merely undocumented — and it has
+now been run twice.** This brief's option set, and the issue above, both assume a
+worktree cannot build a private projection because the builders' inputs are
+main-checkout paths. `ISSUE_20260930_a_worktree_has_no_supported_way_to_run_the_real_tiers_against_its_own_projection.md`
+writes down four manual steps that **do** work today — a short scratch root with
+`data/inbox` and `data/meshes` junctioned to the main checkout's,
+`data/projections/` a real directory, `docs` junctioned to the worktree's own,
+`node_modules` junctioned for `playwright-core`, the three builders with
+`--data-root`, then every tier with `--repo <scratch>` (all four already take the
+flag). Measured results: `522/522` with no tier skipped, browser `25/25`. So the
+costed option "a worktree builds a private one" is **a script away, not a
+redesign** — which materially cheapens one branch of this brief's decision and
+should be priced before the others.
+
+**3. The batch-merge duty is one of the writers, and it wrote a poisoned stamp
+on 2026-10-01.** This sweep's own step-7 actuator run rebuilt the projections in
+the **main checkout** while that checkout was dirty (one unrelated modified brief
+file, disjoint from the merge). The rebuild exited 0 and stamped
+`branch=master sha12=8547a5e1c079 dirty=True`, and the `[real]` tier then
+correctly refused it — *"results.json was built from 8547a5e1c079 by a tree with
+UNCOMMITTED changes (its own stamp says dirty: true), so that commit does not
+identify the code that built it"*. tolstack's trunk was therefore red
+(`1 failed, 1437 passed`) immediately after a clean merge, for a reason that had
+nothing to do with the merge.
+
+Stashing the one unrelated file, re-running the identical actuator, and
+re-running the tier fixed it — `dirty=False`, tier armed, `1 passed`, and the
+browser tier `25/25` on trunk — and the sweep then restored the stashed file
+byte-identically (the tier stays armed, because the check reads the *stamp*, not
+the current tree).
+
+Why this belongs in this brief rather than only in an issue: it is a **new class
+of writer**. The brief's model is two handoff worktrees racing each other. Here
+the writer was the *merge gate itself*, writing from trunk, on a schedule nobody
+coordinates with, and the thing it poisoned was not a competitor's view but
+trunk's own. Any answer that only arbitrates between handoff branches leaves this
+one open. Whoever decides this should say whether the shared projection has
+**one** privileged writer (the merge gate, from a clean tree) with everyone else
+private, or whether per-tree private projections make the question moot — the
+latter now being the cheap option per point 2 above.
