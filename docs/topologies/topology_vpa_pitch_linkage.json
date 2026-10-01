@@ -85,145 +85,194 @@
     {
       "id": "hub_spindle_bore_axis",
       "name": "hub spindle bore axis -- the gas-spring bushing bore",
-      "parts": ["hub"],
+      "parts": [
+        "hub"
+      ],
       "kind": "datum_feature",
       "note": "Expected to be the CAD Z axis, and expected is the word: nothing in this repo states it, which is exactly why this node exists to be bound. Jeff, 2026-09-30: 'Might as well also select the hub/gas spring bores even though I'm fairly confident they're aligned with z and x axes.'"
     },
     {
       "id": "hub_blade1_root_bearing_bore",
       "name": "hub blade-1 root bearing bore",
-      "parts": ["hub", "blade_root"],
+      "parts": [
+        "hub",
+        "blade_root"
+      ],
       "kind": "mating_surface",
       "note": "Expected to be the CAD X axis for blade 1, on the same evidence (none) as the spindle bore above."
     },
     {
       "id": "pitch_arm_root_seat",
       "name": "pitch arm root clamp face against the blade root",
-      "parts": ["pitch_arm", "blade_root"],
+      "parts": [
+        "pitch_arm",
+        "blade_root"
+      ],
       "kind": "mating_surface",
       "note": "Where the pitch arm is clamped to the blade root, and therefore the arm's own end of the blade pitch axis."
     },
     {
       "id": "pitch_arm_link_bore",
       "name": "pitch arm pitch-link attachment bore",
-      "parts": ["pitch_arm"],
+      "parts": [
+        "pitch_arm"
+      ],
       "kind": "datum_feature",
       "note": "The lug bore the pitch link's lower joint bolt passes through. One part, not two: the bolt that makes it a mate is not a part of this topology."
     },
     {
       "id": "pitch_link_lower_sphere_centre",
       "name": "pitch link lower spherical-bearing centre",
-      "parts": ["pitch_link"],
+      "parts": [
+        "pitch_link"
+      ],
       "kind": "datum_feature",
       "note": "The ball centre of the MS14101-3 at 213862-002.1/MS14101-3.1. On the LINK rather than on the bearing because the two joint centres are two instances of one bearing part, and a topology part id names a part, not an instance: a node on `spherical_bearing_pitch_link` could not tell the two apart. The geometry to bind is on that bearing's mesh all the same."
     },
     {
       "id": "pitch_link_upper_sphere_centre",
       "name": "pitch link upper spherical-bearing centre",
-      "parts": ["pitch_link"],
+      "parts": [
+        "pitch_link"
+      ],
       "kind": "datum_feature",
       "note": "The ball centre of the MS14101-3 at 213862-002.1/MS14101-3.2 -- the pitch-plate end. Same instance-versus-part reasoning as the lower centre."
     },
     {
       "id": "pitch_link_bearing_seat",
-      "name": "pitch-link bearing outer-race OD in the link housing bore",
-      "parts": ["spherical_bearing_pitch_link", "pitch_link"],
-      "kind": "mating_surface",
-      "note": "The press fit that holds the bearing in the link. This is the interface that connects the bearing's own two features to the rest of the graph."
+      "name": "pitch-link bearing outer-race OD",
+      "parts": [
+        "spherical_bearing_pitch_link"
+      ],
+      "kind": "datum_feature",
+      "note": "The press fit that holds the bearing in the link's housing bore. Carried as a feature of the BEARING alone: it is a mating surface in the joint, but no edge in this document is a dimension of the pitch link across it, and a part named on an interface that no incident edge uses is an authoring error the viewer reports rather than draws."
     },
     {
       "id": "pitch_link_bearing_ball_centre",
       "name": "MS14101-3 ball centre",
-      "parts": ["spherical_bearing_pitch_link"],
+      "parts": [
+        "spherical_bearing_pitch_link"
+      ],
       "kind": "datum_feature",
       "note": "The piece part's own spherical centre, as distinct from either joint centre above: one part, one centre, two instances of it in the assembly."
     },
     {
       "id": "pitch_link_bearing_bore_axis",
       "name": "MS14101-3 ball bore",
-      "parts": ["spherical_bearing_pitch_link"],
+      "parts": [
+        "spherical_bearing_pitch_link"
+      ],
       "kind": "datum_feature",
       "note": "The .1900 in bore through the ball, which the joint bolt passes through. Bore B 4.826 mm, -0.013 (docs/spec_library event 0006, RBC Aerospace plain bearings p. 21) -- cited here as context for a reader, not as this node's value; a node carries no value."
     },
     {
       "id": "pitch_plate_spindle_bore_axis",
       "name": "pitch plate spindle bore axis",
-      "parts": ["pitch_plate_215177_001"],
+      "parts": [
+        "pitch_plate_215177_001"
+      ],
       "kind": "datum_feature",
       "note": "The plate's own central bore, expected coaxial with the hub spindle bore and with CAD Z. Expected, again, is the word."
     },
     {
       "id": "pitch_plate_link_attach_bore",
       "name": "pitch plate pitch-link attachment bore",
-      "parts": ["pitch_plate_215177_001"],
+      "parts": [
+        "pitch_plate_215177_001"
+      ],
       "kind": "datum_feature"
     },
     {
       "id": "pitch_plate_gas_spring_bore",
       "name": "pitch plate gas-spring attachment bore",
-      "parts": ["pitch_plate_215177_001"],
+      "parts": [
+        "pitch_plate_215177_001"
+      ],
       "kind": "datum_feature"
     },
     {
       "id": "pitch_plate_tan_link_attach_bore",
       "name": "pitch plate tangential-link attachment bore",
-      "parts": ["pitch_plate_215177_001"],
+      "parts": [
+        "pitch_plate_215177_001"
+      ],
       "kind": "datum_feature"
     },
     {
       "id": "gas_spring_rod_end",
       "name": "gas-spring rod-end bore",
-      "parts": ["gas_spring"],
+      "parts": [
+        "gas_spring"
+      ],
       "kind": "datum_feature"
     },
     {
       "id": "gas_spring_mount_bushing_bore",
       "name": "gas-spring mount bushing bore",
-      "parts": ["gas_spring_mount_213668_002", "gas_spring"],
+      "parts": [
+        "gas_spring_mount_213668_002",
+        "gas_spring"
+      ],
       "kind": "mating_surface"
     },
     {
       "id": "tan_link_mount_bore",
       "name": "tangential link mount attachment bore",
-      "parts": ["tan_link_mount_215175_002"],
+      "parts": [
+        "tan_link_mount_215175_002"
+      ],
       "kind": "datum_feature"
     },
     {
       "id": "tan_link_lower_sphere_centre",
       "name": "tangential link mount-end spherical-bearing centre",
-      "parts": ["tan_link_212956_005"],
+      "parts": [
+        "tan_link_212956_005"
+      ],
       "kind": "datum_feature",
       "note": "Phase 2. The MS14101-3 ball centre at this end of 212956-005."
     },
     {
       "id": "tan_link_upper_sphere_centre",
       "name": "tangential link plate-end spherical-bearing centre",
-      "parts": ["tan_link_212956_005"],
+      "parts": [
+        "tan_link_212956_005"
+      ],
       "kind": "datum_feature",
       "note": "Phase 2. The MS14103-3 ball centre at this end of 212956-005."
     },
     {
       "id": "tan_link_ms14101_seat",
-      "name": "MS14101-3 outer-race OD in the tangential link housing bore",
-      "parts": ["spherical_bearing_tan_link", "tan_link_212956_005"],
-      "kind": "mating_surface"
+      "name": "MS14101-3 outer-race OD",
+      "parts": [
+        "spherical_bearing_tan_link"
+      ],
+      "kind": "datum_feature",
+      "note": "Phase 2. A feature of the bearing alone, for the reason the pitch-link seat's note gives."
     },
     {
       "id": "tan_link_ms14101_ball_centre",
       "name": "MS14101-3 ball centre, tangential link",
-      "parts": ["spherical_bearing_tan_link"],
+      "parts": [
+        "spherical_bearing_tan_link"
+      ],
       "kind": "datum_feature"
     },
     {
       "id": "tan_link_ms14103_seat",
-      "name": "MS14103-3 outer-race OD in the tangential link housing bore",
-      "parts": ["spherical_bearing_tan_link_ms14103_3", "tan_link_212956_005"],
-      "kind": "mating_surface"
+      "name": "MS14103-3 outer-race OD",
+      "parts": [
+        "spherical_bearing_tan_link_ms14103_3"
+      ],
+      "kind": "datum_feature",
+      "note": "Phase 2. A feature of the bearing alone, for the reason the pitch-link seat's note gives."
     },
     {
       "id": "tan_link_ms14103_ball_centre",
       "name": "MS14103-3 ball centre, tangential link",
-      "parts": ["spherical_bearing_tan_link_ms14103_3"],
+      "parts": [
+        "spherical_bearing_tan_link_ms14103_3"
+      ],
       "kind": "datum_feature"
     }
   ],
