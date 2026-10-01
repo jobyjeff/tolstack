@@ -182,11 +182,17 @@
   // rather than left as a missing key: the reason is the next constant, and it
   // is the placement-transform fence, not an omission to be filled in later by
   // whoever notices the hole.
+  // Keyed by the GENERATED vocabulary, like AA.SURFACE_WORDS below and for the
+  // same reason: a key omitted because it "cannot happen" is how the next class
+  // arrives silently. `other` is in both stages and is null in both -- a class
+  // that means "no feature was read" has no relation to assert, and writing
+  // that out is cheaper than a reader wondering whether it was forgotten.
   AA.NARROWING_RELATIONS = Object.freeze({
-    same_part_relation: Object.freeze({
-      planar: "parallel", cylindrical: "coaxial", spherical: null }),
-    mating_fit: Object.freeze({
-      planar: null, cylindrical: "same_radius", spherical: "same_radius" }),
+    same_part_relation: VOCAB.table("SURFACE_CLASSES", {
+      planar: "parallel", cylindrical: "coaxial", spherical: null, other: null }),
+    mating_fit: VOCAB.table("SURFACE_CLASSES", {
+      planar: null, cylindrical: "same_radius", spherical: "same_radius",
+      other: null }),
   });
   AA.NARROWING_RELATION_NAMES = Object.freeze(["parallel", "coaxial", "same_radius"]);
 
@@ -207,6 +213,10 @@
   // with a sentence attached rather than a hole. Paired against
   // NARROWING_RELATIONS by run_tests.cjs in both directions: a null with no
   // reason, and a reason for something that is not null, are both red.
+  // `other` carries no reason in either stage, deliberately: no rule may ask
+  // for it (run_tests.cjs refuses a rule row naming it), so the planner cannot
+  // reach a null of its for a reason to print. The pairing guard knows that --
+  // it requires a reason for every null a RULE can reach, not for every null.
   AA.NO_RELATION_REASONS = Object.freeze({
     same_part_relation: Object.freeze({ spherical: AA.NO_SAME_PART_SPHERE_RELATION }),
     mating_fit: Object.freeze({ planar: AA.NO_MATING_PLANE_RELATION }),
@@ -401,7 +411,12 @@
     if (!stage) return end;
 
     var relation = AA.NARROWING_RELATIONS[stage][want.surface];
-    if (!relation) {
+    // `=== null` and not falsy: a declared null is a decision with a sentence
+    // attached, and an ABSENT key is a hole. They are no longer the same thing
+    // on this surface -- the table is keyed by the generated vocabulary, so an
+    // absent key cannot survive construction -- and reading them the same way
+    // would put that back.
+    if (relation === null) {
       // The stage stays `surface_class`, because that is what the candidate
       // list actually is: the narrowing this stage would have done cannot be
       // asserted, and reporting the stage anyway would credit the list with a

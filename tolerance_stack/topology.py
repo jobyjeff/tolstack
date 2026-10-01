@@ -708,8 +708,10 @@ class Topology:
         and its bore -- beside the chain the mechanism makes, and those are not
         links in it. ``topology_vpa_pitch_linkage.json`` is the first (2026-09-30).
 
-        Here rather than in a test because two tests need it and a graph
-        property computed twice is a graph property that can disagree with
+        Here rather than in a test because :meth:`cycle_rank` needs it and so
+        does ``tests/test_topology_projection.py``, which compares it against
+        the number of rail roots the serialiser started -- and a graph property
+        computed in three places is a graph property that can disagree with
         itself.
         """
         parent: Dict[str, str] = {}

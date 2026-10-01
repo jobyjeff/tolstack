@@ -2242,14 +2242,29 @@ check("every null in the relations table carries a reason, and no reason " +
   // the quiet one: a null added with no reason prints `undefined` where a
   // sentence should be, which a reader reads as the app being broken rather
   // than as the narrowing being impossible.
+  // Over the classes a RULE can ask for, which is the set the planner can
+  // actually reach a null of. `other` is in the table because it is keyed by
+  // the whole generated vocabulary (a key omitted because it "cannot happen" is
+  // how the next class arrives silently) and it is null in both stages, but no
+  // rule may name it -- the check two above refuses a rule row that does -- so
+  // the planner never asks, and requiring a reader-facing sentence for it would
+  // be requiring copy nobody can be shown.
+  const askable = AA.SUGGESTION_RULES.map((rule) => rule.surface);
   const missing = [];
   const spare = [];
   Object.keys(AA.NARROWING_RELATIONS).forEach((stage) => {
     const perClass = AA.NARROWING_RELATIONS[stage];
     const reasons = AA.NO_RELATION_REASONS[stage] || {};
-    Object.keys(perClass).forEach((surface) => {
+    AA.SURFACE_CLASSES.forEach((surface) => {
+      if (!Object.prototype.hasOwnProperty.call(perClass, surface)) {
+        throw new Error(`stage "${stage}" has no entry for "${surface}" -- the ` +
+          "table is keyed by the generated vocabulary and should not be able to");
+      }
       const hasReason = typeof reasons[surface] === "string" && reasons[surface].length;
-      if (perClass[surface] === null && !hasReason) missing.push(`${stage}.${surface}`);
+      const reachable = askable.indexOf(surface) !== -1;
+      if (perClass[surface] === null && reachable && !hasReason) {
+        missing.push(`${stage}.${surface}`);
+      }
       if (perClass[surface] !== null && hasReason) spare.push(`${stage}.${surface}`);
     });
   });

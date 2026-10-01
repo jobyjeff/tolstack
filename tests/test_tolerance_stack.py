@@ -1998,6 +1998,70 @@ _WORKBOOK_INFERRED_ALLOWED = {
 }
 
 
+#: Every committed topology, for the workbook-only rule below. Topology edges
+#: carry the SAME ``Dimension``/``SourceRef`` objects a stack element does
+#: (``tolerance_stack/topology.py``, "Why edges carry a ``Dimension``"), so the
+#: SOP's rule applies to them word for word -- but the guard was parametrized
+#: over stacks alone and the first workbook-cited topology edge went straight
+#: past it (found in review, 2026-09-30). Added here rather than in a new test
+#: so the rule has one reader, not two that can diverge.
+ALL_TOPOLOGY_FILES = sorted(
+    p.name for p in (STACKS_DIR.parent / "topologies").glob("topology_*.json"))
+
+
+@pytest.mark.parametrize("filename", ALL_TOPOLOGY_FILES)
+def test_a_topology_edges_workbook_only_value_is_untraced_too(filename):
+    """The same SOP rule, on the other document kind that carries a dimension.
+
+    A topology edge's value is a ``Dimension`` with a ``SourceRef``, and
+    ``scripts/build_topology_projection.py``'s ``topology_gaps`` puts
+    ``untraced`` on the DAG page's gap list exactly as a stack's does. So an
+    edge ``inferred`` on workbook-only support leaves that list just as quietly,
+    and the allowlist is shared because the exception it records is about the
+    support, not about which file the value lives in.
+    """
+    from tolerance_stack.topology import load_topology  # noqa: PLC0415
+
+    topology = load_topology(STACKS_DIR.parent / "topologies" / filename)
+    offenders = sorted(
+        (edge.id, edge.dimension.source_ref.confidence)
+        for edge in topology.edges
+        if edge.dimension is not None
+        and edge.dimension.source_ref is not None
+        and edge.dimension.source_ref.kind == "workbook"
+        and edge.dimension.source_ref.confidence != "untraced"
+        and (topology.id, edge.id) not in _WORKBOOK_INFERRED_ALLOWED
+    )
+    assert offenders == [], (
+        f"{topology.id}: {offenders} cite a workbook and claim better than "
+        f"`untraced`. Either the support is really another document -- then cite "
+        f"THAT document -- or it is the workbook alone, which the SOP makes "
+        f"`untraced` and puts on the gap list. A derivation FROM the cited cells "
+        f"(a subtraction, a norm) settles `traced` against `inferred` and says "
+        f"nothing about the support. If it is a stated judgement resting on a "
+        f"second document, register it in _WORKBOOK_INFERRED_ALLOWED."
+    )
+
+
+def test_the_topology_workbook_scan_is_not_vacuous():
+    """A scan that reaches no workbook-cited edge passes against anything."""
+    from tolerance_stack.topology import load_topology  # noqa: PLC0415
+
+    seen = [
+        (t.id, edge.id)
+        for name in ALL_TOPOLOGY_FILES
+        for t in [load_topology(STACKS_DIR.parent / "topologies" / name)]
+        for edge in t.edges
+        if edge.dimension is not None
+        and edge.dimension.source_ref is not None
+        and edge.dimension.source_ref.kind == "workbook"
+    ]
+    assert seen, (
+        "no committed topology edge cites a workbook, so the rule above is "
+        "asserted against nothing"
+    )
+
+
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
 def test_a_workbook_only_value_is_untraced_unless_its_exception_is_registered(filename):
     """The SOP's other hard rule, mechanised one corner at a time.

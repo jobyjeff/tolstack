@@ -23,6 +23,8 @@ from __future__ import annotations
 import json
 import math
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -430,3 +432,126 @@ def test_real_every_band_of_quads_on_the_bearing_is_refused_with_its_own_reason(
             "them, the band rule has stopped being load-bearing and this test "
             "should say so rather than pass quietly"
         )
+
+
+# ---------------------------------------------------------------------------
+# the two readers, held to the same answer
+# ---------------------------------------------------------------------------
+
+
+def python_refusal_reasons() -> set[str]:
+    """Every sentence this module can answer ``other`` with."""
+    source = (REPO_ROOT / "tolerance_stack" / "feature_geometry.py").read_text(
+        encoding="utf-8")
+    return set(re.findall(r'(?:refuse|result\.why =) ?\(?"([^"]+)"', source))
+
+
+def js_refusal_reasons() -> set[str]:
+    """Every sentence ``apps/annotate/face_geometry.js`` can answer ``other``
+    with -- the `other(faceId, "...")` calls, which is the only way it builds
+    one."""
+    source = FACE_GEOMETRY_JS.read_text(encoding="utf-8")
+    return set(re.findall(r'other\(faceId,\s*\n?\s*"([^"]+)"', source))
+
+
+def test_both_readers_refuse_a_face_in_the_same_words():
+    """A reason that exists on one side only is a reader and a solver being told
+    different things about the same face.
+
+    The sentences are user-visible on one side (the annotator prints them) and
+    diagnostic on the other (they reach ``fits.json``), so they are the one part
+    of this pairing a human actually reads.
+    """
+    python, browser = python_refusal_reasons(), js_refusal_reasons()
+    assert python, "found no refusal sentences in feature_geometry.py -- vacuous"
+    assert browser, "found no other(faceId, ...) calls in face_geometry.js -- vacuous"
+    assert python == browser, (
+        "the two readers' refusal vocabularies differ.\n"
+        f"  only in Python: {sorted(python - browser)}\n"
+        f"  only in JS:     {sorted(browser - python)}"
+    )
+
+
+CLASSIFY_WITH_NODE = r"""
+global.window = {};
+require(process.argv[2]);
+require(process.argv[3]);
+const AA = window.AnnotateApp, fs = require("fs"), path = require("path");
+const out = {};
+for (const name of fs.readdirSync(process.argv[4])) {
+  const dir = path.join(process.argv[4], name);
+  if (!fs.existsSync(path.join(dir, "manifest.json"))) continue;
+  const mf = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
+  const typed = (n, K) => {
+    const r = fs.readFileSync(path.join(dir, n));
+    return new K(r.buffer.slice(r.byteOffset, r.byteOffset + r.byteLength));
+  };
+  out[name] = AA.classifyPartFaces(mf.faces, typed(mf.positions_file, Float32Array),
+    typed(mf.indices_file, Uint32Array), typed(mf.face_ids_file, Uint32Array))
+    .map((c) => (c ? c.surface : null));
+}
+fs.writeFileSync(process.argv[5], JSON.stringify(out));
+"""
+
+
+@pytest.mark.skipif(meshes_dir() is None,
+                    reason="no installed mesh (data/ is gitignored, main checkout "
+                           "only); pairing the two readers needs real geometry")
+@pytest.mark.skipif(shutil.which("node") is None,
+                    reason="node is not on PATH, so the browser's half cannot be run")
+def test_real_both_readers_classify_every_installed_face_the_same(tmp_path):
+    """[real] tier: the claim, held rather than asserted in prose.
+
+    The lesson said the two readers "agree face for face" and they did not: ten
+    faces of the three blade meshes differed, because this module tried each
+    shape on its merits where the browser **stops** when a shape's own sub-test
+    fails. On two of them Python answered with a 75 mm sphere at an RMS of 0.68
+    -- a fit the relative gate accepted only because the bad fit chose the
+    radius it was measured against (found in review, 2026-09-30).
+
+    That matters past the claim: ``scripts/fit_bound_features.py`` reads with
+    this module and a human picks with the browser's, so a face the surface
+    offered can be fitted differently from the way it was shown -- and the ten
+    were on meshes Jeff is being sent to click.
+
+    **It is the most expensive check in this suite: about 90 seconds**, and all
+    of it is this module -- the browser's pass over the same 35635 faces is
+    under a second. Four rounds of optimisation took it from 165s (an indexed
+    face table, a memoised range table, one centroid pass shared by the three
+    fits, and the facet loop not re-normalising unit vectors); what is left is
+    pure-Python float arithmetic over a million triangles, which stdlib-only
+    does not make cheaper. Scoping it to fewer meshes is the obvious saving and
+    it is the wrong one: the ten divergent faces were on the three blade meshes,
+    which are exactly the ones a subset chosen for speed would drop.
+    """
+    script = tmp_path / "classify.cjs"
+    script.write_text(CLASSIFY_WITH_NODE, encoding="utf-8")
+    dump = tmp_path / "js_classes.json"
+    proc = subprocess.run(
+        ["node", str(script),
+         str(REPO_ROOT / "apps" / "viewer" / "vocab.gen.js"),
+         str(FACE_GEOMETRY_JS), str(meshes_dir()), str(dump)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert proc.returncode == 0, (
+        "the browser-side classifier did not run:\n" + proc.stdout + proc.stderr)
+
+    browser = json.loads(dump.read_text(encoding="utf-8"))
+    assert browser, "the JS pass classified no mesh -- this would pass vacuously"
+
+    divergent = []
+    faces = 0
+    for sha, js_classes in browser.items():
+        mesh = fg.read_mesh(meshes_dir() / sha)
+        for fit in fg.fit_part_faces(mesh):
+            faces += 1
+            if js_classes[fit.face_id] != fit.surface:
+                divergent.append(
+                    f"{sha[:12]} face {fit.face_id}: python={fit.surface} "
+                    f"js={js_classes[fit.face_id]}")
+    assert faces > 1000, f"only {faces} faces compared -- the store looks empty"
+    assert divergent == [], (
+        f"{len(divergent)} of {faces} faces are classified differently by the two "
+        f"readers: {divergent[:10]}. apps/annotate/face_geometry.js's classifyOne "
+        "and this module's fit_face are the same control flow on purpose; one of "
+        "them has moved."
+    )

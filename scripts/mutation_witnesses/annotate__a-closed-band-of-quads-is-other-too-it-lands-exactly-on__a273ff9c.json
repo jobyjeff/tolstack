@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a CLOSED band of quads is OTHER too -- it lands exactly ON the patch threshold, which is why that comparison is strict",
+  "mutations": [
+    {
+      "contract": "A face whose nodes sit in exactly two rows is two coaxial circles, and any two coaxial circles lie on one sphere exactly. The ratio that detects two rows -- triangles over nodes -- is BELOW 1 for an open band and exactly 1 for a closed one, so the comparison against it has to be strict. 2S(R-1) triangles over RS nodes closed, R(S+1) open.",
+      "issue": null,
+      "note": "The mutation is the one character this shipped with: `>` back to `>=`. That is not a hypothetical -- it is what the gate did until review on 2026-09-30, and it let 139 faces store-wide answer `spherical`, 18 of them fillet bands on the hub offering a solver \"ball\" radii of 62 to 65 mm, on one of the two parts Jeff was told to click by name. The sibling spec for the OPEN band stays WITNESSED under either comparison, which is exactly why this one is needed: the arm that worked hid the arm that did not.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "    if (perVertex <= tol.sphereMinTrianglesPerVertex) {",
+      "replace": "    if (perVertex < tol.sphereMinTrianglesPerVertex) {"
+    }
+  ]
+}

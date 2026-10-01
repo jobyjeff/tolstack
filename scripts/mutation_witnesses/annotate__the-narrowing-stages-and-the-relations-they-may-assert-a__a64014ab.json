@@ -8,8 +8,8 @@
       "issue": "docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md",
       "note": "The mutation fills the null in with the relation it looks like it wants, which is what a reader who has not noticed the missing frame would do. Two planes at unrelated origins then read as parallel or not by accident -- a suggestion that is right half the time, on the one surface in this repo whose value is that it never guesses. Re-anchored 2026-09-30: the table gained a `spherical` entry and the row wrapped, so the old one-line anchor matched nothing and pytest said so -- which is the orphan check working.",
       "file": "apps/annotate/suggestions.js",
-      "find": "    mating_fit: Object.freeze({\n      planar: null, cylindrical: \"same_radius\", spherical: \"same_radius\" }),",
-      "replace": "    mating_fit: Object.freeze({\n      planar: \"parallel\", cylindrical: \"same_radius\", spherical: \"same_radius\" }),"
+      "find": "    mating_fit: VOCAB.table(\"SURFACE_CLASSES\", {\n      planar: null, cylindrical: \"same_radius\", spherical: \"same_radius\",\n      other: null }),",
+      "replace": "    mating_fit: VOCAB.table(\"SURFACE_CLASSES\", {\n      planar: \"parallel\", cylindrical: \"same_radius\", spherical: \"same_radius\",\n      other: null }),"
     }
   ]
 }

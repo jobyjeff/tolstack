@@ -395,18 +395,55 @@ class Mesh:
     positions: Sequence[float]
     indices: Sequence[int]
     face_ids: Sequence[int]
+    #: Per-MESH facts the per-FACE work needs. Memoised here because both of
+    #: them were being recomputed once per face: on the 2376-face tangential
+    #: link mount that is 5.6 million generator calls for the largest area and
+    #: a rebuilt range table for every one of them, 15 seconds of a 27-second
+    #: part. Mutable on a frozen dataclass, which is what a cache should be --
+    #: it is derived from the fields, never part of the identity.
+    _derived: Dict[str, Any] = field(default_factory=dict, compare=False, repr=False)
 
     @property
     def faces(self) -> List[Dict[str, Any]]:
-        return list(self.manifest.get("faces", []))
+        """The manifest's face table. Cached, and the SAME list every call: it
+        was a fresh copy per access, which the per-face work reads several times
+        a face."""
+        if "faces" not in self._derived:
+            self._derived["faces"] = list(self.manifest.get("faces", []))
+        return self._derived["faces"]
+
+    @property
+    def largest_face_area(self) -> float:
+        """The biggest ``area_native2`` in the manifest -- what the degenerate
+        test is a fraction of."""
+        if "largest_face_area" not in self._derived:
+            self._derived["largest_face_area"] = max(
+                (float(f.get("area_native2") or 0.0)
+                 for f in self.manifest.get("faces", [])), default=0.0)
+        return self._derived["largest_face_area"]
+
+    @property
+    def vertex_ranges(self) -> Dict[int, Tuple[int, int]]:
+        """``face_id -> (start vertex, count)``, built once per mesh."""
+        if "vertex_ranges" not in self._derived:
+            self._derived["vertex_ranges"] = face_vertex_ranges(
+                self.manifest.get("faces", []))
+        return self._derived["vertex_ranges"]
 
     def face(self, face_id: int) -> Dict[str, Any]:
-        for entry in self.faces:
-            if int(entry["face_id"]) == int(face_id):
-                return entry
-        raise MeshError(
-            f"mesh {self.sha256[:12]} has no face {face_id} -- its manifest "
-            f"declares {len(self.faces)} face(s)")
+        """One face's manifest entry, by id.
+
+        Indexed rather than scanned: a linear search here is O(faces^2) over a
+        whole part, which on the 3473-face hub was 4.9 of its 55 seconds.
+        """
+        if "by_id" not in self._derived:
+            self._derived["by_id"] = {int(e["face_id"]): e for e in self.faces}
+        try:
+            return self._derived["by_id"][int(face_id)]
+        except KeyError:
+            raise MeshError(
+                f"mesh {self.sha256[:12]} has no face {face_id} -- its manifest "
+                f"declares {len(self.faces)} face(s)") from None
 
 
 def _typed(path: Path, typecode: str) -> array.array:
@@ -467,7 +504,7 @@ def face_vertex_ranges(manifest_faces: Sequence[Dict[str, Any]]) -> Dict[int, Tu
 
 def face_vertices(mesh: Mesh, face_id: int) -> List[Vec]:
     """One face's own triangulation nodes, in buffer order."""
-    start, count = face_vertex_ranges(mesh.faces)[int(face_id)]
+    start, count = mesh.vertex_ranges[int(face_id)]
     positions = mesh.positions
     return [(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2])
             for i in range(start, start + count)]
@@ -566,38 +603,68 @@ def all_face_facets(mesh: Mesh) -> Dict[int, Tuple[List[Facet], int]]:
 FACET_COMPARISONS = ("same", "across", "radial")
 
 
-def worst_deviation_deg(facets: Sequence[Facet], direction_at, comparison: str,
+def worst_deviation_deg(facets: Sequence[Facet], direction, comparison: str,
                         sliver_area_fraction: float) -> float:
     """The widest angle any non-sliver facet's normal makes with the direction
     a shape says it should.
 
-    ``direction_at(facet)`` returns that direction -- a face's mean normal for a
-    plane, its axis for a cylinder, the radius at the facet for a sphere -- and
+    ``direction`` is either that direction -- a face's mean normal for a plane,
+    its axis for a cylinder -- or a **callable** taking a facet and returning
+    one, which is what a sphere needs (the radius differs at every facet).
     ``comparison`` is one of :data:`FACET_COMPARISONS`. One function for all
     three, because three near-identical loops is three places a sliver rule can
     differ.
+
+    A fixed direction is normalised **once**, and facet normals are taken as
+    already unit -- which they are, by construction in :func:`_triangle`. Both
+    matter: this is the hot loop of a whole-part fit, and normalising three
+    vectors per facet instead of none was half of it.
     """
     if comparison not in FACET_COMPARISONS:
         raise ValueError(
             f"comparison must be one of {FACET_COMPARISONS}, got {comparison!r}")
     if not facets:
         return 0.0
-    largest = max(f.area for f in facets)
-    worst = 0.0
-    for facet in facets:
-        if facet.area < largest * sliver_area_fraction:
-            continue
-        direction = direction_at(facet)
+    per_facet = callable(direction)
+    fixed = None
+    if not per_facet:
         if direction is None or not _norm(direction) > 0:
+            return 0.0
+        fixed = _unit(direction)
+    largest = max(f.area for f in facets)
+    floor = largest * sliver_area_fraction
+    worst = 0.0
+    degrees, acos = math.degrees, math.acos
+    for facet in facets:
+        if facet.area < floor:
             continue
-        angle = _angle_between_deg(facet.normal, direction)
+        if per_facet:
+            towards = direction(facet)
+            if towards is None:
+                continue
+            length = _norm(towards)
+            if not length > 0:
+                continue
+            towards = (towards[0] / length, towards[1] / length, towards[2] / length)
+        else:
+            towards = fixed
+        normal = facet.normal
+        # Clamped: a dot product of 1.0000000002 is an ordinary float32
+        # artefact, and acos of it raises.
+        cosine = normal[0] * towards[0] + normal[1] * towards[1] + normal[2] * towards[2]
+        if cosine > 1.0:
+            cosine = 1.0
+        elif cosine < -1.0:
+            cosine = -1.0
+        angle = degrees(acos(cosine))
         if comparison == "across":
             off = abs(90 - angle)
         elif comparison == "radial":
-            off = min(angle, 180 - angle)
+            off = angle if angle <= 90 else 180 - angle
         else:
             off = angle
-        worst = max(worst, off)
+        if off > worst:
+            worst = off
     return worst
 
 
@@ -655,9 +722,9 @@ def face_triangle_stats(mesh: Mesh, face_id: int,
     stats.axis = _unit(vectors[2])
     sliver = tol["sliver_area_fraction"]
     stats.worst_normal_deg = worst_deviation_deg(
-        facets, lambda _f: stats.mean_normal, "same", sliver)
+        facets, stats.mean_normal, "same", sliver)
     stats.worst_axis_deg = worst_deviation_deg(
-        facets, lambda _f: stats.axis, "across", sliver)
+        facets, stats.axis, "across", sliver)
     return stats
 
 
@@ -681,7 +748,9 @@ def _rms(residuals: Sequence[float]) -> float:
     return math.sqrt(sum(r * r for r in residuals) / len(residuals))
 
 
-def fit_plane(vertices: Sequence[Vec], normal: Optional[Vec] = None) -> Optional[Dict[str, Any]]:
+def fit_plane(vertices: Sequence[Vec], normal: Optional[Vec] = None,
+              centroid_extent: Optional[Tuple[Vec, float]] = None,
+              ) -> Optional[Dict[str, Any]]:
     """Plane through the vertices' centroid.
 
     ``normal`` is the face's own area-weighted facet normal when the caller has
@@ -691,7 +760,7 @@ def fit_plane(vertices: Sequence[Vec], normal: Optional[Vec] = None) -> Optional
     """
     if len(vertices) < 3:
         return None
-    centroid, extent = _centroid_and_extent(vertices)
+    centroid, extent = centroid_extent or _centroid_and_extent(vertices)
     if normal is None:
         m = [0.0] * 6
         for v in vertices:
@@ -721,7 +790,9 @@ def fit_plane(vertices: Sequence[Vec], normal: Optional[Vec] = None) -> Optional
     }
 
 
-def fit_cylinder(vertices: Sequence[Vec], axis: Optional[Vec] = None) -> Optional[Dict[str, Any]]:
+def fit_cylinder(vertices: Sequence[Vec], axis: Optional[Vec] = None,
+                 centroid_extent: Optional[Tuple[Vec, float]] = None,
+                 ) -> Optional[Dict[str, Any]]:
     """Cylinder about ``axis``, by projecting into the plane perpendicular to it
     and fitting a circle -- ``AA.classifyPartFaces``'s cylindrical branch.
 
@@ -734,7 +805,7 @@ def fit_cylinder(vertices: Sequence[Vec], axis: Optional[Vec] = None) -> Optiona
     """
     if len(vertices) < 3:
         return None
-    centroid, extent = _centroid_and_extent(vertices)
+    centroid, extent = centroid_extent or _centroid_and_extent(vertices)
     if axis is None:
         m = [0.0] * 6
         for v in vertices:
@@ -788,7 +859,9 @@ def fit_cylinder(vertices: Sequence[Vec], axis: Optional[Vec] = None) -> Optiona
     }
 
 
-def fit_sphere(vertices: Sequence[Vec]) -> Optional[Dict[str, Any]]:
+def fit_sphere(vertices: Sequence[Vec],
+               centroid_extent: Optional[Tuple[Vec, float]] = None,
+               ) -> Optional[Dict[str, Any]]:
     """Sphere through the vertices, by linear least squares on
     ``|p - c|^2 = r^2``.
 
@@ -806,21 +879,30 @@ def fit_sphere(vertices: Sequence[Vec]) -> Optional[Dict[str, Any]]:
     """
     if len(vertices) < 4:
         return None
-    centroid, extent = _centroid_and_extent(vertices)
+    centroid, extent = centroid_extent or _centroid_and_extent(vertices)
     # Solved about the centroid rather than about the mesh origin: the normal
     # equations of a patch 100 mm from the origin and 3 mm across are otherwise
     # dominated by the offset, and the conditioning decides the answer.
     local = [_sub(v, centroid) for v in vertices]
-    m = [[0.0] * 4 for _ in range(4)]
-    rhs = [0.0] * 4
-    for p in local:
-        row = (2 * p[0], 2 * p[1], 2 * p[2], 1.0)
-        value = _dot(p, p)
-        for i in range(4):
-            for j in range(4):
-                m[i][j] += row[i] * row[j]
-            rhs[i] += row[i] * value
-    solved = _solve(m, rhs)
+    # The normal equations, accumulated over the SYMMETRIC half: ten sums
+    # rather than sixteen, and no inner loop. This is the hot arithmetic of a
+    # whole-part fit -- 363681 triangles on the hub alone -- and the nested
+    # `for i: for j:` version was most of it.
+    a = b = c = d = 0.0
+    aa = ab = ac = ad = bb = bc = bd = cc = cd = dd = 0.0
+    ra = rb = rc = rd = 0.0
+    for px, py, pz in local:
+        a, b, c, d = 2 * px, 2 * py, 2 * pz, 1.0
+        value = px * px + py * py + pz * pz
+        aa += a * a; ab += a * b; ac += a * c; ad += a
+        bb += b * b; bc += b * c; bd += b
+        cc += c * c; cd += c
+        dd += 1.0
+        ra += a * value; rb += b * value; rc += c * value; rd += value
+    solved = _solve([[aa, ab, ac, ad],
+                     [ab, bb, bc, bd],
+                     [ac, bc, cc, cd],
+                     [ad, bd, cd, dd]], [ra, rb, rc, rd])
     if solved is None:
         return None
     cx, cy, cz, k = solved
@@ -890,10 +972,16 @@ def fit_face(mesh: Mesh, face_id: int,
              bucket: Optional[Tuple[List[Facet], int]] = None) -> FaceFit:
     """Fit plane, cylinder and sphere to one face; report all three, name one.
 
-    Which one is named is :data:`FITTED_SURFACE_CLASSES`'s order -- the first
-    shape whose own acceptance test the face passes -- and that constant carries
-    the measurement that ruled out ranking by residual. Every residual is in
-    :attr:`FaceFit.fits` either way.
+    Which one is named is :data:`FITTED_SURFACE_CLASSES`'s order, and the
+    control flow below is ``apps/annotate/face_geometry.js``'s ``classifyOne``
+    **statement for statement** -- including that a shape's own sub-test failing
+    *ends* the classification rather than passing the face to the next shape.
+    That constant carries the measurement that ruled out ranking by residual;
+    ``tests/test_feature_geometry.py``'s ``[real]`` pairing is what holds the two
+    readers to the same answer on every face of every installed mesh.
+
+    Every residual is still in :attr:`FaceFit.fits` whatever is named, which is
+    the one thing this reader offers that the browser's does not.
 
     ``bucket`` is this face's entry from :func:`all_face_facets`, for the
     whole-part caller; one face on its own needs nothing.
@@ -904,13 +992,15 @@ def fit_face(mesh: Mesh, face_id: int,
     entry = mesh.face(face_id)
     stats = face_triangle_stats(mesh, face_id, tol, bucket)
     vertices = face_vertices(mesh, face_id)
-    _centroid, extent = _centroid_and_extent(vertices) if vertices else ((0, 0, 0), 0.0)
+    # Once, and handed to all three fits: each of them needs it, and computing
+    # it per fit was four passes over every vertex of every face.
+    centroid_extent = _centroid_and_extent(vertices) if vertices else ((0.0, 0.0, 0.0), 0.0)
+    extent = centroid_extent[1]
 
     area = float(entry.get("area_native2") or 0.0)
     result = FaceFit(face_id=face_id, surface="other", triangles=stats.triangles,
                      area=area, extent=extent)
-    largest_face_area = max((float(f.get("area_native2") or 0.0) for f in mesh.faces),
-                            default=0.0)
+    largest_face_area = mesh.largest_face_area
     if largest_face_area > 0 and area < tol["degenerate_area_fraction"] * largest_face_area:
         result.why = "a sliver too small to be a feature"
         return result
@@ -919,13 +1009,13 @@ def fit_face(mesh: Mesh, face_id: int,
         return result
 
     fits: Dict[str, Any] = {}
-    plane = fit_plane(vertices, stats.mean_normal)
+    plane = fit_plane(vertices, stats.mean_normal, centroid_extent)
     if plane:
         fits["planar"] = plane
-    cylinder = fit_cylinder(vertices, stats.axis)
+    cylinder = fit_cylinder(vertices, stats.axis, centroid_extent)
     if cylinder:
         fits["cylindrical"] = cylinder
-    sphere = fit_sphere(vertices)
+    sphere = fit_sphere(vertices, centroid_extent)
     if sphere:
         centre = tuple(sphere["centre"])
         sphere["normal_spread_deg"] = worst_deviation_deg(
@@ -937,57 +1027,69 @@ def fit_face(mesh: Mesh, face_id: int,
         fits["spherical"] = sphere
     result.fits = fits
 
-    accepted = {
-        "planar": bool(
-            plane and stats.worst_normal_deg <= tol["planar_normal_deg"]
-            and (extent <= 0
-                 or plane["max_residual"] <= tol["planar_flatness_fraction"] * extent)),
-        "cylindrical": bool(
-            cylinder and stats.worst_axis_deg <= tol["cylinder_axis_deg"]
-            and cylinder["max_residual"] <= tol["cylinder_radial_fraction"] * cylinder["radius"]
-            and cylinder["arc_deg"] >= tol["cylinder_min_arc_deg"]),
-        "spherical": bool(
-            sphere
-            # Strict: a CLOSED band of quads lands exactly on the threshold.
-            and sphere["triangles_per_vertex"] > tol["sphere_min_triangles_per_vertex"]
-            and sphere["max_residual"] <= tol["sphere_radial_fraction"] * sphere["radius"]
-            and sphere["normal_spread_deg"] <= tol["sphere_normal_deg"]
-            and extent >= tol["sphere_min_extent_fraction"] * sphere["radius"]),
-    }
-
-    for word in FITTED_SURFACE_CLASSES:
-        if not accepted[word]:
-            continue
+    def answer(word: str) -> FaceFit:
         result.surface = word
         result.geometry = {k: v for k, v in fits[word].items()
                            if k not in ("surface", "rms", "max_residual", "extent")}
         return result
-    result.why = _why_nothing_fitted(stats, fits, extent, tol)
-    return result
+
+    def refuse(why: str) -> FaceFit:
+        result.why = why
+        return result
+
+    # --- planar -------------------------------------------------------------
+    # Entering this branch is a COMMITMENT, not an attempt: facet normals that
+    # are parallel to a degree say the face is flat, and vertices that then are
+    # not in one plane say it is unreadable. Falling through to try a cylinder
+    # or a sphere on a face whose own normals already answered is how the two
+    # readers came to disagree on ten faces of the three blade meshes, and on
+    # two of those Python answered with a 75 mm "sphere" at an RMS of 0.68 --
+    # accepted only because the gate is relative to a radius the bad fit chose
+    # (found in review, 2026-09-30).
+    if plane and stats.worst_normal_deg <= tol["planar_normal_deg"]:
+        if extent <= 0 or plane["max_residual"] <= tol["planar_flatness_fraction"] * extent:
+            return answer("planar")
+        return refuse("parallel facet normals but the vertices are not in one plane")
+
+    # --- cylindrical --------------------------------------------------------
+    if stats.axis is None:
+        return refuse("no axis could be read")
+    if stats.worst_axis_deg > tol["cylinder_axis_deg"]:
+        # Not a plane and not a cylinder: a sphere is the last shape asked, and
+        # this is the only branch that reaches it. A sphere's facet normals span
+        # two dimensions, so there is no axis they all stand perpendicular to.
+        return _sphere_or_other(result, answer, refuse, sphere, extent, tol)
+    if not cylinder:
+        return refuse("the cross-section is too flat to be a circle")
+    if cylinder["max_residual"] > tol["cylinder_radial_fraction"] * cylinder["radius"]:
+        return refuse("the cross-section is not one circle")
+    if cylinder["arc_deg"] < tol["cylinder_min_arc_deg"]:
+        return refuse("too narrow an arc to place an axis")
+    return answer("cylindrical")
 
 
-def _why_nothing_fitted(stats: FaceTriangleStats, fits: Dict[str, Any],
-                        extent: float, tol: Dict[str, float]) -> str:
-    """This module's own words for an ``other``.
+def _sphere_or_other(result: "FaceFit", answer, refuse, sphere, extent: float,
+                     tol: Dict[str, float]) -> "FaceFit":
+    """The sphere branch and its four refusals, word for word with the browser's.
 
-    One sentence naming the nearest miss, because "other" with no reason is the
-    shape that makes a reader distrust the whole answer -- the same bar
-    ``AA.classifyPartFaces`` holds itself to.
+    Each refusal is a sentence ``apps/annotate/face_geometry.js`` prints too, and
+    ``tests/test_feature_geometry.py`` pairs the two sets -- a reason that exists
+    on one side only is a reader and a solver being told different things about
+    the same face.
     """
-    if stats.worst_normal_deg <= tol["planar_normal_deg"]:
-        return "parallel facet normals but the vertices are not in one plane"
-    cylinder = fits.get("cylindrical")
-    if stats.worst_axis_deg <= tol["cylinder_axis_deg"] and cylinder:
-        if cylinder["arc_deg"] < tol["cylinder_min_arc_deg"]:
-            return "too narrow an arc to place an axis"
-        return "the cross-section is not one circle"
-    sphere = fits.get("spherical")
-    if (sphere and sphere["normal_spread_deg"] <= tol["sphere_normal_deg"]
-            and sphere["max_residual"] <= tol["sphere_radial_fraction"] * sphere["radius"]):
-        if sphere["triangles_per_vertex"] <= tol["sphere_min_triangles_per_vertex"]:
-            return "one band of quads, which lies on a sphere whatever shape it is"
-        return "too small a patch of its own sphere to place a centre"
-    return "neither a plane, a cylinder nor a sphere"
+    if not sphere:
+        return refuse("neither a plane, a cylinder nor a sphere")
+    if sphere["max_residual"] > tol["sphere_radial_fraction"] * sphere["radius"]:
+        return refuse("neither a plane, a cylinder nor a sphere")
+    if sphere["normal_spread_deg"] > tol["sphere_normal_deg"]:
+        return refuse("neither a plane, a cylinder nor a sphere")
+    # Not strict here, because the threshold IS the band's own value: a closed
+    # band of quads lands exactly on it.
+    if sphere["triangles_per_vertex"] <= tol["sphere_min_triangles_per_vertex"]:
+        return refuse("one band of quads, which lies on a sphere whatever shape it is")
+    if extent < tol["sphere_min_extent_fraction"] * sphere["radius"]:
+        return refuse("too small a patch of its own sphere to place a centre")
+    return answer("spherical")
 
 
 def fit_part_faces(mesh: Mesh,
