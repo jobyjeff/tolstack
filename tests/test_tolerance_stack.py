@@ -2062,6 +2062,213 @@ def test_the_topology_workbook_scan_is_not_vacuous():
     )
 
 
+#: Edge ``properties`` keys that carry the edge's OWN nominal length. A module
+#: constant and not an inline literal, the rule every field vocabulary here
+#: follows -- and a short list on purpose: ``nominal_stroke_mm``,
+#: ``bushing_vertical_separation_mm`` and
+#: ``pitch_link_radius_from_gas_spring_axis_mm`` are also lengths in millimetres
+#: and are NOT the edge's own end-to-end dimension, so pairing on them would
+#: compare two different quantities and call the disagreement a defect.
+EDGE_NOMINAL_PROPERTY_KEYS = ("nominal_length_mm",)
+
+#: ``(part, edge id)`` pairs stated at two different nominals across the
+#: topology corpus, each with the issue tracking the correction. An entry is a
+#: **known divergence**, not an exemption, and the guard below fails on a row
+#: whose divergence has closed -- the same contract ``KNOWN_BAND_DIVERGENCES``
+#: carries, for the same reason.
+KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES: dict = {
+    # Empty since 2026-10-01 (`one_part_feature_one_value_across_topologies`).
+    # It held ("pitch_link", "pitch_link_length") for the length of that
+    # session only: `topology_pitch_system` stated 109.4 mm in `properties` and
+    # `topology_vpa_pitch_linkage` 105.9908 mm in its `dimension`, 3.41 mm
+    # apart on one rigid link
+    # (ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md).
+    # The pair still exists and is still compared -- it agrees now, which is
+    # what the non-vacuity test below pins.
+}
+
+
+def _edge_nominal_statements(edge):
+    """Every place ``edge`` states its own nominal length: ``(where, value)``.
+
+    **Two places, because the corpus uses both**, and a guard that read only
+    ``dimension`` would reproduce the hole it is closing. ``dimension.nominal``
+    is the ordinary one. ``properties`` is the other:
+    ``topology_pitch_system`` is variation-only -- every dimension in it is a
+    band about an *unstated* nominal, ``nominal: 0.0``, pinned by
+    ``test_the_pitch_system_dimensions_are_variation_only`` in
+    ``tests/test_topology.py`` and declared in the document's own
+    ``provenance.variation_only`` -- so the one real length it knows is written
+    beside the band rather than in it. That is why ``nominal == 0.0`` is read
+    here as "no nominal stated" and not as "zero millimetres": in this corpus a
+    structural edge of length zero does not exist, and the one document that
+    writes it says in as many words that it means absence.
+    """
+    stated = [
+        (f"properties.{key}", float(edge.properties[key]))
+        for key in EDGE_NOMINAL_PROPERTY_KEYS
+        if key in edge.properties
+    ]
+    if edge.dimension is not None and edge.dimension.nominal != 0.0:
+        stated.append(("dimension.nominal", float(edge.dimension.nominal)))
+    return stated
+
+
+def _topology_nominal_statements():
+    """``{(part, edge id): [(topology id, where, value), ...]}`` over the corpus.
+
+    Keyed on **part + edge id**, the grain the SOP's rule is written at: the
+    same part's same feature, wherever it is stated. ``kind: "gap"`` edges carry
+    no ``part`` (``Edge.__post_init__`` refuses one) and are skipped -- a gap is
+    a relation between two parts, so it has no part+feature key to be consistent
+    under, and three of them share the id ``shank_out`` across three topologies
+    while measuring three different clearances.
+    """
+    from tolerance_stack.topology import load_topology  # noqa: PLC0415
+
+    statements: dict = {}
+    for filename in ALL_TOPOLOGY_FILES:
+        topology = load_topology(STACKS_DIR.parent / "topologies" / filename)
+        for edge in topology.edges:
+            if not edge.part:
+                continue
+            for where, value in _edge_nominal_statements(edge):
+                statements.setdefault((edge.part, edge.id), []).append(
+                    (topology.id, where, value))
+    return statements
+
+
+def test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_it():
+    """SOP Step 5b's 2026-09-15 amendment, on the other document kind.
+
+    *"The same part+feature carries the same band in every stack that uses it
+    ... A divergence is now a defect; pin it with a cross-stack, value-level
+    test naming the stacks."*
+    ``test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it``
+    mechanises that over stack elements. Topologies carry dimensions too, and
+    two of them stated one rigid link's length 3.41 mm apart for a day with
+    nothing able to go red: one in a ``dimension``, the other in ``properties``,
+    so no value-level pairing reached it at all.
+
+    The grain is the point. This pairs on **part + edge id** and reads the value
+    from **both** places a topology may state it (see
+    ``_edge_nominal_statements``), because the pair that broke straddled them.
+
+    **Nominals, not bands**, and that is a corpus fact rather than a decision:
+    no part+feature in the topology corpus states two *comparable* bands today
+    -- ``pitch_system`` is variation-only (a width about an unstated nominal)
+    where ``vpa_pitch_linkage`` carries an absolute ``min == max`` with no
+    tolerance recorded at all, and the corpus's one other repeated key,
+    ``tan_link_mount_215175_002``/``tan_link_mount_height``, has a band in one
+    topology and no dimension in the other. A band comparison written now would
+    be asserted against nothing, which this repo counts as worse than absent.
+    ISSUE_20261001_the_topology_pairing_compares_nominals_and_not_bands.md.
+
+    **Unenrolled**, and visibly so rather than silently: a mutation spec for
+    this guard was written and is exact, but the mutation shadow omits every
+    document this module's claims-corpus guards read, so the ``python`` tier is
+    red here before any mutation is applied and the harness refuses the entry.
+    The spec, both mutations, and the one-line fix are in
+    ISSUE_20261001_no_pytest_guard_in_the_two_largest_test_modules_can_be_
+    enrolled_because_the_shadow_omits_the_documents_they_read.md.
+    """
+    divergent = []
+    seen_divergences = set()
+    for key, statements in sorted(_topology_nominal_statements().items()):
+        values = [value for _, _, value in statements]
+        if max(values) - min(values) <= TOL:
+            assert key not in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES, (
+                f"{key} is listed in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES and "
+                f"now agrees on {values[0]} -- delete the row, the divergence "
+                f"is closed")
+            continue
+        if key in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES:
+            seen_divergences.add(key)
+            continue
+        divergent.append((key, statements))
+
+    assert not divergent, (
+        "one part+feature stated at two different nominals:\n" + "\n".join(
+            f"  {part} / {edge_id}:\n" + "\n".join(
+                f"    {tid} {where} = {value}" for tid, where, value in stmts)
+            for (part, edge_id), stmts in divergent))
+
+    dead = set(KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES) - seen_divergences
+    assert not dead, (
+        f"{sorted(dead)} are recorded as known topology nominal divergences "
+        f"and were not found -- a stale row here is a value nobody is checking")
+
+
+def test_the_topology_nominal_pairing_reads_both_places_a_nominal_lives():
+    """Not vacuous, and -- the half that matters here -- not half-vacuous.
+
+    The loop above finds nothing when it reaches nothing, so three things have
+    to be asserted rather than assumed: that some key is stated more than once
+    at all; that ``properties`` is reached, which is the hole this guard exists
+    to close and the one a ``dimension``-only reader would leave open; and that
+    the exact pair which broke is still the pair being compared.
+    """
+    statements = _topology_nominal_statements()
+
+    paired = {k: v for k, v in statements.items() if len(v) >= 2}
+    assert paired, (
+        "no part+feature states a nominal in more than one topology, so the "
+        "pairing above is asserted against nothing")
+
+    places = {where for stmts in statements.values() for _, where, _ in stmts}
+    assert "dimension.nominal" in places
+    assert any(p.startswith("properties.") for p in places), (
+        "no topology edge states a nominal in `properties`, so the half of "
+        f"this guard that reads {EDGE_NOMINAL_PROPERTY_KEYS} is checking "
+        "nothing -- which is exactly the shape that let "
+        "ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart "
+        "through")
+
+    # And the pair that broke, named, so that deleting either half is loud.
+    broke = paired.get(("pitch_link", "pitch_link_length"))
+    assert broke is not None, (
+        "pitch_link / pitch_link_length is no longer stated in two topologies "
+        "-- it is the pair this guard was written for, and the demonstration "
+        "that a `properties` nominal and a `dimension` nominal are compared "
+        "against each other rather than only among their own kind")
+    assert {where for _, where, _ in broke} == {
+        "properties.nominal_length_mm", "dimension.nominal"}
+
+
+def test_the_topology_nominal_pairing_covers_the_corpus_because_the_id_spaces_are_disjoint():
+    """Why this pairs topology-to-topology only, asserted rather than asserted in prose.
+
+    A stack element's ``hardware_ref`` and a topology edge's ``part`` are both
+    "which part is this a dimension of", but they are separate id spaces that
+    happen to share no member. So a stack-to-topology pairing would compare
+    nothing today -- and the day a part id lands in both, that stops being true
+    silently. This is the red that says so.
+    """
+    from tolerance_stack.topology import load_topology  # noqa: PLC0415
+
+    topology_parts = {
+        edge.part
+        for filename in ALL_TOPOLOGY_FILES
+        for edge in load_topology(
+            STACKS_DIR.parent / "topologies" / filename).edges
+        if edge.part
+    }
+    stack_parts = {
+        element.hardware_ref
+        for filename in ALL_STACK_FILES
+        for element in load_stack(STACKS_DIR / filename).elements
+        if element.hardware_ref
+    }
+    assert topology_parts and stack_parts
+    shared = sorted(topology_parts & stack_parts)
+    assert not shared, (
+        f"{shared} name a part in BOTH a stack element's `hardware_ref` and a "
+        f"topology edge's `part`. The nominal pairing above reads topologies "
+        f"only, on the measured ground that the two id spaces do not meet; "
+        f"they now do, so widen it to pair across both document kinds -- or, "
+        f"if these are different parts wearing one id, say which and rename.")
+
+
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
 def test_a_workbook_only_value_is_untraced_unless_its_exception_is_registered(filename):
     """The SOP's other hard rule, mechanised one corner at a time.

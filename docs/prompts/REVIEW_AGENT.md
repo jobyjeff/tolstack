@@ -2175,6 +2175,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       is therefore entirely yours. The same review found one:
       `topology_pitch_system.json`'s `hub` note said "three of this topology's
       four branch points sit on it" and two do. All fixed inline.
+      **Second sighting of one specific digit, 2026-10-01**
+      (`one_part_feature_one_value_across_topologies`): a lesson wrote "all 22
+      committed studies were re-run" where `docs/topologies/study_*.json` holds
+      **21** and no topology embeds a `studies` array -- the same 22-for-21 that
+      `REVIEW_20260915_respine_tween_fidelity` corrected. Both of this repo's
+      study-count errors have been 22. `ls docs/topologies/study_*.json | wc -l`
+      settles it; corrected inline.
 - [ ] **A "which is exactly what the source does" claim, checked row by row
       against the source.** New 2026-09-01 (`dag_topology_format`).
       `study_pitch_system_blade_angle_worst.json` said its transform map applied
@@ -4226,6 +4233,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       projected coordinate rounds to `0` or `1.3e-16`. If this sub-check is
       the only red in an otherwise-clean browser tier, re-run it with
       `--only` before treating it as a regression.
+      **Third and fourth sightings 2026-10-01**
+      (`one_part_feature_one_value_across_topologies` review): it failed on
+      **two consecutive full runs** of the same tree and then passed 32/32
+      under `--only "annotate rail filter"`. So "re-run it once and it passes"
+      understates the rate -- a repeat in the full tier is not evidence of a
+      regression either, and the `--only` replay is still the deciding run.
+      `ISSUE_20260916_the_mock_annotator_mesh_is_edge_on_to_its_own_default_camera.md`
+      is `deferred` to 2026-10-29; this is the second review to pay for it.
 - [ ] **A `push()` LABEL that dereferences the very thing its condition
       guards.** New 2026-09-22 (`viewer_nav_verdict_into_alert_and_icon`), and
       a fresh instance of the 1180-line-`try` entry above rather than a new
@@ -4813,6 +4828,57 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `topology_gaps()` emits `unverified_value` only for
       `untraced`/`no_source_ref` — so labelling a workbook-only value
       `inferred` silently removes a gap row rather than merely overstating.
+- [ ] **A pairing guard's reach into a free-form bag is a HAND-WRITTEN key
+      tuple -- ask what the corpus actually holds, and whether anything reds
+      when a ninth key arrives.** New 2026-10-01
+      (`one_part_feature_one_value_across_topologies`, should-fix, filed as
+      `ISSUE_20261001_the_topology_nominal_pairings_properties_key_list_is_hand_maintained_and_already_excludes_one_edges_own_nominal.md`).
+      A topology edge's `properties` is schema-free, so the new nominal pairing
+      reaches it through `EDGE_NOMINAL_PROPERTY_KEYS` -- one key, against eight
+      numeric `properties` values in the corpus, with nothing pairing the tuple
+      to the tree. A second document writing its nominal under any other key
+      reproduces the very divergence the guard closes and **nothing goes red**,
+      because the non-vacuity guard beside it stays satisfied by the one pair
+      that already exists. Two questions, both one line: *enumerate the bag*
+      (`load_topology` over `ALL_TOPOLOGY_FILES`, never a raw JSON scan -- a
+      `dimension_ref` reads as valueless until it resolves), and *read the
+      exclusion reason against each excluded key individually*. Here the stated
+      reason ("not the edge's own end-to-end dimension") was right for three
+      keys and wrong for `nominal_stroke_mm`, which is exactly its edge's own
+      end-to-end nominal; the mechanism that really forces the short list is
+      that two mm keys on ONE edge get compared against each other, which is a
+      different claim and excludes a different set.
+- [ ] **A workbook "check" cell that re-derives its own input -- the citation
+      reads as corroboration and is a tautology.** New 2026-10-01, same
+      handoff, and it is the provenance audit's sharpest cheap move.
+      `260825_End_Stop_JC.xlsx`'s K-block was transcribed into
+      `WORKSHEET_end_stop_graft.md` as `K6 | check L | 109.4 | mm |
+      '=SUMSQ(K4,K5)^0.5' (Pythagorean sanity check -- passes)`, which is the
+      sentence a reader weighs against a conflicting measurement. Read out of
+      the file at review: `K3` is a hand-typed constant with **no formula**,
+      `K4 = K3*COS(RADIANS(K2))`, `K5 = K3*SIN(RADIANS(K2))` -- so `K6` passes
+      for any `K3` whatsoever, and the workbook makes exactly ONE independent
+      statement of the number. **Open the cited cells and read the FORMULAS,
+      not the values**, whenever a worksheet's prose calls something a check, a
+      cross-check or a sanity check; the values alone cannot tell a measurement
+      from a round trip. (No interpreter here has `openpyxl` -- not this repo's
+      venv, not atp-post's. The formulas are `<f>` elements in the `.xlsx`'s
+      `xl/worksheets/sheet*.xml`, so a `zipfile` + `ElementTree` walk reads
+      them with the standard library alone.)
+- [ ] **A guard whose author could not enroll it -- verify the obstacle before
+      accepting an issue in place of the spec.** New 2026-10-01, same handoff.
+      `CLAUDE.md` says a guard is enrolled in the same change; this one could
+      not be, because `SHADOWED` (`scripts/run_mutation_witness_tests.mjs`)
+      omits every document this module's claims-corpus guards read, so the
+      `python` tier is red in the shadow before any mutation is applied and the
+      harness refuses the entry. Verified at review by reading `SHADOWED` and
+      `CENSUS_LIMITS` rather than taken on the lesson's word, and it is a real
+      blocker -- but note what it costs: `python_not_censused` means no pin
+      moves either, so an unenrolled **pytest** guard reddens nothing at all,
+      and the author's own honesty is the only thing between you and a silent
+      gap. Require the spec written out verbatim in the issue (every mutation,
+      find and replace) so re-deriving it is minutes, and confirm the ISSUE
+      exists rather than only a lesson section.
 
 ## Architectural errors to check
 
