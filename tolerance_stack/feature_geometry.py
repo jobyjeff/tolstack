@@ -162,11 +162,19 @@ FIT_TOLERANCES: Dict[str, float] = {
     # answer `spherical`, 18 of them on the hub, offering a solver "ball" radii
     # of 62 to 65 mm that are fillet bands (found in review).
     #
-    # The measured values either side, for a reader checking this: the
-    # MS14101-3 bearing's four spherical faces are 1.4783 twice (the race seat)
-    # and 1.5714 twice (the ball); MS14103-3's four are 1.2609, which is also
-    # the lowest on any accepted spherical face store-wide. Its own bands are
-    # 0.9286, and a closed band is 1.0 exactly.
+    # **The margin is thin by design, and it is not a margin.** Measured over
+    # the whole store after the fix: the lowest ratio on any ACCEPTED spherical
+    # face is 1.0357 (a ~1 mm spherical feature on the instrumented blade, 29
+    # triangles over 28 nodes), and the accepted distribution runs on up from
+    # there -- 1.04, 1.05, 1.06 ... So there is no comfortable gap to sit in,
+    # and none is wanted: the boundary is EXACT for the degenerate case this
+    # refuses, because a regular two-row band is at or below 1 by the arithmetic
+    # above whatever S is. Anything above it has a third row somewhere.
+    #
+    # The bearing's own numbers, for a reader checking the derivation by hand:
+    # the MS14101-3's four spherical faces are 1.4783 twice (the race seat) and
+    # 1.5714 twice (the ball), MS14103-3's four are 1.2609, and its own refused
+    # bands are 0.9286.
     "sphere_min_triangles_per_vertex": 1.0,
     # ...and its facet normals point at least roughly along the RADIUS at that
     # facet. Deliberately LOOSE, and a sanity check rather than a discriminator:

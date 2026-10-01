@@ -18,8 +18,10 @@ found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_
 > any of them.
 
 `docs/topologies/topology_vpa_pitch_linkage.json` (2026-09-30) declares twelve
-parts. Eight of them have an installed mesh and got an alias row in the same
-change. Four do not, and deliberately got **no row** — the annotator's "no
+parts. Eight of them had an installed mesh and got an alias row in the same
+change; `hub` and `pitch_arm` became rows the next day, when the run below
+landed, so it is ten and two now. The two that remain deliberately got **no
+row** — the annotator's "no
 installed mesh" empty state is the honest answer, never a guessed match
 (`docs/topologies/part_mesh_aliases.json`'s own second note).
 

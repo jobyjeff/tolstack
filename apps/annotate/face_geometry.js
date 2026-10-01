@@ -126,9 +126,12 @@
     // and for what `>=` let through until 2026-09-30 (139 faces store-wide,
     // 18 of them fillet bands on the hub answering as 62-65 mm "balls").
     //
-    // Measured either side: the MS14101-3 bearing's four spherical faces are
-    // 1.4783 twice and 1.5714 twice, MS14103-3's four are 1.2609, its own
-    // bands are 0.9286, and a closed band is 1.0 exactly.
+    // The lowest ratio on any ACCEPTED spherical face store-wide is 1.0357 and
+    // the distribution runs up from there, so this is a boundary rather than a
+    // margin -- exact for the degenerate case it refuses, because a regular
+    // two-row band is at or below 1 whatever S is. The MS14101-3 bearing's own
+    // four are 1.4783 twice and 1.5714 twice, MS14103-3's four are 1.2609, and
+    // its refused bands are 0.9286.
     sphereMinTrianglesPerVertex: 1.0,
     // ...and its facet normals point at least roughly along the radius at that
     // facet. LOOSE on purpose, and a sanity check rather than a discriminator:
