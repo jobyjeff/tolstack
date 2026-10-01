@@ -252,6 +252,15 @@ files this branch has never heard of (`docs/topologies/part_mesh_aliases.json`,
 `tolerance_stack/topology.py`). A reviewer re-running them today sees the
 refusal, and the refusal is the gate working.
 
+One thing that survived the swap and is worth more than the run it replaced:
+the browser tier was re-run AFTER it, against the other branch's projection,
+and is **25/25 again** -- the topology suite growing 228 -> 233 sub-checks on
+that branch's richer graph. So the hover work here has now been exercised
+against two projections built from two different trees. The browser tier has no
+freshness gate of its own (`ISSUE_20260924_other_real_tiers_still_read_the_
+shared_projection_untested_for_freshness.md`), which is a real gap in general
+and happened to be the thing that let this measurement be taken at all.
+
 That is also the whole of why the full mutation tier's `fast` half reports 59
 of 132 mutations as `TIER_ALREADY_RED`: the clean run is red before any
 mutation is applied, for the same reason. The runner says so and **exits 1**,
