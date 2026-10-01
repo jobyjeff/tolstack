@@ -333,6 +333,92 @@ display asks for whatever `transparency` says, which is on by default. A reader
 who turns it off has said they want solid bodies, and gets them, with the
 candidates still coloured on every face they can see.
 
+## Sweep mode — playing back a solver's answer
+
+Added 2026-10-01 (handoff `kinematic_sweep_animation`). The model, the frame
+rule and the occurrence rule are in `docs/ANNOTATION_SURFACE.md`'s "Sweep
+mode"; this is the operational half.
+
+**It writes nothing.** `storage.writeFeatureIdentityEvent` is not reachable
+from any of it, and face picking is switched off outright away from the
+as-modelled pose.
+
+`sweep latest` (or `?sweep=<run-id>`) reads a `linkage-sweep/v1` run out of
+`data/inbox/linkage-sweeps/` — published there by `C:\workspace\linkage` —
+and turns the bar into three rows: what you are looking at (the run, and
+**where its geometry came from**, in words), the transport and the draggable
+bar along the driver, and the solver's own numbers at the point nearest the
+handle. Space plays and pauses; the arrow keys step one point; Home and End
+jump to the ends. `prefers-reduced-motion` steps whole points instead of
+animating, the same answer the viewer gave.
+
+### Trying it with no data at all
+
+`?mock=1&sweep=synthetic-demo-sweep` needs no folder grant, no published run
+and no installed mesh. Its run is a **synthetic** crank-slider solved in
+closed form in `fixtures.js` — a real mechanism, so `|A − B|` genuinely holds
+across the sweep and the surface demonstrates the verification rather than
+miming it — and it says it is synthetic in its own run id and mechanism name,
+because nothing about it is a measurement of anything. One of its points is
+deliberately marked unconverged so the warning treatment has something to
+draw.
+
+### The browser check — `run_browser_check.mjs`
+
+```
+node apps/annotate/run_browser_check.mjs
+node apps/annotate/run_browser_check.mjs --real <run-id>
+node apps/annotate/run_browser_check.mjs --shots docs/sessions/lessons/assets
+```
+
+Real headless Chrome through `playwright-core`, the same infrastructure and the
+same non-negotiables as `apps/viewer`'s TRUTH tier (forge CONVENTIONS.md §7).
+This does not contradict "browser automation is not run on this machine" above:
+that rule is about driving **Jeff's own live session**, which a headful run
+hijacks, and nothing here touches one.
+
+The default pass runs against `?mock=1` and needs nothing. `--real <run-id>`
+runs the same page against a published run and the real mesh store; because
+this app has no HTTP read transport and FSA cannot be granted from a script,
+that pass swaps the in-memory adapter's *read* methods for fetches over the
+test server — a harness, not a transport, and it proves nothing about FSA.
+`--shots` writes the screenshot evidence; it is **dark only**, because both
+apps render one theme by decision and no mechanism for a second exists
+(`docs/DESIGN_TYPE_AND_COLOUR.md`, "One theme").
+
+### What it measured, 2026-10-01
+
+Against `vpa-pitch-p1-20261001-203656`, every body resolved by geometry:
+
+| part | occurrence | from its solved joint |
+|---|---|---|
+| `hub` | `214373-001.1` | ground — does not move |
+| `tan_link_mount_215175_002` | `215175-001.1` | ground — does not move |
+| `gas_spring_mount_213668_002` | — | no recorded occurrence (standalone STEP) |
+| `pitch_plate_215177_001` | `215177-001.3` | 0.0000 mm |
+| `gas_spring` | — | refused at 42.574 mm — no joint of its own |
+| `blade_root` | `prd-e-03372837.1/211587-001.3` | 0.7440 mm |
+| `pitch_arm` | `prd-e-03372837.1/…/215071-001.2` | 0.0007 mm |
+| `pitch_link` | `213862-002.1` | 0.0001 mm |
+| `spherical_bearing_pitch_link` | `MS14101-3.2` and `.1` | 0.0001 and 0.0007 mm |
+
+…and the verification itself held: the pitch link kept `105.99051337042064`
+to 8.99e-11 mm across all 80 points, the blade hinge point did not move at
+all, and the driver swept 64.466 → 0.000 mm. The numbers in this table are
+re-derived by the check itself — it prints them — rather than read from here.
+
+**Fitting cost**, measured with this app's own classifier: the hub is 363,681
+triangles and takes about 1.2 s, blade 1 is 608,637 and takes about 2.4 s,
+once per mesh per session and then cached. Both are inside
+`AA.SWEEP_FIT_TRIANGLE_BUDGET` deliberately — at 60,000 the blade fell back
+to the coarser centroid reading and could not tell which of the three
+installed blade geometries was blade 1, which is the one substitution this
+surface was asked to get right.
+
+**Playback frame rate** with seven real meshes loaded was 4 fps under headless
+software rasterisation — a floor and not the figure a GPU gives, which is why
+the check reports it and does not assert on it.
+
 ## Deep link in
 
 `?topology=<id>&edge=<id>&study=<id>&isolate=<part>[,<part>…]` boots the app
@@ -487,7 +573,11 @@ apps/annotate/
   run_tests.cjs        fast-tier runner for binding_state.js + commands.js +
                        face_geometry.js + suggestions.js + sweep.js +
                        storage/memory.js, plus a [real] tier over the
-                       installed meshes
+                       installed meshes and the published sweep runs
+  run_browser_check.mjs  real-browser check for SWEEP MODE and the pass that
+                       writes its screenshot evidence -- playwright-core,
+                       installed Chrome, headless. See "Sweep mode" above for
+                       why that does not contradict the rule two entries up
 ```
 
 ### Why ES modules here, when apps/viewer is classic scripts

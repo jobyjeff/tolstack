@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: which occurrences are even candidates is EXACT -- the mesh's own, the ones sharing a slot name, and the ones named for its product",
+  "mutations": [
+    {
+      "contract": "Geometry decides BETWEEN candidates; what is even in the running is decided exactly, from what the extraction recorded. A part's candidates are its mesh's own occurrences, those sharing one of their `instance_name`s, and those named `<this product>.<n>`.",
+      "issue": null,
+      "note": "The mutation keeps the product-slot arm and drops the shared-slot-name arm. That still finds blade 1's pitch link (named for the design part) and stops finding blade 1's BLADE, whose three installed geometries are all recorded as `211587-001.3` and differ only in path -- so the one case the arm exists for goes quiet while the case that shares a code path keeps working.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      var sameSlotName = !!names[o.instance_name];",
+      "replace": "      var sameSlotName = false;"
+    }
+  ]
+}

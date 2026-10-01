@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the ?mock=1 run is a REAL mechanism, solved in closed form -- so the surface demonstrates the verification rather than miming it",
+  "mutations": [
+    {
+      "contract": "The demo run's slider position is the root that keeps the link's length, its crank zero is off the slider axis so the driver is strictly monotone, and its poses really carry the joint points they claim to -- otherwise the one build anybody can open shows a verification surface verifying nothing.",
+      "issue": null,
+      "note": "The mutation puts the crank's zero back ON the slider axis, which is the inline crank this started as. An inline crank is symmetric about its own top centre, so a sweep straddling it hands the scrubber a driver that rises and then falls -- and `which point is 20 mm of travel` gets two answers. It was invisible until the driver was checked for monotonicity: every |A - B| still held exactly.",
+      "file": "apps/annotate/fixtures.js",
+      "find": "    var c = DEMO_CRANK * Math.cos(t);\n    return DEMO_CRANK * Math.sin(t) - Math.sqrt(DEMO_LINK * DEMO_LINK - c * c);",
+      "replace": "    var c = DEMO_CRANK * Math.sin(t);\n    return DEMO_CRANK * Math.cos(t) - Math.sqrt(DEMO_LINK * DEMO_LINK - c * c);"
+    }
+  ]
+}

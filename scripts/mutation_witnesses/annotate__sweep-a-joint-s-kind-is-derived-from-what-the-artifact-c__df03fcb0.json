@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: a joint's kind is DERIVED from what the artifact carries, and both ends of every joint are assigned to a body by measurement",
+  "mutations": [
+    {
+      "contract": "A joint end rides a body when that body's pose, applied to the end's as-modelled point, reproduces the end's own point. BOTH ends are assigned separately, and ground wins a tie, because a point that never moves is ground's.",
+      "issue": null,
+      "note": "The mutation assigns the `a` end only, which is what this shipped as. A joint between ground and a body has a stationary ground-side `a` end, and a body rotating about the origin reproduces the origin -- so on the real P1 run the pitch plate's two joints were read as the BLADE's, and the plate's triad was drawn at the blade's bore.",
+      "file": "apps/annotate/sweep.js",
+      "find": "  AA.SWEEP_JOINT_ENDS = Object.freeze([\"point_a_world\", \"point_b_world\"]);",
+      "replace": "  AA.SWEEP_JOINT_ENDS = Object.freeze([\"point_a_world\"]);"
+    }
+  ]
+}
