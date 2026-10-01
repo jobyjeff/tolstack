@@ -4584,6 +4584,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20260930_the_pairings_spawned_runner_reports_a_crash_as_a_parse_divergence.md`).
       Two questions: *is `proc.stderr` read anywhere on the failure path?* and
       *does the message distinguish "ran and said no" from "never ran"?*
+      **Second sighting the same day, same tool, other side of the same
+      question** (review `columns_ordered_to_minimise_crossings`): async
+      `spawn` in `runTier` listens for `stdout`/`stderr`/`close` and **not
+      `error`**, so a child that could not be *started* re-throws at the
+      process — the run died at the first `python__` entry, took the other
+      seven with it and printed no summary, one screen after its own preflight
+      had promised those entries would "be reported as a MISS"
+      (`ISSUE_20260930_a_missing_interpreter_crashes_the_whole_mutation_run_
+      where_the_preflight_promised_a_miss.md`). So the question has a third
+      form: *when a preflight says what WILL happen on a failure path, run that
+      path and check it is what happens.* A promise about an untaken branch is
+      the cheapest wrong sentence in a repo to write.
 - [ ] **A "this cannot be derived, so it is pinned by hand" justification, in a
       diff whose own test derives it.** New 2026-09-30
       (`columns_ordered_to_minimise_crossings`). The claims registry makes

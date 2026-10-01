@@ -115,7 +115,7 @@ Post-merge, in this review worktree:
 | `node apps/viewer/run_tests.cjs --repo <scratch>` | **516/516** |
 | `node scripts/run_viewer_browser_tests.mjs --repo <scratch>` | **25/25 browser checks**, every sub-check green |
 | `node apps/annotate/run_tests.cjs --repo <scratch>` | 150/151 — see below |
-| `node scripts/run_mutation_witness_tests.mjs --repo <scratch>` | see "The mutation tier" below |
+| `node scripts/run_mutation_witness_tests.mjs --repo <scratch>` | **117 WITNESSED, 0 NOT WITNESSED**, 10 skipped — see below |
 
 `<scratch>` is the author's own recipe from the lesson, re-run for this merged
 tree: a short-path root with `data/inbox` and `data/meshes` junctioned to the
@@ -130,6 +130,33 @@ did not run the tiers there: the main checkout is on `master`, and while I was
 reviewing, `handoff/vpa_pitch_linkage_topology_and_feature_fits` rebuilt that
 shared projection from its own branch (stamp `1d63844728`, 2026-10-01T03:55Z).
 Any `[real]` number read there belongs to that branch's tree, not this one.
+
+### The mutation tier — the run only this merge can make
+
+The overlay's reason for running it here is that a review merge is the one
+point in the lifecycle where nothing re-runs it, and **a drop in the witnessed
+count is a finding against the merge, not against either branch.** Result:
+
+- **117 of 117 reachable declared mutations WITNESSED. Zero NOT WITNESSED.**
+  The merge took no coverage away.
+- **10 `annotate__` entries SKIPPED**, every one with the runner's own
+  `TIER_ALREADY_RED` reason: the annotate tier is red from the shared mesh
+  store's classification floor (above), so a mutated run there would prove
+  nothing. Loud, not silent. This branch touches no `apps/annotate/` file and
+  no mesh, so the skip is not attributable to it — but it does mean those ten
+  were not re-asked at this merge, and they will stay unaskable until the
+  floor is back.
+- The 8 `python__` specs (10 declared mutations) **needed a second run.** The
+  first one crashed: the runner resolves the pytest interpreter off `--repo`
+  (deliberately — in a worktree the venv is main-checkout-only), my scratch
+  root had no `venv-win`, and the `spawn` ENOENT came back as an unhandled
+  `error` event that killed the process. I junctioned `venv-win` into the
+  scratch root and re-ran all eight with `--only`: **10/10 WITNESSED.** The
+  crash itself is a defect in the tool and is filed —
+  `ISSUE_20260930_a_missing_interpreter_crashes_the_whole_mutation_run_where_
+  the_preflight_promised_a_miss.md` — because the runner's own preflight had
+  said one screen earlier that those entries would "be reported as a MISS",
+  and instead the run ended with no summary line at all.
 
 The annotate tier's single red is **`[real] every installed mesh classifies,
 and the rate over the whole store stays above the floor`** — 30.3% against a
@@ -217,7 +244,7 @@ the handoff's objective states, and the diagram would be worse.
    The mutation tier's shadow snapshot predates this commit; a comment cannot
    move a witness.
 
-### Should-fix, filed (1)
+### Should-fix, filed (2)
 
 - **`ISSUE_20260930_the_readmes_as_allocated_baseline_is_a_hand_copy_of_a_test_
   literal.md`** (`chore`/`low`). The README's prose carries `branch 20, close
@@ -227,6 +254,15 @@ the handoff's objective states, and the diagram would be worse.
   derivable, the fix is cheap: a `pass: applied | as_allocated` field on the
   `layout_crossings` metric, or drop the digits and point at the test by name.
   Not urgent — both copies agree and the walk is not under change.
+
+- **`ISSUE_20260930_a_missing_interpreter_crashes_the_whole_mutation_run_where_
+  the_preflight_promised_a_miss.md`** (`bug`/`med`). Out of scope for this
+  handoff — found while running the tier this review owes. `runTier()` in
+  `scripts/run_mutation_witness_tests.mjs` attaches no `error` handler to its
+  `spawn`, so a child that cannot be started re-throws at the process and ends
+  the run with no summary. Second sighting in the same tool in one day of
+  "three outcomes, not two" on a spawned child; the overlay's existing entry
+  has been extended rather than duplicated.
 
 ### Nits (not fixed, not filed)
 
@@ -263,7 +299,9 @@ expect up to ~1.2 s added to every projection build and every `pytest -q`.
 ## Overlay
 
 Two entries appended to `docs/prompts/REVIEW_AGENT.md`, "Recurring bugs to
-check", both first sightings from this review:
+check", and one existing entry extended with its second sighting (the spawned-
+runner one, now covering "the child never started" as well as "the child
+started and threw"). The two new ones:
 
 - *A "this cannot be derived, so it is pinned by hand" justification, in a diff
   whose own test derives it.* The claims registry made "declare it or nothing
