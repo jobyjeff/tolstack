@@ -237,7 +237,7 @@ without saying what it can.
 - **A shared gitignored store can move under you mid-run, and the red lands on
   your branch.** `node apps/annotate/run_tests.cjs` was 151/151 early in this
   session and 150/151 at the end, same tree: five meshes were installed into
-  `C:\workspace	olstack\data\meshes\` between 20:25 and 20:28 by a parallel
+  `data/meshes/` (the main checkout's) between 20:25 and 20:28 by a parallel
   worktree, and the whole-store face-classification rate fell under its 45%
   floor. Nothing in this branch touches a mesh or a classifier. Filed as
   `ISSUE_20260930_meshes_installed_into_the_shared_store_mid_session_took_the_annotate_classification_floor_red.md`.
