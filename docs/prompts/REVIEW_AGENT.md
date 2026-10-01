@@ -4630,6 +4630,76 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       touched document: *does the mechanism named in this sentence still own
       the delta?*
 
+- [ ] **When a sibling worktree owns `data/projections/viewer/`, the `[real]`
+      tier is REFUSED rather than red, and a scratch `--repo` root is the
+      review's only honest route — build it, do not skip the tier.** New
+      2026-09-30 (`nav_tooltip_once_and_rail_hover_emphasis`). Since the
+      freshness gate, a rebuild from an in-flight branch does not redden the
+      other worktrees' fixtures, it **disarms** them: `node
+      apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` reports
+      `FAIL [real] the projection this tier reads was built from this tree`,
+      drops ~86 checks, and takes the whole `fast` half of the mutation tier
+      with it (`TIER_ALREADY_RED`). Do **not** rebuild the shared directory to
+      clear it while that handoff is live. The recipe that works, written down
+      here because this review re-derived it and the issue that already has it
+      (`ISSUE_20260930_a_worktree_has_no_supported_way_to_run_the_real_tiers_against_its_own_projection.md`)
+      is in `docs/issues/`, which no prompt reads: a scratch root at a SHORT
+      path (`%TEMP%\tsrev` — MAX_PATH), `cmd /c mklink /J` for
+      `data/inbox`, `data/meshes` and `venv-win` onto the main checkout's and
+      for `docs` onto your own worktree's, a real `data/projections/`
+      directory, then `build_topology_projection.py`,
+      `build_viewer_projection.py` (tolstack's venv) and
+      `build_viewer_crops.py` (drawing-checker's venv) each with
+      `--data-root <scratch>/data`, and every tier with `--repo <scratch>`.
+      Measured: `522/522` with no tier skipped, browser `25/25`, and all six of
+      the handoff's mutation specs `WITNESSED` — against a projection nobody
+      else reads. **Check the builder's own line says more than `0/N parts with
+      an installed mesh`** before you read a `[real]` result (the MAX_PATH
+      symptom), and note `venv-win` is needed in the scratch root only for the
+      mutation tier's `python` entries. Remove the junctions with
+      `cmd /c rmdir <link>`, never a recursive delete of the parent.
+- [ ] **A hand-planted mutation that silently does nothing reads exactly like a
+      guard that cannot fail — this repo's working tree is CRLF.** New
+      2026-09-30, same review. `core.autocrlf=true` here, so
+      `apps/viewer/views/topology.js` (and the rest of `apps/viewer`) is CRLF
+      **on disk** while every diff, every `grep` and every mutation spec's
+      `find` reads LF. A patch script built from `'\n'.join([...])` matches
+      nothing, and a `str.replace()` with no assertion writes the file back
+      unchanged — you then run three tiers against unmutated code and record
+      the guard as unwitnessed. Always `assert old in s` (or diff the file
+      after patching), and derive the newline from the file
+      (`nl = '\r\n' if '\r\n' in s else '\n'`). The overlay's existing
+      `guard_enumeration.mjs` CRLF entry is the write-side of this; this is the
+      read side, and it is the one that fabricates a finding.
+- [ ] **A DOM event-ORDER claim in a comment is a measurable claim, and ten
+      lines settle it.** New 2026-09-30, same review. `hotHover`'s leave arms
+      are guarded "because moving from a bar onto the rail fires the new
+      element's `mouseenter` and the old one's `mouseleave`" — the opposite of
+      what Chrome does. `page.setContent` with two sibling divs, listeners on
+      both, one `page.mouse.move` into each: `["mouseenter a", "mouseleave a",
+      "mouseenter b"]`, i.e. leave precedes enter even on a teleport, which is
+      what the spec requires. So the guard it justifies is inert, and deleting
+      both conditions is 522/522 fast and 228/228 browser
+      (`ISSUE_20260930_hothovers_leave_race_guard_is_inert_and_its_stated_event_order_is_backwards.md`).
+      Whenever a hover/focus wiring comment asserts an ordering, a bubbling
+      behaviour or "this would race", **run it** — it is the cheapest
+      measurement in this repo and it is also the one shape where a defensive
+      line and a load-bearing one are indistinguishable by reading.
+- [ ] **A per-ROW style written as `> .tvcell` reaches a `rowspan`ned cell and
+      paints the whole group.** New 2026-09-30, same review, and it is the
+      `.conf--*`-by-inheritance entry's sibling: the scope is wider than the
+      selector reads. The grid's new hover tint is on the CELLS for a good
+      reason (a row already carries a band colour and a provenance background
+      image), but `componentCell`'s merged `<td rowspan="N">` is a `.tvcell` of
+      the group's FIRST row, so hovering that row paints 104px of one column at
+      the strong tint while its 26px row and three `--hot` siblings sit beside
+      it (measured on live `pitch_system`,
+      `ISSUE_20260930_a_rowspanned_component_cell_takes_the_hovered_rows_tint_across_the_whole_group.md`).
+      Ask of any new row-scoped cell rule: **which of this row's cells are
+      taller than the row?** — `rowspan` is in `componentCell` and in
+      `edgeRow`'s section cell, and no tier reads a `.tvcell--component`
+      background.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New

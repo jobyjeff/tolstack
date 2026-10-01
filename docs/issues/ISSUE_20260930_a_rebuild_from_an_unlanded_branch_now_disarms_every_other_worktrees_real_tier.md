@@ -81,3 +81,25 @@ two shapes worth weighing:
 Either way the immediate operator question stands and is not an agent's to
 answer: `data/projections/viewer/` currently belongs to an unlanded branch, and
 every other live worktree's `[real]` tier is refused until that is resolved.
+
+> **Reviewer cross-reference, 2026-09-30**
+> (`REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md`). One clause
+> above is already out of date in the merged tree, and the issue that dates it
+> landed on `integration` *after* this branch was cut, so the author could not
+> see it:
+> `ISSUE_20260930_a_worktree_has_no_supported_way_to_run_the_real_tiers_against_its_own_projection.md`
+> (filed by `columns_ordered_to_minimise_crossings`, `type: feature`,
+> `audience: strategy`). It sets out the same bind and then writes down a route
+> that **does** work today in four manual steps — a scratch root with
+> `data/inbox` and `data/meshes` as junctions to the main checkout's,
+> `data/projections/` a real directory, `docs` junctioned to the worktree's own,
+> then the three builders with `--data-root <scratch>` and the tiers with
+> `--repo <scratch>`. So *"'build a private one' is not currently a thing an
+> agent can do — that is the work"* should read **undocumented and unsupported,
+> not impossible**: this review ran the whole `[real]` tier that way
+> (`522/522`, no tier skipped; browser `25/25`) without touching the shared
+> directory. The work that remains is making it a supported route rather than
+> inventing one, and the two issues should be triaged as one item. Everything
+> else above — the retroactive invalidation, the `TIER_ALREADY_RED` cost, the
+> provenance gate's *older*-not-*divergent* blind spot — is unaffected and is
+> independently reproduced in the review report.
