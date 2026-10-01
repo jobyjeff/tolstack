@@ -223,6 +223,17 @@ without saying what it can.
   sentence, that it is pinned by name in `tests/test_topology_projection.py` —
   a layout that no longer exists is not re-derivable from this tree, so the
   claim fence carries only the three `after` values.
+
+  > **Reviewer correction, 2026-09-30 (`REVIEW_20260930_columns_ordered_to_minimise_crossings`).**
+  > The reason is wrong, though the decision is fine. That layout *is*
+  > re-derivable from this tree, and this diff's own `_as_allocated()` helper
+  > re-derives it on every run by patching `order_columns` out of the walk —
+  > which is what the `before == {...}` assertion compares against. What
+  > cannot express it is the **metric**: `_derive_layout_crossings` goes
+  > through `serialize_topology`, which always orders. The README sentence has
+  > been corrected to say that; the baseline triple in its prose is still a
+  > hand copy of the test's literal with nothing pairing the two, filed as
+  > `ISSUE_20260930_the_readmes_as_allocated_baseline_is_a_hand_copy_of_a_test_literal.md`.
 - **`apps/viewer/topology_fixtures.js` needed `column_order`,** and the
   projection-vs-fixture shape test caught it immediately. Its header says to
   regenerate from the real builder and that the demo's source documents no

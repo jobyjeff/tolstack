@@ -570,9 +570,11 @@ edge can now re-order the columns.
 What that is worth on `pitch_system` is below. The three numbers it reaches are
 declared and re-derived from the committed document on every run; the baseline
 it came from — branch 20, close 12, leader 52, as the walk allocated them on
-2026-09-30 — is pinned by name in `tests/test_topology_projection.py`, because
-a layout that no longer exists cannot be re-derived from this tree. So the pass
-takes branch and leader crossings to zero and pays for it in close links:
+2026-09-30 — is pinned by name in `tests/test_topology_projection.py`, which
+reaches that layout by patching the pass back out of the walk. It is pinned
+rather than declared because the `layout_crossings` metric re-derives through
+`serialize_topology`, and that always orders. So the pass takes branch and
+leader crossings to zero and pays for it in close links:
 
 ```claim
 metric: layout_crossings
@@ -591,7 +593,11 @@ a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the five
 committed topologies, leader-vs-rail crossings went **139 → 0**, five of the
-five to zero; on `pitch_system` that one topology's total moves 90 → 0.
+five to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
+sides of those are measured at the column order above, so the before-side is a
+counterfactual — and the zero is the two mechanisms together, not the mirror
+alone: `order_columns` minimises leader crossings counted *towards column 0*,
+which is the side the mirror puts the grid on.
 
 Three shapes come out of it, and all three are in the projection:
 

@@ -4584,6 +4584,39 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20260930_the_pairings_spawned_runner_reports_a_crash_as_a_parse_divergence.md`).
       Two questions: *is `proc.stderr` read anywhere on the failure path?* and
       *does the message distinguish "ran and said no" from "never ran"?*
+- [ ] **A "this cannot be derived, so it is pinned by hand" justification, in a
+      diff whose own test derives it.** New 2026-09-30
+      (`columns_ordered_to_minimise_crossings`). The claims registry makes
+      "declare it or it is checked by nothing" the house rule, so an author who
+      leaves a figure in prose now writes a sentence explaining why — and that
+      sentence is the thing to read, because it is an argument and nothing
+      checks arguments. Measured: `apps/viewer/README.md` stated the
+      as-allocated crossing baseline (20 / 12 / 52) in prose "because a layout
+      that no longer exists cannot be re-derived from this tree", while the
+      same commit's `_as_allocated()` helper re-derives exactly that layout on
+      every test run by monkeypatching the new pass out of the walk — which is
+      what the assertion beside it compares against. The true limit was
+      narrower and fixable (the *metric* goes through `serialize_topology`,
+      which always orders). One question: **what in this diff already produces
+      the thing the sentence says is unreachable?** A "before" layout, a
+      pre-fix state, a counterfactual — if a test reaches it with a
+      `monkeypatch`, a metric can too, and the hand copy is a hand copy. Fix
+      the reason inline; file the pairing
+      (`ISSUE_20260930_the_readmes_as_allocated_baseline_is_a_hand_copy_of_a_test_literal.md`).
+- [ ] **A published before/after pair whose BEFORE side quietly became a
+      counterfactual, because the diff moved the baseline.** Same review, and
+      the live-derivation that makes the digits safe is exactly what hides it:
+      `apps/viewer/README.md`'s mirror paragraph has a `[real]` test computing
+      both sides from the live projection, so `96 → 43` became `139 → 0` with
+      no one restating anything. But the sentence around it still credited
+      `VA.spineRight` — and `139` is now "what the page would draw if it did
+      not mirror, at a column order chosen *for* the mirrored page", a state
+      that has never existed. The counterfactual entry above says a figure
+      about a world that does not exist has no source to recount; this is its
+      quiet form, where the figure recounts perfectly and the **attribution**
+      is what went stale. Ask of every surviving before/after sentence in a
+      touched document: *does the mechanism named in this sentence still own
+      the delta?*
 
 ## Architectural errors to check
 
