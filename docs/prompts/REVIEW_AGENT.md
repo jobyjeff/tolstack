@@ -5530,6 +5530,36 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `ISSUE_20260916_the_annotate_flyout_settle_wait_is_named_in_one_half_and_
       discarded_in_the_other.md`.
 
+- [ ] **A `"wx"`-exclusive lock-file claim, read back immediately after losing
+      the race, with no retry before "unreadable" is treated as "dead."** New
+      2026-10-01 (`mutation_witness_shadow_is_per_run`, blocker).
+      `acquireLock()`'s `tryClaimLock()` does `writeFileSync(LOCK, json,
+      {flag:"wx"})` -- an exclusive **create**, not an atomic create-with-content:
+      on the loser's side, `open(O_CREAT|O_EXCL)` can observe the winner's file
+      as already created but not yet populated, so `readFileSync` + `JSON.parse`
+      sees `""` and throws. The code folds that parse failure into the same
+      branch as a genuinely dead-pid lock (`pid === null` → "clearing an
+      unreadable lock") and immediately deletes and re-claims it -- so BOTH
+      processes end up holding a lock in sequence with no refusal printed by
+      either, which is exactly the contention the lock exists to prevent.
+      Measured, not theorised: two real `node` processes started back-to-back
+      (the test the handoff itself wrote,
+      `tests/test_mutation_witness_shadow_concurrency.py::
+      test_two_concurrent_runs_against_one_repo_produce_a_named_refusal`) raced
+      this window in **3 of 10 runs** on this machine, every time printing
+      `clearing an unreadable lock` on the loser and `declared mutations
+      witnessed` with exit 0 on BOTH -- no `REFUSED` at all. Distinguish this
+      from the race the code's own comment already handles (two runs correctly
+      agreeing a lock is dead and then racing each other on the *reclaim*,
+      caught by the second `tryClaimLock()` check) -- this one is a LIVE lock
+      misread as absent because its content hadn't landed yet. The general
+      question for any lock/pidfile claim: *does "I could not parse this" mean
+      "nobody owns it," or could it mean "its rightful owner is mid-write"?*
+      Those are different facts and this code answered both the same way. A fix
+      needs either an atomic write (temp file + rename into place) or a short
+      retry-before-conceding-unreadable, and a test that pins the race
+      deterministically rather than one that happens to hit it 30% of the time.
+
 ## Writing the review
 
 Standard location: `docs/sessions/reviews/REVIEW_<date>_<handoff>.md`.
