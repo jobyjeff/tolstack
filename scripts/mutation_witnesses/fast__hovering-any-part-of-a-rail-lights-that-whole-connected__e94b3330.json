@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "hovering any part of a rail lights that whole connected line -- its span, the curve that opened it, the curve that leaves it and every mark on it -- and nothing on another column",
+  "mutations": [
+    {
+      "contract": "A branch curve belongs to the leg it OPENS, not to the leg it forks out of. That is what lets a reader follow one line across a fork instead of losing it there.",
+      "issue": null,
+      "note": "Resolving the branch by its FROM column is the plausible wrong answer -- it is the column the curve starts on, and it type-checks -- so it is the one worth a witness. The guard sees it from both sides at once: the branch leg loses both curves and the mainline gains one.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      hot.railOfLink.push(link.kind === \"branch\"\n        ? opening(rails, hot.rails, link.to_column, link.row)\n        : covering(link.from_column, link.row));",
+      "replace": "      hot.railOfLink.push(covering(link.from_column, link.row));"
+    }
+  ]
+}

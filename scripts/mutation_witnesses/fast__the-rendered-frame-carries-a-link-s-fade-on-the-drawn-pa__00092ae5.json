@@ -6,10 +6,10 @@
     {
       "contract": "The link opacity the geometry computes reaches the DOM: railsSvg draws each fan-out and loop closure through fadeLink, so a link the respine adds wears its own inline opacity and a settled frame wears none.",
       "issue": "docs/issues/ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_has_no_fade.md",
-      "note": "The other half of a-link-a-respine-adds-fades-in: that entry breaks the number, this one breaks the wiring. VA.linkOpacity staying correct while the view stops reading it is the exact shape of a guard that quietly witnesses nothing.",
+      "note": "The other half of a-link-a-respine-adds-fades-in: that entry breaks the number, this one breaks the wiring. VA.linkOpacity staying correct while the view stops reading it is the exact shape of a guard that quietly witnesses nothing. Re-pointed 2026-09-30 (nav_tooltip_once_and_rail_hover_emphasis): the link's drawn path is now built inside a hotRegister() call so the hover emphasis can rewrite its class, and the fadeLink wrapper moved with it. Same wiring, same mutation, one indentation level in.",
       "file": "apps/viewer/views/topology.js",
-      "find": "      svg.appendChild(fadeLink(VA.svg(\"path\",\n        \"rail__link rail__link--\" + link.kind, { d: link.d }), link.key));",
-      "replace": "      svg.appendChild(VA.svg(\"path\",\n        \"rail__link rail__link--\" + link.kind, { d: link.d }));"
+      "find": "        el: fadeLink(VA.svg(\"path\", base, { d: link.d }), link.key),\n        base: base, rail: railId, hot: \"rail__link--hot\",",
+      "replace": "        el: VA.svg(\"path\", base, { d: link.d }),\n        base: base, rail: railId, hot: \"rail__link--hot\","
     }
   ]
 }

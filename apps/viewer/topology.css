@@ -56,6 +56,32 @@
      only .1). */
   --tv-band-a: rgba(255, 255, 255, .017);
   --tv-band-b: rgba(255, 255, 255, .055);
+
+  /* The hover emphasis (nav_tooltip_once_and_rail_hover_emphasis,
+     2026-09-30). Jeff: "add an emphasis (bold/glow etc) to the edges when you
+     hover over them, again makes it easier to trace them."
+
+     NEUTRAL, like the rails themselves and for the same reason: the accent is
+     SELECTION and the four saturated colours are provenance, so the one thing
+     left for a pointer to spend is brightness. `--rail-hot` is the two rail
+     greys continued one step up, which is why a hot rail reads as the same
+     line turned up rather than as a different kind of line. `--rail-halo` is
+     the soft part: a wide, low-alpha stroke under the line, cool and barely
+     there, so a leg crossing four others is findable without any of the five
+     changing colour.
+
+     The two grid tints are deliberately WHITE AT LOW ALPHA rather than the
+     opaque `#20242c` the retired `.tvrow:hover` used, and they are painted on
+     the CELLS: a row already carries two background layers it must not lose
+     (the alternating band's colour and an untraced row's provenance image),
+     and an opaque colour on the row replaced one of them. A cell layer
+     composites over both. It also fixes a wrinkle that rule had: its tint was
+     the same value as `--tv-band-b`, so hovering a b-band row changed nothing
+     at all. */
+  --rail-hot: #c3ccdb;
+  --rail-halo: rgba(174, 196, 232, .13);
+  --tv-hot: rgba(255, 255, 255, .055);
+  --tv-lead: rgba(255, 255, 255, .125);
 }
 
 /* Everything the drag of a grip should suppress while it is running
@@ -471,6 +497,56 @@ body { display: flex; flex-direction: column; }
 .rail__bar--on { stroke-width: 7; }
 .rail__dot--on { stroke: var(--accent); fill: var(--on); }
 
+/* --- one hover state, two surfaces --------------------------------------
+   (nav_tooltip_once_and_rail_hover_emphasis, 2026-09-30.) Two levels, set
+   from views/topology.js's setHot and never from `:hover`: `--lead` is the
+   thing the pointer is on and its counterpart on the other surface, `--hot`
+   is the whole connected line it sits on. Nothing is dimmed -- a reader is
+   tracing ONE line through the others, not hiding them.
+
+   WHAT HOVER MAY SPEND, and it is one thing: brightness and width. The accent
+   is selection and a branch fork; green/amber/red/magenta are provenance. A
+   pointer that could paint a bar the accent would be saying "selected", so the
+   hot bar keeps its citation colour exactly and thickens instead, and the one
+   mark whose hot colour could collide with selection (a leader, which wears
+   the accent when its node is selected) declines the brightening and keeps
+   only the width.
+
+   THE GLOW IS THE HIT PATH, LIT. Every rail, link and bar already carries a
+   transparent 10-14px twin so a 2px line can be pointed at; when the line is
+   hot that twin is stroked at a low alpha instead, which is a soft halo for
+   nothing but a colour change and no extra element. A CSS `drop-shadow` was
+   the alternative and was dropped: these are VERTICAL LINES, whose object
+   bounding box is zero pixels wide, and a filter region derived from a
+   zero-width box is exactly where a drop shadow is least dependable. A dot is
+   the one mark with no twin, so it spends width alone -- it sits ON a rail
+   that is lighting up around it, which is most of what a reader needs. */
+.rail__hit, .rail__linkhit {
+  fill: none; stroke: transparent; pointer-events: stroke;
+}
+.rail__hit { stroke-width: 14; }
+.rail__linkhit { stroke-width: 10; }
+.rail__hit--hot, .rail__linkhit--hot, .rail__barhit--hot,
+.rail__leaderhit--hot { stroke: var(--rail-halo); }
+
+.rail--hot { stroke: var(--rail-hot); stroke-width: 3; }
+.rail__link--hot { stroke: var(--rail-hot); stroke-width: 3; }
+/* The bar keeps its provenance colour and its dash pattern; only the weight
+   moves. `--on` (a selected chain) is 7, so hot sits above it and lead above
+   that, and a selected bar under the pointer still reads as both. */
+.rail__bar--hot { stroke-width: 8; }
+.rail__bar--lead { stroke-width: 10; }
+.rail__dot--hot { stroke-width: 3; }
+.rail__dot--lead { stroke-width: 3.5; }
+.rail__leader--hot:not(.rail__leader--selected) { stroke: var(--rail-hot); }
+.rail__leader--hot { stroke-width: 2.5; }
+.rail__leader--lead { stroke-width: 3; }
+
+/* The grid half. On the CELLS, so the band tint and an untraced row's
+   provenance image both survive underneath (see `--tv-hot` in :root). */
+.tvrow--hot > .tvcell { background-color: var(--tv-hot); }
+.tvrow--lead > .tvcell { background-color: var(--tv-lead); }
+
 /* --- the grid ------------------------------------------------------------
    A REAL <table> (deliverable 2): a rectangular selection of nominal/min/max
    has to paste into Excel as columns, which only genuine table markup does.
@@ -512,7 +588,9 @@ body { display: flex; flex-direction: column; }
    the provenance layer off whichever row the reader was pointing at. */
 .tvrow--band-a { background-color: var(--tv-band-a); }
 .tvrow--band-b { background-color: var(--tv-band-b); }
-.tvrow:hover { background-color: #20242c; }
+/* A row's hover tint is NOT a `:hover` rule any more -- it is `--hot` /
+   `--lead`, set by views/topology.js's setHot from the same state that lights
+   the DAG. See "one hover state, two surfaces" at the bottom of this file. */
 .tvrow--edge { font-size: var(--t-dense); }
 /* A component group's first row: the seam a leader points at. box-shadow, not
    border-top — a cell border participates in the table's row-height sizing
