@@ -73,6 +73,32 @@ is `asm217755_215735_001`.
 
 ## Deliverables
 
+0. **Two alias rows, under Jeff's 2026-10-01 ruling** (the one exception to
+   the `docs/topologies/**` fence — these two rows in
+   `docs/topologies/part_mesh_aliases.json` and nothing else there). Jeff:
+   *a topology part names the design, non-instrumented part; the
+   instrumented pitch link has a proving ring built in, so that one should
+   be the non-instro mesh; the blades' 3D geometry is identical (strain
+   gauges are 2D); none of this affects the 3D kinematics.* So:
+   `pitch_link` → `asm217755_213862_002` (5 solids, instances
+   `213862-002.2`–`.5`); `blade_root` → one of the two installed
+   `216332-001` meshes (`asm217755_216332_001_1ed2bfd5`, 20 solids, or
+   `…_1ff0bced`, 15 solids — both record instance `211587-001.3`; pick one,
+   say why, note the other in the row's evidence). Write the rows in the
+   table's existing evidence register (drawing number, parts-list find,
+   provenance path), and mark
+   `ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md`'s
+   "Done when" items as met in your lesson — the issue carries the ruling
+   verbatim and closes through its `handoff:` back-link. **Consequence for
+   phase 2:** blade 1's occurrence in the STEP is the instrumented
+   `546293-002` at `213862-002.1`; you draw the **design** mesh there, so
+   the placement comes from the instrumented mesh's provenance
+   (`asm217755_546293_002`, instance `213862-002.1`), not from the design
+   mesh's own instances (blades 2–5). Before trusting that, check the two
+   meshes share a local frame: fit or read the two bearing-bore centres in
+   each mesh's local coordinates and compare; if they differ, derive and
+   apply the offset and record it. Same for the blade.
+
 1. **Sweep mode.** `sweep <run-id | latest>` (command verb, registered through
    `commands.js`'s `register`, and a `?sweep=<run-id>&t=<driver value>` deep
    link through the same path as `goto` — this app's standing rule is that
