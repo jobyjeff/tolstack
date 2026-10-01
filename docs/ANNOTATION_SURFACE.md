@@ -331,6 +331,13 @@ the centroid of the joint ends measured to ride on it, an optional faint trail
 of each joint's whole path, and the anchored bodies, translucent by default so
 the linkage reads through them.
 
+**Hovering a bead says what that joint is** — the kind in words, and for a
+two-force member its length and the **convention its reconstructed pose was
+built under, quoted from the artifact verbatim**. A tooltip rather than a
+legend, by the handoff's own call: a legend is permanent chrome for a question
+asked once. The convention is not re-worded here, because it is the producer's
+claim about its own numbers and this app did not compute it.
+
 The readouts are **the solver's own numbers at the point nearest the handle**,
 never blended between two points: blade pitch solved, blade pitch from the
 reference sheet, their difference, actuator travel, motor angle, each link's

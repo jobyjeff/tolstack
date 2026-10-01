@@ -309,6 +309,39 @@ async function main() {
   check("scrubbing onto it turns the value at the handle to the warning colour",
     (await page.locator(".an__sweep-chip--warn").count()) === 1);
 
+  // THE JOINT TOOLTIP, on a real pointer move. A legend was ruled out in the
+  // handoff; this is what tells a reader what a bead is, so "does it appear,
+  // on the right joint, with the link's own convention in it" is a browser
+  // claim and nothing else can make it.
+  await page.evaluate(() => window.AnnotateApp.exec(["seek", "#20"]));
+  const beadAt = await page.evaluate(() => {
+    // Where the distance-constraint member's bead is, in page pixels.
+    const scene = window.__scene;
+    const sweep = window.__sweep;
+    const name = sweep.artifact.links[0].joint;
+    const bead = scene._sweep.joints.get(name);
+    const v = bead.position.clone().project(scene.camera);
+    const rect = scene.renderer.domElement.getBoundingClientRect();
+    return { name,
+      x: rect.left + (v.x + 1) / 2 * rect.width,
+      y: rect.top + (-v.y + 1) / 2 * rect.height };
+  });
+  await page.mouse.move(beadAt.x, beadAt.y);
+  await page.waitForTimeout(150);
+  const tip = await page.locator("#sweep-tip").innerText();
+  check("hovering a joint bead says what the joint is, and for a two-force " +
+    "member says its length and the convention its pose was built under",
+    tip.indexOf(beadAt.name.replace(/_/g, " ")) === 0 &&
+    tip.indexOf("two-force member") !== -1 &&
+    tip.indexOf("spin-free") !== -1, JSON.stringify({ beadAt, tip }));
+  check("...and no underscore or internal id reaches the reader in it",
+    !/\w_\w/.test(tip.split("\n")[0]), tip);
+  // Off the bead, it goes away rather than lingering with a stale joint in it.
+  await page.mouse.move(beadAt.x + 400, beadAt.y);
+  await page.waitForTimeout(150);
+  check("moving off every bead hides the tooltip",
+    !(await page.locator("#sweep-tip").isVisible()));
+
   // The layers, and the help, are the mode's own.
   await page.evaluate(() => window.AnnotateApp.exec(["help", "on"]));
   const helpText = await page.locator("#hint-panel").innerText();

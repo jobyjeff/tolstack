@@ -39,6 +39,8 @@ const el = {
   // (deliverable 5) -- position: fixed, placed by JS, the same one-node shape
   // apps/viewer's own popover machinery uses.
   alertPop: document.getElementById("alert-pop"),
+  // Sweep mode's joint tooltip -- one node, placed at the pointer.
+  sweepTip: document.getElementById("sweep-tip"),
   // The rail's "set up automatically" menu (deliverable 3) -- the <details>
   // and the box its checkbox rows are written into.
   autoSetup: document.getElementById("auto-setup"),
@@ -833,6 +835,7 @@ async function cmdSweep(target) {
     fps: 0,
   };
   state.scene.enterSweep(Object.assign({ trails }, structure));
+  state.scene.onSweepHover = showSweepTip;
   for (const entry of state.sweep.restoreVisible) state.scene.setVisible(entry.sha, false);
   applySweepFrame();
   state.scene.frameSweepScene();
@@ -848,6 +851,7 @@ function leaveSweep() {
   const sweep = state.sweep;
   if (!sweep) return null;
   state.sweep = null;
+  showSweepTip(null, null);
   state.scene.exitSweep();
   for (const sha of sweep.openedBySweep) state.scene.unloadPart(sha);
   for (const entry of sweep.restoreVisible) state.scene.setVisible(entry.sha, entry.visible);
@@ -1068,6 +1072,25 @@ async function anchorSweepBodies() {
   state.scene.frameSweepScene();
   renderDetail();
   return rows;
+}
+
+// What a hovered joint bead says. The sentence is AA.sweepJointTooltip's --
+// including the link convention, which comes out of the artifact verbatim --
+// and this is the two lines that put it on screen.
+function showSweepTip(hover, ev) {
+  if (!el.sweepTip) return;
+  const sweep = state.sweep;
+  if (!hover || !sweep || !sweep.frame || !ev) {
+    el.sweepTip.style.display = "none";
+    el.sweepTip.textContent = "";
+    return;
+  }
+  el.sweepTip.textContent = AA.sweepJointTooltip(sweep.artifact, sweep.frame, hover.name);
+  el.sweepTip.style.display = "block";
+  // Offset from the pointer rather than centred on it, so the tooltip never
+  // sits under the cursor and flickers the hover it is reporting.
+  el.sweepTip.style.left = (ev.clientX + 14) + "px";
+  el.sweepTip.style.top = (ev.clientY + 14) + "px";
 }
 
 // --- the frame -----------------------------------------------------------

@@ -776,6 +776,32 @@
     return out;
   }
 
+  // What a hovered joint says, in one line. The kind's own words, plus -- for
+  // a two-force member -- the convention its reconstructed pose was built
+  // under, which the artifact states and which a reader looking at a link
+  // rotating has every reason to want.
+  //
+  // The convention comes out of the ARTIFACT, verbatim, and is not a sentence
+  // this app authors: it is the producer's claim about its own numbers, and
+  // re-wording it here would be this app asserting something it did not
+  // compute.
+  AA.sweepJointTooltip = function (artifact, frame, jointName) {
+    var kind = AA.sweepJointKind(artifact, jointName,
+      (frame.joints && frame.joints[jointName]) || null);
+    var parts = [AA.measureLabel(jointName) + " — " + AA.SWEEP_JOINT_KIND_WORDS[kind]];
+    var link = frame.links && frame.links[jointName];
+    if (link) {
+      parts.push("length " + AA.formatSweepNumber(link.length, "mm") + " mm");
+      if (link.convention) parts.push(link.convention);
+    }
+    var joint = frame.joints && frame.joints[jointName];
+    if (joint && joint.axis_world) {
+      parts.push("axis " + joint.axis_world
+        .map(function (v) { return AA.formatSweepNumber(v, null); }).join(", "));
+    }
+    return parts.join("\n");
+  };
+
   // Everything the renderer needs to BUILD the overlay once: which joints
   // exist and what kind each is, which of them are drawn as a line between
   // two ends, and where each body's triad is anchored. Read off the

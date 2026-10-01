@@ -97,6 +97,12 @@
        scrollport: a popup rendered inside a row would be clipped to 260px and
        a row near the bottom would open its popup below the fold. -->
   <div id="alert-pop" class="alertpop" style="display:none"></div>
+  <!-- Sweep mode's joint tooltip (handoff kinematic_sweep_animation): ONE
+       node, position: fixed, placed by JS at the pointer -- the same shape
+       #alert-pop uses and for the same reason, the canvas being a box a
+       popup rendered inside would be clipped to. A tooltip rather than a
+       legend: a legend is permanent chrome for a question asked once. -->
+  <div id="sweep-tip" class="sweeptip" style="display:none"></div>
   <div id="test-status" style="display:none"></div>
 
   <!-- Classic scripts, loaded in order -- window.AnnotateApp (AA) is built up

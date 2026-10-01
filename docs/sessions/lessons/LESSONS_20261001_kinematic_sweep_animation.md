@@ -253,6 +253,19 @@ removed rather than kept as a decorative duplicate.
   That bug was live until the driver was checked for monotonicity — every
   `|A − B|` held exactly the whole time.
 
+## The thing I nearly shipped unused
+
+`AA.SWEEP_JOINT_KIND_WORDS` existed, was tested, and was rendered **nowhere**
+— I had built the joint-kind derivation and the words for it and never wired
+the hover the handoff asked for (*"the draggable legend is not needed, a
+tooltip on hover is"*). A grep for dead references at hand-back found it.
+Worth repeating as a habit: an exported vocabulary with no caller is either a
+missing feature or a thing to delete, and in this case it was the former.
+
+The tooltip is a pointer-move raycast against **the beads only** — never the
+parts. A pointermove over 1.4 million triangles of anchored assembly, at
+pointer rate, is the one thing that would have made this mode feel slow.
+
 ## Enrollment
 
 Seventeen new guards, **twelve plus five enrolled with one mutation spec each,

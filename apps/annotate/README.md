@@ -352,6 +352,11 @@ handle. Space plays and pauses; the arrow keys step one point; Home and End
 jump to the ends. `prefers-reduced-motion` steps whole points instead of
 animating, the same answer the viewer gave.
 
+Hovering a joint bead says what the joint is, and for a two-force member its
+length and the spin-free convention its pose was reconstructed under — read
+out of the artifact rather than re-worded. A tooltip and not a legend: a
+legend is permanent chrome for a question asked once.
+
 ### Trying it with no data at all
 
 `?mock=1&sweep=synthetic-demo-sweep` needs no folder grant, no published run

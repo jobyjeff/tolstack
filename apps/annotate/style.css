@@ -425,3 +425,16 @@ body {
 .an__sweep-bodies li { display: flex; gap: 12px; padding: 1px 0; }
 .an__sweep-body-name { flex: 0 0 150px; color: #cfd3d8; }
 .an__sweep-body-state { flex: 1; min-width: 0; color: #9aa1ab; }
+
+/* Sweep mode's joint tooltip. `position: fixed` and placed by JS at the
+   pointer, the same shape .alertpop uses -- the canvas is a box, and a popup
+   rendered inside it would be clipped at the edges. `pointer-events: none`
+   so it can never eat the hover it is reporting. `pre-line` because the
+   sentence is lines, one of which is the artifact's own convention string. */
+.sweeptip {
+  position: fixed; z-index: 20; max-width: 340px;
+  padding: 6px 8px; border: 1px solid #3a4049; border-radius: 4px;
+  background: #24282e; color: #cfd3d8;
+  font-size: var(--t-meta); line-height: 1.45; white-space: pre-line;
+  pointer-events: none;
+}

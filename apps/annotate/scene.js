@@ -165,6 +165,26 @@ export class AnnotateScene {
     // successful pick, null on a miss into empty space.
     this.onPick = function () {};
 
+    // ...and the same shape for hovering a JOINT in sweep mode: the joint's
+    // name and kind, or null off one. The handoff's answer to "how does a
+    // reader learn what a bead is" -- a tooltip, not a legend, because a
+    // legend is permanent chrome for a question asked once.
+    //
+    // The raycast is against the BEADS ONLY and never the parts: a pointermove
+    // over 1.4 million triangles of anchored assembly, at pointer rate, is the
+    // one thing that would make this mode feel slow.
+    this.onSweepHover = function () {};
+    this.renderer.domElement.addEventListener("pointermove", (ev) => {
+      if (!this._sweep) return;
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+      this.onSweepHover(this.sweepHover(ndcX, ndcY), ev);
+    });
+    this.renderer.domElement.addEventListener("pointerleave", () => {
+      if (this._sweep) this.onSweepHover(null, null);
+    });
+
     // The canvas follows its host box. Until 2026-09-21 the renderer was sized
     // ONCE, at construction, and nothing resized it -- which was survivable
     // while the host was a fixed grid cell and is not now: the top bar opens
@@ -614,6 +634,18 @@ export class AnnotateScene {
   }
 
   inSweep() { return !!this._sweep; }
+
+  // Which joint bead is under the pointer, or null. Read-only.
+  sweepHover(ndcX, ndcY) {
+    if (!this._sweep) return null;
+    const beads = Array.from(this._sweep.joints.values()).filter((b) => b.visible);
+    if (!beads.length) return null;
+    this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+    const hits = this.raycaster.intersectObjects(beads, false);
+    if (!hits.length) return null;
+    const bead = hits[0].object;
+    return { name: bead.userData.sweepJoint, kind: bead.userData.kind };
+  }
 
   // Anchors one loaded part to a LIST of 3x4 row-major placements
   // (AA.anchorPlacement's output), or releases it back to its layout
