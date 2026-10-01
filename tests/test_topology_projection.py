@@ -401,6 +401,278 @@ def test_a_study_chain_serialises_to_one_rail_in_the_sums_own_order(projection):
     assert seen >= 5, f"expected the five committed studies to fold, got {seen}"
 
 
+def _as_allocated(topology, monkeypatch) -> dict:
+    """The same walk with :func:`B.order_columns` taken out of the loop.
+
+    The pass is a second pass over the walk's own output, so "what the walk
+    allocated" is still a real, reachable layout and the only honest way to ask
+    whether the pass helped is to compute both. Patched rather than exposed as a
+    flag: the serialiser has one public behaviour, and an argument nothing in
+    the repo would ever pass is a worse thing to carry than three lines here.
+    """
+    monkeypatch.setattr(B, "order_columns", lambda layout: layout)
+    try:
+        return B.serialize_topology(topology).as_dict()
+    finally:
+        monkeypatch.undo()
+
+
+def test_the_column_order_never_makes_a_topology_cross_itself_more(
+        topologies, monkeypatch):
+    """The pass's one unconditional promise, over every committed topology.
+
+    ``order_columns`` searches when it can and falls back to Jeff's rule when it
+    cannot, and both are seeded with the heuristic order, so a layout it makes
+    WORSE than the walk's own allocation is a bug in the search rather than a
+    trade-off. Asserted on the three-term total it optimises and on the
+    links-only total separately, because the second is the one a reader of the
+    2026-09-30 handoff's table would check by eye.
+    """
+    seen = 0
+    for topology_id, topology in sorted(topologies.items()):
+        after = B.layout_crossings(B.serialize_topology(topology))
+        before = B.layout_crossings(_as_allocated(topology, monkeypatch))
+        seen += 1
+        assert sum(after.values()) <= sum(before.values()), (
+            f"{topology_id}: ordering the columns made the picture worse -- "
+            f"{before} as allocated, {after} after the pass")
+        assert after["branch"] + after["close"] <= before["branch"] + before["close"], (
+            f"{topology_id}: branch+close went {before} -> {after}")
+    assert seen >= 5, f"expected the five committed topologies, got {seen}"
+
+
+def test_the_pitch_systems_short_legs_now_sit_nearest_the_trunk(
+        topologies, monkeypatch):
+    """Jeff's own request, on the diagram he was looking at (2026-09-30).
+
+    *"When possible, rearrange the dag to minimize self-crossings (makes it hard
+    to trace the lines). In the attached screenshot, moving the shorter legs to
+    be closer to the trunk would help a lot."*
+
+    Both halves are here. The SHAPE: every non-trunk column's leg ends lower
+    than the one inside it, so the two branches opened at row 0 that used to sit
+    against the spine are now the outermost pair. The COUNT: what that shape is
+    worth, pinned so a future allocation change has to restate it.
+    """
+    topology = topologies["pitch_system"]
+    layout = B.serialize_topology(topology).as_dict()
+    assert layout["column_order"] == "exact", (
+        "pitch_system has nine non-trunk columns, inside "
+        f"EXACT_ORDER_MAX_COLUMNS={B.EXACT_ORDER_MAX_COLUMNS}, so its order is "
+        "a proven minimum rather than the heuristic")
+
+    ends = {}
+    for rail in layout["rails"]:
+        ends[rail["column"]] = max(ends.get(rail["column"], -1), rail["end"])
+    legs = [ends[c] for c in range(1, layout["columns"])]
+    assert legs == sorted(legs), (
+        "the non-trunk columns should read shortest leg first, outwards from "
+        f"the trunk; their last rows are {legs}")
+
+    before = B.layout_crossings(_as_allocated(topology, monkeypatch))
+    after = B.layout_crossings(layout)
+    assert before == {"branch": 20, "close": 12, "leader": 52}, (
+        "the as-allocated baseline the 2026-09-30 handoff measured has moved; "
+        f"it is now {before}, and the number below was chosen against it")
+    assert after == {"branch": 0, "close": 17, "leader": 0}, (
+        "17 is pitch_system's measured minimum over all 9! orders of its "
+        "non-trunk columns, the three terms equally weighted, down from "
+        f"{sum(before.values())}; the search now returns {after}. It is reached "
+        "by the shortest-leg-first order itself, which is why this is also the "
+        "layout Jeff asked for in words. Note the trade the minimum makes: "
+        "branch 20->0 and leader 52->0 at the price of close 12->17. A "
+        "links-only objective would instead reach branch+close 7 and pay 34 "
+        "leader crossings for it -- 41 all told, which is why the objective is "
+        "all three terms.")
+
+
+def test_the_rotor_fasteners_close_links_are_not_a_column_order_problem(
+        topologies, monkeypatch):
+    """The topology the pass cannot help, pinned as the fact it is.
+
+    ``rotor_fastener_length`` is a ten-wide fan: every rail starts at row 0 and
+    each is one row longer than the last, so it is ALREADY shortest-leg-first,
+    and every one of its 36 crossings is a close link drawn back up across the
+    rails between. The search proves it -- nine non-trunk columns is inside the
+    exact cap, and the minimum over all 9! orders is the 36 it already has. The
+    lever that is left is how a close link is DRAWN, which is a different
+    change: ``docs/issues/ISSUE_20260930_rotor_fastener_lengths_thirty_six_close_link_crossings_need_a_drawing_change.md``.
+    """
+    topology = topologies["rotor_fastener_length"]
+    layout = B.serialize_topology(topology).as_dict()
+    before = B.layout_crossings(_as_allocated(topology, monkeypatch))
+    after = B.layout_crossings(layout)
+    assert layout["column_order"] == "exact", (
+        "the claim below is that NO order does better, which only an exact "
+        "search can say")
+    assert before == after == {"branch": 0, "close": 36, "leader": 0}, (
+        f"as allocated {before}, after the pass {after}: this topology's 36 "
+        "close-link crossings are the minimum over every column order")
+
+
+def test_no_other_column_order_beats_the_one_the_search_chose(topologies):
+    """The search optimises the number the counter counts, and not a model of it.
+
+    ``order_columns`` does not call :func:`B.layout_crossings` per candidate --
+    it could not afford to -- it re-expresses the objective as facts about
+    column IDS (``_crossing_incidences``) and accumulates the cost as it places
+    them. Two implementations of one rule is this repo's most-repeated defect
+    shape, and the failure mode here is quiet: a model that counted *almost*
+    the same thing would still return an order, and the pinned total above
+    would simply be the minimum of the wrong function.
+
+    So this asks the counter directly. A deterministic sample of orderings is
+    applied to the real ``pitch_system`` and counted with the public function;
+    none of them may beat what the search returned. It samples rather than
+    enumerating because enumerating 9! through the un-optimised counter is the
+    56 seconds that made the incidence model necessary in the first place.
+    """
+    import itertools
+    import random
+
+    topology = topologies["pitch_system"]
+    chosen = B.serialize_topology(topology).as_dict()
+    best = sum(B.layout_crossings(chosen).values())
+
+    def renumbered(layout: dict, permutation: dict) -> dict:
+        moved = dict(layout)
+        moved["rows"] = [dict(r, column=permutation[r["column"]],
+                              closes_column=(None if r.get("closes_column") is None
+                                             else permutation[r["closes_column"]]))
+                         for r in layout["rows"]]
+        moved["rails"] = [dict(r, column=permutation[r["column"]])
+                          for r in layout["rails"]]
+        moved["links"] = [dict(l, from_column=permutation[l["from_column"]],
+                               to_column=permutation[l["to_column"]])
+                          for l in layout["links"]]
+        return moved
+
+    others = list(range(1, chosen["columns"]))
+    rng = random.Random(20260930)
+    candidates = [tuple(others)]
+    candidates += [tuple(c) for c in itertools.islice(
+        itertools.permutations(others), 60)]
+    for _ in range(240):
+        shuffled = others[:]
+        rng.shuffle(shuffled)
+        candidates.append(tuple(shuffled))
+
+    for candidate in set(candidates):
+        permutation = {B.TRUNK_COLUMN: B.TRUNK_COLUMN}
+        for index, column in enumerate(candidate, start=1):
+            permutation[column] = index
+        total = sum(B.layout_crossings(renumbered(chosen, permutation)).values())
+        assert total >= best, (
+            f"the search returned {best} but renumbering its own output by "
+            f"{candidate} reaches {total} -- so order_columns is minimising "
+            "something other than layout_crossings (see _crossing_incidences)")
+
+
+def test_every_layout_says_how_its_columns_were_ordered(projection):
+    """``column_order`` is on every layout, and is one of the two words.
+
+    It is the difference between "this is a minimum" and "this is a good
+    guess", and a layout that did not say which would let a wide diagram claim
+    the first while doing the second.
+    """
+    seen = 0
+    for row in projection["topologies"]:
+        for layout in [row["layout"]] + [s["layout"] for s in row["studies"]]:
+            seen += 1
+            assert layout["column_order"] in B.COLUMN_ORDERS, (
+                f"{row['id']}: column_order {layout['column_order']!r} is not "
+                f"one of {B.COLUMN_ORDERS}")
+    assert seen >= 10, f"expected every topology and study layout, got {seen}"
+
+
+def test_a_topology_wider_than_the_cap_falls_back_to_the_rule_and_says_so():
+    """Past the exact cap the layout is the heuristic, and declares itself.
+
+    Built as a star wider than :data:`B.EXACT_ORDER_MAX_COLUMNS` rather than by
+    lowering the cap, so this exercises the branch the real constant selects.
+    Without it the ``shortest_first`` word is unreachable from the committed
+    corpus -- every one of the five is inside the cap -- and the fallback is
+    asserted over nothing.
+    """
+    from tolerance_stack.topology import Edge, Node, Part
+
+    legs = B.EXACT_ORDER_MAX_COLUMNS + 2
+    nodes = [Node(id="hub", name="hub", parts=["p"], kind="datum_feature")]
+    edges = []
+    for i in range(legs):
+        nodes.append(Node(id=f"n{i}", name=f"n{i}", parts=["p"],
+                          kind="datum_feature"))
+        edges.append(Edge(id=f"e{i}", name=f"e{i}", from_node="hub",
+                          to_node=f"n{i}", part="p"))
+    layout = B.serialize_topology(Topology(
+        id="wide", title="wide", units="mm", parts=[Part(id="p", name="p")],
+        nodes=nodes, edges=edges,
+    )).as_dict()
+    assert layout["columns"] - 1 > B.EXACT_ORDER_MAX_COLUMNS
+    assert layout["column_order"] == "shortest_first"
+    ends = {}
+    for rail in layout["rails"]:
+        ends[rail["column"]] = max(ends.get(rail["column"], -1), rail["end"])
+    legs_out = [ends[c] for c in range(1, layout["columns"])]
+    assert legs_out == sorted(legs_out), (
+        f"the fallback is shortest leg first; got {legs_out}")
+
+
+def test_the_crossing_counter_counts_three_lines_and_spares_a_fan_out():
+    """:func:`B.layout_crossings` on a layout written out by hand.
+
+    The committed corpus exercises it, but only as a total -- this is the one
+    place the three terms are separable and the one exclusion is visible. The
+    fan-out rule earns the case: three rails opened at ONE fork are a junction,
+    and counting the siblings a fan-out curve passes over would make a diagram
+    look worse the more honestly it drew a branch point.
+    """
+    layout = {
+        "columns": 4,
+        "rows": [
+            {"row": 0, "kind": "node", "id": "root", "column": 0},
+            # A node out at column 3, with columns 0, 1 and 2 alive beside it.
+            {"row": 5, "kind": "node", "id": "far", "column": 3},
+        ],
+        "rails": [
+            {"column": 0, "start": 0, "end": 9},
+            {"column": 1, "start": 0, "end": 9},
+            {"column": 2, "start": 0, "end": 9},
+            {"column": 3, "start": 0, "end": 9},
+        ],
+        "links": [
+            # The fan-out that opened 1, 2 and 3 at row 0: rails 1 and 2 stand
+            # between 0 and 3, and both are this fork's own.
+            {"kind": "branch", "row": 0, "from_column": 0,
+             "to_row": 0, "to_column": 3},
+            # A close curve from column 3 back to column 0 at row 7, across the
+            # two rails that are alive there and are nobody's sibling here.
+            {"kind": "close", "row": 7, "from_column": 3,
+             "to_row": 2, "to_column": 0},
+        ],
+    }
+    assert B.layout_crossings(layout) == {
+        "branch": 0,        # both rails in the way were opened at this fork
+        "close": 2,         # columns 1 and 2, alive over rows 2..7
+        "leader": 3,        # `far` is at column 3; 0, 1 and 2 all span row 5
+    }
+    # A rail that opens BELOW the fork is not a sibling of it, and a fan-out
+    # drawn below one that is gets no exemption either: the exclusion is keyed
+    # on the fork's own row, not on "a rail somewhere nearby".
+    later = dict(layout, rails=[
+        dict(rail, start=1) if rail["column"] in (1, 2) else rail
+        for rail in layout["rails"]
+    ])
+    assert B.layout_crossings(later)["branch"] == 0, (
+        "a rail that starts below the fork's row is not drawn across at it")
+    lower = dict(layout, links=[
+        dict(layout["links"][0], row=3, to_row=3), layout["links"][1],
+    ])
+    assert B.layout_crossings(lower)["branch"] == 2, (
+        "a fan-out at row 3 does cross the two rails opened at row 0")
+
+
+
 # --------------------------------------------------------------------------- #
 # 3. the numbers                                                               #
 # --------------------------------------------------------------------------- #

@@ -541,27 +541,57 @@ in the pane on the right).
 
 The serialisation is a depth-first walk from the **document's first node**, with
 rail continuity: a branch keeps its column until it rejoins or ends. So the
-author's node and edge order is the layout's spine — put the datum first, and
-reordering an `edges` array is how you steer the picture without touching a
-value. There is deliberately no cleverness to fight: a heuristic root would move
-the whole diagram when an unrelated edge is added.
+author's node and edge order is still the layout's spine — put the datum first,
+and reordering an `edges` array is how you steer the row order without touching
+a value. **The root is never chosen by heuristic**, and that part has not
+changed: a "lowest degree" or "most-cited" root would move the whole diagram
+when an unrelated edge is added, and the author already ordered the document.
+
+**The column order now is** (`columns_ordered_to_minimise_crossings`,
+2026-09-30).
+The walk still allocates the mainline column 0 and the lowest free column at
+each fork, git-log's convention — but that is a claim about *when* a branch
+opened, and a poor claim about where to draw it. A second pass renumbers the
+non-trunk columns so the picture crosses itself as little as possible, which
+works out as **shortest leg nearest the trunk**: Jeff, reading the real
+`pitch_system`, *"when possible, rearrange the dag to minimize self-crossings
+(makes it hard to trace the lines) … moving the shorter legs to be closer to
+the trunk would help a lot."* The objective is three kinds of line counted
+equally — a fan-out curve, a loop-closing curve, and a node's own leader on its
+way to the grid — and the search is exhaustive up to a declared width
+(`EXACT_ORDER_MAX_COLUMNS`, which every committed topology is inside), so a
+diagram this wide gets a proved minimum rather than a good guess. Past that
+width the layout is the rule above and `layout.column_order` says so, which is
+what stops a wide diagram claiming a minimum it did not prove. A renumbering is a bijection on
+column ids, so rail continuity, column reuse and the one-dashed-curve-per-cycle
+invariant all survive it untouched. The trade, taken deliberately: adding one
+edge can now re-order the columns.
+
+What that is worth on `pitch_system` is below. The three numbers it reaches are
+declared and re-derived from the committed document on every run; the baseline
+it came from — branch 20, close 12, leader 52, as the walk allocated them on
+2026-09-30 — is pinned by name in `tests/test_topology_projection.py`, because
+a layout that no longer exists cannot be re-derived from this tree. So the pass
+takes branch and leader crossings to zero and pays for it in close links:
+
+```claim
+metric: layout_crossings
+topology: pitch_system
+branch: 0
+close: 17
+leader: 0
+```
 
 **The spine draws on the RIGHT**, hard against the jog zone, with branches
-extending left (`viewer_dag_spine_layout`, 2026-09-14). The projection still
-allocates the mainline column 0 and each fork a fresh column to its right —
-git-log's convention, and a claim about the graph that a pytest pins — and the
-page mirrors that allocation at render time, column `c` → `columns − 1 − c`
-(`VA.spineRight`, called once in `renderTopoPane`). Which column an edge lands
-on is the graph's business; which side the picture is justified to is a
-display preference about a page that happens to have a grid on its right, and
-the mirror is a bijection, so rail continuity, column reuse and the
-one-dashed-curve-per-cycle invariant all survive it untouched. What it buys is
-the leaders: the spine carries most of them, and every rail that used to stand
+extending left (`viewer_dag_spine_layout`, 2026-09-14): the page mirrors the
+column ids at render time, column `c` → `columns − 1 − c` (`VA.spineRight`,
+called once in `renderTopoPane`). Which column an edge lands on is the graph's
+business; which side the picture is justified to is a display preference about
+a page that happens to have a grid on its right. What the mirror buys is the
+leaders — the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the five
-committed topologies, leader-vs-rail crossings went **96 → 43**, four of the
-five to zero; on `pitch_system` its eight spine leaders went 43 → 0 (the
-mechanism's own branch leaders pick some up in exchange, which is why that one
-topology's total only moves 47 → 43).
+committed topologies, leader-vs-rail crossings went **139 → 0**, five of the
+five to zero; on `pitch_system` that one topology's total moves 90 → 0.
 
 Three shapes come out of it, and all three are in the projection:
 

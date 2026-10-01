@@ -12757,7 +12757,7 @@
               if (mirrored === 0) zeroed++;
             });
 
-            // "leader-vs-rail crossings went **92 → 43**, four of the five to
+            // "leader-vs-rail crossings went **139 → 0**, five of the five to
             // zero"
             var totals = /crossings went \*\*(\d+) → (\d+)\*\*, (\w+) of the\s+five to zero/
               .exec(readme);
@@ -12767,8 +12767,8 @@
             eq(totals[3], ["zero", "one", "two", "three", "four", "five"][zeroed],
                "README's count of topologies taken to zero");
 
-            // "that one topology's total only moves 47 → 43"
-            var pitchTotals = /topology's total only moves (\d+) → (\d+)/.exec(readme);
+            // "that one topology's total moves 90 → 0"
+            var pitchTotals = /topology's total moves (\d+) → (\d+)/.exec(readme);
             ok(pitchTotals, "expected the README's pitch_system crossings sentence");
             eq(Number(pitchTotals[1]), crossings(livePitch, livePitch.layout));
             eq(Number(pitchTotals[2]),
