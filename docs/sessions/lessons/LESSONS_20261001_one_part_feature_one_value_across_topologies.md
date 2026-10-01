@@ -220,3 +220,57 @@ Four issues filed, all `open`:
 `ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md`
 carries `handoff:` pointing at this one, so dispatch resolves it on Complete.
 That is correct here: this handoff is the fix, not merely the finder.
+
+## The rebuild/commit order is a trap, and it bit twice
+
+`CLAUDE.md` says rebuild the projections **before** the node tiers, never
+after. True, and incomplete. The rule that actually holds is:
+
+> The projection rebuild must be the **last thing before the tiers**, and
+> **any commit in between that touches a projection input stales it again.**
+
+The freshness gate names its inputs: `docs/tolerance_stacks`,
+`docs/topologies`, `scripts/build_*.py`, `scripts/projection_provenance.py`,
+`tolerance_stack`. I rebuilt, ran both tiers green, then made a one-line
+correction to a note in `topology_pitch_system.json` — and the projection the
+tiers had just agreed with was stale, so the whole sequence had to be redone.
+The gate caught it loudly (`1 of its input file(s) differ in this tree`),
+which is the behaviour CLAUDE.md describes as "now loud instead of green" —
+but it is still a rerun, and a reviewer reading a green tier run dated before
+a later commit should check the sha the projection carries, not the wall
+clock.
+
+The cheap corollary, worth knowing because it removes a false worry: **a
+lessons or issues commit does not stale anything.** `docs/sessions/` and
+`docs/issues/` are not projection inputs, so the write-up can safely land
+after the tiers.
+
+A second trap in the same family: a mutation-witness run started while the
+projection is stale is wasted — the tier gates its `[real]` witnesses on the
+projection resolving, so the run is not merely slow, it is measuring the wrong
+thing. Check `node scripts/projection_freshness.cjs --repo C:/workspace/tolstack`
+before starting the slow tier, not after.
+
+## Test record
+
+At branch tip `effc7f7`, projections rebuilt from this worktree into the main
+checkout's `data/` immediately beforehand (all three stamped
+`branch=handoff/one_part_feature_one_value_across_topologies`,
+`sha12=effc7f75677d`, `dirty=False`, `behind_trunk=0`, and
+`projection_freshness.cjs` reporting all three paired with this tree):
+
+| tier | command | result |
+|---|---|---|
+| pytest | `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` (cwd = this worktree) | **1 failed, 1440 passed** in 3m40s |
+| viewer JS, incl. `[real]` | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | **522/522** |
+| browser TRUTH | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | **25/25** |
+
+The one pytest failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+the deliberate worktree red `CLAUDE.md` documents: the wrapper invokes the
+viewer suite without `--repo`, so it looks for `data/projections/` in the
+worktree, finds none, and refuses the skip. The tier itself was run against
+the checkout that owns `data/` and is the 522/522 row above — that is the
+whole of the gap, and no other tier skipped.
+
+`node scripts/guard_enumeration.mjs` is unchanged by this branch (the `python`
+tier is not censused), so `DECLARED_GUARDS` needed no edit.
