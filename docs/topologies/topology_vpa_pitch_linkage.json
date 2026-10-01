@@ -530,6 +530,38 @@
       "from": "hub_spindle_bore_axis",
       "to": "tan_link_mount_hub_face",
       "note": "No value recorded. Phase 2. What would close it: 214373-002's own drawing."
+    },
+    {
+      "id": "pitch_link_lower_centre_is_this_bearing",
+      "name": "MS14101-3 ball centre to the pitch link's lower joint centre",
+      "kind": "gap",
+      "from": "pitch_link_bearing_ball_centre",
+      "to": "pitch_link_lower_sphere_centre",
+      "note": "No value recorded, and nominally zero: the link's lower joint centre IS this bearing's ball centre, at instance 213862-002.1/MS14101-3.1. The edge exists because the two are different KINDS of thing -- one is a piece part's own feature, the other is a location in the mechanism -- and because it is the only thing in this document that says which geometry a reader should click to bind that centre. What would close it: the press-fit clearance off 213861-002's housing bore and the bearing's own OD."
+    },
+    {
+      "id": "pitch_link_upper_centre_is_this_bearing",
+      "name": "MS14101-3 ball centre to the pitch link's upper joint centre",
+      "kind": "gap",
+      "from": "pitch_link_bearing_ball_centre",
+      "to": "pitch_link_upper_sphere_centre",
+      "note": "The same statement for instance .2, and the reason the bearing's own centre is one node with two edges rather than two nodes: a topology part id names a part, and these are two instances of one."
+    },
+    {
+      "id": "tan_link_mount_end_centre_is_this_bearing",
+      "name": "MS14101-3 ball centre to the tangential link's mount-end joint centre",
+      "kind": "gap",
+      "from": "tan_link_ms14101_ball_centre",
+      "to": "tan_link_lower_sphere_centre",
+      "note": "No value recorded. Phase 2. The tangential link's analogue of the pitch link's lower joint."
+    },
+    {
+      "id": "tan_link_plate_end_centre_is_this_bearing",
+      "name": "MS14103-3 ball centre to the tangential link's plate-end joint centre",
+      "kind": "gap",
+      "from": "tan_link_ms14103_ball_centre",
+      "to": "tan_link_upper_sphere_centre",
+      "note": "No value recorded. Phase 2."
     }
   ],
   "notes": [
