@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: interpolation is exact at both endpoints, and the midpoint of a 90-degree rotation is 45 degrees",
+  "mutations": [
+    {
+      "contract": "A scrubbed frame between two solved points interpolates translation linearly and rotation by slerp. Half way between two poses 90 degrees apart is 45 degrees, not whatever a component-wise blend of two rotation vectors gives.",
+      "issue": null,
+      "note": "The mutation is the one every implementation starts as: lerp the rotation VECTORS and skip the quaternions. It is exact at both endpoints -- which is why an endpoints-only test passes it -- and wrong everywhere in between, by more the further apart the poses are.",
+      "file": "apps/annotate/sweep.js",
+      "find": "  function interpolatePose(a, b, t) {\n    var qa = AA.rotvecToQuat((a && a.rotvec) || [0, 0, 0]);\n    var qb = AA.rotvecToQuat((b && b.rotvec) || [0, 0, 0]);",
+      "replace": "  function interpolatePose(a, b, t) {\n    var qa = AA.rotvecToQuat((a && a.rotvec) || [0, 0, 0]);\n    var qb = AA.rotvecToQuat(lerp3((a && a.rotvec) || [0, 0, 0],\n      (b && b.rotvec) || [0, 0, 0], t));"
+    }
+  ]
+}

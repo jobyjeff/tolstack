@@ -1,0 +1,9 @@
+Captured by apps/annotate/run_browser_check.mjs --shots, against ?mock=1's
+SYNTHETIC crank-slider run (fixtures.js). Not a measurement of anything.
+Dark only: both apps render one theme by decision, and no mechanism for a
+second exists (docs/DESIGN_TYPE_AND_COLOUR.md, "One theme").
+
+sweep_dark_minus7deg.png  point 0
+sweep_dark_17deg.png  point 40
+sweep_dark_41deg.png  point 64
+sweep_dark_72deg.png  point 79

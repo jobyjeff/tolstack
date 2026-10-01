@@ -71,6 +71,14 @@ const SWEEP_TRIAD_COLORS = [0xc2706c, 0x74ac77, 0x6d93c4];
 const SWEEP_JOINT_RADIUS = 4;   // mm -- a bead on a linkage ~200 mm across
 const SWEEP_TRIAD_LENGTH = 25;  // mm
 const SWEEP_GHOST_OPACITY = 0.12;
+// Sweep mode's own default viewing direction, and it is OBLIQUE on purpose.
+// BACK_AXIS -- what every other camera here uses -- looks straight down -Y,
+// and a planar mechanism lying in the Y-Z plane projects onto a single
+// vertical line from there: three joints, one link and two trails, all on top
+// of each other. A linkage is very often planar, so the one view that must
+// not be axis-aligned is this one. Measured on the mock run, which is exactly
+// that degenerate case.
+const SWEEP_VIEW_AXIS = new THREE.Vector3(0.62, -0.72, 0.31).normalize();
 
 // CATIA STEP exports are Z-up (handoff annotate_deep_link_and_part_filter,
 // deliverable 5 -- Jeff's live report: horizontal drag sometimes orbits about
@@ -245,7 +253,13 @@ export class AnnotateScene {
     };
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
-    this.frameParts();
+    // ...but NOT while a sweep is running. Sweep mode frames the whole swept
+    // path (frameSweepPath) and then opens each body's part, so this call
+    // would snatch the camera back to a box drawn round one frame of the
+    // linkage -- which is how the first screenshot pass came out edge-on to a
+    // planar mechanism. A part opened during a sweep is opened to be anchored,
+    // not to be looked at on its own.
+    if (!this._sweep) this.frameParts();
     return mesh;
   }
 
@@ -731,10 +745,11 @@ export class AnnotateScene {
     if (!any) return false;
     const centre = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
-    const dist = Math.max(size.x, size.y, size.z, 1) * 2.0 + 50;
-    this.camera.position.copy(centre)
-      .addScaledVector(UP_AXIS, size.dot(UP_AXIS) * 0.3)
-      .addScaledVector(BACK_AXIS, dist);
+    // The LARGEST dimension of the swept path, not the smallest: a planar
+    // mechanism has a zero one, and framing on that puts the camera inside
+    // the linkage.
+    const dist = Math.max(size.x, size.y, size.z, 1) * 1.25 + 40;
+    this.camera.position.copy(centre).addScaledVector(SWEEP_VIEW_AXIS, dist);
     this.camera.lookAt(centre);
     this.controls.target.copy(centre);
     this.controls.update();

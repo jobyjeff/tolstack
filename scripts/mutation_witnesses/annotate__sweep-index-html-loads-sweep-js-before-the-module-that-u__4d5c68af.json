@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: index.html loads sweep.js before the module that uses it, and this runner loads it at all",
+  "mutations": [
+    {
+      "contract": "sweep.js is a classic script that only defines; app.js is a deferred module that registers verbs closing over what it defines. The classic script has to be in the markup, and ahead of the module.",
+      "issue": null,
+      "note": "The mutation removes the script tag -- the single edit that takes the whole mode off the page while every pure check in this runner stays green, because the runner loads sweep.js itself from its own file list. The page would boot, and the first `sweep` command would die on an undefined reader.",
+      "file": "apps/annotate/index.html",
+      "find": "  <script src=\"./sweep.js\"></script>\n",
+      "replace": ""
+    }
+  ]
+}

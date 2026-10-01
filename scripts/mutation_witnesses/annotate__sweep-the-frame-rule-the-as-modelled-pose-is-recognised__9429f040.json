@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the frame rule -- the as-modelled pose is recognised, and any moved body turns picking off",
+  "mutations": [
+    {
+      "contract": "A binding is identity recorded against geometry sitting in the pose the model was built in. Face picking is therefore off outright whenever ANY body is away from its as-modelled pose.",
+      "issue": null,
+      "note": "The mutation checks the rotation and forgets the translation -- the half of a pose that a revolute joint never exercises, so the obvious fixture would not catch it. A prismatic body slid 60 mm down its axis would then read as `as-modelled`, and a face picked on it would be written as a binding about where it is not.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (Math.abs(t[0]) > AA.SWEEP_AS_MODELLED_EPS ||\n          Math.abs(t[1]) > AA.SWEEP_AS_MODELLED_EPS ||\n          Math.abs(t[2]) > AA.SWEEP_AS_MODELLED_EPS) return false;",
+      "replace": "      if (false) return false;"
+    }
+  ]
+}

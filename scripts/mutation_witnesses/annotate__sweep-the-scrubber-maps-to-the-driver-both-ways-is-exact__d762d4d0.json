@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the scrubber maps to the driver both ways, is exact at both ends, and is monotone down a DESCENDING sweep",
+  "mutations": [
+    {
+      "contract": "The driver is actuator travel and it runs DOWNWARD over this sweep, 64.466 mm to 0. Neither direction may be assumed, and a value past either end clamps rather than extrapolating.",
+      "issue": null,
+      "note": "The mutation assumes the driver ascends, which is what every slider in the world does and what this one does not. It leaves both endpoints exact -- `driverToIndex` falls through to the clamp and the clamp happens to be right at the ends -- so it is invisible to anything that only checks 0 and 100%, and it puts the handle at the wrong end everywhere else.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var descending = values[n - 1] < values[0];",
+      "replace": "    var descending = false;"
+    }
+  ]
+}

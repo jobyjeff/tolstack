@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: a v1 artifact is normalised, and the summary line carries the source in words a reader can act on",
+  "mutations": [
+    {
+      "contract": "Jeff's whole concern with this surface is knowing whether he is looking at the motion sheet's geometry or at geometry fitted from CAD. The summary line says which, in words, never as the artifact's own token.",
+      "issue": null,
+      "note": "The mutation renders the raw token instead of the sentence -- which is exactly what the line would say if someone deleted the lookup as redundant. `sheet` and `cad` on a bar tell a reader nothing about which is which, and this is the one fact the mode exists to make impossible to miss.",
+      "file": "apps/annotate/sweep.js",
+      "find": "  AA.sweepSourceWords = function (source) {\n    return AA.SWEEP_SOURCE_WORDS[source] || String(source);\n  };",
+      "replace": "  AA.sweepSourceWords = function (source) {\n    return String(source);\n  };"
+    }
+  ]
+}

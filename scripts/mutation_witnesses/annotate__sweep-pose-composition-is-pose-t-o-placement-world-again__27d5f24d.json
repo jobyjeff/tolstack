@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: pose composition is pose(t) o placement_world, against a hand-computed matrix",
+  "mutations": [
+    {
+      "contract": "A mesh is in its product's own local frame; `placement_world` carries it to the as-modelled assembly frame; the body pose carries that to this instant. So the matrix is pose composed ONTO placement, in that order.",
+      "issue": null,
+      "note": "The mutation swaps the two. It is the identity at the as-modelled point -- where every pose IS the identity, which is the frame a reviewer naturally looks at first -- and puts every body somewhere plausible-but-wrong at every other point of the sweep.",
+      "file": "apps/annotate/sweep.js",
+      "find": "  AA.anchorPlacement = function (pose, placementWorld) {\n    return AA.composePlacement(AA.poseToPlacement(pose),\n      placementWorld && placementWorld.length === 12\n        ? placementWorld : AA.IDENTITY_PLACEMENT);\n  };",
+      "replace": "  AA.anchorPlacement = function (pose, placementWorld) {\n    return AA.composePlacement(\n      placementWorld && placementWorld.length === 12\n        ? placementWorld : AA.IDENTITY_PLACEMENT,\n      AA.poseToPlacement(pose));\n  };"
+    }
+  ]
+}

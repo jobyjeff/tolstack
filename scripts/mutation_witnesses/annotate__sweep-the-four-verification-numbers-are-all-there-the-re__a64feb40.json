@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the four verification numbers are all there, the reference difference is a subtraction, and every label is derived from the artifact's own measure name",
+  "mutations": [
+    {
+      "contract": "Solved blade pitch, the sheet's reference, their difference, and each two-force member's measured |A - B| against its declared length. Those are the verification. The difference is solved minus reference, in that order and that sign.",
+      "issue": null,
+      "note": "The mutation flips the subtraction. Both arms are plausible on screen -- a signed residual of a few thousandths of a degree reads the same either way -- and the sign is the whole content when a reader is asking whether the solver runs high or low against the sheet.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        rows.push({ key: name + \":difference\", label: label + \" \" + W.difference,\n          value: point.measures[name] - referenceValue, unit: units[name] || null });",
+      "replace": "        rows.push({ key: name + \":difference\", label: label + \" \" + W.difference,\n          value: referenceValue - point.measures[name], unit: units[name] || null });"
+    }
+  ]
+}
