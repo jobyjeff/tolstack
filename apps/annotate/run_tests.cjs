@@ -2822,7 +2822,16 @@ if (realMeshesDir) {
   // the classifier fails here. It sits well under the measured rate on purpose
   // -- a tighter floor would redden whenever a mesh is installed or replaced,
   // and this check does not own what is in the mesh store.
-  const CLASSIFIED_FRACTION_FLOOR = 0.45;
+  //
+  // 0.45 until 2026-09-30, when rotorkit's pitch-linkage extraction installed
+  // the hub (286 solids) and three blade bonded assemblies and took the store
+  // from 11075 faces at 60.2% to 35635 at 38.8%. Nothing about the classifier
+  // moved: a blade's outer mould line and a hub's cast transitions are swept
+  // and freeform, and `other` is the right answer for every one of them. This
+  // is the floor doing what its own comment says it must not do -- firing on a
+  // mesh being installed -- so the number moves with the store rather than the
+  // store being argued with.
+  const CLASSIFIED_FRACTION_FLOOR = 0.25;
 
   check("[real] every installed mesh classifies, and the rate over the whole " +
     "store stays above the floor", () => {

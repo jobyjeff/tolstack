@@ -322,3 +322,93 @@ def test_the_projection_carries_its_own_provenance_stamp(built):
     assert stamp["schema"] == prov.SCHEMA_PROVENANCE
     assert stamp["built_by"] == fbf.BUILT_BY
     assert built["schema"] == fbf.SCHEMA
+
+
+@needs_meshes
+def test_the_full_expansion_is_refused_for_a_product_number_that_names_two_solids():
+    """[real] tier: the rule that decides which placement source is used.
+
+    rotorkit's `placements.json` is the whole instance tree and is therefore the
+    authority — **where it is addressable**. It is keyed by *product number*,
+    and a product number is not a geometry key: `MS14101-3` is more than one
+    distinct solid in this assembly under one number, so its entry there is
+    every instance of all of them. Handing that list to one of them would place
+    a bearing where a different bearing sits: a plausible coordinate, in the
+    right units, centimetres wrong, with nothing on any surface to say so.
+
+    So the store's own count decides, and the refusal is the thing worth
+    pinning — the happy path is checked by every other test in this module.
+    """
+    counts = fbf.product_mesh_counts(meshes_dir())
+    assert counts, "no installed mesh records a product name -- this would pass vacuously"
+    ambiguous = sorted(name for name, n in counts.items() if n > 1)
+    assert ambiguous, (
+        "no product number in the store names two solids any more. If that is "
+        "real, this check has nothing to measure and should be retired with the "
+        "rule it guards -- not left passing against an empty case."
+    )
+
+    # A synthetic expansion that would answer for ANY number asked of it, so a
+    # reader can tell a refusal from a file that simply had no entry.
+    everything = {name: [{
+        "instance_name": "wrong.1",
+        "instance_path": ["217755-001", "wrong.1"],
+        "placement_world": [1.0, 0.0, 0.0, 999.0,
+                            0.0, 1.0, 0.0, 999.0,
+                            0.0, 0.0, 1.0, 999.0],
+    }] for name in counts}
+
+    for child in sorted(meshes_dir().iterdir()):
+        provenance_file = child / "provenance.json"
+        if not provenance_file.is_file():
+            continue
+        provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
+        product = (provenance.get("extraction") or {}).get("product_name")
+        if product not in ambiguous:
+            continue
+        occurrences = fbf.occurrences_for(provenance, everything, counts)
+        assert occurrences, f"{provenance['part_id']}: lost its occurrences entirely"
+        assert all(o["source"] == "mesh_provenance" for o in occurrences), (
+            f"{provenance['part_id']} took its placements from an expansion keyed "
+            f"by {product!r}, which names {counts[product]} installed solids"
+        )
+        assert all(o["placement"][3] != 999.0 for o in occurrences), (
+            "the synthetic expansion's placement reached the output"
+        )
+
+
+@needs_meshes
+def test_the_full_expansion_is_used_where_the_number_names_one_solid():
+    """[real] tier: the other arm, so the refusal above is not vacuous.
+
+    Without this, a bug that refused the expansion *always* would leave both
+    checks green and the authority silently unused.
+    """
+    counts = fbf.product_mesh_counts(meshes_dir())
+    unambiguous = {name for name, n in counts.items() if n == 1}
+    assert unambiguous
+    expansion = {name: [{
+        "instance_name": "expanded.1",
+        "instance_path": ["217755-001", "expanded.1"],
+        "placement_world": [1.0, 0.0, 0.0, 7.0,
+                            0.0, 1.0, 0.0, 8.0,
+                            0.0, 0.0, 1.0, 9.0],
+    }] for name in unambiguous}
+
+    used = 0
+    for child in sorted(meshes_dir().iterdir()):
+        provenance_file = child / "provenance.json"
+        if not provenance_file.is_file():
+            continue
+        provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
+        product = (provenance.get("extraction") or {}).get("product_name")
+        if product not in unambiguous:
+            continue
+        occurrences = fbf.occurrences_for(provenance, expansion, counts)
+        assert [o["source"] for o in occurrences] == ["rotorkit_placements"], (
+            f"{provenance['part_id']}: the expansion was available and addressable "
+            "and was not used"
+        )
+        assert occurrences[0]["placement"][3] == 7.0
+        used += 1
+    assert used, "no installed mesh has an unambiguous product number to test with"

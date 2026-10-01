@@ -34,12 +34,12 @@
       "id": "pitch_link",
       "name": "pitch link assembly",
       "drawing": "213862-002",
-      "note": "PITCH LINK ASSEMBLY, PROPELLER, 216231 B.1 find 30. Its own parts list (213862-002 A) is two rows: the body 213861-002 PITCH LINK, PROPELLER x1, and MS14101-3 x2. The body has no mesh installed as of 2026-09-30; the two bearings do, as two instances of one part."
+      "note": "PITCH LINK ASSEMBLY, PROPELLER, 216231 B.1 find 30. Its own parts list (213862-002 A) is two rows: the body 213861-002 PITCH LINK, PROPELLER x1, and MS14101-3 x2. Blade 1's link is the instrumented variant, and this part's drawing number is the standard one: rotorkit's 2026-10-01 extraction shows the propeller carries five pitch links, with 546293-002 INSTRUMENTED PITCH LINK ASSEMBLY (216231 B.1 find 29) at instance 213862-002.1 and 213862-002 itself at .2 to .5. The two joint centres this document's `pitch_link_length` is about sit inside that .1 -- so the geometry is the instrumented link's, and the two agree with the 3DX sweep sheet's own nodes to under two microns, which is what says the kinematics are the same link. Which drawing this part should carry is a decision nobody has made: ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md."
     },
     {
       "id": "spherical_bearing_pitch_link",
       "name": "pitch-link spherical bearing",
-      "note": "MS14101-3, self-lubricated self-aligning spherical bearing, narrow (AS81820) -- 213862-002 A's parts list, qty 2. The pitch link's two joint centres ARE the two ball centres of this part's two instances, which is why it is a part here and not a note. This is the one part of this linkage with an installed mesh today: `asm217755_MS14101_3_9bfdb344`, whose two instances sit at 213862-002.1/MS14101-3.1 and .2."
+      "note": "MS14101-3, self-lubricated self-aligning spherical bearing, narrow (AS81820) -- 213862-002 A's parts list, qty 2. The pitch link's two joint centres ARE the two ball centres of this part's two instances, which is why it is a part here and not a note. This is the one part of this linkage with an installed mesh today: `asm217755_MS14101_3_9bfdb344`, whose two instances sit at 213862-002.1/MS14101-3.1 and .2 -- that being blade 1's INSTRUMENTED link, see this document's `pitch_link` part. rotorkit's 2026-10-01 run re-extracted the same solid under a second geometry signature (`asm217755_MS14101_3_1ec77e91`, same assembly, same label, same placements), so the store now holds two directories for it; the alias table names this one and ISSUE_20260930_one_solid_two_geometry_signatures_across_two_runs.md is about the duplication."
     },
     {
       "id": "pitch_plate_215177_001",

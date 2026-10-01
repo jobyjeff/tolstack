@@ -7,7 +7,15 @@ reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
 ---
 
-# Four parts of the pitch-linkage topology have no mesh yet, and therefore no alias row
+# Four parts of the pitch-linkage topology have no alias row
+
+> **The wait is over and the rows are still not written.** rotorkit's
+> `assembly_extract_20261001T022446Z` landed on 2026-10-01, about an hour after
+> this issue was filed and while the handoff that filed it was still running.
+> The four meshes are installed. What stopped the rows being written in that
+> same session is that two of the four are no longer a transcription job — read
+> "What the run actually installed" at the foot of this issue before writing
+> any of them.
 
 `docs/topologies/topology_vpa_pitch_linkage.json` (2026-09-30) declares twelve
 parts. Eight of them have an installed mesh and got an alias row in the same
@@ -59,3 +67,23 @@ the live `provenance.json` and a parts-list row, **or** an explicit note in that
 file saying why it stays out. `tests/test_part_mesh_aliases.py` pairs both sides
 and its `[real]` tier will catch a wrong `part_id`; since 2026-09-30 it also
 pairs the sha256 an evidence string quotes against the mesh that row maps to.
+
+
+## What the run actually installed (2026-10-01)
+
+Read off the live `provenance.json`s, which is the rule this issue already
+states. Two of the four are straightforward and two are not:
+
+| topology part | installed `part_id` | straightforward? |
+|---|---|---|
+| `hub` | `asm217755_214373_002` | **Yes** — exact drawing number, one instance at `prd-e-03478612.1/214373-001.1`. Note it is 286 solids: the whole hub assembly, not a machined detail, the same installation-or-detail choice `pitch_plate_215177_001`'s row faced. |
+| `pitch_arm` | `asm217755_215071_001` | **Yes** — exact drawing number, 5 instances, one per blade. |
+| `pitch_link` (the body) | `asm217755_213861_002` | **No.** Four instances, at `213862-002.2` … `.5`. Blade 1's link is `546293-002`, the instrumented variant, and its body is inside `asm217755_546293_002` — see `ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md`, which has to be decided first. |
+| `blade_root` | `asm217755_216332_001_1ed2bfd5` **or** `_1ff0bced` | **No.** Two geometries under one drawing number (20 solids and 15), one instance each, on different blades. Which one `blade_root` means — or whether it means both — is the same question one level out. |
+
+So: the hub and the pitch arm can be written as rows today against the evidence
+this issue already lists. The other two wait on the instrumented-variant
+decision, and the uniqueness guard
+(`tests/test_part_mesh_aliases.py::test_installed_mesh_part_ids_are_unique`)
+will not help with either, because the ids are distinct — the ambiguity is in
+what the topology part *means*, not in the store.

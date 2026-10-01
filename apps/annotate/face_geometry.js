@@ -9,14 +9,21 @@
 //
 // It exists for the face-suggestion surface (handoff annotate_face_suggestions,
 // 2026-09-21): a diameter needs a cylindrical face, a thickness needs planar
-// ones, and narrowing a 1621-face mesh down to the handful that could possibly
-// be the feature is the whole of the help this offers. It is NOT measurement --
-// `radius` and `offset` are computed here because a *relation* between two
-// faces (coaxial, parallel) cannot be tested without them, and they are never
-// written into a binding event, never rendered as a dimension, and never
-// allowed near a stack value. docs/ANNOTATION_SURFACE.md's decision 1 (no
-// measurement from geometry) is unchanged by this file, and the suggestion
-// surface's own section there says so in as many words.
+// ones, a joint centre needs a ball, and narrowing a 1621-face mesh down to the
+// handful that could possibly be the feature is the whole of the help this
+// offers. It is NOT measurement -- `radius`, `offset` and `centre` are computed
+// here because a *relation* between two faces (coaxial, parallel, matching
+// radius) cannot be tested without them, and they are never written into a
+// binding event, never rendered as a dimension, and never allowed near a stack
+// value. docs/ANNOTATION_SURFACE.md's decision 1 (no measurement from geometry)
+// is unchanged by this file, and the suggestion surface's own section there
+// says so in as many words.
+//
+// Its other half is tolerance_stack/feature_geometry.py, which fits the same
+// three surfaces so that a binding a human has RATIFIED can become a nominal
+// joint location for a solver (scripts/fit_bound_features.py). The vocabulary
+// is defined there and generated into the module this file reads; the
+// thresholds exist in both and are paired by tests/test_feature_geometry.py.
 //
 // The one thing to know before touching a threshold: OCC's tessellation puts
 // triangulation NODES exactly on the underlying surface, and lays a cylinder
