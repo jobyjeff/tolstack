@@ -143,13 +143,30 @@ FIT_TOLERANCES: Dict[str, float] = {
     # so no residual threshold can tell them apart and no facet-normal
     # threshold can either (6.8, 6.2 and 7.6 degrees respectively).
     #
-    # A triangulated patch has at least as many triangles as nodes; a single
-    # band of quads has exactly two FEWER (2S triangles over 2S+2 nodes). Over
-    # the MS14101-3 bearing the two populations are 0.93 (every band) against
-    # 1.48 / 1.57 / 1.69 (every patch, including both faces of the ball and
-    # both of the race seat it turns in), so the rule separates them with a 50%
-    # margin and needs no unit, no length and no knowledge of the deflection
-    # the mesh was tessellated at.
+    # The test is therefore on the NODE ROWS, and this ratio counts them. For a
+    # face of R rows over S segments the triangle count is 2S(R-1) and the node
+    # count is RS when the face closes all the way round and R(S+1) when it does
+    # not, so
+    #
+    #     closed:  triangles/nodes = 2(R-1)/R          -> 1 at R=2, 4/3 at R=3
+    #     open:    triangles/nodes = 2S(R-1)/(R(S+1))  -> below 1 at R=2
+    #
+    # **Two rows sit AT this value, never above it**, and three rows are above
+    # it for any S a real tessellation produces. So the comparison is strict
+    # (`>`), and that is a derivation rather than a tuned margin.
+    #
+    # It was `>=` until 2026-09-30, written from the OPEN band alone ("a patch
+    # has at least as many triangles as nodes; a band has exactly two fewer"),
+    # which is true of an open band and false of a closed one -- a closed band
+    # lands exactly on 1.0 and was accepted. That let 139 faces store-wide
+    # answer `spherical`, 18 of them on the hub, offering a solver "ball" radii
+    # of 62 to 65 mm that are fillet bands (found in review).
+    #
+    # The measured values either side, for a reader checking this: the
+    # MS14101-3 bearing's four spherical faces are 1.4783 twice (the race seat)
+    # and 1.5714 twice (the ball); MS14103-3's four are 1.2609, which is also
+    # the lowest on any accepted spherical face store-wide. Its own bands are
+    # 0.9286, and a closed band is 1.0 exactly.
     "sphere_min_triangles_per_vertex": 1.0,
     # ...and its facet normals point at least roughly along the RADIUS at that
     # facet. Deliberately LOOSE, and a sanity check rather than a discriminator:
@@ -931,7 +948,8 @@ def fit_face(mesh: Mesh, face_id: int,
             and cylinder["arc_deg"] >= tol["cylinder_min_arc_deg"]),
         "spherical": bool(
             sphere
-            and sphere["triangles_per_vertex"] >= tol["sphere_min_triangles_per_vertex"]
+            # Strict: a CLOSED band of quads lands exactly on the threshold.
+            and sphere["triangles_per_vertex"] > tol["sphere_min_triangles_per_vertex"]
             and sphere["max_residual"] <= tol["sphere_radial_fraction"] * sphere["radius"]
             and sphere["normal_spread_deg"] <= tol["sphere_normal_deg"]
             and extent >= tol["sphere_min_extent_fraction"] * sphere["radius"]),
@@ -966,7 +984,7 @@ def _why_nothing_fitted(stats: FaceTriangleStats, fits: Dict[str, Any],
     sphere = fits.get("spherical")
     if (sphere and sphere["normal_spread_deg"] <= tol["sphere_normal_deg"]
             and sphere["max_residual"] <= tol["sphere_radial_fraction"] * sphere["radius"]):
-        if sphere["triangles_per_vertex"] < tol["sphere_min_triangles_per_vertex"]:
+        if sphere["triangles_per_vertex"] <= tol["sphere_min_triangles_per_vertex"]:
             return "one band of quads, which lies on a sphere whatever shape it is"
         return "too small a patch of its own sphere to place a centre"
     return "neither a plane, a cylinder nor a sphere"

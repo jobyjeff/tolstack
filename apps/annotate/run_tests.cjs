@@ -1767,6 +1767,30 @@ function spherePatch(radius, segments) {
   return { verts, tris };
 }
 
+// A band of quads that closes all the way round: S segments, 2S nodes, 2S
+// triangles -- so triangles/nodes is exactly 1.0, the value an OPEN band sits
+// BELOW. `radiusAt(k)` is the radius at row k, so a constant gives a closed
+// cylinder band and a ramp a closed cone band. This is the shape the patch
+// gate accepted until 2026-09-30, when the comparison was `>=`.
+function closedBand(radiusAt, height, segments) {
+  const verts = [];
+  for (let i = 0; i < segments; i++) {
+    const theta = (2 * Math.PI * i) / segments;
+    for (let k = 0; k < 2; k++) {
+      const r = radiusAt(k);
+      verts.push([r * Math.cos(theta), r * Math.sin(theta), k * height]);
+    }
+  }
+  const tris = [];
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2, b = i * 2 + 1;
+    const c = ((i + 1) % segments) * 2, d = ((i + 1) % segments) * 2 + 1;
+    tris.push([a, c, d]);
+    tris.push([a, d, b]);
+  }
+  return { verts, tris };
+}
+
 // A single band of a sphere -- nodes in exactly TWO latitude rows, which is
 // what OCC lays down for a narrow spherical band and what makes a sphere fit
 // vacuous: two coaxial circles lie on one sphere whatever surface joins them.
@@ -1880,6 +1904,33 @@ check("a spherical patch is SPHERICAL, and it recovers the CENTRE -- which is " 
         " (component " + i + ")");
     }
   });
+});
+
+check("a CLOSED band of quads is OTHER too -- it lands exactly ON the patch " +
+  "threshold, which is why that comparison is strict", () => {
+  // The case the gate was written to refuse and, until 2026-09-30, accepted:
+  // an open band is two rows over S+1 stations and lands BELOW 1.0, a closed
+  // band is two rows over S stations and lands exactly ON it. A `>=` there let
+  // 139 faces store-wide answer "sphere", 18 of them fillet bands on the hub
+  // offering 62-65 mm "ball" radii to a solver.
+  const cone = closedBand((k) => 3 + k * 1.1547, 2, 24);
+  const fit = AA.fitSphere(cone.verts);
+  if (!fit || Math.abs(fit.r - 4.2891) > 1e-3) {
+    throw new Error("the closed cone band did not fit a sphere: " + JSON.stringify(fit));
+  }
+  assertEqual(cone.tris.length / cone.verts.length, 1,
+    "the fixture is not a closed band -- its triangles/nodes must be exactly 1");
+  const [classified] = classify([cone]);
+  assertEqual(classified.surface, "other", "a CLOSED band of quads answered sphere");
+  if (classified.why.indexOf("one band of quads") === -1) {
+    throw new Error("a closed band was refused for the wrong reason: " + classified.why);
+  }
+  // ...and three rows ARE a patch, at the same segment count, so the strict
+  // comparison has not simply refused everything round.
+  const patch = spherePatch(5, 3);
+  if (classify([patch])[0].surface !== "spherical") {
+    throw new Error("a three-row patch was refused along with the bands");
+  }
 });
 
 check("a sphere read from ONE BAND of quads is OTHER, and says which refusal " +

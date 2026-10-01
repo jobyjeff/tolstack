@@ -148,6 +148,62 @@ def test_two_coaxial_circles_lie_on_a_sphere_whatever_they_bound():
         )
 
 
+def closed_band(r0, r1, height, segments):
+    """A band of quads that closes all the way round.
+
+    ``S`` segments gives ``2S`` nodes and ``2S`` triangles, so
+    ``triangles / nodes`` is **exactly 1.0** -- the value an *open* band sits
+    below, and the reason the patch gate's comparison is strict.
+    """
+    points = []
+    triangles = []
+    for i in range(segments):
+        theta = 2 * math.pi * i / segments
+        for k, r in enumerate((r0, r1)):
+            points.append((r * math.cos(theta), r * math.sin(theta), k * height))
+    for i in range(segments):
+        a, b = i * 2, i * 2 + 1
+        c, d = ((i + 1) % segments) * 2, ((i + 1) % segments) * 2 + 1
+        triangles.append((a, c, d))
+        triangles.append((a, d, b))
+    return points, triangles
+
+
+def test_a_closed_band_lands_exactly_on_the_patch_threshold():
+    """The boundary the gate's comparison has to be strict about.
+
+    A face of ``R`` rows over ``S`` segments has ``2S(R-1)`` triangles over
+    ``RS`` nodes closed and ``R(S+1)`` open, so two rows land **at** 1.0 closed
+    and below it open, and three rows land above. The gate was written from the
+    open case alone and compared ``>=``; a closed cone band therefore fitted a
+    sphere to machine precision, passed, and offered an invented centre on its
+    axis -- 139 faces store-wide, 18 of them on the hub (found in review,
+    2026-09-30).
+    """
+    points, triangles = closed_band(3.0, 3.0 + 2 * math.tan(math.radians(30)),
+                                    2.0, 24)
+    assert len(triangles) / len(points) == 1.0, (
+        "the fixture is not a closed band -- its triangles/nodes must be exactly 1"
+    )
+    fit = fg.fit_sphere(points)
+    assert fit is not None
+    assert fit["max_residual"] / fit["radius"] < 1e-12, (
+        "a closed cone band no longer fits a sphere to machine precision, which "
+        "is the premise this gate exists for"
+    )
+    threshold = fg.FIT_TOLERANCES["sphere_min_triangles_per_vertex"]
+    assert not (len(triangles) / len(points) > threshold), (
+        f"a closed band's ratio must not be above the threshold {threshold}; if "
+        "the threshold moved, the derivation in FIT_TOLERANCES moved with it"
+    )
+    # ...and a three-row patch is above it, so strictness has not refused
+    # everything round.
+    patch = sphere_patch(5.0, 3)
+    rows = 4  # sphere_patch(radius, n) lays down (n + 1) rows of (n + 1) nodes
+    assert len(patch) == rows * rows
+    assert 2 * (rows - 1) * (rows - 1) / len(patch) > threshold
+
+
 def test_fit_plane_and_fit_cylinder_agree_with_their_own_shapes():
     plane = fg.fit_plane([(x, y, 5.0) for x in range(4) for y in range(4)])
     assert plane["surface"] == "planar"

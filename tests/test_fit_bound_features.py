@@ -184,7 +184,11 @@ def test_the_two_pitch_link_joint_centres_land_where_the_sweep_sheet_puts_them(b
         "217755-001/prd-e-03478612.1/213862-002.1/MS14101-3.2",
     ]
     for occurrence in occurrences:
-        assert occurrence["placement_source"] in fbf.PLACEMENT_SOURCES
+        assert "placement_source" not in occurrence, (
+            "a placement no longer has a single source -- if that changed, this "
+            "suite's claim that a fit cannot be mis-attributed changed with it"
+        )
+    assert ball["expansion"]["status"] in fbf.EXPANSION_CHECKS
 
     centres = [o["geometry"]["centre"] for o in occurrences]
     assert centres[0] != pytest.approx(centres[1], abs=1.0), (
@@ -324,91 +328,145 @@ def test_the_projection_carries_its_own_provenance_stamp(built):
     assert built["schema"] == fbf.SCHEMA
 
 
-@needs_meshes
-def test_the_full_expansion_is_refused_for_a_product_number_that_names_two_solids():
-    """[real] tier: the rule that decides which placement source is used.
+# ---------------------------------------------------------------------------
+# rotorkit's full expansion: a check on the sidecar, never a source
+# ---------------------------------------------------------------------------
 
-    rotorkit's `placements.json` is the whole instance tree and is therefore the
-    authority — **where it is addressable**. It is keyed by *product number*,
-    and a product number is not a geometry key: `MS14101-3` is more than one
-    distinct solid in this assembly under one number, so its entry there is
-    every instance of all of them. Handing that list to one of them would place
-    a bearing where a different bearing sits: a plausible coordinate, in the
-    right units, centimetres wrong, with nothing on any surface to say so.
 
-    So the store's own count decides, and the refusal is the thing worth
-    pinning — the happy path is checked by every other test in this module.
+def live_expansion_checks():
+    """``[(part_id, product_name, check)]`` over every installed mesh that has
+    an extraction block, against the **real** `placements.json`.
+
+    Driven from the real file on purpose. The two tests this replaced
+    synthesised an expansion keyed by the store's own `product_name`s, which is
+    exactly the key the real file does *not* use — so they could not see the
+    mismatch that made the rule they guarded inoperative (found in review,
+    2026-09-30). A synthetic fixture built from the same misunderstanding that
+    wrote the code tests the misunderstanding.
     """
-    counts = fbf.product_mesh_counts(meshes_dir())
-    assert counts, "no installed mesh records a product name -- this would pass vacuously"
-    ambiguous = sorted(name for name, n in counts.items() if n > 1)
-    assert ambiguous, (
-        "no product number in the store names two solids any more. If that is "
-        "real, this check has nothing to measure and should be retired with the "
-        "rule it guards -- not left passing against an empty case."
+    out = []
+    for child in sorted(meshes_dir().iterdir()):
+        provenance_file = child / "provenance.json"
+        if not provenance_file.is_file():
+            continue
+        provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
+        extraction = provenance.get("extraction") or {}
+        if not extraction:
+            continue
+        placements = fbf.rotorkit_placements(
+            (provenance.get("produced_by") or {}).get("run_id"), fbf.ROTORKIT_ROOT)
+        out.append((provenance["part_id"], extraction.get("product_name"),
+                    fbf.expansion_check(provenance, placements)))
+    return out
+
+
+@needs_meshes
+def test_the_expansion_check_reaches_both_of_its_live_verdicts():
+    """Non-vacuity, both ways: the live store produces `confirmed` **and**
+    `superset`, so neither arm is being asserted against an empty case.
+
+    `superset` is the one that matters — it is the population a product number
+    names more than one solid in — and it is reachable only because the check
+    matches on **instance path**. Both of today's `superset` meshes carry a
+    *suffixed* `product_name` (`216332-001_36`, `216332-001_41`) or sit under a
+    number that another solid shares, so a name lookup finds nothing for them.
+    """
+    checks = live_expansion_checks()
+    assert checks, "no installed mesh has an extraction block -- vacuous"
+    statuses = {status for _p, _n, c in checks for status in [c["status"]]}
+    assert statuses <= set(fbf.EXPANSION_CHECKS), f"unknown verdict in {statuses}"
+    assert "confirmed" in statuses, (
+        "no mesh's sidecar was confirmed by the expansion -- either the files "
+        "stopped agreeing or the matcher stopped matching"
+    )
+    assert "superset" in statuses, (
+        "no product number in the live expansion names more than one installed "
+        "solid any more. If that is real this check has nothing to measure; "
+        "before retiring it, confirm it against the store rather than assuming"
+    )
+    assert "not_found" not in statuses, (
+        "a mesh's instance paths appear in no entry of the expansion produced by "
+        "its own run: " +
+        str([p for p, _n, c in checks if c["status"] == "not_found"])
     )
 
-    # A synthetic expansion that would answer for ANY number asked of it, so a
-    # reader can tell a refusal from a file that simply had no entry.
-    everything = {name: [{
-        "instance_name": "wrong.1",
-        "instance_path": ["217755-001", "wrong.1"],
-        "placement_world": [1.0, 0.0, 0.0, 999.0,
-                            0.0, 1.0, 0.0, 999.0,
-                            0.0, 0.0, 1.0, 999.0],
-    }] for name in counts}
 
-    for child in sorted(meshes_dir().iterdir()):
-        provenance_file = child / "provenance.json"
-        if not provenance_file.is_file():
-            continue
-        provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
-        product = (provenance.get("extraction") or {}).get("product_name")
-        if product not in ambiguous:
-            continue
-        occurrences = fbf.occurrences_for(provenance, everything, counts)
-        assert occurrences, f"{provenance['part_id']}: lost its occurrences entirely"
-        assert all(o["source"] == "mesh_provenance" for o in occurrences), (
-            f"{provenance['part_id']} took its placements from an expansion keyed "
-            f"by {product!r}, which names {counts[product]} installed solids"
+@needs_meshes
+def test_the_check_matches_a_suffixed_product_name_to_its_bare_expansion_key():
+    """The defect B1 was: `extraction.product_name` carries a disambiguating
+    suffix **exactly when** a number names more than one solid, and the
+    expansion's keys stay bare — so any rule keyed on the name is blind to the
+    whole population it is about.
+
+    This asserts the matcher crosses that gap, on the live files.
+    """
+    suffixed = [(part_id, name, check) for part_id, name, check in live_expansion_checks()
+                if name and check["key"] and name != check["key"]]
+    assert suffixed, (
+        "no installed mesh carries a product_name that differs from its "
+        "expansion key -- this check has nothing to measure. rotorkit suffixes "
+        "that field only on an ambiguous number, so confirm the store before "
+        "retiring this"
+    )
+    for part_id, name, check in suffixed:
+        assert name.startswith(check["key"]), (
+            f"{part_id}: product_name {name!r} was matched to expansion key "
+            f"{check['key']!r}, which is not a prefix of it -- the match is by "
+            "instance path, so this is a coincidence worth looking at"
         )
-        assert all(o["placement"][3] != 999.0 for o in occurrences), (
-            "the synthetic expansion's placement reached the output"
+        assert check["status"] in ("confirmed", "superset"), (
+            f"{part_id}: a suffixed name found no entry at all ({check['status']})"
         )
 
 
 @needs_meshes
-def test_the_full_expansion_is_used_where_the_number_names_one_solid():
-    """[real] tier: the other arm, so the refusal above is not vacuous.
+@pytest.mark.skipif(sha_for("asm217755_MS14101_3_1ec77e91") is None,
+                    reason="the 2026-10-01 re-extraction of the pitch-link "
+                           "bearing is not installed, so no mesh here pairs an "
+                           "ambiguous number with an expansion")
+def test_a_placement_always_comes_from_the_mesh_that_owns_it(tmp_path):
+    """The harm B1 demonstrated, made impossible by construction.
 
-    Without this, a bug that refused the expansion *always* would leave both
-    checks green and the authority silently unused.
+    Every placement in the output is the sidecar's, so an instance belonging to
+    a *different* solid under the same product number cannot reach a fit. The
+    pitch-link bearing is the live case: the expansion's `MS14101-3` entry holds
+    13 instances across two links, of which 2 are this solid's.
+
+    Bound against the **2026-10-01** copy of that bearing rather than the one
+    the alias table names, because only that copy's run wrote a `placements.json`
+    at all -- which is itself worth knowing: the mesh a consumer actually
+    resolves to today has `expansion: absent`, and the duplicate-signature issue
+    is why there are two.
     """
-    counts = fbf.product_mesh_counts(meshes_dir())
-    unambiguous = {name for name, n in counts.items() if n == 1}
-    assert unambiguous
-    expansion = {name: [{
-        "instance_name": "expanded.1",
-        "instance_path": ["217755-001", "expanded.1"],
-        "placement_world": [1.0, 0.0, 0.0, 7.0,
-                            0.0, 1.0, 0.0, 8.0,
-                            0.0, 0.0, 1.0, 9.0],
-    }] for name in unambiguous}
+    sha = sha_for("asm217755_MS14101_3_1ec77e91")
+    events = tmp_path / "inbox" / "feature-identity"
+    events.mkdir(parents=True)
+    write_event(events, 1, "pitch_link_bearing_bore_to_ball_centre", "to",
+                sha, BEARING_BALL_FACE, "spherical_bearing_pitch_link")
+    _out, data = fbf.build(events, meshes_dir(), tmp_path / "projections")
+    ball = data["fits"][0]
 
-    used = 0
-    for child in sorted(meshes_dir().iterdir()):
-        provenance_file = child / "provenance.json"
-        if not provenance_file.is_file():
-            continue
-        provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
-        product = (provenance.get("extraction") or {}).get("product_name")
-        if product not in unambiguous:
-            continue
-        occurrences = fbf.occurrences_for(provenance, expansion, counts)
-        assert [o["source"] for o in occurrences] == ["rotorkit_placements"], (
-            f"{provenance['part_id']}: the expansion was available and addressable "
-            "and was not used"
-        )
-        assert occurrences[0]["placement"][3] == 7.0
-        used += 1
-    assert used, "no installed mesh has an unambiguous product number to test with"
+    assert ball["expansion"]["status"] == "superset", (
+        "the pitch-link bearing's product number no longer names more than one "
+        "solid in the expansion -- the case this test is about has moved"
+    )
+    assert ball["expansion"]["expansion_instances"] > ball["expansion"]["sidecar_instances"]
+
+    sidecar = fbf.instance_paths(
+        (json.loads((meshes_dir() / sha / "provenance.json").read_text(encoding="utf-8"))
+         .get("extraction") or {}).get("instances"))
+    placed = {tuple(o["instance_path"]) for o in ball["occurrences"]}
+    assert placed == sidecar, (
+        f"the fit was placed at {sorted(placed)}, which is not this mesh's own "
+        f"instance set {sorted(sidecar)}"
+    )
+    assert len(placed) == 2
+
+    # ...and it is the same pair of centres the alias-named copy gives, because
+    # the two directories are the same solid.
+    import math
+
+    centres = [o["geometry"]["centre"] for o in ball["occurrences"]]
+    topology = load_topology(TOPOLOGY_FILE)
+    assert math.dist(centres[0], centres[1]) == pytest.approx(
+        topology.edge("pitch_link_length").dimension.nominal, abs=0.001)

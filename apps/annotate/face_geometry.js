@@ -116,11 +116,19 @@
     // ...and the face has to be a PATCH, not a single band of quads. This is
     // the sphere's equivalent of cylinderMinArcDeg and the load-bearing one:
     // two coaxial circles lie on one sphere exactly, whatever the surface
-    // between them is, so a band's sphere residual rules out nothing. A
-    // triangulated patch has at least as many triangles as nodes; a band of
-    // quads has exactly two fewer. Over the MS14101-3 bearing the two
-    // populations are 0.93 (every band) against 1.48-1.69 (every patch,
-    // including both faces of the ball and both of the race seat).
+    // between them is, so a band's sphere residual rules out nothing.
+    //
+    // The test is on the NODE ROWS and this ratio counts them. For R rows over
+    // S segments a face has 2S(R-1) triangles over RS nodes closed, R(S+1)
+    // open -- so two rows sit AT 1.0 (closed) or below it (open), never above,
+    // and three rows are above it. The comparison is therefore STRICT; see
+    // tolerance_stack/feature_geometry.py's FIT_TOLERANCES for the derivation
+    // and for what `>=` let through until 2026-09-30 (139 faces store-wide,
+    // 18 of them fillet bands on the hub answering as 62-65 mm "balls").
+    //
+    // Measured either side: the MS14101-3 bearing's four spherical faces are
+    // 1.4783 twice and 1.5714 twice, MS14103-3's four are 1.2609, its own
+    // bands are 0.9286, and a closed band is 1.0 exactly.
     sphereMinTrianglesPerVertex: 1.0,
     // ...and its facet normals point at least roughly along the radius at that
     // facet. LOOSE on purpose, and a sanity check rather than a discriminator:
@@ -650,8 +658,10 @@
       return other(faceId, "neither a plane, a cylinder nor a sphere");
     }
     // A patch, or one band of quads? See FACE_CLASSIFY.sphereMinTrianglesPerVertex.
+    // The comparison is NOT strict here because the threshold is the band's own
+    // value: a closed band lands exactly on it.
     var perVertex = vs.length ? acc.triangles / vs.length : 0;
-    if (perVertex < tol.sphereMinTrianglesPerVertex) {
+    if (perVertex <= tol.sphereMinTrianglesPerVertex) {
       return other(faceId, "one band of quads, which lies on a sphere whatever shape it is");
     }
     if (extent < tol.sphereMinExtentFraction * fit.r) {

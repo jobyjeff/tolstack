@@ -37,33 +37,40 @@ coplanarity it cannot support. This script is the one place in the repo that
 multiplies a fitted point by a placement matrix, and it says which matrix it
 used, per occurrence, in its own output.
 
-Two sources of placement, and the rule for choosing is **not** simply "prefer
-the newer file":
+**Every placement comes from the mesh's own ``provenance.json``** --
+``extraction.instances[]``, each with ``placement_world`` (3 rows of
+``[r r r t]``). That file belongs to one extracted solid, so its instance list
+is attributable to that solid and nothing else.
 
-1. **rotorkit's full expansion** -- ``<rotorkit>/data/runs/<run-id>/placements.json``,
-   where ``<run-id>`` is the mesh's own ``provenance.json``
-   ``produced_by.run_id``. It is the whole instance tree rather than the slice
-   one extraction recorded, so it is the authority **where it is addressable**:
-   it is keyed by *product number*, and a product number is not a geometry key.
-   ``MS14101-3`` is three distinct solids in this assembly under one number
-   (``data/meshes/README.md``), so its entry there is every instance of all
-   three, and handing that list to one of the three would place a bearing where
-   a different bearing sits -- a plausible coordinate, in the right units,
-   several centimetres wrong.
-2. **the mesh's own ``provenance.json``** -- ``extraction.instances[]``, each
-   with ``placement_world`` (3 rows of ``[r r r t]``). Narrower, and **keyed by
-   the geometry**, because the sidecar belongs to one extracted solid.
+rotorkit's ``placements.json`` (``<rotorkit>/data/runs/<run-id>/``, where
+``<run-id>`` is the mesh's own ``produced_by.run_id``) is read, and is **not** a
+source. It is keyed by *product number*, and a product number is not a geometry
+key: ``MS14101-3`` is three distinct solids in this assembly under one number
+and ``216332-001`` is two (``data/meshes/README.md``), so those entries are
+every instance of all of them. Taking one would put a bearing where a different
+bearing sits -- a plausible coordinate, in the right units, several centimetres
+wrong, with nothing on any surface to say so.
 
-So (1) is used only when this store holds exactly **one** mesh for that product
-number; otherwise (2) is, and the output says which per occurrence
-(:data:`PLACEMENT_SOURCES`). An ambiguous number is reported on stderr rather
-than quietly resolved, because "the full expansion existed and was not used" is
-a fact a reader of a coordinate needs.
+What it is good for is **checking the sidecar**, which answers the one question
+the sidecars could not answer alone: *is an extraction's instance list the whole
+truth for its solid, or a slice of it?* Matched by instance path rather than by
+name -- the names cannot be matched, because rotorkit suffixes
+``extraction.product_name`` exactly when a number is ambiguous (``MS14101-3_2``,
+``216332-001_36``) while the expansion keys stay bare. So: find the entry whose
+instance set **contains** every path the sidecar claims, and compare. Measured
+over the whole store on 2026-09-30, every unambiguous mesh came back
+``confirmed`` -- the expansion's entry is *exactly* its sidecar's set, so the
+sidecars were never slices and the expansion adds no instance anyone was
+missing. :data:`EXPANSION_CHECKS` is that verdict, carried per fit.
+
+An earlier version of this script used the expansion as a source, gated on a
+count of ``extraction.product_name``. That could not work: the field it counted
+is the one rotorkit has already disambiguated, so the count was 1 for exactly
+the solids that needed it to be 2 (found in review, 2026-09-30).
 
 A mesh with no ``extraction`` block at all (a single-part STEP export --
-``blade_oml``, ``machined_213668``) has neither source and no occurrence to
-report, and says so rather than quietly emitting its local frame as if it were
-the assembly's.
+``blade_oml``, ``machined_213668``) has no occurrence to report, and says so
+rather than quietly emitting its local frame as if it were the assembly's.
 
 Usage -- from the MAIN checkout, where ``data/`` is::
 
@@ -119,11 +126,20 @@ REBUILD_COMMAND = "venv-win/Scripts/python.exe scripts/fit_bound_features.py"
 #: for drawing-checker.
 ROTORKIT_ROOT = Path("C:/workspace/rotorkit")
 
-#: Which placement source an occurrence came from. **This tuple is the
-#: definition**; the words are what the output carries per occurrence, so a
-#: reader can tell a full-expansion placement from the slice one extraction
-#: recorded without re-deriving which file was available on the day.
-PLACEMENT_SOURCES = ("rotorkit_placements", "mesh_provenance")
+#: What rotorkit's full expansion said about this mesh's own instance list.
+#: **This tuple is the definition**, and none of the four words changes where a
+#: placement came from -- that is always the mesh's sidecar (module docstring).
+#:
+#: ``confirmed``   the expansion holds an entry whose instance set is EXACTLY
+#:                 the sidecar's: the sidecar is the whole truth for this solid.
+#: ``superset``    the entry holding the sidecar's paths holds others too, so
+#:                 that product number names more than one solid and the
+#:                 expansion cannot say which instance belongs to which. The
+#:                 extra instances are reported as a count and never merged in.
+#: ``not_found``   no entry contains the sidecar's paths. The two files disagree
+#:                 about where this solid is, which is worth a reader's time.
+#: ``absent``      the run that produced this mesh wrote no ``placements.json``.
+EXPANSION_CHECKS = ("confirmed", "superset", "not_found", "absent")
 
 #: What a fit can fail to produce, and why -- a first-class answer, never a
 #: silently dropped binding. ``no_mesh``: the geometry key names a sha this
@@ -189,72 +205,61 @@ def rotorkit_placements(run_id: Optional[str],
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def product_mesh_counts(meshes_dir: Path) -> Dict[str, int]:
-    """``product name -> how many installed meshes claim it``.
+def instance_paths(instances: Any) -> set:
+    """The set of ``instance_path``s in a list of instance records, as tuples.
 
-    The test behind the choice of placement source. A count above one means the
-    number names more than one solid in this store, and the full expansion --
-    which is keyed by that number and nothing finer -- cannot say which of them
-    an instance belongs to.
+    One reader for both files, because the whole check below is "are these two
+    lists about the same places", and two spellings of "the paths in this list"
+    is two places that can disagree about what a path is.
     """
-    counts: Dict[str, int] = {}
-    if not meshes_dir.is_dir():
-        return counts
-    for child in sorted(meshes_dir.iterdir()):
-        provenance_file = child / "provenance.json"
-        if not provenance_file.is_file():
-            continue
-        provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
-        product = (provenance.get("extraction") or {}).get("product_name")
-        if product:
-            counts[product] = counts.get(product, 0) + 1
-    return counts
+    out = set()
+    for entry in instances or []:
+        path = entry.get("instance_path")
+        if path:
+            out.add(tuple(path))
+    return out
 
 
-def occurrences_for(provenance: Dict[str, Any],
-                    placements: Optional[Dict[str, Any]],
-                    product_counts: Optional[Dict[str, int]] = None,
-                    ) -> List[Dict[str, Any]]:
-    """Every place this part sits in the assembly, as
-    ``{instance_path, instance_name, placement, source}``.
+def expansion_check(provenance: Dict[str, Any],
+                    placements: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """What rotorkit's expansion says about this mesh's own instance list.
 
-    The full expansion wins when there is one, for the reason
-    :data:`PLACEMENT_SOURCES` gives. Either way an entry with no usable
-    ``placement_world`` is dropped here rather than carried forward as an
-    identity transform -- an identity placement is a part at the assembly
-    origin, which is a specific and usually wrong claim.
+    Matched by **instance path**, never by name: ``extraction.product_name``
+    carries a disambiguating suffix exactly when a number names more than one
+    solid, and the expansion's keys do not, so a name lookup misses on precisely
+    the population this check is about. One of :data:`EXPANSION_CHECKS`, plus
+    the entry it matched and both counts.
+    """
+    sidecar = instance_paths((provenance.get("extraction") or {}).get("instances"))
+    if placements is None:
+        return {"status": "absent", "key": None,
+                "sidecar_instances": len(sidecar), "expansion_instances": None}
+    holders = sorted(
+        ((len(instance_paths(entries)), key) for key, entries in placements.items()
+         if sidecar and sidecar <= instance_paths(entries)))
+    if not holders:
+        return {"status": "not_found", "key": None,
+                "sidecar_instances": len(sidecar), "expansion_instances": None}
+    size, key = holders[0]
+    return {
+        "status": "confirmed" if size == len(sidecar) else "superset",
+        "key": key,
+        "sidecar_instances": len(sidecar),
+        "expansion_instances": size,
+    }
 
-    ``product_counts`` is :func:`product_mesh_counts` -- how many installed
-    meshes claim each product number. It is what decides whether the full
-    expansion is addressable for this mesh at all; see the module docstring.
+
+def occurrences_for(provenance: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Every place this part sits in the assembly, from its own sidecar.
+
+    The sidecar and nothing else, for the reason the module docstring gives:
+    it belongs to one extracted solid, so its instance list is attributable to
+    that solid. An entry with no usable ``placement_world`` is dropped here
+    rather than carried forward as an identity transform -- an identity
+    placement is a part at the assembly origin, which is a specific and usually
+    wrong claim.
     """
     out: List[Dict[str, Any]] = []
-    part_id = provenance.get("part_id")
-    product = (provenance.get("extraction") or {}).get("product_name")
-    if placements and product:
-        geometries = (product_counts or {}).get(product, 1)
-        if geometries > 1:
-            print(f"note: {part_id} is one of {geometries} installed solids under "
-                  f"the product number {product!r}, so the full expansion -- which "
-                  f"is keyed by that number -- cannot say which of them an instance "
-                  f"is. Using this mesh's own provenance instead.", file=sys.stderr)
-        else:
-            for entry in placements.get(product, []):
-                matrix = entry.get("placement_world")
-                if not matrix or len(matrix) != fg.PLACEMENT_VALUES:
-                    continue
-                out.append({
-                    "instance_path": entry.get("instance_path"),
-                    "instance_name": entry.get("instance_name"),
-                    "placement": list(matrix),
-                    "source": "rotorkit_placements",
-                })
-            if out:
-                return out
-            print(f"note: a placements.json was found but carries no usable "
-                  f"instance under {product!r} -- falling back to the mesh's own "
-                  f"provenance. Check its shape against rotorkit_placements()'s "
-                  f"docstring before trusting this run.", file=sys.stderr)
     for entry in (provenance.get("extraction") or {}).get("instances", []):
         matrix = entry.get("placement_world")
         if not matrix or len(matrix) != fg.PLACEMENT_VALUES:
@@ -263,7 +268,6 @@ def occurrences_for(provenance: Dict[str, Any],
             "instance_path": entry.get("instance_path"),
             "instance_name": entry.get("instance_name"),
             "placement": list(matrix),
-            "source": "mesh_provenance",
         })
     return out
 
@@ -310,10 +314,8 @@ def place_geometry(geometry: Dict[str, Any],
 
 
 def fit_one_binding(event, meshes_dir: Path, rotorkit_root: Path,
-                    cache: Dict[str, Any],
-                    product_counts: Optional[Dict[str, int]] = None,
-                    ) -> Tuple[Optional[Dict[str, Any]],
-                               Optional[Dict[str, Any]]]:
+                    cache: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]],
+                                                    Optional[Dict[str, Any]]]:
     """``(fit row, unresolved row)`` -- exactly one of the two is not ``None``."""
     key = event.geometry_key
     sha = key.source_step_sha256
@@ -336,11 +338,26 @@ def fit_one_binding(event, meshes_dir: Path, rotorkit_root: Path,
         provenance = load_mesh_provenance(mesh_dir)
         placements = rotorkit_placements(
             (provenance.get("produced_by") or {}).get("run_id"), rotorkit_root)
+        check = expansion_check(provenance, placements)
+        if check["status"] in ("superset", "not_found"):
+            print(f"note: {provenance.get('part_id')}: rotorkit's expansion "
+                  f"{check['status']} -- " + (
+                      f"the entry {check['key']!r} holding this mesh's "
+                      f"{check['sidecar_instances']} instance(s) holds "
+                      f"{check['expansion_instances']} in all, so that product "
+                      f"number names more than one solid and the expansion cannot "
+                      f"say which instance is whose"
+                      if check["status"] == "superset" else
+                      "no entry in it contains this mesh's instance paths, so the "
+                      "two files disagree about where this solid is"
+                  ) + ". Placements are the mesh's own either way.",
+                  file=sys.stderr)
         cache[sha] = {
             "mesh": mesh,
             "provenance": provenance,
             "units": mesh_units(mesh.manifest, provenance),
-            "occurrences": occurrences_for(provenance, placements, product_counts),
+            "occurrences": occurrences_for(provenance),
+            "expansion": check,
         }
     entry = cache[sha]
     mesh = entry["mesh"]
@@ -355,6 +372,7 @@ def fit_one_binding(event, meshes_dir: Path, rotorkit_root: Path,
         "part_id": entry["provenance"].get("part_id"),
         "label": entry["provenance"].get("label"),
     }
+    base["expansion"] = entry["expansion"]
     base["units"] = entry["units"]
     base["local"] = fit.as_dict()
 
@@ -373,7 +391,6 @@ def fit_one_binding(event, meshes_dir: Path, rotorkit_root: Path,
         {
             "instance_path": occurrence["instance_path"],
             "instance_name": occurrence["instance_name"],
-            "placement_source": occurrence["source"],
             "placement": occurrence["placement"],
             "geometry": place_geometry(fit.geometry, occurrence["placement"]),
         }
@@ -404,14 +421,12 @@ def build(events_dir: Path, meshes_dir: Path, out_dir: Path, *,
     projection = build_projection(events)
 
     cache: Dict[str, Any] = {}
-    product_counts = product_mesh_counts(Path(meshes_dir))
     fits: List[Dict[str, Any]] = []
     unresolved: List[Dict[str, Any]] = []
     for _key, record in sorted(projection.by_stack_key.items()):
         for binding in record.bindings:
             row, missing = fit_one_binding(binding, Path(meshes_dir),
-                                           Path(rotorkit_root), cache,
-                                           product_counts)
+                                           Path(rotorkit_root), cache)
             (fits if row is not None else unresolved).append(row or missing)
 
     data: Dict[str, Any] = {
@@ -425,6 +440,9 @@ def build(events_dir: Path, meshes_dir: Path, out_dir: Path, *,
             "unresolved": len(unresolved),
             "by_surface": _count(fits, lambda row: row["local"]["surface"]),
             "by_reason": _count(unresolved, lambda row: row["reason"]),
+            "by_expansion_check": _count(
+                [r for r in fits + unresolved if r.get("expansion")],
+                lambda row: row["expansion"]["status"]),
         },
         "fits": fits,
         "unresolved": unresolved,
@@ -479,6 +497,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"    {count:>4}  {word}")
     for reason, count in summary["by_reason"].items():
         print(f"    {count:>4}  unresolved: {reason}")
+    for status, count in summary["by_expansion_check"].items():
+        print(f"    {count:>4}  rotorkit expansion: {status}")
     return 0
 
 
