@@ -59,6 +59,14 @@
 // at all and is correctly not a row -- an edge with no value on purpose is not
 // an unsourced one, which is the distinction the builder's own comment makes.
 //
+// Each layout's `column_order` is the sixth (columns_ordered_to_minimise_
+// crossings, 2026-09-30), and it is derivable the same way the `gaps` array
+// is: `order_columns()` was run over the three layout objects already in this
+// file and left every row, rail and link exactly as it found them -- the demo
+// is two columns wide, so there is one non-trunk column and nothing to permute
+// -- and `exact` is the word the real builder writes when the search is
+// exhaustive, which at one column it trivially is.
+//
 // The numbers are arbitrary and internally consistent with a fold; nothing here
 // is a claim about any Joby part.
 (function (VA) {
@@ -768,6 +776,7 @@
         ],
         "layout": {
           "columns": 2,
+          "column_order": "exact",
           "rows": [
             {
               "row": 0,
@@ -1015,6 +1024,7 @@
             },
             "layout": {
               "columns": 1,
+              "column_order": "exact",
               "rows": [
                 {
                   "row": 0,
@@ -1184,6 +1194,7 @@
             },
             "layout": {
               "columns": 1,
+              "column_order": "exact",
               "rows": [
                 {
                   "row": 0,
