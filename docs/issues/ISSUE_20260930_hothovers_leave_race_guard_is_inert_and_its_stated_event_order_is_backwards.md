@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
+class: guard_cannot_fail
+defer_until: dispatch/docs/strategy/BRIEF_20260930_porting_a_proven_lever_across_repos.md
 ---
 
 # `hotHover`'s leave-race guard is inert in Chrome, and the comment that justifies it states the event order backwards

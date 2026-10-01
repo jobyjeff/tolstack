@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.md
+class: layout_measurement_awaits_human_decision
+defer_until: 2026-10-15
 ---
 
 # `rotor_fastener_length`'s 36 close-link crossings are not a column-order problem, and nothing left in the layout can move them

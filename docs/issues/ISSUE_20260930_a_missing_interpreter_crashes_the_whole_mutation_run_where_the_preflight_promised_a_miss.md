@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: guards/mutation-witness
 class: silent_failure
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_columns_ordered_to_minimise_crossings.md
+defer_until: 2026-10-15
 ---
 
 # A missing interpreter kills the whole mutation run, where the preflight one screen earlier promised a MISS

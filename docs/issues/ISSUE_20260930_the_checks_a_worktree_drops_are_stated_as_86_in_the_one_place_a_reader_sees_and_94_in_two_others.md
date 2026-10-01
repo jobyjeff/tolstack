@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests/viewer
 class: unpaired_hand_copy
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_guard_census_pins_the_set_not_the_count.md
+defer_until: 2026-10-31
 ---
 
 # How many `[real]` checks a worktree drops is written `~86` in the message a reader gets and `~94` in the two places written today

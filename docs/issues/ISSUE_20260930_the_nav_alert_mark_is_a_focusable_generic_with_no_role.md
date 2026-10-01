@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/a11y
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
+class: unreviewed_design_debt
+strategy: docs/strategy/BRIEF_20260914_hover_card_occlusion_and_a11y.md
 ---
 
 # The alert mark is a focusable generic with no role, and nothing announces the card it opens

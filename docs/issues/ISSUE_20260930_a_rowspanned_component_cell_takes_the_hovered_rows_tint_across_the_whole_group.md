@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
+class: unreviewed_design_debt
+defer_until: 2026-10-31
 ---
 
 # Design: the merged component cell wears a hovered row's tint across the whole group, so one hot row lights four rows of that column

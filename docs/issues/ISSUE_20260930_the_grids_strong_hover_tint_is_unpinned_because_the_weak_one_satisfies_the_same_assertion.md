@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tiers/browser
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
+class: guard_cannot_fail
+defer_until: dispatch/docs/strategy/BRIEF_20260930_porting_a_proven_lever_across_repos.md
 ---
 
 # The grid's STRONG hover tint is unpinned, because the weak one the same hover applies satisfies the same assertion

@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: topologies
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
+class: geometry_source_ambiguity
+defer_until: 2026-10-15
 ---
 
 # Blade 1's pitch link is `546293-002`, the instrumented variant — not `213862-002`

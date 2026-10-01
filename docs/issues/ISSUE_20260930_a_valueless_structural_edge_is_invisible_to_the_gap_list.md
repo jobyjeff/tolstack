@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: topology-projection
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
+class: unsurfaced_or_buried_signal
+defer_until: 2026-10-15
 ---
 
 # A structural edge with no dimension at all is invisible to the DAG page's gap list

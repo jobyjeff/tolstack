@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: mutation-witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
+class: shared_mutable_fixed_path_no_owner
+handoff: docs/sessions/HANDOFF_20261001_mutation_witness_shadow_is_per_run.md
 ---
 
 # Two mutation-witness runs against one worktree destroy each other's shadow tree

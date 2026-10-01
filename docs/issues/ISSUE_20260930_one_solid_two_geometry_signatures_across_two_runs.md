@@ -5,7 +5,31 @@ status: open
 area: data/meshes
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
+class: shared_mutable_state_in_a_signed_artifact
 ---
+
+> **Triage, 2026-10-01 — left `open` deliberately; the root cause is rotorkit's
+> and is now staged there.** This is the downstream half of
+> `rotorkit/docs/issues/ISSUE_20260930_shape_signature_is_contaminated_by_an_unrelated_products_tessellation_in_the_same_session.md`
+> (`bug`, `high`): `shape_signature` is not a pure function of the document —
+> tessellating any product that shares a sub-shape changes a later product's
+> signature. The two directories named below, `asm217755_MS14101_3_9bfdb344`
+> and `..._1ec77e91`, are the **same solid** (XCAF label `0:1:1:249`) signed on
+> either side of that contamination, which is why every other field agrees.
+>
+> The sweep staged the producer fix —
+> `rotorkit/docs/sessions/HANDOFF_20261001_shape_signature_is_pure.md` (opus) —
+> and did **not** stage a tolstack reconciliation, because reconciling the
+> store before the producer is pure would be redone: re-extraction today can
+> yield a third signature. That handoff's definition of done requires it to
+> report what entry `0:1:1:249` signs to after the fix (`9bfdb344`,
+> `1ec77e91`, or a third value), which is the single fact that tells tolstack
+> which of its two directories is canonical.
+>
+> This is a `high` the sweep could not stage, stated per the budget rule rather
+> than deferred — it must not be deferred, because nothing here is waiting on a
+> date or a class, only on one named handoff in another repo. Re-triage it when
+> `shape_signature_is_pure` lands.
 
 # One solid, two geometry signatures, two installed meshes — across two rotorkit runs
 

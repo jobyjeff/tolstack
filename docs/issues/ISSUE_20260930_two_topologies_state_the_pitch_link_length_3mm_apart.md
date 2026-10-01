@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: topologies
 reporter: agent
 audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
+class: one_fact_written_twice
+handoff: docs/sessions/HANDOFF_20261001_one_part_feature_one_value_across_topologies.md
 ---
 
 # Two committed topologies state the pitch link's length 3.41 mm apart, on the same part, under the same edge id

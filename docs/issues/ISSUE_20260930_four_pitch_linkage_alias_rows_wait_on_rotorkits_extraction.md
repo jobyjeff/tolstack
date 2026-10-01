@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: topologies/aliases
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
+class: blocked_on_an_upstream_repo
+defer_until: rotorkit/docs/sessions/HANDOFF_20261001_shape_signature_is_pure.md
 ---
 
 # Four parts of the pitch-linkage topology have no alias row
