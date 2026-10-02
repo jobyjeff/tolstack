@@ -810,6 +810,13 @@ async function cmdSweep(target) {
     artifact, structure, trails,
     driverValues: AA.sweepDriverValues(artifact),
     index: 0,
+    // The continuous wall-clock position tickSweep integrates, kept apart
+    // from `index` because reduced motion rounds `index` for DISPLAY -- see
+    // tickSweep's own comment for why feeding the rounded value back into
+    // itself would stall playback. Resynced to `index` by every manual
+    // navigation (setSweepIndex), so a seek or a step while playing is never
+    // undone by the next frame's advance.
+    playbackPosition: 0,
     playing: false,
     speed: AA.SWEEP_DEFAULT_SPEED,
     // Ping-pong by default: Jeff's own description of what he wants to watch
@@ -1119,9 +1126,26 @@ function applySweepFrame() {
     // 286-solid hub hides the thing a reader opened this mode to watch.
     // Default on; a reader who wants solid bodies unticks the box they
     // already know.
-    state.scene.setGhost(row.sha256, state.transparentParts);
-    state.scene.setSweepGhost(row.sha256,
-      sweep.layers.ghost ? row.placements.map((p) => p.placement) : null);
+    //
+    // Neither input below changes between frames of a playing sweep --
+    // `transparentParts` is a stored preference and a row's placements are
+    // the occurrence's as-modelled `placement_world`, which by definition
+    // does not move. Applying either one again every frame bumps the part's
+    // material version (setGhost) or reallocates a mesh and a material per
+    // part (setSweepGhost), so each is applied only on the frame its own
+    // input actually changes, tracked on the row itself -- a fresh object
+    // every time a sweep (re)starts, so there is nothing stale to reset.
+    const wantGhost = !!state.transparentParts;
+    if (row._appliedGhost !== wantGhost) {
+      state.scene.setGhost(row.sha256, wantGhost);
+      row._appliedGhost = wantGhost;
+    }
+    const wantSweepGhost = !!sweep.layers.ghost;
+    if (row._appliedSweepGhost !== wantSweepGhost) {
+      state.scene.setSweepGhost(row.sha256,
+        wantSweepGhost ? row.placements.map((p) => p.placement) : null);
+      row._appliedSweepGhost = wantSweepGhost;
+    }
   }
   return frame;
 }
@@ -1133,6 +1157,10 @@ function setSweepIndex(index) {
   // Reduced motion gets whole points and nothing between them -- the same
   // answer apps/viewer gave its own animation.
   if (prefersReducedMotion()) sweep.index = Math.round(sweep.index);
+  // A manual move always resyncs the continuous pacing position too, so
+  // playback (tickSweep) resumes from exactly where this put the scrubber
+  // instead of continuing from wherever the wall clock had it before.
+  sweep.playbackPosition = sweep.index;
   applySweepFrame();
   renderDetail();
   return sweep.index;
@@ -1215,14 +1243,20 @@ function tickSweep(now) {
   const dt = Math.min((now - last) / 1000, 0.25);
   if (dt > 0) sweep.fps = sweep.fps ? sweep.fps * 0.9 + (1 / dt) * 0.1 : 1 / dt;
   const count = sweep.artifact.points.length;
-  const next = prefersReducedMotion()
-    ? Object.assign({}, AA.sweepAdvance(sweep, dt, count),
-      { index: AA.sweepStepIndex(sweep.index, sweep.direction, count) })
-    : AA.sweepAdvance(sweep, dt, count);
+  // Advance the CONTINUOUS position (sweep.playbackPosition), never the
+  // rounded `sweep.index` reduced motion displays -- feeding the rounded
+  // value back in here would round away a fractional step too small to show
+  // on every single tick, which at a high frame rate (a small step each
+  // time) stalls playback almost entirely rather than merely discretising
+  // it. Reduced motion wants the SAME wall-clock pace, snapped to whole
+  // points only for what gets drawn and scrubbed.
+  const basis = Object.assign({}, sweep, { index: sweep.playbackPosition });
+  const advanced = AA.sweepAdvance(basis, dt, count);
   const wasPlaying = sweep.playing;
-  sweep.index = next.index;
-  sweep.direction = next.direction;
-  sweep.playing = next.playing;
+  sweep.playbackPosition = advanced.index;
+  sweep.direction = advanced.direction;
+  sweep.playing = advanced.playing;
+  sweep.index = prefersReducedMotion() ? Math.round(advanced.index) : advanced.index;
   applySweepFrame();
   // The bar is repainted on every frame only for the numbers that move; the
   // controls repaint when a control's own state changes, which is why the
@@ -1354,6 +1388,7 @@ function setSweepIndexQuietly(index) {
   const last = sweep.artifact.points.length - 1;
   sweep.index = Math.min(Math.max(Number(index) || 0, 0), last);
   if (prefersReducedMotion()) sweep.index = Math.round(sweep.index);
+  sweep.playbackPosition = sweep.index;
   applySweepFrame();
   renderSweepReadouts();
 }

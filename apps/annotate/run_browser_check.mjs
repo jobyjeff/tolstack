@@ -302,6 +302,37 @@ async function main() {
     bodiesText.includes("demo-triangle.1") && bodiesText.includes("mm from the solved joint"),
     bodiesText);
 
+  // applySweepFrame must apply unchanged ghost/transparency state ONCE, not
+  // every frame (ISSUE_20261001_sweep_mode_reapplies_every_anchored_parts_
+  // material_state_on_every_animation_frame). Witnessed at the API boundary
+  // the composition actually calls through: wrap AnnotateScene.prototype.
+  // setGhost/setSweepGhost to count invocations, and once the ghost layer's
+  // one-time "turn on" cost is paid, several seconds of steady playback must
+  // call neither again -- WebGLRenderer itself bumps a rendered material's
+  // own `.version` on every frame for reasons that have nothing to do with
+  // this app (measured separately), so that property is not a usable witness
+  // here; counting the calls this app's own code makes is.
+  const anchoredSha = anchored[0].sha256;
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "ghost", "on"]));
+  await page.evaluate(() => {
+    const proto = Object.getPrototypeOf(window.__scene);
+    const origGhost = proto.setGhost;
+    const origSweepGhost = proto.setSweepGhost;
+    window.__ghostCalls = 0;
+    window.__sweepGhostCalls = 0;
+    proto.setGhost = function (...args) { window.__ghostCalls++; return origGhost.apply(this, args); };
+    proto.setSweepGhost = function (...args) { window.__sweepGhostCalls++; return origSweepGhost.apply(this, args); };
+  });
+  await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
+  await page.evaluate(() => window.AnnotateApp.exec(["play"]));
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.AnnotateApp.exec(["pause"]));
+  const ghostCalls = await page.evaluate(() => ({ ghost: window.__ghostCalls, sweepGhost: window.__sweepGhostCalls }));
+  check("playback makes no further setGhost/setSweepGhost calls once each part's ghost state is unchanged",
+    ghostCalls.ghost === 0 && ghostCalls.sweepGhost === 0,
+    `${JSON.stringify(ghostCalls)} for part ${anchoredSha.slice(0, 8)}`);
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "ghost", "off"]));
+
   // An unconverged point is marked under the bar and recoloured on it.
   check("the scrubber marks the point the solver did not settle",
     (await page.locator(".an__sweep-mark").count()) === 1);
@@ -373,6 +404,8 @@ async function main() {
   check("nothing above produced an uncaught error", consoleErrors.length === 0,
     consoleErrors.join("\n      "));
 
+  await reducedMotionTimingPass(browser, base);
+
   if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=synthetic-demo-sweep`, "mock");
   if (REAL_RUN) await realPass(browser, base);
 
@@ -380,6 +413,84 @@ async function main() {
   server.close();
   console.log(`\n${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);
+}
+
+// Reduced-motion playback, driven from the wall clock rather than the frame
+// clock (ISSUE_20261001_reduced_motion_playback_advances_one_point_per_
+// animation_frame_so_it_ignores_the_speed_control). The real display's frame
+// rate is not ours to choose in headless Chrome -- CPU throttling via CDP
+// (`Emulation.setCPUThrottlingRate`) was tried first and did not reliably
+// move the measured `requestAnimationFrame` cadence under SwiftShader here,
+// so this drives the SAME question deterministically instead: an init script
+// replaces `requestAnimationFrame` with a `setTimeout` at a CHOSEN interval,
+// before the app's own scripts run. That is exactly the composition under
+// test (tickSweep reads real elapsed time via `now` on every callback,
+// however often the callback fires) with the one uncontrollable variable --
+// what rate the display actually gives -- pinned to a number this check
+// picks, so "a throttled tab" and "a 144 Hz display" become two interval
+// values rather than two hard-to-reproduce environments.
+async function playReducedMotionFor(browser, base, { ms, speed, rafIntervalMs }) {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  if (rafIntervalMs) {
+    await page.addInitScript((interval) => {
+      const timers = new Map();
+      let nextId = 1;
+      window.requestAnimationFrame = (cb) => {
+        const id = nextId++;
+        timers.set(id, setTimeout(() => { timers.delete(id); cb(performance.now()); }, interval));
+        return id;
+      };
+      window.cancelAnimationFrame = (id) => {
+        const t = timers.get(id);
+        if (t != null) { clearTimeout(t); timers.delete(id); }
+      };
+    }, rafIntervalMs);
+  }
+  await page.goto(`${base}?mock=1&sweep=synthetic-demo-sweep`);
+  await page.waitForFunction(() => window.__sweep && window.__sweep.frame, null,
+    { timeout: 20000 });
+  await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
+  await page.evaluate((v) => window.AnnotateApp.exec(["speed", String(v)]), speed);
+  await page.evaluate(() => window.AnnotateApp.exec(["play"]));
+  await page.waitForTimeout(ms);
+  const result = await page.evaluate(() => ({ index: window.__sweep.index, fps: window.__sweep.fps }));
+  await page.evaluate(() => window.AnnotateApp.exec(["pause"]));
+  await page.close();
+  return result;
+}
+
+async function reducedMotionTimingPass(browser, base) {
+  console.log("\n--- reduced motion playback timing");
+
+  // A fast display (~250 Hz, 4 ms/frame) and a throttled tab (~17 Hz,
+  // 60 ms/frame) -- about 15x apart -- playing the same 3000 ms at the same
+  // speed. The whole claim is that they land on (nearly) the same point; a
+  // few points of slack is the unavoidable cost of each run's LAST callback
+  // landing at a different fraction of its own frame interval when the
+  // window closes, which is bigger at a slow frame rate's bigger interval --
+  // the same boundary effect a real player has, not an artifact of this
+  // check.
+  const fast = await playReducedMotionFor(browser, base, { ms: 3000, speed: 1, rafIntervalMs: 4 });
+  const slow = await playReducedMotionFor(browser, base, { ms: 3000, speed: 1, rafIntervalMs: 60 });
+  check("the two runs actually serviced requestAnimationFrame at different rates",
+    fast.fps > slow.fps * 2,
+    `fast ${fast.fps.toFixed(1)} fps, slow ${slow.fps.toFixed(1)} fps`);
+  check("reduced-motion playback covers (nearly) the same distance in the same " +
+    "wall-clock time regardless of frame rate",
+    Math.abs(fast.index - slow.index) <= 6,
+    `fast: ${fast.fps.toFixed(1)} fps -> index ${fast.index}; ` +
+    `slow: ${slow.fps.toFixed(1)} fps -> index ${slow.index}`);
+  console.log(`      reduced motion, 1x, 3000ms: ${fast.fps.toFixed(1)} fps -> index ` +
+    `${fast.index}; ${slow.fps.toFixed(1)} fps -> index ${slow.index}`);
+
+  const speed1 = await playReducedMotionFor(browser, base, { ms: 500, speed: 1, rafIntervalMs: null });
+  const speed4 = await playReducedMotionFor(browser, base, { ms: 500, speed: 4, rafIntervalMs: null });
+  check("the speed control changes reduced-motion playback's rate",
+    speed4.index > speed1.index * 2.5,
+    `speed 1x -> index ${speed1.index}; speed 4x -> index ${speed4.index}`);
+  console.log(`      reduced motion, 500ms: speed 1x -> index ${speed1.index}; ` +
+    `speed 4x -> index ${speed4.index}`);
 }
 
 // The screenshot evidence: the sweep at four points.
@@ -602,6 +713,24 @@ async function realPass(browser, base) {
     `(headless software rasterisation -- a floor, not the figure a GPU gives)`);
   check("[real] playback advances with the real meshes loaded",
     playing.index > 0, JSON.stringify(playing));
+
+  // The ghost layer's own frame rate, with the real meshes loaded -- the
+  // measurement ISSUE_20261001_sweep_mode_reapplies_every_anchored_parts_
+  // material_state_on_every_animation_frame asked for, since the 4 fps above
+  // was measured with the layer OFF (its default) and the ghost half of that
+  // defect (a reallocate-and-dispose cycle per part per frame) is worse than
+  // that number suggests.
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "ghost", "on"]));
+  await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
+  await page.evaluate(() => window.AnnotateApp.exec(["play"]));
+  await page.waitForTimeout(4000);
+  const playingGhost = await page.evaluate(() => ({ fps: window.__sweep.fps, index: window.__sweep.index }));
+  await page.evaluate(() => window.AnnotateApp.exec(["pause"]));
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "ghost", "off"]));
+  console.log(`      playback with ${open} real meshes loaded, ghost layer ON: ` +
+    `${playingGhost.fps.toFixed(1)} fps`);
+  check("[real] playback advances with the ghost layer on",
+    playingGhost.index > 0, JSON.stringify(playingGhost));
 
   if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=${encodeURIComponent(REAL_RUN)}`, "real");
 
