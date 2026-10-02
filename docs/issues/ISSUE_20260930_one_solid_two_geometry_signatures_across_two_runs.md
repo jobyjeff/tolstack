@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: data/meshes
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
 class: shared_mutable_state_in_a_signed_artifact
 handoff: docs/sessions/HANDOFF_20261001_mesh_store_reconciled_to_the_pure_signature.md
+resolution: handoff completed 2026-10-01 -- closed automatically by dispatch when handoff `mesh_store_reconciled_to_the_pure_signature` moved to completed/; not independently verified.
 ---
 
 > **Triage, 2026-10-01 — left `open` deliberately; the root cause is rotorkit's
