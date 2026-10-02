@@ -1,14 +1,14 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: topologies/aliases
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
 class: blocked_on_an_upstream_repo
 defer_until: rotorkit/docs/sessions/HANDOFF_20261001_shape_signature_is_pure.md
 handoff: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
-resolution: woke 2026-10-01 -- shape_signature_is_pure completed; re-triage
+resolution: woke 2026-10-01 -- shape_signature_is_pure completed; re-triage -- handoff completed 2026-10-01 -- closed automatically by dispatch when handoff `kinematic_sweep_animation` moved to completed/; not independently verified. (reconciliation sweep 2026-10-01)
 ---
 
 # Four parts of the pitch-linkage topology have no alias row
