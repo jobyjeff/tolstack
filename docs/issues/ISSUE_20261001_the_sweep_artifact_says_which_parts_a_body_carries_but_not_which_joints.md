@@ -1,10 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: linkage/artifact
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
+class: sweep_artifact_body_part_grain
+defer_until: class:sweep_artifact_body_part_grain
+resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together.
 ---
 
 # `linkage-sweep/v1` says which parts a body carries, but not which joint ends ride on it

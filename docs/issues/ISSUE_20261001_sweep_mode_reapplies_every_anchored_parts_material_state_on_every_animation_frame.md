@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261001_kinematic_sweep_animation.md
 class: per_frame_work_that_is_not_per_frame
+handoff: docs/sessions/HANDOFF_20261001_the_sweep_frame_loop_does_only_per_frame_work.md
 ---
 
 # Sweep mode re-applies every anchored part's material and ghost state on every animation frame, and with the ghost layer on it reallocates a mesh and a material per part per frame

@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: mutation_witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261001_one_part_feature_one_value_across_topologies.md
+class: guard_cannot_be_enrolled
+defer_until: 2026-10-15
+resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap.
 ---
 
 # No pytest guard in `test_tolerance_stack.py` or `test_topology.py` can be enrolled: the mutation shadow omits every document they read

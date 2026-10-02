@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: topologies
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261001_one_part_feature_one_value_across_topologies.md
 class: a_vocabulary_restated_by_hand
+defer_until: class:a_vocabulary_restated_by_hand
+resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap.
 ---
 
 # `EDGE_NOMINAL_PROPERTY_KEYS` is a hand-maintained list with nothing pairing it to the corpus, and its stated reason for excluding `nominal_stroke_mm` does not hold

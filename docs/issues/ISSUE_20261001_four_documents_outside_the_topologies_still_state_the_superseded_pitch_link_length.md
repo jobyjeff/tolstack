@@ -1,12 +1,14 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: topologies
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261001_one_part_feature_one_value_across_topologies.md
 class: one_fact_written_twice
+defer_until: class:one_fact_written_twice
+resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap.
 ---
 
 # Four documents outside `docs/topologies/` still state the pitch link's superseded 109.4 mm, and one open brief's argument rests on it

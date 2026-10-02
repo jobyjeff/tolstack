@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261001_kinematic_sweep_animation.md
+class: unreviewed_design_debt
+defer_until: class:unreviewed_design_debt
+resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together.
 ---
 
 # Design: three things on the sweep bar the 2026-10-01 screenshots happen not to show

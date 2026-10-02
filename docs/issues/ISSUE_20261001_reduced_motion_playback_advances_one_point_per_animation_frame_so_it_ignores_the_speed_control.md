@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261001_kinematic_sweep_animation.md
 class: a_rate_bound_to_the_frame_clock
+handoff: docs/sessions/HANDOFF_20261001_the_sweep_frame_loop_does_only_per_frame_work.md
 ---
 
 # Under `prefers-reduced-motion`, sweep playback advances one point per animation frame — so it ignores the speed control and runs at whatever rate the display gives

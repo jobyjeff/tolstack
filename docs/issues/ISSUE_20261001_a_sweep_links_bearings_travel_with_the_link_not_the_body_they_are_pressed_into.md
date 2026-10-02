@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
+class: sweep_artifact_body_part_grain
+defer_until: class:sweep_artifact_body_part_grain
+resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together.
 ---
 
 # In sweep mode a two-force member's bearings travel with the link, not with the body each is pressed into

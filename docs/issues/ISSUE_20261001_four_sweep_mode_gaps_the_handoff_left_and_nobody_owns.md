@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
+class: unowned_followup
+defer_until: 2026-10-15
+resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap.
 ---
 
 # Four things sweep mode leaves behind, each with the site it reaches
