@@ -3900,9 +3900,9 @@ if (realMeshesDir) {
 
   check("[real] ground truth: the MS14101-3 pitch-link bearing reads as its own " +
     "catalog page, and its ball centre is the part origin", () => {
-    const sha = byPartId("asm217755_MS14101_3_9bfdb344");
+    const sha = byPartId("asm217755_MS14101_3_815597cb");
     if (!sha) {
-      console.log("      (asm217755_MS14101_3_9bfdb344 is not installed -- nothing to check)");
+      console.log("      (asm217755_MS14101_3_815597cb is not installed -- nothing to check)");
       return;
     }
     const classes = classifyReal(sha);

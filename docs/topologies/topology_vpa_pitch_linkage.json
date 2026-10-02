@@ -39,7 +39,7 @@
     {
       "id": "spherical_bearing_pitch_link",
       "name": "pitch-link spherical bearing",
-      "note": "MS14101-3, self-lubricated self-aligning spherical bearing, narrow (AS81820) -- 213862-002 A's parts list, qty 2. The pitch link's two joint centres ARE the two ball centres of this part's two instances, which is why it is a part here and not a note. This is the one part of this linkage with an installed mesh today: `asm217755_MS14101_3_9bfdb344`, whose two instances sit at 213862-002.1/MS14101-3.1 and .2 -- that being blade 1's INSTRUMENTED link, see this document's `pitch_link` part. rotorkit's 2026-10-01 run re-extracted the same solid under a second geometry signature (`asm217755_MS14101_3_1ec77e91`, same assembly, same label, same placements), so the store now holds two directories for it; the alias table names this one and ISSUE_20260930_one_solid_two_geometry_signatures_across_two_runs.md is about the duplication."
+      "note": "MS14101-3, self-lubricated self-aligning spherical bearing, narrow (AS81820) -- 213862-002 A's parts list, qty 2. The pitch link's two joint centres ARE the two ball centres of this part's two instances, which is why it is a part here and not a note. This is the one part of this linkage with an installed mesh today: `asm217755_MS14101_3_815597cb`, whose two instances sit at 213862-002.1/MS14101-3.1 and .2 -- that being blade 1's INSTRUMENTED link, see this document's `pitch_link` part. rotorkit's 2026-10-01 run re-extracted the same solid under a second geometry signature (`asm217755_MS14101_3_1ec77e91`, same assembly, same label, same placements), which briefly gave the store two directories for one solid -- resolved 2026-10-01 (handoff mesh_store_reconciled_to_the_pure_signature): both signatures moved to the pure-key value `815597cb` under shape_signature_is_pure, confirming they were always one solid, so the two directories fused into this one and the old `1ec77e91` copy moved to `data/meshes_superseded/`. ISSUE_20260930_one_solid_two_geometry_signatures_across_two_runs.md carries the history."
     },
     {
       "id": "pitch_plate_215177_001",
@@ -73,7 +73,7 @@
     {
       "id": "spherical_bearing_tan_link",
       "name": "tangential-link bearing, narrow end",
-      "note": "MS14101-3, the narrow spherical bearing at the tangential link's mount end. Installed as `asm217755_MS14101_3_84a75703` -- a DIFFERENT solid from the pitch link's `_9bfdb344`, both named MS14101-3 in the STEP, which is why the mesh store suffixes the geometry signature."
+      "note": "MS14101-3, the narrow spherical bearing at the tangential link's mount end. Installed as `asm217755_MS14101_3_34f032f0` -- a DIFFERENT solid from the pitch link's `_815597cb`, both named MS14101-3 in the STEP, which is why the mesh store suffixes the geometry signature."
     },
     {
       "id": "spherical_bearing_tan_link_ms14103_3",
@@ -329,7 +329,7 @@
       "part": "spherical_bearing_pitch_link",
       "from": "pitch_link_bearing_seat",
       "to": "pitch_link_bearing_ball_centre",
-      "note": "No value recorded. Nominally zero by the bearing's own construction -- a self-aligning spherical bearing's ball swivels about the centre of its race -- but no document in this repo states it, so this edge carries no dimension rather than an invented zero. What would close it: MS14101's own concentricity callout in the RBC catalog (pp. 21-22, not read for this), or this handoff's fit of the two spherical faces of `asm217755_MS14101_3_9bfdb344`."
+      "note": "No value recorded. Nominally zero by the bearing's own construction -- a self-aligning spherical bearing's ball swivels about the centre of its race -- but no document in this repo states it, so this edge carries no dimension rather than an invented zero. What would close it: MS14101's own concentricity callout in the RBC catalog (pp. 21-22, not read for this), or this handoff's fit of the two spherical faces of `asm217755_MS14101_3_815597cb`."
     },
     {
       "id": "pitch_link_bearing_bore_to_ball_centre",
