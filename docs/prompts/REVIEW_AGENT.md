@@ -4919,6 +4919,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `ISSUE_20260921_annotate_readme_measured_numbers_are_paired_by_nothing.md`
       is the open issue and its population just grew by about fifteen numbers.
       Do not re-file it — say "Nth sighting" and add the numbers to it.
+- [ ] **A `depends_on` precondition satisfied out-of-band, with the artifact's
+      own metadata citing a handoff that was never written.** New 2026-10-01
+      (`mesh_store_reconciled_to_the_pure_signature`). The 2026-10-01 second
+      triage sweep performed `data/meshes/`'s rekey+fusion directly, inline,
+      rather than dispatching the `mesh_store_rekeyed_to_the_pure_signature`
+      handoff this one's `depends_on` named — but every renamed directory's
+      `provenance.json.rekeyed.handoff` field still names that never-created
+      path, as if a tracked session had run. `source_lesson` (the real
+      producer-repo lesson) resolves; `handoff` is a dead link, and nothing
+      distinguishes the two fields' reliability at a glance. Correctly filed
+      rather than fixed
+      (`ISSUE_20261001_rekeyed_mesh_provenance_cites_a_handoff_file_that_does_not_exist.md`)
+      since rewriting it reaches 32 gitignored directories outside this
+      handoff's scope. When a `depends_on` or precondition turns out to already
+      be satisfied, check **how** — a sweep's inline fix leaves no tracked
+      session for a citation to name, so verify any `handoff:`-shaped field the
+      precondition's own output wrote actually resolves before trusting it.
 
 ## Architectural errors to check
 
