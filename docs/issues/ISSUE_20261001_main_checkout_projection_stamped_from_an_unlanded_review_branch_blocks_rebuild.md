@@ -4,7 +4,7 @@ priority: med
 status: deferred
 area: viewer / projections
 reporter: agent
-found_by: review/declare_candidate_test_inputs
+found_by: docs/sessions/completed/HANDOFF_20261001_declare_candidate_test_inputs.md
 class: shared_mutable_state_across_worktrees
 defer_until: 2026-10-15
 resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap.
