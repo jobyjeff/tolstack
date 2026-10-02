@@ -156,3 +156,90 @@ one open. Whoever decides this should say whether the shared projection has
 **one** privileged writer (the merge gate, from a clean tree) with everyone else
 private, or whether per-tree private projections make the question moot — the
 latter now being the cheap option per point 2 above.
+
+## 2026-10-02 triage sweep — the class is measured, and it is not tolstack's alone
+
+Two additions, and the first one answers a question this brief asks in its own
+core-problem section: *whether the answer is tolstack's or a workspace
+convention.*
+
+### 1. The failure class spans four repos, 21 issues
+
+Classified across all twelve registered repos on 2026-10-02 (frontmatter
+`class:` plus every `defer_until: class:…` pointing at it),
+**`shared_mutable_state_across_worktrees`** holds **21 issues**: 4 live
+(`open`+`triaged`), 14 `deferred`, 5 already `resolved`. By repo:
+
+| repo | issues | what the shape looks like there |
+|---|---|---|
+| dispatch | 6 | the batch-merge candidate's provisioning and the actuator-rebuild ordering; concurrent full-suite runs making the post-merge suite unmeasurable |
+| tolstack | 5 | this brief's own pair, plus a rebuild from an unlanded branch disarming every other worktree's `[real]` tier, and meshes installed mid-session taking a classification floor red |
+| atp-post | 6 | a dashboard projection rewritten in place under the server serving it; a successor's boot cycle overwriting its predecessor's progress record; a staleness test red on every branch during parallel work |
+| drawing-checker | 4 | a browser default-out overwriting committed evidence; abandoned partial export dirs; an untracked, ungitignored mutation scratch dir |
+
+The *mechanism* differs each time — a projection, a run log, a dashboard JSON, an
+export dir, a scratch dir — and the *shape* does not: **one process-shared,
+gitignored artifact with no owner, written by N trees that cannot see each
+other.** Four repos arriving at it independently is the evidence that the answer
+wanted here is a workspace convention about who may write shared derived state,
+not a tolstack wiring change. The 09-14 pair and the 10-01 "the merge gate is
+itself a writer" addendum are two instances of a 21-instance class.
+
+**This section is also how the sweep discharged a wake trigger without churning
+the board.** `shared_mutable_state_across_worktrees` is, as of 2026-10-02, the
+**only** class in the workspace at or above `CLASS_WAKE_THRESHOLD` (3 live), with
+10 `deferred` issues naming it as their `defer_until:` trigger. The wake rule's
+stated purpose is "so the class gets judged as the set it is" — so the sweep
+judged it as a set, here, in the brief that owns it, rather than flipping 10
+issues to `open` for the next sweep's budget to re-defer. (The trigger
+arithmetic itself is filed separately:
+`dispatch/docs/issues/ISSUE_20261002_a_class_defer_trigger_cannot_fire_once_the_budget_rule_has_deferred_the_class.md`.)
+
+### 2. This sweep's own batch merge is a fresh, clean instance — and it now has a floor
+
+tolstack's merge candidate (a fresh worktree at the merge result) reported
+**`5 failed, 1439 passed, 1 skipped`** with only placeholder `data/`, and
+**`1444 passed, 1 skipped`** once the real `data/inbox/*` and `data/meshes` were
+present. All five reds were absent-input artifacts, including one shaped like a
+content claim about a workstation path — which is this brief's coupling seen from
+the merge gate's side: the fixtures are per-tree, the projection they pair
+against is not, and a tree without the shared artifact cannot tell "wrong" from
+"absent".
+
+**Point 2 of the 10-01 addendum — "per-tree private projections make the question
+moot, and that is now the cheap option" — got materially cheaper the same day,
+and the sweep verified it rather than assuming it.** dispatch's
+`HANDOFF_20261001_candidate_inputs_actually_provisions` landed both halves of the
+provisioning fix, but on `integration`, reaching dispatch's master only in this
+sweep's own merge — so the sweep that carried the fix ran the pre-fix tool, which
+is why the merge agent saw all five paths report `present` and had to stage real
+data by hand. Re-measured **after** that merge, against a fresh tolstack
+candidate at `master`:
+
+```
+  interpreter linked   venv-win                     -> C:\workspace\tolstack\venv-win
+  input       linked   data/inbox/specs             -> ...\data\inbox\specs (tracked placeholder left in place)
+  input       linked   data/inbox/drawings          -> ...\data\inbox\drawings (tracked placeholder left in place)
+  input       present  data/inbox/feature-identity  already in the candidate worktree -- not replaced
+  input       linked   data/inbox/tolerance_stacks  -> ...\data\inbox\tolerance_stacks (tracked placeholder left in place)
+  input       linked   data/meshes                  -> ...\data\meshes (tracked placeholder left in place)
+  5 declared input(s) + interpreter: 5 linked, 1 present
+```
+
+Four of five now link past their tracked placeholder. The fifth is **correct, not
+residual**: `data/inbox/feature-identity` holds nothing but its own `README.md`
+in the main checkout too, so there is genuinely nothing to bridge. (Both source
+issues had been auto-closed with dispatch's `handoff completed … not
+independently verified` note; this is that verification.)
+
+**What that does and does not settle for this brief.** It gives a *read-only*
+floor: a candidate tree can now see the shared inputs without copying them, so
+the merge-gate instance of the coupling is answered by symlink. It does **not**
+answer this brief, because the coupling that bites parallel handoffs is about
+**writes** — two trees rebuilding `topologies.json`/`results.json`/`crops.json`
+into one shared `data/`. Symlinking a read-only input is explicitly the opposite
+case; the bridge contract refuses a path the suite writes into, and
+`data/runs`-shaped paths stay unbridgeable for exactly that reason. So the
+privileged-writer-versus-private-projection question the 10-01 addendum ends on
+is still the open one, now with a working read-side mechanism to build the
+private option on top of.
