@@ -47,7 +47,7 @@ MESHES_DIR_CANDIDATES = (
 #: The pitch-link bearing, `MS14101-3` as installed under `213862-002.1`. Keyed
 #: by ``part_id`` and never by sha, so a re-tessellation under the same part
 #: identity keeps this suite working -- the same rule the alias table follows.
-BEARING_PART_ID = "asm217755_MS14101_3_9bfdb344"
+BEARING_PART_ID = "asm217755_MS14101_3_815597cb"
 
 
 #: A mesh directory is named for its ``source_step_sha256``. Matched rather

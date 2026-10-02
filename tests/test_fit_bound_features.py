@@ -45,7 +45,7 @@ MESHES_DIR_CANDIDATES = (
     Path("C:/workspace/tolstack/data/meshes"),
 )
 
-BEARING_PART_ID = "asm217755_MS14101_3_9bfdb344"
+BEARING_PART_ID = "asm217755_MS14101_3_815597cb"
 PLATE_PART_ID = "asm217755_215735_001"
 BLADE_PART_ID = "blade_oml"
 
