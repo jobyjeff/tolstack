@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
 area: tests/test_fit_bound_features
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261001_mesh_store_reconciled_to_the_pure_signature.md
+status: deferred
 class: test_coverage_retired_by_a_fix
+defer_until: 2026-11-01
+resolution: deferred 2026-10-02 (triage) -- `low`, deferred by default under the budget rule. ISO date rather than a class trigger: this sweep measured 283 issues workspace-wide already deferred behind class triggers whose live count the budget rule itself drove below the CLASS_WAKE_THRESHOLD of 3 -- see dispatch/docs/issues/ISSUE_20261002_a_class_defer_trigger_cannot_fire_once_the_budget_rule_has_deferred_the_class.md.
 ---
 
 # `test_a_placement_always_comes_from_the_mesh_that_owns_it` now skips, permanently, until a new ambiguous-number case appears
