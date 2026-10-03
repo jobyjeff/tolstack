@@ -243,3 +243,76 @@ case; the bridge contract refuses a path the suite writes into, and
 privileged-writer-versus-private-projection question the 10-01 addendum ends on
 is still the open one, now with a working read-side mechanism to build the
 private option on top of.
+
+## 2026-10-03 triage sweep — atp-post has the same shape on a TRACKED projection, which is the sharper version of this brief's question
+
+The 2026-10-02 addendum above established that this failure class spans four
+repos and 21 issues, and asked whether the answer is tolstack's or a workspace
+convention. atp-post has since produced the instance that makes the second
+answer hard to avoid, because there the shared projection is **tracked and
+committed**, not merely read.
+
+**Source issues** (both now `status: triaged` against this brief):
+
+- `atp-post/docs/issues/ISSUE_20261002_two_handoffs_share_one_criteria_stream_and_the_projection_is_tracked.md`
+  (`high`, `audience: strategy`)
+- `atp-post/docs/issues/ISSUE_20261002_the_criteria_projections_are_rebuilt_from_a_stream_two_worktrees_share.md`
+  (`med`)
+
+**The shape.** `apps/dashboard/criteria.json` and `docs/CRITERIA.md` are
+**tracked**, and `python -m atp_post.criteria rebuild` writes them as a pure
+fold of `data/inbox/criteria/`. That directory is gitignored, so it exists only
+in the main checkout and **every worktree writes to the same one**. Two
+handoffs running at once share one event stream, and each one's `rebuild`
+commits the other's in-flight work onto its own branch.
+
+Measured 2026-10-02, not hypothetical:
+
+| time (UTC) | actor | events |
+|---|---|---|
+| 22:42-22:43 | `handoff/commanded_pitch_from_the_hrr_command_message` | 5 `propose` + 2 `reason` on the VP criteria |
+| **22:39:49** | `handoff/ion_run_record_is_the_third_source` | 3 `propose`, 1 `status`, 1 `reason` on the gas-spring / imbalance criteria |
+
+The second set supersedes two criteria, so `by_check_reason_class` lost two
+rows and `gap_report.total` went 12 → 10 **on a branch that touched neither
+criterion**. `tests/test_criteria_index.py`'s two whole-map assertions went
+red, and the only way to green them was to **assert the other session's
+facts** — which that handoff did, with the reason written into the test
+docstring, because every alternative was worse.
+
+**Why this instance is worth a decision rather than another data point.**
+
+1. **The obvious workaround is already refused, and correctly.** Rebuilding
+   from a filtered copy of the stream (this session's events only, via
+   `ATP_POST_DATA_ROOT`) produces a projection that is *not* the fold of the
+   stream, and
+   `test_both_tracked_projections_are_current_with_the_event_stream` catches it
+   immediately. That guard is right and must not be weakened — the projection's
+   whole contract is that it is derivable. So the escape hatch this brief might
+   otherwise reach for is closed on principle, not by accident.
+2. **The consequences outlive the session**, which the `[real]`-tier instances
+   do not: whoever merges second must re-run `rebuild` and re-read both
+   whole-map assertions; a branch can ship a projection describing criteria
+   work that is **never merged** if the parallel handoff is abandoned; and the
+   two assertions cannot both be green on two parallel branches at the same
+   instant, so one always looks like a regression to whoever runs the suite
+   second.
+3. **It reaches `data/runs/` too.** `data/runs.jsonl` is shared the same way and
+   the dashboard groups by cohort + run key with *newest `ts` wins*. On
+   2026-10-02 both sessions re-analysed the whole board within seven minutes,
+   so every card's headline reading is whichever session analysed last — there,
+   a branch carrying the other's criteria events but not its code.
+
+**What this adds to the brief's own core question.** This brief asks how a
+per-worktree fixture set should relate to one shared projection. atp-post's
+instance adds the case where the projection is **a tracked artifact whose
+derivability is itself guarded** — so "give each worktree its own" and "let the
+shared one win" are both unavailable, and the answer has to be about *who may
+write the stream and when*, not about where the projection lives. If the
+decision taken here is a workspace convention rather than a tolstack one, that
+is the limb it has to cover.
+
+**Not claimed here:** that atp-post's fix and tolstack's are the same change.
+They may not be. What is claimed is that a convention deciding only the
+read-only-fixture case leaves atp-post's tracked-projection case undecided, and
+that case already costs real merges.
