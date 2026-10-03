@@ -3,7 +3,7 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
 reviewer: review agent (opus)
 date: 2026-09-16
-verdict: APPROVE (after one rework round)
+verdict: APPROVE (round 2)
 blockers: 0
 ---
 
