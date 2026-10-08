@@ -8,6 +8,9 @@ reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+needs: jeff
+ask: Look at the materials source column on hub_bearing_thermal_fit_m1: may confidence chips stay filled, and does designation belong?
+todo: 20261007T161823_wfdngo
 ---
 
 # The chip that was folded out of the materials source column was never on a live page — the two that *are* always visible there are the provenance chips

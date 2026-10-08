@@ -6,6 +6,7 @@ area: schema / tolerance_stack.topology
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260909_check_study_limit_ranged_value.md
+needs: agent
 ---
 
 # `check_study`'s `limit` collapses to a zero-width point -- no way to fold two independently-ranged quantities in one study

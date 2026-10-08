@@ -8,6 +8,7 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.md
 class: shared_mutable_state_across_worktrees
 strategy: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
+needs: agent
 ---
 
 # A worktree that changes a projection builder has no supported way to run the `[real]` tiers against its own projection

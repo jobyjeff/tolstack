@@ -8,6 +8,7 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.md
 class: stale_prose_reference
 defer_until: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
+needs: agent
 ---
 
 # `BRIEF_20260914_dag_layout_geometry_tradeoffs`'s consumption marker quotes an exact minimum of 7, and the shipped pass reaches 17 on purpose

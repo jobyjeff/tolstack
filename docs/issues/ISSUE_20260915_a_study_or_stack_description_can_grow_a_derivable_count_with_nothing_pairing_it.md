@@ -7,6 +7,7 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260914_projection_field_guard_rows.md
 strategy: docs/strategy/BRIEF_20260915_prose_field_rules_names_and_derivable_counts.md
+needs: agent
 ---
 
 # Nothing stops a `Study` or `StackDefinition` `description` growing a derivable count

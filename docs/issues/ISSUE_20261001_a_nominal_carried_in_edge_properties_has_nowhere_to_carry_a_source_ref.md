@@ -9,6 +9,7 @@ found_by: docs/sessions/HANDOFF_20261001_one_part_feature_one_value_across_topol
 class: a_value_with_no_place_to_cite
 defer_until: class:a_value_with_no_place_to_cite
 resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap.
+needs: agent
 ---
 
 # A nominal carried in an edge's `properties` has nowhere to put a `source_ref`, so this repo's one rule does not reach it

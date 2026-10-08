@@ -7,6 +7,7 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
 strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
+needs: agent
 ---
 
 # `views/banner.js` renders `state.error` on an UNPUBLISHED bar, and nothing can ever set it there

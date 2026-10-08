@@ -6,6 +6,7 @@ area: viewer/accessibility
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260914_hover_card_occlusion_and_a11y.md
+needs: agent
 ---
 
 # Absorbing a mark's native `<title>` into a hover card leaves a focusable element with no accessible name

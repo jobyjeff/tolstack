@@ -8,6 +8,9 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.md
 class: layout_measurement_awaits_human_decision
 defer_until: 2026-10-15
+needs: jeff
+ask: Choose how the rotor fastener DAG page draws its 36 crossing loop-close lines: route outside, bridge, hide, or leave as is
+todo: 20261007T161822_5nv2iw
 ---
 
 # `rotor_fastener_length`'s 36 close-link crossings are not a column-order problem, and nothing left in the layout can move them

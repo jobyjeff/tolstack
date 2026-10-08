@@ -8,6 +8,7 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
 class: shared_mutable_state_across_worktrees
 strategy: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
+needs: agent
 ---
 
 # Since the freshness gate, one worktree's rebuild does not redden the others — it DISARMS them, retroactively

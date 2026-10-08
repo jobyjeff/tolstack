@@ -6,6 +6,7 @@ area: viewer/topology
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
+needs: agent
 ---
 
 # The grid cross-fades through a respine; its rows do not move

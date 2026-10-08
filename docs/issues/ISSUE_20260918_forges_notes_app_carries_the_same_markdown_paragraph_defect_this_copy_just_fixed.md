@@ -8,6 +8,7 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 class: unpaired_hand_copy
 defer_until: class:unpaired_hand_copy
+needs: agent
 ---
 
 # forge's notes app has the markdown paragraph defect this repo just fixed, and this copy now diverges from it

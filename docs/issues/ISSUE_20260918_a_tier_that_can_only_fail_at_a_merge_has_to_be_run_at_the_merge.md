@@ -8,6 +8,7 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 class: fixed_at_one_of_n_sites
 defer_until: class:fixed_at_one_of_n_sites
+needs: agent
 ---
 
 # The review-merge rule landed in tolstack's override; the principle behind it is not repo-specific

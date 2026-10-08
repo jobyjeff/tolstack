@@ -6,6 +6,9 @@ area: viewer/topology-layout
 audience: strategy
 reporter: agent
 strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
+needs: jeff
+ask: Pick how to fix branch leaders crossing rails on pitch_system: repack, reroute, hop marks, or accept
+todo: 20261007T161823_hg1njj
 ---
 
 # Right-justifying the spine moves the leader crossings onto the branch leaders instead of removing them

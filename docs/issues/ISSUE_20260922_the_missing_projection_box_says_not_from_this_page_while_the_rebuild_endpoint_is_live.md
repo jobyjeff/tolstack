@@ -8,6 +8,7 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
 class: conditional_message_collapsed_to_unconditional
 defer_until: 2026-10-13
+needs: agent
 ---
 
 # The missing-projection box says "not from this page" unconditionally — including on the one origin that *can* rebuild from this page

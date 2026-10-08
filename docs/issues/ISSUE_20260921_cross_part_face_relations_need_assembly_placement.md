@@ -8,6 +8,7 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260921_annotate_face_suggestions.md
 class: missing_capability
 defer_until: class:missing_capability
+needs: agent
 ---
 
 # Face suggestions cannot narrow a flat face across two parts, because no assembly placement is applied

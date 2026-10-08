@@ -6,6 +6,7 @@ area: viewer/topology
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
+needs: agent
 ---
 
 # The topology viewer's leader lines cross each other, 16 times on `pitch_system`

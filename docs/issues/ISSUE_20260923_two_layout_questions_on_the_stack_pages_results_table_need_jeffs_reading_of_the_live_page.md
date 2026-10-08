@@ -8,6 +8,9 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
 class: layout_measurement_awaits_human_decision
 defer_until: class:layout_measurement_awaits_human_decision
+needs: jeff
+ask: On the live stack page, say if checks and paths should share one results table, and if the corner chips are worth the row height
+todo: 20261007T161822_5nv2iw
 ---
 
 # Two layout questions on the stack page's results table need Jeff's reading of the live page

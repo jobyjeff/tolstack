@@ -7,6 +7,7 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
 strategy: docs/strategy/BRIEF_20260915_prose_field_rules_names_and_derivable_counts.md
+needs: agent
 ---
 
 # The study summary renders record prose the banned-string guard would refuse, and is the one live surface the guard cannot reach

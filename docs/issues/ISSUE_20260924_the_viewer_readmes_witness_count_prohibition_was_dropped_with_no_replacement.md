@@ -8,6 +8,7 @@ audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20260924_claims_registry_guards_read_declarations_not_prose.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+needs: agent
 ---
 
 # `apps/viewer/README.md`'s mutation-witness-count prohibition went with the prose scans, and a stale witness count written there is now caught by nothing

@@ -6,6 +6,7 @@ area: apps/annotate
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260911_viewer_3d_and_card_content_reach.md
+needs: agent
 ---
 
 # Classic (loose) stacks have no 3D launch — the annotator navigates topologies only

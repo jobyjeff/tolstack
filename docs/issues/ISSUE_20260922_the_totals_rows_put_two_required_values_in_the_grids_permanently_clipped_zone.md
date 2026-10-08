@@ -7,6 +7,7 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
 strategy: docs/strategy/BRIEF_20260916_topology_page_number_reach.md
+needs: agent
 ---
 
 # The totals rows put two required values in the grid's permanently clipped zone
