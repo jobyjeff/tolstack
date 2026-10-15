@@ -1,0 +1,23 @@
+{
+  "tier": "python",
+  "suite": "tests/test_tolerance_stack.py",
+  "expect_red": "test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_it",
+  "mutations": [
+    {
+      "contract": "One part+edge states one nominal in every topology that states it -- a rigid link's length may not differ between two topology documents.",
+      "issue": "docs/issues/ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md",
+      "note": "The `properties` half: replays the real defect (pitch_system's link length 3.4 mm off vpa_pitch_linkage's). Paired with the `dimension` half below because _edge_nominal_statements builds its list from two independent branches.",
+      "file": "docs/topologies/topology_pitch_system.json",
+      "find": "\"nominal_length_mm\": 105.9908,",
+      "replace": "\"nominal_length_mm\": 109.4,"
+    },
+    {
+      "contract": "One part+edge states one nominal in every topology that states it -- a rigid link's length may not differ between two topology documents.",
+      "issue": "docs/issues/ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md",
+      "note": "The `dimension` half: the same pair broken from the other document, so a witness on only one branch of _edge_nominal_statements cannot pass for both.",
+      "file": "docs/topologies/topology_vpa_pitch_linkage.json",
+      "find": "\"nominal\": 105.9908,",
+      "replace": "\"nominal\": 106.9908,"
+    }
+  ]
+}

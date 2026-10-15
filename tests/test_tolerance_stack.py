@@ -15,6 +15,7 @@ import ast
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -2164,13 +2165,10 @@ def test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_i
     be asserted against nothing, which this repo counts as worse than absent.
     ISSUE_20261001_the_topology_pairing_compares_nominals_and_not_bands.md.
 
-    **Unenrolled**, and visibly so rather than silently: a mutation spec for
-    this guard was written and is exact, but the mutation shadow omits every
-    document this module's claims-corpus guards read, so the ``python`` tier is
-    red here before any mutation is applied and the harness refuses the entry.
-    The spec, both mutations, and the one-line fix are in
-    ISSUE_20261001_no_pytest_guard_in_the_two_largest_test_modules_can_be_
-    enrolled_because_the_shadow_omits_the_documents_they_read.md.
+    **Enrolled** (2026-10-15): two mutations, one per branch of
+    ``_edge_nominal_statements``, in
+    ``scripts/mutation_witnesses/python__test-one-part-and-feature-states-one-
+    nominal-in-every-to__31a8b9ea.json``.
     """
     divergent = []
     seen_divergences = set()
@@ -2694,6 +2692,29 @@ def test_the_claim_corpus_exempts_dated_history_on_purpose():
         assert name not in rel, name
 
 
+def _is_a_copy_inside_another_work_tree(repo_root: Path) -> bool:
+    """True for the mutation-witness shadow: a directory that is NOT a work
+    tree's root but sits inside one (the worktree it was copied under).
+
+    The shadow cannot be a repository of its own -- the freshness check asks git
+    which tree it is and would then read the shadow's empty history -- so the
+    claim corpus resolves it by walking, and the one assertion that this repo
+    resolves to ``GIT_TRACKED`` has to know the difference between that and
+    "git could not be asked". The second still fails: with no git at all
+    ``rev-parse`` fails here too, and this answers False.
+    """
+    try:
+        top = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+            capture_output=True, check=False)
+    except OSError:
+        return False
+    if top.returncode != 0:
+        return False
+    toplevel = Path(top.stdout.decode("utf-8", "replace").strip())
+    return toplevel.resolve() != repo_root.resolve()
+
+
 def test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete():
     """The set a guard walks, guarded -- because an empty set reports green.
 
@@ -2729,7 +2750,7 @@ def test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete():
     # the failure reporting green: a corpus narrowed to nothing has no claim to
     # disagree with and passes.
     mode, corpus = claim_corpus(repo_root)
-    assert mode == GIT_TRACKED, (
+    assert mode == GIT_TRACKED or _is_a_copy_inside_another_work_tree(repo_root), (
         f"the claim corpus fell back to a walk in this repo (mode={mode!r}). "
         f"The fallback is for the mutation-witness shadow tree and for a "
         f"tmp_path; here it means git could not be asked, and untracked scratch "
