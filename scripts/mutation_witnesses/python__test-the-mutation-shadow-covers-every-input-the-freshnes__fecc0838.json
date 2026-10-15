@@ -8,8 +8,8 @@
       "issue": "docs/issues/ISSUE_20260924_the_projection_freshness_pairing_reads_tracked_head_content_only.md",
       "note": "Drops `tolerance_stack` from SHADOWED, which is the entry the closure DERIVES rather than the ones a stamp names -- so the mutation is the exact shape the failure takes in practice: nobody removes a SHADOWED entry, a builder grows an import and the derived set reaches past the list. The shadow itself is built before the mutation is applied, so `tolerance_stack/` is still on disk there; what the mutation changes is the runner's own answer to `--check-shadow-covers-projection-inputs`, which is the one form of this failure that can be asked in under a second instead of after a browser sweep.",
       "file": "scripts/run_mutation_witness_tests.mjs",
-      "find": "                  [\"tests\"], [\"tolerance_stack\"], [\".gitignore\"]];",
-      "replace": "                  [\"tests\"], [\".gitignore\"]];"
+      "find": "                  [\"tests\"], [\"tolerance_stack\"], [\".gitignore\"],",
+      "replace": "                  [\"tests\"], [\".gitignore\"],"
     }
   ]
 }

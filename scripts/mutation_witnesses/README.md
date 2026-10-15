@@ -98,7 +98,11 @@ declaration and pytest says so, naming the file to rename it to.
     than a prose sub-check — an exact identifier, which is the better of the
     two. Second, a test file may only read what the shadow copies; one that
     reads `data/` or the rest of `docs/` is red before any mutation, and the
-    runner says so rather than witnessing. `tests/test_mutation_witnesses.py` is
+    runner says so rather than witnessing. (Since 2026-10-15 the shadow holds
+    the root documents, `docs/prompts|sessions|issues|reference` and the one
+    tracked `data/inbox/specs/README.md` the claims guards read, so the two
+    largest modules are enrollable. An interpreter that cannot be started is a
+    MISS — "the tier's process could not be started" — not a crash.) `tests/test_mutation_witnesses.py` is
     **forbidden** as a suite: with a mutation applied, its own anchor check
     reddens for every spec, so such a witness would pass against anything.
 
