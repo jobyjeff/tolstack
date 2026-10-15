@@ -7,6 +7,7 @@ reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
 needs: jeff
 ask: Play sweep mode in Chrome on a P1 run with the pitch-linkage parts open, and say whether it plays smoothly
+todo: 20261015T015550_cp6rqz
 ---
 
 # Sweep mode's frame-rate figure cannot read below 4, and the whole placed linkage has never been timed on a GPU
