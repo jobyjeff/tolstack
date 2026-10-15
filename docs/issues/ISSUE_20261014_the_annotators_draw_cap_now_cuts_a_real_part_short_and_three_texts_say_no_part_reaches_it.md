@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
 handoff: docs/sessions/HANDOFF_20261015_annotate_texts_follow_the_installed_mesh_store.md
 class: prose_states_a_live_store_count
+resolution: handoff completed 2026-10-15 -- closed automatically by dispatch when handoff `annotate_texts_follow_the_installed_mesh_store` moved to completed/; not independently verified.
 ---
 
 # The annotator's draw cap now cuts a real part short, and three texts say no part reaches it
