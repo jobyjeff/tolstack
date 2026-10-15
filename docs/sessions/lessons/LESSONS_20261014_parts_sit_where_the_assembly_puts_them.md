@@ -205,4 +205,37 @@ tracked file outside it.
 
 ## The suites
 
-Recorded in the hand-back report, from the runs' own output.
+All run from this worktree; the data-reading tiers pointed at the main
+checkout's `data/` with `--repo C:/workspace/tolstack`.
+
+* `node apps/annotate/run_tests.cjs` — **182/182**, `[real]` tier included
+  (it falls back to the main checkout's `data/`).
+* `node apps/annotate/run_browser_check.mjs --real vpa-pitch-p1-20261015-013931 --shots …`
+  — **54/54** (37 mock + 17 `[real]`), the evidence run.
+* `venv-win/Scripts/python.exe -m pytest -q` — first run **2 failed, 1444
+  passed, 1 skipped** (274 s): `test_topology.py`'s inventory pairing (mine,
+  fixed — 147/147 after) and `test_viewer_js_suite.py`, the documented
+  worktree-only red (no `data/projections/viewer/` here).
+* `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` — **428/429,
+  node-fs `[real]` tier SKIPPED**: it refuses the shared projection because
+  it was built from a tree this branch is not. Not rebuilt, deliberately — it
+  is shared by every live worktree; the batch merge rebuilds it.
+* `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`
+  (main checkout's `node_modules` junctioned in for the run, removed after) —
+  first **23/25**: three annotate checks assumed the side-by-side layout
+  (fixed, below); then **25/25**. One earlier run had the deselect *click*
+  fail once and pass on rerun, before its aim was moved onto the world matrix;
+  I could not reproduce it after, and say so rather than call it fixed.
+* `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`
+  (same junction) — **101/160 witnessed**: every `annotate` (38), `browser`
+  (53) and `python` (10) spec, including this handoff's five. All 59 misses
+  are `fast` specs reported "the tier was red before the mutation" — the
+  viewer tier's projection-freshness refusal above, not a decayed guard.
+
+The three browser-tier checks that moved: the deselect suite's aim now goes
+through the part's `matrixWorld` (it added `mesh.position` to the centroid,
+right only for an unrotated placement), and the two "one body in the scene"
+counts count distinct geometries, because a part's repeats share its geometry
+and a duplicate body brings its own. The overlay-colour read follows the
+mark's new shape (`mark.material`, one material across every occurrence's
+overlay).
