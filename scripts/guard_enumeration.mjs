@@ -160,7 +160,7 @@ export const GUARD_SOURCES = {
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
   fast: { declared: 522, enrollable: 522, names: "39b4c947682b" },
-  annotate: { declared: 188, enrollable: 188, names: "f0c019ed50e5" },
+  annotate: { declared: 189, enrollable: 189, names: "442e6a1d9e1a" },
   browser: { declared: 523, enrollable: 492, names: "23a13c7eee37" },
 };
 

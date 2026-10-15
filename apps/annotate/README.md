@@ -381,8 +381,7 @@ their pose, and so does everything recorded *inside* one of their matched
 occurrences — the pitch plate's bushings are separate meshes, opened and
 carried with the plate. Every other opened part sits still where the assembly
 puts it, and the bodies disclosure lists those parts under **Not moved by this
-run**. A body naming a part with no installed mesh (P2's
-`gas_spring_piston_214700_002`, until rotorkit installs it) keeps the "no 3D
+run**. A body naming a part with no installed mesh keeps the "no 3D
 model" state. Leaving sweep mode puts every part back where the assembly puts
 it, with the visibility and see-through state it had.
 
