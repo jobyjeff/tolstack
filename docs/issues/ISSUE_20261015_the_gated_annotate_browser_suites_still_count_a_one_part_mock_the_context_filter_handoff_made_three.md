@@ -62,3 +62,19 @@ part's filter says why; an arrival isolates the element's part). The fix is to
 re-express each count against the new context/view semantics (e.g. count only
 non-header rows, and the "in this model" section where the claim is about the
 filter), not to drop or loosen them.
+
+## Knock-on in the mutation-witness tier (same tree, same day)
+
+`node scripts/run_mutation_witness_tests.mjs` (main checkout, ~41 min):
+**159/166 declared mutations witnessed**, exit 1. All seven misses are
+`browser__` specs reported "the tier was red before the mutation, so nothing
+was proved", i.e. this red, not seven decayed guards:
+`…an-element-whose-part-has-no-installed-mesh-filters-the__148e0e1f`,
+`…and-it-is-the-arrival-that-shows-it-not-the-face-suggest__c393748f`,
+`…and-no-state-has-quietly-fallen-back-to-the-unstyled-bor__2c2e291c`,
+`…and-the-3d-canvas-runs-to-the-right-edge-of-the-window-t__783e318d`,
+`…deselect-puts-the-mesh-back-to-its-own-colours-the-tint__ecfb1a63`,
+`…unticking-parts-returns-the-lists-to-manual-at-once__2ae46522`,
+`…unticking-see-through-parts-makes-the-body-solid-now__a358ea17`.
+Re-greening the two suites should bring these back; any that stays unwitnessed
+after that is a real decay.
