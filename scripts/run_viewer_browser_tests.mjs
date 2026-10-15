@@ -5415,10 +5415,12 @@ async function testAnnotateRail(browser, label) {
     const hit = await page.evaluate((s) => {
       const scene = window.__scene;
       const mesh = scene.parts.get(s);
-      const box = mesh.geometry.boundingBox;
-      const cx = (box.min.x + box.max.x) / 2 + mesh.position.x;
-      const cy = (box.min.y + box.max.y) / 2 + mesh.position.y;
-      const cz = (box.min.z + box.max.z) / 2 + mesh.position.z;
+      // Through the part's own matrix: since 2026-10-14 it sits where the
+      // assembly puts it, which is a placement and not just an offset.
+      mesh.updateMatrixWorld(true);
+      const centre = mesh.geometry.boundingBox.getCenter(mesh.position.clone())
+        .applyMatrix4(mesh.matrixWorld);
+      const cx = centre.x, cy = centre.y, cz = centre.z;
       scene.camera.position.set(cx, cy, cz + 40);
       scene.camera.lookAt(cx, cy, cz);
       scene.controls.target.set(cx, cy, cz);
@@ -5426,10 +5428,8 @@ async function testAnnotateRail(browser, label) {
       scene.camera.updateMatrixWorld(true);
 
       const centroid = mesh.userData.manifest.faces[0].centroid_native;
-      const point = mesh.position.clone();
-      point.set(centroid[0] + mesh.position.x,
-                centroid[1] + mesh.position.y,
-                centroid[2] + mesh.position.z);
+      const point = mesh.position.clone()
+        .set(centroid[0], centroid[1], centroid[2]).applyMatrix4(mesh.matrixWorld);
       point.project(scene.camera);
       if (!scene.pick(point.x, point.y)) return null;
       const rect = document.querySelector("#canvas-host canvas").getBoundingClientRect();
@@ -5552,7 +5552,7 @@ async function testAnnotateSuggestions(browser, label) {
   // and a class-name check would pass straight through a wrong hex.
   const overlays = (role) => page.evaluate((r) => window.__scene._marks
     .filter((m) => m.role === r)
-    .map((m) => ({ faceId: m.faceId, color: m.mesh.material.color.getHexString() })), role);
+    .map((m) => ({ faceId: m.faceId, color: m.material.color.getHexString() })), role);
   const ghosted = (sha) => page.evaluate((s) => {
     const mesh = window.__scene.parts.get(s);
     return !!(mesh && mesh.material.transparent && mesh.material.opacity < 1);
@@ -5585,9 +5585,13 @@ async function testAnnotateSuggestions(browser, label) {
         (await page.locator("#detail .an__suggestion-note").textContent()) || ""));
     push("...with the body see-through, so a candidate behind it is visible",
       await ghosted(sha));
+    // ONE BODY, counted by GEOMETRY: since 2026-10-14 a part is drawn at every
+    // occurrence the assembly records (the mock part has two), and its repeats
+    // share the part's geometry -- a duplicate body would bring its own.
     push("...and the element's part is in the scene exactly once",
-      await page.evaluate(() => window.__scene.scene.children
-        .filter((c) => c.isMesh && c.geometry && c.geometry.attributes.color).length) === 1);
+      await page.evaluate(() => new Set(window.__scene.scene.children
+        .filter((c) => c.isMesh && c.geometry && c.geometry.attributes.color)
+        .map((c) => c.geometry)).size) === 1);
 
     // --- 2. the two claims coexist, in two colours --------------------------
     //
@@ -5731,14 +5735,16 @@ async function testAnnotateSuggestions(browser, label) {
     // frame or dispose. Counted off the live scene graph, because that map is
     // exactly where the duplicate is NOT.
     //
-    // Last in the suite because it unloads and reloads the part, which moves
-    // it in the side-by-side layout and drops its overlays.
+    // Last in the suite because it unloads and reloads the part, which drops
+    // its overlays. Bodies are counted by geometry, as above: a part's
+    // repeats at its other occurrences share it.
     const bodies = await page.evaluate(async (s) => {
       const scene = window.__scene;
       scene.unloadPart(s);
       await Promise.all([scene.loadPart(s), scene.loadPart(s)]);
-      return scene.scene.children
-        .filter((c) => c.isMesh && c.geometry && c.geometry.attributes.color).length;
+      return new Set(scene.scene.children
+        .filter((c) => c.isMesh && c.geometry && c.geometry.attributes.color)
+        .map((c) => c.geometry)).size;
     }, sha);
     push("two callers that both ask for one part before either finishes get " +
       "ONE body in the scene", bodies === 1);
