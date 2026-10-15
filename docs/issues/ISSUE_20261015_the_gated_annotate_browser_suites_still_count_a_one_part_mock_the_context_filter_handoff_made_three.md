@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: scripts/run_viewer_browser_tests.mjs (annotate suites)
 reporter: agent
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261015_triage_sweep.md
 class: gated_tier_not_run_by_the_handoff_that_changed_its_subject
 handoff: docs/sessions/HANDOFF_20261015_annotate_gated_browser_suites_follow_the_three_part_mock.md
+resolution: handoff completed 2026-10-15 -- closed automatically by dispatch when handoff `annotate_gated_browser_suites_follow_the_three_part_mock` moved to completed/; not independently verified.
 ---
 
 # The gated annotate browser suites still count a one-part mock; `a_context_filter_and_a_view_filter` made it three
