@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: apps/annotate/tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
 handoff: docs/sessions/HANDOFF_20261015_annotate_gated_browser_suites_follow_the_three_part_mock.md
 class: gated_tier_not_run_by_the_handoff_that_changed_its_subject
+resolution: handoff completed 2026-10-15 -- closed automatically by dispatch when handoff `annotate_gated_browser_suites_follow_the_three_part_mock` moved to completed/; not independently verified.
 ---
 
 # The annotator's placement wiring can be deleted green in every gated tier
