@@ -52,3 +52,11 @@ Two new sub-checks in the rail suite (`pickSameFaceBothWays` copied from
 - Did not run `scripts/rebuild_projections.ps1`: it is a main-checkout script and
   this branch is not there; tiers ran against the main checkout's projection
   built at `c51cf49` by triage today (no projection input changed on this branch).
+
+## Verification record (worktree, against the main checkout's projection via `--repo C:/workspace/tolstack`)
+
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`: 25/25 (was 23/25).
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`: 522/522.
+- `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`: 168/168 witnessed (was 159/166; +2 new specs; the seven misses cleared).
+- `venv-win/Scripts/python.exe -m pytest -q` (worktree): 1 failed, 1445 passed, 1 skipped, 2m13s. The one failure is `test_viewer_js_suite_is_green`, the designed worktree red (no projection here).
+- Not run: the pytest suite in the main checkout, and `rebuild_projections.ps1` (main-checkout only).
