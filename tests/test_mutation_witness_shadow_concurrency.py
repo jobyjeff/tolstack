@@ -222,6 +222,11 @@ def test_two_different_repo_roots_both_still_succeed(tmp_path: Path) -> None:
         ignore=shutil.ignore_patterns(
             ".git", "tmp", "data", "node_modules", "__pycache__", "issues"),
     )
+    # `data` is ignored above for size, but SHADOWED copies one tracked file
+    # out of it (the specs README a claims guard reads), so put that one back.
+    specs_readme = Path("data") / "inbox" / "specs" / "README.md"
+    (second_repo / specs_readme).parent.mkdir(parents=True)
+    shutil.copy2(REPO_ROOT / specs_readme, second_repo / specs_readme)
 
     p1 = _run(REPO_ROOT)
     p2 = _run(second_repo)

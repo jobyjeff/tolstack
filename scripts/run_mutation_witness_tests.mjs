@@ -165,9 +165,33 @@ const LOCK = join(TMP_DIR, "mutation-witness.lock");
 // red on the CLEAN run with every `fast` witness then reporting
 // TIER_ALREADY_RED. 40 lines of patterns, and it makes the shadow answer git
 // the way the checkout it was copied from does.
+//
+// The second block is the documents the claims-corpus guards in
+// tests/test_tolerance_stack.py and tests/test_topology.py read. Without them
+// those two modules are red in the shadow with NO mutation applied (3 and 13
+// failures), so no pytest guard in either could be enrolled. They are small,
+// tracked files (`PROVENANCE.md` is a file the claim corpus's dated-history
+// exemption names, so it must exist).
+// `test_every_traced_ratio_publisher_declares_the_current_figure` reads it as
+// `<repo root>/data/inbox/specs/README.md` and the repo root is wherever the
+// test file sits, i.e. the shadow. The rejected option was to read it through
+// the `--repo` data root: that needs the test to learn a second root (an env
+// var or argv channel the real suite never has) for one file, where copying
+// the one tracked file keeps the guard reading exactly what it reads in a
+// checkout. The rest of `data/` stays unshadowed -- gigabytes, gitignored.
+// Empty in the shadow, on purpose: the same exemption list is shown excluding
+// a directory that exists (`docs/issues`, `docs/reference`), and an empty one
+// satisfies that without 2 MB of issue files -- whose long names also push a
+// copy under a test's tmp_path over MAX_PATH. Not in SHADOWED: it is not a copy,
+// so the freshness check's coverage of those two paths is still "not shadowed".
+const SHADOW_EMPTY_DIRS = [["docs", "issues"], ["docs", "reference"]];
 const SHADOWED = [["apps"], ["scripts"], ["docs", "topologies"],
                   ["docs", "tolerance_stacks"], ["docs", "spec_library"],
-                  ["tests"], ["tolerance_stack"], [".gitignore"]];
+                  ["tests"], ["tolerance_stack"], [".gitignore"],
+                  ["README.md"], ["CLAUDE.md"], ["ARCHITECTURE.md"], ["PROVENANCE.md"],
+                  ["docs", "DAG_TOPOLOGY.md"], ["docs", "SOP_TOLERANCE_STACK.md"],
+                  ["docs", "prompts"], ["docs", "sessions"],
+                  ["data", "inbox", "specs", "README.md"]];
 
 const argFlag = (name) => {
   const i = process.argv.indexOf(name);
@@ -406,6 +430,9 @@ const MISS = {
   // Some other named check caught it first, so the entry's own claim -- that
   // THIS guard reddens -- is still unproved.
   ATTRIBUTED_ELSEWHERE: "another check reddened, but not the declared one",
+  // The tier's process could not be started at all (a missing interpreter).
+  // Nothing ran, so nothing was proved either way.
+  UNSPAWNABLE: "the tier's process could not be started",
 };
 
 // Askable on its own, in under a second, because the whole run is a browser and
@@ -471,7 +498,20 @@ function runTier(mutation) {
     let out = "";
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { out += d; });
+    // A spawn failure (ENOENT on a missing interpreter) emits `error`, and
+    // unhandled it throws: the run dies with no summary or verdict. Resolve the
+    // same shape `close` does, carrying the spawn error as the recorded reason;
+    // `settled` keeps a `close` that follows from resolving a second time.
+    let settled = false;
+    child.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      resolve({ code: null, out: `spawn ${command} failed: ${err.message}`,
+                failures: [], spawnError: err });
+    });
     child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
       const pattern = harnessFor(mutation).fail;
       const failures = out.split(/\r?\n/)
         .map((line) => (line.match(pattern) || [])[1])
@@ -689,6 +729,9 @@ function buildShadow() {
   for (const parts of SHADOWED) {
     cpSync(join(REPO, ...parts), join(SHADOW, ...parts), { recursive: true });
   }
+  for (const parts of SHADOW_EMPTY_DIRS) {
+    mkdirSync(join(SHADOW, ...parts), { recursive: true });
+  }
 }
 
 // Anchors are matched against LF-normalised source, and `find`/`replace` are
@@ -809,14 +852,17 @@ function anchorHits(mutation) {
       const clean = await runTier(mutation);
       const green = clean.code === 0 && clean.failures.length === 0;
       console.log(green ? "green" : "RED");
-      baselines.set(key, { green, out: clean.out });
+      baselines.set(key, { green, out: clean.out, spawnError: clean.spawnError });
     }
     const baseline = baselines.get(key);
     if (!baseline.green) {
-      console.log(`  SKIPPED: the tier is already red with NO mutation applied, so ` +
-        `nothing this entry does would prove anything. Fix the tier first.`);
+      console.log(baseline.spawnError
+        ? `  SKIPPED: the tier's process could not be started, so nothing ran.`
+        : `  SKIPPED: the tier is already red with NO mutation applied, so ` +
+          `nothing this entry does would prove anything. Fix the tier first.`);
       console.log(indent(baseline.out));
-      misses.push({ id: mutation.id, why: MISS.TIER_ALREADY_RED });
+      misses.push({ id: mutation.id, why: baseline.spawnError
+        ? MISS.UNSPAWNABLE : MISS.TIER_ALREADY_RED });
       continue;
     }
 
