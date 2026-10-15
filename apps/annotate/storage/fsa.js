@@ -108,14 +108,21 @@
     AA.requireReady(this);
     var dir = await this._dir(AA.CONFIG.linkageSweepsDir, false);
     if (!dir) return [];
-    var out = [];
+    var ids = [];
     for await (var entry of dir.entries()) {
       var name = entry[0], handle = entry[1];
       if (handle.kind !== "file" || !/\.json$/i.test(name)) continue;
-      out.push({ runId: name.replace(/\.json$/i, "") });
+      ids.push(name.replace(/\.json$/i, ""));
     }
-    out.sort(function (a, b) { return a.runId < b.runId ? 1 : (a.runId > b.runId ? -1 : 0); });
-    return out;
+    // Each run is read for its `ts`: "latest" means newest published, and
+    // only the document knows that.
+    var out = [];
+    for (var i = 0; i < ids.length; i++) {
+      var doc = null;
+      try { doc = await this.readSweepRun(ids[i]); } catch (err) { doc = null; }
+      out.push(AA.sweepRunEntry(ids[i], doc));
+    }
+    return AA.orderSweepRuns(out);
   };
 
   FsaAdapter.prototype.readSweepRun = function (runId) {

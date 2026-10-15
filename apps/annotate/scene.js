@@ -17,7 +17,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "./vendor/OrbitControls.js";
 
-const PART_MARGIN = 50; // native units (mm) gap between side-by-side parts
 const PALETTE = [0x5b8dd6, 0xd68a5b, 0x7bc47f, 0xc47bc4];
 const HIGHLIGHT = [1.0, 0.55, 0.1];
 // Ghosted-part translucency (handoff study_3d_flyout): low enough that the
@@ -84,13 +83,24 @@ const SWEEP_VIEW_AXIS = new THREE.Vector3(0.62, -0.72, 0.31).normalize();
 // matrix, in the ONE place that conversion happens in this app.
 // THREE.Matrix4.set takes ROW-major arguments, which is the layout sweep.js
 // speaks -- so this is a straight read and not a transpose.
+//
+// The matrix is the truth (`matrixAutoUpdate` is off on every placed node);
+// position/quaternion are decomposed from it only so that a reader of
+// `mesh.position` -- a test aiming at a face, a probe -- reads where the
+// part IS rather than the origin.
 function applyPlacement4(node, placement) {
   node.matrix.set(
     placement[0], placement[1], placement[2], placement[3],
     placement[4], placement[5], placement[6], placement[7],
     placement[8], placement[9], placement[10], placement[11],
     0, 0, 0, 1);
+  node.matrix.decompose(node.position, node.quaternion, node.scale);
+  node.matrixWorldNeedsUpdate = true;
 }
+
+// A part with no recorded occurrence is drawn at its own origin -- which is
+// this placement, said once rather than special-cased at every caller.
+const OWN_ORIGIN = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
 
 // One placement or several, as one shape -- `null` for "put it back".
 function normalisePlacements(placements) {
@@ -123,8 +133,13 @@ export class AnnotateScene {
     // In-flight loadPart promises, keyed by sha256 -- see loadPart's own note
     // on why "is it already open?" is not enough on its own.
     this._loading = new Map();
-    this._marks = [];       // {sha256, faceId, role, mesh} -- opaque face overlays
-    this._layoutX = 0;
+    // {sha256, faceId, role, geometry, material, meshes} -- opaque face
+    // overlays, one mesh per drawn occurrence of the part (see markFace).
+    this._marks = [];
+    // sha256 -> the extra THREE.Meshes drawn for a part's second and later
+    // occurrences. Every mode, since 2026-10-14: a part with three recorded
+    // positions in the assembly is drawn at all three.
+    this._repeats = new Map();
     this._colorIndex = 0;
     this._lastPick = null;
 
@@ -161,9 +176,17 @@ export class AnnotateScene {
       this.onPick(this.pick(ndcX, ndcY));
     });
 
-    // Overridable by the app: called with {sha256, faceId, record} on a
-    // successful pick, null on a miss into empty space.
+    // Overridable by the app: called with {sha256, faceId, record,
+    // occurrence} on a successful pick, null on a miss into empty space.
     this.onPick = function () {};
+
+    // Overridable by the app: where a part sits in the assembly, as a list
+    // of 3x4 row-major placements, or null for "nothing records one" (the
+    // part is then drawn at its own origin). Asked once per part, BEFORE the
+    // part is added to the scene, so no frame ever shows it anywhere else.
+    // The scene decides nothing about occurrences; app.js reads them out of
+    // provenance (AA.restPlacements).
+    this.placementsFor = async function () { return null; };
 
     // ...and the same shape for hovering a JOINT in sweep mode: the joint's
     // name and kind, or null off one. The handoff's answer to "how does a
@@ -224,10 +247,10 @@ export class AnnotateScene {
   //
   // IDEMPOTENT UNDER CONCURRENCY, and that is not decoration. The
   // already-open check below is synchronous and `this.parts.set` happens after
-  // three awaits, so two callers that both start before either finishes would
-  // BOTH build a mesh: two THREE.Meshes in the scene at two different
-  // `_layoutX` slots, one of them unreachable through `this.parts` and
-  // therefore impossible to hide, frame or dispose. Two callers is the normal
+  // several awaits, so two callers that both start before either finishes
+  // would BOTH build a mesh: two THREE.Meshes in the scene, one of them
+  // unreachable through `this.parts` and therefore impossible to hide, frame
+  // or dispose. Two callers is the normal
   // case since 2026-09-21 -- `goto` opens the element's part and the
   // suggestion display (app.js's cmdSuggest, started from `select-edge` and
   // deliberately not awaited by a click handler) opens the same one -- so the
@@ -278,19 +301,30 @@ export class AnnotateScene {
       vertexColors: true, side: THREE.DoubleSide, roughness: 0.7, metalness: 0.05,
     });
     const mesh = new THREE.Mesh(geometry, material);
-
-    const bbox = geometry.boundingBox;
-    const width = bbox.max.x - bbox.min.x;
-    mesh.position.x = this._layoutX - bbox.min.x;
-    this._layoutX += width + PART_MARGIN;
+    mesh.matrixAutoUpdate = false;
 
     mesh.userData = {
       sha256, manifest, faceIdPerTriangle,
       faceRanges: window.AnnotateApp.faceVertexRanges(manifest.faces),
       baseColors: colors.slice(),
+      // Which drawn occurrence this node is -- 0 for the part itself, 1.. for
+      // its repeats -- so a pick can say where it landed.
+      occurrence: 0,
+      // Where the assembly puts it (null: nowhere recorded), and what a
+      // sweep has put in its place for now (null: nothing).
+      rest: null,
+      override: null,
     };
+    // Placed BEFORE it joins the scene: the side-by-side row this replaced
+    // put every part somewhere first and nowhere meaningful, and a part that
+    // flashes at the origin before jumping into the assembly is the same
+    // defect for one frame.
+    let rest = null;
+    try { rest = await this.placementsFor(sha256); } catch (err) { rest = null; }
+    mesh.userData.rest = rest && rest.length ? rest : null;
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
+    this._drawAt(sha256);
     // ...but NOT while a sweep is running. Sweep mode frames the whole swept
     // path and the bodies round it (frameSweepScene) and then opens each
     // body's part, so this call
@@ -306,6 +340,8 @@ export class AnnotateScene {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;
     this._disposeMarks((m) => m.sha256 === sha256);
+    for (const repeat of this._repeats.get(sha256) || []) this.scene.remove(repeat);
+    this._repeats.delete(sha256);
     this.scene.remove(mesh);
     mesh.geometry.dispose();
     mesh.material.dispose();
@@ -313,19 +349,93 @@ export class AnnotateScene {
   }
 
   // Part show/hide (handoff annotate_deep_link_and_part_filter, deliverable
-  // 2): three.js already skips an invisible object in both rendering and
-  // raycasting, so "hide" needs nothing beyond the object's own `.visible` --
+  // 2): three.js skips an invisible object when rendering, and pick() skips
+  // one when raycasting (three.js itself does not), so "hide" needs nothing
+  // beyond the object's own `.visible` --
   // no removal, no geometry disposal, so a re-`show` is instant. A part's
-  // bound-face marks follow its visibility: a mark floating where its hidden
-  // part used to be would read as attached to whatever is behind it.
+  // bound-face marks follow its visibility for free -- they are children of
+  // the occurrence they sit on -- and so does every repeat, here.
   setVisible(sha256, visible) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
     mesh.visible = !!visible;
-    for (const m of this._marks) {
-      if (m.sha256 === sha256) m.mesh.visible = mesh.visible;
-    }
+    for (const repeat of this._repeats.get(sha256) || []) repeat.visible = mesh.visible;
     return true;
+  }
+
+  // --- where a part is drawn (handoff parts_sit_where_the_assembly_puts_them)
+  //
+  // ONE rule for the whole app: a part is drawn at every placement in its
+  // list -- a sweep's override while one is live, otherwise its rest
+  // placements (where the assembly puts it), otherwise its own origin. The
+  // first placement drives the loaded mesh itself; the rest get lightweight
+  // repeats sharing its geometry AND its material, so a second occurrence
+  // costs a matrix and a draw call rather than a second copy of the buffers.
+
+  // Where the assembly puts a part, replacing whatever was recorded before.
+  // null is "nothing records a position": its own origin.
+  setRestPlacements(sha256, placements) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return false;
+    const list = normalisePlacements(placements);
+    mesh.userData.rest = list;
+    this._drawAt(sha256);
+    return true;
+  }
+
+  // How many occurrences of a part are drawn right now, and where -- the
+  // read side, for the app's notes and for a test that wants to see the
+  // rule rather than trust it.
+  drawnPlacements(sha256) {
+    return this._occurrenceNodes(sha256).map((node) => node.matrix.elements.slice());
+  }
+
+  _occurrenceNodes(sha256) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return [];
+    return [mesh].concat(this._repeats.get(sha256) || []);
+  }
+
+  _drawAt(sha256) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return;
+    const list = mesh.userData.override || mesh.userData.rest || [OWN_ORIGIN];
+    applyPlacement4(mesh, list[0]);
+    this._setRepeats(sha256, mesh, list.slice(1));
+  }
+
+  // The second and later occurrences of one mesh. Kept IN STEP with the list
+  // rather than rebuilt from it: a playing sweep calls this sixty times a
+  // second, and allocating a THREE.Mesh per frame is the one thing here that
+  // would show up as a frame rate.
+  _setRepeats(sha256, mesh, placements) {
+    const mine = this._repeats.get(sha256) || [];
+    const before = mine.length;
+    while (mine.length > placements.length) {
+      // Geometry and material are the parent's own -- removing is the whole
+      // of the cleanup, and disposing either would take the real part's down.
+      this.scene.remove(mine.pop());
+    }
+    while (mine.length < placements.length) {
+      const repeat = new THREE.Mesh(mesh.geometry, mesh.material);
+      repeat.matrixAutoUpdate = false;
+      // Enough of the part's own userData for a pick on THIS occurrence to
+      // resolve to the part's (sha256, face id) -- the same answer a pick on
+      // the part itself gives, because a binding is part-local.
+      repeat.userData = {
+        sha256, manifest: mesh.userData.manifest,
+        faceIdPerTriangle: mesh.userData.faceIdPerTriangle,
+        occurrence: mine.length + 1,
+      };
+      this.scene.add(repeat);
+      mine.push(repeat);
+    }
+    placements.forEach((placement, i) => {
+      mine[i].visible = mesh.visible;
+      applyPlacement4(mine[i], placement);
+    });
+    this._repeats.set(sha256, mine);
+    if (mine.length !== before) this._syncMarks(sha256);
   }
 
   // Ghost rendering (handoff study_3d_flyout): the whole part goes translucent
@@ -348,10 +458,12 @@ export class AnnotateScene {
 
   // An opaque overlay over ONE face -- the `mark-face` verb's whole render.
   // The geometry is a COPY (AA.faceSubGeometry's own comment says why sharing
-  // the parent's BufferAttributes is unsafe), positioned with the parent so
-  // the side-by-side layout carries over. polygonOffset pulls the overlay a
-  // hair toward the camera so the parent's own coplanar surface never
-  // z-fights it. Not in `this.parts`, so picks pass through to the parent.
+  // the parent's BufferAttributes is unsafe), drawn as a CHILD of every
+  // occurrence of the part, so it goes wherever the part is drawn -- placed,
+  // swept or hidden -- with nothing to keep in step. polygonOffset pulls the
+  // overlay a hair toward the camera so the parent's own coplanar surface
+  // never z-fights it. Not in `this.parts` and never raycast (pick() does not
+  // recurse), so picks pass through to the part.
   markFace(sha256, faceId, role) {
     const parent = this.parts.get(sha256);
     if (!parent) return false;
@@ -380,12 +492,26 @@ export class AnnotateScene {
       color: MARK_COLORS[which], side: THREE.DoubleSide, roughness: 0.5, metalness: 0.05,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
     });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(parent.position);
-    mesh.visible = parent.visible;
-    this.scene.add(mesh);
-    this._marks.push({ sha256, faceId, role: which, mesh });
+    const mark = { sha256, faceId, role: which, geometry, material, meshes: [] };
+    this._marks.push(mark);
+    this._syncMarks(sha256);
     return true;
+  }
+
+  // One overlay mesh per drawn occurrence, for every mark on this part.
+  // Called when a mark is made and when the occurrence COUNT changes -- never
+  // per frame, because a mark is a child of its occurrence and moves with it.
+  _syncMarks(sha256) {
+    const nodes = this._occurrenceNodes(sha256);
+    for (const mark of this._marks) {
+      if (mark.sha256 !== sha256) continue;
+      for (const old of mark.meshes) if (old.parent) old.parent.remove(old);
+      mark.meshes = nodes.map((node) => {
+        const overlay = new THREE.Mesh(mark.geometry, mark.material);
+        node.add(overlay);
+        return overlay;
+      });
+    }
   }
 
   listMarks(role) {
@@ -406,9 +532,9 @@ export class AnnotateScene {
     const keep = [];
     for (const m of this._marks) {
       if (!predicate(m)) { keep.push(m); continue; }
-      this.scene.remove(m.mesh);
-      m.mesh.geometry.dispose();
-      m.mesh.material.dispose();
+      for (const overlay of m.meshes) if (overlay.parent) overlay.parent.remove(overlay);
+      m.geometry.dispose();
+      m.material.dispose();
     }
     this._marks = keep;
   }
@@ -434,16 +560,14 @@ export class AnnotateScene {
   // Frames the given parts (sha256s), or every loaded part when omitted --
   // the `camera` command's `reset`/`frame` verbs and every `loadPart` call
   // share this one camera placement, so "camera reset" and "just opened a
-  // part" behave identically.
+  // part" behave identically. The box is in the ASSEMBLY frame, over every
+  // drawn occurrence: framing the tangential link frames all three of them.
   frameParts(shas) {
     const targets = (shas && shas.length ? shas : Array.from(this.parts.keys()))
-      .map((sha) => this.parts.get(sha))
-      .filter(Boolean);
+      .filter((sha) => this.parts.has(sha));
     if (!targets.length) return;
     const overall = new THREE.Box3();
-    for (const mesh of targets) {
-      overall.union(mesh.geometry.boundingBox.clone().translate(mesh.position));
-    }
+    for (const sha of targets) overall.union(this._assemblyBox(sha));
     const center = overall.getCenter(new THREE.Vector3());
     const size = overall.getSize(new THREE.Vector3());
     const dist = Math.max(size.x, size.y, size.z) * 1.5 + 50;
@@ -455,9 +579,39 @@ export class AnnotateScene {
     this.controls.update();
   }
 
+  // One part's drawn occurrences, as one box in the assembly frame.
+  _assemblyBox(sha256) {
+    const mesh = this.parts.get(sha256);
+    const box = new THREE.Box3();
+    for (const node of this._occurrenceNodes(sha256)) {
+      box.union(mesh.geometry.boundingBox.clone().applyMatrix4(node.matrix));
+    }
+    return box;
+  }
+
+  // THE PICK RULE, now that a part is drawn more than once: the nearest hit
+  // along the ray wins, on whichever occurrence it lands, and it resolves to
+  // the PART's (sha256, face id) -- read off the hit triangle, which is the
+  // same triangle in the part's own buffers whatever matrix drew it. A
+  // binding is part-local (`feature-identity/v0` is unchanged), so a face
+  // picked on the tangential link's third occurrence is the same face a pick
+  // on its first would bind. `occurrence` says which drawn node was hit, for
+  // a reader of the pick; nothing writes it.
   pick(ndcX, ndcY) {
+    // The raycaster reads `matrixWorld`, which three.js refreshes only when
+    // it renders -- and a placement set since the last frame (a part just
+    // opened into the assembly, a sweep scrubbed) has moved the MATRIX and
+    // not yet the world matrix. A pick then would hit where the part was.
+    this.scene.updateMatrixWorld();
     this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
-    const meshes = Array.from(this.parts.values());
+    // VISIBLE nodes only. three.js's raycaster tests an object's layers and
+    // never its `.visible`, so a hidden part used to be pickable -- harmless
+    // while parts sat in a row, and not now: hidden or not, a part drawn in
+    // the assembly sits in front of the one a reader is aiming at.
+    const meshes = [];
+    for (const [sha256, mesh] of this.parts) {
+      if (mesh.visible) meshes.push(...this._occurrenceNodes(sha256));
+    }
     const hits = this.raycaster.intersectObjects(meshes, false);
     if (!hits.length) return null;
     const hit = hits[0];
@@ -466,6 +620,7 @@ export class AnnotateScene {
       sha256: hit.object.userData.sha256,
       faceId,
       record: hit.object.userData.manifest.faces[faceId],
+      occurrence: hit.object.userData.occurrence || 0,
     };
   }
 
@@ -518,17 +673,16 @@ export class AnnotateScene {
 
   // --- sweep mode ----------------------------------------------------------
   //
-  // One overlay group holding the stick figure, plus the ability to drive a
-  // loaded part's matrix directly instead of the side-by-side layout. Nothing
-  // here picks, marks or writes: sweep mode is a viewer of a solver's output,
-  // and the app's one write path is not reachable from any of it.
+  // One overlay group holding the stick figure, plus the ability to OVERRIDE
+  // a loaded part's placements for the length of the sweep. Nothing here
+  // picks, marks or writes: sweep mode is a viewer of a solver's output, and
+  // the app's one write path is not reachable from any of it.
   //
-  // Parts are NOT reparented into per-body groups. `mesh.matrix` is set
-  // directly with `matrixAutoUpdate` off, because that is the one change that
-  // is exactly undoable: `exitSweep` puts `matrixAutoUpdate` back and the
-  // saved layout position with it, and a reparent would additionally have to
-  // restore scene-graph order, the frame camera's assumptions and every
-  // mark's parent. "Leaving sweep mode restores the scene exactly" is a
+  // Parts are NOT reparented into per-body groups. A sweep sets a part's
+  // `override` list and nothing else, because that is the one change that is
+  // exactly undoable: `exitSweep` clears every override and the part is back
+  // at its rest placements -- where the assembly puts it, the same rule as
+  // before the sweep. "Leaving sweep mode restores the scene exactly" is a
   // requirement, and this is the version of it with one thing to get right.
 
   // `structure` is AA.sweepStructure's output plus `trails`.
@@ -608,11 +762,7 @@ export class AnnotateScene {
     this.scene.add(group);
     this._sweep = {
       group, joints, links, triads, trails, trailGroup, pathBox,
-      // Every part's layout state, so leaving restores it exactly.
-      savedParts: new Map(),
-      // sha256 -> the extra THREE.Meshes drawn for a part's second and later
-      // occurrences, and sha256 -> its translucent as-modelled copies.
-      repeats: new Map(),
+      // sha256 -> its translucent as-modelled copies (the `ghost` layer).
       ghosts: new Map(),
     };
     return true;
@@ -640,6 +790,7 @@ export class AnnotateScene {
     if (!this._sweep) return null;
     const beads = Array.from(this._sweep.joints.values()).filter((b) => b.visible);
     if (!beads.length) return null;
+    this.scene.updateMatrixWorld(); // see pick(): a scrub moves beads between frames
     this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
     const hits = this.raycaster.intersectObjects(beads, false);
     if (!hits.length) return null;
@@ -647,71 +798,21 @@ export class AnnotateScene {
     return { name: bead.userData.sweepJoint, kind: bead.userData.kind };
   }
 
-  // Anchors one loaded part to a LIST of 3x4 row-major placements
-  // (AA.anchorPlacement's output), or releases it back to its layout
-  // position with `null`. THE ONE PLACE this app applies a placement matrix
-  // to a mesh -- the annotator applies none outside sweep mode, which is what
-  // `CLAUDE.md` records, and what keeps that true is that this is reachable
-  // only while `this._sweep` is live and is undone when it ends.
+  // Overrides one loaded part's placements with a LIST of 3x4 row-major
+  // placements for this frame of the sweep (AA.sweepMeshMatrices' output),
+  // or hands it back to its rest placements with `null`. Reachable only while
+  // `this._sweep` is live, and every override is cleared when it ends.
   //
-  // A LIST because one part legitimately occurs more than once on one body:
-  // the pitch link carries two spherical bearings, one at each end, and both
-  // are the same installed mesh. The first placement drives the loaded mesh
-  // itself; the rest get lightweight repeats sharing its geometry AND its
-  // material, so a second occurrence costs a matrix and a draw call rather
-  // than a second copy of the buffers.
+  // A LIST because one part legitimately occurs more than once: the pitch
+  // link carries two spherical bearings, one at each end, both the same
+  // installed mesh -- and a pitch arm moved by the run at blade 1 still has
+  // four more occurrences the run does not move.
   setPartMatrix(sha256, placements) {
     const mesh = this.parts.get(sha256);
     if (!mesh || !this._sweep) return false;
-    if (!this._sweep.savedParts.has(sha256)) {
-      this._sweep.savedParts.set(sha256,
-        { position: mesh.position.clone(), auto: mesh.matrixAutoUpdate });
-    }
-    const list = normalisePlacements(placements);
-
-    const followers = [mesh].concat(
-      this._marks.filter((m) => m.sha256 === sha256).map((m) => m.mesh));
-    for (const node of followers) {
-      if (list) { node.matrixAutoUpdate = false; applyPlacement4(node, list[0]); }
-      else node.matrixAutoUpdate = true;
-    }
-    this._setRepeats(sha256, mesh, list ? list.slice(1) : []);
-
-    if (!list) {
-      const saved = this._sweep.savedParts.get(sha256);
-      if (saved) {
-        mesh.position.copy(saved.position);
-        for (const m of this._marks) {
-          if (m.sha256 === sha256) m.mesh.position.copy(saved.position);
-        }
-      }
-    }
+    mesh.userData.override = normalisePlacements(placements);
+    this._drawAt(sha256);
     return true;
-  }
-
-  // The second and later occurrences of one mesh. Kept IN STEP with the list
-  // rather than rebuilt from it: a playing sweep calls this sixty times a
-  // second, and allocating a THREE.Mesh per frame is the one thing here that
-  // would show up as a frame rate.
-  _setRepeats(sha256, mesh, placements) {
-    const repeats = this._sweep.repeats;
-    const mine = repeats.get(sha256) || [];
-    while (mine.length > placements.length) {
-      // Geometry and material are the parent's own -- removing is the whole
-      // of the cleanup, and disposing either would take the real part's down.
-      this.scene.remove(mine.pop());
-    }
-    while (mine.length < placements.length) {
-      const repeat = new THREE.Mesh(mesh.geometry, mesh.material);
-      repeat.matrixAutoUpdate = false;
-      this.scene.add(repeat);
-      mine.push(repeat);
-    }
-    placements.forEach((placement, i) => {
-      mine[i].visible = mesh.visible;
-      applyPlacement4(mine[i], placement);
-    });
-    repeats.set(sha256, mine);
   }
 
   // A translucent copy of an anchored part at its as-modelled placement --
@@ -838,13 +939,18 @@ export class AnnotateScene {
     const mechanism = box.getSize(new THREE.Vector3());
     const limit = Math.max(mechanism.x, mechanism.y, mechanism.z, 1) *
       AnnotateScene.SWEEP_CONTEXT_RATIO;
+    // Every visible occurrence, moving or not: since 2026-10-14 the parts a
+    // run does not move are drawn in place round the ones it does, and they
+    // are what the mechanism is read against. One OCCURRENCE at a time, so
+    // a part repeated round the hub does not inflate into a hub-sized box.
     for (const [sha256, mesh] of this.parts) {
-      if (!mesh.visible || mesh.matrixAutoUpdate) continue; // not anchored
-      const partBox = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrix);
-      const size = partBox.getSize(new THREE.Vector3());
-      if (Math.max(size.x, size.y, size.z) > limit) continue;
-      box.union(partBox);
-      void sha256;
+      if (!mesh.visible) continue;
+      for (const node of this._occurrenceNodes(sha256)) {
+        const partBox = mesh.geometry.boundingBox.clone().applyMatrix4(node.matrix);
+        const size = partBox.getSize(new THREE.Vector3());
+        if (Math.max(size.x, size.y, size.z) > limit) continue;
+        box.union(partBox);
+      }
     }
     const centre = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
@@ -858,11 +964,9 @@ export class AnnotateScene {
 
   exitSweep() {
     if (!this._sweep) return false;
-    for (const [sha256] of this._sweep.savedParts) this.setPartMatrix(sha256, null);
-    for (const [, mine] of this._sweep.repeats) {
-      for (const repeat of mine) this.scene.remove(repeat);
+    for (const [sha256, mesh] of this.parts) {
+      if (mesh.userData.override) this.setPartMatrix(sha256, null);
     }
-    this._sweep.repeats.clear();
     for (const [sha256] of Array.from(this._sweep.ghosts)) this.setSweepGhost(sha256, null);
     this.scene.remove(this._sweep.group);
     this._sweep.group.traverse((node) => {
@@ -880,7 +984,7 @@ export class AnnotateScene {
   autotestPick(sha256) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return null;
-    const box = mesh.geometry.boundingBox.clone().translate(mesh.position);
+    const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrix);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const dist = Math.max(size.x, size.y, size.z) * 2.5 + 10;

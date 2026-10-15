@@ -146,6 +146,9 @@
     var measures = doc.measures || {};
     return {
       runId: doc.run_id || null,
+      // When the run was published -- what `sweep latest` orders by
+      // (AA.orderSweepRuns), never the run id's spelling.
+      ts: typeof doc.ts === "string" ? doc.ts : null,
       source: doc.source || null,
       frame: doc.frame || null,
       mechanismName: mechanism.name || null,
@@ -162,11 +165,19 @@
 
   // What the hint bar's one line says about the loaded run. Returns the parts;
   // the bar joins them, because the separator is presentation.
-  AA.sweepSummaryParts = function (artifact) {
+  // `opts.mechanism: false` leaves the mechanism out, for a bar whose run
+  // picker already names it.
+  AA.sweepSummaryParts = function (artifact, opts) {
+    var withMechanism = !opts || opts.mechanism !== false;
     var parts = [];
     if (artifact.runId) parts.push(artifact.runId);
     if (artifact.source) parts.push(AA.sweepSourceWords(artifact.source));
-    if (artifact.mechanismName) parts.push(artifact.mechanismName);
+    // The mechanism in words, so "which run am I watching" is answerable
+    // from the page: two runs of one linkage differ by a run id a reader has
+    // to decode and by this, which they do not.
+    if (withMechanism && artifact.mechanismName) {
+      parts.push(AA.measureLabel(artifact.mechanismName));
+    }
     parts.push(artifact.points.length + " point" + (artifact.points.length === 1 ? "" : "s"));
     if (artifact.notConverged) parts.push(artifact.notConverged + " did not converge");
     return parts;
@@ -940,5 +951,235 @@
   AA.SWEEP_PICKING_DISABLED =
     "Binding is off while the linkage is away from its as-modelled pose — " +
     "scrub back to the start to pick a face.";
+
+  // --- where a part sits in the assembly (every mode, not only this one) ----
+  //
+  // Handoff parts_sit_where_the_assembly_puts_them (2026-10-14). Jeff, on the
+  // side-by-side layout this replaced: "I don't think they should be, even
+  // for the face picker ... they should be positioned exactly as they are in
+  // the assembly." So ONE rule, for the whole app: an opened part with
+  // recorded occurrences is drawn at every one of them, at its
+  // `placement_world`, in the 217755 frame -- in sweep mode and out of it.
+  // A part with none keeps its own origin and says so in words.
+  //
+  // These live here rather than in a file of their own because this file
+  // already owns the one placement layout; a second module would be a second
+  // place to learn which way round the 12 floats go.
+
+  //: The most occurrences of one part this app draws. The cost of an
+  //: occurrence is a draw call and a matrix, not a copy of the buffers
+  //: (scene.js shares them), so the cap is for a pathological part and not a
+  //: real one: the most-repeated part in the installed store is the
+  //: NAS1149V0332H washer at 29, and it is drawn in full. A part past the cap
+  //: is drawn at the first this-many and says how many it has.
+  AA.OCCURRENCE_DRAW_LIMIT = 64;
+
+  // Every occurrence the installed store records, out of each mesh's own
+  // provenance: {all, byMesh, productOf}. The pure half of app.js's
+  // loadOccurrences -- an occurrence is keyed by its full instance PATH,
+  // because `instance_name` is not unique (all five pitch arms are
+  // `215071-001.2`).
+  AA.readMeshOccurrences = function (meshes, provenanceBySha) {
+    var all = [];
+    var byMesh = {};
+    var productOf = {};
+    (meshes || []).forEach(function (mesh) {
+      var provenance = (provenanceBySha || {})[mesh.sha256] || null;
+      var extraction = (provenance && provenance.extraction) || {};
+      productOf[mesh.sha256] = extraction.product_name || null;
+      byMesh[mesh.sha256] = [];
+      (extraction.instances || []).forEach(function (instance) {
+        var placement = instance.placement_world;
+        if (!placement || placement.length !== AA.PLACEMENT_VALUES) return;
+        var path = instance.instance_path || [instance.instance_name];
+        var occurrence = {
+          instance_name: instance.instance_name,
+          path: path,
+          key: path.join("/"),
+          placement: placement,
+          mesh: mesh.sha256,
+        };
+        byMesh[mesh.sha256].push(occurrence);
+        all.push(occurrence);
+      });
+    });
+    return { all: all, byMesh: byMesh, productOf: productOf };
+  };
+
+  // Where one part is drawn when nothing moves it: its own recorded
+  // occurrences, up to the cap. `total` is how many it HAS, so a capped part
+  // and a part with no position at all can both say what they are.
+  AA.restPlacements = function (own, limit) {
+    var list = own || [];
+    var cap = limit == null ? AA.OCCURRENCE_DRAW_LIMIT : limit;
+    var drawn = list.slice(0, cap);
+    return {
+      placements: drawn.map(function (o) { return o.placement; }),
+      keys: drawn.map(function (o) { return o.key; }),
+      total: list.length,
+      capped: list.length > drawn.length,
+    };
+  };
+
+  // The two honest notes a part's position can need, in the README's
+  // absent-state style: plain words, the state first, what is drawn second.
+  AA.ASSEMBLY_POSITION_WORDS = Object.freeze({
+    none: "no position in the assembly — shown at its own origin",
+    capped: "drawn at {drawn} of its {total} positions in the assembly",
+  });
+
+  // null when there is nothing to say -- a part drawn at every one of its
+  // positions needs no note, and a row with nothing wrong shows nothing.
+  AA.assemblyPositionNote = function (rest) {
+    if (!rest || !rest.total) return AA.ASSEMBLY_POSITION_WORDS.none;
+    if (rest.capped) {
+      return AA.ASSEMBLY_POSITION_WORDS.capped
+        .replace("{drawn}", String(rest.placements.length))
+        .replace("{total}", String(rest.total));
+    }
+    return null;
+  };
+
+  // A part as a list NAMES it: the installed label without the trailing
+  // "(extracted from <the STEP file>)" every mesh from one assembly carries,
+  // which is provenance -- the same for all of them -- and not a name.
+  AA.meshShortName = function (label) {
+    var text = String(label == null ? "" : label);
+    var cut = text.replace(/\s*\(extracted from [^)]*\)\s*$/, "");
+    return cut || text;
+  };
+
+  // Is the occurrence at `key` the one at `ancestor`, or inside it? Paths, not
+  // names: `.../215177-001.3/NAS77C3-015.1` is inside `.../215177-001.3`, and
+  // `.../215177-001.30` is not.
+  AA.occurrenceWithin = function (key, ancestor) {
+    var k = String(key), a = String(ancestor);
+    return k === a || k.indexOf(a + "/") === 0;
+  };
+
+  // --- which occurrences a sweep moves ---------------------------------------
+  //
+  // A body owns the occurrences its listed parts were MATCHED to (the
+  // anchoring above), and -- since 2026-10-14 -- everything recorded inside
+  // one of those occurrences. Jeff, on the pitch plate: 215177-001 is "the
+  // assembly with the bushings pressed into it", and the bushings are
+  // separate meshes under the plate's own occurrence. Listing every one of
+  // them on the body by hand is the restated copy linkage's
+  // ISSUE_20261001_body_parts_and_link_parts_are_a_hand_restated_copy_of_
+  // tolstacks_topology_ids already names; the extraction's own paths say
+  // which body a bushing rides on, so this reads them.
+  //
+  // `claims` are the matched placements, one per moving occurrence:
+  // {sha256, key, subject, part}. A listed claim always beats an inherited
+  // one, and among inherited ones the DEEPEST enclosing claim wins, so a
+  // bearing pressed into a link pressed into a plate rides the link. An
+  // occurrence of a DIFFERENT mesh at exactly a claimed path (the design and
+  // the instrumented pitch link both recorded at `213862-002.1`) is the same
+  // occurrence and moves too; `inside` says which of the two it is.
+  AA.sweepCarriedOccurrences = function (all, claims) {
+    var listed = {};
+    (claims || []).forEach(function (c) { listed[c.sha256 + "|" + c.key] = true; });
+    var out = [];
+    (all || []).forEach(function (o) {
+      if (listed[o.mesh + "|" + o.key]) return;
+      var best = null;
+      (claims || []).forEach(function (c) {
+        if (!AA.occurrenceWithin(o.key, c.key)) return;
+        if (!best || c.key.length > best.key.length) best = c;
+      });
+      if (!best) return;
+      out.push({
+        sha256: o.mesh, key: o.key, instance_name: o.instance_name,
+        placement: o.placement, subject: best.subject, by: best.part,
+        under: best.key, inside: o.key !== best.key,
+      });
+    });
+    return out;
+  };
+
+  // Per mesh, what to draw at every frame: one entry per occurrence, each
+  // {key, placement, subject} where `subject` is the body (or link) whose pose
+  // carries it, or null for an occurrence this run does not move. Built ONCE
+  // per run, so the frame loop composes matrices and decides nothing.
+  //
+  // `rows` are app.js's per-part anchoring rows (only `matched` ones move --
+  // a ground body's parts sit where the assembly puts them, which is the rest
+  // rule already). A mesh appears in `plan` only if something of it moves;
+  // every other opened part keeps its rest placements untouched.
+  AA.sweepDrawPlan = function (rows, occurrences, limit) {
+    var occ = occurrences || { all: [], byMesh: {} };
+    var claims = [];
+    (rows || []).forEach(function (row) {
+      if (row.state !== "matched") return;
+      (row.placements || []).forEach(function (p) {
+        claims.push({ sha256: row.sha256, key: p.key, placement: p.placement,
+          subject: row.subject, part: row.part });
+      });
+    });
+    var carried = AA.sweepCarriedOccurrences(occ.all, claims);
+    var moving = {};
+    claims.concat(carried).forEach(function (m) {
+      (moving[m.sha256] = moving[m.sha256] || []).push(m);
+    });
+    var plan = {};
+    Object.keys(moving).forEach(function (sha) {
+      var own = AA.restPlacements((occ.byMesh || {})[sha], limit);
+      var entries = own.keys.map(function (key, i) {
+        return { key: key, placement: own.placements[i], subject: null };
+      });
+      moving[sha].forEach(function (m) {
+        var at = -1;
+        entries.forEach(function (e, i) { if (e.key === m.key) at = i; });
+        var entry = { key: m.key, placement: m.placement, subject: m.subject };
+        if (at === -1) entries.push(entry); else entries[at] = entry;
+      });
+      plan[sha] = entries;
+    });
+    return { plan: plan, carried: carried };
+  };
+
+  // One frame's matrices for one mesh's plan entries: a moving occurrence is
+  // `pose(t) o placement_world` (AA.anchorPlacement), a still one is its own
+  // placement. A distance-constraint member's pose is the artifact's
+  // reconstructed one; every other body's is its `poses` entry.
+  AA.sweepMeshMatrices = function (entries, frame) {
+    var f = frame || {};
+    return (entries || []).map(function (e) {
+      if (!e.subject) return e.placement;
+      var pose = (f.links && f.links[e.subject]) || (f.poses && f.poses[e.subject]) || null;
+      return AA.anchorPlacement(pose, e.placement);
+    });
+  };
+
+  // --- which run is "latest" -------------------------------------------------
+
+  // What a run listing carries per run, read off the run's own document:
+  // its id, when it was published, and its mechanism.
+  AA.sweepRunEntry = function (runId, doc) {
+    var d = doc || {};
+    return {
+      runId: runId,
+      ts: typeof d.ts === "string" ? d.ts : null,
+      mechanism: (d.mechanism && d.mechanism.name) || null,
+    };
+  };
+
+  // Newest first BY THE ARTIFACT'S OWN `ts`, tie-broken by run id. Until
+  // 2026-10-14 every adapter sorted by run id alone, which is alphabetical:
+  // `vpa-pitch-s-...` beat `vpa-pitch-p1-...` on the letter after the
+  // prefix, and Jeff watched run S believing it was P1. A run with no
+  // readable `ts` sorts after every run that has one. Every adapter that
+  // lists runs answers through this, so there is one ordering to get right.
+  AA.orderSweepRuns = function (entries) {
+    function when(e) {
+      var t = e && e.ts ? Date.parse(e.ts) : NaN;
+      return isFinite(t) ? t : -Infinity;
+    }
+    return (entries || []).slice().sort(function (a, b) {
+      var ta = when(a), tb = when(b);
+      if (ta !== tb) return tb > ta ? 1 : -1;
+      return a.runId < b.runId ? 1 : (a.runId > b.runId ? -1 : 0);
+    });
+  };
 
 })(window.AnnotateApp = window.AnnotateApp || {});

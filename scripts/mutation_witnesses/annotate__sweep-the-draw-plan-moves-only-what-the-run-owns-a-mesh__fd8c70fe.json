@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the draw plan moves only what the run owns -- a mesh moved at one occurrence keeps its others still, and a matched occurrence the mesh does not record is drawn too",
+  "mutations": [
+    {
+      "contract": "Per mesh, each occurrence is drawn once: a moving occurrence REPLACES its still self in the plan, the mesh's other occurrences stay still, and a matched occurrence recorded elsewhere is added.",
+      "issue": null,
+      "note": "The mutation appends every moving occurrence instead of replacing the still entry at the same path, so blade 1's pitch arm would be drawn twice -- once swinging, once frozen where it started.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        if (at === -1) entries.push(entry); else entries[at] = entry;",
+      "replace": "        entries.push(entry);"
+    }
+  ]
+}

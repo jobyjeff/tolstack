@@ -73,11 +73,15 @@ that: open a study, open a part, click a face, write one
   above does not change that: it reads a face's radius and plane to compare
   two faces with each other, and that number reaches neither a binding event
   nor the screen.
-- **Does NOT render an assembly with placement transforms.** Every fixture
-  the underlying tessellation spike had was a single-part OML or a
-  non-hierarchical bonded sub-assembly; nothing has exercised a real
-  multi-part assembly's placement math. Parts render side by side, at their
-  own local origin — see the session lesson for this gap.
+- **Draws every part where the assembly puts it** (handoff
+  `parts_sit_where_the_assembly_puts_them`, 2026-10-14): an opened part is
+  drawn at every occurrence its `provenance.json` records, at that
+  occurrence's `placement_world`, in sweep mode and out of it — the
+  tangential link three times, the pitch arm five. A part with no recorded
+  position (a standalone STEP) is drawn at its own origin and its panel row
+  says so: "no position in the assembly — shown at its own origin". A pick on
+  any occurrence binds the part's own `(sha256, face id)`, exactly as before.
+  `docs/ANNOTATION_SURFACE.md`, "Where a part is drawn", has the rule.
 
 ## Run it
 
@@ -282,19 +286,21 @@ Two tables in `suggestions.js`, both declared rather than scattered:
 Both are fences rather than gaps waiting to be filled in, and both are the same
 fence seen from two sides.
 
-`same_part_relation` has no answer for two **centres**, because this app draws
-each part once, at its own local origin, however many times it is fitted in the
-assembly. The pitch link is exactly that case: its two joint centres are two
-instances of one MS14101-3, so on screen they land on top of each other and
-nothing there can tell them apart. (`scripts/fit_bound_features.py` is where
-they come apart — it applies the placements, which is the whole of what it adds.)
+`same_part_relation` has no answer for two **centres**, because the
+suggestion engine reads each part once, in its own local frame, however many
+times it is fitted in the assembly. The pitch link is exactly that case: its
+two joint centres are two instances of one MS14101-3, and a binding names the
+part's face, not one instance of it. (Since 2026-10-14 the two instances are
+*drawn* apart, at their own occurrences; `scripts/fit_bound_features.py` is
+still where their centres come apart as numbers.)
 
-`mating_fit` has no answer for two flat faces, for the same missing frame. This app applies **no assembly placement
-transforms** (see "What it does and does not do", above): every part is drawn
-at its own local origin, so a plane's normal and offset on one mesh mean
-nothing against another mesh's. Coplanar and parallel are unaskable across two
-parts, and the surface says so in plain words instead of computing a
-coplanarity it cannot support.
+`mating_fit` has no answer for two flat faces, for the same missing frame. The
+parts are drawn in the shared assembly frame (see "What it does and does not
+do", above), but the engine still compares each part's faces in that part's
+own frame, so a plane's normal and offset on one mesh mean nothing against
+another mesh's. Coplanar and parallel are unaskable across two parts, and the
+surface says so in plain words instead of computing a coplanarity it cannot
+support.
 
 Exactly one relation survives having no shared frame, and it is the reason
 `mating_fit` exists at all: two mating cylinders have the **same radius**,
@@ -304,8 +310,9 @@ shank reads 2.4065 and the 214820-002 bushing's bore 2.4130, which is the
 0.27% that a fit looks like, and it narrows the bolt's eight round faces to the
 four that are the shank.
 
-Whether to apply the placements (`provenance.json` records them and nothing
-reads them) is design work, not a fix, and it is filed rather than assumed:
+Reading the placements the scene now applies into the engine — coincident
+faces on two bodies suggesting an interface, which is what Jeff asked for the
+placement for — is the named next step, filed rather than assumed:
 `docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
 
 ### What it looks like
@@ -356,6 +363,23 @@ Hovering a joint bead says what the joint is, and for a two-force member its
 length and the spin-free convention its pose was reconstructed under — read
 out of the artifact rather than re-worded. A tooltip and not a legend: a
 legend is permanent chrome for a question asked once.
+
+**`latest` is the newest run by its own `ts`**, tie-broken by run id — on the
+FSA adapter, the in-memory one and the browser check's harness alike, all
+through `AA.orderSweepRuns`. The bar's first line names the run's mechanism in
+words, and when more than one run is published a picker beside it switches
+between them (each named by mechanism and publication time), through the same
+`sweep <run-id>` verb.
+
+**What moves and what does not.** Parts a run's bodies and links own move with
+their pose, and so does everything recorded *inside* one of their matched
+occurrences — the pitch plate's bushings are separate meshes, opened and
+carried with the plate. Every other opened part sits still where the assembly
+puts it, and the bodies disclosure lists those parts under **Not moved by this
+run**. A body naming a part with no installed mesh (P2's
+`gas_spring_piston_214700_002`, until rotorkit installs it) keeps the "no 3D
+model" state. Leaving sweep mode puts every part back where the assembly puts
+it, with the visibility and see-through state it had.
 
 ### Trying it with no data at all
 
@@ -555,11 +579,15 @@ apps/annotate/
                        composition, frame interpolation, the scrubber-to-
                        driver map, playback as a pure transition, choosing
                        which recorded occurrence a body is, the readouts and
-                       every verb's argument grammar. No DOM, no fetch, no
+                       every verb's argument grammar -- plus the app-wide
+                       placement rule (every recorded occurrence, the draw
+                       cap, the occurrence subtree a body carries) and the
+                       newest-first run ordering. No DOM, no fetch, no
                        three.js.
   scene.js             the 3D surface: three.js mesh loading (through the
-                       storage adapter, never fetch() directly), raycast,
-                       highlight, part show/hide/frame. ES module (ADR below).
+                       storage adapter, never fetch() directly), every part
+                       drawn at each of its placements, raycast, highlight,
+                       part show/hide/frame. ES module (ADR below).
   app.js               boot + wiring. ES module.
   fixtures.js          the ?mock=1 demo dataset
   storage/adapter.js   the read/write adapter contract, plus the boot-time

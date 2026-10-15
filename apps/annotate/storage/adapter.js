@@ -47,12 +47,13 @@
 //   readMeshBuffer(sha256, filename): Promise<ArrayBuffer|null>
 //        -- data/meshes/<sha256>/<filename> (positions.f32 / indices.u32 /
 //           face_ids.u32), as raw bytes for a typed-array view.
-//   listSweepRuns(): Promise<Array<{runId}>>
-//        -- every data/inbox/linkage-sweeps/<run-id>.json, newest first (the
-//           run ids linkage writes are timestamped, so a plain reverse sort
-//           IS newest-first). [] when the directory is absent -- a repo with
-//           no published sweep is the ordinary first-run state, never an
-//           error.
+//   listSweepRuns(): Promise<Array<{runId, ts, mechanism}>>
+//        -- every data/inbox/linkage-sweeps/<run-id>.json, newest first BY
+//           THE RUN'S OWN `ts` (AA.orderSweepRuns -- every adapter answers
+//           through it). Not by run id: ids sort alphabetically, and
+//           `vpa-pitch-s-...` beat a P1 run published two seconds later.
+//           [] when the directory is absent -- a repo with no published
+//           sweep is the ordinary first-run state, never an error.
 //   readSweepRun(runId): Promise<object|null>
 //        -- data/inbox/linkage-sweeps/<run-id>.json. The schema is checked by
 //           AA.readSweepArtifact, not here: a transport's job is bytes.

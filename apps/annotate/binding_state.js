@@ -168,6 +168,23 @@
     }
   }
 
+  // The geometry key a pick binds, and the WHOLE of what a pick contributes
+  // to an event: the part's sha256, the face id and that face's own manifest
+  // record -- all part-local. Since 2026-10-14 a part is drawn at every
+  // occurrence the assembly records, and a pick says which drawn occurrence
+  // it landed on (`pick.occurrence`); that never reaches here, so a face
+  // bound on the tangential link's third occurrence is the same binding a
+  // pick on its first would have written, and the same one written before
+  // parts were placed at all. `feature-identity/v0` is unchanged.
+  AA.geometryKeyOfPick = function (pick) {
+    return {
+      sourceStepSha256: pick.sha256,
+      faceId: pick.faceId,
+      areaNative2: pick.record.area_native2,
+      centroidNative: pick.record.centroid_native,
+    };
+  };
+
   AA.buildBoundEvent = function (fields) {
     requireOneOf("direction", fields.direction, AA.DIRECTIONS);
     if (!fields.geometryKey) throw new Error("a bound event requires a geometryKey");

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the placement rule: every recorded occurrence is drawn, a pathological count is capped and says so, and a part with none says it is at its own origin",
+  "mutations": [
+    {
+      "contract": "An opened part is drawn at EVERY occurrence the assembly records (up to a cap no real part reaches), and a part past the cap or with no position says so -- never silently drawn once.",
+      "issue": null,
+      "note": "The mutation draws only the first occurrence, which is the 'silently drawing one' the handoff warned against: the tangential link would sit at one of its three slots and nothing would say the other two are missing.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var drawn = list.slice(0, cap);",
+      "replace": "    var drawn = list.slice(0, 1);"
+    }
+  ]
+}

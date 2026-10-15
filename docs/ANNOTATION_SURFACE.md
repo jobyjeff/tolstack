@@ -104,7 +104,7 @@ every `bound` event (many-to-many) plus every `owner_not_in_set` event, plus
 the full history. Gated exactly like every other shared projection in this
 repo (`scripts/projection_provenance.py`).
 
-### The fit projection — and the one place placement is applied
+### The fit projection — where placement produces a value
 
 `scripts/fit_bound_features.py` folds the same event stream a second way
 (added 2026-09-30, handoff `vpa_pitch_linkage_topology_and_feature_fits`):
@@ -116,16 +116,14 @@ the placement matrix it used. Its consumer is outside this repo:
 `C:\workspace\linkage`, a pitch-linkage solver, which needs where the joints
 are rather than what any chain of them totals.
 
-**Placement is applied in two places now, and only two** (the second arrived
-2026-10-01 with sweep mode, below): this script, and `apps/annotate/`'s sweep
-mode. Outside sweep mode the app still draws every part at its own local
-origin and applies no placement at all — which is what makes its cross-part
-face relations a declared gap rather than an omission
-(`ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`), and
-what makes two centres of one part land on top of each other on screen. Sweep
-mode is the exception and is fenced as one: it applies a placement to *draw*
-a solver's answer, it writes nothing, and leaving it restores the layout
-exactly. The
+**Placement is applied in two places, for two different purposes.** This
+script applies it to *produce a value* — a fitted nominal, in the assembly
+frame — and is the only place that does. `apps/annotate/` applies it to *draw*:
+since 2026-10-14 (handoff `parts_sit_where_the_assembly_puts_them`) every part
+the app opens is drawn at every occurrence the assembly records, in sweep mode
+and out of it ("Where a part is drawn", below). Drawing a part somewhere
+produces no number, and a pick on a placed part still binds the part-local
+`(sha256, face id)` it always did. The
 placements have always been recorded (each extracted mesh's `provenance.json`
 carries `extraction.instances[].placement_world`); until this script nothing
 read them. **Every placement comes from that sidecar**, because the sidecar
@@ -160,8 +158,45 @@ Static, build-free, three.js r169 via a native import map — but **not**
 launchable by `file://` double-click, unlike `apps/viewer`: a `file://` page
 can neither fetch a mesh binary nor write an event file. See
 `apps/annotate/README.md` for how to run it, what it does and does not do
-(no measurement, no assembly placement), and why it is ES modules where the
-viewer is classic scripts.
+(no measurement), and why it is ES modules where the viewer is classic
+scripts.
+
+### Where a part is drawn
+
+**One rule, for the whole app** (2026-10-14, handoff
+`parts_sit_where_the_assembly_puts_them`). Jeff, on the side-by-side row it
+replaced: *"they should be positioned exactly as they are in the assembly."*
+An opened part with recorded occurrences is drawn at every one of them — each
+extracted mesh's `provenance.json` `extraction.instances[].placement_world`,
+the same 3×4 row-major layout `scripts/fit_bound_features.py` reads — in the
+217755 frame, whether or not sweep mode is on. The tangential link is drawn
+three times; the pitch arm five. A second occurrence shares the first one's
+geometry and material, so it costs a draw call and a matrix, not a copy.
+
+- **A part with no recorded occurrence** (the standalone `213668-002` STEP, the
+  blade OML) is drawn at its own origin and **says so**, in its panel row and in
+  the banner when it is opened: "no position in the assembly — shown at its own
+  origin".
+- **A part past the draw cap** (`AA.OCCURRENCE_DRAW_LIMIT`, `sweep.js`) is drawn
+  at the first that-many and says how many it has. No installed part reaches
+  it: the most-repeated is the NAS1149V0332H washer, and it is drawn in full.
+- **Camera framing** (`camera reset`/`frame`, and opening a part) frames every
+  drawn occurrence, in the assembly frame.
+- **A pick on any occurrence resolves to the part's own `(sha256, face id)`**,
+  read off the hit triangle, which is the same triangle in the part's own
+  buffers whatever matrix drew it. `feature-identity/v0` is unchanged and so is
+  every binding written before this: bindings are part-local, and the
+  occurrence a pick landed on never reaches an event
+  (`AA.geometryKeyOfPick`). Hidden parts are not pickable — three.js's
+  raycaster ignores `.visible`, so the app filters on it, which matters now
+  that a hidden part sits exactly where the visible one behind it is.
+
+**What this does not change: the face suggestions.** The suggestion engine
+still reads each part in its own frame, so two flat faces on two parts are
+still not compared. Parts now *sit* in a shared frame, which is what the
+coincident-face cross-part suggestions Jeff asked for need first — that is the
+named next step, still open as
+`ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
 
 Every scene/navigation operation is a named, text-addressable verb behind one
 dispatch point (`commands.js`'s `AA.CommandLayer` — handoff
@@ -228,14 +263,16 @@ face bound on that same part → for round faces only, the ones whose radius
 matches a face bound on the *adjacent* part).
 
 **The narrowing this surface cannot do, and why it matters here.** Two flat
-faces on *different* parts cannot be compared at all, because this app applies
-no assembly placement transforms (below) — every part is drawn at its own local
-origin, so one mesh's plane normal means nothing against another's. Exactly one
-relation survives having no shared frame: two mating cylinders have the same
-radius, because a radius belongs to one face rather than to a pair of frames.
-The table declares the gap with its reason rather than computing a coplanarity
-it cannot support, and the surface says so in plain words. Whether to apply the
-placements that `provenance.json` already records is design work, filed as
+faces on *different* parts are not compared, because the suggestion engine
+reads each part in its own local frame, where one mesh's plane normal means
+nothing against another's. Since 2026-10-14 the parts are *drawn* in the shared
+assembly frame ("Where a part is drawn", above), but the engine's per-part
+logic was deliberately left as it was. Exactly one relation survives having no
+shared frame: two mating cylinders have the same radius, because a radius
+belongs to one face rather than to a pair of frames. The table declares the gap
+with its reason rather than computing a coplanarity it cannot support, and the
+surface says so in plain words. Reading the placements the scene now applies
+into the engine is the next step, filed as
 `docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
 
 Full detail — the thresholds, the measured hit rates over the installed meshes,
@@ -307,6 +344,26 @@ its parts sit where provenance says. A part may legitimately occupy more than
 one occurrence on one body — the pitch link carries two spherical bearings, one
 at each end — and both are drawn.
 
+**A body also carries everything recorded inside its matched occurrence**
+(2026-10-14). The pitch plate `215177-001` is, in Jeff's words, "the assembly
+with the bushings pressed into it", and its nine bushings are separate meshes
+whose instance paths lie under the plate's own occurrence. So an occurrence of
+any mesh whose path is under a matched occurrence rides that body's pose
+(`AA.sweepCarriedOccurrences`): the deepest enclosing match wins, a part the run
+lists by name always beats an inherited claim, and a different mesh recorded at
+exactly a matched path — the instrumented pitch link at the design link's slot
+— is the same occurrence and moves too. Parts carried *inside* a moving
+occurrence are opened by the sweep, like the listed ones; the bar lists them as
+moving with their body.
+
+**Everything else sits still where the assembly puts it.** An opened part no
+body of the run anchors stays visible at its as-modelled occurrence — which is
+the mechanism's context, not clutter — and the bar's body list names those
+parts under "Not moved by this run". A mesh moved at one occurrence keeps its
+other occurrences still: blade 1's pitch arm swings, the other four do not.
+Leaving sweep mode clears the run's overrides, which puts every part back at
+its rest placements, plus the visibility and see-through state it had.
+
 The thresholds, and the two ways a feature can be read (fitted, or the
 manifest's coarser face centroids for a part too big to fit), are named
 constants in `apps/annotate/sweep.js`; the bar says which reading it used,
@@ -349,7 +406,12 @@ colour and marked under the scrubber.
 
 `sweep <run-id | latest | off>`, `play`, `pause`, `speed`, `seek`, `step`,
 `loop`, `layer` — and `?sweep=<run-id>&t=<driver value>` as a deep link through
-the same list. Every control in the bar, every key and the command box drive
+the same list. **`latest` is the newest run by the artifact's own `ts`**,
+tie-broken by run id, on every adapter that lists runs (`AA.orderSweepRuns`).
+Until 2026-10-14 it was the run id sorted descending, which is alphabetical —
+`vpa-pitch-s-…` beat a P1 run published two seconds later, and Jeff watched
+run S believing it was P1. The bar's first line names the run's mechanism in
+words, and offers the other published runs in a picker when there are any. Every control in the bar, every key and the command box drive
 one state machine through those verbs, which is this app's standing rule.
 `apps/annotate/README.md`'s verb table is the reference.
 
@@ -358,30 +420,13 @@ one state machine through those verbs, which is this app's standing rule.
 - **Measurement from geometry.** Explicitly out of scope by the brief's
   decision 1 — 0 of 43 endstop rows were measurement-blocked, so this can
   wait.
-- **Assembly placement transforms.** Every fixture the tessellation spike had
-  was a single-part OML or a non-hierarchical bonded sub-assembly; nothing
-  has exercised a real multi-part assembly's placement math. Parts render
-  side by side at their own local origin. A real placement-handling
-  validation is separate work — see the session lesson. Since 2026-09-21 this
-  is load-bearing rather than merely absent: it is what stops the face
-  suggestions comparing two flat faces across two parts (above), so the
-  decision now has a consumer that would visibly do more if it were revisited
+- **Cross-part face relations from the shared frame.** Since 2026-10-14 every
+  part is drawn where the assembly puts it ("Where a part is drawn", above),
+  which retired this entry's earlier form ("parts render side by side at their
+  own local origin"). What is still not built is the use of that frame by the
+  face suggestions — coincident faces on two bodies suggesting an interface,
+  which is what Jeff asked for the placement *for*
   (`ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`).
-  **Still true of the app, and no longer true of the repo** (2026-09-30):
-  `scripts/fit_bound_features.py` applies the recorded placements, off-screen,
-  for a consumer outside this repo. That answers the "has anything exercised
-  the placement math" half of this entry — the first thing it did was put two
-  instances of one bearing 105.99 mm apart and agree with a 3DX sweep sheet
-  that had never seen the mesh — and it leaves the app's half exactly where it
-  was: the annotator still draws every part at its own origin.
-  **Half-true of the app since 2026-10-01** (handoff
-  `kinematic_sweep_animation`): sweep mode applies the recorded placements to
-  draw the bodies of a mechanism where the assembly puts them. That is still
-  not what this entry is about — it is a *display* transform over a solver's
-  output, it is confined to one mode, and the bind workflow underneath it is
-  unchanged and still origin-drawn. In particular it does nothing for the
-  cross-part face relations, which need the placement applied while a reader
-  is *picking*, which is exactly when sweep mode is switched off.
 - **Automatic supersession / correction events**, the way
   `docs/spec_library/`'s `correction` mode works. v0's fold has no notion of
   "this binding replaces that one" — every `bound` event is a fact that

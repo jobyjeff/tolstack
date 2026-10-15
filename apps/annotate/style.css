@@ -237,10 +237,14 @@ body {
 
 .parts-panel { list-style: none; padding: 0; margin: 10px 0 0; }
 .part-row {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px;
   padding: 4px 0; font-size: var(--t-meta);
 }
 .part-row__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Where a part is drawn, when that is not simply where the assembly puts it
+   (no recorded position, or past the draw cap). Its own line under the row,
+   muted: metadata about the row, not a state of the part. */
+.part-row__note { flex-basis: 100%; color: #9aa1ab; }
 
 /* --- the top bar (2026-09-21) --------------------------------------------
    One horizontal band above the canvas, bounded so a long bind form can never
@@ -425,6 +429,9 @@ body {
 .an__sweep-bodies li { display: flex; gap: 12px; padding: 1px 0; }
 .an__sweep-body-name { flex: 0 0 150px; color: #cfd3d8; }
 .an__sweep-body-state { flex: 1; min-width: 0; color: #9aa1ab; }
+/* The opened parts the run does not move -- a plain heading and the names,
+   spaced off the bodies above rather than ruled off from them. */
+.an__sweep-still-head { margin: 8px 0 0; color: #cfd3d8; }
 
 /* Sweep mode's joint tooltip. `position: fixed` and placed by JS at the
    pointer, the same shape .alertpop uses -- the canvas is a box, and a popup

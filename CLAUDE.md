@@ -63,11 +63,12 @@ traced ratio" — never restate the rule elsewhere).
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's
   own frame and per assembly occurrence, for a solver in another repo. It is
-  the one place a placement matrix is applied to *produce a value*; the
-  annotator applies none while a reader is picking. Since 2026-10-01 the
-  annotator's **sweep mode** applies them too, to *draw* a solver's answer —
-  display only, confined to that mode, and switched off wherever picking is
-  on (`docs/ANNOTATION_SURFACE.md`, "Sweep mode").
+  the one place a placement matrix is applied to *produce a value*. Since
+  2026-10-14 the annotator applies the same placements to *draw*: every
+  opened part sits at every occurrence the assembly records, in and out of
+  sweep mode, and a pick on any occurrence still binds the part-local
+  `(sha256, face id)` — display only, never a value
+  (`docs/ANNOTATION_SURFACE.md`, "Where a part is drawn").
   A fitted nominal is a measurement of a mesh, never a tolerance: it has no
   band, and a drawing callout still wins.
 - **Writing a CSS rule in either web app** → `docs/DESIGN_TYPE_AND_COLOUR.md`.

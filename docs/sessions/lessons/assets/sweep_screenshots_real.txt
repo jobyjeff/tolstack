@@ -1,9 +1,18 @@
-Captured by apps/annotate/run_browser_check.mjs --shots, against ?mock=1's
-SYNTHETIC crank-slider run (fixtures.js). Not a measurement of anything.
-Dark only: both apps render one theme by decision, and no mechanism for a
-second exists (docs/DESIGN_TYPE_AND_COLOUR.md, "One theme").
+Captured by apps/annotate/run_browser_check.mjs --shots --real
+vpa-pitch-p1-20261001-203656, against that PUBLISHED run and the installed
+meshes (data/inbox/linkage-sweeps/, data/meshes/ in the main checkout),
+through the check's read harness -- not through the app's File System Access
+transport. Dark only: both apps render one theme by decision, and no
+mechanism for a second exists (docs/DESIGN_TYPE_AND_COLOUR.md, "One theme").
 
 sweep_real_dark_minus7deg.png  point 0
 sweep_real_dark_17deg.png  point 26
 sweep_real_dark_41deg.png  point 51
 sweep_real_dark_72deg.png  point 79
+
+> Corrected 2026-10-14 (handoff parts_sit_where_the_assembly_puts_them,
+> deliverable 6). Until then this caption said the shots were "against
+> ?mock=1's SYNTHETIC crank-slider run" -- the mock pass's sentence, which the
+> check wrote beside the real pass's shots too. They are of the real P1 run, as
+> LESSONS_20261001_kinematic_sweep_animation.md's occurrence table records.
+> The check now captions each pass by what it ran against.

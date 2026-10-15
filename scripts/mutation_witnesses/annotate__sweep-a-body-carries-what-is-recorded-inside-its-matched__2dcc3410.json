@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: a body carries what is recorded INSIDE its matched occurrence -- the deepest enclosing claim wins, a listed claim beats an inherited one, and a sibling path is not inside",
+  "mutations": [
+    {
+      "contract": "A body carries the occurrences whose instance PATH lies under one of its matched occurrences -- a path prefix, segment by segment, never a name prefix.",
+      "issue": null,
+      "note": "The mutation reads a name prefix instead of a path, so `.../plate.30/...` counts as inside `.../plate.3` and a sibling assembly would swing with the plate.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return k === a || k.indexOf(a + \"/\") === 0;",
+      "replace": "    return k === a || k.indexOf(a) === 0;"
+    }
+  ]
+}

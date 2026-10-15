@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a pick resolves to the part's own (sha256, face id) whichever occurrence it lands on, so the event it writes is the one it always wrote",
+  "mutations": [
+    {
+      "contract": "A binding is part-local: the geometry key a pick contributes is the part's sha256, the face id and that face's manifest record, whichever drawn occurrence the pick landed on.",
+      "issue": null,
+      "note": "The mutation lets the occurrence index leak into the face id, which is the shape of the defect this guard exists for: a pick on the tangential link's third occurrence would bind a different face from the same click on its first.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      faceId: pick.faceId,",
+      "replace": "      faceId: pick.faceId + (pick.occurrence || 0),"
+    }
+  ]
+}

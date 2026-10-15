@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep latest is the newest run by its OWN ts, tie-broken by run id, on every adapter that lists runs",
+  "mutations": [
+    {
+      "contract": "`sweep latest` means the newest PUBLISHED run: every adapter orders its listing by the artifact's own `ts`, newest first, and only falls back to the run id for runs published in the same instant.",
+      "issue": null,
+      "note": "The mutation drops the `ts` comparison, which leaves exactly the run-id sort every adapter had before 2026-10-14 -- the order that put `vpa-pitch-s-...` ahead of a P1 run published two seconds later.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (ta !== tb) return tb > ta ? 1 : -1;",
+      "replace": "      if (false) return 0;"
+    }
+  ]
+}

@@ -96,6 +96,21 @@ async function meshIndex() {
   return out;
 }
 
+// What FsaAdapter.listSweepRuns() enumerates -- the published run ids, from
+// the first root whose inbox holds any. The ORDER is not decided here: the
+// page reads each run and orders them with AA.orderSweepRuns, the same
+// function every adapter answers through.
+async function sweepRunIndex() {
+  for (const root of DATA_ROOTS) {
+    const dir = join(root, "data", "inbox", "linkage-sweeps");
+    if (!existsSync(dir)) continue;
+    const ids = (await readdir(dir)).filter((n) => /\.json$/i.test(n))
+      .map((n) => n.replace(/\.json$/i, ""));
+    if (ids.length) return ids;
+  }
+  return [];
+}
+
 function startServer() {
   return new Promise((ok) => {
     const server = createServer(async (req, res) => {
@@ -109,6 +124,11 @@ function startServer() {
         // the mesh LIST (FSA enumerates a directory; HTTP cannot) and this
         // tree's alias table, which is tracked and therefore in the worktree
         // rather than under data/.
+        if (urlPath === "/data/inbox/linkage-sweeps/index.json") {
+          res.writeHead(200, { "content-type": "application/json" })
+            .end(JSON.stringify(await sweepRunIndex()));
+          return;
+        }
         if (urlPath === "/data/meshes/index.json" || urlPath === "/data/__aliases.json") {
           const body = JSON.stringify(urlPath.endsWith("__aliases.json")
             ? JSON.parse(await readFile(join(REPO, "docs", "topologies", "part_mesh_aliases.json"), "utf8"))
@@ -404,6 +424,7 @@ async function main() {
   check("nothing above produced an uncaught error", consoleErrors.length === 0,
     consoleErrors.join("\n      "));
 
+  await mockPlacementPass(browser, base);
   await reducedMotionTimingPass(browser, base);
 
   if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=synthetic-demo-sweep`, "mock");
@@ -413,6 +434,99 @@ async function main() {
   server.close();
   console.log(`\n${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);
+}
+
+// THE PICK RULE, measured rather than argued: aim at one triangle of a part's
+// face on its N-th drawn occurrence and pick; then put the part back at its
+// own origin -- where every part was drawn before 2026-10-14 -- aim at the
+// same triangle there, and pick again. The two picks must name the same
+// (sha256, face id): that pair is all a binding event carries
+// (AA.geometryKeyOfPick), so equal picks are equal events. Every other part
+// is hidden for the two raycasts, because what is being measured is this
+// part's own geometry under a rigid move, not what happens to stand in front
+// of it.
+async function pickSameFaceBothWays(page, sha, occurrence, faceId) {
+  return page.evaluate(({ sha, occurrence, faceId }) => {
+    const scene = window.__scene;
+    const mesh = scene.parts.get(sha);
+    const others = scene.listOpenParts().filter((s) => s !== sha && scene.isVisible(s));
+    others.forEach((s) => scene.setVisible(s, false));
+    const savedPos = scene.camera.position.clone();
+    const savedQuat = scene.camera.quaternion.clone();
+    const placements = scene.drawnPlacements(sha);
+    const range = mesh.userData.faceRanges[faceId];
+    const pos = mesh.geometry.attributes.position.array;
+    const idx = mesh.geometry.index.array;
+    // The face's first triangle: its centroid, and its normal.
+    let tri = -1;
+    for (let t = 0; t < mesh.userData.faceIdPerTriangle.length; t++) {
+      if (mesh.userData.faceIdPerTriangle[t] === faceId) { tri = t; break; }
+    }
+    const v = [0, 1, 2].map((k) => {
+      const i = idx[tri * 3 + k];
+      return mesh.position.clone().set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+    });
+    const centre = v[0].clone().add(v[1]).add(v[2]).multiplyScalar(1 / 3);
+    const normal = v[1].clone().sub(v[0]).cross(v[2].clone().sub(v[0])).normalize();
+    const size = mesh.geometry.boundingBox.getSize(mesh.position.clone());
+    const dist = Math.max(size.x, size.y, size.z) + 20;
+    const aim = (point, along) => {
+      scene.camera.position.copy(point).addScaledVector(along, dist);
+      scene.camera.lookAt(point);
+      scene.camera.updateMatrixWorld(true);
+      return scene.pick(0, 0);
+    };
+    // Placed: through the occurrence's own matrix.
+    const m = mesh.matrix.clone().fromArray(placements[occurrence]);
+    const worldCentre = centre.clone().applyMatrix4(m);
+    const worldNormal = normal.clone().transformDirection(m);
+    const placed = aim(worldCentre, worldNormal);
+    // Unplaced: the part at its own origin, the same triangle.
+    const rest = placements.map((p) => [p[0], p[4], p[8], p[12], p[1], p[5], p[9], p[13],
+      p[2], p[6], p[10], p[14]]);
+    scene.setRestPlacements(sha, null);
+    const unplaced = aim(centre, normal);
+    scene.setRestPlacements(sha, rest);
+    others.forEach((s) => scene.setVisible(s, true));
+    scene.camera.position.copy(savedPos);
+    scene.camera.quaternion.copy(savedQuat);
+    void range;
+    const strip = (p) => p && { sha256: p.sha256, faceId: p.faceId, occurrence: p.occurrence };
+    return { placed: strip(placed), unplaced: strip(unplaced), drawn: placements.length };
+  }, { sha, occurrence, faceId });
+}
+
+// Out of sweep mode: the one placement rule (every recorded occurrence, at
+// its own placement), and the pick rule above on the demo part's SECOND
+// occurrence -- 200 mm from the first, so a pick that resolved through the
+// wrong node, or not at all, cannot look right.
+async function mockPlacementPass(browser, base) {
+  console.log("\n--- placement rule, out of sweep mode (mock)");
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  await page.goto(`${base}?mock=1`);
+  await page.waitForFunction(() => window.__scene && window.AnnotateApp && window.AnnotateApp.exec, null,
+    { timeout: 20000 });
+  const sha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
+  await page.evaluate((s) => window.AnnotateApp.exec(["open-part", s]), sha);
+  const placed = await page.evaluate((s) => {
+    const want = window.AnnotateApp.FIXTURES.meshProvenance[s].extraction.instances
+      .map((i) => i.placement_world);
+    const drawn = window.__scene.drawnPlacements(s).map((e) =>
+      [e[0], e[4], e[8], e[12], e[1], e[5], e[9], e[13], e[2], e[6], e[10], e[14]]);
+    return { want, drawn };
+  }, sha);
+  check("an opened part is drawn at EVERY occurrence the assembly records, at " +
+    "its own placement, outside sweep mode",
+    placed.drawn.length === placed.want.length &&
+    placed.drawn.every((m, i) => m.every((x, k) => Math.abs(x - placed.want[i][k]) < 1e-9)),
+    JSON.stringify(placed));
+  const both = await pickSameFaceBothWays(page, sha, 1, 0);
+  check("a pick on a placed part's second occurrence names the same (part, " +
+    "face) the same pick named with the part at its own origin",
+    both.placed && both.unplaced && both.placed.sha256 === both.unplaced.sha256 &&
+    both.placed.faceId === both.unplaced.faceId && both.placed.faceId === 0 &&
+    both.placed.occurrence === 1, JSON.stringify(both));
+  await page.close();
 }
 
 // Reduced-motion playback, driven from the wall clock rather than the frame
@@ -509,12 +623,17 @@ async function captureShots(page, url, tag) {
   const label = tag || "mock";
   for (const scheme of ["dark"]) {
     await page.emulateMedia({ colorScheme: scheme });
-    await page.goto(url.indexOf("?") === -1 ? `${url}?mock=1&sweep=synthetic-demo-sweep` : url);
+    // The real pass shoots the page it already HAS -- the linkage's parts
+    // opened out of sweep mode and then swept among -- because reloading
+    // would throw away exactly the parts the shots exist to show in place.
+    if (tag !== "real") {
+      await page.goto(url.indexOf("?") === -1 ? `${url}?mock=1&sweep=synthetic-demo-sweep` : url);
+    }
     await page.waitForFunction(() => window.__sweep && window.__sweep.frame, null,
       { timeout: 60000 });
     if (tag === "real") {
       await page.waitForFunction(() => window.__sweep && window.__sweep.bodies.length > 0,
-        null, { timeout: 180000 });
+        null, { timeout: 600000 });
     }
     for (const degrees of wanted) {
       // Seek by the measure a reader thinks in, not by index: find the point
@@ -565,9 +684,18 @@ async function captureShots(page, url, tag) {
       notes.push(`${name}  point ${index}`);
     }
   }
+  // WHAT the shots are of, by the pass that took them. Until 2026-10-14 this
+  // caption was one fixed sentence about the mock run, written beside the
+  // real run's shots too -- which is how the 10-01 evidence came to say it
+  // was synthetic when it was not.
+  const against = tag === "real"
+    ? `against the PUBLISHED run ${REAL_RUN} and the installed meshes\n` +
+      "(data/inbox/linkage-sweeps/, data/meshes/ in the main checkout), through\n" +
+      "this check's read harness -- not through the app's File System Access transport.\n"
+    : "against ?mock=1's SYNTHETIC crank-slider run (fixtures.js). Not a\n" +
+      "measurement of anything.\n";
   await writeFile(join(SHOTS, `sweep_screenshots_${label}.txt`),
-    "Captured by apps/annotate/run_browser_check.mjs --shots, against ?mock=1's\n" +
-    "SYNTHETIC crank-slider run (fixtures.js). Not a measurement of anything.\n" +
+    "Captured by apps/annotate/run_browser_check.mjs --shots, " + against +
     "Dark only: both apps render one theme by decision, and no mechanism for a\n" +
     "second exists (docs/DESIGN_TYPE_AND_COLOUR.md, \"One theme\").\n\n" +
     notes.join("\n") + "\n", "utf8");
@@ -575,6 +703,37 @@ async function captureShots(page, url, tag) {
 }
 
 // --- the real pass ---------------------------------------------------------
+
+// The pitch linkage's installed parts, by mesh part id: what the out-of-sweep
+// screenshot opens together and what the sweep then plays among. Everything
+// on docs/topologies/topology_vpa_pitch_linkage.json's part list that has a
+// mesh, plus the bushings pressed into the plate and the instrumented pitch
+// link -- and not the blades, which sweep mode opens itself and which, at a
+// metre and a half, would frame the linkage a few pixels across.
+const LINKAGE_PARTS = [
+  "asm217755_214373_002", "asm217755_215071_001", "asm217755_213862_002",
+  "asm217755_546293_002", "asm217755_MS14101_3_815597cb", "asm217755_215177_001",
+  "asm217755_NAS77A3_015A", "asm217755_NAS77A4_015A", "asm217755_215735_001",
+  "asm217755_PMF200521", "asm217755_215176_002", "asm217755_215175_001",
+  "asm217755_212956_005", "asm217755_MS14101_3_34f032f0", "asm217755_MS14103_3",
+];
+
+// The newest published run by its own `ts`, read off the files directly.
+async function newestRunOnDisk() {
+  for (const root of DATA_ROOTS) {
+    const dir = join(root, "data", "inbox", "linkage-sweeps");
+    if (!existsSync(dir)) continue;
+    let best = null;
+    for (const name of (await readdir(dir)).filter((n) => /\.json$/i.test(n))) {
+      const doc = JSON.parse(await readFile(join(dir, name), "utf8"));
+      const t = Date.parse(doc.ts);
+      const id = name.replace(/\.json$/i, "");
+      if (!best || t > best.t || (t === best.t && id > best.id)) best = { t, id };
+    }
+    if (best) return best.id;
+  }
+  return null;
+}
 //
 // The same page, against a PUBLISHED `linkage-sweep/v1` run and the real
 // installed mesh store. Everything above runs on the synthetic fixture
@@ -608,7 +767,7 @@ async function realPass(browser, base) {
       const AA = window.AnnotateApp;
       if (!AA || !AA.MemoryAdapter) return false;
       const P = AA.MemoryAdapter.prototype;
-      P.listSweepRuns = async () => [{ runId: window.__realRun }];
+      P.listSweepRuns = async () => AA.orderSweepRuns(await Promise.all(((await json("/inbox/linkage-sweeps/index.json")) || []).map(async (id) => AA.sweepRunEntry(id, await json(`/inbox/linkage-sweeps/${id}.json`)))));
       P.readSweepRun = async (runId) => json(`/inbox/linkage-sweeps/${runId}.json`);
       P.listMeshes = async () => {
         if (!window.__realMeshes) window.__realMeshes = await json("/meshes/index.json");
@@ -626,9 +785,88 @@ async function realPass(browser, base) {
   });
   await page.addInitScript((runId) => { window.__realRun = runId; }, REAL_RUN);
 
-  const started = Date.now();
   page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
-  await page.goto(`${base}?mock=1&sweep=${encodeURIComponent(REAL_RUN)}`);
+
+  // OUT OF SWEEP MODE FIRST: the pitch linkage's parts, opened together, in
+  // the assembly frame -- the side-by-side row this replaced is the thing
+  // Jeff called "random parts floating in weird positions in space".
+  await page.goto(`${base}?mock=1`);
+  await page.waitForFunction(() => window.__scene && window.AnnotateApp &&
+    window.AnnotateApp.exec && window.__realMeshes, null, { timeout: 60000 });
+  await page.waitForTimeout(500);
+  const opened = await page.evaluate(async (ids) => {
+    const AA = window.AnnotateApp;
+    const out = [];
+    for (const id of ids) {
+      try { out.push([id, await AA.exec(["open-part", id])]); } catch (err) { out.push([id, null]); }
+    }
+    await AA.exec(["camera", "reset"]);
+    return out;
+  }, LINKAGE_PARTS);
+  const missing = opened.filter(([, sha]) => !sha).map(([id]) => id);
+  check("[real] every pitch-linkage part this pass opens is installed",
+    missing.length === 0, missing.join(", "));
+  const placedReport = await page.evaluate(async () => {
+    const out = [];
+    for (const sha of window.__scene.listOpenParts()) {
+      const provenance = await fetch(`/data/meshes/${sha}/provenance.json`).then((r) => r.json());
+      const want = ((provenance.extraction || {}).instances || []).map((i) => i.placement_world)
+        .filter((p) => p && p.length === 12);
+      const drawn = window.__scene.drawnPlacements(sha).map((e) =>
+        [e[0], e[4], e[8], e[12], e[1], e[5], e[9], e[13], e[2], e[6], e[10], e[14]]);
+      const cap = window.AnnotateApp.OCCURRENCE_DRAW_LIMIT;
+      const expect = want.slice(0, cap);
+      const ok = want.length === 0
+        ? drawn.length === 1
+        : drawn.length === expect.length && drawn.every((m, i) =>
+          m.every((x, k) => Math.abs(x - expect[i][k]) < 1e-6));
+      out.push({ sha: sha.slice(0, 8), part: provenance.part_id, recorded: want.length,
+        drawn: drawn.length, ok });
+    }
+    return out;
+  });
+  for (const row of placedReport) {
+    console.log(`      ${row.part}: ${row.recorded} recorded, ${row.drawn} drawn${row.ok ? "" : "  <-- WRONG"}`);
+  }
+  check("[real] out of sweep mode, every opened part is drawn at every occurrence " +
+    "the assembly records, at exactly its placement_world",
+    placedReport.every((r) => r.ok), JSON.stringify(placedReport.filter((r) => !r.ok)));
+  const tanLink = placedReport.filter((r) => r.part === "asm217755_212956_005")[0];
+  check("[real] the tangential link is drawn three times, once per occurrence",
+    tanLink && tanLink.drawn === 3, JSON.stringify(tanLink));
+  // The pick rule on real geometry: the tangential link's THIRD occurrence.
+  const tanSha = opened.filter(([id]) => id === "asm217755_212956_005")[0][1];
+  const realPick = await pickSameFaceBothWays(page, tanSha, 2, 0);
+  check("[real] a pick on the tangential link's third occurrence names the same " +
+    "(part, face) as the same pick at the part's own origin",
+    realPick.placed && realPick.unplaced && realPick.placed.sha256 === realPick.unplaced.sha256 &&
+    realPick.placed.faceId === realPick.unplaced.faceId && realPick.placed.occurrence === 2,
+    JSON.stringify(realPick));
+  if (SHOTS) {
+    await mkdir(SHOTS, { recursive: true });
+    // See-through, so the linkage reads through the hub and housings it sits
+    // inside -- the same preference sweep mode applies by default.
+    await page.evaluate(() => window.AnnotateApp.exec(["transparency", "on"]));
+    await page.evaluate(async () => {
+      for (let i = 0; i < 6; i++) await new Promise((r) => requestAnimationFrame(r));
+    });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: join(SHOTS, "assembled_real_dark_out_of_sweep.png") });
+    console.log("      assembled_real_dark_out_of_sweep.png written");
+  }
+
+  // `sweep latest` is the newest run by its own `ts` -- worked out here, in
+  // Node, from the files, independently of the page.
+  const newest = await newestRunOnDisk();
+  if (newest) {
+    const latest = await page.evaluate(() => window.AnnotateApp.exec(["sweep", "latest"]));
+    check("[real] `sweep latest` opens the run with the newest ts",
+      latest && latest.runId === newest, `page: ${latest && latest.runId}, disk: ${newest}`);
+    await page.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
+  }
+
+  const started = Date.now();
+  await page.evaluate((run) => window.AnnotateApp.exec(["sweep", run]), REAL_RUN);
   try {
     await page.waitForFunction(() => window.__sweep && window.__sweep.frame, null, { timeout: 60000 });
   } catch (err) {
@@ -638,7 +876,7 @@ async function realPass(browser, base) {
   }
   // The bodies resolve off the render path, so wait for that to settle too.
   await page.waitForFunction(() => window.__sweep && window.__sweep.bodies.length > 0,
-    null, { timeout: 180000 });
+    null, { timeout: 600000 });
   console.log(`      run read, geometry fitted and bodies resolved in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 
   const summary = (await page.locator(".an__sweep-summary").textContent()) || "";
@@ -665,6 +903,51 @@ async function realPass(browser, base) {
       .every((b) => b.placements.every((p) => p.residual <= 1.0)),
     JSON.stringify(bodies.filter((b) => b.state === "matched")
       .map((b) => [b.part, b.placements.map((p) => p.residual)])));
+
+  // SWEEP MODE ON TOP OF THE SAME RULE: away from the as-modelled pose, what
+  // the run owns has moved and nothing else has.
+  await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
+  const moved = await page.evaluate(() => {
+    const scene = window.__scene, sweep = window.__sweep;
+    const out = {};
+    for (const sha of scene.listOpenParts()) {
+      const entries = sweep.plan[sha] || [];
+      const drawn = scene.drawnPlacements(sha);
+      const rest = (scene.parts.get(sha).userData.rest || []);
+      // How many drawn occurrences sit away from where the assembly puts them.
+      let away = 0;
+      drawn.forEach((e, i) => {
+        const r = rest[i];
+        if (!r) { away++; return; }
+        const t = [e[12] - r[3], e[13] - r[7], e[14] - r[11]];
+        if (Math.hypot(t[0], t[1], t[2]) > 1e-6) away++;
+      });
+      out[sha] = { moving: entries.filter((e) => e.subject).length, away, drawn: drawn.length,
+        visible: scene.isVisible(sha) };
+    }
+    return out;
+  });
+  const bySha = (id) => opened.filter(([x]) => x === id)[0][1];
+  const still = ["asm217755_212956_005", "asm217755_215175_001"];
+  check("[real] in sweep mode, the tangential links (all three) and the " +
+    "tangential link mount sit still where the assembly puts them",
+    still.every((id) => moved[bySha(id)] && moved[bySha(id)].away === 0 &&
+      moved[bySha(id)].visible && moved[bySha(id)].moving === 0) &&
+      moved[bySha("asm217755_212956_005")].drawn === 3,
+    JSON.stringify(still.map((id) => moved[bySha(id)])));
+  const bushings = ["asm217755_NAS77A3_015A", "asm217755_NAS77A4_015A"];
+  check("[real] the plate's bushings -- separate meshes recorded inside the " +
+    "plate's own occurrence -- move with the plate",
+    bushings.every((id) => moved[bySha(id)] && moved[bySha(id)].moving === moved[bySha(id)].drawn &&
+      moved[bySha(id)].moving > 0),
+    JSON.stringify(bushings.map((id) => moved[bySha(id)])));
+  await page.locator(".an__sweep-bodies > summary").click();
+  const disclosure = await page.locator(".an__sweep-bodies").innerText();
+  check("[real] the bodies disclosure lists the parts the run does not move, " +
+    "under a plain heading", disclosure.indexOf("Not moved by this run") !== -1,
+    disclosure);
+  check("[real] ...and says the bushings move with the plate",
+    /NAS77A3-015A moves with it/.test(disclosure), disclosure);
 
   // The verification numbers, across the whole real sweep.
   const spread = await page.evaluate(() => {
@@ -697,10 +980,27 @@ async function realPass(browser, base) {
 
   // The frame rate WITH the real meshes loaded -- the measurement the lesson
   // is asked for, and the only place it can be taken.
+  //
+  // MEASURED, frames over wall clock, not read off `sweep.fps`: that rolling
+  // figure is built from a frame interval CAPPED at 0.25 s (tickSweep's
+  // background-tab guard), so it can never read below 4 -- and 10-01's
+  // "4 fps headless" was that floor, not a measurement. Counted by a
+  // requestAnimationFrame loop of this check's own, which the browser
+  // services once per rendered frame like the scene's.
+  const countFrames = async (ms) => page.evaluate(async (window_ms) => {
+    let frames = 0;
+    let live = true;
+    const tick = () => { if (!live) return; frames++; requestAnimationFrame(tick); };
+    const t0 = performance.now();
+    requestAnimationFrame(tick);
+    await new Promise((r) => setTimeout(r, window_ms));
+    live = false;
+    return frames / ((performance.now() - t0) / 1000);
+  }, ms);
   await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
   await page.evaluate(() => window.AnnotateApp.exec(["loop", "pingpong"]));
   await page.evaluate(() => window.AnnotateApp.exec(["play"]));
-  await page.waitForTimeout(4000);
+  const measuredFps = await countFrames(8000);
   const playing = await page.evaluate(() => ({ fps: window.__sweep.fps, index: window.__sweep.index }));
   await page.evaluate(() => window.AnnotateApp.exec(["pause"]));
   const open = await page.evaluate(() => window.__scene.listOpenParts().length);
@@ -709,8 +1009,19 @@ async function realPass(browser, base) {
   // and nothing like what the same scene does on a GPU. What IS asserted is
   // that playback advanced with the real geometry loaded -- that the clock,
   // the anchoring and the renderer survive 1.4 million triangles at all.
-  console.log(`      playback with ${open} real meshes loaded: ${playing.fps.toFixed(1)} fps ` +
-    `(headless software rasterisation -- a floor, not the figure a GPU gives)`);
+  const triangles = await page.evaluate(() => {
+    let n = 0;
+    for (const sha of window.__scene.listOpenParts()) {
+      const mesh = window.__scene.parts.get(sha);
+      if (!mesh.visible) continue;
+      n += (mesh.geometry.index.count / 3) * window.__scene.drawnPlacements(sha).length;
+    }
+    return n;
+  });
+  console.log(`      playback with ${open} real meshes loaded (${Math.round(triangles).toLocaleString("en-US")} ` +
+    `triangles drawn): ${measuredFps.toFixed(2)} fps measured, frames over wall clock ` +
+    `(headless software rasterisation -- a floor, not the figure a GPU gives; ` +
+    `the app's own capped rolling figure read ${playing.fps.toFixed(1)})`);
   check("[real] playback advances with the real meshes loaded",
     playing.index > 0, JSON.stringify(playing));
 
@@ -723,12 +1034,15 @@ async function realPass(browser, base) {
   await page.evaluate(() => window.AnnotateApp.exec(["layer", "ghost", "on"]));
   await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
   await page.evaluate(() => window.AnnotateApp.exec(["play"]));
-  await page.waitForTimeout(4000);
+  const measuredGhostFps = await countFrames(8000);
+  // At a fraction of a frame a second, "has it moved yet" is a wait, not a
+  // fixed window -- the claim is that it advances, not how fast.
+  await page.waitForFunction(() => window.__sweep.index > 0, null, { timeout: 60000 }).catch(() => {});
   const playingGhost = await page.evaluate(() => ({ fps: window.__sweep.fps, index: window.__sweep.index }));
   await page.evaluate(() => window.AnnotateApp.exec(["pause"]));
   await page.evaluate(() => window.AnnotateApp.exec(["layer", "ghost", "off"]));
   console.log(`      playback with ${open} real meshes loaded, ghost layer ON: ` +
-    `${playingGhost.fps.toFixed(1)} fps`);
+    `${measuredGhostFps.toFixed(2)} fps measured`);
   check("[real] playback advances with the ghost layer on",
     playingGhost.index > 0, JSON.stringify(playingGhost));
 

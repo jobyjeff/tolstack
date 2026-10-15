@@ -46,9 +46,9 @@
 
   MemoryAdapter.prototype.listSweepRuns = async function () {
     var runs = this._fixtures.sweepRuns || {};
-    return Object.keys(runs).sort().reverse().map(function (runId) {
-      return { runId: runId };
-    });
+    return AA.orderSweepRuns(Object.keys(runs).map(function (runId) {
+      return AA.sweepRunEntry(runId, runs[runId]);
+    }));
   };
   MemoryAdapter.prototype.readSweepRun = async function (runId) {
     return (this._fixtures.sweepRuns || {})[runId] || null;

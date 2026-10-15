@@ -3403,6 +3403,252 @@ check("sweep: index.html loads sweep.js before the module that uses it, and " +
   }
 });
 
+// --- parts sit where the assembly puts them (handoff 2026-10-14) -------------
+
+// A directory handle in memory, shaped like the File System Access one the
+// FSA adapter walks -- so the listing below runs FsaAdapter's real code
+// rather than a restatement of it.
+function fakeDirHandle(tree) {
+  return {
+    kind: "directory",
+    async getDirectoryHandle(name) {
+      const sub = tree[name];
+      if (!sub || typeof sub !== "object" || sub.__file) throw new Error("NotFoundError");
+      return fakeDirHandle(sub);
+    },
+    async getFileHandle(name) {
+      const leaf = tree[name];
+      if (!leaf || !leaf.__file) throw new Error("NotFoundError");
+      return { kind: "file", getFile: async () => ({ text: async () => leaf.text }) };
+    },
+    async *entries() {
+      for (const name of Object.keys(tree)) {
+        yield [name, tree[name].__file ? { kind: "file" } : { kind: "directory" }];
+      }
+    },
+  };
+}
+
+function runDoc(runId, ts, mechanism) {
+  const doc = { schema: "linkage-sweep/v1", run_id: runId, mechanism: { name: mechanism } };
+  if (ts !== undefined) doc.ts = ts;
+  return doc;
+}
+
+check("sweep latest is the newest run by its OWN ts, tie-broken by run id, on " +
+  "every adapter that lists runs", async () => {
+  // The case Jeff hit: two runs whose ids sort the other way round from when
+  // they were published -- `s` beats `p1` alphabetically, P1 is newer.
+  const unequal = {
+    "vpa-pitch-s-20261001-203656": runDoc("vpa-pitch-s-20261001-203656", "2026-10-01T20:36:56Z", "vpa_pitch_chunk0_s"),
+    "vpa-pitch-p1-20261001-203656": runDoc("vpa-pitch-p1-20261001-203656", "2026-10-01T20:36:58Z", "vpa_pitch_chunk0_p1"),
+  };
+  // ...and two published in the same second, where the run id decides.
+  const equal = {
+    "run-a": runDoc("run-a", "2026-10-02T00:00:00Z", "m_a"),
+    "run-b": runDoc("run-b", "2026-10-02T00:00:00Z", "m_b"),
+  };
+  // A run with no readable `ts` is listed, last, rather than dropped.
+  const undated = { "zz-undated": runDoc("zz-undated", undefined, "m_z") };
+  const cases = [
+    [unequal, ["vpa-pitch-p1-20261001-203656", "vpa-pitch-s-20261001-203656"]],
+    [equal, ["run-b", "run-a"]],
+    [Object.assign({}, unequal, equal, undated),
+      ["run-b", "run-a", "vpa-pitch-p1-20261001-203656", "vpa-pitch-s-20261001-203656", "zz-undated"]],
+  ];
+
+  // The FSA adapter is not one of this runner's default files (it needs a
+  // browser to do anything real), so it is loaded here, for its listing.
+  if (!AA.FsaAdapter) {
+    vm.runInContext(fs.readFileSync(path.join(here, "storage", "fsa.js"), "utf8"), sandbox,
+      { filename: "storage/fsa.js" });
+  }
+  for (const [runs, want] of cases) {
+    const entries = Object.keys(runs).map((id) => AA.sweepRunEntry(id, runs[id]));
+    assertEqual(AA.orderSweepRuns(entries).map((r) => r.runId), want, "AA.orderSweepRuns");
+
+    const memory = new AA.MemoryAdapter({ sweepRuns: runs });
+    await memory.connect();
+    const listed = await memory.listSweepRuns();
+    assertEqual(listed.map((r) => r.runId), want, "the in-memory adapter");
+
+    const files = {};
+    for (const id of Object.keys(runs)) {
+      files[id + ".json"] = { __file: true, text: JSON.stringify(runs[id]) };
+    }
+    files["notes.txt"] = { __file: true, text: "not a run" };
+    const fsa = new AA.FsaAdapter();
+    fsa._state = AA.STATE.READY;
+    fsa._rootHandle = fakeDirHandle({ data: { inbox: { "linkage-sweeps": files } } });
+    const fsaListed = await fsa.listSweepRuns();
+    assertEqual(fsaListed.map((r) => r.runId), want, "the FSA adapter");
+    // What the bar's picker names a run by comes with the listing.
+    if (fsaListed.some((r) => r.runId.indexOf("vpa-pitch-p1") === 0 &&
+        r.mechanism !== "vpa_pitch_chunk0_p1")) {
+      throw new Error("the listing does not carry the run's mechanism: " + JSON.stringify(fsaListed));
+    }
+  }
+
+  // The browser check's read harness lists runs too, and answers through the
+  // same ordering rather than a copy of it.
+  const harness = fs.readFileSync(path.join(here, "run_browser_check.mjs"), "utf8");
+  const line = harness.split("\n").filter((l) => l.indexOf("P.listSweepRuns") !== -1)[0] || "";
+  if (line.indexOf("AA.orderSweepRuns") === -1) {
+    throw new Error("run_browser_check.mjs's listSweepRuns does not order through " +
+      "AA.orderSweepRuns: " + line.trim());
+  }
+});
+
+check("the placement rule: every recorded occurrence is drawn, a pathological " +
+  "count is capped and says so, and a part with none says it is at its own origin", () => {
+  const P = (tx) => [1, 0, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0];
+  const occ = AA.readMeshOccurrences(
+    [{ sha256: "link" }, { sha256: "standalone" }, { sha256: "rivet" }],
+    {
+      link: { extraction: { product_name: "212956-005", instances: [
+        { instance_name: "prd.1", instance_path: ["217755-001", "prd.1"], placement_world: P(1) },
+        { instance_name: "prd.2", instance_path: ["217755-001", "prd.2"], placement_world: P(2) },
+        { instance_name: "prd.3", instance_path: ["217755-001", "prd.3"], placement_world: P(3) },
+        // A malformed placement is not an occurrence -- drawn nowhere rather
+        // than drawn wrong.
+        { instance_name: "prd.4", instance_path: ["217755-001", "prd.4"], placement_world: [1, 0, 0] },
+      ] } },
+      standalone: { extraction: {} },
+      rivet: { extraction: { instances: Array.from({ length: 70 }, (_, i) => (
+        { instance_name: "r." + i, placement_world: P(i) })) } },
+    });
+  const link = AA.restPlacements(occ.byMesh.link);
+  assertEqual(link.placements, [P(1), P(2), P(3)], "the tangential link is drawn at all three");
+  assertEqual(link.keys, ["217755-001/prd.1", "217755-001/prd.2", "217755-001/prd.3"], "keyed by path");
+  assertEqual(AA.assemblyPositionNote(link), null, "a part drawn everywhere it sits needs no note");
+
+  const none = AA.restPlacements(occ.byMesh.standalone);
+  assertEqual(none.placements.length, 0, "a standalone STEP records nothing");
+  assertEqual(AA.assemblyPositionNote(none), AA.ASSEMBLY_POSITION_WORDS.none,
+    "a part with no position says it is at its own origin");
+
+  const rivet = AA.restPlacements(occ.byMesh.rivet);
+  assertEqual([rivet.placements.length, rivet.total, rivet.capped],
+    [AA.OCCURRENCE_DRAW_LIMIT, 70, true], "a pathological count is capped");
+  const capped = AA.assemblyPositionNote(rivet);
+  if (capped.indexOf(String(AA.OCCURRENCE_DRAW_LIMIT)) === -1 || capped.indexOf("70") === -1) {
+    throw new Error("the capped note does not say how many of how many: " + capped);
+  }
+  // The cap is for a pathological part, not a real one: the most-repeated
+  // part installed today is the NAS1149V0332H washer, 29 times.
+  if (AA.OCCURRENCE_DRAW_LIMIT < 29) {
+    throw new Error("the draw cap " + AA.OCCURRENCE_DRAW_LIMIT + " would cut a real part short");
+  }
+  for (const words of [AA.ASSEMBLY_POSITION_WORDS.none, capped]) {
+    assertNoCommandOrPath(words, "a part's position note");
+    assertNothingBanned(words, "a part's position note");
+  }
+});
+
+check("sweep: a body carries what is recorded INSIDE its matched occurrence -- " +
+  "the deepest enclosing claim wins, a listed claim beats an inherited one, " +
+  "and a sibling path is not inside", () => {
+  const I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+  const o = (mesh, key) => ({ mesh, key, instance_name: key.split("/").pop(), placement: I });
+  const all = [
+    o("plate", "r/plate.3"),
+    o("bushing", "r/plate.3/bushing.1"),
+    o("bushing", "r/plate.3/bushing.2"),
+    // `plate.30` is a sibling whose name merely starts the same way.
+    o("decoy", "r/plate.30/x.1"),
+    o("link", "r/plate.3/link.1"),
+    o("bearing", "r/plate.3/link.1/bearing.1"),
+    o("listed", "r/plate.3/listed.1"),
+    // A DIFFERENT mesh at exactly the plate's own path: the same occurrence.
+    o("variant", "r/plate.3"),
+  ];
+  const claims = [
+    { sha256: "plate", key: "r/plate.3", subject: "pitch_plate", part: "plate" },
+    { sha256: "link", key: "r/plate.3/link.1", subject: "pitch_link", part: "link" },
+    { sha256: "listed", key: "r/plate.3/listed.1", subject: "blade", part: "listed" },
+  ];
+  const carried = AA.sweepCarriedOccurrences(all, claims);
+  const got = carried.map((c) => [c.sha256, c.key, c.subject, c.inside]);
+  assertEqual(got, [
+    ["bushing", "r/plate.3/bushing.1", "pitch_plate", true],
+    ["bushing", "r/plate.3/bushing.2", "pitch_plate", true],
+    ["bearing", "r/plate.3/link.1/bearing.1", "pitch_link", true],
+    ["variant", "r/plate.3", "pitch_plate", false],
+  ], "what each body carries");
+  if (!AA.occurrenceWithin("a/b.3/c", "a/b.3") || AA.occurrenceWithin("a/b.30", "a/b.3")) {
+    throw new Error("occurrenceWithin reads a name prefix instead of a path");
+  }
+});
+
+check("sweep: the draw plan moves only what the run owns -- a mesh moved at one " +
+  "occurrence keeps its others still, and a matched occurrence the mesh does " +
+  "not record is drawn too", () => {
+  const P = (tx) => [1, 0, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0];
+  const occ = AA.readMeshOccurrences([{ sha256: "arm" }, { sha256: "link" }, { sha256: "hub" }], {
+    arm: { extraction: { instances: [
+      { instance_name: "arm.1", instance_path: ["r", "arm.1"], placement_world: P(10) },
+      { instance_name: "arm.2", instance_path: ["r", "arm.2"], placement_world: P(20) },
+    ] } },
+    link: { extraction: { instances: [
+      { instance_name: "link.2", instance_path: ["r", "link.2"], placement_world: P(40) },
+    ] } },
+    hub: { extraction: { instances: [
+      { instance_name: "hub.1", instance_path: ["r", "hub.1"], placement_world: P(0) },
+    ] } },
+  });
+  const rows = [
+    { subject: "base", part: "hub", sha256: "hub", state: "ground",
+      placements: [{ key: "r/hub.1", placement: P(0) }] },
+    { subject: "blade", part: "pitch_arm", sha256: "arm", state: "matched",
+      placements: [{ key: "r/arm.1", placement: P(10) }] },
+    // Blade 1's link: recorded on ANOTHER mesh's provenance, matched by
+    // geometry -- so it is not one of this mesh's own occurrences.
+    { subject: "pitch_link", part: "pitch_link", sha256: "link", state: "matched",
+      placements: [{ key: "r/link.1", placement: P(30) }] },
+    { subject: "blade", part: "blade_root", sha256: "nothing", state: "refused" },
+  ];
+  const drawn = AA.sweepDrawPlan(rows, occ);
+  assertEqual(Object.keys(drawn.plan).sort(), ["arm", "link"], "only meshes something moves are planned");
+  assertEqual(drawn.plan.arm.map((e) => [e.key, e.subject]),
+    [["r/arm.1", "blade"], ["r/arm.2", null]], "the arm moves at blade 1 and stays put at blade 2");
+  assertEqual(drawn.plan.link.map((e) => [e.key, e.subject]),
+    [["r/link.2", null], ["r/link.1", "pitch_link"]], "the link's own slot stays, the matched one moves");
+
+  const frame = {
+    poses: { blade: { quaternion: [0, 0, 0, 1], translation: [0, 5, 0] } },
+    links: { pitch_link: { quaternion: [0, 0, 0, 1], translation: [0, 0, 7] } },
+  };
+  const arm = AA.sweepMeshMatrices(drawn.plan.arm, frame);
+  assertEqual([arm[0][3], arm[0][7], arm[1][3], arm[1][7]], [10, 5, 20, 0],
+    "the moving occurrence carries the pose; the still one is its own placement");
+  const link = AA.sweepMeshMatrices(drawn.plan.link, frame);
+  assertEqual([link[0][11], link[1][3], link[1][11]], [0, 30, 7], "a link rides its reconstructed pose");
+});
+
+check("a pick resolves to the part's own (sha256, face id) whichever occurrence " +
+  "it lands on, so the event it writes is the one it always wrote", () => {
+  const sha = AA.FIXTURES.demoSha;
+  const record = AA.FIXTURES.meshManifests[sha].faces[0];
+  // What scene.pick returns on the part itself (occurrence 0, the only
+  // answer before parts were placed) and on its second drawn occurrence.
+  const onPart = { sha256: sha, faceId: 0, record, occurrence: 0 };
+  const onRepeat = { sha256: sha, faceId: 0, record, occurrence: 1 };
+  const build = (pick) => AA.buildBoundEvent({
+    eventId: "e", seq: 1, createdAt: "2026-10-14T00:00:00Z", recordedBy: "test",
+    stackKey: AA.topologyEdgeKey("demo_system", "demo_edge_untraced"),
+    geometryKey: AA.geometryKeyOfPick(pick), direction: AA.DIRECTIONS[0],
+  });
+  assertEqual(build(onRepeat), build(onPart), "the event from a pick on a repeat");
+  // ...and it is the key the fixture's existing binding already carries, i.e.
+  // part-local -- the manifest's own centroid, not a placed one.
+  const existing = AA.FIXTURES.featureIdentityProjection.stack_keys[0].bindings[0].geometry_key;
+  assertEqual(build(onRepeat).geometry_key, existing, "the part-local key");
+  // The same face on two occurrences is ONE face: clicking it on the other
+  // occurrence toggles the pick off rather than selecting it again.
+  assertEqual(AA.planPickToggle(onPart, onRepeat).action, "clear",
+    "the same face, picked on another occurrence");
+});
+
 // --- [real] the published sweep runs ---------------------------------------
 //
 // `data/inbox/linkage-sweeps/` is gitignored and lives only in the main

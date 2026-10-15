@@ -120,8 +120,13 @@ const state = {
   // five bodies routinely ask about the same mesh.
   sweepFeatures: {},
   // Every occurrence recorded anywhere in the installed store, read once --
-  // see loadOccurrences for why the whole store and not one mesh's own.
+  // see loadOccurrences for why the whole store and not one mesh's own. Read
+  // at load since 2026-10-14: it is where EVERY opened part is drawn, not
+  // only the ones a sweep moves.
   occurrences: null,
+  // The published sweep runs, newest first by their own `ts` -- what the
+  // bar's run picker offers. Read when sweep mode is entered.
+  sweepRuns: [],
   // The last arrival this app applied ({topologyId, edgeId, studyId, trace}),
   // so ticking an auto-setup box back ON can re-apply it rather than making
   // the reader go back to the stack viewer and click through again.
@@ -174,6 +179,10 @@ async function cmdOpenPart(identifier) {
   // from an earlier `trace`/`ghost` would silently render it translucent.
   state.scene.setGhost(mesh.sha256, false);
   renderPartsPanel();
+  // A part drawn anywhere but where the assembly puts it says so, the moment
+  // it appears -- its panel row says it too, for as long as it is listed.
+  const note = positionNote(mesh.sha256);
+  if (note) setBanner(mesh.label + ": " + note, "warn");
   return mesh.sha256;
 }
 
@@ -791,11 +800,13 @@ async function cmdSweep(target) {
   if (!want) throw new Error("sweep takes a run, or \"latest\", or \"off\"");
   if (want === "off") return leaveSweep();
 
+  // Newest first by each run's own `ts` -- the adapter's answer, through
+  // AA.orderSweepRuns. Read every time, because the picker offers them all.
+  state.sweepRuns = await state.storage.listSweepRuns();
   let runId = want;
   if (want === "latest") {
-    const runs = await state.storage.listSweepRuns();
-    if (!runs.length) throw new Error(NO_SWEEP_RUNS);
-    runId = runs[0].runId;
+    if (!state.sweepRuns.length) throw new Error(NO_SWEEP_RUNS);
+    runId = state.sweepRuns[0].runId;
   }
   const doc = await state.storage.readSweepRun(runId);
   if (!doc) throw new Error("there is no published run called " + runId);
@@ -828,9 +839,16 @@ async function cmdSweep(target) {
     // when there was one. Written by anchorSweepBodies below and read by the
     // bar's disclosure -- never by the renderer, which just gets matrices.
     bodies: [],
-    // What was on screen before, so leaving restores it exactly.
+    // Per mesh, what moves and what stays (AA.sweepDrawPlan), and every mesh
+    // this run anchors at all -- built once, after the bodies resolve.
+    plan: {},
+    anchored: [],
+    // What was on screen before, so leaving restores it exactly. Nothing is
+    // HIDDEN on the way in any more: an opened part this run does not move
+    // sits where the assembly puts it, which is the mechanism's context.
     restoreVisible: state.scene.listOpenParts()
-      .map((sha) => ({ sha, visible: state.scene.isVisible(sha) })),
+      .map((sha) => ({ sha, visible: state.scene.isVisible(sha),
+        ghost: state.scene.isGhosted(sha) })),
     // Parts this mode opened, unloaded again on the way out: "leaving sweep
     // mode restores the scene exactly" includes not leaving five pitch arms
     // open that nobody asked for.
@@ -843,7 +861,6 @@ async function cmdSweep(target) {
   };
   state.scene.enterSweep(Object.assign({ trails }, structure));
   state.scene.onSweepHover = showSweepTip;
-  for (const entry of state.sweep.restoreVisible) state.scene.setVisible(entry.sha, false);
   applySweepFrame();
   state.scene.frameSweepScene();
   renderDetail();
@@ -861,8 +878,12 @@ function leaveSweep() {
   showSweepTip(null, null);
   state.scene.exitSweep();
   for (const sha of sweep.openedBySweep) state.scene.unloadPart(sha);
-  for (const entry of sweep.restoreVisible) state.scene.setVisible(entry.sha, entry.visible);
+  for (const entry of sweep.restoreVisible) {
+    state.scene.setVisible(entry.sha, entry.visible);
+    state.scene.setGhost(entry.sha, entry.ghost);
+  }
   renderDetail();
+  renderPartsPanel();
   return { left: true };
 }
 
@@ -882,33 +903,27 @@ function leaveSweep() {
 // at the other's occurrence sound -- they share a local frame.)
 async function loadOccurrences() {
   if (state.occurrences) return state.occurrences;
-  const all = [];
-  const byMesh = {};
-  const productOf = {};
+  const provenance = {};
   for (const mesh of state.meshList) {
-    let provenance = null;
-    try { provenance = await state.storage.readMeshProvenance(mesh.sha256); }
-    catch (err) { provenance = null; }
-    const extraction = (provenance && provenance.extraction) || {};
-    productOf[mesh.sha256] = extraction.product_name || null;
-    byMesh[mesh.sha256] = [];
-    for (const instance of extraction.instances || []) {
-      const placement = instance.placement_world;
-      if (!placement || placement.length !== AA.PLACEMENT_VALUES) continue;
-      const path = instance.instance_path || [instance.instance_name];
-      const occurrence = {
-        instance_name: instance.instance_name,
-        path: path,
-        key: path.join("/"),
-        placement: placement,
-        mesh: mesh.sha256,
-      };
-      byMesh[mesh.sha256].push(occurrence);
-      all.push(occurrence);
-    }
+    try { provenance[mesh.sha256] = await state.storage.readMeshProvenance(mesh.sha256); }
+    catch (err) { provenance[mesh.sha256] = null; }
   }
-  state.occurrences = { all, byMesh, productOf };
+  state.occurrences = AA.readMeshOccurrences(state.meshList, provenance);
   return state.occurrences;
+}
+
+// Where one part sits when nothing moves it -- the scene asks this once per
+// part it opens (scene.placementsFor), so every opened part, in every mode,
+// is drawn at every position the assembly records for it.
+function restOf(sha256) {
+  const occ = state.occurrences;
+  return AA.restPlacements(occ ? occ.byMesh[sha256] : null);
+}
+
+// The note a part's position needs, or null when it needs none.
+function positionNote(sha256) {
+  if (!state.occurrences) return null;
+  return AA.assemblyPositionNote(restOf(sha256));
 }
 
 // One mesh's joint-feature candidates, in its own local frame, with the word
@@ -969,6 +984,11 @@ async function anchorSweepBodies() {
   const artifact = sweep.artifact;
   const asModelled = artifact.points[artifact.points.length - 1];
   const occurrences = await loadOccurrences();
+  // This runs off the render path and takes seconds; a reader may leave the
+  // run, or load another, before it lands. Every await below re-checks, and a
+  // superseded run stops -- otherwise it would go on opening parts for a
+  // sweep that no longer exists, which nothing would ever close.
+  const superseded = () => state.sweep !== sweep;
 
   // The link bodies are the distance-constraint members, which have a
   // reconstructed pose of their own rather than a `bodies[]` entry. Their own
@@ -1020,6 +1040,7 @@ async function anchorSweepBodies() {
         continue;
       }
       const features = await sweepFeaturePoints(mesh.sha256);
+      if (superseded()) return [];
       if (!features || !features.points.length) {
         rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
           state: "no-feature" });
@@ -1062,12 +1083,30 @@ async function anchorSweepBodies() {
     }
   }
 
-  // Open every mesh that got a placement, once.
+  // What moves, decided once: the matched occurrences, everything recorded
+  // INSIDE one of them (the plate's bushings ride the plate -- see
+  // AA.sweepCarriedOccurrences), and every other occurrence of those same
+  // meshes left where the assembly puts it.
+  const drawn = AA.sweepDrawPlan(rows, occurrences);
+  for (const row of carriedRows(drawn.carried)) rows.push(row);
+  sweep.plan = drawn.plan;
+  sweep.anchored = Array.from(new Set(rows
+    .filter((r) => r.placements && r.placements.length).map((r) => r.sha256)));
+
+  // Open every mesh that got a placement, once -- including the ones carried
+  // INSIDE a moving occurrence, which nobody listed and which belong to it.
+  // Not one carried at exactly a matched path by a different mesh (the
+  // instrumented link at the design link's slot): that is the same part
+  // twice, drawn on top of itself. It moves if a reader opens it.
   for (const row of rows) {
     if (!row.placements || !row.placements.length) continue;
+    if (row.state === "carried" && !row.inside) continue;
     if (state.scene.listOpenParts().indexOf(row.sha256) !== -1) continue;
+    if (superseded()) return [];
     try {
       await AA.exec(["open-part", row.sha256]);
+      // Opened for THIS run: if it was left meanwhile, close it again.
+      if (superseded()) { state.scene.unloadPart(row.sha256); return []; }
       sweep.openedBySweep.push(row.sha256);
     } catch (err) { /* the row already says what happened */ }
   }
@@ -1079,6 +1118,26 @@ async function anchorSweepBodies() {
   state.scene.frameSweepScene();
   renderDetail();
   return rows;
+}
+
+// The carried occurrences as bar rows, one per (mesh, body): which body's
+// pose they ride, inside which matched occurrence, and how many of them.
+function carriedRows(carried) {
+  const byKey = new Map();
+  for (const c of carried) {
+    const id = c.sha256 + "|" + c.subject;
+    if (!byKey.has(id)) {
+      const mesh = state.meshList.filter((m) => m.sha256 === c.sha256)[0];
+      byKey.set(id, { subject: c.subject, part: mesh ? AA.meshShortName(mesh.label) : c.sha256,
+        sha256: c.sha256, state: "carried", by: c.by, under: c.under,
+        inside: false, placements: [] });
+    }
+    const row = byKey.get(id);
+    row.inside = row.inside || c.inside;
+    row.placements.push({ key: c.key, instance_name: c.instance_name,
+      placement: c.placement, residual: null });
+  }
+  return Array.from(byKey.values());
 }
 
 // What a hovered joint bead says. The sentence is AA.sweepJointTooltip's --
@@ -1111,15 +1170,17 @@ function applySweepFrame() {
   sweep.frame = frame;
   state.scene.setSweepFrame(frame, frame.nearer.converged);
 
-  for (const row of sweep.bodies) {
-    if (!row.placements || !row.placements.length) continue;
-    // A distance-constraint member's pose is the artifact's own reconstructed
-    // one (spin-free); every other body's is its `poses` entry. Ground's is
-    // the identity, which is exactly what an absent entry composes to.
-    const pose = sweep.frame.links[row.subject] || sweep.frame.poses[row.subject] || null;
-    const matrices = row.placements.map((p) => AA.anchorPlacement(pose, p.placement));
-    state.scene.setPartMatrix(row.sha256, sweep.layers.bodies ? matrices : null);
-    state.scene.setVisible(row.sha256, !!sweep.layers.bodies);
+  // One mesh at a time, not one row: a mesh may be moved by one body at one
+  // occurrence and left still at four others (the pitch arm), and its matrices
+  // are one list. The plan decided which; this composes the frame's poses
+  // onto it (AA.sweepMeshMatrices) and decides nothing.
+  for (const sha of sweep.anchored) {
+    const entries = sweep.plan[sha];
+    if (entries) {
+      state.scene.setPartMatrix(sha, sweep.layers.bodies
+        ? AA.sweepMeshMatrices(entries, sweep.frame) : null);
+    }
+    state.scene.setVisible(sha, !!sweep.layers.bodies);
     // THE SAME "See-through parts" PREFERENCE the rest of this app honours,
     // and for a sharper reason here: the stick figure is sweep mode's
     // content and the bodies are what it is attached to, so an opaque
@@ -1133,18 +1194,37 @@ function applySweepFrame() {
     // does not move. Applying either one again every frame bumps the part's
     // material version (setGhost) or reallocates a mesh and a material per
     // part (setSweepGhost), so each is applied only on the frame its own
-    // input actually changes, tracked on the row itself -- a fresh object
-    // every time a sweep (re)starts, so there is nothing stale to reset.
+    // input actually changes, tracked per mesh on the sweep itself -- a fresh
+    // object every time a sweep (re)starts, so there is nothing stale to
+    // reset.
+    const applied = sweep.applied || (sweep.applied = {});
+    const mine = applied[sha] || (applied[sha] = {});
     const wantGhost = !!state.transparentParts;
-    if (row._appliedGhost !== wantGhost) {
-      state.scene.setGhost(row.sha256, wantGhost);
-      row._appliedGhost = wantGhost;
+    if (mine.ghost !== wantGhost) {
+      state.scene.setGhost(sha, wantGhost);
+      mine.ghost = wantGhost;
     }
-    const wantSweepGhost = !!sweep.layers.ghost;
-    if (row._appliedSweepGhost !== wantSweepGhost) {
-      state.scene.setSweepGhost(row.sha256,
-        wantSweepGhost ? row.placements.map((p) => p.placement) : null);
-      row._appliedSweepGhost = wantSweepGhost;
+    // The as-modelled copies are of what MOVES -- a still occurrence's copy
+    // would sit exactly on top of it, saying nothing.
+    const wantSweepGhost = !!sweep.layers.ghost && !!entries;
+    if (mine.sweepGhost !== wantSweepGhost) {
+      state.scene.setSweepGhost(sha, wantSweepGhost
+        ? entries.filter((e) => e.subject).map((e) => e.placement) : null);
+      mine.sweepGhost = wantSweepGhost;
+    }
+  }
+  // ...and the same preference on every OTHER visible part: a still part is
+  // context, and an opaque one in front of the plate hides the thing this
+  // mode was opened to watch exactly as an anchored one would. Cached the
+  // same way; leaving sweep mode puts each part's own state back.
+  const applied = sweep.applied || (sweep.applied = {});
+  for (const sha of state.scene.listOpenParts()) {
+    if (sweep.anchored.indexOf(sha) !== -1 || !state.scene.isVisible(sha)) continue;
+    const mine = applied[sha] || (applied[sha] = {});
+    const wantGhost = !!state.transparentParts;
+    if (mine.ghost !== wantGhost) {
+      state.scene.setGhost(sha, wantGhost);
+      mine.ghost = wantGhost;
     }
   }
   return frame;
@@ -1293,9 +1373,23 @@ function renderSweepBar() {
   summary.className = "an__detail-line";
   const who = document.createElement("span");
   who.className = "an__sweep-summary";
-  who.textContent = AA.sweepSummaryParts(sweep.artifact).join(" · ");
+  // With a run picker beside it, the picker names the mechanism, so the line
+  // does not say it twice.
+  const picking = state.sweepRuns.length > 1;
+  who.textContent = AA.sweepSummaryParts(sweep.artifact,
+    { mechanism: !picking }).join(" · ");
   summary.appendChild(who);
   if (sweep.artifact.notConverged) who.classList.add("an__sweep-summary--warn");
+  // Which run, as a choice, when there is one to make -- each named by its
+  // mechanism in words and when it was published, newest first, driving the
+  // same `sweep <run>` verb the console takes.
+  if (picking) {
+    summary.appendChild(sweepSelect("which run", state.sweepRuns.map((run) => ({
+      value: run.runId, label: sweepRunLabel(run),
+    })), sweep.artifact.runId, (value) => {
+      AA.exec(["sweep", value]).catch((err) => setBanner(err.message, "error"));
+    }));
+  }
   summary.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
   el.detail.appendChild(summary);
 
@@ -1391,6 +1485,14 @@ function setSweepIndexQuietly(index) {
   sweep.playbackPosition = sweep.index;
   applySweepFrame();
   renderSweepReadouts();
+}
+
+// A run as the picker names it: its mechanism in words and when it was
+// published, so two runs of one linkage read as two different things.
+function sweepRunLabel(run) {
+  const what = run.mechanism ? AA.measureLabel(run.mechanism) : run.runId;
+  const when = run.ts ? run.ts.replace("T", " ").replace(/:\d\dZ?$/, "").replace(/Z$/, "") : "";
+  return when ? what + " · " + when : what;
 }
 
 const SWEEP_LOOP_LABELS = Object.freeze({
@@ -1509,12 +1611,16 @@ function buildSweepBodiesDisclosure() {
   const box = document.createElement("details");
   box.className = "an__sweep-bodies";
   const head = document.createElement("summary");
-  const anchored = sweep.bodies.filter(
+  // A carried part is listed only while it is open -- one nobody opened is
+  // not drawn, and a row saying it moves would describe nothing on screen.
+  const open = state.scene.listOpenParts();
+  const rows = sweep.bodies.filter((r) => r.state !== "carried" || open.indexOf(r.sha256) !== -1);
+  const anchored = rows.filter(
     (r) => r.placements && r.placements.length).length;
-  head.textContent = anchored + " of " + sweep.bodies.length + " parts placed";
+  head.textContent = anchored + " of " + rows.length + " parts placed";
   box.appendChild(head);
   const list = document.createElement("ul");
-  for (const row of sweep.bodies) {
+  for (const row of rows) {
     const item = document.createElement("li");
     const what = document.createElement("span");
     what.className = "an__sweep-body-name";
@@ -1527,7 +1633,34 @@ function buildSweepBodiesDisclosure() {
     list.appendChild(item);
   }
   box.appendChild(list);
+
+  // The opened parts this run does not move, named as such: they sit where
+  // the assembly puts them, and a reader who sees one hold still while the
+  // plate swings past it should not have to wonder whether it is broken.
+  const still = sweepStillParts();
+  if (still.length) {
+    const heading = document.createElement("p");
+    heading.className = "an__sweep-still-head";
+    heading.textContent = "Not moved by this run";
+    box.appendChild(heading);
+    const stillList = document.createElement("ul");
+    for (const mesh of still) {
+      const item = document.createElement("li");
+      item.textContent = AA.meshShortName(mesh.label);
+      stillList.appendChild(item);
+    }
+    box.appendChild(stillList);
+  }
   return box;
+}
+
+// Every opened, visible part no body or link of this run anchors.
+function sweepStillParts() {
+  const sweep = state.sweep;
+  const anchored = new Set(sweep.anchored);
+  return state.meshList.filter((m) => !anchored.has(m.sha256) &&
+    state.scene.listOpenParts().indexOf(m.sha256) !== -1 &&
+    state.scene.isVisible(m.sha256));
 }
 
 // What one body's row says, in words. A vocabulary rather than four inline
@@ -1558,6 +1691,12 @@ function sweepBodyWords(row) {
       (row.candidates === 1 ? "" : "s");
   }
   if (row.state === "refused") return row.reason + " — stick figure only";
+  if (row.state === "carried") {
+    const n = row.placements.length;
+    return row.part + " moves with it, recorded inside " +
+      AA.sweepOccurrenceLabel(row.under, []) +
+      (n === 1 ? "" : " (" + n + " positions)");
+  }
   return SWEEP_BODY_WORDS[row.state] || row.state;
 }
 
@@ -2178,12 +2317,7 @@ function buildBindForm(edge, pick) {
         createdAt: nowIso(),
         recordedBy: "annotate-app",
         stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
-        geometryKey: {
-          sourceStepSha256: pick.sha256,
-          faceId: pick.faceId,
-          areaNative2: pick.record.area_native2,
-          centroidNative: pick.record.centroid_native,
-        },
+        geometryKey: AA.geometryKeyOfPick(pick),
         direction: dir.select.value,
         compositionNote: composition.input.value || null,
         ownerPart: ownerPart.input.value || null,
@@ -2316,6 +2450,16 @@ function renderPartsPanel() {
     };
     li.appendChild(isoBtn);
 
+    // Where the part is drawn, when it is not simply where the assembly puts
+    // it -- muted, under the row, and absent for every part that needs none.
+    const note = positionNote(mesh.sha256);
+    if (note) {
+      const says = document.createElement("span");
+      says.className = "part-row__note";
+      says.textContent = note;
+      li.appendChild(says);
+    }
+
     el.partsPanel.appendChild(li);
   }
 }
@@ -2427,6 +2571,9 @@ async function loadAll() {
     state.meshList = await state.storage.listMeshes();
     const aliasDoc = await state.storage.readPartMeshAliases();
     state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
+    // Every recorded occurrence, before any part opens: it is where every
+    // part is drawn (scene.placementsFor), and what the panel's notes say.
+    await loadOccurrences();
     renderPartsPanel();
     renderRailFilter();
 
@@ -2579,6 +2726,14 @@ async function main() {
   // highlightedFace()` is the only observable for "the orange came off", which
   // is the entire deliverable of the deselect work and was un-checkable before.
   window.__scene = state.scene;
+  // Where a part is drawn: at every position the assembly records for it
+  // (handoff parts_sit_where_the_assembly_puts_them). The scene asks once per
+  // part, before the part joins the scene; null means "its own origin".
+  state.scene.placementsFor = async (sha256) => {
+    await loadOccurrences();
+    const rest = restOf(sha256);
+    return rest.placements.length ? rest.placements : null;
+  };
   // The same read-only convention, for sweep mode: a harness (and the
   // screenshot pass) can ask where the scrubber is and what frame rate the
   // playback is actually getting. Nothing in this app reads it, and it is
