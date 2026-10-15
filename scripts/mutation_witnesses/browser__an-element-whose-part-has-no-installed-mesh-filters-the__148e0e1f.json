@@ -4,12 +4,12 @@
   "expect_red": "an element whose part has no installed mesh filters the parts panel to nothing AND says why",
   "mutations": [
     {
-      "contract": "A rail scoped to one element scopes BOTH its panels. The parts panel was the half that was filtered by nothing at all.",
+      "contract": "A rail scoped to one element scopes the parts panel's model group too; the group was once filtered by nothing at all.",
       "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
-      "note": "cmdTrace/cmdGoto already scoped the ELEMENT list to a study before this handoff; renderPartsPanel walked state.meshList regardless, so entering the flyout from one element still listed every installed mesh in the repo beside it. The mutation is that exact previous line. There is no shim tier for this app (ES module, three.js, a WebGL context), so the browser tier is the only place it can be witnessed. The declared check is the no-installed-mesh one (1 part -> 0) and not the obvious 'filtered to one part', because the mock fixture installs exactly ONE mesh: filtered-to-1 and unfiltered-1 are the same number, so that check cannot discriminate. The suite says so at the call site.",
+      "note": "Retargeted 2026-10-15: the mutation here was `listedMeshes` returning the whole mesh list, and nothing has called listedMeshes since a_context_filter_and_a_view_filter, so it was a no-op that could never go red. The rail scope now reaches the parts panel through contextBaseShas (a null base means every mesh is in the model), so the mutation drops that scope. The discriminating check is the no-installed-mesh element: the model group goes from empty to every mesh.",
       "file": "apps/annotate/app.js",
-      "find": "  if (!state.panelFilter) return state.meshList;",
-      "replace": "  return state.meshList;\n  if (!state.panelFilter) return state.meshList;"
+      "find": "  if (!plan) return null;",
+      "replace": "  return null;\n  if (!plan) return null;"
     }
   ]
 }

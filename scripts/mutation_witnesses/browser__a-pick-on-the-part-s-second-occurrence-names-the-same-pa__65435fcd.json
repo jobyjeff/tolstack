@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail filter + face deselect",
+  "expect_red": "a pick on the part's second occurrence names the same (part, face) a pick named with the part at its own origin",
+  "mutations": [
+    {
+      "contract": "A pick on any drawn occurrence still names the part-local (sha256, face id) and reports which occurrence it hit.",
+      "issue": "docs/issues/ISSUE_20261014_the_annotators_placement_wiring_can_be_deleted_green_in_every_gated_tier.md",
+      "note": "A repeat occurrence carries its own userData so a pick on it resolves to the part-local (sha256, face id). The mutation names a different part on every repeat, so a pick on occurrence 1 binds the wrong part while every occurrence is still DRAWN, which keeps the placement check green and leaves this the only one that goes red. (Nulling placementsFor does not do it: that is the placement check, and it throws before the pick check runs.)",
+      "file": "apps/annotate/scene.js",
+      "find": "        sha256, manifest: mesh.userData.manifest,",
+      "replace": "        sha256: \"0\".repeat(64), manifest: mesh.userData.manifest,"
+    }
+  ]
+}

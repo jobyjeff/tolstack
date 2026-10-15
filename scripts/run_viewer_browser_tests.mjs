@@ -5157,6 +5157,58 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
   }
 }
 
+// The pick rule, measured: aim at one triangle of a part's face on its N-th
+// drawn occurrence and pick; then put the part back at its own origin, aim at
+// the same triangle there and pick again. The two picks must name the same
+// (sha256, face id) -- that pair is all a binding event carries. Every other
+// part is hidden for the two raycasts so the measurement is this part's own
+// geometry under a rigid move. (Same measurement as
+// apps/annotate/run_browser_check.mjs's pickSameFaceBothWays, which no gate
+// runs; this copy is the gated one.)
+async function pickSameFaceBothWays(page, sha, occurrence, faceId) {
+  return page.evaluate(({ sha, occurrence, faceId }) => {
+    const scene = window.__scene;
+    const mesh = scene.parts.get(sha);
+    const others = scene.listOpenParts().filter((s) => s !== sha && scene.isVisible(s));
+    others.forEach((s) => scene.setVisible(s, false));
+    const savedPos = scene.camera.position.clone();
+    const savedQuat = scene.camera.quaternion.clone();
+    const placements = scene.drawnPlacements(sha);
+    const pos = mesh.geometry.attributes.position.array;
+    const idx = mesh.geometry.index.array;
+    let tri = -1;
+    for (let t = 0; t < mesh.userData.faceIdPerTriangle.length; t++) {
+      if (mesh.userData.faceIdPerTriangle[t] === faceId) { tri = t; break; }
+    }
+    const v = [0, 1, 2].map((k) => {
+      const i = idx[tri * 3 + k];
+      return mesh.position.clone().set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+    });
+    const centre = v[0].clone().add(v[1]).add(v[2]).multiplyScalar(1 / 3);
+    const normal = v[1].clone().sub(v[0]).cross(v[2].clone().sub(v[0])).normalize();
+    const size = mesh.geometry.boundingBox.getSize(mesh.position.clone());
+    const dist = Math.max(size.x, size.y, size.z) + 20;
+    const aim = (point, along) => {
+      scene.camera.position.copy(point).addScaledVector(along, dist);
+      scene.camera.lookAt(point);
+      scene.camera.updateMatrixWorld(true);
+      return scene.pick(0, 0);
+    };
+    const m = mesh.matrix.clone().fromArray(placements[occurrence]);
+    const placed = aim(centre.clone().applyMatrix4(m), normal.clone().transformDirection(m));
+    const rest = placements.map((p) => [p[0], p[4], p[8], p[12], p[1], p[5], p[9], p[13],
+      p[2], p[6], p[10], p[14]]);
+    scene.setRestPlacements(sha, null);
+    const unplaced = aim(centre, normal);
+    scene.setRestPlacements(sha, rest);
+    others.forEach((s) => scene.setVisible(s, true));
+    scene.camera.position.copy(savedPos);
+    scene.camera.quaternion.copy(savedQuat);
+    const strip = (p) => p && { sha256: p.sha256, faceId: p.faceId, occurrence: p.occurrence };
+    return { placed: strip(placed), unplaced: strip(unplaced), drawn: placements.length };
+  }, { sha, occurrence, faceId });
+}
+
 // --- the annotator's rail: scoped to one element, and a face that can be
 // deselected (handoff flyout_resize_annotator_filter_and_deselect, 2 and 3) ---
 //
@@ -5191,7 +5243,16 @@ async function testAnnotateRail(browser, label) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   const rows = () => page.locator("#element-list li.el-row");
-  const parts = () => page.locator("#parts-panel li.part-row");
+  // The parts panel is one list in two groups since a_context_filter_and_a_view_
+  // filter: "in this model" (a header row, then the model's parts) and a folded
+  // "Other parts". `parts()` is every listed mesh, in either group, header
+  // excluded; `modelParts()` is the first group alone, which is what an
+  // element filter scopes. The expected totals are read off the mock's own
+  // store, so growing the fixture does not repeat this red.
+  const parts = () => page.locator("#parts-panel li.part-row:not(.part-row--head)");
+  const modelParts = () => page.locator("#parts-panel > li.part-row:not(.part-row--head)");
+  const installedMeshes = () => page.evaluate(
+    () => Object.keys(window.AnnotateApp.FIXTURES.meshProvenance).length);
   try {
     // --- unfiltered: what the rail has always shown ------------------------
     await page.goto(url + "?mock=1", { waitUntil: "load" });
@@ -5199,7 +5260,7 @@ async function testAnnotateRail(browser, label) {
     const allRows = await rows().count();
     const allParts = await parts().count();
     push("unfiltered, the rail lists the whole study and every installed mesh",
-      allRows === 3 && allParts === 1);
+      allRows === 3 && allParts === await installedMeshes());
     push("...and says nothing about filtering, because nothing is filtered",
       !(await page.locator("#rail-filter").isVisible()));
 
@@ -5291,16 +5352,15 @@ async function testAnnotateRail(browser, label) {
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
     push("arriving at an edge scopes the element list to that one element",
       await rows().count() === 1);
-    // NOTE, because it decides which check owns this guard: the mock fixture
-    // installs exactly ONE mesh, so "filtered to 1" and "unfiltered, 1" are the
-    // same number and this check cannot on its own tell a working filter from a
-    // missing one. The discriminating case is the no-installed-mesh edge below
-    // (1 -> 0), which is what `parts-panel-honours-the-element-scope` declares
-    // as its witness. Kept anyway: it is the shape a reader of this suite
-    // expects to see asserted, and it fails if the panel empties wrongly.
+    // The model holds the element's part and the panel still lists every
+    // installed mesh, the rest folded under "Other parts". The mock topology
+    // itself has one part, so "one in the model" also holds before an element
+    // is chosen; the discriminating case is the no-installed-mesh edge below
+    // (1 -> 0), which is what the browser spec for it declares as its witness.
     push("...and the parts panel to the parts that element names -- the panel " +
       "that was scoped by nothing at all before",
-      await parts().count() === 1);
+      await modelParts().count() === 1 &&
+      await parts().count() === await installedMeshes());
     const scopeText = await page.locator(".an__filter-note").textContent();
     push("the rail says what it is scoped to, by the element's own name",
       /Showing only/.test(scopeText || "") &&
@@ -5329,9 +5389,13 @@ async function testAnnotateRail(browser, label) {
     await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_no_owner",
       { waitUntil: "load" });
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    // "To nothing" is the model's group: no parts, so no "in this model" header
+    // either, and every installed mesh is listed as an other part.
     push("an element whose part has no installed mesh filters the parts panel " +
       "to nothing AND says why",
-      await parts().count() === 0 &&
+      await modelParts().count() === 0 &&
+      await page.locator("#parts-panel > li.part-row--head").count() === 0 &&
+      await parts().count() === await installedMeshes() &&
       /No installed 3D part for/.test(
         (await page.locator("#rail-filter").textContent()) || ""));
 
@@ -5485,6 +5549,38 @@ async function testAnnotateRail(browser, label) {
     push("clicking the alert badge opens its popup and does NOT select the row",
       await page.locator("#alert-pop").isVisible() &&
       await page.locator("#element-list li.el-row.selected").count() === 0);
+
+    // --- the placement rule, in the gated tier -----------------------------
+    //
+    // An opened part is drawn at EVERY occurrence the assembly records, and a
+    // pick on any of them names the part-local (sha256, face id). Until now only
+    // apps/annotate/run_browser_check.mjs, which no gate runs, saw this, so the
+    // wiring (`scene.placementsFor`) could be deleted green in every gated tier.
+    // The mock part carries two recorded occurrences, 200 mm apart, and the
+    // expectation is read off the fixture's own provenance.
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForFunction(() => window.__scene && window.AnnotateApp &&
+      window.AnnotateApp.exec, null, { timeout: 15000 });
+    await page.evaluate((s) => window.AnnotateApp.exec(["open-part", s]), sha);
+    const placed = await page.evaluate((s) => {
+      const want = window.AnnotateApp.FIXTURES.meshProvenance[s].extraction.instances
+        .map((i) => i.placement_world);
+      // drawnPlacements is row-major 4x4 columns-first; compare as the 3x4
+      // the fixture records.
+      const drawn = window.__scene.drawnPlacements(s).map((e) =>
+        [e[0], e[4], e[8], e[12], e[1], e[5], e[9], e[13], e[2], e[6], e[10], e[14]]);
+      return { want, drawn };
+    }, sha);
+    push("an opened part is drawn at EVERY occurrence the assembly records, at " +
+      "its own placement",
+      placed.want.length === 2 && placed.drawn.length === placed.want.length &&
+      placed.drawn.every((m, i) => m.every((x, k) => Math.abs(x - placed.want[i][k]) < 1e-9)));
+    const both = await pickSameFaceBothWays(page, sha, 1, 0);
+    push("a pick on the part's second occurrence names the same (part, face) a " +
+      "pick named with the part at its own origin",
+      both.placed && both.unplaced && both.placed.sha256 === both.unplaced.sha256 &&
+      both.placed.faceId === both.unplaced.faceId && both.placed.faceId === 0 &&
+      both.placed.occurrence === 1);
 
     push("no page error anywhere in the run", errors.length === 0);
     return reportSuite(label, checks, errors);
@@ -5790,7 +5886,10 @@ async function testAnnotateTopBar(browser, label) {
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  const parts = () => page.locator("#parts-panel li.part-row");
+  const modelParts = () => page.locator("#parts-panel > li.part-row:not(.part-row--head)");
+  const drawnAlone = async (s) => JSON.stringify(await drawnParts()) === JSON.stringify([s]);
+  const drawnParts = () => page.evaluate(() => window.__scene.listOpenParts()
+    .filter((s) => window.__scene.isVisible(s)).sort());
   const taskLine = () => page.locator("#detail .an__task").textContent();
   // Is the ONE installed mock part rendered translucent right now? Read off
   // the live material, not off a setting -- the whole claim of the toggle is
@@ -5876,7 +5975,8 @@ async function testAnnotateTopBar(browser, label) {
     push("...and SELECTS the element, rather than only listing it",
       await page.locator("#element-list li.el-row.selected").count() === 1);
     push("...and shows that element's part alone, in the scene and in the list",
-      await parts().count() === 1 &&
+      await modelParts().count() === 1 &&
+      await drawnAlone(sha) &&
       await page.evaluate((s) => window.__scene.isVisible(s), sha));
     push("...and the bar tells the reader what to do, naming the element",
       /Select the remaining face that defines Demo untraced edge/.test(
@@ -5907,7 +6007,8 @@ async function testAnnotateTopBar(browser, label) {
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
     push("...and it is the ARRIVAL that shows it, not the face suggestions — " +
       "with those off the part is in the scene all the same",
-      await parts().count() === 1 &&
+      await modelParts().count() === 1 &&
+      await drawnAlone(sha) &&
       await page.evaluate((s) => window.__scene.isVisible(s), sha));
     await openHelp();
     await setting("Suggest likely faces").check();
@@ -5932,7 +6033,8 @@ async function testAnnotateTopBar(browser, label) {
     await boxes.nth(2).check();
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 5000 });
     push("...and ticking it back re-applies the arrival it came from",
-      await parts().count() === 1);
+      await modelParts().count() === 1 &&
+      await drawnAlone(sha));
 
     // The setting outlives the page, the way the viewer's remembered pane
     // width does.
@@ -5960,7 +6062,8 @@ async function testAnnotateTopBar(browser, label) {
       { timeout: 15000 });
     push("a study-scope entry shows only that study's parts, see-through, " +
       "with its bound faces marked",
-      await parts().count() === 1 && await ghosted(sha) &&
+      await modelParts().count() === 1 &&
+      await drawnAlone(sha) && await ghosted(sha) &&
       await page.evaluate(() => window.__scene.listMarks().length) === 1);
     const scopeNote = await page.locator(".an__filter-note").textContent();
     push("...and the rail says which study it is scoped to, by its title",
