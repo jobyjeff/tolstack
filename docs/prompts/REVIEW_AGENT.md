@@ -473,6 +473,11 @@ problem as an unrecorded full suite one step later.
   hardcoded main-checkout path, so from a worktree they usually run anyway — but
   when neither path resolves they print a `SKIP  [real] ...` line and the total
   stays green, so read the SKIP lines rather than the total.
+  **For a scene/placement change, also run `node apps/annotate/run_browser_check.mjs`
+  (mock pass, no flags).** It is the only tier that sees `app.js`'s scene
+  wiring: on 2026-10-14, nulling `placementsFor` stayed green in the fast and
+  browser tiers and went red only there
+  (`ISSUE_20261014_the_annotators_placement_wiring_can_be_deleted_green_in_every_gated_tier.md`).
 - **A CSS rule in either app** → `pytest -q tests/test_app_type_scale.py` (the
   two apps' `:root` scales are paired against each other there), plus the browser
   tier as above.
@@ -4936,6 +4941,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       be satisfied, check **how** — a sweep's inline fix leaves no tracked
       session for a citation to name, so verify any `handoff:`-shaped field the
       precondition's own output wrote actually resolves before trusting it.
+- [ ] **A design constant or a "not installed yet" note justified by a count
+      of `data/meshes/`, while rotorkit was writing into that store.** New
+      2026-10-14 (`parts_sit_where_the_assembly_puts_them`). The draw cap (64)
+      was argued from "the largest real count is 29", and the piston's topology
+      note said "not installed". rotorkit installed 13 meshes at 20:21,
+      mid-session, which brought a 66-occurrence part and the piston mesh
+      itself. Every gated tier stayed green, because the guard pins a literal
+      29 rather than walking the store. Re-derive any store-derived claim the
+      diff makes **at review time** (`ls -ld data/meshes/*/` mtimes against the
+      branch's commit times), and expect a guard that walks the store rather
+      than a literal.
+      `ISSUE_20261014_the_annotators_draw_cap_now_cuts_a_real_part_short_and_three_texts_say_no_part_reaches_it.md`.
 
 ## Architectural errors to check
 

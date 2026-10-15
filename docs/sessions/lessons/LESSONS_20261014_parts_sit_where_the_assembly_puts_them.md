@@ -20,6 +20,14 @@ yet (a rivet pattern of hundreds), and past it the part is drawn at the first
 installed part reaches it; the fast tier pins that the cap is above 29, so a
 lowered cap that would cut a real part short goes red.
 
+> **Correction, 2026-10-14 (review).** True when measured, false by the time
+> this lesson was committed. rotorkit installed 13 more meshes at 20:21 during
+> this session, taking the store from 34 to 47, and `CCR244CS-3-02`
+> (`674069da…`) has **66** recorded occurrences, so it is drawn at 64 of 66.
+> The pin above reads a literal 29, not the store, which is why it stayed
+> green. Filed as
+> `ISSUE_20261014_the_annotators_draw_cap_now_cuts_a_real_part_short_and_three_texts_say_no_part_reaches_it.md`.
+
 ### The pick → occurrence rule
 
 **The nearest hit along the ray wins, on whichever occurrence it lands, and it
@@ -183,6 +191,13 @@ the annotate `[real]` tier went red on "names part … which no tracked topology
 declares" until the row landed. One other thing had to move, and the suite
 said which: `docs/DAG_TOPOLOGY.md`'s inventory sentence for this topology
 (12 parts → 13), which `tests/test_topology.py` re-derives from the graph.
+
+> **Correction, 2026-10-14 (review).** The piston body was installed during
+> this session: `data/meshes/ed1010fe…/` was written at 20:21 with
+> `product_name: "214700-002"`, and the row was committed at 19:55. The "no 3D
+> model" state stays correct until an alias row exists, but the row's "not yet
+> installed" note is already stale. Filed as
+> `ISSUE_20261014_the_gas_spring_piston_mesh_is_installed_and_has_no_alias_row.md`.
 
 ## Found on arrival
 
