@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "[real] the draw cap is above the most-repeated installed part",
+  "mutations": [
+    {
+      "contract": "The occurrence draw cap sits above the most-repeated part in the installed mesh store, so no real part is drawn at fewer occurrences than the assembly records.",
+      "issue": "docs/issues/ISSUE_20261014_the_annotators_draw_cap_now_cuts_a_real_part_short_and_three_texts_say_no_part_reaches_it.md",
+      "note": "The cap is put back to 64, the value it had when CCR244CS-3-02 (66 occurrences) was installed under it: the shape of the defect is a cap argued against yesterday's store.",
+      "file": "apps/annotate/sweep.js",
+      "find": "  AA.OCCURRENCE_DRAW_LIMIT = 256;",
+      "replace": "  AA.OCCURRENCE_DRAW_LIMIT = 64;"
+    }
+  ]
+}

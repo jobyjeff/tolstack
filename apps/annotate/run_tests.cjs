@@ -3601,7 +3601,7 @@ check("the placement rule: every recorded occurrence is drawn, a pathological " 
         { instance_name: "prd.4", instance_path: ["217755-001", "prd.4"], placement_world: [1, 0, 0] },
       ] } },
       standalone: { extraction: {} },
-      rivet: { extraction: { instances: Array.from({ length: 70 }, (_, i) => (
+      rivet: { extraction: { instances: Array.from({ length: AA.OCCURRENCE_DRAW_LIMIT + 6 }, (_, i) => (
         { instance_name: "r." + i, placement_world: P(i) })) } },
     });
   const link = AA.restPlacements(occ.byMesh.link);
@@ -3616,15 +3616,10 @@ check("the placement rule: every recorded occurrence is drawn, a pathological " 
 
   const rivet = AA.restPlacements(occ.byMesh.rivet);
   assertEqual([rivet.placements.length, rivet.total, rivet.capped],
-    [AA.OCCURRENCE_DRAW_LIMIT, 70, true], "a pathological count is capped");
+    [AA.OCCURRENCE_DRAW_LIMIT, AA.OCCURRENCE_DRAW_LIMIT + 6, true], "a pathological count is capped");
   const capped = AA.assemblyPositionNote(rivet);
-  if (capped.indexOf(String(AA.OCCURRENCE_DRAW_LIMIT)) === -1 || capped.indexOf("70") === -1) {
+  if (capped.indexOf(String(AA.OCCURRENCE_DRAW_LIMIT)) === -1 || capped.indexOf(String(AA.OCCURRENCE_DRAW_LIMIT + 6)) === -1) {
     throw new Error("the capped note does not say how many of how many: " + capped);
-  }
-  // The cap is for a pathological part, not a real one: the most-repeated
-  // part installed today is the NAS1149V0332H washer, 29 times.
-  if (AA.OCCURRENCE_DRAW_LIMIT < 29) {
-    throw new Error("the draw cap " + AA.OCCURRENCE_DRAW_LIMIT + " would cut a real part short");
   }
   for (const words of [AA.ASSEMBLY_POSITION_WORDS.none, capped]) {
     assertNoCommandOrPath(words, "a part's position note");
@@ -3982,6 +3977,27 @@ if (!realMeshesDir) {
       }
       assertEqual(mesh.part_id, alias.mesh_part_id,
         `alias "${alias.topology_part}" resolved to the wrong mesh`);
+    }
+  });
+
+  // The draw cap is for a pathological part, not a real one: the store's
+  // most-repeated part must sit under it, with room, so it is drawn in full.
+  check("[real] the draw cap is above the most-repeated installed part", () => {
+    let most = { n: 0, part: null };
+    fs.readdirSync(realMeshesDir)
+      .filter((name) => /^[0-9a-f]{64}$/.test(name))
+      .forEach((sha256) => {
+        const provenancePath = path.join(realMeshesDir, sha256, "provenance.json");
+        if (!fs.existsSync(provenancePath)) return;
+        const p = JSON.parse(fs.readFileSync(provenancePath, "utf8"));
+        const n = ((p.extraction || {}).instances || []).length;
+        if (n > most.n) most = { n, part: p.part_id };
+      });
+    if (!most.n) throw new Error("no installed mesh records an occurrence -- the check would pass vacuously");
+    console.log(`      most-repeated: ${most.part} x${most.n}; cap ${AA.OCCURRENCE_DRAW_LIMIT}`);
+    if (AA.OCCURRENCE_DRAW_LIMIT < 2 * most.n) {
+      throw new Error(`the draw cap ${AA.OCCURRENCE_DRAW_LIMIT} is under twice the most-repeated ` +
+        `installed part (${most.part}, ${most.n}) -- a real part is cut short or about to be`);
     }
   });
 
