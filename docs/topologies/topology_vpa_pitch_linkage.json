@@ -56,7 +56,7 @@
       "id": "gas_spring_piston_214700_002",
       "name": "214700-002 gas-spring piston body",
       "drawing": "214700-002",
-      "note": "PISTON BODY, GAS SPRING, PROPELLER, 217755-001 find 88 (docs/tolerance_stacks/WORKSHEET_endstop_vision_baseline.md, the find-number table; drawing 214700-002-A read there). Rigidly bolted to the pitch plate -- Jeff, 2026-10-14: \"it's rigidly bolted to the piston and it has the cylindrical surface that rides on the gas spring linear guides\" -- so it rides the `pitch_plate` body in a linkage run (linkage names it there from run P2 on). In the assembly STEP it is the occurrence `P3-214700.3`, whose bolts (`NAS6403U13H`) are installed; the piston body itself is not yet, and is coming from rotorkit's `extract_the_gas_spring_piston`. Until it lands this part has no alias row and the annotator's 'no 3D model' state is the honest answer for it."
+      "note": "PISTON BODY, GAS SPRING, PROPELLER, 217755-001 find 88 (docs/tolerance_stacks/WORKSHEET_endstop_vision_baseline.md, the find-number table; drawing 214700-002-A read there). Rigidly bolted to the pitch plate -- Jeff, 2026-10-14: \"it's rigidly bolted to the piston and it has the cylindrical surface that rides on the gas spring linear guides\" -- so it rides the `pitch_plate` body in a linkage run (linkage names it there from run P2 on). In the assembly STEP it is the occurrence `P3-214700.3`, whose bolts (`NAS6403U13H`) are installed. The piston body is installed too (rotorkit's `extract_the_gas_spring_piston`, run assembly_extract_20261015T012912Z, one solid, one instance) and `part_mesh_aliases.json` carries its row."
     },
     {
       "id": "gas_spring_mount_213668_002",

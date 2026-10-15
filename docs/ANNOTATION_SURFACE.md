@@ -179,7 +179,8 @@ geometry and material, so it costs a draw call and a matrix, not a copy.
   origin".
 - **A part past the draw cap** (`AA.OCCURRENCE_DRAW_LIMIT`, `sweep.js`) is drawn
   at the first that-many and says how many it has. No installed part reaches
-  it: the most-repeated is the NAS1149V0332H washer, and it is drawn in full.
+  it, and a `[real]` check in `apps/annotate/run_tests.cjs` reads the mesh store
+  to keep that true.
 - **Camera framing** (`camera reset`/`frame`, and opening a part) frames every
   drawn occurrence, in the assembly frame.
 - **A pick on any occurrence resolves to the part's own `(sha256, face id)`**,

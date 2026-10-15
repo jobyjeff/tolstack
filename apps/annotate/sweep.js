@@ -969,10 +969,11 @@
   //: The most occurrences of one part this app draws. The cost of an
   //: occurrence is a draw call and a matrix, not a copy of the buffers
   //: (scene.js shares them), so the cap is for a pathological part and not a
-  //: real one: the most-repeated part in the installed store is the
-  //: NAS1149V0332H washer at 29, and it is drawn in full. A part past the cap
-  //: is drawn at the first this-many and says how many it has.
-  AA.OCCURRENCE_DRAW_LIMIT = 64;
+  //: real one: it sits well above the most-repeated part in the installed
+  //: store, which is drawn in full (a [real] check in run_tests.cjs reads the
+  //: store and holds the cap to that). A part past the cap is drawn at the
+  //: first this-many and says how many it has.
+  AA.OCCURRENCE_DRAW_LIMIT = 256;
 
   // Every occurrence the installed store records, out of each mesh's own
   // provenance: {all, byMesh, productOf}. The pure half of app.js's
