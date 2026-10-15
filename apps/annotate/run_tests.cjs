@@ -2228,11 +2228,11 @@ check("the narrowing stages and the relations they may assert are one table, " +
   });
   assertEqual(AA.NARROWING_RELATIONS.mating_fit.planar, null,
     "mating_fit claims a relation between two flat faces on different parts -- " +
-    "this app applies no placement transforms, so it cannot have one");
+    "the engine compares faces in one part's own frame, so it cannot have one");
   assertEqual(AA.NARROWING_RELATIONS.same_part_relation.spherical, null,
     "same_part_relation claims a relation between two centres on ONE part -- " +
-    "a part is drawn once however many times it is fitted, so its two centres " +
-    "land on top of each other");
+    "a binding names the part's face at every position, so its two centres " +
+    "are one face");
 });
 
 check("every null in the relations table carries a reason, and no reason " +

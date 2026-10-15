@@ -29,8 +29,10 @@
 //
 // Stage 2's honest limit is worth knowing before reading the table: the
 // relation can only be asked between two faces of the SAME mesh, because this
-// app applies no assembly placement transforms (ANNOTATION_SURFACE.md, "What
-// this MVP does not build") and every part is drawn at its own local origin.
+// engine reads each part in its own local frame. The parts have been DRAWN in
+// the shared assembly frame since 2026-10-14 (ANNOTATION_SURFACE.md, "Where a
+// part is drawn"); reading that frame in here is the cross-part step still
+// open (ISSUE_20260921_cross_part_face_relations_need_assembly_placement).
 // Across two meshes there is exactly one relation left that does not need a
 // shared frame -- two mating cylinders have the same radius, because a radius
 // belongs to one face rather than to a pair of frames -- and for flat faces
@@ -197,17 +199,18 @@
   AA.NARROWING_RELATION_NAMES = Object.freeze(["parallel", "coaxial", "same_radius"]);
 
   // Said out loud on the surface wherever the table above declares a null.
-  // Everyday words, every one of them: each describes what a reader can see --
-  // the parts side by side rather than assembled, the two ends of a link drawn
-  // on top of each other -- and never a transform or a module.
+  // Everyday words, every one of them, and never a transform or a module.
+  // Rewritten 2026-10-14: both used to say the parts sat side by side and a
+  // part was drawn once, which stopped being true of the screen the day parts
+  // were placed in the assembly -- what is still true is that the suggestions
+  // compare one part's faces at a time, and that a binding names a part's
+  // face rather than one of its positions.
   AA.NO_MATING_PLANE_RELATION =
-    "The face bound on the other part is flat, and the parts here sit side by " +
-    "side rather than assembled, so nothing on screen can say which flat face " +
-    "meets it.";
+    "The face bound on the other part is flat, and suggestions compare one " +
+    "part's faces at a time, so which flat face here meets it is yours to pick.";
   AA.NO_SAME_PART_SPHERE_RELATION =
-    "The centre already bound is on this same part, and a part is drawn once " +
-    "here however many times it is fitted, so the two centres land on top of " +
-    "each other and nothing on screen can tell them apart.";
+    "The centre already bound is on this same part, and a binding names the " +
+    "part's own face at every position, so the second centre is that same face.";
 
   // One reason per null above, keyed the same way, so a null is a decision
   // with a sentence attached rather than a hole. Paired against

@@ -382,7 +382,8 @@ match, not a combination of two element values, so it needs no entry on
 `DECLARED_COMBINING_EXCEPTIONS` ("Where computation may live", below).
 
 Full detail, the schema, and what `apps/annotate/` does and does not do (no
-measurement, no assembly placement) in `docs/ANNOTATION_SURFACE.md`.
+measurement; parts drawn where the assembly puts them, which produces no
+value) in `docs/ANNOTATION_SURFACE.md`.
 
 ### Why one `fold()`
 

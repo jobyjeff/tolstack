@@ -83,3 +83,24 @@ Do not make `suggestions.js` compare planes across meshes without a shared
 frame. Two flat faces at unrelated origins will read as parallel or not by
 accident, and a suggestion that is right by accident is the shape this repo
 avoids everywhere else.
+
+## Update 2026-10-14 — half of this is done; the half that needs design is still open
+
+Handoff `parts_sit_where_the_assembly_puts_them` applied the placements to the
+**scene**: every opened part is now drawn at every occurrence its
+`provenance.json` records, in the 217755 frame, outside sweep mode too
+(`docs/ANNOTATION_SURFACE.md`, "Where a part is drawn"). So the "no shared
+frame" premise above is no longer true of the screen, and the two reader-facing
+sentences that said it was (`AA.NO_MATING_PLANE_RELATION`,
+`AA.NO_SAME_PART_SPHERE_RELATION`) were rewritten to what is still true.
+
+What that handoff deliberately did **not** do is this issue: the suggestion
+engine still reads each part in its own frame, so coaxial and coplanar across
+two parts are still unasked. Jeff's framing of the next step (2026-10-14):
+"interfaces could be suggested based on coincident faces from two bodies". The
+pieces that step needs now exist in one place — `AA.readMeshOccurrences` and
+`AA.restPlacements` (`apps/annotate/sweep.js`) give each part's placements,
+and a face's fitted plane or axis goes into the assembly frame through
+`AA.placeSweepFeature`. The open design question is the one it always was:
+which occurrence of a part a relation is asked at, when a part sits in more
+than one place and a binding names the part rather than one occurrence.

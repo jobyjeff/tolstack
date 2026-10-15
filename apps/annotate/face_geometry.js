@@ -715,10 +715,11 @@
   // WHEN is the suggestion rule table's job (suggestions.js), not this file's.
   //
   // `offset`, `axisPoint` and every distance below are in ONE MESH'S OWN
-  // FRAME. This app applies no assembly placement transforms
-  // (docs/ANNOTATION_SURFACE.md, "What this MVP does not build"), so parallel
-  // and coaxial are only meaningful between two faces of the SAME mesh -- and
-  // the rule table is what refuses to ask them across meshes.
+  // FRAME. The scene draws parts in the assembly frame (since 2026-10-14,
+  // docs/ANNOTATION_SURFACE.md, "Where a part is drawn"), but nothing here
+  // reads a placement, so parallel and coaxial are only meaningful between two
+  // faces of the SAME mesh -- and the rule table is what refuses to ask them
+  // across meshes.
   AA.FACE_RELATION_TOLERANCES = Object.freeze({
     parallelDeg: 2.0,
     coaxialDeg: 2.0,
