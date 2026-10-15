@@ -180,7 +180,9 @@ model" state is the answer, and the real check shows it:
 needed when I arrived**: linkage published three new runs during this session
 (`…-20261015-013931`, P1, P2 and S) whose `pitch_plate` names the piston, and
 the annotate `[real]` tier went red on "names part … which no tracked topology
-declares" until the row landed. Nothing else had to move.
+declares" until the row landed. One other thing had to move, and the suite
+said which: `docs/DAG_TOPOLOGY.md`'s inventory sentence for this topology
+(12 parts → 13), which `tests/test_topology.py` re-derives from the graph.
 
 ## Found on arrival
 
