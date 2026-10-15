@@ -206,11 +206,11 @@ function cmdHide(identifier) {
 // part missed), but any part that DID resolve still opens and shows --
 // deliverable 3's "never a blank scene" is about the case where nothing at
 // all could be shown, not about every miss.
-﻿async function cmdIsolate(...identifiers) {
+async function cmdIsolate(...identifiers) {
   return isolateOrGhost("isolate", false, identifiers);
 }
 
-// ghost <partâ€¦> -- isolate's translucent twin (handoff study_3d_flyout): show
+// ghost <part…> -- isolate's translucent twin (handoff study_3d_flyout): show
 // ONLY the named parts, rendered translucent, so opaque `mark-face` overlays
 // trace a chain over them. Same resolution, same planIsolate transition, same
 // partial-miss honesty and the same `off` as isolate -- the one difference is
@@ -313,7 +313,7 @@ function resetContext(keepDrawn) {
   renderPartsPanel();
 }
 
-// context add|remove <partâ€¦> | reset -- the model's own membership. Never a
+// context add|remove <part…> | reset -- the model's own membership. Never a
 // view change: a part added is listed, not drawn.
 function cmdContext(action, ...identifiers) {
   if (AA.CONTEXT_ACTIONS.indexOf(action) === -1) {
