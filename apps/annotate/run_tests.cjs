@@ -428,8 +428,10 @@ check("MemoryAdapter.listMeshes reads labels from the fixture provenance", async
   const adapter = new AA.MemoryAdapter(AA.FIXTURES);
   await adapter.connect();
   const meshes = await adapter.listMeshes();
-  assertEqual(meshes.length, 1);
-  assertEqual(meshes[0].sha256, AA.FIXTURES.demoSha);
+  // the demo triangle, plus the two parts the panel's context filter has to
+  // sort (a bracket and a plate no demo topology names)
+  assertEqual(meshes.length, 3);
+  assertEqual(meshes.filter((m) => m.sha256 === AA.FIXTURES.demoSha).length, 1);
 });
 
 // --- commands.js: parsing/dispatch and pure state transitions (handoff
@@ -860,6 +862,91 @@ check("planIsolate: some already open -- those just show, the rest open, others 
 check("planIsolate: isolating everything already open hides nothing and opens nothing", () => {
   assertEqual(AA.planIsolate(["aaaa", "bbbb"], ["aaaa", "bbbb"]),
     { toOpen: [], toShow: ["aaaa", "bbbb"], toHide: [] });
+});
+
+// --- context and view (handoff a_context_filter_and_a_view_filter) ----------
+//
+// Isolate was a trap: it hid everything else and nothing could bring it back.
+// These pin the pure transitions app.js's verbs are built from -- the snapshot
+// is taken ONCE, so isolating a second part and then turning it off still
+// lands on what was drawn before the first.
+function viewAfter(rows) {
+  const out = {};
+  rows.forEach((r) => { out[r.sha] = { visible: r.visible, ghost: r.ghost }; });
+  return out;
+}
+
+check("isolate then isolate off restores the prior view exactly, ghosts included", () => {
+  // before: a drawn, b hidden, c drawn and ghosted
+  const before = [
+    { sha: "a", visible: true, ghost: false },
+    { sha: "b", visible: false, ghost: false },
+    { sha: "c", visible: true, ghost: true },
+  ];
+  // isolate b (not open drawn): d opens, a and c hide, b shows
+  const plan = AA.planIsolate(["a", "b", "c"], ["b", "d"]);
+  assertEqual(plan.toHide, ["a", "c"]);
+  // `isolate off`, with d opened meanwhile and so absent from the snapshot
+  const restored = AA.planViewRestore(before, ["a", "b", "c", "d"]);
+  assertEqual(viewAfter(restored), {
+    a: { visible: true, ghost: false },
+    b: { visible: false, ghost: false },
+    c: { visible: true, ghost: true },
+    d: { visible: false, ghost: false },
+  });
+});
+
+check("the Isolate button toggles its part in the isolated set, and an empty set means off", () => {
+  assertEqual(AA.planIsolateToggle([], "a"), ["a"]);
+  assertEqual(AA.planIsolateToggle(["a"], "b"), ["a", "b"]);
+  assertEqual(AA.planIsolateToggle(["a", "b"], "a"), ["b"]);
+  assertEqual(AA.planIsolateToggle(["b"], "b"), []);
+});
+
+check("the show-all header is checked when all are drawn, empty when none, mixed otherwise, " +
+  "and disabled with nothing to control", () => {
+  assertEqual(AA.planShowAllHeader([true, true, true]),
+    { disabled: false, checked: true, indeterminate: false });
+  assertEqual(AA.planShowAllHeader([false, false]),
+    { disabled: false, checked: false, indeterminate: false });
+  assertEqual(AA.planShowAllHeader([true, false, true]),
+    { disabled: false, checked: false, indeterminate: true });
+  assertEqual(AA.planShowAllHeader([]),
+    { disabled: true, checked: false, indeterminate: false });
+});
+
+check("leaving a context draws every open part of the new one and none outside it", () => {
+  assertEqual(viewAfter(AA.planViewReset(["a", "b", "c"], ["b", "c"], true)), {
+    a: { visible: false, ghost: false },
+    b: { visible: true, ghost: true },
+    c: { visible: true, ghost: true },
+  });
+  // the see-through setting off: drawn solid
+  assertEqual(AA.planViewReset(["b"], ["b"], false), [{ sha: "b", visible: true, ghost: false }]);
+});
+
+check("context membership is the scope plus what the reader added minus what they removed, " +
+  "and takes no view as input", () => {
+  const meshes = ["a", "b", "c", "d"].map((s) => ({ sha256: s }));
+  const names = (p) => ({ inModel: p.inModel.map((m) => m.sha256), other: p.other.map((m) => m.sha256) });
+  assertEqual(names(AA.planContext(meshes, ["a", "b"], [], [])),
+    { inModel: ["a", "b"], other: ["c", "d"] });
+  assertEqual(names(AA.planContext(meshes, ["a", "b"], ["d"], ["a"])),
+    { inModel: ["b", "d"], other: ["a", "c"] });
+  // nothing scopes the model: every mesh is in it
+  assertEqual(names(AA.planContext(meshes, null, [], [])),
+    { inModel: ["a", "b", "c", "d"], other: [] });
+  // add then remove the same part, and the reverse: the later action wins
+  let edit = AA.planContextEdit({ added: [], removed: [] }, "add", ["d"]);
+  edit = AA.planContextEdit(edit, "remove", ["d"]);
+  assertEqual(edit, { added: [], removed: ["d"] });
+  edit = AA.planContextEdit(edit, "add", ["d"]);
+  assertEqual(edit, { added: ["d"], removed: [] });
+});
+
+check("the panel's words and the pick banner survive the shared ban list", () => {
+  Object.keys(AA.PARTS_COPY).forEach((k) => assertNothingBanned(AA.PARTS_COPY[k], "AA.PARTS_COPY." + k));
+  assertNothingBanned(AA.PICK_NEEDS_ELEMENT, "AA.PICK_NEEDS_ELEMENT");
 });
 
 // --- faceSubGeometry (handoff study_3d_flyout): the mark-face overlay's

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "leaving a context draws every open part of the new one and none outside it",
+  "mutations": [
+    {
+      "contract": "Choosing another topology or study draws the open parts of that model and hides the ones outside it.",
+      "issue": null,
+      "note": "The mutation draws every open part, so the old model's parts linger in the new one.",
+      "file": "apps/annotate/commands.js",
+      "find": "      return { sha: sha, visible: !!inCtx[sha], ghost: !!inCtx[sha] && !!ghost };",
+      "replace": "      return { sha: sha, visible: true, ghost: !!inCtx[sha] && !!ghost };"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the panel's words and the pick banner survive the shared ban list",
+  "mutations": [
+    {
+      "contract": "Every sentence the parts panel and the no-element pick banner print passes the shared reader-facing ban list.",
+      "issue": null,
+      "note": "The mutation puts a script path into the banner, which the scan must name.",
+      "file": "apps/annotate/commands.js",
+      "find": "    \"Pick an element on the left to bind this face to.\";",
+      "replace": "    \"Pick an element on the left to bind this face to (see scripts/annotate.py).\";"
+    }
+  ]
+}

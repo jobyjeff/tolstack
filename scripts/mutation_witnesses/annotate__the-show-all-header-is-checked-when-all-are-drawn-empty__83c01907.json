@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the show-all header is checked when all are drawn, empty when none, mixed otherwise, and disabled with nothing to control",
+  "mutations": [
+    {
+      "contract": "The header checkbox is checked only when every part in the model is drawn; a mix is indeterminate, never checked.",
+      "issue": null,
+      "note": "The mutation checks the header as soon as any part is drawn.",
+      "file": "apps/annotate/commands.js",
+      "find": "      checked: flags.length > 0 && drawn === flags.length,",
+      "replace": "      checked: drawn > 0,"
+    }
+  ]
+}

@@ -45,6 +45,9 @@ that: open a study, open a part, click a face, write one
   `annotate_deep_link_and_part_filter`) — single-part granularity only;
   subtree-level filtering ("hide the whole EPU") needs assembly product
   structure this repo does not have yet.
+  The panel groups parts by **context** (in this model / other parts) and its
+  checkboxes, the header checkbox, and **Isolate** (a toggle) are the **view**
+  — see `docs/ANNOTATION_SURFACE.md`, "The parts panel: context and view".
 - Boots from a **deep link** (`?topology=&edge=&study=&isolate=`) with that
   study open, the edge **selected**, the element's part(s) alone in the 3D
   view, and a one-line task instruction composed from the element ("Select
@@ -176,8 +179,10 @@ a scope decision this handoff did not have, and it is filed.
 | `open-part <mesh-id\|part>` | loads a mesh (sha256 or its `provenance.json` `part_id`) and shows it |
 | `show <part>` | same as `open-part` — a part never opened is opened and shown |
 | `hide <part>` | hides an open part (`.visible = false`; not unloaded, so re-showing is instant) |
-| `isolate <part…>` | shows only the named part(s), hiding every other open part; opens any not yet loaded; frames the camera on them |
-| `ghost <part…>` | `isolate`'s translucent twin (handoff `study_3d_flyout`): shows only the named part(s), rendered ghosted, so opaque `mark-face` overlays trace a chain over them |
+| `isolate <part…>` | shows only the named part(s), hiding every other open part; opens any not yet loaded; frames the camera on them. `isolate off` puts the view back exactly as it was before the first isolate or ghost — the panel's **Isolate** button is this toggle |
+| `ghost <part…>` | `isolate`'s translucent twin (handoff `study_3d_flyout`): shows only the named part(s), rendered ghosted, so opaque `mark-face` overlays trace a chain over them. `ghost off` is `isolate off` |
+| `show-all` / `hide-all` | draw or hide every part in the model (the panel's header checkbox, which is unchecked, checked or mixed to match the rows below it) |
+| `context add <part…>` / `context remove <part…>` / `context reset` | which parts are **in the model**, as opposed to drawn: the topology's or study's parts (a run's bodies in sweep mode) plus what you add, minus what you remove. Never changes what is drawn; choosing another topology or study resets it, and the view with it |
 | `mark-face <part> <face_id>` | renders one face as an opaque overlay — additive (a trace marks several), and unlike `select-face` it never touches the pick state |
 | `trace <topology> [study]` | the **scope-level** 3D view: selects the topology (and the study, when one is named), shows only that scope's parts — translucent while `transparency` is on — and marks every feature-identity-bound face in the mark colour. With no study the scope is the whole topology. Missing meshes and unbound edges degrade to the honest absent states, reported in the banner |
 | `camera reset` | frames every currently-visible open part |

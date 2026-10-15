@@ -92,7 +92,31 @@
     },
   };
 
+  // Two more installed parts with no recorded occurrence, so the parts panel
+  // has a model of three to filter, isolate and mix (handoff
+  // a_context_filter_and_a_view_filter). Only the demo triangle belongs to the
+  // demo topology; these two are "other parts" until a reader adds them.
+  var BRACKET_SHA = "1".repeat(63);
+  var PLATE_SHA = "2".repeat(63);
+  [[BRACKET_SHA, "Demo bracket (synthetic, mock mode)", "demo_bracket", 4],
+   [PLATE_SHA, "Demo plate (synthetic, mock mode)", "demo_plate", 8]].forEach(function (m) {
+    meshManifests[m[0]] = meshManifests[DEMO_SHA];
+    meshProvenance[m[0]] = { label: m[1], part_id: m[2],
+      extraction: { product_name: m[2], n_solids: 1, instances: [] } };
+  });
+
   var meshBuffers = {};
+  [[BRACKET_SHA, 4], [PLATE_SHA, 8]].forEach(function (m) {
+    var dy = m[1];
+    meshBuffers[m[0]] = {
+      "positions.f32": buf([
+        0, dy, 0, 1, dy, 0, 0, dy + 1, 0,
+        2, dy, 0, 3, dy, 0, 2, dy + 1, 0,
+      ], Float32Array),
+      "indices.u32": buf([0, 1, 2, 3, 4, 5], Uint32Array),
+      "face_ids.u32": buf([0, 1], Uint32Array),
+    };
+  });
   meshBuffers[DEMO_SHA] = {
     "positions.f32": buf([
       0, 0, 0, 1, 0, 0, 0, 1, 0,   // face 0
@@ -317,6 +341,17 @@
               selection: ["demo_edge_traced", "demo_edge_untraced", "demo_edge_no_owner"],
             },
           ],
+        },
+        // A topology with no study at all -- the shape the real propeller
+        // pitch linkage joints one has (2026-09-30) -- so the study picker's
+        // empty state has something to be seen against.
+        {
+          id: "demo_studyless", title: "Demo topology without studies",
+          nodes: [{ id: "a", name: "demo face", kind: "mating_surface" },
+                  { id: "b", name: "demo far face", kind: "mating_surface" }],
+          edges: [{ id: "demo_studyless_edge", name: "Demo edge", confidence: "untraced",
+            from: "a", to: "b", part: "demo_triangle" }],
+          studies: [],
         },
       ],
     },

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the Isolate button toggles its part in the isolated set, and an empty set means off",
+  "mutations": [
+    {
+      "contract": "Clicking Isolate on a part already isolated takes it back out, and the last one out turns isolation off.",
+      "issue": null,
+      "note": "The mutation only ever adds, so the second click can never undo the first.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (at === -1) list.push(sha); else list.splice(at, 1);",
+      "replace": "    list.push(sha);"
+    }
+  ]
+}

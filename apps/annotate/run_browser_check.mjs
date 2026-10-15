@@ -429,6 +429,7 @@ async function main() {
     consoleErrors.join("\n      "));
 
   await mockPlacementPass(browser, base);
+  await contextViewPass(browser, base);
   await reducedMotionTimingPass(browser, base);
 
   if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=synthetic-demo-sweep`, "mock");
@@ -530,6 +531,109 @@ async function mockPlacementPass(browser, base) {
     both.placed && both.unplaced && both.placed.sha256 === both.unplaced.sha256 &&
     both.placed.faceId === both.unplaced.faceId && both.placed.faceId === 0 &&
     both.placed.occurrence === 1, JSON.stringify(both));
+  await page.close();
+}
+
+// The parts panel's two filters (handoff a_context_filter_and_a_view_filter):
+// CONTEXT is which parts belong to the model, VIEW is which of them are drawn.
+// Real clicks on the real controls, on the mock page, whose store holds three
+// parts of which only the demo triangle belongs to the demo topology.
+async function contextViewPass(browser, base) {
+  console.log("\n--- context and view (mock)");
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  await page.goto(`${base}?mock=1`);
+  await page.waitForFunction(() => window.__scene && window.AnnotateApp && window.AnnotateApp.exec, null,
+    { timeout: 20000 });
+  const exec = (...c) => page.evaluate((cmd) => window.AnnotateApp.exec(cmd), c);
+  const rows = () => page.locator("#parts-panel > li.part-row:not(.part-row--head)");
+  const drawn = () => page.evaluate(() => window.__scene.listOpenParts()
+    .filter((s) => window.__scene.isVisible(s)).sort());
+  const names = () => rows().locator(".part-row__label").allInnerTexts();
+  const header = () => page.locator("#parts-panel > li.part-row--head input");
+  const shot = async (name) => {
+    if (!SHOTS) return;
+    await mkdir(SHOTS, { recursive: true });
+    await page.locator(".an__rail").screenshot({ path: join(SHOTS, name), timeout: SHOT_TIMEOUT_MS });
+    console.log(`      ${name} written`);
+  };
+
+  check("the panel lists the model's own part first and folds the others away",
+    (await rows().count()) === 1 && (await page.locator(".parts-other > summary").innerText()).includes("(2)"),
+    await names());
+
+  const study = await page.evaluate(() => {
+    const sel = document.getElementById("study-select");
+    return { disabled: sel.disabled, text: sel.options[sel.selectedIndex].text };
+  });
+  check("a topology with studies leaves the study picker enabled", !study.disabled, JSON.stringify(study));
+  await exec("select-topology", "demo_studyless");
+  const none = await page.evaluate(() => {
+    const sel = document.getElementById("study-select");
+    return { disabled: sel.disabled, text: sel.options[sel.selectedIndex].text };
+  });
+  check("a topology with no studies says so in the picker, disabled, instead of an empty list",
+    none.disabled && none.text === "no studies yet", JSON.stringify(none));
+  await exec("select-topology", "demo_system");
+
+  await exec("context", "add", "demo_bracket", "demo_plate");
+  check("adding parts to the model lists them in it without drawing them",
+    (await rows().count()) === 3 && (await drawn()).length === 0, await names());
+  const before = await names();
+
+  await exec("show-all");
+  const all = await drawn();
+  check("show all draws every part in the model, and the header is checked",
+    all.length === 3 && (await header().isChecked()) &&
+    !(await header().evaluate((e) => e.indeterminate)), JSON.stringify(all));
+  await shot("parts_panel_dark_all_drawn.png");
+
+  // Isolate, twice, through the real button.
+  const isolate = () => rows().nth(1).locator("button", { hasText: "Isolate" });
+  await isolate().click();
+  await page.waitForFunction(() => window.__scene.listOpenParts()
+    .filter((s) => window.__scene.isVisible(s)).length === 1);
+  check("Isolate shows only that part and the button reads as pressed",
+    (await isolate().getAttribute("aria-pressed")) === "true" && (await drawn()).length === 1,
+    JSON.stringify(await drawn()));
+  await shot("parts_panel_dark_one_isolated.png");
+  await isolate().click();
+  await page.waitForFunction(() => window.__scene.listOpenParts()
+    .filter((s) => window.__scene.isVisible(s)).length === 3);
+  check("a second click puts back exactly the set that was drawn before",
+    JSON.stringify(await drawn()) === JSON.stringify(all) &&
+    (await isolate().getAttribute("aria-pressed")) === "false", JSON.stringify(await drawn()));
+
+  // The view verbs leave the context alone.
+  await exec("isolate", "demo_plate");
+  await exec("isolate", "off");
+  await exec("hide-all");
+  await exec("show-all");
+  await exec("ghost", "demo_bracket");
+  await exec("ghost", "off");
+  check("none of the view verbs changes which parts are in the model",
+    JSON.stringify(await names()) === JSON.stringify(before), JSON.stringify(await names()));
+
+  // Mixed: one part hidden by its own checkbox.
+  await rows().nth(2).locator("input[type=checkbox]").uncheck();
+  check("with some drawn and some not, the header is neither checked nor empty",
+    !(await header().isChecked()) && (await header().evaluate((e) => e.indeterminate)));
+  await shot("parts_panel_dark_mixed_header_indeterminate.png");
+  await header().click();
+  check("clicking the mixed header draws everything", (await drawn()).length === 3);
+  await header().click();
+  check("clicking it again hides everything", (await drawn()).length === 0);
+
+  // Leaving the context resets both filters.
+  await exec("show-all");
+  await exec("select-study", "demo_study");
+  check("choosing a study resets the model to its own parts and the view to all drawn",
+    (await rows().count()) === 1 && (await drawn()).length === 1, JSON.stringify(await names()));
+
+  // A click that cannot bind says why. No element is selected here.
+  await page.evaluate(() => window.__scene.onPick({ sha256: window.AnnotateApp.FIXTURES.demoSha, faceId: 0 }));
+  const banner = (await page.locator("#banner").innerText()).trim();
+  check("a face clicked with no element selected says what to do, in the banner",
+    banner.includes("Pick an element"), banner);
   await page.close();
 }
 

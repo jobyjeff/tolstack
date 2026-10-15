@@ -73,6 +73,14 @@ const state = {
   // -- AA.planPanelFilter's plan, as returned, so the two renderers read one
   // decision rather than each re-deriving which rows belong to an element.
   panelFilter: null,
+  // The view before the first isolate/ghost of a run of them, plus the parts
+  // currently isolated -- null when nothing is. `isolate off` puts the
+  // snapshot back, which is what makes Isolate a toggle and not a trap.
+  isolation: null, // { restore: [{sha, visible, ghost}], targets: [sha], ghost }
+  // What the reader added to / took out of the model, on top of what the
+  // topology or study puts in it (AA.planContext). Never touched by a view verb.
+  contextEdit: { added: [], removed: [] },
+  otherPartsOpen: false, // the parts panel's folded group
   currentPick: null, // { sha256, faceId, record }
   // Cached listMeshes() result -- the command layer resolves "sha256 or
   // part_id" against this rather than re-reading storage on every command, so
@@ -198,17 +206,59 @@ function cmdHide(identifier) {
 // part missed), but any part that DID resolve still opens and shows --
 // deliverable 3's "never a blank scene" is about the case where nothing at
 // all could be shown, not about every miss.
-async function cmdIsolate(...identifiers) {
-  if (!identifiers.length) throw new Error("isolate needs at least one part identifier");
+﻿async function cmdIsolate(...identifiers) {
+  return isolateOrGhost("isolate", false, identifiers);
+}
+
+// ghost <partâ€¦> -- isolate's translucent twin (handoff study_3d_flyout): show
+// ONLY the named parts, rendered translucent, so opaque `mark-face` overlays
+// trace a chain over them. Same resolution, same planIsolate transition, same
+// partial-miss honesty and the same `off` as isolate -- the one difference is
+// setGhost(true).
+async function cmdGhost(...identifiers) {
+  return isolateOrGhost("ghost", true, identifiers);
+}
+
+// `isolate off` / `ghost off`: the view as it was before the first isolate or
+// ghost of the run. Isolating a second part first, or toggling it from the
+// panel, never overwrites that snapshot -- it is taken once.
+function restoreIsolation() {
+  const isolation = state.isolation;
+  state.isolation = null;
+  if (isolation) {
+    AA.planViewRestore(isolation.restore, state.scene.listOpenParts()).forEach((r) => {
+      state.scene.setVisible(r.sha, r.visible);
+      state.scene.setGhost(r.sha, r.ghost);
+    });
+  }
+  renderPartsPanel();
+  setSceneEmptyState(null);
+  return { restored: !!isolation };
+}
+
+async function isolateOrGhost(verb, ghost, identifiers) {
+  if (!identifiers.length) throw new Error(verb + " needs at least one part identifier");
+  if (identifiers.length === 1 && identifiers[0] === AA.ON_OFF[1]) return restoreIsolation();
   const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
   const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
   const targets = resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256);
 
   const plan = AA.planIsolate(state.scene.listOpenParts(), targets);
+  if (targets.length && !state.isolation) {
+    state.isolation = {
+      restore: state.scene.listOpenParts().map((sha) => ({
+        sha, visible: state.scene.isVisible(sha), ghost: state.scene.isGhosted(sha) })),
+      targets: [], ghost,
+    };
+  }
+  if (targets.length) {
+    state.isolation.targets = targets;
+    state.isolation.ghost = ghost;
+  }
   for (const sha of plan.toOpen) await state.scene.loadPart(sha);
   targets.forEach((sha) => {
     state.scene.setVisible(sha, true);
-    state.scene.setGhost(sha, false); // isolate means "the solid part", same as open-part
+    state.scene.setGhost(sha, ghost); // isolate means "the solid part", same as open-part
   });
   plan.toHide.forEach((sha) => state.scene.setVisible(sha, false));
   renderPartsPanel();
@@ -216,38 +266,91 @@ async function cmdIsolate(...identifiers) {
   if (targets.length) await AA.exec(["camera", "frame", ...targets]);
   setSceneEmptyState(targets.length === 0 ? missing : null);
   if (missing.length && targets.length) {
-    setBanner("Isolated " + targets.length + " part(s); no installed mesh for: " +
-      missing.join(", "), "warn");
+    setBanner((ghost ? "Ghosted " : "Isolated ") + targets.length +
+      " part(s); no installed mesh for: " + missing.join(", "), "warn");
   }
   return { opened: targets, missing };
 }
 
-// ghost <part…> -- isolate's translucent twin (handoff study_3d_flyout): show
-// ONLY the named parts, rendered translucent, so opaque `mark-face` overlays
-// trace a chain over them. Same resolution, same planIsolate transition, same
-// partial-miss honesty as isolate -- the one difference is setGhost(true).
-async function cmdGhost(...identifiers) {
-  if (!identifiers.length) throw new Error("ghost needs at least one part identifier");
-  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
-  const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
-  const targets = resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256);
-
-  const plan = AA.planIsolate(state.scene.listOpenParts(), targets);
-  for (const sha of plan.toOpen) await state.scene.loadPart(sha);
-  targets.forEach((sha) => {
-    state.scene.setVisible(sha, true);
-    state.scene.setGhost(sha, true);
-  });
-  plan.toHide.forEach((sha) => state.scene.setVisible(sha, false));
-  renderPartsPanel();
-
-  if (targets.length) await AA.exec(["camera", "frame", ...targets]);
-  setSceneEmptyState(targets.length === 0 ? missing : null);
-  if (missing.length && targets.length) {
-    setBanner("Ghosted " + targets.length + " part(s); no installed mesh for: " +
-      missing.join(", "), "warn");
+// --- context and view (handoff a_context_filter_and_a_view_filter) ----------
+//
+// The base of the context, as shas: the run's bodies in sweep mode, else the
+// rail's scope, else the selected topology's (or study's) parts; null while
+// nothing scopes the model, which AA.planContext reads as "every mesh".
+function contextBaseShas() {
+  if (state.sweep) {
+    const open = state.scene.listOpenParts();
+    const shas = state.sweep.bodies
+      .filter((r) => r.state !== "carried" || open.indexOf(r.sha256) !== -1)
+      .map((r) => r.sha256);
+    return Array.from(new Set(shas.concat(state.sweep.openedBySweep).filter(Boolean)));
   }
-  return { opened: targets, missing };
+  const plan = state.panelFilter ||
+    (state.currentTopology && AA.planScopeFilter(state.currentTopology, state.currentStudy,
+      state.meshList, state.partMeshAliases));
+  if (!plan) return null;
+  return plan.parts.map((p) => p.sha256).filter(Boolean);
+}
+
+function currentContext() {
+  return AA.planContext(state.meshList, contextBaseShas(),
+    state.contextEdit.added, state.contextEdit.removed);
+}
+
+// Leaving a context -- another topology or study, or either edge of sweep mode
+// -- drops what the reader added or removed and the isolation, and (unless
+// `keepDrawn`) draws every open part of the new context and none outside it.
+function resetContext(keepDrawn) {
+  state.contextEdit = { added: [], removed: [] };
+  state.isolation = null;
+  if (!keepDrawn && state.scene) {
+    const inModel = currentContext().inModel.map((m) => m.sha256);
+    AA.planViewReset(state.scene.listOpenParts(), inModel, state.transparentParts).forEach((r) => {
+      state.scene.setVisible(r.sha, r.visible);
+      state.scene.setGhost(r.sha, r.ghost);
+    });
+  }
+  renderPartsPanel();
+}
+
+// context add|remove <partâ€¦> | reset -- the model's own membership. Never a
+// view change: a part added is listed, not drawn.
+function cmdContext(action, ...identifiers) {
+  if (AA.CONTEXT_ACTIONS.indexOf(action) === -1) {
+    throw new Error("context takes one of " + AA.CONTEXT_ACTIONS.join(", ") +
+      ", got " + JSON.stringify(action));
+  }
+  if (action === "reset") {
+    state.contextEdit = { added: [], removed: [] };
+  } else {
+    if (!identifiers.length) throw new Error("context " + action + " needs at least one part");
+    const shas = identifiers.map((id) => resolveMeshOrThrow(id).sha256);
+    state.contextEdit = AA.planContextEdit(state.contextEdit, action, shas);
+  }
+  renderPartsPanel();
+  return state.contextEdit;
+}
+
+// show-all / hide-all -- the header checkbox, over the parts in the context.
+async function cmdShowAll() {
+  state.isolation = null;
+  const rows = currentContext().inModel;
+  for (const mesh of rows) {
+    await state.scene.loadPart(mesh.sha256);
+    state.scene.setVisible(mesh.sha256, true);
+    state.scene.setGhost(mesh.sha256, state.transparentParts);
+  }
+  renderPartsPanel();
+  return rows.map((m) => m.sha256);
+}
+
+function cmdHideAll() {
+  state.isolation = null;
+  const open = state.scene.listOpenParts();
+  const rows = currentContext().inModel.filter((m) => open.indexOf(m.sha256) !== -1);
+  rows.forEach((m) => state.scene.setVisible(m.sha256, false));
+  renderPartsPanel();
+  return rows.map((m) => m.sha256);
 }
 
 // mark-face <part> <face_id> -- an opaque overlay on one face, additive (a
@@ -859,6 +962,8 @@ async function cmdSweep(target) {
     // hub loaded" is a question about a build, measurable only in one.
     fps: 0,
   };
+  state.isolation = null;
+  state.contextEdit = { added: [], removed: [] };
   state.scene.enterSweep(Object.assign({ trails }, structure));
   state.scene.onSweepHover = showSweepTip;
   applySweepFrame();
@@ -882,8 +987,8 @@ function leaveSweep() {
     state.scene.setVisible(entry.sha, entry.visible);
     state.scene.setGhost(entry.sha, entry.ghost);
   }
+  resetContext(true); // the run's context ends with it; what is drawn was just restored
   renderDetail();
-  renderPartsPanel();
   return { left: true };
 }
 
@@ -1111,6 +1216,7 @@ async function anchorSweepBodies() {
     } catch (err) { /* the row already says what happened */ }
   }
   sweep.bodies = rows;
+  renderPartsPanel();
   applySweepFrame();
   // The scene is only now what it is going to be, so this is where it gets
   // framed -- a stick figure and a stick figure inside a 286-solid hub want
@@ -1712,6 +1818,9 @@ const commands = new AA.CommandLayer();
 commands.register("open-part", cmdOpenPart);
 commands.register("show", cmdOpenPart); // "show" on a part never opened is "open it and show it"
 commands.register("hide", cmdHide);
+commands.register("show-all", cmdShowAll);
+commands.register("hide-all", cmdHideAll);
+commands.register("context", cmdContext);
 commands.register("isolate", cmdIsolate);
 commands.register("camera", cmdCamera);
 commands.register("ghost", cmdGhost);
@@ -1813,6 +1922,9 @@ function selectTopology(topologyId) {
   // drops it rather than carrying a filter that can no longer name anything.
   // `goto` sets its own filter AFTER this runs, so a deep link is unaffected.
   clearPanelFilter();
+  // A studyless topology has no study: the last topology's must not linger as
+  // the scope of this one.
+  state.currentStudy = null;
   el.topologySelect.value = topologyId;
   el.studySelect.innerHTML = "";
   const studies = (state.currentTopology && state.currentTopology.studies) || [];
@@ -1821,8 +1933,14 @@ function selectTopology(topologyId) {
     opt.value = s.id; opt.textContent = s.title;
     el.studySelect.appendChild(opt);
   }
+  if (!studies.length) {
+    const none = document.createElement("option");
+    none.value = ""; none.textContent = AA.PARTS_COPY.noStudies;
+    el.studySelect.appendChild(none);
+  }
+  el.studySelect.disabled = !studies.length;
   if (studies.length) selectStudy(studies[0].id);
-  else renderElementList();
+  else { renderElementList(); resetContext(false); }
 }
 
 function selectStudy(studyId) {
@@ -1832,6 +1950,7 @@ function selectStudy(studyId) {
   clearPanelFilter();
   el.studySelect.value = studyId;
   renderElementList();
+  resetContext(false);
 }
 
 // The scope, dropped, with the bar that announces it -- and NOT the two panels,
@@ -2413,55 +2532,122 @@ function listedMeshes() {
   return state.meshList.filter((m) => wanted[m.sha256]);
 }
 
+// One list, two kinds of control. Rows are grouped by CONTEXT -- "In this
+// model", then "Other parts" folded away -- and each row's checkbox is the
+// VIEW (drawn or not). The header checkbox over the first group is the view
+// for all of it at once. Isolate is the view too, and a toggle.
 function renderPartsPanel() {
   el.partsPanel.innerHTML = "";
-  for (const mesh of listedMeshes()) {
+  const { inModel, other } = currentContext();
+  const isolated = (state.isolation && state.isolation.targets) || [];
+
+  if (inModel.length) {
+    const head = document.createElement("li");
+    head.className = "part-row part-row--head";
+    const title = document.createElement("span");
+    title.className = "part-row__label";
+    title.textContent = AA.PARTS_COPY.inModel;
+    head.appendChild(title);
+    const all = document.createElement("input");
+    all.type = "checkbox";
+    all.title = AA.PARTS_COPY.showAll;
+    const header = AA.planShowAllHeader(inModel.map((m) => state.scene.isVisible(m.sha256)));
+    all.checked = header.checked;
+    all.indeterminate = header.indeterminate;
+    all.onchange = async () => {
+      try {
+        await AA.exec([all.checked ? "show-all" : "hide-all"]);
+      } catch (err) {
+        setBanner(err.message, "error");
+        renderPartsPanel();
+      }
+    };
+    head.appendChild(all);
+    el.partsPanel.appendChild(head);
+  }
+  for (const mesh of inModel) el.partsPanel.appendChild(buildPartRow(mesh, true, isolated));
+
+  if (other.length) {
     const li = document.createElement("li");
-    li.className = "part-row";
-
-    const label = document.createElement("span");
-    label.className = "part-row__label";
-    label.textContent = mesh.label + " (" + mesh.sha256.slice(0, 12) + "…)";
-    li.appendChild(label);
-
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.title = "show/hide in the 3D view";
-    cb.checked = state.scene.isVisible(mesh.sha256);
-    cb.onchange = async () => {
-      try {
-        await AA.exec([cb.checked ? "show" : "hide", mesh.sha256]);
-      } catch (err) {
-        setBanner(err.message, "error");
-        cb.checked = !cb.checked;
-      }
-    };
-    li.appendChild(cb);
-
-    const isoBtn = document.createElement("button");
-    isoBtn.textContent = "Isolate";
-    isoBtn.title = "show only this part, hiding every other open part";
-    isoBtn.onclick = async () => {
-      try {
-        await AA.exec(["isolate", mesh.sha256]);
-      } catch (err) {
-        setBanner(err.message, "error");
-      }
-    };
-    li.appendChild(isoBtn);
-
-    // Where the part is drawn, when it is not simply where the assembly puts
-    // it -- muted, under the row, and absent for every part that needs none.
-    const note = positionNote(mesh.sha256);
-    if (note) {
-      const says = document.createElement("span");
-      says.className = "part-row__note";
-      says.textContent = note;
-      li.appendChild(says);
-    }
-
+    const box = document.createElement("details");
+    box.className = "parts-other";
+    // The fold's own state survives a repaint -- every checkbox repaints it.
+    box.open = state.otherPartsOpen;
+    box.ontoggle = () => { state.otherPartsOpen = box.open; };
+    const sum = document.createElement("summary");
+    sum.textContent = AA.PARTS_COPY.other + " (" + other.length + ")";
+    box.appendChild(sum);
+    const list = document.createElement("ul");
+    list.className = "parts-panel";
+    for (const mesh of other) list.appendChild(buildPartRow(mesh, false, isolated));
+    box.appendChild(list);
+    li.appendChild(box);
     el.partsPanel.appendChild(li);
   }
+}
+
+function buildPartRow(mesh, inModel, isolated) {
+  const li = document.createElement("li");
+  li.className = "part-row";
+
+  const label = document.createElement("span");
+  label.className = "part-row__label";
+  label.textContent = mesh.label + " (" + mesh.sha256.slice(0, 12) + "…)";
+  li.appendChild(label);
+
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.title = "show/hide in the 3D view";
+  cb.checked = state.scene.isVisible(mesh.sha256);
+  cb.onchange = async () => {
+    try {
+      await AA.exec([cb.checked ? "show" : "hide", mesh.sha256]);
+    } catch (err) {
+      setBanner(err.message, "error");
+      cb.checked = !cb.checked;
+    }
+  };
+  li.appendChild(cb);
+
+  const on = isolated.indexOf(mesh.sha256) !== -1;
+  const isoBtn = document.createElement("button");
+  isoBtn.textContent = AA.PARTS_COPY.isolate;
+  isoBtn.title = on ? "show the other parts again" : "show only this part";
+  isoBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  if (on) isoBtn.classList.add("is-pressed");
+  isoBtn.onclick = async () => {
+    try {
+      const next = AA.planIsolateToggle(isolated, mesh.sha256);
+      const verb = state.isolation && state.isolation.ghost ? "ghost" : "isolate";
+      await AA.exec(next.length ? [verb, ...next] : [verb, AA.ON_OFF[1]]);
+    } catch (err) {
+      setBanner(err.message, "error");
+    }
+  };
+  li.appendChild(isoBtn);
+
+  const member = document.createElement("button");
+  member.className = "part-row__member";
+  member.textContent = inModel ? AA.PARTS_COPY.remove : AA.PARTS_COPY.add;
+  member.onclick = () => {
+    try {
+      AA.exec(["context", inModel ? "remove" : "add", mesh.sha256]);
+    } catch (err) {
+      setBanner(err.message, "error");
+    }
+  };
+  li.appendChild(member);
+
+  // Where the part is drawn, when it is not simply where the assembly puts
+  // it -- muted, under the row, and absent for every part that needs none.
+  const note = positionNote(mesh.sha256);
+  if (note) {
+    const says = document.createElement("span");
+    says.className = "part-row__note";
+    says.textContent = note;
+    li.appendChild(says);
+  }
+  return li;
 }
 
 // --- deep link (deliverable 3) ---------------------------------------------
@@ -2790,7 +2976,10 @@ async function main() {
     const plan = AA.planPickToggle(state.currentPick, pick);
     try {
       if (plan.action === "clear") AA.exec(["deselect", "face"]);
-      else AA.exec(["select-face", plan.pick.sha256, String(plan.pick.faceId)]);
+      else {
+        AA.exec(["select-face", plan.pick.sha256, String(plan.pick.faceId)]);
+        if (!state.selectedEdge) setBanner(AA.PICK_NEEDS_ELEMENT, "warn");
+      }
     } catch (err) {
       setBanner(err.message, "error");
     }

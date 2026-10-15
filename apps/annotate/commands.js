@@ -385,6 +385,125 @@
     };
   };
 
+  // --- context and view: the parts panel's two filters ------------------------
+  //
+  // (handoff a_context_filter_and_a_view_filter, 2026-10-14.) Jeff: "there
+  // really should be two filters: the context filter (what is actually loaded
+  // into the model/study) and the view filter which controls what's actually
+  // rendered."
+  //
+  //   CONTEXT  which parts belong to the model being worked in: the topology's
+  //            (or the study's), in sweep mode the run's bodies, plus whatever
+  //            the reader added or took away. `show`, `hide`, `isolate`,
+  //            `ghost`, `show-all`, `hide-all` never change it; `context`
+  //            does, and selecting another topology or study resets it.
+  //   VIEW     which parts are drawn right now: the scene's own visibility.
+  //            Isolate and ghost are views, and `isolate off` is their undo.
+  //
+  // Everything here is pure -- plain arrays in, plain arrays out -- so the
+  // transitions are checkable with no scene.
+
+  // The words the panel wears. A table, not inline strings, so the shared
+  // ban-list scan reaches them.
+  AA.PARTS_COPY = Object.freeze({
+    inModel: "In this model",
+    other: "Other parts",
+    add: "Add",
+    remove: "Remove",
+    showAll: "show or hide every part in this model",
+    isolate: "Isolate",
+    noStudies: "no studies yet",
+  });
+
+  // Which meshes are in the context. `baseShas` is null when nothing scopes
+  // the model (no topology yet): every mesh is then in it. `added` is checked
+  // after `removed` is applied, so a part the reader took out and put back is
+  // in; a part named in both lists ends up in -- the later action is `add`.
+  AA.planContext = function (meshes, baseShas, added, removed) {
+    var base = baseShas ? {} : null;
+    (baseShas || []).forEach(function (s) { base[s] = true; });
+    var add = {};
+    (added || []).forEach(function (s) { add[s] = true; });
+    var drop = {};
+    (removed || []).forEach(function (s) { drop[s] = true; });
+    var inModel = [];
+    var other = [];
+    (meshes || []).forEach(function (m) {
+      var inBase = base ? !!base[m.sha256] : true;
+      var isIn = add[m.sha256] ? true : (drop[m.sha256] ? false : inBase);
+      (isIn ? inModel : other).push(m);
+    });
+    return { inModel: inModel, other: other };
+  };
+
+  // `context add|remove <part…>` as a transition on the {added, removed} pair.
+  AA.planContextEdit = function (edit, action, shas) {
+    var added = (edit && edit.added || []).slice();
+    var removed = (edit && edit.removed || []).slice();
+    var without = function (list, s) { return list.filter(function (x) { return x !== s; }); };
+    (shas || []).forEach(function (s) {
+      if (action === "add") {
+        removed = without(removed, s);
+        if (added.indexOf(s) === -1) added.push(s);
+      } else {
+        added = without(added, s);
+        if (removed.indexOf(s) === -1) removed.push(s);
+      }
+    });
+    return { added: added, removed: removed };
+  };
+
+  AA.CONTEXT_ACTIONS = ["add", "remove", "reset"];
+
+  // The Isolate button on a row is a toggle on the set of isolated parts: a
+  // part not in it joins, one in it leaves. An empty result means "nothing is
+  // isolated any more", which the caller turns into `isolate off`.
+  AA.planIsolateToggle = function (isolated, sha) {
+    var list = (isolated || []).slice();
+    var at = list.indexOf(sha);
+    if (at === -1) list.push(sha); else list.splice(at, 1);
+    return list;
+  };
+
+  // The view a part had before the FIRST isolate/ghost of a run of them, as
+  // {sha, visible, ghost} rows; restoring puts exactly those back and hides
+  // every part opened since, which was not drawn then.
+  AA.planViewRestore = function (snapshot, openShas) {
+    var was = {};
+    (snapshot || []).forEach(function (r) { was[r.sha] = r; });
+    return (openShas || []).map(function (sha) {
+      var r = was[sha];
+      return { sha: sha, visible: r ? !!r.visible : false, ghost: r ? !!r.ghost : false };
+    });
+  };
+
+  // Leaving a context: every open part in the new one is drawn, every open
+  // part outside it is not. `ghost` is the reader's see-through setting.
+  AA.planViewReset = function (openShas, contextShas, ghost) {
+    var inCtx = {};
+    (contextShas || []).forEach(function (s) { inCtx[s] = true; });
+    return (openShas || []).map(function (sha) {
+      return { sha: sha, visible: !!inCtx[sha], ghost: !!inCtx[sha] && !!ghost };
+    });
+  };
+
+  // The header checkbox over the rows in the context: checked when every one
+  // is drawn, empty when none is, indeterminate for a mix, and disabled when
+  // there is nothing to control.
+  AA.planShowAllHeader = function (drawnFlags) {
+    var flags = drawnFlags || [];
+    var drawn = flags.filter(Boolean).length;
+    return {
+      disabled: flags.length === 0,
+      checked: flags.length > 0 && drawn === flags.length,
+      indeterminate: drawn > 0 && drawn < flags.length,
+    };
+  };
+
+  // The line a click on a face puts in the banner when nothing will bind it.
+  AA.PICK_NEEDS_ELEMENT =
+    "Pick an element on the left to bind this face to.";
+
   // --- on/off, as one vocabulary ---------------------------------------------
   //
   // Two settings verbs take a switch and a reader's own checkbox drives both,

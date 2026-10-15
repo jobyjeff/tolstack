@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "isolate then isolate off restores the prior view exactly, ghosts included",
+  "mutations": [
+    {
+      "contract": "`isolate off` puts every open part back as the snapshot recorded it -- drawn, hidden, ghosted -- and hides any part opened since.",
+      "issue": null,
+      "note": "The mutation restores every part as hidden and solid, which is the trap Isolate was: everything else gone and no way back to what was drawn.",
+      "file": "apps/annotate/commands.js",
+      "find": "    return { sha: sha, visible: r ? !!r.visible : false, ghost: r ? !!r.ghost : false };",
+      "replace": "    return { sha: sha, visible: false, ghost: false };"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "context membership is the scope plus what the reader added minus what they removed, and takes no view as input",
+  "mutations": [
+    {
+      "contract": "The model's membership is the scope with the reader's additions and removals applied.",
+      "issue": null,
+      "note": "The mutation ignores what the reader added or removed.",
+      "file": "apps/annotate/commands.js",
+      "find": "      var isIn = add[m.sha256] ? true : (drop[m.sha256] ? false : inBase);",
+      "replace": "      var isIn = inBase;"
+    }
+  ]
+}

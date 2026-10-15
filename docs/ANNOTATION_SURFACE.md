@@ -225,6 +225,31 @@ the honest empty-state ("no installed mesh for X") — that state is the
 annotator's answer to an unresolvable identifier, never something the viewer
 may hand a reader.
 
+### The parts panel: context and view (2026-10-14)
+
+The panel is one list with two kinds of control, because it was doing two jobs
+with one filter (Jeff: "the context filter (what is actually loaded into the
+model/study) and the view filter which controls what's actually rendered").
+
+- **Context** is which parts belong to the model being worked in: the selected
+  topology's parts, or the study's when one is selected; in sweep mode the
+  run's bodies; plus whatever the reader adds (`context add`) or removes
+  (`context remove`). It is the row grouping — "In this model", then "Other
+  parts", folded. Selecting another topology or study resets it.
+- **View** is which of those are drawn: the row checkboxes, the header
+  checkbox over the first group (`show-all` / `hide-all`, tri-state), and
+  **Isolate** / `ghost`.
+- **Isolate is a toggle.** The first `isolate`/`ghost` of a run takes a snapshot
+  of what was drawn; `isolate off` (or `ghost off`) puts exactly that back.
+  Leaving a context draws every open part of the new one and none outside it.
+- **A view verb never changes the context**, and nothing about the context
+  draws a part: a part added to the model is listed, not drawn.
+
+A topology with no study (the pitch linkage joints one, by design) shows
+"no studies yet" in a disabled picker. A face clicked with no element to bind
+it to puts one line in the banner; away from the as-modelled pose in sweep mode
+it already said why.
+
 ## Face suggestions — proposals in the UI, never bindings
 
 Added 2026-09-21 by handoff `annotate_face_suggestions`, promoting arc 3 of

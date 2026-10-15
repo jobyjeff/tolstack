@@ -237,14 +237,24 @@ body {
 
 .parts-panel { list-style: none; padding: 0; margin: 10px 0 0; }
 .part-row {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 16px 3.7rem 3.1rem; align-items: center; gap: 0 6px;
   padding: 4px 0; font-size: var(--t-meta);
 }
+.parts-panel .part-row button { padding: 2px 0; }
+.part-row--head { color: #9aa1ab; }
+.part-row--head .part-row__label { color: inherit; }
 .part-row__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Where a part is drawn, when that is not simply where the assembly puts it
    (no recorded position, or past the draw cap). Its own line under the row,
    muted: metadata about the row, not a state of the part. */
-.part-row__note { flex-basis: 100%; color: #9aa1ab; }
+.part-row__note { grid-column: 1 / -1; color: #9aa1ab; }
+/* The view's pressed state: Isolate while it is on. The one accent in the row. */
+.parts-panel button.is-pressed { background: #2f5d8a; border-color: #3f77ae; }
+/* Membership is quiet until the row is hovered or focused. */
+.parts-panel button.part-row__member { background: none; border-color: transparent; color: #9aa1ab; padding: 2px 4px; }
+.part-row:not(:hover):not(:focus-within) .part-row__member { visibility: hidden; }
+.parts-other > summary { color: #9aa1ab; cursor: pointer; padding: 4px 0; font-size: var(--t-meta); }
+.parts-other > .parts-panel { margin-top: 0; }
 
 /* --- the top bar (2026-09-21) --------------------------------------------
    One horizontal band above the canvas, bounded so a long bind form can never
