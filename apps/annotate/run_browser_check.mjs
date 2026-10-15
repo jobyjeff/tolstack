@@ -169,6 +169,10 @@ function check(name, condition, detail) {
   return false;
 }
 
+// A screenshot waits for a fresh frame, and with the whole pitch linkage
+// placed and see-through a SwiftShader frame takes longer than playwright's
+// 30 s default (measured 2026-10-14: about 0.4 fps opaque, slower translucent).
+const SHOT_TIMEOUT_MS = 240000;
 const shotsFlag = process.argv.indexOf("--shots");
 const SHOTS = shotsFlag === -1 ? null : resolve(process.argv[shotsFlag + 1]);
 // `--real <run-id>` runs the same page against a PUBLISHED sweep run and the
@@ -680,7 +684,7 @@ async function captureShots(page, url, tag) {
         })));
       }
       const name = `sweep_${label}_${scheme}_${String(degrees).replace("-", "minus")}deg.png`;
-      await page.screenshot({ path: join(SHOTS, name) });
+      await page.screenshot({ path: join(SHOTS, name), timeout: SHOT_TIMEOUT_MS });
       notes.push(`${name}  point ${index}`);
     }
   }
@@ -851,7 +855,7 @@ async function realPass(browser, base) {
       for (let i = 0; i < 6; i++) await new Promise((r) => requestAnimationFrame(r));
     });
     await page.waitForTimeout(500);
-    await page.screenshot({ path: join(SHOTS, "assembled_real_dark_out_of_sweep.png") });
+    await page.screenshot({ path: join(SHOTS, "assembled_real_dark_out_of_sweep.png"), timeout: SHOT_TIMEOUT_MS });
     console.log("      assembled_real_dark_out_of_sweep.png written");
   }
 
