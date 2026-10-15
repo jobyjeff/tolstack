@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: topology/aliases
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
+handoff: docs/sessions/HANDOFF_20261015_annotate_texts_follow_the_installed_mesh_store.md
+class: prose_states_a_live_store_count
 ---
 
 # The gas-spring piston mesh is installed, and it has no alias row

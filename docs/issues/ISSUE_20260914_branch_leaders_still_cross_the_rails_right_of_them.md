@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology-layout
 audience: strategy
 reporter: agent
@@ -9,6 +9,7 @@ strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 needs: jeff
 ask: Pick how to fix branch leaders crossing rails on pitch_system: repack, reroute, hop marks, or accept
 todo: 20261007T161823_hg1njj
+resolution: fixed by HANDOFF_20260930_columns_ordered_to_minimise_crossings (completed) -- Jeff chose column reordering 2026-09-30; branch-leader crossings on pitch_system 43 -> 0 as the page draws them (LESSONS_20260930_columns_ordered_to_minimise_crossings); closed 2026-10-15 by triage
 ---
 
 # Right-justifying the spine moves the leader crossings onto the branch leaders instead of removing them

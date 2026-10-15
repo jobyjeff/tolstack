@@ -156,3 +156,21 @@ now the second handoff scoped away from it."*
 `venv-win/Scripts/python.exe tests/debug_tolstack_panel_browser.py` and
 `node scripts/debug_tolstack_viewer_boot_probe.mjs <base-url> /tolstack/viewer/?mock=1`
 (both in drawing-checker).
+
+## 2026-10-15 triage sweep — item 4's remainder now has its own concrete issue
+
+`docs/issues/ISSUE_20260922_the_missing_projection_box_says_not_from_this_page_while_the_rebuild_endpoint_is_live.md`
+(bug, med; deferred 2026-09-22, woken by date today) is the capability-gate
+half of item 4, measured: `VA.PROJECTION_BUILT_ELSEWHERE` ("It is built in the
+tolerance-stack repository, not from this page.") renders with no capability
+gate in `missing()` and in `views/topology.js`'s empty state, while the same
+banner already gates a real Rebuild button on `state.capabilities.rebuild`.
+On a served page whose sibling mount has drawing-checker's `POST
+/tolstack/rebuild` live, the sentence is false, and the comment beside the
+constant argues from a premise `ISSUE_20260910_other_viewer_surfaces_still_print_terminal_commands`
+already refutes. The issue reports all four of that older issue's command
+sites done, so what item 4 still needs is only the policy call: does every
+missing-projection message get the Rebuild affordance when the capability is
+present? The issue's smallest-first fix list (correct the comment; gate the
+sentence; add a `missing + rebuildCapable` browser case) is ready to stage
+the moment that is answered.

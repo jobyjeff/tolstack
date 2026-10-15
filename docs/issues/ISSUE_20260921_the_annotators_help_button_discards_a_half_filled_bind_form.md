@@ -6,7 +6,8 @@ area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_annotate_hint_bar_and_context_autofilter.md
 class: rerender_discards_uncommitted_input
-defer_until: 2026-10-13
+defer_until: 2026-10-29
+resolution: woke 2026-10-15 -- date trigger passed; re-triage; re-deferred 2026-10-15 (triage) -- med beyond BUDGET=3; still live (cmdHelp still calls renderDetail)
 ---
 
 # The annotator's Help button discards a half-filled bind form

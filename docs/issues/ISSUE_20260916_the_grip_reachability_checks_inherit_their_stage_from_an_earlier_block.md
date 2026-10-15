@@ -6,7 +6,8 @@ area: viewer/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md
 class: test_correctness_depends_on_prior_block_order
-defer_until: 2026-10-13
+defer_until: 2026-10-29
+resolution: woke 2026-10-15 -- date trigger passed; re-triage; re-deferred 2026-10-15 (triage) -- med beyond BUDGET=3
 ---
 
 # The four grip-reachability sub-checks are non-vacuous only because an earlier block left the jog zone open

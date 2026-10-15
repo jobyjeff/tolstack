@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: resolved
 area: viewer / projections
 reporter: agent
 found_by: docs/sessions/completed/HANDOFF_20261001_declare_candidate_test_inputs.md
 class: shared_mutable_state_across_worktrees
 defer_until: 2026-10-15
-resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap.
+resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap. | woke 2026-10-15 -- date trigger passed; re-triage; superseded by the 2026-10-15 batch merge (master c51cf49) -- 104eb140d5fa is now an ancestor of master and the main-checkout rebuild_projections.ps1 ran and stamped master@c51cf49 dirty=False; the class stays with BRIEF_20260914_real_tier_shared_projection_coupling
 ---
 
 # The main checkout's shared viewer projection is stamped from a commit only on `integration`, so `rebuild_projections.ps1` there now refuses every rebuild until the next batch merge

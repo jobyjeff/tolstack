@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: triaged
 area: apps/viewer
 reporter: agent
 audience: strategy
@@ -9,6 +9,8 @@ found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
 class: conditional_message_collapsed_to_unconditional
 defer_until: 2026-10-13
 needs: agent
+strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
+resolution: woke 2026-10-15 -- date trigger passed; re-triage; triaged 2026-10-15 to BRIEF_20260911_served_surface_capability_gaps (dated addendum) -- the issue itself says this is that brief's item 4 remainder
 ---
 
 # The missing-projection box says "not from this page" unconditionally — including on the one origin that *can* rebuild from this page

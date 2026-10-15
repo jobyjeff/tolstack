@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: apps/annotate/tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
+handoff: docs/sessions/HANDOFF_20261015_annotate_gated_browser_suites_follow_the_three_part_mock.md
+class: gated_tier_not_run_by_the_handoff_that_changed_its_subject
 ---
 
 # The annotator's placement wiring can be deleted green in every gated tier

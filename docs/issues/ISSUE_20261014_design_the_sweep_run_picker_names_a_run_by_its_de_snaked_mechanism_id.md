@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
+class: internal_id_as_display_name
+defer_until: 2026-10-29
+resolution: deferred 2026-10-15 (triage) -- med beyond BUDGET=3; needs a producer-side display name (linkage) or a tolstack vocabulary, call it in the handoff
 ---
 
 # Design: the sweep run picker names a run by its mechanism id with the underscores swapped for spaces

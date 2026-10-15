@@ -7,8 +7,9 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_vpa_pitch_linkage_topology_and_feature_fits.md
 class: unsurfaced_or_buried_signal
-defer_until: 2026-10-15
+defer_until: 2026-10-29
 needs: agent
+resolution: woke 2026-10-15 -- date trigger passed; re-triage; re-deferred 2026-10-15 (triage) -- med beyond BUDGET=3; below the brief bar (one vocab word, single repo) -- stage tactically when budget allows
 ---
 
 # A structural edge with no dimension at all is invisible to the DAG page's gap list

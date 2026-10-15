@@ -1,13 +1,16 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: deferred
 area: viewer/respine
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260915_viewer_respine_whole_walk.md
 strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 needs: agent
+class: unreachable_machinery_kept_after_a_layout_change
+defer_until: 2026-11-14
+resolution: deferred 2026-10-15 (triage) -- the brief's item 2 (PARTIALLY CONSUMED 2026-09-30) decided re-columning on selection is not greenlit, so the fade stays unreachable and its retirement is a separate small chore; low, deferred by default
 ---
 
 # `VA.tweenAlpha`'s per-element fade can no longer be reached by any click — keep it, or retire it?

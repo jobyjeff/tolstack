@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: open
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
@@ -11,6 +11,7 @@ defer_until: 2026-10-15
 needs: jeff
 ask: Choose how the rotor fastener DAG page draws its 36 crossing loop-close lines: route outside, bridge, hide, or leave as is
 todo: 20261007T161822_5nv2iw
+resolution: woke 2026-10-15 -- date trigger passed; re-triage; needs jeff -- left open for the escalation channel
 ---
 
 # `rotor_fastener_length`'s 36 close-link crossings are not a column-order problem, and nothing left in the layout can move them
