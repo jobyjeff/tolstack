@@ -1,14 +1,14 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: guards/mutation-witness
 class: silent_failure
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_columns_ordered_to_minimise_crossings.md
 defer_until: 2026-10-15
 handoff: docs/sessions/HANDOFF_20261015_mutation_runner_survives_a_missing_interpreter_and_shadows_what_guards_read.md
-resolution: woke 2026-10-15 -- date trigger passed; re-triage; triaged 2026-10-15 into the staged handoff
+resolution: woke 2026-10-15 -- date trigger passed; re-triage; triaged 2026-10-15 into the staged handoff -- handoff completed 2026-10-15 -- closed automatically by dispatch when handoff `mutation_runner_survives_a_missing_interpreter_and_shadows_what_guards_read` moved to completed/; not independently verified.
 ---
 
 # A missing interpreter kills the whole mutation run, where the preflight one screen earlier promised a MISS

@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: mutation_witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261001_one_part_feature_one_value_across_topologies.md
 class: guard_cannot_be_enrolled
 defer_until: 2026-10-15
-resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap. | woke 2026-10-15 -- date trigger passed; re-triage; triaged 2026-10-15 into the staged handoff
+resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap. | woke 2026-10-15 -- date trigger passed; re-triage; triaged 2026-10-15 into the staged handoff -- handoff completed 2026-10-15 -- closed automatically by dispatch when handoff `mutation_runner_survives_a_missing_interpreter_and_shadows_what_guards_read` moved to completed/; not independently verified.
 handoff: docs/sessions/HANDOFF_20261015_mutation_runner_survives_a_missing_interpreter_and_shadows_what_guards_read.md
 ---
 
