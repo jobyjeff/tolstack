@@ -1,7 +1,9 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
+class: stale_measurement_in_prose
+defer_until: 2026-11-14
 area: CLAUDE.md (batch-merge candidate inputs)
 reporter: agent
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261015_triage_sweep.md

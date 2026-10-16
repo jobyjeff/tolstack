@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
+defer_until: 2026-11-14
 area: apps/viewer/vendor
 reporter: agent
 class: unpaired_hand_copy

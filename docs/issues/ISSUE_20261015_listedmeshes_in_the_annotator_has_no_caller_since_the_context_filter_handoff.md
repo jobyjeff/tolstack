@@ -1,7 +1,9 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
+class: dead_code_after_refactor
+defer_until: 2026-11-14
 area: apps/annotate/app.js
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261015_annotate_gated_browser_suites_follow_the_three_part_mock.md
