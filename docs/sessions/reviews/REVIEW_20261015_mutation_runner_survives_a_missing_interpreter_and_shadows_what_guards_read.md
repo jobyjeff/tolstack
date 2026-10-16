@@ -1,3 +1,12 @@
+---
+type: review
+handoff: docs/sessions/completed/HANDOFF_20261015_mutation_runner_survives_a_missing_interpreter_and_shadows_what_guards_read.md
+reviewer: review agent
+date: 2026-10-15
+verdict: APPROVE
+blockers: 0
+---
+
 # Review — mutation_runner_survives_a_missing_interpreter_and_shadows_what_guards_read (2026-10-15)
 
 **Verdict: APPROVE.**
