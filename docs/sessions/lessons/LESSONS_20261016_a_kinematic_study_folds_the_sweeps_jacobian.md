@@ -184,3 +184,21 @@ Everything is in `kinematic_studies.json`; nothing needs recomputing:
   80 points, `by_measure[m][j][i]`, and a worst finite-difference
   disagreement of 2.4e-7 (the `motor_angle` column; `blade_pitch`'s own is
   about 1e-9).
+
+## Verification record
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`, in this
+  worktree: **1 failed, 1466 passed, 1 skipped** (5m20s). The failure is the
+  documented worktree-only red, `tests/test_viewer_js_suite.py` (no projection
+  under the worktree's `data/`). The skip is `tests/test_fit_bound_features.py:422`,
+  which predates this change (a mesh re-extraction not installed). The kinematic
+  `[real]` P2 test ran and passed: the file is read by absolute path from the
+  main checkout.
+- `node apps/viewer/run_tests.cjs` (worktree): 428/428, node-fs tier SKIPPED as
+  in every worktree. `node apps/annotate/run_tests.cjs` (worktree): 189/189. No
+  `apps/` file changed.
+- Mutation witnesses, python tier, `--repo C:/workspace/tolstack`: all 7 new
+  specs (9 mutations) WITNESSED.
+- Not run: the browser TRUTH tier and the whole-registry mutation sweep in the
+  main checkout. This change touches no app surface and no projection a tier
+  reads.
