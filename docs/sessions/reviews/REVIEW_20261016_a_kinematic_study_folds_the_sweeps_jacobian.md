@@ -168,3 +168,7 @@ units versus label.
 
 **Inline fixes:** only the lesson's correction blockquote, which is
 review-artifact text. No code or data changed.
+
+## Integration moved during the review
+
+`integration` advanced to `62409ba` (the sibling `the_travel_between_the_end_stops_is_a_study`, which edits `topology_vpa_pitch_linkage.json` and `part_mesh_aliases.json`). Merged it into this branch with no conflicts. Re-ran the risky subset on the result — `test_kinematic` (incl. the `[real]` P2 pin), `test_topology`, `test_topology_projection`, `test_tolerance_stack`, `test_provenance`, `test_claims_registry`, `test_architecture_inventory`, `test_title_style`, `test_mutation_witnesses`, `test_part_mesh_aliases`: **523 passed**; viewer fast tier 428/428 (node-fs tier skipped, worktree). Every contributor edge still resolves against the sibling's extended topology.
