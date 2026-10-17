@@ -4953,6 +4953,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       branch's commit times), and expect a guard that walks the store rather
       than a literal.
       `ISSUE_20261014_the_annotators_draw_cap_now_cuts_a_real_part_short_and_three_texts_say_no_part_reaches_it.md`.
+- [ ] **A kinematic contributor whose zone is narrower than its callout, or
+      whose band's unit nothing pairs with the Jacobian column.** New
+      2026-10-16 (`a_kinematic_study_folds_the_sweeps_jacobian`). Read every
+      `kinematic_study_*.json` contributor's borrowed `source_ref.callout`
+      against its `zone`. A `⌖Ø` position callout is a disk-shaped zone, not a
+      `band` on one coordinate. The staged `pitch_plate_attach_height` read
+      `⌖Ø0.2` as Z only, and the band's own note said the callout also serves a
+      tangential row. Also confirm `band_units` matches what the parameter
+      label is. `kinematic.py` checks neither, and a `disk` on
+      `plate_slide.axis_a[*]` (direction cosines, no unit) scaled by an mm
+      clearance band loads cleanly.
+      `ISSUE_20261016_a_kinematic_contributor_reads_a_diametral_position_zone_as_a_one_axis_band.md`,
+      `ISSUE_20261016_a_kinematic_study_never_checks_a_bands_units_against_the_jacobian_column.md`.
 
 ## Architectural errors to check
 

@@ -90,6 +90,13 @@ Each contributor's `note` in the study carries its argument. In short:
 None of the handoff's pairings was wrong on inspection; all four are as
 staged.
 
+> **Review correction, 2026-10-16.** One of the four is narrower than its
+> callout. `pitch_plate_flange_to_link_hole` cites `⌖Ø0.2`, a diametral
+> position zone. Its own `source_ref.note` says the same callout also serves
+> the tangential row, and P2 gives that point a real tangential sensitivity.
+> The effect is under 0.006° and no verdict changes. See
+> `docs/issues/ISSUE_20261016_a_kinematic_contributor_reads_a_diametral_position_zone_as_a_one_axis_band.md`.
+
 ## Which end is which (`point_a` / `point_b`)
 
 **The handoff said the artifact's `mechanism` block lists each joint's two
