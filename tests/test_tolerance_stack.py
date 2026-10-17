@@ -2651,7 +2651,7 @@ _RATIO_PUBLISHER_NAMES = (
     "docs/prompts/REVIEW_AGENT.md",
     "data/inbox/specs/README.md",
 )
-_RATIO_PUBLISHER_COUNT = 11           # the four above + seven WORKSHEET_*.md
+_RATIO_PUBLISHER_COUNT = 12           # the four above + eight WORKSHEET_*.md
 
 
 def traced_ratio_publishers(repo_root: Path) -> list[Path]:

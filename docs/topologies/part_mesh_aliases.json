@@ -126,6 +126,16 @@
       "topology_part": "blade_root",
       "mesh_part_id": "asm217755_216332_001_bb3745d2",
       "evidence": "Exact drawing number on both sides, under the same 2026-10-01 ruling. docs/topologies/topology_vpa_pitch_linkage.json's part carries drawing 216332-001, read off 216231 B.1's parts list find 19, 'BLADE BONDED ASSEMBLY, PROPELLER'; the mesh's provenance.json (data/meshes/bb3745d2764b4f70dd30ed58f9058191ec320485af8500c8f250489fd393605c) records product_name '216332-001_36' at XCAF label 0:1:1:207, 20 solids, one instance 211587-001.3 under prd-e-03372837.2. WHY THIS ONE OF THE TWO: 216332-001 is installed as two distinct geometries, this one and `asm217755_216332_001_583a5adf` (product_name '216332-001_41', 15 solids, instance 211587-001.3 under prd-e-03372837.3) -- they are two different blade occurrences, not two revisions. This row takes the 20-solid geometry because it is the more complete of the two bonded assemblies (the 15-solid one carries one face per aerofoil surface where this carries two) and the nearer in solid count to the instrumented blade's 33. Either would do for geometry: all three blade meshes were fitted against each other in their own local frames on 2026-10-01 and share one, with identical aerofoil-surface cylinder fits at identical axis points and bounding boxes agreeing to 0.09 mm -- the instrumented 551438-001's own slight excess, which is the instrumentation. So, as with `pitch_link`, the design mesh drawn at blade 1's occurrence takes its placement from the INSTRUMENTED mesh's provenance (`asm217755_551438_001`, instance 211587-001.3 under prd-e-03372837.1, a pure 72 deg rotation about X) and needs no offset."
+    },
+    {
+      "topology_part": "piston_head_lower_214699_002",
+      "mesh_part_id": "asm217755_214699_002",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_pitch_linkage.json's part carries drawing 214699-002; the mesh's provenance.json (data/meshes/5dbbe4e15c29158ea1a19cec13806c22acee7e3164a759b52737d63874be1fd4/provenance.json) records product_name '214699-002' at XCAF label 0:1:1:1449 of the 217755-001 A.1 assembly, one solid, instance 214699-002.1 under P3-214700.3 (rotorkit run assembly_extract_20261015T012912Z)."
+    },
+    {
+      "topology_part": "piston_head_upper_214698_002",
+      "mesh_part_id": "asm217755_214698_002",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_pitch_linkage.json's part carries drawing 214698-002; the mesh's provenance.json (data/meshes/8899ea5d72976178936505e1ffd4dad837eb52452305a2ae7ce680aceb2c73f8/provenance.json) records product_name '214698-002', one solid, instance 214698-002.1 under P3-214700.3 (rotorkit run assembly_extract_20261015T012912Z)."
     }
   ]
 }

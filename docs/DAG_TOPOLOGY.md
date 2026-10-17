@@ -593,15 +593,16 @@ document's "A study, in outline" section fences — see
 ### `topology_vpa_pitch_linkage.json` + no studies
 
 Handoff `vpa_pitch_linkage_topology_and_feature_fits` (2026-09-30), and the
-first committed topology with **no study at all**. The graph: 13 parts, 24
-interfaces, 29 edges, 9 branch points, 6 grounded loops, 11 gap edges. It is the
+first committed topology with **no study at all** when it landed (the one study
+over it since 2026-10-16 is the end-stop travel, below). The graph: 16 parts, 29
+interfaces, 35 edges, 11 branch points, 7 grounded loops, 12 gap edges. It is the
 propeller pitch linkage's joints at 72 degrees blade pitch — the two pitch-link
 spherical-bearing centres, the hub and plate spindle bores, the blade-1 root
 bearing bore, the gas spring, and the tangential link as a declared phase 2.
 
 Two things about it are unlike every section above.
 
-**It holds almost no numbers, and that is the deliverable.** Exactly one edge
+**It holds almost no numbers, and that is the deliverable.** Exactly one edge of the mechanism
 carries a value: `pitch_link_length`, derived from a 3DX sweep sheet's own two
 node columns and cited cell-for-cell. Every other edge carries **no dimension at
 all** and says, in its own `note`, what would close it — a named drawing, or a
@@ -624,6 +625,8 @@ only thing in the document that tells a reader which geometry to click for a
 centre. They were a separate component until the viewer's `[real]` tier showed
 what a disconnected topology does to the rail serialisation; `Topology.cycle_rank`
 counts components rather than assuming one either way.
+
+**The one piece that does carry numbers is the end-stop travel chain** (handoff `the_travel_between_the_end_stops_is_a_study`, 2026-10-16): the two piston heads, the piston cover and the gas-spring mount's stop face, summed by `study_vpa_pitch_linkage_travel_between_end_stops.json`. Every value in it is a mesh fit or Jeff's own figure under a loudly marked placeholder band, and `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md` carries the face order, the fits and the signs. It is modelled as a clearance at the second stop, not a contact, because a hard contact is one node and a walk that ended on one would close a ring.
 
 ---
 
