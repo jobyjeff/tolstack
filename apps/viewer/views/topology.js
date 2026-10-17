@@ -2230,9 +2230,9 @@
     // reader had no way to read.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 34 of the 72 live nodes the same dot answered differently
+    // false, and on 36 of the 77 live nodes the same dot answered differently
     // hovered and clicked. (That is the STRING count, which is what "answered
-    // differently" means; 26 is the smaller count of nodes that differ as a
+    // differently" means; 28 is the smaller count of nodes that differ as a
     // SET. The other 8 name the same two parts in the opposite order --
     // authoring order against first-seen-edge order -- and a reader looking at
     // two orders of two names is still reading two different answers. Every
