@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: open
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # The annotator's reader-facing copy is scanned in its MARKUP only — most of its words are written by app.js and reach no guard

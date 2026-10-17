@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: open
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # No browser surface renders a materials table, so every CSS claim about the materials row is unwitnessed

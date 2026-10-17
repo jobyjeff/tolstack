@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: open
 area: scripts/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # The results-table browser check aborts its suite instead of naming the defect it exists for

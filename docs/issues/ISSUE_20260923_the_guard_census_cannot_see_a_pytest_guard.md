@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: open
 area: guards/mutation-witness
 reporter: agent
 audience: strategy
@@ -9,6 +9,7 @@ found_by: docs/sessions/HANDOFF_20260923_mutation_witness_derived_enrollment_and
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
 needs: agent
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # The guard census covers the three JS check sources and not pytest, so a Python guard can still arrive unenrolled in silence

@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: open
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260918_reader_facing_surfaces_second_pass.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # `apps/annotate/run_tests.cjs` is run by no gate, so the annotator's guards are only ever run by hand

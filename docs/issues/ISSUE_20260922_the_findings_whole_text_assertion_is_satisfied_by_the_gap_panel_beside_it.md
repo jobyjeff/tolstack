@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: open
 area: viewer/tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # The findings table's "nothing is lost" assertion is satisfied by the gap panel beside it, not by the row

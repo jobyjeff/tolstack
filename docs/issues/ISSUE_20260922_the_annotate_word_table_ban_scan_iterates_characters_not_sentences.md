@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: open
 area: apps/annotate/run_tests.cjs
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_mutation_witness_enrollment_backlog.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # `apps/annotate/run_tests.cjs`'s word-table ban scan is `Object.keys()` on a flat string map — it has never scanned a sentence, only single characters

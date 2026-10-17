@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: open
 area: viewer/tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # `.lightbox .crophl`'s glow suppression cannot be witnessed on the crop the lightbox suite drives, because that crop's box is dashed and zeroes the glow itself

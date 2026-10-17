@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: open
 area: apps/viewer
 audience: strategy
 reporter: agent
@@ -9,6 +9,7 @@ found_by: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
 todo: 20261007T161823_wfdngo
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # The chip that was folded out of the materials source column was never on a live page — the two that *are* always visible there are the provenance chips
