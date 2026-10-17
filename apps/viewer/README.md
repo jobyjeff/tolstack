@@ -292,8 +292,8 @@ of the browser dropping a plain box over the card.
   `VA.componentLabel` text, so there is one label style where there were two
   (ids in the pane, names on the card) and the two can no longer read
   differently about the same interface. The pane printed the authored `parts`
-  list until handoff `surfaces_that_state_something_false`, which is 34 of the
-  72 live nodes answering differently hovered and clicked.
+  list until handoff `surfaces_that_state_something_false`, which is 36 of the
+  77 live nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
@@ -602,7 +602,7 @@ business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the six
-committed topologies, leader-vs-rail crossings went **265 → 0**, six of the
+committed topologies, leader-vs-rail crossings went **309 → 0**, six of the
 six to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
 sides of those are measured at the column order above, so the before-side is a
 counterfactual — and the zero is the two mechanisms together, not the mirror
@@ -623,7 +623,7 @@ Three shapes come out of it, and all three are in the projection:
   one topology. Rail allocations over columns, per committed topology: 3 over 3
   for `pitch_link_to_pitch_plate`, 10 over 10 for `pitch_system`, 10 over 10
   for `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, 2
-  over 2 for `vpa_output_to_pitch_plate`, and 12 over 11 for
+  over 2 for `vpa_output_to_pitch_plate`, and 13 over 11 for
   `vpa_pitch_linkage`, where one column carries two disjoint spans. Until that
   topology was committed the count was one-to-one everywhere, and the
   2026-09-15 reading recorded here said so; disabling reuse would now visibly
