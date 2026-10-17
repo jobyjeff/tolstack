@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_kinematic.py",
+  "expect_red": "test_a_stop_is_found_by_measure_value_never_by_index",
+  "mutations": [
+    {
+      "contract": "A named stop is the sweep point whose measure is nearest its target, found by value and never by index.",
+      "issue": null,
+      "note": "Picks by index (the first point), the shortcut the handoff forbids; the fixture's angles are out of index order so it shows.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "    return min(range(len(values)), key=lambda i: abs(values[i] - stop.target))",
+      "replace": "    return min(range(len(values)), key=lambda i: i)"
+    }
+  ]
+}

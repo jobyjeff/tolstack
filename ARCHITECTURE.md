@@ -40,6 +40,12 @@ tolerance_stack/
                     generated from. stdlib only. Added 2026-09-30. It measures a
                     mesh; it is not a value source for a tolerance -- see
                     docs/ANNOTATION_SURFACE.md.
+  kinematic.py      the kinematic study: a published linkage sweep's Jacobian
+                    read as cited Term coefficients, a band / sphere / disk zone
+                    per contributor, folded through fold() per sweep point
+                    and checked at named stops. stdlib only. Added 2026-10-16.
+                    Reads a cited artifact; not a solver and not a chain -- see
+                    docs/DAG_TOPOLOGY.md.
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
@@ -57,9 +63,10 @@ scripts/
                                in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
-                               2026-08-10; stdlib only. Imported by all seven
+                               2026-08-10; stdlib only. Imported by all eight
                                projection writers (the three above and
                                `tolerance_stack/spec_library.py`, 2026-08-12,
+                               `scripts/build_kinematic_projection.py`, 2026-10-16,
                                `tolerance_stack/feature_identity.py`, 2026-09-06,
                                `scripts/fit_bound_features.py`, 2026-09-30, and
                                `scripts/export_stack_tabular.py`, 2026-09-04 --
@@ -81,6 +88,16 @@ scripts/
                                CSV, straight from the stored JSON and fold() /
                                summarize() -- no second arithmetic path and no
                                DOM scraping. Added 2026-09-04; stdlib only.
+  build_kinematic_projection.py the kinematic studies' projection: the
+                               envelope over the sweep, the ranked contributor
+                               table per stop, the stop checks ->
+                               data/projections/topology/kinematic/, beside an
+                               evidence plot per study as hand-written SVG set
+                               in the viewer's own :root tokens. A sibling of
+                               the topology builder rather than a section of
+                               the topology projection, because it reads a
+                               gitignored sweep. Added 2026-10-16; stdlib plus
+                               projection_provenance and build_viewer_projection.
   build_feature_identity_projection.py  thin CLI over
                                tolerance_stack.feature_identity.rebuild() ->
                                data/projections/feature-identity/bindings.json.

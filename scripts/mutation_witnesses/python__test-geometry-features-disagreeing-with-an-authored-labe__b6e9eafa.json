@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_kinematic.py",
+  "expect_red": "test_geometry_features_disagreeing_with_an_authored_label_refuses",
+  "mutations": [
+    {
+      "contract": "When the artifact's geometry.features[] and the study's authored join disagree on a label's feature, the study refuses to load.",
+      "issue": null,
+      "note": "Stops comparing the node/edge the artifact names with the authored one.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "        if entry.get(kind) != ref:",
+      "replace": "        if False:"
+    }
+  ]
+}

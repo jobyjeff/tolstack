@@ -1,0 +1,27 @@
+{
+  "schema": "joby.tolerance_stack/kinematic_study/v0",
+  "id": "fixture",
+  "title": "Fixture angle at two stops",
+  "topology": "kin_fixture",
+  "sweep": {"run_id": "kin-fixture-run", "schema": "linkage-sweep/v1"},
+  "measure": "angle",
+  "stops": [
+    {"id": "low", "label": "low stop", "target": 10.0},
+    {"id": "high", "label": "high stop", "target": 30.0}
+  ],
+  "contributors": [
+    {"edge": "link_length", "parameters": ["link.length"], "feature": {"edge": "link_length"},
+     "zone": "band", "dimension_ref": {"topology": "kin_fixture", "edge": "link_length"}},
+    {"edge": "plate_attach_position",
+     "parameters": ["link.point_a[0]", "link.point_a[1]", "link.point_a[2]"],
+     "feature": {"node": "plate_attach", "body": "plate"},
+     "zone": "sphere", "dimension_ref": {"topology": "kin_fixture", "edge": "plate_attach_position"}}
+  ],
+  "checks": [
+    {"check_id": "low_margin", "label": "Margin at the low stop",
+     "configuration": {"stop": "low"}, "criterion": ">= 0",
+     "limit": {"value": 0.5, "units": "deg",
+               "source_ref": {"kind": "requirement", "document": "fixture.json", "cell": "R-1", "confidence": "traced"}},
+     "complete": true}
+  ]
+}

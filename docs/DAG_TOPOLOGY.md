@@ -653,6 +653,71 @@ point of handing it coordinates rather than an answer.
 
 ---
 
+## A kinematic study reads its sensitivity from a published sweep
+
+Added 2026-10-16 by handoff `a_kinematic_study_folds_the_sweeps_jacobian`.
+Implementation: `tolerance_stack/kinematic.py`. Tests: `tests/test_kinematic.py`.
+Projection: `scripts/build_kinematic_projection.py`.
+
+A study above is a chain a human lassoed, and its sensitivities are constants
+someone wrote into a transform. That is the right model for a clamped joint and
+the wrong one for a mechanism, whose parallel paths are settled by kinematics.
+The kinematics is solved elsewhere: `C:\workspace\linkage` publishes sweeps
+(`linkage-sweep/v1`, under `data/inbox/linkage-sweeps/`) that carry, at every
+sweep point, the derivative of every measure with respect to every geometry
+parameter. A derivative of the output with respect to one input is exactly a
+`Term.coefficient`.
+
+**The model.**
+
+- **The Jacobian is a cited coefficient source.** A kinematic study names a
+  published run by `run_id`, one of its measures, and its *contributors*. Each
+  contributor names a topology edge (which physical dimension), the sweep's
+  parameter labels that dimension perturbs, a **zone** — `band` along one
+  parameter, `sphere` about a point's three coordinates, `disk` over two tilt
+  components — and where the zone's size comes from: a `dimension_ref` to a
+  topology edge (resolved at load, citation carried unchanged — the L1 pattern,
+  no number copied) or an inline `dimension` with its own `source_ref`. At each
+  sweep point a contributor becomes **one** `Term` (a band: the entry's sign and
+  magnitude; a sphere or disk: `+1` and the norm of its entries, the closed form
+  for the worst direction), and the point's terms go through the one `fold()`.
+  The module docstring carries the argument for why the norm is a coefficient
+  and not a second combiner.
+- **A kinematic study is not a chain.** No `selection`, no endpoints, no
+  `traverse()`: how the contributors combine is the solver's answer, and the
+  Jacobian row is that answer. The result is an **envelope** over the sweep —
+  per point the driver value, the nominal measure, worst case and RSS — plus a
+  ranked contributor table, and its `checks` apply at a **named stop**
+  (`configuration.stop`, a point found by its measure value, never by index),
+  folded against a `limit` exactly as a study's check is.
+- **Cite or gap, unchanged.** A contributor with no band anywhere is a *gap
+  row*: its sensitivity is shown and it enters no term. Every band is about a
+  nominal of `0.0` — variation only — because the nominal geometry is the
+  sweep's own.
+- **Which feature a label is** is authored per contributor (`feature`), and
+  checked against the artifact's own `geometry.features[]` when a run carries
+  one; a disagreement refuses to load, naming the label.
+
+**The fence is unchanged.** Nothing here solves, perturbs or differentiates a
+mechanism, picks a load path, or calls `traverse()`/`summarize()`/`check_study()`.
+It reads a cited artifact, and a run, measure or label it cannot find is a
+refusal, never an estimate. "Not a solver", above, is not softened by any of it.
+
+**What it closes in "What v0 cannot do", below:** item 4 is the sweep itself —
+a position-dependent sensitivity is now read point by point rather than authored
+as one constant. Item 2 becomes *expressible*: gas-spring bushing tipping is a
+`disk` on the plate slide's axis components, whose Jacobian the published run
+already carries; it waits only for a cited clearance band. Items 1 and 3 are
+untouched.
+
+The first document is
+`kinematic_study_vpa_pitch_linkage_blade_pitch_at_the_stops.json`: blade pitch
+over the P2 sweep from the linkage's cited tolerances, checked against
+S461-607 at both end stops, its bands borrowed from `topology_pitch_system.json`
+with each pairing argued in the contributor's own `note`.
+
+---
+
 ## What v0 cannot do
 
 Found by building L2 against Jeff's own end-stop workbook, and recorded here
@@ -676,6 +741,9 @@ written on 2026-08-31.
    edge/node shape for "a clearance acting over two lever arms, not along an
    axial chain" was designed this session, because doing so well needs a real
    sourced value to design against, not the placeholder that is there today.
+   **Expressible since 2026-10-16** (a kinematic study, above): a `disk`
+   contributor on the plate slide's axis components, read from the sweep's
+   Jacobian. Still open in the sense that matters — no clearance band is cited.
 3. **Load cases.** The ring-gear branch participates cyclically and follows
    along for pure collective. Today that distinction lives entirely in which
    edges a human puts in a `selection`, unlabelled. If it needs a name, a
@@ -693,7 +761,10 @@ written on 2026-08-31.
    added reader rather than a schema break. **Still open, re-fenced 2026-09-08**:
    deferred by the brief on the same terms; this schema pass touches
    `Transform.properties` in no way, and the extension point remains exactly
-   where it was.
+   where it was. **Closed 2026-10-16 for a mechanism with a published sweep**:
+   a kinematic study (above) reads the position-dependent sensitivity point by
+   point from the solver's own Jacobian. `Transform.properties` is still read
+   by nothing; the sensitivity arrived as a cited artifact instead.
 
 Extensibility the brief names and this version does not build: edge
 stiffness/strength/mass. Same bag, same rule.

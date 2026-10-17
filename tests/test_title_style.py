@@ -68,6 +68,9 @@ def authored_titles():
     paths = sorted(REPO_ROOT.glob("docs/tolerance_stacks/stack_*.json"))
     paths += sorted(REPO_ROOT.glob("docs/topologies/topology_*.json"))
     paths += sorted(REPO_ROOT.glob("docs/topologies/study_*.json"))
+    # A kinematic study (2026-10-16) is titled by the same rule: the SOP's
+    # section is the one place all the document kinds share.
+    paths += sorted(REPO_ROOT.glob("docs/topologies/kinematic_study_*.json"))
     out = []
     for path in paths:
         data = json.loads(path.read_text(encoding="utf-8"))

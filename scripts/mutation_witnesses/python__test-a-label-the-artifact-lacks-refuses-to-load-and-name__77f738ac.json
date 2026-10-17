@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_kinematic.py",
+  "expect_red": "test_a_label_the_artifact_lacks_refuses_to_load_and_names_it",
+  "mutations": [
+    {
+      "contract": "A parameter label the sweep artifact lacks is a load-time refusal naming it, never a guess.",
+      "issue": null,
+      "note": "Removes the up-front label check, so a misspelled label loads (and would only fail, unnamed, at fold time).",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "        for label in contributor.parameters:\n            sweep.parameter_index(label)\n",
+      "replace": ""
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schema": "joby.tolerance_stack/topology/v0",
+  "id": "kin_fixture",
+  "title": "Kinematic fixture linkage",
+  "units": "mm",
+  "parts": [{"id": "link", "name": "Link"}, {"id": "plate", "name": "Plate"}],
+  "nodes": [
+    {"id": "link_end_a", "name": "Link end A", "parts": ["link"], "kind": "datum_feature"},
+    {"id": "link_end_b", "name": "Link end B", "parts": ["link"], "kind": "datum_feature"},
+    {"id": "plate_bore", "name": "Plate bore", "parts": ["plate"], "kind": "datum_feature"},
+    {"id": "plate_attach", "name": "Plate attach point", "parts": ["plate"], "kind": "datum_feature"}
+  ],
+  "edges": [
+    {"id": "link_length", "name": "Link length", "from": "link_end_a", "to": "link_end_b",
+     "kind": "structural", "part": "link",
+     "dimension": {"id": "link_length", "name": "Link length", "nominal": 0.0, "min": -0.1, "max": 0.3,
+                   "source_ref": {"kind": "spec", "document": "FIXTURE-1.pdf", "sheet": 1, "confidence": "traced"}}},
+    {"id": "plate_attach_position", "name": "Plate attach position", "from": "plate_bore", "to": "plate_attach",
+     "kind": "structural", "part": "plate",
+     "dimension": {"id": "plate_attach_position", "name": "Plate attach position", "nominal": 0.0,
+                   "min": -0.02, "max": 0.02,
+                   "source_ref": {"kind": "workbook", "document": "fixture.xlsx", "confidence": "untraced"}}},
+    {"id": "plate_attach_unbanded", "name": "Plate attach, unbanded", "from": "plate_attach", "to": "plate_bore",
+     "kind": "structural", "part": "plate"},
+    {"id": "link_to_plate", "name": "Link to plate", "from": "link_end_a", "to": "plate_attach", "kind": "gap"}
+  ]
+}
