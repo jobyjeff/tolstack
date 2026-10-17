@@ -6,8 +6,6 @@ area: viewer/edge-length-scaling
 audience: strategy
 reporter: agent
 strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
-needs: jeff
-ask: Decide how the DAG page handles scaled length modes collapsing on pitch_system: hint, auto-density, sub-row floor, or fit toggle
 todo: 20261007T161823_qzofuw
 ---
 
@@ -62,3 +60,5 @@ back. Nothing on the page says so.
 shape (`[real] pitch_system overflows honestly …` in `testHeightBudget`, and
 the tolerance-width bar check in the topology suite), so whichever way this
 goes, those two are where it lands.
+
+> **Moved to the strategy backlog 2026-10-16.** This was escalated as a task on Jeff's list (`20261007T161823_qzofuw`). That was wrong: a todo has no reply box, and its answer would have to be hand-carried into a strategy session. The strategy session that takes this up asks Jeff directly and acts on the answer.

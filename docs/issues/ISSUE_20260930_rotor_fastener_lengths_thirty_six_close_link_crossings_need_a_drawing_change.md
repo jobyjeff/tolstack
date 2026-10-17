@@ -8,8 +8,6 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.md
 class: layout_measurement_awaits_human_decision
 defer_until: 2026-10-15
-needs: jeff
-ask: Choose how the rotor fastener DAG page draws its 36 crossing loop-close lines: route outside, bridge, hide, or leave as is
 todo: 20261007T161822_5nv2iw
 resolution: woke 2026-10-15 -- date trigger passed; re-triage; needs jeff -- left open for the escalation channel
 ---
@@ -62,3 +60,5 @@ decision about the DAG page's visual language, not a fix:
 Whichever is chosen, the number is already measurable
 (`build_topology_projection.layout_crossings`), so the change can be pinned the
 same way the column order now is.
+
+> **Moved to the strategy backlog 2026-10-16.** This was escalated as a task on Jeff's list (`20261007T161822_5nv2iw`). That was wrong: a todo has no reply box, and its answer would have to be hand-carried into a strategy session. The strategy session that takes this up asks Jeff directly and acts on the answer.
