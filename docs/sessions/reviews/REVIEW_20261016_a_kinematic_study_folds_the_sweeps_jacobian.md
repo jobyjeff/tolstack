@@ -113,7 +113,7 @@ which the SOP's titling rule rejects. That is a nit (N1).
   change. The tier still has to be re-run after the batch-merge rebuild, which
   is the documented order. **Unexercised here: the viewer `[real]` tier.**
 - **Annotate fast tier:** 189/189, no SKIP lines.
-- **Post-merge full suite** (review worktree): see the result below.
+- **Post-merge full suite** (review worktree, merged tree `e42c32b`): **1 failed, 1466 passed, 1 skipped** (305s) — the failure is the documented worktree-only `tests/test_viewer_js_suite.py` red; the skip is `test_fit_bound_features.py:422` (pre-existing). Identical to the tactical record. Main checkout `data/` unchanged across the run (`find -newer` marker: no files).
 
 ## Findings
 
