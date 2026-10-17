@@ -42,6 +42,13 @@ folds to that stack's own published check, to the digit
   element-equivalent values, cite them, and check them. Nothing below is
   wasted if you later re-express the same joint as a topology — the L1 proof
   above is exactly that re-expression, done once, checked to the digit.
+- **Your question is a mechanism's output over its travel** — blade pitch at an
+  end stop, say, where the sensitivity of the output to each dimension changes
+  with position and a solver has already published it — start at
+  `docs/DAG_TOPOLOGY.md`, "A kinematic study reads its sensitivity from a
+  published sweep". The contributors' bands are still elements in this file's
+  sense — cited, or recorded as gaps — but the coefficients come from the
+  sweep's Jacobian rather than from a transform you author.
 
 **What this means for what you write, concretely:**
 

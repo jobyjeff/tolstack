@@ -1,0 +1,23 @@
+{
+  "tier": "python",
+  "suite": "tests/test_kinematic.py",
+  "expect_red": "test_a_sphere_coefficient_is_the_norm_and_a_band_sign_follows_the_jacobian",
+  "mutations": [
+    {
+      "contract": "A band contributor enters fold() with the sign of its Jacobian entry -- the one place a kinematic sign can be wrong.",
+      "issue": null,
+      "note": "Drops the sign: every band enters +1. The asymmetric fixture band makes the wrong sign visible in the interval, and this guard pins it per point.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "        return (1 if entry >= 0 else -1), abs(entry)",
+      "replace": "        return 1, abs(entry)"
+    },
+    {
+      "contract": "A sphere zone's coefficient is the Euclidean norm of its Jacobian entries (the support function of a ball).",
+      "issue": null,
+      "note": "Replaces the norm with the sum of magnitudes -- the plausible wrong closed form, which overstates every sphere.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "    return 1, math.sqrt(math.fsum(e * e for e in entries))",
+      "replace": "    return 1, math.fsum(abs(e) for e in entries)"
+    }
+  ]
+}

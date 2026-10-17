@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_kinematic.py",
+  "expect_red": "test_a_check_folds_its_limit_against_the_stop_total",
+  "mutations": [
+    {
+      "contract": "A stop check folds the limit +1 against the stop's own total -1 through fold().",
+      "issue": null,
+      "note": "Adds the total to the limit instead of subtracting it.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "        interval = fold([Term(limit_dim, sign=1), Term(total_dim, sign=-1)])",
+      "replace": "        interval = fold([Term(limit_dim, sign=1), Term(total_dim, sign=1)])"
+    }
+  ]
+}

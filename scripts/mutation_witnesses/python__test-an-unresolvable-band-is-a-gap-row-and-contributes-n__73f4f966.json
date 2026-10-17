@@ -1,0 +1,23 @@
+{
+  "tier": "python",
+  "suite": "tests/test_kinematic.py",
+  "expect_red": "test_an_unresolvable_band_is_a_gap_row_and_contributes_no_term",
+  "mutations": [
+    {
+      "contract": "A contributor with no cited band is a gap row, ranked after every banded row.",
+      "issue": null,
+      "note": "Ranks gap rows first; the guard pins that the gap is the last row.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "    return sorted(banded, key=lambda r: -r.magnitude) + gaps",
+      "replace": "    return gaps + sorted(banded, key=lambda r: -r.magnitude)"
+    },
+    {
+      "contract": "A contributor with no cited band is a gap row, ranked after every banded row.",
+      "issue": null,
+      "note": "Misreports a gap row as a term row -- the row a reader would take for a contributor that was folded.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "        if self.contributor.is_gap:\n            return \"gap\"",
+      "replace": "        if self.contributor.is_gap:\n            return \"term\""
+    }
+  ]
+}

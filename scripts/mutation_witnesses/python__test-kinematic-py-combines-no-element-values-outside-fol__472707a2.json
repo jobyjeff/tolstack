@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_kinematic.py",
+  "expect_red": "test_kinematic_py_combines_no_element_values_outside_fold",
+  "mutations": [
+    {
+      "contract": "kinematic.py combines no two element values outside fold() and declares no exception to the one-fold rule.",
+      "issue": null,
+      "note": "Plants a second combiner at the end of the module, the shape the walker exists to find.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "        excluded_terms=tuple(spec.get(\"excluded_terms\") or ()),\n    )\n",
+      "replace": "        excluded_terms=tuple(spec.get(\"excluded_terms\") or ()),\n    )\n\n\ndef _second_combiner(a, b):\n    return a.min + b.max\n"
+    }
+  ]
+}
