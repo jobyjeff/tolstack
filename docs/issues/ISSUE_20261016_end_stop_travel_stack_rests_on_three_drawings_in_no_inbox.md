@@ -1,12 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: topologies/end-stop-travel
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261016_the_travel_between_the_end_stops_is_a_study.md
-needs: jeff
-ask: Export drawings 214958-002, 214699-002 and 214698-002 as PDFs into drawing-checker's drawings inbox
 ---
 
 # The end-stop travel stack has no drawing behind any of its four terms
@@ -27,3 +25,13 @@ When they arrive: run them through drawing-checker, re-cite the four edges in
 bands, and check the cover length against the mesh-free 82.154. The lower head's
 lower face carries a flatness callout (Jeff) that has no home but a node note
 today.
+
+## Resolved 2026-10-20 (handoff the_travel_chain_cites_its_three_drawings)
+
+The three drawings landed and drawing-checker extracted them the same day: runs
+`20261020_134240_214698-002-A` (214698-002 A), `20261020_134300_214699-002-A`
+(214699-002 A) and `20261020_134315_214958-002-A` (214958-002 A). The lower head
+(2.491 ±0.050) and the cover (82.154 ±0.020) are now `drawing`-cited; the upper head's
+step height and the mount's thickness have no callout on their drawings and stay
+placeholders, filed as
+`ISSUE_20261020_two_end_stop_travel_terms_have_no_dimension_on_their_drawings.md`.

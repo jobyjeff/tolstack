@@ -2,10 +2,10 @@
   "schema": "joby.tolerance_stack/study/v0",
   "id": "vpa_pitch_linkage_travel_between_end_stops",
   "title": "Travel between end stops",
-  "description": "How far the piston can travel from the feather stop to the other end stop, in millimetres: the stop-to-stop distance less the stack of the two piston heads.",
+  "description": "How far the piston can travel from the feather stop to the other end stop, in millimetres: the cover's flange-to-shoulder length less the mount's end-stop thickness and the stack of the two piston heads.",
   "topology": "vpa_pitch_linkage",
-  "from": "piston_head_upper_top_face",
-  "to": "gas_spring_mount_end_stop_face",
+  "from": "piston_head_upper_step_face",
+  "to": "piston_cover_end_stop_shoulder",
   "closes": "travel_between_end_stops",
   "selection": [
     "piston_head_upper_thickness",
@@ -15,18 +15,17 @@
   ],
   "no_checks_reason": "No requirement in the S461 set states a number for this quantity. S461-516/637 gives a NOMINAL operating stroke of 61.67 mm ('equivalent to 75 deg blade pitch travel') -- a nominal, not a bound, so it is not a limit. S461-610/636 only defines the stroke's zero (0 mm at full extension, maximum at full retraction). S461-616/638 ('Gas spring shall provide mechanical travel stops') is an existence claim. S461-617/639 -- the requirement this study exists to answer -- says the stroke between travel stops 'shall be defined with sufficient tolerance' that contact during normal operation is 'extremely improbable', which is qualitative. A `limit` here would be a number invented to make the check run.",
   "provenance": {
-    "authored_by": "handoff the_travel_between_the_end_stops_is_a_study, 2026-10-16",
+    "authored_by": "handoff the_travel_between_the_end_stops_is_a_study, 2026-10-16; re-cited by the_travel_chain_cites_its_three_drawings, 2026-10-20",
     "structure_source": "Jeff, forge note 20261016T144810_kk46rp, 'total linear travel between end stops study/sub-stack': the travel is the difference between two as-built stacks -- the end-stop distance (piston cover length less gas-spring mount thickness) and the piston head thickness sum.",
     "answers": "S461-617 / S461-639 (validated, must_have, 'The mechanical stroke between travel stops shall be defined with sufficient tolerance to ensure that contact with the mechanical stops during normal closed-loop operation is extremely improbable'). This study supplies the stroke and its interval; the requirement's own wording sets no number to compare it to.",
     "context_only": "S461-516 / S461-637: nominal normal operating stroke 61.67 mm, 'equivalent to 75 deg blade pitch travel' (validated). S461-610 / S461-636: stroke is 0 mm at full extension. S461-616 / S461-638: the stops exist. None is a bound, none is folded; the operating stroke is the figure this study's travel has to exceed once a tolerance is attached.",
-    "datum": "The main datum is the lower piston head's lower face resting on the cover's end-stop surface -- the feather (72 deg) stop, the driver's zero in the kinematic model. The study measures the clearance that remains at the OTHER stop's contact pair when the piston sits there.",
+    "datum": "The main datum is the lower piston head's lower face resting on the mount's end-stop surface -- the feather (72 deg) stop, the driver's zero in the kinematic model. The study measures the clearance that remains between the upper head's step face and the cover's internal shoulder when the piston sits there.",
     "worksheet": "docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md"
   },
   "notes": [
-    "Why the chain does not start at the main datum: the datum node is a hard contact, so it is one node, and the two stacks Jeff differences meet there. A walk from the datum to a single contact node at the other stop would be a ring and the walk refuses rings. So the other stop is split into its two sides -- the upper head's upper face and the mount's end-stop surface -- and the gap between them is the travel. The datum is the interior node of this chain, the point where the head stack and the cover stack join.",
-    "Signs, read off the walk from the upper head's upper face to the mount's end-stop surface: the upper and lower head thicknesses are walked against their authored direction (-1 each), the cover length with it (+1), the mount thickness against it (-1). That is travel = cover length - mount thickness - lower head - upper head, with every edge authored in the +Z direction at the feather stop.",
-    "The study is incomplete and says so here because a study with no check has no `complete` flag to carry it: every one of the four terms is a placeholder. The head and mount values are mesh fits under a stand-in band, and the cover length is Jeff's single figure with no source behind it. Each edge's own `source_ref` note names its placeholder in full, and the worksheet lists them.",
-    "WHICH upper-head face meets the stop is open: the head is stepped, and the mount's end stop has no placement in the assembly. The chain takes the topmost plane; node `piston_head_upper_top_face` and the worksheet carry the alternatives and what each would do to the total.",
-    "The piston body (214700-002, Jeff's ~108.669) is not a member. The heads seat against each other on one end of it; 108.669 mm is the body's own length from the shoulder the lower head sits on to its far end face, which belongs to a different question."
+    "Why the chain does not start at the main datum: the datum node is a hard contact, so it is one node, and the two stacks Jeff differences meet there. A walk from the datum to a single contact node at the other stop would be a ring and the walk refuses rings. So the other stop is split into its two sides -- the upper head's step face and the cover's internal shoulder -- and the gap between them is the travel. The datum is the interior node of this chain.",
+    "Signs, read off the walk from the upper head's step face to the cover's shoulder: the upper and lower head heights are walked against their authored direction (-1 each), the mount thickness against it (-1), the cover length with it (+1). That is travel = cover length - mount thickness - lower head - upper head, every edge authored in +Z from the heads' contact or the flange seat.",
+    "Cited and not: the cover length and the lower head thickness are read off their drawings (traced, with the drawings' own bands). The upper head's step height and the mount thickness have no dimension on 214698-002 A or 213668-002 A.1, so they remain mesh fits under a +/-0.05 placeholder and each edge's source_ref says so. The interval therefore still depends on two stand-in widths.",
+    "The stop faces were settled 2026-10-20 against Jeff's section at 72 deg pitch: the heads rest on the mount's end-stop surface and the 64.465 mm gap to the cover's shoulder is above them. The piston body (214700-002, Jeff's ~108.669) is not a member; 108.669 mm is the body's own length from the shoulder the lower head sits on to its far end face."
   ]
 }
