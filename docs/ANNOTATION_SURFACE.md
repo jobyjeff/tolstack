@@ -226,6 +226,30 @@ the honest empty-state ("no installed mesh for X") — that state is the
 annotator's answer to an unresolvable identifier, never something the viewer
 may hand a reader.
 
+### The rail: width, names, and what is clipped (2026-10-20)
+
+Handoff `the_annotator_rail_resizes_and_names_what_it_lists`. Three rules, all
+about reading the rail rather than about binding:
+
+- **The width is the reader's.** A drag handle on the rail's right edge sets one
+  CSS custom property the grid reads, clamped to a minimum and to half the
+  window, remembered per browser (`AA.PREF_KEYS.railWidth`; absent or blocked
+  storage means the default). The handle lives in the annotator, so inside the
+  viewer's flyout it comes with the iframe and the same remembered width.
+- **Clipped text is always reachable.** Every line the rail clips carries its
+  full text on hover (`title`): part rows, element rows, the group header, and
+  the two selects, which carry the *selected* option's text because a native
+  select cannot tooltip per option. The ellipsis stays; the browser tier checks
+  every clipped line at the minimum width.
+- **A part is named.** A row reads `<number> <name>`, in one lower-case casing
+  whichever source the name came from. The name comes from
+  `data/projections/parts/names.json`, built by
+  `scripts/build_part_names_projection.py` from drawing-checker's extracted
+  title blocks first (newest run per drawing number) and the topologies'
+  `parts[].name` second; a number with neither shows alone and says "no name on
+  file" on hover. The sha prefix is an internal id and lives only on the hover.
+  A name is display text — nothing folds it.
+
 ### The parts panel: context and view (2026-10-14)
 
 The panel is one list with two kinds of control, because it was doing two jobs
@@ -342,6 +366,22 @@ otherwise be. A face swept somewhere else is still the right face, but every
 reason a reader has to trust what they clicked is about where it was: a binding
 is identity recorded against geometry sitting in the as-modelled frame. At that
 frame sweep mode is transparent and picking behaves exactly as it always has.
+
+The reason is written **once**, on the gate line under the bar, and it names
+where the pose is: the first frame at which every body sits at its as-modelled
+pose, worked out once per loaded run (the published runs differ — the pitch
+run's is its last frame, not its first), with a control that goes there. A
+click in the 3D view away from that pose pulses the gate line and raises no
+second message of its own; a run with no qualifying frame says so instead.
+
+**A sweep arrival selects its topology.** The topology a run is about is read
+off its `geometry.features[]` (every entry but the driver names it) and
+selected through the same verb the topology select drives, so the rail's
+scope and study reset as they do for a hand-made switch. A run whose artifact
+carries no features leaves the selection alone and the bar says it names no
+topology. **A topology with no study lists every one of its edges** under a
+one-line head, so the interfaces a sweep is about can be bound at the
+as-modelled frame.
 
 ### Which occurrence a body is
 

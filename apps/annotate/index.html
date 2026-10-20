@@ -55,6 +55,11 @@
       <ul id="parts-panel" class="parts-panel"></ul>
     </aside>
 
+    <!-- The rail's right edge, as a handle (app.js's wireRailResize). Outside
+         the rail: the rail is a scrollport and a child would scroll with it. -->
+    <div id="rail-handle" class="an__resize" role="separator"
+         aria-orientation="vertical" aria-label="resize the list" tabindex="0"></div>
+
     <section class="an__scene">
       <!-- THE TOP BAR. This was a 320px column to the RIGHT of the canvas
            until 2026-09-21 -- Jeff, using the annotator through the viewer

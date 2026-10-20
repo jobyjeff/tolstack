@@ -158,9 +158,30 @@
       bodies: Array.isArray(doc.bodies) ? doc.bodies : [],
       links: Array.isArray(doc.links) ? doc.links : [],
       reference: doc.reference || null,
+      // The topology this run is ABOUT, read off the artifact's own feature
+      // joins: every `geometry.features[]` entry names one (the driver entry
+      // names none). Null when no entry does -- the 10-01 runs carry no
+      // features at all, and a null is not a guess.
+      topologyId: AA.sweepTopologyId(doc),
       points: points,
       notConverged: points.filter(function (p) { return !p.converged; }).length,
     };
+  };
+
+  // The topology a run's feature joins name: the most-named id when several
+  // appear, null when none does. An id nobody names is never invented.
+  AA.sweepTopologyId = function (doc) {
+    var features = (doc && doc.geometry && Array.isArray(doc.geometry.features))
+      ? doc.geometry.features : [];
+    var counts = {};
+    var best = null;
+    features.forEach(function (feature) {
+      var id = feature && typeof feature.topology === "string" ? feature.topology : "";
+      if (!id) return;
+      counts[id] = (counts[id] || 0) + 1;
+      if (best === null || counts[id] > counts[best]) best = id;
+    });
+    return best;
   };
 
   // What the hint bar's one line says about the loaded run. Returns the parts;
@@ -946,11 +967,46 @@
     return true;
   };
 
-  // The one line the bar shows in place of the bind instruction while the
-  // linkage is away from the pose everything else in this app is about.
-  AA.SWEEP_PICKING_DISABLED =
-    "Binding is off while the linkage is away from its as-modelled pose — " +
-    "scrub back to the start to pick a face.";
+  // The first frame at which every body is at its as-modelled pose, or null
+  // when no frame of the run is. Computed once per loaded run: which frame it
+  // is belongs to the run (P2's is the LAST one, not the first), so the words
+  // below say where it is instead of assuming "the start".
+  AA.sweepAsModelledIndex = function (artifact) {
+    for (var i = 0; i < artifact.points.length; i++) {
+      if (AA.sweepIsAsModelled(AA.sweepFrameAt(artifact, i))) return i;
+    }
+    return null;
+  };
+
+  // The one sentence the gate line carries -- the only place this rule is
+  // written. `index` is AA.sweepAsModelledIndex's answer.
+  AA.sweepGateWords = function (artifact, index) {
+    if (index === null || index === undefined) {
+      return "No frame of this run is at the as-modelled pose, so faces cannot be picked here.";
+    }
+    // The value a reader is scrubbing TO: the run's reference measure (blade
+    // pitch) where it has one, the driver otherwise -- the same choice the
+    // chip at the scrubber handle makes.
+    var measure = artifact.reference && artifact.reference.measure;
+    var at = artifact.points[index];
+    var value, unit;
+    if (measure && at.measures[measure] != null) {
+      value = at.measures[measure];
+      unit = artifact.measureUnits[measure] || "";
+    } else {
+      value = AA.indexToDriver(AA.sweepDriverValues(artifact), index);
+      unit = artifact.driverUnit || "";
+    }
+    return "Face picking works at the as-modelled pose only — frame " +
+      (index + 1) + " of " + artifact.points.length + ", " +
+      AA.formatSweepNumber(value, unit) + (unit ? " " + unit : "") + ".";
+  };
+
+  //: The label of the control that goes to that frame.
+  AA.SWEEP_GO_TO_POSE = "Go there";
+
+  //: What the bar says about a run whose artifact names no topology.
+  AA.SWEEP_NO_TOPOLOGY = "This run names no topology, so the element list stays as it was.";
 
   // --- where a part sits in the assembly (every mode, not only this one) ----
   //

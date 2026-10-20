@@ -1,14 +1,15 @@
 <#
 .SYNOPSIS
     Regenerates everything Python derives for the viewer, in order, from the
-    MAIN checkout: the JS vocabulary module, then all three projections.
+    MAIN checkout: the JS vocabulary module, then the viewer's three projections and the part names.
 
 .DESCRIPTION
     Runs, in this order:
       0. venv-win\Scripts\python.exe scripts\generate_js_vocabulary.py
       1. venv-win\Scripts\python.exe scripts\build_topology_projection.py
       2. venv-win\Scripts\python.exe scripts\build_viewer_projection.py
-      3. <drawing-checker's venv> scripts\build_viewer_crops.py
+      3. venv-win\Scripts\python.exe scripts\build_part_names_projection.py
+      4. <drawing-checker's venv> scripts\build_viewer_crops.py
     (PyMuPDF lives only in drawing-checker's venv -- build_viewer_crops.py's own
     docstring says so, and that fallback stays intact here.)
 
@@ -124,6 +125,11 @@ Invoke-Step -Name "topology projection" -Exe $TolstackPython -Arguments @(
 
 Invoke-Step -Name "viewer results projection" -Exe $TolstackPython -Arguments @(
     (Join-Path $ScriptsDir "build_viewer_projection.py")
+)
+
+Invoke-Step -Name "part names projection" -Exe $TolstackPython -Arguments @(
+    (Join-Path $ScriptsDir "build_part_names_projection.py"),
+    "--drawing-checker-root", $DrawingCheckerRoot
 )
 
 Invoke-Step -Name "viewer crops" -Exe $DrawingCheckerPython -Arguments @(

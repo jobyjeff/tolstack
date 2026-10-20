@@ -86,6 +86,13 @@ that: open a study, open a part, click a face, write one
   any occurrence binds the part's own `(sha256, face id)`, exactly as before.
   `docs/ANNOTATION_SURFACE.md`, "Where a part is drawn", has the rule.
 
+- **The rail is resizable and readable in full.** Drag the handle on its right
+  edge (the width is remembered per browser); every line it clips carries its
+  full text on hover; a part row reads `<number> <name>`, the name coming from
+  `data/projections/parts/names.json` (`scripts/build_part_names_projection.py`,
+  on `scripts/rebuild_projections.ps1`) and the row showing the number alone
+  when there is none. `docs/ANNOTATION_SURFACE.md`, "The rail", has the rules.
+
 ## Run it
 
 Static, build-free (three.js r169 via a native import map, no bundler — the
@@ -93,6 +100,17 @@ workspace's `apps/` convention), but **not launchable by double-click**: a
 `file://` page can neither `fetch()` a local binary (CORS; the
 step_tessellation spike hit this first) nor write one, so both this app's
 reads (mesh binaries) and its one write path need a real transport.
+
+Open it on drawing-checker's mount — one server for both apps, and the
+viewer's flyout embeds it from the same origin:
+
+```
+http://127.0.0.1:8000/tolstack/annotate/index.html?sweep=latest
+```
+
+### Hacking on the app with no drawing-checker server up
+
+`ops.toml`'s `serve` verb is the same command as:
 
 ```powershell
 cd apps
@@ -102,8 +120,7 @@ C:\workspace\tolstack\venv-win\Scripts\python.exe -m http.server 8843
 
 Serve `apps\`, not `apps\annotate\` — this page loads one file from its
 sibling (`../viewer/storage/adapter.js`, the shared transport decision below),
-and the two apps are siblings on the canonical mount too. `ops.toml`'s
-`serve` verb is the same command.
+and the two apps are siblings on the canonical mount too.
 
 Click **Connect folder**, pick the tolstack repo root
 (`C:\workspace\tolstack`), grant **read/write**. Build the two projections
@@ -353,7 +370,10 @@ mode"; this is the operational half.
 
 **It writes nothing.** `storage.writeFeatureIdentityEvent` is not reachable
 from any of it, and face picking is switched off outright away from the
-as-modelled pose.
+as-modelled pose. The one line saying so — where that pose is, with a button
+that goes there — is the gate line under the bar; a refused click pulses it.
+Opening a run selects the topology it names, and a topology with no study
+lists all of its edges.
 
 `sweep latest` (or `?sweep=<run-id>`) reads a `linkage-sweep/v1` run out of
 `data/inbox/linkage-sweeps/` — published there by `C:\workspace\linkage` —

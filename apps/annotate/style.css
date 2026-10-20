@@ -91,8 +91,20 @@ body {
    something to act on. */
 .an {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  /* The rail's width is one custom property: app.js writes it from the drag
+     handle and from the remembered width, and 260px is the unset default. */
+  grid-template-columns: var(--rail-w, 260px) 1fr;
   height: calc(100vh - 70px);
+  position: relative;
+}
+/* The drag handle sits on the rail's right edge. Quiet until hover/focus. */
+.an__resize {
+  position: absolute; top: 0; bottom: 0; width: 8px;
+  left: calc(var(--rail-w, 260px) - 4px);
+  cursor: col-resize; z-index: 5; touch-action: none;
+}
+.an__resize:hover, .an__resize:focus, .an__resize.is-dragging {
+  background: #5b8dd6; opacity: .5; outline: none;
 }
 
 .an__rail {
@@ -153,6 +165,12 @@ body {
      silently indistinguishable from `bound`. */
   border-left: 3px solid #4a515a;
 }
+.el-row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.el-head { list-style: none; color: #9aa1ab; font-size: var(--t-meta); margin: 0 0 6px; }
+.an__rail select { text-overflow: ellipsis; }
+.an__sweep-gate--pulse { animation: an-gate-pulse .6s ease-out; }
+@keyframes an-gate-pulse { from { background: #4d3a23; } to { background: transparent; } }
+.an__sweep-gate-go { margin-left: 8px; }
 .el-row:hover { background: #2c3138; }
 .el-row.selected { outline: 2px solid #5b8dd6; }
 
