@@ -63,8 +63,9 @@ scripts/
                                in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
-                               2026-08-10; stdlib only. Imported by all eight
+                               2026-08-10; stdlib only. Imported by all nine
                                projection writers (the three above and
+                               `scripts/build_part_names_projection.py`, 2026-10-20,
                                `tolerance_stack/spec_library.py`, 2026-08-12,
                                `scripts/build_kinematic_projection.py`, 2026-10-16,
                                `tolerance_stack/feature_identity.py`, 2026-09-06,
@@ -98,6 +99,12 @@ scripts/
                                the topology projection, because it reads a
                                gitignored sweep. Added 2026-10-16; stdlib plus
                                projection_provenance and build_viewer_projection.
+  build_part_names_projection.py a part number's everyday name ->
+                               data/projections/parts/names.json: drawing-
+                               checker's extracted title blocks first, the
+                               topologies' own part names second, display text,
+                               never a value. Added 2026-10-20; stdlib plus
+                               projection_provenance.
   build_feature_identity_projection.py  thin CLI over
                                tolerance_stack.feature_identity.rebuild() ->
                                data/projections/feature-identity/bindings.json.

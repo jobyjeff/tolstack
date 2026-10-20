@@ -82,6 +82,10 @@
     return this._readJson(AA.CONFIG.partMeshAliases);
   };
 
+  FsaAdapter.prototype.readPartNames = function () {
+    return this._readJson(AA.CONFIG.partNamesProjection);
+  };
+
   FsaAdapter.prototype.listMeshes = async function () {
     AA.requireReady(this);
     var dir = await this._dir(AA.CONFIG.meshesDir, false);

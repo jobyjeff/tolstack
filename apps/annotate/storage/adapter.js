@@ -31,6 +31,10 @@
 //        -- docs/topologies/part_mesh_aliases.json, the tracked topology-part
 //           -> mesh part_id alias table. null if absent (an empty or missing
 //           table just means no aliases resolve -- never an error).
+//   readPartNames(): Promise<object|null>
+//        -- data/projections/parts/names.json, the part number -> everyday
+//           name projection (scripts/build_part_names_projection.py). null if
+//           absent: a row then shows its number alone.
 //   listMeshes(): Promise<Array<{sha256, label, part_id}>>
 //        -- every data/meshes/<sha256>/ subdirectory that has a
 //           provenance.json, read for its human label. This is how the app

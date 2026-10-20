@@ -1690,7 +1690,8 @@ check("the detail/hint pane is a BAR above the canvas, not a column beside " +
   const css = fs.readFileSync(path.join(here, "style.css"), "utf8");
   const grid = /\.an\s*\{[^}]*grid-template-columns:\s*([^;]+);/.exec(css);
   if (!grid) throw new Error("`.an`'s grid-template-columns is gone -- the extractor moved");
-  const columns = grid[1].trim().split(/\s+/);
+  // `var(--rail-w, 260px)` is ONE column (the resizable rail's width).
+  const columns = grid[1].replace(/var\([^)]*\)/g, "RAIL").trim().split(/\s+/);
   if (columns.length !== 2) {
     throw new Error("the workspace still has " + columns.length + " columns (" +
       grid[1].trim() + ") -- the hint pane was a third column eating the canvas");
@@ -3197,8 +3198,89 @@ check("sweep: the frame rule -- the as-modelled pose is recognised, and any " +
   if (AA.sweepIsAsModelled(AA.sweepFrameAt(art, 1e-6))) {
     throw new Error("a frame a millionth of the way in was read as as-modelled");
   }
-  assertNoCommandOrPath(AA.SWEEP_PICKING_DISABLED, "the picking-disabled reason");
-  assertNothingBanned(AA.SWEEP_PICKING_DISABLED, "the picking-disabled reason");
+  assertNoCommandOrPath(AA.sweepGateWords(art, AA.sweepAsModelledIndex(art)), "the picking-disabled reason");
+  assertNothingBanned(AA.sweepGateWords(art, AA.sweepAsModelledIndex(art)), "the picking-disabled reason");
+});
+
+check("sweep: the gate line says WHERE the as-modelled frame is, once per run, " +
+  "and says so plainly when no frame qualifies", () => {
+  const art = AA.readSweepArtifact(sweepFixture());
+  assertEqual(AA.sweepAsModelledIndex(art), 0, "the fixture's identity frame");
+  const words = AA.sweepGateWords(art, 0);
+  if (words.indexOf("frame 1 of 2") === -1) throw new Error("no frame position in: " + words);
+  // The run whose as-modelled pose is the LAST frame (the published P2's shape).
+  const doc = sweepFixture();
+  doc.points.reverse();
+  const last = AA.readSweepArtifact(doc);
+  assertEqual(AA.sweepAsModelledIndex(last), 1, "an as-modelled frame at the end");
+  if (AA.sweepGateWords(last, 1).indexOf("frame 2 of 2") === -1) {
+    throw new Error("the end frame is not named: " + AA.sweepGateWords(last, 1));
+  }
+  if (AA.sweepGateWords(last, 1).indexOf("start") !== -1) {
+    throw new Error("the gate line still sends the reader to the start");
+  }
+  assertEqual(AA.sweepAsModelledIndex(Object.assign({}, art, { points: [art.points[1]] })),
+    null, "no frame qualifies");
+  assertNothingBanned(AA.sweepGateWords(art, null), "the no-frame gate line");
+});
+
+check("sweep: the topology a run is about is read off its feature joins, and " +
+  "absent when it has none", () => {
+  const doc = sweepFixture();
+  assertEqual(AA.readSweepArtifact(doc).topologyId, null, "a run with no features");
+  doc.geometry = { features: [
+    { label: "driver", topology: null },
+    { label: "a", topology: "vpa_pitch_linkage" },
+    { label: "b", topology: "vpa_pitch_linkage" },
+  ] };
+  assertEqual(AA.readSweepArtifact(doc).topologyId, "vpa_pitch_linkage", "the named one");
+});
+
+check("rail: the width clamps to the minimum and to half the window, and an " +
+  "unreadable store is the default", () => {
+  assertEqual(AA.clampRailWidth(50, 1200), AA.RAIL_WIDTH_MIN, "below the minimum");
+  assertEqual(AA.clampRailWidth(5000, 1200), 600, "past half the window");
+  assertEqual(AA.clampRailWidth("abc", 1200), AA.RAIL_WIDTH_DEFAULT, "not a number");
+  assertEqual(AA.clampRailWidth(null, 1200), AA.RAIL_WIDTH_DEFAULT, "absent");
+  assertEqual(AA.clampRailWidth(null, 300), AA.RAIL_WIDTH_MIN, "a window narrower than the default");
+  const store = { data: {}, getItem(k) { return this.data[k] === undefined ? null : this.data[k]; },
+    setItem(k, v) { this.data[k] = v; } };
+  AA.writeStoredRailWidth(store, 333.4);
+  assertEqual(AA.readStoredRailWidth(store, 1200), 333, "a stored width comes back");
+  assertEqual(AA.readStoredRailWidth(null, 1200), AA.RAIL_WIDTH_DEFAULT, "no store");
+  const throwing = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
+  assertEqual(AA.readStoredRailWidth(throwing, 1200), AA.RAIL_WIDTH_DEFAULT, "a store that throws");
+  AA.writeStoredRailWidth(throwing, 300); // must not throw
+});
+
+check("parts: a row reads `<number> <name>`, the id is on the hover, and a number " +
+  "with no name shows alone and says so", () => {
+  const names = { names: {
+    "214698-002": { name: "GAS SPRING PISTON HEAD, PROPELLER, UPR", source: "drawing: x" },
+    "215735": { name: "PITCH PLATE, PROPELLER", source: "drawing: y" },
+  } };
+  const sha = "a".repeat(64);
+  const named = AA.partRowWords({ label: "214698-002 (extracted from 217755-001 A.1 ...stp)", sha256: sha }, names);
+  assertEqual(named.text, "214698-002 gas spring piston head, propeller, upr", "the row");
+  if (named.title.indexOf(sha.slice(0, 12)) === -1) throw new Error("the id is not on the hover");
+  if (named.text.indexOf(sha.slice(0, 12)) !== -1) throw new Error("the id is in the row");
+  if (named.title.indexOf("extracted from") === -1) throw new Error("the full label is not on the hover");
+  assertEqual(AA.partRowWords({ label: "215735-001 (extracted ...)", sha256: sha }, names).text,
+    "215735-001 pitch plate, propeller", "a dash number under a bare drawing number");
+  const bare = AA.partRowWords({ label: "217970-001 (extracted ...)", sha256: sha }, names);
+  assertEqual(bare.text, "217970-001", "no name on file");
+  if (bare.title.indexOf(AA.PARTS_COPY.noName) === -1) throw new Error("no 'no name on file' on hover");
+  assertEqual(AA.partRowWords({ label: "217970-001 (x)", sha256: sha }, null).text, "217970-001",
+    "an absent projection");
+  assertEqual(AA.partRowWords({ label: "M1 blade, clean OML (single solid)", sha256: sha }, names).text,
+    "M1 blade, clean OML (single solid)", "a label with no number");
+  assertEqual(AA.partNumberOf("216332-001_41 (extracted ...)"), "216332-001", "a suffixed instance");
+  assertEqual(AA.partNumberOf("NAS6404U13D (extracted ...)"), null, "a fastener");
+});
+
+check("rail: a studyless topology's head says how many interfaces it lists", () => {
+  assertEqual(AA.studylessHead(29), "all 29 interfaces \u2014 no study scopes them", "plural");
+  assertEqual(AA.studylessHead(1), "all 1 interface \u2014 no study scopes them", "singular");
 });
 
 check("sweep: every verb argument is parsed here, and a bad one answers with " +
@@ -3750,6 +3832,36 @@ const SWEEPS_DIR = [
   try { return fs.existsSync(candidate) && fs.readdirSync(candidate).some((f) => /\.json$/i.test(f)); }
   catch (_) { return false; }
 });
+
+// --- [real] the part-names projection ---------------------------------------
+const PART_NAMES_PATH = [
+  path.join(here, "..", "..", "data", "projections", "parts", "names.json"),
+  "C:/workspace/tolstack/data/projections/parts/names.json",
+].find((candidate) => fs.existsSync(candidate));
+
+if (!PART_NAMES_PATH) {
+  console.log("SKIP  [real] the part-names projection -- data/projections/parts/names.json " +
+    "is not built, here or in the main checkout");
+} else {
+  check("[real] the part-names projection names the six drawn parts and the topology's own", () => {
+    const doc = JSON.parse(fs.readFileSync(PART_NAMES_PATH, "utf8"));
+    for (const number of ["213668-002", "214698-002", "214699-002", "214958-002",
+      "214955-004", "214959-002"]) {
+      const row = AA.partNameFor(doc, number);
+      if (!row) throw new Error(number + " has no name in the projection");
+      if (doc.names[number].source.indexOf("drawing:") !== 0) {
+        throw new Error(number + " is not named from its drawing: " + doc.names[number].source);
+      }
+    }
+    const fromTopology = Object.keys(doc.names)
+      .filter((n) => doc.names[n].source.indexOf("topology:") === 0);
+    if (!fromTopology.length) throw new Error("no part is named from a topology");
+    assertEqual(AA.partNameFor(doc, "214698-002"), "gas spring piston head, propeller, upr",
+      "the drawing's nomenclature, in one casing");
+    console.log("      " + Object.keys(doc.names).length + " names: " + doc.counts.drawing +
+      " from a drawing, " + doc.counts.topology + " from a topology");
+  });
+}
 
 if (!SWEEPS_DIR) {
   console.log("SKIP  [real] the published sweep runs -- no data/inbox/linkage-sweeps/ " +

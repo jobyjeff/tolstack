@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "[real] the part-names projection names the six drawn parts and the topology's own",
+  "mutations": [
+    {
+      "contract": "A part number the projection names reads back as its name.",
+      "issue": null,
+      "note": "The mutation makes every lookup find no name, which is what a projection nobody can read through looks like.",
+      "file": "apps/annotate/commands.js",
+      "find": "return hit && hit.name ? AA.partNameCase(hit.name) : null;",
+      "replace": "return null;"
+    }
+  ]
+}

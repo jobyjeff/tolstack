@@ -18,6 +18,10 @@
     // in JS, the same reason apps/viewer reads projections instead of authored
     // files.
     topologyProjection: ["data", "projections", "viewer", "topologies.json"],
+    // Part number -> everyday name (handoff the_annotator_rail_resizes_and_
+    // names_what_it_lists), built by scripts/build_part_names_projection.py.
+    // Absent is fine: a part row then shows its number alone.
+    partNamesProjection: ["data", "projections", "parts", "names.json"],
     // linkage's published sweep runs (handoff kinematic_sweep_animation).
     // READ-ONLY from here, and append-only in the repo: the `linkage` solver
     // repo writes these and nothing in this app may add to, rename or tidy

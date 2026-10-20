@@ -93,6 +93,9 @@ const state = {
   // resolveMeshIdentifier -- commands.js stays fetch-free. Missing/empty
   // table is just [] (no aliases resolve), never an error.
   partMeshAliases: [],
+  // data/projections/parts/names.json (part number -> everyday name), or null
+  // when it has not been built: a part row then shows its number alone.
+  partNames: null,
   // Which steps of an arrival apply (deliverable 3), and whether bodies render
   // translucent (deliverable 4). Both persist; both are read ONCE here, before
   // any command can run, so a boot sequence and a later postMessage launch
@@ -923,6 +926,9 @@ async function cmdSweep(target) {
   state.sweep = {
     artifact, structure, trails,
     driverValues: AA.sweepDriverValues(artifact),
+    // Where face picking works, computed once per loaded run (AA.
+    // sweepAsModelledIndex): null when no frame of the run qualifies.
+    asModelledIndex: AA.sweepAsModelledIndex(artifact),
     index: 0,
     // The continuous wall-clock position tickSweep integrates, kept apart
     // from `index` because reduced motion rounds `index` for DISPLAY -- see
@@ -964,6 +970,16 @@ async function cmdSweep(target) {
   };
   state.isolation = null;
   state.contextEdit = { added: [], removed: [] };
+  // A sweep arrival selects the topology the run is about, through the verb
+  // the topology select drives (so the filter-clearing and study reset
+  // happen). A run that names none -- or one this projection does not carry --
+  // leaves the rail alone; a run picker switching between runs of the same
+  // topology does not reset a study the reader chose.
+  if (artifact.topologyId && state.topologyProjection &&
+      (!state.currentTopology || state.currentTopology.id !== artifact.topologyId) &&
+      state.topologyProjection.topologies.some((t) => t.id === artifact.topologyId)) {
+    selectTopology(artifact.topologyId);
+  }
   state.scene.enterSweep(Object.assign({ trails }, structure));
   state.scene.onSweepHover = showSweepTip;
   applySweepFrame();
@@ -1570,15 +1586,55 @@ function renderSweepBar() {
   sweep.nodes.readouts = readouts;
 
   // The frame rule, said once, where the bind instruction would otherwise be.
+  // It is the ONLY place the frame rule is written (a click on the canvas away
+  // from the pose pulses this line, it does not raise a second message), and
+  // it names where the pose is and goes there. Built once per bar: the frame
+  // does not change while a run plays, so the per-frame repaint only shows or
+  // hides it.
   const gate = document.createElement("p");
   gate.className = "an__sweep-gate";
+  gate.tabIndex = -1;
+  const gateText = document.createElement("span");
+  gateText.textContent = AA.sweepGateWords(sweep.artifact, sweep.asModelledIndex);
+  gate.appendChild(gateText);
+  if (sweep.asModelledIndex !== null) {
+    const go = document.createElement("button");
+    go.className = "an__sweep-gate-go";
+    go.textContent = AA.SWEEP_GO_TO_POSE;
+    go.onclick = async () => {
+      try {
+        await AA.exec(["pause"]);
+        await AA.exec(["seek", "#" + sweep.asModelledIndex]);
+      } catch (err) { setBanner(err.message, "error"); }
+    };
+    gate.appendChild(go);
+    sweep.nodes.gateGo = go;
+  }
   work.appendChild(gate);
   sweep.nodes.gate = gate;
+  if (sweep.artifact.topologyId === null) {
+    const note = document.createElement("p");
+    note.className = "an__sweep-note";
+    note.textContent = AA.SWEEP_NO_TOPOLOGY;
+    work.appendChild(note);
+  }
 
   if (sweep.bodies.length) work.appendChild(buildSweepBodiesDisclosure());
   el.detail.appendChild(work);
   renderSweepReadouts();
   renderHintPanel();
+}
+
+// A click the frame rule refuses points at the gate line -- the one place the
+// rule is written -- instead of raising a second message of its own.
+function pulseSweepGate() {
+  const gate = state.sweep && state.sweep.nodes && state.sweep.nodes.gate;
+  if (!gate) return;
+  gate.classList.remove("an__sweep-gate--pulse");
+  void gate.offsetWidth; // restart the animation on a repeat click
+  gate.classList.add("an__sweep-gate--pulse");
+  const go = state.sweep.nodes.gateGo;
+  if (go && go.focus) go.focus();
 }
 
 // Scrub without a full repaint: dragging the handle must not rebuild the
@@ -1703,7 +1759,6 @@ function renderSweepReadouts() {
   }
   if (sweep.nodes.gate) {
     const atHome = AA.sweepIsAsModelled(frame);
-    sweep.nodes.gate.textContent = atHome ? "" : AA.SWEEP_PICKING_DISABLED;
     sweep.nodes.gate.style.display = atHome ? "none" : "block";
   }
 }
@@ -1908,12 +1963,55 @@ function renderTopologyPicker() {
   el.topologySelect.innerHTML = "";
   for (const t of state.topologyProjection.topologies) {
     const opt = document.createElement("option");
-    opt.value = t.id; opt.textContent = t.title + " (" + t.id + ")";
+    opt.value = t.id; opt.textContent = t.title;
     el.topologySelect.appendChild(opt);
   }
   if (state.topologyProjection.topologies.length) {
     selectTopology(state.topologyProjection.topologies[0].id);
   }
+}
+
+// The rail's drag handle: one custom property on the workspace, clamped
+// (AA.clampRailWidth) and remembered per browser. Pointer capture keeps the
+// drag alive when the pointer leaves the thin handle; the arrow keys resize it
+// for a reader with no pointer.
+function wireRailResize() {
+  const handle = document.getElementById("rail-handle");
+  if (!handle) return;
+  const apply = (width, remember) => {
+    const clamped = AA.clampRailWidth(width, window.innerWidth);
+    el.workspace.style.setProperty("--rail-w", clamped + "px");
+    if (remember) AA.writeStoredRailWidth(prefStore(), clamped);
+    return clamped;
+  };
+  const current = () => el.workspace.querySelector(".an__rail").getBoundingClientRect().width;
+  apply(AA.readStoredRailWidth(prefStore(), window.innerWidth), false);
+  handle.onpointerdown = (ev) => {
+    ev.preventDefault();
+    handle.classList.add("is-dragging");
+    if (handle.setPointerCapture) { try { handle.setPointerCapture(ev.pointerId); } catch (_) { /* synthetic */ } }
+    const left = el.workspace.getBoundingClientRect().left;
+    handle.onpointermove = (move) => { apply(move.clientX - left, false); };
+    handle.onpointerup = (up) => {
+      handle.onpointermove = null;
+      handle.onpointerup = null;
+      handle.classList.remove("is-dragging");
+      apply(up.clientX - left, true);
+    };
+  };
+  handle.onkeydown = (ev) => {
+    if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+    ev.preventDefault();
+    apply(current() + (ev.key === "ArrowRight" ? 20 : -20), true);
+  };
+  window.addEventListener("resize", () => apply(current(), false));
+}
+
+// A native <select> cannot tooltip per option, so the select itself carries the
+// SELECTED option's full text: the clipped closed select is read in full on hover.
+function syncSelectTitle(select) {
+  const option = select.options[select.selectedIndex];
+  select.title = option ? option.textContent : "";
 }
 
 function selectTopology(topologyId) {
@@ -1926,6 +2024,7 @@ function selectTopology(topologyId) {
   // the scope of this one.
   state.currentStudy = null;
   el.topologySelect.value = topologyId;
+  syncSelectTitle(el.topologySelect);
   el.studySelect.innerHTML = "";
   const studies = (state.currentTopology && state.currentTopology.studies) || [];
   for (const s of studies) {
@@ -1939,6 +2038,7 @@ function selectTopology(topologyId) {
     el.studySelect.appendChild(none);
   }
   el.studySelect.disabled = !studies.length;
+  syncSelectTitle(el.studySelect);
   if (studies.length) selectStudy(studies[0].id);
   else { renderElementList(); resetContext(false); }
 }
@@ -1949,6 +2049,7 @@ function selectStudy(studyId) {
   // the opposite of a one-element scope -- same reasoning as selectTopology.
   clearPanelFilter();
   el.studySelect.value = studyId;
+  syncSelectTitle(el.studySelect);
   renderElementList();
   resetContext(false);
 }
@@ -1976,10 +2077,21 @@ function listedEdgeIds() {
 function renderElementList() {
   el.elementList.innerHTML = "";
   if (!state.currentTopology) return;
-  if (!state.currentStudy && !state.panelFilter) return;
+  // A studyless topology lists every edge: with no study to scope it, an empty
+  // list would leave its interfaces unreachable.
+  const listAll = !state.currentStudy && !state.panelFilter;
+  const edgeIds = listAll ? state.currentTopology.edges.map((e) => e.id) : listedEdgeIds();
+  if (listAll) {
+    if (!edgeIds.length) return;
+    const head = document.createElement("li");
+    head.className = "el-head";
+    head.textContent = AA.studylessHead(edgeIds.length);
+    head.title = head.textContent;
+    el.elementList.appendChild(head);
+  }
   const identity = mergedIdentityProjection();
   const staleness = state.identityProjection && state.identityProjection.staleness;
-  for (const edgeId of listedEdgeIds()) {
+  for (const edgeId of edgeIds) {
     const edge = state.currentTopology.edges.find((e) => e.id === edgeId);
     if (!edge) continue;
     const key = AA.topologyEdgeKey(state.currentTopology.id, edgeId);
@@ -1991,7 +2103,12 @@ function renderElementList() {
     // and Jeff asked to keep it ("keep the *color* signal on the row"). What
     // came off is the WORDS: the badge used to print the raw state value.
     li.className = "el-row el-row--" + bindingState;
-    li.appendChild(document.createTextNode((edge.name || edge.id) + "  "));
+    const rowText = edge.name || edge.id;
+    li.title = rowText;
+    const rowName = document.createElement("span");
+    rowName.className = "el-row__name";
+    rowName.textContent = rowText;
+    li.appendChild(rowName);
     const alerts = AA.elementAlerts(bindingState);
     if (alerts.length) li.appendChild(alertBadge(alerts));
     li.onclick = () => {
@@ -2547,6 +2664,7 @@ function renderPartsPanel() {
     const title = document.createElement("span");
     title.className = "part-row__label";
     title.textContent = AA.PARTS_COPY.inModel;
+    title.title = AA.PARTS_COPY.inModel;
     head.appendChild(title);
     const all = document.createElement("input");
     all.type = "checkbox";
@@ -2592,7 +2710,12 @@ function buildPartRow(mesh, inModel, isolated) {
 
   const label = document.createElement("span");
   label.className = "part-row__label";
-  label.textContent = mesh.label + " (" + mesh.sha256.slice(0, 12) + "…)";
+  // `<number> <name>`; the full line and the internal id are on the hover
+  // (the label is clipped to the rail's width, and the rail is resizable but
+  // not infinitely so).
+  const words = AA.partRowWords(mesh, state.partNames);
+  label.textContent = words.text;
+  label.title = words.title;
   li.appendChild(label);
 
   const cb = document.createElement("input");
@@ -2757,6 +2880,7 @@ async function loadAll() {
     state.meshList = await state.storage.listMeshes();
     const aliasDoc = await state.storage.readPartMeshAliases();
     state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
+    state.partNames = await state.storage.readPartNames();
     // Every recorded occurrence, before any part opens: it is where every
     // part is drawn (scene.placementsFor), and what the panel's notes say.
     await loadOccurrences();
@@ -2885,6 +3009,7 @@ async function main() {
     try { await AA.exec(["select-study", el.studySelect.value]); }
     catch (err) { setBanner(err.message, "error"); }
   };
+  wireRailResize();
   el.consoleRun.onclick = runConsoleCommand;
   el.consoleInput.onkeydown = (ev) => { if (ev.key === "Enter") runConsoleCommand(); };
   // What this box accepts, read off the registry every verb was registered
@@ -2970,7 +3095,7 @@ async function main() {
     // that quietly does nothing. At the as-modelled frame sweep mode is
     // transparent and this behaves exactly as it always has.
     if (state.sweep && !AA.sweepIsAsModelled(state.sweep.frame)) {
-      setBanner(AA.SWEEP_PICKING_DISABLED, "warn");
+      pulseSweepGate();
       return;
     }
     const plan = AA.planPickToggle(state.currentPick, pick);

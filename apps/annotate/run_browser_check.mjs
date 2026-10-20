@@ -273,14 +273,28 @@ async function main() {
   check("the two-force member holds its length across the whole sweep",
     worstLength < 1e-9, `worst |A-B| - length = ${worstLength}`);
 
-  // The frame rule, both ways, through a real scrub.
+  // The frame rule, both ways, through a real scrub -- and it lives in ONE place:
+  // the gate line, which names where the pose is and goes there.
   await page.evaluate(() => window.AnnotateApp.exec(["seek", "#79"]));
-  check("at the as-modelled point, picking is on and the bar says nothing about it",
-    (await page.locator(".an__sweep-gate").innerText()).trim() === "");
+  check("at the as-modelled point, picking is on and the gate line is not shown",
+    !(await page.locator(".an__sweep-gate").isVisible()));
   await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
   const gate = (await page.locator(".an__sweep-gate").innerText()).trim();
-  check("away from it, picking is off and the bar says why",
-    gate.length > 0 && gate.includes("as-modelled"), gate);
+  check("away from it, picking is off and the gate line says where the pose is",
+    gate.includes("as-modelled") && gate.includes("frame 80 of 80"), gate);
+  // A refused click pulses the gate line; it raises no second message.
+  const bannerBefore = await page.locator("#banner").innerText();
+  await page.evaluate(() => window.__scene.onPick({ sha256: "0".repeat(64), faceId: 0 }));
+  check("a click away from the pose pulses the gate line and raises no banner",
+    (await page.locator(".an__sweep-gate").getAttribute("class")).includes("an__sweep-gate--pulse") &&
+    (await page.locator("#banner").innerText()) === bannerBefore,
+    await page.locator("#banner").innerText());
+  await page.locator(".an__sweep-gate button").click();
+  check("the gate line's control goes to the as-modelled frame, with picking enabled",
+    await page.evaluate(() => window.__sweep.index === 79 &&
+      window.AnnotateApp.sweepIsAsModelled(window.__sweep.frame)),
+    String(await page.evaluate(() => window.__sweep.index)));
+  await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
 
   // Playback, through the real clock.
   const before = await page.evaluate(() => window.__sweep.index);
@@ -429,6 +443,8 @@ async function main() {
     consoleErrors.join("\n      "));
 
   await mockPlacementPass(browser, base);
+  await railResizePass(browser, base);
+  await railRealPass(browser, base);
   await contextViewPass(browser, base);
   await reducedMotionTimingPass(browser, base);
 
@@ -531,6 +547,146 @@ async function mockPlacementPass(browser, base) {
     both.placed && both.unplaced && both.placed.sha256 === both.unplaced.sha256 &&
     both.placed.faceId === both.unplaced.faceId && both.placed.faceId === 0 &&
     both.placed.occurrence === 1, JSON.stringify(both));
+  await page.close();
+}
+
+// THE RAIL (handoff the_annotator_rail_resizes_and_names_what_it_lists): a
+// handle that resizes it, a width that is remembered, and every clipped line
+// readable in full at the NARROWEST width -- the width a reader is most likely
+// to have to read through.
+async function railResizePass(browser, base) {
+  console.log("\n--- the rail resizes, and names what it lists (mock)");
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  await page.goto(`${base}?mock=1`);
+  await page.waitForFunction(() => window.__scene && window.AnnotateApp && window.AnnotateApp.exec &&
+    document.querySelectorAll(".an__rail .el-row").length > 0, null, { timeout: 20000 });
+  const railWidth = () => page.locator(".an__rail").evaluate((n) => Math.round(n.getBoundingClientRect().width));
+  const drag = async (toX) => {
+    const box = await page.locator("#rail-handle").boundingBox();
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(toX, y, { steps: 6 });
+    await page.mouse.up();
+  };
+  check("the rail starts at its default width", (await railWidth()) === 260, String(await railWidth()));
+  await drag(420);
+  const dragged = await railWidth();
+  check("dragging the handle widens the rail", Math.abs(dragged - 420) <= 2, String(dragged));
+  await page.reload();
+  await page.waitForFunction(() => window.__scene && document.querySelectorAll(".an__rail").length > 0);
+  const held = await railWidth();
+  check("the width holds across a reload", Math.abs(held - dragged) <= 1, `${dragged} -> ${held}`);
+  await drag(5);
+  check("the rail clamps at its minimum width", (await railWidth()) === 180, String(await railWidth()));
+  await drag(5000);
+  check("the rail clamps at half the window", (await railWidth()) === 640, String(await railWidth()));
+  await drag(5);
+
+  // At the minimum width: every line the rail clips carries its full text.
+  await page.evaluate(async () => {
+    const AA = window.AnnotateApp;
+    // Both lists populated: the studyless topology lists every edge, and the
+    // mock's meshes fill the parts panel.
+    await AA.exec(["select-topology", "demo_studyless"]);
+  });
+  const unreachable = await page.evaluate(() => {
+    const out = [];
+    const clipped = (n) => n.scrollWidth > n.clientWidth + 1;
+    const nodes = [
+      ...document.querySelectorAll(".an__rail .part-row__label"),
+      ...document.querySelectorAll(".an__rail .el-row__name"),
+      ...document.querySelectorAll(".an__rail select"),
+    ];
+    for (const n of nodes) {
+      if (!clipped(n)) continue;
+      const holder = n.closest("[title]");
+      const text = n.tagName === "SELECT"
+        ? n.options[n.selectedIndex].textContent : n.textContent.trim();
+      const title = holder ? holder.getAttribute("title") : "";
+      if (!title || !title.includes(text)) out.push(`${n.tagName} ${JSON.stringify(text)} -> ${JSON.stringify(title)}`);
+    }
+    return { out, checked: nodes.length, clippedCount: nodes.filter(clipped).length };
+  });
+  check("at the minimum width every clipped row's full text is reachable on hover",
+    unreachable.out.length === 0, JSON.stringify(unreachable));
+  console.log(`      ${unreachable.clippedCount} of ${unreachable.checked} rail lines clipped at 180px`);
+  const head = (await page.locator(".an__rail .el-head").innerText()).trim();
+  check("a studyless topology lists every edge under a one-line head",
+    head === "all 1 interface — no study scopes them" &&
+    (await page.locator(".an__rail .el-row").count()) === 1, head);
+  check("the study select still says there are no studies",
+    (await page.locator("#study-select").inputValue()) === "" &&
+    (await page.locator("#study-select").evaluate((n) => n.title)) === "no studies yet");
+  await page.close();
+}
+
+// The same surface on the PUBLISHED run: P2 opened cold, from a URL, must land
+// on the topology it is about and list its interfaces, and say where its
+// as-modelled frame is. Real topology projection, real runs; SKIPs honestly
+// when this machine has neither.
+async function railRealPass(browser, base) {
+  const run = "vpa-pitch-p2-20261016-235852";
+  const have = DATA_ROOTS.some((r) =>
+    existsSync(join(r, "data", "inbox", "linkage-sweeps", `${run}.json`)) &&
+    existsSync(join(r, "data", "projections", "viewer", "topologies.json")));
+  if (!have) {
+    console.log(`\nSKIP  [real] the rail on ${run} -- the run or the topology projection is not on disk`);
+    return;
+  }
+  console.log(`\n--- [real] the rail on ${run}, cold`);
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  const errors = [];
+  page.on("pageerror", (err) => errors.push(String(err && err.message || err)));
+  await page.addInitScript(() => {
+    const json = (path) => fetch("/data" + path).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const install = () => {
+      const AA = window.AnnotateApp;
+      if (!AA || !AA.MemoryAdapter) return false;
+      const P = AA.MemoryAdapter.prototype;
+      P.listSweepRuns = async () => AA.orderSweepRuns(await Promise.all(((await json("/inbox/linkage-sweeps/index.json")) || []).map(async (id) => AA.sweepRunEntry(id, await json(`/inbox/linkage-sweeps/${id}.json`)))));
+      P.readSweepRun = async (runId) => json(`/inbox/linkage-sweeps/${runId}.json`);
+      P.readTopologyProjection = async () => json("/projections/viewer/topologies.json");
+      P.readPartNames = async () => json("/projections/parts/names.json");
+      P.listMeshes = async () => json("/meshes/index.json");
+      P.readMeshProvenance = async (sha) => json(`/meshes/${sha}/provenance.json`);
+      P.readMeshManifest = async (sha) => json(`/meshes/${sha}/manifest.json`);
+      P.readMeshBuffer = async (sha, name) =>
+        fetch(`/data/meshes/${sha}/${name}`).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+      P.readPartMeshAliases = async () => json("/__aliases.json");
+      return true;
+    };
+    const timer = setInterval(() => { if (install()) clearInterval(timer); }, 1);
+    document.addEventListener("DOMContentLoaded", () => { install(); clearInterval(timer); });
+  });
+  await page.goto(`${base}?mock=1&sweep=${run}`);
+  await page.waitForFunction(() => window.__sweep && window.__sweep.frame, null, { timeout: 60000 });
+  const topology = await page.locator("#topology-select").inputValue();
+  check("[real] opening P2 selects the topology the run names", topology === "vpa_pitch_linkage", topology);
+  const listed = await page.locator(".an__rail .el-row").count();
+  const headText = (await page.locator(".an__rail .el-head").innerText()).trim();
+  const expected = await page.evaluate(async () => {
+    const doc = await fetch("/data/projections/viewer/topologies.json").then((r) => r.json());
+    return doc.topologies.find((t) => t.id === "vpa_pitch_linkage").edges.length;
+  });
+  check("[real] the studyless topology lists every one of its edges",
+    listed === expected && expected === 29 && headText.startsWith("all 29 interfaces"),
+    `${listed} rows, ${expected} edges, head ${JSON.stringify(headText)}`);
+  const asModelled = await page.evaluate(() => window.__sweep.asModelledIndex);
+  check("[real] P2's as-modelled frame is the last one (index 79)", asModelled === 79, String(asModelled));
+  const gate = (await page.locator(".an__sweep-gate").innerText()).trim();
+  check("[real] the gate line names frame 80 of 80 and the pose's driver value",
+    gate.includes("frame 80 of 80") && gate.includes("72"), gate);
+  await page.locator(".an__sweep-gate button").click();
+  check("[real] the gate line's control lands on index 79 with picking enabled",
+    await page.evaluate(() => window.__sweep.index === 79 &&
+      window.AnnotateApp.sweepIsAsModelled(window.__sweep.frame)));
+  const partRows = await page.evaluate(() =>
+    [...document.querySelectorAll(".an__rail .part-row__label")].map((n) => n.textContent.trim()));
+  check("[real] part rows read `<number> <name>`",
+    partRows.some((t) => /^214698-002 gas spring piston head/.test(t)) &&
+    !partRows.some((t) => /…\)|[0-9a-f]{12}/.test(t)), JSON.stringify(partRows.slice(0, 8)));
+  check("[real] nothing above produced an uncaught error", errors.length === 0, errors.join("\n      "));
   await page.close();
 }
 

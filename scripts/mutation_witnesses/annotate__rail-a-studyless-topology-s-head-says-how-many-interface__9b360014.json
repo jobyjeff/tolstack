@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "rail: a studyless topology's head says how many interfaces it lists",
+  "mutations": [
+    {
+      "contract": "The head over a studyless topology's list says how many interfaces it lists, in the right number.",
+      "issue": null,
+      "note": "The mutation never pluralises.",
+      "file": "apps/annotate/commands.js",
+      "find": "(count === 1 ? \"\" : \"s\")",
+      "replace": "\"\""
+    }
+  ]
+}

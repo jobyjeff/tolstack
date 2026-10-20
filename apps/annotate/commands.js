@@ -413,7 +413,61 @@
     showAll: "show or hide every part in this model",
     isolate: "Isolate",
     noStudies: "no studies yet",
+    noName: "no name on file",
   });
+
+  // --- a part, called by name (handoff the_annotator_rail_resizes_and_names_
+  // what_it_lists) -------------------------------------------------------
+  //
+  // Jeff: "we renumber parts a lot so I don't usually bother memorizing part
+  // numbers." A row reads `<number> <name>`; the name comes from
+  // data/projections/parts/names.json (`{names: {number: {name, source}}}`),
+  // and a number with no entry shows alone with the reason on hover.
+
+  // The part number a mesh label opens with ("215735-001 (extracted from ...)",
+  // "216332-001_41 (...)"), or null for a label that opens with none
+  // ("M1 blade, clean OML", "NAS6404U13D ...").
+  AA.partNumberOf = function (label) {
+    var m = /^\s*(\d{6}-\d{3})(?![0-9])/.exec(String(label == null ? "" : label));
+    return m ? m[1] : null;
+  };
+
+  // One casing for every name: lower case. A drawing writes its nomenclature
+  // shouted ("GAS SPRING PISTON HEAD, PROPELLER, UPR") and the topology writes
+  // its own in lower case; one rule over both keeps the column even.
+  AA.partNameCase = function (name) {
+    return String(name == null ? "" : name).trim().toLowerCase();
+  };
+
+  // The name on file for a number, or null. An exact number wins; a drawing
+  // that carries no dash number ("215735") names every dash number under it.
+  AA.partNameFor = function (namesDoc, number) {
+    var names = namesDoc && namesDoc.names;
+    if (!names || !number) return null;
+    var hit = names[number] || names[number.replace(/-\d{3}$/, "")] || null;
+    return hit && hit.name ? AA.partNameCase(hit.name) : null;
+  };
+
+  // What a part row says and what its hover carries. The sha prefix is an
+  // internal id, so it lives on the hover and never in the row's text.
+  AA.partRowWords = function (mesh, namesDoc) {
+    var number = AA.partNumberOf(mesh.label);
+    var name = AA.partNameFor(namesDoc, number);
+    var text = number ? (name ? number + " " + name : number)
+      : String(mesh.label == null ? "" : mesh.label);
+    var lines = [text];
+    if (number && !name) lines.push(AA.PARTS_COPY.noName);
+    if (mesh.label && mesh.label !== text) lines.push(String(mesh.label));
+    lines.push(String(mesh.sha256 || "").slice(0, 12));
+    return { text: text, title: lines.join("\n") };
+  };
+
+  // The line above an element list that lists every edge because no study
+  // scopes them.
+  AA.studylessHead = function (count) {
+    return "all " + count + " interface" + (count === 1 ? "" : "s") +
+      " — no study scopes them";
+  };
 
   // Which meshes are in the context. `baseShas` is null when nothing scopes
   // the model (no topology yet): every mesh is then in it. `added` is checked
@@ -728,7 +782,40 @@
     autoSteps: "tolstack.annotate.autoSteps",
     transparentParts: "tolstack.annotate.transparentParts",
     faceSuggestions: "tolstack.annotate.faceSuggestions",
+    railWidth: "tolstack.annotate.railWidth",
   });
+
+  // --- the rail's width (handoff the_annotator_rail_resizes_and_names_what_
+  // it_lists) --------------------------------------------------------------
+  //
+  // A drag handle on the rail's right edge sets one CSS custom property the
+  // grid reads. The pure half: the clamp and the stored form, `store` injected
+  // like every other preference here.
+  AA.RAIL_WIDTH_DEFAULT = 260;
+  AA.RAIL_WIDTH_MIN = 180;
+
+  // Clamped to [min, half the window]; a non-number is the default (itself
+  // clamped, so a very narrow window never gets a rail wider than half of it).
+  AA.clampRailWidth = function (value, windowWidth) {
+    var max = Math.max(AA.RAIL_WIDTH_MIN, Math.floor((Number(windowWidth) || 0) / 2));
+    var n = Number(value);
+    if (!isFinite(n) || value === null || value === "") n = AA.RAIL_WIDTH_DEFAULT;
+    return Math.min(Math.max(Math.round(n), AA.RAIL_WIDTH_MIN), max);
+  };
+
+  AA.readStoredRailWidth = function (store, windowWidth) {
+    var raw = null;
+    try { raw = store ? store.getItem(AA.PREF_KEYS.railWidth) : null; } catch (err) { raw = null; }
+    return AA.clampRailWidth(raw, windowWidth);
+  };
+
+  AA.writeStoredRailWidth = function (store, width) {
+    try {
+      if (store) store.setItem(AA.PREF_KEYS.railWidth, String(Math.round(Number(width))));
+    } catch (err) {
+      // A browser that refuses to store it still honours the width now.
+    }
+  };
 
   // Translucent by default: a scope entry is transparent by Jeff's own
   // description ("again transparent with the interface surfaces displayed in a
