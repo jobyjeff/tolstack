@@ -8,8 +8,8 @@
       "issue": null,
       "note": "The mutation is the pre-2026-09-21 layout exactly: the third grid column comes back. Nothing but a measurement notices -- the markup, the ids and every other annotate suite stay green, because #detail is still on the page, still populated and still inside #workspace. That is the whole reason this guard measures boxes rather than reading class names.",
       "file": "apps/annotate/style.css",
-      "find": "  grid-template-columns: 260px 1fr;",
-      "replace": "  grid-template-columns: 260px 1fr 320px;"
+      "find": "  grid-template-columns: var(--rail-w, 260px) 1fr;",
+      "replace": "  grid-template-columns: var(--rail-w, 260px) 1fr 320px;"
     }
   ]
 }

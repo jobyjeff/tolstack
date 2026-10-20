@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "parts: a row reads `<number> <name>`, the id is on the hover, and a number with no name shows alone and says so",
+  "mutations": [
+    {
+      "contract": "Every part name renders in one casing whichever source supplied it.",
+      "issue": null,
+      "note": "The mutation stops lower-casing, so a drawing's shouted nomenclature reaches the rail as written.",
+      "file": "apps/annotate/commands.js",
+      "find": "return String(name == null ? \"\" : name).trim().toLowerCase();",
+      "replace": "return String(name == null ? \"\" : name).trim();"
+    }
+  ]
+}

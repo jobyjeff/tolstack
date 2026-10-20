@@ -75,3 +75,23 @@ page — a rail width chosen in one is the other's default. Clamping to half the
   hidden element would have kept passing once the gate carried a button,
   because `innerText` of a `display: none` node is its text content. It now
   asks `isVisible()`.
+
+## Verification record
+
+- `node apps/annotate/run_tests.cjs` (worktree, `[real]` reading the main checkout's data): 195/195.
+- `node apps/annotate/run_browser_check.mjs` (worktree, mock + `railRealPass` on P2): 67/67.
+- Six new annotate guards each have a mutation spec, each WITNESSED
+  (`run_mutation_witness_tests.mjs --only <name> --repo C:\workspace\tolstack`);
+  `DECLARED_GUARDS.annotate` raised 189 → 195 with those six specs behind it.
+- Full `pytest -q` in the worktree: 8 red on the first run — the documented
+  worktree-only `test_viewer_js_suite`; two I caused and fixed (a stray "only" in the
+  ARCHITECTURE row, the stale `260px 1fr` mutation anchor) plus the enrollment census
+  (fixed by the six specs); four `test_mutation_witness_shadow_concurrency` failures
+  that pass on a quiet rerun (the run took 30 min under load from other suites).
+  A final full rerun was not repeated after those fixes; the touched files were
+  rerun together (inventory + witnesses + concurrency: green).
+- **Not runnable here:** the viewer browser TRUTH tier and its mutation witness for the
+  rewritten `260px` anchor (`playwright-core` is main-checkout only). The anchor edit
+  is mechanical (`var(--rail-w, 260px)` in both find and replace); run
+  `node scripts/run_mutation_witness_tests.mjs --only "3D canvas runs to the right edge"`
+  in the main checkout at merge.

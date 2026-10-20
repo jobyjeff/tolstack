@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the gate line says WHERE the as-modelled frame is, once per run, and says so plainly when no frame qualifies",
+  "mutations": [
+    {
+      "contract": "The gate line names the as-modelled frame by its one-based position in the run, so a reader is sent to a frame that exists.",
+      "issue": null,
+      "note": "The mutation drops the one-based shift: the line would send the reader to frame 79 of 80 for the frame the run calls its 80th, which is exactly the off-by-one a gate that names a frame must not have.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      (index + 1) + \" of \" + artifact.points.length",
+      "replace": "      index + \" of \" + artifact.points.length"
+    }
+  ]
+}

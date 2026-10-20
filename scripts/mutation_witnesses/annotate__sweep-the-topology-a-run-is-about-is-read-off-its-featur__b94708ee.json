@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the topology a run is about is read off its feature joins, and absent when it has none",
+  "mutations": [
+    {
+      "contract": "A sweep arrival selects the topology the artifact's own feature joins name.",
+      "issue": null,
+      "note": "The mutation makes every join read as naming nothing, so every run reads as topology-less and an arrival leaves the rail on whatever topology it had.",
+      "file": "apps/annotate/sweep.js",
+      "find": "typeof feature.topology === \"string\" ? feature.topology : \"\"",
+      "replace": "false ? feature.topology : \"\""
+    }
+  ]
+}

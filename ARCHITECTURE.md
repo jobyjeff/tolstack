@@ -102,8 +102,8 @@ scripts/
   build_part_names_projection.py a part number's everyday name ->
                                data/projections/parts/names.json: drawing-
                                checker's extracted title blocks first, the
-                               topologies' own part names second, display text
-                               only. Added 2026-10-20; stdlib plus
+                               topologies' own part names second, display text,
+                               never a value. Added 2026-10-20; stdlib plus
                                projection_provenance.
   build_feature_identity_projection.py  thin CLI over
                                tolerance_stack.feature_identity.rebuild() ->
