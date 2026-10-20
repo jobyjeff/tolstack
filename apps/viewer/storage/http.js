@@ -176,6 +176,9 @@
   HttpAdapter.prototype.readResults = function () { return this._readProjection("results.json"); };
   HttpAdapter.prototype.readCrops = function () { return this._readProjection("crops.json"); };
   HttpAdapter.prototype.readTopologies = function () { return this._readProjection("topologies.json"); };
+  HttpAdapter.prototype.readKinematic = function () {
+    return this._readProjection(VA.CONFIG.kinematicProjection.join("/"));
+  };
 
   // 404 is the ordinary "not built yet" answer, same as every other adapter's
   // reading of a missing file. Anything else — a network failure, a 5xx, a

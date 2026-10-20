@@ -86,6 +86,10 @@
     return this._readJson(VA.CONFIG.projectionDir.concat(["topologies.json"]));
   };
 
+  FsaAdapter.prototype.readKinematic = function () {
+    return this._readJson(VA.CONFIG.projectionDir.concat(VA.CONFIG.kinematicProjection));
+  };
+
   FsaAdapter.prototype.readCropImage = async function (relPath) {
     VA.requireReady(this);
     var segs = VA.CONFIG.projectionDir.concat(String(relPath).split("/"));

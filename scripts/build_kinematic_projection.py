@@ -4,16 +4,31 @@
 tolerance sensitivities; this script runs it over every
 ``docs/topologies/kinematic_study_*.json`` and writes what a renderer needs:
 
-* ``<data-root>/projections/topology/kinematic/kinematic_studies.json``
+* ``<data-root>/projections/viewer/kinematic/kinematic_studies.json``
   (schema ``joby.tolerance_stack/kinematic_projection/v0``) -- per study the
   envelope (every point's driver value, nominal measure, worst case and RSS),
   each named stop's ranked contributor table, the check results, the sweep's
   ``run_id`` / ``pipeline_commit`` / ``max_finite_difference_disagreement``,
-  and the gap rows;
-* ``<data-root>/projections/topology/kinematic/<study id>.svg`` -- the evidence
+  and the gap rows; plus, per topology, the published sweep runs that name it
+  (``models``), newest first, so the viewer can offer a topology with no
+  study yet its kinematic model;
+* ``<data-root>/projections/viewer/kinematic/<study id>.svg`` -- the evidence
   plot: deviation from nominal versus driver value, worst-case band shaded, RSS
   band inside it, the stops marked with their worst-case numbers, the limit
   drawn where a check has one.
+
+Where it lands, and who reads it
+--------------------------------
+
+Under ``projections/viewer/`` (moved there 2026-10-20 by handoff
+``the_viewer_shows_a_kinematic_study``; it was ``projections/topology/kinematic/``
+when nothing read it). That directory is the one drawing-checker serves as
+``/tolstack/data/`` (``webui/analyses.py``: ``viewer_data_dir()``, walked by
+``tolstack_mounts()``, which the hosted bake also copies), so the viewer reads
+this file through the same transport and the same directory as
+``topologies.json`` -- ``apps/viewer/views/kinematic.js`` renders it. A
+subdirectory rather than the root because this script wipes its own ``*.svg``
+on every run, and the root is shared with the other viewer builders.
 
 Why a sibling builder and not a section of ``topologies.json``
 --------------------------------------------------------------
@@ -69,6 +84,8 @@ from build_viewer_projection import (  # noqa: E402
     worst_confidence,
 )
 from tolerance_stack.kinematic import (  # noqa: E402
+    LINKAGE_SWEEPS_SUBDIR,
+    SWEEP_SCHEMAS,
     KinematicStudyError,
     PointResult,
     check_at_stop,
@@ -81,7 +98,7 @@ from tolerance_stack.kinematic import (  # noqa: E402
 SCHEMA_PROJECTION = "joby.tolerance_stack/kinematic_projection/v0"
 TOPOLOGIES_DIR = Path("docs") / "topologies"
 STUDY_GLOB = "kinematic_study_*.json"
-PROJECTION_SUBDIR = Path("projections") / "topology" / "kinematic"
+PROJECTION_SUBDIR = Path("projections") / "viewer" / "kinematic"
 PROJECTION_NAME = "kinematic_studies.json"
 STYLESHEET = REPO_ROOT / "apps" / "viewer" / "style.css"
 BUILT_BY = "scripts/build_kinematic_projection.py"
@@ -91,6 +108,14 @@ BUILT_BY = "scripts/build_kinematic_projection.py"
 #: lacks, a disagreeing feature join) is carried with its message rather than
 #: dropped, because the refusal is the finding.
 STUDY_STATUSES = ("ok", "error")
+
+#: How many decimals a reader is shown, decided HERE and carried in the
+#: projection as ``display_decimals`` -- the viewer formats with it and never
+#: picks a precision of its own (ARCHITECTURE.md: "the browser ... never decides
+#: how a number reads"). Three, as the 2026-10-16 lesson pinned: the bands are
+#: tenths and hundredths of a millimetre, so a fourth digit of a coefficient is
+#: noise to a reader. The JSON keeps every figure unrounded beside it.
+DISPLAY_DECIMALS = 3
 
 #: The ``:root`` tokens the plot reads out of the viewer's stylesheet.
 PLOT_TOKENS = ("--t-micro", "--t-meta", "--t-dense", "--bg", "--ink", "--muted",
@@ -185,6 +210,55 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path) -> Dict[str
     return row
 
 
+def sweep_runs(data_root: Path) -> List[Dict[str, Any]]:
+    """Every published sweep under ``data_root``, as the topologies it names.
+
+    A run says which topology it models in its own artifact:
+    ``geometry.features[].topology`` (linkage's 2026-10-16 republish; an older
+    run carries no ``features`` and therefore names none, and is left out rather
+    than guessed at -- the body part lists are tolstack part ids too, but a part
+    id is shared by several topologies and is no evidence of which one a run
+    models). A file whose ``schema`` this repo does not read is skipped the same
+    way. Read raw rather than through ``load_sweep``: only the header is needed,
+    and a run with no study is exactly the one nothing else has validated.
+    """
+    runs = []
+    for path in sorted((data_root / LINKAGE_SWEEPS_SUBDIR).glob("*.json")):
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(raw, dict) or raw.get("schema") not in SWEEP_SCHEMAS:
+            continue
+        features = (raw.get("geometry") or {}).get("features") or []
+        topologies = sorted({f.get("topology") for f in features
+                             if isinstance(f, dict) and f.get("topology")})
+        mechanism = raw.get("mechanism") or {}
+        runs.append({"run_id": raw.get("run_id"), "ts": raw.get("ts"),
+                     "mechanism": mechanism.get("name"),
+                     "driver": mechanism.get("driver"),
+                     "topologies": topologies})
+    return runs
+
+
+def project_models(runs: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Per topology, its published runs, newest first (by ``ts``, never by id:
+    the annotator's ``sweep latest`` sorted by id once and opened the wrong
+    run -- ``DRAFT_kinematic_model_viewer.md``, 2026-10-14)."""
+    by_topology: Dict[str, List[Dict[str, Any]]] = {}
+    for run in runs:
+        for topology in run["topologies"]:
+            by_topology.setdefault(topology, []).append(
+                {k: run[k] for k in ("run_id", "ts", "mechanism", "driver")})
+    models = []
+    for topology in sorted(by_topology):
+        ordered = sorted(by_topology[topology], key=lambda r: r["ts"] or "",
+                         reverse=True)
+        models.append({"topology": topology, "newest_run_id": ordered[0]["run_id"],
+                       "runs": ordered})
+    return models
+
+
 def build(topologies_dir: Path, data_root: Path,
           provenance: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     if provenance is None:
@@ -195,8 +269,10 @@ def build(topologies_dir: Path, data_root: Path,
         "built_by": BUILT_BY,
         prov.PROVENANCE_KEY: provenance,
         "study_statuses": list(STUDY_STATUSES),
+        "display_decimals": DISPLAY_DECIMALS,
         "studies": [project_study(p, data_root, topologies_dir)
                     for p in sorted(topologies_dir.glob(STUDY_GLOB))],
+        "models": project_models(sweep_runs(data_root)),
     }
 
 

@@ -719,6 +719,17 @@ over the P2 sweep from the linkage's cited tolerances, checked against
 S461-607 at both end stops, its bands borrowed from `topology_pitch_system.json`
 with each pairing argued in the contributor's own `note`.
 
+**What the viewer shows for one** (2026-10-20, handoff
+`the_viewer_shows_a_kinematic_study`): a page of its own, reached from a
+**Kinematic studies** section of the nav or `topology.html?kinematic=<study id>`
+— the verdict per stop, the envelope drawn live as deviation from nominal over
+the driver, one ranked contributor table per stop whose rows follow their edge
+to the rail, and the provenance behind one fold. It reads the projection the
+builder above writes into the viewer's own projection directory, and adds
+nothing up. `apps/viewer/README.md`, "Kinematic studies — a section of their
+own", is where the page is described; `apps/viewer/views/kinematic.js` is the
+page.
+
 ---
 
 ## What v0 cannot do

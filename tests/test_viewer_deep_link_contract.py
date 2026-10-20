@@ -7,7 +7,7 @@ exactly there. The params themselves live in one constant --
 ``VA.DEEP_LINK_PARAMS`` in ``apps/viewer/viewer.js`` -- and the section's table
 hand-copies it, one row per param.
 
-``apps/viewer/tests.js`` pins the constant to its literal six, so a rename or an
+``apps/viewer/tests.js`` pins the constant to its literal list, so a rename or an
 addition fails the fast tier and forces a deliberate edit of *that* test. Nothing
 forced the README's table to move with it: a seventh param added to the constant
 and to ``tests.js`` shipped a contract document that did not name it, and the
@@ -302,12 +302,12 @@ def test_the_section_scoping_is_not_vacuous(viewer_js, readme):
 
 
 def test_the_scan_goes_red_when_the_stated_count_drifts(viewer_js, readme):
-    stale = readme.replace("answers six selection params",
-                           "answers seven selection params", 1)
+    stale = readme.replace("answers seven selection params",
+                           "answers eight selection params", 1)
     assert stale != readme
     problems = contract_problems(viewer_js, stale)
     assert len(problems) == 1, problems
-    assert "says 'seven' params" in problems[0]
+    assert "says 'eight' params" in problems[0]
 
 
 def test_the_extraction_raises_rather_than_scanning_a_deleted_section(readme):

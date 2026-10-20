@@ -125,3 +125,22 @@ def test_the_js_vocabulary_is_regenerated_on_this_rail_and_first():
     # stdlib-only and must not acquire a dependency on the venv that exists for
     # PyMuPDF.
     assert interpreters["js vocabulary"] == "$TolstackPython"
+
+
+def test_the_kinematic_projection_is_built_on_this_rail_and_last():
+    """``build_kinematic_projection.py`` is on the rail since 2026-10-20 (handoff
+    ``the_viewer_shows_a_kinematic_study``: the viewer reads its output), with
+    tolstack's own interpreter, and LAST -- it is the one leg that reads a
+    gitignored input the others do not (the linkage sweeps), so a refusal there
+    must not leave the projections the whole page needs half-built. Its file is
+    among the stamps the script prints at the end, too.
+
+    Read as step invocations, for the reason the vocabulary test above gives.
+    """
+    text = SCRIPT.read_text(encoding="utf-8")
+    steps = re.findall(r'Invoke-Step -Name "([^"]+)" -Exe (\$\w+) -Arguments @\(\s*'
+                       r'\(Join-Path \$ScriptsDir "([^"]+)"\)', text)
+    assert steps[-1] == ("kinematic projection", "$TolstackPython",
+                         "build_kinematic_projection.py"), steps
+    stamps = re.search(r"\$Projections = @\(([^)]*)\)", text)
+    assert stamps and r"kinematic\kinematic_studies.json" in stamps.group(1)

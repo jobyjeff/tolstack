@@ -95,6 +95,9 @@ C:\workspace\drawing-checker\venv-win\Scripts\python.exe scripts\build_viewer_cr
 
 # 3. for a system that has one, the topology + study folds (shares the crops above)
 venv-win/Scripts/python.exe scripts\build_topology_projection.py
+
+# 3b. the kinematic studies (reads the linkage sweeps under data/inbox/linkage-sweeps/)
+venv-win/Scripts/python.exe scripts\build_kinematic_projection.py
 ```
 
 4. Open the page, click **Connect folder**, pick the **tolstack repo root**
@@ -117,9 +120,11 @@ venv-win/Scripts/python.exe scripts\build_topology_projection.py
    below, which fires only when the two stamps provably disagree; that one is a
    fact about the data in front of you, and a fold is not where it goes.
 
-All three steps are **wipe-and-rebuild** and each owns its own files, so any can
+Every step is **wipe-and-rebuild** and each owns its own files, so any can
 be re-run alone. Re-run step 1 after editing a stack JSON; re-run step 2 after a
-new drawing export lands; re-run step 3 after editing a topology or study. The
+new drawing export lands; re-run step 3 after editing a topology or study; re-run
+step 3b after a kinematic study or a new linkage sweep lands.
+`scripts/rebuild_projections.ps1` runs them all in order. The
 banner says when each was built **and which tree built it** — the viewer never
 guesses whether a projection is stale, it reports what the stamps say and lets
 you judge.
@@ -150,7 +155,7 @@ here). The params live in one constant (`VA.DEEP_LINK_PARAMS`,
 `viewer.js`) and are pinned by tests in both repos: treat a rename or a
 semantics change as **breaking**, and change this section with it.
 
-`topology.html` answers six selection params, over and above `?mock=1`:
+`topology.html` answers seven selection params, over and above `?mock=1`:
 
 | param | opens |
 |---|---|
@@ -160,12 +165,14 @@ semantics change as **breaking**, and change this section with it.
 | `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
 | `stack=<id>` | stack mode — the elements table — on that stack. Resolves against the projection, not the nav, so it still reaches a stack a topology re-expresses (which has no row of its own). |
 | `element=<id>` | …with that element's row selected and its sourcing in the right pane. Requires `stack`. |
+| `kinematic=<id>` | a kinematic study's own page (see "Kinematic studies" below). Stands alone: given beside any other param, it wins and the banner says the rest was ignored. |
 
 The rules a consumer can rely on:
 
 - **Ids are the projections' own ids**: a topology/study/edge/node id as it
   appears in `topologies.json`, a stack/element id as it appears in
-  `results.json` (the stack's `id` field, not its filename).
+  `results.json` (the stack's `id` field, not its filename), a kinematic study
+  id as it appears in `kinematic/kinematic_studies.json`.
 - **Give `topology` or `stack`, not both.** If both arrive, the topology wins
   and the ignored stack is said in a banner notice.
 - **An id the data does not contain degrades, loudly and safely**: the page
@@ -189,6 +196,7 @@ topology.html?topology=pitch_system&study=pitch_system_gas_spring_branch
 topology.html?topology=pitch_system&edge=end_stop_clearance
 topology.html?stack=rotor_fastener_length&element=fastener_grip
 topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip
+topology.html?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops
 ```
 
 The outbound twin, for building one of these links in code, is
@@ -379,6 +387,55 @@ so nothing new is authored to say so (`VA.navTree`, `topology.js`).
 > is what Jeff's review of that day reported. Handoff
 > `viewer_nav_wedge_and_classic_retirement` removed the row and contained the
 > wedge.
+
+### Kinematic studies — a section of their own
+
+(`the_viewer_shows_a_kinematic_study`, 2026-10-20.) Under the tree, one small
+**Kinematic studies** heading and, beneath it, one group per topology, named by
+the topology's title: a row per kinematic study, and — for a topology that has
+published linkage sweeps but no study yet — one **Kinematic model** row. The
+section is absent, with nothing said about it, whenever the kinematic projection
+has not been built.
+
+- **The projection** is `data/projections/viewer/kinematic/kinematic_studies.json`
+  (`scripts/build_kinematic_projection.py`). It sits inside the viewer's own
+  projection directory because that is the directory drawing-checker serves as
+  `/tolstack/data/` — so it is read through whichever transport read
+  `topologies.json` (`readKinematic()`, every adapter), and it bakes into the
+  hosted bundle with no change on drawing-checker's side. Its `models` list is
+  what the model rows come from: per topology, the runs whose
+  `geometry.features[]` name it, newest first by timestamp.
+- **A study row** opens the study's page (`views/kinematic.js`), in the main
+  column, with the preview pane stood down: the verdict per stop (the chain
+  studies' own verdict chip and words, its margin and the limit it is judged
+  against, and `BUDGET` where the check is a budget), the envelope chart, one
+  ranked contributor table per stop, and one **Where these numbers come from**
+  fold — the sweep run, the solver commit, the sweep's own analytic-against-
+  finite-difference agreement, how the features were identified, the study's
+  authored provenance, and the check's excluded terms as **Not in these
+  numbers**.
+- **The envelope chart** is drawn live from `envelope[]` as inline SVG, in the
+  `:root` type and colour tokens. x is the sweep's driver; y is the
+  **deviation from nominal**, on an axis symmetric about zero that always
+  reaches the limit (a ±0.24 deg band on an 80 deg axis would be a hairline).
+  Worst case is the outer band, RSS the inner, the limit a dashed pair, and
+  each stop a vertical line at its own driver value. Hovering anywhere in the
+  plot reads the nearest sweep point: the driver, the measure there, ± worst
+  case, ± RSS, each with its unit. The SVG the builder writes beside the JSON
+  is its evidence file and is not embedded.
+- **A contributor row** names the topology's own edge (its id on hover), its
+  zone, sign, coefficient, band, magnitude and confidence, at the precision the
+  projection states (`display_decimals`, set in Python), with every unit in
+  the column header. A row with no band reads **no band on file**, the way a
+  valueless edge reads on the rails; a row with no effect at that point is
+  muted. The name is a link to that edge on its rail (`?topology=…&edge=…`,
+  followed in place on a click), and where the edge's part has a mesh, a
+  quiet **3D** control opens it in the 3D panel (or the annotator in a new
+  tab, where the panel cannot be served).
+- **The Kinematic model row** opens the 3D scene in sweep mode on the
+  topology's newest run (`VA.annotateLink({ sweep })`, whose already-open twin
+  is `VA.annotateExecCommands`' `["sweep", run]`): the flyout where the
+  annotator is served beside this page, a new tab where it is not.
 
 ### What a nav row wears: one status icon, and nothing else
 

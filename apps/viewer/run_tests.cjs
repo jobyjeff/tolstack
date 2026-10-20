@@ -389,6 +389,7 @@ const files = [
   "views/worksheet.js",
   "views/detail.js",
   "views/topology.js",
+  "views/kinematic.js",
   "tests.js",
 ];
 for (const f of files) {

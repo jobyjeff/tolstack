@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Regenerates everything Python derives for the viewer, in order, from the
-    MAIN checkout: the JS vocabulary module, then all three projections.
+    MAIN checkout: the JS vocabulary module, then every viewer projection.
 
 .DESCRIPTION
     Runs, in this order:
@@ -9,8 +9,16 @@
       1. venv-win\Scripts\python.exe scripts\build_topology_projection.py
       2. venv-win\Scripts\python.exe scripts\build_viewer_projection.py
       3. <drawing-checker's venv> scripts\build_viewer_crops.py
+      4. venv-win\Scripts\python.exe scripts\build_kinematic_projection.py
     (PyMuPDF lives only in drawing-checker's venv -- build_viewer_crops.py's own
     docstring says so, and that fallback stays intact here.)
+
+    Step 4 is the kinematic studies' projection
+    (data\projections\viewer\kinematic\, read by apps/viewer/views/kinematic.js
+    since 2026-10-20). LAST because it is the one leg that reads a gitignored
+    input the others do not -- the linkage sweeps under
+    data\inbox\linkage-sweeps\ -- and a refusal or a missing sweep there must
+    not leave the projections the whole page needs half-built.
 
     Step 0 is unlike the three below it in one way worth knowing. It writes a
     TRACKED file -- apps/viewer/vocab.gen.js, which both web apps read their
@@ -37,9 +45,8 @@
     script exists to kill (see docs/sessions/lessons/
     LESSONS_20260908_projections_rebuild_script.md).
 
-    On success, prints the three projections' provenance stamps (branch,
-    sha12, dirty, behind_trunk) so a caller can see at a glance whether they
-    agree.
+    On success, prints every projection's provenance stamp (branch, sha12,
+    dirty, behind_trunk) so a caller can see at a glance whether they agree.
 
 .PARAMETER RepoRoot
     tolstack's MAIN checkout. Defaults to this script's own parent directory.
@@ -131,10 +138,15 @@ Invoke-Step -Name "viewer crops" -Exe $DrawingCheckerPython -Arguments @(
     "--drawing-checker-root", $DrawingCheckerRoot
 )
 
+Invoke-Step -Name "kinematic projection" -Exe $TolstackPython -Arguments @(
+    (Join-Path $ScriptsDir "build_kinematic_projection.py")
+)
+
 # --- provenance stamps, so a caller can see at a glance whether they agree --
 
 $ProjDir = Join-Path $RepoRoot "data\projections\viewer"
-$Projections = @("topologies.json", "results.json", "crops.json")
+$Projections = @("topologies.json", "results.json", "crops.json",
+    "kinematic\kinematic_studies.json")
 
 Write-Host ""
 Write-Host "==> provenance stamps"
@@ -144,7 +156,7 @@ foreach ($name in $Projections) {
     $p = $doc.provenance
     $sha12 = if ($p.head_sha) { $p.head_sha.Substring(0, 12) } else { "?" }
     $behind = if ($null -eq $p.behind_trunk) { "null" } else { $p.behind_trunk }
-    Write-Host ("    {0,-16} branch={1} sha12={2} dirty={3} behind_trunk={4}" -f `
+    Write-Host ("    {0,-34} branch={1} sha12={2} dirty={3} behind_trunk={4}" -f `
         $name, $p.branch, $sha12, $p.dirty, $behind)
 }
 
