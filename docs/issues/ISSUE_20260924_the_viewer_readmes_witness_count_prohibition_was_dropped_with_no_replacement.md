@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: open
 area: tests/doc-scans
 reporter: agent
 audience: strategy
@@ -9,6 +9,7 @@ found_by: docs/sessions/reviews/REVIEW_20260924_claims_registry_guards_read_decl
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
 needs: agent
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # `apps/viewer/README.md`'s mutation-witness-count prohibition went with the prose scans, and a stale witness count written there is now caught by nothing

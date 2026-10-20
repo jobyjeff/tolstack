@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: open
 area: tests/projection-freshness
 class: guard_cannot_fail
 audience: strategy
@@ -9,6 +9,7 @@ reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_projection_freshness_pairs_with_the_tree.md
 defer_until: dispatch/docs/strategy/BRIEF_20260930_porting_a_proven_lever_across_repos.md
 needs: agent
+resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # `crops.json` can be rebuilt from a different datasheet pile and still read "paired with this tree"

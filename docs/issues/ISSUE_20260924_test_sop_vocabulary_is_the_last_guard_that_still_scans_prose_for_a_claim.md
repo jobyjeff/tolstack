@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: open
 area: tests/doc-scans
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260924_claims_registry_guards_read_declarations_not_prose.md
 class: guard_reads_prose
 defer_until: class:guard_reads_prose
+resolution: woke 2026-10-17 -- R3 completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # `tests/test_sop_vocabulary.py` is the last guard in the repo that still scans free prose for a claim, and it carries a third copy of the corpus scope logic

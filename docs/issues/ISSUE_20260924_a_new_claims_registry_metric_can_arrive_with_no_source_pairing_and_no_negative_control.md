@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: open
 area: tests/doc-scans
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260924_claims_registry_guards_read_declarations_not_prose.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # A seventh `METRICS` row can arrive with no source pairing and no negative control, and nothing in the suite notices

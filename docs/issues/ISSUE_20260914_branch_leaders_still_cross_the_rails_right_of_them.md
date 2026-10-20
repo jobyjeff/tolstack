@@ -6,8 +6,6 @@ area: viewer/topology-layout
 audience: strategy
 reporter: agent
 strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
-needs: jeff
-ask: Pick how to fix branch leaders crossing rails on pitch_system: repack, reroute, hop marks, or accept
 todo: 20261007T161823_hg1njj
 resolution: fixed by HANDOFF_20260930_columns_ordered_to_minimise_crossings (completed) -- Jeff chose column reordering 2026-09-30; branch-leader crossings on pitch_system 43 -> 0 as the page draws them (LESSONS_20260930_columns_ordered_to_minimise_crossings); closed 2026-10-15 by triage
 ---
@@ -78,3 +76,5 @@ node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack
 rail they used to cross` pins the spine half of the table above (43 → 0) and
 asserts only that the total improves, deliberately leaving the branch-side
 number unpinned so a future policy change is free to move it.
+
+> **Moved to the strategy backlog 2026-10-16.** This was escalated as a task on Jeff's list (`20261007T161823_hg1njj`). That was wrong: a todo has no reply box, and its answer would have to be hand-carried into a strategy session. The strategy session that takes this up asks Jeff directly and acts on the answer.

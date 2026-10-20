@@ -1,16 +1,15 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: open
 area: apps/viewer
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
-needs: jeff
-ask: Look at the materials source column on hub_bearing_thermal_fit_m1: may confidence chips stay filled, and does designation belong?
 todo: 20261007T161823_wfdngo
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # The chip that was folded out of the materials source column was never on a live page — the two that *are* always visible there are the provenance chips
@@ -104,3 +103,5 @@ screenshot. A chip that is truncated states a different thing from the one it
 says. Whether the answer is a shorter word, a narrower axis or a wider column
 is the same design question as above, which is why it is a paragraph here
 rather than an issue of its own.
+
+> **Moved to the strategy backlog 2026-10-16.** This was escalated as a task on Jeff's list (`20261007T161823_wfdngo`). That was wrong: a todo has no reply box, and its answer would have to be hand-carried into a strategy session. The strategy session that takes this up asks Jeff directly and acts on the answer.

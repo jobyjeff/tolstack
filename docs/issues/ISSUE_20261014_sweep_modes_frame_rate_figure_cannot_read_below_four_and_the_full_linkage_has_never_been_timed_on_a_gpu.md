@@ -5,9 +5,8 @@ status: open
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
-needs: jeff
-ask: Play sweep mode in Chrome on a P1 run with the pitch-linkage parts open, and say whether it plays smoothly
 todo: 20261015T015550_cp6rqz
+audience: strategy
 ---
 
 # Sweep mode's frame-rate figure cannot read below 4, and the whole placed linkage has never been timed on a GPU
@@ -47,3 +46,5 @@ The check now reports the counted figure. What is still true:
 
 `sweep.fps` reads what it measures below 4 fps (or is gone), and one GPU
 measurement of `?sweep=<a P1 run>` with the linkage opened is written down.
+
+> **Moved to the strategy backlog 2026-10-16.** This was escalated as a task on Jeff's list (`20261015T015550_cp6rqz`). That was wrong: a todo has no reply box, and its answer would have to be hand-carried into a strategy session. The strategy session that takes this up asks Jeff directly and acts on the answer.

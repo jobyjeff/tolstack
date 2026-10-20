@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: open
 area: viewer/topology-summary
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_findings_splitter_scopes_to_excluded_terms.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # `AUTHORED_REASON_SPLIT` still cuts at an em dash, and nothing witnesses that alternative

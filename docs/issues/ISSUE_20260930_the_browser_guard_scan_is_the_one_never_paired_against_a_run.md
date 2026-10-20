@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: open
 area: guards/mutation-witness
 class: guard_cannot_fail
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_guard_census_pins_the_set_not_the_count.md
 defer_until: dispatch/docs/strategy/BRIEF_20260930_porting_a_proven_lever_across_repos.md
+resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # The browser tier is the one guard source whose scanner is never checked against a run, and a *subset* pairing is available there

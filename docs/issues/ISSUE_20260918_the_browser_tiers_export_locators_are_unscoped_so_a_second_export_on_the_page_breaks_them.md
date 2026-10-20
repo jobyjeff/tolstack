@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: open
 area: tests/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260918_real_tier_red_and_the_skipping_tier.md
 class: guard_cannot_fail
 defer_until: class:guard_cannot_fail
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 ---
 
 # The browser tier locates `.el-export--established` page-wide, so a second export block on the fixture page breaks it with a strict-mode error
