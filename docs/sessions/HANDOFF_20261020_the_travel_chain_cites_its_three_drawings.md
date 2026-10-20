@@ -72,16 +72,27 @@ places; cite the block as the band's source and the callout as the nominal's.
    nominal with the mesh fit the edge carried; record the difference in the
    worksheet (a mesh fit that disagrees with its drawing by more than the
    drawing's band is a finding, not a typo).
-2. **The upper head's stop face.** `ISSUE_20261016_which_upper_piston_head_face_meets_the_mount_end_stop_is_unknown.md`
-   (on `integration`): the head is stepped, the study took the topmost plane
-   (face 149, part-frame Z 249.169); the alternatives give 62.281 / 64.440 /
-   66.987 mm. Read 214698-002 for anything that names the stop surface (a
-   note, a datum, a flatness or parallelism callout on one of the four +Z
-   planes, a "CONTACT" or "STOP" label). If the drawing settles it, move node
-   `piston_head_upper_top_face` and the edge together, resolve the issue
-   with the citation, and say so in the lesson. If it does not, keep face
-   149, leave the issue open, and add to it the drawing's cited height of
-   each candidate face so Jeff can pick by number.
+2. **The upper head's stop face — named by Jeff, 2026-10-20.** It is the
+   **step face at part-frame Z 243.216** (face 110 in the worksheet's
+   section 2 table, assembly Z 219.882 at 72°), not the topmost plane the
+   study took. Evidence, tracked beside this handoff in
+   `docs/sessions/shots_20261020_strategy_stop_face/`: the face highlighted
+   on the head in its own frame, and a section of the gas spring at 72°
+   pitch with Jeff's CAD measurement of **64.465 mm** between that face and
+   the surface it meets at the flat-pitch stop (the cover's internal
+   shoulder). The worksheet's alternative for that plane was 64.440 mm with
+   the placeholders in, so the model and CAD already agree to 0.025 mm. Move
+   node `piston_head_upper_top_face` and edge `piston_head_upper_thickness`
+   to that face (rename the node if its id now lies — ids of nodes with
+   bindings must stay, this one has none; check), resolve
+   `ISSUE_20261016_which_upper_piston_head_face_meets_the_mount_end_stop_is_unknown.md`
+   with the citation, and **reconcile which part owns which stop surface**
+   against the section view: at 72° the head stack sits at the bottom on the
+   mount's face and the 64.465 mm gap is above it, to the cover's shoulder —
+   the study's prose says the datum is "the cover's end-stop surface", Jeff's
+   note says the mount's; the arithmetic (cover length − mount thickness −
+   heads) is the same either way, the node names and `part` fields may not
+   be. Say in the lesson which it is and what you renamed.
 3. **The cover.** Sheet 1 of 214958-002 extracted no dimensions. Read
    sheets 2 and 3 (`_p02.json`, `_p03.json`) for the flange-to-end-stop
    length (Jeff's ~82.154). If no sheet carries it as a dimension, look at
@@ -122,7 +133,9 @@ places; cite the block as the band's source and the callout as the nominal's.
 - `study_vpa_pitch_linkage_travel_between_end_stops` folds four `drawing`-cited
   terms (or three plus one recorded gap with a filed issue), pinned to three
   decimals by a `[real]` test; the previous placeholder numbers appear only in
-  the worksheet's before/after table.
+  the worksheet's before/after table. The cited nominal is compared with
+  Jeff's CAD 64.465 mm in the worksheet; a disagreement larger than the
+  drawings' own rounding is a finding, named, not smoothed.
 - The traced ratio for the topology is restated correctly in fence and prose;
   `venv-win/Scripts/python.exe -m pytest -q` green in the worktree except the
   documented worktree-only red; shadow `[real]` tier green.
