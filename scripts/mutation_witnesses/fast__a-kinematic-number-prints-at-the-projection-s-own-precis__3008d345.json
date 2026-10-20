@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic number prints at the projection's own precision, and verbatim when the projection states none",
+  "mutations": [
+    {
+      "contract": "The page prints a number at the precision the projection states (display_decimals, owned by Python) and picks none of its own.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Prints verbatim regardless of the stated precision -- a seventeen-digit coefficient in every cell.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    var text = n.toFixed(decimals);",
+      "replace": "    var text = String(n);"
+    }
+  ]
+}

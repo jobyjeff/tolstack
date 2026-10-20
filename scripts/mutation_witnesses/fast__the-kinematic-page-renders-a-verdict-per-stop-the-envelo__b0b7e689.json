@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the kinematic page renders a verdict per stop, the envelope chart and one ranked table per stop",
+  "mutations": [
+    {
+      "contract": "The page draws the envelope chart from envelope[].",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Never appends the chart.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (chart) root.appendChild(chartFigure(chart));\n",
+      "replace": ""
+    }
+  ]
+}

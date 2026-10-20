@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the envelope chart plots deviation from nominal on a symmetric axis that always reaches the limit",
+  "mutations": [
+    {
+      "contract": "The chart's deviation axis is symmetric about zero.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Halves the lower reach, so zero is no longer mid-plot and a negative excursion is clipped.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    var y0 = -y1;",
+      "replace": "    var y0 = -y1 / 2;"
+    }
+  ]
+}

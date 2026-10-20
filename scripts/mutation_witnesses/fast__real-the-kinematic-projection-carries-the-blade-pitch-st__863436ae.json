@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the kinematic projection carries the blade-pitch study, both stop margins and both gap rows",
+  "mutations": [
+    {
+      "contract": "The page finds a study in the live projection by its id.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Finds nothing for any id -- the reader-side half of the [real] pin; the projection itself is not rebuilt by this tier.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      if (studies[i].id === studyId) return studies[i];",
+      "replace": "      if (studies[i].id === studyId) return null;"
+    }
+  ]
+}

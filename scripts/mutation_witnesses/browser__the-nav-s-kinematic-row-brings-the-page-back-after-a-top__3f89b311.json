@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "the nav's kinematic row brings the page back after a topology",
+  "mutations": [
+    {
+      "contract": "Returning to a kinematic study from a topology hides the topology's own pane.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Leaves the DAG pane showing outside topology mode, so the study page renders under a stale graph.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.pane.style.display = showTopology ? \"\" : \"none\";",
+      "replace": "    nodes.pane.style.display = showStack ? \"none\" : \"\";"
+    }
+  ]
+}

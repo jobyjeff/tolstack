@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the nav renders a Kinematic studies section when the projection is there, and nothing at all when it is not",
+  "mutations": [
+    {
+      "contract": "The nav carries a Kinematic studies section whenever there is a kinematic study or model to offer.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Never appends the section, which is the shape of the feature silently disappearing from the rail.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));\n",
+      "replace": ""
+    }
+  ]
+}

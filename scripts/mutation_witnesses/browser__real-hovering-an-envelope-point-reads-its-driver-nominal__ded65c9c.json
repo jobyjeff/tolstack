@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] hovering an envelope point reads its driver, nominal and both spreads",
+  "mutations": [
+    {
+      "contract": "A real pointer on the live chart shows the point's tip.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Keeps the tip hidden on hover.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        tip.style.display = \"\";",
+      "replace": "        tip.style.display = \"none\";"
+    }
+  ]
+}

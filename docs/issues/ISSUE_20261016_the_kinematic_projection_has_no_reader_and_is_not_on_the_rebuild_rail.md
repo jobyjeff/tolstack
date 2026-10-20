@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: open
+status: resolved
 area: viewer/kinematic
 reporter: agent
 audience: strategy
@@ -28,3 +28,15 @@ change). Two pieces of work are left:
    builders only. Add the kinematic builder when (1) lands, and the
    `[real]`/freshness machinery (`scripts/projection_freshness.cjs`) along with
    it -- not before, since no tier reads this projection today.
+
+## Resolved 2026-10-20 (handoff `the_viewer_shows_a_kinematic_study`)
+
+Both halves. The reader is `apps/viewer/views/kinematic.js` -- a kinematic
+study is a page of the viewer (`topology.html?kinematic=<id>`, and a
+**Kinematic studies** section of the nav) -- and the builder now writes to
+`data/projections/viewer/kinematic/`, the directory drawing-checker serves as
+`/tolstack/data/`. `scripts/rebuild_projections.ps1` builds it, last;
+`scripts/projection_freshness.cjs` lists it, so the viewer's `[real]` tier
+refuses a kinematic projection whose tracked inputs moved (its gitignored sweep
+stays outside that check, as the datasheet pile does for `crops.json`).
+

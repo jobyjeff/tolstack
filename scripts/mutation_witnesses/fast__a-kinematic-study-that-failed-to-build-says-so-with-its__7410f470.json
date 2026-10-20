@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic study that failed to build says so, with its message, and draws nothing it does not have",
+  "mutations": [
+    {
+      "contract": "A study whose status is an error renders its error and nothing it does not have.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Only an UNKNOWN status takes the error branch, so a failed study tries to draw a page out of fields it does not carry.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (!status || status.failed) {",
+      "replace": "    if (!status) {"
+    }
+  ]
+}

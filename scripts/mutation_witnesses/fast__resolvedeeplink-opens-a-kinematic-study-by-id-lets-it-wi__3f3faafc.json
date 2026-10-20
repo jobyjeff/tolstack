@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "resolveDeepLink opens a kinematic study by id, lets it win over anything beside it, and says so when the id is not there",
+  "mutations": [
+    {
+      "contract": "A `?kinematic=` link selects that study's page.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Resolves the id but never switches the mode, so the page opens on its default.",
+      "file": "apps/viewer/topology.js",
+      "find": "        out.mode = \"kinematic\";",
+      "replace": "        out.mode = null;"
+    }
+  ]
+}

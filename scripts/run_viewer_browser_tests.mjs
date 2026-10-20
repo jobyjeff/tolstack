@@ -7321,8 +7321,11 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
           [false, false, false, false, true, true].join() &&
         /no band on file/.test(await rows.nth(5).innerText()));
 
+      // Waits for the RAIL, not for the selection: a follow that lands on the
+      // rail and selects nothing is the failure this check names, and waiting
+      // on the selection itself would turn it into an unattributed timeout.
       await rows.nth(0).locator("a.kmrow__edge").click();
-      await page.waitForSelector("tr.tvrow--selected", { timeout: 15000 });
+      await page.waitForSelector("#topopane tr.tvrow", { timeout: 15000 });
       push("[real] the first contributor follows to pitch_plate_attach_height's rail",
         await page.locator(navRow("topology", "vpa_pitch_linkage") +
           ".navtree__row--on").count() === 1 &&
@@ -7340,15 +7343,19 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       // of its own: the same count as the paramless boot just above.
       const staleWithoutLink = await page.locator(".banner__stale").count();
       await boot("?kinematic=" + STUDY, null);
-      await page.waitForSelector(".banner__notice", { timeout: 15000 });
+      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
       push("[real] a kinematic link with no projection is a notice over the default view",
-        /kinematic study/.test(await page.locator(".banner__notice").innerText()) &&
+        // allInnerTexts, not innerText: an absent notice is this check's
+        // failure, and innerText would wait out its timeout on one instead.
+        /kinematic study/.test(
+          (await page.locator(".banner__notice").allInnerTexts()).join(" ")) &&
         await page.locator("tr.tvrow").count() > 0 &&
         await page.locator(".banner__stale").count() === staleWithoutLink);
 
       await page.goto(servedBase + "/apps/viewer/topology.html?kinematic=" + STUDY,
         { waitUntil: "load" });
-      await page.waitForSelector("div.kmverdict", { timeout: 15000 });
+      // Either the page, or the notice that says the projection was not read.
+      await page.waitForSelector("div.kmverdict, .banner__notice", { timeout: 15000 });
       push("[real] served over HTTP, the page reads the projection through the same transport",
         await page.locator("div.kmverdict").count() === 2 &&
         await page.locator('section.kmstop[data-stop="minus7"] tr.kmrow').count() === 6);

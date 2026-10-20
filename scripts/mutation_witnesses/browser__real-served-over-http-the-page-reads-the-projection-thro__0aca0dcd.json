@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] served over HTTP, the page reads the projection through the same transport",
+  "mutations": [
+    {
+      "contract": "Served over HTTP, the viewer reads kinematic/kinematic_studies.json under the same data directory as topologies.json.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Reads the file at the data directory's root, where it is not -- a 404 the adapter reads as not built.",
+      "file": "apps/viewer/storage/http.js",
+      "find": "    return this._readProjection(VA.CONFIG.kinematicProjection.join(\"/\"));",
+      "replace": "    return this._readProjection(\"kinematic_studies.json\");"
+    }
+  ]
+}

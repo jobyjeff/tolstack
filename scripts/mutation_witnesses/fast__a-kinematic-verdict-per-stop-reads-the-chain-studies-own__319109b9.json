@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic verdict per stop reads the chain studies' own words and prints its margin at the projection's precision",
+  "mutations": [
+    {
+      "contract": "Each stop's margin is printed signed, at the projection's precision, with its unit.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Prints the margin through VA.fmt, verbatim -- the six-decimal figure the projection carries.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        marginText: \"margin \" + withUnit(\n          VA.kinematicSigned(check.margin, decimals), check.units),",
+      "replace": "        marginText: \"margin \" + withUnit(\n          VA.fmt(check.margin), check.units),"
+    }
+  ]
+}
