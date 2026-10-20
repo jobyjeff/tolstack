@@ -10,7 +10,8 @@
     "parts_source": "The drawing numbers on every part below are read off parts lists extracted by drawing-checker runs, not transcribed from memory: 217755-001 A.1 PROPULSION ASSEMBLY (run 20260909_174538, sheet 1 parts list) for 212956-005 find 25 'PITCH ANTI ROTATION LINK ASSEMBLY, PROPELLER' qty 3, 215175-001 find 41 '...CW' qty 1 and 215175-002 find 73 '...CCW' qty '-'; 216231 B.1 HUB AND BLADE ASSEMBLY (run 20260904_184249) for 214373-002 find 1 'DUAL BEARING GEN5 HUB ASSEMBLY', 215071-001 find 11 'PITCH ARM, PROPELLER, CLOCKWISE', 216332-001 find 19 'BLADE BONDED ASSEMBLY' and 213862-002 find 30 'PITCH LINK ASSEMBLY, PROPELLER'; 213862-002 A (run 20260922_154236) for its own two rows, 213861-002 'PITCH LINK, PROPELLER' qty 1 and MS14101-3 qty 2. tolstack's dependency on drawing-checker is read-only (scripts/snapshot_drawing_checker.py).",
     "configuration": "The 217755-001 A.1 CW propulsion assembly as modelled at 72 degrees blade pitch -- the feather hard stop. That is the state the assembly STEP every installed mesh was extracted from is in, and the state the 3DX sweep sheet's own reference row (row 83, the row every actuator displacement in column K is measured from) describes.",
     "no_worksheet": "This document has no `provenance.worksheet`, deliberately: there is no structured read of a source workbook behind it, because there is no source workbook. Its one cited number comes from a 3DX sweep sheet in another repo, cited inline on the edge that carries it.",
-    "end_stop_travel_20261016": "Handoff the_travel_between_the_end_stops_is_a_study, 2026-10-16. Structure and the two Jeff figures: forge note 20261016T144810_kk46rp. Face order and nominals: planes fitted with tolerance_stack/feature_geometry.py to the installed meshes asm217755_214699_002, asm217755_214698_002 and machined_213668; the worksheet records the Z values. The authored orientation of every edge in the end-stop chain is +Z at the feather stop, so a study walking it reads signs straight off the walk."
+    "end_stop_travel_20261016": "Handoff the_travel_between_the_end_stops_is_a_study, 2026-10-16. Structure and the two Jeff figures: forge note 20261016T144810_kk46rp. Face order and nominals: planes fitted with tolerance_stack/feature_geometry.py to the installed meshes asm217755_214699_002, asm217755_214698_002 and machined_213668; the worksheet records the Z values. The authored orientation of every edge in the end-stop chain is +Z at the feather stop, so a study walking it reads signs straight off the walk.",
+    "end_stop_travel_20261020": "Handoff the_travel_chain_cites_its_three_drawings, 2026-10-20. Three drawings extracted by drawing-checker the same day (runs 20261020_134240_214698-002-A, 20261020_134300_214699-002-A, 20261020_134315_214958-002-A). Two terms cite them; the other two have no dimension on their drawing and stay mesh fits under a placeholder band, each saying so in its own source_ref. The stop surfaces were reconciled against Jeff's 72 deg section: the heads rest on the mount's end-stop surface and the cover's internal shoulder is the far stop, so two nodes were renamed (`piston_head_upper_top_face` to `piston_head_upper_step_face`, `gas_spring_mount_end_stop_face` to `piston_cover_end_stop_shoulder`; neither carried a binding) and the cover and mount edges are authored from the flange seat in +Z."
   },
   "parts": [
     {
@@ -322,13 +323,13 @@
     },
     {
       "id": "endstop_feather_contact",
-      "name": "lower piston head lower face against the cover end stop -- the main datum",
+      "name": "lower piston head lower face on the gas-spring mount's end-stop surface -- the main datum",
       "parts": [
         "piston_head_lower_214699_002",
-        "piston_cover_214958_002"
+        "gas_spring_mount_213668_002"
       ],
       "kind": "mating_surface",
-      "note": "The feather (72 deg) hard stop and the datum of the whole end-stop analysis: the lower head's lower face resting on the cover's end-stop surface. Jeff: this face carries a FLATNESS callout only -- no length, so no edge; the value is on a drawing the repo does not hold (214699-002 is in no inbox). On the mesh, face 7 of `asm217755_214699_002` (normal -Z, z 234.169 in the part frame) is a plain plane: fit residual 0. The cover side has no mesh."
+      "note": "The feather (72 deg) hard stop and the datum of the end-stop analysis: the lower head's lower face resting on the mount's end-stop surface. Settled 2026-10-20 against Jeff's section of the gas spring at 72 deg (docs/sessions/shots_20261020_strategy_stop_face/): the head stack sits at the bottom, on the mount's face, and the gap that is the travel is ABOVE the heads, up to the cover's internal shoulder. Until then this node read 'against the cover end stop'; the cover owns the other stop, not this one. 214699-002 A gives this face a flatness callout (0.05) and a parallelism callout, and no length. On the mesh, face 7 of `asm217755_214699_002` (normal -Z, z 234.169 in the part frame) is a plain plane: fit residual 0. The mount side is face 1080 of `machined_213668`."
     },
     {
       "id": "piston_heads_seat",
@@ -341,13 +342,13 @@
       "note": "The two heads seat against each other, not at the two ends of the piston body: face 0 of the lower head (+Z, z 236.660) and face 113 of the upper head (-Z, z 236.6596) are one plane to 0.0004 mm in the assembly frame. That is what decided `piston_body_between_heads` is NOT a member of the chain."
     },
     {
-      "id": "piston_head_upper_top_face",
-      "name": "upper piston head upper face -- the extend stop's moving side",
+      "id": "piston_head_upper_step_face",
+      "name": "upper piston head step face -- the extend stop's moving side",
       "parts": [
         "piston_head_upper_214698_002"
       ],
       "kind": "datum_feature",
-      "note": "At the feather stop this face is clear of the mount's end stop by the travel; at the other stop the two touch. It is a node of its own, not one with `gas_spring_mount_end_stop_face`, because a hard contact is one node and this study measures the clearance. WHICH face of the upper head touches the stop is NOT settled by the repo's data: this node takes face 149 (the topmost +Z plane, z 249.169, area 395.7) as the working choice. The head also has +Z planes at z 245.375, 243.216 and 240.669; the mount's end stop (face 1080 of `machined_213668`, area 628.1) has no placement in the assembly, so contact cannot be read off the meshes. Choosing 245.375 would lengthen the travel by 3.794 mm. Needs the drawing, or Jeff."
+      "note": "The step face at part-frame Z 243.216 (face 110 of `asm217755_214698_002`, +Z, assembly Z 219.882), named by Jeff 2026-10-20: highlighted on the head in its own frame and measured in his CAD section at 72 deg pitch, 64.465 mm to the cover's internal shoulder (docs/sessions/shots_20261020_strategy_stop_face/). It is a node of its own, not one with `piston_cover_end_stop_shoulder`, because a hard contact is one node and this study measures the clearance. The head's other +Z planes (240.669, 245.375, 249.169) are not the stop. 214698-002 A does not dimension this face's height; the drawing defers to the model (note 5), so the height is a mesh fit."
     },
     {
       "id": "piston_cover_mount_flange_seat",
@@ -360,13 +361,13 @@
       "note": "Where the cover is clamped to the mount. Both end-stop surfaces are measured from this plane, which is why it is the pivot of the chain."
     },
     {
-      "id": "gas_spring_mount_end_stop_face",
-      "name": "gas-spring mount end stop surface",
+      "id": "piston_cover_end_stop_shoulder",
+      "name": "piston cover internal end-stop shoulder -- the extend stop",
       "parts": [
-        "gas_spring_mount_213668_002"
+        "piston_cover_214958_002"
       ],
       "kind": "datum_feature",
-      "note": "The mount's end-stop surface, 8.667 mm in from its cover flange. On the mesh `machined_213668` it is face 1080 (+Z, z 210.860 in the part's own frame, area 628.1) against the flange face 3 (+Z, z 202.193, area 2418.1), the only pair of parallel planes 8.667 mm apart on that part (the next nearest is 8.680). That mesh is a single-part STEP export with no placement, so this node cannot be placed in the assembly."
+      "note": "The cover's internal shoulder: the surface the upper head's step face meets at the extend stop, 82.154 mm in from the cover's bottom flange face (214958-002 A sheet 3, SECTION CUT A-A). Until 2026-10-20 this node was named for the mount's end-stop surface; the section view shows that surface is where the heads rest at 72 deg (node `endstop_feather_contact`), and the shoulder is the cover's. No mesh of the cover exists."
     }
   ],
   "edges": [
@@ -651,61 +652,103 @@
         "max": 2.541,
         "plus_minus": 0.05,
         "source_ref": {
-          "kind": "assumed",
-          "confidence": "untraced",
-          "note": "Mesh fit, not a citation. Faces 7 (lower, normal -Z) and 0 (upper, normal +Z) of `asm217755_214699_002` (sha256 5dbbe4e15c29158ea1a19cec13806c22acee7e3164a759b52737d63874be1fd4): two parallel planes, distance along their common normal 236.660 - 234.169 = 2.491 mm; both plane fits have rms and max residual 0 (the tessellation is exact).\nPLACEHOLDER BAND. A mesh fit is a measurement of a mesh, never a tolerance, and 214699-002 / 214698-002 / 214958-002 are in no drawing inbox (forge todo 20261016T165622_zy675c asks for all three). +/-0.05 mm (0.10 mm total) is the width topology_pitch_system.json already uses for its feature-to-feature placeholders, applied unchanged to every term of this study so the choice of width says nothing about which term dominates. The structure and the nominal are the deliverable; the band is not."
+          "kind": "drawing",
+          "document": "214699-002",
+          "revision": "A",
+          "sheet": 1,
+          "zone": null,
+          "view": "SECTION A-A",
+          "cell": null,
+          "callout": "2.491 ±0.050",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214699-002-A.pdf",
+            "sha256": "3960b56f05d0450e6b971c2c7a31fafb126ce965a9f64623a6cd82ccf9e21a6d",
+            "runs": [
+              {
+                "run_id": "20261020_134300_214699-002-A",
+                "ts": "2026-10-20T20:43:13.096539+00:00"
+              }
+            ],
+            "note": "The run's own run_meta.json records this sha256 as its input, and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-20). Read-only: nothing was written into drawing-checker."
+          },
+          "element_id": null,
+          "run_id": null,
+          "confidence": "traced",
+          "note": "drawing-checker run 20261020_134300_214699-002-A, `214699-002_A_p01.json`, view_id `214699-002-A.pdf::p1`, bbox [156.68, 545.02, 234.84, 561.17], raw `2.491 ±0.050`: the one linear callout of the part, the section's overall thickness, explicit symmetric band. The mesh fit this edge carried (2.4910, faces 7 and 0 of `asm217755_214699_002`) agrees to the digit."
         }
       }
     },
     {
       "id": "piston_head_upper_thickness",
-      "name": "upper piston head thickness",
+      "name": "upper piston head height, lower face to step face",
       "kind": "structural",
       "part": "piston_head_upper_214698_002",
       "from": "piston_heads_seat",
-      "to": "piston_head_upper_top_face",
+      "to": "piston_head_upper_step_face",
       "dimension": {
         "id": "piston_head_upper_thickness",
-        "name": "upper piston head thickness, lower face to upper face",
-        "nominal": 12.5094,
-        "min": 12.4594,
-        "max": 12.5594,
+        "name": "upper piston head height, lower face to step face",
+        "nominal": 6.556,
+        "min": 6.506,
+        "max": 6.606,
         "plus_minus": 0.05,
         "source_ref": {
           "kind": "assumed",
           "confidence": "untraced",
-          "note": "Mesh fit, not a citation. Faces 113 (lower, normal -Z, z 236.6596) and 149 (upper, normal +Z, z 249.1690) of `asm217755_214698_002` (sha256 8899ea5d72976178936505e1ffd4dad837eb52452305a2ae7ce680aceb2c73f8): distance along the common normal 12.5094 mm; both plane fits have rms and max residual 0. The upper face is the working choice named on node `piston_head_upper_top_face`; the head is stepped, so 'thickness' depends on which upper face is the stop.\nPLACEHOLDER BAND. A mesh fit is a measurement of a mesh, never a tolerance, and 214699-002 / 214698-002 / 214958-002 are in no drawing inbox (forge todo 20261016T165622_zy675c asks for all three). +/-0.05 mm (0.10 mm total) is the width topology_pitch_system.json already uses for its feature-to-feature placeholders, applied unchanged to every term of this study so the choice of width says nothing about which term dominates. The structure and the nominal are the deliverable; the band is not."
+          "note": "Mesh fit, not a citation: faces 113 (lower, normal -Z, z 236.6596) and 110 (step, normal +Z, z 243.2156) of `asm217755_214698_002` (sha256 8899ea5d72976178936505e1ffd4dad837eb52452305a2ae7ce680aceb2c73f8), distance along the common normal 6.5560 mm, both plane fits residual 0. The face is named by Jeff (2026-10-20). 214698-002 A (drawing-checker run 20261020_134240_214698-002-A) does NOT dimension this height: its callouts are 2.61 ±0.05 (recess floor above the lower face), 3.708 ±0.127 (a flange feature), the overall (13) reference, diameters and radii, and note 5 defers the rest to the model. The 2.61 ±0.05 callout matches the mesh's recess floor (face 151, 2.6094 above face 113), which says the mesh frame is the drawing's frame, not what the step's height is. PLACEHOLDER BAND: +/-0.05 mm, the stand-in width the other untraced term carries, because a model-defined height has no band to cite. This is one of two values in the chain with no dimension on its drawing; see the worksheet."
         }
       }
     },
     {
       "id": "piston_cover_flange_to_end_stop",
-      "name": "piston cover end-stop surface to bottom flange",
+      "name": "piston cover bottom flange to internal end-stop shoulder",
       "kind": "structural",
       "part": "piston_cover_214958_002",
-      "from": "endstop_feather_contact",
-      "to": "piston_cover_mount_flange_seat",
+      "from": "piston_cover_mount_flange_seat",
+      "to": "piston_cover_end_stop_shoulder",
       "dimension": {
         "id": "piston_cover_flange_to_end_stop",
-        "name": "piston cover length, bottom flange to end-stop surface",
+        "name": "piston cover length, bottom flange to end-stop shoulder",
         "nominal": 82.154,
-        "min": 82.104,
-        "max": 82.204,
-        "plus_minus": 0.05,
+        "min": 82.134,
+        "max": 82.174,
+        "plus_minus": 0.02,
         "source_ref": {
-          "kind": "assumed",
-          "confidence": "untraced",
-          "note": "Jeff's number and the only source: forge note 20261016T144810_kk46rp, 'Piston cover (214958-002) length, from bottom flange to end stop surface (~82.154mm)'. No mesh of 214958-002 exists and no drawing is in any inbox, so there is no fit and no cross-check; the tilde is Jeff's.\nPLACEHOLDER BAND. A mesh fit is a measurement of a mesh, never a tolerance, and 214699-002 / 214698-002 / 214958-002 are in no drawing inbox (forge todo 20261016T165622_zy675c asks for all three). +/-0.05 mm (0.10 mm total) is the width topology_pitch_system.json already uses for its feature-to-feature placeholders, applied unchanged to every term of this study so the choice of width says nothing about which term dominates. The structure and the nominal are the deliverable; the band is not."
+          "kind": "drawing",
+          "document": "214958-002",
+          "revision": "A",
+          "sheet": 3,
+          "zone": null,
+          "view": "SECTION CUT A-A",
+          "cell": null,
+          "callout": "82.154 ±0.020",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214958-002-A.pdf",
+            "sha256": "60ab1edc85e3cb72c4ad4b9bc21b646c26a2a8a566f9f962ad3da97ad4d04503",
+            "runs": [
+              {
+                "run_id": "20261020_134315_214958-002-A",
+                "ts": "2026-10-20T20:43:50.392797+00:00"
+              }
+            ],
+            "note": "The run's own run_meta.json records this sha256 as its input, and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-20). Read-only: nothing was written into drawing-checker."
+          },
+          "element_id": null,
+          "run_id": null,
+          "confidence": "traced",
+          "note": "drawing-checker run 20261020_134315_214958-002-A, `214958-002_A_p03.json`, view_id `214958-002-A.pdf::p3`, bbox [426.94, 385.51, 512.75, 401.66], raw `82.154 ±0.020`. Read on the page render: it runs from the flange's outer face (left end of the section) to the internal step of the bore, the end-stop shoulder, one callout and one tolerance, so nothing is composed. Sheet 1 extracted no dimensions and sheet 2 carries none of this length. Dimensioned: the outcome is neither an absence nor unreadable. Jeff's ~82.154 is the same value."
         }
       }
     },
     {
       "id": "gas_spring_mount_flange_to_end_stop",
-      "name": "gas-spring mount end-stop surface to cover flange",
+      "name": "gas-spring mount cover flange to end-stop surface",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
-      "from": "gas_spring_mount_end_stop_face",
-      "to": "piston_cover_mount_flange_seat",
+      "from": "piston_cover_mount_flange_seat",
+      "to": "endstop_feather_contact",
       "dimension": {
         "id": "gas_spring_mount_flange_to_end_stop",
         "name": "gas-spring mount thickness, cover flange to end-stop surface",
@@ -716,7 +759,7 @@
         "source_ref": {
           "kind": "assumed",
           "confidence": "untraced",
-          "note": "Jeff's ~8.667 mm (forge note 20261016T144810_kk46rp) and a mesh fit that agrees: faces 3 (flange, +Z, z 202.193) and 1080 (end stop, +Z, z 210.860) of `machined_213668` (sha256 6d5b1321446d54cd713da0739f7821c5266b3d6898ad047465e30003e7f549cf), distance along the common normal 8.667 mm, both plane fits residual 0. Jeff's number and the fit are one value, so the fit is a cross-check, not a second source.\nPLACEHOLDER BAND. A mesh fit is a measurement of a mesh, never a tolerance, and 214699-002 / 214698-002 / 214958-002 are in no drawing inbox (forge todo 20261016T165622_zy675c asks for all three). +/-0.05 mm (0.10 mm total) is the width topology_pitch_system.json already uses for its feature-to-feature placeholders, applied unchanged to every term of this study so the choice of width says nothing about which term dominates. The structure and the nominal are the deliverable; the band is not."
+          "note": "Jeff's ~8.667 mm (forge note 20261016T144810_kk46rp) and a mesh fit that agrees: faces 3 (flange, +Z, z 202.193) and 1080 (end stop, +Z, z 210.860) of `machined_213668` (sha256 6d5b1321446d54cd713da0739f7821c5266b3d6898ad047465e30003e7f549cf), 8.667 mm along the common normal, both plane fits residual 0; the fit is a cross-check on Jeff's figure, not a second source. 213668-002 A.1 does NOT dimension it: read on 2026-10-20 on both page renders of drawing-checker run 20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER (that run extracted no dimensions at all, so the read was by eye) -- sheet 1 gives 76.86 ±0.10 overall, 4.00 ±0.10 flange thickness and a (85.36) reference; sheet 2 has the bore and rib details, none an axial flange-to-stop length. An absence, not an extraction miss. PLACEHOLDER BAND: +/-0.05 mm; the model defines the surface and no tolerance is published for it."
         }
       }
     },
@@ -724,9 +767,9 @@
       "id": "travel_between_end_stops",
       "name": "travel between the two end stops",
       "kind": "gap",
-      "from": "piston_head_upper_top_face",
-      "to": "gas_spring_mount_end_stop_face",
-      "note": "The quantity the end-stop travel study computes; no value of its own. With the piston at the feather stop, the clearance between the upper head's upper face and the mount's end stop is exactly the distance the piston can travel to the other stop."
+      "from": "piston_head_upper_step_face",
+      "to": "piston_cover_end_stop_shoulder",
+      "note": "The quantity the end-stop travel study computes; no value of its own. With the heads resting on the mount's end-stop surface (the feather stop), the clearance between the upper head's step face and the cover's internal shoulder is the distance the piston can travel to the other stop."
     },
     {
       "id": "gas_spring_mount_hub_face_to_cover_seat",
@@ -744,6 +787,6 @@
     "A consequence worth knowing: the DAG page's gap list reports an edge whose dimension is *unverified*, not an edge that has no dimension at all (scripts/build_topology_projection.py, `topology_gaps`), because a valueless edge there has always meant 'the quantity a study computes'. So this document's gaps are visible on its edges, each rendered as a value with no source, and only `pitch_link_length` reaches the gap list -- as a value with no tolerance band recorded, which it is. Filed as ISSUE_20260930_a_valueless_structural_edge_is_invisible_to_the_gap_list.md.",
     "What has a mesh today, which is what decides what Jeff can bind: the pitch-link bearing (`spherical_bearing_pitch_link`), the pitch plate (`pitch_plate_215177_001`), the gas spring (`gas_spring`), the gas-spring mount (`gas_spring_mount_213668_002`), the tangential link mount (`tan_link_mount_215175_002`), the whole tangential link (`tan_link_212956_005` and its two bearings), and -- since rotorkit's 2026-10-01 extraction -- the `hub` and the `pitch_arm`. Still without a row: `pitch_link`'s body and `blade_root`, whose meshes ARE installed but whose identity is open, because blade 1 carries the instrumented variants of both. The annotator's 'no installed mesh' empty state is the honest answer for those two until that is decided.",
     "The two pitch-link joint centres are nodes of the link, not of the bearing, because they are two instances of one bearing part and a topology part id names a part. The bearing carries its own features instead -- its ball centre against its seat and against its bore -- and a `gap` edge from that ball centre to each of the link's two joint centres says which geometry a reader binds for each. Those gap edges are nominally zero and carry no value; what they carry is the identity.",
-    "Update 2026-10-16 (handoff the_travel_between_the_end_stops_is_a_study): the first study over this graph now exists, `study_vpa_pitch_linkage_travel_between_end_stops.json`, and the 'studyless by design' note above is no longer true of this document as a whole. The mechanism joints above are still a map to bind and still hold almost no numbers; the end-stop chain added today is a separate small piece that does carry them, every one a placeholder-banded mesh fit or Jeff's own figure, listed in docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md."
+    "Update 2026-10-16 (handoff the_travel_between_the_end_stops_is_a_study): the first study over this graph now exists, `study_vpa_pitch_linkage_travel_between_end_stops.json`, and the 'studyless by design' note above is no longer true of this document as a whole. The mechanism joints above are still a map to bind and still hold almost no numbers; the end-stop chain added today is a separate small piece that does carry them, each term either cited to its part drawing (since 2026-10-20) or a placeholder-banded mesh fit that says why no drawing carries it, listed in docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md."
   ]
 }
