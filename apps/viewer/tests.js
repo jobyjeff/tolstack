@@ -11097,6 +11097,9 @@
         eq(rows.length, 1);
         ok(hasClass(rows[0], "navtree__row--on"), "the open study is marked current");
         has(rows[0].textContent, "Tip angle at the stops");
+        // One mark, the chain studies' scheme: a budget-scoped verdict asks
+        // the reader to look, so the row is not silent.
+        eq(all(rows[0], ".navstatus").length, 1);
         rows[0].click();
         var model = all(root, "div.navtree__row").filter(function (row) {
           return row.getAttribute("data-nav-kind") === "kinematic-model";

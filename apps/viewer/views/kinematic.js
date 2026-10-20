@@ -117,10 +117,16 @@
     };
     (projection.studies || []).forEach(function (study) {
       var status = VA.KINEMATIC_STUDY_STATUSES[study.status];
+      // The row's one mark, over the chain studies' own scheme: its checks are
+      // rounded_check's shape, so VA.studyVerdict reads them unchanged and a
+      // budget-scoped pass wears the same amber a chain study's does.
       group(study.topology).studies.push({
         id: study.id, title: study.title || study.id,
         description: study.description || null,
         failed: status ? status.failed : true,
+        navStatus: VA.studyNavStatus({ verdict: VA.studyVerdict(
+          { status: status && !status.failed ? "ok" : "error",
+            checks: study.checks || [] }) }),
       });
     });
     (projection.models || []).forEach(function (model) {

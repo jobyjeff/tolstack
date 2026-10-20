@@ -111,6 +111,7 @@
           (active ? " navtree__row--on" : "") +
           (s.failed ? " navtree__row--warn" : ""));
         row.appendChild(label(s.title, s.description, null));
+        statusIcon(s.navStatus, s.title, row, handlers);
         row.setAttribute("data-nav-kind", "kinematic");
         row.setAttribute("data-nav-id", s.id);
         row.onclick = function () { handlers.onKinematic(s.id); };
