@@ -7227,6 +7227,142 @@ async function testDeepLinks(browser, url, label) {
   }
 }
 
+// --- the kinematic study page (the_viewer_shows_a_kinematic_study) ---------
+//
+// The DoD, in a real browser: a `?kinematic=` deep link opens the study page
+// with one verdict chip per stop; a hover on the chart reads a sweep point; the
+// -7 deg stop's table holds six ranked rows, the last two gaps; the first row
+// follows to its edge's rail; and with the projection absent the nav has no
+// section and the page raises nothing. The real half boots the live
+// projections through a MemoryAdapter on file:// (the "real render path"
+// suite's seam), then once more over a repo-root static server, so the HTTP
+// transport's own read of kinematic/kinematic_studies.json is the one proved.
+//
+// Reading the projection here rather than in the dispatcher keeps the
+// registry's argument list unchanged for every other suite.
+async function testKinematicStudyPage(browser, fileBase, label, realProjection,
+                                      realResults, realCrops) {
+  const realKinematic = await readProjection("kinematic/kinematic_studies.json");
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const servedBase = `http://127.0.0.1:${server.address().port}`;
+  const STUDY = "vpa_pitch_linkage_blade_pitch_at_the_stops";
+  const boot = async (search, kinematic) => {
+    await page.goto(fileBase + "/topology.html" + search, { waitUntil: "load" });
+    await page.evaluate(({ topologies, results, crops, kinematic }) => {
+      const VA = window.ViewerApp;
+      const Fake = function () {
+        return new VA.MemoryAdapter({ startState: VA.STATE.READY, topologies,
+          results, crops, kinematic, images: {}, texts: {} });
+      };
+      Fake.isSupported = () => true;
+      VA.FsaAdapter = Fake;
+      VA.bootTopology();
+    }, { topologies: realProjection, results: realResults, crops: realCrops,
+         kinematic });
+  };
+  try {
+    // The tour first: it needs no build, so it holds on a fresh clone.
+    await page.goto(fileBase +
+      "/topology.html?mock=1&kinematic=demo_mechanism_tip_angle_at_the_stops",
+      { waitUntil: "load" });
+    await page.waitForSelector("div.kmverdict", { timeout: 15000 });
+    push("the tour opens a kinematic study from its deep link, one verdict per stop",
+      await page.locator("div.kmverdict").count() === 2 &&
+      await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops") +
+        ".navtree__row--on").count() === 1);
+    push("the kinematic page stands the preview pane down and draws its chart",
+      !(await page.locator("#detail").isVisible()) &&
+      await page.locator("figure.kmchart svg").isVisible());
+    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+    await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops")).click();
+    await page.waitForSelector("div.kmverdict", { timeout: 5000 });
+    push("the nav's kinematic row brings the page back after a topology",
+      await page.locator("#detail").isVisible() === false &&
+      await page.locator("#topopane").isVisible() === false);
+
+    if (!realProjection || !realResults || !realKinematic) {
+      push("[real] kinematic study page (skipped: the projections are not built " +
+        "-- build them, or pass --repo <main checkout>)", true);
+    } else {
+      await boot("?kinematic=" + STUDY, realKinematic);
+      await page.waitForSelector("div.kmverdict", { timeout: 15000 });
+      const verdicts = await page.locator("div.kmverdict").allTextContents();
+      push("[real] the study page reads one verdict chip per stop",
+        verdicts.length === 2 &&
+        /pass/.test(verdicts[0]) && /margin \+0\.256 deg/.test(verdicts[0]) &&
+        /pass/.test(verdicts[1]) && /margin \+0\.258 deg/.test(verdicts[1]) &&
+        await page.locator("div.kmverdict span.tvverdict--pass").count() === 2);
+
+      // The first sweep point is the -7 deg stop; its strip is at the chart's
+      // driver minimum or maximum depending on the sweep's direction, so the
+      // point is found by its own index rather than by where it is drawn.
+      await page.locator('rect.kmchart__hit[data-index="0"]').hover();
+      const tip = page.locator("div.kmchart__tip");
+      const tipText = (await tip.isVisible()) ? await tip.innerText() : "";
+      push("[real] hovering an envelope point reads its driver, nominal and both spreads",
+        /actuator travel/.test(tipText) && /64\.466 mm/.test(tipText) &&
+        /-6\.992 deg/.test(tipText) && /±0\.244 deg/.test(tipText) &&
+        /RSS/.test(tipText) && /±0\.165 deg/.test(tipText));
+
+      const rows = page.locator('section.kmstop[data-stop="minus7"] tr.kmrow');
+      const classes = [];
+      for (let i = 0; i < await rows.count(); i++) {
+        classes.push(await rows.nth(i).getAttribute("class"));
+      }
+      push("[real] the -7 deg stop ranks six contributors, the fifth and sixth gaps",
+        classes.length === 6 &&
+        classes.map((c) => /kmrow--gap/.test(c)).join() ===
+          [false, false, false, false, true, true].join() &&
+        /no band on file/.test(await rows.nth(5).innerText()));
+
+      await rows.nth(0).locator("a.kmrow__edge").click();
+      await page.waitForSelector("tr.tvrow--selected", { timeout: 15000 });
+      push("[real] the first contributor follows to pitch_plate_attach_height's rail",
+        await page.locator(navRow("topology", "vpa_pitch_linkage") +
+          ".navtree__row--on").count() === 1 &&
+        /pitch-link attachment bore, height/.test(
+          await page.locator("#detail").innerText()) &&
+        await page.locator("tr.tvrow--selected").count() === 1);
+
+      await boot("", null);
+      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+      push("[real] with no kinematic projection the nav has no kinematic section",
+        await page.locator("h2.navtree__heading").count() === 0 &&
+        await page.locator('[data-nav-kind="kinematic"]').count() === 0);
+      // The stale-pair alarm is the STAMPS' to raise (a projection behind
+      // trunk raises it on every boot), so the link is held to adding none
+      // of its own: the same count as the paramless boot just above.
+      const staleWithoutLink = await page.locator(".banner__stale").count();
+      await boot("?kinematic=" + STUDY, null);
+      await page.waitForSelector(".banner__notice", { timeout: 15000 });
+      push("[real] a kinematic link with no projection is a notice over the default view",
+        /kinematic study/.test(await page.locator(".banner__notice").innerText()) &&
+        await page.locator("tr.tvrow").count() > 0 &&
+        await page.locator(".banner__stale").count() === staleWithoutLink);
+
+      await page.goto(servedBase + "/apps/viewer/topology.html?kinematic=" + STUDY,
+        { waitUntil: "load" });
+      await page.waitForSelector("div.kmverdict", { timeout: 15000 });
+      push("[real] served over HTTP, the page reads the projection through the same transport",
+        await page.locator("div.kmverdict").count() === 2 &&
+        await page.locator('section.kmstop[data-stop="minus7"] tr.kmrow').count() === 6);
+    }
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 // --- index.html: a redirect stub, not a second copy of the app -------------
 //
 // The retired stack viewer's entry point still has to land somewhere — an old
@@ -7988,6 +8124,9 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testCropLightbox(browser, label, topologies, crops)],
       ["typography pass's visual rules (live stack view)", (label) =>
         testTypographyRules(browser, label, topologies)],
+      ["kinematic study page (deep link, chart hover, contributors, no projection)",
+        (label) => testKinematicStudyPage(browser, fileBase, label, topologies,
+          realResults, crops)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));

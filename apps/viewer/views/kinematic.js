@@ -452,8 +452,11 @@
       item.appendChild(chip);
       item.appendChild(VA.el("span", "kmverdict__stop", v.stopLabel));
       item.appendChild(VA.el("span", "kmverdict__margin num", v.marginText));
-      if (v.limitText) item.appendChild(VA.el("span", "muted kmverdict__limit", v.limitText));
-      if (v.scopeChip) item.appendChild(VA.chip("chip--budget", v.scopeChip, v.scopeTitle));
+      // Always five cells, empty where there is nothing to say: the strip is
+      // one grid (topology.css), and a short row would shift every row below.
+      item.appendChild(VA.el("span", "muted kmverdict__limit", v.limitText || ""));
+      item.appendChild(v.scopeChip ? VA.chip("chip--budget", v.scopeChip, v.scopeTitle)
+        : VA.el("span"));
       strip.appendChild(item);
     });
     return strip;
@@ -501,8 +504,10 @@
         svg.appendChild(VA.svg("line", "kmchart__limit",
           { x1: p.left, x2: p.left + p.width, y1: y, y2: y }));
       });
+      // Mid-plot, so it never meets a stop's label: the stops are usually
+      // the sweep's own ends, which is where their labels sit.
       var text = VA.svg("text", "kmchart__limitlabel",
-        { x: p.left + p.width - 4, y: limit.upper - 5, "text-anchor": "end" });
+        { x: p.left + p.width / 2, y: limit.upper - 5, "text-anchor": "middle" });
       text.textContent = limit.text;
       svg.appendChild(text);
     });
@@ -582,8 +587,9 @@
     section.appendChild(VA.el("h3", "kmstop__title", stop.label));
     var driver = (study.sweep && study.sweep.driver) || {};
     section.appendChild(VA.el("p", "muted kmstop__where",
-      withUnit(VA.kinematicNumber(stop.driver_value, decimals), driver.unit) + " " +
-      (driver.label || "") + " · " + measureWords(study) + " " +
+      (driver.label || "driver") + " " +
+      withUnit(VA.kinematicNumber(stop.driver_value, decimals), driver.unit) +
+      " · " + measureWords(study) + " " +
       withUnit(VA.kinematicNumber(stop.nominal_measure, decimals), study.units) +
       " · ±" + withUnit(VA.kinematicNumber(stop.worst_case_half, decimals), study.units) +
       " worst case · ±" + withUnit(VA.kinematicNumber(stop.rss_half, decimals), study.units) +

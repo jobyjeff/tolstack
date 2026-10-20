@@ -1293,9 +1293,15 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tv__main > .kmview { flex: 1 1 auto; min-height: 0; }
 .kmview { padding: 14px 18px 24px; min-width: 0; overflow-x: auto; }
 .kmhead__title { font-size: var(--t-title); margin: 0 0 8px; }
-.kmhead__verdicts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
-.kmverdict { display: flex; align-items: baseline; gap: 10px; font-size: var(--t-dense); }
-.kmverdict__stop { min-width: 190px; }
+/* One grid for every stop's verdict, so the stop names, the margins and the
+   limits line up in columns whatever width each verdict word's chip is. */
+.kmhead__verdicts {
+  display: grid; grid-template-columns: repeat(5, max-content);
+  column-gap: 12px; row-gap: 4px; align-items: baseline; margin-bottom: 6px;
+  font-size: var(--t-dense);
+}
+.kmverdict { display: contents; }
+.kmverdict > .tvverdict { justify-self: start; }
 .kmverdict__limit { font-size: var(--t-meta); }
 .kmhead__driver { margin: 4px 0 10px; font-size: var(--t-meta); }
 
@@ -1331,7 +1337,12 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 /* One table per stop, stacked: the two stops' rankings read against each
    other down the page, and neither hides behind a control. */
 .kmstop { margin: 0 0 18px; }
-.kmstop__title { font-size: var(--t-body); margin: 0 0 2px; }
+/* A stop's name is a title a reader stops at, not the uppercase section
+   label a bare h3 is app-wide (style.css). */
+.kmstop__title {
+  font-size: var(--t-body); margin: 0 0 2px; text-transform: none;
+  letter-spacing: normal; color: var(--ink);
+}
 .kmstop__where { margin: 0 0 6px; font-size: var(--t-meta); }
 .kmtable { border-collapse: collapse; font-size: var(--t-dense); }
 .kmtable th {
