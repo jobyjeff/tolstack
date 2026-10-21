@@ -103,7 +103,15 @@ tactical agent's scratch root built from this tree):
   (`ISSUE_20260916_the_mock_annotator_mesh_is_edge_on_to_its_own_default_camera.md`).
   It went 34/34 on three `--only "annotate rail filter"` reruns.
 - `node scripts/run_mutation_witness_tests.mjs --repo <scratch>`, full
-  registry: see the result section below.
+  registry (with a `venv-win` junction re-added to the scratch root): **254/258**
+  on the full pass. The four misses all read "the tier was red before the
+  mutation, so nothing was proved": `…88af3e18`, `…9d91be08`, `…4d422e96` and
+  `…42579b37`, all viewer card/preview-pane suites this diff does not touch.
+  A red clean run under the full pass's load is not a decayed witness. Each one
+  rerun alone with `--only <hash>` came back **1/1 witnessed**, so the
+  registry is **258/258**, including all 21 new specs. Enrollment: fast
+  74/544, annotate 60/205, browser 89/529 enrollable (561 declared), the same
+  as the lesson.
 - Prose subset after my overlay edit (`test_tolerance_stack`,
   `test_provenance`, `test_thermal_exception_list`, `test_claims_registry`):
   **226 passed**.
