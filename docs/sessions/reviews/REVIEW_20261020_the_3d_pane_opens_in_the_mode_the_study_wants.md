@@ -234,3 +234,10 @@ this as a clause on the round-1 overlay entry.
 **Verdict: APPROVE (round 2).** No blockers. No should-fix findings are left
 unfixed, so there is no issue to file. I am merging into `integration` by
 fast-forward from this branch.
+
+**Late commit, landed 2026-10-20.** `dd64889`, a lesson-only "Round 2"
+addendum, reached the handoff branch at 22:14. That was after this review had
+merged `f23ff44`, so Complete reported the branch as not merged. I checked
+it against this round's runs: it agrees (registry 237/237, the same
+enrollment counts). It sits under `docs/sessions/`, outside the claims corpus.
+I merged it and fast-forwarded `integration` again.
