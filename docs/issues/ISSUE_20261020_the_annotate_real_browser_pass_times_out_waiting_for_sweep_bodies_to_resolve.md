@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate/run_browser_check.mjs
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261020_the_annotator_rail_resizes_and_names_what_it_lists.md
+handoff: docs/sessions/HANDOFF_20261021_browser_tiers_name_their_failure_instead_of_aborting.md
 ---
 
 # `run_browser_check.mjs --real <run>` times out waiting for the sweep's bodies to resolve

@@ -1,12 +1,15 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
 todo: 20261015T015550_cp6rqz
 audience: strategy
+defer_until: 2026-11-20
+class: unmeasured_on_target_hardware
+resolution: triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # Sweep mode's frame-rate figure cannot read below 4, and the whole placed linkage has never been timed on a GPU

@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: topologies/kinematic
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261016_a_kinematic_study_folds_the_sweeps_jacobian.md
+strategy: docs/strategy/BRIEF_20261021_what_a_term_cites_when_its_drawing_does_not_band_it.md
 ---
 
 # A kinematic contributor reads a diametral position zone as a one-axis band

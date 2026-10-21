@@ -5032,6 +5032,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       what the receiver does when the two disagree. Expect a refusal, or a
       visible mark, plus a test that plants a mismatched pair.
       `ISSUE_20261021_the_sweep_rail_lists_a_kinematic_studys_contributors_on_a_run_the_study_did_not_fold.md`.
+      **Recurring (triage 2026-10-21):** the same shape, a kinematic study's
+      `sweep.run_id` that nobody pairs with the run it is read against, was
+      also N3 of `REVIEW_20261016_a_kinematic_study_folds_the_sweeps_jacobian.md`.
+      There, the projection's provenance stamp covers `docs/topologies/` and
+      not the sweep. The 2026-10-21 batch-merge candidate showed the cost.
+      With no sweep present, the actuator built the study as `error`, exited 0
+      and stamped `dirty=False`. So for any kinematic diff, also check that
+      the builder fails loudly when the run it names is missing or different.
 
 ## Architectural errors to check
 

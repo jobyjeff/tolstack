@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: topology/study schema
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261016_the_travel_between_the_end_stops_is_a_study.md
+strategy: docs/strategy/BRIEF_20261021_what_a_term_cites_when_its_drawing_does_not_band_it.md
 ---
 
 # `complete` and `excluded_terms` live only on a check, so a check-less study cannot be marked incomplete

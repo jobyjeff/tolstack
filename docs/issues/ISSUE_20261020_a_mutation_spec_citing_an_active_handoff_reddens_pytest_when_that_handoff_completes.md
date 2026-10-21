@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: mutation-witnesses
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261020_the_sweep_rail_shows_the_mechanism.md
+handoff: docs/sessions/HANDOFF_20261021_mutation_tier_gates_on_every_pin_and_survives_a_board_move.md
 ---
 
 # A mutation spec citing an `active/` handoff reddens pytest the moment that handoff completes

@@ -1,15 +1,15 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.md
 class: layout_measurement_awaits_human_decision
-defer_until: 2026-10-15
 todo: 20261007T161822_5nv2iw
-resolution: woke 2026-10-15 -- date trigger passed; re-triage; needs jeff -- left open for the escalation channel
+resolution: woke 2026-10-15 -- date trigger passed; re-triage; needs jeff -- left open for the escalation channel; triage 2026-10-21: routed to strategy (a drawing-convention choice, not a task); todo 20261007T161822_5nv2iw to be withdrawn
+strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 ---
 
 # `rotor_fastener_length`'s 36 close-link crossings are not a column-order problem, and nothing left in the layout can move them

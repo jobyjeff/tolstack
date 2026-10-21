@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: topologies/end-stop-travel
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261020_the_travel_chain_cites_its_three_drawings.md
 audience: strategy
+strategy: docs/strategy/BRIEF_20261021_what_a_term_cites_when_its_drawing_does_not_band_it.md
 ---
 
 # Two terms of the end-stop travel chain are model-defined and have no band to cite

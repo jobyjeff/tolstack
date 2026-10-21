@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: scripts/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_js_guards_and_suite_isolation.md
 class: guard_cannot_fail
-defer_until: class:guard_cannot_fail
 resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
+handoff: docs/sessions/HANDOFF_20261021_browser_tiers_name_their_failure_instead_of_aborting.md
 ---
 
 # `testAnnotateFlyout`'s `paneSettled()` is pushed as a named check in the mounted half and its result is thrown away in the `file://` half

@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: data/projections
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261020_the_viewer_shows_a_kinematic_study.md
+defer_until: 2026-11-20
+class: unswept_retired_artifact
+resolution: triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # The superseded kinematic projection directory is still in the main checkout

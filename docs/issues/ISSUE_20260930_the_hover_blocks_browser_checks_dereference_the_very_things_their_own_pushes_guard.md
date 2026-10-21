@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tiers/browser
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
 class: guard_cannot_fail
-defer_until: dispatch/docs/strategy/BRIEF_20260930_porting_a_proven_lever_across_repos.md
 resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17)
+handoff: docs/sessions/HANDOFF_20261021_browser_tiers_name_their_failure_instead_of_aborting.md
 ---
 
 # The new hover block in the browser runner dereferences the very things its own `push`es guard, so the failure it checks for aborts the suite instead of naming itself

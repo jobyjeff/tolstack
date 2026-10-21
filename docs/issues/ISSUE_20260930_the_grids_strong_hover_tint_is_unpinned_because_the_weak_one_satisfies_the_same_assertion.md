@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tiers/browser
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
 class: guard_cannot_fail
-defer_until: dispatch/docs/strategy/BRIEF_20260930_porting_a_proven_lever_across_repos.md
-resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17)
+defer_until: 2026-11-04
+resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: deferred to 2026-11-04 -- med beyond this sweep's budget of 3; class program landed, so not re-deferrable onto it
 ---
 
 # The grid's STRONG hover tint is unpinned, because the weak one the same hover applies satisfies the same assertion

@@ -1,15 +1,15 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: tests/viewer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_real_tier_red_and_the_skipping_tier.md
 class: guard_cannot_fail
-defer_until: class:guard_cannot_fail
 needs: agent
 resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
+strategy: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
 ---
 
 # A worktree could RUN the `[real]` tier against the main checkout instead of only failing on it — and that, not the failure, is what would have caught 2026-09-18

@@ -316,3 +316,22 @@ is the limb it has to cover.
 They may not be. What is claimed is that a convention deciding only the
 read-only-fixture case leaves atp-post's tracked-projection case undecided, and
 that case already costs real merges.
+
+## 2026-10-21 triage sweep — a woken issue asks for the run-against-main mode, and the batch merge measured the candidate side again
+
+`docs/issues/ISSUE_20260918_a_worktree_could_run_the_real_tier_against_the_main_checkout_instead_of_only_failing_on_it.md`
+(feature, med, `audience: strategy`) woke when its `guard_cannot_fail` class
+program landed. It cannot be re-deferred onto that class, and it is this
+brief's question from the other side. A worktree's `[real]` tier fails by
+design when the projection is absent; the issue proposes that it **runs**
+against the main checkout's projection instead. That is one of the
+per-worktree-versus-shared answers this brief weighs, so it belongs here
+rather than to a tactical handoff.
+
+New evidence from the 2026-10-21 batch merge: the candidate worktree built
+its own projection into its own `data/` (the step-2 actuator rule), and one
+undeclared read-only input (`data/inbox/linkage-sweeps`) was enough to make
+the kinematic study build as `error`. The result was five invented reds,
+cleared by bridging the input. A per-worktree projection is only as good as
+its declared inputs. Declaring that path is staged in
+`docs/sessions/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md`.

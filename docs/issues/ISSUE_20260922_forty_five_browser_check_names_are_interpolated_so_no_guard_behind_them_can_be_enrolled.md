@@ -1,15 +1,15 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: guards/mutation-witness
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
 class: guard_cannot_fail
-defer_until: class:guard_cannot_fail
+defer_until: 2026-11-04
 needs: agent
-resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: deferred to 2026-11-04 -- med beyond this sweep's budget of 3; class program landed, so not re-deferrable onto it
 ---
 
 # 45 of the browser tier's 51 template-literal check names carry a live number, so no guard behind one of them can ever be enrolled

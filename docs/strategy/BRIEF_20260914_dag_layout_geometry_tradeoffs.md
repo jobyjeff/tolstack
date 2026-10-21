@@ -230,3 +230,21 @@ Source issue, carried over: `docs/issues/ISSUE_20260915_the_grid_cross_fades_thr
 Out of scope here, as it was there: the two shipped-tween defects routed to
 `HANDOFF_20260915_respine_tween_fidelity` (x-interpolation, settled-store keys).
 They are bugs in the animation as built, not questions about what it should do.
+
+## 2026-10-21 triage sweep — `rotor_fastener_length`'s 36 close-link crossings are a drawing-convention question, not a column-order one
+
+`docs/issues/ISSUE_20260930_rotor_fastener_lengths_thirty_six_close_link_crossings_need_a_drawing_change.md`
+(feature, med) joins this brief. `order_columns` (2026-09-30, the
+column-order decision recorded in this brief's marker) searches all 9!
+orders on `rotor_fastener_length`, a ten-wide fan out of one hub, and **36
+close-link crossings is the minimum**. That is pinned by
+`tests/test_topology_projection.py::test_the_rotor_fasteners_close_links_are_not_a_column_order_problem`.
+Branch and leader crossings are 0. The lever left is how a close link is
+**drawn**. The issue's candidates, none of them costed: route the close
+curve outside the fan, draw a jog with a bridge where it passes a rail, or
+stop drawing it past some fan width and mark both endpoints. That is a
+visual-language call for this page, which is this brief's remit. The issue
+woke from its 2026-10-15 date trigger. It carries forge todo
+`20261007T161822_5nv2iw` (shared with the stack-page width issue now in
+`BRIEF_20260916_topology_page_number_reach.md`), which should be withdrawn
+now that both are strategy work.

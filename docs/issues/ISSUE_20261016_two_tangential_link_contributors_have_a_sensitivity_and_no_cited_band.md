@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: topologies/vpa_pitch_linkage
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261016_a_kinematic_study_folds_the_sweeps_jacobian.md
+defer_until: 2026-11-20
+class: kinematic_term_without_cited_band
+resolution: triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # Two tangential-link contributors have a sensitivity and no cited band

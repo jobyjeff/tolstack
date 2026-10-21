@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: tolerance_stacks
 reporter: agent
 audience: strategy
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261016_user_tasks_are_only_what_jeff_alone_can_finish.md
+strategy: docs/strategy/BRIEF_20261021_what_a_term_cites_when_its_drawing_does_not_band_it.md
 ---
 # Two VPA part facts the pitch stacks wait on
 

@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: viewer/layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md
+strategy: docs/strategy/BRIEF_20260916_topology_page_number_reach.md
 ---
 
 # With the 3D pane open, a chain study page leaves the DAG a narrow strip

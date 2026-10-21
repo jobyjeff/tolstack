@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/kinematic
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261020_the_viewer_shows_a_kinematic_study.md
+handoff: docs/sessions/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
 ---
 
 # The kinematic page shows a PASS against a limit whose citation it never shows

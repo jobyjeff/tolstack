@@ -199,3 +199,34 @@ existing candidates and adds a constraint:
 `scrollWidth` if its layout needs room it does not have, and is explicitly
 fenced out of pre-empting this decision. Nothing staged today re-lays the grid's
 columns.
+
+## 2026-10-21 triage sweep — two more surfaces where the viewer's columns do not fit, one of them a decision taken off Jeff's task list
+
+Two issues join this brief. Both ask how the viewer's tables and panes share
+a window that is too narrow for all of them, which is this brief's question.
+
+- `docs/issues/ISSUE_20260923_the_stack_pages_results_table_is_1240px_in_a_702px_scrollport.md`
+  (feature, med). On the loose-stack page, measured on
+  `hub_bearing_thermal_fit_m1` at 1600×1000 with the preview pane at its
+  default width: the nine-column results table is **1,240 px** in a
+  **702 px** scrollport. The elements table on the same page is 1,060 px,
+  and a browser check asserts that overflow. Three fixes were deliberately
+  not taken, because each is the trade this brief weighs: dropping the empty
+  `verdict`/`criterion` columns, printing units once in a caption, and
+  putting the criterion under `worst case min`. The name column's
+  corner-chip belt is the largest single share of its 460 px. Until today
+  this issue carried `needs: jeff` with the ask "keep sideways scrolling, or
+  drop or fold columns". That is a design choice an agent then has to act
+  on, so it fails the two-part task test, and triage moved it here. Its
+  forge todo `20261007T161822_5nv2iw` should be withdrawn.
+- `docs/issues/ISSUE_20261020_with_the_3d_pane_open_a_chain_study_page_leaves_the_dag_a_narrow_strip.md`
+  (feature, med). Since the 3D pane stays open and follows the nav, a chain
+  study page shares the window four ways: pane (560 px floor), nav rail
+  (300 px), DAG + grid, and preview pane. That leaves about **170 px** for
+  the DAG and grid at 1600 px, and about **490 px** at 1920 px. The issue
+  lists three options: the preview pane stands down while the 3D pane is
+  open, the nav rail collapses to a strip, or leave it and let the reader
+  drag. The kinematic page is unaffected.
+
+Both of these spend the same horizontal budget as the grid's clipped zone
+above. A decision here should name what each surface gives up at 1600 px.
