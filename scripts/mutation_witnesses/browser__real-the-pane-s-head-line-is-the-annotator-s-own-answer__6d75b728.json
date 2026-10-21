@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] the pane's head line is the annotator's own answer: the mode and the run's mechanism, one line",
+  "mutations": [
+    {
+      "contract": "The pane's head line is the annotator's annotate:state reply, printed verbatim.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "An annotator that never answers leaves the head at its resting words -- a line that is never wrong and never informative.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (window.parent === window) return;\n  const message = AA.embedState(",
+      "replace": "  return;\n  const message = AA.embedState("
+    }
+  ]
+}

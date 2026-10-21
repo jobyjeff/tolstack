@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] selecting a chain study in the nav leaves sweep mode: the bar is gone and the annotator lists that study's elements",
+  "mutations": [
+    {
+      "contract": "A goto is a bind-mode arrival: it leaves sweep mode first.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "Without it the goto still selects the study in the rail, so the rail half passes while the sweep keeps playing over the binding surface.",
+      "file": "apps/annotate/app.js",
+      "find": "  // as-modelled pose sweep mode moves away from). leaveSweep restores the\n  // scene exactly and is a no-op outside sweep mode.\n  leaveSweep();\n",
+      "replace": "  // as-modelled pose sweep mode moves away from). leaveSweep restores the\n  // scene exactly and is a no-op outside sweep mode.\n"
+    },
+    {
+      "contract": "An open pane follows the selection after every paint.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "The viewer-side half: a pane that never re-drives stays in sweep mode on the page the reader left.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    syncPaneToggle();\n    followSelection();\n  }",
+      "replace": "    syncPaneToggle();\n  }"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "annotateParamsFor: a kinematic study opens sweep mode on its run, an edge or a chain study the goto its row would post, a stack nothing",
+  "mutations": [
+    {
+      "contract": "A kinematic study asks the 3D pane for sweep mode on the run it folds; the one selection rule is what both carriers (the boot link and the exec commands) are fed.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "The likeliest slip: the study's topology kept and its run dropped, which reads as a plausible launch and lands the pane in bind mode on the topology -- a goto where a sweep was asked for.",
+      "file": "apps/viewer/viewer.js",
+      "find": "      return run ? { topologyId: study.topology, sweep: run } : null;",
+      "replace": "      return run ? { topologyId: study.topology } : null;"
+    },
+    {
+      "contract": "An edge selection carries its edge into the goto, so the pane lands on that element.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "Dropping the edge still produces a valid goto on the study -- the pane would open somewhere sensible and wrong.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    if (view.selection && view.selection.kind === \"edge\") params.edgeId = view.selection.id;",
+      "replace": "    if (view.selection && view.selection.kind === \"node\") params.edgeId = view.selection.id;"
+    }
+  ]
+}

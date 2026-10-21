@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] the nav stays beside the open pane -- it is what drives it",
+  "mutations": [
+    {
+      "contract": "The nav rail stays visible on a live page while the pane is open.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "The retired rule, verbatim; on the live page the rail is what the reader just clicked to drive the pane.",
+      "file": "apps/viewer/topology.css",
+      "find": "body.flyout-open .tv { margin-left: var(--flyout-width, 0); }",
+      "replace": "body.flyout-open .tv { margin-left: var(--flyout-width, 0); }\nbody.flyout-open .navtree { display: none; }"
+    }
+  ]
+}

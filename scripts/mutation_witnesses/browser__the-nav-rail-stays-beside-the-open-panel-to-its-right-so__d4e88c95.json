@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the nav rail stays beside the open panel, to its right, so a selection made in it can follow into the pane",
+  "mutations": [
+    {
+      "contract": "The nav rail stays visible while the pane is open: the pane follows what it selects.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "The mutation is the rule this handoff retired, verbatim -- the rail standing down while the panel is open.",
+      "file": "apps/viewer/topology.css",
+      "find": "body.flyout-open .tv { margin-left: var(--flyout-width, 0); }",
+      "replace": "body.flyout-open .tv { margin-left: var(--flyout-width, 0); }\nbody.flyout-open .navtree { display: none; }"
+    }
+  ]
+}

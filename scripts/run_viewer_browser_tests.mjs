@@ -5386,7 +5386,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       await page.locator("#pane-toggle").isVisible());
 
     // --- 1. open on the kinematic study -> sweep mode on its run ------------
-    await page.locator("#pane-toggle").click();
+    await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 }).catch(() => {});
     const src = await page.locator("#annotate-flyout iframe").getAttribute("src").catch(() => null);
     push("[real] the head control opens the pane, booted on the study's run -- " +
@@ -5417,11 +5417,14 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
 
     // The width the reader chooses, on this page -- remembered for step 3.
     const seam = await page.locator("#flyout-divider").boundingBox();
-    await page.mouse.move(seam.x + seam.width / 2, seam.y + 300);
-    await page.mouse.down();
-    await page.mouse.move(seam.x + seam.width / 2 - 60, seam.y + 300, { steps: 6 });
-    await page.mouse.up();
-    const chosen = (await page.locator("#annotate-flyout").boundingBox()).width;
+    if (seam) {
+      await page.mouse.move(seam.x + seam.width / 2, seam.y + 300);
+      await page.mouse.down();
+      await page.mouse.move(seam.x + seam.width / 2 - 60, seam.y + 300, { steps: 6 });
+      await page.mouse.up();
+    }
+    const chosenBox = await page.locator("#annotate-flyout").boundingBox();
+    const chosen = chosenBox ? chosenBox.width : -1;
 
     // --- 2. a chain study in the nav -> bind mode on that study -------------
     await page.locator(navRow("study", CHAIN)).click();
@@ -5446,10 +5449,11 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     await page.reload({ waitUntil: "load" });
     await page.waitForSelector("div.kmverdict", { timeout: 30000 });
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 15000 }).catch(() => {});
+    const reopened = await page.locator("#annotate-flyout").boundingBox();
     push("[real] a reload reopens the pane the reader left open, at the width " +
       "they left it",
       await page.locator("#annotate-flyout").evaluate((n) => n.open) &&
-      Math.abs((await page.locator("#annotate-flyout").boundingBox()).width - chosen) <= 1);
+      reopened && chosen > 0 && Math.abs(reopened.width - chosen) <= 1);
 
     // --- 4. hover crosses the seam ------------------------------------------
     const opened = await until((w) => w.__sweep && w.__sweep.openedBySweep &&
