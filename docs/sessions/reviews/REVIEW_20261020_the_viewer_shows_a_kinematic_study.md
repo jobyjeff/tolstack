@@ -130,7 +130,11 @@ A marker grep came back clean before the merge commit (`aaf1840`).
     re-ran: 226 passed.
 - **Main-checkout `data/` unchanged** across all of the above. `find -newer`
   against a pre-run marker, excluding the scratch root, returned nothing.
-- **Mutation-witness tier (post-merge):** WITNESS_RESULT
+- **Mutation-witness tier (post-merge, merged tree):**
+  `node scripts/run_mutation_witness_tests.mjs --repo <scratch>` reported
+  **214/214 declared mutations witnessed** and exited 0. The tactical run's
+  208 plus integration's six new annotate specs make 214. The census agrees
+  with the pins.
 
 ## Findings
 
