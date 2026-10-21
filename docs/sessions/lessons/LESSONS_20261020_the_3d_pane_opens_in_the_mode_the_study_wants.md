@@ -185,3 +185,34 @@ only copied data plus the built projections. Delete it after the review.
 - Not run: `scripts/rebuild_projections.ps1` itself. It refuses to run from
   a worktree, and in the main checkout it would rebuild out of `master`.
   This change touches no projection input.
+
+## Round 2 (after REVIEW_20261020 … REQUEST CHANGES)
+
+The blocker was a witness this change decayed without touching it.
+`browser__and-it-sits-to-the-panel-s-right…237dba65` shifted the page 300px
+short, the width of the rail that used to stand down. With the rail kept in
+the layout, that shortfall hid the *rail* under the pane, and the declared
+check stayed green. The `--only` runs on the specs this diff touched could
+not see it. Only the full registry did. **A layout change that adds or keeps
+a column must run the whole registry before handing back, not `--only` on
+its own specs.** The spec now shifts 600px (the rail plus the original near
+miss), and its note says why.
+
+N1 is fixed as well. `postToPane` now returns whether the frame took the
+command, so a hover posted before the iframe has loaded is not remembered as
+sent.
+
+Verification at `f23ff44`, against the same scratch root (projections @
+`f9ba494`, paired). The `docs`/`venv-win`/`node_modules` junctions were
+re-armed for the run and removed afterwards. Without the `docs` junction,
+five `[real]` worksheet checks fail as "worksheet must be readable".
+- `node apps/viewer/run_tests.cjs --repo <scratch>`: **544/544**.
+- `node apps/annotate/run_tests.cjs`: **197/197**.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch>`: **27/27**.
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch>`, the full
+  registry: **237/237 witnessed, exit 0**, 3916 s wall (with the browser
+  tier before it). Enrollment: fast 74/544, annotate 52/197, browser 76/516
+  enrollable (547 declared).
+- pytest `test_mutation_witnesses`, `test_architecture_inventory`,
+  `test_viewer_deep_link_contract`, `test_js_vocabulary_is_generated`:
+  **90 passed**.
