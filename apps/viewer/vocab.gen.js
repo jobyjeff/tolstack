@@ -146,6 +146,18 @@
     STUDY_ERRORS: [
       "BranchAmbiguity", "BrokenChain", "CycleDetected", "UnitMismatch"
     ],
+
+    // tolerance_stack/kinematic.py: ROW_KINDS
+    KINEMATIC_ROW_KINDS: ["term", "gap", "zero_sensitivity"],
+
+    // tolerance_stack/kinematic.py: ZONE_KINDS
+    KINEMATIC_ZONE_KINDS: ["band", "sphere", "disk"],
+
+    // tolerance_stack/kinematic.py: FEATURE_SOURCES
+    KINEMATIC_FEATURE_SOURCES: ["artifact", "authored"],
+
+    // scripts/build_kinematic_projection.py: STUDY_STATUSES
+    KINEMATIC_STUDY_STATUSES: ["ok", "error"],
   });
 
   root.annotate = namespace("annotate", {

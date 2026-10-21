@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the study page reads one verdict chip per stop",
+  "mutations": [
+    {
+      "contract": "Each stop's verdict reads its margin at the projection's precision.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Prints the margin verbatim, which the live study turns into 0.256376.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        marginText: \"margin \" + withUnit(\n          VA.kinematicSigned(check.margin, decimals), check.units),",
+      "replace": "        marginText: \"margin \" + withUnit(\n          VA.fmt(check.margin), check.units),"
+    }
+  ]
+}

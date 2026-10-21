@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] with no kinematic projection the nav has no kinematic section",
+  "mutations": [
+    {
+      "contract": "With no kinematic projection there is no section and nothing about one.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Always appends the section, so an absent projection shows an empty heading.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));",
+      "replace": "    root.appendChild(kinematicSection(kinematic, state, handlers));"
+    }
+  ]
+}

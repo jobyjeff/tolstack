@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "the tour opens a kinematic study from its deep link, one verdict per stop",
+  "mutations": [
+    {
+      "contract": "The open kinematic study's nav row is marked current.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Never marks the row current: the page opens and the rail does not say where you are.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        var active = state.mode === \"kinematic\" && state.kinematicId === s.id;",
+      "replace": "        var active = false;"
+    }
+  ]
+}

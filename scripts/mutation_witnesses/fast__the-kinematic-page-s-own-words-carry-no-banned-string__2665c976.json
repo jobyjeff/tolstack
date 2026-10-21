@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the kinematic page's own words carry no banned string",
+  "mutations": [
+    {
+      "contract": "No line the page writes itself carries a checksum, a path or a field name.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Puts the solver commit's forty hex digits on the always-visible driver line, which is the leak the fold exists to prevent.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      measureWords(study) + \" in \" + (study.units || \"its own units\")));",
+      "replace": "      measureWords(study) + \" in \" + (study.units || \"its own units\") +\n      \" · \" + study.sweep.pipeline_commit));"
+    }
+  ]
+}

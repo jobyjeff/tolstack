@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a contributor row offers 3D only where its part has a mesh, as the flyout where it is served and a link where it is not",
+  "mutations": [
+    {
+      "contract": "A row offers its 3D control only where its part has an installed mesh -- a launch onto an empty scene is a dead end.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Drops the mesh gate, so every row with a part offers 3D.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (!row.part || !VA.partHasMesh(topoProj, row.part)) return cell;",
+      "replace": "    if (!row.part) return cell;"
+    }
+  ]
+}

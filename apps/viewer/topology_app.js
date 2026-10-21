@@ -20,11 +20,17 @@
     // for the stack view, never for anything the DAG renders.
     stacksResults: null,
     crops: null,
+    // The kinematic studies' projection (views/kinematic.js), or null when it
+    // is not built -- the ordinary state, in which its nav section is absent
+    // and nothing else on the page changes.
+    kinematic: null,
 
-    // Which of the two ways a system is being shown. Set only by
-    // selectTopology()/selectStack(); the nav tree (views/nav.js) reads it to
-    // decide which row, if any, is marked current.
+    // Which of the three ways a page is being shown. Set only by
+    // selectTopology()/selectStack()/selectKinematic(); the nav tree
+    // (views/nav.js) reads it to decide which row, if any, is marked current.
     mode: "topology",
+    // The kinematic study on screen in "kinematic" mode.
+    kinematicId: null,
 
     topologyId: null,
     // null = no study; the whole topology is shown at full emphasis. A study
@@ -172,6 +178,7 @@
       topojoint: document.getElementById("topojoint"),
       pane: document.getElementById("topopane"),
       stackview: document.getElementById("stackview"),
+      kinematicview: document.getElementById("kinematicview"),
       totals: document.getElementById("totals"),
       legendToggle: document.getElementById("legend-toggle"),
       legendDialog: document.getElementById("legend-dialog"),
@@ -404,6 +411,7 @@
       },
       images: Object.assign({}, t.images || {}, s.images || {}),
       texts: s.texts,
+      kinematic: VA.demoKinematicFixture(),
     };
   }
 
@@ -411,20 +419,28 @@
     imageCache = {};
     return Promise.all([
       adapter.readTopologies(), adapter.readCrops(), adapter.readResults(),
+      // Every adapter implements it (storage/adapter.js); the guard is for a
+      // test's hand-built fake, which may predate it and should read as "not
+      // built" rather than throw.
+      typeof adapter.readKinematic === "function"
+        ? adapter.readKinematic() : Promise.resolve(null),
     ]).then(function (all) {
       state.topologies = all[0];
       state.crops = all[1];
       state.stacksResults = all[2];
+      state.kinematic = all[3] || null;
 
       // Apply the inbound deep link against the data just read — ids are
       // validated by VA.resolveDeepLink, and whatever it could not resolve
       // becomes a banner notice while the defaults below still apply.
       if (pendingDeepLink) {
         var linked = VA.resolveDeepLink(pendingDeepLink, state.topologies,
-          state.stacksResults);
+          state.stacksResults, state.kinematic);
         pendingDeepLink = null;
         state.deepLinkNotices = linked.notices;
-        if (linked.mode === "topology") {
+        if (linked.mode === "kinematic") {
+          selectKinematic(linked.kinematicId);
+        } else if (linked.mode === "topology") {
           selectTopology(linked.topologyId);
           state.studyId = linked.studyId;
           state.selection = linked.selection;
@@ -434,9 +450,11 @@
         }
       }
 
-      var stillValid = state.mode === "topology"
-        ? VA.findTopology(state.topologies, state.topologyId)
-        : VA.findStack(state.stacksResults, state.selectedStackId);
+      var stillValid = state.mode === "kinematic"
+        ? VA.findKinematicStudy(state.kinematic, state.kinematicId)
+        : state.mode === "topology"
+          ? VA.findTopology(state.topologies, state.topologyId)
+          : VA.findStack(state.stacksResults, state.selectedStackId);
       if (!stillValid) {
         var topologies = (state.topologies && state.topologies.topologies) || [];
         if (topologies.length) {
@@ -475,6 +493,14 @@
     state.mode = "stack";
     state.selectedStackId = stackId;
     state.selectedRowId = null;
+    state.detailImage = null;
+  }
+
+  // --- selection: kinematic mode ---------------------------------------------
+
+  function selectKinematic(studyId) {
+    state.mode = "kinematic";
+    state.kinematicId = studyId;
     state.detailImage = null;
   }
 
@@ -586,6 +612,40 @@
     navigate(render);
   }
 
+  // The kinematic section's two rows (views/nav.js's kinematicSection). A
+  // study row opens its page; the model row opens the 3D scene in sweep mode
+  // on the topology's newest run -- the flyout where the mount probe passed,
+  // the annotator in a new tab where it did not (file://, a server without the
+  // sibling mount). It does not change what this page shows: the 3D scene IS
+  // the model, and there is no page of it here to switch to.
+  function onNavKinematic(studyId) {
+    selectKinematic(studyId);
+    hideCrop();
+    navigate(rewind);
+  }
+
+  function onNavKinematicModel(topologyId, runId) {
+    var params = { topologyId: topologyId, sweep: runId };
+    if (state.annotateMount) {
+      launchAnnotate(params);
+    } else if (typeof window.open === "function") {
+      window.open(VA.annotateLink(params), "_blank", "noopener");
+    }
+  }
+
+  // A contributor row on the kinematic page follows its edge to that edge's
+  // rail -- the same place `?topology=<id>&edge=<id>` lands, which is what the
+  // row's own href says for a reader who opens it in a new tab instead.
+  function onKinematicEdge(topologyId, edgeId) {
+    if (!VA.findTopology(state.topologies, topologyId)) return;
+    selectTopology(topologyId);
+    state.selection = { kind: "edge", id: edgeId };
+    hideCrop();
+    navigate(function () {
+      loadDetailImage().then(rewind, rewind);
+    });
+  }
+
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
   // pure) owns VA.RAIL_METRICS.rowHeight, which the inline row heights and
   // the SVG geometry already read live; this is the other of the "three
@@ -620,6 +680,7 @@
   // both the fetch below and the toggle in paint(), so the button and the
   // dialog can never disagree about which sheet the page is offering.
   function worksheetSubject() {
+    if (state.mode === "kinematic") return null;
     return state.mode === "topology"
       ? VA.worksheetSubject(currentTopology(), state.stacksResults)
       : currentStack();
@@ -643,6 +704,7 @@
   function loadDetailImage() {
     state.detailImage = null;
     var entry;
+    if (state.mode === "kinematic") return Promise.resolve();
     if (state.mode === "topology") {
       var selection = state.selection;
       if (!selection || selection.kind !== "edge") return Promise.resolve();
@@ -1416,12 +1478,24 @@
     var study = currentStudy();
     var stackProj = currentStack();
     var showTopology = state.mode === "topology";
+    var showKinematic = state.mode === "kinematic";
+    var showStack = !showTopology && !showKinematic;
 
     nodes.toolbar.style.display = showTopology ? "" : "none";
     nodes.topojoint.style.display = showTopology ? "" : "none";
     nodes.pane.style.display = showTopology ? "" : "none";
     nodes.totals.style.display = showTopology ? "" : "none";
-    nodes.stackview.style.display = showTopology ? "none" : "";
+    nodes.stackview.style.display = showStack ? "" : "none";
+    // The kinematic page is a whole page and has nothing for the preview pane
+    // to preview -- a contributor row follows its edge to the rail instead --
+    // so the pane and its divider stand down and give the chart the width.
+    if (nodes.kinematicview) {
+      nodes.kinematicview.style.display = showKinematic ? "" : "none";
+    }
+    nodes.detail.style.display = showKinematic ? "none" : "";
+    if (nodes.detailDivider) {
+      nodes.detailDivider.style.display = showKinematic ? "none" : "";
+    }
     // The legend ("how to read the rails") is a topology-mode concept, always
     // offered there. The worksheet is offered wherever the SELECTED node
     // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
@@ -1534,6 +1608,15 @@
       VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
       VA.renderTopoDetail(nodes.detail, ctx);
       ensureThumbImages(topoProj);
+    } else if (showKinematic) {
+      VA.renderKinematic(nodes.kinematicview, {
+        kinematic: state.kinematic,
+        study: VA.findKinematicStudy(state.kinematic, state.kinematicId),
+        topologies: state.topologies,
+        onEdge: onKinematicEdge,
+        annotateMount: state.annotateMount,
+        onAttach3d: launchAnnotate,
+      });
     } else {
       VA.renderStack(nodes.stackview, stackProj, state.crops, {
         onCropShow: showCrop,
@@ -1572,11 +1655,13 @@
       return;
     }
     nodes.navtree.style.display = "";
-    var tree = VA.navTree(state.topologies, state.stacksResults);
+    var tree = VA.navTree(state.topologies, state.stacksResults, state.kinematic);
     VA.renderNavTree(nodes.navtree, tree, state, {
       onTopology: onNavTopology,
       onStudy: onNavStudy,
       onStack: onNavStack,
+      onKinematic: onNavKinematic,
+      onKinematicModel: onNavKinematicModel,
       // The study row's consolidated ⚠ opens into the SAME popover node every
       // other hover card on this page uses (viewer_nav_alert_badge_and_angled_
       // default): one node, one placement, one close story. The rail is
@@ -1616,7 +1701,8 @@
   // animating a no-op would lay a fading ghost of the page over the identical
   // page for a quarter of a second.
   function serialisation() {
-    return [state.mode, state.topologyId, state.studyId].join(" / ");
+    return [state.mode, state.topologyId, state.studyId, state.kinematicId]
+      .join(" / ");
   }
 
   function respine() {
@@ -1630,6 +1716,7 @@
     render();
     if (nodes.pane) nodes.pane.scrollTop = 0;
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
+    if (nodes.kinematicview) nodes.kinematicview.scrollTop = 0;
   }
 
   // --- rebuild (viewer_rebuild_affordance): the banner's button, end to end -

@@ -1323,4 +1323,126 @@
       images: stackDemo.images,
     };
   };
+  // The kinematic projection topology.html?mock=1 boots with
+  // (the_viewer_shows_a_kinematic_study): the shape
+  // scripts/build_kinematic_projection.py writes, over the demo mechanism's
+  // own edge ids, so a contributor row follows to a real rail in the tour.
+  // Every row kind appears once, both verdict words the page can reach on a
+  // budget-scoped check, and a worst-case band that crosses the limit at the
+  // high end, so the chart has something to show. The demo topology has a
+  // study, so its `models` row is suppressed in the nav -- exactly the rule a
+  // real topology with a study follows; the fast tier builds the model-row
+  // case inline.
+  VA.demoKinematicFixture = function () {
+    var point = function (index, driver, nominal, worst, rss) {
+      return { index: index, driver_value: driver, nominal_measure: nominal,
+               nominal: 0.0, worst_case_min: -worst, worst_case_max: worst,
+               worst_case_half: worst, rss_center: 0.0, rss_half: rss,
+               rss_min: -rss, rss_max: rss };
+    };
+    var envelope = [
+      point(0, 0, -7.0, 0.31, 0.21),
+      point(1, 5, 13.0, 0.33, 0.22),
+      point(2, 10, 33.0, 0.38, 0.25),
+      point(3, 15, 53.0, 0.46, 0.3),
+      point(4, 20, 72.0, 0.55, 0.36),
+    ];
+    var band = function (name, half) {
+      return { id: name.replace(/ /g, "_"), name: name, nominal: 0.0,
+               min: -half, max: half, half_range: half, units: "mm" };
+    };
+    var rows = function (scale) {
+      return [
+        { edge: "arm_pin_to_tip", kind: "term", parameters: ["arm.length"],
+          zone: "band", feature: { edge: "arm_pin_to_tip" }, feature_source: "authored",
+          entries: [-2.5 * scale], sign: -1, coefficient: 2.5 * scale,
+          magnitude: 0.25 * scale, band: band("arm pin to tip", 0.1),
+          band_source: { kind: "dimension_ref", topology: "demo_mechanism",
+                         edge: "arm_pin_to_tip" },
+          confidence: "untraced", source_kind: "workbook", gap: null, note: null },
+        { edge: "base_thickness", kind: "term", parameters: ["base.x", "base.y", "base.z"],
+          zone: "sphere", feature: { node: "base_datum" }, feature_source: "artifact",
+          entries: [0.6, 0.0, 1.0392], sign: 1, coefficient: 1.2, magnitude: 0.06,
+          band: band("base plate thickness", 0.05),
+          band_source: { kind: "dimension_ref", topology: "demo_mechanism",
+                         edge: "base_thickness" },
+          confidence: "traced", source_kind: "drawing", gap: null, note: null },
+        { edge: "post_height", kind: "gap", parameters: ["post.height"], zone: "band",
+          feature: { edge: "post_height" }, feature_source: "authored",
+          entries: [0.8], sign: 1, coefficient: 0.8, magnitude: null, band: null,
+          band_source: { kind: "gap" }, confidence: null, source_kind: null,
+          gap: "No band for the post height is cited anywhere yet.", note: null },
+        { edge: "strut_length", kind: "zero_sensitivity", parameters: ["strut.length"],
+          zone: "band", feature: { edge: "strut_length" }, feature_source: "authored",
+          entries: [0.0], sign: 1, coefficient: 0.0, magnitude: 0.0,
+          band: band("strut length", 0.2),
+          band_source: { kind: "dimension_ref", topology: "demo_mechanism",
+                         edge: "strut_length" },
+          confidence: "traced", source_kind: "drawing", gap: null, note: null },
+      ];
+    };
+    var stop = function (id, label, target, at, scale) {
+      return Object.assign({ id: id, label: label, target: target,
+        context_ref: null, gap_count: 1, rows: rows(scale) }, envelope[at]);
+    };
+    var limit = { value: 0.5, units: "deg",
+      source_ref: { kind: "requirement", document: "demo requirements",
+                    cell: "R-1", confidence: "traced" } };
+    var check = function (stopId, verdict, margin, worst) {
+      return {
+        schema: "joby.tolerance_stack/check_result/v0",
+        check_id: "demo_margin_at_" + stopId,
+        label: "Tip-angle variation margin, at the " + stopId + " stop",
+        configuration: { stop: stopId }, criterion: ">= 0", units: "deg",
+        verdict: verdict, margin: margin, complete: false,
+        excluded_terms: ["the post height -- a contributor with no cited band",
+                         "temperature"],
+        verdict_scope: "budget", guidance: null,
+        nominal: 0.5, worst_case_min: 0.5 - worst, worst_case_max: 0.5 + worst,
+        worst_case_half: worst, rss_center: 0.5, rss_half: worst,
+        rss_min: 0.5 - worst, rss_max: 0.5 + worst,
+        stop: stopId, limit: limit, context_ref: null,
+        input_confidence: { traced: 2, untraced: 1 }, worst_confidence: "untraced",
+      };
+    };
+    return {
+      schema: "joby.tolerance_stack/kinematic_projection/v0",
+      built_at: "2026-10-20T00:00:00+00:00",
+      built_by: "scripts/build_kinematic_projection.py",
+      provenance: null,
+      study_statuses: ["ok", "error"],
+      display_decimals: 3,
+      studies: [{
+        id: "demo_mechanism_tip_angle_at_the_stops",
+        title: "Tip angle at the stops",
+        description: "Tip-angle variation over the demo sweep from three " +
+          "tolerances, checked against a 0.5 deg limit at both stops.",
+        topology: "demo_mechanism", measure: "tip_angle",
+        source_file: "docs/topologies/kinematic_study_demo.json",
+        status: "ok", error: null, units: "deg",
+        sweep: { run_id: "demo-sweep-run", schema: "linkage-sweep/v1",
+                 pipeline_commit: "0123456789abcdef0123456789abcdef01234567",
+                 max_finite_difference_disagreement: 1.2e-7,
+                 driver: { parameter: "actuator.value", label: "actuator travel",
+                           unit: "mm" },
+                 n_points: envelope.length, features_in_artifact: false },
+        contributor_count: 4, gap_count: 1,
+        gap_rows: [{ edge: "post_height", gap: "No band for the post height is " +
+          "cited anywhere yet.", band_source: { kind: "gap" } }],
+        envelope: envelope,
+        stops: [stop("low", "low stop", -7.0, 0, 1.0),
+                stop("high", "high stop", 72.0, 4, 1.2)],
+        checks: [check("low", "pass", 0.19, 0.31),
+                 check("high", "marginal", -0.05, 0.55)],
+        no_checks_reason: null,
+        provenance: { authored_by: "the demo fixture",
+                      sweep: "a five-point sweep invented for the tour" },
+        notes: ["A demo study: every number here is made up for the tour."],
+      }],
+      models: [{ topology: "demo_mechanism", newest_run_id: "demo-sweep-run",
+        runs: [{ run_id: "demo-sweep-run", ts: "2026-10-20T00:00:00Z",
+                 mechanism: "demo_mechanism_chunk", driver: { label: "actuator travel",
+                 unit: "mm" } }] }],
+    };
+  };
 })(window.ViewerApp = window.ViewerApp || {});

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the kinematic page renders the live study: two verdicts, six ranked rows under the -7 deg stop, the last two gaps",
+  "mutations": [
+    {
+      "contract": "Every contributor row reaches its stop's table, gap rows included.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Drops the rows that have no band -- the gap rows, which are the honest half of the table.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      body.appendChild(contributorRow(row, topoProj, ctx));",
+      "replace": "      if (row.band) body.appendChild(contributorRow(row, topoProj, ctx));"
+    }
+  ]
+}

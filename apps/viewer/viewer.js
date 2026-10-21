@@ -168,7 +168,15 @@
   // second one. `topologyId` is the only always-required param; a toolbar
   // link (whole study, no edge) and a detail-pane link (one edge, maybe an
   // owner part) are both this same function.
+  //
+  // `sweep` (handoff the_viewer_shows_a_kinematic_study) is the one launch that
+  // carries no topology: the kinematic model row opens the annotator's sweep
+  // mode on a run, and a run names its own topology in its artifact -- the
+  // annotator selects it from there, so a second copy here could only disagree.
   VA.annotateLink = function (params) {
+    if (params.sweep) {
+      return "../annotate/index.html?sweep=" + encodeURIComponent(params.sweep);
+    }
     var query = ["topology=" + encodeURIComponent(params.topologyId)];
     if (params.edgeId) query.push("edge=" + encodeURIComponent(params.edgeId));
     if (params.studyId) query.push("study=" + encodeURIComponent(params.studyId));
@@ -188,6 +196,7 @@
   // param shapes, but nothing derives one from the other, so a param added to
   // annotateLink alone fails no test. Extend both, and both tests, together.
   VA.annotateExecCommands = function (params) {
+    if (params.sweep) return [["sweep", String(params.sweep)]];
     if (params.trace) {
       return [["trace", params.topologyId, params.studyId]];
     }
@@ -1207,7 +1216,12 @@
   // breaking. Query params only, never a path segment, so the same link
   // works under the drawing-checker mount (/tolstack/viewer/topology.html),
   // any static server, and file:// alike.
-  VA.DEEP_LINK_PARAMS = ["topology", "study", "edge", "node", "stack", "element"];
+  //
+  // `kinematic` (handoff the_viewer_shows_a_kinematic_study, 2026-10-20) opens a
+  // kinematic study's own page. It stands alone: a kinematic study is not a
+  // chain on a topology's walk, so it takes no `topology` beside it.
+  VA.DEEP_LINK_PARAMS = ["topology", "study", "edge", "node", "stack", "element",
+                         "kinematic"];
 
   // location.search -> { topology, study, edge, node, stack, element }, only
   // the keys the query actually carries — or null when it carries none of

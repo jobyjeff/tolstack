@@ -77,7 +77,16 @@ const PROJECTION_DIR = ["data", "projections", "viewer"];
 // The projection files the viewer's [real] tier reads. A file that is not there
 // is not stale: `topologies.json`'s own sub-tier already skips itself when it is
 // absent, and `results.json`'s absence is the tier's existing skip.
-const PROJECTION_FILES = ["results.json", "topologies.json", "crops.json"];
+//
+// `kinematic/kinematic_studies.json` (handoff the_viewer_shows_a_kinematic_study,
+// 2026-10-20) is relative to the same directory -- the viewer reads it there
+// (apps/viewer/config.js's `kinematicProjection`, paired with the builder by
+// tests/test_kinematic.py). Its stamp names `topologies_dir`, so an untracked
+// study file is drift exactly as it is for topologies.json. What this check
+// CANNOT see is the sweep the study folds: `data/inbox/linkage-sweeps/` is
+// gitignored, the same blind spot the datasheet pile is for crops.json above.
+const PROJECTION_FILES = ["results.json", "topologies.json", "crops.json",
+                          "kinematic/kinematic_studies.json"];
 
 // `git <args>` in `cwd`, or null if it failed -- same "null covers every cannot
 // know" posture projection_provenance.git takes on the write side.

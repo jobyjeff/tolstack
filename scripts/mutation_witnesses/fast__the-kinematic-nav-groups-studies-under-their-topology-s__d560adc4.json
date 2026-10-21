@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the kinematic nav groups studies under their topology's name and offers a model row only to a topology with runs and no study",
+  "mutations": [
+    {
+      "contract": "A topology with a kinematic study gets its study rows, and only a topology with runs and NO study gets a model row.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Drops the suppression, so the topology that has a study also grows a second, model row.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      if (byId[model.topology] && byId[model.topology].studies.length) return;\n",
+      "replace": ""
+    }
+  ]
+}

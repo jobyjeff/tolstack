@@ -101,6 +101,15 @@ def _topology_projection_module():
     return build_topology_projection
 
 
+def _kinematic_projection_module():
+    """``scripts/build_kinematic_projection.py``, imported by path -- the third
+    viewer builder, and the owner of the kinematic study statuses."""
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    import build_kinematic_projection  # noqa: PLC0415 -- resolved from scripts/
+
+    return build_kinematic_projection
+
+
 def _crops_module():
     """``scripts/build_viewer_crops.py``, imported by path.
 
@@ -123,6 +132,12 @@ def _topology_module():
     from tolerance_stack import topology  # noqa: PLC0415
 
     return topology
+
+
+def _kinematic_module():
+    from tolerance_stack import kinematic  # noqa: PLC0415
+
+    return kinematic
 
 
 def _feature_identity_module():
@@ -527,6 +542,19 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("viewer", "STUDY_ERRORS",
                "tolerance_stack/topology.py: the StudyError subclasses",
                study_error_names),
+    # --- apps/viewer/views/kinematic.js ------------------------------------ #
+    Vocabulary("viewer", "KINEMATIC_ROW_KINDS",
+               "tolerance_stack/kinematic.py: ROW_KINDS",
+               _const(_kinematic_module, "ROW_KINDS")),
+    Vocabulary("viewer", "KINEMATIC_ZONE_KINDS",
+               "tolerance_stack/kinematic.py: ZONE_KINDS",
+               _const(_kinematic_module, "ZONE_KINDS")),
+    Vocabulary("viewer", "KINEMATIC_FEATURE_SOURCES",
+               "tolerance_stack/kinematic.py: FEATURE_SOURCES",
+               _const(_kinematic_module, "FEATURE_SOURCES")),
+    Vocabulary("viewer", "KINEMATIC_STUDY_STATUSES",
+               "scripts/build_kinematic_projection.py: STUDY_STATUSES",
+               _const(_kinematic_projection_module, "STUDY_STATUSES")),
     # --- apps/annotate/binding_state.js ------------------------------------ #
     Vocabulary("annotate", "STACK_KEY_KINDS",
                "tolerance_stack/feature_identity.py: STACK_KEY_KINDS",

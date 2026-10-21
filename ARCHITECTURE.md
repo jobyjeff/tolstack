@@ -84,15 +84,21 @@ scripts/
                                the stamp plus the builder's own Python import
                                closure, never a hand-written list. Required by
                                apps/viewer/run_tests.cjs and runnable on its own.
-                               Added 2026-09-30.
+                               Added 2026-09-30; the kinematic projection joined
+                               its inputs 2026-10-20 (its gitignored sweep is
+                               outside them, as the datasheet pile is for crops).
   export_stack_tabular.py      a stack or topology study -> a spreadsheet-shaped
                                CSV, straight from the stored JSON and fold() /
                                summarize() -- no second arithmetic path and no
                                DOM scraping. Added 2026-09-04; stdlib only.
   build_kinematic_projection.py the kinematic studies' projection: the
                                envelope over the sweep, the ranked contributor
-                               table per stop, the stop checks ->
-                               data/projections/topology/kinematic/, beside an
+                               table per stop, the stop checks, and per topology
+                               its published runs ->
+                               data/projections/viewer/kinematic/ (moved there
+                               2026-10-20, the directory the viewer is served
+                               from; apps/viewer/views/kinematic.js reads it),
+                               beside an
                                evidence plot per study as hand-written SVG set
                                in the viewer's own :root tokens. A sibling of
                                the topology builder rather than a section of
@@ -165,8 +171,9 @@ scripts/
                                of the shared table on 2026-09-23, which agents
                                in sibling worktrees collided over.
                                Added 2026-09-15.
-  rebuild_projections.ps1      runs the topology, results and crops builders from
-                               the MAIN checkout in sequence and fails loud,
+  rebuild_projections.ps1      runs the topology, results and crops builders --
+                               and, since 2026-10-20, the kinematic builder, last --
+                               from the MAIN checkout in sequence and fails loud,
                                before building anything, if drawing-checker's
                                venv is missing -- a rebuild that skips crops
                                silently is the failure this script exists to
@@ -174,7 +181,9 @@ scripts/
                                provenance stamps side by side so a caller can
                                see whether they agree. Added 2026-09-08.
 apps/
-  viewer/           the static stack/check review surface (see its README)
+  viewer/           the static stack/check review surface (see its README);
+                    since 2026-10-20 also a kinematic study's own page
+                    (views/kinematic.js)
   annotate/         the write-capable annotation surface: select a mesh face,
                     tag it with a stack element's identity (see its README).
                     Added 2026-09-06.
@@ -605,7 +614,7 @@ Nothing lands in `data/runs/` yet: no run-producing pipeline exists here. The
 `data/runs/` skeleton is the standard-layout requirement, held for when a stack
 synthesizer does produce runs for forge to ingest. `data/projections/` is now
 live — it holds the spec library, rebuilt from the committed event log, and
-`data/projections/viewer/`, wiped and rebuilt by the three viewer scripts.
+`data/projections/viewer/`, wiped and rebuilt by the viewer scripts.
 
 The **events are committed and the projection is not**, which inverts the usual
 `data/` placement. It follows from the same rule as the stack JSONs: the events

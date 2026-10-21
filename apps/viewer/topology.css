@@ -1284,3 +1284,99 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvgaps__list { margin: 0; padding-left: 18px; }
 .tvgaps__item { font-size: var(--t-dense); margin-bottom: 3px; }
 .tvgaps__where { color: var(--accent); margin-right: 6px; }
+
+/* --- the kinematic study page (views/kinematic.js) ----------------------
+   the_viewer_shows_a_kinematic_study, 2026-10-20. A page in the main column,
+   the same flex-item shape `.stackview` is: grow to fill, scroll with the
+   document. Type, colour and spacing are the :root tokens and nothing else
+   (docs/DESIGN_TYPE_AND_COLOUR.md); the one accent is the verdict chip. */
+.tv__main > .kmview { flex: 1 1 auto; min-height: 0; }
+.kmview { padding: 14px 18px 24px; min-width: 0; overflow-x: auto; }
+.kmhead__title { font-size: var(--t-title); margin: 0 0 8px; }
+/* One grid for every stop's verdict, so the stop names, the margins and the
+   limits line up in columns whatever width each verdict word's chip is. */
+.kmhead__verdicts {
+  display: grid; grid-template-columns: repeat(5, max-content);
+  column-gap: 12px; row-gap: 4px; align-items: baseline; margin-bottom: 6px;
+  font-size: var(--t-dense);
+}
+.kmverdict { display: contents; }
+.kmverdict > .tvverdict { justify-self: start; }
+.kmverdict__limit { font-size: var(--t-meta); }
+.kmhead__driver { margin: 4px 0 10px; font-size: var(--t-meta); }
+
+/* The envelope chart. The SVG keeps its own pixel size up to the column's
+   width and scales DOWN only, so its text lands at the token sizes below
+   wherever there is room for it. */
+.kmchart { position: relative; margin: 0 0 18px; max-width: 760px; }
+.kmchart__svg { display: block; width: 100%; height: auto; }
+.kmchart__grid { stroke: var(--line); stroke-width: 1; }
+.kmchart__frame { fill: none; stroke: var(--line); }
+.kmchart__tick { fill: var(--muted); font-size: var(--t-micro); }
+.kmchart__axis { fill: var(--muted); font-size: var(--t-meta); }
+/* Neutral, not the accent: the accent is SELECTION on this page
+   (docs/DESIGN_TYPE_AND_COLOUR.md), and a band is data at rest. */
+.kmchart__worst { fill: var(--ink); fill-opacity: 0.1; }
+.kmchart__rss { fill: var(--ink); fill-opacity: 0.22; }
+.kmchart__zero { stroke: var(--ink); stroke-width: 1.5; }
+.kmchart__limit { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 6 4; opacity: 0.7; }
+.kmchart__limitlabel { fill: var(--muted); font-size: var(--t-micro); }
+.kmchart__stop { stroke: var(--muted); stroke-width: 1; }
+.kmchart__stoplabel { fill: var(--ink); font-size: var(--t-meta); }
+.kmchart__hit { fill: transparent; cursor: crosshair; }
+.kmchart__cursor { stroke: var(--muted); stroke-width: 1; pointer-events: none; }
+.kmchart__dot { fill: var(--ink); pointer-events: none; }
+.kmchart__tip {
+  position: absolute; top: 18px; pointer-events: none;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+  padding: 6px 8px; font-size: var(--t-meta); white-space: nowrap;
+}
+.kmchart__tiprow { display: flex; justify-content: space-between; gap: 14px; }
+.kmchart__tiplabel { color: var(--muted); }
+
+/* One table per stop, stacked: the two stops' rankings read against each
+   other down the page, and neither hides behind a control. */
+.kmstop { margin: 0 0 18px; }
+/* A stop's name is a title a reader stops at, not the uppercase section
+   label a bare h3 is app-wide (style.css). */
+.kmstop__title {
+  font-size: var(--t-body); margin: 0 0 2px; text-transform: none;
+  letter-spacing: normal; color: var(--ink);
+}
+.kmstop__where { margin: 0 0 6px; font-size: var(--t-meta); }
+.kmtable { border-collapse: collapse; font-size: var(--t-dense); }
+.kmtable th {
+  text-align: left; color: var(--muted); font-size: var(--t-micro);
+  font-weight: 600; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--line);
+}
+.kmtable th.num { text-align: right; }
+.kmtable td { padding: 3px 10px 3px 0; vertical-align: baseline; }
+.kmtable tbody tr:hover { background: #20242c; }
+.kmrow__edge { color: var(--ink); text-decoration: none; }
+.kmrow__edge:hover, .kmrow__edge:focus { text-decoration: underline; }
+.kmrow__zone { color: var(--muted); }
+.kmrow--muted td { color: var(--muted); }
+.kmrow__3d { text-align: right; }
+.kmrow__3dbtn, .kmrow__3dlink { opacity: 0.5; font-size: var(--t-micro); }
+.kmtable tbody tr:hover .kmrow__3dbtn, .kmtable tbody tr:hover .kmrow__3dlink,
+.kmrow__3dbtn:focus, .kmrow__3dlink:focus { opacity: 1; }
+.kmrow__3dlink { color: var(--ink); text-decoration: none; }
+
+.kmprov { margin-top: 6px; }
+.kmprov__summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
+.kmprov__body { max-width: var(--measure); font-size: var(--t-dense); }
+.kmprov__heading { font-size: var(--t-meta); color: var(--muted); margin: 12px 0 4px; }
+.kmprov__excluded { margin: 0; padding-left: 18px; }
+.kmprov__excluded li, .kmprov__note { margin-bottom: 4px; }
+
+/* The nav's kinematic section: one small heading over the group labels. */
+.navtree__section { margin-top: 14px; }
+.navtree__heading {
+  font-size: var(--t-micro); color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.04em; font-weight: 600; margin: 0 0 6px;
+}
+.navtree__group {
+  font-size: var(--t-dense); color: var(--muted); padding: 2px 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.navtree__row--model .navtree__label { color: var(--muted); }

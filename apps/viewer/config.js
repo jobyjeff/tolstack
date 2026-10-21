@@ -13,6 +13,13 @@
     // 2026-09-22, when that table went -- there is no key here to be one per
     // any more; see the note at the end of this block.)
     projectionDir: ["data", "projections", "viewer"],
+    // The kinematic studies' projection, under projectionDir
+    // (scripts/build_kinematic_projection.py). In a subdirectory because that
+    // builder wipes its own evidence SVGs beside it; inside projectionDir
+    // because that is the directory drawing-checker serves as /tolstack/data/,
+    // so every transport reaches it exactly as it reaches topologies.json.
+    // tests/test_kinematic.py pairs this line with the builder's constants.
+    kinematicProjection: ["kinematic", "kinematic_studies.json"],
     stacksDir: ["docs", "tolerance_stacks"],
 
     // drawing-checker's local web UI. A crop resolved through a run links to

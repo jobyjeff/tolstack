@@ -72,7 +72,8 @@
     root.className = "navtree";
     var topologies = (tree && tree.topologies) || [];
     var looseStacks = (tree && tree.looseStacks) || [];
-    if (!topologies.length && !looseStacks.length) {
+    var kinematic = (tree && tree.kinematic) || [];
+    if (!topologies.length && !looseStacks.length && !kinematic.length) {
       root.appendChild(VA.el("p", "muted", "No topologies or stacks in the projection."));
       return root;
     }
@@ -80,8 +81,62 @@
     topologies.forEach(function (t) { ul.appendChild(topologyItem(t, state, handlers)); });
     looseStacks.forEach(function (s) { ul.appendChild(stackItem(s, state, handlers)); });
     root.appendChild(ul);
+    if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));
     return root;
   };
+
+  // The kinematic studies (handoff the_viewer_shows_a_kinematic_study): a
+  // section of its own, under one small heading, because a kinematic study is
+  // not a chain on a topology's walk and nesting it under the topology row
+  // would offer it as one. Grouped under the topology's NAME -- a plain label,
+  // not a second way into the topology the row above already is. Absent
+  // entirely when there is no kinematic projection (VA.kinematicNav, empty).
+  //
+  // A topology with published sweep runs and no study yet gets one model row,
+  // which opens the 3D scene in sweep mode on its newest run.
+  function kinematicSection(groups, state, handlers) {
+    var section = VA.el("div", "navtree__section navtree__section--kinematic");
+    section.appendChild(VA.el("h2", "navtree__heading", "Kinematic studies"));
+    var ul = VA.el("ul", "navtree__list");
+    groups.forEach(function (group) {
+      var li = VA.el("li", "navtree__item");
+      var head = VA.el("div", "navtree__group");
+      head.appendChild(label(group.title, null, null));
+      head.setAttribute("title", group.title);
+      li.appendChild(head);
+      var children = VA.el("ul", "navtree__children");
+      group.studies.forEach(function (s) {
+        var active = state.mode === "kinematic" && state.kinematicId === s.id;
+        var row = VA.el("div", "navtree__row navtree__row--study" +
+          (active ? " navtree__row--on" : "") +
+          (s.failed ? " navtree__row--warn" : ""));
+        row.appendChild(label(s.title, s.description, null));
+        statusIcon(s.navStatus, s.title, row, handlers);
+        row.setAttribute("data-nav-kind", "kinematic");
+        row.setAttribute("data-nav-id", s.id);
+        row.onclick = function () { handlers.onKinematic(s.id); };
+        children.appendChild(VA.el("li", "navtree__item", row));
+      });
+      if (group.model) {
+        var model = group.model;
+        var mrow = VA.el("div", "navtree__row navtree__row--study navtree__row--model");
+        mrow.appendChild(label("Kinematic model", null,
+          "the mechanism moving through its newest sweep" +
+          (model.ts ? " (" + String(model.ts).slice(0, 10) + ")" : "") +
+          ", in the 3D scene"));
+        mrow.setAttribute("data-nav-kind", "kinematic-model");
+        mrow.setAttribute("data-nav-id", group.topologyId);
+        mrow.onclick = function () {
+          handlers.onKinematicModel(group.topologyId, model.runId);
+        };
+        children.appendChild(VA.el("li", "navtree__item", mrow));
+      }
+      li.appendChild(children);
+      ul.appendChild(li);
+    });
+    section.appendChild(ul);
+    return section;
+  }
 
   function topologyItem(t, state, handlers) {
     var inThisTopology = state.mode === "topology" && state.topologyId === t.id;

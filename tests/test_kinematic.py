@@ -349,3 +349,62 @@ def test_real_the_first_study_pins_both_stops_against_p2(stop):
     check = check_at_stop(study, sweep, f"s461_607_margin_at_{stop}")
     assert round(check.margin, 3) == margin
     assert (check.verdict, check.verdict_scope) == ("pass", "budget")
+
+
+# --------------------------------------------------------------------------- #
+# 9. where the viewer reads it (handoff the_viewer_shows_a_kinematic_study)   #
+# --------------------------------------------------------------------------- #
+
+def test_the_projection_lands_inside_the_directory_the_viewer_is_served_from():
+    """``projections/viewer/`` is the directory drawing-checker mounts as
+    ``/tolstack/data/`` and the hosted bake copies; a kinematic projection
+    anywhere else is a file the served viewer cannot fetch. Paired against the
+    topology builder's own constant rather than a path written here, and
+    against the two JS readers that name the file: the viewer's config and the
+    freshness check's input list."""
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import build_topology_projection  # noqa: PLC0415
+
+    assert builder.PROJECTION_SUBDIR.parent == build_topology_projection.PROJECTION_SUBDIR
+    rel = f"{builder.PROJECTION_SUBDIR.name}/{builder.PROJECTION_NAME}"
+    config = (REPO_ROOT / "apps" / "viewer" / "config.js").read_text(encoding="utf-8")
+    assert (f'kinematicProjection: ["{builder.PROJECTION_SUBDIR.name}", '
+            f'"{builder.PROJECTION_NAME}"]') in config
+    freshness = (REPO_ROOT / "scripts" / "projection_freshness.cjs").read_text(
+        encoding="utf-8")
+    assert f'"{rel}"' in freshness
+
+
+def _sweep(path: Path, run_id: str, ts: str, topologies, schema="linkage-sweep/v1"):
+    features = [{"label": f"x{i}", "topology": t} for i, t in enumerate(topologies or [])]
+    path.write_text(json.dumps({
+        "schema": schema, "run_id": run_id, "ts": ts,
+        "mechanism": {"name": f"mech_{run_id}", "driver": {"label": "travel", "unit": "mm"}},
+        "geometry": {"features": features} if topologies is not None else {},
+    }), encoding="utf-8")
+
+
+def test_models_list_each_topologys_runs_newest_first_by_timestamp(tmp_path):
+    sweeps = tmp_path / "inbox" / "linkage-sweeps"
+    sweeps.mkdir(parents=True)
+    # "a-..." sorts first by id and is the OLDER run -- the sort the annotator
+    # once got wrong.
+    _sweep(sweeps / "a-new.json", "a-new", "2026-10-02T00:00:00Z", ["topo_a"])
+    _sweep(sweeps / "z-old.json", "z-old", "2026-10-01T00:00:00Z", ["topo_a", "topo_b"])
+    _sweep(sweeps / "bare.json", "bare", "2026-10-03T00:00:00Z", None)
+    _sweep(sweeps / "future.json", "future", "2026-10-04T00:00:00Z", ["topo_a"],
+           schema="linkage-sweep/v9")
+    (sweeps / "broken.json").write_text("{not json", encoding="utf-8")
+    models = builder.project_models(builder.sweep_runs(tmp_path))
+    assert [(m["topology"], m["newest_run_id"], [r["run_id"] for r in m["runs"]])
+            for m in models] == [("topo_a", "a-new", ["a-new", "z-old"]),
+                                 ("topo_b", "z-old", ["z-old"])]
+    assert models[0]["runs"][0]["mechanism"] == "mech_a-new"
+
+
+def test_the_projection_states_its_display_precision():
+    """The viewer formats with this and picks no precision of its own."""
+    projection = builder.build(FIXTURE_TOPOLOGIES, FIXTURE_DATA,
+                               provenance={"built_at": "fixture"})
+    assert projection["display_decimals"] == builder.DISPLAY_DECIMALS == 3
+    assert projection["models"] == []      # the fixture sweep names no topology

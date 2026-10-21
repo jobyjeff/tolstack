@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "the kinematic page stands the preview pane down and draws its chart",
+  "mutations": [
+    {
+      "contract": "The kinematic page stands the preview pane down and gives the chart the width.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Leaves the preview pane showing in kinematic mode.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.detail.style.display = showKinematic ? \"none\" : \"\";",
+      "replace": "    nodes.detail.style.display = \"\";"
+    }
+  ]
+}

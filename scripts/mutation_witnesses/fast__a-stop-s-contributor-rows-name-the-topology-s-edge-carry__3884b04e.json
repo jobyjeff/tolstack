@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a stop's contributor rows name the topology's edge, carry their units in the header, and never print a row kind's machine word",
+  "mutations": [
+    {
+      "contract": "A contributor row is named by the topology's own edge name, never by its id.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Prints the edge id as the name, which is what the page would show if the topology lookup were skipped.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        name: edge ? edge.name : row.edge,",
+      "replace": "        name: row.edge,"
+    }
+  ]
+}

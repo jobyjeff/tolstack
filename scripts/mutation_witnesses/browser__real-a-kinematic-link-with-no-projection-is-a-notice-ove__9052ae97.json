@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] a kinematic link with no projection is a notice over the default view",
+  "mutations": [
+    {
+      "contract": "A kinematic link the data cannot answer becomes a plain-words notice.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Drops the notice, so the link silently opens the default view.",
+      "file": "apps/viewer/topology.js",
+      "find": "      say(\"This link asks for kinematic study `\" + link.kinematic + \"`, which \" +\n        \"this data does not contain — showing the default instead.\");",
+      "replace": ""
+    }
+  ]
+}

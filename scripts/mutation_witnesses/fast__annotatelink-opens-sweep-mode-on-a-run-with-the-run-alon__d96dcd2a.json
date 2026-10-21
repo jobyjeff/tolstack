@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "annotateLink opens sweep mode on a run with the run alone -- the kinematic model row's launch",
+  "mutations": [
+    {
+      "contract": "The kinematic model row opens the annotator in sweep mode on the topology's newest run, by the run alone.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Drops the sweep branch, so the launch falls through to a topology-scope goto -- the annotator opens in bind mode and the model row shows no motion.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    if (params.sweep) {\n      return \"../annotate/index.html?sweep=\" + encodeURIComponent(params.sweep);\n    }\n",
+      "replace": ""
+    }
+  ]
+}

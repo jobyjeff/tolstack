@@ -2752,7 +2752,11 @@
   // (viewer_nav_wedge_and_classic_retirement, 2026-09-15 — views/nav.js's
   // header has the case). views/nav.js renders this; nothing here touches the
   // DOM.
-  VA.navTree = function (topologies, results) {
+  //
+  // `kinematic` (handoff the_viewer_shows_a_kinematic_study) is the third
+  // projection, and optional: its section is VA.kinematicNav's
+  // (views/kinematic.js), and an absent projection is an absent section.
+  VA.navTree = function (topologies, results, kinematic) {
     var topoNodes = ((topologies && topologies.topologies) || []).map(function (t) {
       // One index per topology, not one per study: VA.studyAttention resolves
       // each chain row to its edge, and rebuilding the index inside the map
@@ -2778,7 +2782,8 @@
         }),
       };
     });
-    return { topologies: topoNodes, looseStacks: VA.looseStacks(topologies, results) };
+    return { topologies: topoNodes, looseStacks: VA.looseStacks(topologies, results),
+             kinematic: VA.kinematicNav ? VA.kinematicNav(kinematic, topologies) : [] };
   };
 
   // --- hover reference cards (viewer_hover_cards_and_deep_links) ------------
@@ -3126,11 +3131,30 @@
   // validated — an id this data does not contain becomes a plain-words notice
   // and the page falls back to its defaults, never a crash and never a silent
   // guess at a different node.
-  VA.resolveDeepLink = function (link, topologies, results) {
+  //
+  // `kinematic` is resolved FIRST and, when it resolves, wins outright: it is a
+  // page of its own, with no topology walk or stack table under it, so any
+  // other selection param beside it has nothing to select and is said so.
+  VA.resolveDeepLink = function (link, topologies, results, kinematic) {
     var out = { mode: null, topologyId: null, studyId: null, selection: null,
-                stackId: null, elementId: null, notices: [] };
+                stackId: null, elementId: null, kinematicId: null, notices: [] };
     if (!link) return out;
     var say = function (text) { out.notices.push(text); };
+
+    if (link.kinematic) {
+      if (VA.findKinematicStudy && VA.findKinematicStudy(kinematic, link.kinematic)) {
+        out.mode = "kinematic";
+        out.kinematicId = link.kinematic;
+        if (link.topology || link.study || link.edge || link.node || link.stack ||
+            link.element) {
+          say("This link names a kinematic study and something else beside it; " +
+            "the kinematic study won and the rest was ignored.");
+        }
+        return out;
+      }
+      say("This link asks for kinematic study `" + link.kinematic + "`, which " +
+        "this data does not contain — showing the default instead.");
+    }
 
     var topology = link.topology ? VA.findTopology(topologies, link.topology) : null;
     if (link.topology && !topology) {

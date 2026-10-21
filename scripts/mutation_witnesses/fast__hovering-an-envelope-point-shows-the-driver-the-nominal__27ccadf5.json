@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "hovering an envelope point shows the driver, the nominal and both spreads, each with its unit",
+  "mutations": [
+    {
+      "contract": "A hover on the chart shows the nearest point's driver, nominal and both spreads.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Keeps the tip hidden on hover.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        tip.style.display = \"\";",
+      "replace": "        tip.style.display = \"none\";"
+    }
+  ]
+}

@@ -241,6 +241,14 @@
 
     // --- the flyout launch (study_3d_flyout): one param shape, two carriers --
 
+    await test("annotateLink opens sweep mode on a run with the run alone -- the " +
+      "kinematic model row's launch", function () {
+        eq(VA.annotateLink({ topologyId: "vpa_pitch_linkage",
+          sweep: "vpa-pitch-p2-20261016-235852" }),
+          "../annotate/index.html?sweep=vpa-pitch-p2-20261016-235852");
+        eq(VA.annotateLink({ sweep: "a b" }), "../annotate/index.html?sweep=a%20b");
+      });
+
     await test("annotateLink appends trace=1 for a study-trace launch", function () {
       eq(VA.annotateLink({ topologyId: "pitch_system",
         studyId: "pitch_system_gas_spring_branch", trace: true }),
@@ -263,6 +271,11 @@
           [["goto", "pitch_system", "e1", ""]]);
         eq(VA.annotateExecCommands({ topologyId: "pitch_system" }),
           [["goto", "pitch_system", "", ""]]);
+        // A sweep launch is the run alone, on both carriers: the run names its
+        // own topology, and the annotator selects it from there.
+        eq(VA.annotateExecCommands({ topologyId: "vpa_pitch_linkage",
+          sweep: "vpa-pitch-p2-20261016-235852" }),
+          [["sweep", "vpa-pitch-p2-20261016-235852"]]);
       });
 
     await test("probeAnnotateMount degrades immediately under file:// and with " +
@@ -429,10 +442,11 @@
     // analyses panel, `analyses_viewer_deep_link`), documented in
     // apps/viewer/README.md. A rename here is a breaking change over there.
 
-    await test("DEEP_LINK_PARAMS is the documented six, and parseDeepLink reads " +
+    await test("DEEP_LINK_PARAMS is the documented seven, and parseDeepLink reads " +
       "exactly them", function () {
         eq(VA.DEEP_LINK_PARAMS,
-           ["topology", "study", "edge", "node", "stack", "element"]);
+           ["topology", "study", "edge", "node", "stack", "element", "kinematic"]);
+        eq(VA.parseDeepLink("?kinematic=k1"), { kinematic: "k1" });
         eq(VA.parseDeepLink("?topology=pitch_system&study=s1"),
            { topology: "pitch_system", study: "s1" });
         eq(VA.parseDeepLink("?stack=demo_joint&element=plate"),
@@ -11007,6 +11021,261 @@
         has(root.textContent, "the topology does not declare");
       });
 
+    // --- the kinematic study page (the_viewer_shows_a_kinematic_study) -------
+    //
+    // views/kinematic.js over VA.demoKinematicFixture (topology_fixtures.js):
+    // the builder's shape, on the demo mechanism's own edge ids. The [real]
+    // half, over the live kinematic_studies.json, is in the node-fs tier below.
+
+    var KIN = VA.demoKinematicFixture();
+    var KIN_STUDY = KIN.studies[0];
+    var KIN_TOPOLOGIES = VA.demoTopologyProjection();
+
+    function kinematicPage(overrides) {
+      var ctx = Object.assign({ kinematic: KIN, study: KIN_STUDY,
+        topologies: KIN_TOPOLOGIES }, overrides || {});
+      return render(function (r) { VA.renderKinematic(r, ctx); });
+    }
+
+    function kinematicStop(root, stopId) {
+      return all(root, "section.kmstop").filter(function (s) {
+        return s.getAttribute("data-stop") === stopId;
+      })[0];
+    }
+
+    await test("a kinematic number prints at the projection's own precision, and " +
+      "verbatim when the projection states none", function () {
+        eq(VA.kinematicNumber(0.15554689162234028, 3), "0.156");
+        eq(VA.kinematicNumber(-0.0001, 3), "0.000");
+        eq(VA.kinematicSigned(0.256376, 3), "+0.256");
+        eq(VA.kinematicSigned(-0.05, 3), "-0.050");
+        eq(VA.kinematicNumber(0.15554689162234028, undefined), "0.15554689162234028");
+        eq(VA.kinematicNumber(null, 3), "—");
+      });
+
+    await test("the kinematic nav groups studies under their topology's name and " +
+      "offers a model row only to a topology with runs and no study", function () {
+        var groups = VA.kinematicNav(KIN, KIN_TOPOLOGIES);
+        eq(groups.length, 1);
+        eq(groups[0].title, "Demo mechanism");
+        eq(groups[0].studies.map(function (s) { return s.id; }),
+           ["demo_mechanism_tip_angle_at_the_stops"]);
+        eq(groups[0].model, null, "a topology with a study gets no model row");
+
+        var withModel = Object.assign({}, KIN, { models: KIN.models.concat([{
+          topology: "studyless", newest_run_id: "run-new",
+          runs: [{ run_id: "run-new", ts: "2026-10-20T01:00:00Z", mechanism: "m" }],
+        }]) });
+        var two = VA.kinematicNav(withModel, KIN_TOPOLOGIES);
+        eq(two.length, 2);
+        eq(two[1].studies, []);
+        eq(two[1].model.runId, "run-new");
+        eq(VA.kinematicNav(null, KIN_TOPOLOGIES), []);
+      });
+
+    await test("the nav renders a Kinematic studies section when the projection " +
+      "is there, and nothing at all when it is not", function () {
+        var state = { mode: "kinematic", kinematicId: KIN_STUDY.id };
+        var clicked = [];
+        var handlers = {
+          onTopology: function () {}, onStudy: function () {}, onStack: function () {},
+          onKinematic: function (id) { clicked.push(["study", id]); },
+          onKinematicModel: function (t, run) { clicked.push(["model", t, run]); },
+        };
+        var withModel = Object.assign({}, KIN, { models: [{ topology: "studyless",
+          newest_run_id: "run-new", runs: [{ run_id: "run-new" }] }] });
+        var root = render(function (r) {
+          VA.renderNavTree(r, VA.navTree(KIN_TOPOLOGIES, FIXTURE.results, withModel),
+            state, handlers);
+        });
+        var heading = all(root, "h2.navtree__heading");
+        eq(heading.length, 1);
+        eq(heading[0].textContent, "Kinematic studies");
+        var rows = all(root, "div.navtree__row").filter(function (row) {
+          return row.getAttribute("data-nav-kind") === "kinematic";
+        });
+        eq(rows.length, 1);
+        ok(hasClass(rows[0], "navtree__row--on"), "the open study is marked current");
+        has(rows[0].textContent, "Tip angle at the stops");
+        // One mark, the chain studies' scheme: a budget-scoped verdict asks
+        // the reader to look, so the row is not silent.
+        eq(all(rows[0], ".navstatus").length, 1);
+        rows[0].click();
+        var model = all(root, "div.navtree__row").filter(function (row) {
+          return row.getAttribute("data-nav-kind") === "kinematic-model";
+        });
+        eq(model.length, 1);
+        eq(model[0].textContent, "Kinematic model");
+        model[0].click();
+        eq(clicked, [["study", KIN_STUDY.id], ["model", "studyless", "run-new"]]);
+
+        var bare = render(function (r) {
+          VA.renderNavTree(r, VA.navTree(KIN_TOPOLOGIES, FIXTURE.results, null),
+            { mode: "topology" }, handlers);
+        });
+        eq(all(bare, "h2.navtree__heading").length, 0);
+        eq(bare.textContent.indexOf("Kinematic"), -1);
+      });
+
+    await test("resolveDeepLink opens a kinematic study by id, lets it win over " +
+      "anything beside it, and says so when the id is not there", function () {
+        var out = VA.resolveDeepLink({ kinematic: KIN_STUDY.id }, KIN_TOPOLOGIES,
+          FIXTURE.results, KIN);
+        eq(out.mode, "kinematic");
+        eq(out.kinematicId, KIN_STUDY.id);
+        eq(out.notices, []);
+
+        var both = VA.resolveDeepLink({ kinematic: KIN_STUDY.id,
+          topology: "demo_mechanism" }, KIN_TOPOLOGIES, FIXTURE.results, KIN);
+        eq(both.mode, "kinematic");
+        eq(both.notices.length, 1);
+
+        var missing = VA.resolveDeepLink({ kinematic: "nope" }, KIN_TOPOLOGIES,
+          FIXTURE.results, null);
+        eq(missing.mode, null);
+        has(missing.notices[0], "kinematic study `nope`");
+      });
+
+    await test("a kinematic verdict per stop reads the chain studies' own words " +
+      "and prints its margin at the projection's precision", function () {
+        var verdicts = VA.kinematicVerdicts(KIN_STUDY, KIN.display_decimals);
+        eq(verdicts.map(function (v) { return [v.stop, v.verdict, v.marginText]; }),
+           [["low", "pass", "margin +0.190 deg"], ["high", "marginal", "margin -0.050 deg"]]);
+        eq(verdicts[0].says, VA.VERDICTS.pass.says);
+        eq(verdicts[0].scopeChip, VA.VERDICT_SCOPES.budget.chip);
+        eq(verdicts[0].limitText, "limit ±0.500 deg");
+        eq(verdicts[0].stopLabel, "low stop");
+      });
+
+    await test("a stop's contributor rows name the topology's edge, carry their " +
+      "units in the header, and never print a row kind's machine word", function () {
+        var low = KIN_STUDY.stops[0];
+        eq(VA.kinematicCoefficientUnit(KIN_STUDY, low), "deg/mm");
+        var rows = VA.kinematicRows(KIN_STUDY, low, KIN_TOPOLOGIES.topologies[0],
+          KIN.display_decimals);
+        eq(rows.map(function (r) { return r.name; }),
+           ["arm pin to tip", "base plate thickness", "post height", "strut length"]);
+        eq(rows[0].sign, "−");
+        eq(rows[0].coefficient, "2.500");
+        eq(rows[0].band, "±0.100");
+        eq(rows[0].magnitude, "0.250");
+        has(rows[0].title, "arm_pin_to_tip");
+        has(rows[1].title, VA.KINEMATIC_FEATURE_SOURCES.artifact.words);
+        eq(rows[1].zone, "sphere");
+        // The gap row: no band, no magnitude, the gap words.
+        eq(rows[2].band, null);
+        eq(rows[2].magnitude, null);
+        eq(rows[2].flag, "no band on file");
+        // The zero-sensitivity row is muted and says why.
+        ok(rows[3].muted, "a zero-sensitivity row is muted");
+        eq(rows[3].flag, VA.KINEMATIC_ROW_KINDS.zero_sensitivity.flag);
+      });
+
+    await test("the kinematic page renders a verdict per stop, the envelope chart " +
+      "and one ranked table per stop", function () {
+        var root = kinematicPage();
+        eq(all(root, "h2.kmhead__title")[0].textContent, "Tip angle at the stops");
+        var chips = all(root, "div.kmverdict");
+        eq(chips.length, 2);
+        ok(hasClass(chips[0].querySelector("span.tvverdict"), "tvverdict--pass"));
+        ok(hasClass(chips[1].querySelector("span.tvverdict"), "tvverdict--marginal"));
+        has(chips[0].textContent, "margin +0.190 deg");
+        eq(all(root, "polygon.kmchart__worst").length, 1);
+        eq(all(root, "polygon.kmchart__rss").length, 1);
+        eq(all(root, "line.kmchart__limit").length, 2, "the limit at + and -");
+        eq(all(root, "line.kmchart__stop").length, 2, "both stops marked");
+        eq(all(root, "rect.kmchart__hit").length, KIN_STUDY.envelope.length);
+        eq(all(root, "section.kmstop").length, 2);
+        var low = kinematicStop(root, "low");
+        eq(all(low, "tr.kmrow").length, 4);
+        ok(hasClass(all(low, "tr.kmrow")[2], "kmrow--gap"));
+        has(all(low, "tr.kmrow")[2].textContent, "no band on file");
+        ok(hasClass(all(low, "tr.kmrow")[3], "kmrow--muted"));
+        has(all(low, "th")[3].textContent, "Coefficient, deg/mm");
+        eq(root.textContent.indexOf("zero_sensitivity"), -1);
+        // A feature source is words on hover, never its machine word in a cell.
+        eq(all(root, "table.kmtable").map(function (t) { return t.textContent; })
+          .join(" ").indexOf("authored"), -1);
+      });
+
+    await test("a contributor row links to its edge's rail and follows it in the " +
+      "page when clicked", function () {
+        var followed = [];
+        var root = kinematicPage({ onEdge: function (t, e) { followed.push([t, e]); } });
+        var link = all(kinematicStop(root, "low"), "a.kmrow__edge")[0];
+        eq(link.getAttribute("href"),
+           VA.viewerLink({ topology: "demo_mechanism", edge: "arm_pin_to_tip" }));
+        link.click();
+        eq(followed, [["demo_mechanism", "arm_pin_to_tip"]]);
+      });
+
+    await test("a contributor row offers 3D only where its part has a mesh, as " +
+      "the flyout where it is served and a link where it is not", function () {
+        var linked = kinematicPage();
+        var low = kinematicStop(linked, "low");
+        var cells = all(low, "td.kmrow__3d");
+        // arm (installed), base (installed), post (no mesh), strut (no mesh)
+        eq(cells.map(function (c) { return c.childNodes.length; }), [1, 1, 0, 0]);
+        eq(all(cells[0], "a.kmrow__3dlink")[0].getAttribute("href"),
+           VA.annotateLink({ topologyId: "demo_mechanism", edgeId: "arm_pin_to_tip",
+                             part: "arm" }));
+        var launched = [];
+        var flyout = kinematicPage({ annotateMount: true,
+          onAttach3d: function (p) { launched.push(p); } });
+        all(kinematicStop(flyout, "low"), "button.kmrow__3dbtn")[0].click();
+        eq(launched, [{ topologyId: "demo_mechanism", edgeId: "arm_pin_to_tip",
+                        part: "arm" }]);
+      });
+
+    await test("the envelope chart plots deviation from nominal on a symmetric " +
+      "axis that always reaches the limit", function () {
+        var chart = VA.kinematicChart(KIN_STUDY, 3);
+        var plot = chart.plot;
+        // Symmetric: zero sits mid-plot.
+        eq(chart.zeroY, Math.round((plot.top + plot.height / 2) * 100) / 100);
+        // The limit (0.5) is inside the plot even where a band is narrower.
+        ok(chart.limits[0].upper > plot.top && chart.limits[0].lower < plot.top + plot.height);
+        // The hit strips partition the plot with no gap and no overlap.
+        var strips = chart.points.slice().sort(function (a, b) { return a.x - b.x; });
+        eq(strips[0].hitFrom, plot.left);
+        eq(strips[strips.length - 1].hitTo, plot.left + plot.width);
+        for (var i = 1; i < strips.length; i++) {
+          eq(strips[i].hitFrom, strips[i - 1].hitTo, "strip " + i + " starts where the last ended");
+        }
+        eq(chart.xLabel, "actuator travel, mm");
+        eq(chart.yLabel, "tip angle from nominal, deg");
+      });
+
+    await test("hovering an envelope point shows the driver, the nominal and both " +
+      "spreads, each with its unit", function () {
+        var root = kinematicPage();
+        var tip = all(root, "div.kmchart__tip")[0];
+        eq(tip.style.display, "none");
+        var hit = all(root, "rect.kmchart__hit")[4];
+        hit.onmouseenter();
+        eq(tip.style.display, "");
+        eq(all(tip, "div.kmchart__tiprow").map(function (r) { return r.textContent; }),
+           ["actuator travel20.000 mm", "tip angle72.000 deg",
+            "worst case±0.550 deg", "RSS±0.360 deg"]);
+      });
+
+    await test("a kinematic study that failed to build says so, with its message, " +
+      "and draws nothing it does not have", function () {
+        var broken = { id: "k", title: "Broken", topology: "demo_mechanism",
+          status: "error", error: { type: "KinematicStudyError", message: "no run x" } };
+        var root = kinematicPage({ study: broken });
+        has(root.textContent, "could not be built");
+        has(all(root, "p.tverror__message")[0].textContent, "no run x");
+        eq(all(root, "figure.kmchart").length, 0);
+        eq(all(root, "section.kmstop").length, 0);
+      });
+
+    await test("the kinematic page's own words carry no banned string", function () {
+      var root = kinematicPage();
+      // The provenance fold is opened text too: include it.
+      bannedIn(viewerAuthoredText(root), "kinematic page");
+    });
+
     // --- node-fs tier: the REAL projection ----------------------------------
 
     var nodeFs = typeof NODE_FS !== "undefined" ? NODE_FS : null;
@@ -15133,6 +15402,101 @@
           });
       }
 
+
+      // --- [real] the kinematic page, over the live kinematic_studies.json ----
+      //
+      // the_viewer_shows_a_kinematic_study. Read through the same adapter, so
+      // the path config.js names is the path that is proved. Paired with this
+      // tree by the freshness check above (projection_freshness.cjs lists the
+      // file), and skipped -- loudly -- where the file has not been built.
+      var realKinematic = await real.readKinematic();
+      if (!realKinematic) {
+        skip("[real] kinematic page",
+             "no kinematic projection at " + nodeFs.root + "/data/projections/" +
+             "viewer/kinematic/kinematic_studies.json -- run " +
+             "scripts/build_kinematic_projection.py");
+      } else {
+        var realKinStudy = VA.findKinematicStudy(realKinematic,
+          "vpa_pitch_linkage_blade_pitch_at_the_stops");
+        var realKinTopologies = await real.readTopologies();
+
+        await test("[real] the kinematic projection carries the blade-pitch study, " +
+          "both stop margins and both gap rows", function () {
+            eq(realKinematic.studies.length, 1);
+            ok(realKinStudy, "the blade-pitch study is in the live projection");
+            eq(realKinStudy.status, "ok");
+            eq(realKinStudy.checks.map(function (c) {
+              return [c.stop, c.verdict, VA.kinematicNumber(c.margin, 3)];
+            }), [["minus7", "pass", "0.256"], ["plus72", "pass", "0.258"]]);
+            var minus7 = realKinStudy.stops.filter(function (s) {
+              return s.id === "minus7";
+            })[0];
+            eq(minus7.rows.length, 6);
+            eq(minus7.rows.slice(4).map(function (r) { return [r.edge, r.kind]; }),
+               [["tan_link_length", "gap"],
+                ["pitch_plate_tan_link_attach_radius", "gap"]]);
+            eq(minus7.rows[0].edge, "pitch_plate_attach_height");
+          });
+
+        await test("[real] the kinematic page renders the live study: two verdicts, " +
+          "six ranked rows under the -7 deg stop, the last two gaps", function () {
+            var root = render(function (r) {
+              VA.renderKinematic(r, { kinematic: realKinematic, study: realKinStudy,
+                topologies: realKinTopologies });
+            });
+            eq(all(root, "div.kmverdict").length, 2);
+            var minus7 = all(root, "section.kmstop").filter(function (s) {
+              return s.getAttribute("data-stop") === "minus7";
+            })[0];
+            var rows = all(minus7, "tr.kmrow");
+            eq(rows.length, 6);
+            eq(rows.map(function (r) { return hasClass(r, "kmrow--gap"); }),
+               [false, false, false, false, true, true]);
+            has(rows[0].textContent, "0.156");
+            bannedIn(viewerAuthoredText(root), "[real] kinematic page");
+          });
+
+        await test("[real] every contributor names an edge the topology projection " +
+          "declares, so every row prints a name and links to a rail", function () {
+            var unnamed = [];
+            realKinematic.studies.forEach(function (study) {
+              var index = VA.topologyIndex(VA.findTopology(realKinTopologies,
+                study.topology));
+              (study.stops || []).forEach(function (stop) {
+                stop.rows.forEach(function (row) {
+                  if (!index.edges[row.edge]) unnamed.push(study.id + ": " + row.edge);
+                });
+              });
+            });
+            eq(unnamed, []);
+          });
+
+        await test("[real] no live kinematic row kind, zone, feature source or study " +
+          "status is one the page cannot render", function () {
+            var unknown = [];
+            var see = function (table, field, value) {
+              if (!table[value]) unknown.push(field + "=" + JSON.stringify(value));
+            };
+            realKinematic.studies.forEach(function (study) {
+              see(VA.KINEMATIC_STUDY_STATUSES, "status", study.status);
+              (study.stops || []).forEach(function (stop) {
+                stop.rows.forEach(function (row) {
+                  see(VA.KINEMATIC_ROW_KINDS, "kind", row.kind);
+                  see(VA.KINEMATIC_ZONE_KINDS, "zone", row.zone);
+                  see(VA.KINEMATIC_FEATURE_SOURCES, "feature_source", row.feature_source);
+                });
+              });
+            });
+            eq(unknown, []);
+          });
+
+        await test("[real] every topology the kinematic projection names a model " +
+          "for is a topology this page can name", function () {
+            eq((realKinematic.models || []).filter(function (m) {
+              return !VA.findTopology(realKinTopologies, m.topology);
+            }).map(function (m) { return m.topology; }), []);
+          });
+      }
     }
 
     return results;

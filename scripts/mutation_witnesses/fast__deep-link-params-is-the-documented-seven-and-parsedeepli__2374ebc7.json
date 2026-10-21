@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "DEEP_LINK_PARAMS is the documented seven, and parseDeepLink reads exactly them",
+  "mutations": [
+    {
+      "contract": "`?kinematic=<id>` is a param of the viewer's inbound deep-link contract.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Removes the param from the constant, which is the edit that silently stops a documented link from opening its study.",
+      "file": "apps/viewer/viewer.js",
+      "find": "  VA.DEEP_LINK_PARAMS = [\"topology\", \"study\", \"edge\", \"node\", \"stack\", \"element\",\n                         \"kinematic\"];",
+      "replace": "  VA.DEEP_LINK_PARAMS = [\"topology\", \"study\", \"edge\", \"node\", \"stack\", \"element\"];"
+    }
+  ]
+}

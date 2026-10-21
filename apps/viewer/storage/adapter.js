@@ -37,6 +37,12 @@
 //          study folds scripts/build_topology_projection.py writes. Read by
 //          apps/viewer/topology.html only; index.html never asks for it, and an
 //          adapter returning null is the ordinary "not built yet" state.
+//   readKinematic(): Promise<object|null>
+//        — parsed data/projections/viewer/kinematic/kinematic_studies.json
+//          (VA.CONFIG.kinematicProjection), the kinematic studies
+//          scripts/build_kinematic_projection.py writes. null if absent, and
+//          absence is the ORDINARY state: no study, no nav section, nothing
+//          else on the page changes.
 //   readCropImage(relPath): Promise<{ url, name }|null>
 //        — an object URL for data/projections/viewer/<relPath> (a crops/*.png).
 //          null when the file is gone, e.g. a stale crops.json.

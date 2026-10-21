@@ -48,6 +48,11 @@
     );
   };
 
+  NodeFsAdapter.prototype.readKinematic = function () {
+    return Promise.resolve(VA.parseJson(this._io.readText(
+      join(VA.CONFIG.projectionDir.concat(VA.CONFIG.kinematicProjection)))));
+  };
+
   // The node tier never paints pixels, so this reports presence rather than
   // decoding: a "resolved" crop whose PNG is missing is a real failure mode
   // (stale crops.json) and the tests assert on it.

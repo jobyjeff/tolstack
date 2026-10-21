@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] no live kinematic row kind, zone, feature source or study status is one the page cannot render",
+  "mutations": [
+    {
+      "contract": "Every feature-source word the live projection carries has a branch on the page.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Renames the table away, so the page has a branch for no feature source at all.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "  VA.KINEMATIC_FEATURE_SOURCES = VOCAB.table(\"KINEMATIC_FEATURE_SOURCES\", {",
+      "replace": "  VA.KINEMATIC_FEATURE_SOURCES_UNREAD = VOCAB.table(\"KINEMATIC_FEATURE_SOURCES\", {"
+    }
+  ]
+}
