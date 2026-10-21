@@ -4994,6 +4994,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       reviews of what it renders for "Nits (recorded, not filed)" and file any
       that now show. Seen with the kinematic study's `, kinematic` suffix,
       which was N1 of `REVIEW_20261016_…` and is now on the nav and the page head.
+- [ ] **An annotator verb that changes the mode or the subject, registered
+      without `announced(...)`.** New 2026-10-20
+      (`the_3d_pane_opens_in_the_mode_the_study_wants`). The viewer's pane head
+      line is the annotator's `annotate:state` reply. Only `goto`, `trace` and
+      `sweep` post it, through `announced()` at `commands.register`. A new verb
+      that switches mode, topology or study without it leaves the head naming
+      the old subject, and nothing fails. The same diff should also say whether
+      the verb leaves sweep mode (`leaveSweep()`, as `goto` and `trace` do).
+      Check every new `commands.register` line in `apps/annotate/app.js`.
+- [ ] **A layout change that moves a column decays an UNTOUCHED geometric
+      witness whose offset was that column's width.** New 2026-10-20 (same
+      handoff). The nav rail used to stand down while the 3D pane was open.
+      Once it stayed open, `…sits-to-the-panel-s-right…__237dba65` (shift
+      `-300px`, the rail's width) put the rail under the panel instead of the
+      DAG, and went NOT WITNESSED. The author re-pointed the two sibling
+      specs, ran `--only` on the specs it touched, and missed this one.
+      Whenever a diff changes what is in normal flow beside the flyout, run the
+      FULL registry before you approve, not `--only`.
 
 ## Architectural errors to check
 
