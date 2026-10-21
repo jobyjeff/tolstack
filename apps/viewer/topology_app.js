@@ -203,6 +203,7 @@
     wireDetailDivider();
 
     state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), roomBesideFlyout(), graphNeed());
+    flyoutWanted = state.flyoutWidth;
     applyFlyoutWidth();
     wireFlyoutDivider();
 
@@ -1128,6 +1129,10 @@
   // that changed nothing the pane cares about posts nothing. null while the
   // pane is closed: reopening always re-drives.
   var paneFollowed = null;
+  // The width the reader last chose for the pane (a drag, or the remembered
+  // one at boot), or null for the stylesheet's -- what refitPane fits to each
+  // page, as against state.flyoutWidth, which is what the current page allows.
+  var flyoutWanted = null;
 
   function currentAnnotateParams() {
     return VA.annotateParamsFor({
@@ -1158,6 +1163,19 @@
     if (key === paneFollowed) return;
     paneFollowed = key;
     if (params) drivePane(params);
+    refitPane();
+  }
+
+  // The page under a pane that stays changes shape -- the kinematic page has
+  // no preview pane, a chain study has one and a drawing -- so the pane's
+  // width is re-fitted to the new page from the width the reader CHOSE, not
+  // from whatever the last page squeezed it to. Not remembered: a width the
+  // layout imposed is not a preference (the same rule launchAnnotate keeps).
+  function refitPane() {
+    state.flyoutWidth = VA.clampFlyoutWidth(
+      flyoutWanted !== null ? flyoutWanted : flyoutWidthNow(),
+      roomBesideFlyout(), graphNeed());
+    applyFlyoutWidth();
   }
 
   // `params` null (a stack page asks the pane for nothing) opens the annotator
@@ -1600,6 +1618,7 @@
     if (spec.kind === "pane" && state.detailWidth !== null) {
       VA.writeStoredPaneWidth(widthStore(), state.detailWidth);
     } else if (spec.kind === "flyout" && state.flyoutWidth !== null) {
+      flyoutWanted = state.flyoutWidth;
       VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth,
         roomBesideFlyout(), graphNeed());
     }

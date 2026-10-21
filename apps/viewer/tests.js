@@ -278,6 +278,69 @@
           [["sweep", "vpa-pitch-p2-20261016-235852"]]);
       });
 
+    // --- the 3D pane follows the selection (the_3d_pane_opens_in_the_mode_
+    // the_study_wants): one rule, and both carriers agree on its answer ------
+
+    await test("annotateParamsFor: a kinematic study opens sweep mode on its run, " +
+      "an edge or a chain study the goto its row would post, a stack nothing",
+      function () {
+        var kinematic = { mode: "kinematic", kinematicStudy: {
+          topology: "vpa_pitch_linkage", sweep: { run_id: "vpa-pitch-p2-x" } } };
+        var edge = { mode: "topology", topologyId: "t", studyId: "s",
+          selection: { kind: "edge", id: "e" } };
+        var study = { mode: "topology", topologyId: "t", studyId: "s", selection: null };
+        var node = { mode: "topology", topologyId: "t", studyId: null,
+          selection: { kind: "node", id: "n" } };
+        eq(VA.annotateParamsFor(kinematic),
+          { topologyId: "vpa_pitch_linkage", sweep: "vpa-pitch-p2-x" });
+        eq(VA.annotateParamsFor(edge), { topologyId: "t", studyId: "s", edgeId: "e" });
+        eq(VA.annotateParamsFor(study), { topologyId: "t", studyId: "s" });
+        eq(VA.annotateParamsFor(node), { topologyId: "t" });
+        eq(VA.annotateParamsFor({ mode: "stack" }), null);
+        eq(VA.annotateParamsFor({ mode: "kinematic", kinematicStudy: null }), null);
+        // The two carriers, over the same answers: a cold pane boots on the
+        // link, a warm one runs the commands, and they say the same thing.
+        eq(VA.annotateLink(VA.annotateParamsFor(kinematic)),
+          "../annotate/index.html?sweep=vpa-pitch-p2-x");
+        eq(VA.annotateExecCommands(VA.annotateParamsFor(kinematic)),
+          [["sweep", "vpa-pitch-p2-x"]]);
+        eq(VA.annotateLink(VA.annotateParamsFor(edge)),
+          "../annotate/index.html?topology=t&edge=e&study=s");
+        eq(VA.annotateExecCommands(VA.annotateParamsFor(edge)), [["goto", "t", "e", "s"]]);
+        eq(VA.annotateLink(VA.annotateParamsFor(study)),
+          "../annotate/index.html?topology=t&study=s");
+        eq(VA.annotateExecCommands(VA.annotateParamsFor(study)), [["goto", "t", "", "s"]]);
+      });
+
+    await test("a hover posts highlight on its edge and clear off it, at most a few " +
+      "messages a second", function () {
+        eq(VA.annotateHighlightCommand("t", "e"), ["highlight", "t", "e"]);
+        eq(VA.annotateHighlightCommand("t", null), ["highlight", "clear"]);
+        eq(VA.annotateHighlightCommand(), ["highlight", "clear"]);
+        ok(VA.PANE_HOVER_DEBOUNCE_MS >= 100 && VA.PANE_HOVER_DEBOUNCE_MS <= 500,
+          "debounce " + VA.PANE_HOVER_DEBOUNCE_MS + " ms");
+      });
+
+    await test("the pane's open state round-trips through storage and reads closed " +
+      "when storage is absent, empty or throws", function () {
+        var bag = {};
+        var store = {
+          getItem: function (k) { return k in bag ? bag[k] : null; },
+          setItem: function (k, v) { bag[k] = String(v); },
+          removeItem: function (k) { delete bag[k]; },
+        };
+        eq(VA.readStoredFlyoutOpen(store), false);
+        VA.writeStoredFlyoutOpen(store, true);
+        eq(VA.readStoredFlyoutOpen(store), true);
+        VA.writeStoredFlyoutOpen(store, false);
+        eq(VA.readStoredFlyoutOpen(store), false);
+        eq(VA.readStoredFlyoutOpen(null), false);
+        var broken = { getItem: function () { throw new Error("denied"); },
+          setItem: function () { throw new Error("denied"); } };
+        eq(VA.readStoredFlyoutOpen(broken), false);
+        VA.writeStoredFlyoutOpen(broken, true); // must not throw
+      });
+
     await test("probeAnnotateMount degrades immediately under file:// and with " +
       "no fetch at all -- never a probe it cannot make", async function () {
         var called = 0;
