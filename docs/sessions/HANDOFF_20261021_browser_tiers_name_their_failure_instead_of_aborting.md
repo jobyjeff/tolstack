@@ -1,7 +1,7 @@
 ---
-priority: med
-depends_on: [the_kinematic_study_checks_its_run_its_units_and_shows_its_limit]  # that handoff re-points testAnnotateSweepRail's boot URL in the same runner file; land it first so the two diffs to run_viewer_browser_tests.mjs do not cross
-model: sonnet
+priority: high
+depends_on: []
+model: opus
 ---
 
 # HANDOFF 2026-10-21 — browser_tiers_name_their_failure_instead_of_aborting: every unmet precondition in the browser tiers becomes a named FAIL, not a suite-killing ERROR
@@ -17,12 +17,15 @@ red. Issues:
 - `docs/issues/ISSUE_20260918_the_browser_tiers_export_locators_are_unscoped_so_a_second_export_on_the_page_breaks_them.md`
 - `docs/issues/ISSUE_20260916_the_annotate_flyout_settle_wait_is_named_in_one_half_and_discarded_in_the_other.md`
 - `docs/issues/ISSUE_20261020_the_annotate_real_browser_pass_times_out_waiting_for_sweep_bodies_to_resolve.md`
+- `docs/issues/ISSUE_20261021_the_hover_intent_corridor_check_is_red_in_the_main_checkout_and_green_in_a_worktree_at_the_same_sha.md` (**high**, item 6)
 
 Each one names its exact lines and a fix in the block's own idiom. Read them
 all before you start.
 
-Baseline: tolstack `master` after
-`the_kinematic_study_checks_its_run_its_units_and_shows_its_limit` has merged.
+Baseline: tolstack `master` at or after `8bc7dfc`. **This runs first**: the
+kinematic and mutation-tier handoffs staged the same day sequence behind it,
+because trunk's browser tier is red (item 6) and every merge until it is
+fixed carries a known red.
 
 Scope: `scripts/run_viewer_browser_tests.mjs`, `apps/annotate/run_browser_check.mjs`,
 `apps/viewer/fixtures.js` (the demo joint's `assembly_export_ref`, per the
@@ -71,17 +74,23 @@ checkout, or junction `node_modules` into your worktree (a review did this on
    here. If the pass is just slower than its timeout, say so with the
    measured time. Either way, nothing after that wait has run since
    2026-10-20, so report what the rest of the pass does once it is reached.
-6. **If it recurs: the hover-intent corridor check.** At the 2026-10-21 batch
-   merge, `node scripts/run_viewer_browser_tests.mjs` in the main checkout
-   failed one sub-check under both `topology file://` and `topology http`:
+6. **Trunk's browser tier is red on one check. Fix it first.**
    `a trigger crossed while the pointer is heading for the open card does
-   not steal it` (234/235 each, 26/28 suites). Other suites were loading the
-   machine at the time. The block's own comment records the same check
-   being flaky under load in 2026-09 (`approachFrom`, around line 1840).
-   Run the browser tier three times, at least once alongside the mutation
-   tier. If the check fails in any run, make the approach deterministic under
-   load and say how. If it is green every time, record the three results in
-   the lesson and leave it alone.
+   not steal it` fails in the main checkout at `9ce8262`, under both
+   `topology file://` and `topology http`, in full runs and in
+   `--only "topology file://"` alone. It passes 235/235 in a clean worktree
+   at both `7b69d91` and `9ce8262` with `--repo C:/workspace/tolstack`, and
+   still passes with main's `data/meshes` junctioned in. The issue has the
+   full table. So the check depends on state only the main checkout has.
+   Find that state (what the citation card at
+   `tr.tvrow[data-id='base_thickness']` renders, and so how big it is, is
+   the first suspect, because `approachFrom` aims at its box), and make the
+   check independent of it. **Do not weaken the assertion.** If the state
+   is a real reader-facing difference (main renders a card the worktree
+   does not), the check must pass on both, and the lesson must say which
+   card shape each saw. Then run the full browser tier three times in the
+   main checkout, at least once alongside the mutation tier, and record all
+   three.
 
 ## Definition of done
 
@@ -93,4 +102,4 @@ checkout, or junction `node_modules` into your worktree (a review did this on
   `C:\workspace\tolstack\venv-win\Scripts\python.exe -m pytest -q`.
 - Lesson (`docs/sessions/lessons/LESSONS_20261021_browser_tiers_name_their_failure_instead_of_aborting.md`):
   each plant and what it printed, the `--real` diagnosis with its measured
-  time, and item 6's three results.
+  time, item 6's diagnosis (what main-only state the check read) and its three runs.

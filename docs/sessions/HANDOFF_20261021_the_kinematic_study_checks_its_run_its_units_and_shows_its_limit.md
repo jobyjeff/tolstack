@@ -1,6 +1,6 @@
 ---
 priority: med
-depends_on: []
+depends_on: [browser_tiers_name_their_failure_instead_of_aborting]  # both edit scripts/run_viewer_browser_tests.mjs, and that one fixes the red on trunk this handoff would otherwise inherit; land it first
 model: opus
 ---
 
@@ -43,7 +43,7 @@ Do NOT touch: `scripts/run_mutation_witness_tests.mjs`,
 belong to the staged `mutation_tier_gates_on_every_pin_and_survives_a_board_move`.
 Do not touch any existing block of `run_viewer_browser_tests.mjs` beyond the
 boot URL above: the staged `browser_tiers_name_their_failure_instead_of_aborting`
-owns those and depends on this handoff. Leave the linkage repo alone too. The
+owns those and lands before this one. Leave the linkage repo alone too. The
 `geometry.units[]` idea in the units issue is linkage's to publish, and you
 only note it.
 
