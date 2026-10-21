@@ -778,7 +778,7 @@ check("README.md's verb table names exactly the verbs commands.register(...) wir
 check("the pairing above can fail -- a verb added to app.js with no doc update is caught", () => {
   const appJsText = fs.readFileSync(path.join(here, "app.js"), "utf8");
   const readmeText = fs.readFileSync(path.join(here, "README.md"), "utf8");
-  const anchor = 'commands.register("goto", cmdGoto);';
+  const anchor = 'commands.register("goto", announced(cmdGoto));';
   const withFakeVerb = appJsText.replace(anchor, `${anchor}\ncommands.register("teleport", cmdGoto);`);
   if (withFakeVerb === appJsText) {
     throw new Error(`the anchor line this test mutates is not in app.js: ${anchor}`);
@@ -1039,6 +1039,42 @@ check("planStudyTrace reports a binding to an uninstalled mesh as unresolved, no
   assertEqual(plan.marks, []);
   assertEqual(plan.unresolvedMarks, [{ edgeId: "e_missing", sha256: "f".repeat(64) }]);
   assertEqual(plan.missingParts, ["no_such_part"]);
+});
+
+// --- embedded in the viewer's 3D pane (the_3d_pane_opens_in_the_mode_the_
+// study_wants): the hover highlight, and the state reply's one line.
+check("planHighlight tints a bound face only where its part is open, and an unbound " +
+  "edge is a note, never an error", () => {
+  const open = (sha) => sha === "bbbb";
+  assertEqual(AA.planHighlight(TRACE_IDENTITY, "demo_system", "e_solid", open),
+    { face: { sha256: "bbbb", faceId: 4 }, note: null });
+  const closed = AA.planHighlight(TRACE_IDENTITY, "demo_system", "e_solid", () => false);
+  assertEqual(closed.face, null);
+  assertEqual(/not open/.test(closed.note), true, closed.note);
+  const unbound = AA.planHighlight(TRACE_IDENTITY, "demo_system", "e_gap", open);
+  assertEqual(unbound.face, null);
+  assertEqual(/no binding/.test(unbound.note), true, unbound.note);
+  // Another topology's edge of the same id is not this one's binding.
+  assertEqual(AA.planHighlight(TRACE_IDENTITY, "other", "e_solid", open).face, null);
+  assertEqual(AA.planHighlight(null, "demo_system", "e_solid", open).face, null);
+});
+check("embedState names the mode and the subject in one line -- the run's mechanism " +
+  "in sweep mode, the study (or the topology) in bind mode", () => {
+  const sweep = { runId: "run-1", topologyId: "vpa_pitch_linkage",
+    mechanismName: "vpa_pitch_chunk2_p2" };
+  const topology = { id: "vpa_pitch_linkage", title: "Propeller pitch linkage" };
+  const study = { id: "travel", title: "Travel between end stops" };
+  assertEqual(AA.embedState(sweep, topology, study), {
+    type: "annotate:state", mode: "sweep", topology: "vpa_pitch_linkage",
+    study: null, run: "run-1", title: "Sweep — vpa pitch chunk2 p2",
+  });
+  assertEqual(AA.embedState(null, topology, study), {
+    type: "annotate:state", mode: "bind", topology: "vpa_pitch_linkage",
+    study: "travel", run: null, title: "Binding — Travel between end stops",
+  });
+  assertEqual(AA.embedState(null, topology, null).title,
+    "Binding — Propeller pitch linkage");
+  assertEqual(AA.embedState(null, null, null).title, "Binding");
 });
 check("planStudyTrace over the mock fixture's own study matches its data end to end", () => {
   const topo = AA.FIXTURES.topologyProjection.topologies[0];

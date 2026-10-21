@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] resting on a bound contributor row tints its face in the annotator, in the colour buffer and not just the bookkeeping",
+  "mutations": [
+    {
+      "contract": "A highlight paints the bound face's colour buffer.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "The bookkeeping (window.__lastHighlight) is set either way; only the buffer says whether anything was painted -- the lesson the rail suite's deselect witness taught.",
+      "file": "apps/annotate/app.js",
+      "find": "  state.scene.highlightFace(plan.face.sha256, plan.face.faceId);\n  return plan.face;",
+      "replace": "  return plan.face;"
+    }
+  ]
+}

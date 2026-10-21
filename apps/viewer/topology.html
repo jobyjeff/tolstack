@@ -20,6 +20,11 @@
          projection and does no arithmetic. -->
     <span class="sub">read-only · renders the built projections · computes nothing</span>
     <span class="topbar__spacer"></span>
+    <!-- Opens the 3D pane on whatever is selected, and closes it. Hidden until
+         the mount probe finds the annotator served beside this page
+         (topology_app.js's syncPaneToggle): absent, it shows nothing. -->
+    <button id="pane-toggle" class="ghost" aria-pressed="false" style="display: none"
+            title="show the selection in 3D beside the page">3D</button>
     <button id="legend-toggle" class="ghost">How to read this</button>
     <button id="worksheet-toggle" class="ghost">Show worksheet</button>
   </div>
@@ -159,7 +164,9 @@
        on, and no view owns it. -->
   <dialog id="annotate-flyout" class="flyout">
     <div class="flyout__head">
-      <h2>3D — annotate</h2>
+      <!-- The annotator's own one-line answer to what it is showing
+           (annotate:state); these resting words until it answers. -->
+      <h2 id="flyout-title">3D</h2>
       <a id="flyout-fullpage" class="flyout__fullpage" target="_blank" rel="noopener"
          title="open the whole annotator, with its own menus, in a new tab">Open full page ↗</a>
       <button id="flyout-close" class="ghost">Close</button>

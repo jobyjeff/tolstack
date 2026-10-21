@@ -1700,16 +1700,26 @@ static server — every annotate affordance upgrades in place:
   even with the flyout live — two annotators, two folder grants, two cameras.
 
 The panel is a non-modal, `position: fixed` `<dialog>` pinned to the
-viewport's right edge (`#annotate-flyout`): opening it structurally cannot
-shrink or reflow the DAG pane — the `viewer_v2_single_nav` dialog precedent,
-non-modal so the page beside it stays clickable. It holds ONE iframe of the
-real annotate app, created on the first launch and kept: the folder grant,
-loaded meshes and camera survive across launches, because a later launch
-drives the open panel over `postMessage` → `AA.exec` (the annotator's own
-command vocabulary — the same verbs the boot URL's params run;
-`VA.annotateExecCommands` mirrors `VA.annotateLink` param for param). While
-open it sits over this page's own detail pane on purpose: the annotator's
-element detail supersedes it for the edge being worked.
+viewport's LEFT edge (`#annotate-flyout`, Jeff 2026-09-16: adjacent to the
+DAG), and the page yields it the room rather than lying under it. It holds ONE
+iframe of the real annotate app, created on the first launch and kept: the
+folder grant, loaded meshes and camera survive across launches, because a
+later launch drives the open panel over `postMessage` → `AA.exec` (the
+annotator's own command vocabulary — the same verbs the boot URL's params run;
+`VA.annotateExecCommands` mirrors `VA.annotateLink` param for param).
+
+**A pane that stays** (handoff `the_3d_pane_opens_in_the_mode_the_study_wants`,
+2026-10-20). The head's **3D** control opens the panel on whatever is
+selected, no row needed; once open it stays open across the page's own
+navigation and **follows the selection**: a kinematic study opens the
+annotator's sweep mode on the run it folds, a chain study or an edge the goto
+its row would post (which leaves sweep mode), all through one rule,
+`VA.annotateParamsFor`, whose result `VA.annotateLink` boots a cold panel with
+and `VA.annotateExecCommands` re-drives a warm one with. Open/closed and the
+width are remembered per browser. The nav rail stays beside it (it used to
+stand down). Resting the pointer on an edge's row, rail mark or kinematic
+contributor posts `highlight` (debounced, `VA.PANE_HOVER_DEBOUNCE_MS`), and
+the panel's head line is the annotator's own `annotate:state` answer.
 
 **Probed, never assumed** (`VA.probeAnnotateMount`): at boot the page HEADs
 `../annotate/index.html` and requires an ok `text/html` answer — the same

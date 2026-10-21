@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] served beside the annotator, the head shows the 3D control",
+  "mutations": [
+    {
+      "contract": "Where the annotator is served beside the page, the head offers the 3D control.",
+      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "The opposite arm of the file:// guard: a control that never appears passes every absent-feature check.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.paneToggle.style.display = state.annotateMount ? \"\" : \"none\";",
+      "replace": "    nodes.paneToggle.style.display = \"none\";"
+    }
+  ]
+}

@@ -194,17 +194,36 @@
       flyoutClose: document.getElementById("flyout-close"),
       flyoutDivider: document.getElementById("flyout-divider"),
       flyoutFullpage: document.getElementById("flyout-fullpage"),
+      flyoutTitle: document.getElementById("flyout-title"),
+      paneToggle: document.getElementById("pane-toggle"),
     };
     applyDensity();
     state.detailWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
     wireDetailDivider();
 
-    state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), roomBesideFlyout(), graphNeed());
+    // The remembered width is the reader's PREFERENCE, kept as chosen (only
+    // its own min/max applied -- a room of 0 is "no layout to go on"): at
+    // boot the page has not loaded what it will show, so a clamp against this
+    // first layout would bake in a page the reader is not on. Each page fits
+    // it when the pane opens or follows (refitPane).
+    flyoutWanted = VA.readStoredFlyoutWidth(widthStore(), 0, 0);
+    state.flyoutWidth = flyoutWanted === null ? null
+      : VA.clampFlyoutWidth(flyoutWanted, roomBesideFlyout(), graphNeed());
     applyFlyoutWidth();
     wireFlyoutDivider();
 
     nodes.flyoutClose.onclick = function () { nodes.flyout.close(); };
+    // The head's "3D" control opens the pane on whatever is selected -- no row
+    // needed -- and closes it again. Rendered only where the mount probe
+    // passed (paint()), so a page that cannot embed the annotator shows
+    // nothing about it.
+    if (nodes.paneToggle) {
+      nodes.paneToggle.onclick = function () {
+        if (nodes.flyout.open) nodes.flyout.close();
+        else openPane();
+      };
+    }
     // The ONE seam every close path goes through. Not the button's handler:
     // `.close()` is also reachable from anywhere else that holds the element,
     // and a page left shifted with no panel on it would be a layout with no
@@ -212,7 +231,15 @@
     // the whole of "closing restores whatever it covered".
     nodes.flyout.addEventListener("close", function () {
       document.body.classList.remove("flyout-open");
+      // Closed is remembered as firmly as open: the pane stays where the
+      // reader left it, either way, across a reload.
+      VA.writeStoredFlyoutOpen(widthStore(), false);
+      paneFollowed = null;
+      clearPaneHover();
+      syncPaneToggle();
     });
+    wirePaneHover();
+    wirePaneState();
 
     // Probe for the sibling annotate mount (study_3d_flyout, feature 3) in
     // parallel with the transport probe below — measured, never assumed, and
@@ -227,6 +254,9 @@
       if (mounted === state.annotateMount) return;
       state.annotateMount = mounted;
       render();
+      // A pane the reader left open reopens -- on whatever this boot
+      // selected, through the same rule a selection change uses.
+      if (mounted && VA.readStoredFlyoutOpen(widthStore())) openPane();
     });
 
     // The legend and the worksheet are both <dialog>s now (deliverable 2):
@@ -1082,7 +1112,7 @@
     placedHeight = pop.offsetHeight || height;
   }
 
-  // --- the annotator flyout (study_3d_flyout) --------------------------------
+  // --- the 3D pane (study_3d_flyout; a pane since 2026-10-20) ---------------
   //
   // One iframe, created lazily on the first launch and KEPT across launches:
   // the annotator's folder grant, loaded meshes and camera are session state
@@ -1092,48 +1122,92 @@
   // when the boot-time probe found ../annotate/ served beside this page;
   // everywhere else the views render the pre-flyout links and none of this
   // runs.
+  //
+  // Since handoff the_3d_pane_opens_in_the_mode_the_study_wants it is a PANE:
+  // once open it stays open across the page's own navigation and FOLLOWS the
+  // selection (followSelection, after every paint), through the one rule
+  // VA.annotateParamsFor -- a kinematic study opens sweep mode on its run, a
+  // chain study or an edge the goto its row would post. Open/closed and the
+  // width are remembered per browser.
   var flyoutFrame = null;
   var flyoutLoaded = false;
+  // The selection the open pane was last driven to, serialised, so a paint
+  // that changed nothing the pane cares about posts nothing. null while the
+  // pane is closed: reopening always re-drives.
+  var paneFollowed = null;
+  // The width the reader last chose for the pane (a drag, or the remembered
+  // one at boot), or null for the stylesheet's -- what refitPane fits to each
+  // page, as against state.flyoutWidth, which is what the current page allows.
+  var flyoutWanted = null;
 
+  function currentAnnotateParams() {
+    return VA.annotateParamsFor({
+      mode: state.mode,
+      topologyId: state.topologyId,
+      studyId: state.studyId,
+      selection: state.selection,
+      kinematicStudy: state.mode === "kinematic"
+        ? VA.findKinematicStudy(state.kinematic, state.kinematicId) : null,
+    });
+  }
+
+  function paramsKey(params) {
+    return params ? JSON.stringify(params) : "";
+  }
+
+  // The head's "3D" control, and a pane the reader left open reopening after
+  // a reload: open on the current selection, no row needed.
+  function openPane() {
+    launchAnnotate(currentAnnotateParams());
+  }
+
+  // After every paint: an open pane follows a selection that moved.
+  function followSelection() {
+    if (!nodes.flyout || !nodes.flyout.open || !state.annotateMount) return;
+    var params = currentAnnotateParams();
+    var key = paramsKey(params);
+    if (key === paneFollowed) return;
+    paneFollowed = key;
+    if (params) drivePane(params);
+    refitPane();
+  }
+
+  // The page under a pane that stays changes shape -- the kinematic page has
+  // no preview pane, a chain study has one and a drawing -- so the pane's
+  // width is re-fitted to the new page from the width the reader CHOSE, not
+  // from whatever the last page squeezed it to. Not remembered: a width the
+  // layout imposed is not a preference (the same rule launchAnnotate keeps).
+  function refitPane() {
+    state.flyoutWidth = VA.clampFlyoutWidth(
+      flyoutWanted !== null ? flyoutWanted : flyoutWidthNow(),
+      roomBesideFlyout(), graphNeed());
+    applyFlyoutWidth();
+  }
+
+  // `params` null (a stack page asks the pane for nothing) opens the annotator
+  // on no element at all.
   function launchAnnotate(params) {
     if (!state.annotateMount) return;
-    if (!flyoutFrame) {
-      flyoutFrame = document.createElement("iframe");
-      flyoutFrame.className = "flyout__frame";
-      flyoutFrame.setAttribute("title", "3D annotation panel");
-      flyoutFrame.addEventListener("load", function () { flyoutLoaded = true; });
-      flyoutFrame.src = VA.annotateLink(params);
-      nodes.flyout.appendChild(flyoutFrame);
-    } else if (!flyoutLoaded) {
-      // The iframe exists but its document is still loading, so its message
-      // listener may not be registered yet and a postMessage would be lost --
-      // re-point the boot URL at the new params instead.
-      flyoutFrame.src = VA.annotateLink(params);
-    } else {
-      VA.annotateExecCommands(params).forEach(function (command) {
-        flyoutFrame.contentWindow.postMessage(
-          { type: "annotate:exec", command: command }, window.location.origin);
-      });
-    }
-    // The head's "Open full page" out-link (Jeff, 2026-09-16), pointed at the
-    // SAME url the panel booted with -- VA.annotateLink, once, for both. Set on
-    // every launch rather than at boot: a reader who re-drove the open panel
-    // from another row would otherwise open a new tab on the element they left.
-    if (nodes.flyoutFullpage) {
-      nodes.flyoutFullpage.setAttribute("href", VA.annotateLink(params));
-    }
+    // An explicit launch -- a row's 3D control, the model row -- is what the
+    // pane shows now. The selection it was launched FROM is marked followed,
+    // so the paint after it does not re-drive the pane straight back to that
+    // selection's own goto.
+    paneFollowed = paramsKey(currentAnnotateParams());
+    drivePane(params);
     // The drawing measured BEFORE the page shifts, so `keep` is this study's
     // own rails width and not a width taken after the pane narrowed under them.
     var keep = graphNeed();
 
     // show(), not showModal(): the page beside the panel stays clickable, so
-    // "attach to 3D" on another row re-drives the open panel.
+    // the nav and every row's 3D control keep driving the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
-    // The page yields the room (topology.css's `body.flyout-open`): `.tv`
-    // starts at the panel's right edge and the nav rail stands down, so the
-    // panel sits BESIDE the graph instead of on top of it. Removed again by
-    // the dialog's own `close` event, wired once at boot.
+    // The page yields the room (topology.css's `body.flyout-open`): the page
+    // starts at the panel's right edge, so the panel sits BESIDE the nav and
+    // the graph instead of on top of them. Removed again by the dialog's own
+    // `close` event, wired once at boot.
     document.body.classList.add("flyout-open");
+    VA.writeStoredFlyoutOpen(widthStore(), true);
+    syncPaneToggle();
 
     // The panel's width, clamped to the room the page can spare, EVERY time it
     // opens -- and AFTER show(), which is not a detail: a closed <dialog> is
@@ -1145,9 +1219,142 @@
     // rather than a promise the layout cannot keep. Not remembered: a width the
     // layout imposed is not a preference the reader expressed, so
     // rememberWidth() is deliberately not called here.
-    state.flyoutWidth = VA.clampFlyoutWidth(flyoutWidthNow(),
+    state.flyoutWidth = VA.clampFlyoutWidth(
+      flyoutWanted !== null ? flyoutWanted : flyoutWidthNow(),
       roomBesideFlyout(), keep);
     applyFlyoutWidth();
+  }
+
+  // Point the pane at `params`: boot the iframe on them, re-point a document
+  // still loading, or post them to a booted one.
+  function drivePane(params) {
+    var href = params ? VA.annotateLink(params) : VA.ANNOTATE_PAGE;
+    if (!flyoutFrame) {
+      flyoutFrame = document.createElement("iframe");
+      flyoutFrame.className = "flyout__frame";
+      flyoutFrame.setAttribute("title", "3D annotation panel");
+      flyoutFrame.addEventListener("load", function () { flyoutLoaded = true; });
+      flyoutFrame.src = href;
+      nodes.flyout.appendChild(flyoutFrame);
+    } else if (!flyoutLoaded) {
+      // The iframe exists but its document is still loading, so its message
+      // listener may not be registered yet and a postMessage would be lost --
+      // re-point the boot URL at the new params instead.
+      if (params) flyoutFrame.src = href;
+    } else if (params) {
+      VA.annotateExecCommands(params).forEach(postToPane);
+    }
+    // The head line says what the ANNOTATOR reports it is showing
+    // (annotate:state, wirePaneState) and nothing this page composed, so
+    // until that reply lands it goes back to its resting words rather than
+    // naming the subject the pane just left.
+    setPaneTitle(null);
+    // The head's "Open full page" out-link (Jeff, 2026-09-16), pointed at the
+    // SAME url the panel booted with -- VA.annotateLink, once, for both. Set on
+    // every launch rather than at boot: a reader who re-drove the open panel
+    // from another row would otherwise open a new tab on the element they left.
+    if (nodes.flyoutFullpage) nodes.flyoutFullpage.setAttribute("href", href);
+  }
+
+  function postToPane(command) {
+    if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;
+    flyoutFrame.contentWindow.postMessage(
+      { type: "annotate:exec", command: command }, window.location.origin);
+  }
+
+  // The head control is rendered only where the pane can exist, and reads as
+  // pressed while it is open.
+  function syncPaneToggle() {
+    if (!nodes.paneToggle) return;
+    nodes.paneToggle.style.display = state.annotateMount ? "" : "none";
+    nodes.paneToggle.setAttribute("aria-pressed",
+      nodes.flyout && nodes.flyout.open ? "true" : "false");
+  }
+
+  // --- what the pane says it is showing (deliverable 4) ----------------------
+  //
+  // The annotator posts {type: "annotate:state", mode, topology, study, run,
+  // title} after every sweep / goto / trace it completes, whoever asked for it
+  // (this page, its own run picker, its console). `title` is the annotator's
+  // own one line -- "Sweep — vpa pitch chunk2 p2" -- and this page prints it
+  // verbatim: nothing here composes it from the viewer's state, which could
+  // only disagree with what the scene actually holds (a command that failed,
+  // a topology the reader kept).
+  var paneTitleAtRest = null;
+
+  function setPaneTitle(title) {
+    if (!nodes.flyoutTitle) return;
+    if (paneTitleAtRest === null) paneTitleAtRest = nodes.flyoutTitle.textContent;
+    var text = title || paneTitleAtRest;
+    nodes.flyoutTitle.textContent = text;
+    // The line can be clipped by a narrow pane; the whole of it on hover.
+    nodes.flyoutTitle.setAttribute("title", text);
+  }
+
+  function wirePaneState() {
+    if (typeof window === "undefined" || !window.addEventListener) return;
+    window.addEventListener("message", function (event) {
+      if (!flyoutFrame || event.source !== flyoutFrame.contentWindow) return;
+      if (event.origin !== window.location.origin) return;
+      var msg = event.data;
+      if (!msg || msg.type !== "annotate:state") return;
+      setPaneTitle(msg.title || null);
+    });
+  }
+
+  // --- hover crosses the seam (deliverable 3) --------------------------------
+  //
+  // Resting the pointer on an edge -- its grid row or its rail mark on a chain
+  // study, a contributor row on a kinematic study -- posts `highlight
+  // <topology> <edge>`, and the annotator tints that edge's bound face;
+  // resting anywhere else posts `highlight clear`. One delegated listener on
+  // the document, because every one of those nodes is rebuilt by each paint.
+  //
+  // Debounced (VA.PANE_HOVER_DEBOUNCE_MS, trailing): a pointer sweeping down
+  // a table posts nothing until it settles, and a target already posted is
+  // never posted twice in a row.
+  var CLEAR_KEY = VA.annotateHighlightCommand().join(" ");
+  var paneHoverTimer = null;
+  var paneHovered = CLEAR_KEY;
+
+  function paneHoverTarget(node) {
+    var row = node && node.closest
+      ? node.closest('tr.kmrow[data-edge], [data-row-kind="edge"][data-id]') : null;
+    if (!row) return null;
+    var edge = row.getAttribute("data-edge");
+    if (edge) {
+      var study = VA.findKinematicStudy(state.kinematic, state.kinematicId);
+      return { topologyId: study && study.topology, edgeId: edge };
+    }
+    return { topologyId: state.topologyId, edgeId: row.getAttribute("data-id") };
+  }
+
+  function schedulePaneHover(target) {
+    var command = target
+      ? VA.annotateHighlightCommand(target.topologyId, target.edgeId)
+      : VA.annotateHighlightCommand();
+    if (paneHoverTimer !== null) clearTimeout(paneHoverTimer);
+    paneHoverTimer = setTimeout(function () {
+      paneHoverTimer = null;
+      var key = command.join(" ");
+      if (key === paneHovered) return;
+      paneHovered = key;
+      postToPane(command);
+    }, VA.PANE_HOVER_DEBOUNCE_MS);
+  }
+
+  function clearPaneHover() {
+    if (paneHoverTimer !== null) clearTimeout(paneHoverTimer);
+    paneHoverTimer = null;
+    paneHovered = CLEAR_KEY;
+  }
+
+  function wirePaneHover() {
+    if (typeof document === "undefined" || !document.addEventListener) return;
+    document.addEventListener("mouseover", function (event) {
+      if (!nodes.flyout || !nodes.flyout.open) return;
+      schedulePaneHover(paneHoverTarget(event.target));
+    });
   }
 
   // --- the two resize drags (viewer_leader_grid_legibility) ----------------
@@ -1251,21 +1458,24 @@
   // nothing to measure (the DOM shim), which the clamp reads as "no layout to
   // go on" and answers with its px max.
   // The width the panel and the page's own content are dividing: the window,
-  // less what sits to the RIGHT of the graph. The nav rail is NOT subtracted --
-  // it stands down while the panel is open (topology.css's `body.flyout-open`),
-  // so its 300px is part of what there is to divide.
+  // less what sits to the RIGHT of the graph and less the nav rail. The rail
+  // stood down while the panel was open until 2026-10-20; the panel now
+  // follows what the rail selects (the_3d_pane_opens_in_the_mode_the_study_
+  // wants), so the rail stays, between the panel and the graph, and its width
+  // is not the panel's to take.
   //
   // Deliberately reads neither the panel nor the page shift, so there is no
-  // circularity: both terms it does read (the window, the preview pane) are
-  // independent of how wide the panel is.
+  // circularity: every term it does read (the window, the preview pane, the
+  // rail) is independent of how wide the panel is.
   function roomBesideFlyout() {
     var room = (typeof window !== "undefined" && window.innerWidth) || 0;
     if (!room) return 0;
-    var pane = nodes.detail && nodes.detail.offsetWidth;
-    var seam = nodes.detailDivider && nodes.detailDivider.offsetWidth;
-    return Math.max(0, room
-      - (typeof pane === "number" && pane > 0 ? pane : 0)
-      - (typeof seam === "number" && seam > 0 ? seam : 0));
+    var taken = 0;
+    [nodes.detail, nodes.detailDivider, nodes.navtree].forEach(function (node) {
+      var w = node && node.offsetWidth;
+      if (typeof w === "number" && w > 0) taken += w;
+    });
+    return Math.max(0, room - taken);
   }
 
   // How much of that has to be left for the page: the DAG DRAWING's own width.
@@ -1415,6 +1625,7 @@
     if (spec.kind === "pane" && state.detailWidth !== null) {
       VA.writeStoredPaneWidth(widthStore(), state.detailWidth);
     } else if (spec.kind === "flyout" && state.flyoutWidth !== null) {
+      flyoutWanted = state.flyoutWidth;
       VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth,
         roomBesideFlyout(), graphNeed());
     }
@@ -1634,6 +1845,11 @@
     // A transition's own frames do not come through paint(), so this stays
     // the target's throughout one.
     paintedSerialisation = serialisation();
+
+    // The head's 3D control, and an open pane following what was just
+    // selected -- after the paint, so the views' own state is settled.
+    syncPaneToggle();
+    followSelection();
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its

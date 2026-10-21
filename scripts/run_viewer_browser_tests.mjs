@@ -46,7 +46,8 @@
 // THIS tree.
 import { chromium } from "playwright-core";
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep } from "node:path";
 
@@ -4639,7 +4640,12 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const server = await startRepoRootServer();
   const url = `http://127.0.0.1:${server.address().port}`;
-  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  // 1920 wide since 2026-10-20: the nav rail now stays beside the open panel
+  // (the_3d_pane_opens_in_the_mode_the_study_wants), and at 1600 the rail,
+  // the preview pane and the reserve leave the panel no room above its floor
+  // -- so no drag could narrow it, and the drag checks below would measure
+  // the clamp rather than the gesture.
+  const page = await browser.newPage({ viewport: { width: 1920, height: 1000 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   // The respine transition, waited out -- the same wait every other suite
@@ -4767,16 +4773,20 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // panel's right edge and the nav rail stands down. That reverses the
     // previous "opening it cannot reflow the DAG pane by construction" claim
     // deliberately -- see topology.css -- so the pane MOVING is now the
-    // assertion, where it used to be the thing forbidden.
+    // assertion, where it used to be the thing forbidden. (The rail stood
+    // down too until 2026-10-20; it now moves over with the page.)
     const paneAfter = await page.locator("#topopane").boundingBox();
     push("opening the flyout moves the DAG pane out from under it, rather " +
       "than leaving it underneath",
       paneBefore && paneAfter && paneAfter.x >= docked.width &&
       paneAfter.x > paneBefore.x);
-    push("the nav rail stands down while the panel is open, which Jeff said " +
-      "was fine and is where the room comes from",
-      await page.locator("#navtree").evaluate(
-        (n) => getComputedStyle(n).display) === "none");
+    // The nav rail STAYS since 2026-10-20 (the_3d_pane_opens_in_the_mode_the_
+    // study_wants): the pane follows what the rail selects, so the rail sits
+    // between the panel and the graph and is shifted with the page.
+    const navBox = await page.locator("#navtree").boundingBox();
+    push("the nav rail stays beside the open panel, to its right, so a " +
+      "selection made in it can follow into the pane",
+      navBox && navBox.width > 0 && navBox.x >= docked.width - 1);
     const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
 
     // The drag seam, on the edge AWAY from the dock -- so the panel grows into
@@ -4790,7 +4800,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       "explained in words",
       gripMark && gripMark !== "none");
 
-    // Real pointer drags on it. At this viewport (1600px, the preview pane at
+    // Real pointer drags on it. At this viewport (1920px, the nav rail and the preview pane at
     // its 560px default) the panel opens already AT its clamp, so "rightwards
     // widens" is measured from a narrowed start -- drag left first, then right.
     // The sign is the thing under test: this panel is left of its seam, the
@@ -5207,6 +5217,285 @@ async function pickSameFaceBothWays(page, sha, occurrence, faceId) {
     const strip = (p) => p && { sha256: p.sha256, faceId: p.faceId, occurrence: p.occurrence };
     return { placed: strip(placed), unplaced: strip(unplaced), drawn: placements.length };
   }, { sha, occurrence, faceId });
+}
+
+// --- the 3D pane follows the selection (the_3d_pane_opens_in_the_mode_the_
+// study_wants) ---------------------------------------------------------------
+//
+// The handoff's definition of done, end to end on LIVE data: the viewer
+// served beside the annotator off one repo-root origin, non-mock, so the
+// kinematic page is the real study and the pane is the real annotator.
+//
+//   1. The head's 3D control opens the pane on the kinematic study, and the
+//      annotator lands in SWEEP mode on the run the study folds -- read back
+//      from the annotator itself (its sweep state, its bar's run label) and
+//      from the pane's head line, which is the annotator's own reply.
+//   2. Selecting a chain study in the nav re-drives the open pane into BIND
+//      mode on that study: the sweep is gone and the element list is there.
+//   3. A reload reopens the pane, at the width the reader left it.
+//   4. Resting on a contributor row tints its bound face in the annotator;
+//      resting on a gap row tints nothing.
+//
+// The annotator cannot be granted a folder from an automated browser (FSA),
+// so its frame is booted the way apps/annotate/run_browser_check.mjs's real
+// pass boots it: `?mock=1` (added to the FRAME's own URL by an init script,
+// before its module reads it -- the viewer is not in mock mode and builds no
+// such link) and the memory adapter's reads re-pointed at the served data/.
+// Nothing is bound in the live inbox, so the feature-identity projection it
+// reads is ONE synthetic binding -- the study's first contributor edge, to
+// face 0 of a part the sweep opened -- which is exactly the fact the hover
+// check needs and no more: the binding resolution it exercises is the
+// annotator's own.
+async function realDataIndexForTheAnnotator() {
+  const meshes = [];
+  const dir = join(DATA_REPO, "data", "meshes");
+  if (existsSync(dir)) {
+    for (const name of await readdir(dir)) {
+      const where = join(dir, name, "provenance.json");
+      if (!existsSync(where)) continue;
+      const provenance = JSON.parse(await readFile(where, "utf8"));
+      meshes.push({ sha256: name, label: provenance.label, part_id: provenance.part_id });
+    }
+  }
+  const runsDir = join(DATA_REPO, "data", "inbox", "linkage-sweeps");
+  const runs = existsSync(runsDir)
+    ? (await readdir(runsDir)).filter((n) => /\.json$/i.test(n)).map((n) => n.replace(/\.json$/i, ""))
+    : [];
+  const aliases = JSON.parse(await readFile(
+    join(REPO, "docs", "topologies", "part_mesh_aliases.json"), "utf8"));
+  return { meshes, runs, aliases };
+}
+
+async function testThreeDPane(browser, fileBase, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const STUDY = "vpa_pitch_linkage_blade_pitch_at_the_stops";
+  const CHAIN = "vpa_pitch_linkage_travel_between_end_stops";
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const rows = study ? study.stops[0].rows : [];
+  const bound = rows.find((r) => r.kind !== "gap");
+  const gap = rows.find((r) => r.kind === "gap");
+
+  // file://, first: no annotator can be embedded there, so the 3D control is
+  // not on the page at all -- the absent-feature rule, not a disabled button.
+  const filePage = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  try {
+    await filePage.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
+    await filePage.waitForSelector("tr.tvrow", { timeout: 15000 });
+    push("under file:// the head shows no 3D control -- nothing about a pane " +
+      "this page cannot open",
+      await filePage.locator("#pane-toggle").count() === 1 &&
+      !(await filePage.locator("#pane-toggle").isVisible()));
+  } catch (err) {
+    errors.push(String(err));
+  } finally {
+    await filePage.close();
+  }
+
+  if (!study || !topology || !bound || !gap ||
+      !(topology.studies || []).some((s) => s.id === CHAIN)) {
+    push("[real] the 3D pane on a live kinematic study (skipped: the kinematic " +
+      "and topology projections are not built -- build them, or pass --repo " +
+      "<main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  // Runs in every frame the page attaches, before its own scripts; only the
+  // annotator's frame does anything with it.
+  await page.addInitScript((seed) => {
+    if (location.pathname.indexOf("/apps/annotate/") === -1) return;
+    if (!/[?&]mock=1(&|$)/.test(location.search)) {
+      history.replaceState(null, "", location.pathname +
+        (location.search ? location.search + "&" : "?") + "mock=1" + location.hash);
+    }
+    const json = (path) => fetch("/data" + path)
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const install = () => {
+      const AA = window.AnnotateApp;
+      if (!AA || !AA.MemoryAdapter || !AA.orderSweepRuns) return false;
+      const P = AA.MemoryAdapter.prototype;
+      P.listSweepRuns = async () => AA.orderSweepRuns(await Promise.all(seed.runs.map(
+        async (id) => AA.sweepRunEntry(id, await json(`/inbox/linkage-sweeps/${id}.json`)))));
+      P.readSweepRun = async (runId) => json(`/inbox/linkage-sweeps/${runId}.json`);
+      P.readTopologyProjection = async () => json("/projections/viewer/topologies.json");
+      P.readPartNames = async () => json("/projections/parts/names.json");
+      P.listMeshes = async () => seed.meshes;
+      P.readMeshProvenance = async (sha) => json(`/meshes/${sha}/provenance.json`);
+      P.readMeshManifest = async (sha) => json(`/meshes/${sha}/manifest.json`);
+      P.readMeshBuffer = async (sha, name) => fetch(`/data/meshes/${sha}/${name}`)
+        .then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+      P.readPartMeshAliases = async () => seed.aliases;
+      // The one synthetic binding, resolved when it is read: face 0 of the
+      // first part the sweep opened, so it is a part that is in the scene.
+      P.readFeatureIdentityProjection = async () => ({
+        get stack_keys() {
+          const sweep = window.__sweep;
+          const sha = sweep && sweep.openedBySweep && sweep.openedBySweep[0];
+          return sha ? [{
+            stack_key: { kind: "topology_edge", topology_id: seed.topology, edge_id: seed.edge },
+            bindings: [{ event_id: "truth-tier", geometry_key: { source_step_sha256: sha, face_id: 0 } }],
+          }] : [];
+        },
+      });
+      return true;
+    };
+    const timer = setInterval(() => { if (install()) clearInterval(timer); }, 1);
+    document.addEventListener("DOMContentLoaded", () => { install(); clearInterval(timer); });
+  }, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+       topology: study.topology, edge: bound.edge });
+
+  // Read off the annotator's frame; null until it exists.
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  // Waits are swallowed and reported as a named check's failure, never thrown:
+  // a suite that dies on a timeout prints no check name, and its witness reads
+  // as a MISS (scripts/mutation_witnesses/README.md).
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const headLine = () => page.locator("#flyout-title").textContent();
+  const storedKeys = () => page.evaluate(() => [
+    window.ViewerApp.FLYOUT_WIDTH_KEY, window.ViewerApp.FLYOUT_OPEN_KEY]);
+
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
+    await page.waitForSelector("div.kmverdict", { timeout: 30000 });
+    await page.waitForSelector("#pane-toggle:visible", { timeout: 15000 }).catch(() => {});
+    push("[real] served beside the annotator, the head shows the 3D control",
+      await page.locator("#pane-toggle").isVisible());
+
+    // --- 1. open on the kinematic study -> sweep mode on its run ------------
+    await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 }).catch(() => {});
+    const src = await page.locator("#annotate-flyout iframe").getAttribute("src").catch(() => null);
+    push("[real] the head control opens the pane, booted on the study's run -- " +
+      "the same link the kinematic study's selection asks for",
+      await page.locator("#annotate-flyout").evaluate((n) => n.open) &&
+      src === "../annotate/index.html?sweep=" + encodeURIComponent(study.sweep.run_id));
+    const swept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
+      w.__sweep.artifact.runId === run && w.document.querySelector("#sweep-tip") &&
+      w.document.querySelector(".an__sweep-summary"), study.sweep.run_id);
+    // The bar's run label: the run picker's chosen option where there is more
+    // than one run to choose from (the picker then names the mechanism, and
+    // the summary line does not say it twice), the summary line otherwise.
+    const summary = swept ? await inPane((w) => {
+      const picker = w.document.querySelector('select.an__sweep-select[aria-label="which run"]');
+      return picker ? picker.options[picker.selectedIndex].textContent
+        : w.document.querySelector(".an__sweep-summary").textContent;
+    }) : "";
+    const mechanism = swept
+      ? await inPane((w) => w.AnnotateApp.measureLabel(w.__sweep.artifact.mechanismName)) : null;
+    push("[real] the annotator is in sweep mode on the study's run, and its bar " +
+      "names the run's mechanism",
+      swept && mechanism && summary.indexOf(mechanism) !== -1);
+    await page.waitForFunction(() => /^Sweep/.test(
+      document.querySelector("#flyout-title").textContent), null, { timeout: 15000 }).catch(() => {});
+    push("[real] the pane's head line is the annotator's own answer: the mode " +
+      "and the run's mechanism, one line",
+      (await headLine()) === "Sweep — " + mechanism);
+
+    // The width the reader chooses, on this page -- remembered for step 3.
+    const seam = await page.locator("#flyout-divider").boundingBox();
+    if (seam) {
+      await page.mouse.move(seam.x + seam.width / 2, seam.y + 300);
+      await page.mouse.down();
+      await page.mouse.move(seam.x + seam.width / 2 - 60, seam.y + 300, { steps: 6 });
+      await page.mouse.up();
+    }
+    const chosenBox = await page.locator("#annotate-flyout").boundingBox();
+    const chosen = chosenBox ? chosenBox.width : -1;
+
+    // --- 2. a chain study in the nav -> bind mode on that study -------------
+    // Not thrown on: a rail that is not there must fail the rail's own check
+    // below, by name, rather than take the suite down here.
+    await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
+    const bindMode = await until((w) => !w.__sweep &&
+      w.document.querySelectorAll(".an__rail .el-row").length > 0 &&
+      !w.document.querySelector(".an__sweep-summary"));
+    const railStudy = bindMode
+      ? await inPane((w) => w.document.querySelector("#study-select").value) : null;
+    push("[real] selecting a chain study in the nav leaves sweep mode: the bar is " +
+      "gone and the annotator lists that study's elements",
+      bindMode && railStudy === CHAIN);
+    const chainTitle = topology.studies.find((s) => s.id === CHAIN).title;
+    await page.waitForFunction(() => /^Binding/.test(
+      document.querySelector("#flyout-title").textContent), null, { timeout: 15000 }).catch(() => {});
+    push("[real] ...and the head line follows it into bind mode, named by the study",
+      (await headLine()) === "Binding — " + chainTitle);
+    push("[real] the nav stays beside the open pane -- it is what drives it",
+      await page.locator("#navtree").isVisible());
+
+    // --- 3. reload -> the pane reopens at its width (on the page the URL
+    // names, the kinematic study) ---------------------------------------------
+    await page.reload({ waitUntil: "load" });
+    await page.waitForSelector("div.kmverdict", { timeout: 30000 });
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 15000 }).catch(() => {});
+    const reopened = await page.locator("#annotate-flyout").boundingBox();
+    push("[real] a reload reopens the pane the reader left open, at the width " +
+      "they left it",
+      await page.locator("#annotate-flyout").evaluate((n) => n.open) &&
+      reopened && chosen > 0 && Math.abs(reopened.width - chosen) <= 1);
+
+    // --- 4. hover crosses the seam ------------------------------------------
+    const opened = await until((w) => w.__sweep && w.__sweep.openedBySweep &&
+      w.__sweep.openedBySweep.length > 0 && w.__scene &&
+      w.__scene.parts.has(w.__sweep.openedBySweep[0]), null, 120000);
+    await page.locator(`tr.kmrow[data-edge="${bound.edge}"]`).first().hover();
+    const tinted = opened && await until((w) => !!w.__lastHighlight);
+    const face = tinted ? await inPane((w) => {
+      const f = w.__lastHighlight;
+      const mesh = w.__scene.parts.get(f.sha256);
+      const at = mesh.userData.faceRanges[f.faceId].start * 3;
+      const live = mesh.geometry.attributes.color.array;
+      const base = mesh.userData.baseColors;
+      return { sha256: f.sha256, faceId: f.faceId,
+        first: w.__sweep.openedBySweep[0],
+        painted: live[at] !== base[at] || live[at + 1] !== base[at + 1] || live[at + 2] !== base[at + 2] };
+    }) : null;
+    push("[real] resting on a bound contributor row tints its face in the " +
+      "annotator, in the colour buffer and not just the bookkeeping",
+      face && face.sha256 === face.first && face.faceId === 0 && face.painted);
+    await page.locator(`tr.kmrow--gap[data-edge="${gap.edge}"]`).first().hover();
+    const cleared = await until((w) => w.__lastHighlight === null, null, 10000);
+    const said = cleared
+      ? await inPane((w) => w.document.querySelector("#console-output").textContent) : "";
+    const banner = await inPane((w) => w.document.querySelector("#banner").textContent);
+    push("[real] resting on a gap row tints nothing, and the annotator says so in " +
+      "its console line rather than its banner",
+      cleared && /no binding/.test(said) && !/no binding/.test(banner || ""));
+
+    push("[real] nothing above produced an uncaught error", errors.length === 0);
+    const keys = await storedKeys();
+    await page.evaluate((ks) => ks.forEach((k) => window.localStorage.removeItem(k)), keys);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
 }
 
 // --- the annotator's rail: scoped to one element, and a face that can be
@@ -8119,6 +8408,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testRebuildAffordance(browser, label)],
       ["annotate flyout (repo-root mount + file:// degradation)", (label) =>
         testAnnotateFlyout(browser, fileBase, label, topologies)],
+      ["3D pane follows the selection (sweep, bind, reload, hover)", (label) =>
+        testThreeDPane(browser, fileBase, label, topologies)],
       ["annotate rail filter + face deselect", (label) =>
         testAnnotateRail(browser, label)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>

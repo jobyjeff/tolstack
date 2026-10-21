@@ -201,14 +201,15 @@ a scope decision this handoff did not have, and it is filed.
 | `show-all` / `hide-all` | draw or hide every part in the model (the panel's header checkbox, which is unchecked, checked or mixed to match the rows below it) |
 | `context add <part…>` / `context remove <part…>` / `context reset` | which parts are **in the model**, as opposed to drawn: the topology's or study's parts (a run's bodies in sweep mode) plus what you add, minus what you remove. Never changes what is drawn; choosing another topology or study resets it, and the view with it |
 | `mark-face <part> <face_id>` | renders one face as an opaque overlay — additive (a trace marks several), and unlike `select-face` it never touches the pick state |
-| `trace <topology> [study]` | the **scope-level** 3D view: selects the topology (and the study, when one is named), shows only that scope's parts — translucent while `transparency` is on — and marks every feature-identity-bound face in the mark colour. With no study the scope is the whole topology. Missing meshes and unbound edges degrade to the honest absent states, reported in the banner |
+| `trace <topology> [study]` | the **scope-level** 3D view: selects the topology (and the study, when one is named), shows only that scope's parts — translucent while `transparency` is on — and marks every feature-identity-bound face in the mark colour. With no study the scope is the whole topology. Leaves sweep mode first, as `goto` does. Missing meshes and unbound edges degrade to the honest absent states, reported in the banner |
 | `camera reset` | frames every currently-visible open part |
 | `camera frame <part…>` | frames the named part(s) (or the visible ones, with no args) |
 | `select-face <part> <face_id>` | picks a face by id — the non-mouse equivalent of clicking it |
+| `highlight <topology> <edge>` / `highlight clear` | tints the face that edge's binding names, if its part is open in the scene — what the viewer's 3D pane posts while the pointer rests on that edge's row. Opens, picks and writes nothing, so it works in sweep mode too. An unbound edge, or one whose part is not open, tints nothing and says why in the console output, never the banner; `clear` takes the tint down and gives a picked face its tint back |
 | `deselect [face\|element\|all]` | `select-face`'s and `select-edge`'s undo (default `face`): drops the pick AND its tint together, which is the pair that used to disagree. Clearing nothing is not an error — this is the undo of a mis-click |
 | `filter-element [<edge or node id>]` | scopes the left rail — element list *and* parts panel — to one element's own features; with no argument, lifts the filter. `goto` runs it for you when it arrives at an edge |
 | `select-topology <id>` / `select-study <id>` / `select-edge <id>` | the three steps `goto` composes, addressable one at a time |
-| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge — then scopes the rail to that edge (`filter-element`) and shows only its part(s) in 3D. Each of those three steps is gated by its `auto-filter` switch; the edge itself never is |
+| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge — then scopes the rail to that edge (`filter-element`) and shows only its part(s) in 3D. Each of those three steps is gated by its `auto-filter` switch; the edge itself never is. An arrival is a bind-mode arrival: in sweep mode it leaves first (`sweep off`'s restore) |
 | `auto-filter <topology\|study\|part> <on\|off>` | one step of an arrival, on or off — the rail's **Set up automatically** checkboxes. Turning `part` off lifts the current scope at once; turning it back on re-applies the last arrival |
 | `transparency <on\|off>` | renders bodies translucent (or solid), for both entry shapes, applied to what is on screen now as well as remembered — the top bar's **See-through parts** box |
 | `suggest` | colours the faces that could be the selected element's feature (handoff `annotate_face_suggestions`): fades the bodies carrying them, draws each candidate in the suggestion colour and the current pick in the pick colour. Recomputes every time, because the element, the pick and the bindings all change under it. Never gated by the setting below — a verb typed by hand does what it says |
@@ -537,6 +538,16 @@ off-origin (a message from any other origin is simply ignored). What *does*
 turn on the origin is the folder grant — a flyout opened on a **hosted**
 viewer page shows the sentence in "On a hosted origin" above instead of a
 connect prompt, because nothing on that origin can write a binding.
+
+**The other direction** (handoff `the_3d_pane_opens_in_the_mode_the_study_wants`):
+after `sweep`, `goto` or `trace` completes — whoever ran it, the viewer, the
+run picker or the command box — an embedded app posts
+`{type: "annotate:state", mode, topology, study, run, title}` to its parent,
+same-origin (`AA.embedState`). `mode` is `sweep` or `bind`; `title` is the
+one line the pane's head prints verbatim ("Sweep — vpa pitch chunk2 p2",
+"Binding — Travel between end stops"), so the viewer never composes it from
+its own state. The viewer also posts `highlight` while its pointer rests on
+an edge's row, debounced on its side.
 
 `apps/viewer/`'s topology-mode detail pane emits this link (`annotate this
 →`) on any edge whose confidence is `UNTRACED` or `NO CITATION`, naming its
