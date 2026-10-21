@@ -145,6 +145,43 @@ binding resolution it exercises is the annotator's own.
   the previous lesson. Patch scripts that contain backslashes go in scratch
   files.
 
-## Verification
+## Verification, as recorded
 
-Recorded below once the full runs land.
+Every `[real]` and browser run read projections built **from this branch's
+committed tree** into `C:\workspace\tolstack\data\scratch\three_d_pane\`
+(gitignored). The main checkout sits on `master` with stale projections, and
+rebuilding the shared `data/projections/viewer/` from a worktree overwrites it
+for everyone. The freshness check paired all four files with the tree each
+time. The browser tiers ran with `node_modules` junctioned into the worktree
+from the main checkout. That junction, and the scratch root's `docs` and
+`venv-win` junctions, have since been removed. The scratch root now holds
+only copied data plus the built projections. Delete it after the review.
+
+- `node apps/viewer/run_tests.cjs --repo <scratch root>` at `f9ba494` (the
+  final code): **544/544**, no tier skipped.
+- `node apps/annotate/run_tests.cjs`: **197/197**.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch root>`, full
+  run at `9801bdb` (the final code; only this lesson came after): **27/27
+  suites** in 146 s, including the new `3D pane follows the selection …`
+  (12/12) and the reworked `annotate flyout …` (45/45, now at 1920 wide).
+- `node apps/annotate/run_browser_check.mjs`: **67/67**.
+- `node scripts/run_mutation_witness_tests.mjs --only <guard> --repo <scratch
+  root>`, once for each of the **18 new specs: 24/24 mutations witnessed**.
+  There are 18, not the 16 the enrolling commit's subject says: 3 fast, 2
+  annotate and 13 browser.
+  The first run of the `[real] the nav stays beside the open pane` spec came
+  back NOT WITNESSED, from the aborted-suite gotcha above. After the fix it
+  was witnessed. Both re-pointed specs (closing the flyout puts the page
+  back; opening the flyout moves the DAG pane) were also re-run: witnessed.
+  The full registry run was **not** run here (tens of minutes). It belongs at
+  the merge in the main checkout, per the repo's CLAUDE.md.
+- `venv-win/Scripts/python.exe -m pytest -q` (worktree, at `653ac7c`, before
+  the pane suite's nav-click hardening and this lesson):
+  **1 failed, 1508 passed, 1 skipped, 5:00**. The failure is the documented
+  worktree-only red (`tests/test_viewer_js_suite.py`: no projection in the
+  worktree). The skip is the `test_fit_bound_features.py` re-extraction that
+  is not installed. The witness, architecture-inventory and JS-vocabulary
+  modules re-ran on the final tree: 81 passed.
+- Not run: `scripts/rebuild_projections.ps1` itself. It refuses to run from
+  a worktree, and in the main checkout it would rebuild out of `master`.
+  This change touches no projection input.
