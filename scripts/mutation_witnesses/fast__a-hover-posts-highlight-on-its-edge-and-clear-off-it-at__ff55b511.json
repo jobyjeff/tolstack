@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "The hover debounce bounds how many messages a second the iframe receives.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "A zero debounce posts on every mouseover -- dozens a second while a pointer crosses a table -- and every one of them repaints a colour buffer in the annotator.",
       "file": "apps/viewer/viewer.js",
       "find": "  VA.PANE_HOVER_DEBOUNCE_MS = 150;",
@@ -13,7 +13,7 @@
     },
     {
       "contract": "Leaving an edge posts `highlight clear`, never a highlight of nothing.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "Without the clear arm, resting off any row would post `highlight <topology> undefined`, which the annotator refuses, and the last tint would never come down.",
       "file": "apps/viewer/viewer.js",
       "find": "    return topologyId && edgeId ? [\"highlight\", topologyId, edgeId] : [\"highlight\", \"clear\"];",

@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "A hover highlight tints only what is drawn: a binding on a part that is not open in the scene tints nothing.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "Without the open check the scene is asked to tint a mesh it does not hold -- a silent no-op that still reports a highlighted face to the viewer.",
       "file": "apps/annotate/commands.js",
       "find": "      if (key.source_step_sha256 && isOpen(key.source_step_sha256)) {",

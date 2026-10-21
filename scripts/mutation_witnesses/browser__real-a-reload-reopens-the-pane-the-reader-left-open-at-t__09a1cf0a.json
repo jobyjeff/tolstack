@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "A pane left open reopens after a reload.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "The stored flag is written correctly and nothing reads it at boot -- the round-trip test of the storage pair passes over exactly this.",
       "file": "apps/viewer/topology_app.js",
       "find": "      if (mounted && VA.readStoredFlyoutOpen(widthStore())) openPane();",
@@ -13,7 +13,7 @@
     },
     {
       "contract": "The remembered width is the reader's preference, fitted per page -- not clamped against the boot-time layout.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "This is the bug the first run of this suite found: clamped at boot, before the kinematic page has loaded, a 700px preference came back as the 560px floor of a page the reader was not on.",
       "file": "apps/viewer/topology_app.js",
       "find": "    flyoutWanted = VA.readStoredFlyoutWidth(widthStore(), 0, 0);",

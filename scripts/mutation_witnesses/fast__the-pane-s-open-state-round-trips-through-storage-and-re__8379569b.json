@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "Closing the pane is remembered as firmly as opening it.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "A writer that only ever stores `open` reopens a pane the reader closed on every reload.",
       "file": "apps/viewer/views/topology.js",
       "find": "      if (open) store.setItem(VA.FLYOUT_OPEN_KEY, \"1\");\n      else store.removeItem(VA.FLYOUT_OPEN_KEY);",
@@ -13,7 +13,7 @@
     },
     {
       "contract": "A browser whose storage throws reads as closed rather than taking the page down.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "file:// configurations throw on storage access; the read is reached at boot, before anything else could catch it.",
       "file": "apps/viewer/views/topology.js",
       "find": "      return !!store && store.getItem(VA.FLYOUT_OPEN_KEY) === \"1\";\n    } catch (err) {\n      return false;",

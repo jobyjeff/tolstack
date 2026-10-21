@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "Every goto completes with a state reply, whoever ran it.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "Sweep announces and goto does not: the head would keep the sweep's line (or its resting words) after the pane changed mode.",
       "file": "apps/annotate/app.js",
       "find": "commands.register(\"goto\", announced(cmdGoto));",

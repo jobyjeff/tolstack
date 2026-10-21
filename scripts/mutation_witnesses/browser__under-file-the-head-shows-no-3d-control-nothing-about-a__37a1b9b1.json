@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "The head's 3D control is rendered only where the mount probe found the annotator served beside the page.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "Shown unconditionally, the button would sit on a file:// page and do nothing when clicked -- the absent-feature rule, broken.",
       "file": "apps/viewer/topology_app.js",
       "find": "    nodes.paneToggle.style.display = state.annotateMount ? \"\" : \"none\";",

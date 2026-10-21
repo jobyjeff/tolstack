@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "The annotator lands in sweep mode on the study's run, and the bar's run label names the mechanism.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "The read-back half: a run picker naming runs by id still selects the right run, so the sweep-state half alone cannot see it.",
       "file": "apps/annotate/app.js",
       "find": "  const what = run.mechanism ? AA.measureLabel(run.mechanism) : run.runId;",

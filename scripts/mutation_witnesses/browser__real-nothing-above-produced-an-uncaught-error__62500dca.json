@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "The pane's message handling throws nothing into the viewer page.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "A throw inside a message handler is invisible on screen -- the head line is already set -- and is exactly what an unguarded reply handler produces.",
       "file": "apps/viewer/topology_app.js",
       "find": "    nodes.flyoutTitle.setAttribute(\"title\", text);\n  }",

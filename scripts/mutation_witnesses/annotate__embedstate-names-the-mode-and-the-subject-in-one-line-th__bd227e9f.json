@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "In sweep mode the pane's head line names the run by its mechanism in words, the sweep bar's own name for it.",
-      "issue": "docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "The run id is the plausible fallback and is exactly what the handoff's example line is not: a timestamped id nobody reads.",
       "file": "apps/annotate/commands.js",
       "find": "      subject = sweep.mechanismName ? AA.measureLabel(sweep.mechanismName) : sweep.runId;",
