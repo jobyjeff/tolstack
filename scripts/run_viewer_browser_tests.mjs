@@ -5427,7 +5427,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     const chosen = chosenBox ? chosenBox.width : -1;
 
     // --- 2. a chain study in the nav -> bind mode on that study -------------
-    await page.locator(navRow("study", CHAIN)).click();
+    // Not thrown on: a rail that is not there must fail the rail's own check
+    // below, by name, rather than take the suite down here.
+    await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
     const bindMode = await until((w) => !w.__sweep &&
       w.document.querySelectorAll(".an__rail .el-row").length > 0 &&
       !w.document.querySelector(".an__sweep-summary"));
