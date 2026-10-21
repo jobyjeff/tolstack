@@ -6,7 +6,8 @@ area: tests/doc-scans
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260924_claims_registry_guards_read_declarations_not_prose.md
 class: scan_corpus_includes_non_target_documents
-defer_until: class:scan_corpus_includes_non_target_documents
+defer_until: 2026-11-20
+resolution: class trigger `class:scan_corpus_includes_non_target_documents` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # `docs/strategy/` is inside the claim corpus, so a brief that shows the declaration format outside a blockquote reddens the shared branch

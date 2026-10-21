@@ -7,8 +7,9 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
 class: internals_on_a_user_surface
-defer_until: class:internals_on_a_user_surface
+defer_until: 2026-11-20
 needs: agent
+resolution: class trigger `class:internals_on_a_user_surface` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # The disconnected banner's folder path is the one absolute workstation path the reader-facing scan cannot hold

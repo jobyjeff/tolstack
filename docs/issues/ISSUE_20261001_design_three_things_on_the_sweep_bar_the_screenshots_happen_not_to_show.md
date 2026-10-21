@@ -6,8 +6,8 @@ area: design
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261001_kinematic_sweep_animation.md
 class: unreviewed_design_debt
-defer_until: class:unreviewed_design_debt
-resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together.
+defer_until: 2026-11-20
+resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together. -- class trigger `class:unreviewed_design_debt` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # Design: three things on the sweep bar the 2026-10-01 screenshots happen not to show

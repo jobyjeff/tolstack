@@ -7,8 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261001_one_part_feature_one_value_across_topologies.md
 class: a_value_with_no_place_to_cite
-defer_until: class:a_value_with_no_place_to_cite
-resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap.
+defer_until: 2026-11-20
+resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap. -- class trigger `class:a_value_with_no_place_to_cite` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 needs: agent
 ---
 

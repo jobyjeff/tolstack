@@ -7,8 +7,9 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260921_annotate_face_suggestions.md
 class: missing_capability
-defer_until: class:missing_capability
+defer_until: 2026-11-20
 needs: agent
+resolution: class trigger `class:missing_capability` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # Face suggestions cannot narrow a flat face across two parts, because no assembly placement is applied

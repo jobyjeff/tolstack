@@ -7,10 +7,11 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
 class: layout_measurement_awaits_human_decision
-defer_until: class:layout_measurement_awaits_human_decision
+defer_until: 2026-11-20
 needs: jeff
 ask: Decide how the stack page's results table should fit its pane: keep sideways scrolling, or drop or fold columns
 todo: 20261007T161822_5nv2iw
+resolution: class trigger `class:layout_measurement_awaits_human_decision` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # The stack page's results table is 1,240 px in a 702 px scrollport — a measurement `BRIEF_20260916_topology_page_number_reach` has no copy of

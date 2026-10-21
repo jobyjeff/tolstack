@@ -6,7 +6,8 @@ area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_annotate_hint_bar_and_context_autofilter.md
 class: missing_capability
-defer_until: class:missing_capability
+defer_until: 2026-11-20
+resolution: class trigger `class:missing_capability` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # The viewer offers no way into 3D at TOPOLOGY scope — only per study

@@ -6,7 +6,8 @@ area: tests/doc-scans
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260917_prose_guards_scope_out_strategy_briefs.md
 class: scan_corpus_includes_non_target_documents
-defer_until: class:scan_corpus_includes_non_target_documents
+defer_until: 2026-11-20
+resolution: class trigger `class:scan_corpus_includes_non_target_documents` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # `live_documents()` is an `os.walk` that ignores `.gitignore`, so a scratch `.md` left in the main checkout joins every claim-shape scan's corpus

@@ -6,8 +6,8 @@ area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261001_kinematic_sweep_animation.md
 class: one_solid_drawn_twice
-defer_until: class:one_solid_drawn_twice
-resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together.
+defer_until: 2026-11-20
+resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together. -- class trigger `class:one_solid_drawn_twice` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # Sweep mode draws the pitch-link assembly and, on top of it, the two bearings that assembly already contains

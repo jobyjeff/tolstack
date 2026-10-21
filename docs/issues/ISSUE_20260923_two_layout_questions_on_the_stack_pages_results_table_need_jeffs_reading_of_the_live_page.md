@@ -7,10 +7,11 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
 class: layout_measurement_awaits_human_decision
-defer_until: class:layout_measurement_awaits_human_decision
+defer_until: 2026-11-20
 needs: jeff
 ask: On the live stack page, say if checks and paths should share one results table, and if the corner chips are worth the row height
 todo: 20261007T161822_5nv2iw
+resolution: class trigger `class:layout_measurement_awaits_human_decision` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # Two layout questions on the stack page's results table need Jeff's reading of the live page

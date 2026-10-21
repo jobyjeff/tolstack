@@ -6,7 +6,8 @@ area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_annotate_hint_bar_and_context_autofilter.md
 class: internals_on_a_user_surface
-defer_until: class:internals_on_a_user_surface
+defer_until: 2026-11-20
+resolution: class trigger `class:internals_on_a_user_surface` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # The annotator's precedence note calls an UNTRACED element "already cited", and prints the schema value to say so

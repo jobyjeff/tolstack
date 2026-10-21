@@ -6,8 +6,8 @@ area: topologies
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261001_one_part_feature_one_value_across_topologies.md
 class: one_fact_written_twice
-defer_until: class:one_fact_written_twice
-resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together.
+defer_until: 2026-11-20
+resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together. -- class trigger `class:one_fact_written_twice` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # The topology value pairing compares nominals and not bands — write the band half when the corpus first holds a pair

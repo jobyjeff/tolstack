@@ -6,7 +6,8 @@ area: tests/provenance
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_citation_identity_correctness.md
 class: stale_test_identity
-defer_until: class:stale_test_identity
+defer_until: 2026-11-20
+resolution: class trigger `class:stale_test_identity` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # `test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit` no longer describes what it checks, and six live documents name it

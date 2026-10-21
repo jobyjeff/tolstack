@@ -6,7 +6,8 @@ area: tests/projection-freshness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260924_fixture_pairing_reads_a_fresh_projection.md
 class: fixed_at_one_of_n_sites
-defer_until: class:fixed_at_one_of_n_sites
+defer_until: 2026-11-20
+resolution: class trigger `class:fixed_at_one_of_n_sites` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # Three more readers still trust `data/projections/viewer/` without asking which tree built it

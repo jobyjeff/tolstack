@@ -6,7 +6,8 @@ area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 class: stale_test_identity
-defer_until: class:stale_test_identity
+defer_until: 2026-11-20
+resolution: class trigger `class:stale_test_identity` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # The typography suite's source-note clamp checks lost their subject, and were replaced by a check on the outcome rather than re-pointed
