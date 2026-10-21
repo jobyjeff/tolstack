@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md
 reviewer: agent
 date: 2026-10-20
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_3d_pane_opens_in_the_mode_the_study_wants
@@ -184,3 +184,53 @@ sweep mode and `goto` leaves it. The TRUTH suite binds
 for the rework and round 2: its projections pair with this tree. I removed
 the `docs` and `venv-win` junctions I added there and my `node_modules`
 junction. Delete the scratch root once round 2 lands.
+
+## Re-run 2026-10-20
+
+Round 1 was REQUEST CHANGES, with 1 blocker (B1). This round closes it.
+
+**What changed.** One commit, `f23ff44`, merged into the review branch as
+`e03a832`. `integration` was still at `5253053`.
+- **B1:** the witness's replace is now `calc(var(--flyout-width, 0) - 600px)`,
+  which is the fix I suggested and tested in round 1. Its `note` now says why
+  the offset grew: the kept nav rail is one column further in.
+- **N1:** the author fixed this as well, though it was only recorded as a nit.
+  `postToPane` now returns whether the command reached a loaded frame.
+  `schedulePaneHover` remembers a target as posted only if it did. That is
+  four lines and changes only the dedupe key. The browser tier's hover checks
+  still pass on it.
+
+**Tests on the round-2 merged tree** (same scratch root and freshness pairing
+as round 1, all four projections at `f9ba494`, which is unchanged as a
+projection input):
+- `node apps/viewer/run_tests.cjs --repo <scratch>`: **544/544**.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch>`: **27/27
+  suites**, including `3D pane follows the selection` 12/12 and
+  `annotate flyout` 45/45.
+- `pytest -q` on `test_mutation_witnesses`, `test_js_python_vocabulary`,
+  `test_viewer_readme_doc_facts`, `test_viewer_deep_link_contract` and
+  `test_architecture_inventory`: **50 passed**.
+- **Full mutation-witness registry: 237/237.** The first full run read
+  216/237. All 21 misses were `python__` specs that reported "the tier's
+  process could not be started" (`spawn …\three_d_pane\venv-win\Scripts\python.exe
+  ENOENT`). The tactical agent's own cleanup had removed the shared scratch
+  root's `venv-win` and `docs` junctions at 22:14, while my run was in
+  progress. Every browser, fast and annotate spec in that run was witnessed,
+  B1's spec `…237dba65` included. I re-created the junctions and re-ran
+  `--only python__`: **21/21 witnessed, exit 0**. 216 + 21 = 237.
+- I did not rerun the full pytest suite this round. The round-1 post-merge
+  full run (`1 failed, 1508 passed, 1 skipped`, where the one failure is the
+  documented worktree-only `test_viewer_js_suite` red) covers every Python
+  file. Round 2 changes one JS file, which the fast and browser tiers cover,
+  and one witness JSON, which `test_mutation_witnesses` and the registry
+  cover.
+
+**Lesson to the overlay:** two sessions sharing one scratch root can take a
+tier out of each other's runs. The symptom is the "process could not be
+started" class in the witness runner, which says nothing about the guards.
+A miss of that class is a reason to re-run, never to issue a verdict. I added
+this as a clause on the round-1 overlay entry.
+
+**Verdict: APPROVE (round 2).** No blockers. No should-fix findings are left
+unfixed, so there is no issue to file. I am merging into `integration` by
+fast-forward from this branch.

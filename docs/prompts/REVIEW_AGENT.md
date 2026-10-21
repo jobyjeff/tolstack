@@ -5011,7 +5011,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       DAG, and went NOT WITNESSED. The author re-pointed the two sibling
       specs, ran `--only` on the specs it touched, and missed this one.
       Whenever a diff changes what is in normal flow beside the flyout, run the
-      FULL registry before you approve, not `--only`.
+      FULL registry before you approve, not `--only`. If that run shows a
+      `the tier's process could not be started` (ENOENT) miss, check the
+      scratch root's junctions. Another session sharing that root may have
+      removed them mid-run (round 2, 21 `python__` specs). Re-run
+      `--only python__`; such a miss says nothing about any guard.
 
 ## Architectural errors to check
 
