@@ -156,3 +156,40 @@ witness is unattributable.
   a fresh locator, or use `?mock=1`, which boots once.
 - The global `h3` is an uppercase section label (`style.css`); a stop's name
   is a title, so `.kmstop__title` undoes the transform.
+
+## The verification run, as recorded
+
+All against projections built from this branch (`e4d7738`) into the scratch
+data root above; the freshness check paired all four files with the tree.
+
+- `node apps/viewer/run_tests.cjs --repo <scratch root>` — **541/541**, no
+  tier skipped (the `[real]` tier ran, the five kinematic `[real]` checks
+  among it). In the worktree alone: 442/442 plus the documented SKIP.
+- `node apps/annotate/run_tests.cjs` — 189/189.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch root>` — 24/26 on
+  the first full run: both `topology` suites failed one check, **"[real] no
+  live row is silent"**, because the kinematic nav row had the study row's
+  class and no status mark. Fixed (`8180b49`: the row wears the chain
+  studies' one mark, through `VA.studyVerdict` over its checks); the two
+  topology suites then re-ran 235/235 and 40/40, and the kinematic suite is
+  10/10.
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch root>` —
+  **208/208 declared mutations witnessed**, 42 minutes. (`venv-win` was
+  junctioned into the scratch root for the python witnesses.)
+- `venv-win/Scripts/python.exe -m pytest -q` (worktree) — 1 failed, 1502
+  passed, 1 skipped, 5:07. The failure is the documented worktree red
+  (`tests/test_viewer_js_suite.py`, no projection in the worktree); the skip
+  is `test_fit_bound_features.py:422`, a re-extraction not installed. That run
+  started before the nav-mark fix; the census, vocabulary, deep-link,
+  inventory, type-scale, kinematic, rebuild-rail, title and claims modules
+  re-ran on the final tree: 206 passed.
+- Not run: `scripts/rebuild_projections.ps1` itself. It refuses from a
+  worktree by design, and from the main checkout it would rebuild the shared
+  projections out of `master`, which does not have this change. Its step
+  order is pinned by `tests/test_rebuild_projections_script.py`.
+
+The junctions are removed again (so deleting the scratch root or this
+worktree cannot follow one into the main checkout); the scratch root holds
+only the built projections. To re-arm it for a review, junction `data/inbox`,
+`data/meshes`, `venv-win` and the other projection dirs back in, and `docs`
+to the tree under test.
