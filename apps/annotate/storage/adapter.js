@@ -35,6 +35,11 @@
 //        -- data/projections/parts/names.json, the part number -> everyday
 //           name projection (scripts/build_part_names_projection.py). null if
 //           absent: a row then shows its number alone.
+//   readKinematicProjection(): Promise<object|null>
+//        -- data/projections/viewer/kinematic/kinematic_studies.json, the
+//           projection the viewer's kinematic page renders. Sweep mode reads a
+//           study's ranked contributor rows out of it. null if absent: the
+//           sweep rail's contributor group is then absent too.
 //   listMeshes(): Promise<Array<{sha256, label, part_id}>>
 //        -- every data/meshes/<sha256>/ subdirectory that has a
 //           provenance.json, read for its human label. This is how the app

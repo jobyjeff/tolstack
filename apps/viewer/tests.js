@@ -285,14 +285,14 @@
       "an edge or a chain study the goto its row would post, a stack nothing",
       function () {
         var kinematic = { mode: "kinematic", kinematicStudy: {
-          topology: "vpa_pitch_linkage", sweep: { run_id: "vpa-pitch-p2-x" } } };
+          id: "k1", topology: "vpa_pitch_linkage", sweep: { run_id: "vpa-pitch-p2-x" } } };
         var edge = { mode: "topology", topologyId: "t", studyId: "s",
           selection: { kind: "edge", id: "e" } };
         var study = { mode: "topology", topologyId: "t", studyId: "s", selection: null };
         var node = { mode: "topology", topologyId: "t", studyId: null,
           selection: { kind: "node", id: "n" } };
         eq(VA.annotateParamsFor(kinematic),
-          { topologyId: "vpa_pitch_linkage", sweep: "vpa-pitch-p2-x" });
+          { topologyId: "vpa_pitch_linkage", sweep: "vpa-pitch-p2-x", kinematicId: "k1" });
         eq(VA.annotateParamsFor(edge), { topologyId: "t", studyId: "s", edgeId: "e" });
         eq(VA.annotateParamsFor(study), { topologyId: "t", studyId: "s" });
         eq(VA.annotateParamsFor(node), { topologyId: "t" });
@@ -301,9 +301,9 @@
         // The two carriers, over the same answers: a cold pane boots on the
         // link, a warm one runs the commands, and they say the same thing.
         eq(VA.annotateLink(VA.annotateParamsFor(kinematic)),
-          "../annotate/index.html?sweep=vpa-pitch-p2-x");
+          "../annotate/index.html?sweep=vpa-pitch-p2-x&kinematic=k1");
         eq(VA.annotateExecCommands(VA.annotateParamsFor(kinematic)),
-          [["sweep", "vpa-pitch-p2-x"]]);
+          [["sweep", "vpa-pitch-p2-x", "k1"]]);
         eq(VA.annotateLink(VA.annotateParamsFor(edge)),
           "../annotate/index.html?topology=t&edge=e&study=s");
         eq(VA.annotateExecCommands(VA.annotateParamsFor(edge)), [["goto", "t", "e", "s"]]);

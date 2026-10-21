@@ -574,6 +574,14 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("annotate", "SURFACE_CLASSES",
                "tolerance_stack/feature_geometry.py: SURFACE_CLASSES",
                _const(_feature_geometry_module, "SURFACE_CLASSES")),
+    # --- apps/annotate/sweep.js -------------------------------------------- #
+    Vocabulary("annotate", "LINKAGE_JOINT_TYPES",
+               "tolerance_stack/kinematic.py: LINKAGE_JOINT_TYPES",
+               _const(_kinematic_module, "LINKAGE_JOINT_TYPES")),
+    Vocabulary("annotate", "LINKAGE_JOINT_ROW_SIGNATURES",
+               "tolerance_stack/kinematic.py: LINKAGE_JOINT_ROW_SIGNATURES "
+               "(one per LINKAGE_JOINT_TYPES entry, same order)",
+               _const(_kinematic_module, "LINKAGE_JOINT_ROW_SIGNATURES")),
 )
 
 

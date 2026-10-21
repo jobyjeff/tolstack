@@ -205,7 +205,7 @@ a scope decision this handoff did not have, and it is filed.
 | `camera reset` | frames every currently-visible open part |
 | `camera frame <part…>` | frames the named part(s) (or the visible ones, with no args) |
 | `select-face <part> <face_id>` | picks a face by id — the non-mouse equivalent of clicking it |
-| `highlight <topology> <edge>` / `highlight clear` | tints the face that edge's binding names, if its part is open in the scene — what the viewer's 3D pane posts while the pointer rests on that edge's row. Opens, picks and writes nothing, so it works in sweep mode too. An unbound edge, or one whose part is not open, tints nothing and says why in the console output, never the banner; `clear` takes the tint down and gives a picked face its tint back |
+| `highlight <topology> <edge> [from\|to]` / `highlight clear` | tints the face that edge's binding names (with `from`/`to`, only the binding at that end of the edge — the sweep rail's node features), if its part is open in the scene — what the viewer's 3D pane posts while the pointer rests on that edge's row. Opens, picks and writes nothing, so it works in sweep mode too. An unbound edge, or one whose part is not open, tints nothing and says why in the console output, never the banner; `clear` takes the tint down and gives a picked face its tint back |
 | `deselect [face\|element\|all]` | `select-face`'s and `select-edge`'s undo (default `face`): drops the pick AND its tint together, which is the pair that used to disagree. Clearing nothing is not an error — this is the undo of a mis-click |
 | `filter-element [<edge or node id>]` | scopes the left rail — element list *and* parts panel — to one element's own features; with no argument, lifts the filter. `goto` runs it for you when it arrives at an edge |
 | `select-topology <id>` / `select-study <id>` / `select-edge <id>` | the three steps `goto` composes, addressable one at a time |
@@ -215,12 +215,13 @@ a scope decision this handoff did not have, and it is filed.
 | `suggest` | colours the faces that could be the selected element's feature (handoff `annotate_face_suggestions`): fades the bodies carrying them, draws each candidate in the suggestion colour and the current pick in the pick colour. Recomputes every time, because the element, the pick and the bindings all change under it. Never gated by the setting below — a verb typed by hand does what it says |
 | `auto-suggest <on\|off>` | whether selecting an element runs `suggest` — the top bar's **Suggest likely faces** box. Applied to what is on screen now as well as remembered; turning it off puts the bodies back to whatever `transparency` says |
 | `help [on\|off]` | opens or closes the top bar's help/settings panel; no argument toggles |
-| `sweep <run-id\|latest\|off>` | loads a published `linkage-sweep/v1` run out of `data/inbox/linkage-sweeps/` and puts the app in **sweep mode** (below); `latest` takes the newest, `off` leaves and restores the scene. Refuses anything that is not that schema, naming the schema it found |
+| `sweep <run-id\|latest\|off> [kinematic study]` | loads a published `linkage-sweep/v1` run out of `data/inbox/linkage-sweeps/` and puts the app in **sweep mode** (below); `latest` takes the newest, `off` leaves and restores the scene. Refuses anything that is not that schema, naming the schema it found. A kinematic study's id, as the second word, adds that study's contributors to the rail |
 | `play` / `pause` | starts and stops playback. Space does the same |
 | `speed <0.25\|0.5\|1\|2\|4>` | playback rate; a trailing `x` is accepted |
 | `seek <mm\|#index>` | moves the scrubber — a driver value in the run's own unit, or `#` and a point index. Clamped at both ends, never extrapolated |
 | `step <±n>` | moves by whole points from the nearest one. The arrow keys do the same |
 | `loop <off\|on\|pingpong>` | once, repeat, or out and back (the default) |
+| `inspect <joint\|contributor> <name>` / `inspect clear` | the sweep rail's selection, in sweep mode only: a joint's bead is drawn larger in the pick tint; a contributor tints its feature's bound face — both ends, for a length. Writes nothing; `clear` lets it go |
 | `layer <stick\|bodies\|trail\|ghost> [on\|off]` | what is drawn; no argument toggles. The same four as the **Display** boxes in sweep mode, written from one vocabulary |
 
 `resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and

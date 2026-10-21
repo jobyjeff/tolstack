@@ -178,5 +178,21 @@
 
     // tolerance_stack/feature_geometry.py: SURFACE_CLASSES
     SURFACE_CLASSES: ["planar", "cylindrical", "spherical", "other"],
+
+    // tolerance_stack/kinematic.py: LINKAGE_JOINT_TYPES
+    LINKAGE_JOINT_TYPES: [
+      "spherical", "distance", "revolute", "cylindrical", "prismatic",
+      "screw", "fixed", "axial_position"
+    ],
+
+    // tolerance_stack/kinematic.py: LINKAGE_JOINT_ROW_SIGNATURES (one per
+    // LINKAGE_JOINT_TYPES entry, same order)
+    LINKAGE_JOINT_ROW_SIGNATURES: [
+      "dx dy dz", "gap", "dx dy dz tilt_u tilt_w",
+      "tilt_u tilt_w offset_u offset_w",
+      "tilt_u tilt_w spin offset_u offset_w",
+      "tilt_u tilt_w offset_u offset_w lead", "dx dy dz rot_u rot_w rot_axis",
+      "position"
+    ],
   });
 })(window.TolstackVocab = window.TolstackVocab || {});

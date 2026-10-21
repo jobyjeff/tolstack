@@ -148,6 +148,37 @@ LINKAGE_SWEEPS_SUBDIR = Path("inbox") / "linkage-sweeps"
 COMPONENT_NAMES = ("x", "y", "z")
 _INDEXED_LABEL = re.compile(r"^(?P<base>.+)\[(?P<index>[0-9]+)\]$")
 
+#: linkage's joint types, each by the residual rows a joint of that type
+#: writes into a sweep's ``mechanism.row_labels`` (``<joint>.<row>``). A
+#: ``linkage-sweep/v1`` artifact names its joints but never their types, and
+#: the row set is what a type IS on the solver side -- so a joint's type is
+#: read off its own rows, exactly, rather than guessed from its name. Every
+#: row tuple is distinct, which is what makes that reading unambiguous.
+#:
+#: A copy of ``linkage/joints.py``'s ``TYPE`` / ``ROW_NAMES`` pairs (the
+#: sibling repo); ``tests/test_kinematic.py`` re-reads that file when it is on
+#: disk and fails on any difference. The annotator's sweep rail reads the two
+#: tuples below through the generated JS vocabulary.
+LINKAGE_JOINT_ROW_NAMES: Dict[str, Tuple[str, ...]] = {
+    "spherical": ("dx", "dy", "dz"),
+    "distance": ("gap",),
+    "revolute": ("dx", "dy", "dz", "tilt_u", "tilt_w"),
+    "cylindrical": ("tilt_u", "tilt_w", "offset_u", "offset_w"),
+    "prismatic": ("tilt_u", "tilt_w", "spin", "offset_u", "offset_w"),
+    "screw": ("tilt_u", "tilt_w", "offset_u", "offset_w", "lead"),
+    "fixed": ("dx", "dy", "dz", "rot_u", "rot_w", "rot_axis"),
+    "axial_position": ("position",),
+}
+
+#: The type names, in the order above.
+LINKAGE_JOINT_TYPES: Tuple[str, ...] = tuple(LINKAGE_JOINT_ROW_NAMES)
+
+#: The same rows as one space-joined word per type, in :data:`LINKAGE_JOINT_TYPES`
+#: order -- the shape the generated JS module can carry (it renders tuples of
+#: words, never a mapping). Index ``i`` here is type ``i`` there.
+LINKAGE_JOINT_ROW_SIGNATURES: Tuple[str, ...] = tuple(
+    " ".join(rows) for rows in LINKAGE_JOINT_ROW_NAMES.values())
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
 

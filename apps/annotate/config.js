@@ -27,6 +27,12 @@
     // repo writes these and nothing in this app may add to, rename or tidy
     // the directory. One `<run-id>.json` per run.
     linkageSweepsDir: ["data", "inbox", "linkage-sweeps"],
+    // The kinematic studies' projection -- the file the viewer's kinematic
+    // page renders (scripts/build_kinematic_projection.py). Sweep mode reads
+    // one study's ranked contributor rows out of it when it was opened from
+    // that study. Absent is fine: the rail's contributor group is then absent.
+    // tests/test_kinematic.py pairs this line with the builder's constants.
+    kinematicProjection: ["data", "projections", "viewer", "kinematic", "kinematic_studies.json"],
     featureIdentityEventsDir: ["data", "inbox", "feature-identity"],
     featureIdentityProjection: ["data", "projections", "feature-identity", "bindings.json"],
 

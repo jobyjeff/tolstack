@@ -68,6 +68,8 @@ const SWEEP_COLORS = {
 //: on screen do not shout over the linkage.
 const SWEEP_TRIAD_COLORS = [0xc2706c, 0x74ac77, 0x6d93c4];
 const SWEEP_JOINT_RADIUS = 4;   // mm -- a bead on a linkage ~200 mm across
+// How much larger the sweep rail's selected joint is drawn (setSweepEmphasis).
+const SWEEP_EMPHASIS_SCALE = 1.8;
 const SWEEP_TRIAD_LENGTH = 25;  // mm
 const SWEEP_GHOST_OPACITY = 0.12;
 // Sweep mode's own default viewing direction, and it is OBLIQUE on purpose.
@@ -643,6 +645,8 @@ export class AnnotateScene {
   // something from one that had nothing to undo. Clearing nothing is not an
   // error: this is the undo of a mis-click.
   clearHighlight() {
+    for (const sha of this._tintedShas || []) this.restoreColors(sha);
+    this._tintedShas = [];
     const last = this._lastPick;
     if (!last) return null;
     this.restoreColors(last.sha256);
@@ -658,9 +662,37 @@ export class AnnotateScene {
     return this._lastPick ? { sha256: this._lastPick.sha256, faceId: this._lastPick.faceId } : null;
   }
 
+  // SEVERAL faces in the pick tint at once -- the sweep rail's selected
+  // contributor, whose feature may be a length with a face at each end. It
+  // shares the colour buffer with highlightFace, so it takes down whatever
+  // either one tinted before; the first face stands as `_lastPick` so
+  // clearHighlight() and highlightedFace() keep meaning what they mean. An
+  // empty list is clearHighlight().
+  highlightFaces(faces) {
+    for (const sha of this._tintedShas || []) this.restoreColors(sha);
+    this._tintedShas = [];
+    if (this._lastPick) this.restoreColors(this._lastPick.sha256);
+    this._lastPick = null;
+    for (const face of faces || []) {
+      const mesh = this.parts.get(face.sha256);
+      const range = mesh && mesh.userData.faceRanges[face.faceId];
+      if (!range) continue;
+      const attr = mesh.geometry.attributes.color;
+      for (let i = range.start; i < range.start + range.count; i++) {
+        attr.setXYZ(i, HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
+      }
+      attr.needsUpdate = true;
+      this._tintedShas.push(face.sha256);
+      if (!this._lastPick) this._lastPick = { sha256: face.sha256, faceId: face.faceId };
+    }
+    return this._tintedShas.length;
+  }
+
   highlightFace(sha256, faceId) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;
+    for (const sha of this._tintedShas || []) this.restoreColors(sha);
+    this._tintedShas = [];
     if (this._lastPick) this.restoreColors(this._lastPick.sha256);
     const attr = mesh.geometry.attributes.color;
     const range = mesh.userData.faceRanges[faceId];
@@ -785,6 +817,24 @@ export class AnnotateScene {
 
   inSweep() { return !!this._sweep; }
 
+  // The one joint the sweep rail has selected, drawn larger and in the pick
+  // tint until it is let go (null). The bead keeps its own colour logic in
+  // setSweepFrame -- this only scales it and overrides the colour while it is
+  // the selected one -- so a non-converged frame still reads as one.
+  setSweepEmphasis(jointName) {
+    if (!this._sweep) return false;
+    this._sweep.emphasis = jointName || null;
+    for (const [name, bead] of this._sweep.joints) {
+      const on = name === this._sweep.emphasis;
+      bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);
+      if (on) bead.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
+      else if (!this._sweep.warned) bead.material.color.copy(bead.userData.baseColor);
+    }
+    return true;
+  }
+
+  sweepEmphasis() { return this._sweep ? this._sweep.emphasis || null : null; }
+
   // Which joint bead is under the pointer, or null. Read-only.
   sweepHover(ndcX, ndcY) {
     if (!this._sweep) return null;
@@ -855,6 +905,7 @@ export class AnnotateScene {
   setSweepFrame(frame, converged) {
     if (!this._sweep) return false;
     const { joints, links, triads } = this._sweep;
+    this._sweep.warned = converged === false;
     const stick = this._sweep.stickVisible !== false;
 
     for (const [name, bead] of joints) {
@@ -863,9 +914,13 @@ export class AnnotateScene {
       if (!bead.userData.live) { bead.visible = false; continue; }
       bead.visible = stick;
       bead.position.fromArray(joint.point_a_world);
-      bead.material.color.set(converged === false
-        ? SWEEP_COLORS.warn
-        : bead.userData.baseColor);
+      if (name === this._sweep.emphasis) {
+        bead.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
+      } else {
+        bead.material.color.set(converged === false
+          ? SWEEP_COLORS.warn
+          : bead.userData.baseColor);
+      }
     }
 
     for (const [name, line] of links) {

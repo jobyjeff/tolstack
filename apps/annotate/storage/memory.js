@@ -38,6 +38,9 @@
   MemoryAdapter.prototype.readPartNames = async function () {
     return this._fixtures.partNames || null;
   };
+  MemoryAdapter.prototype.readKinematicProjection = async function () {
+    return this._fixtures.kinematicProjection || null;
+  };
   MemoryAdapter.prototype.listMeshes = async function () {
     var manifests = this._fixtures.meshManifests || {};
     var provenance = this._fixtures.meshProvenance || {};

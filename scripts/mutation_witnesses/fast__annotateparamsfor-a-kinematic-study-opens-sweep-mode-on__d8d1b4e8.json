@@ -8,8 +8,8 @@
       "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "The likeliest slip: the study's topology kept and its run dropped, which reads as a plausible launch and lands the pane in bind mode on the topology -- a goto where a sweep was asked for.",
       "file": "apps/viewer/viewer.js",
-      "find": "      return run ? { topologyId: study.topology, sweep: run } : null;",
-      "replace": "      return run ? { topologyId: study.topology } : null;"
+      "find": "      return run ? { topologyId: study.topology, sweep: run, kinematicId: study.id } : null;",
+      "replace": "      return run ? { topologyId: study.topology, kinematicId: study.id } : null;"
     },
     {
       "contract": "An edge selection carries its edge into the goto, so the pane lands on that element.",

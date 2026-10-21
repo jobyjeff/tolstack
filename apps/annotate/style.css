@@ -473,3 +473,53 @@ body {
   font-size: var(--t-meta); line-height: 1.45; white-space: pre-line;
   pointer-events: none;
 }
+
+/* --- sweep mode's rail (handoff the_sweep_rail_shows_the_mechanism) -------
+   One class on the workspace puts the bind furniture away while a run plays:
+   the arrival menu, the study select and its label, the scope bar and the
+   element list. `!important` because the scope bar carries an inline display
+   of its own. The topology select stays, disabled -- the sweep chose it. */
+.an--sweep #auto-setup, .an--sweep #study-select,
+.an--sweep .an__label:has(+ #study-select),
+.an--sweep #rail-filter, .an--sweep #element-list { display: none !important; }
+
+/* The mechanism tree: bodies, joints, the open study's contributors. Every
+   row is one clipped line whose full text is its hover title, so a narrow
+   rail loses nothing (the truncation rule). Groups are separated by room,
+   not rules. */
+.an__tree { margin-top: 4px; }
+.an__tree-group + .an__tree-group { margin-top: 12px; }
+.an__tree-head {
+  margin: 8px 0 4px; font-size: var(--t-micro); color: #9aa1ab;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.an__tree-row {
+  cursor: pointer; list-style-position: inside; padding: 3px 4px; border-radius: 4px;
+  font-size: var(--t-dense); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.an__tree-row:hover { background: #2c3138; }
+/* The selected joint: the one accent, a left spine in the selection blue. */
+.an__tree-node.selected > .an__tree-row { box-shadow: inset 3px 0 0 #5b8dd6; }
+.an__tree-node > .an__tree-list, .an__tree-node > .an__tree-parts { margin: 2px 0 6px 14px; }
+.an__tree-list { list-style: none; padding: 0; margin: 0; }
+/* A feature or a contributor. The state stripe on a feature comes from the
+   element rows' own `.el-row--<state>` rule; the neutral one is declared here
+   so an unstyled state is visible, as on the element rows. */
+.tree-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+  padding: 3px 6px; border-left: 3px solid #4a515a; border-radius: 0 4px 4px 0;
+  font-size: var(--t-meta);
+}
+.tree-row__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-row__value { flex: none; color: #9aa1ab; font-variant-numeric: tabular-nums; }
+.tree-row--contributor { cursor: pointer; border-left-color: transparent; }
+.tree-row--contributor:hover { background: #2c3138; }
+.tree-row.selected { outline: 2px solid #5b8dd6; }
+/* Re-pick is quiet until its row is hovered or focused. */
+.tree-row__repick {
+  flex: none; background: none; border: 1px solid transparent; color: #9aa1ab;
+  border-radius: 4px; padding: 0 4px; font: inherit; cursor: pointer;
+}
+.tree-row__repick:hover, .tree-row__repick:focus { color: #e8e8e8; border-color: #4a515a; outline: none; }
+.tree-row:not(:hover):not(:focus-within) .tree-row__repick { visibility: hidden; }
+.part-row--missing { color: #9aa1ab; }

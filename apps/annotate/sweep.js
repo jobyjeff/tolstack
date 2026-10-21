@@ -158,6 +158,14 @@
       bodies: Array.isArray(doc.bodies) ? doc.bodies : [],
       links: Array.isArray(doc.links) ? doc.links : [],
       reference: doc.reference || null,
+      // What the sweep rail's mechanism tree reads (handoff the_sweep_rail_
+      // shows_the_mechanism): each joint's residual rows, which are what its
+      // TYPE is on the solver side (AA.sweepJointTypes), and the feature
+      // joins, which say which topology node or edge each geometry parameter
+      // is and which body it sits on. Both absent on the oldest runs.
+      rowLabels: Array.isArray(mechanism.row_labels) ? mechanism.row_labels : [],
+      features: (doc.geometry && Array.isArray(doc.geometry.features))
+        ? doc.geometry.features : [],
       // The topology this run is ABOUT, read off the artifact's own feature
       // joins: every `geometry.features[]` entry names one (the driver entry
       // names none). Null when no entry does -- the 10-01 runs carry no
@@ -1239,4 +1247,273 @@
     });
   };
 
+  // --- the mechanism tree (handoff the_sweep_rail_shows_the_mechanism) ------
+  //
+  // In sweep mode the rail shows the mechanism instead of the bind workflow:
+  // bodies, each expanding into its parts; joints, each expanding into the
+  // topology features that define it; and, when the run was opened from a
+  // kinematic study, that study's ranked contributors at the nearest stop.
+  // Everything below is read off the artifact (and the study's projection) and
+  // decides nothing about the scene; app.js renders it. Nothing here writes.
+
+  var VOCAB = window.TolstackVocab.annotate;
+
+  //: linkage's joint types and, index for index, the residual rows each one
+  //: writes (tolerance_stack/kinematic.py owns both; generated, never copied).
+  AA.LINKAGE_JOINT_TYPES = VOCAB.list("LINKAGE_JOINT_TYPES");
+  AA.LINKAGE_JOINT_ROW_SIGNATURES = VOCAB.list("LINKAGE_JOINT_ROW_SIGNATURES");
+
+  //: A joint type in the words a reader uses for it. The key set is the
+  //: Python vocabulary's, compared when this file loads.
+  AA.SWEEP_JOINT_TYPE_WORDS = VOCAB.table("LINKAGE_JOINT_TYPES", {
+    spherical: "ball joint",
+    distance: "ball-ended link",
+    revolute: "hinge",
+    cylindrical: "slide",
+    prismatic: "straight slide",
+    screw: "screw",
+    fixed: "fixed joint",
+    axial_position: "driver",
+  });
+
+  // Each joint's linkage type, read off its own residual rows in
+  // `mechanism.row_labels` (`<joint>.<row>`, in the solver's order). The
+  // artifact never states a type; the rows are what a type IS on the solver
+  // side, so this is a reading and not a guess. A joint whose rows match no
+  // type -- a relaxed row, a type added in linkage and not yet here -- is
+  // null, and the tree then shows its name without a type word.
+  AA.sweepJointTypes = function (artifact) {
+    var rows = {};
+    (artifact.rowLabels || []).forEach(function (label) {
+      var at = String(label).indexOf(".");
+      if (at <= 0) return;
+      var joint = label.slice(0, at);
+      (rows[joint] = rows[joint] || []).push(label.slice(at + 1));
+    });
+    var out = {};
+    Object.keys(rows).forEach(function (joint) {
+      var i = AA.LINKAGE_JOINT_ROW_SIGNATURES.indexOf(rows[joint].join(" "));
+      out[joint] = i === -1 ? null : AA.LINKAGE_JOINT_TYPES[i];
+    });
+    return out;
+  };
+
+  // The two geometry parameters that say where a joint's two ends sit.
+  AA.SWEEP_JOINT_END_PARAMETERS = Object.freeze(["point_a", "point_b"]);
+
+  // The tree's two groups, read off the artifact:
+  //
+  //   bodies  -- `bodies[]` in the artifact's order: name, ground, parts.
+  //              A body that moves is open by default; ground is not.
+  //   joints  -- every joint the run solves, in the artifact's order: its
+  //              type (above), the body at each end, the parts of a two-force
+  //              member (`links[]`), and its features -- one entry per
+  //              topology node or edge its `geometry.features[]` entries name,
+  //              first appearance first.
+  //
+  // A joint's two bodies come from the feature joins' own `body` (declared by
+  // the producer); where a run carries no joins, from which body each end was
+  // MEASURED to ride on (AA.sweepBodyJoints); and where neither answers, null.
+  AA.sweepMechanismTree = function (artifact) {
+    var types = AA.sweepJointTypes(artifact);
+    var riders = AA.sweepBodyJoints(artifact);
+    var linkParts = {};
+    (artifact.links || []).forEach(function (l) { linkParts[l.joint] = l.parts || []; });
+    var names = Object.keys((artifact.points[0] || {}).joints || {});
+    Object.keys(types).forEach(function (name) {
+      if (names.indexOf(name) === -1) names.push(name);
+    });
+
+    var bodies = (artifact.bodies || []).map(function (b) {
+      return { name: b.name, ground: !!b.ground, parts: (b.parts || []).slice(),
+        open: !b.ground };
+    });
+
+    var joints = names.map(function (name) {
+      var prefix = name + ".";
+      var mine = (artifact.features || []).filter(function (f) {
+        return f && typeof f.label === "string" && f.label.indexOf(prefix) === 0;
+      });
+      var features = [];
+      mine.forEach(function (f) {
+        if (!f.topology || !(f.node || f.edge)) return;
+        var kind = f.node ? "node" : "edge";
+        var id = f.node || f.edge;
+        var known = features.some(function (x) {
+          return x.kind === kind && x.id === id && x.topology === f.topology;
+        });
+        if (!known) features.push({ topology: f.topology, kind: kind, id: id });
+      });
+      var ends = AA.SWEEP_JOINT_END_PARAMETERS.map(function (parameter, i) {
+        var declared = mine.filter(function (f) {
+          return f.body && f.label.indexOf(prefix + parameter + "[") === 0;
+        })[0];
+        if (declared) return declared.body;
+        var end = AA.SWEEP_JOINT_ENDS[i];
+        var measured = Object.keys(riders).filter(function (body) {
+          return riders[body].some(function (r) { return r.joint === name && r.end === end; });
+        })[0];
+        return measured || null;
+      });
+      var type = Object.prototype.hasOwnProperty.call(types, name) ? types[name] : null;
+      return { name: name, type: type, words: type ? AA.SWEEP_JOINT_TYPE_WORDS[type] : null,
+        bodies: ends, parts: linkParts[name] || [], features: features };
+    });
+    return { bodies: bodies, joints: joints };
+  };
+
+  //: The rail's own words in sweep mode: the three group heads and the one
+  //: control a feature row carries.
+  AA.SWEEP_RAIL_WORDS = Object.freeze({
+    bodies: "bodies",
+    joints: "joints",
+    contributors: "contributors",
+    repick: "Re-pick",
+    pick: "Pick",
+    repickTitle: "leave the sweep and pick this feature's face at the as-modelled pose",
+  });
+
+  // One body row's text: its name and how many parts it carries.
+  AA.sweepBodyRowWords = function (body) {
+    var n = body.parts.length;
+    return AA.measureLabel(body.name) + " · " + n + " part" + (n === 1 ? "" : "s");
+  };
+
+  // One joint row's text: its name, its type in words, and the two bodies it
+  // joins. Every piece the artifact cannot answer is simply left out.
+  AA.sweepJointRowWords = function (joint) {
+    var parts = [AA.measureLabel(joint.name)];
+    if (joint.words) parts.push(joint.words);
+    var ends = joint.bodies.filter(Boolean).map(AA.measureLabel);
+    if (ends.length === 2 && ends[0] !== ends[1]) parts.push(ends[0] + " ↔ " + ends[1]);
+    else if (ends.length) parts.push(ends[0]);
+    return parts.join(" · ");
+  };
+
+  // Which edge a feature is bound THROUGH, and in which direction. A binding
+  // is per topology edge (feature-identity/v0's stack key), one face per end
+  // (AA.DIRECTIONS), so:
+  //
+  //   an edge feature -> that edge, both ends (direction null);
+  //   a node feature  -> the edge between it and the joint's other node when
+  //                      the topology has one (the link's own length, the two
+  //                      bores' coaxiality), else the first edge that ends on
+  //                      it -- in the direction that end is.
+  //
+  // `{edgeId: null}` when no edge of the topology ends on the node: nothing
+  // can be bound there, and the row says unbound.
+  AA.sweepFeatureEdge = function (topology, feature, siblings) {
+    if (feature.kind === "edge") return { edgeId: feature.id, direction: null };
+    var edges = (topology && topology.edges) || [];
+    var touches = edges.filter(function (e) { return e.from === feature.id || e.to === feature.id; });
+    var others = (siblings || []).filter(function (s) {
+      return s.kind === "node" && s.id !== feature.id;
+    }).map(function (s) { return s.id; });
+    var between = touches.filter(function (e) {
+      return others.indexOf(e.from === feature.id ? e.to : e.from) !== -1;
+    })[0];
+    var edge = between || touches[0] || null;
+    if (!edge) return { edgeId: null, direction: null };
+    return { edgeId: edge.id,
+      direction: edge.from === feature.id ? AA.DIRECTIONS[0] : AA.DIRECTIONS[1] };
+  };
+
+  // A feature's binding state, in AA.BINDING_STATES -- the element rows'
+  // vocabulary, so the rows are coloured by the same rules. An edge feature
+  // is its edge's state; a node feature is the state of the binding at ITS
+  // end of the edge it is bound through.
+  AA.sweepFeatureState = function (identityProjection, staleness, topologyId, via) {
+    if (!via || !via.edgeId) return AA.BINDING_STATES.UNBOUND;
+    var record = AA.findBindingRecord(identityProjection,
+      AA.topologyEdgeKey(topologyId, via.edgeId));
+    if (!via.direction || !record) return AA.elementBindingState(record, staleness);
+    var all = record.bindings || [];
+    if (!all.length) return AA.elementBindingState(record, staleness);
+    var mine = all.filter(function (b) { return b && b.direction === via.direction; });
+    if (!mine.length) return AA.BINDING_STATES.UNBOUND;
+    return AA.elementBindingState({ bindings: mine }, staleness);
+  };
+
+  // A feature's reader-facing name: the topology's own name for the node or
+  // edge, else its id in words.
+  AA.sweepFeatureName = function (topology, feature) {
+    var list = topology ? (feature.kind === "node" ? topology.nodes : topology.edges) : null;
+    var row = (list || []).filter(function (x) { return x.id === feature.id; })[0];
+    return row && row.name ? row.name : AA.measureLabel(feature.id);
+  };
+
+  // --- the open study's contributors -----------------------------------------
+
+  //: A stop's unit as it is written after the number. A unit this table does
+  //: not carry is written after a space, as itself.
+  AA.STOP_UNIT_MARKS = Object.freeze({ deg: "°" });
+
+  // The stop of a kinematic study nearest the current frame: by the study's
+  // own measure where the frame carries it (a stop IS a measure value -- the
+  // builder finds its point by value, never by index), by sweep index
+  // otherwise. Null for a study with no stops.
+  AA.kinematicStopAt = function (study, frame) {
+    var stops = (study && study.stops) || [];
+    if (!stops.length) return null;
+    var measures = frame && frame.nearer && frame.nearer.measures;
+    var value = measures && study.measure ? measures[study.measure] : null;
+    var byValue = typeof value === "number" && isFinite(value);
+    var best = null, bestDistance = Infinity;
+    stops.forEach(function (stop) {
+      var distance = byValue && typeof stop.target === "number"
+        ? Math.abs(value - stop.target)
+        : Math.abs((frame ? frame.index : 0) - stop.index);
+      if (distance < bestDistance) { best = stop; bestDistance = distance; }
+    });
+    return best;
+  };
+
+  // The contributor group's head: "at the −7° stop", "at the +72° stop".
+  AA.kinematicStopWords = function (stop, units) {
+    var t = Number(stop.target);
+    if (!isFinite(t)) return "at the " + (stop.label || stop.id) + " stop";
+    var sign = t < 0 ? "−" : (t > 0 ? "+" : "");
+    var number = String(Number(Math.abs(t).toPrecision(6)));
+    var mark = Object.prototype.hasOwnProperty.call(AA.STOP_UNIT_MARKS, units)
+      ? AA.STOP_UNIT_MARKS[units] : (units ? " " + units : "");
+    return "at the " + sign + number + mark + " stop";
+  };
+
+  // One stop's rows, in the projection's own (ranked) order: the contributor's
+  // name (the topology edge's), its magnitude with the study's unit at the
+  // projection's stated precision, the gap reason for a row with no band, and
+  // the feature it perturbs.
+  AA.kinematicContributorRows = function (study, stop, topology, decimals) {
+    var edges = (topology && topology.edges) || [];
+    var dp = typeof decimals === "number" ? decimals : null;
+    return ((stop && stop.rows) || []).map(function (row) {
+      var edge = edges.filter(function (e) { return e.id === row.edge; })[0];
+      var magnitude = null;
+      if (typeof row.magnitude === "number" && isFinite(row.magnitude)) {
+        magnitude = (dp === null ? String(row.magnitude) : row.magnitude.toFixed(dp)) +
+          (study.units ? " " + study.units : "");
+      }
+      var f = row.feature || {};
+      return {
+        edge: row.edge,
+        name: edge && edge.name ? edge.name : AA.measureLabel(row.edge),
+        magnitude: magnitude,
+        gap: typeof row.gap === "string" && row.gap ? row.gap : null,
+        feature: f.node ? { kind: "node", id: f.node } : (f.edge ? { kind: "edge", id: f.edge } : null),
+      };
+    });
+  };
+
+  // Which faces a selected contributor tints: its feature's. A node is the
+  // face at its end of the edge it is bound through; an edge -- a length
+  // between two features -- is both of its ends. Returns the {edgeId,
+  // direction} reads AA.planHighlightFaces takes, never a face: which faces
+  // exist is the binding projection's to say.
+  AA.contributorHighlightReads = function (topology, contributor) {
+    var f = contributor && contributor.feature;
+    if (!f) return [];
+    if (f.kind === "edge") return [{ edgeId: f.id, direction: null }];
+    var via = AA.sweepFeatureEdge(topology, f, []);
+    return via.edgeId ? [via] : [];
+  };
 })(window.AnnotateApp = window.AnnotateApp || {});

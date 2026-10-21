@@ -510,18 +510,29 @@ function cmdSelectFace(identifier, faceIdText) {
 // An edge with nothing to tint is not an error -- most edges of a study are
 // unbound -- so the answer is a line in this app's own console output and the
 // return value, never the banner.
-function cmdHighlight(topologyId, edgeId) {
+//
+// `highlight <topology> <edge> <from|to>` narrows to one END of the edge --
+// the sweep rail's node features (handoff the_sweep_rail_shows_the_mechanism).
+// Clearing in sweep mode puts back what the rail has selected, the same way it
+// puts back the pick.
+function cmdHighlight(topologyId, edgeId, direction) {
   if (topologyId === "clear" && edgeId === undefined) {
     const pick = state.currentPick;
-    if (pick) state.scene.highlightFace(pick.sha256, pick.faceId);
+    const inspected = state.sweep && state.sweep.inspect && state.sweep.inspect.faces;
+    if (inspected && inspected.length) state.scene.highlightFaces(inspected);
+    else if (pick) state.scene.highlightFace(pick.sha256, pick.faceId);
     else state.scene.clearHighlight();
     window.__lastHighlight = null;
     return null;
   }
   if (!topologyId || !edgeId) throw new Error("highlight needs <topology> <edge>, or clear");
+  if (direction !== undefined && AA.DIRECTIONS.indexOf(direction) === -1) {
+    throw new Error("highlight's third word is one of " + AA.DIRECTIONS.join(", ") +
+      ", got " + JSON.stringify(direction));
+  }
   const open = new Set(state.scene.listOpenParts());
   const plan = AA.planHighlight(mergedIdentityProjection(), topologyId, edgeId,
-    (sha) => open.has(sha));
+    (sha) => open.has(sha), direction);
   window.__lastHighlight = plan.face;
   if (!plan.face) {
     el.consoleOutput.textContent = "> highlight " + topologyId + " " + edgeId + "\n" + plan.note;
@@ -942,8 +953,14 @@ function sweepState() {
   return state.sweep;
 }
 
-// sweep <run-id> | latest | off
-async function cmdSweep(target) {
+// sweep <run-id> [kinematic study] | latest | off
+//
+// The optional second word is the kinematic study the run was opened from
+// (handoff the_sweep_rail_shows_the_mechanism): the viewer's pane passes it,
+// `?sweep=<run>&kinematic=<study>` boots with it, and the rail then lists that
+// study's contributors. A study the projection does not carry -- or no
+// projection at all -- is a rail without that group, never an error.
+async function cmdSweep(target, studyId) {
   const want = String(target == null ? "" : target).trim();
   if (!want) throw new Error("sweep takes a run, or \"latest\", or \"off\"");
   if (want === "off") return leaveSweep();
@@ -961,6 +978,14 @@ async function cmdSweep(target) {
   // Throws naming the schema it found -- including the one case a reader is
   // most likely to hit, a v0 run that carries measurements and no poses.
   const artifact = AA.readSweepArtifact(doc);
+  let study = null;
+  let studyDecimals = null;
+  if (studyId) {
+    const kinematic = state.storage.readKinematicProjection
+      ? await state.storage.readKinematicProjection() : null;
+    study = ((kinematic && kinematic.studies) || []).find((s) => s.id === studyId) || null;
+    studyDecimals = kinematic ? kinematic.display_decimals : null;
+  }
 
   if (state.sweep) leaveSweep();
   const structure = AA.sweepStructure(artifact);
@@ -1009,6 +1034,15 @@ async function cmdSweep(target) {
     // It is here because "does this run at a usable rate with the 286-solid
     // hub loaded" is a question about a build, measurable only in one.
     fps: 0,
+    // The rail's mechanism tree (AA.sweepMechanismTree), what is open in it,
+    // and what it has selected ({kind, name, faces} | null). The study is the
+    // kinematic study this run was opened from, or null.
+    tree: AA.sweepMechanismTree(artifact),
+    treeOpen: {},
+    inspect: null,
+    study,
+    studyDecimals,
+    stopId: null,
   };
   state.isolation = null;
   state.contextEdit = { added: [], removed: [] };
@@ -1024,7 +1058,9 @@ async function cmdSweep(target) {
   }
   state.scene.enterSweep(Object.assign({ trails }, structure));
   state.scene.onSweepHover = showSweepTip;
+  setRailSweepPosture(true);
   applySweepFrame();
+  renderSweepRail();
   state.scene.frameSweepScene();
   renderDetail();
   // Not awaited: the stick figure is on screen and usable the moment the run
@@ -1039,6 +1075,12 @@ function leaveSweep() {
   if (!sweep) return null;
   state.sweep = null;
   showSweepTip(null, null);
+  setRailSweepPosture(false);
+  if (sweep.inspect && sweep.inspect.faces.length) {
+    if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
+    else state.scene.clearHighlight();
+  }
+  window.__lastInspect = null;
   state.scene.exitSweep();
   for (const sha of sweep.openedBySweep) state.scene.unloadPart(sha);
   for (const entry of sweep.restoreVisible) {
@@ -1333,6 +1375,14 @@ function applySweepFrame() {
   const frame = AA.sweepFrameAt(sweep.artifact, sweep.index);
   sweep.frame = frame;
   state.scene.setSweepFrame(frame, frame.nearer.converged);
+  // The contributor group reads the stop nearest the frame; repaint the rail
+  // only when the frame crosses to another one.
+  if (sweep.study) {
+    const stop = AA.kinematicStopAt(sweep.study, frame);
+    if ((stop ? stop.id : null) !== sweep.stopId && document.getElementById("sweep-tree")) {
+      renderSweepRail();
+    }
+  }
 
   // One mesh at a time, not one row: a mesh may be moved by one body at one
   // occurrence and left still at four others (the pitch arm), and its matrices
@@ -1903,6 +1953,280 @@ function sweepBodyWords(row) {
   return SWEEP_BODY_WORDS[row.state] || row.state;
 }
 
+// --- the sweep rail: the mechanism, inspect only ---------------------------
+//
+// Handoff the_sweep_rail_shows_the_mechanism. Jeff, 2026-10-20: in sweep mode
+// the rail showed the bind workflow's furniture for an unrelated topology and
+// study beside the linkage animation. So in sweep mode the rail is the
+// MECHANISM -- bodies, then joints, then (opened from a kinematic study) that
+// study's contributors at the nearest stop -- and the bind furniture stands
+// down: the arrival menu, the study select, the element list and the scope
+// bar hide by one class on the workspace (style.css), and the topology select
+// stays as a label the sweep chose.
+//
+// INSPECT ONLY. Nothing below writes. Hovering a feature tints its bound face
+// (the `highlight` verb), selecting a joint or a contributor is the `inspect`
+// verb, and the one way from here to a binding is a feature row's re-pick,
+// which runs `goto` -- leaving sweep mode, so the bind flow on that edge is
+// where the write boundary has always been.
+//
+// The tree is BUILT on entering sweep mode and REMOVED on leaving it, rather
+// than hidden: bind mode's rail is then exactly the rail it was before this
+// existed, node for node (a snapshot check in the browser tier holds that).
+
+function sweepTopology() {
+  const sweep = state.sweep;
+  if (!sweep || !state.topologyProjection) return null;
+  const id = sweep.artifact.topologyId;
+  return (state.topologyProjection.topologies || []).find((t) => t.id === id) || null;
+}
+
+// The rail's furniture, put into or out of sweep posture -- the one place
+// either happens, so entering and leaving cannot disagree about what moved.
+function setRailSweepPosture(on) {
+  el.workspace.classList.toggle("an--sweep", on);
+  el.topologySelect.disabled = on;
+  if (!on) {
+    const tree = document.getElementById("sweep-tree");
+    if (tree) tree.remove();
+  }
+}
+
+function treeOpen(key, fallback) {
+  const open = state.sweep.treeOpen;
+  return Object.prototype.hasOwnProperty.call(open, key) ? open[key] : fallback;
+}
+
+// A <details> node whose summary is one clipped line with its full text on
+// hover (the truncation rule), and whose open state survives a repaint.
+function treeNode(key, text, fallbackOpen, onToggle) {
+  const box = document.createElement("details");
+  box.className = "an__tree-node";
+  box.open = treeOpen(key, fallbackOpen);
+  const head = document.createElement("summary");
+  head.className = "an__tree-row";
+  head.title = text;
+  const words = document.createElement("span");
+  words.className = "an__tree-text";
+  words.textContent = text;
+  head.appendChild(words);
+  box.appendChild(head);
+  // A repaint sets `open` on a fresh node, which queues a toggle event of its
+  // own; only a change from the remembered state is the reader's.
+  box.ontoggle = () => {
+    if (!state.sweep) return;
+    const was = treeOpen(key, fallbackOpen);
+    state.sweep.treeOpen[key] = box.open;
+    if (box.open !== was && onToggle) onToggle(box.open);
+  };
+  return box;
+}
+
+function treeHead(text) {
+  const head = document.createElement("p");
+  head.className = "an__tree-head";
+  head.textContent = text;
+  head.title = text;
+  return head;
+}
+
+// A part a body names that has no installed 3D model: the same place in the
+// list, muted, with nothing to toggle.
+function missingPartRow(partId) {
+  const li = document.createElement("li");
+  li.className = "part-row part-row--missing";
+  const label = document.createElement("span");
+  label.className = "part-row__label";
+  label.textContent = AA.measureLabel(partId);
+  label.title = AA.measureLabel(partId) + " — no 3D model installed";
+  li.appendChild(label);
+  return li;
+}
+
+// The parts a body or a link carries, as THE parts-panel rows (buildPartRow):
+// one implementation of a part row, wherever it is listed.
+function treePartRows(partIds) {
+  const list = document.createElement("ul");
+  list.className = "parts-panel an__tree-parts";
+  const inModel = new Set(currentContext().inModel.map((m) => m.sha256));
+  const isolated = (state.isolation && state.isolation.targets) || [];
+  for (const partId of partIds) {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
+    list.appendChild(mesh ? buildPartRow(mesh, inModel.has(mesh.sha256), isolated)
+      : missingPartRow(partId));
+  }
+  return list;
+}
+
+function featureRow(topology, joint, feature) {
+  const via = AA.sweepFeatureEdge(topology, feature, joint.features);
+  const bindingState = AA.sweepFeatureState(mergedIdentityProjection(),
+    state.identityProjection && state.identityProjection.staleness, topology.id, via);
+  const li = document.createElement("li");
+  // The element rows' own state rule colours it (`.el-row--<state>` is not
+  // scoped to `.el-row`), so a feature and an element in one state are one
+  // colour from one declaration.
+  li.className = "tree-row el-row--" + bindingState;
+  li.dataset.feature = feature.id;
+  li.dataset.state = bindingState;
+  const name = AA.sweepFeatureName(topology, feature);
+  li.title = name;
+  const words = document.createElement("span");
+  words.className = "tree-row__name";
+  words.textContent = name;
+  li.appendChild(words);
+  if (via.edgeId) {
+    li.onmouseenter = () => {
+      AA.exec(via.direction ? ["highlight", topology.id, via.edgeId, via.direction]
+        : ["highlight", topology.id, via.edgeId]).catch(() => {});
+    };
+    li.onmouseleave = () => { AA.exec(["highlight", "clear"]).catch(() => {}); };
+    const repick = document.createElement("button");
+    repick.className = "tree-row__repick";
+    repick.textContent = bindingState === AA.BINDING_STATES.BOUND
+      ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick;
+    repick.title = AA.SWEEP_RAIL_WORDS.repickTitle;
+    repick.onclick = (ev) => {
+      ev.stopPropagation();
+      AA.exec(["goto", topology.id, via.edgeId]).catch((err) => setBanner(err.message, "error"));
+    };
+    li.appendChild(repick);
+  }
+  return li;
+}
+
+function contributorsGroup(topology) {
+  const sweep = state.sweep;
+  const study = sweep.study;
+  const stop = AA.kinematicStopAt(study, sweep.frame);
+  sweep.stopId = stop ? stop.id : null;
+  const box = document.createElement("section");
+  box.className = "an__tree-group";
+  box.dataset.group = "contributors";
+  if (!stop) return box;
+  box.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.contributors + " " +
+    AA.kinematicStopWords(stop, study.units)));
+  const list = document.createElement("ol");
+  list.className = "an__tree-list";
+  const selected = sweep.inspect && sweep.inspect.kind === AA.INSPECT_TARGETS[1]
+    ? sweep.inspect.name : null;
+  for (const row of AA.kinematicContributorRows(study, stop, topology, sweep.studyDecimals)) {
+    const li = document.createElement("li");
+    li.className = "tree-row tree-row--contributor";
+    li.dataset.edge = row.edge;
+    li.title = row.name + (row.magnitude ? " · " + row.magnitude : "");
+    const words = document.createElement("span");
+    words.className = "tree-row__name";
+    words.textContent = row.name;
+    li.appendChild(words);
+    if (row.magnitude) {
+      const value = document.createElement("span");
+      value.className = "tree-row__value";
+      value.textContent = row.magnitude;
+      li.appendChild(value);
+    }
+    if (row.gap) li.appendChild(alertBadge([row.gap]));
+    if (selected === row.edge) li.classList.add("selected");
+    li.onclick = () => {
+      AA.exec(selected === row.edge ? ["inspect", "clear"]
+        : ["inspect", "contributor", row.edge]).catch((err) => setBanner(err.message, "error"));
+    };
+    list.appendChild(li);
+  }
+  box.appendChild(list);
+  return box;
+}
+
+// The whole tree, rebuilt from state. Cheap (a handful of rows), and called
+// whenever something it shows changes: entering, the bodies resolving, a
+// part's view changing, an inspect, and the frame crossing to another stop.
+function renderSweepRail() {
+  const sweep = state.sweep;
+  if (!sweep) return;
+  let root = document.getElementById("sweep-tree");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "sweep-tree";
+    root.className = "an__tree";
+    // Under the topology select -- the one piece of the bind furniture that
+    // stays -- and above the parts panel's label.
+    el.studySelect.insertAdjacentElement("afterend", root);
+  }
+  root.innerHTML = "";
+  const tree = sweep.tree;
+  const topology = sweepTopology();
+
+  const bodies = document.createElement("section");
+  bodies.className = "an__tree-group";
+  bodies.dataset.group = "bodies";
+  bodies.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.bodies + " (" + tree.bodies.length + ")"));
+  for (const body of tree.bodies) {
+    const node = treeNode("body:" + body.name, AA.sweepBodyRowWords(body), body.open);
+    node.dataset.body = body.name;
+    node.appendChild(treePartRows(body.parts));
+    bodies.appendChild(node);
+  }
+  root.appendChild(bodies);
+
+  const joints = document.createElement("section");
+  joints.className = "an__tree-group";
+  joints.dataset.group = "joints";
+  joints.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.joints + " (" + tree.joints.length + ")"));
+  const selectedJoint = sweep.inspect && sweep.inspect.kind === AA.INSPECT_TARGETS[0]
+    ? sweep.inspect.name : null;
+  for (const joint of tree.joints) {
+    // Opening a joint is looking at it: it selects the joint (its bead is
+    // drawn emphasised) and closing the selected one lets it go.
+    const node = treeNode("joint:" + joint.name, AA.sweepJointRowWords(joint), false, (open) => {
+      const isSelected = state.sweep.inspect && state.sweep.inspect.name === joint.name;
+      if (open && !isSelected) AA.exec(["inspect", "joint", joint.name]).catch(() => {});
+      else if (!open && isSelected) AA.exec(["inspect", "clear"]).catch(() => {});
+    });
+    node.dataset.joint = joint.name;
+    if (selectedJoint === joint.name) node.classList.add("selected");
+    if (topology && joint.features.length) {
+      const list = document.createElement("ul");
+      list.className = "an__tree-list";
+      for (const feature of joint.features) list.appendChild(featureRow(topology, joint, feature));
+      node.appendChild(list);
+    }
+    if (joint.parts.length) node.appendChild(treePartRows(joint.parts));
+    joints.appendChild(node);
+  }
+  root.appendChild(joints);
+
+  if (sweep.study) root.appendChild(contributorsGroup(topology));
+}
+
+// inspect joint <name> | inspect contributor <edge> | inspect clear
+function cmdInspect(what, name) {
+  const sweep = sweepState();
+  const target = AA.parseInspect(what, name);
+  if (target.kind === AA.INSPECT_TARGETS[0] &&
+      !sweep.tree.joints.some((j) => j.name === target.name)) {
+    throw new Error("this run has no joint \"" + target.name + "\"");
+  }
+  let faces = [];
+  if (target.kind === AA.INSPECT_TARGETS[1]) {
+    const stop = sweep.study ? AA.kinematicStopAt(sweep.study, sweep.frame) : null;
+    const topology = sweepTopology();
+    const row = stop && AA.kinematicContributorRows(sweep.study, stop, topology, sweep.studyDecimals)
+      .find((r) => r.edge === target.name);
+    if (!row) throw new Error("the open study lists no contributor \"" + target.name + "\" here");
+    const open = new Set(state.scene.listOpenParts());
+    faces = AA.planHighlightFaces(mergedIdentityProjection(), topology.id,
+      AA.contributorHighlightReads(topology, row), (sha) => open.has(sha));
+  }
+  sweep.inspect = target.kind ? { kind: target.kind, name: target.name, faces } : null;
+  state.scene.setSweepEmphasis(target.kind === AA.INSPECT_TARGETS[0] ? target.name : null);
+  if (faces.length) state.scene.highlightFaces(faces);
+  else if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
+  else state.scene.clearHighlight();
+  window.__lastInspect = sweep.inspect;
+  renderSweepRail();
+  return sweep.inspect;
+}
+
 // help [on|off] -- the top bar's collapsible half (deliverable 1). No
 // argument toggles, which is what the button does.
 function cmdHelp(value) {
@@ -1958,6 +2282,7 @@ commands.register("seek", cmdSeek);
 commands.register("step", cmdStep);
 commands.register("loop", cmdLoop);
 commands.register("layer", cmdLayer);
+commands.register("inspect", cmdInspect);
 AA.exec = (input) => commands.exec(input);
 
 // The last arrival, run again -- what ticking an auto-setup box back on does.
@@ -2756,6 +3081,9 @@ function renderPartsPanel() {
     li.appendChild(box);
     el.partsPanel.appendChild(li);
   }
+  // The sweep rail lists the same part rows under its bodies; they show the
+  // same view, so they repaint with it.
+  if (state.sweep) renderSweepRail();
 }
 
 function buildPartRow(mesh, inModel, isolated) {
@@ -2842,6 +3170,9 @@ const wantTrace = params.get("trace") === "1";
 // the same AA.planEntryCommands list every other one takes.
 const wantSweep = params.get("sweep");
 const wantSweepAt = params.get("t");
+// ...&kinematic=<study> -- the kinematic study the run is opened from, whose
+// contributors the sweep rail lists (handoff the_sweep_rail_shows_the_mechanism).
+const wantKinematic = params.get("kinematic");
 
 function hasPendingDeepLink() {
   return !!(wantTopology || wantIsolate || wantSweep);
@@ -2869,7 +3200,7 @@ async function runPendingDeepLink() {
   for (const command of AA.planEntryCommands({
     topology: wantTopology, study: wantStudy, edge: wantEdge,
     isolate: wantIsolate, trace: wantTrace,
-    sweep: wantSweep, t: wantSweepAt,
+    sweep: wantSweep, t: wantSweepAt, kinematic: wantKinematic,
   })) {
     try {
       await AA.exec(command);

@@ -665,8 +665,15 @@
     // element to bind would be asking for two different things at once, and
     // sweep mode turns picking off anyway while the linkage is away from its
     // as-modelled pose.
+    //
+    // `&kinematic=<study>` rides on the sweep verb (handoff the_sweep_rail_
+    // shows_the_mechanism): the kinematic study the run was opened from, whose
+    // contributors the rail lists. The viewer's pane passes the same id on
+    // the same verb, so a cold boot and a warm launch are one command.
     if (p.sweep) {
-      var sweepCommands = [["sweep", String(p.sweep)]];
+      var sweepCommands = [p.kinematic
+        ? ["sweep", String(p.sweep), String(p.kinematic)]
+        : ["sweep", String(p.sweep)]];
       if (p.t !== undefined && p.t !== null && String(p.t) !== "") {
         sweepCommands.push(["seek", String(p.t)]);
       }
@@ -935,10 +942,16 @@
   // an unbound edge is the ordinary case for most of a study, not a failure.
   //
   // `isOpen(sha256)` is the scene's answer, injected so this stays DOM-free.
-  AA.planHighlight = function (identityProjection, topologyId, edgeId, isOpen) {
+  //
+  // `direction` (optional, one of AA.DIRECTIONS) narrows to the binding at
+  // that END of the edge -- how the sweep rail's node features, each one end
+  // of the edge it is bound through, tint their own face and not the other.
+  AA.planHighlight = function (identityProjection, topologyId, edgeId, isOpen, direction) {
     var record = AA.findBindingRecord(identityProjection,
       AA.topologyEdgeKey(topologyId, edgeId));
-    var bindings = (record && record.bindings) || [];
+    var bindings = ((record && record.bindings) || []).filter(function (b) {
+      return !direction || (b && b.direction === direction);
+    });
     if (!bindings.length) return { face: null, note: "no binding for " + edgeId };
     for (var i = 0; i < bindings.length; i++) {
       var key = bindings[i].geometry_key || {};
@@ -947,5 +960,42 @@
       }
     }
     return { face: null, note: edgeId + "'s bound part is not open in the scene" };
+  };
+
+  // Every face a list of {edgeId, direction} reads tints -- the selected
+  // contributor's feature, which for a length is BOTH of its ends. One face
+  // per binding, open parts only, duplicates dropped; an empty list is the
+  // ordinary answer for an unbound feature, never an error.
+  AA.planHighlightFaces = function (identityProjection, topologyId, reads, isOpen) {
+    var faces = [];
+    (reads || []).forEach(function (read) {
+      var record = AA.findBindingRecord(identityProjection,
+        AA.topologyEdgeKey(topologyId, read.edgeId));
+      ((record && record.bindings) || []).forEach(function (b) {
+        if (read.direction && (!b || b.direction !== read.direction)) return;
+        var key = (b && b.geometry_key) || {};
+        if (!key.source_step_sha256 || !isOpen(key.source_step_sha256)) return;
+        var known = faces.some(function (f) {
+          return f.sha256 === key.source_step_sha256 && f.faceId === key.face_id;
+        });
+        if (!known) faces.push({ sha256: key.source_step_sha256, faceId: key.face_id });
+      });
+    });
+    return faces;
+  };
+
+  // inspect joint <name> | inspect contributor <edge> | inspect clear -- the
+  // sweep rail's selection (handoff the_sweep_rail_shows_the_mechanism). A
+  // viewing aid, like `highlight`: it tints and emphasises, and writes
+  // nothing. The grammar is here so a tier with no DOM can hold it.
+  AA.INSPECT_TARGETS = Object.freeze(["joint", "contributor", "clear"]);
+  AA.parseInspect = function (what, name) {
+    if (AA.INSPECT_TARGETS.indexOf(what) === -1) {
+      throw new Error("inspect takes " + AA.INSPECT_TARGETS.join(", ") +
+        ", got " + JSON.stringify(what));
+    }
+    if (what === AA.INSPECT_TARGETS[2]) return { kind: null, name: null };
+    if (!name) throw new Error("inspect " + what + " needs a name");
+    return { kind: what, name: String(name) };
   };
 })(window.AnnotateApp = window.AnnotateApp || {});

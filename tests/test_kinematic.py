@@ -373,6 +373,12 @@ def test_the_projection_lands_inside_the_directory_the_viewer_is_served_from():
     freshness = (REPO_ROOT / "scripts" / "projection_freshness.cjs").read_text(
         encoding="utf-8")
     assert f'"{rel}"' in freshness
+    # ...and the annotator's, which reads the same file for its sweep rail's
+    # contributor rows (handoff the_sweep_rail_shows_the_mechanism) and names
+    # it from the repo root, as every path in its config does.
+    annotate = (REPO_ROOT / "apps" / "annotate" / "config.js").read_text(encoding="utf-8")
+    parts = ("data",) + builder.PROJECTION_SUBDIR.parts + (builder.PROJECTION_NAME,)
+    assert ("kinematicProjection: [" + ", ".join(f'"{x}"' for x in parts) + "]") in annotate
 
 
 def _sweep(path: Path, run_id: str, ts: str, topologies, schema="linkage-sweep/v1"):
@@ -408,3 +414,76 @@ def test_the_projection_states_its_display_precision():
                                provenance={"built_at": "fixture"})
     assert projection["display_decimals"] == builder.DISPLAY_DECIMALS == 3
     assert projection["models"] == []      # the fixture sweep names no topology
+
+
+# --------------------------------------------------------------------------- #
+# linkage's joint types, read off a run's own residual rows                    #
+# --------------------------------------------------------------------------- #
+
+#: The sibling solver's joint classes. Read when it is on disk (this machine's
+#: workspace); a checkout without the sibling skips, and says so.
+LINKAGE_JOINTS_PY = Path(r"C:\workspace\linkage\linkage\joints.py")
+REAL_SWEEPS = REAL_DATA / "inbox" / "linkage-sweeps"
+
+
+def _linkage_joint_rows(source: str) -> dict:
+    """``{TYPE: ROW_NAMES}`` for every class in ``linkage/joints.py`` that
+    declares both, read with ``ast`` -- the sibling is never imported."""
+    import ast
+
+    out = {}
+    for node in ast.parse(source).body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        fields = {}
+        for statement in node.body:
+            if (isinstance(statement, ast.Assign) and len(statement.targets) == 1
+                    and isinstance(statement.targets[0], ast.Name)
+                    and statement.targets[0].id in ("TYPE", "ROW_NAMES")):
+                fields[statement.targets[0].id] = ast.literal_eval(statement.value)
+        if "TYPE" in fields and "ROW_NAMES" in fields:
+            out[fields["TYPE"]] = tuple(fields["ROW_NAMES"])
+    return out
+
+
+def test_every_joint_type_has_its_own_row_set():
+    """The reading is unambiguous only while no two types share a row tuple."""
+    from tolerance_stack.kinematic import (
+        LINKAGE_JOINT_ROW_NAMES, LINKAGE_JOINT_ROW_SIGNATURES, LINKAGE_JOINT_TYPES)
+
+    rows = list(LINKAGE_JOINT_ROW_NAMES.values())
+    assert len(set(rows)) == len(rows)
+    assert LINKAGE_JOINT_TYPES == tuple(LINKAGE_JOINT_ROW_NAMES)
+    assert [tuple(s.split(" ")) for s in LINKAGE_JOINT_ROW_SIGNATURES] == rows
+
+
+@pytest.mark.skipif(not LINKAGE_JOINTS_PY.exists(),
+                    reason=f"the linkage repo is not at {LINKAGE_JOINTS_PY}")
+def test_the_joint_row_table_is_linkages_own():
+    """A copy of the sibling's TYPE/ROW_NAMES pairs, compared whole."""
+    from tolerance_stack.kinematic import LINKAGE_JOINT_ROW_NAMES
+
+    theirs = _linkage_joint_rows(LINKAGE_JOINTS_PY.read_text(encoding="utf-8"))
+    assert theirs, "no TYPE/ROW_NAMES pair read out of linkage/joints.py"
+    assert dict(LINKAGE_JOINT_ROW_NAMES) == theirs
+
+
+@pytest.mark.skipif(not REAL_SWEEPS.exists(), reason=f"[real] no runs at {REAL_SWEEPS}")
+def test_real_every_published_joint_reads_as_exactly_one_type():
+    """Every joint of every published v1 run, typed by its own rows."""
+    from tolerance_stack.kinematic import LINKAGE_JOINT_ROW_NAMES
+
+    by_rows = {rows: name for name, rows in LINKAGE_JOINT_ROW_NAMES.items()}
+    seen = 0
+    for path in sorted(REAL_SWEEPS.glob("*.json")):
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if doc.get("schema") != "linkage-sweep/v1":
+            continue
+        joints: dict = {}
+        for label in doc["mechanism"]["row_labels"]:
+            joint, _, row = label.partition(".")
+            joints.setdefault(joint, []).append(row)
+        for joint, rows in joints.items():
+            assert tuple(rows) in by_rows, f"{path.name}: {joint} rows {rows}"
+            seen += 1
+    assert seen

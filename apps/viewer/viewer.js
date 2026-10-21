@@ -173,7 +173,15 @@
   // carries no topology: the kinematic model row opens the annotator's sweep
   // mode on a run, and a run names its own topology in its artifact -- the
   // annotator selects it from there, so a second copy here could only disagree.
+  //
+  // `kinematicId` rides with it when the launch is a kinematic STUDY's (handoff
+  // the_sweep_rail_shows_the_mechanism): the annotator's sweep rail then lists
+  // that study's contributors. The model row has no study and sends none.
   VA.annotateLink = function (params) {
+    if (params.sweep && params.kinematicId) {
+      return "../annotate/index.html?sweep=" + encodeURIComponent(params.sweep) +
+        "&kinematic=" + encodeURIComponent(params.kinematicId);
+    }
     if (params.sweep) {
       return "../annotate/index.html?sweep=" + encodeURIComponent(params.sweep);
     }
@@ -196,6 +204,9 @@
   // param shapes, but nothing derives one from the other, so a param added to
   // annotateLink alone fails no test. Extend both, and both tests, together.
   VA.annotateExecCommands = function (params) {
+    if (params.sweep && params.kinematicId) {
+      return [["sweep", String(params.sweep), String(params.kinematicId)]];
+    }
     if (params.sweep) return [["sweep", String(params.sweep)]];
     if (params.trace) {
       return [["trace", params.topologyId, params.studyId]];
@@ -233,7 +244,7 @@
     if (view.mode === "kinematic") {
       var study = view.kinematicStudy;
       var run = study && study.sweep && study.sweep.run_id;
-      return run ? { topologyId: study.topology, sweep: run } : null;
+      return run ? { topologyId: study.topology, sweep: run, kinematicId: study.id } : null;
     }
     if (view.mode !== "topology" || !view.topologyId) return null;
     var params = { topologyId: view.topologyId };

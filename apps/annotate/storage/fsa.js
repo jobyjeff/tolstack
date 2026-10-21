@@ -86,6 +86,10 @@
     return this._readJson(AA.CONFIG.partNamesProjection);
   };
 
+  FsaAdapter.prototype.readKinematicProjection = function () {
+    return this._readJson(AA.CONFIG.kinematicProjection);
+  };
+
   FsaAdapter.prototype.listMeshes = async function () {
     AA.requireReady(this);
     var dir = await this._dir(AA.CONFIG.meshesDir, false);
