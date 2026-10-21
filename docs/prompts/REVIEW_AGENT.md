@@ -552,6 +552,19 @@ Both measured; both have cost real sessions.
   hypothetical. The script refuses rather than guessing when the projection it
   would overwrite was built from a tree it does not contain, so a refusal is
   information: read it, do not reach for `--allow-older-tree`.
+- **Arming the `[real]` tiers against the MERGED tree without touching the
+  shared projections** (measured 2026-10-20). Build every projection from the
+  review worktree's scripts with `--data-root <scratch>/data`, where
+  `<scratch>` is under the main checkout's gitignored `data/scratch/`. Then
+  point `run_tests.cjs`, `run_viewer_browser_tests.mjs` and
+  `run_mutation_witness_tests.mjs` at it with `--repo <scratch>`. The scratch
+  root needs `data/inbox`, `data/meshes` and the non-viewer
+  `data/projections/*` **copied** in (about 380 MB, a minute), plus a copy of
+  `docs/` and a `venv-win` junction. Do **not** junction `data/inbox`: the
+  main-checkout edit guard reads the junction's target as a write to the
+  tracked placeholder there and refuses it. Junctions to `node_modules` (in the
+  worktree) and `venv-win` pass. The freshness line should then pair every
+  projection with the merge sha.
 
 ### Where the one full suite runs
 
@@ -4966,6 +4979,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       clearance band loads cleanly.
       `ISSUE_20261016_a_kinematic_contributor_reads_a_diametral_position_zone_as_a_one_axis_band.md`,
       `ISSUE_20261016_a_kinematic_study_never_checks_a_bands_units_against_the_jacobian_column.md`.
+- [ ] **A viewer page that renders a verdict but not the citation of the
+      limit it was judged against.** New 2026-10-20
+      (`the_viewer_shows_a_kinematic_study`). The kinematic page shows
+      `PASS · limit ±0.500 deg` and never shows `limit.source_ref` anywhere,
+      not even behind its provenance fold. That source is S461-607, a
+      blade-to-blade limit adopted as a proxy, and the adoption note is the
+      archetype's caveat. For every new verdict surface, check that the limit's
+      document/cell and any adoption note can be reached from the chip.
+      `ISSUE_20261020_the_kinematic_page_shows_a_pass_against_a_limit_whose_citation_it_never_shows.md`.
+- [ ] **A title nit the earlier review left unfiled goes live once a viewer
+      renders it.** An unrendered artifact's title nit becomes a defect the
+      day a reader lists it. When a diff adds a renderer, grep the prior
+      reviews of what it renders for "Nits (recorded, not filed)" and file any
+      that now show. Seen with the kinematic study's `, kinematic` suffix,
+      which was N1 of `REVIEW_20261016_…` and is now on the nav and the page head.
 
 ## Architectural errors to check
 
