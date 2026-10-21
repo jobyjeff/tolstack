@@ -1974,6 +1974,16 @@ function sweepBodyWords(row) {
 // than hidden: bind mode's rail is then exactly the rail it was before this
 // existed, node for node (a snapshot check in the browser tier holds that).
 
+// A rail control's verb. AA.exec answers a synchronous verb with its value
+// and an asynchronous one with a promise, so both are wrapped; a failure goes
+// to the banner unless the caller passes `quiet` as null -- a hover over a
+// feature, say, which is not worth one.
+function railExec(command, quiet) {
+  return Promise.resolve().then(() => AA.exec(command)).catch((err) => {
+    if (quiet !== null) setBanner(err.message, "error");
+  });
+}
+
 function sweepTopology() {
   const sweep = state.sweep;
   if (!sweep || !state.topologyProjection) return null;
@@ -2077,10 +2087,10 @@ function featureRow(topology, joint, feature) {
   li.appendChild(words);
   if (via.edgeId) {
     li.onmouseenter = () => {
-      AA.exec(via.direction ? ["highlight", topology.id, via.edgeId, via.direction]
-        : ["highlight", topology.id, via.edgeId]).catch(() => {});
+      railExec(via.direction ? ["highlight", topology.id, via.edgeId, via.direction]
+        : ["highlight", topology.id, via.edgeId], null);
     };
-    li.onmouseleave = () => { AA.exec(["highlight", "clear"]).catch(() => {}); };
+    li.onmouseleave = () => { railExec(["highlight", "clear"], null); };
     const repick = document.createElement("button");
     repick.className = "tree-row__repick";
     repick.textContent = bindingState === AA.BINDING_STATES.BOUND
@@ -2088,7 +2098,7 @@ function featureRow(topology, joint, feature) {
     repick.title = AA.SWEEP_RAIL_WORDS.repickTitle;
     repick.onclick = (ev) => {
       ev.stopPropagation();
-      AA.exec(["goto", topology.id, via.edgeId]).catch((err) => setBanner(err.message, "error"));
+      railExec(["goto", topology.id, via.edgeId]);
     };
     li.appendChild(repick);
   }
@@ -2128,8 +2138,8 @@ function contributorsGroup(topology) {
     if (row.gap) li.appendChild(alertBadge([row.gap]));
     if (selected === row.edge) li.classList.add("selected");
     li.onclick = () => {
-      AA.exec(selected === row.edge ? ["inspect", "clear"]
-        : ["inspect", "contributor", row.edge]).catch((err) => setBanner(err.message, "error"));
+      railExec(selected === row.edge ? ["inspect", "clear"]
+        : ["inspect", "contributor", row.edge]);
     };
     list.appendChild(li);
   }
@@ -2179,8 +2189,8 @@ function renderSweepRail() {
     // drawn emphasised) and closing the selected one lets it go.
     const node = treeNode("joint:" + joint.name, AA.sweepJointRowWords(joint), false, (open) => {
       const isSelected = state.sweep.inspect && state.sweep.inspect.name === joint.name;
-      if (open && !isSelected) AA.exec(["inspect", "joint", joint.name]).catch(() => {});
-      else if (!open && isSelected) AA.exec(["inspect", "clear"]).catch(() => {});
+      if (open && !isSelected) railExec(["inspect", "joint", joint.name]);
+      else if (!open && isSelected) railExec(["inspect", "clear"]);
     });
     node.dataset.joint = joint.name;
     if (selectedJoint === joint.name) node.classList.add("selected");
@@ -2215,7 +2225,7 @@ function cmdInspect(what, name) {
     if (!row) throw new Error("the open study lists no contributor \"" + target.name + "\" here");
     const open = new Set(state.scene.listOpenParts());
     faces = AA.planHighlightFaces(mergedIdentityProjection(), topology.id,
-      AA.contributorHighlightReads(topology, row), (sha) => open.has(sha));
+      AA.contributorHighlightReads(topology, row, sweep.tree), (sha) => open.has(sha));
   }
   sweep.inspect = target.kind ? { kind: target.kind, name: target.name, faces } : null;
   state.scene.setSweepEmphasis(target.kind === AA.INSPECT_TARGETS[0] ? target.name : null);

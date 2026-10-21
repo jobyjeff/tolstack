@@ -502,12 +502,12 @@ body {
 .an__tree-node.selected > .an__tree-row { box-shadow: inset 3px 0 0 #5b8dd6; }
 .an__tree-node > .an__tree-list, .an__tree-node > .an__tree-parts { margin: 2px 0 6px 14px; }
 .an__tree-list { list-style: none; padding: 0; margin: 0; }
-/* A feature or a contributor. The state stripe on a feature comes from the
-   element rows' own `.el-row--<state>` rule; the neutral one is declared here
-   so an unstyled state is visible, as on the element rows. */
+/* A feature or a contributor. The stripe's COLOUR on a feature is the
+   element rows' own `.el-row--<state>` rule, so this sets its width and style
+   only -- a colour here would override that rule by coming later. */
 .tree-row {
   display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
-  padding: 3px 6px; border-left: 3px solid #4a515a; border-radius: 0 4px 4px 0;
+  padding: 3px 6px; border-left-width: 3px; border-left-style: solid; border-radius: 0 4px 4px 0;
   font-size: var(--t-meta);
 }
 .tree-row__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

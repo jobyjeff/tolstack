@@ -1508,12 +1508,17 @@
   // face at its end of the edge it is bound through; an edge -- a length
   // between two features -- is both of its ends. Returns the {edgeId,
   // direction} reads AA.planHighlightFaces takes, never a face: which faces
-  // exist is the binding projection's to say.
-  AA.contributorHighlightReads = function (topology, contributor) {
+  // exist is the binding projection's to say. A node is read through the edge
+  // its joint's own feature row uses (`tree`, AA.sweepMechanismTree), so the
+  // contributor and the feature tint the same face.
+  AA.contributorHighlightReads = function (topology, contributor, tree) {
     var f = contributor && contributor.feature;
     if (!f) return [];
     if (f.kind === "edge") return [{ edgeId: f.id, direction: null }];
-    var via = AA.sweepFeatureEdge(topology, f, []);
+    var joint = ((tree && tree.joints) || []).filter(function (j) {
+      return j.features.some(function (x) { return x.kind === f.kind && x.id === f.id; });
+    })[0];
+    var via = AA.sweepFeatureEdge(topology, f, joint ? joint.features : []);
     return via.edgeId ? [via] : [];
   };
 })(window.AnnotateApp = window.AnnotateApp || {});
