@@ -1256,10 +1256,13 @@
     if (nodes.flyoutFullpage) nodes.flyoutFullpage.setAttribute("href", href);
   }
 
+  // True when the command reached a loaded frame; a hover that did not is
+  // not remembered as posted, so it goes again once the pointer moves.
   function postToPane(command) {
-    if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;
+    if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return false;
     flyoutFrame.contentWindow.postMessage(
       { type: "annotate:exec", command: command }, window.location.origin);
+    return true;
   }
 
   // The head control is rendered only where the pane can exist, and reads as
@@ -1338,8 +1341,7 @@
       paneHoverTimer = null;
       var key = command.join(" ");
       if (key === paneHovered) return;
-      paneHovered = key;
-      postToPane(command);
+      if (postToPane(command)) paneHovered = key;
     }, VA.PANE_HOVER_DEBOUNCE_MS);
   }
 
