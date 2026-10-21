@@ -565,6 +565,11 @@ Both measured; both have cost real sessions.
   tracked placeholder there and refuses it. Junctions to `node_modules` (in the
   worktree) and `venv-win` pass. The freshness line should then pair every
   projection with the merge sha.
+  **When you reuse the tactical agent's scratch root, re-add what it removed.**
+  Its lesson usually says it took out the `docs`/`venv-win` junctions. Without
+  `docs/`, the viewer tier goes `539/544`, with five `[real] … worksheet …`
+  checks red ("worksheet must be readable"). That is the scratch root, not the
+  diff (measured 2026-10-21).
 
 ### Where the one full suite runs
 
@@ -5016,6 +5021,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       scratch root's junctions. Another session sharing that root may have
       removed them mid-run (round 2, 21 `python__` specs). Re-run
       `--only python__`; such a miss says nothing about any guard.
+- [ ] **A launch that pairs two ids chosen independently, with nothing checking
+      that one names the other.** New 2026-10-21
+      (`the_sweep_rail_shows_the_mechanism`). `sweep <run> <study>` and
+      `?sweep=<run>&kinematic=<study>` accept a study that folded a different
+      run, and the rail shows that study's magnitudes under this run's
+      animation. The TRUTH tier's own boot pairs 10-16 with a study of 10-15.
+      The viewer sends a consistent pair, so the only check that can catch it
+      is in the receiver. When a verb or a deep link gains a second id, ask
+      what the receiver does when the two disagree. Expect a refusal, or a
+      visible mark, plus a test that plants a mismatched pair.
+      `ISSUE_20261021_the_sweep_rail_lists_a_kinematic_studys_contributors_on_a_run_the_study_did_not_fold.md`.
 
 ## Architectural errors to check
 

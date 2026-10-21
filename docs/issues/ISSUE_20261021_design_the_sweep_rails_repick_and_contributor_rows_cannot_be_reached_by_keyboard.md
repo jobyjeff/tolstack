@@ -1,0 +1,28 @@
+---
+type: chore
+priority: low
+status: open
+area: design
+reporter: agent
+found_by: docs/sessions/active/HANDOFF_20261020_the_sweep_rail_shows_the_mechanism.md
+---
+
+# Design: the sweep rail's Re-pick and contributor rows cannot be reached by keyboard
+
+Two controls in the sweep rail (`apps/annotate/app.js` `featureRow` /
+`contributorsGroup`, `apps/annotate/style.css`'s sweep-rail block) work only
+with a pointer:
+
+- **Re-pick** is `visibility: hidden` until its row is `:hover` or
+  `:focus-within`. A hidden element cannot take focus, and the row itself
+  (`<li class="tree-row">`) is not focusable. So `:focus-within` can never
+  match, and a keyboard reader can never reach the one way from the rail to a
+  binding. The rule is "subdued until hover/focus", not "absent": the usual
+  shape is a muted colour or `opacity`, which keeps the button in the tab
+  order.
+- **A contributor row** is selected by `li.onclick`, with no `tabindex`, no
+  `role="button"` and no key handler. Selecting a contributor (the face tint)
+  has no keyboard path.
+
+Joints and bodies are `<details>`/`<summary>` and are keyboard-reachable
+already. Non-blocking, filed per the review checklist's design rule.
