@@ -5396,8 +5396,14 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     const swept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
       w.__sweep.artifact.runId === run && w.document.querySelector("#sweep-tip") &&
       w.document.querySelector(".an__sweep-summary"), study.sweep.run_id);
-    const summary = swept
-      ? await inPane((w) => w.document.querySelector(".an__sweep-summary").textContent) : "";
+    // The bar's run label: the run picker's chosen option where there is more
+    // than one run to choose from (the picker then names the mechanism, and
+    // the summary line does not say it twice), the summary line otherwise.
+    const summary = swept ? await inPane((w) => {
+      const picker = w.document.querySelector('select.an__sweep-select[aria-label="which run"]');
+      return picker ? picker.options[picker.selectedIndex].textContent
+        : w.document.querySelector(".an__sweep-summary").textContent;
+    }) : "";
     const mechanism = swept
       ? await inPane((w) => w.AnnotateApp.measureLabel(w.__sweep.artifact.mechanismName)) : null;
     push("[real] the annotator is in sweep mode on the study's run, and its bar " +

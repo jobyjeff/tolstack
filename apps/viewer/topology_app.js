@@ -202,8 +202,14 @@
     applyPaneWidth();
     wireDetailDivider();
 
-    state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), roomBesideFlyout(), graphNeed());
-    flyoutWanted = state.flyoutWidth;
+    // The remembered width is the reader's PREFERENCE, kept as chosen (only
+    // its own min/max applied -- a room of 0 is "no layout to go on"): at
+    // boot the page has not loaded what it will show, so a clamp against this
+    // first layout would bake in a page the reader is not on. Each page fits
+    // it when the pane opens or follows (refitPane).
+    flyoutWanted = VA.readStoredFlyoutWidth(widthStore(), 0, 0);
+    state.flyoutWidth = flyoutWanted === null ? null
+      : VA.clampFlyoutWidth(flyoutWanted, roomBesideFlyout(), graphNeed());
     applyFlyoutWidth();
     wireFlyoutDivider();
 
@@ -1213,7 +1219,8 @@
     // rather than a promise the layout cannot keep. Not remembered: a width the
     // layout imposed is not a preference the reader expressed, so
     // rememberWidth() is deliberately not called here.
-    state.flyoutWidth = VA.clampFlyoutWidth(flyoutWidthNow(),
+    state.flyoutWidth = VA.clampFlyoutWidth(
+      flyoutWanted !== null ? flyoutWanted : flyoutWidthNow(),
       roomBesideFlyout(), keep);
     applyFlyoutWidth();
   }
