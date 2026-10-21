@@ -988,7 +988,12 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line);
 }
-.flyout__head h2 { margin: 0; font-size: var(--t-body); flex: 1; }
+.flyout__head h2 {
+  margin: 0; font-size: var(--t-body); flex: 1; min-width: 0;
+  /* The annotator's own line ("Sweep — <run>"); one line, the whole of it on
+     hover (topology_app.js puts it in `title` too). */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* Out to the whole annotator in its own tab (Jeff: "There can be a separate
    link that opens the full viewer (with the full fledged menus etc) in a
    separate tab/page"). A plain <a target="_blank">, carrying the same params
@@ -1043,20 +1048,18 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    -- not the button's handler, which would leave the page shifted if anything
    else ever closed the panel.
 
-   The nav rail stands down rather than being slid right, on Jeff's explicit
-   say-so ("you shouldn't need both at the same time"). Without that it would
-   cost 300px of the very room this is trying to hand the graph, and the panel
-   supersedes it: the annotator has its own topology and study pickers.
+   The nav rail STAYS, between the panel and the graph, since 2026-10-20
+   (the_3d_pane_opens_in_the_mode_the_study_wants). It stood down until then,
+   on Jeff's "you shouldn't need both at the same time" -- and the pane now
+   follows what the rail selects, so both are needed at once.
 
    Everything above `.tv` shifts too, so the panel reads as the page's left
    column rather than as a sheet lying across it. Nothing is latched and
-   nothing is destroyed -- `display: none` and a margin both reverse exactly,
-   which is what makes "closing restores whatever it covered" true by
+   nothing is destroyed -- a margin reverses exactly, which is what makes "closing restores whatever it covered" true by
    construction rather than by a restore path that can rot. */
 body.flyout-open .topbar,
 body.flyout-open #banner,
 body.flyout-open .tv { margin-left: var(--flyout-width, 0); }
-body.flyout-open .navtree { display: none; }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):

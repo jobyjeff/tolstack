@@ -205,6 +205,56 @@
     return commands;
   };
 
+  // The page an annotator pane boots on when the selection asks for nothing
+  // (a stack page): the annotator alone, no params.
+  VA.ANNOTATE_PAGE = "../annotate/index.html";
+
+  // Which launch the CURRENT selection asks of the 3D pane (handoff
+  // the_3d_pane_opens_in_the_mode_the_study_wants, deliverable 2) -- the one
+  // rule, and its result is the params annotateLink / annotateExecCommands
+  // above already take, so a cold open and a warm re-drive go through the same
+  // pair and nothing in topology_app.js keeps a second table of it.
+  //
+  //   a kinematic study   -> sweep mode on the run the study folds
+  //   an edge             -> the goto the edge's row posts (bind mode)
+  //   a chain study       -> goto on that study (bind mode)
+  //   a topology, alone   -> goto on the topology (bind mode)
+  //   anything else       -> null: a stack page asks the pane for nothing
+  //
+  // The kinematic MODEL row is not a selection (it changes nothing this page
+  // shows), so it is not here: it launches `{ sweep: newest run }` directly.
+  // A goto leaves sweep mode on the annotator's side (its leaveSweep path), so
+  // moving from a kinematic study to a chain study needs no extra command.
+  //
+  // `view` = { mode, topologyId, studyId, selection: {kind, id} | null,
+  // kinematicStudy: the kinematic projection's study object | null }.
+  VA.annotateParamsFor = function (view) {
+    if (!view) return null;
+    if (view.mode === "kinematic") {
+      var study = view.kinematicStudy;
+      var run = study && study.sweep && study.sweep.run_id;
+      return run ? { topologyId: study.topology, sweep: run } : null;
+    }
+    if (view.mode !== "topology" || !view.topologyId) return null;
+    var params = { topologyId: view.topologyId };
+    if (view.studyId) params.studyId = view.studyId;
+    if (view.selection && view.selection.kind === "edge") params.edgeId = view.selection.id;
+    return params;
+  };
+
+  // A hover over an edge's row, as the annotator command that tints that
+  // edge's bound face (deliverable 3); no edge is the command that takes the
+  // tint down. The annotator resolves the binding -- this page holds no
+  // binding facts at all.
+  VA.annotateHighlightCommand = function (topologyId, edgeId) {
+    return topologyId && edgeId ? ["highlight", topologyId, edgeId] : ["highlight", "clear"];
+  };
+
+  // How long the pointer has to rest on a row before its highlight is posted.
+  // A trailing debounce: sweeping the pointer down a table posts nothing until
+  // it settles, so the iframe gets at most 1000 / this messages a second.
+  VA.PANE_HOVER_DEBOUNCE_MS = 150;
+
   // Probe whether ../annotate/ is served beside this page (handoff
   // study_3d_flyout, feature 3): the flyout is same-origin iframe + postMessage
   // and only works where the two apps are siblings under one served root --

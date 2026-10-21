@@ -749,7 +749,8 @@
 
   // `room` is the width the panel and the page's own content are dividing --
   // the viewport less what sits to the RIGHT of the graph (the preview pane and
-  // its divider), since the nav rail stands down while the panel is open.
+  // its divider) and less the nav rail, which stays beside the open panel
+  // because the panel follows what it selects.
   // `keep` is what must be left of that for the page: the drawing's own
   // measured width, floored at `reserve`. Both are the caller's measurements
   // (topology_app.js's roomBesideFlyout / graphNeed) because they are live
@@ -787,6 +788,30 @@
     return readStoredWidth(store, VA.FLYOUT_WIDTH_KEY, function (n) {
       return VA.clampFlyoutWidth(n, room, keep);
     });
+  };
+
+  // Whether the 3D pane is open, remembered per browser beside its width
+  // (handoff the_3d_pane_opens_in_the_mode_the_study_wants): the pane stays,
+  // so a reload finds it where the reader left it. "1" or absent; anything
+  // unreadable reads as closed.
+  VA.FLYOUT_OPEN_KEY = "tolstack.viewer.flyoutOpen";
+
+  VA.readStoredFlyoutOpen = function (store) {
+    try {
+      return !!store && store.getItem(VA.FLYOUT_OPEN_KEY) === "1";
+    } catch (err) {
+      return false;
+    }
+  };
+
+  VA.writeStoredFlyoutOpen = function (store, open) {
+    try {
+      if (!store) return;
+      if (open) store.setItem(VA.FLYOUT_OPEN_KEY, "1");
+      else store.removeItem(VA.FLYOUT_OPEN_KEY);
+    } catch (err) {
+      // A browser that refuses to store it still keeps the pane this session.
+    }
   };
 
   VA.writeStoredFlyoutWidth = function (store, px, room, keep) {

@@ -384,6 +384,8 @@ function cmdMarkFace(identifier, faceIdText) {
 // the two is which edges are in scope and nothing else (AA.scopeSelection).
 async function cmdTrace(topologyId, studyId) {
   if (!topologyId) throw new Error("trace needs <topology> [study]");
+  // A trace is a bind-mode arrival, like goto (see there).
+  leaveSweep();
   const arrival = AA.planArrival({
     auto: state.autoSteps,
     currentTopologyId: state.currentTopology && state.currentTopology.id,
@@ -496,6 +498,39 @@ function cmdSelectFace(identifier, faceIdText) {
   return state.currentPick;
 }
 
+// highlight <topology> <edge> | highlight clear -- tint one edge's bound face
+// while the viewer's pointer rests on that edge's row (handoff the_3d_pane_
+// opens_in_the_mode_the_study_wants, deliverable 3). A viewing aid on what is
+// drawn: it opens nothing, picks nothing and writes nothing, so it runs in
+// sweep mode too (the tint rides the moving part at the current frame).
+//
+// It borrows the pick's tint, so it gives the pick back: clearing a highlight
+// while a face is picked re-tints the pick rather than leaving nothing.
+//
+// An edge with nothing to tint is not an error -- most edges of a study are
+// unbound -- so the answer is a line in this app's own console output and the
+// return value, never the banner.
+function cmdHighlight(topologyId, edgeId) {
+  if (topologyId === "clear" && edgeId === undefined) {
+    const pick = state.currentPick;
+    if (pick) state.scene.highlightFace(pick.sha256, pick.faceId);
+    else state.scene.clearHighlight();
+    window.__lastHighlight = null;
+    return null;
+  }
+  if (!topologyId || !edgeId) throw new Error("highlight needs <topology> <edge>, or clear");
+  const open = new Set(state.scene.listOpenParts());
+  const plan = AA.planHighlight(mergedIdentityProjection(), topologyId, edgeId,
+    (sha) => open.has(sha));
+  window.__lastHighlight = plan.face;
+  if (!plan.face) {
+    el.consoleOutput.textContent = "> highlight " + topologyId + " " + edgeId + "\n" + plan.note;
+    return null;
+  }
+  state.scene.highlightFace(plan.face.sha256, plan.face.faceId);
+  return plan.face;
+}
+
 // deselect [face|element|all] -- select-face's and select-edge's undo
 // (deliverable 3). Jeff: "I accidentally clicked a face … but there's no way to
 // deselect a surface." Until now `state.currentPick` was cleared by a click
@@ -602,6 +637,13 @@ function cmdSelectEdge(edgeId) {
 // naming the study too is an optional disambiguator when more than one
 // study crosses the same edge.
 async function cmdGoto(topologyId, edgeId, studyId) {
+  // Arriving at an element is arriving in BIND mode: a goto while a sweep is
+  // playing leaves it first (handoff the_3d_pane_opens_in_the_mode_the_study_
+  // wants -- the viewer's pane posts a goto when the reader moves from a
+  // kinematic study to a chain study, and a binding is only ever made at the
+  // as-modelled pose sweep mode moves away from). leaveSweep restores the
+  // scene exactly and is a no-op outside sweep mode.
+  leaveSweep();
   const arrival = AA.planArrival({
     auto: state.autoSteps,
     currentTopologyId: state.currentTopology && state.currentTopology.id,
@@ -1869,6 +1911,17 @@ function cmdHelp(value) {
   return state.helpOpen;
 }
 
+// The three verbs that change what this app is SHOWING -- a mode and a
+// subject -- tell an embedding page so once they complete, whoever ran them
+// (the viewer's pane, the run picker, the command box). postEmbedState.
+function announced(fn) {
+  return async (...args) => {
+    const result = await fn(...args);
+    postEmbedState();
+    return result;
+  };
+}
+
 const commands = new AA.CommandLayer();
 commands.register("open-part", cmdOpenPart);
 commands.register("show", cmdOpenPart); // "show" on a part never opened is "open it and show it"
@@ -1884,8 +1937,9 @@ commands.register("select-face", cmdSelectFace);
 commands.register("select-topology", cmdSelectTopology);
 commands.register("select-study", cmdSelectStudy);
 commands.register("select-edge", cmdSelectEdge);
-commands.register("goto", cmdGoto);
-commands.register("trace", cmdTrace);
+commands.register("goto", announced(cmdGoto));
+commands.register("trace", announced(cmdTrace));
+commands.register("highlight", cmdHighlight);
 commands.register("deselect", cmdDeselect);
 commands.register("filter-element", cmdFilterElement);
 commands.register("auto-filter", cmdAutoFilter);
@@ -1896,7 +1950,7 @@ commands.register("help", cmdHelp);
 // Sweep mode (handoff kinematic_sweep_animation). Every one of them is a
 // verb for the same reason the rest are: the controls in the bar, the
 // keyboard, the deep link and the command box drive ONE state machine.
-commands.register("sweep", cmdSweep);
+commands.register("sweep", announced(cmdSweep));
 commands.register("play", cmdPlay);
 commands.register("pause", cmdPause);
 commands.register("speed", cmdSpeed);
@@ -2838,6 +2892,19 @@ async function runPendingDeepLink() {
 // ok, result|error}; a failure also lands in this app's own banner, exactly
 // as the same command typed into the dev console would.
 const execQueue = new AA.ExecQueue();
+
+// ...and the other direction (handoff the_3d_pane_opens_in_the_mode_the_study_
+// wants, deliverable 4): after a sweep / goto / trace completes, the embedding
+// page is told what this app now shows -- {type: "annotate:state", mode,
+// topology, study, run, title}, built by AA.embedState -- so the pane's head
+// line is this app's own answer and never the viewer's guess. Same-origin
+// only, like the listener; a page that is not embedded has no one to tell.
+function postEmbedState() {
+  if (window.parent === window) return;
+  const message = AA.embedState(state.sweep ? state.sweep.artifact : null,
+    state.currentTopology, state.currentStudy);
+  try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
+}
 
 window.addEventListener("message", (ev) => {
   if (ev.origin !== window.location.origin) return;

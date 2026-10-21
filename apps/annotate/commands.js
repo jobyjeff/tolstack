@@ -892,4 +892,60 @@
   AA.writeStoredSuggestions = function (store, on) {
     AA.writeStoredOnOff(store, AA.PREF_KEYS.faceSuggestions, on);
   };
+
+  // --- embedded in the viewer's 3D pane (handoff the_3d_pane_opens_in_the_
+  // mode_the_study_wants) ------------------------------------------------------
+  //
+  // The viewer drives this app with {type: "annotate:exec", command} and this
+  // app answers what it is now showing with {type: "annotate:state", ...}
+  // (app.js's postEmbedState). The two modes, in the words the pane's head
+  // line uses -- written here, beside the app that is in them, so the viewer
+  // prints the line verbatim and composes nothing.
+  AA.EMBED_MODE_WORDS = Object.freeze({ sweep: "Sweep", bind: "Binding" });
+
+  // What the app is showing, as the reply carries it. `sweep` is the loaded
+  // run's artifact (AA.readSweepArtifact's shape) or null; `topology` and
+  // `study` are the rail's current ones or null. The subject is the run's
+  // mechanism in words in sweep mode (the sweep bar's own name for it), the
+  // study's title -- or the topology's, with no study -- in bind mode.
+  AA.embedState = function (sweep, topology, study) {
+    var mode = sweep ? "sweep" : "bind";
+    var subject = null;
+    if (sweep) {
+      subject = sweep.mechanismName ? AA.measureLabel(sweep.mechanismName) : sweep.runId;
+    } else if (study) {
+      subject = study.title || study.id;
+    } else if (topology) {
+      subject = topology.title || topology.id;
+    }
+    return {
+      type: "annotate:state",
+      mode: mode,
+      topology: (sweep && sweep.topologyId) || (topology && topology.id) || null,
+      study: !sweep && study ? study.id : null,
+      run: sweep ? sweep.runId : null,
+      title: subject ? AA.EMBED_MODE_WORDS[mode] + " — " + subject : AA.EMBED_MODE_WORDS[mode],
+    };
+  };
+
+  // Which face a hover over one edge tints (the `highlight` verb): the first
+  // face the edge's binding names on a part that is OPEN in the scene. A
+  // highlight is a viewing aid on what is drawn, so it opens nothing; every
+  // other outcome is a `note` saying why nothing was tinted, never an error --
+  // an unbound edge is the ordinary case for most of a study, not a failure.
+  //
+  // `isOpen(sha256)` is the scene's answer, injected so this stays DOM-free.
+  AA.planHighlight = function (identityProjection, topologyId, edgeId, isOpen) {
+    var record = AA.findBindingRecord(identityProjection,
+      AA.topologyEdgeKey(topologyId, edgeId));
+    var bindings = (record && record.bindings) || [];
+    if (!bindings.length) return { face: null, note: "no binding for " + edgeId };
+    for (var i = 0; i < bindings.length; i++) {
+      var key = bindings[i].geometry_key || {};
+      if (key.source_step_sha256 && isOpen(key.source_step_sha256)) {
+        return { face: { sha256: key.source_step_sha256, faceId: key.face_id }, note: null };
+      }
+    }
+    return { face: null, note: edgeId + "'s bound part is not open in the scene" };
+  };
 })(window.AnnotateApp = window.AnnotateApp || {});

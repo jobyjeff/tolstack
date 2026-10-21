@@ -778,7 +778,7 @@ check("README.md's verb table names exactly the verbs commands.register(...) wir
 check("the pairing above can fail -- a verb added to app.js with no doc update is caught", () => {
   const appJsText = fs.readFileSync(path.join(here, "app.js"), "utf8");
   const readmeText = fs.readFileSync(path.join(here, "README.md"), "utf8");
-  const anchor = 'commands.register("goto", cmdGoto);';
+  const anchor = 'commands.register("goto", announced(cmdGoto));';
   const withFakeVerb = appJsText.replace(anchor, `${anchor}\ncommands.register("teleport", cmdGoto);`);
   if (withFakeVerb === appJsText) {
     throw new Error(`the anchor line this test mutates is not in app.js: ${anchor}`);
