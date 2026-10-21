@@ -48,6 +48,17 @@ and `scripts/run_mutation_witness_tests.mjs` run under
 the slot unless `DISPATCH_SLOT_HELD=browser`). That handoff's lesson records
 the exact command line to use from a worktree.
 
+**Follow-up the same day (11:27 PDT):** after Jeff killed the 10:46 tree,
+the session relaunched the diagnostic at 11:27:50 within three minutes (a
+`sed`-shortened timeout, the same page) and a new renderer took ~12.7 cores
+again; the session's pane then stopped answering Esc, and stopping it took an
+admin `Stop-Process` on its `claude` pid. Two facts for whoever fixes this:
+the runners launch the **installed Google Chrome** (`channel: 'chrome'`,
+headless, own profile), so an agent's browser is the same `chrome.exe` as
+Jeff's and cannot be told apart by path from an admin shell (only by
+ancestry or by the service context hiding it from an unelevated one); and
+Jeff's own Chrome tabs hung while CATIA stayed responsive.
+
 Evidence: `~/.dispatch/logs/dispatch.log` 10:12–10:46; the session transcript
 under `~/.claude/projects/C--workspace-tolstack-worktrees-browser-tiers-name-their-failure-instead-of-aborting/`;
 process ancestry read at 10:47
