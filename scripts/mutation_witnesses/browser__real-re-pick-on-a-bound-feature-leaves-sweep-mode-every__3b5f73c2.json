@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] re-pick on a bound feature leaves sweep mode, every part back at its as-modelled placement, and lands in bind mode with that edge selected",
+  "mutations": [
+    {
+      "contract": "Re-pick is goto: it leaves sweep mode and lands in the bind flow on that edge.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "select-edge is the verb that stays in sweep mode, so it is the near miss.",
+      "file": "apps/annotate/app.js",
+      "find": "      railExec([\"goto\", topology.id, via.edgeId]);",
+      "replace": "      railExec([\"select-edge\", via.edgeId]);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] selecting a length contributor tints both of its ends' faces in the colour buffer",
+  "mutations": [
+    {
+      "contract": "A length contributor tints both of its ends at once.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Tinting through the single-face path leaves the second end unpainted in the colour buffer.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (faces.length) state.scene.highlightFaces(faces);",
+      "replace": "  if (faces.length) state.scene.highlightFace(faces[0].sha256, faces[0].faceId);"
+    }
+  ]
+}

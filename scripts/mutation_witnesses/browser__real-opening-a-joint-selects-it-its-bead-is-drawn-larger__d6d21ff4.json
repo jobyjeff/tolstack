@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] opening a joint selects it: its bead is drawn larger than the others",
+  "mutations": [
+    {
+      "contract": "The selected joint's bead is drawn larger than the rest.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "The selection stays in state; only the scene stops showing it, which is what the check reads off the bead.",
+      "file": "apps/annotate/scene.js",
+      "find": "      bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);",
+      "replace": "      bead.scale.setScalar(1);"
+    }
+  ]
+}

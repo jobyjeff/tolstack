@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] in sweep mode the rail shows no study select, no element list, no arrival menu and no scope bar; the topology stays, as a label the run chose",
+  "mutations": [
+    {
+      "contract": "In sweep mode the element list stands down with the rest of the bind furniture.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "The element list beside the animation is what Jeff reported on 2026-10-20.",
+      "file": "apps/annotate/style.css",
+      "find": ".an--sweep #rail-filter, .an--sweep #element-list { display: none !important; }",
+      "replace": ".an--sweep #rail-filter { display: none !important; }"
+    }
+  ]
+}

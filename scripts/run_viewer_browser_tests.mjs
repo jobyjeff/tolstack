@@ -46,7 +46,7 @@
 // THIS tree.
 import { chromium } from "playwright-core";
 import { createServer } from "node:http";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep } from "node:path";
@@ -5266,6 +5266,62 @@ async function realDataIndexForTheAnnotator() {
   return { meshes, runs, aliases };
 }
 
+// The annotator, booted on REAL data in a browser with no folder grant: the
+// memory adapter's reads pointed at the served `data/`, in whichever frame is
+// the annotator's (`page.addInitScript` runs in every frame, so the pane's
+// iframe and a standalone page are the same case). `?mock=1` is added to the
+// annotator's own URL before its module reads it. `seed.bindings(sweep)`
+// does not cross into the page -- the synthetic binding rows are built
+// in-page from `seed.binding`: `{topology, edge, faces: [[direction|null,
+// faceId], ...]}` on the first part the sweep opened, resolved when read.
+async function installRealAnnotatorReads(page, seed) {
+  await page.addInitScript((seed) => {
+    if (location.pathname.indexOf("/apps/annotate/") === -1) return;
+    if (!/[?&]mock=1(&|$)/.test(location.search)) {
+      history.replaceState(null, "", location.pathname +
+        (location.search ? location.search + "&" : "?") + "mock=1" + location.hash);
+    }
+    const json = (path) => fetch("/data" + path)
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const install = () => {
+      const AA = window.AnnotateApp;
+      if (!AA || !AA.MemoryAdapter || !AA.orderSweepRuns) return false;
+      const P = AA.MemoryAdapter.prototype;
+      P.listSweepRuns = async () => AA.orderSweepRuns(await Promise.all(seed.runs.map(
+        async (id) => AA.sweepRunEntry(id, await json(`/inbox/linkage-sweeps/${id}.json`)))));
+      P.readSweepRun = async (runId) => json(`/inbox/linkage-sweeps/${runId}.json`);
+      P.readTopologyProjection = async () => json("/projections/viewer/topologies.json");
+      P.readPartNames = async () => json("/projections/parts/names.json");
+      P.listMeshes = async () => seed.meshes;
+      P.readMeshProvenance = async (sha) => json(`/meshes/${sha}/provenance.json`);
+      P.readMeshManifest = async (sha) => json(`/meshes/${sha}/manifest.json`);
+      P.readMeshBuffer = async (sha, name) => fetch(`/data/meshes/${sha}/${name}`)
+        .then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+      P.readPartMeshAliases = async () => seed.aliases;
+      P.readKinematicProjection = async () =>
+        json("/projections/viewer/kinematic/kinematic_studies.json");
+      // The synthetic binding, resolved when it is read: faces of the first
+      // part the sweep opened, so it is a part that is in the scene.
+      const b = seed.binding;
+      P.readFeatureIdentityProjection = async () => ({
+        get stack_keys() {
+          const sweep = window.__sweep;
+          const sha = sweep && sweep.openedBySweep && sweep.openedBySweep[0];
+          return sha ? [{
+            stack_key: { kind: "topology_edge", topology_id: b.topology, edge_id: b.edge },
+            bindings: b.faces.map(([direction, faceId], i) => Object.assign(
+              { event_id: "truth-tier-" + i, geometry_key: { source_step_sha256: sha, face_id: faceId } },
+              direction ? { direction } : {})),
+          }] : [];
+        },
+      });
+      return true;
+    };
+    const timer = setInterval(() => { if (install()) clearInterval(timer); }, 1);
+    document.addEventListener("DOMContentLoaded", () => { install(); clearInterval(timer); });
+  }, seed);
+}
+
 async function testThreeDPane(browser, fileBase, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -5311,47 +5367,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
   page.on("pageerror", (e) => errors.push(String(e)));
   // Runs in every frame the page attaches, before its own scripts; only the
   // annotator's frame does anything with it.
-  await page.addInitScript((seed) => {
-    if (location.pathname.indexOf("/apps/annotate/") === -1) return;
-    if (!/[?&]mock=1(&|$)/.test(location.search)) {
-      history.replaceState(null, "", location.pathname +
-        (location.search ? location.search + "&" : "?") + "mock=1" + location.hash);
-    }
-    const json = (path) => fetch("/data" + path)
-      .then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    const install = () => {
-      const AA = window.AnnotateApp;
-      if (!AA || !AA.MemoryAdapter || !AA.orderSweepRuns) return false;
-      const P = AA.MemoryAdapter.prototype;
-      P.listSweepRuns = async () => AA.orderSweepRuns(await Promise.all(seed.runs.map(
-        async (id) => AA.sweepRunEntry(id, await json(`/inbox/linkage-sweeps/${id}.json`)))));
-      P.readSweepRun = async (runId) => json(`/inbox/linkage-sweeps/${runId}.json`);
-      P.readTopologyProjection = async () => json("/projections/viewer/topologies.json");
-      P.readPartNames = async () => json("/projections/parts/names.json");
-      P.listMeshes = async () => seed.meshes;
-      P.readMeshProvenance = async (sha) => json(`/meshes/${sha}/provenance.json`);
-      P.readMeshManifest = async (sha) => json(`/meshes/${sha}/manifest.json`);
-      P.readMeshBuffer = async (sha, name) => fetch(`/data/meshes/${sha}/${name}`)
-        .then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
-      P.readPartMeshAliases = async () => seed.aliases;
-      // The one synthetic binding, resolved when it is read: face 0 of the
-      // first part the sweep opened, so it is a part that is in the scene.
-      P.readFeatureIdentityProjection = async () => ({
-        get stack_keys() {
-          const sweep = window.__sweep;
-          const sha = sweep && sweep.openedBySweep && sweep.openedBySweep[0];
-          return sha ? [{
-            stack_key: { kind: "topology_edge", topology_id: seed.topology, edge_id: seed.edge },
-            bindings: [{ event_id: "truth-tier", geometry_key: { source_step_sha256: sha, face_id: 0 } }],
-          }] : [];
-        },
-      });
-      return true;
-    };
-    const timer = setInterval(() => { if (install()) clearInterval(timer); }, 1);
-    document.addEventListener("DOMContentLoaded", () => { install(); clearInterval(timer); });
-  }, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
-       topology: study.topology, edge: bound.edge });
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases,
+    binding: { topology: study.topology, edge: bound.edge, faces: [[null, 0]] } });
 
   // Read off the annotator's frame; null until it exists.
   const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
@@ -5392,7 +5410,8 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] the head control opens the pane, booted on the study's run -- " +
       "the same link the kinematic study's selection asks for",
       await page.locator("#annotate-flyout").evaluate((n) => n.open) &&
-      src === "../annotate/index.html?sweep=" + encodeURIComponent(study.sweep.run_id));
+      src === "../annotate/index.html?sweep=" + encodeURIComponent(study.sweep.run_id) +
+        "&kinematic=" + encodeURIComponent(STUDY));
     const swept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
       w.__sweep.artifact.runId === run && w.document.querySelector("#sweep-tip") &&
       w.document.querySelector(".an__sweep-summary"), study.sweep.run_id);
@@ -5409,6 +5428,14 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] the annotator is in sweep mode on the study's run, and its bar " +
       "names the run's mechanism",
       swept && mechanism && summary.indexOf(mechanism) !== -1);
+    // The study rode in with the run (handoff the_sweep_rail_shows_the_
+    // mechanism), so the pane's rail lists its contributors at the stop the
+    // frame is nearest.
+    const listed = swept && await until((w, n) => w.document.querySelectorAll(
+      '#sweep-tree [data-group="contributors"] .tree-row').length === n,
+      study.stops[0].rows.length, 15000);
+    push("[real] ...and the pane's rail lists the kinematic study's contributors, " +
+      "which the viewer passed with the run", listed);
     await page.waitForFunction(() => /^Sweep/.test(
       document.querySelector("#flyout-title").textContent), null, { timeout: 15000 }).catch(() => {});
     push("[real] the pane's head line is the annotator's own answer: the mode " +
@@ -5488,6 +5515,241 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] nothing above produced an uncaught error", errors.length === 0);
     const keys = await storedKeys();
     await page.evaluate((ks) => ks.forEach((k) => window.localStorage.removeItem(k)), keys);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+// --- the annotator's rail in sweep mode: the mechanism, inspect only (handoff
+// the_sweep_rail_shows_the_mechanism) ----------------------------------------
+//
+// Two halves. On ?mock=1: bind mode's rail is byte-for-byte the rail it was
+// before this handoff (tests/fixtures/annotate/bind_rail_snapshot.json, taken
+// from the tree before it), and leaving sweep mode leaves nothing of the tree
+// behind. On REAL data -- P2, booted the way the viewer's pane boots it, with
+// the kinematic study riding on the sweep link: the bind furniture is gone,
+// the tree carries the run's bodies and joints, the pitch link opens into its
+// sphere centres in their binding colour, the contributors follow the frame
+// from one stop to the other, a selection tints a face, every clipped row
+// keeps its text on hover at the rail's narrowest, and re-pick is the jump to
+// bind mode on that edge. The bindings are synthetic (nothing is bound in the
+// live inbox, the 3D-pane lesson's finding): both ends of the pitch link's
+// length, on two faces of the first part the sweep opened.
+const BIND_RAIL_SNAPSHOT = join(REPO, "tests", "fixtures", "annotate", "bind_rail_snapshot.json");
+const WRITE_BIND_RAIL_SNAPSHOT = process.argv.includes("--write-bind-rail-snapshot");
+const SWEEP_RAIL_RUN = "vpa-pitch-p2-20261016-235852";
+const SWEEP_RAIL_STUDY = "vpa_pitch_linkage_blade_pitch_at_the_stops";
+
+async function testAnnotateSweepRail(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const railHtml = (page) => page.evaluate(() =>
+    document.querySelector(".an__rail").outerHTML.replace(/<!--[\s\S]*?-->/g, ""));
+
+  // --- 1. bind mode is what it was --------------------------------------------
+  const mock = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  mock.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await mock.goto(url + "?mock=1", { waitUntil: "load" });
+    await mock.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    const boot = await railHtml(mock);
+    await mock.evaluate(() => window.AnnotateApp.exec(["goto", "demo_system", "demo_edge_untraced"]));
+    await mock.waitForTimeout(500);
+    const arrived = await railHtml(mock);
+    if (WRITE_BIND_RAIL_SNAPSHOT) {
+      const kept = JSON.parse(await readFile(BIND_RAIL_SNAPSHOT, "utf8"));
+      await writeFile(BIND_RAIL_SNAPSHOT, JSON.stringify(
+        Object.assign(kept, { boot, goto: arrived }), null, 1) + "\n", "utf8");
+      console.log(`[${label}] wrote ${BIND_RAIL_SNAPSHOT}`);
+    }
+    const snapshot = JSON.parse(await readFile(BIND_RAIL_SNAPSHOT, "utf8"));
+    push("bind mode's rail is node for node the rail before the sweep rail existed, " +
+      "at boot and after a goto", boot === snapshot.boot && arrived === snapshot.goto);
+
+    await mock.evaluate(() => window.AnnotateApp.exec(["sweep", "synthetic-demo-sweep"]));
+    await mock.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree"),
+      null, { timeout: 15000 }).catch(() => {});
+    await mock.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
+    const left = await mock.evaluate(() => ({
+      tree: !!document.getElementById("sweep-tree"),
+      posture: document.getElementById("workspace").classList.contains("an--sweep"),
+      locked: document.getElementById("topology-select").disabled,
+      list: getComputedStyle(document.getElementById("element-list")).display !== "none",
+    }));
+    push("leaving sweep mode takes the whole tree away and puts the bind furniture back",
+      !left.tree && !left.posture && !left.locked && left.list);
+  } catch (err) {
+    errors.push(String(err));
+  } finally {
+    await mock.close();
+  }
+
+  // --- 2. P2, opened from the kinematic study --------------------------------
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const index = await realDataIndexForTheAnnotator();
+  if (!study || !topology || index.runs.indexOf(SWEEP_RAIL_RUN) === -1) {
+    push("[real] the sweep rail on P2 (skipped: the run, the kinematic or the topology " +
+      "projection is not on disk -- build them, or pass --repo <main checkout>)", true);
+    server.close();
+    return reportSuite(label, checks, errors);
+  }
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases,
+    binding: { topology: study.topology, edge: "pitch_link_length",
+      faces: [["from", 0], ["to", 1]] } });
+  const visible = (selector) => page.evaluate((sel) => {
+    const n = document.querySelector(sel);
+    return !!n && n.getClientRects().length > 0 && getComputedStyle(n).display !== "none";
+  }, selector);
+  const headOf = (group) => page.evaluate((g) => {
+    const n = document.querySelector(`#sweep-tree [data-group="${g}"] .an__tree-head`);
+    return n ? n.textContent : "";
+  }, group);
+  const contributorEdges = () => page.evaluate(() => [...document.querySelectorAll(
+    '#sweep-tree [data-group="contributors"] .tree-row')].map((n) => n.dataset.edge));
+  try {
+    await page.goto(`${url}?sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+    // The bodies resolving is what opens the parts the synthetic binding sits on.
+    await page.waitForFunction(() => window.__sweep && window.__sweep.bodies &&
+      window.__sweep.bodies.length > 0 && document.getElementById("sweep-tree"),
+      null, { timeout: 180000 }).catch(() => {});
+
+    const furniture = {
+      study: await visible("#study-select"), list: await visible("#element-list"),
+      auto: await visible("#auto-setup"), scope: await visible("#rail-filter"),
+      topology: await visible("#topology-select"),
+      locked: await page.evaluate(() => document.getElementById("topology-select").disabled),
+    };
+    push("[real] in sweep mode the rail shows no study select, no element list, no " +
+      "arrival menu and no scope bar; the topology stays, as a label the run chose",
+      !furniture.study && !furniture.list && !furniture.auto && !furniture.scope &&
+      furniture.topology && furniture.locked);
+
+    const counts = await page.evaluate(() => ({
+      bodies: document.querySelectorAll('#sweep-tree [data-group="bodies"] > details').length,
+      joints: document.querySelectorAll('#sweep-tree [data-group="joints"] > details').length,
+      wantBodies: window.__sweep.artifact.bodies.length,
+      wantJoints: Object.keys(window.__sweep.artifact.points[0].joints).length,
+      groups: [...document.querySelectorAll("#sweep-tree > [data-group]")].map((n) => n.dataset.group),
+    }));
+    push("[real] the tree's top level is bodies then joints, with the counts the run carries",
+      counts.bodies === counts.wantBodies && counts.joints === counts.wantJoints &&
+      counts.wantBodies === 3 && counts.wantJoints === 5 &&
+      counts.groups.slice(0, 2).join(",") === "bodies,joints" &&
+      (await headOf("bodies")).indexOf("(3)") !== -1 && (await headOf("joints")).indexOf("(5)") !== -1);
+
+    // --- the pitch link: open it, and it is selected ---------------------------
+    await page.locator('#sweep-tree [data-joint="pitch_link"] > summary').click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__scene.sweepEmphasis() === "pitch_link", null,
+      { timeout: 5000 }).catch(() => {});
+    const features = await page.evaluate(() => {
+      const probe = document.createElement("li");
+      probe.className = "el-row el-row--bound";
+      document.getElementById("element-list").appendChild(probe);
+      const bound = getComputedStyle(probe).borderLeftColor;
+      probe.remove();
+      return { bound, rows: [...document.querySelectorAll('#sweep-tree [data-joint="pitch_link"] .tree-row')]
+        .map((n) => ({ id: n.dataset.feature, state: n.dataset.state,
+          colour: getComputedStyle(n).borderLeftColor, shown: n.getClientRects().length > 0 })) };
+    });
+    const spheres = ["pitch_link_upper_sphere_centre", "pitch_link_lower_sphere_centre"]
+      .map((id) => features.rows.find((r) => r.id === id));
+    push("[real] opening pitch_link lists its two sphere-centre features, coloured as a " +
+      "bound element row is",
+      spheres.every((r) => r && r.shown && r.state === "bound" && r.colour === features.bound));
+    const bead = await page.evaluate(() => ({
+      on: window.__scene.sweepEmphasis(),
+      scale: window.__scene._sweep.joints.get("pitch_link").scale.x,
+      other: window.__scene._sweep.joints.get("tan_link").scale.x,
+    }));
+    push("[real] opening a joint selects it: its bead is drawn larger than the others",
+      bead.on === "pitch_link" && bead.scale > bead.other);
+
+    // --- the contributors follow the frame -----------------------------------
+    await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
+    const atLow = { head: await headOf("contributors"), edges: await contributorEdges() };
+    push("[real] opened from the kinematic study, six contributor rows read at the −7° " +
+      "stop at frame 0",
+      atLow.head.indexOf("at the −7° stop") !== -1 && atLow.edges.length === 6);
+    await page.evaluate(() => window.AnnotateApp.exec(["seek", "#79"]));
+    const atHigh = { head: await headOf("contributors"), edges: await contributorEdges() };
+    push("[real] ...and the same six read at the +72° stop at frame 79",
+      atHigh.head.indexOf("at the +72° stop") !== -1 && atHigh.edges.length === 6 &&
+      atHigh.edges.slice().sort().join() === atLow.edges.slice().sort().join());
+
+    // --- a contributor selected tints its feature's faces ---------------------
+    await page.locator('#sweep-tree [data-group="contributors"] .tree-row[data-edge="pitch_link_length"]')
+      .click({ timeout: 5000 }).catch(() => {});
+    const tint = await page.evaluate(() => {
+      const picked = window.__lastInspect;
+      if (!picked || !picked.faces.length) return null;
+      return picked.faces.map((f) => {
+        const mesh = window.__scene.parts.get(f.sha256);
+        const at = mesh.userData.faceRanges[f.faceId].start * 3;
+        const live = mesh.geometry.attributes.color.array;
+        const base = mesh.userData.baseColors;
+        return live[at] !== base[at] || live[at + 1] !== base[at + 1] || live[at + 2] !== base[at + 2];
+      });
+    });
+    push("[real] selecting a length contributor tints both of its ends' faces in the " +
+      "colour buffer", tint && tint.length === 2 && tint.every(Boolean));
+    push("[real] ...and selecting it let the joint go -- one selection at a time",
+      await page.evaluate(() => window.__scene.sweepEmphasis() === null));
+
+    // --- the truncation rule, at the rail's narrowest ---------------------------
+    await page.evaluate(() => {
+      document.getElementById("workspace").style.setProperty("--rail-w",
+        window.AnnotateApp.RAIL_WIDTH_MIN + "px");
+    });
+    const clipped = await page.evaluate(() => {
+      const out = { clipped: 0, unreadable: [] };
+      const texts = document.querySelectorAll("#sweep-tree .an__tree-text, #sweep-tree .an__tree-head, " +
+        "#sweep-tree .tree-row__name, #sweep-tree .part-row__label");
+      for (const n of texts) {
+        if (!n.getClientRects().length) continue;
+        const box = n.classList.contains("an__tree-text") ? n.parentElement : n;
+        if (box.scrollWidth <= box.clientWidth) continue;
+        out.clipped++;
+        let holder = n;
+        while (holder && !holder.title) holder = holder.parentElement;
+        if (!holder || holder.title.indexOf(n.textContent.trim()) === -1) out.unreadable.push(n.textContent);
+      }
+      return out;
+    });
+    push("[real] at the rail's narrowest every clipped tree row carries its whole text " +
+      "on hover", clipped.clipped > 0 && clipped.unreadable.length === 0);
+
+    // --- re-pick is the jump to bind mode ---------------------------------------
+    const row = page.locator('#sweep-tree [data-joint="pitch_link"] .tree-row[data-feature="pitch_link_length"]');
+    await row.hover({ timeout: 5000 }).catch(() => {});
+    await row.locator(".tree-row__repick").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !window.__sweep &&
+      document.querySelector("#element-list li.selected"), null, { timeout: 15000 }).catch(() => {});
+    const landed = await page.evaluate(() => ({
+      sweep: !!window.__sweep, inSweep: window.__scene.inSweep(),
+      tree: !!document.getElementById("sweep-tree"),
+      selected: (document.querySelector("#element-list li.selected") || {}).title || null,
+      list: getComputedStyle(document.getElementById("element-list")).display !== "none",
+    }));
+    const edgeName = topology.edges.find((e) => e.id === "pitch_link_length").name;
+    push("[real] re-pick on a bound feature leaves sweep mode, every part back at its " +
+      "as-modelled placement, and lands in bind mode with that edge selected",
+      !landed.sweep && !landed.inSweep && !landed.tree && landed.list && landed.selected === edgeName);
+
+    push("[real] nothing above produced an uncaught error", errors.length === 0);
     return reportSuite(label, checks, errors);
   } catch (err) {
     return reportAbortedSuite(label, checks, errors, err);
@@ -8412,6 +8674,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testThreeDPane(browser, fileBase, label, topologies)],
       ["annotate rail filter + face deselect", (label) =>
         testAnnotateRail(browser, label)],
+      ["annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)", (label) =>
+        testAnnotateSweepRail(browser, label, topologies)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>
         testAnnotateHostedPosture(browser, label)],
       ["annotate top bar + entry context (auto-filter, see-through)", (label) =>

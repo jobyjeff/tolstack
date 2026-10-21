@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] the tree's top level is bodies then joints, with the counts the run carries",
+  "mutations": [
+    {
+      "contract": "The tree lists every body the run carries.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Losing the first body (ground) is the shape of an off-by-one the count reads directly.",
+      "file": "apps/annotate/app.js",
+      "find": "  for (const body of tree.bodies) {",
+      "replace": "  for (const body of tree.bodies.slice(1)) {"
+    }
+  ]
+}

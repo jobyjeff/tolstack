@@ -1076,6 +1076,183 @@ check("embedState names the mode and the subject in one line -- the run's mechan
     "Binding — Propeller pitch linkage");
   assertEqual(AA.embedState(null, null, null).title, "Binding");
 });
+// --- the sweep rail shows the mechanism (handoff the_sweep_rail_shows_the_
+// mechanism): the tree, the feature bindings, the stop and the contributors.
+// One synthetic run, small enough to read: a ground body and one moving body,
+// a hinge, a two-force rod with its feature joins, a driver, and one joint
+// whose rows match no linkage type.
+function railDoc() {
+  const still = { translation: [0, 0, 0], rotvec: [0, 0, 0] };
+  const at = (a, b) => ({ point_a_world: a, point_b_world: b, axis_world: null });
+  return {
+    schema: AA.SWEEP_SCHEMA, run_id: "rail-run",
+    mechanism: { name: "rail_demo", driver: { label: "travel", unit: "mm" },
+      row_labels: ["hinge.dx", "hinge.dy", "hinge.dz", "hinge.tilt_u", "hinge.tilt_w",
+        "rod.gap", "drive.position", "odd.dx"] },
+    geometry: { features: [
+      { label: "rod.point_a[0]", topology: "rail_topo", node: "n_top", component: "x", body: "arm" },
+      { label: "rod.point_a[1]", topology: "rail_topo", node: "n_top", component: "y", body: "arm" },
+      { label: "rod.point_b[0]", topology: "rail_topo", node: "n_bot", component: "x", body: "base" },
+      { label: "rod.length", topology: "rail_topo", edge: "rod_len", component: null, body: null },
+      { label: "drive.value", kind: "driver", component: null, body: null },
+    ] },
+    bodies: [{ name: "base", ground: true, parts: ["p1", "p2"] },
+      { name: "arm", ground: false, parts: ["p3"] }],
+    links: [{ joint: "rod", parts: ["rod_part"] }],
+    points: [{ index: 0, driver_value: 0, measures: {}, poses: { base: still, arm: still },
+      joints: { hinge: at([0, 0, 0], [0, 0, 0]), rod: at([1, 0, 0], [0, 1, 0]),
+        drive: at([0, 0, 1], [0, 0, 2]), odd: at([2, 0, 0], [2, 0, 0]) } }],
+  };
+}
+const RAIL_TOPOLOGY = {
+  id: "rail_topo",
+  nodes: [{ id: "n_top", name: "rod top ball centre" }, { id: "n_bot", name: "rod foot ball centre" },
+    { id: "n_other", name: "a bore" }, { id: "n_alone", name: "a face nothing ends on" }],
+  edges: [{ id: "other_edge", name: "bore to rod top", from: "n_other", to: "n_top" },
+    { id: "rod_len", name: "rod length between ball centres", from: "n_bot", to: "n_top" }],
+};
+
+check("a joint's type is read off its own residual rows, and a row set no linkage " +
+  "type has is null rather than a guess", () => {
+  const art = AA.readSweepArtifact(railDoc());
+  assertEqual(AA.sweepJointTypes(art),
+    { hinge: "revolute", rod: "distance", drive: "axial_position", odd: null });
+  // Every type word, and every rail word, is reader-facing copy.
+  AA.LINKAGE_JOINT_TYPES.forEach((type) => {
+    assertNothingBanned(AA.SWEEP_JOINT_TYPE_WORDS[type], "the word for " + type);
+  });
+  Object.keys(AA.SWEEP_RAIL_WORDS).forEach((key) => {
+    assertNothingBanned(AA.SWEEP_RAIL_WORDS[key], "the rail word " + key);
+  });
+  // A run with no row labels at all types nothing.
+  assertEqual(AA.sweepJointTypes({ rowLabels: [] }), {});
+});
+
+check("the mechanism tree lists the run's bodies with their parts, opens the moving " +
+  "ones, and takes a joint's two bodies from its feature joins before its measured ends", () => {
+  const tree = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc()));
+  assertEqual(tree.bodies.map((b) => [b.name, b.parts, b.open]),
+    [["base", ["p1", "p2"], false], ["arm", ["p3"], true]]);
+  assertEqual(tree.joints.map((j) => j.name), ["hinge", "rod", "drive", "odd"]);
+  const rod = tree.joints[1];
+  assertEqual(rod.bodies, ["arm", "base"], "the rod's ends, as its joins declare them");
+  assertEqual(rod.parts, ["rod_part"]);
+  assertEqual(rod.features, [
+    { topology: "rail_topo", kind: "node", id: "n_top" },
+    { topology: "rail_topo", kind: "node", id: "n_bot" },
+    { topology: "rail_topo", kind: "edge", id: "rod_len" }]);
+  // No joins: the measured ends answer, and ground wins the tie for a still point.
+  assertEqual(tree.joints[0].bodies, ["base", "base"]);
+  assertEqual(AA.sweepJointRowWords(rod), "rod · ball-ended link · arm ↔ base");
+  assertEqual(AA.sweepJointRowWords(tree.joints[0]), "hinge · hinge · base");
+  assertEqual(AA.sweepJointRowWords(tree.joints[3]), "odd · base");
+  assertEqual(AA.sweepBodyRowWords(tree.bodies[1]), "arm · 1 part");
+});
+
+check("a node feature is bound through the edge to its joint's other node, at its own " +
+  "end; an edge feature is its whole edge; a node nothing ends on is bound nowhere", () => {
+  const rod = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc())).joints[1];
+  const via = (f) => AA.sweepFeatureEdge(RAIL_TOPOLOGY, f, rod.features);
+  // n_top's FIRST edge is other_edge; the rod's own length wins because it
+  // ends on the rod's other node.
+  assertEqual(via(rod.features[0]), { edgeId: "rod_len", direction: "to" });
+  assertEqual(via(rod.features[1]), { edgeId: "rod_len", direction: "from" });
+  assertEqual(via(rod.features[2]), { edgeId: "rod_len", direction: null });
+  // With no sibling to aim at, the first edge that ends on the node.
+  assertEqual(AA.sweepFeatureEdge(RAIL_TOPOLOGY, { kind: "node", id: "n_top" }, []),
+    { edgeId: "other_edge", direction: "to" });
+  assertEqual(AA.sweepFeatureEdge(RAIL_TOPOLOGY, { kind: "node", id: "n_alone" }, []),
+    { edgeId: null, direction: null });
+  assertEqual(AA.sweepFeatureName(RAIL_TOPOLOGY, rod.features[0]), "rod top ball centre");
+  assertEqual(AA.sweepFeatureName(null, { kind: "node", id: "a_b" }), "a b");
+});
+
+check("a node feature's colour is the binding at its own end of the edge, and a " +
+  "length's is its whole edge's", () => {
+  const identity = { stack_keys: [{
+    stack_key: { kind: "topology_edge", topology_id: "rail_topo", edge_id: "rod_len" },
+    bindings: [{ event_id: "e1", direction: "from",
+      geometry_key: { source_step_sha256: "aa", face_id: 2 } }] }] };
+  const state = (direction, staleness) => AA.sweepFeatureState(identity, staleness || null,
+    "rail_topo", { edgeId: "rod_len", direction });
+  assertEqual(state("from"), AA.BINDING_STATES.BOUND);
+  assertEqual(state("to"), AA.BINDING_STATES.UNBOUND, "the other end is not bound");
+  assertEqual(state(null), AA.BINDING_STATES.BOUND);
+  assertEqual(state("from", { e1: "needs_re_confirmation" }), AA.BINDING_STATES.NEEDS_RECONFIRMATION);
+  const owner = { stack_keys: [{ stack_key: identity.stack_keys[0].stack_key, bindings: [] }] };
+  assertEqual(AA.sweepFeatureState(owner, null, "rail_topo", { edgeId: "rod_len", direction: "to" }),
+    AA.BINDING_STATES.OWNER_NOT_IN_SET);
+  assertEqual(AA.sweepFeatureState(identity, null, "rail_topo", { edgeId: null, direction: null }),
+    AA.BINDING_STATES.UNBOUND);
+});
+
+check("highlight narrows to one end of an edge, and a selected length tints both of " +
+  "its ends on open parts only", () => {
+  const identity = { stack_keys: [{
+    stack_key: { kind: "topology_edge", topology_id: "rail_topo", edge_id: "rod_len" },
+    bindings: [
+      { event_id: "e1", direction: "from", geometry_key: { source_step_sha256: "aa", face_id: 2 } },
+      { event_id: "e2", direction: "to", geometry_key: { source_step_sha256: "bb", face_id: 5 } }] }] };
+  const open = () => true;
+  assertEqual(AA.planHighlight(identity, "rail_topo", "rod_len", open, "to").face,
+    { sha256: "bb", faceId: 5 });
+  assertEqual(AA.planHighlight(identity, "rail_topo", "rod_len", open).face,
+    { sha256: "aa", faceId: 2 }, "no direction is the first binding, as before");
+  const tree = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc()));
+  const length = { feature: { kind: "edge", id: "rod_len" } };
+  const reads = AA.contributorHighlightReads(RAIL_TOPOLOGY, length, tree);
+  assertEqual(AA.planHighlightFaces(identity, "rail_topo", reads, open),
+    [{ sha256: "aa", faceId: 2 }, { sha256: "bb", faceId: 5 }]);
+  assertEqual(AA.planHighlightFaces(identity, "rail_topo", reads, (sha) => sha === "bb"),
+    [{ sha256: "bb", faceId: 5 }]);
+  // A node contributor reads through the edge its joint's feature row uses.
+  const top = { feature: { kind: "node", id: "n_top" } };
+  assertEqual(AA.contributorHighlightReads(RAIL_TOPOLOGY, top, tree),
+    [{ edgeId: "rod_len", direction: "to" }]);
+  assertEqual(AA.planHighlightFaces(identity, "rail_topo",
+    AA.contributorHighlightReads(RAIL_TOPOLOGY, top, tree), open), [{ sha256: "bb", faceId: 5 }]);
+});
+
+check("the contributor group reads the stop nearest the frame by the study's own " +
+  "measure, and its head names that stop with a sign and its unit", () => {
+  const study = { measure: "blade_pitch", units: "deg", stops: [
+    { id: "lo", target: -7, index: 0, rows: [
+      { edge: "rod_len", magnitude: 0.15554689, gap: null, feature: { edge: "rod_len" } },
+      { edge: "no_such_edge", magnitude: null, gap: "No band is cited.",
+        feature: { node: "n_top", body: "arm" } }] },
+    { id: "hi", target: 72, index: 79, rows: [] }] };
+  const at = (value, index) => ({ index, nearer: { measures: { blade_pitch: value } } });
+  assertEqual(AA.kinematicStopAt(study, at(-6.99, 0)).id, "lo");
+  assertEqual(AA.kinematicStopAt(study, at(32, 50)).id, "lo", "32 deg is nearer -7 than 72");
+  assertEqual(AA.kinematicStopAt(study, at(33, 10)).id, "hi", "by value, never by index");
+  assertEqual(AA.kinematicStopAt(study, { index: 60, nearer: { measures: {} } }).id, "hi",
+    "with no measure on the frame, by index");
+  assertEqual(AA.kinematicStopAt({ stops: [] }, at(0, 0)), null);
+  assertEqual(AA.kinematicStopWords(study.stops[0], "deg"), "at the −7° stop");
+  assertEqual(AA.kinematicStopWords(study.stops[1], "deg"), "at the +72° stop");
+  assertEqual(AA.kinematicStopWords({ target: 1.5 }, "mm"), "at the +1.5 mm stop");
+  assertEqual(AA.kinematicContributorRows(study, study.stops[0], RAIL_TOPOLOGY, 3), [
+    { edge: "rod_len", name: "rod length between ball centres", magnitude: "0.156 deg",
+      gap: null, feature: { kind: "edge", id: "rod_len" } },
+    { edge: "no_such_edge", name: "no such edge", magnitude: null,
+      gap: "No band is cited.", feature: { kind: "node", id: "n_top" } }]);
+});
+
+check("a sweep link carries its kinematic study onto the sweep verb, and inspect's " +
+  "grammar refuses what it does not take", () => {
+  assertEqual(AA.planEntryCommands({ sweep: "r1", kinematic: "k1" }), [["sweep", "r1", "k1"]]);
+  assertEqual(AA.planEntryCommands({ sweep: "r1", kinematic: "k1", t: "12" }),
+    [["sweep", "r1", "k1"], ["seek", "12"]]);
+  assertEqual(AA.planEntryCommands({ sweep: "r1" }), [["sweep", "r1"]]);
+  assertEqual(AA.parseInspect("joint", "rod"), { kind: "joint", name: "rod" });
+  assertEqual(AA.parseInspect("contributor", "rod_len"), { kind: "contributor", name: "rod_len" });
+  assertEqual(AA.parseInspect("clear"), { kind: null, name: null });
+  let threw = 0;
+  try { AA.parseInspect("body", "base"); } catch (_) { threw++; }
+  try { AA.parseInspect("joint"); } catch (_) { threw++; }
+  assertEqual(threw, 2, "an unknown target and a missing name both refuse");
+});
+
 check("planStudyTrace over the mock fixture's own study matches its data end to end", () => {
   const topo = AA.FIXTURES.topologyProjection.topologies[0];
   const meshes = [{ sha256: AA.FIXTURES.demoSha, label: "demo", part_id: "demo_triangle" }];
@@ -4063,6 +4240,31 @@ if (!SWEEPS_DIR) {
       }
     }
   });
+
+  // The sweep rail's tree on P2 (handoff the_sweep_rail_shows_the_mechanism):
+  // the run the handoff names, read for what the rail shows.
+  const P2_FILE = "vpa-pitch-p2-20261016-235852.json";
+  if (SWEEP_RUNS.indexOf(P2_FILE) === -1) {
+    console.log("SKIP  [real] P2's mechanism tree -- " + P2_FILE + " is not published here");
+  } else {
+    check("[real] P2's mechanism tree: three bodies, five joints typed slide, driver, " +
+      "hinge and two ball-ended links, and the pitch link's two sphere centres", () => {
+      const art = AA.readSweepArtifact(JSON.parse(fs.readFileSync(path.join(SWEEPS_DIR, P2_FILE), "utf8")));
+      const tree = AA.sweepMechanismTree(art);
+      assertEqual(tree.bodies.map((b) => [b.name, b.parts.length, b.open]),
+        [["base", 3, false], ["pitch_plate", 2, true], ["blade", 2, true]]);
+      assertEqual(tree.joints.map((j) => [j.name, j.words, j.bodies]), [
+        ["plate_slide", "slide", ["base", "pitch_plate"]],
+        ["actuator", "driver", ["base", "pitch_plate"]],
+        ["blade_hinge", "hinge", ["base", "blade"]],
+        ["pitch_link", "ball-ended link", ["pitch_plate", "blade"]],
+        ["tan_link", "ball-ended link", ["base", "pitch_plate"]]]);
+      const link = tree.joints.find((j) => j.name === "pitch_link");
+      const nodes = link.features.filter((f) => f.kind === "node").map((f) => f.id);
+      assertEqual(nodes, ["pitch_link_upper_sphere_centre", "pitch_link_lower_sphere_centre"]);
+      console.log("      " + tree.joints.map(AA.sweepJointRowWords).join(" / "));
+    });
+  }
 }
 
 // --- [real] the shipped alias table against the installed meshes ------------

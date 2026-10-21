@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] opening pitch_link lists its two sphere-centre features, coloured as a bound element row is",
+  "mutations": [
+    {
+      "contract": "A feature row wears its binding state's colour from the element rows' own rule.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "The row still carries data-state; only the colour is lost, which is what the check reads from computed style.",
+      "file": "apps/annotate/app.js",
+      "find": "  li.className = \"tree-row el-row--\" + bindingState;",
+      "replace": "  li.className = \"tree-row\";"
+    }
+  ]
+}

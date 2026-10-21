@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the contributor group reads the stop nearest the frame by the study's own measure, and its head names that stop with a sign and its unit",
+  "mutations": [
+    {
+      "contract": "The stop is chosen by the study's measure value, never by sweep index, and its head carries a signed value.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "By index, 32 deg at point 50 is nearer the +72 stop's point 79; by value it is nearer -7. The builder finds a stop by value too.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var byValue = typeof value === \"number\" && isFinite(value);",
+      "replace": "    var byValue = false;"
+    }
+  ]
+}

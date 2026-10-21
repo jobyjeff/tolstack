@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "[real] P2's mechanism tree: three bodies, five joints typed slide, driver, hinge and two ball-ended links, and the pitch link's two sphere centres",
+  "mutations": [
+    {
+      "contract": "P2's joints read in the everyday words the handoff names: slide, driver, hinge, ball-ended link.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "A type word drifting is the realistic regression for this check; the synthetic checks hold the reading itself.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    cylindrical: \"slide\",",
+      "replace": "    cylindrical: \"cylinder\","
+    }
+  ]
+}

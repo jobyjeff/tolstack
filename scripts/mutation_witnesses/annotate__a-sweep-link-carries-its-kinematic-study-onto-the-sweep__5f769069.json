@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a sweep link carries its kinematic study onto the sweep verb, and inspect's grammar refuses what it does not take",
+  "mutations": [
+    {
+      "contract": "?sweep=<run>&kinematic=<study> boots the sweep verb with the study as its second word, the same command the viewer's pane posts.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Dropping the second word is the pre-handoff command: the run opens and the rail has no contributors.",
+      "file": "apps/annotate/commands.js",
+      "find": "        ? [\"sweep\", String(p.sweep), String(p.kinematic)]",
+      "replace": "        ? [\"sweep\", String(p.sweep)]"
+    }
+  ]
+}

@@ -515,6 +515,9 @@ solver run, with the scrubber at that driver value. It is exclusive of the
 params above: a link that both opened a solver run and put the reader on an
 element to bind would be asking for two things at once, and sweep mode turns
 picking off anyway while the linkage is away from its as-modelled pose.
+`&kinematic=<study>` names the kinematic study the run is opened from, and the
+sweep rail then lists that study's contributors (`docs/ANNOTATION_SURFACE.md`,
+"The rail in sweep mode").
 
 **FSA cannot pre-grant the folder from a URL.** A deep link opened cold has
 no folder access yet — the banner says so ("a linked element is queued"),

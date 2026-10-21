@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] ...and selecting it let the joint go -- one selection at a time",
+  "mutations": [
+    {
+      "contract": "The rail holds one selection: selecting a contributor lets a selected joint go.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Only setting the emphasis when a joint is chosen leaves the last joint emphasised forever.",
+      "file": "apps/annotate/app.js",
+      "find": "  state.scene.setSweepEmphasis(target.kind === AA.INSPECT_TARGETS[0] ? target.name : null);",
+      "replace": "  if (target.kind === AA.INSPECT_TARGETS[0]) state.scene.setSweepEmphasis(target.name);"
+    }
+  ]
+}

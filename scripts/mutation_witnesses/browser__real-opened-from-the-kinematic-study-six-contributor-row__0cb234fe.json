@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] opened from the kinematic study, six contributor rows read at the −7° stop at frame 0",
+  "mutations": [
+    {
+      "contract": "The contributor group reads the stop nearest the current frame.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Pinning the group to one stop is what a rail that never reads the frame looks like.",
+      "file": "apps/annotate/app.js",
+      "find": "  const stop = AA.kinematicStopAt(study, sweep.frame);\n  sweep.stopId = stop ? stop.id : null;",
+      "replace": "  const stop = (study.stops || [])[1] || null;\n  sweep.stopId = stop ? stop.id : null;"
+    }
+  ]
+}

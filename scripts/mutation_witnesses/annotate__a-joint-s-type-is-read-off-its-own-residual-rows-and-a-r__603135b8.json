@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a joint's type is read off its own residual rows, and a row set no linkage type has is null rather than a guess",
+  "mutations": [
+    {
+      "contract": "A joint whose residual rows match no linkage type shows no type word; it is never given the nearest one.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "The natural shortcut is to fall back to some type when the signature is unknown; that is a guess wearing a type's words.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      out[joint] = i === -1 ? null : AA.LINKAGE_JOINT_TYPES[i];",
+      "replace": "      out[joint] = AA.LINKAGE_JOINT_TYPES[Math.max(i, 0)];"
+    }
+  ]
+}

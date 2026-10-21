@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "bind mode's rail is node for node the rail before the sweep rail existed, at boot and after a goto",
+  "mutations": [
+    {
+      "contract": "The sweep rail leaves bind mode's rail DOM byte-identical to the pre-handoff snapshot.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "The part row is the one implementation the tree shares with the bind rail, so a class added to it for the tree is the realistic way the bind DOM changes.",
+      "file": "apps/annotate/app.js",
+      "find": "  const li = document.createElement(\"li\");\n  li.className = \"part-row\";\n",
+      "replace": "  const li = document.createElement(\"li\");\n  li.className = \"part-row an__tree-part\";\n"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "highlight narrows to one end of an edge, and a selected length tints both of its ends on open parts only",
+  "mutations": [
+    {
+      "contract": "highlight with a direction tints the binding at that end of the edge, not the edge's first binding.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Ignoring the direction is the pre-handoff behaviour, under which hovering the upper sphere centre tints the lower one's face.",
+      "file": "apps/annotate/commands.js",
+      "find": "      return !direction || (b && b.direction === direction);",
+      "replace": "      return true;"
+    }
+  ]
+}

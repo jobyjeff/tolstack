@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a node feature is bound through the edge to its joint's other node, at its own end; an edge feature is its whole edge; a node nothing ends on is bound nowhere",
+  "mutations": [
+    {
+      "contract": "A joint's node feature is read through the edge between it and the joint's other node, not whichever edge happens to touch it first.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "The fixture's n_top has an unrelated edge listed first; taking the first touching edge colours and highlights the wrong binding.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var edge = between || touches[0] || null;",
+      "replace": "    var edge = touches[0] || null;"
+    }
+  ]
+}

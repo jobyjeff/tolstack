@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] ...and the pane's rail lists the kinematic study's contributors, which the viewer passed with the run",
+  "mutations": [
+    {
+      "contract": "The viewer's pane boots the annotator with the kinematic study riding on the sweep link.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "The cold pane boots on the link, so the link losing the study is the whole of the regression.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    if (params.sweep && params.kinematicId) {\n      return \"../annotate/index.html?sweep=\"",
+      "replace": "    if (false) {\n      return \"../annotate/index.html?sweep=\""
+    }
+  ]
+}

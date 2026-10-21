@@ -481,6 +481,31 @@ words, and offers the other published runs in a picker when there are any. Every
 one state machine through those verbs, which is this app's standing rule.
 `apps/annotate/README.md`'s verb table is the reference.
 
+### The rail in sweep mode: the mechanism, inspect only (2026-10-20)
+
+While a run plays, the rail shows the mechanism rather than the bind
+workflow. The arrival menu, the study select, the element list and the scope
+bar stand down; the topology select stays, disabled, because the run chose it.
+Under it: the run's **bodies**, each opening into its parts (the parts panel's
+own rows); its **joints**, each with its type in everyday words and the two
+bodies it joins, opening into the topology features that define it, coloured
+by binding state as the element rows are; and — when the run was opened from a
+kinematic study (`sweep <run> <study>`, `?sweep=<run>&kinematic=<study>`, the
+viewer's pane) — that study's ranked **contributors** at the stop nearest the
+frame. A joint's type is read off its own residual rows in
+`mechanism.row_labels`, against the table `tolerance_stack/kinematic.py`
+copies from the solver; the artifact never states one.
+
+**Nothing in this rail writes.** Hovering a feature tints its bound face (the
+`highlight` verb, narrowed to that feature's end of the edge it is bound
+through); selecting a joint or a contributor is the `inspect` verb, which
+tints and emphasises and nothing else. The one road from here to a binding is a
+feature row's **Re-pick**, which runs `goto <topology> <edge>`: that leaves sweep
+mode — every part back at its as-modelled placement — and lands in the bind
+flow on that edge, which is where the write boundary has always been. The tree
+is built on entering sweep mode and removed on leaving it, so the bind-mode
+rail is node for node what it was before the tree existed.
+
 ## What this MVP does not build
 
 - **Measurement from geometry.** Explicitly out of scope by the brief's

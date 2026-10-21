@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] ...and the same six read at the +72° stop at frame 79",
+  "mutations": [
+    {
+      "contract": "The rail repaints its contributor group when the frame crosses to another stop.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Seeking repaints the bar and not the rail, so without this repaint the head stays on the first stop.",
+      "file": "apps/annotate/app.js",
+      "find": "    if ((stop ? stop.id : null) !== sweep.stopId && document.getElementById(\"sweep-tree\")) {",
+      "replace": "    if (false) {"
+    }
+  ]
+}

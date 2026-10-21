@@ -663,15 +663,6 @@ async function railRealPass(browser, base) {
   await page.waitForFunction(() => window.__sweep && window.__sweep.frame, null, { timeout: 60000 });
   const topology = await page.locator("#topology-select").inputValue();
   check("[real] opening P2 selects the topology the run names", topology === "vpa_pitch_linkage", topology);
-  const listed = await page.locator(".an__rail .el-row").count();
-  const headText = (await page.locator(".an__rail .el-head").innerText()).trim();
-  const expected = await page.evaluate(async () => {
-    const doc = await fetch("/data/projections/viewer/topologies.json").then((r) => r.json());
-    return doc.topologies.find((t) => t.id === "vpa_pitch_linkage").edges.length;
-  });
-  check("[real] the studyless topology lists every one of its edges",
-    listed === expected && expected === 29 && headText.startsWith("all 29 interfaces"),
-    `${listed} rows, ${expected} edges, head ${JSON.stringify(headText)}`);
   const asModelled = await page.evaluate(() => window.__sweep.asModelledIndex);
   check("[real] P2's as-modelled frame is the last one (index 79)", asModelled === 79, String(asModelled));
   const gate = (await page.locator(".an__sweep-gate").innerText()).trim();
@@ -686,6 +677,20 @@ async function railRealPass(browser, base) {
   check("[real] part rows read `<number> <name>`",
     partRows.some((t) => /^214698-002 gas spring piston head/.test(t)) &&
     !partRows.some((t) => /…\)|[0-9a-f]{12}/.test(t)), JSON.stringify(partRows.slice(0, 8)));
+  // The element list is bind mode's (handoff the_sweep_rail_shows_the_
+  // mechanism: in sweep mode the rail shows the mechanism instead), so the
+  // studyless topology the run selected is read after leaving the run.
+  await page.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
+  const listed = await page.locator(".an__rail .el-row").count();
+  const listShown = await page.locator("#element-list").isVisible();
+  const headText = (await page.locator(".an__rail .el-head").innerText()).trim();
+  const expected = await page.evaluate(async () => {
+    const doc = await fetch("/data/projections/viewer/topologies.json").then((r) => r.json());
+    return doc.topologies.find((t) => t.id === "vpa_pitch_linkage").edges.length;
+  });
+  check("[real] the studyless topology lists every one of its edges",
+    listShown && listed === expected && expected === 29 && headText.startsWith("all 29 interfaces"),
+    `${listed} rows, ${expected} edges, head ${JSON.stringify(headText)}`);
   check("[real] nothing above produced an uncaught error", errors.length === 0, errors.join("\n      "));
   await page.close();
 }

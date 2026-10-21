@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a node feature's colour is the binding at its own end of the edge, and a length's is its whole edge's",
+  "mutations": [
+    {
+      "contract": "A node feature is coloured by the binding at its own end of the edge; the other end being bound does not make it bound.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Colouring a node by its edge's record shows a half-bound edge as bound at both ends.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (!mine.length) return AA.BINDING_STATES.UNBOUND;",
+      "replace": "    if (!mine.length) return AA.elementBindingState(record, staleness);"
+    }
+  ]
+}

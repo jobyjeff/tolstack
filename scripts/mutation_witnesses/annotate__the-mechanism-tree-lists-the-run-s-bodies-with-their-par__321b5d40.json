@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the mechanism tree lists the run's bodies with their parts, opens the moving ones, and takes a joint's two bodies from its feature joins before its measured ends",
+  "mutations": [
+    {
+      "contract": "A joint's two bodies are the producer's declared feature-join bodies where the run carries them; the measured riders are only the fallback.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Dropping the declared branch leaves the measurement, which hands a stationary end to ground and so names the rod's moving end wrongly.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        if (declared) return declared.body;\n",
+      "replace": ""
+    }
+  ]
+}

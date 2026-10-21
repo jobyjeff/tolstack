@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] at the rail's narrowest every clipped tree row carries its whole text on hover",
+  "mutations": [
+    {
+      "contract": "Every clipped body and joint row carries its full text as a hover title (the truncation rule).",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "At the minimum rail width the joint rows clip; without the title their full text is nowhere on the surface.",
+      "file": "apps/annotate/app.js",
+      "find": "  head.className = \"an__tree-row\";\n  head.title = text;\n",
+      "replace": "  head.className = \"an__tree-row\";\n"
+    }
+  ]
+}

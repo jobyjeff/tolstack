@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "leaving sweep mode takes the whole tree away and puts the bind furniture back",
+  "mutations": [
+    {
+      "contract": "Leaving sweep mode removes the tree rather than hiding it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "A tree left in the rail is the state the bind-mode snapshot exists to rule out, reached by leaving rather than by booting.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (tree) tree.remove();",
+      "replace": "    if (tree) tree.hidden = false;"
+    }
+  ]
+}
