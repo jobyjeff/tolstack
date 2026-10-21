@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20261021_browser_runners_take_the_slot_and_free_the_box.md
 area: scripts/browser-tier
 reporter: strategy
 class: unbounded_load_on_the_shared_workstation
