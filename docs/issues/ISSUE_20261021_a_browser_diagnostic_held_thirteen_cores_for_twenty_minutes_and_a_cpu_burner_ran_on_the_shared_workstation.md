@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20261021_browser_runners_take_the_slot_and_free_the_box.md
 area: scripts/browser-tier
 reporter: strategy
 class: unbounded_load_on_the_shared_workstation
 found_by: dispatch/docs/sessions/HANDOFF_20261021_an_agent_session_runs_in_a_job_below_the_desk.md
+resolution: handoff completed 2026-10-21 -- closed automatically by dispatch when handoff `browser_runners_take_the_slot_and_free_the_box` moved to completed/; not independently verified.
 ---
 
 # A browser diagnostic held thirteen cores for twenty minutes, and a CPU burner ran on the shared workstation
