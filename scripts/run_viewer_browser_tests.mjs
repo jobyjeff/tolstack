@@ -8763,6 +8763,20 @@ async function testAnnotateBindForm(browser, label) {
   }, faceId);
   // Position AND orientation: the aim below looks straight down the up axis,
   // where an azimuth orbit turns the camera without moving it.
+  // A point that is ON the canvas (nothing drawn over it) and hits no part --
+  // CONFIRMED both ways rather than assumed of a corner, which after an orbit
+  // can sit on geometry or under the top bar's edge.
+  const emptySpot = () => page.evaluate(() => {
+    const canvas = document.querySelector("#canvas-host canvas");
+    const r = canvas.getBoundingClientRect();
+    for (const [fx, fy] of [[0.05, 0.9], [0.95, 0.9], [0.05, 0.5], [0.95, 0.5], [0.5, 0.95]]) {
+      const x = r.left + fx * r.width, y = r.top + fy * r.height;
+      if (document.elementFromPoint(x, y) !== canvas) continue;
+      if (window.__scene.pick(fx * 2 - 1, -(fy * 2 - 1))) continue;
+      return { x, y };
+    }
+    return null;
+  });
   const cameraAt = () => page.evaluate(() => window.__scene.camera.position.toArray()
     .concat(window.__scene.camera.quaternion.toArray()));
   try {
@@ -8801,17 +8815,23 @@ async function testAnnotateBindForm(browser, label) {
         "the pick and the bind form -- Jeff's own gesture after picking a face",
         moved && kept && kept.faceId === 1 && await formUp());
       // A drag that starts in empty space: the press used to clear the pick.
-      await page.mouse.move(canvasBox.x + 8, canvasBox.y + 8);
-      await page.mouse.down();
-      await page.mouse.move(canvasBox.x + 160, canvasBox.y + 90, { steps: 10 });
-      await page.mouse.up();
+      const empty = await emptySpot();
+      if (empty) {
+        await page.mouse.move(empty.x, empty.y);
+        await page.mouse.down();
+        await page.mouse.move(empty.x + 90, empty.y - 60, { steps: 10 });
+        await page.mouse.up();
+      } else {
+        console.log("    no confirmed empty spot on the canvas to press in");
+      }
       const stillKept = await picked();
       push("...and so does a drag that starts in empty space",
-        stillKept && stillKept.faceId === 1 && await formUp());
+        empty && stillKept && stillKept.faceId === 1 && await formUp());
       // ...while a plain click into empty space still clears it.
-      await page.mouse.click(canvasBox.x + 6, canvasBox.y + 6);
+      const emptyAgain = await emptySpot();
+      if (emptyAgain) await page.mouse.click(emptyAgain.x, emptyAgain.y);
       push("a plain click into empty space still clears the pick and the form",
-        (await picked()) === null && !(await formUp()));
+        emptyAgain && (await picked()) === null && !(await formUp()));
     }
 
     // --- 2. one end bound: the other preselected, the leader drawn -----------
@@ -8846,12 +8866,14 @@ async function testAnnotateBindForm(browser, label) {
       await bindDisabled() && /^Choose which interface/.test(await taskLine()));
     push("...and no choice reads the stored direction word",
       open.every((c) => !/^(from|to)$/i.test(c.text.trim())));
-    push("...and no leader is drawn on a first bind",
-      (await page.evaluate(() => window.__scene.bindLeader())) === null);
     await page.locator("#detail .an__end", { hasText: "demo bolt-head bearing face" }).click();
     push("choosing an interface enables Bind and the instruction names it",
       !(await bindDisabled()) &&
       /as demo bolt-head bearing face\. The other face comes next\./.test(await taskLine()));
+    // Asked AFTER an end is chosen: before it, the leader has no end to start
+    // from either, so a leader that guessed the missing face would pass.
+    push("...and no leader is drawn on a first bind, even with an end chosen",
+      (await page.evaluate(() => window.__scene.bindLeader())) === null);
     await page.locator("#detail .bind-form__bind").click();
     await page.waitForFunction(() => /Wrote /.test(
       document.querySelector("#banner") ? document.querySelector("#banner").textContent : ""),

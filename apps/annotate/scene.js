@@ -46,12 +46,11 @@ const GHOST_OPACITY = 0.22;
 const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };
 const DEFAULT_MARK_ROLE = "bound";
 // The bind leader (setBindLeader): drawn after the parts and the marks, and
-// its labels after its line. The label size is in CSS px at a nominal view
-// height -- a sprite with sizeAttenuation off is sized as a fraction of the
-// view, so LEADER_VIEW_PX is what turns the one into the other.
+// its labels after its line. The label's text size is in CSS px; the
+// fallback view height is only for a canvas that reports none (hidden).
 const LEADER_RENDER_ORDER = 10;
 const LEADER_LABEL_PX = 12;
-const LEADER_VIEW_PX = 900;
+const LEADER_FALLBACK_VIEW_PX = 600;
 
 // --- sweep mode (handoff kinematic_sweep_animation) ------------------------
 //
@@ -264,6 +263,7 @@ export class AnnotateScene {
     const animate = () => {
       requestAnimationFrame(animate);
       this.controls.update();
+      this._layoutLeader();
       this.renderer.render(this.scene, this.camera);
     };
     animate();
@@ -770,24 +770,48 @@ export class AnnotateScene {
     line.renderOrder = LEADER_RENDER_ORDER;
     line.frustumCulled = false;
     group.add(line);
-    // The picked end's label sits above its point and the bound end's hangs
-    // below its own, so two ends close together on screen do not print one
-    // name over the other.
     const labels = [
-      this._leaderLabel(leader.picked.label, a, [0, 0]),
-      this._leaderLabel(leader.bound.label, b, [0, 1]),
-    ].filter(Boolean);
-    for (const sprite of labels) group.add(sprite);
+      this._leaderLabel(leader.picked.label, a),
+      this._leaderLabel(leader.bound.label, b),
+    ];
+    for (const sprite of labels) if (sprite) group.add(sprite);
     this.scene.add(group);
     this._leader = {
-      group,
+      group, labels, ends: [a, b],
       read: {
         picked: { faceId: leader.picked.faceId, at: [a.x, a.y, a.z], label: leader.picked.label || null },
         bound: { faceId: leader.bound.faceId, at: [b.x, b.y, b.z], label: leader.bound.label || null },
         color: line.material.color.getHexString(),
       },
     };
+    this._layoutLeader();
     return true;
+  }
+
+  // Per frame, while a leader is up. Whichever end is HIGHER on screen gets
+  // its label above its point and the other below its own, so two ends close
+  // together never print one name over the other, whichever way the reader
+  // has orbited. And each label is re-sized against the canvas as it is NOW:
+  // the leader is drawn in the same render that opens the bind form, which
+  // then takes height from the canvas under it. Nothing when there is no
+  // leader.
+  _layoutLeader() {
+    const leader = this._leader;
+    if (!leader) return;
+    const ya = leader.ends[0].clone().project(this.camera).y;
+    const yb = leader.ends[1].clone().project(this.camera).y;
+    const aUp = ya >= yb;
+    // sizeAttenuation off: three.js multiplies the scale by the depth, so a
+    // scale of 2 tan(fov/2) fills the view's height; a label of `px` CSS px
+    // fills px / (the canvas's CSS height) of that.
+    const viewPx = this.renderer.domElement.clientHeight || LEADER_FALLBACK_VIEW_PX;
+    const full = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+    leader.labels.forEach((sprite, i) => {
+      if (!sprite) return;
+      const height = full * sprite.userData.px / viewPx;
+      sprite.scale.set(height * sprite.userData.aspect, height, 1);
+      sprite.center.set(0, (i === 0) === aUp ? 0 : 1);
+    });
   }
 
   // The read side, for a test that wants to see the leader rather than trust
@@ -821,11 +845,11 @@ export class AnnotateScene {
     return new THREE.Vector3(c[0], c[1], c[2]).applyMatrix4(mesh.matrix);
   }
 
-  // One name, as a screen-sized sprite anchored at `at` (`center` is the
-  // sprite's own anchor, 0..1 each way). Screen-sized rather than world-sized
-  // because a part may be millimetres across or a metre, and the label has to
-  // read the same on both.
-  _leaderLabel(text, at, center) {
+  // One name, as a screen-sized sprite anchored at `at` (its vertical anchor
+  // is _layoutLeader's). Screen-sized rather than world-sized because a part
+  // may be millimetres across or a metre, and the label has to read the same
+  // on both.
+  _leaderLabel(text, at) {
     if (!text) return null;
     const scale = 2;
     const font = (LEADER_LABEL_PX * scale) + "px system-ui, sans-serif";
@@ -845,12 +869,9 @@ export class AnnotateScene {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: texture, depthTest: false, transparent: true, sizeAttenuation: false,
     }));
-    // sizeAttenuation off: the scale is a fraction of the view's height
-    // (times the camera's tan(fov/2) factor), so this sets the label's
-    // on-screen height directly.
-    const height = (canvas.height / scale) / LEADER_VIEW_PX;
-    sprite.scale.set(height * canvas.width / canvas.height, height, 1);
-    sprite.center.set(center[0], center[1]);
+    // Its size on screen is _layoutLeader's, every frame.
+    sprite.userData.px = canvas.height / scale;
+    sprite.userData.aspect = canvas.width / canvas.height;
     sprite.position.copy(at);
     sprite.renderOrder = LEADER_RENDER_ORDER + 1;
     sprite.userData.label = text;

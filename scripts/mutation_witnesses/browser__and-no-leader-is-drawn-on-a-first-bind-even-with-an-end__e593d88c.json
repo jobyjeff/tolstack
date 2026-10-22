@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
-  "expect_red": "...and no leader is drawn on a first bind",
+  "expect_red": "...and no leader is drawn on a first bind, even with an end chosen",
   "mutations": [
     {
       "contract": "With nothing bound at the other end there is no leader: a line with one real end would be a guess.",
