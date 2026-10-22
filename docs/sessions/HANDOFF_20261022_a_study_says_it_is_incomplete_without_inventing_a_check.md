@@ -64,6 +64,16 @@ more place, not a second vocabulary:
    exactly like studies with checks — that is the point; a test drives the
    travel study through the viewer fixture path and asserts the badge.
 
+5. **One line in `apps/viewer/index.html`.** Drop the
+   `<meta http-equiv="refresh" content="0; url=./topology.html" />` line; the
+   `window.location.replace(...)` beneath it carries the query string and the
+   meta cannot, so whichever the browser honoured decided whether
+   `?stack=<id>` survived the hop (drawing-checker's
+   `ISSUE_20260911_mounted_tolstack_viewer_entry_point_double_redirects`,
+   routed here 2026-10-22). Keep the `<p>` fallback link. No test beyond the
+   existing boot probe if one runs here; say in the lesson that the shim now
+   redirects once.
+
 ## Definition of done
 
 - `venv-win/Scripts/python.exe -m pytest -q` green in the main checkout;

@@ -1,5 +1,7 @@
 # BRIEF 2026-09-11 — served-surface capability gaps: what the drawing-checker mount can reach, read, and drive
 
+> **PARTIALLY CONSUMED 2026-10-22 — one facet only: drawing-checker's `ISSUE_20260911_mounted_tolstack_viewer_entry_point_double_redirects` is closed by dropping the `<meta http-equiv=refresh>` from `apps/viewer/index.html` (the `location.replace` line carries the query string; the meta cannot), folded as a deliverable into `docs/sessions/HANDOFF_20261022_a_study_says_it_is_incomplete_without_inventing_a_check.md`. The four tolstack issues and the served-surface capability contract remain open for a tolstack session.**
+
 Filed by triage 2026-09-11, consolidating four open issues that are all
 facets of one question: **the drawing-checker-served surface
 (`http://127.0.0.1:8000/tolstack/...`) is the surface Jeff actually uses day
