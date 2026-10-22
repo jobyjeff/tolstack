@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261020_the_viewer_shows_a_kinematic_study.md
 handoff: docs/sessions/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
+resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `the_kinematic_study_checks_its_run_its_units_and_shows_its_limit` moved to completed/; not independently verified.
 ---
 
 # Design: on the kinematic page the 3D link wraps and the hover tip covers the limit label
