@@ -1,12 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tiers/browser
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
 class: guard_cannot_fail
-resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17)
+resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17) -- handoff completed 2026-10-21 -- closed automatically by dispatch when handoff `browser_tiers_name_their_failure_instead_of_aborting` moved to completed/; not independently verified.
 handoff: docs/sessions/HANDOFF_20261021_browser_tiers_name_their_failure_instead_of_aborting.md
 ---
 

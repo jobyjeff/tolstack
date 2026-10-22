@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: scripts/browser-tier
 reporter: agent
 class: guard_depends_on_checkout_state
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261021_triage_sweep.md
 handoff: docs/sessions/HANDOFF_20261021_browser_tiers_name_their_failure_instead_of_aborting.md
+resolution: handoff completed 2026-10-21 -- closed automatically by dispatch when handoff `browser_tiers_name_their_failure_instead_of_aborting` moved to completed/; not independently verified.
 ---
 
 # The hover-intent corridor check is red in the main checkout and green in a worktree at the same sha
