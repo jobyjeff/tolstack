@@ -237,6 +237,10 @@ main { display: flex; align-items: flex-start; gap: 0; }
 .chip.conf--untraced { color: #fff; background: var(--untraced); border-color: var(--untraced); font-weight: 700; }
 .chip.conf--no_source_ref { color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700; }
 .chip.conf--unknown { color: var(--muted); }
+/* A traced chip whose band is the drawing's general profile note, not a
+   dimension (VA.markGeneralNote): the colour stays the confidence's, the mark
+   is metadata. */
+.chip__mark { color: var(--muted); font-weight: 400; }
 .chip--kind { color: var(--muted); font-family: ui-monospace, monospace; }
 .chip--zero-width { color: var(--zero); border-color: var(--zero); border-style: dashed; }
 .chip--budget { color: var(--inferred); border-color: var(--inferred); font-weight: 600; }
@@ -914,6 +918,7 @@ body.lightbox-open { overflow: hidden; }
 .hovercard__head code { font-size: var(--t-micro); }
 .hovercard__chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
 .hovercard__where { font-size: var(--t-dense); margin: 2px 0; }
+.hovercard__generalnote { color: var(--muted); font-size: var(--t-meta); margin: 2px 0; }
 .hovercard__cited, .hovercard__cropkey { color: var(--muted); font-size: var(--t-meta); margin: 4px 0 2px; }
 .hovercard__callout {
   font-family: ui-monospace, monospace; font-size: var(--t-meta); background: #262a32;

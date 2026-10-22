@@ -1844,7 +1844,7 @@
         confChip.onfocus = showCitation;
         confChip.onclick = showCitation;
       }
-      chips.wrap.appendChild(confChip);
+      chips.wrap.appendChild(VA.markGeneralNote(confChip, sourceRef));
       if (edge.kind === "gap") {
         chips.wrap.appendChild(VA.chip("chip--gap", "gap",
           "its two interfaces share no part — a real distance across a clearance"));
@@ -2307,9 +2307,10 @@
 
     var source = VA.VALUE_SOURCES[edge.value_source];
     var chips = VA.el("div", "detail__chips");
-    chips.appendChild(VA.chip(VA.confidenceClass(edge.confidence),
+    chips.appendChild(VA.markGeneralNote(VA.chip(VA.confidenceClass(edge.confidence),
       edge.confidence === null ? "no value"
-        : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence)));
+        : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence)),
+      edge.dimension && edge.dimension.source_ref));
     chips.appendChild(VA.chip("chip--kind", edge.kind));
     chips.appendChild(source
       ? VA.chip("chip--source", source.label, source.title)

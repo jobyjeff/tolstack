@@ -46,8 +46,9 @@
     root.appendChild(head);
 
     var chips = VA.el("div", "detail__chips");
-    chips.appendChild(VA.chip(VA.confidenceClass(derived.confidence),
-      VA.CONFIDENCE_LABEL[derived.confidence] || derived.confidence));
+    chips.appendChild(VA.markGeneralNote(VA.chip(VA.confidenceClass(derived.confidence),
+      VA.CONFIDENCE_LABEL[derived.confidence] || derived.confidence),
+      element.source_ref));
     if (derived.kind) chips.appendChild(VA.chip("chip--kind", derived.kind));
     if (derived.material) {
       chips.appendChild(VA.chip("chip--material", derived.material,

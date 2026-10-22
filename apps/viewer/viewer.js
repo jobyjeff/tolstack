@@ -555,6 +555,25 @@
   //
   // A citation with nothing else to say still says the document -- dropping it
   // would leave the line empty, and "no location" is a different claim.
+  // A band read off the drawing's general profile note ("⌓0.5 UNLESS
+  // OTHERWISE SPECIFIED") rather than off a dimension (docs/SOP_TOLERANCE_
+  // STACK.md, "What a term cites when its drawing does not band it",
+  // 2026-10-22). It is still a traced drawing citation, so the confidence
+  // chip keeps its colour; what a reader must be able to see is that the
+  // drawing never dimensioned the feature. The machine field is
+  // `source_ref.note_number` (tolerance_stack/stack.py pairs it with the
+  // note's opening words at load), so nothing here reads prose.
+  VA.GENERAL_NOTE = {
+    mark: "note",
+    text: "from the drawing's general profile note, not a dimension",
+  };
+
+  // The general note's number, or null for a citation anchored anywhere else.
+  VA.generalNoteNumber = function (sourceRef) {
+    var n = sourceRef && sourceRef.note_number;
+    return n === null || n === undefined ? null : n;
+  };
+
   VA.citationWhere = function (sourceRef, alreadySaid) {
     if (!sourceRef) return "no citation";
     var parts = [];
@@ -566,6 +585,8 @@
     if (sourceRef.sheet !== null && sourceRef.sheet !== undefined) {
       parts.push("sheet " + sourceRef.sheet);
     }
+    var noteNumber = VA.generalNoteNumber(sourceRef);
+    if (noteNumber !== null) parts.push("general note " + noteNumber);
     if (sourceRef.view) parts.push(String(sourceRef.view));
     if (sourceRef.zone) parts.push("zone " + sourceRef.zone);
     if (sourceRef.cell) parts.push("cell " + sourceRef.cell);
@@ -1343,6 +1364,8 @@
       citationKind: sourceRef.kind || null,
       confidence: sourceRef.confidence || null,
       callout: sourceRef.callout || null,
+      generalNote: VA.generalNoteNumber(sourceRef) !== null
+        ? VA.GENERAL_NOTE.text : null,
       note: sourceRef.note || null,
       provenance: VA.exportProvenance(sourceRef, identityRule || null),
       exportBlock: sourceRef.export || null,

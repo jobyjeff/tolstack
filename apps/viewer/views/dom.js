@@ -58,6 +58,19 @@
     return node;
   };
 
+  // A confidence chip whose citation is a general profile note carries a
+  // small muted mark (VA.GENERAL_NOTE), and says why on hover unless the chip
+  // already opens the citation card, which says it in full. Returns the chip.
+  VA.markGeneralNote = function (chip, sourceRef) {
+    if (VA.generalNoteNumber(sourceRef) === null) return chip;
+    chip.appendChild(VA.el("span", "chip__mark", " · " + VA.GENERAL_NOTE.mark));
+    chip.className += " chip--general-note";
+    if (!chip.getAttribute("title") && !/\bcardtrig\b/.test(chip.className)) {
+      chip.setAttribute("title", VA.GENERAL_NOTE.text);
+    }
+    return chip;
+  };
+
   // The alert mark itself -- `VA.warningIcon`, `VA.WARNING_ICON_PATH` and
   // `VA.WARNING_ICON_PX` -- is in `apps/viewer/warning_icon.js`, a file of its
   // own since 2026-09-22 because `apps/annotate` wears the same mark and

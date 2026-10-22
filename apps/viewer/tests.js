@@ -499,6 +499,53 @@
       eq(VA.citationWhere(null), "no citation");
     });
 
+    // A band read off the drawing's general profile note (2026-10-22, the
+    // SOP's "What a term cites when its drawing does not band it") is a traced
+    // drawing citation anchored to a note, and every surface that shows the
+    // citation must let a reader tell it from a dimensioned one: the where
+    // line names the note, the citation card says it in words, and the
+    // confidence chip carries a mark. Keyed on `note_number`, never the prose.
+    var GENERAL_NOTE_REF = {
+      kind: "drawing", document: "214698-002", revision: "A", sheet: 1,
+      callout: "6. ⌓0.5 UNLESS OTHERWISE SPECIFIED.", confidence: "traced",
+      note: "general profile note, not a dimension; ...", note_number: 6,
+    };
+
+    await test("a general-note citation names its note on the where line and " +
+      "the citation card", function () {
+        eq(VA.citationWhere(GENERAL_NOTE_REF),
+           "214698-002 · rev A · sheet 1 · general note 6");
+        eq(VA.citationCard(GENERAL_NOTE_REF, null, null).generalNote,
+           VA.GENERAL_NOTE.text);
+        // A dimensioned citation carries neither.
+        var dimensioned = DEMO.stack.elements[0].source_ref;
+        eq(VA.citationWhere(dimensioned).indexOf("general note"), -1);
+        eq(VA.citationCard(dimensioned, null, null).generalNote, null);
+        var root = render(function (r) {
+          VA.renderHoverCard(r, VA.citationCard(GENERAL_NOTE_REF, null, null),
+            {}, VA.CONFIG, null);
+        });
+        eq(all(root, ".hovercard__generalnote").length, 1);
+        has(root.textContent, VA.GENERAL_NOTE.text);
+      });
+
+    await test("markGeneralNote marks a general-note chip and leaves every " +
+      "other chip alone", function () {
+        var marked = VA.markGeneralNote(VA.chip("conf--traced", "traced"),
+          GENERAL_NOTE_REF);
+        has(marked.className, "chip--general-note");
+        has(marked.textContent, VA.GENERAL_NOTE.mark);
+        eq(marked.getAttribute("title"), VA.GENERAL_NOTE.text);
+        // A chip that opens the citation card says it there, not twice.
+        var trigger = VA.chip("conf--traced cardtrig", "traced");
+        eq(VA.markGeneralNote(trigger, GENERAL_NOTE_REF).getAttribute("title"), null);
+        var plain = VA.markGeneralNote(VA.chip("conf--traced", "traced"),
+          DEMO.stack.elements[0].source_ref);
+        eq(plain.textContent, "traced");
+        eq(VA.markGeneralNote(VA.chip("conf--untraced", "untraced"), null)
+          .className.indexOf("general-note"), -1);
+      });
+
     // --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) --
     //
     // These params are a CONTRACT a sibling repo consumes (drawing-checker's
