@@ -725,11 +725,13 @@ async function testTheApp(browser, url, label) {
     // untraced-row checks are scoped to #stackview: the demo joint carries an
     // established export of its own (fixtures.js), rendered in the stack
     // header, and `textContent()` is strict -- a bare selector would match
-    // both and throw instead of reading the element's.
+    // both and throw instead of reading the element's. Counted first, so a
+    // pane with none -- or two -- fails here by name rather than throwing.
+    const established = page.locator("#detail .el-export--established");
     push("an established export names its file and its checksum in the right pane",
-      /Read from 215197\.pdf/.test(await page.locator("#detail .el-export--established").textContent()) &&
-      /pinned to this exact file, by checksum/
-        .test(await page.locator("#detail .el-export--established").textContent()));
+      await established.count() === 1 &&
+      /Read from 215197\.pdf/.test(await established.textContent()) &&
+      /pinned to this exact file, by checksum/.test(await established.textContent()));
     push("the crop renders inline in the right pane, not only behind a hover",
       await page.locator(".detail__crop-img").count() === 1);
 

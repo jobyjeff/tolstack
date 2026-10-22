@@ -9,7 +9,7 @@
       "note": "Scoped to file:// on purpose. The mounted half's own spec (`var settling = false`) never settles under either origin, so it reddens the mounted half first and says nothing about this one; this mutation leaves the served page settling and makes only the file:// page's transition permanent, which is the case this half's push exists for.",
       "file": "apps/viewer/views/topology.js",
       "find": "      var settling = !(t < 1);",
-      "replace": "      var settling = !(t < 1) || location.protocol === \"file:\";"
+      "replace": "      var settling = !(t < 1) && location.protocol !== \"file:\";"
     }
   ]
 }
