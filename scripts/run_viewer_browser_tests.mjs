@@ -1249,14 +1249,17 @@ async function hoverRailBar(page, id) {
             " #" + (under.getAttribute("data-id") || "") : "nothing",
         };
       }, [at.x, at.y]);
-      if (state.open) return;
+      if (state.open) return true;
       seen = `at ${at.x},${at.y} the pointer is over ${state.under}; ` +
         `the popover is "${state.pop}"`;
       await page.mouse.move(4, 4);   // step off, so the next move re-enters
     }
     await page.waitForTimeout(100);
   }
-  throw new Error(`hovering the rail bar ${id} never opened its card — ${seen}`);
+  // Returns true once the card is open, else the reason as a string: a bar
+  // that cannot be hovered is a named FAIL at the caller, not a throw that
+  // aborts the suite and reads to the mutation tier as a MISS.
+  return `hovering the rail bar ${id} never opened its card — ${seen}`;
 }
 
 // Hover a trigger WITHOUT asking playwright whether anything sits on top of it.
@@ -2053,10 +2056,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       'svg.tv__rails line.rail__barhit[data-id="base_thickness"]';
     const hoverBar = (id) => hoverRailBar(page, id);
 
-    await hoverBar("base_thickness");
-    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-    const barCardText = await page.locator(".croppop").textContent();
+    const barOpened = await hoverBar("base_thickness");
+    let barCardText = null;
+    if (barOpened === true) {
+      await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+      barCardText = await page.locator(".croppop").textContent();
+    }
     push("hovering the DAG's own bar opens the edge card with the crop body",
+      barOpened === true &&
       /base plate thickness/.test(barCardText) && /215197/.test(barCardText) &&
       /cited at:/.test(barCardText) &&
       await page.locator(".hovercard--edge img.croppop__img").count() === 1);
@@ -2149,22 +2156,27 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // It is the same window the grid-side block above measures its own cap in.
     await page.setViewportSize(CARD_CAP_VIEWPORT);
     const beforeBarCard = await cardLayout(BAR_TRIGGER);
-    await hoverBar("base_thickness");
-    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-    const withBarCard = await cardLayout(BAR_TRIGGER);
-    const barRoomBelow = withBarCard.innerHeight - withBarCard.triggerBottom - 16;
-    const barRoomAbove = withBarCard.triggerTop - 16;
-    push("the DAG-side card wants more height than there is room for on " +
-      "either side of its own rail bar — the configuration the card-layout " +
-      "contracts below are only falsifiable in",
-      withBarCard.cardBottom !== null && withBarCard.cardScrolls === true &&
-      Math.abs(withBarCard.cardHeight -
-        Math.max(barRoomAbove, barRoomBelow)) <= 1);
-    push("a card opened from inside the DAG moves the DAG pane by nothing at all",
-      beforeBarCard.pane === withBarCard.pane &&
-      withBarCard.docHeight === beforeBarCard.docHeight);
-    push("leaders still land on their dots and seams with a DAG-side card open",
-      (await correspondence()).drift.length === 0);
+    const capOpened = await hoverBar("base_thickness");
+    if (capOpened !== true) {
+      push("the DAG-side card opens from its own rail bar in the short window " +
+        "(the three layout checks that need it open are skipped)", false);
+    } else {
+      await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+      const withBarCard = await cardLayout(BAR_TRIGGER);
+      const barRoomBelow = withBarCard.innerHeight - withBarCard.triggerBottom - 16;
+      const barRoomAbove = withBarCard.triggerTop - 16;
+      push("the DAG-side card wants more height than there is room for on " +
+        "either side of its own rail bar — the configuration the card-layout " +
+        "contracts below are only falsifiable in",
+        withBarCard.cardBottom !== null && withBarCard.cardScrolls === true &&
+        Math.abs(withBarCard.cardHeight -
+          Math.max(barRoomAbove, barRoomBelow)) <= 1);
+      push("a card opened from inside the DAG moves the DAG pane by nothing at all",
+        beforeBarCard.pane === withBarCard.pane &&
+        withBarCard.docHeight === beforeBarCard.docHeight);
+      push("leaders still land on their dots and seams with a DAG-side card open",
+        (await correspondence()).drift.length === 0);
+    }
     await dismissCard(page);
     await page.setViewportSize(TOPO_VIEWPORT);
     // An edge with no crop_key (authored inline, or a derived gap) gets no
@@ -4603,10 +4615,11 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
         // hovering the DAG's own BAR for that same edge shows the same card,
         // real crop image and all.
         await page.mouse.move(4, 4);
-        await hoverRailBar(page, keyedRow);
-        const barText = await page.locator(".croppop").textContent();
+        const realBarOpened = await hoverRailBar(page, keyedRow);
+        const barText = realBarOpened === true
+          ? await page.locator(".croppop").textContent() : null;
         push("[real] hovering pitch_system's own bar shows the crop card",
-          barText === cardText &&
+          realBarOpened === true && barText === cardText &&
           await page.locator(".hovercard--edge img.croppop__img").count() === 1);
         await page.mouse.move(4, 4);
         await page.keyboard.press("Escape");
@@ -7983,6 +7996,21 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         /pass/.test(verdicts[0]) && /margin \+0\.256 deg/.test(verdicts[0]) &&
         /pass/.test(verdicts[1]) && /margin \+0\.258 deg/.test(verdicts[1]) &&
         await page.locator("div.kmverdict span.tvverdict--pass").count() === 2);
+
+      // The wiring, not the view: topology_app.js hands the kinematic view its
+      // `onCardShow: showCard`. Without it citationTrigger falls back to a
+      // native `title` tooltip, and every fast-tier check passes its own
+      // onCardShow -- so only a real hover on the live page sees the card.
+      await page.locator("span.kmverdict__limit").first().hover();
+      const limitCard = await page.waitForFunction(() => {
+        const pop = document.querySelector("#croppop");
+        return pop && pop.style.display === "block" &&
+          pop.className.indexOf("hovercard--citation") !== -1 ? pop.innerText : null;
+      }, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => "");
+      push("[real] hovering a stop's limit opens its citation card, S461-607 and the adoption note",
+        /S461-607/.test(limitCard) &&
+        /closest available numeric acceptance criterion/.test(limitCard));
+      await dismissCard(page);
 
       // The first sweep point is the -7 deg stop; its strip is at the chart's
       // driver minimum or maximum depending on the sweep's direction, so the
