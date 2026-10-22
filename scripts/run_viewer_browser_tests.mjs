@@ -2828,11 +2828,17 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // hover-intent corridor's own case (`defer`), and it would hold this
       // hover for VA.HOVER_INTENT_MS rather than answer it.
       await dismissCard(page);
+      // No marked study row, or a card that never opens, is what the two
+      // pushes below exist to name: both read as a card with no items, never
+      // as a hover timeout that takes the rest of the suite down.
       const navBadge = page.locator("#navtree .navtree__row--study .navstatus").first();
-      await navBadge.hover();
-      await page.waitForSelector(".hovercard--alerts", { timeout: 5000 });
+      if (await navBadge.count()) {
+        await navBadge.hover();
+        await page.waitForSelector(".hovercard--alerts", { timeout: 5000 }).catch(() => {});
+      }
       const navCard = await page.evaluate(() => {
         const card = document.querySelector(".hovercard--alerts");
+        if (!card) return { text: "", items: 0, onScreen: false, wider: false };
         const box = card.getBoundingClientRect();
         return {
           text: card.textContent,
