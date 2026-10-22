@@ -140,24 +140,20 @@ Know these before you write code; each has a test standing on it.
   `.dispatch.toml`'s `[tests] candidate_inputs`, and tolstack is the first repo
   in the workspace to do it (2026-10-01).** It names `data/inbox/specs`,
   `data/inbox/drawings`, `data/inbox/feature-identity`,
-  `data/inbox/tolerance_stacks` and `data/meshes` — read-only, confirmed by a
-  before/after manifest diff across a full suite plus an actuator rebuild (zero
-  bytes changed in the main checkout). **The declaration is inert today,
-  though**: every one of those directories carries a tracked placeholder
-  (`README.md`/`.gitkeep`/`PROVENANCE.md`), so `dispatch bridge-test-inputs`
-  reports each one `present` and refuses to link it — a fresh candidate gets
-  the byte-identical `1 failed, 1437 passed` whether the declaration exists or
-  not. Properly armed (hand-symlinked past that gap, plus the actuator rebuild
-  below), the same suite reaches `1438 passed` for a modest extra cost — order
-  fifty seconds over the ~204s baseline, nowhere near rotorkit's 2m49s→31m55s —
-  so the declaration is worth keeping for the moment dispatch's side closes
-  (`dispatch/docs/issues/ISSUE_20261001_bridge_test_inputs_cannot_arm_a_directory_that_carries_a_tracked_placeholder.md`).
-  Until then, the node-fs `[real]` tier stays exactly as unproven in a
-  candidate as it was before this file declared anything. `node_modules` is
-  deliberately **not** declared: the browser TRUTH tier it would arm already
-  runs separately in the main checkout at merge time (above), and arming it
-  before the data/ gap closes would gate the merge on a tier reading a hollow,
-  just-rebuilt projection — worse than leaving it unproven.
+  `data/inbox/tolerance_stacks`, `data/inbox/linkage-sweeps` and `data/meshes`
+  — read-only, confirmed by a before/after manifest diff across a full suite
+  plus an actuator rebuild (zero bytes changed in the main checkout). **It is
+  live, not inert:** at the 2026-10-21 batch merge `dispatch bridge-test-inputs`
+  printed four of the then-five paths `linked` and only
+  `data/inbox/feature-identity` `present` (a fresh worktree carries its tracked
+  README there, and nothing else). `data/inbox/linkage-sweeps` was added after
+  that merge: without it the kinematic study builds as `error` and the
+  candidate was `5 failed, 1509 passed`, every failure from that one study;
+  bridged, the same candidate was `1514 passed, 1 skipped`. A new `[real]`
+  check that reads another gitignored directory adds it here in the same
+  change. `node_modules` is deliberately **not** declared: the browser TRUTH
+  tier it would arm already runs separately in the main checkout at merge time
+  (above).
 - **The mutation-witness tier is on that list because a witness decays between
   the branch that measured it and the trunk that runs it.** Three declared
   mutations were `WITNESSED` on their own review branches and `NOT WITNESSED`

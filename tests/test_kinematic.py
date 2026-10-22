@@ -19,6 +19,9 @@ import pytest
 
 from tests.test_thermal_exception_list import combining_sites, element_value_fields
 from tolerance_stack.kinematic import (
+    DIRECTION_UNITS,
+    LINKAGE_LENGTH_UNITS,
+    PARAMETER_KINDS,
     ROW_KINDS,
     KinematicStudyError,
     check_at_stop,
@@ -26,6 +29,7 @@ from tolerance_stack.kinematic import (
     envelope,
     fold_at,
     load_kinematic_study,
+    parameter_unit,
     stop_index,
     zone_coefficient,
 )
@@ -43,7 +47,7 @@ import build_kinematic_projection as builder  # noqa: E402
 REAL_STUDY = (REPO_ROOT / "docs" / "topologies"
               / "kinematic_study_vpa_pitch_linkage_blade_pitch_at_the_stops.json")
 REAL_DATA = Path(r"C:\workspace\tolstack\data")
-REAL_RUN = REAL_DATA / "inbox" / "linkage-sweeps" / "vpa-pitch-p2-20261015-013931.json"
+REAL_RUN = REAL_DATA / "inbox" / "linkage-sweeps" / "vpa-pitch-p2-20261016-235852.json"
 
 
 def load_fixture():
@@ -248,6 +252,145 @@ def test_a_missing_run_is_a_refusal_naming_the_path(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# 4b. a band's units against the column it scales                             #
+# --------------------------------------------------------------------------- #
+
+def _extra_parameters(*labels):
+    """A sweep edit appending ``labels`` to the sensitivity table, entry 1.0."""
+    def edit(data):
+        for label in labels:
+            data["sensitivity"]["parameters"].append(label)
+            for rows in data["sensitivity"]["by_measure"].values():
+                rows.append([1.0, 1.0, 1.0])
+    return edit
+
+
+def _inline(units, half=0.01):
+    """An inline band about 0.0, cited, in ``units`` (``None``: no `units` key)."""
+    dim = {"id": "b", "name": "b", "nominal": 0.0, "min": -half, "max": half,
+           "source_ref": {"kind": "drawing", "document": "fixture.pdf",
+                          "confidence": "traced"}}
+    out = {"dimension": dim}
+    if units is not None:
+        out["units"] = units
+    return out
+
+
+def _added_contributor(zone, parameters, band):
+    def edit(data):
+        data["contributors"].append({
+            "edge": "plate_attach_unbanded", "parameters": list(parameters),
+            "feature": {"node": "plate_attach"}, "zone": zone, **band})
+    return edit
+
+
+def test_every_parameter_kind_has_a_unit_and_a_label_that_reads_as_it():
+    study, sweep = load_fixture()
+    assert parameter_unit(sweep, "link.point_a[2]") == ("length", LINKAGE_LENGTH_UNITS)
+    assert parameter_unit(sweep, "link.length") == ("length", LINKAGE_LENGTH_UNITS)
+    assert parameter_unit(sweep, "link.axis_a[0]") == ("direction", DIRECTION_UNITS)
+    assert parameter_unit(sweep, "link.w_b[1]") == ("direction", DIRECTION_UNITS)
+    assert parameter_unit(sweep, "drive.value") == ("driver", "mm")
+    assert parameter_unit(sweep, "link.spring_rate") == (None, None)
+    assert {parameter_unit(sweep, label)[0] for label in
+            ("link.length", "link.axis_a[0]", "drive.value")} == set(PARAMETER_KINDS)
+    # The fixture's own bands are mm on mm columns, so it loads as before.
+    assert [c.band_units for c in study.contributors] == ["mm", "mm"]
+
+
+def test_an_inch_band_on_a_millimetre_column_is_refused_naming_the_contributor(tmp_path):
+    def inch_band(data):
+        c = data["contributors"][0]
+        del c["dimension_ref"]
+        c.update(_inline("in"))
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=inch_band)
+    with pytest.raises(KinematicStudyError,
+                       match=r"contributor 'link_length'.s band is in 'in', but label "
+                             r"'link\.length' is a length parameter in 'mm'"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_a_millimetre_band_on_direction_components_is_refused_and_names_the_length_it_needs(
+        tmp_path):
+    """The bushing-tipping case: a disk on an axis's components, banded by a
+    clearance borrowed from an mm topology."""
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path,
+        study_edit=_added_contributor(
+            "disk", ["link.axis_a[0]", "link.axis_a[1]"],
+            {"dimension_ref": {"topology": "kin_fixture", "edge": "plate_attach_position"}}),
+        sweep_edit=_extra_parameters("link.axis_a[0]", "link.axis_a[1]"))
+    with pytest.raises(KinematicStudyError) as refused:
+        load_kinematic_study(study_path, data_root, topologies)
+    message = str(refused.value)
+    assert "contributor 'plate_attach_unbanded'" in message
+    assert "label 'link.axis_a[0]' is a direction parameter in 'rad'" in message
+    assert "becomes a tilt only over a cited length" in message
+
+
+def test_a_tilt_band_in_radians_on_direction_components_loads_and_folds(tmp_path):
+    """The positive control for the refusal above: the same disk, its band a tilt."""
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path,
+        study_edit=_added_contributor("disk", ["link.axis_a[0]", "link.axis_a[1]"],
+                                      _inline("rad", half=0.002)),
+        sweep_edit=_extra_parameters("link.axis_a[0]", "link.axis_a[1]"))
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    rows = {r.contributor.edge: r for r in fold_at(study, sweep, 0).rows}
+    disk = rows["plate_attach_unbanded"]
+    assert disk.kind == "term"
+    assert disk.magnitude == pytest.approx(math.sqrt(2) * 0.002)
+    # ...and in degrees it is the same quantity off by 57.3, so it is refused.
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path / "deg",
+        study_edit=_added_contributor("disk", ["link.axis_a[0]", "link.axis_a[1]"],
+                                      _inline("deg", half=0.1)),
+        sweep_edit=_extra_parameters("link.axis_a[0]", "link.axis_a[1]"))
+    with pytest.raises(KinematicStudyError, match=r"band is in 'deg'"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_a_band_on_the_driver_is_in_the_drivers_own_declared_unit(tmp_path):
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path, study_edit=_added_contributor("band", ["drive.value"], _inline("mm")),
+        sweep_edit=_extra_parameters("drive.value"))
+    study, _ = load_kinematic_study(study_path, data_root, topologies)
+    assert study.contributors[-1].band_units == "mm"
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path / "deg", study_edit=_added_contributor("band", ["drive.value"], _inline("deg")),
+        sweep_edit=_extra_parameters("drive.value"))
+    with pytest.raises(KinematicStudyError,
+                       match=r"label 'drive\.value' is a driver parameter in 'mm'"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_an_inline_band_with_no_units_is_refused(tmp_path):
+    def unitless(data):
+        c = data["contributors"][0]
+        del c["dimension_ref"]
+        c.update(_inline(None))
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=unitless)
+    with pytest.raises(KinematicStudyError,
+                       match=r"contributor 'link_length'.s band states no units"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_a_band_on_a_label_with_no_known_unit_is_refused_not_assumed(tmp_path):
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path, study_edit=_added_contributor("band", ["link.spring_rate"], _inline("mm")),
+        sweep_edit=_extra_parameters("link.spring_rate"))
+    with pytest.raises(KinematicStudyError, match=r"knows no unit for that label"):
+        load_kinematic_study(study_path, data_root, topologies)
+    # A gap row on the same label needs no unit: it has no band to scale.
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path / "gap",
+        study_edit=_added_contributor("band", ["link.spring_rate"], {"gap": "no band cited"}),
+        sweep_edit=_extra_parameters("link.spring_rate"))
+    study, _ = load_kinematic_study(study_path, data_root, topologies)
+    assert study.contributors[-1].is_gap
+
+
+# --------------------------------------------------------------------------- #
 # 5. stops and checks                                                         #
 # --------------------------------------------------------------------------- #
 
@@ -349,6 +492,21 @@ def test_real_the_first_study_pins_both_stops_against_p2(stop):
     check = check_at_stop(study, sweep, f"s461_607_margin_at_{stop}")
     assert round(check.margin, 3) == margin
     assert (check.verdict, check.verdict_scope) == ("pass", "budget")
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_every_authored_feature_join_reconciles_against_the_runs_own_features():
+    """The study folds the run that names its features (2026-10-21): every
+    label every contributor perturbs has a ``geometry.features[]`` entry, and
+    the load's own reconciliation agreed with each one."""
+    study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    assert sweep.run_id == REAL_RUN.stem == study.sweep_ref["run_id"]
+    assert sweep.features is not None
+    unlisted = [(c.edge, label) for c in study.contributors for label in c.parameters
+                if label not in sweep.features]
+    assert unlisted == []
+    assert [c.feature_source for c in study.contributors] == ["artifact"] * 6
+    assert {c.band_units for c in study.contributors if not c.is_gap} == {"mm"}
 
 
 # --------------------------------------------------------------------------- #

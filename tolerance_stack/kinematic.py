@@ -93,6 +93,17 @@ when it does not, the authored join is used; when both exist and disagree, the
 study refuses to load, naming the label. Labels are matched exactly as the
 artifact spells them -- a label the artifact lacks is a load-time refusal.
 
+What unit a band must be in
+---------------------------
+
+A Jacobian entry is (measure unit) per (parameter unit), so a band scales it
+correctly only in the parameter's own unit. The artifact declares none for its
+geometry, so each label is read as one of :data:`PARAMETER_KINDS` -- a length
+(mm), a direction component (a tilt, rad) or the driver (its declared unit) --
+and a band whose ``band_units`` do not fit is refused at load, naming the
+contributor and the label (2026-10-21; an inch band on an mm column would
+otherwise fold 25.4x wrong with every test green).
+
 Stdlib only, like its siblings.
 """
 
@@ -147,6 +158,45 @@ LINKAGE_SWEEPS_SUBDIR = Path("inbox") / "linkage-sweeps"
 #: name ``geometry.features[]`` uses.
 COMPONENT_NAMES = ("x", "y", "z")
 _INDEXED_LABEL = re.compile(r"^(?P<base>.+)\[(?P<index>[0-9]+)\]$")
+
+#: What a sweep parameter label IS, as far as its unit goes. A
+#: ``linkage-sweep/v1`` artifact declares a unit for each measure and for the
+#: driver, and none for any geometry parameter, so a band's units cannot be
+#: checked against the artifact directly; they are checked against the KIND of
+#: thing the label is, read off the label's own spelling
+#: (``<joint>.<attribute>[<index>]``). **This tuple is the definition.**
+#:
+#: * ``length`` -- a point coordinate or a link length: a position, in
+#:   :data:`LINKAGE_LENGTH_UNITS`.
+#: * ``direction`` -- a component of a unit vector (an axis, or a joint's own
+#:   ``u``/``w`` frame vector): dimensionless, and a small perturbation of one
+#:   is a small TILT, so a band on it is an angle in :data:`DIRECTION_UNITS`. A
+#:   clearance in mm becomes such a tilt only through a second cited value --
+#:   the length it acts over -- which is why a mm band here is a refusal.
+#: * ``driver`` -- the sweep's own driver parameter, in the unit the artifact's
+#:   ``mechanism.driver.unit`` declares for it.
+PARAMETER_KINDS = ("length", "direction", "driver")
+
+#: Which label attributes are which kind. The driver is not here: it is
+#: whichever label ``mechanism.driver.parameter`` names, whatever it is spelled.
+#: An attribute in neither tuple has no known unit and a band on it is refused
+#: rather than guessed at.
+LENGTH_ATTRIBUTES = ("point_a", "point_b", "length")
+DIRECTION_ATTRIBUTES = ("axis_a", "axis_b", "u_a", "w_a", "u_b", "w_b")
+
+#: The unit every length-like geometry parameter of a ``linkage-sweep/v1`` run
+#: is in. The artifact never states it outright; its provenance spells every
+#: length it does name with an ``_mm`` suffix (``centre_world_mm``,
+#: ``radius_mm``), and its P1/P2/S runs' drivers declare ``mm``. If linkage
+#: ever publishes ``geometry.units[]``, that is the reading to prefer.
+LINKAGE_LENGTH_UNITS = "mm"
+
+#: The unit a band on a direction component is authored in (see
+#: :data:`PARAMETER_KINDS`): a small-angle tilt, in radians, which is the
+#: dimensionless change in the component itself. ``deg`` is not accepted: it
+#: is the same quantity scaled by 57.3, and folding it as rad would be wrong
+#: by exactly that factor.
+DIRECTION_UNITS = "rad"
 
 #: linkage's joint types, each by the residual rows a joint of that type
 #: writes into a sweep's ``mechanism.row_labels`` (``<joint>.<row>``). A
@@ -545,6 +595,65 @@ def _resolve_band(study_id: str, contributor: Contributor, raw: Dict[str, Any],
             f"not symmetric ({dim.min!r}..{dim.max!r})")
 
 
+def parameter_unit(sweep: Sweep, label: str) -> Tuple[Optional[str], Optional[str]]:
+    """``(kind, units)`` for one sweep parameter label -- or ``(None, None)``.
+
+    ``kind`` is a :data:`PARAMETER_KINDS` word. ``(None, None)`` is a label
+    whose attribute this module has no unit for; the caller decides what that
+    means (a band on it is refused, a gap row needs no unit).
+    """
+    if label == sweep.driver.get("parameter"):
+        return "driver", sweep.driver.get("unit")
+    base = _INDEXED_LABEL.match(label)
+    stem = base.group("base") if base else label
+    attribute = stem.rsplit(".", 1)[-1]
+    if attribute in LENGTH_ATTRIBUTES:
+        return "length", LINKAGE_LENGTH_UNITS
+    if attribute in DIRECTION_ATTRIBUTES:
+        return "direction", DIRECTION_UNITS
+    return None, None
+
+
+def _check_band_units(study_id: str, contributor: Contributor, sweep: Sweep) -> None:
+    """Refuse a band whose units do not fit every label it scales.
+
+    The Jacobian column a band multiplies is (measure unit) per (label unit),
+    so the band has to be in the label's unit or the ``Term`` is dimensionally
+    wrong -- silently, since a plausible number comes out either way.
+    """
+    if contributor.dimension is None:
+        return
+    units = contributor.band_units
+    if not units:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: contributor {contributor.edge!r}'s band "
+            f"states no units. A band scales a sensitivity per unit of its "
+            f"parameter, so its unit is part of the number: give the inline "
+            f"dimension a `units`.")
+    for label in contributor.parameters:
+        kind, expected = parameter_unit(sweep, label)
+        if kind is None:
+            raise KinematicStudyError(
+                f"kinematic study {study_id!r}: contributor {contributor.edge!r} "
+                f"puts a {units!r} band on label {label!r}, and this module knows "
+                f"no unit for that label (a length is one of {LENGTH_ATTRIBUTES}, "
+                f"a direction component one of {DIRECTION_ATTRIBUTES}, or the "
+                f"sweep's driver). Refusing rather than assuming the band fits.")
+        if units == expected:
+            continue
+        advice = ""
+        if kind == "direction":
+            advice = (f" A clearance in {units} becomes a tilt only over a cited "
+                      f"length (a bushing's, a guide's); cite both and author the "
+                      f"band as the tilt, in {DIRECTION_UNITS}.")
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: contributor {contributor.edge!r}'s band "
+            f"is in {units!r}, but label {label!r} is a {kind} parameter in "
+            f"{expected!r} (sweep {sweep.run_id!r}), so the sensitivity it scales "
+            f"is per {expected} and the fold would be dimensionally wrong."
+            + advice)
+
+
 def _topology(topology_id: str, topologies_dir: Path,
               cache: Dict[str, Topology]) -> Topology:
     if topology_id not in cache:
@@ -564,7 +673,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
     Every refusal the module docstring names happens here, before any fold: a
     missing run, a measure the sweep lacks, a label the sweep lacks, a feature
     the topology lacks, an authored join the artifact contradicts, a band that
-    is not variation-only.
+    is not variation-only, a band whose units do not fit the labels it scales.
     """
     path = Path(path)
     tdir = Path(topologies_dir) if topologies_dir is not None else TOPOLOGIES_DIR
@@ -620,6 +729,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
         contributor.feature_source = _reconcile_feature(
             study_id, topology, contributor, sweep)
         _resolve_band(study_id, contributor, raw, tdir, cache)
+        _check_band_units(study_id, contributor, sweep)
         contributors.append(contributor)
     if not contributors:
         raise KinematicStudyError(f"kinematic study {study_id!r} names no contributors")

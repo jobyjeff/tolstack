@@ -1,10 +1,10 @@
 {
   "schema": "joby.tolerance_stack/kinematic_study/v0",
   "id": "vpa_pitch_linkage_blade_pitch_at_the_stops",
-  "title": "Blade pitch at the end stops, kinematic",
+  "title": "Blade pitch at the end stops",
   "description": "Blade pitch variation over the P2 sweep from six linkage tolerances, folded through the sweep's own Jacobian at every point and checked against S461-607 at the -7 and +72 deg stops.",
   "topology": "vpa_pitch_linkage",
-  "sweep": {"run_id": "vpa-pitch-p2-20261015-013931", "schema": "linkage-sweep/v1"},
+  "sweep": {"run_id": "vpa-pitch-p2-20261016-235852", "schema": "linkage-sweep/v1"},
   "measure": "blade_pitch",
   "stops": [
     {
@@ -113,7 +113,7 @@
       "complete": false,
       "excluded_terms": [
         "the end-stop location itself -- where the driver's zero sits is the parallel study the_travel_between_the_end_stops_is_a_study; its total enters here later as a band on actuator.value, whose Jacobian entry is the motion ratio",
-        "gas-spring bushing tipping -- a disk on the plate slide's axis components; P2 carries its Jacobian, but no clearance band is cited anywhere yet",
+        "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
         "tan_link_length and pitch_plate_tan_link_attach_radius -- contributors with a sensitivity and no cited band (the gap rows)",
@@ -148,7 +148,7 @@
       "complete": false,
       "excluded_terms": [
         "the end-stop location itself -- where the driver's zero sits is the parallel study the_travel_between_the_end_stops_is_a_study; its total enters here later as a band on actuator.value, whose Jacobian entry is the motion ratio",
-        "gas-spring bushing tipping -- a disk on the plate slide's axis components; P2 carries its Jacobian, but no clearance band is cited anywhere yet",
+        "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
         "tan_link_length and pitch_plate_tan_link_attach_radius -- contributors with a sensitivity and no cited band (the gap rows)",
@@ -158,8 +158,8 @@
   ],
   "provenance": {
     "authored_by": "handoff a_kinematic_study_folds_the_sweeps_jacobian, 2026-10-16",
-    "sweep": "linkage run P2 (tangential link turns the plate), run_id vpa-pitch-p2-20261015-013931, read from data/inbox/linkage-sweeps/. Its sensitivity block states its own analytic-vs-finite-difference agreement (sensitivity.max_finite_difference_disagreement); the projection carries that number beside every result built from it.",
-    "which_end_is_which": "The artifact's `mechanism` block names no body per joint end, so the sides were read off the artifact's own motion: at every point pitch_link.point_a_world sits at geometry pitch_link.point_a[2] plus the driver value on CAD Z (it rides the pitch plate's slide) while point_b_world keeps x = 83 and turns about CAD X (the blade's pitch axis). So pitch_link point_a = pitch_plate, point_b = blade. For the tangential link, point_a_world never moves and equals provenance.tangential_link.ends.base.centre_world_mm, and point_b equals ends.plate.centre_world_mm at zero travel: tan_link point_a = base, point_b = pitch_plate. Each contributor's `feature.body` records its side so the artifact's own geometry.features[] (when a republished run carries it) is checked against it.",
+    "sweep": "linkage run P2 (tangential link turns the plate), run_id vpa-pitch-p2-20261016-235852, read from data/inbox/linkage-sweeps/: linkage's republish, the first P2 run to carry geometry.features[], so every contributor's authored feature join is checked against the artifact's own. Re-pointed 2026-10-21 from vpa-pitch-p2-20261015-013931, whose Jacobian, solved blade pitch and driver values are identical to this run's entry for entry. Its sensitivity block states its own analytic-vs-finite-difference agreement (sensitivity.max_finite_difference_disagreement); the projection carries that number beside every result built from it.",
+    "which_end_is_which": "The artifact's `mechanism` block names no body per joint end, so the sides were read off the artifact's own motion: at every point pitch_link.point_a_world sits at geometry pitch_link.point_a[2] plus the driver value on CAD Z (it rides the pitch plate's slide) while point_b_world keeps x = 83 and turns about CAD X (the blade's pitch axis). So pitch_link point_a = pitch_plate, point_b = blade. For the tangential link, point_a_world never moves and equals provenance.tangential_link.ends.base.centre_world_mm, and point_b equals ends.plate.centre_world_mm at zero travel: tan_link point_a = base, point_b = pitch_plate. Each contributor's `feature.body` records its side, and the run's own geometry.features[] names the same body for every label a contributor perturbs.",
     "band_pairings": "Each band is borrowed from topology_pitch_system.json by dimension_ref and carries that edge's own source_ref and confidence unchanged; why each pitch_system edge stands for each vpa_pitch_linkage edge is in that contributor's `note`."
   },
   "notes": [
