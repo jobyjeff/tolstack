@@ -508,7 +508,7 @@
     var GENERAL_NOTE_REF = {
       kind: "drawing", document: "214698-002", revision: "A", sheet: 1,
       callout: "6. ⌓0.5 UNLESS OTHERWISE SPECIFIED.", confidence: "traced",
-      note: "general profile note, not a dimension; ...", note_number: 6,
+      note: VA.GENERAL_NOTE_PHRASE + ". Jeff ruled it.", note_number: 6,
     };
 
     await test("a general-note citation names its note on the where line and " +
@@ -527,6 +527,11 @@
         });
         eq(all(root, ".hovercard__generalnote").length, 1);
         has(root.textContent, VA.GENERAL_NOTE.text);
+        // The card's own line says it, so the note is shown from after its
+        // opening words, not saying the same thing twice in a row.
+        eq(VA.citationCard(GENERAL_NOTE_REF, null, null).note, "Jeff ruled it.");
+        eq(root.textContent.indexOf(VA.GENERAL_NOTE_PHRASE), -1);
+        eq(VA.citationCard(dimensioned, null, null).note, dimensioned.note || null);
       });
 
     await test("markGeneralNote marks a general-note chip and leaves every " +

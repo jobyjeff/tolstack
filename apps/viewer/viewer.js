@@ -568,6 +568,21 @@
     text: "from the drawing's general profile note, not a dimension",
   };
 
+  // The words such a citation's `note` opens with (tolerance_stack/stack.py
+  // validates that at load). The citation card says VA.GENERAL_NOTE.text in
+  // its own line, so it shows the note from after these words rather than
+  // saying the same thing twice in a row.
+  VA.GENERAL_NOTE_PHRASE = VOCAB.list("GENERAL_NOTE_PHRASE")[0];
+
+  // `note` without its general-note opening (and the ". " after it), or the
+  // note unchanged for any other citation.
+  VA.noteAfterGeneralNote = function (sourceRef) {
+    var note = (sourceRef && sourceRef.note) || null;
+    if (!note || VA.generalNoteNumber(sourceRef) === null ||
+        note.indexOf(VA.GENERAL_NOTE_PHRASE) !== 0) return note;
+    return note.slice(VA.GENERAL_NOTE_PHRASE.length).replace(/^[.;:,]?\s*/, "") || null;
+  };
+
   // The general note's number, or null for a citation anchored anywhere else.
   VA.generalNoteNumber = function (sourceRef) {
     var n = sourceRef && sourceRef.note_number;
@@ -1366,7 +1381,7 @@
       callout: sourceRef.callout || null,
       generalNote: VA.generalNoteNumber(sourceRef) !== null
         ? VA.GENERAL_NOTE.text : null,
-      note: sourceRef.note || null,
+      note: VA.noteAfterGeneralNote(sourceRef),
       provenance: VA.exportProvenance(sourceRef, identityRule || null),
       exportBlock: sourceRef.export || null,
       entry: cropEntry || null,
