@@ -152,3 +152,26 @@ dimensions were not" is confirmed: 12 notes on p01 and 0 dimensions.
 ## Verdict
 
 **APPROVE.** No blockers. One should-fix is filed as an issue.
+
+## Integration merge and its conflict
+
+`integration` moved to `c81ea97` while this review ran: the sibling
+`a_study_says_it_is_incomplete_without_inventing_a_check` landed, along with two
+master syncs. `git merge integration` conflicted only on
+`scripts/guard_enumeration.mjs`'s `DECLARED_GUARDS.fast` pin. This branch had
+548/`481bfa6344c2` and integration had 549/`6932d3ab3747`, each measured without
+the other's guards. I took integration's line as a placeholder, ran
+`node scripts/guard_enumeration.mjs --json`, and pasted its measured row:
+**551 / 551 / `f42fb378b079`**. That is 546 + 2 (this handoff) + 3 (the
+sibling). The sibling's other overlapping files auto-merged: viewer `views/*`,
+`viewer.js`, `style.css`, `vocab.gen.js`, and the travel study. Its
+`test_the_travel_study_has_no_checks_and_still_reports_its_open_terms` is
+order-independent (`complete == not open_terms`), so it accepts this handoff's
+all-traced chain. I ran a marker grep before committing, and it was clean.
+
+Re-run on the merged tree `b1bbd2f`, after rebuilding projections into this
+worktree's `data/` (stamped `b1bbd2f66d1f dirty=False`): the risky subset plus
+`test_study_completeness.py` gave **659 passed**, viewer **551/551** with no
+SKIP, and annotate **213/213**. I did not repeat the full suite after this
+merge. Its last run (1548 passed) was on the pre-sync tree. The batch merge's
+full run covers the combined tree.
