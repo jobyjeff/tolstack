@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: resolved
 area: topology/study schema
 reporter: agent
 audience: strategy
 handoff: docs/sessions/HANDOFF_20261022_a_study_says_it_is_incomplete_without_inventing_a_check.md
 found_by: docs/sessions/HANDOFF_20261016_the_travel_between_the_end_stops_is_a_study.md
+resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `a_study_says_it_is_incomplete_without_inventing_a_check` moved to completed/; not independently verified.
 ---
 
 # `complete` and `excluded_terms` live only on a check, so a check-less study cannot be marked incomplete
