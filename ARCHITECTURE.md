@@ -149,6 +149,15 @@ scripts/
   run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code).
                                Takes a suite filter, which is what affords the
                                mutation tier below a run per declared mutation.
+  browser_runner.mjs           what a script that starts a Chrome imports: it
+                               re-runs the script under dispatch's machine-wide
+                               browser slot unless an ancestor holds it, caps the
+                               Chrome it launches, and closes that Chrome however
+                               the run ends (a finally, a signal, process.exit).
+                               Added 2026-10-21.
+  browser_cpu_cap.py           the cap: puts a just-launched Chrome in a job
+                               whose CPU rate is held to BROWSER_CORES of the
+                               machine. stdlib only (ctypes). Added 2026-10-21.
   run_mutation_witness_tests.mjs the mutation-witness tier (test tooling): applies a
                                declared mutation to a shadow copy of the app and
                                this directory under `tmp/`, runs the tier that

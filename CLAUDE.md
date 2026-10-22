@@ -127,7 +127,7 @@ Know these before you write code; each has a test standing on it.
   tier is not a passed one), and before trusting any green — a batch merge's
   most of all — run **in the main checkout**:
   `node apps/viewer/run_tests.cjs`, `node scripts/run_viewer_browser_tests.mjs`
-  and `node scripts/run_mutation_witness_tests.mjs`.
+  and `node scripts/run_mutation_witness_tests.mjs --full`.
   **Rebuild the projections BEFORE those three, never after**
   (`scripts/rebuild_projections.ps1`): the `[real]` checks read
   `data/projections/`, so a tier run against a projection built from an older
@@ -171,6 +171,27 @@ Know these before you write code; each has a test standing on it.
   makes the merge the place any of the three is caught rather than the next
   audit. It is the slow one (a browser, the whole registry, tens of minutes),
   which is the argument for running it at the merge and not per-branch.
+  **Per branch, run `--only <guard>` for each guard you added or changed —
+  never the whole registry.** Since 2026-10-21 the runner refuses a run with no
+  `--only` outside the main checkout unless it says `--full`, and the refusal
+  prints the `--only` lines for the specs your branch touched against
+  `integration`. `--full` is for the batch merge and a review's post-merge
+  run (`docs/prompts/REVIEW_AGENT.md`), which are the whole registry on purpose.
+- **Every browser run takes the machine's one browser slot, and the runners do
+  it themselves** (2026-10-21, `scripts/browser_runner.mjs`): the viewer and
+  annotate runners, the mutation-witness runner when it selects a browser
+  entry, and the tracked `tests/debug_*.mjs` scripts re-run themselves under
+  `dispatch slot run --class browser` and wait their turn, so there is nothing
+  to wrap by hand (a double wrap is harmless — the inner one sees
+  `DISPATCH_SLOT_HELD` and runs at once). A pytest test that starts Chrome asks
+  for the `browser_slot` fixture instead, so a run with no browser test never
+  queues. The Chrome a runner launches is CPU-capped to a few cores of the box
+  and closed however the run ends. A scratch script that drives a browser gets
+  the same by importing that helper.
+- **Never generate synthetic load on this workstation** — no CPU burners,
+  memory hogs or fork loops, not even to reproduce contention. It runs Jeff's
+  live work and every other agent; reason about contention or use a timing
+  knob. The 2026-10-21 incident began with a load generator.
 - `tests/debug_*.py` are inspection tools, run by hand, never by pytest.
 - **Ops verbs:** `ops.toml` (forge CONVENTIONS.md §8) — the only place a deploy
   command should live.

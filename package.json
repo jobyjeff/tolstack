@@ -6,7 +6,7 @@
   "scripts": {
     "test:fast": "node apps/viewer/run_tests.cjs",
     "test:browser": "node scripts/run_viewer_browser_tests.mjs",
-    "test:mutations": "node scripts/run_mutation_witness_tests.mjs"
+    "test:mutations": "node scripts/run_mutation_witness_tests.mjs --full"
   },
   "devDependencies": {
     "playwright-core": "^1.49.0"

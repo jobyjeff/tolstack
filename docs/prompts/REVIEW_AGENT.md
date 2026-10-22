@@ -483,7 +483,9 @@ problem as an unrecorded full suite one step later.
   tier as above.
 - **A guard, a witness, or `scripts/mutation_witnesses/`** → `pytest -q
   tests/test_mutation_witnesses.py` plus `node
-  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`.
+  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only
+  "<guard>"` for each guard the diff adds or changes (a bare run off the main
+  checkout is refused and prints those `--only` lines for the branch's specs).
   **Any diff that adds a guard at all** is in this row since 2026-09-23: the
   per-source guard *set* is pinned (`DECLARED_GUARDS`,
   `scripts/guard_enumeration.mjs` — a count, an enrollable count and a digest
@@ -1563,8 +1565,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       failure; the shipping count comes from the post-merge run, and whatever you
       quote from it names the checkout that produced it.
 - [ ] **After you merge `integration` into your review branch, re-run
-      `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`
-      and report the count in your review.** This is an instruction, not a
+      `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --full`
+      and report the count in your review.** (`--full` because this run is the
+      whole registry on purpose: since 2026-10-21 the runner refuses one off the
+      main checkout without it, which is aimed at tactical branches, not here.) This is an instruction, not a
       ritual, and the reason is that **your merge is the only point in the
       lifecycle where nothing re-runs this tier**. The other three tiers answer
       *does the app still behave?*; this one answers *would the guards notice if
