@@ -5073,6 +5073,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       checkout itself is fine). And for a check whose fix re-measures, plant
       the defect: a retry that never reaches a verdict is a guard that cannot
       fail (`VA.pointerHeadsFor` → `return false` is this one's plant).
+- [ ] **A view that degrades silently when its ctx callback is missing, and
+      only the fast tier tests it — with the callback passed by the test.**
+      New 2026-10-22 (`the_kinematic_study_checks_its_run_its_units_and_shows_its_limit`):
+      `citationTrigger` in `views/kinematic.js` falls back to a `title`
+      tooltip when `ctx.onCardShow` is absent, so deleting
+      `onCardShow: showCard` in `topology_app.js` hides the adoption note and
+      every tier stays green
+      (`ISSUE_20261022_the_kinematic_pages_citation_card_wiring_can_be_deleted_green_in_every_tier.md`).
+      For every new `ctx.<callback>` a view reads, grep the browser tier for
+      an interaction that reaches it through the real app.
+- [ ] **A handoff fence the DoD forces the author through.** Enrolling a new
+      guard means raising `DECLARED_GUARDS` in `scripts/guard_enumeration.mjs`,
+      so a handoff that adds a guard *and* fences that file cannot be done as
+      written. Judge the touched lines (pins only = fine), don't flag the
+      fence breach; say so in the report.
 
 ## Architectural errors to check
 

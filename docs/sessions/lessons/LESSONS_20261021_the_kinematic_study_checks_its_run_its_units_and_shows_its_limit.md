@@ -14,6 +14,14 @@ point's solved blade pitch and every driver value is `0.0`, and
 What differs is `pipeline_commit` (`5fc848f9…` → `8a476946…`), the new
 `pipeline_dirty_paths: []`, and `geometry.features[]` (absent → 61 entries).
 
+> **Correction (review, 2026-10-22):** the 1016 run's `geometry.features[]`
+> has **60** entries, not 61 (`len(data["geometry"]["features"])`, re-read from
+> `data/inbox/linkage-sweeps/vpa-pitch-p2-20261016-235852.json`). The list of
+> differences is also one short: `mechanism.sha256` differs between the runs
+> too (`8eca7129…` → `fcc02620…`), besides `run_id` and `ts`. Every other
+> claim in this section re-derived: the `blade_pitch` table's max difference is
+> `0.0`, `geometry.values` and all 80 `points` are equal.
+
 So nothing moved, not even in the sixth decimal:
 
 | stop   | index | nominal | worst half | RSS half | S461-607 margin |
