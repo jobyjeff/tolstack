@@ -65,3 +65,23 @@ the `centroid_native` on the fixture's own bound event
 several checks in `apps/annotate/run_tests.cjs` read. Not done here: it is a
 fixture change with a pinned blast radius and nothing in this handoff depended
 on it.
+
+## Addendum 2026-10-21: five reds in a row, mid-registry, under the new CPU cap
+
+The review of `browser_runners_take_the_slot_and_free_the_box` ran
+`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --full`
+from 19:00 to 20:15 and got **256/261**. All five misses were
+`annotate rail filter + face deselect` clean runs that were red on this one
+sub-check, "a real click on the face tints it". Those clean runs were
+consecutive (entries `65435fcd`, `148e0e1f`, `298e017c`, `2c2e291c`,
+`ecfb1a63`). Straight afterwards, the suite was green alone (34/34), and each of
+the five entries replayed with `--only <id>` was green and WITNESSED.
+
+So this flake no longer shows up as a single red that a replay clears. During
+the full registry run it held for about five consecutive suite runs and cost
+five witnesses. Whatever the timing component is, it may be larger now: since
+that handoff, every runner's Chrome is in a job hard-capped at 4 cores
+(`scripts/browser_runner.mjs`, `BROWSER_CORES`), so SwiftShader frames are
+slower under machine load. The batch merge's `--full` run is where this will
+next read as "an enrolled guard that no longer reddens". Replay the misses with
+`--only` before treating them as decayed.

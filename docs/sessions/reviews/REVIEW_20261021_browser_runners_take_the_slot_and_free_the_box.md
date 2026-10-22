@@ -116,7 +116,22 @@ and did not need to.
   pytest (S1).
 - `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --full`
   (the overlay's post-merge re-run; the merge touches `SHADOWED` paths):
-  RESULT_PENDING
+  19:00:17 → 20:14:55, **256/261**, exit 1. The branch's own
+  `python__test-a-runner-that-ends-leaves-no-chrome__b36c164d` scored **3/3
+  WITNESSED**, and #3 is the DoD's "drop the runner's `finally` close". All
+  five misses were the same thing: five consecutive clean runs of
+  `annotate rail filter + face deselect`, red on the one sub-check "a real
+  click on the face tints it" ("the tier was red before the mutation").
+  Straight afterwards that suite was **34/34** with `--only`, and each of the
+  five entries replayed with `--only <id>` (`65435fcd`, `148e0e1f`, `298e017c`,
+  `2c2e291c`, `ecfb1a63`) was green and **WITNESSED**. So the merged tree is
+  **261/261 with the five replays**. This is not a merge-induced coverage drop.
+  It is the known edge-on pick flake
+  (`ISSUE_20260916_the_mock_annotator_mesh_is_edge_on_to_its_own_default_camera.md`,
+  `deferred`). This time it held for five runs in a row, not one, which may be
+  the new 4-core cap slowing SwiftShader under load. I added that, with the
+  data, to the issue as a dated addendum, so the batch merge's `--full` knows
+  to replay before calling a witness decayed.
 - Not exercised: `node apps/annotate/run_browser_check.mjs`. It is red before
   and after this branch on the filed `railRealPass` timeout, and this diff only
   changed how that script launches and closes.
@@ -139,6 +154,12 @@ and did not need to.
   fix inline. Filed:
   `docs/issues/ISSUE_20261021_a_full_pytest_holds_the_browser_slot_from_its_first_browser_test_to_its_last_test.md`
   (med), with the fix shape.
+
+- **S2 (observation, attached to an existing issue): the CPU cap may lengthen
+  a known WebGL-pick flake.** See the mutation-registry line above. I can't
+  attribute it to the cap from one window of five reds, and everything
+  replayed green, so this is not a finding against the branch. The data now
+  sits on the deferred issue's addendum rather than in a new file.
 
 ### Nits (no issue filed)
 
