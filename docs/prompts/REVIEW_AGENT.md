@@ -5088,6 +5088,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       so a handoff that adds a guard *and* fences that file cannot be done as
       written. Judge the touched lines (pins only = fine), don't flag the
       fence breach; say so in the report.
+- [ ] **A `DECLARED_GUARDS` merge conflict has no right side.** New
+      2026-10-22 (`a_face_pick_survives_an_orbit_and_names_its_end`). When two
+      handoffs each raise the pins, your merge conflicts there. Each side's
+      counts and name digest are measured against a tree without the other's
+      guards, so picking either side reddens `test_mutation_witnesses.py`.
+      Take either side as a placeholder (the census will not parse with
+      markers in the file), run
+      `node scripts/guard_enumeration.mjs --json`, paste its rows, and check
+      them: each count should be the integration pin plus the handoff's delta.
+      For example: annotate 206+7=213, browser 565+14=579 and 533+14=547.
 
 ## Architectural errors to check
 

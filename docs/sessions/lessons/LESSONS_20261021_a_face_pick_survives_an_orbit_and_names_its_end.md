@@ -27,6 +27,11 @@ bind, plus the suggestion-line clause.
   aimed, which is the same defect as before in a new shape. This is one field on
   `state`, the one edit to `app.js` outside the functions the handoff scoped.
   It is needed because the choice must survive a re-render.
+
+  > **Correction (review, 2026-10-22):** it is not the only one. `suggestionLine()`
+  > is also outside the scoped `app.js` functions, and the diff edits it to pass
+  > `AA.edgeEndNames(...)` into `AA.describeSuggestions`, which item 4 needs. The
+  > edit is needed and correct; only the "the one edit" count was wrong.
 - **The choice does not re-render the form.** A re-render would wipe whatever
   the reader had typed into the optional fields. `renderDetail` builds a
   `refreshBindStep` closure. The closure recomposes the instruction and the
