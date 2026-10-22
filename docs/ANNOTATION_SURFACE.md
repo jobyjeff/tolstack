@@ -226,6 +226,33 @@ the honest empty-state ("no installed mesh for X") — that state is the
 annotator's answer to an unresolvable identifier, never something the viewer
 may hand a reader.
 
+### Binding a face: a click, and an end by name (2026-10-21)
+
+Handoff `a_face_pick_survives_an_orbit_and_names_its_end`, from Jeff's first
+live bind: the pick cleared when he orbited, the form's `direction` dropdown
+meant nothing to him, and a Bind he never aimed wrote the first event in the
+stream at the wrong end.
+
+- **A pick is a click.** The scene raycasts on pointer *release*, and only
+  when the pointer travelled less than `AA.PICK_CLICK_SLOP_PX` since the
+  press (`AA.planPointerRelease`). A drag of any length is a camera move, and
+  the pick that was there stays. The toggle itself (`AA.planPickToggle`: a
+  miss or a re-click clears) is unchanged.
+- **An end is chosen by its interface's name.** A binding still stores
+  `direction: from | to` (`feature_identity.DIRECTIONS`); the form shows the
+  edge's two node names instead (`AA.edgeEndNames`) and decides what is
+  offered in one place (`AA.planBindChoices`): no default while both ends are
+  open, the remaining end preselected once one is bound. The instruction line
+  names ends the same way and never prints the stored word.
+- **The leader is a preview, not a value.** With one end bound and a face
+  picked for the other, the 3D view draws a line between the two faces'
+  manifest centroids, placed through the part's first drawn occurrence the way
+  the part itself is (`AA.planBindLeader`, `scene.setBindLeader`). It is drawn
+  before Bind and gone when the pick is; nothing reads it back.
+- **No flip after the write.** An event is immutable and the verdict set has
+  no supersession, so correcting an end after Bind is a schema question, filed
+  as `ISSUE_20261021_a_binding_written_at_the_wrong_end_has_no_correction.md`.
+
 ### The rail: width, names, and what is clipped (2026-10-20)
 
 Handoff `the_annotator_rail_resizes_and_names_what_it_lists`. Three rules, all

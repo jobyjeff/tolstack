@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "describeSuggestions says WHICH face the narrowing compared against -- its number and the interface it was bound as",
+  "mutations": [
+    {
+      "contract": "The suggestion line names the face its narrowing compared against, by number and by the interface it was bound as -- the other end's name for a reference at the other end.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Names every reference by the end being suggested, so a face bound at the OTHER end of the element is described as bound at this one -- the confusion the clause exists to remove.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    var name = ref.source === \"other_end\" ? names[ref.direction] : end.interfaceName;",
+      "replace": "    var name = end.interfaceName;"
+    }
+  ]
+}

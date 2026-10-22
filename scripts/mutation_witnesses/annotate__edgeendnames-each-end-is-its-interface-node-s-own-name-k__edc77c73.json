@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "edgeEndNames: each end is its interface node's own name, keyed by the stored word",
+  "mutations": [
+    {
+      "contract": "Each end of an edge is labelled with its interface node's own everyday name, falling back to the node id only when the node has none.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Labels every end with its node id, the identifier a reader cannot act on.",
+      "file": "apps/annotate/commands.js",
+      "find": "      out[d] = node ? (node.name || node.id) : (id || null);",
+      "replace": "      out[d] = id || null;"
+    }
+  ]
+}

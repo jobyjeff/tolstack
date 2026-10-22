@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "the tier can find face 1 on screen, so the pointer input below is real input on real geometry",
+  "mutations": [
+    {
+      "contract": "A raycast resolves to the face of the triangle it actually hit, so the suite's pointer input lands on the face it aims at.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Every hit resolves to face 0: the aim at face 1 cannot be confirmed, and the pointer checks below it would otherwise report a broken aim as a broken app.",
+      "file": "apps/annotate/scene.js",
+      "find": "    const faceId = hit.object.userData.faceIdPerTriangle[hit.faceIndex];",
+      "replace": "    const faceId = hit.object.userData.faceIdPerTriangle[0];"
+    }
+  ]
+}

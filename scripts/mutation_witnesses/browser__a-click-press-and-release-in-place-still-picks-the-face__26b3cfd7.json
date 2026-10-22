@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "a click (press and release in place) still picks the face",
+  "mutations": [
+    {
+      "contract": "A press and release in place on the canvas picks the face under it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Drops every release, so the move to release-time picking would have removed picking altogether -- the regression the change most easily makes.",
+      "file": "apps/annotate/scene.js",
+      "find": "      if (!at) return;",
+      "replace": "      if (!at || at) return;"
+    }
+  ]
+}

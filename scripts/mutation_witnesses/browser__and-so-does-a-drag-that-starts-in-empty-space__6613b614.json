@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "...and so does a drag that starts in empty space",
+  "mutations": [
+    {
+      "contract": "The press that starts an orbit is not a pick: only a release that did not travel is.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Restores the old trigger -- a raycast on every press -- so the press in empty space that starts the orbit clears the pick before the camera moves.",
+      "file": "apps/annotate/scene.js",
+      "find": "      pointersDown.add(ev.pointerId);",
+      "replace": "      pointersDown.add(ev.pointerId);\n      { const r = canvas.getBoundingClientRect(); this.onPick(this.pick(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1)); }"
+    }
+  ]
+}

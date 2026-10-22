@@ -50,10 +50,23 @@ that: open a study, open a part, click a face, write one
   — see `docs/ANNOTATION_SURFACE.md`, "The parts panel: context and view".
 - Boots from a **deep link** (`?topology=&edge=&study=&isolate=`) with that
   study open, the edge **selected**, the element's part(s) alone in the 3D
-  view, and a one-line task instruction composed from the element ("Select
-  the two faces that define …", singular once one direction is already bound)
-  — see "Deep link in" below. How much of that a link is allowed to do is the
-  reader's setting, in the rail's **Set up automatically** menu.
+  view, and a one-line task instruction composed from the element (it needs
+  two faces, bound one at a time; once one end is bound, the end still
+  needed by its interface's name) — see "Deep link in" below. How much of
+  that a link is allowed to do is the reader's setting, in the rail's **Set
+  up automatically** menu.
+- **Binds one face per event, and the reader says which end it is** (handoff
+  `a_face_pick_survives_an_orbit_and_names_its_end`, 2026-10-21). A face is
+  picked on a **click** — a press and release that did not travel — so a
+  drag to orbit round the part never clears it. The form offers the
+  element's two interfaces **by name** (the topology's own node names) where
+  it used to offer a `direction` dropdown reading `from`/`to`; with both ends
+  open nothing is preselected and **Bind** stays disabled until one is
+  chosen, and once one end is bound it is shown as taken (with its face) and
+  the other is preselected. Picking a face for the second end draws a thin
+  **leader** in the 3D view to the face already bound, with both interface
+  names on it, before anything is written. The stored word is unchanged. See
+  `docs/ANNOTATION_SURFACE.md`, "Binding a face: a click, and an end by name".
 - Puts the current instruction, this element's controls and a collapsible
   help/settings panel in a **bar across the top of the 3D view** (handoff
   `annotate_hint_bar_and_context_autofilter`, 2026-09-21). It was a 320px

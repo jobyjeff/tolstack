@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "picking the second face draws the leader between the two, before anything more is written",
+  "mutations": [
+    {
+      "contract": "Picking the second face of an element draws the leader before Bind.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "The leader is never planned, so the one preview that catches a wrong end before it is written never appears.",
+      "file": "apps/annotate/app.js",
+      "find": "        ? AA.planBindLeader({ pick: state.currentPick, plan: bind.plan }) : null);",
+      "replace": "        ? null : null);"
+    }
+  ]
+}

@@ -365,6 +365,39 @@
     return { action: "select", pick: pick };
   };
 
+  // --- a pick is a click, not a press ----------------------------------------
+  //
+  // Jeff, 2026-10-21: "as soon as I went to rotate the view it deselected it."
+  // The pick used to fire on `pointerdown`, so the press that starts an orbit
+  // -- the first thing a reader does after picking one face of a thickness,
+  // to look at the other side of the part -- went through planPickToggle as
+  // a click into empty space or onto the picked face, and cleared it. The
+  // toggle was right; the trigger was wrong. A pick now happens on RELEASE,
+  // and only when the pointer travelled less than this between the press and
+  // the release. Four CSS px: wide enough for the tremor of a trackpad tap or
+  // a mouse click, narrow enough that the smallest deliberate orbit
+  // (OrbitControls visibly turns the view within a few px) is never taken
+  // for one.
+  AA.PICK_CLICK_SLOP_PX = 4;
+
+  // Pure: `down` is the press as recorded ({x, y} in CSS px, or null when
+  // there was none on this canvas), `up` the release ({x, y, inside} --
+  // `inside` false when the release landed off the canvas, which pointer
+  // capture still delivers here). The answer is the point to raycast at, or
+  // null for "a drag, or not a click on this canvas at all -- leave the pick
+  // alone". Strictly under the slop: a release AT it is a drag.
+  AA.planPointerRelease = function (args) {
+    var a = args || {};
+    var down = a.down;
+    var up = a.up;
+    if (!down || !up || up.inside === false) return null;
+    var slop = typeof a.slopPx === "number" ? a.slopPx : AA.PICK_CLICK_SLOP_PX;
+    var dx = up.x - down.x;
+    var dy = up.y - down.y;
+    if (!(Math.sqrt(dx * dx + dy * dy) < slop)) return null;
+    return { x: up.x, y: up.y };
+  };
+
   // Pure state transition for `isolate`: given the sha256s already open in
   // the scene and the sha256s that should be visible afterward, returns which
   // ones need a fresh `loadPart` (not open yet), which already-open ones to
@@ -718,6 +751,99 @@
     return AA.DIRECTIONS.filter(function (d) { return !have[d]; });
   };
 
+  // The everyday name of each END of an edge -- its two interface nodes'
+  // own `name`, the words the rail already prints -- keyed by the stored
+  // direction word. The bind form and the instruction show these and never
+  // the stored words themselves (Jeff, 2026-10-21: "I don't understand what
+  // 'direction' means"). A node with no name falls back to its id rather than
+  // to nothing: a choice with no label is worse than one with an awkward one.
+  AA.edgeEndNames = function (topology, edge) {
+    var out = {};
+    if (!edge) return out;
+    var nodes = (topology && topology.nodes) || [];
+    AA.DIRECTIONS.forEach(function (d) {
+      var id = edge[d];
+      var node = null;
+      for (var i = 0; i < nodes.length; i++) if (nodes[i].id === id) node = nodes[i];
+      out[d] = node ? (node.name || node.id) : (id || null);
+    });
+    return out;
+  };
+
+  // Pure: what the bind form's interface choice offers, for one element.
+  //
+  //   ends      one row per stored direction word, in AA.DIRECTIONS order:
+  //             its interface name, and the face already bound there (null
+  //             while that end is open)
+  //   choices   the direction words a reader may choose between
+  //   selected  the one Bind will write, or null -- Bind is disabled while
+  //             it is null
+  //
+  // NO DEFAULT while both ends are open. The dropdown this replaces
+  // preselected its first option, so a Bind nobody aimed wrote `from` -- and
+  // the first event a reader ever wrote (face 110 of the upper piston head,
+  // the step face) went in at the wrong end exactly that way. With one end
+  // open there is nothing to guess: it is preselected and the bound one is
+  // shown as taken. With both bound (a reader binding another face) both are
+  // offered again, still with no default.
+  AA.planBindChoices = function (opts) {
+    var o = opts || {};
+    var names = o.names || {};
+    var bound = {};
+    ((o.record && o.record.bindings) || []).forEach(function (b) {
+      if (!b || !b.direction || bound[b.direction] !== undefined) return;
+      var key = b.geometry_key || {};
+      bound[b.direction] = { faceId: key.face_id, sha256: key.source_step_sha256 || null };
+    });
+    var needed = AA.bindingDirectionsNeeded(o.record);
+    var ends = AA.DIRECTIONS.map(function (d) {
+      return { direction: d, name: names[d] || null, bound: bound[d] || null };
+    });
+    if (needed.length === 1) {
+      return { ends: ends, choices: needed.slice(), selected: needed[0] };
+    }
+    var choices = AA.DIRECTIONS.slice();
+    return {
+      ends: ends, choices: choices,
+      selected: choices.indexOf(o.chosen) === -1 ? null : o.chosen,
+    };
+  };
+
+  // Pure: the leader the 3D view draws before a Bind -- a line from the
+  // picked face to the face already bound at the OTHER end, each end labelled
+  // with its interface name, so a wrong end is seen before it is written.
+  // Null whenever there is only one face to draw from: on a first bind, a
+  // leader with one end would be a guess about where the second face is.
+  AA.planBindLeader = function (opts) {
+    var o = opts || {};
+    var pick = o.pick;
+    var plan = o.plan;
+    if (!pick || !plan || !plan.selected) return null;
+    var mine = null;
+    var other = null;
+    plan.ends.forEach(function (end) {
+      if (end.direction === plan.selected) mine = end;
+      else if (end.bound) other = end;
+    });
+    if (!other || !other.bound.sha256 || typeof other.bound.faceId !== "number") return null;
+    if (other.bound.sha256 === pick.sha256 && other.bound.faceId === pick.faceId) return null;
+    return {
+      picked: { sha256: pick.sha256, faceId: pick.faceId, label: mine ? mine.name : null },
+      bound: { sha256: other.bound.sha256, faceId: other.bound.faceId, label: other.name },
+    };
+  };
+
+  // The one-line instruction. The form binds ONE face per event, so every
+  // state names the step the reader is on and what is left (Jeff: "I was
+  // expecting it to ask me for two faces to define the thickness"), and an
+  // end is named by its interface, never by the stored word. `ctx`:
+  //
+  //   elementName  the selected element, or null
+  //   scopeName    the scope bar's name when no element is selected
+  //   picked       a face is picked
+  //   needed       AA.bindingDirectionsNeeded's answer (default: both)
+  //   names        AA.edgeEndNames's answer
+  //   chosen       the direction word the bind form will write, or null
   AA.taskInstruction = function (ctx) {
     var c = ctx || {};
     if (!c.elementName) {
@@ -726,16 +852,28 @@
           "click a face in the 3D view."
         : AA.TASK_NO_ELEMENT;
     }
-    if (c.picked) {
-      return "Bind the selected face to " + c.elementName +
-        ", or click another face to change it.";
-    }
+    var names = c.names || {};
     var needed = c.needed || AA.DIRECTIONS;
+    var nameOf = function (direction) {
+      return names[direction] || "the other interface";
+    };
+    if (c.picked) {
+      if (!c.chosen) {
+        return "Choose which interface of " + c.elementName + " this face is, " +
+          "then press Bind." + (needed.length > 1 ? " The other face comes next." : "");
+      }
+      var as = "Bind the selected face to " + c.elementName + " as " + nameOf(c.chosen);
+      if (needed.length > 1) return as + ". The other face comes next.";
+      if (needed.length === 1) return as + ", the last face it needs.";
+      return as + ".";
+    }
     if (needed.length > 1) {
-      return "Select the two faces that define " + c.elementName + ".";
+      return c.elementName + " needs two faces, bound one at a time. " +
+        "Click the first one in the 3D view.";
     }
     if (needed.length === 1) {
-      return "Select the remaining face that defines " + c.elementName + ".";
+      return "Select the remaining face that defines " + c.elementName + ": " +
+        nameOf(needed[0]) + ".";
     }
     return c.elementName + " already has the faces it needs. " +
       "Click a face to bind another.";

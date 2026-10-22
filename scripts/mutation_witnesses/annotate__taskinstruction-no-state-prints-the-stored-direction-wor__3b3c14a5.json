@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "taskInstruction: no state prints the stored direction word -- swapping which interface is which end swaps nothing but the names",
+  "mutations": [
+    {
+      "contract": "The instruction names an end by its interface, never by the stored direction word, so the same element with its two ends swapped reads the same apart from the names.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Appends the stored word beside the name -- the 'from/to' a reader could not interpret, smuggled back in next to the right words.",
+      "file": "apps/annotate/commands.js",
+      "find": "      return names[direction] || \"the other interface\";",
+      "replace": "      return (names[direction] || \"the other interface\") + \" (\" + direction + \")\";"
+    }
+  ]
+}

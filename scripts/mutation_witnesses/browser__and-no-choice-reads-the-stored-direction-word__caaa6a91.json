@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "...and no choice reads the stored direction word",
+  "mutations": [
+    {
+      "contract": "Each choice is labelled with its interface's name, never with the stored direction word.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Labels the choices with the stored word, which is the control Jeff could not read.",
+      "file": "apps/annotate/app.js",
+      "find": "    choice.textContent = end.name || \"\";",
+      "replace": "    choice.textContent = end.direction;"
+    }
+  ]
+}

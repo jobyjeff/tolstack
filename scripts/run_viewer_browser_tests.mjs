@@ -8721,6 +8721,218 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
   }
 }
 
+
+// --- the bind form: a pick survives an orbit, and names its end -------------
+//
+// (handoff a_face_pick_survives_an_orbit_and_names_its_end, 2026-10-21.) Jeff's
+// first live use of the bind flow: "as soon as I went to rotate the view it
+// deselected it", "I don't understand what 'direction' means", and a Bind
+// nobody aimed that wrote the first event at the wrong end. Two claims a DOM
+// shim cannot answer, so they are here and not in apps/annotate/run_tests.cjs:
+//
+//   1. A DRAG IS NOT A PICK. Real pointer input on the real canvas: press on
+//      the picked face itself (the worst case -- under the old trigger that
+//      press was a re-click, and cleared it), orbit a full turn, release, and
+//      the face is still picked and the form is still up. The camera is
+//      checked to have MOVED, or the drag proved nothing.
+//   2. THE FORM NAMES THE TWO INTERFACES AND HAS NO DEFAULT. With both ends
+//      open, Bind is disabled until an end is chosen; after one Bind the bound
+//      end is shown as taken and the other preselected; and a second face
+//      picked draws the leader between the two, before anything is written.
+//
+// ?mock=1 throughout: the fixture's `demo_edge_untraced` has its `to` end
+// bound at face 0, and `demo_edge_traced` has nothing bound, which are the two
+// states the form has.
+async function testAnnotateBindForm(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const picked = () => page.evaluate(() => window.__scene.highlightedFace());
+  const formUp = async () => (await page.locator("#detail .bind-form").count()) === 1;
+  const taskLine = async () => (await page.locator("#detail .an__task").textContent()) || "";
+  const choices = () => page.evaluate(() => Array.from(
+    document.querySelectorAll("#detail .an__ends .an__end")).map((n) => ({
+    text: n.firstChild && n.classList.contains("an__end--taken")
+      ? n.firstChild.textContent : n.textContent,
+    direction: n.dataset.direction,
+    taken: n.classList.contains("an__end--taken"),
+    note: n.querySelector(".an__end-note") ? n.querySelector(".an__end-note").textContent : null,
+    checked: n.getAttribute("aria-checked") === "true",
+  })));
+  const bindDisabled = () => page.locator("#detail .bind-form__bind").isDisabled();
+  // Face the mock triangle and find a face's centroid on screen -- computed,
+  // then CONFIRMED with the scene's own raycaster, the way the rail suite
+  // aims (see the long note there on why the default camera is edge-on).
+  const aimAt = (faceId) => page.evaluate((f) => {
+    const scene = window.__scene;
+    const sha = window.AnnotateApp.FIXTURES.demoSha;
+    const mesh = scene.parts.get(sha);
+    mesh.updateMatrixWorld(true);
+    const centre = mesh.geometry.boundingBox.getCenter(mesh.position.clone())
+      .applyMatrix4(mesh.matrixWorld);
+    scene.camera.position.set(centre.x, centre.y, centre.z + 40);
+    scene.camera.lookAt(centre.x, centre.y, centre.z);
+    scene.controls.target.set(centre.x, centre.y, centre.z);
+    scene.controls.update();
+    scene.camera.updateMatrixWorld(true);
+    const c = mesh.userData.manifest.faces[f].centroid_native;
+    const point = mesh.position.clone().set(c[0], c[1], c[2]).applyMatrix4(mesh.matrixWorld);
+    point.project(scene.camera);
+    const hit = scene.pick(point.x, point.y);
+    if (!hit || hit.faceId !== f) return null;
+    const rect = document.querySelector("#canvas-host canvas").getBoundingClientRect();
+    return { x: rect.left + ((point.x + 1) / 2) * rect.width,
+      y: rect.top + ((1 - point.y) / 2) * rect.height };
+  }, faceId);
+  // Position AND orientation: the aim below looks straight down the up axis,
+  // where an azimuth orbit turns the camera without moving it.
+  // A point that is ON the canvas (nothing drawn over it) and hits no part --
+  // CONFIRMED both ways rather than assumed of a corner, which after an orbit
+  // can sit on geometry or under the top bar's edge.
+  const emptySpot = () => page.evaluate(() => {
+    const canvas = document.querySelector("#canvas-host canvas");
+    const r = canvas.getBoundingClientRect();
+    for (const [fx, fy] of [[0.05, 0.9], [0.95, 0.9], [0.05, 0.5], [0.95, 0.5], [0.5, 0.95]]) {
+      const x = r.left + fx * r.width, y = r.top + fy * r.height;
+      if (document.elementFromPoint(x, y) !== canvas) continue;
+      if (window.__scene.pick(fx * 2 - 1, -(fy * 2 - 1))) continue;
+      return { x, y };
+    }
+    return null;
+  });
+  const cameraAt = () => page.evaluate(() => window.__scene.camera.position.toArray()
+    .concat(window.__scene.camera.quaternion.toArray()));
+  try {
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+      { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    await page.waitForFunction(() => window.__scene &&
+      window.__scene.parts.has(window.AnnotateApp.FIXTURES.demoSha), null, { timeout: 15000 });
+
+    // --- 1. a drag is not a pick --------------------------------------------
+    const at = await aimAt(1);
+    push("the tier can find face 1 on screen, so the pointer input below is " +
+      "real input on real geometry", at !== null);
+    if (at) {
+      await page.mouse.click(at.x, at.y);
+      const first = await picked();
+      push("a click (press and release in place) still picks the face",
+        first && first.faceId === 1 && await formUp());
+      // Press ON the picked face, orbit a full turn by drag, release.
+      const canvasBox = await page.locator("#canvas-host canvas").boundingBox();
+      const before = await cameraAt();
+      await page.mouse.move(at.x, at.y);
+      await page.mouse.down();
+      await page.mouse.move(at.x + canvasBox.height / 2, at.y + 30, { steps: 12 });
+      // Half way round, the camera is somewhere else -- read HERE, because a
+      // full turn brings it back to where it started.
+      const halfway = await cameraAt();
+      const moved = before.some((v, i) => Math.abs(v - halfway[i]) > 1e-3);
+      await page.mouse.move(at.x + canvasBox.height, at.y, { steps: 12 });
+      await page.mouse.up();
+      const kept = await picked();
+      if (!moved || !kept || kept.faceId !== 1) {
+        console.log(`    orbit: camera moved=${moved}, pick after=${JSON.stringify(kept)}`);
+      }
+      push("a drag that starts ON the picked face and orbits a full turn keeps " +
+        "the pick and the bind form -- Jeff's own gesture after picking a face",
+        moved && kept && kept.faceId === 1 && await formUp());
+      // A drag that starts in empty space: the press used to clear the pick.
+      const empty = await emptySpot();
+      if (empty) {
+        await page.mouse.move(empty.x, empty.y);
+        await page.mouse.down();
+        await page.mouse.move(empty.x + 90, empty.y - 60, { steps: 10 });
+        await page.mouse.up();
+      } else {
+        console.log("    no confirmed empty spot on the canvas to press in");
+      }
+      const stillKept = await picked();
+      push("...and so does a drag that starts in empty space",
+        empty && stillKept && stillKept.faceId === 1 && await formUp());
+      // ...while a plain click into empty space still clears it.
+      const emptyAgain = await emptySpot();
+      if (emptyAgain) await page.mouse.click(emptyAgain.x, emptyAgain.y);
+      push("a plain click into empty space still clears the pick and the form",
+        emptyAgain && (await picked()) === null && !(await formUp()));
+    }
+
+    // --- 2. one end bound: the other preselected, the leader drawn -----------
+    await page.evaluate(() => window.AnnotateApp.exec(["select-face",
+      window.AnnotateApp.FIXTURES.demoSha, "1"]));
+    const oneBound = await choices();
+    push("with one end bound, the form shows the bound end as taken, with its " +
+      "face, and the remaining end preselected -- both by interface name",
+      oneBound.length === 2 &&
+      oneBound.some((c) => c.taken && c.text === "demo plate far face" &&
+        /already bound · face 0/.test(c.note || "")) &&
+      oneBound.some((c) => !c.taken && c.checked &&
+        c.text === "demo bushing face against the plate") &&
+      !(await bindDisabled()));
+    const leader = await page.evaluate(() => window.__scene.bindLeader());
+    push("...and the 3D view draws the leader from the picked face to the bound " +
+      "one, in the pick colour, with the two interface names on it",
+      leader && leader.picked.faceId === 1 && leader.bound.faceId === 0 &&
+      leader.picked.label === "demo bushing face against the plate" &&
+      leader.bound.label === "demo plate far face" && leader.color === "ff8c1a");
+
+    // --- 3. both ends open: no default, Bind disabled until one is chosen ----
+    await page.evaluate(() => window.AnnotateApp.exec(["select-edge", "demo_edge_traced"]));
+    await page.evaluate(() => window.AnnotateApp.exec(["select-face",
+      window.AnnotateApp.FIXTURES.demoSha, "0"]));
+    const open = await choices();
+    push("with both ends open, the form offers the two interfaces by name, " +
+      "neither chosen, and Bind is disabled",
+      open.length === 2 && open.every((c) => !c.taken && !c.checked) &&
+      open.map((c) => c.text).join("|") ===
+        "demo bolt-head bearing face|demo bushing face against the plate" &&
+      await bindDisabled() && /^Choose which interface/.test(await taskLine()));
+    push("...and no choice reads the stored direction word",
+      open.every((c) => !/^(from|to)$/i.test(c.text.trim())));
+    await page.locator("#detail .an__end", { hasText: "demo bolt-head bearing face" }).click();
+    push("choosing an interface enables Bind and the instruction names it",
+      !(await bindDisabled()) &&
+      /as demo bolt-head bearing face\. The other face comes next\./.test(await taskLine()));
+    // Asked AFTER an end is chosen: before it, the leader has no end to start
+    // from either, so a leader that guessed the missing face would pass.
+    push("...and no leader is drawn on a first bind, even with an end chosen",
+      (await page.evaluate(() => window.__scene.bindLeader())) === null);
+    await page.locator("#detail .bind-form__bind").click();
+    await page.waitForFunction(() => /Wrote /.test(
+      document.querySelector("#banner") ? document.querySelector("#banner").textContent : ""),
+    null, { timeout: 5000 }).catch(() => {});
+    const afterBind = await choices();
+    push("after one Bind the form shows that end as taken and the other " +
+      "preselected -- and the end it was written at is the one chosen",
+      afterBind.some((c) => c.taken && c.direction === "from" &&
+        c.text === "demo bolt-head bearing face" && /face 0/.test(c.note || "")) &&
+      afterBind.some((c) => !c.taken && c.checked && c.direction === "to"));
+    await page.evaluate(() => window.AnnotateApp.exec(["select-face",
+      window.AnnotateApp.FIXTURES.demoSha, "1"]));
+    const second = await page.evaluate(() => window.__scene.bindLeader());
+    push("picking the second face draws the leader between the two, before " +
+      "anything more is written",
+      second && second.picked.faceId === 1 && second.bound.faceId === 0 &&
+      second.bound.label === "demo bolt-head bearing face");
+    await page.evaluate(() => window.AnnotateApp.exec(["deselect", "face"]));
+    push("letting the face go takes the leader down with it",
+      (await page.evaluate(() => window.__scene.bindLeader())) === null);
+
+    push("no page error anywhere in the run", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 (async () => {
   const server = await startServer();
   const { port } = server.address();
@@ -8815,6 +9027,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       ["kinematic study page (deep link, chart hover, contributors, no projection)",
         (label) => testKinematicStudyPage(browser, fileBase, label, topologies,
           realResults, crops)],
+      ["annotate bind form (a drag keeps the pick, the ends by name, the leader)", (label) =>
+        testAnnotateBindForm(browser, label)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
