@@ -461,6 +461,7 @@
   VA.studyAttention = function (study, index) {
     var chain = (study && study.result && study.result.chain) || [];
     var out = { unverified: [], noTolerance: [], excluded: [], badges: [] };
+    var open = VA.studyCompleteness(study, index);
     chain.forEach(function (row) {
       var edge = index && index.edges ? index.edges[row.edge] : null;
       if (!edge) return;
@@ -474,8 +475,32 @@
     });
     if (out.unverified.length) out.badges.push(badge("unverified"));
     if (out.noTolerance.length) out.badges.push(badge("no_tolerance"));
-    if (out.excluded.length) out.badges.push(badge("incomplete"));
+    // One `incomplete` badge, whichever side says it: a check naming a term it
+    // excluded, or the study's own derived completeness (no check needed).
+    if (out.excluded.length || open) out.badges.push(badge("incomplete"));
     return out;
+  };
+
+  // The study's OWN completeness, derived in Python at fold time
+  // (`StudyResult.completeness`, projected as `result.completeness`) and never
+  // computed here. `null` when the study is complete or carries none -- a
+  // complete study shows nothing extra. Otherwise the open terms by their
+  // everyday names (the ids ride along only as the link target) and one
+  // sentence for the hover.
+  VA.studyCompleteness = function (study, index) {
+    var found = study && study.result && study.result.completeness;
+    if (!found || found.complete !== false) return null;
+    var ids = found.open_terms || [];
+    var chain = (study.result.chain || []).length;
+    return {
+      terms: ids.map(function (id) {
+        var edge = index && index.edges ? index.edges[id] : null;
+        return { id: id, name: edge ? edge.name : id };
+      }),
+      text: VA.ATTENTION.incomplete.text,
+      title: ids.length + " of " + chain + " dimensions in this chain have " +
+        "nothing traced behind them, so the answer is not the whole story.",
+    };
   };
 
   // The separator an AUTHORED finding uses between what a thing is and why it

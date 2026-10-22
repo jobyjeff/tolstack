@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the incomplete badge's words carry no edge id",
+  "mutations": [
+    {
+      "contract": "The badge's hover is in everyday words; the open terms' ids are only link targets, never printed.",
+      "file": "apps/viewer/topology.js",
+      "find": "      title: ids.length + \" of \" + chain + \" dimensions in this chain have \" +",
+      "replace": "      title: ids.join(\", \") + \" of \" + chain + \" dimensions in this chain have \" +",
+      "issue": null,
+      "note": null
+    }
+  ]
+}

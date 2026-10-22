@@ -159,7 +159,7 @@ export const GUARD_SOURCES = {
 // `node scripts/run_mutation_witness_tests.mjs --unenrolled` is what names the
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
-  fast: { declared: 548, enrollable: 548, names: "481bfa6344c2" },
+  fast: { declared: 551, enrollable: 551, names: "f42fb378b079" },
   annotate: { declared: 213, enrollable: 213, names: "d0fa26b10662" },
   browser: { declared: 579, enrollable: 546, names: "c15b76549239" },
 };

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a complete study shows nothing extra",
+  "mutations": [
+    {
+      "contract": "A study whose derived completeness says complete renders no badge and no fold.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (!found || found.complete !== false) return null;",
+      "replace": "    if (!found) return null;",
+      "issue": null,
+      "note": null
+    }
+  ]
+}

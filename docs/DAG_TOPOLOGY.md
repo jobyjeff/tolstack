@@ -381,6 +381,18 @@ Three cases, and the difference matters:
   `tests/test_topology.py::test_every_study_has_checks_or_says_why_not`.
   Additive and optional, read by nothing that folds (`Study.from_dict` drops
   it — the file is the contract), so the schema stays `/v0`.
+- **`completeness`, added 2026-10-22 by handoff
+  `a_study_says_it_is_incomplete_without_inventing_a_check` — derived, never
+  authored.** A study's fold carries `completeness: {complete, reason,
+  open_terms}`. `complete` is false when any selected edge is a `gap`, or its
+  value's `source_ref` is `kind: assumed` or `confidence: untraced` (or absent);
+  `open_terms` lists those edge ids in selection order and `reason` is a generated
+  sentence naming the count and the first two. It is the fold of **all** the
+  study's terms, with or without checks, so a study with a `no_checks_reason`
+  can say it is incomplete without inventing a limitless check. A check's own
+  `complete` / `excluded_terms` keep their meaning — that check's coverage of
+  *its* terms — and are still authored. A study file that writes `completeness`
+  by hand is refused (`Study.from_dict`): the derivation is the authority.
 
 **A check whose terms combine several *named* term lists — the way a stack's
 own `checks` mix an element with a `{"path": id, "sign": -1}` term

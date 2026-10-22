@@ -9718,6 +9718,53 @@
         has(all(root, "dd")[at].textContent, VA.CONFIDENCE_LABEL.untraced);
       });
 
+    // A study's own completeness (a_study_says_it_is_incomplete_without_
+    // inventing_a_check, 2026-10-22). The shape is what project_study()
+    // writes at `result.completeness`; the demo study here has no check, which
+    // is the case the field exists for (the end-stop travel study is one).
+    function withCompleteness(complete, openTerms) {
+      var study = JSON.parse(JSON.stringify(topoStudy("demo_base_to_tip")));
+      study.checks = [];
+      study.result.completeness = {
+        complete: complete, reason: complete ? null : "n open",
+        open_terms: openTerms,
+      };
+      return study;
+    }
+
+    await test("a study with no checks and an open term wears the incomplete " +
+      "badge, with each open term a link", function () {
+        var index = VA.topologyIndex(TOPO);
+        var edge = topoStudy("demo_base_to_tip").result.chain[0].edge;
+        var study = withCompleteness(false, [edge]);
+        var root = studySummary(TOPO, study);
+        var fold = all(root, "details.tvopen");
+        eq(fold.length, 1);
+        has(fold[0].textContent, VA.ATTENTION.incomplete.text);
+        var links = all(fold[0], "a");
+        eq(links.length, 1);
+        eq(links[0].textContent, index.edges[edge].name);
+        has(links[0].getAttribute("href"), "edge=" + encodeURIComponent(edge));
+        has(links[0].getAttribute("href"), "study=" + study.id);
+        // The nav rail carries the same word, from the same attention walk.
+        eq(VA.studyAttention(study, index).badges.some(function (b) {
+          return b.key === "incomplete";
+        }), true);
+      });
+
+    await test("a complete study shows nothing extra", function () {
+      var study = withCompleteness(true, []);
+      eq(all(studySummary(TOPO, study), "details.tvopen").length, 0);
+      eq(VA.studyCompleteness(study, VA.topologyIndex(TOPO)), null);
+    });
+
+    await test("the incomplete badge's words carry no edge id", function () {
+      var edge = topoStudy("demo_base_to_tip").result.chain[0].edge;
+      var found = VA.studyCompleteness(withCompleteness(false, [edge]),
+                                       VA.topologyIndex(TOPO));
+      eq(found.title.indexOf(edge), -1);
+    });
+
     await test("a study that refuses to sum renders the refusal, not a total",
       function () {
         var study = topoStudy("demo_ambiguous");
