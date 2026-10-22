@@ -144,3 +144,60 @@ pressed. Element: `?topology=vpa_pitch_linkage&edge=piston_head_upper_thickness`
   the first is used, without a warning. Run once per spec, chained with `;`.
 
 ## Verification, as recorded
+
+The tree under test was commit `4724c86`. The only file changed after it is
+this lesson.
+
+Two of the commands below were not given: `scripts/rebuild_projections.ps1`
+refuses to run from a worktree, and the mutation runner refuses its whole
+registry outside the main checkout. Nothing this branch changes is an input to
+a projection: the diff is `apps/annotate/`, the browser runner, the witness
+specs, the guard pins and docs. Every `--repo` run below passed the
+projection-freshness gate against the main checkout's projections. The main
+checkout was not written to, and its `git status` was clean on arrival and at
+the end.
+
+- `node apps/annotate/run_tests.cjs` (worktree; its `[real]` checks read the
+  main checkout's meshes and runs): **212/212**, no SKIP lines. That is
+  205 + 7 new checks, with two existing `taskInstruction` checks rewritten for
+  the new states.
+- `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack`: **544/544**,
+  no SKIP lines.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack`,
+  full run: **29/29 suites** in 159 s. That includes the new `annotate bind
+  form (a drag keeps the pick, the ends by name, the leader)` at 15/15, and
+  every existing annotate suite, unchanged and green: rail 34/34, top bar
+  30/30, suggestions 25/25, sweep rail 13/13, 3D pane 13/13, flyout 46/46,
+  hosted posture 18/18.
+- `node apps/annotate/run_browser_check.mjs`: **67/67**, including *"moving
+  off every bead hides the tooltip"*, which is the sweep-mode bead tooltip.
+- `node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack
+  --only <id>`, one run for each of the **21** specs this branch adds: **21/21
+  WITNESSED**. The 7 annotate specs passed first time. Of the 14 browser specs,
+  two missed on the first pass and were repaired by fixing the guard, not the
+  spec:
+  - The first-bind leader check now runs after an end is chosen, because before
+    that the leader is null for a different reason. That renamed it, and its
+    spec moved with it.
+  - The empty-space drag now uses a point that is confirmed to be on the canvas
+    and to hit no part. The canvas corner was neither, reliably.
+  The four leader specs were re-run after the last `scene.js` change.
+  Enrollment: annotate 67/212, browser 104/544 enrollable (576 declared). The
+  pins were raised to 212/212 and 576/544, with new name digests.
+- `C:\workspace\tolstack\venv-win\Scripts\python.exe -m pytest -q`
+  (worktree): **1 failed, 1519 passed, 1 skipped**, 17:11.
+  - The failure is the documented worktree-only
+    `tests/test_viewer_js_suite.py` (no `data/projections` in a worktree).
+    The tier it gates ran green with `--repo` above.
+  - The skip is `tests/test_fit_bound_features.py:422`: the 2026-10-01
+    re-extraction of the pitch-link bearing is not installed.
+- `?mock=1&autotest=1`: `autotestPick` still runs and publishes its results.
+  All three mock parts report `hit: false`, and the main checkout's unchanged
+  code reports the same. This is the known edge-on mock mesh
+  (`ISSUE_20260916_the_mock_annotator_mesh_is_edge_on_to_its_own_default_camera.md`),
+  not this change.
+
+Scratch only: the screenshot and real-data scripts lived in the session
+scratchpad. They served the worktree's code with the main checkout's data, read
+only, to a `MemoryAdapter`. The temporary `node_modules` junction in the
+worktree has been removed.
