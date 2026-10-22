@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tolerance_stack/kinematic
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
+class: partial_match_reported_as_full
+defer_until: 2026-11-21
+resolution: deferred 2026-10-22 triage: low, the default knob
 ---
 
 # A kinematic label missing from `geometry.features[]` still reads as "identified by the sweep itself"

@@ -230,3 +230,22 @@ a window that is too narrow for all of them, which is this brief's question.
 
 Both of these spend the same horizontal budget as the grid's clipped zone
 above. A decision here should name what each surface gives up at 1600 px.
+
+## 2026-10-22 triage sweep — the stack page's two layout questions join, also taken off Jeff's task list
+
+- `docs/issues/ISSUE_20260923_two_layout_questions_on_the_stack_pages_results_table_need_jeffs_reading_of_the_live_page.md`
+  (feature, med). It has two questions about the loose-stack page's results
+  table. First: should checks and paths keep sharing one table, or split
+  into two tables with deliberately different column sets? Read it on
+  `tan_link_to_pitch_plate`. Five of the seven live stacks have both kinds
+  of row, so the answer sets the shape of five pages. Second: are the corner
+  chips (`chain`, `stage`, `temperature`, `k`) worth the row height on
+  `hub_bearing_thermal_fit_m1`'s sixteen rows? Without them the rows look
+  the same at a glance. Until today this issue carried `needs: jeff` with
+  the ask "say if checks and paths should share one results table, and if
+  the corner chips are worth the row height". That is a design choice an
+  agent then has to act on, so it fails the two-part task test. It shares
+  forge todo `20261007T161822_5nv2iw` with the 1240 px issue above.
+
+  Question 2 is the same corner-chip belt the 2026-10-21 entry names as the
+  largest share of the name column's 460 px. Settle both together.

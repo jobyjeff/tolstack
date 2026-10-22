@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md
+class: unreviewed_design_debt
+defer_until: 2026-11-21
+resolution: deferred 2026-10-22 triage: low, the default knob
 ---
 
 # Design: the bind form's interface choices read as text inputs

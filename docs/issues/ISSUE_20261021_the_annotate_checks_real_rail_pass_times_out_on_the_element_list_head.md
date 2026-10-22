@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: resolved
 area: apps/annotate/run_browser_check.mjs
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261021_browser_runners_take_the_slot_and_free_the_box.md
+resolution: verified 2026-10-22 triage: `node apps/annotate/run_browser_check.mjs` (no flags) on the batch-merge candidate d209fc6 reached `--- [real] the rail on vpa-pitch-p2-20261016-235852, cold`, passed every sub-check in it and ran through to the end, 67/67 passed, exit 0. The `.an__rail .el-head` read no longer times out
 ---
 
 # The annotate check's `railRealPass` times out on `.an__rail .el-head`

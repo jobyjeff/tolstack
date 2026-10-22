@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: apps/annotate/scene.js
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261021_browser_runners_take_the_slot_and_free_the_box.md
+handoff: docs/sessions/HANDOFF_20261022_the_annotate_scene_renders_only_when_something_changed.md
+class: unbounded_load_on_the_shared_workstation
 ---
 
 # The annotate scene renders every animation frame whether or not anything changed

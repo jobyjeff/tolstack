@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/kinematic
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
+handoff: docs/sessions/HANDOFF_20261022_kinematic_citation_card_wiring_is_witnessed.md
+class: guard_cannot_fail
 ---
 
 # The kinematic page's citation-card wiring can be deleted and every tier stays green

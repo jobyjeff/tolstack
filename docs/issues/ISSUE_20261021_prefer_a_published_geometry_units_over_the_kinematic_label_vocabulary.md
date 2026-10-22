@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: tolerance_stack/kinematic
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
+class: cross_repo_contract_not_published
+defer_until: 2026-11-21
+resolution: deferred 2026-10-22 triage: low, the default knob (below the brief bar until linkage is asked; mm-only topologies today)
 ---
 
 # Prefer a published `geometry.units[]` over the kinematic label vocabulary, if linkage ever publishes one

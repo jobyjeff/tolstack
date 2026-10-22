@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: annotate/feature-identity
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md
+strategy: docs/strategy/BRIEF_20261022_how_a_feature_binding_is_corrected.md
 ---
 
 # A binding written at the wrong end has no correction

@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
+class: unreviewed_design_debt
+defer_until: 2026-11-21
+resolution: deferred 2026-10-22 triage: low, the default knob
 ---
 
 # Design: on the kinematic chart the stop labels sit on the upper limit line

@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser_slot.py
 reporter: agent
 class: unbounded_load_on_the_shared_workstation
 found_by: docs/sessions/HANDOFF_20261021_browser_runners_take_the_slot_and_free_the_box.md
+handoff: docs/sessions/HANDOFF_20261022_pytest_releases_the_browser_slot_after_its_last_browser_test.md
 ---
 
 # A full pytest holds the machine's browser slot from its first browser test to its last test
