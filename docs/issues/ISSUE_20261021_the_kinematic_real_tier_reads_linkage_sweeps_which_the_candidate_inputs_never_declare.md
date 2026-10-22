@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
 area: tests/candidate-provisioning
 reporter: agent
 class: undeclared_candidate_input
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261021_triage_sweep.md
+resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `the_kinematic_study_checks_its_run_its_units_and_shows_its_limit` moved to completed/; not independently verified.
 ---
 
 # `data/inbox/linkage-sweeps` is read by the kinematic `[real]` tier but not declared in `[tests] candidate_inputs`, so every batch-merge candidate is red on it

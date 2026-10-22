@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tolerance_stack/kinematic
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261016_a_kinematic_study_folds_the_sweeps_jacobian.md
 handoff: docs/sessions/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
+resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `the_kinematic_study_checks_its_run_its_units_and_shows_its_limit` moved to completed/; not independently verified.
 ---
 
 # A kinematic study never checks a band's units against the Jacobian column it scales
