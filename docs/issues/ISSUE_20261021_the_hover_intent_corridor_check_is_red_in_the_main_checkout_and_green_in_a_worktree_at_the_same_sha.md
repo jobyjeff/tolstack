@@ -56,3 +56,17 @@ Fix belongs in the staged
 (item 6, widened by this issue): find what main-only state the check
 depends on, then make the check independent of it. Do not weaken the
 assertion.
+
+## Addendum 2026-10-21 (evening) — browser_tiers_name_their_failure_instead_of_aborting
+
+No main-only state found. The citation card at `base_thickness` measures the
+same in both trees under file:// (`[546,409,460,426]`, the mock fixture's
+`blob:` crop, no repaint over 2.25 s), and master `ba066b0`'s unchanged code
+passes `--only "topology file://"` 235/235 in the main checkout now. What can
+read "stolen" without a defect: two locator round trips after the pointer came
+to rest ON the trigger, which a slow box can push past `VA.HOVER_INTENT_MS`,
+the by-design expiry. The check now reads both counts in one `evaluate`,
+stamped with the time since the browser's own `mouseenter`. Only an in-window
+reading is a verdict, and an out-of-window one is re-measured and never
+passed. A recurrence prints `read <n>ms after the trigger's mouseenter`.
+Three full runs, 28/28 each: the handoff's lesson.
