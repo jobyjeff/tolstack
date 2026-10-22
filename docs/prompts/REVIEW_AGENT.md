@@ -5063,6 +5063,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tests/test_browser_runner.py` is the worked shape. Ask it of any new
       "leaves nothing behind" test: *would this pass with the code it
       certifies deleted, because something else cleans up?*
+- [ ] **A checkout-dependent red "verified fixed" by runs in the checkout that
+      was already green.** New 2026-10-21
+      (`browser_tiers_name_their_failure_instead_of_aborting`, item 6). The
+      issue's table showed main-checkout cwd red and worktree `--repo` green at
+      one sha; the three verification runs were all worktree `--repo`, the
+      green row. Read the issue's red/green table and require at least one run
+      in the **red** configuration (for trunk's unchanged code, the main
+      checkout itself is fine). And for a check whose fix re-measures, plant
+      the defect: a retry that never reaches a verdict is a guard that cannot
+      fail (`VA.pointerHeadsFor` → `return false` is this one's plant).
 
 ## Architectural errors to check
 
