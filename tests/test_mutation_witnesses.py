@@ -912,6 +912,27 @@ def test_no_mutation_is_a_no_op(mutations):
         )
 
 
+# A handoff's directory IS its status (CLAUDE.md, "How work arrives"), and dispatch
+# moves the file between these three when it changes. A citation that names the
+# directory it was written from therefore goes stale at the board move, with
+# nothing wrong in the citation on any branch the handoff's own review ran on
+# (ISSUE_20261020_a_mutation_spec_citing_an_active_handoff_reddens_pytest...).
+BOARD_DIRS = ("docs/sessions", "docs/sessions/active", "docs/sessions/completed")
+
+
+def cited_file_exists(repo_root: Path, cited: str) -> bool:
+    """Whether a spec's cited file is in the tree.
+
+    A cited handoff resolves by FILE NAME across the three board directories;
+    anything else must exist at exactly the path written.
+    """
+    cited_path = Path(cited)
+    parent = cited_path.parent.as_posix()
+    if parent in BOARD_DIRS and cited_path.name.startswith("HANDOFF_"):
+        return any((repo_root / d / cited_path.name).is_file() for d in BOARD_DIRS)
+    return (repo_root / cited_path).is_file()
+
+
 def test_the_issue_each_mutation_cites_is_in_the_tree(mutations):
     """A cited issue that has been renamed sends the next reader nowhere.
 
@@ -921,9 +942,33 @@ def test_the_issue_each_mutation_cites_is_in_the_tree(mutations):
     for name, _spec, mutation in mutations:
         if mutation["issue"] is None:
             continue
-        assert (REPO_ROOT / mutation["issue"]).is_file(), (
+        assert cited_file_exists(REPO_ROOT, mutation["issue"]), (
             f"{name}: cites {mutation['issue']}, which is not in the tree"
         )
+
+
+def test_a_cited_handoff_survives_the_board_move(tmp_path):
+    """A spec citing ``active/<name>`` still resolves once the file is in ``completed/``.
+
+    And a name that is in none of the three board directories still fails -- the
+    resolution widens WHERE a handoff may sit, not WHETHER it must exist.
+    """
+    name = "HANDOFF_20261021_planted.md"
+    cited = f"docs/sessions/active/{name}"
+    for directory in BOARD_DIRS:
+        (tmp_path / directory).mkdir(parents=True)
+
+    assert not cited_file_exists(tmp_path, cited), "nothing planted yet"
+    for directory in BOARD_DIRS:
+        planted = tmp_path / directory / name
+        planted.write_text("x", encoding="utf-8")
+        assert cited_file_exists(tmp_path, cited), f"{directory}/ should resolve"
+        planted.unlink()
+    assert not cited_file_exists(tmp_path, cited), "a name in none of the three"
+
+    # Only handoffs get the widening: an issue renamed or deleted still fails.
+    (tmp_path / "docs" / "issues").mkdir(parents=True)
+    assert not cited_file_exists(tmp_path, "docs/issues/ISSUE_20261021_gone.md")
 
 
 def test_the_anchor_reader_can_fail(enumeration):
@@ -953,3 +998,39 @@ def test_the_enumeration_finds_guards_in_every_source_it_names(enumeration):
             f"nothing. The scanner's `call` word in GUARD_SOURCES has stopped "
             f"matching."
         )
+
+
+def _ran_not_declared(ran: list[str]) -> list[str]:
+    """``ranNotDeclared`` -- the browser runner's tail check -- for these names."""
+    script = (
+        "import { ranNotDeclared } from './scripts/guard_enumeration.mjs';"
+        "console.log(JSON.stringify(ranNotDeclared(JSON.parse(process.argv[1]))));"
+    )
+    node = shutil.which("node")
+    assert node, "node is not on PATH"
+    proc = subprocess.run(
+        [node, "--input-type=module", "-e", script, json.dumps(ran)],
+        cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout)
+
+
+def test_a_browser_name_outside_the_scan_is_reported(enumeration):
+    """``ran ⊆ declared`` for the browser tier, proven able to fail.
+
+    The runner's tail feeds every sub-check name a run collected through this
+    function; a name no declaration (and no interpolated template) accounts for
+    is a guard the census cannot see.
+    """
+    mine = [g for g in enumeration["guards"] if g["tier"] == "browser"]
+    plain = next(g["name"] for g in mine if "${" not in g["name"])
+    template = next((g["name"] for g in mine if "${" in g["name"]), None)
+    planted = "this sub-check is in no scan, by construction"
+
+    assert _ran_not_declared([plain]) == []
+    assert _ran_not_declared([plain, planted]) == [planted]
+    if template is not None:
+        # A live run prints the template with its number filled in.
+        filled = re.sub(r"\$\{[^}]*\}", "42", template)
+        assert _ran_not_declared([filled]) == []

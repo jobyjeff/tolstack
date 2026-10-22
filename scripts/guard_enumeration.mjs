@@ -179,18 +179,20 @@ export const CENSUS_LIMITS = {
     "guards are written in, so a pytest guard can arrive unenrolled and move " +
     "nothing here (ISSUE_20260923_the_guard_census_cannot_see_a_pytest_guard)",
   browser_scan_unverified:
-    "the browser source's scan is pinned but never paired against a run -- " +
-    "the tier needs a real Chrome, and its declared names are templates one " +
-    "suite or two may print, so `declared == executed` is false there by " +
-    "construction. A browser guard written in a shape the scan does not match " +
-    "is therefore still invisible in both directions",
+    "the browser source's scan is pinned but never paired against a run by " +
+    "equality -- the tier needs a real Chrome, and its declared names are " +
+    "templates one suite or two may print, so `declared == executed` is false " +
+    "there by construction. The other direction IS checked at the tail of every " +
+    "browser run (`ran ⊆ declared`, `ranNotDeclared`), so a guard written in a " +
+    "shape the scan does not match is reported by name; what stays unseen is a " +
+    "declared guard that no run reached",
   incomplete_run_pairs_one_way:
     "a fast tier that reports a SKIP ran a SUBSET, so only `everything that " +
     "ran was declared` is checked and `everything declared ran` is not. This " +
     "is the normal state in a worktree, where data/ is gitignored and the " +
     "viewer's [real] tier has no projection -- tests/test_viewer_js_suite.py " +
-    "is the red that says so for the viewer; the annotate tier has no such " +
-    "gate (ISSUE_20260918_the_annotate_js_suite_is_run_by_no_gate)",
+    "is the red that says so for the viewer, and tests/test_annotate_js_suite.py " +
+    "for the annotator",
   digest_names_no_name:
     "the `names` pin says the guard set moved, never which name moved -- run " +
     "`node scripts/run_mutation_witness_tests.mjs --unenrolled` for the guards " +
@@ -400,7 +402,7 @@ function runTier(repoRoot, runner) {
  * put on its own output*, so a legitimately red suite does not also produce a
  * spurious census failure -- and so spawning the annotate runner here does not
  * quietly become the gate
- * ISSUE_20260918_the_annotate_js_suite_is_run_by_no_gate.md is still open for.
+ * tests/test_annotate_js_suite.py is.
  *
  * Two directions, and only one of them survives an incomplete run:
  *
@@ -464,6 +466,29 @@ export function pairExecuted(repoRoot = REPO) {
         ? [] : [...declared].filter((n) => !counted.has(n)).sort(),
     };
   });
+}
+
+/**
+ * `ran ⊆ declared` for a source that cannot be paired both ways: every name in
+ * `ran` that the scan neither found as a declaration nor can account for as an
+ * interpolated template.
+ *
+ * This is the one direction that survives what makes the browser tier
+ * unpairable by equality -- one declared name may be run by several suites, and
+ * 46 of its names carry a live number -- because a name the tier put on its own
+ * output that the scan never found is a scanner miss however many suites ran
+ * it. An interpolated declaration is a template (`${...}` is a different string
+ * on every run), so a ran name is accounted for when it matches one; those are
+ * the guards the enumeration already flags `enrollable: false`.
+ */
+export function ranNotDeclared(ran, tier = "browser", repoRoot = REPO) {
+  const mine = enumerateGuards(repoRoot).filter((g) => g.tier === tier);
+  const exact = new Set(mine.map((g) => g.name));
+  const templates = mine.filter((g) => g.name.includes("${")).map((g) =>
+    new RegExp("^" + g.name.split(/\$\{[^}]*\}/)
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[\\s\\S]*") + "$"));
+  return [...new Set(ran)].filter((name) =>
+    !exact.has(name) && !templates.some((t) => t.test(name))).sort();
 }
 
 /** Every way one source's pairing came out wrong, in words. */
@@ -566,8 +591,8 @@ export function census(repoRoot = REPO) {
       source: GUARD_SOURCES[tier].file,
       declared: mine.length,
       // `pinned` stays the bare count it always was, and the two new pins sit
-      // beside it under their own names: `scripts/run_mutation_witness_tests.mjs`
-      // reads `r.declared !== r.pinned` off these rows.
+      // beside it under their own names: `pinsMoved` (below) reads all three off
+      // these rows, and the mutation tier's exit code is computed from it.
       pinned: pin.declared,
       enrollable: mine.filter((g) => g.enrollable).length,
       pinnedEnrollable: pin.enrollable,

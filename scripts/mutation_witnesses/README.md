@@ -57,7 +57,8 @@ handoffs in eight days moved the backlog without moving the rate
   "mutations": [
     {
       "contract": "…",            // what the guard is for, in one sentence
-      "issue": "docs/issues/…",   // or null, for a guard nobody filed a bug on
+      "issue": "docs/issues/…",   // or null, for a guard nobody filed a bug on;
+                                  // cite a lesson or an issue, never an `active/` path
       "note": "…",                // why this mutation and not a simpler one
       "file": "apps/viewer/style.css",
       "find": "…",                // exact, UNIQUE snippet, indentation included
@@ -66,6 +67,11 @@ handoffs in eight days moved the backlog without moving the rate
   ]
 }
 ```
+
+A cited `docs/sessions/{,active/,completed/}HANDOFF_*.md` is resolved by file
+name across those three directories, because dispatch moves a handoff between
+them and its directory is its status, not its identity. Prefer citing the
+session's lesson or an issue anyway: neither moves.
 
 `mutations` is a **list** because the unit is the guard: a guard worth
 witnessing is often worth witnessing from more than one direction (three ways to
