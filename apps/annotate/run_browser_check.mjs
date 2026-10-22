@@ -27,6 +27,8 @@ import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep, resolve } from "node:path";
+import { takeTheBrowserSlot, loadPlaywright, launchBrowser }
+  from "../../scripts/browser_runner.mjs";
 
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
@@ -37,25 +39,6 @@ const REPO = normalize(join(HERE, "..", ".."));
 // -- which 403s every real-data read with no hint as to why.
 const MAIN_CHECKOUT = normalize("C:/workspace/tolstack");
 const CHANNELS = ["chrome", "msedge"];
-
-async function loadPlaywright() {
-  for (const root of [REPO, MAIN_CHECKOUT]) {
-    const entry = join(root, "node_modules", "playwright-core", "index.js");
-    if (!existsSync(entry)) continue;
-    // playwright-core's entry is CommonJS, so an ESM `import()` of it puts
-    // the whole module.exports on `.default` and detects no named exports --
-    // `import { chromium }` from this file would be `undefined`, which fails
-    // later and misleadingly at `chromium.launch`. The viewer's own tier does
-    // not hit this because it imports the package by name and resolves the
-    // package's ESM wrapper; this one resolves a path, because from a
-    // worktree the package only exists in the main checkout.
-    const mod = await import(pathToFileURL(entry).href);
-    return mod.chromium ? mod : mod.default;
-  }
-  throw new Error(
-    "playwright-core is not installed in this tree or in the main checkout — " +
-    "this tier cannot run here, which is a skip and not a pass");
-}
 
 // The apps/ directory is the server root, not apps/annotate: index.html loads
 // ../viewer/storage/adapter.js, ../viewer/warning_icon.js and
@@ -182,6 +165,7 @@ const realFlag = process.argv.indexOf("--real");
 const REAL_RUN = realFlag === -1 ? null : process.argv[realFlag + 1];
 
 async function main() {
+  takeTheBrowserSlot();
   const { chromium } = await loadPlaywright();
   const server = await startServer();
   const base = `http://127.0.0.1:${server.address().port}/annotate/index.html`;
@@ -190,7 +174,7 @@ async function main() {
   const failures = [];
   for (const channel of CHANNELS) {
     try {
-      browser = await chromium.launch({
+      browser = await launchBrowser(chromium, {
         channel, headless: true,
         // WebGL in headless Chrome needs SwiftShader; without this the scene
         // constructor throws and every check below fails for the wrong reason.
@@ -204,7 +188,17 @@ async function main() {
     server.close();
     process.exit(0);
   }
+  try {
+    await checkEverything(browser, base);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+  console.log(`\n${passed}/${passed + failed} passed`);
+  process.exit(failed ? 1 : 0);
+}
 
+async function checkEverything(browser, base) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
   const consoleErrors = [];
   page.on("pageerror", (err) => consoleErrors.push(String(err && err.message || err)));
@@ -450,11 +444,6 @@ async function main() {
 
   if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=synthetic-demo-sweep`, "mock");
   if (REAL_RUN) await realPass(browser, base);
-
-  await browser.close();
-  server.close();
-  console.log(`\n${passed}/${passed + failed} passed`);
-  process.exit(failed ? 1 : 0);
 }
 
 // THE PICK RULE, measured rather than argued: aim at one triangle of a part's

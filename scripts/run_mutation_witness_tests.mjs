@@ -16,6 +16,7 @@
 //   node scripts/run_mutation_witness_tests.mjs                     # npm run test:mutations
 //   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack  # ...from a worktree
 //   node scripts/run_mutation_witness_tests.mjs --only card-layout   # one guard
+//   node scripts/run_mutation_witness_tests.mjs --full               # every entry (the batch merge)
 //   node scripts/run_mutation_witness_tests.mjs --verbose            # show the red
 //   node scripts/run_mutation_witness_tests.mjs --list
 //   node scripts/run_mutation_witness_tests.mjs --unenrolled         # the gap, and what to write
@@ -96,14 +97,15 @@
 // tree the first was mid-patch on, and neither failure -- an ENOENT naming a
 // file that *was* there, an EPERM on the rmSync -- said anything about
 // concurrency.)
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync, existsSync,
-         readdirSync, linkSync, unlinkSync } from "node:fs";
+         readdirSync, linkSync, unlinkSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { dirname, join, normalize } from "node:path";
 import { census, censusReport, specFileName, SPEC_DIR }
   from "./guard_enumeration.mjs";
+import { takeTheBrowserSlot } from "./browser_runner.mjs";
 
 const { projectionInputs } = createRequire(import.meta.url)("./projection_freshness.cjs");
 
@@ -378,6 +380,9 @@ const TIER_HARNESS = {
     script: ["scripts", "run_viewer_browser_tests.mjs"],
     fail: /^ {4}FAIL sub-check: (.+)$/,
     suites: true,
+    // The one harness that starts a Chrome, so a run that selects one of its
+    // entries is the one that queues for the machine's browser slot.
+    startsBrowser: true,
   },
   // The pytest tier (2026-09-18). The one row that is not node, and the one
   // whose `suite` is not a registry key: pytest is handed ONE test file, and
@@ -453,6 +458,73 @@ const MISS = {
 // inline literals.
 if (process.argv.includes("--check-shadow-covers-projection-inputs")) {
   process.exit(reportShadowGaps());
+}
+
+// --- a branch runs its own witnesses, the batch merge runs them all --------
+//
+// The whole registry is a browser per entry for about an hour. On 2026-10-20 two
+// tactical sessions each ran it on their own branch (237/237, 3916 s apiece),
+// side by side on a shared workstation, to witness the one or two guards they
+// had touched (ISSUE_20261021_tactical_sessions_run_the_full_mutation_witness_
+// registry_on_their_own_branch). So outside the main checkout -- where only the
+// batch merge's run belongs -- a run with no `--only` is refused unless it says
+// `--full`, and the refusal names the entries this branch added or changed.
+const FULL = process.argv.includes("--full");
+// A worktree's `.git` is a file pointing at the main checkout's; only the main
+// checkout's is a directory. No `.git` at all (an archive) is not a main
+// checkout either.
+function isMainCheckout(root) {
+  try {
+    return statSync(join(root, ".git")).isDirectory();
+  } catch (_) {
+    return false;
+  }
+}
+
+/** The spec files this branch added or changed against `integration`, or why not. */
+function specsThisBranchTouched() {
+  const dir = SPEC_DIR.join("/");
+  const git = (...args) => spawnSync("git", ["-C", REPO, ...args],
+    { encoding: "utf-8", windowsHide: true });
+  const committed = git("diff", "--name-only", "--diff-filter=AMR", "integration...HEAD", "--", dir);
+  if (committed.status !== 0) {
+    return { why: (committed.stderr || String(committed.error || "")).trim() ||
+      "git diff against integration failed" };
+  }
+  const uncommitted = git("status", "--porcelain", "--untracked-files=all", "--", dir);
+  const names = new Set(committed.stdout.split(/\r?\n/).filter(Boolean));
+  for (const line of (uncommitted.stdout || "").split(/\r?\n/)) {
+    if (line && line[0] !== "D" && line[1] !== "D") names.add(line.slice(3).trim());
+  }
+  return { files: [...names].filter((name) => name.endsWith(".json")).sort()
+    .map((name) => name.slice(name.lastIndexOf("/") + 1).replace(/\.json$/, "")) };
+}
+
+if (ONLY === null && !FULL && !isMainCheckout(REPO)) {
+  console.log(`REFUSED: a run of all ${all.length} declared mutations belongs to the ` +
+    "batch merge, in the main checkout. A branch runs the witnesses it touched.");
+  const touched = specsThisBranchTouched();
+  if (touched.why) {
+    console.log(`  (could not tell which: ${touched.why}) -- name each guard you ` +
+      "added or changed with --only <guard name>");
+  } else if (!touched.files.length) {
+    console.log("  This branch adds or changes no spec under " +
+      `${SPEC_DIR.join("/")}/ against integration, so it has none of its own to run.`);
+  } else {
+    console.log("  The specs this branch added or changed against integration:");
+    for (const id of touched.files) {
+      console.log(`    node scripts/run_mutation_witness_tests.mjs --only ${id}`);
+    }
+  }
+  console.log("  Pass --full to run every entry anyway.");
+  process.exit(2);
+}
+
+// Only a run that will start a Chrome queues for the machine's one browser slot:
+// a fast-tier witness costs a second, and must not wait behind somebody's
+// hour-long run to be refused or to pass.
+if (chosen.some((m) => (TIER_HARNESS[m.tier] || {}).startsBrowser)) {
+  takeTheBrowserSlot();
 }
 
 function harnessFor(mutation) {

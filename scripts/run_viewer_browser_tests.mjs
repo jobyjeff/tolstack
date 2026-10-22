@@ -50,8 +50,12 @@ import { readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep } from "node:path";
+import { takeTheBrowserSlot, launchBrowser } from "./browser_runner.mjs";
 
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
+// Queues for the machine's browser slot, re-running this file under it, before
+// anything below starts a server or a browser (scripts/browser_runner.mjs).
+takeTheBrowserSlot();
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
@@ -468,7 +472,7 @@ async function launch() {
   const args = [`--host-resolver-rules=MAP ${HOSTED_TEST_HOST} 127.0.0.1`];
   for (const channel of CHANNELS) {
     try {
-      return { browser: await chromium.launch({ channel, headless: true, args }), channel };
+      return { browser: await launchBrowser(chromium, { channel, headless: true, args }), channel };
     } catch (err) {
       failures.push(`${channel}: ${String((err && err.message) || err)}`);
     }

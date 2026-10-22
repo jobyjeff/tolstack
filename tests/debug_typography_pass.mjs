@@ -42,6 +42,10 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, extname, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { takeTheBrowserSlot, launchBrowser } from "../scripts/browser_runner.mjs";
+
+// Queues for the machine's browser slot (scripts/browser_runner.mjs).
+takeTheBrowserSlot();
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TREE = resolve(HERE, "..");
@@ -296,7 +300,7 @@ const ALL_SURFACES = [...VIEWER_SURFACES, ...STACK_SURFACES, ...ANNOTATE_SURFACE
 
 const server = await startServer();
 const url = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ channel: "chrome" });
+const browser = await launchBrowser(chromium, { channel: "chrome" });
 
 try {
   // --- the topology page, live, at the study that carries the most ----------

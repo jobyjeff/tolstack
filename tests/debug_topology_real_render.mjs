@@ -12,6 +12,10 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, extname, normalize, sep } from "node:path";
+import { takeTheBrowserSlot, launchBrowser } from "../scripts/browser_runner.mjs";
+
+// Queues for the machine's browser slot (scripts/browser_runner.mjs).
+takeTheBrowserSlot();
 
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
@@ -58,57 +62,60 @@ const url = `http://127.0.0.1:${server.address().port}/topology.html`;
 
 let browser;
 for (const channel of ["chrome", "msedge"]) {
-  try { browser = await chromium.launch({ channel, headless: true }); break; } catch {}
+  try { browser = await launchBrowser(chromium, { channel, headless: true }); break; } catch {}
 }
 if (!browser) { console.error("no browser channel"); process.exit(1); }
 
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
-page.on("pageerror", (e) => console.log("PAGEERROR:", e.stack || String(e)));
-page.on("console", (m) => console.log(`CONSOLE[${m.type()}]:`, m.text()));
+try {
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => console.log("PAGEERROR:", e.stack || String(e)));
+  page.on("console", (m) => console.log(`CONSOLE[${m.type()}]:`, m.text()));
 
-await page.goto(url, { waitUntil: "load" });
-await page.evaluate(() => {
-  window.__REJECTIONS__ = [];
-  window.addEventListener("unhandledrejection", (ev) => {
-    window.__REJECTIONS__.push(String((ev.reason && ev.reason.stack) || ev.reason));
+  await page.goto(url, { waitUntil: "load" });
+  await page.evaluate(() => {
+    window.__REJECTIONS__ = [];
+    window.addEventListener("unhandledrejection", (ev) => {
+      window.__REJECTIONS__.push(String((ev.reason && ev.reason.stack) || ev.reason));
+    });
   });
-});
 
-// Swap FsaAdapter for a MemoryAdapter carrying the REAL three projections, then
-// re-boot through the REAL (non-mock) branch of boot().
-await page.evaluate(({ topologies, results, crops }) => {
-  const VA = window.ViewerApp;
-  const make = () => new VA.MemoryAdapter({
-    startState: VA.STATE.READY,
-    topologies, results, crops, images: {}, texts: {},
-  });
-  const Fake = function () { return make(); };
-  Fake.isSupported = () => true;
-  VA.FsaAdapter = Fake;
-  VA.bootTopology();
-}, { topologies, results, crops });
+  // Swap FsaAdapter for a MemoryAdapter carrying the REAL three projections, then
+  // re-boot through the REAL (non-mock) branch of boot().
+  await page.evaluate(({ topologies, results, crops }) => {
+    const VA = window.ViewerApp;
+    const make = () => new VA.MemoryAdapter({
+      startState: VA.STATE.READY,
+      topologies, results, crops, images: {}, texts: {},
+    });
+    const Fake = function () { return make(); };
+    Fake.isSupported = () => true;
+    VA.FsaAdapter = Fake;
+    VA.bootTopology();
+  }, { topologies, results, crops });
 
-await page.waitForTimeout(2000);
+  await page.waitForTimeout(2000);
 
-const report = await page.evaluate(() => ({
-  rejections: window.__REJECTIONS__,
-  bannerText: (document.getElementById("banner") || {}).textContent || "",
-  navRows: document.querySelectorAll("[data-nav-kind]").length,
-  paneRows: document.querySelectorAll("tr.tvrow").length,
-  paneHTML: ((document.getElementById("topopane") || {}).innerHTML || "").slice(0, 500),
-  totalsText: ((document.getElementById("totals") || {}).textContent || "").slice(0, 200),
-  toolbarText: ((document.getElementById("toolbar") || {}).textContent || "").slice(0, 200),
-}));
-console.log("\n--- report ---");
-console.log("unhandled rejections:", report.rejections.length ? report.rejections : "none");
-console.log("banner:", report.bannerText.slice(0, 300));
-console.log("nav rows:", report.navRows);
-console.log("pane tr.tvrow count:", report.paneRows);
-console.log("toolbar:", report.toolbarText);
-console.log("totals:", report.totalsText);
-console.log("pane HTML head:", report.paneHTML);
+  const report = await page.evaluate(() => ({
+    rejections: window.__REJECTIONS__,
+    bannerText: (document.getElementById("banner") || {}).textContent || "",
+    navRows: document.querySelectorAll("[data-nav-kind]").length,
+    paneRows: document.querySelectorAll("tr.tvrow").length,
+    paneHTML: ((document.getElementById("topopane") || {}).innerHTML || "").slice(0, 500),
+    totalsText: ((document.getElementById("totals") || {}).textContent || "").slice(0, 200),
+    toolbarText: ((document.getElementById("toolbar") || {}).textContent || "").slice(0, 200),
+  }));
+  console.log("\n--- report ---");
+  console.log("unhandled rejections:", report.rejections.length ? report.rejections : "none");
+  console.log("banner:", report.bannerText.slice(0, 300));
+  console.log("nav rows:", report.navRows);
+  console.log("pane tr.tvrow count:", report.paneRows);
+  console.log("toolbar:", report.toolbarText);
+  console.log("totals:", report.totalsText);
+  console.log("pane HTML head:", report.paneHTML);
 
-// If the pane is empty, click Reload (the banner's own button) and re-check —
-// the reported symptom says Reload no-ops.
-await browser.close();
-server.close();
+  // If the pane is empty, click Reload (the banner's own button) and re-check —
+  // the reported symptom says Reload no-ops.
+} finally {
+  await browser.close();
+  server.close();
+}
