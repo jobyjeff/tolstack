@@ -9244,11 +9244,10 @@
     // that scan.
     await test("a joint's export block renders through the one export " +
       "builder, so no checksum, path or run id reaches the page", function () {
-        // Built here rather than in fixtures.js: the demo fixture page is
-        // what the browser TRUTH tier drives, and it locates
-        // `.el-export--established` unscoped -- see the note beside the demo
-        // joint. Every value below is one the page may never print, which is
-        // what makes this a positive control rather than a shape check.
+        // Built here rather than read off fixtures.js's demo joint (which
+        // carries an export of its own since 2026-10-21): every value below
+        // is one the page may never print, which is what makes this a
+        // positive control rather than a shape check.
         var ref = {
           status: "established",
           pdf: "C:/workspace/demo/217755.pdf",

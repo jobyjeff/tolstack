@@ -115,6 +115,17 @@ the half stops cleanly at 43 while the mounted half runs in full.
 - Result: `--real vpa-pitch-p2-20261016-235852` **84/84**, wall clock 6m27s
   (21:32:55–21:39:22, including the slot wait). Mock mode: 67/67.
 
+> **Reviewer note, 2026-10-21.** A third rewritten check is missing from this
+> list: `railRealPass` (run in **both** modes, not only `--real`) asserted
+> `expected === 29` and an `all 29 interfaces` head for a "studyless"
+> `vpa_pitch_linkage`. The live projection now has 35 edges and one study
+> (`vpa_pitch_linkage_travel_between_end_stops`, 4 selected), so that check
+> could not pass. It now derives the expected rows from the projection (the
+> open study's selection, or every edge under the head when there is no study)
+> and is named `[real] after the run, the rail lists every edge its topology's
+> open study selects -- or, with no study, every edge under the one-line head`.
+> The studyless head itself stays pinned by the mock pass's own check.
+
 ## Item 6 — the hover-intent corridor check
 
 **What main-only state the check read: none found.** That is the finding,
