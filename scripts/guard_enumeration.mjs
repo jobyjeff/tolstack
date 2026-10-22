@@ -161,7 +161,7 @@ export const GUARD_SOURCES = {
 export const DECLARED_GUARDS = {
   fast: { declared: 546, enrollable: 546, names: "1ccbda609232" },
   annotate: { declared: 206, enrollable: 206, names: "69148e7e1641" },
-  browser: { declared: 565, enrollable: 533, names: "db4f37549135" },
+  browser: { declared: 565, enrollable: 532, names: "b923ff051dda" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
@@ -247,8 +247,20 @@ function declarationsIn(text, call, skipCall) {
   const pattern = new RegExp(
     String.raw`(^|[^.\w$])(` + call + (skipCall ? "|" + skipCall : "") +
     String.raw`)\(\s*(?:"((?:[^"\\\n]|\\.)*)"|\x60([^\x60]*)\x60)`, "gm");
+  // A name continued by a literal of the OTHER quote kind (`"a " + `b ${x}``)
+  // is not closed by SEAMS, so the first literal alone would read truncated.
+  // Found by the browser runner's `ran ⊆ declared` tail check: 13 printed names
+  // the scan had cut at the seam.
+  const continuation = /^\s*\+\s*(?:"((?:[^"\\\n]|\\.)*)"|\x60([^\x60]*)\x60)/;
   for (const m of text.matchAll(pattern)) {
-    const raw = m[3] !== undefined ? m[3] : m[4];
+    let raw = m[3] !== undefined ? m[3] : m[4];
+    let interpolated = m[4] !== undefined && raw.includes("${");
+    for (let rest = text.slice(m.index + m[0].length), more;
+         (more = continuation.exec(rest)); rest = rest.slice(more[0].length)) {
+      const piece = more[1] !== undefined ? more[1] : more[2];
+      raw += piece;
+      interpolated = interpolated || (more[2] !== undefined && piece.includes("${"));
+    }
     found.push({
       name: unescapeLiteral(raw),
       // A template literal that interpolates resolves to a different string on
@@ -256,7 +268,7 @@ function declarationsIn(text, call, skipCall) {
       // name for EQUALITY. Measured, not assumed -- 46 of the browser tier's
       // 54 template names carry a live number
       // (ISSUE_20260922_forty_five_browser_check_names_are_interpolated_...).
-      interpolated: m[4] !== undefined && raw.includes("${"),
+      interpolated,
       skipped: m[2] === skipCall,
       at: m.index,
     });

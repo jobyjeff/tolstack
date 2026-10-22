@@ -1034,3 +1034,17 @@ def test_a_browser_name_outside_the_scan_is_reported(enumeration):
         # A live run prints the template with its number filled in.
         filled = re.sub(r"\$\{[^}]*\}", "42", template)
         assert _ran_not_declared([filled]) == []
+
+
+def test_a_name_continued_in_the_other_quote_kind_is_read_whole(enumeration):
+    """``"a " + `b ${x}` `` is one name; the scan once cut it at the first literal.
+
+    The browser runner's ``ran ⊆ declared`` tail found 13 printed names read
+    truncated at such a seam. A truncated name ends mid-sentence, on the space
+    before the continuation.
+    """
+    for guard in enumeration["guards"]:
+        assert not guard["name"].endswith(" "), (
+            f"{guard['source']}: {guard['name']!r} ends on a space, which is "
+            "where a mixed-quote continuation was cut off"
+        )
