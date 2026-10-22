@@ -1,12 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tests/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260918_real_tier_red_and_the_skipping_tier.md
 class: guard_cannot_fail
-resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17) -- handoff completed 2026-10-21 -- closed automatically by dispatch when handoff `browser_tiers_name_their_failure_instead_of_aborting` moved to completed/; not independently verified.
 handoff: docs/sessions/HANDOFF_20261021_browser_tiers_name_their_failure_instead_of_aborting.md
 ---
 
