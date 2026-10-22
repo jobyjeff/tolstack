@@ -341,7 +341,7 @@
       confChip.onfocus = showCitation;
       confChip.onclick = showCitation;
     }
-    chips.appendChild(confChip);
+    chips.appendChild(VA.markGeneralNote(confChip, element.source_ref));
     if (derived.kind) chips.appendChild(VA.chip("chip--kind", derived.kind));
     // The material this feature is cut in, for an archetype that has one. It is
     // a property of the chain, not of the element, so it arrives derived — and

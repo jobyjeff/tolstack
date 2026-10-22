@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "markGeneralNote marks a general-note chip and leaves every other chip alone",
+  "mutations": [
+    {
+      "contract": "A confidence chip whose citation is a general profile note carries the note mark.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_general_profile_note_bands_a_model_defined_term (2026-10-22). Returns every chip unmarked, which is the shape of the grid row and the preview pane showing a general-note band as a plain traced dimension.",
+      "file": "apps/viewer/views/dom.js",
+      "find": "    if (VA.generalNoteNumber(sourceRef) === null) return chip;",
+      "replace": "    return chip;"
+    }
+  ]
+}

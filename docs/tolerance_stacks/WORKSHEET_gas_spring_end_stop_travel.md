@@ -1,18 +1,21 @@
 # Worksheet — travel between the gas-spring end stops
 
-Handoffs `the_travel_between_the_end_stops_is_a_study` (2026-10-16) and
-`the_travel_chain_cites_its_three_drawings` (2026-10-20). The graph is
+Handoffs `the_travel_between_the_end_stops_is_a_study` (2026-10-16),
+`the_travel_chain_cites_its_three_drawings` (2026-10-20) and
+`a_general_profile_note_bands_a_model_defined_term` (2026-10-22). The graph is
 `docs/topologies/topology_vpa_pitch_linkage.json` (the end-stop chain in it),
 the study is
 `docs/topologies/study_vpa_pitch_linkage_travel_between_end_stops.json`.
 
-**Two of the four values are read off their drawings; two are not, because the
-drawings do not dimension them.** The lower head thickness (214699-002 A) and the
-cover length (214958-002 A) are `drawing`-cited with the drawings' own bands. The
-upper head's step height and the mount's end-stop thickness are mesh fits under a
-±0.05 placeholder: 214698-002 A and 213668-002 A.1 carry no callout for either
-(section 3). The interval at the bottom is therefore a mix of two real bands and
-two stand-in widths, and says so.
+**All four values are banded by their drawings, two by a dimension and two by
+the drawing's general profile note.** The lower head thickness (214699-002 A)
+and the cover length (214958-002 A) are dimensioned. The upper head's step
+height and the mount's end-stop thickness are not: 214698-002 A and 213668-002
+A.1 carry no callout for either, so each takes its drawing's `⌓w UNLESS
+OTHERWISE SPECIFIED` note as ±w/2 about a mesh-fit nominal (section 3, Jeff's
+ruling of 2026-10-20). Those two general-note bands are 0.75 of the ±0.82
+worst case, and both drawings should replace them with an explicit tolerance
+(section 8).
 
 The three drawings arrived 2026-10-20 (forge todo `20261016T165622_zy675c`, noted)
 and were extracted by drawing-checker the same day:
@@ -83,13 +86,14 @@ and body shoulder (210.84)** < lower head upper face and upper head lower face
   `docs/sessions/shots_20261020_strategy_stop_face/`: the face highlighted on the
   head in its own frame, and a CAD section of the gas spring at 72 deg pitch
   with his measurement of **64.465 mm** between that face and the surface it
-  meets at the flat-pitch stop.
+  meets at the flat-pitch stop (corrected by Jeff the same day to **64.440**,
+  section 6).
 
 ### Which part owns which stop surface
 
 The section view reads the other way round from the 2026-10-16 prose. At 72 deg
 the head stack sits **at the bottom, on the mount's end-stop surface**, and the
-64.465 mm gap is **above** the heads, up to the **cover's internal shoulder**.
+travel gap is **above** the heads, up to the **cover's internal shoulder**.
 So the mount owns the surface the datum rests on, and the cover owns the far stop
 the step face meets; the 2026-10-16 graph had them the other way round (the
 datum "against the cover end stop", the far stop named for the mount). The
@@ -103,8 +107,14 @@ heights — but the node names and `part` fields did, and were corrected
 |---|---:|---|---|---|
 | `piston_head_lower_thickness` | 2.491 | 214699-002 A sh 1, SECTION A-A, `2.491 ±0.050`; run `20261020_134300_214699-002-A`, view `214699-002-A.pdf::p1`, bbox [156.68, 545.02, 234.84, 561.17] | ±0.050 (the callout's) | traced |
 | `piston_cover_flange_to_end_stop` | 82.154 | 214958-002 A sh 3, SECTION CUT A-A, `82.154 ±0.020`; run `20261020_134315_214958-002-A`, view `214958-002-A.pdf::p3`, bbox [426.94, 385.51, 512.75, 401.66] | ±0.020 (the callout's) | traced |
-| `piston_head_upper_thickness` | 6.556 | mesh fit, faces 113 and 110 of `asm217755_214698_002`; no callout on 214698-002 A | ±0.05 placeholder | untraced |
-| `gas_spring_mount_flange_to_end_stop` | 8.667 | Jeff's ~8.667 and a mesh fit that agrees; no callout on 213668-002 A.1 | ±0.05 placeholder | untraced |
+| `piston_head_upper_thickness` | 6.556 | 214698-002 A sh 1, **general note 6**, `⌓0.5 UNLESS OTHERWISE SPECIFIED.`; run `20261020_134240_214698-002-A` (extracted the note's text); nominal a mesh fit, faces 113 and 110 of `asm217755_214698_002` | ±0.25 (the note's 0.5 zone, bilateral) | traced |
+| `gas_spring_mount_flange_to_end_stop` | 8.667 | 213668-002 A.1 sh 1, **general note 12**, `⌓ 1 UNLESS OTHERWISE SPECIFIED.`; run `20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER` (extracted the text without its symbol and no dimensions; the symbol read off the page render, drawing-checker `ISSUE_20261022_the_gas_spring_mount_run_extracted_no_dimensions_from_sheets_that_print_many.md`); nominal Jeff's ~8.667 and a mesh fit that agrees | ±0.5 (the note's 1 mm zone, bilateral) | traced |
+
+213668-002 A.1 sheet 1 also gives **76.86 ±0.10** from datum A (the base face) to
+the top face, where the feather-direction stop hits (Jeff). It is recorded on the
+topology as `gas_spring_mount_datum_a_to_end_stop` and is **not** a term here:
+total travel is what the ATS controls, and a datum-A-to-cover-flange dimension
+would lengthen this chain (section 8).
 
 **Before and after.** Every term moved from a placeholder to its current state;
 the 2026-10-16 values, for the record:
@@ -112,9 +122,9 @@ the 2026-10-16 values, for the record:
 | Edge | 2026-10-16 (assumed, ±0.05) | Now | Difference |
 |---|---:|---:|---:|
 | lower head | 2.4910 (mesh fit) | 2.491 ±0.050, drawing | 0.0000 |
-| upper head | 12.5094 (topmost plane, face 149) | 6.556 (step, face 110) | the stop face moved, not the measurement |
+| upper head | 12.5094 (topmost plane, face 149) | 6.556 ±0.25 (step, face 110), general note 6 | the stop face moved, not the measurement |
 | cover | 82.154 (Jeff) | 82.154 ±0.020, drawing | 0.000 |
-| mount | 8.667 (Jeff and fit) | 8.667, still a placeholder | 0.000 |
+| mount | 8.667 (Jeff and fit) | 8.667 ±0.5, general note 12 | 0.000 |
 | **travel** | 58.4866 | **64.440** | +5.953, all of it the upper head's stop face |
 
 **Mesh against drawing.** Only the lower head has both: the fit and the callout
@@ -130,7 +140,7 @@ face and not claimed) and an overall `(13)` reference against a mesh height of
 12.5094 for the topmost plane: a reference dimension, no band, and the drawing's
 own "NET PART DIMENSIONS (Ø57 X 13)" envelope.
 
-**Why two terms stay placeholders.**
+**Why two terms have no dimension to cite.**
 
 - *Upper head step height.* The drawing dimensions the head's diameters, the
   recess floor and a flange feature, and defers everything else to the model
@@ -146,9 +156,32 @@ own "NET PART DIMENSIONS (Ø57 X 13)" envelope.
 
 An untoleranced model-defined length takes no band from the title block: the
 general-tolerance block (`X.XXX ±0.050`) applies to a callout, and there is none.
-A fitted nominal is a measurement of a mesh, never a tolerance, so each of the two
-keeps the ±0.05 stand-in, `confidence: untraced`, and the gap is recorded on the
-edge and in a filed issue.
+A fitted nominal is a measurement of a mesh, never a tolerance. Until 2026-10-22
+each of the two therefore carried a ±0.05 stand-in, `kind: assumed`,
+`confidence: untraced`.
+
+**What bands them instead: the general profile note (2026-10-22).** Jeff, forge
+note `20261020T171900_km22z6` (2026-10-20):
+
+> Upper piston head (214698-002) thickness (bottom flange A datum to end stop
+> surface): Measured to 6.556mm, is in fact missing a tolerance on the drawing
+> face. This would default to the global surface profile (Drawing note 6,
+> surface profile 0.5 Unless Otherwise Specified), this is an oversight and
+> should be corrected/tightened in future releases.
+>
+> Gas spring mount (213668-002) thickness, 8.667 in CAD. Also would default to
+> the global surface profile 1mm (note 12). Also needs an explicit tolerance.
+
+Both notes are on the drawings as he says. 214698-002 A note 6 reads `⌓0.5 UNLESS
+OTHERWISE SPECIFIED.` (extracted by the 2026-10-20 run). 213668-002 A.1 note 12
+reads `⌓ 1 UNLESS OTHERWISE SPECIFIED.`: the 2026-08-19 run extracted its text
+without the symbol, and the symbol was read off that run's page render. A
+profile zone of width w is ±w/2 about the model surface, so the step height
+carries **±0.25** and the mount thickness **±0.5**, each about its mesh-fit
+nominal, `drawing`/`traced`, anchored to the note rather than a dimension (the
+SOP's "What a term cites when its drawing does not band it"). Each edge's
+`note` opens by saying it is a general note and that the drawing should carry an
+explicit tolerance, and the viewer marks both terms.
 
 **The cover's outcome: dimensioned.** Sheet 1 of 214958-002 A extracted no
 dimensions (title and notes sheet), sheet 2 has bore diameters and port details;
@@ -213,24 +246,43 @@ not answered here.
 | | mm |
 |---|---:|
 | Nominal travel | **64.440** |
-| Worst case | 64.270 to 64.610 (±0.170) |
-| RSS | ±0.0889 (64.351 to 64.529) |
+| Worst case | 63.620 to 65.260 (±0.820) |
+| RSS | ±0.5616 (63.878 to 65.002) |
 
-The worst case is the sum of the four bands, 0.020 + 0.050 + 0.050 + 0.050; RSS is
-√(0.020² + 3 × 0.050²). Two of the four bands are drawing bands and two are
-placeholders, so the interval is wider than the drawings alone would give and
-narrower than 2026-10-16's (±0.200), which was four placeholders.
+The worst case is the sum of the four bands, 0.020 + 0.050 + 0.250 + 0.500; RSS is
+√(0.020² + 0.050² + 0.250² + 0.500²). All four bands are the drawings' own; the
+two general-note bands are 0.75 of the 0.82, so the width of this interval is
+what the two drawings leave to their general notes, not what they dimension.
 
-**Against Jeff's CAD section, 64.465 mm.** The nominal is **0.025 mm below it**
-(64.440 against 64.465). That is larger than the rounding of either number, so it
-is a difference, not a typo. It sits inside the worst-case interval and inside the
-±0.070 the two cited bands span, so the drawings permit it; it is stated and not
-smoothed. Nothing in this tree says which of the four terms carries it.
+| | 2026-10-16 (four ±0.05 stand-ins) | 2026-10-20 (two cited, two stand-ins) | 2026-10-22 (all four drawing-banded) |
+|---|---:|---:|---:|
+| nominal | 58.4866 | 64.440 | 64.440 |
+| worst case | ±0.200 | ±0.170 | **±0.820** |
+| RSS | | ±0.0889 | **±0.5616** |
 
-Beside it, with no claim about which is right: the ATP's derived travel is
-**65.03 mm** against a **≤65 mm** acceptance row (atp-post, S4ATS-2439), per the
-2026-10-16 handoff; that row was not re-read here. S461-516/637's nominal operating
-stroke is 61.67 mm.
+**Nominal confirmed against the CATIA kinematic model: 64.440, not 64.465.**
+2026-10-20's fold was 0.025 mm below the 64.465 Jeff had measured in his CAD
+section, and that difference was stated rather than smoothed. Jeff checked it the
+same day (forge note `20261020T171900_km22z6`): *"there was a slight .025mm
+overlap/interference at 72deg resting state, while at -7deg the upper stop
+surfaces are perfectly coincident. This means the actual nominal travel is
+64.440, not 64.465 I reported earlier."* So **64.465 is retired**; the fold and
+the model agree, and the 0.025 was the model's own interference, not a term.
+
+Beside it, with no claim about which is right: the ATS acceptance row for this
+travel, S4ATS-2439 (and S4ATS-2379 as a range of motion), is **≤ 65 mm** as
+atp-post scores it, and the ATP's derived travel was **65.03 mm** per the
+2026-10-16 handoff (not re-read here). The worst case above reaches 65.26. That
+row is context, not a limit (the study's `no_checks_reason`); Jeff on it:
+
+> The ATS spec (65mm) likely doesn't take into account compliance in the system
+> as it pushes against the charged gas spring. I think Chao said this could be
+> ~1mm of deflection based on a simplified FEA model he made, we'll likely need
+> to revise the ATS to reflect this (or measure the true end stop locations with
+> the gas spring discharged).
+
+The ~1 mm is Chao's estimate from a simplified FEA model as relayed by Jeff:
+unverified and not folded. S461-516/637's nominal operating stroke is 61.67 mm.
 
 What the other upper-head faces would have given, holding everything else (stack
 = face Z less the datum 234.169; stop-to-stop distance 73.487 = 82.154 - 8.667) —
@@ -245,9 +297,10 @@ kept as the record of why the stop face matters, not as live alternatives:
 
 ## 7. Traced ratio
 
-This study's chain holds four element instances, **two** `traced` (the lower head
-and the cover, both `drawing` citations) and two `untraced` (the step height and
-the mount thickness: placeholder band, no callout on the drawing). That count is
+This study's chain holds four element instances, **four** `traced`, all
+`drawing` citations: two to a dimension (the lower head and the cover) and two to
+the drawing's general profile note (the step height and the mount thickness,
+whose nominals are mesh fits). That count is
 read from the topology by `tests/test_end_stop_travel_study.py`. The registry's
 own metric is the seeded-stack figure, 5 of 26, which this handoff does not move;
 it is declared here so a reader sees the repo's standing number next to this one,
@@ -257,3 +310,20 @@ per the SOP's "The traced ratio".
 metric: traced_ratio
 value: 5 of 26
 ```
+
+## 8. Drawing follow-ups
+
+Both are Jeff's, from forge note `20261020T171900_km22z6`; neither is this repo's
+to make.
+
+1. **214698-002 (upper piston head): add an explicit tolerance to the step
+   height** (the lower face, datum A, to the end-stop step face, 6.556 in the
+   model). Today it defaults to general note 6's ⌓0.5; Jeff: "an oversight and
+   should be corrected/tightened in future releases."
+2. **213668-002 (gas-spring mount): constrain the 8.667 directly** (the cover
+   flange to the end-stop surface), rather than adding a datum-A-to-cover-flange
+   dimension beside the existing 76.86 ±0.10. Jeff: "One option would be to add
+   another tolerance from A-datum to piston cover mount flange, this would
+   improve the absolute flat pitch end stop accuracy but lengthen the stack for
+   total travel. Probably better to directly constrain the 8.667mm dimension
+   since total travel is what is controlled in the ATS."

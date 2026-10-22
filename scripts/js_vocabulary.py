@@ -500,6 +500,10 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
                "tolerance_stack/thermal.py: the values_status check in "
                "MaterialEntry.__post_init__",
                values_statuses),
+    Vocabulary("viewer", "GENERAL_NOTE_PHRASE",
+               "tolerance_stack/stack.py: GENERAL_NOTE_PHRASE (one phrase: the "
+               "words a general-note citation's note opens with)",
+               lambda: (_stack_module().GENERAL_NOTE_PHRASE,)),
     Vocabulary("viewer", "CROP_RULES",
                "scripts/build_viewer_crops.py: the `resolved_by` literals in "
                "resolve_pdf",

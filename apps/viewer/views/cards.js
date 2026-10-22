@@ -363,6 +363,9 @@
     // sheet · view · zone.
     root.appendChild(VA.el("div", "hovercard__where", card.title));
     if (card.callout) root.appendChild(VA.el("div", "hovercard__callout", card.callout));
+    if (card.generalNote) {
+      root.appendChild(VA.el("div", "hovercard__generalnote", card.generalNote));
+    }
     noteBlock(root, card.note, source);
 
     // The export/identity narrative. Folded where it is QUIET — an

@@ -438,7 +438,8 @@
         "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
         "source_ref": {
           "kind": "assumed", "confidence": "untraced",
-          "note": "PLACEHOLDER. The source sheet tolerances the piston end to the end-stop feature (row 39) but nothing from the actuator's mounting face to that feature. 0.20 mm total width matches the sheet's other body-height rows (38, 41, 42). The structure -- that the end stop is located on the body relative to where the body mounts -- is the point of this edge."
+          "note": "PLACEHOLDER. The source sheet tolerances the piston end to the end-stop feature (row 39) but nothing from the actuator's mounting face to that feature. 0.20 mm total width matches the sheet's other body-height rows (38, 41, 42). The structure -- that the end stop is located on the body relative to where the body mounts -- is the point of this edge.",
+          "no_drawing_governs": "208510-007 is the supplier's actuator and no drawing of it is in either drawings inbox or any drawing-checker run (checked 2026-10-22), so no document this repo holds governs the mounting face to the end-stop feature; the source workbook bands the piston end to that feature (row 39) and nothing else. Whether this edge should become a gap under the 2026-10-22 rule is filed, not decided here."
         }
       }
     },
@@ -557,7 +558,8 @@
         "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
         "source_ref": {
           "kind": "assumed", "confidence": "untraced",
-          "note": "PLACEHOLDER. The hydraulic brake is a design-concept alternative to the gas spring per the brief; no source in this repo tolerances anything about it. 0.20 mm total width mirrors the gas-spring bushing position it would replace."
+          "note": "PLACEHOLDER. The hydraulic brake is a design-concept alternative to the gas spring per the brief; no source in this repo tolerances anything about it. 0.20 mm total width mirrors the gas-spring bushing position it would replace.",
+          "no_drawing_governs": "The hydraulic brake is a design-concept alternative to the gas spring (per the brief) and no released drawing locates a brake attachment on the plate: no drawing-checker run of 215177 mentions a brake (checked 2026-10-22). Whether this edge should become a gap under the 2026-10-22 rule is filed, not decided here."
         }
       }
     },

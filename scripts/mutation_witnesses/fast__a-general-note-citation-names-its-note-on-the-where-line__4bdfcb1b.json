@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a general-note citation names its note on the where line and the citation card",
+  "mutations": [
+    {
+      "contract": "A citation banded by the drawing's general profile note names that note on its where line (`general note N`).",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_general_profile_note_bands_a_model_defined_term (2026-10-22). Drops the note from the where line, which is the shape of a note-banded term reading exactly like a dimensioned one.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    if (noteNumber !== null) parts.push(\"general note \" + noteNumber);",
+      "replace": "    if (noteNumber === undefined) parts.push(\"general note \" + noteNumber);"
+    }
+  ]
+}

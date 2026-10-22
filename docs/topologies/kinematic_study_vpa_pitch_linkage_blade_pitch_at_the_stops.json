@@ -57,7 +57,7 @@
       "feature": {"node": "pitch_link_upper_sphere_centre", "component": "z", "body": "pitch_plate"},
       "zone": "band",
       "dimension_ref": {"topology": "pitch_system", "edge": "pitch_plate_flange_to_link_hole"},
-      "note": "pitch_system's plate flange-to-link-hole is the axial (spindle-axis, CAD Z) height of the link hole on the pitch plate, which is the height half of vpa_pitch_linkage's spindle-bore-to-link-attach-bore pair (its radius half is pitch_plate_attach_radius, not banded anywhere). So the band perturbs only the plate-side point's Z component. linkage's point_a is the plate body's end (see provenance)."
+      "note": "pitch_system's plate flange-to-link-hole is the axial (spindle-axis, CAD Z) height of the link hole on the pitch plate, which is the height half of vpa_pitch_linkage's spindle-bore-to-link-attach-bore pair (its radius half is pitch_plate_attach_radius, not banded anywhere). So the band perturbs only the plate-side point's Z component. linkage's point_a is the plate body's end (see provenance). A position zone (215735-A ⌖Ø0.2 A B C) is a disk of radius 0.1 normal to the hole's axis, not a one-axis band (docs/SOP_TOLERANCE_STACK.md, 'What a term cites when its drawing does not band it'). It stays a band here because neither topology states that hole's axis (vpa_pitch_linkage's pitch_plate_link_attach_bore and pitch_system's pitch_plate_link_hole carry none), and the axis is not guessed: the second in-plane component is the gap named in both checks' excluded_terms (2026-10-22)."
     },
     {
       "edge": "tan_link_length",
@@ -116,6 +116,7 @@
         "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
+        "pitch_plate_attach_height's second in-plane component -- 215735-A's \u2316\u00d80.2 A B C on the plate's link hole is a disk of radius 0.1 normal to the hole's axis, and only the axial (CAD Z) component is folded, as a band, because neither topology states the hole's axis; closed by a bore-axis fit of the plate's link hole bound in the annotator, or by 215735-A's own views naming the hole's direction",
         "tan_link_length and pitch_plate_tan_link_attach_radius -- contributors with a sensitivity and no cited band (the gap rows)",
         "S461-805 (Blade Pitch Position Accuracy) states its own threshold as literally 'TBD deg' in Polarion -- draft, no usable numeric criterion, so it supplies no check of its own and is not folded into this one either"
       ]
@@ -151,6 +152,7 @@
         "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
+        "pitch_plate_attach_height's second in-plane component -- 215735-A's \u2316\u00d80.2 A B C on the plate's link hole is a disk of radius 0.1 normal to the hole's axis, and only the axial (CAD Z) component is folded, as a band, because neither topology states the hole's axis; closed by a bore-axis fit of the plate's link hole bound in the annotator, or by 215735-A's own views naming the hole's direction",
         "tan_link_length and pitch_plate_tan_link_attach_radius -- contributors with a sensitivity and no cited band (the gap rows)",
         "S461-805 (Blade Pitch Position Accuracy) states its own threshold as literally 'TBD deg' in Polarion -- draft, no usable numeric criterion, so it supplies no check of its own and is not folded into this one either"
       ]

@@ -659,7 +659,7 @@ business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the six
-committed topologies, leader-vs-rail crossings went **309 → 0**, six of the
+committed topologies, leader-vs-rail crossings went **314 → 0**, six of the
 six to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
 sides of those are measured at the column order above, so the before-side is a
 counterfactual — and the zero is the two mechanisms together, not the mirror
@@ -680,8 +680,8 @@ Three shapes come out of it, and all three are in the projection:
   one topology. Rail allocations over columns, per committed topology: 3 over 3
   for `pitch_link_to_pitch_plate`, 10 over 10 for `pitch_system`, 10 over 10
   for `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, 2
-  over 2 for `vpa_output_to_pitch_plate`, and 13 over 11 for
-  `vpa_pitch_linkage`, where one column carries two disjoint spans. Until that
+  over 2 for `vpa_output_to_pitch_plate`, and 14 over 11 for
+  `vpa_pitch_linkage`, where some columns carry more than one disjoint span (13 over 11 until 2026-10-22's datum-A edge on the gas-spring mount). Until that
   topology was committed the count was one-to-one everywhere, and the
   2026-09-15 reading recorded here said so; disabling reuse would now visibly
   widen one page. It is still the mechanism the disjointness invariant guards

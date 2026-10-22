@@ -99,6 +99,12 @@
     // MaterialEntry.__post_init__
     VALUES_STATUSES: ["inline", "library", "not_transcribed"],
 
+    // tolerance_stack/stack.py: GENERAL_NOTE_PHRASE (one phrase: the words a
+    // general-note citation's note opens with)
+    GENERAL_NOTE_PHRASE: [
+      "general profile note, not a dimension; the drawing should carry an explicit tolerance"
+    ],
+
     // scripts/build_viewer_crops.py: the `resolved_by` literals in
     // resolve_pdf
     CROP_RULES: ["joint_export_run", "source_ref_export", "spec_pile"],

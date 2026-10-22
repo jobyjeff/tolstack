@@ -43,3 +43,13 @@ the hole axis, or Z plus tangential. Then decide whether F4's "one tolerance
 counted twice" question has to be answered before the zone is widened. Then
 re-pin `tests/test_kinematic.py::test_real_the_first_study_pins_both_stops_against_p2`
 and the lesson's tables.
+
+## Addendum 2026-10-22 (handoff a_general_profile_note_bands_a_model_defined_term)
+
+The rule is decided: the SOP's "What a term cites when its drawing does not band it"
+makes a position zone a `disk` normal to the feature's axis, and says the axis is never
+guessed. This contributor could not be converted, because neither topology states the
+plate link hole's axis. The band stays. The missing component is named in both checks'
+`excluded_terms`. The conversion is filed as
+`ISSUE_20261022_the_pitch_plate_link_hole_has_no_axis_so_its_position_zone_stays_a_band.md`,
+which outlives this issue's resolution.

@@ -567,6 +567,33 @@ nomenclature gives the bushing and washer nominals and no document in the repo
 gives either tolerance — and a test pins them so a later tidy-up cannot quietly
 fill them in.
 
+### What a term cites when its drawing does not band it
+
+Decided 2026-10-22 on Jeff's ruling of 2026-10-20 (forge note
+`20261020T171900_km22z6`), for a stack element and a topology edge alike. Find
+the first row that is true of the term's drawing:
+
+| the drawing gives | the term carries | kind / confidence | `note` says |
+| --- | --- | --- | --- |
+| a dimension with a ± on the term's axis | that band | `drawing` / `traced` | — |
+| no dimension, but a general profile note `⌓w UNLESS OTHERWISE SPECIFIED` governing the surface | **±w/2 about the model nominal** (bilateral unless the note states a unilateral zone) | `drawing` / `traced`, anchored to the **note**: `sheet` + `note_number`, the note's text as `callout` | opens with `GENERAL_NOTE_PHRASE` (`tolerance_stack/stack.py`): the drawing should carry an explicit tolerance |
+| a position zone `⌖Øw` on the feature the term reads | a kinematic `disk` of radius w/2 over the two components normal to the feature's axis (`sphere` for a spherical zone), **never a one-axis band**; if no topology states the axis, keep the band and name the missing component as a gap | `drawing` / `traced` | the axis, and where it came from |
+| a length the part drawing leaves to the model, dimensioned on the assembly drawing | that band, cited to the assembly drawing | `drawing` / `traced` | names the assembly drawing |
+| nothing: the surface is model-defined and no note governs it | a **`gap`**, and the study is incomplete | — | what would close it |
+
+- **A general note is still a drawing citation.** The confidence and kind
+  vocabularies are not extended; what differs is the anchor. `note_number` and
+  the note's opening phrase are a bidirectional invariant in `SourceRef`, and
+  the viewer marks the chip so a reader sees a note-banded term is not a
+  dimensioned one. The nominal is the model's (a mesh fit, say), and the note
+  says so.
+- **The `assumed` stand-in is retired for a drawing-defined surface.** An
+  `assumed` band may exist only for a quantity no drawing governs at all — a
+  topology edge on a part with a `drawing` that carries one is refused at load
+  unless its citation's `no_drawing_governs` says why no drawing governs it.
+- Worked example: `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md`
+  (two dimensions, two general notes).
+
 ## Step 3 — trace what you can
 
 For each element, try to close the gap, in this order of preference:
