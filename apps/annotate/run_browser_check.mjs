@@ -1223,13 +1223,22 @@ async function realPass(browser, base) {
     return out;
   });
   const bySha = (id) => opened.filter(([x]) => x === id)[0][1];
-  const still = ["asm217755_212956_005", "asm217755_215175_001"];
-  check("[real] in sweep mode, the tangential links (all three) and the " +
-    "tangential link mount sit still where the assembly puts them",
-    still.every((id) => moved[bySha(id)] && moved[bySha(id)].away === 0 &&
-      moved[bySha(id)].visible && moved[bySha(id)].moving === 0) &&
-      moved[bySha("asm217755_212956_005")].drawn === 3,
-    JSON.stringify(still.map((id) => moved[bySha(id)])));
+  // Which tangential links move is the RUN's to say, not this check's: a P1
+  // run solves the pitch link alone, so all three sit still; a P2 run also
+  // solves `tan_link` as a link body, which moves exactly the one occurrence
+  // on blade 1's chain and leaves the other two where the assembly puts them.
+  // Either way the count is exact, and the mount never moves.
+  const tanSolved = await page.evaluate(() =>
+    (window.__sweep.artifact.links || []).some((l) => l.joint === "tan_link"));
+  const tanMoving = tanSolved ? 1 : 0;
+  const tan = moved[bySha("asm217755_212956_005")];
+  const mount = moved[bySha("asm217755_215175_001")];
+  check("[real] in sweep mode, the tangential link mount sits still, and of the " +
+    "three tangential links exactly the ones the run solves move (P2: one, P1: none)",
+    !!tan && !!mount && tan.drawn === 3 && tan.visible && mount.visible &&
+      tan.moving === tanMoving && tan.away === tanMoving &&
+      mount.moving === 0 && mount.away === 0,
+    JSON.stringify({ tanSolved, tan, mount }));
   const bushings = ["asm217755_NAS77A3_015A", "asm217755_NAS77A4_015A"];
   check("[real] the plate's bushings -- separate meshes recorded inside the " +
     "plate's own occurrence -- move with the plate",
@@ -1296,6 +1305,10 @@ async function realPass(browser, base) {
   await page.evaluate(() => window.AnnotateApp.exec(["loop", "pingpong"]));
   await page.evaluate(() => window.AnnotateApp.exec(["play"]));
   const measuredFps = await countFrames(8000);
+  // The ghost half's wait, for the same reason: under the runner's CPU cap
+  // this scene renders at a fraction of a frame a second, and the claim is
+  // that playback advances, not that it does so inside eight seconds.
+  await page.waitForFunction(() => window.__sweep.index > 0, null, { timeout: 60000 }).catch(() => {});
   const playing = await page.evaluate(() => ({ fps: window.__sweep.fps, index: window.__sweep.index }));
   await page.evaluate(() => window.AnnotateApp.exec(["pause"]));
   const open = await page.evaluate(() => window.__scene.listOpenParts().length);
