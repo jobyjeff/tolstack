@@ -13,8 +13,8 @@
 // witnessing nothing. Nothing is red, so nothing announces that the coverage
 // left.
 //
-//   node scripts/run_mutation_witness_tests.mjs                     # npm run test:mutations
-//   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack  # ...from a worktree
+//   node scripts/run_mutation_witness_tests.mjs                     # main checkout only (npm run test:mutations adds --full)
+//   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --only card-layout  # ...from a worktree
 //   node scripts/run_mutation_witness_tests.mjs --only card-layout   # one guard
 //   node scripts/run_mutation_witness_tests.mjs --full               # every entry (the batch merge)
 //   node scripts/run_mutation_witness_tests.mjs --verbose            # show the red
