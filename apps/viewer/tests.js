@@ -11302,6 +11302,8 @@
         ok(chart.limits[0].labelY > chart.limits[0].lower &&
            chart.limits[0].labelY <= plot.top + plot.height - 2,
            "the limit label is below the lower limit line and inside the frame");
+        ok(chart.limits[0].labelX < plot.left + plot.width / 4,
+           "...at the left end, away from a mid-plot hover's cursor line");
         // The hit strips partition the plot with no gap and no overlap.
         var strips = chart.points.slice().sort(function (a, b) { return a.x - b.x; });
         eq(strips[0].hitFrom, plot.left);

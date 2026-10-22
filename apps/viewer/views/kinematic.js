@@ -365,12 +365,15 @@
       xTicks: xTicks.values.map(function (v) {
         return { x: r2(X(v)), text: VA.kinematicNumber(v, decimalsFor(xTicks.step)) };
       }),
-      // The label sits just BELOW the lower limit line, mid-plot: the stop
-      // labels hold the plot's top corners and the hover tip is anchored at
-      // its top (topology.css), so the bottom is the one place neither reaches.
-      // Clamped inside the frame for a limit that is the axis's own reach.
+      // The label sits just BELOW the lower limit line, at the plot's left
+      // end: the stop labels hold the two top corners, the hover tip is
+      // anchored at the top (topology.css), and a hover's cursor line crosses
+      // the middle -- the bottom-left corner is the one place none of them
+      // reaches. Clamped inside the frame for a limit that is the axis's own
+      // reach.
       limits: limits.map(function (v) {
         return { upper: r2(Y(v)), lower: r2(Y(-v)),
+                 labelX: C.left + 6,
                  labelY: r2(Math.min(Y(-v) + 12, C.top + ph - 2)),
                  text: "limit ±" + withUnit(VA.kinematicNumber(v, decimals), study.units) };
       }),
@@ -550,9 +553,9 @@
         svg.appendChild(VA.svg("line", "kmchart__limit",
           { x1: p.left, x2: p.left + p.width, y1: y, y2: y }));
       });
-      // Mid-plot under the lower line (VA.kinematicChart says why there).
+      // Under the lower line, at the left end (VA.kinematicChart says why).
       var text = VA.svg("text", "kmchart__limitlabel",
-        { x: p.left + p.width / 2, y: limit.labelY, "text-anchor": "middle" });
+        { x: limit.labelX, y: limit.labelY, "text-anchor": "start" });
       text.textContent = limit.text;
       svg.appendChild(text);
     });
