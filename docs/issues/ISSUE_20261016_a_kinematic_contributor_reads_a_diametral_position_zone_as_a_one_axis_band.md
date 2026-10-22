@@ -5,6 +5,7 @@ status: triaged
 area: topologies/kinematic
 reporter: agent
 audience: strategy
+handoff: docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md
 found_by: docs/sessions/HANDOFF_20261016_a_kinematic_study_folds_the_sweeps_jacobian.md
 strategy: docs/strategy/BRIEF_20261021_what_a_term_cites_when_its_drawing_does_not_band_it.md
 ---

@@ -5,6 +5,7 @@ status: triaged
 area: topology/study schema
 reporter: agent
 audience: strategy
+handoff: docs/sessions/HANDOFF_20261022_a_study_says_it_is_incomplete_without_inventing_a_check.md
 found_by: docs/sessions/HANDOFF_20261016_the_travel_between_the_end_stops_is_a_study.md
 strategy: docs/strategy/BRIEF_20261021_what_a_term_cites_when_its_drawing_does_not_band_it.md
 ---

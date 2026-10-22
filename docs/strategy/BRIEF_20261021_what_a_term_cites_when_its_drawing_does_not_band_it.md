@@ -1,5 +1,7 @@
 # BRIEF 2026-10-21 — what a stack or kinematic term cites when its drawing does not give it a one-axis band
 
+> **CONSUMED 2026-10-22 — decided by the strategy session on Jeff's 2026-10-20 end-stop note (`20261020T171900_km22z6`). Instances 1 and 2: a drawing's UNLESS-OTHERWISE-SPECIFIED profile note IS a citable band (±w/2, `drawing`/`traced`, cited to the note, visibly marked as a general note; 214698-002 note 6 → 6.556 ±0.25, 213668-002 note 12 → 8.667 ±0.5), a position zone is a `disk` normal to the feature axis or a `gap` naming the missing axis, the ±0.05 `assumed` stand-in is retired for drawing-defined surfaces, nominal travel confirmed 64.440 → `docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md` (opus). Instance 4: `completeness` is a derived field of the study, badged by the viewer → `docs/sessions/HANDOFF_20261022_a_study_says_it_is_incomplete_without_inventing_a_check.md` (sonnet). Instance 3 (the VPA rod-end bearing part number; the VPA's moving output member) is asked of Jeff in the 2026-10-22 strategy handoff's needs-Jeff list; its issue stays open until he answers.**
+
 > Routed here by the triage sweep of 2026-10-21 from four open issues filed
 > between 2026-10-16 and 2026-10-20. All four ask the same thing: when the
 > source document does not print a plain ± band on the one axis the term
