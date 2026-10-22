@@ -103,7 +103,7 @@ import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync, existsSync,
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { dirname, join, normalize } from "node:path";
-import { census, censusReport, specFileName, SPEC_DIR }
+import { census, censusReport, pinsMoved, specFileName, SPEC_DIR }
   from "./guard_enumeration.mjs";
 import { takeTheBrowserSlot } from "./browser_runner.mjs";
 
@@ -1000,17 +1000,22 @@ function anchorHits(mutation) {
   // ...and the second failure class, which is not about any spec that exists.
   console.log("\nenrollment, per guard source:");
   console.log(censusReport(STATE.rows));
-  const moved = STATE.rows.filter((r) => r.declared !== r.pinned);
+  // All THREE pins, through the one function `censusHolds` is computed from:
+  // `declared` alone left a guard swapped for another, and a second declaration
+  // of an existing name, red in pytest and exit 0 here.
+  const moved = STATE.rows.filter((r) => pinsMoved(r).length);
   if (moved.length) {
-    console.log("\nNOT ENROLLED — this tree declares guards the census is not " +
-      "pinned at:" + moved.map((r) =>
-        `\n  ${r.source}: ${r.declared} declared, pinned at ${r.pinned}`).join(""));
+    console.log("\nNOT ENROLLED — this tree's guards are not what the census " +
+      "is pinned at:" + moved.map((r) =>
+        `\n  ${r.source}:` + pinsMoved(r).map((why) => `\n    ${why}`).join("")).join(""));
+    console.log("\nthe pins to write back into DECLARED_GUARDS:\n" +
+      moved.map((r) => r.pinLine).join("\n"));
     console.log("A guard added without a mutation spec is the enrollment gap " +
       "arriving, and this is the moment it is cheap to close -- the author " +
       "still knows what the guard is for. Run `node " +
       "scripts/run_mutation_witness_tests.mjs --unenrolled` for the file name " +
-      `to write under ${SPEC_DIR.join("/")}/, then raise that source's number ` +
-      "in DECLARED_GUARDS (scripts/guard_enumeration.mjs). Raising it WITHOUT " +
+      `to write under ${SPEC_DIR.join("/")}/, then paste that line into ` +
+      "DECLARED_GUARDS (scripts/guard_enumeration.mjs). Raising the pin WITHOUT " +
       "a spec is allowed -- some guards cannot be witnessed -- and is then a " +
       "line in the diff rather than nothing at all.");
     process.exitCode = 1;

@@ -126,9 +126,10 @@ Know these before you write code; each has a test standing on it.
   `tests/test_viewer_js_suite.py` (deliberately, since 2026-09-18: a skipped
   tier is not a passed one), and before trusting any green — a batch merge's
   most of all — run **in the main checkout**:
-  `node apps/viewer/run_tests.cjs`, `node scripts/run_viewer_browser_tests.mjs`
+  `node apps/viewer/run_tests.cjs`, `node apps/annotate/run_tests.cjs`,
+  `node scripts/run_viewer_browser_tests.mjs`
   and `node scripts/run_mutation_witness_tests.mjs --full`.
-  **Rebuild the projections BEFORE those three, never after**
+  **Rebuild the projections BEFORE those four, never after**
   (`scripts/rebuild_projections.ps1`): the `[real]` checks read
   `data/projections/`, so a tier run against a projection built from an older
   tree is comparing this tree's fixtures with that tree's data and agreeing

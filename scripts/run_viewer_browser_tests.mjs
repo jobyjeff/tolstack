@@ -51,6 +51,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep } from "node:path";
 import { takeTheBrowserSlot, launchBrowser } from "./browser_runner.mjs";
+import { ranNotDeclared } from "./guard_enumeration.mjs";
 
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 // Queues for the machine's browser slot, re-running this file under it, before
@@ -315,6 +316,11 @@ function startSiblingMountServer({ matchCrops, rebuildCapable, terminalState }) 
 // is NOT done here is teaching anything to treat a bare abort as a named red
 // — a suite that dies before its first `push` still prints no names, and the
 // mutation tier still reports that as unattributable, which is correct.
+// Every sub-check name any suite collected, pass or fail, for the tail's
+// `ran ⊆ declared` check against the guard scan (`ranNotDeclared`). Filled at
+// the two places a suite reports, which is the only seam every suite shares.
+const RAN_NAMES = [];
+
 function printCollectedFailures(failed, errors) {
   for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
   if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
@@ -322,6 +328,7 @@ function printCollectedFailures(failed, errors) {
 
 /** The normal way out: every sub-check ran. */
 function reportSuite(label, checks, errors = []) {
+  RAN_NAMES.push(...checks.map((c) => c.name));
   const failed = checks.filter((c) => !c.cond);
   const ok = failed.length === 0 && errors.length === 0;
   console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
@@ -336,6 +343,7 @@ function reportSuite(label, checks, errors = []) {
  * 60-line call log is the noisy one.
  */
 function reportAbortedSuite(label, checks, errors, err) {
+  RAN_NAMES.push(...checks.map((c) => c.name));
   const failed = checks.filter((c) => !c.cond);
   console.log(`[${label}] ABORTED after ${checks.length} sub-checks, ` +
     `${failed.length} of them already FAILED`);
@@ -9080,6 +9088,20 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         if (result) result.ok = false;
       }
       results.push(result || { label, ok: false });
+    }
+
+    // The scan is falsifiable from this side: a name this run printed that the
+    // guard scan never found is a guard the census cannot see (and so cannot
+    // pin or enroll), however many suites ran it. Interpolated names are
+    // accounted for by their template. Only this direction -- see
+    // CENSUS_LIMITS.browser_scan_unverified for why not equality.
+    const scanMisses = ranNotDeclared(RAN_NAMES);
+    if (scanMisses.length) {
+      console.log(`\nSCANNER MISS -- ${scanMisses.length} sub-check(s) ran that ` +
+        "the guard scan in scripts/guard_enumeration.mjs never found, so no " +
+        "census pin or mutation spec can see them:" +
+        scanMisses.map((n) => `\n  ${JSON.stringify(n)}`).join(""));
+      process.exitCode = 1;
     }
 
     const failed = results.filter((r) => !r.ok);
