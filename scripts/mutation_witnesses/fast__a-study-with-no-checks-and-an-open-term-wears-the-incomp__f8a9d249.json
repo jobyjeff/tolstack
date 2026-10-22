@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a study with no checks and an open term wears the incomplete badge, with each open term a link",
+  "mutations": [
+    {
+      "contract": "A study's derived completeness raises the one `incomplete` attention badge on its own, with no check naming an excluded term.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (out.excluded.length || open) out.badges.push(badge(\"incomplete\"));",
+      "replace": "    if (out.excluded.length) out.badges.push(badge(\"incomplete\"));",
+      "issue": null,
+      "note": null
+    }
+  ]
+}

@@ -1999,6 +1999,8 @@
       return root;
     }
 
+    var open = openTermsFold(study, index);
+    if (open) root.appendChild(open);
     var findings = VA.studyFindings(study, index);
     if (findings.length) root.appendChild(findingsTable(findings));
     root.appendChild(basisCard(study, index));
@@ -2020,6 +2022,28 @@
     root.appendChild(gapsPanel(topoProj));
     return root;
   };
+
+  // The study's own `incomplete` badge, with the terms that earn it one
+  // disclosure deep, each a link to the term. It is the study-level fold of
+  // every term (VA.studyCompleteness), so it shows for a study with no checks
+  // exactly as for one with them; a complete study renders nothing.
+  function openTermsFold(study, index) {
+    var found = VA.studyCompleteness(study, index);
+    if (!found) return null;
+    var box = VA.el("details", "tvopen");
+    var summary = VA.el("summary", "tvopen__summary");
+    summary.appendChild(VA.chip("tvflag tvflag--incomplete", found.text, found.title));
+    box.appendChild(summary);
+    var list = VA.el("ul", "tvopen__list");
+    found.terms.forEach(function (term) {
+      var link = VA.el("a", "tvopen__term", term.name);
+      link.setAttribute("href", VA.viewerLink({
+        topology: study.topology, study: study.id, edge: term.id }));
+      list.appendChild(VA.el("li", null, link));
+    });
+    box.appendChild(list);
+    return box;
+  }
 
   // --- the findings table --------------------------------------------------
   //

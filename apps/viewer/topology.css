@@ -1188,6 +1188,10 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 }
 .tvflag--unverified { color: var(--untraced); border-color: var(--untraced); }
 .tvflag--no_tolerance { color: var(--zero); border-color: var(--zero); }
+.tvopen { margin: 0 0 8px; }
+.tvopen__summary { cursor: pointer; }
+.tvopen__list { margin: 6px 0 0; padding-left: 18px; }
+.tvopen__term { color: inherit; }
 .tvflag--incomplete { color: var(--inferred); border-color: var(--inferred); }
 
 /* --- the findings table -------------------------------------------------

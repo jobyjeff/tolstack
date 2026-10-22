@@ -752,6 +752,18 @@ class Topology:
 # ---------------------------------------------------------------------------
 
 
+#: How many open term ids a completeness ``reason`` names before "and N more".
+COMPLETENESS_NAMED = 2
+
+
+def _is_open_term(edge: Edge) -> bool:
+    """True when ``edge`` is a term nothing traceable stands behind."""
+    if edge.kind == "gap":
+        return True
+    ref = edge.dimension.source_ref if edge.dimension is not None else None
+    return ref is None or ref.kind == "assumed" or ref.confidence == "untraced"
+
+
 @dataclass
 class Study:
     """A human-lassoed chain through one topology.
@@ -810,6 +822,11 @@ class Study:
     in* ``selection``, unlabelled; this gives that choice a place to be written
     down in prose next to the study rather than only inferred from its edge list.
 
+    ``completeness`` is **never authored**: it is derived at fold time
+    (:meth:`StudyResult.completeness`), so a study file that carries one is
+    refused -- the derivation is the authority, the same stance the repo takes
+    on a count written in prose.
+
     ``description``, added 2026-09-14 by handoff ``stack_title_style_pass``, is
     the one-sentence demotion target for what the ``title`` no longer says --
     the endpoints, the output unit, the sensitivity column a sibling study
@@ -845,6 +862,11 @@ class Study:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Study":
         d = dict(d)
+        if "completeness" in d:
+            raise StudyError(
+                f"study {d.get('id')!r}: `completeness` is derived from the "
+                f"selected terms when the study folds, never authored. Remove it; "
+                f"a check's own `complete`/`excluded_terms` are the authored half.")
         if "from" in d:
             d["from_node"] = d.pop("from")
         if "to" in d:
@@ -934,6 +956,34 @@ class StudyResult:
     interval: Interval
     units: str
 
+    def completeness(self) -> Dict[str, Any]:
+        """The study's completeness, **derived** from the terms it summed.
+
+        ``{"complete": bool, "reason": str | None, "open_terms": [edge ids]}``.
+        An edge is *open* when it is a ``gap``, or its value's ``source_ref``
+        is ``kind: assumed`` or ``confidence: untraced``, or it carries no
+        ``source_ref`` at all (nothing behind it, which is what ``untraced``
+        means). ``open_terms`` is in selection order, never chain order, so it
+        reads the way the author listed the lasso.
+
+        This is the study-level fold of every term, with or without checks. A
+        check's own ``complete``/``excluded_terms`` stay what they were -- that
+        check's coverage of *its* terms (``docs/DAG_TOPOLOGY.md``, "Completeness").
+        """
+        position = {e: i for i, e in enumerate(self.study.selection)}
+        open_terms = sorted(
+            (c.edge.id for c in self.chain if _is_open_term(c.edge)),
+            key=lambda e: position.get(e, len(position)))
+        reason = None
+        if open_terms:
+            shown = ", ".join(open_terms[:COMPLETENESS_NAMED])
+            more = len(open_terms) - COMPLETENESS_NAMED
+            reason = (f"{len(open_terms)} of {len(self.chain)} terms are not "
+                      f"traced to a source: {shown}"
+                      + (f" and {more} more" if more > 0 else ""))
+        return {"complete": not open_terms, "reason": reason,
+                "open_terms": open_terms}
+
     def as_dict(self) -> Dict[str, Any]:
         return {
             "study": self.study.id,
@@ -944,6 +994,7 @@ class StudyResult:
             "closes": self.study.closes,
             "units": self.units,
             "chain": [c.as_dict() for c in self.chain],
+            "completeness": self.completeness(),
             **self.interval.as_dict(),
         }
 
