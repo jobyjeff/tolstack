@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "whichever interface is chosen, the event the form writes stores one of AA.DIRECTIONS -- the names are what the form shows, never what it writes",
+  "mutations": [
+    {
+      "contract": "The interface names are what the form shows; the value it writes is always a stored direction word.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Makes the choices the NAMES rather than the stored words, so a chosen end can only be written as a name -- which buildBoundEvent's vocabulary check refuses.",
+      "file": "apps/annotate/commands.js",
+      "find": "    var choices = AA.DIRECTIONS.slice();",
+      "replace": "    var choices = AA.DIRECTIONS.map(function (d) { return names[d] || d; });"
+    }
+  ]
+}

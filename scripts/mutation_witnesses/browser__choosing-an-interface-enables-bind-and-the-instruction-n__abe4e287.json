@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "choosing an interface enables Bind and the instruction names it",
+  "mutations": [
+    {
+      "contract": "Choosing an end enables Bind and puts the chosen interface's name in the instruction, without a re-render.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "The choice is recorded but the form never hears about it, so Bind stays disabled after the reader chose.",
+      "file": "apps/annotate/app.js",
+      "find": "    selected = onChoose().plan.selected;",
+      "replace": "    onChoose();"
+    }
+  ]
+}

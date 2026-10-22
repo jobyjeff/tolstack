@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "planBindLeader: drawn only between the picked face and the face bound at the OTHER end -- never on a first bind, never from a face to itself",
+  "mutations": [
+    {
+      "contract": "The leader runs between two different faces; a pick on the face already bound at the other end draws nothing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Drops the same-face refusal, so re-picking the face just bound draws a zero-length leader that claims two ends where there is one.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (other.bound.sha256 === pick.sha256 && other.bound.faceId === pick.faceId) return null;",
+      "replace": "    /* mutated: a face may lead to itself */"
+    }
+  ]
+}

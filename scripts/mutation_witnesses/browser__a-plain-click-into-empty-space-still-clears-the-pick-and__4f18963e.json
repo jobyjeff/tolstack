@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "a plain click into empty space still clears the pick and the form",
+  "mutations": [
+    {
+      "contract": "A click into empty space clears the pick, its tint and the bind form together.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "The clear arm of the toggle does nothing, so a miss leaves the pick and the form up.",
+      "file": "apps/annotate/app.js",
+      "find": "      if (plan.action === \"clear\") AA.exec([\"deselect\", \"face\"]);",
+      "replace": "      if (plan.action === \"clear\") { /* mutated: a miss clears nothing */ }"
+    }
+  ]
+}

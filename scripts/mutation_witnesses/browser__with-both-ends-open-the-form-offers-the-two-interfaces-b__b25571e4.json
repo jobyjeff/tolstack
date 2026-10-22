@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "with both ends open, the form offers the two interfaces by name, neither chosen, and Bind is disabled",
+  "mutations": [
+    {
+      "contract": "With both ends open nothing is preselected and Bind is disabled until the reader chooses an end.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "The silent first-option default, restored: one end checked and Bind live before anyone chose.",
+      "file": "apps/annotate/commands.js",
+      "find": "      selected: choices.indexOf(o.chosen) === -1 ? null : o.chosen,",
+      "replace": "      selected: choices.indexOf(o.chosen) === -1 ? choices[0] : o.chosen,"
+    }
+  ]
+}

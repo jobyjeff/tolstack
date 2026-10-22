@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "a drag that starts ON the picked face and orbits a full turn keeps the pick and the bind form -- Jeff's own gesture after picking a face",
+  "mutations": [
+    {
+      "contract": "A press-and-drag that orbits the view is never a pick, however it ends, so the face picked before it stays picked.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "A slop so wide every drag counts as a click: the orbit's release lands in empty space and clears the pick, which is the defect Jeff reported.",
+      "file": "apps/annotate/commands.js",
+      "find": "  AA.PICK_CLICK_SLOP_PX = 4;",
+      "replace": "  AA.PICK_CLICK_SLOP_PX = 4000;"
+    }
+  ]
+}

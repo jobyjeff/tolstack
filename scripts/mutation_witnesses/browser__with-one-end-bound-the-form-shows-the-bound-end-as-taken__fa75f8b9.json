@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "with one end bound, the form shows the bound end as taken, with its face, and the remaining end preselected -- both by interface name",
+  "mutations": [
+    {
+      "contract": "With one end bound, the form preselects the remaining end and shows the bound one as taken, with its face.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Treats one end bound like none: both offered, nothing preselected, so a reader re-chooses an answer the record already has and may choose the taken end.",
+      "file": "apps/annotate/commands.js",
+      "find": "      return { ends: ends, choices: needed.slice(), selected: needed[0] };",
+      "replace": "      return { ends: ends, choices: AA.DIRECTIONS.slice(), selected: null };"
+    }
+  ]
+}

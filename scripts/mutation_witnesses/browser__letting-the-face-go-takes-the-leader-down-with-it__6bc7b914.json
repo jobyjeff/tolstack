@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "letting the face go takes the leader down with it",
+  "mutations": [
+    {
+      "contract": "The leader lives exactly as long as the pick: letting the face go takes it down.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Only sets the leader while a face is picked, so a deselect leaves the last one drawn.",
+      "file": "apps/annotate/app.js",
+      "find": "      state.scene.setBindLeader(bind && canWrite && state.currentPick",
+      "replace": "      if (state.currentPick) state.scene.setBindLeader(bind && canWrite && state.currentPick"
+    }
+  ]
+}

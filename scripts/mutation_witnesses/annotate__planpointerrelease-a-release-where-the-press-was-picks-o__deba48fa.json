@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "planPointerRelease: a release where the press was picks, one just under the slop picks, one at or over it is a drag, and a release with no press is nothing",
+  "mutations": [
+    {
+      "contract": "A pick fires on a release that travelled strictly less than AA.PICK_CLICK_SLOP_PX from its press; anything at or beyond the slop is a drag and leaves the pick alone.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Off by one at the boundary: a release exactly at the slop counts as a click, which is the smallest orbit a reader can make clearing the pick.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (!(Math.sqrt(dx * dx + dy * dy) < slop)) return null;",
+      "replace": "    if (!(Math.sqrt(dx * dx + dy * dy) <= slop)) return null;"
+    }
+  ]
+}

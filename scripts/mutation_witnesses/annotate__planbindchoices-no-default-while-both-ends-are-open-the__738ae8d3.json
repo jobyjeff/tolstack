@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "planBindChoices: no default while both ends are open, the remaining end preselected once one is bound, and the bound one shown as taken with its face",
+  "mutations": [
+    {
+      "contract": "With both ends open the bind form has no default end; Bind waits for the reader to choose.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Restores the dropdown's silent default -- the first direction word -- which is exactly how the first event in the stream was written at the wrong end.",
+      "file": "apps/annotate/commands.js",
+      "find": "      selected: choices.indexOf(o.chosen) === -1 ? null : o.chosen,",
+      "replace": "      selected: choices.indexOf(o.chosen) === -1 ? choices[0] : o.chosen,"
+    }
+  ]
+}

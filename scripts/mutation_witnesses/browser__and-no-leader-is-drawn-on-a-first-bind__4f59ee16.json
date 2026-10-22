@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "...and no leader is drawn on a first bind",
+  "mutations": [
+    {
+      "contract": "With nothing bound at the other end there is no leader: a line with one real end would be a guess.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Invents the missing end -- the other face of the part -- so a first bind draws a leader to a face nobody bound.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (!other || !other.bound.sha256 || typeof other.bound.faceId !== \"number\") return null;",
+      "replace": "    if (!other || !other.bound) other = { name: \"guess\", bound: { sha256: pick.sha256, faceId: pick.faceId === 0 ? 1 : 0 } };"
+    }
+  ]
+}

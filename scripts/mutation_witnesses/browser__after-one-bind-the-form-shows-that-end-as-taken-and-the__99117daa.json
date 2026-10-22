@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate bind form (a drag keeps the pick, the ends by name, the leader)",
+  "expect_red": "after one Bind the form shows that end as taken and the other preselected -- and the end it was written at is the one chosen",
+  "mutations": [
+    {
+      "contract": "The event the form writes stores the end the reader chose.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md",
+      "note": "Writes every bind at the second end whatever was chosen -- the wrong-end event again, this time behind a correct-looking form.",
+      "file": "apps/annotate/app.js",
+      "find": "        direction: selected,",
+      "replace": "        direction: AA.DIRECTIONS[1],"
+    }
+  ]
+}
