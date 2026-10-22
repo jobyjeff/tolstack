@@ -5098,6 +5098,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `node scripts/guard_enumeration.mjs --json`, paste its rows, and check
       them: each count should be the integration pin plus the handoff's delta.
       For example: annotate 206+7=213, browser 565+14=579 and 533+14=547.
+- [ ] **An export's `runs` names the one run the author read, not every run
+      that consumed the bytes.** New 2026-10-22
+      (`a_general_profile_note_bands_a_model_defined_term`): two 213668-002
+      citations list 1 of the 5 runs in drawing-checker's `data/runs.jsonl`
+      whose input sha256 equals theirs, and the older `pitch_system` one says
+      `runs: []`. No test reads `runs` against the run log. For each sha a
+      diff cites, grep `runs.jsonl` for it and count
+      (`ISSUE_20261022_two_213668_export_citations_list_one_of_five_runs_that_consumed_the_export.md`).
 
 ## Architectural errors to check
 
