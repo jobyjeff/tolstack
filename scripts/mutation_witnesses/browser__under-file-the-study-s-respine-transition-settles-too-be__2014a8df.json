@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "under file:// the study's respine transition settles too, before any of its rows are addressed",
+  "mutations": [
+    {
+      "contract": "The file:// half of the annotate-flyout suite waits out the study's respine before it addresses a row, and a pane that never settles fails there BY NAME and stops the half -- it does not reach the `tr.tvrow` click and abort the suite as an unnamed ERROR.",
+      "issue": "docs/issues/ISSUE_20260916_the_annotate_flyout_settle_wait_is_named_in_one_half_and_discarded_in_the_other.md",
+      "note": "Scoped to file:// on purpose. The mounted half's own spec (`var settling = false`) never settles under either origin, so it reddens the mounted half first and says nothing about this one; this mutation leaves the served page settling and makes only the file:// page's transition permanent, which is the case this half's push exists for.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      var settling = !(t < 1);",
+      "replace": "      var settling = !(t < 1) || location.protocol === \"file:\";"
+    }
+  ]
+}

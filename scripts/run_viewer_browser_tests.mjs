@@ -717,10 +717,15 @@ async function testTheApp(browser, url, label) {
     push("the selected row is visibly marked",
       await page.locator("tr.el-row--selected").count() === 1);
     await page.waitForSelector(".detail__crop-img", { timeout: 5000 });
+    // Every export locator here is scoped to the right pane, the way the
+    // untraced-row checks are scoped to #stackview: the demo joint carries an
+    // established export of its own (fixtures.js), rendered in the stack
+    // header, and `textContent()` is strict -- a bare selector would match
+    // both and throw instead of reading the element's.
     push("an established export names its file and its checksum in the right pane",
-      /Read from 215197\.pdf/.test(await page.locator(".el-export--established").textContent()) &&
+      /Read from 215197\.pdf/.test(await page.locator("#detail .el-export--established").textContent()) &&
       /pinned to this exact file, by checksum/
-        .test(await page.locator(".el-export--established").textContent()));
+        .test(await page.locator("#detail .el-export--established").textContent()));
     push("the crop renders inline in the right pane, not only behind a hover",
       await page.locator(".detail__crop-img").count() === 1);
 
@@ -728,10 +733,10 @@ async function testTheApp(browser, url, label) {
     // claim, and a stylesheet typo would pass any class-name check the DOM shim
     // can make, so the block's tint is asserted on the computed style.
     await selectRow(1);
-    const unestablished = page.locator(".el-export--unestablished");
+    const unestablished = page.locator("#detail .el-export--unestablished");
     push("an unestablished export shows its recorded why without a crop",
       await unestablished.count() === 1 &&
-      /none hashes to the one/.test(await page.locator(".el-export__why").textContent()));
+      /none hashes to the one/.test(await page.locator("#detail .el-export__why").textContent()));
     const exportBg = await unestablished.first()
       .evaluate((n) => getComputedStyle(n).backgroundColor);
     push("the unestablished export block is tinted",
@@ -739,14 +744,14 @@ async function testTheApp(browser, url, label) {
 
     // Select the eye (no export block at all) for the "none" spine baseline.
     await selectRow(2);
-    const noneSpine = await page.locator(".el-export--none").first()
+    const noneSpine = await page.locator("#detail .el-export--none").first()
       .evaluate((n) => getComputedStyle(n).borderLeftColor);
 
     // Select the grip (the spec-pile identity rule) and compare against it: this
     // row names no export and is right not to, so it must NOT read like the
     // "nothing identifies these bytes" state one row up.
     await selectRow(3);
-    const identity = page.locator(".el-export--identity_rule");
+    const identity = page.locator("#detail .el-export--identity_rule");
     push("the spec-pile row states its identity rule",
       await identity.count() === 1 &&
       /identified by its filename/.test(await identity.textContent()));
@@ -1862,14 +1867,27 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       };
     }, CARD_TRIGGER);
 
-    await dismissCard(page);
-    await page.locator(CHIP_TRIGGER).hover();
-    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
-    // A card paints immediately and REPAINTS as each of its PNGs resolves, and
-    // a repaint can re-place it. Settling first keeps the box the tripwire
-    // reads and the box the approach aims at the same box.
-    await page.waitForTimeout(250);
-    const lay = await boxes();
+    // When the browser's own `mouseenter` reached the crop trigger, in page
+    // time, so a reading can say how far into the deferral it was taken.
+    await page.evaluate((sel) => {
+      window.__cropTriggerEnteredAt = null;
+      document.addEventListener("mouseenter", (e) => {
+        if (e.target && e.target.matches && e.target.matches(sel)) {
+          window.__cropTriggerEnteredAt = performance.now();
+        }
+      }, true);
+    }, CARD_TRIGGER);
+    const openCitation = async () => {
+      await dismissCard(page);
+      await page.locator(CHIP_TRIGGER).hover();
+      await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+      // A card paints immediately and REPAINTS as each of its PNGs resolves,
+      // and a repaint can re-place it. Settling first keeps the box the
+      // tripwire reads and the box the approach aims at the same box.
+      await page.waitForTimeout(250);
+      return boxes();
+    };
+    const lay = await openCitation();
     push("the citation card opens BELOW its row and under the row's own crop " +
       "trigger — the layout the two approaches below are only distinguishable " +
       "in",
@@ -1878,12 +1896,43 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       lay.trigger.cx > lay.card.left && lay.trigger.cx < lay.card.right);
 
     // APPROACH 1 — down onto the crop trigger, which aims into the card.
-    await approachFrom(lay.trigger.cx, lay.trigger.top - 60,
-                       lay.trigger.cx, lay.trigger.cy);
+    //
+    // "Not stolen" is a claim about the deferral window: a held trigger the
+    // pointer stays on opens after VA.HOVER_INTENT_MS BY DESIGN (the expiry
+    // check below). So both counts are read in ONE evaluate, with how long
+    // after the browser's own `mouseenter` they were read. A reading taken
+    // past the window has measured the expiry, not the corridor, and says
+    // nothing either way about this claim. It is re-measured, up to three
+    // times, and never counted as a pass. Two locator round trips after the
+    // move used to be the reading, and a red on 2026-10-21 (main checkout,
+    // 3 of 3, unreproduced at the same tree and the same data since) could
+    // not say which of the two it was.
+    const readSteal = () => page.evaluate(() => ({
+      citation: document.querySelectorAll(".hovercard--citation").length,
+      edge: document.querySelectorAll(".hovercard--edge").length,
+      sinceEnter: window.__cropTriggerEnteredAt === null ? null
+        : performance.now() - window.__cropTriggerEnteredAt,
+    }));
+    let steal = null, layNow = lay;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) layNow = await openCitation();
+      await page.evaluate(() => { window.__cropTriggerEnteredAt = null; });
+      await approachFrom(layNow.trigger.cx, layNow.trigger.top - 60,
+                         layNow.trigger.cx, layNow.trigger.cy);
+      steal = await readSteal();
+      if (steal.sinceEnter !== null && steal.sinceEnter < intentMs) break;
+    }
+    const inWindow = steal.sinceEnter !== null && steal.sinceEnter < intentMs;
     push("a trigger crossed while the pointer is heading for the open card " +
       "does not steal it",
-      await page.locator(".hovercard--citation").count() === 1 &&
-      await page.locator(".hovercard--edge").count() === 0);
+      inWindow && steal.citation === 1 && steal.edge === 0);
+    if (!(inWindow && steal.citation === 1 && steal.edge === 0)) {
+      const when = steal.sinceEnter === null
+        ? "with no mouseenter on the trigger"
+        : `${Math.round(steal.sinceEnter)}ms after the trigger's mouseenter`;
+      console.log(`    read ${when} (window ${intentMs}ms): ` +
+        `${steal.citation} citation, ${steal.edge} edge card(s)`);
+    }
 
     // THE EXPIRY. The pointer stops on that trigger and never reaches the
     // card — a deliberate hover, not a crossing — so the held open has to
@@ -2806,7 +2855,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const navSurfaces = await page.evaluate(() => {
         const badge = document.querySelector(
           "#navtree .navtree__row--study .navstatus");
-        const row = badge.closest(".navtree__row");
+        const row = badge && badge.closest(".navtree__row");
+        // No marked study row is the regression the hover above already
+        // reports by name; answering it here as a failing shape, not a
+        // TypeError, keeps the three pushes below on the board.
+        if (!row) {
+          return { titled: ["(no study row with a mark to read)"], named: null,
+                   labelTitle: null, described: 0 };
+        }
         const chain = [];
         for (let n = badge; n && n !== row.parentNode; n = n.parentNode) {
           if (n.getAttribute && n.getAttribute("title") !== null) {
@@ -2896,6 +2952,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const railPoint = (i) => page.evaluate((i) => {
         const node = document.querySelectorAll(
           "svg.tv__rails line.rail__hit")[i];
+        if (!node) return null;
         // A rail that starts below the fold has no point in the window at
         // all, and pitch_system's DAG is taller than any viewport this runs
         // at -- so the page is scrolled to put the rail's middle on screen
@@ -2963,9 +3020,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // brighter than its neighbours, and the transparent hit path over it
       // has become a visible halo. A class-name check would sail past a
       // stylesheet typo; these are computed styles.
+      //
+      // `railPoint` returns null by design -- the reachability push above is
+      // that case's verdict -- so a rail 0 with no point leaves `painted`
+      // empty and the push below FAILS by name, rather than a dereference
+      // taking the suite down.
       const firstPoint = await railPoint(0);
-      await page.mouse.move(firstPoint.x, firstPoint.y);
-      const painted = await page.evaluate(() => {
+      if (firstPoint) await page.mouse.move(firstPoint.x, firstPoint.y);
+      const painted = !firstPoint ? {} : await page.evaluate(() => {
         const pick = (sel) => {
           const n = document.querySelector("svg.tv__rails " + sel);
           if (!n) return null;
@@ -2978,7 +3040,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       });
       push("[real] a hot rail is drawn thicker and brighter than the rails " +
         "beside it, and its hit path has become a visible halo",
-        !!painted.hot && !!painted.cold &&
+        !!painted.hot && !!painted.cold && !!painted.halo && !!painted.coldHalo &&
         painted.hot.width > painted.cold.width &&
         painted.hot.stroke !== painted.cold.stroke &&
         painted.halo.stroke !== painted.coldHalo.stroke &&
@@ -3020,13 +3082,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           fire(row, "mouseenter");
           const fromRow = state(row);
           fire(row, "mouseleave");
+          // A row with no bar hit path is the DAG<->grid asymmetry this
+          // block exists to catch: `fromBar: null` disagrees with `fromRow`,
+          // so the push below names the row instead of the evaluate throwing.
           const hit = hitFor(id);
-          fire(hit, "mouseenter");
-          const fromBar = state(row);
-          fire(hit, "mouseleave");
+          if (hit) fire(hit, "mouseenter");
+          const fromBar = hit ? state(row) : null;
+          if (hit) fire(hit, "mouseleave");
           return { id, rest, fromRow, fromBar, cleared: state(row) };
         });
-        return { each, after: state(rows[0]),
+        return { each, after: rows.length ? state(rows[0]) : null,
                  selected: document.querySelectorAll("tr.tvrow--selected").length };
       });
       const rowsLit = sharedHover.each;
@@ -3057,7 +3122,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         "lit behind the pointer",
         rowsLit.every((r) => r.cleared.leadRows.length === 0 &&
           r.cleared.rowTint === r.rest.rowTint) &&
-        sharedHover.after.leadRows.length === 0);
+        !!sharedHover.after && sharedHover.after.leadRows.length === 0);
       push("[real] hovering selected nothing: a pointer tints, a click picks",
         sharedHover.selected === 0);
 
@@ -5132,7 +5197,13 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     await page.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     await page.locator(navRow("study", "demo_base_to_tip")).click();
-    await paneSettled();
+    // Pushed, as the mounted half's is: a pane that never settles here would
+    // otherwise reach the `tr.tvrow` click below and abort the suite as an
+    // unnamed ERROR -- so a false stops the half with its name on the board.
+    const fileSettled = await paneSettled();
+    push("under file:// the study's respine transition settles too, before " +
+      "any of its rows are addressed", fileSettled);
+    if (!fileSettled) return reportSuite(label, checks, errors);
     // The respine is waited out above. This beat is for the OTHER thing the
     // click starts -- the annotate-mount probe, which resolves false at once
     // under file:// and re-renders the toolbar when it lands. It was never a
@@ -7502,15 +7573,31 @@ async function testTypographyRules(browser, label, realProjection) {
       const stack = proj.stacks.filter((s) => s.id === "hub_bearing_thermal_fit_m1")[0];
       const column = (label) =>
         headers.findIndex((h) => h.label.indexOf(label) === 0);
-      const readAt = (row, label) =>
-        row.querySelectorAll("td")[column(label)].textContent.trim();
+      const readAt = (row, label) => {
+        const cell = row.querySelectorAll("td")[column(label)];
+        return cell ? cell.textContent.trim() : null;
+      };
       const wrong = [];
-      stack.checks.forEach((check, i) => {
+      // Each precondition the value loop stands on is a REASON, not a throw:
+      // fewer rows than checks, a renamed header and a stack gone from the
+      // projection are the regressions this check exists for, and a throw
+      // here would take the suite down as an unnamed ERROR instead of
+      // reddening the push below by name.
+      if (!stack) wrong.push("hub_bearing_thermal_fit_m1 is not in results.json");
+      (stack ? stack.checks : []).forEach((check, i) => {
         [["nominal", check.nominal],
          ["worst case min", check.worst_case_min],
          ["worst case max", check.worst_case_max],
          ["RSS center", check.rss_center],
          ["RSS half", check.rss_half]].forEach((pair) => {
+          if (!rows[i]) {
+            wrong.push(`${check.check_id}: no row on the page`);
+            return;
+          }
+          if (column(pair[0]) < 0) {
+            wrong.push(`${check.check_id} ${pair[0]}: no header names it`);
+            return;
+          }
           const printed = readAt(rows[i], pair[0]);
           if (printed !== String(pair[1])) {
             wrong.push(`${check.check_id} ${pair[0]}: ${printed} != ${pair[1]}`);

@@ -680,17 +680,35 @@ async function railRealPass(browser, base) {
   // The element list is bind mode's (handoff the_sweep_rail_shows_the_
   // mechanism: in sweep mode the rail shows the mechanism instead), so the
   // studyless topology the run selected is read after leaving the run.
+  //
+  // Studyless no longer: since 2026-10-16 the live vpa_pitch_linkage carries
+  // a study, and no live topology is studyless (the mock pass above pins the
+  // studyless head). So what the rail must list is read off the projection --
+  // the open study's selection, or every edge under the one-line head when
+  // there is no study -- and an absent head or topology is a named FAIL here,
+  // never a locator timeout that ends the pass.
   await page.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
   const listed = await page.locator(".an__rail .el-row").count();
   const listShown = await page.locator("#element-list").isVisible();
-  const headText = (await page.locator(".an__rail .el-head").innerText()).trim();
-  const expected = await page.evaluate(async () => {
+  const heads = page.locator(".an__rail .el-head");
+  const headText = await heads.count() ? (await heads.first().innerText()).trim() : null;
+  const studyId = await page.locator("#study-select").inputValue().catch(() => "");
+  const expected = await page.evaluate(async (studyId) => {
     const doc = await fetch("/data/projections/viewer/topologies.json").then((r) => r.json());
-    return doc.topologies.find((t) => t.id === "vpa_pitch_linkage").edges.length;
-  });
-  check("[real] the studyless topology lists every one of its edges",
-    listShown && listed === expected && expected === 29 && headText.startsWith("all 29 interfaces"),
-    `${listed} rows, ${expected} edges, head ${JSON.stringify(headText)}`);
+    const topo = doc.topologies.find((t) => t.id === "vpa_pitch_linkage");
+    if (!topo) return null;
+    const ids = new Set(topo.edges.map((e) => e.id));
+    const study = (topo.studies || []).find((s) => s.id === studyId);
+    return { studied: !!study,
+      rows: study ? (study.selection || []).filter((id) => ids.has(id)).length : ids.size };
+  }, studyId);
+  check("[real] after the run, the rail lists every edge its topology's open study " +
+    "selects -- or, with no study, every edge under the one-line head",
+    listShown && !!expected && expected.rows > 0 && listed === expected.rows &&
+      (expected.studied ? headText === null
+        : !!headText && headText.startsWith(`all ${expected.rows} interfaces`)),
+    `${listed} rows, expected ${JSON.stringify(expected)}, study ${JSON.stringify(studyId)}, ` +
+    `head ${JSON.stringify(headText)}`);
   check("[real] nothing above produced an uncaught error", errors.length === 0, errors.join("\n      "));
   await page.close();
 }
@@ -1144,8 +1162,27 @@ async function realPass(browser, base) {
     throw err;
   }
   // The bodies resolve off the render path, so wait for that to settle too.
-  await page.waitForFunction(() => window.__sweep && window.__sweep.bodies.length > 0,
-    null, { timeout: 600000 });
+  // A timeout here says WHY, as the frame wait's does: the banner (where
+  // anchorSweepBodies' own rejection lands), the page errors, how long it
+  // waited and what the sweep held when it gave up.
+  try {
+    await page.waitForFunction(() => window.__sweep && window.__sweep.bodies.length > 0,
+      null, { timeout: 600000 });
+  } catch (err) {
+    console.log(`      bodies never resolved; gave up after ${((Date.now() - started) / 1000).toFixed(1)} s`);
+    console.log("      banner: " + (await page.locator("#banner").innerText().catch(() => "?")));
+    console.log("      errors: " + errors.join(" | "));
+    console.log("      sweep: " + await page.evaluate(() => {
+      const s = window.__sweep;
+      // `plan` is assigned just before anchorSweepBodies' last loop, which
+      // opens each placed mesh in turn; `openedBySweep` is how far it got.
+      return s ? JSON.stringify({ run: s.runId, bodies: s.bodies && s.bodies.length,
+        plan: s.plan ? Object.keys(s.plan).length : null,
+        openedBySweep: (s.openedBySweep || []).length,
+        openParts: window.__scene ? window.__scene.listOpenParts().length : null }) : "none";
+    }).catch(() => "?"));
+    throw err;
+  }
   console.log(`      run read, geometry fitted and bodies resolved in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 
   const summary = (await page.locator(".an__sweep-summary").textContent()) || "";

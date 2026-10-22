@@ -76,16 +76,17 @@
               sheet: 4,
               view: "DETAIL B",
               question: "Does the fastener grip work in this joint?",
-              // NO `assembly_export_ref` here, deliberately, though four of the
-              // seven live stacks carry one. The browser TRUTH tier drives this
-              // exact fixture page and locates `.el-export--established`
-              // unscoped (scripts/run_viewer_browser_tests.mjs), so a second
-              // established export on the page is a strict-mode violation in a
-              // tier a worktree cannot run. The shape is exercised instead by
-              // the two joint-export checks in tests.js, which build their own
-              // joint -- and by the [real] tier, over the four live ones.
-              // (ISSUE_20260918_the_browser_tiers_export_locators_are_unscoped_
-              // so_a_second_export_on_the_page_breaks_them.)
+              // The shape four of the seven live stacks carry, so the joint's
+              // export block is on the fixture page in every worktree and not
+              // only where data/ lives.
+              assembly_export_ref: {
+                status: "established",
+                pdf: "C:/workspace/demo/217755.pdf",
+                sha256: "0f1e2d3c4b5a69788796a5b4c3d2e1f0" +
+                  "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
+                runs: [{ run_id: "20260804_114000_x",
+                         ts: "2026-08-04T11:40:00+00:00" }],
+              },
             },
             elements: [
               {
