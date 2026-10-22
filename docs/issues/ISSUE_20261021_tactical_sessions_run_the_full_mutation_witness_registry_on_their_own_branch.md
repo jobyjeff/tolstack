@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20261021_browser_runners_take_the_slot_and_free_the_box.md
 area: scripts/mutation-witness
 reporter: strategy
 class: unbounded_load_on_the_shared_workstation
 found_by: dispatch/docs/sessions/HANDOFF_20261021_browser_runs_take_one_machine_slot.md
+resolution: handoff completed 2026-10-21 -- closed automatically by dispatch when handoff `browser_runners_take_the_slot_and_free_the_box` moved to completed/; not independently verified.
 ---
 
 # Tactical sessions run the full mutation-witness registry on their own branch — 65 minutes each, concurrently
