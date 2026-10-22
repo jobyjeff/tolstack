@@ -959,7 +959,9 @@ function sweepState() {
 // (handoff the_sweep_rail_shows_the_mechanism): the viewer's pane passes it,
 // `?sweep=<run>&kinematic=<study>` boots with it, and the rail then lists that
 // study's contributors. A study the projection does not carry -- or no
-// projection at all -- is a rail without that group, never an error.
+// projection at all -- is a rail without that group, never an error. So is a
+// study that folded a DIFFERENT run (AA.sweepStudyFor), and that one says why
+// on the banner and in the console's result: its numbers are not this run's.
 async function cmdSweep(target, studyId) {
   const want = String(target == null ? "" : target).trim();
   if (!want) throw new Error("sweep takes a run, or \"latest\", or \"off\"");
@@ -986,6 +988,8 @@ async function cmdSweep(target, studyId) {
     study = ((kinematic && kinematic.studies) || []).find((s) => s.id === studyId) || null;
     studyDecimals = kinematic ? kinematic.display_decimals : null;
   }
+  const paired = AA.sweepStudyFor(study, artifact.runId);
+  study = paired.study;
 
   if (state.sweep) leaveSweep();
   const structure = AA.sweepStructure(artifact);
@@ -1067,7 +1071,10 @@ async function cmdSweep(target, studyId) {
   // is read, and resolving five occurrences against fitted geometry is the
   // slow part. It repaints the bar when it lands.
   anchorSweepBodies().catch((err) => setBanner(err.message, "error"));
-  return { runId, points: artifact.points.length, source: artifact.source };
+  if (paired.refusal) setBanner(paired.refusal, "warn");
+  const loaded = { runId, points: artifact.points.length, source: artifact.source };
+  if (paired.refusal) loaded.contributors = paired.refusal;
+  return loaded;
 }
 
 function leaveSweep() {

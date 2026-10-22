@@ -11297,6 +11297,11 @@
         eq(chart.zeroY, Math.round((plot.top + plot.height / 2) * 100) / 100);
         // The limit (0.5) is inside the plot even where a band is narrower.
         ok(chart.limits[0].upper > plot.top && chart.limits[0].lower < plot.top + plot.height);
+        // Its label sits under the LOWER line, inside the frame: the top of
+        // the plot is where the hover tip and the stop labels are.
+        ok(chart.limits[0].labelY > chart.limits[0].lower &&
+           chart.limits[0].labelY <= plot.top + plot.height - 2,
+           "the limit label is below the lower limit line and inside the frame");
         // The hit strips partition the plot with no gap and no overlap.
         var strips = chart.points.slice().sort(function (a, b) { return a.x - b.x; });
         eq(strips[0].hitFrom, plot.left);
@@ -11319,6 +11324,44 @@
         eq(all(tip, "div.kmchart__tiprow").map(function (r) { return r.textContent; }),
            ["actuator travel20.000 mm", "tip angle72.000 deg",
             "worst case±0.550 deg", "RSS±0.360 deg"]);
+      });
+
+    await test("a kinematic verdict leads to its limit's citation and adoption " +
+      "note, and its stop to the requirement that names it", function () {
+        // The fixture's limit, given the note the live one carries and a
+        // context_ref on the check, so both triggers have something to open.
+        var cited = JSON.parse(JSON.stringify(KIN_STUDY));
+        cited.checks[0].limit.source_ref.note =
+          "a variation limit, adopted here because the stop requirement gives none";
+        cited.checks[0].context_ref = { kind: "requirement",
+          document: "demo requirements", cell: "R-0", confidence: "traced",
+          callout: "The mechanism shall stop at -7 and +72." };
+        var verdicts = VA.kinematicVerdicts(cited, 3);
+        eq(verdicts[0].limitCard.kind, "citation");
+        eq(verdicts[0].limitCard.title, "demo requirements · cell R-1");
+        has(verdicts[0].limitCard.note, "adopted here");
+        eq(verdicts[0].contextCard.title, "demo requirements · cell R-0");
+        eq(verdicts[1].contextCard, null, "a stop with no context_ref anywhere opens nothing");
+
+        var shown = [];
+        var root = kinematicPage({ study: cited,
+          onCardShow: function (card, trigger) { shown.push([card, trigger]); } });
+        var item = all(root, "div.kmverdict")[0];
+        var limit = item.querySelector("span.kmverdict__limit");
+        ok(hasClass(limit, "cardtrig"), "the limit is a citation trigger");
+        limit.onmouseenter();
+        eq(shown[0][0].title, "demo requirements · cell R-1");
+        ok(shown[0][1] === limit, "the card is placed against the limit it cites");
+        var stop = item.querySelector("span.kmverdict__stop");
+        ok(hasClass(stop, "cardtrig"), "the stop label is a citation trigger");
+        stop.onfocus();
+        eq(shown[1][0].title, "demo requirements · cell R-0");
+        ok(!hasClass(all(root, "div.kmverdict")[1].querySelector("span.kmverdict__stop"),
+          "cardtrig"), "nothing to open, no trigger");
+        // With no card host the citation's where-line is the tooltip.
+        var bare = kinematicPage({ study: cited });
+        eq(all(bare, "span.kmverdict__limit")[0].getAttribute("title"),
+           "demo requirements · cell R-1");
       });
 
     await test("a kinematic study that failed to build says so, with its message, " +
@@ -15516,6 +15559,26 @@
                [false, false, false, false, true, true]);
             has(rows[0].textContent, "0.156");
             bannedIn(viewerAuthoredText(root), "[real] kinematic page");
+          });
+
+        await test("[real] each live stop's verdict leads to S461-607 and the note " +
+          "that says it was borrowed, and its stop to S461-241", function () {
+            var verdicts = VA.kinematicVerdicts(realKinStudy, realKinematic.display_decimals);
+            eq(verdicts.length, 2);
+            verdicts.forEach(function (v) {
+              has(v.limitCard.title, "cell S461-607");
+              has(v.limitCard.note, "closest available numeric acceptance criterion");
+              has(v.contextCard.title, "cell S461-241");
+            });
+            var shown = [];
+            var root = render(function (r) {
+              VA.renderKinematic(r, { kinematic: realKinematic, study: realKinStudy,
+                topologies: realKinTopologies,
+                onCardShow: function (card) { shown.push(card.title); } });
+            });
+            all(root, "span.kmverdict__limit").forEach(function (s) { s.onmouseenter(); });
+            eq(shown.length, 2);
+            shown.forEach(function (title) { has(title, "S461-607"); });
           });
 
         await test("[real] every contributor names an edge the topology projection " +

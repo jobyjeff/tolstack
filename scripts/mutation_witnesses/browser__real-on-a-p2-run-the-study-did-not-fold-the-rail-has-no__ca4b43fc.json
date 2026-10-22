@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] on a P2 run the study did not fold, the rail has no contributor group and the banner says which run the study was folded on",
+  "mutations": [
+    {
+      "contract": "cmdSweep drops a study whose run is not the run being loaded.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md",
+      "note": "Declared with the guard by handoff the_kinematic_study_checks_its_run_its_units_and_shows_its_limit (2026-10-21). Keeps the study whatever the pair says, so the group renders under the other run.",
+      "file": "apps/annotate/app.js",
+      "find": "  study = paired.study;\n",
+      "replace": ""
+    }
+  ]
+}

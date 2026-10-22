@@ -174,6 +174,15 @@
   // VA.studyCheckRow supplies the verdict, its sentence and the budget scope in
   // exactly the words the chain studies' verdict rows use; only the margin is
   // re-printed here, at the projection's precision.
+  //
+  // Each verdict also carries the two citations it stands on, as the citation
+  // hover card every other cited number on this app opens (VA.citationCard):
+  // the limit's (`limitCard`: where it is written, the requirement's own words,
+  // and the note saying why it was adopted -- on the live study, that S461-607
+  // is a blade-to-blade limit borrowed because S461-241 gives only the stop
+  // angles) and the stop's (`contextCard`: the requirement that names the
+  // operating point, the check's own `context_ref` first, else the stop's).
+  // A PASS against a borrowed criterion has to lead to the borrowing.
   VA.kinematicVerdicts = function (study, decimals) {
     var stops = {};
     (study.stops || []).forEach(function (stop) { stops[stop.id] = stop; });
@@ -196,6 +205,9 @@
           ? "limit ±" + withUnit(VA.kinematicNumber(check.limit.value, decimals),
               check.limit.units)
           : null,
+        limitCard: check.limit ? VA.citationCard(check.limit.source_ref || null) : null,
+        contextCard: VA.citationCard(check.context_ref ||
+          (stop && stop.context_ref) || null),
         label: check.label,
       };
     });
@@ -353,8 +365,13 @@
       xTicks: xTicks.values.map(function (v) {
         return { x: r2(X(v)), text: VA.kinematicNumber(v, decimalsFor(xTicks.step)) };
       }),
+      // The label sits just BELOW the lower limit line, mid-plot: the stop
+      // labels hold the plot's top corners and the hover tip is anchored at
+      // its top (topology.css), so the bottom is the one place neither reaches.
+      // Clamped inside the frame for a limit that is the axis's own reach.
       limits: limits.map(function (v) {
         return { upper: r2(Y(v)), lower: r2(Y(-v)),
+                 labelY: r2(Math.min(Y(-v) + 12, C.top + ph - 2)),
                  text: "limit ±" + withUnit(VA.kinematicNumber(v, decimals), study.units) };
       }),
       stops: (study.stops || []).map(function (stop) {
@@ -422,7 +439,7 @@
       return root;
     }
 
-    root.appendChild(verdictStrip(study, decimals));
+    root.appendChild(verdictStrip(study, decimals, ctx));
     var driver = (study.sweep && study.sweep.driver) || {};
     root.appendChild(VA.el("p", "muted kmhead__driver",
       "Swept over " + (driver.label || "the driver") +
@@ -441,7 +458,26 @@
     return root;
   };
 
-  function verdictStrip(study, decimals) {
+  // A cell that opens a citation card on hover, focus or click -- the trigger
+  // shape the topology rail's confidence chip uses. With no card host (a page
+  // embedding this view without one), the citation's where-line is the
+  // native tooltip instead, so the citation is never unreachable.
+  function citationTrigger(node, card, ctx) {
+    if (!card) return node;
+    if (!ctx || !ctx.onCardShow) {
+      node.setAttribute("title", card.title);
+      return node;
+    }
+    node.className += " cardtrig";
+    node.setAttribute("tabindex", "0");
+    var show = function () { ctx.onCardShow(card, node); };
+    node.onmouseenter = show;
+    node.onfocus = show;
+    node.onclick = show;
+    return node;
+  }
+
+  function verdictStrip(study, decimals, ctx) {
     var strip = VA.el("div", "kmhead__verdicts");
     var verdicts = VA.kinematicVerdicts(study, decimals);
     if (!verdicts.length) {
@@ -452,15 +488,19 @@
     verdicts.forEach(function (v) {
       var item = VA.el("div", "kmverdict");
       item.setAttribute("data-stop", v.stop);
-      item.setAttribute("title", v.label);
       var chip = VA.chip("tvverdict tvverdict--" + (v.verdict || "unknown") +
         (v.incomplete ? " tvverdict--qualified" : ""), v.verdict, v.title);
       item.appendChild(chip);
-      item.appendChild(VA.el("span", "kmverdict__stop", v.stopLabel));
-      item.appendChild(VA.el("span", "kmverdict__margin num", v.marginText));
+      item.appendChild(citationTrigger(VA.el("span", "kmverdict__stop", v.stopLabel),
+        v.contextCard, ctx));
+      var margin = VA.el("span", "kmverdict__margin num", v.marginText);
+      margin.setAttribute("title", v.label);
+      item.appendChild(margin);
       // Always five cells, empty where there is nothing to say: the strip is
       // one grid (topology.css), and a short row would shift every row below.
-      item.appendChild(VA.el("span", "muted kmverdict__limit", v.limitText || ""));
+      item.appendChild(citationTrigger(
+        VA.el("span", "muted kmverdict__limit", v.limitText || ""),
+        v.limitText ? v.limitCard : null, ctx));
       item.appendChild(v.scopeChip ? VA.chip("chip--budget", v.scopeChip, v.scopeTitle)
         : VA.el("span"));
       strip.appendChild(item);
@@ -510,10 +550,9 @@
         svg.appendChild(VA.svg("line", "kmchart__limit",
           { x1: p.left, x2: p.left + p.width, y1: y, y2: y }));
       });
-      // Mid-plot, so it never meets a stop's label: the stops are usually
-      // the sweep's own ends, which is where their labels sit.
+      // Mid-plot under the lower line (VA.kinematicChart says why there).
       var text = VA.svg("text", "kmchart__limitlabel",
-        { x: p.left + p.width / 2, y: limit.upper - 5, "text-anchor": "middle" });
+        { x: p.left + p.width / 2, y: limit.labelY, "text-anchor": "middle" });
       text.textContent = limit.text;
       svg.appendChild(text);
     });

@@ -1359,7 +1359,9 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .kmrow__edge:hover, .kmrow__edge:focus { text-decoration: underline; }
 .kmrow__zone { color: var(--muted); }
 .kmrow--muted td { color: var(--muted); }
-.kmrow__3d { text-align: right; }
+/* One line: the link's arrow is part of its label, and a wrapped "3D ↗"
+   doubles the row's height at a narrow viewport. */
+.kmrow__3d { text-align: right; white-space: nowrap; }
 .kmrow__3dbtn, .kmrow__3dlink { opacity: 0.5; font-size: var(--t-micro); }
 .kmtable tbody tr:hover .kmrow__3dbtn, .kmtable tbody tr:hover .kmrow__3dlink,
 .kmrow__3dbtn:focus, .kmrow__3dlink:focus { opacity: 1; }

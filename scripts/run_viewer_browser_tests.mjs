@@ -5704,7 +5704,11 @@ async function testAnnotateSweepRail(browser, label, topologies) {
   const contributorEdges = () => page.evaluate(() => [...document.querySelectorAll(
     '#sweep-tree [data-group="contributors"] .tree-row')].map((n) => n.dataset.edge));
   try {
-    await page.goto(`${url}?sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+    // Booted on the run the study itself folded, read from the projection,
+    // so these checks can never again lean on a run/study mismatch.
+    push("[real] the sweep rail boots P2 on the run its kinematic study folded",
+      study.sweep && study.sweep.run_id === SWEEP_RAIL_RUN);
+    await page.goto(`${url}?sweep=${study.sweep.run_id}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
     // The bodies resolving is what opens the parts the synthetic binding sits on.
     await page.waitForFunction(() => window.__sweep && window.__sweep.bodies &&
       window.__sweep.bodies.length > 0 && document.getElementById("sweep-tree"),
@@ -5831,6 +5835,29 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     push("[real] re-pick on a bound feature leaves sweep mode, every part back at its " +
       "as-modelled placement, and lands in bind mode with that edge selected",
       !landed.sweep && !landed.inSweep && !landed.tree && landed.list && landed.selected === edgeName);
+
+    // --- a run the study did not fold: no contributors, and why ----------------
+    // (the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.) The
+    // older P2 run carries the same Jacobian, so the stop the frame lands on
+    // would read plausibly -- which is why the pair is refused, not shown.
+    const otherRun = index.runs.find((r) => r !== study.sweep.run_id && /^vpa-pitch-p2-/.test(r));
+    if (!otherRun) {
+      push("[real] a run the study did not fold (skipped: only one P2 run is on disk)", true);
+    } else {
+      await page.goto(`${url}?sweep=${otherRun}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+      await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree"),
+        null, { timeout: 60000 }).catch(() => {});
+      const refused = await page.evaluate(() => ({
+        tree: !!document.getElementById("sweep-tree"),
+        group: !!document.querySelector('#sweep-tree [data-group="contributors"]'),
+        banner: (document.getElementById("banner") || {}).textContent || "",
+      }));
+      push("[real] on a P2 run the study did not fold, the rail has no contributor " +
+        "group and the banner says which run the study was folded on",
+        refused.tree && !refused.group &&
+        refused.banner.indexOf("Contributors left out") !== -1 &&
+        refused.banner.indexOf(study.sweep.run_id) !== -1);
+    }
 
     push("[real] nothing above produced an uncaught error", errors.length === 0);
     return reportSuite(label, checks, errors);

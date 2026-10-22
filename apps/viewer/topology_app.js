@@ -1829,6 +1829,7 @@
         onEdge: onKinematicEdge,
         annotateMount: state.annotateMount,
         onAttach3d: launchAnnotate,
+        onCardShow: showCard,
       });
     } else {
       VA.renderStack(nodes.stackview, stackProj, state.crops, {

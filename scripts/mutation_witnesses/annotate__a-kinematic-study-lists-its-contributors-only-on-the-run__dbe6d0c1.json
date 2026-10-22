@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a kinematic study lists its contributors only on the run it folded, and a mismatched pair says why instead",
+  "mutations": [
+    {
+      "contract": "A study's contributors are listed only under the run the study folded.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md",
+      "note": "Declared with the guard by handoff the_kinematic_study_checks_its_run_its_units_and_shows_its_limit (2026-10-21). Accepts any pair, which is what cmdSweep did before.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (folded && folded === runId) return { study: study, refusal: null };\n",
+      "replace": "    if (study) return { study: study, refusal: null };\n"
+    }
+  ]
+}

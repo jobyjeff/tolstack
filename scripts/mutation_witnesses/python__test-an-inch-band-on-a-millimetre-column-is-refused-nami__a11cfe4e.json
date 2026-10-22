@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_kinematic.py",
+  "expect_red": "test_an_inch_band_on_a_millimetre_column_is_refused_naming_the_contributor",
+  "mutations": [
+    {
+      "contract": "A band whose units do not fit the column it scales is refused at load.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md",
+      "note": "Declared with the guard by handoff the_kinematic_study_checks_its_run_its_units_and_shows_its_limit (2026-10-21). Removes the unit check, so an inch band folds against an mm column.",
+      "file": "tolerance_stack/kinematic.py",
+      "find": "        _check_band_units(study_id, contributor, sweep)\n",
+      "replace": ""
+    }
+  ]
+}

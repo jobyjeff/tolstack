@@ -1468,6 +1468,30 @@
     return best;
   };
 
+  // Which kinematic study a loaded run may list the contributors of: only the
+  // one that folded THIS run (handoff the_kinematic_study_checks_its_run_its_
+  // units_and_shows_its_limit). A study's rows are magnitudes computed from its
+  // own sweep's Jacobian, so under another run's animation they are numbers
+  // about a mechanism that is not on screen -- and nothing about them looks
+  // wrong. So a mismatched pair is refused where it is received: the study is
+  // dropped (the "absent means the group is absent" rule of the sweep rail)
+  // and `refusal` is the one line that says why, for the banner and the
+  // console. `{study: null, refusal: null}` when no study was asked for.
+  //
+  // REJECTED: keeping the group under a muted head naming the other run. It
+  // still puts numbers beside the animation that are not about the animation.
+  AA.sweepStudyFor = function (study, runId) {
+    if (!study) return { study: null, refusal: null };
+    var folded = study.sweep && study.sweep.run_id;
+    if (folded && folded === runId) return { study: study, refusal: null };
+    var name = study.title || study.id;
+    return { study: null, refusal: folded
+      ? "Contributors left out: " + name + " was folded on run " + folded +
+        ", not on " + runId + "."
+      : "Contributors left out: " + name + " did not build, so it has none for " +
+        runId + "." };
+  };
+
   // The contributor group's head: "at the −7° stop", "at the +72° stop".
   AA.kinematicStopWords = function (stop, units) {
     var t = Number(stop.target);

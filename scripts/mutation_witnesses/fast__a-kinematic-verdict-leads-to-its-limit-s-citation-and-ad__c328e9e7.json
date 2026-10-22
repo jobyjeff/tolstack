@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic verdict leads to its limit's citation and adoption note, and its stop to the requirement that names it",
+  "mutations": [
+    {
+      "contract": "Each stop's verdict carries the limit's own citation card.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md",
+      "note": "Declared with the guard by handoff the_kinematic_study_checks_its_run_its_units_and_shows_its_limit (2026-10-21). Drops the limit's card, the PASS-with-no-citation state the guard exists for.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        limitCard: check.limit ? VA.citationCard(check.limit.source_ref || null) : null,\n",
+      "replace": "        limitCard: null,\n"
+    }
+  ]
+}

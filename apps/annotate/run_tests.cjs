@@ -1238,6 +1238,23 @@ check("the contributor group reads the stop nearest the frame by the study's own
       gap: "No band is cited.", feature: { kind: "node", id: "n_top" } }]);
 });
 
+check("a kinematic study lists its contributors only on the run it folded, and " +
+  "a mismatched pair says why instead", () => {
+  const study = { id: "k1", title: "Blade pitch at the end stops",
+    sweep: { run_id: "p2-new" }, stops: [] };
+  assertEqual(AA.sweepStudyFor(study, "p2-new"), { study, refusal: null });
+  const other = AA.sweepStudyFor(study, "p2-old");
+  assertEqual(other.study, null, "the other run's animation gets no contributor group");
+  assertEqual(other.refusal, "Contributors left out: Blade pitch at the end stops " +
+    "was folded on run p2-new, not on p2-old.");
+  const broken = AA.sweepStudyFor({ id: "k2", status: "error" }, "p2-new");
+  assertEqual(broken.study, null);
+  assertEqual(broken.refusal, "Contributors left out: k2 did not build, so it has " +
+    "none for p2-new.");
+  assertEqual(AA.sweepStudyFor(null, "p2-new"), { study: null, refusal: null },
+    "no study asked for is no group and nothing to say");
+});
+
 check("a sweep link carries its kinematic study onto the sweep verb, and inspect's " +
   "grammar refuses what it does not take", () => {
   assertEqual(AA.planEntryCommands({ sweep: "r1", kinematic: "k1" }), [["sweep", "r1", "k1"]]);

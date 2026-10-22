@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] each live stop's verdict leads to S461-607 and the note that says it was borrowed, and its stop to S461-241",
+  "mutations": [
+    {
+      "contract": "The live limit's card cites the limit's own requirement, not the stop's.",
+      "issue": "docs/sessions/lessons/LESSONS_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md",
+      "note": "Declared with the guard by handoff the_kinematic_study_checks_its_run_its_units_and_shows_its_limit (2026-10-21). Cites the context requirement in the limit's place: both are cell citations in the same document, so only the cell tells them apart.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        limitCard: check.limit ? VA.citationCard(check.limit.source_ref || null) : null,\n",
+      "replace": "        limitCard: check.limit ? VA.citationCard(check.context_ref || null) : null,\n"
+    }
+  ]
+}
