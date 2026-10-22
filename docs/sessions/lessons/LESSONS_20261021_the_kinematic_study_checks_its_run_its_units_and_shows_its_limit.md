@@ -187,3 +187,36 @@ group and the banner names the folded run.
 - One new browser guard has no spec: `[real] a run the study did not fold
   (skipped: only one P2 run is on disk)`, a skip arm that always pushes `true`.
   The same convention applies to the suite's other skip lines.
+
+## Verification, as recorded
+
+Every `[real]` and browser run read projections built **from this branch's
+tree at `eaef7cb`** into `C:\workspace\tolstack\data\scratch\kinematic_units\`
+(gitignored): a copy of `data/inbox`, `data/meshes` and `data/projections`,
+with the topology, viewer, part-names, crops (drawing-checker's interpreter)
+and kinematic projections rebuilt there. The freshness check paired them with
+the tree. The main checkout's `data/` was not written to. The temporary
+`docs`/`venv-win` junctions in that root, and the `node_modules` junction in the
+worktree, are removed. The root holds only copied data and built projections:
+delete it after review.
+
+- `C:\workspace\tolstack\venv-win\Scripts\python.exe -m pytest -q` (worktree):
+  **1 failed, 1529 passed, 1 skipped, 6:04**. The failure is the documented
+  worktree-only `tests/test_viewer_js_suite.py` (no projection under the
+  worktree's `data/`). Its tier ran directly, below. The skip is
+  `test_fit_bound_features.py`'s re-extraction, which is not installed.
+- `node apps/viewer/run_tests.cjs --repo <scratch>`: **546/546**, no tier skipped.
+- `node apps/annotate/run_tests.cjs` (worktree): **206/206**.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch>`, full: **28/28
+  suites**, 164 s. That includes `annotate sweep rail` 15/15 (2 new) and
+  `kinematic study page` 10/10.
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --only <spec>`
+  for each of the six new specs: **6/6 WITNESSED** (2 fast, 1 annotate, 2
+  browser, 1 python). The full registry was not run: it belongs to the batch
+  merge (CLAUDE.md). Every existing spec whose file this branch touched still
+  finds its snippet exactly once (scanned). Census now: fast 76/546, annotate
+  61/206, browser 92/533 enrollable (565 declared).
+- **Not run, and why:** the main checkout's own `pytest -q` after a rebuild,
+  and the four node tiers from the main checkout. The main checkout is on
+  `master` and does not carry this branch until the merge, so those runs belong
+  to the review/batch merge, with `scripts/rebuild_projections.ps1` first.
