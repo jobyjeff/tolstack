@@ -658,6 +658,25 @@ class Topology:
                     f"two interfaces share part(s) {sorted(shared)}. Two "
                     f"interfaces of one part are separated by a structural "
                     f"dimension of it, not by a gap.")
+            # The ±0.05 stand-in is retired for a drawing-defined surface
+            # (2026-10-22, docs/SOP_TOLERANCE_STACK.md "What a term cites when
+            # its drawing does not band it"): a part with a drawing is banded
+            # by a dimension, its general profile note, the assembly drawing,
+            # or it is a gap. An `assumed` band survives only for a quantity
+            # no drawing governs at all, and it has to say why.
+            ref = edge.dimension.source_ref if edge.dimension else None
+            if (ref is not None and ref.kind == "assumed" and edge.part
+                    and edge.part in self._parts
+                    and self._parts[edge.part].drawing
+                    and not ref.no_drawing_governs):
+                raise TopologyError(
+                    f"topology {self.id!r}: edge {edge.id!r} carries an `assumed` "
+                    f"band on part {edge.part!r}, whose drawing "
+                    f"{self._parts[edge.part].drawing!r} governs it. Cite the "
+                    f"dimension, the drawing's general profile note or the "
+                    f"assembly drawing; or make the edge a gap; or, if no drawing "
+                    f"governs this quantity at all, say why in the citation's "
+                    f"`no_drawing_governs`.")
             self._incident[edge.from_node].append(edge)
             self._incident[edge.to_node].append(edge)
 

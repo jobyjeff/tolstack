@@ -362,6 +362,19 @@ SOURCE_REF_KINDS = (
     "requirement",
 )
 
+#: The words a ``drawing`` citation's ``note`` opens with when its band is read
+#: off the drawing's general profile note (``⌓w UNLESS OTHERWISE SPECIFIED``)
+#: rather than off a dimension -- the SOP's "What a term cites when its drawing
+#: does not band it" (2026-10-22). It is still a drawing citation at
+#: ``traced``; what differs is the anchor, which is a note number on a sheet
+#: instead of a callout in a view, and the admission that the drawing ought to
+#: dimension the feature. The machine field is :attr:`SourceRef.note_number`;
+#: the two are a bidirectional invariant (one without the other raises), so a
+#: reader of the note and a consumer of the field can never disagree.
+GENERAL_NOTE_PHRASE = (
+    "general profile note, not a dimension; the drawing should carry an "
+    "explicit tolerance")
+
 
 @dataclass(frozen=True)
 class SourceRef:
@@ -392,6 +405,13 @@ class SourceRef:
     run_id: Optional[str] = None      # future: pipeline run that produced it
     confidence: str = "untraced"    # one of CONFIDENCES, above
     note: Optional[str] = None
+    # the drawing's general-note number, when the band is a general profile
+    # note's and not a dimension's -- see GENERAL_NOTE_PHRASE, above.
+    note_number: Optional[int] = None
+    # on an `assumed` band whose part has a drawing: why no drawing governs
+    # this quantity at all. Without it a topology refuses the band (the ±0.05
+    # stand-in retired 2026-10-22); see tolerance_stack/topology.py.
+    no_drawing_governs: Optional[str] = None
 
     def __post_init__(self) -> None:
         # Validated, not merely documented. Until 2026-08-17 the vocabulary was an
@@ -414,6 +434,32 @@ class SourceRef:
         if self.kind not in SOURCE_REF_KINDS:
             raise ValueError(
                 f"source ref kind must be one of {SOURCE_REF_KINDS}, got "
+                f"{self.kind!r}")
+        # A general profile note bands a term (2026-10-22): the anchor is a
+        # note on a sheet, so both are required, and the note says so in the
+        # words a reader will see. Either half without the other raises.
+        says_general_note = (self.note or "").startswith(GENERAL_NOTE_PHRASE)
+        if self.note_number is not None or says_general_note:
+            if self.kind != "drawing":
+                raise ValueError(
+                    f"a general-note citation is a `drawing` citation, got kind "
+                    f"{self.kind!r}")
+            if self.note_number is None:
+                raise ValueError(
+                    "a citation whose note opens with the general-note phrase "
+                    "names the note: set `note_number`")
+            if not says_general_note:
+                raise ValueError(
+                    f"a citation with note_number {self.note_number!r} is banded "
+                    f"by a general note, and its `note` must open with "
+                    f"{GENERAL_NOTE_PHRASE!r}")
+            if self.sheet is None:
+                raise ValueError(
+                    f"general note {self.note_number!r} is cited with no `sheet`; "
+                    f"a note number is re-findable only on a named sheet")
+        if self.no_drawing_governs is not None and self.kind != "assumed":
+            raise ValueError(
+                f"`no_drawing_governs` explains an `assumed` band, got kind "
                 f"{self.kind!r}")
 
     @classmethod
