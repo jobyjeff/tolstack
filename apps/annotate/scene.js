@@ -45,6 +45,13 @@ const GHOST_OPACITY = 0.22;
 // declaration, so the two cannot drift.
 const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };
 const DEFAULT_MARK_ROLE = "bound";
+// The bind leader (setBindLeader): drawn after the parts and the marks, and
+// its labels after its line. The label size is in CSS px at a nominal view
+// height -- a sprite with sizeAttenuation off is sized as a fraction of the
+// view, so LEADER_VIEW_PX is what turns the one into the other.
+const LEADER_RENDER_ORDER = 10;
+const LEADER_LABEL_PX = 12;
+const LEADER_VIEW_PX = 900;
 
 // --- sweep mode (handoff kinematic_sweep_animation) ------------------------
 //
@@ -171,11 +178,42 @@ export class AnnotateScene {
 
     this.raycaster = new THREE.Raycaster();
 
-    this.renderer.domElement.addEventListener("pointerdown", (ev) => {
-      const rect = this.renderer.domElement.getBoundingClientRect();
-      const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
-      const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    // A PICK IS A CLICK, NOT A PRESS (handoff a_face_pick_survives_an_orbit_
+    // and_names_its_end). The press is only recorded; the raycast happens on
+    // the release, and only when AA.planPointerRelease says the pointer did
+    // not travel -- so the press-and-drag that orbits the view leaves the
+    // pick exactly where it was. A second pointer down (a pinch) makes the
+    // gesture a camera move outright, however its fingers end.
+    const canvas = this.renderer.domElement;
+    const pointersDown = new Set();
+    this._press = null;
+    canvas.addEventListener("pointerdown", (ev) => {
+      pointersDown.add(ev.pointerId);
+      this._press = pointersDown.size === 1
+        ? { x: ev.clientX, y: ev.clientY, pointerId: ev.pointerId } : null;
+    });
+    canvas.addEventListener("pointerup", (ev) => {
+      pointersDown.delete(ev.pointerId);
+      const press = this._press;
+      if (!press || press.pointerId !== ev.pointerId) return;
+      this._press = null;
+      const rect = canvas.getBoundingClientRect();
+      const at = window.AnnotateApp.planPointerRelease({
+        down: press,
+        up: {
+          x: ev.clientX, y: ev.clientY,
+          inside: ev.clientX >= rect.left && ev.clientX <= rect.right &&
+            ev.clientY >= rect.top && ev.clientY <= rect.bottom,
+        },
+      });
+      if (!at) return;
+      const ndcX = ((at.x - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((at.y - rect.top) / rect.height) * 2 + 1;
       this.onPick(this.pick(ndcX, ndcY));
+    });
+    canvas.addEventListener("pointercancel", (ev) => {
+      pointersDown.delete(ev.pointerId);
+      this._press = null;
     });
 
     // Overridable by the app: called with {sha256, faceId, record,
@@ -216,7 +254,7 @@ export class AnnotateScene {
     // and closes above it (handoff annotate_hint_bar_and_context_autofilter),
     // and in the viewer's flyout the whole panel is drag-resized. A stale
     // drawing buffer does not just look wrong, it puts the raycast's NDC
-    // mapping (pointerdown, above) out of step with what is on screen, so a
+    // mapping (pointerup, above) out of step with what is on screen, so a
     // click lands on the wrong face.
     if (typeof ResizeObserver === "function") {
       this._resizeObserver = new ResizeObserver(() => this.resize());
@@ -701,6 +739,122 @@ export class AnnotateScene {
     }
     attr.needsUpdate = true;
     this._lastPick = { sha256, faceId };
+  }
+
+  // --- the bind leader -------------------------------------------------------
+  //
+  // A thin line from the picked face to the face already bound at the other
+  // end of the element, in the pick colour, with each end's interface name
+  // beside it -- drawn BEFORE Bind, so a reader sees which end the face is
+  // about to be written as while it can still be changed. `leader` is
+  // AA.planBindLeader's answer, or null to take it down. Display only, like
+  // everything else drawn in the assembly frame: each centroid (the
+  // manifest's `centroid_native`) is put through the placement the part's
+  // FIRST drawn occurrence is drawn with, and nothing here is read back into
+  // a value. Drawn over everything (no depth test): the two faces of a
+  // thickness are on opposite sides of the part, so a depth-tested line
+  // between them would be inside it.
+  setBindLeader(leader) {
+    this._disposeLeader();
+    if (!leader) return false;
+    const a = this._drawnCentroid(leader.picked.sha256, leader.picked.faceId);
+    const b = this._drawnCentroid(leader.bound.sha256, leader.bound.faceId);
+    if (!a || !b) return false;
+    const group = new THREE.Group();
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(
+      new Float32Array([a.x, a.y, a.z, b.x, b.y, b.z]), 3));
+    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+      color: MARK_COLORS.picked, depthTest: false, transparent: true,
+    }));
+    line.renderOrder = LEADER_RENDER_ORDER;
+    line.frustumCulled = false;
+    group.add(line);
+    // The picked end's label sits above its point and the bound end's hangs
+    // below its own, so two ends close together on screen do not print one
+    // name over the other.
+    const labels = [
+      this._leaderLabel(leader.picked.label, a, [0, 0]),
+      this._leaderLabel(leader.bound.label, b, [0, 1]),
+    ].filter(Boolean);
+    for (const sprite of labels) group.add(sprite);
+    this.scene.add(group);
+    this._leader = {
+      group,
+      read: {
+        picked: { faceId: leader.picked.faceId, at: [a.x, a.y, a.z], label: leader.picked.label || null },
+        bound: { faceId: leader.bound.faceId, at: [b.x, b.y, b.z], label: leader.bound.label || null },
+        color: line.material.color.getHexString(),
+      },
+    };
+    return true;
+  }
+
+  // The read side, for a test that wants to see the leader rather than trust
+  // it: both ends where they are drawn, their labels, and the line's colour.
+  bindLeader() {
+    return this._leader ? JSON.parse(JSON.stringify(this._leader.read)) : null;
+  }
+
+  _disposeLeader() {
+    if (!this._leader) return;
+    this.scene.remove(this._leader.group);
+    this._leader.group.traverse((node) => {
+      if (node.geometry) node.geometry.dispose();
+      if (node.material) {
+        if (node.material.map) node.material.map.dispose();
+        node.material.dispose();
+      }
+    });
+    this._leader = null;
+  }
+
+  // A face's centroid where it is DRAWN: the part's own first placement, the
+  // same matrix the mesh itself carries. Null for a part that is not open or
+  // is hidden, or a face the manifest has no centroid for.
+  _drawnCentroid(sha256, faceId) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh || !mesh.visible) return null;
+    const record = mesh.userData.manifest.faces[faceId];
+    const c = record && record.centroid_native;
+    if (!c) return null;
+    return new THREE.Vector3(c[0], c[1], c[2]).applyMatrix4(mesh.matrix);
+  }
+
+  // One name, as a screen-sized sprite anchored at `at` (`center` is the
+  // sprite's own anchor, 0..1 each way). Screen-sized rather than world-sized
+  // because a part may be millimetres across or a metre, and the label has to
+  // read the same on both.
+  _leaderLabel(text, at, center) {
+    if (!text) return null;
+    const scale = 2;
+    const font = (LEADER_LABEL_PX * scale) + "px system-ui, sans-serif";
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = font;
+    const pad = 6 * scale;
+    canvas.width = Math.ceil(ctx.measureText(text).width) + pad * 2;
+    canvas.height = Math.ceil(LEADER_LABEL_PX * scale * 1.6);
+    ctx.font = font;
+    ctx.fillStyle = "rgba(27, 30, 34, 0.85)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#" + new THREE.Color(MARK_COLORS.picked).getHexString();
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, pad, canvas.height / 2);
+    const texture = new THREE.CanvasTexture(canvas);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: texture, depthTest: false, transparent: true, sizeAttenuation: false,
+    }));
+    // sizeAttenuation off: the scale is a fraction of the view's height
+    // (times the camera's tan(fov/2) factor), so this sets the label's
+    // on-screen height directly.
+    const height = (canvas.height / scale) / LEADER_VIEW_PX;
+    sprite.scale.set(height * canvas.width / canvas.height, height, 1);
+    sprite.center.set(center[0], center[1]);
+    sprite.position.copy(at);
+    sprite.renderOrder = LEADER_RENDER_ORDER + 1;
+    sprite.userData.label = text;
+    return sprite;
   }
 
   // --- sweep mode ----------------------------------------------------------

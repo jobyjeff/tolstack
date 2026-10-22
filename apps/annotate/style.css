@@ -369,6 +369,30 @@ body {
 .bind-form label, .owner-not-in-set-form label { display: block; font-size: var(--t-micro); color: #9aa1ab; }
 .bind-form select, .bind-form input, .owner-not-in-set-form input { width: 100%; }
 .bind-form button, .owner-not-in-set-form button { flex: none; }
+.bind-form button:disabled { color: #7d848e; cursor: default; }
+
+/* Which interface the picked face is (2026-10-21): the edge's two ends by
+   name, in place of a `direction` dropdown. Its own full-width row, so a long
+   interface name WRAPS inside its choice rather than being clipped -- the
+   name is the whole content of the control. The chosen end takes the pick
+   colour, the same one the face and the leader in the 3D view are drawn in,
+   because it is the claim being made about that face. An end already bound is
+   not a control: muted, with the face it has. */
+.bind-form > .an__ends {
+  flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px;
+}
+.an__ends-label { flex: 0 0 100%; font-size: var(--t-micro); color: #9aa1ab; }
+.bind-form .an__end {
+  flex: 1 1 220px; text-align: left; white-space: normal;
+  background: none; color: #cfd3d8; border: 1px solid #4a515a; padding: 4px 8px;
+}
+.bind-form .an__end:hover, .bind-form .an__end:focus { color: #e8e8e8; background: #2c3138; }
+.bind-form .an__end[aria-checked="true"] { color: #e8e8e8; border-color: #ff8c1a; }
+.an__end--taken {
+  flex: 1 1 220px; color: #9aa1ab; border: 1px dashed #33383f; border-radius: 4px;
+  padding: 4px 8px;
+}
+.an__end-note { display: block; font-size: var(--t-meta); }
 
 /* The escape hatch for an element whose part is not in the loaded set: rare,
    and it needs a note field, so it is a disclosure rather than a permanent

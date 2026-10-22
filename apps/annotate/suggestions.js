@@ -488,8 +488,8 @@
 
   // The reader-facing summary of a plan. Counts, and the stage that produced
   // them, in words: "6 likely faces (every face of the right kind on this
-  // part)".
-  AA.describeSuggestions = function (plan) {
+  // part)". `names` (optional) is AA.edgeEndNames's answer for the element.
+  AA.describeSuggestions = function (plan, names) {
     if (!plan) return "";
     // Nothing suggested says whatever the PLAN says and nothing of its own: a
     // part with no installed mesh has a sentence already (the rail's "No
@@ -503,9 +503,27 @@
       for (var i = 0; i < AA.NARROWING_STAGES.length; i++) {
         if (AA.NARROWING_STAGES[i].key === end.stage) row = AA.NARROWING_STAGES[i];
       }
-      if (row && stages.indexOf(row.says) === -1) stages.push(row.says);
+      var says = row ? row.says + referenceClause(end, names || {}) : null;
+      if (says && stages.indexOf(says) === -1) stages.push(says);
     });
     return plan.faces.length + " likely face" + (plan.faces.length === 1 ? "" : "s") +
       (stages.length ? " -- " + stages.join("; ") : "");
   };
+
+  // Which face "the one already bound" IS (Jeff, 2026-10-21, read it as some
+  // earlier binding he did not know about, when it was the face he had just
+  // written): " (face 110, bound as <interface name>)", off the end's own
+  // references. Only for the two stages that compared against a face; the
+  // reference shown is the first of the kind the stage used (same part, or
+  // another part). A reference at the OTHER end of this element is named by
+  // that end; one at the other half of this interface, by this end's own.
+  function referenceClause(end, names) {
+    if (end.stage !== "same_part_relation" && end.stage !== "mating_fit") return "";
+    var sameMesh = end.stage === "same_part_relation";
+    var ref = null;
+    end.references.forEach(function (r) { if (!ref && !!r.sameMesh === sameMesh) ref = r; });
+    if (!ref) return "";
+    var name = ref.source === "other_end" ? names[ref.direction] : end.interfaceName;
+    return " (face " + ref.faceId + (name ? ", bound as " + name : "") + ")";
+  }
 })(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);

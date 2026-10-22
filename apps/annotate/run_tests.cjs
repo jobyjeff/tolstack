@@ -1374,6 +1374,36 @@ check("planPickToggle: another face on the same part, and the same face id on " 
   assertEqual(AA.planPickToggle(null, PICK_A), { action: "select", pick: PICK_A });
 });
 
+// --- a pick is a click, not a press ----------------------------------------
+//
+// Jeff, 2026-10-21: "as soon as I went to rotate the view it deselected it."
+// The scene raycasts on RELEASE, and only when AA.planPointerRelease says the
+// pointer did not travel; the toggle above is unchanged.
+check("planPointerRelease: a release where the press was picks, one just under " +
+  "the slop picks, one at or over it is a drag, and a release with no press is " +
+  "nothing", () => {
+  const slop = AA.PICK_CLICK_SLOP_PX;
+  if (!(typeof slop === "number" && slop > 0 && slop <= 8)) {
+    throw new Error("PICK_CLICK_SLOP_PX is not a small positive pixel count: " + slop);
+  }
+  const down = { x: 100, y: 200 };
+  assertEqual(AA.planPointerRelease({ down, up: { x: 100, y: 200, inside: true }, slopPx: slop }),
+    { x: 100, y: 200 });
+  assertEqual(AA.planPointerRelease({ down, up: { x: 100 + slop - 0.5, y: 200, inside: true } }),
+    { x: 100 + slop - 0.5, y: 200 }, "a release just under the slop did not pick");
+  assertEqual(AA.planPointerRelease({ down, up: { x: 100 + slop, y: 200, inside: true } }),
+    null, "a release AT the slop picked -- the smallest orbit would clear the pick");
+  // Diagonal: the distance is Euclidean, not per-axis.
+  assertEqual(AA.planPointerRelease({ down, up: { x: 100 + slop * 0.8, y: 200 + slop * 0.8,
+    inside: true } }), null, "a diagonal drag over the slop picked");
+  assertEqual(AA.planPointerRelease({ down, up: { x: 100 + 40, y: 200 - 300, inside: true } }),
+    null, "a long drag picked");
+  assertEqual(AA.planPointerRelease({ down: null, up: { x: 100, y: 200, inside: true } }),
+    null, "a release with no recorded press picked");
+  assertEqual(AA.planPointerRelease({ down, up: { x: 100, y: 200, inside: false } }),
+    null, "a release off the canvas picked");
+});
+
 check("DESELECT_TARGETS is a closed set whose FIRST value is the default the " +
   "UI's own paths use", () => {
   assertEqual(AA.DESELECT_TARGETS, ["face", "element", "all"]);
@@ -1757,32 +1787,142 @@ check("taskInstruction: a scope entry names the scope instead", () => {
   assertNothingBanned(text, "AA.taskInstruction (scope)");
 });
 
+// The two ends of the fixture element, by the names the form shows.
+const END_NAMES = { from: "bushing face against the plate", to: "plate far face" };
+
 check("taskInstruction: two faces, then one, then done -- the count comes " +
   "from what the binding still needs", () => {
   const named = (needed) => AA.taskInstruction({
-    elementName: "Bushing length", needed,
+    elementName: "Bushing length", needed, names: END_NAMES,
   });
-  if (named(["from", "to"]) !== "Select the two faces that define Bushing length.") {
-    throw new Error("unexpected two-face instruction: " + named(["from", "to"]));
-  }
-  if (named(["to"]).indexOf("remaining face") === -1) {
-    throw new Error("unexpected one-face instruction: " + named(["to"]));
-  }
-  if (named([]).indexOf("already has") === -1) {
-    throw new Error("unexpected fully-bound instruction: " + named([]));
-  }
+  // The form binds ONE face per event (Jeff: "I was expecting it to ask me for
+  // two faces"), so the two-face state says so and asks for the first.
+  assertEqual(named(["from", "to"]),
+    "Bushing length needs two faces, bound one at a time. Click the first one " +
+    "in the 3D view.");
+  // One end bound: the end still needed, BY ITS INTERFACE NAME.
+  assertEqual(named(["to"]),
+    "Select the remaining face that defines Bushing length: plate far face.");
+  assertEqual(named(["from"]),
+    "Select the remaining face that defines Bushing length: bushing face " +
+    "against the plate.");
+  assertEqual(named([]),
+    "Bushing length already has the faces it needs. Click a face to bind another.");
   // An element with no record at all defaults to both, never to "done".
-  assertEqual(AA.taskInstruction({ elementName: "Bushing length" }),
+  assertEqual(AA.taskInstruction({ elementName: "Bushing length", names: END_NAMES }),
     named(["from", "to"]));
 });
 
 check("taskInstruction: a picked face turns the instruction into the action " +
   "the bind form is about to take", () => {
-  const text = AA.taskInstruction({ elementName: "Bushing length", picked: true,
-    needed: ["from", "to"] });
-  if (text.indexOf("Bind") !== 0 || text.indexOf("Bushing length") === -1) {
-    throw new Error("unexpected picked-face instruction: " + text);
-  }
+  const picked = (needed, chosen) => AA.taskInstruction({ elementName: "Bushing length",
+    picked: true, needed, names: END_NAMES, chosen });
+  // Both ends open and nothing chosen: choose the interface, then Bind -- and
+  // the other face comes next.
+  assertEqual(picked(["from", "to"], null),
+    "Choose which interface of Bushing length this face is, then press Bind. " +
+    "The other face comes next.");
+  assertEqual(picked(["from", "to"], "from"),
+    "Bind the selected face to Bushing length as bushing face against the plate. " +
+    "The other face comes next.");
+  // One end bound: Bind writes the face as that named end, and it is the last.
+  assertEqual(picked(["to"], "to"),
+    "Bind the selected face to Bushing length as plate far face, the last face " +
+    "it needs.");
+  assertEqual(picked([], null),
+    "Choose which interface of Bushing length this face is, then press Bind.");
+});
+
+check("taskInstruction: no state prints the stored direction word -- swapping " +
+  "which interface is which end swaps nothing but the names", () => {
+  const swapped = { from: END_NAMES.to, to: END_NAMES.from };
+  const states = [
+    { needed: ["from", "to"] }, { needed: ["to"] }, { needed: [] },
+    { needed: ["from", "to"], picked: true },
+    { needed: ["from", "to"], picked: true, chosen: "from" },
+    { needed: ["to"], picked: true, chosen: "to" },
+    { needed: [], picked: true, chosen: "from" },
+  ];
+  const flip = (list) => list.map((d) => (d === "from" ? "to" : "from"));
+  states.forEach((st, i) => {
+    const one = AA.taskInstruction(Object.assign({ elementName: "Bushing length",
+      names: END_NAMES }, st));
+    const other = AA.taskInstruction({ elementName: "Bushing length", names: swapped,
+      picked: st.picked, needed: flip(st.needed),
+      chosen: st.chosen ? flip([st.chosen])[0] : undefined });
+    if (one !== other) {
+      throw new Error(`state #${i + 1} reads the stored word, not the interface: ` +
+        JSON.stringify(one) + " vs " + JSON.stringify(other));
+    }
+    if (/\bfrom\b/i.test(one) || /\bto\b/i.test(one.replace(/ to Bushing length| to bind/g, ""))) {
+      throw new Error(`state #${i + 1} prints a direction word: ${one}`);
+    }
+  });
+});
+
+check("planBindChoices: no default while both ends are open, the remaining end " +
+  "preselected once one is bound, and the bound one shown as taken with its face", () => {
+  const open = AA.planBindChoices({ record: null, names: END_NAMES });
+  assertEqual(open.selected, null, "an untouched form has a default end");
+  assertEqual(open.choices, AA.DIRECTIONS);
+  assertEqual(open.ends.map((e) => e.name), [END_NAMES.from, END_NAMES.to]);
+  assertEqual(AA.planBindChoices({ record: null, names: END_NAMES, chosen: "to" }).selected,
+    "to", "the reader's choice was not kept");
+  assertEqual(AA.planBindChoices({ record: null, names: END_NAMES, chosen: "sideways" }).selected,
+    null, "a word outside the vocabulary was taken as a choice");
+  const record = { bindings: [{ direction: "to",
+    geometry_key: { source_step_sha256: "a".repeat(64), face_id: 110 } }] };
+  const one = AA.planBindChoices({ record, names: END_NAMES, chosen: "to" });
+  assertEqual(one.choices, ["from"], "a bound end is still offered as a choice");
+  assertEqual(one.selected, "from", "the one end left was not preselected");
+  assertEqual(one.ends[1].bound, { faceId: 110, sha256: "a".repeat(64) },
+    "the bound end does not carry the face it has");
+});
+
+check("whichever interface is chosen, the event the form writes stores one of " +
+  "AA.DIRECTIONS -- the names are what the form shows, never what it writes", () => {
+  const choices = AA.planBindChoices({ record: null, names: END_NAMES }).choices;
+  assertEqual(choices.length, 2);
+  choices.forEach((chosen) => {
+    const selected = AA.planBindChoices({ record: null, names: END_NAMES, chosen }).selected;
+    const event = AA.buildBoundEvent({
+      eventId: "e-" + chosen, seq: 1, createdAt: "2026-10-21T00:00:00Z",
+      recordedBy: "annotate-app",
+      stackKey: AA.topologyEdgeKey("t", "e"),
+      geometryKey: { source_step_sha256: "a".repeat(64), face_id: 1 },
+      direction: selected,
+    });
+    if (AA.DIRECTIONS.indexOf(event.direction) === -1 || event.direction !== chosen) {
+      throw new Error("choosing " + chosen + " stored " + JSON.stringify(event.direction));
+    }
+  });
+});
+
+check("edgeEndNames: each end is its interface node's own name, keyed by the " +
+  "stored word", () => {
+  const topo = { nodes: [{ id: "a", name: "seat face" }, { id: "b" }],
+    edges: [{ id: "e", from: "a", to: "b" }] };
+  assertEqual(AA.edgeEndNames(topo, topo.edges[0]), { from: "seat face", to: "b" });
+  assertEqual(AA.edgeEndNames(topo, null), {});
+});
+
+check("planBindLeader: drawn only between the picked face and the face bound at " +
+  "the OTHER end -- never on a first bind, never from a face to itself", () => {
+  const sha = "a".repeat(64);
+  const pick = { sha256: sha, faceId: 113 };
+  const firstBind = AA.planBindChoices({ record: null, names: END_NAMES, chosen: "from" });
+  assertEqual(AA.planBindLeader({ pick, plan: firstBind }), null,
+    "a leader was drawn with only one face to draw from");
+  const record = { bindings: [{ direction: "to",
+    geometry_key: { source_step_sha256: sha, face_id: 110 } }] };
+  const second = AA.planBindChoices({ record, names: END_NAMES });
+  assertEqual(AA.planBindLeader({ pick, plan: second }), {
+    picked: { sha256: sha, faceId: 113, label: END_NAMES.from },
+    bound: { sha256: sha, faceId: 110, label: END_NAMES.to },
+  });
+  assertEqual(AA.planBindLeader({ pick: { sha256: sha, faceId: 110 }, plan: second }), null,
+    "a leader was drawn from the bound face to itself");
+  assertEqual(AA.planBindLeader({ pick: null, plan: second }), null);
 });
 
 check("every sentence the top bar composes survives the shared ban list, and " +
@@ -1794,6 +1934,10 @@ check("every sentence the top bar composes survives the shared ban list, and " +
       AA.taskInstruction({ elementName: "Bushing length", needed: ["to"] }),
       AA.taskInstruction({ elementName: "Bushing length", needed: [] }),
       AA.taskInstruction({ elementName: "Bushing length", picked: true }),
+      AA.taskInstruction({ elementName: "Bushing length", picked: true,
+        needed: ["to"], names: END_NAMES, chosen: "to" }),
+      AA.taskInstruction({ elementName: "Bushing length", needed: ["to"],
+        names: END_NAMES }),
       AA.taskInstruction({ scopeName: "End-stop chain" }),
     ]);
   if (sentences.length < 9) {
@@ -2900,6 +3044,21 @@ check("describeSuggestions counts the faces and names the stage that produced " 
     boundAt("plate_thickness", "from", SUGGEST_MESHES[0].sha256, 0)));
   if (narrow.indexOf("1 likely face -") !== 0) {
     throw new Error("a single face is not described in the singular: " + narrow);
+  }
+});
+
+check("describeSuggestions says WHICH face the narrowing compared against -- " +
+  "its number and the interface it was bound as", () => {
+  const names = AA.edgeEndNames(SUGGEST_TOPOLOGY, SUGGEST_TOPOLOGY.edges[0]);
+  const identity = boundAt("plate_thickness", "from", SUGGEST_MESHES[0].sha256, 0);
+  const text = AA.describeSuggestions(plan("plate_thickness", identity), names);
+  const says = AA.NARROWING_STAGES[1].says;
+  if (text.indexOf(says + " (face 0, bound as plate near face against the washer)") === -1) {
+    throw new Error("the same-part stage does not name the face it compared against: " + text);
+  }
+  // Stage 1 compared against nothing, so it names nothing.
+  if (/\(face /.test(AA.describeSuggestions(plan("plate_thickness", null), names))) {
+    throw new Error("the surface-class stage claims a reference face it never had");
   }
 });
 

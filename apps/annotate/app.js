@@ -66,6 +66,10 @@ const state = {
   // event file; this app never re-implements that fold, it just doesn't want
   // a bound row to look unbound until the next rebuild.
   sessionEvents: [],
+  // The bind form's interface choice: {edgeId, sha256, faceId, direction}, or
+  // null. Keyed to the element and the face it was made on (bindContext), so
+  // it can never outlive either.
+  bindChoice: null,
   currentTopology: null,
   currentStudy: null,
   selectedEdge: null,
@@ -2677,7 +2681,10 @@ function renderDetail() {
   // picking is disabled is the exact contradiction the hosted-page work was
   // about (ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_
   // reader_to_bind_a_face).
-  if (state.sweep) return renderSweepBar();
+  if (state.sweep) {
+    if (state.scene) state.scene.setBindLeader(null);
+    return renderSweepBar();
+  }
   el.detail.innerHTML = "";
   const edge = state.selectedEdge;
   const canWrite = !!(state.storage && state.storage.canWrite());
@@ -2686,15 +2693,29 @@ function renderDetail() {
   line.className = "an__detail-line";
   const task = document.createElement("span");
   task.className = "an__task";
-  task.textContent = AA.taskInstruction({
-    elementName: edge ? (edge.name || edge.id) : null,
-    scopeName: (!edge && state.panelFilter && state.panelFilter.name) || null,
-    picked: !!state.currentPick,
-    needed: (edge && state.currentTopology)
-      ? AA.bindingDirectionsNeeded(AA.findBindingRecord(mergedIdentityProjection(),
-        AA.topologyEdgeKey(state.currentTopology.id, edge.id)))
-      : null,
-  });
+  // The instruction and the leader both follow the bind form's interface
+  // choice, which changes WITHOUT a re-render (a re-render would throw away
+  // whatever the reader has typed into the optional fields) -- so they are
+  // composed here, once per render and once per choice.
+  const refreshBindStep = () => {
+    const bind = edge ? bindContext(edge) : null;
+    task.textContent = AA.taskInstruction({
+      elementName: edge ? (edge.name || edge.id) : null,
+      scopeName: (!edge && state.panelFilter && state.panelFilter.name) || null,
+      picked: !!state.currentPick,
+      needed: bind ? bind.needed : null,
+      names: bind ? bind.names : null,
+      chosen: bind && state.currentPick ? bind.plan.selected : null,
+    });
+    // The line ellipsizes on a narrow bar; the whole sentence is one hover away.
+    task.title = task.textContent;
+    if (state.scene) {
+      state.scene.setBindLeader(bind && canWrite && state.currentPick
+        ? AA.planBindLeader({ pick: state.currentPick, plan: bind.plan }) : null);
+    }
+    return bind;
+  };
+  const bind = refreshBindStep();
   line.appendChild(task);
   line.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
   el.detail.appendChild(line);
@@ -2728,7 +2749,9 @@ function renderDetail() {
         "Connect a read/write folder to bind.";
       work.appendChild(p);
     } else {
-      if (state.currentPick) work.appendChild(buildBindForm(edge, state.currentPick));
+      if (state.currentPick && bind) {
+        work.appendChild(buildBindForm(edge, state.currentPick, bind, refreshBindStep));
+      }
       work.appendChild(buildOwnerNotInSetForm(edge));
     }
   }
@@ -2743,7 +2766,8 @@ function renderDetail() {
 // come off the plan rather than being written twice.
 function suggestionLine() {
   if (!state.faceSuggestions || !state.selectedEdge || !state.suggestionPlan) return null;
-  return AA.describeSuggestions(state.suggestionPlan) || null;
+  return AA.describeSuggestions(state.suggestionPlan,
+    AA.edgeEndNames(state.currentTopology, state.selectedEdge)) || null;
 }
 
 // A quiet toggle: no button chrome, subdued until hover/focus, and its state
@@ -2913,12 +2937,27 @@ async function existingEventFilenames() {
 // It no longer prints "Picked: part <12 hex>…, face N" above itself: a
 // checksum prefix is not something a reader of this page can act on, and the
 // instruction line says which element the pick will land on in words.
-function buildBindForm(edge, pick) {
+//
+// Since 2026-10-21 (handoff a_face_pick_survives_an_orbit_and_names_its_end)
+// the end a face is bound at is chosen between the edge's two INTERFACES, by
+// name, where it used to be a dropdown reading `from`/`to` with `from`
+// preselected -- which is how the first event a reader ever wrote went in at
+// the wrong end. The stored word is unchanged (AA.DIRECTIONS, generated from
+// Python); only what the form shows is. Bind stays disabled until an end is
+// chosen, and an end already bound is shown as taken rather than offered.
+function buildBindForm(edge, pick, bind, onChoose) {
   const form = document.createElement("div");
   form.className = "bind-form";
 
-  const dir = labeledSelect("direction", AA.DIRECTIONS, "direction-select");
-  form.appendChild(dir.box);
+  let selected = bind.plan.selected;
+  const btn = document.createElement("button");
+  const ends = buildEndChoice(bind.plan, (direction) => {
+    state.bindChoice = { edgeId: edge.id, sha256: pick.sha256, faceId: pick.faceId, direction };
+    selected = onChoose().plan.selected;
+    ends.show(selected);
+    btn.disabled = !selected;
+  });
+  form.appendChild(ends.box);
   const composition = labeledInput("composition note (optional)", "composition-input");
   form.appendChild(composition.box);
   const ownerPart = labeledInput("owner part (optional)", "owner-part-input");
@@ -2930,9 +2969,11 @@ function buildBindForm(edge, pick) {
   const noteField = labeledInput("note (optional)", "bind-note-input");
   form.appendChild(noteField.box);
 
-  const btn = document.createElement("button");
   btn.textContent = "Bind selected face to " + (edge.name || edge.id);
+  btn.className = "bind-form__bind";
+  btn.disabled = !selected;
   btn.onclick = async () => {
+    if (!selected) return;
     try {
       const filenames = await existingEventFilenames();
       const eventId = "annotate-" + Date.now() + "-" + slugify(edge.id);
@@ -2943,7 +2984,7 @@ function buildBindForm(edge, pick) {
         recordedBy: "annotate-app",
         stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
         geometryKey: AA.geometryKeyOfPick(pick),
-        direction: dir.select.value,
+        direction: selected,
         compositionNote: composition.input.value || null,
         ownerPart: ownerPart.input.value || null,
         gdtModifier: gdt.select.value || null,
@@ -2962,6 +3003,78 @@ function buildBindForm(edge, pick) {
   };
   form.appendChild(btn);
   return form;
+}
+
+// What the bind form, the instruction and the leader all read about one
+// element: its record, what it still needs, its two ends' names, and the
+// interface choice as AA.planBindChoices settles it. The reader's choice
+// counts only for the element AND the face it was made on -- a new pick or a
+// new element starts with no choice again, never with the last one carried
+// over as a default nobody aimed.
+function bindContext(edge) {
+  if (!state.currentTopology) return null;
+  const record = AA.findBindingRecord(mergedIdentityProjection(),
+    AA.topologyEdgeKey(state.currentTopology.id, edge.id));
+  const names = AA.edgeEndNames(state.currentTopology, edge);
+  const c = state.bindChoice;
+  const pick = state.currentPick;
+  const chosen = c && pick && c.edgeId === edge.id && c.sha256 === pick.sha256 &&
+    c.faceId === pick.faceId ? c.direction : null;
+  return {
+    record, names,
+    needed: AA.bindingDirectionsNeeded(record),
+    plan: AA.planBindChoices({ record, names, chosen }),
+  };
+}
+
+// The interface choice: one button per end that may be chosen, carrying the
+// stored word as its value and the interface's name as its label, and a
+// muted row for an end already bound, with the face it has. Long interface
+// names wrap -- they are the whole content of the control.
+function buildEndChoice(plan, onPick) {
+  const box = document.createElement("div");
+  box.className = "an__ends";
+  box.setAttribute("role", "radiogroup");
+  const legend = document.createElement("span");
+  legend.className = "an__ends-label";
+  legend.id = "bind-ends-label";
+  legend.textContent = "This face is";
+  box.setAttribute("aria-labelledby", legend.id);
+  box.appendChild(legend);
+  const buttons = [];
+  for (const end of plan.ends) {
+    if (plan.choices.indexOf(end.direction) === -1) {
+      const taken = document.createElement("div");
+      taken.className = "an__end an__end--taken";
+      taken.dataset.direction = end.direction;
+      const name = document.createElement("span");
+      name.textContent = end.name || "";
+      const note = document.createElement("span");
+      note.className = "an__end-note";
+      note.textContent = "already bound" +
+        (end.bound && typeof end.bound.faceId === "number" ? " · face " + end.bound.faceId : "");
+      taken.appendChild(name);
+      taken.appendChild(note);
+      box.appendChild(taken);
+      continue;
+    }
+    const choice = document.createElement("button");
+    choice.type = "button";
+    choice.className = "an__end";
+    choice.setAttribute("role", "radio");
+    choice.dataset.direction = end.direction;
+    choice.textContent = end.name || "";
+    choice.onclick = () => onPick(end.direction);
+    buttons.push(choice);
+    box.appendChild(choice);
+  }
+  const show = (selected) => {
+    for (const b of buttons) {
+      b.setAttribute("aria-checked", b.dataset.direction === selected ? "true" : "false");
+    }
+  };
+  show(plan.selected);
+  return { box, show };
 }
 
 // The escape hatch for an element whose owning part is not in the loaded set
@@ -3489,7 +3602,9 @@ async function main() {
     AA.exec(command).catch((err) => setBanner(err.message, "error"));
   });
   // Every click in the 3D view is one of the two verbs, chosen by the pure
-  // AA.planPickToggle (deliverable 3): a click into empty space and a click
+  // AA.planPickToggle (deliverable 3). A CLICK, since 2026-10-21: the scene
+  // calls this on a release that did not travel (AA.planPointerRelease), so
+  // a drag to orbit never reaches it. A click into empty space and a click
   // back onto the already-picked face both DESELECT, anything else selects.
   // Before this, a miss set `state.currentPick = null` and left the orange
   // tint exactly where it was, and a re-click re-highlighted the same face --
