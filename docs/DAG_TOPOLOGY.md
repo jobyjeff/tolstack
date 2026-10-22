@@ -595,7 +595,7 @@ document's "A study, in outline" section fences — see
 Handoff `vpa_pitch_linkage_topology_and_feature_fits` (2026-09-30), and the
 first committed topology with **no study at all** when it landed (the one study
 over it since 2026-10-16 is the end-stop travel, below). The graph: 16 parts, 29
-interfaces, 35 edges, 11 branch points, 7 grounded loops, 12 gap edges. It is the
+interfaces, 36 edges, 12 branch points, 8 grounded loops, 12 gap edges. It is the
 propeller pitch linkage's joints at 72 degrees blade pitch — the two pitch-link
 spherical-bearing centres, the hub and plate spindle bores, the blade-1 root
 bearing bore, the gas spring, and the tangential link as a declared phase 2.
@@ -626,7 +626,7 @@ centre. They were a separate component until the viewer's `[real]` tier showed
 what a disconnected topology does to the rail serialisation; `Topology.cycle_rank`
 counts components rather than assuming one either way.
 
-**The one piece that does carry numbers is the end-stop travel chain** (handoff `the_travel_between_the_end_stops_is_a_study`, 2026-10-16): the two piston heads, the piston cover and the gas-spring mount's stop face, summed by `study_vpa_pitch_linkage_travel_between_end_stops.json`. Every value in it is a mesh fit or Jeff's own figure under a loudly marked placeholder band, and `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md` carries the face order, the fits and the signs. It is modelled as a clearance at the second stop, not a contact, because a hard contact is one node and a walk that ended on one would close a ring.
+**The one piece that does carry numbers is the end-stop travel chain** (handoff `the_travel_between_the_end_stops_is_a_study`, 2026-10-16): the two piston heads, the piston cover and the gas-spring mount's stop face, summed by `study_vpa_pitch_linkage_travel_between_end_stops.json`. Since 2026-10-22 every band in it is a drawing's: two dimensions, and two general profile notes banding a mesh-fit nominal (the SOP's "What a term cites when its drawing does not band it"); a third mount edge, 213668-002's datum-A height, is recorded and selected by no study. And `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md` carries the face order, the fits and the signs. It is modelled as a clearance at the second stop, not a contact, because a hard contact is one node and a walk that ended on one would close a ring.
 
 ---
 
