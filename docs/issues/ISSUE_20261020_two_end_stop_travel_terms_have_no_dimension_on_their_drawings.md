@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: topologies/end-stop-travel
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261020_the_travel_chain_cites_its_three_drawings.md
 audience: strategy
 handoff: docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md
+resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `a_general_profile_note_bands_a_model_defined_term` moved to completed/; not independently verified.
 ---
 
 # Two terms of the end-stop travel chain are model-defined and have no band to cite

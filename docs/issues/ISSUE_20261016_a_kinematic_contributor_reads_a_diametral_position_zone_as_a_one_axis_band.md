@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: topologies/kinematic
 reporter: agent
 audience: strategy
 handoff: docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md
 found_by: docs/sessions/HANDOFF_20261016_a_kinematic_study_folds_the_sweeps_jacobian.md
+resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `a_general_profile_note_bands_a_model_defined_term` moved to completed/; not independently verified.
 ---
 
 # A kinematic contributor reads a diametral position zone as a one-axis band
