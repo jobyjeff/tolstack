@@ -2116,8 +2116,8 @@ node scripts\run_viewer_browser_tests.mjs               # truth tier (installed 
 node scripts\run_viewer_browser_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
 node scripts\run_viewer_browser_tests.mjs --only "topology height budget"  # one suite
 
-npm run test:mutations                                  # mutation-witness tier
-node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
+npm run test:mutations                                  # mutation-witness tier, every entry (--full)
+node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --only "<guard>"   # ...from a worktree, per guard touched
 ```
 
 ### The mutation-witness tier

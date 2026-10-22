@@ -30,6 +30,10 @@ import { createServer } from "node:http";
 import { readFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, extname, normalize, sep } from "node:path";
+import { takeTheBrowserSlot, launchBrowser } from "../scripts/browser_runner.mjs";
+
+// Queues for the machine's browser slot (scripts/browser_runner.mjs).
+takeTheBrowserSlot();
 
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
@@ -88,7 +92,7 @@ const url = `http://127.0.0.1:${server.address().port}/topology.html?mock=1`;
 let browser;
 for (const channel of ["chrome", "msedge"]) {
   try {
-    browser = await chromium.launch({ channel, headless: true });
+    browser = await launchBrowser(chromium, { channel, headless: true });
     break;
   } catch (err) {
     console.log(`  ${channel} did not launch: ${err.message}`);

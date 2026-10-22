@@ -483,7 +483,9 @@ problem as an unrecorded full suite one step later.
   tier as above.
 - **A guard, a witness, or `scripts/mutation_witnesses/`** → `pytest -q
   tests/test_mutation_witnesses.py` plus `node
-  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`.
+  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only
+  "<guard>"` for each guard the diff adds or changes (a bare run off the main
+  checkout is refused and prints those `--only` lines for the branch's specs).
   **Any diff that adds a guard at all** is in this row since 2026-09-23: the
   per-source guard *set* is pinned (`DECLARED_GUARDS`,
   `scripts/guard_enumeration.mjs` — a count, an enrollable count and a digest
@@ -503,6 +505,14 @@ problem as an unrecorded full suite one step later.
   `scripts/run_mutation_witness_tests.mjs`, so a throw at module scope or in a
   rarely-taken branch takes a whole tier out; `grep -rl <file> apps/ scripts/ tests/`
   is how you find every caller.
+- **`scripts/browser_runner.mjs`, `scripts/browser_cpu_cap.py`,
+  `tests/browser_slot.py`, or a new `chromium.launch` anywhere** (added
+  2026-10-21) → `pytest -q tests/test_browser_runner.py
+  tests/test_mutation_witness_shadow_concurrency.py
+  tests/test_mutation_witnesses.py tests/test_projection_freshness.py`. The
+  first file starts real Chrome under the slot, so expect a slot wait. Then
+  `git grep -n "chromium.launch(" -- '*.mjs' '*.cjs' '*.js'`: every hit
+  outside the helper is a launch that skips the slot, the CPU cap and the close.
 - **A projection builder, or `scripts/rebuild_projections.ps1`** → `pytest -q
   tests/test_projection_provenance.py tests/test_rebuild_projections_script.py
   tests/test_rebuild_terminal_state_pairing.py`, then the rebuild itself and the
@@ -1563,8 +1573,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       failure; the shipping count comes from the post-merge run, and whatever you
       quote from it names the checkout that produced it.
 - [ ] **After you merge `integration` into your review branch, re-run
-      `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`
-      and report the count in your review.** This is an instruction, not a
+      `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --full`
+      and report the count in your review.** (`--full` because this run is the
+      whole registry on purpose: since 2026-10-21 the runner refuses one off the
+      main checkout without it, which is aimed at tactical branches, not here.) This is an instruction, not a
       ritual, and the reason is that **your merge is the only point in the
       lifecycle where nothing re-runs this tier**. The other three tiers answer
       *does the app still behave?*; this one answers *would the guards notice if
@@ -5040,6 +5052,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       With no sweep present, the actuator built the study as `error`, exited 0
       and stamped `dirty=False`. So for any kinematic diff, also check that
       the builder fails loudly when the run it names is missing or different.
+- [ ] **A cleanup witness that the OS or a backstop would pass for it.** New
+      2026-10-21 (`browser_runners_take_the_slot_and_free_the_box`). Chrome
+      quits by itself 50–365 ms after its node dies, because the DevTools pipe
+      closes. And the helper's `exit` handler kills whatever a `finally` missed.
+      So "no Chrome a few seconds later" is green with every close deleted. A
+      check that a runner closes what it started must hold handles from
+      *before* the end, require them signalled *at* node exit, and require
+      exit code 0 on the graceful paths (`taskkill /F` leaves 1).
+      `tests/test_browser_runner.py` is the worked shape. Ask it of any new
+      "leaves nothing behind" test: *would this pass with the code it
+      certifies deleted, because something else cleans up?*
 
 ## Architectural errors to check
 
