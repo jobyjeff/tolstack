@@ -99,7 +99,7 @@
           "cell": "S461-607",
           "callout": "The pitch angle of each blade in a propeller assembly shall not exceed +/-0.5 degrees of the mean pitch of the blades",
           "confidence": "traced",
-          "note": "c_status: draft. Pulled 2026-09-06 from Polarion (Delta mirror, manufacturing.polarion.workitem); severity must_have. This is a blade-to-blade variation limit, not a limit on this chain's own accumulated position error -- adopted here as the closest available numeric acceptance criterion for the accumulated tolerance this study folds, because S461-241 states only the two nominal stop angles and S461-805's own threshold is TBD (see excluded_terms)."
+          "note": "Adopted here as the closest available numeric acceptance criterion for the accumulated tolerance this study folds -- a blade-to-blade variation limit, not a limit on this chain's own accumulated position error -- because S461-241 states only the two nominal stop angles and S461-805's own threshold is TBD (see excluded_terms). c_status: draft. Pulled 2026-09-06 from Polarion (Delta mirror, manufacturing.polarion.workitem); severity must_have."
         }
       },
       "context_ref": {
@@ -134,7 +134,7 @@
           "cell": "S461-607",
           "callout": "The pitch angle of each blade in a propeller assembly shall not exceed +/-0.5 degrees of the mean pitch of the blades",
           "confidence": "traced",
-          "note": "c_status: draft. Pulled 2026-09-06 from Polarion (Delta mirror, manufacturing.polarion.workitem); severity must_have. Same adoption reasoning as the -7 deg study's check: a blade-to-blade variation limit used as the closest available numeric acceptance criterion, because S461-241 states only the two nominal stop angles and S461-805's own threshold is TBD."
+          "note": "Adopted here, as at the -7 deg stop, as the closest available numeric acceptance criterion -- a blade-to-blade variation limit -- because S461-241 states only the two nominal stop angles and S461-805's own threshold is TBD. c_status: draft. Pulled 2026-09-06 from Polarion (Delta mirror, manufacturing.polarion.workitem); severity must_have."
         }
       },
       "context_ref": {
