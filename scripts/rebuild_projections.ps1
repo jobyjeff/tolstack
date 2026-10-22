@@ -47,7 +47,11 @@
     LESSONS_20260908_projections_rebuild_script.md).
 
     On success, prints every projection's provenance stamp (branch, sha12,
-    dirty, behind_trunk) so a caller can see at a glance whether they agree.
+    dirty, behind_trunk) so a caller can see at a glance whether they agree,
+    and then, last, how many kinematic studies built and each one that did not
+    with its reason. A study that did not build still exits 0 -- a checkout
+    without the gitignored sweep inbox is a normal case -- so that closing
+    line is the place the difference shows.
 
 .PARAMETER RepoRoot
     tolstack's MAIN checkout. Defaults to this script's own parent directory.
@@ -165,5 +169,17 @@ foreach ($name in $Projections) {
     Write-Host ("    {0,-34} branch={1} sha12={2} dirty={3} behind_trunk={4}" -f `
         $name, $p.branch, $sha12, $p.dirty, $behind)
 }
+
+# --- the kinematic studies that did not build, LAST -------------------------
+#
+# A study that refuses to load (most often: its sweep is absent from this
+# checkout's gitignored data\inbox\linkage-sweeps\) is written as `error`
+# and its step still exits 0, so the stamps above read clean either way. The
+# builder's own report is the closing line of this output so the difference
+# is the last thing a caller reads. Not a failure exit: see the builder's
+# main() for why.
+Write-Host ""
+Write-Host "==> kinematic studies"
+& $TolstackPython (Join-Path $ScriptsDir "build_kinematic_projection.py") --report
 
 exit 0

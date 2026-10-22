@@ -710,7 +710,10 @@ refusal, never an estimate. "Not a solver", above, is not softened by any of it.
 a position-dependent sensitivity is now read point by point rather than authored
 as one constant. Item 2 becomes *expressible*: gas-spring bushing tipping is a
 `disk` on the plate slide's axis components, whose Jacobian the published run
-already carries; it waits only for a cited clearance band. Items 1 and 3 are
+already carries; it waits for two cited values, the bushing's radial clearance
+and the bushing length that turns that clearance into a tilt, since an axis
+component's band is a tilt in rad and a bare mm clearance on it is refused at
+load. Items 1 and 3 are
 untouched.
 
 The first document is

@@ -276,6 +276,28 @@ def build(topologies_dir: Path, data_root: Path,
     }
 
 
+def unbuilt_report(projection: Dict[str, Any]) -> List[str]:
+    """The lines that END a build's output: how many studies built, and each
+    one that did not, with its reason.
+
+    Since 2026-10-21 (handoff ``the_kinematic_study_checks_its_run_its_units_
+    and_shows_its_limit``). A study that refuses to load is a RESULT, carried
+    in the projection as ``status: "error"`` -- and the build that wrote it
+    exited 0 with a clean provenance stamp, so on the rebuild rail's own
+    output it looked exactly like a good build. These lines are what makes
+    the difference visible where the rebuild is read. The exit code stays 0
+    (see :func:`main`).
+    """
+    studies = projection.get("studies") or []
+    failed = [s for s in studies if s.get("status") != STUDY_STATUSES[0]]
+    lines = [f"kinematic studies: {len(studies) - len(failed)} of {len(studies)} built"]
+    for study in failed:
+        error = study.get("error") or {}
+        lines.append(f"  NOT BUILT {study.get('id')}: {error.get('type')}: "
+                     f"{error.get('message')}")
+    return lines
+
+
 # ---------------------------------------------------------------------------
 # the plot
 # ---------------------------------------------------------------------------
@@ -426,12 +448,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--allow-older-tree", action="store_true",
                     help="overwrite a projection built from a tree this one does not "
                     "contain (see scripts/projection_provenance.py)")
+    ap.add_argument("--report", action="store_true",
+                    help="build nothing: print which studies the projection already "
+                    "on disk did and did not build (the rebuild rail's last lines)")
     args = ap.parse_args(argv)
 
     topologies_dir = Path(args.topologies_dir)
     data_root = Path(args.data_root)
     out_dir = data_root / PROJECTION_SUBDIR
     out_path = out_dir / PROJECTION_NAME
+
+    if args.report:
+        if not out_path.exists():
+            print(f"kinematic studies: no projection at {out_path}")
+            return 1
+        for line in unbuilt_report(json.loads(out_path.read_text(encoding="utf-8"))):
+            print(line)
+        return 0
 
     provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY, "topologies_dir")
     rebuild_command = (f"python scripts\\build_kinematic_projection.py "
@@ -471,6 +504,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         for check in row["checks"]:
             print(f"    {check['check_id']}: {check['verdict']} "
                   f"({check['verdict_scope']}), margin {check['margin']:.3f}")
+    # Exit 0 even when a study did not build. A worktree, or a batch-merge
+    # candidate whose gitignored sweep inbox was not bridged, has no sweep to
+    # fold, and that is a normal state of a checkout rather than a fault in
+    # the tree: the study is carried as `error` and the viewer and the [real]
+    # tier both say so. A non-zero exit would redden every such rebuild, and
+    # the rail's next run would learn to ignore it. The lines below, which end
+    # the output, are where the difference is made visible instead.
+    for line in unbuilt_report(projection):
+        print(line)
     return 0
 
 

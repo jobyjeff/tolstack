@@ -41,6 +41,10 @@ BANNED_SHAPES = (
      "a genre statement",
      "'Pitch link to pitch plate -- the grip-length joint as a topology'; "
      "every joint here is also a topology, so saying so distinguishes nothing"),
+    (re.compile(r",\s*(?:kinematic|topology|study|stack)\s*$", re.I),
+     "a genre suffix",
+     "'Blade pitch at the end stops, kinematic'; the nav already lists it under "
+     "a Kinematic studies heading, so the suffix says the section's name twice"),
     (re.compile(r"\((?=[^()]*\b(?:deg|degrees?|mm|millimet(?:re|er)s?|"
                 r"in|inch(?:es)?)\b)[^()]*\)", re.I),
      "a unit in parentheses",

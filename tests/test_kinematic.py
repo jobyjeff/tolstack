@@ -566,6 +566,30 @@ def test_models_list_each_topologys_runs_newest_first_by_timestamp(tmp_path):
     assert models[0]["runs"][0]["mechanism"] == "mech_a-new"
 
 
+def test_a_study_that_did_not_build_is_named_on_the_builds_last_lines(tmp_path, capsys):
+    """2026-10-21: with its sweep absent the study was written as `error`, the
+    rebuild exited 0 and its stamp read clean -- the same output as a good
+    build. The report ends the output and names the study and its reason."""
+    ok = builder.build(FIXTURE_TOPOLOGIES, FIXTURE_DATA, provenance={"built_at": "f"})
+    assert builder.unbuilt_report(ok) == ["kinematic studies: 1 of 1 built"]
+
+    empty = tmp_path / "data"
+    (empty / "inbox" / "linkage-sweeps").mkdir(parents=True)
+    broken = builder.build(FIXTURE_TOPOLOGIES, empty, provenance={"built_at": "f"})
+    lines = builder.unbuilt_report(broken)
+    assert lines[0] == "kinematic studies: 0 of 1 built"
+    assert lines[1].startswith("  NOT BUILT fixture: KinematicStudyError: no sweep artifact at ")
+    assert "kin-fixture-run.json" in lines[1]
+
+    # --report reads the projection already on disk and builds nothing.
+    out = empty / builder.PROJECTION_SUBDIR / builder.PROJECTION_NAME
+    out.parent.mkdir(parents=True)
+    out.write_text(json.dumps(broken), encoding="utf-8")
+    assert builder.main(["--report", "--data-root", str(empty)]) == 0
+    assert capsys.readouterr().out.splitlines() == lines
+    assert builder.main(["--report", "--data-root", str(tmp_path / "nowhere")]) == 1
+
+
 def test_the_projection_states_its_display_precision():
     """The viewer formats with this and picks no precision of its own."""
     projection = builder.build(FIXTURE_TOPOLOGIES, FIXTURE_DATA,

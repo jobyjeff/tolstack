@@ -144,3 +144,18 @@ def test_the_kinematic_projection_is_built_on_this_rail_and_last():
                          "build_kinematic_projection.py"), steps
     stamps = re.search(r"\$Projections = @\(([^)]*)\)", text)
     assert stamps and r"kinematic\kinematic_studies.json" in stamps.group(1)
+
+
+def test_the_rails_last_output_is_the_kinematic_report():
+    """The rebuild's closing lines say which kinematic studies did not build
+    (2026-10-21): the builder's ``--report``, invoked after the stamps and
+    immediately before the script's ``exit 0``, so nothing prints after it.
+    Read out of the script for the reason the step tests above give -- a real
+    run would rebuild the main checkout's projections."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    stamps = text.index('Write-Host "==> provenance stamps"')
+    report = re.search(r'& \$TolstackPython \(Join-Path \$ScriptsDir '
+                       r'"build_kinematic_projection\.py"\) --report\s*\n\s*exit 0\s*$',
+                       text)
+    assert report, "the kinematic --report is not the rail's last command"
+    assert report.start() > stamps
