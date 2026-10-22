@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: topology/kinematic
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261020_the_viewer_shows_a_kinematic_study.md
 handoff: docs/sessions/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md
+resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `the_kinematic_study_checks_its_run_its_units_and_shows_its_limit` moved to completed/; not independently verified.
 ---
 
 # The blade-pitch kinematic study's title carries a genre suffix the viewer now renders
