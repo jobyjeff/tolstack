@@ -37,3 +37,7 @@ Top of `--durations=15` (as reported):
 
 The two shadow-concurrency tests (235 s together) are the obvious first
 candidates for a merge-only tier.
+
+## Measurement 2026-10-23 (an_export_lists_every_run_that_consumed_it)
+
+941 s (15m41s) serial, `venv-win/Scripts/python.exe -m pytest -q` in a worktree (no xdist in the venv; the box was loaded). Top of `--durations`: test_browser_runner[throw-True] 231 s, test_mutation_witness_shadow_concurrency two-concurrent-runs 118 s, test_browser_runner[exit-False] 111 s, test_feature_geometry real-readers 107 s, test_annotate_js_suite 57 s, test_mutation_witnesses setup 39 s, test_browser_runner[signal-True] 37 s, shadow_concurrency two-roots 28 s.
