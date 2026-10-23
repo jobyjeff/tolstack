@@ -4996,6 +4996,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       clearance band loads cleanly.
       `ISSUE_20261016_a_kinematic_contributor_reads_a_diametral_position_zone_as_a_one_axis_band.md`,
       `ISSUE_20261016_a_kinematic_study_never_checks_a_bands_units_against_the_jacobian_column.md`.
+      **And a `disk` over two labels is only right when the feature's axis
+      IS the third CAD axis** (2026-10-23, `the_pitch_plate_link_hole_states_its_axis`):
+      a hole axis in the XY plane but not ∥ X or Y (point_a sits at −11.4°)
+      has no two-label disk. Check the cited axis against the frame, not just
+      that one is cited.
+      `ISSUE_20261023_a_kinematic_disk_spans_two_frame_axes_so_an_off_axis_hole_cannot_be_one.md`.
 - [ ] **A viewer page that renders a verdict but not the citation of the
       limit it was judged against.** New 2026-10-20
       (`the_viewer_shows_a_kinematic_study`). The kinematic page shows
