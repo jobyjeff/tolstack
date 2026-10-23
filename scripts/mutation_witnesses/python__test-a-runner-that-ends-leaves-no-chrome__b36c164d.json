@@ -4,23 +4,15 @@
   "expect_red": "test_a_runner_that_ends_leaves_no_chrome",
   "mutations": [
     {
-      "contract": "A browser runner that ends -- by Ctrl-Break, by a throw, by process.exit -- leaves no Chrome running: its browser process is already gone at the instant its node exits, and on the two graceful paths it exited 0 because something CLOSED it rather than the exit handler killing it.",
+      "contract": "A browser runner that ends -- by Ctrl-Break, by a throw, by process.exit -- leaves no Chrome running: every Chrome process is signalled (gone) at the instant its node exits, or the runner named it on a BROWSER LEFT RUNNING line; on the throw path the browser exited 0 because the finally CLOSED it rather than the exit handler killing it.",
       "issue": "docs/issues/ISSUE_20261021_a_browser_diagnostic_held_thirteen_cores_for_twenty_minutes_and_a_cpu_burner_ran_on_the_shared_workstation.md",
-      "note": "Drops the signal handler's close and exits straight away. The exit handler still kills the tree, so Chrome is gone either way -- what reddens is the exit code: a killed browser exits 1, a closed one 0.",
+      "note": "Drops the exit handler, the only thing that can close a browser a process.exit() leaves open. Chrome then dies 50-365 ms later on its own, as its DevTools pipe closes, and Playwright's own exit hook taskkills it silently -- exit code set, but the runner never named it on a BROWSER LEFT RUNNING line, so the witness's verdict is red.",
       "file": "scripts/browser_runner.mjs",
-      "find": "closeEveryBrowser().finally(() => process.exit(128 + number));",
-      "replace": "process.exit(128 + number);"
-    },
-    {
-      "contract": "A browser runner that ends -- by Ctrl-Break, by a throw, by process.exit -- leaves no Chrome running: its browser process is already gone at the instant its node exits, and on the two graceful paths it exited 0 because something CLOSED it rather than the exit handler killing it.",
-      "issue": "docs/issues/ISSUE_20261021_a_browser_diagnostic_held_thirteen_cores_for_twenty_minutes_and_a_cpu_burner_ran_on_the_shared_workstation.md",
-      "note": "Drops the exit handler, the only thing that can close a browser a process.exit() leaves open. Chrome then dies 50-365 ms later on its own, as its DevTools pipe closes -- which is why the check is 'gone at the instant node exits' and not 'gone a few seconds later', which this would pass.",
-      "file": "scripts/browser_runner.mjs",
-      "find": "process.on(\"exit\", killWhatIsLeft);",
+      "find": "process.on(\"exit\", (code) => { trace(\"exit\", { code }); killWhatIsLeft(\"exit\"); });",
       "replace": ""
     },
     {
-      "contract": "A browser runner that ends -- by Ctrl-Break, by a throw, by process.exit -- leaves no Chrome running: its browser process is already gone at the instant its node exits, and on the two graceful paths it exited 0 because something CLOSED it rather than the exit handler killing it.",
+      "contract": "A browser runner that ends -- by Ctrl-Break, by a throw, by process.exit -- leaves no Chrome running: every Chrome process is signalled (gone) at the instant its node exits, or the runner named it on a BROWSER LEFT RUNNING line; on the throw path the browser exited 0 because the finally CLOSED it rather than the exit handler killing it.",
       "issue": "docs/issues/ISSUE_20261021_a_browser_diagnostic_held_thirteen_cores_for_twenty_minutes_and_a_cpu_burner_ran_on_the_shared_workstation.md",
       "note": "Drops the runner's own finally close -- the shape every real runner uses. The exit handler then kills what is left, so the run still ends clean; the exit code is what says the close never happened.",
       "file": "tests/browser_runner_witness.mjs",

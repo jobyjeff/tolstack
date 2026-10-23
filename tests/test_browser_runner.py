@@ -49,9 +49,16 @@ WITNESS = REPO_ROOT / "tests" / "browser_runner_witness.mjs"
 PROFILE = re.compile(r'--user-data-dir="?([^"\s]+)')
 #: How long after node exits every Chrome process of its profile must be gone.
 SETTLE_S = 5.0
-#: How long the runner gets to start Chrome, and to finish once told to stop.
+#: How long the runner gets to start Chrome, and to finish once told to stop. The
+#: stop has to outlast the runner's own bound (KILL_WAIT_BOUND_MS) on a kill that
+#: is waiting for a slow teardown, or the test times out on a runner that is
+#: behaving as designed.
 START_S = 60
-STOP_S = 30
+STOP_S = 150
+#: What the runner prints when its kill wait ran out with Chrome un-signalled.
+LEFT_RUNNING_RE = re.compile(
+    r"^BROWSER LEFT RUNNING: Chrome process\(es\) ([\d, ]+) were", re.M)
+TRACE_ENV = "TOLSTACK_BROWSER_RUNNER_TRACE"
 
 
 # --------------------------------------------------------------------------- #
@@ -191,6 +198,45 @@ def _exit_code(k32, handle) -> int:
     return code.value
 
 
+def _left_reported(stderr: str) -> list[int]:
+    """The pids the runner named on its BROWSER LEFT RUNNING line."""
+    return sorted({int(p) for m in LEFT_RUNNING_RE.finditer(stderr)
+                   for p in m.group(1).split(",") if p.strip()})
+
+
+def unexplained_survivors(seen: dict) -> list[int]:
+    """Chrome pids the runner left running that it did not account for.
+
+    A killed Chrome on this box has stayed un-signalled for over a minute after
+    taskkill (exit code set, so it runs no code, but not yet torn down --
+    measured 2026-10-22 in drawing-checker, which found and fixed the same red).
+    The runner waits KILL_WAIT_BOUND_MS for that and then exits SAYING SO on its
+    BROWSER LEFT RUNNING line. So a pid un-signalled at node's exit is accounted
+    for only when its exit code was set AND the runner named it -- the runner's
+    stated bound, read at node's exit, never "gone a few seconds later". With the
+    exit handler deleted, Playwright's own exit hook still taskkills Chrome
+    silently: exit code set, nobody named, red. A pid still listed after the
+    settle wait must likewise be one the runner named."""
+    named = set(seen["left_reported"])
+    late = [pid for pid in seen["alive_at_exit"]
+            if not (pid in seen["exit_code_set"] and pid in named)]
+    return sorted(set(late) | {pid for pid in seen["survivors"] if pid not in named})
+
+
+def _assert_gone_or_named(how: str, seen: dict) -> None:
+    bad = unexplained_survivors(seen)
+    assert not bad, (
+        f"ended by {how}: Chrome {bad} (profile {seen['profile']}) was running when "
+        f"its node exited, or {SETTLE_S:g} s later, and the runner did not name it "
+        f"on a BROWSER LEFT RUNNING line -- nothing in the runner killed it and waited "
+        f"for it, and only the DevTools pipe closing would have\n"
+        f"alive at exit {seen['alive_at_exit']}, exit code set {seen['exit_code_set']}, "
+        f"named {seen['left_reported']}\n{seen['stderr']}")
+    if seen["alive_at_exit"] or seen["survivors"]:
+        warnings.warn(f"{how}: the runner's kill wait ran out and said so: "
+                      f"{seen['left_reported']}\n{seen['stderr']}")
+
+
 def _end_a_runner(how: str) -> dict:
     """Starts the witness runner, ends it ``how``, and says what its Chrome did."""
     node = shutil.which("node")
@@ -199,6 +245,7 @@ def _end_a_runner(how: str) -> dict:
         [node, str(WITNESS), how], cwd=str(REPO_ROOT),
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True, encoding="utf-8", errors="replace",
+        env={**os.environ, TRACE_ENV: "1"},
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
     k32 = _kernel32()
     handles: dict = {}
@@ -219,13 +266,19 @@ def _end_a_runner(how: str) -> dict:
             proc.stdin.flush()
         proc.wait(timeout=STOP_S)
         at_exit = [pid for pid, h in handles.items() if k32.WaitForSingleObject(h, 0) != 0]
+        # Un-signalled is not "running code": a killed Chrome sits between the two
+        # for 0.3 s to over a minute here. Which survivors had at least stopped?
+        exit_code_set = [pid for pid in at_exit if _exit_code(k32, handles[pid]) != STILL_ACTIVE]
         top_code = _exit_code(k32, handles[top])
         deadline = time.monotonic() + SETTLE_S
         for h in handles.values():
             k32.WaitForSingleObject(h, max(0, int((deadline - time.monotonic()) * 1000)))
+        stderr = proc.stderr.read()
         return {"profile": profile, "top": top, "alive_at_exit": at_exit,
+                "exit_code_set": exit_code_set,
                 "top_code": top_code, "node_code": proc.returncode,
-                "survivors": _with_profile(profile), "stderr": proc.stderr.read()}
+                "survivors": _with_profile(profile), "stderr": stderr,
+                "left_reported": _left_reported(stderr)}
     finally:
         if proc.poll() is None:
             subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)],
@@ -240,8 +293,10 @@ needs_windows = pytest.mark.skipif(sys.platform != "win32",
 
 @needs_windows
 @pytest.mark.parametrize("how, graceful", [
-    # Ctrl-Break: the helper's signal handler closes the browser, then exits.
-    ("signal", True),
+    # Ctrl-Break: the handler kills the recorded tree and waits until every handle
+    # is signalled (the pass the exit event runs), so Chrome is KILLED, not closed:
+    # there is no graceful close on this path any more.
+    ("signal", False),
     # A throw inside the runner's try: its `finally` closes the browser.
     ("throw", True),
     # process.exit() with the browser open skips every `finally`: the helper's
@@ -250,15 +305,55 @@ needs_windows = pytest.mark.skipif(sys.platform != "win32",
 ])
 def test_a_runner_that_ends_leaves_no_chrome(browser_slot, how, graceful):
     seen = _end_a_runner(how)
-    assert not seen["alive_at_exit"], (
-        f"ended by {how}: Chrome {seen['alive_at_exit']} (profile {seen['profile']}) "
-        f"was still running when its node exited -- nothing in the runner closed it, "
-        f"and only the DevTools pipe closing would have\n{seen['stderr']}")
-    assert not seen["survivors"], (
-        f"ended by {how}: Chrome {seen['survivors']} still running {SETTLE_S:g} s "
-        f"later\n{seen['stderr']}")
+    _assert_gone_or_named(how, seen)
     if graceful:
         assert seen["top_code"] == 0, (
             f"ended by {how}: Chrome {seen['top']} exited {seen['top_code']}, so it was "
             "killed by the exit handler rather than closed -- the close this path "
             f"owns did not happen\n{seen['stderr']}")
+
+
+def _ended(alive, exit_code_set=(), left_reported=(), survivors=()):
+    return {"profile": "p", "top": 1, "alive_at_exit": list(alive),
+            "exit_code_set": list(exit_code_set), "left_reported": list(left_reported),
+            "survivors": list(survivors), "top_code": 0, "node_code": 0, "stderr": ""}
+
+
+@pytest.mark.parametrize("alive,exit_code_set,left_reported,survivors,unexplained", [
+    ([], [], [], [], []),                       # all gone at node's exit
+    ([2], [2], [2], [], []),                    # killed and named: the stated bound ran out
+    ([2], [2], [], [], [2]),                    # killed but NOT named: a silent kill
+    ([2], [], [2], [], [2]),                    # named but still running code
+    ([2, 3], [2, 3], [2], [], [3]),             # one named, one not
+    ([], [], [], [5], [5]),                     # unnamed and still listed after the settle wait
+    ([2], [2], [2], [2], []),                   # named, still listed: accounted for
+])
+def test_the_witness_verdict_accepts_only_a_killed_and_named_survivor(
+        alive, exit_code_set, left_reported, survivors, unexplained):
+    """The rule the Chrome witness asserts, pinned without a browser."""
+    assert unexplained_survivors(
+        _ended(alive, exit_code_set, left_reported, survivors)) == unexplained
+
+
+def test_a_named_survivor_passes_with_a_warning_and_an_unnamed_one_fails():
+    with pytest.warns(UserWarning, match="kill wait ran out and said so"):
+        _assert_gone_or_named("signal", _ended([2], [2], [2]))
+    with pytest.raises(AssertionError):
+        _assert_gone_or_named("signal", _ended([2], [2], []))
+
+
+def test_the_left_running_line_is_the_one_the_witness_reads():
+    """The runner's loud line and the witness's parser are one format."""
+    src = (REPO_ROOT / "scripts" / "browser_runner.mjs").read_text(encoding="utf-8-sig")
+    assert 'export const LEFT_RUNNING = "BROWSER LEFT RUNNING";' in src
+    assert "${LEFT_RUNNING}: Chrome process(es) ${left.join(\", \")} were" in src
+    line = "BROWSER LEFT RUNNING: Chrome process(es) 12, 345 were still running 60000 ms"
+    assert _left_reported(line) == [12, 345]
+
+
+def test_the_stop_wait_outlasts_the_runners_kill_bound():
+    """A witness that gives up before the runner's own bound reddens a runner
+    that is waiting, as designed, on a slow teardown."""
+    src = (REPO_ROOT / "scripts" / "browser_runner.mjs").read_text(encoding="utf-8-sig")
+    bound_ms = int(re.search(r"export const KILL_WAIT_BOUND_MS = (\d+);", src)[1])
+    assert STOP_S * 1000 > bound_ms + 30_000
