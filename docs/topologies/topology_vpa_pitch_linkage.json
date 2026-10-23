@@ -794,11 +794,27 @@
             "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
             "runs": [
               {
+                "run_id": "20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-14T11:11:24+00:00"
+              },
+              {
+                "run_id": "20260727_145424_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-27T14:54:24+00:00"
+              },
+              {
+                "run_id": "20260730_133150_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-30T20:32:14.614196+00:00"
+              },
+              {
+                "run_id": "20260813_180536_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-14T01:05:58.595436+00:00"
+              },
+              {
                 "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
                 "ts": "2026-08-19T22:03:41.397347+00:00"
               }
             ],
-            "note": "The run's own run_meta.json records this sha256 as its input, and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). Read-only: nothing was written into drawing-checker."
+            "note": "Five runs consumed this export: drawing-checker's runs.jsonl records its sha256 as the input of each (the run's own run_meta.json does too for the three from 20260730 on), and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). The ts of the first two (backfilled) is derived from the run id by drawing-checker's reconcile_run_log.py, not a stamped instant. Read-only: nothing was written into drawing-checker."
           },
           "element_id": null,
           "run_id": null,
@@ -854,11 +870,27 @@
             "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
             "runs": [
               {
+                "run_id": "20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-14T11:11:24+00:00"
+              },
+              {
+                "run_id": "20260727_145424_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-27T14:54:24+00:00"
+              },
+              {
+                "run_id": "20260730_133150_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-30T20:32:14.614196+00:00"
+              },
+              {
+                "run_id": "20260813_180536_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-14T01:05:58.595436+00:00"
+              },
+              {
                 "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
                 "ts": "2026-08-19T22:03:41.397347+00:00"
               }
             ],
-            "note": "The run's own run_meta.json records this sha256 as its input, and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). Read-only: nothing was written into drawing-checker."
+            "note": "Five runs consumed this export: drawing-checker's runs.jsonl records its sha256 as the input of each (the run's own run_meta.json does too for the three from 20260730 on), and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). The ts of the first two (backfilled) is derived from the run id by drawing-checker's reconcile_run_log.py, not a stamped instant. Read-only: nothing was written into drawing-checker."
           },
           "element_id": null,
           "run_id": null,

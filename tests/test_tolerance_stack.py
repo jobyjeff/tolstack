@@ -1613,6 +1613,19 @@ _RUNS_CLEARED_WITHOUT_A_TIMESTAMP = {
         "commit. Both runs record the same source sha256 in their run_meta.json "
         "inputs, which is what makes 'which export' a unique answer here."
     ),
+    "20260817_151224_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER": (
+        "217755 joint export, run 3 of 4 (added 2026-10-23 by "
+        "an_export_lists_every_run_that_consumed_it, which lists every run the "
+        "log records for the sha). ts 2026-08-17T22:15:00Z, purpose 'user' in its "
+        "run_meta.json -- drawing-checker's own user run; tolstack has no write "
+        "path into that repo. Weaker than a commit-date argument, same as the "
+        "two above."
+    ),
+    "20260819_163640_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER": (
+        "217755 joint export, run 4 of 4 (added 2026-10-23, same handoff). ts "
+        "2026-08-19T23:39:11Z, purpose 'eager' -- written by drawing-checker's "
+        "eager-publish policy, not requested from here. Same weakness."
+    ),
 }
 
 
@@ -1706,7 +1719,9 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     # [PRELIM 2026-AUG-3] 217755 export, structured in 2026-09-16's
     # `python_value_and_schema_pins`).
     assert set(cited) == {"20260813_180734", "20260819_153213",
-                          "20260803_145243", "20260804_114000"}
+                          "20260803_145243", "20260804_114000",
+                          "20260817_151224_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER",
+                          "20260819_163640_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER"}
     for run_id, ts in cited.items():
         if ts < PITCH_LINK_FIRST_COMMIT:
             continue
