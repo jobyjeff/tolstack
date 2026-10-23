@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: topologies/provenance
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md
+handoff: docs/sessions/HANDOFF_20261022_an_export_lists_every_run_that_consumed_it.md
 ---
 
 # Two 213668-002 export citations list 1 of the 5 runs that consumed the export, and a third says none did

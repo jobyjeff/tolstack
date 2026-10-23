@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: kinematic study / viewer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261022_a_study_says_it_is_incomplete_without_inventing_a_check.md
+class: study_kind_feature_parity
+defer_until: 2026-11-21
 ---
 
 # A kinematic study has no derived completeness, so its nav row and page never say "incomplete"

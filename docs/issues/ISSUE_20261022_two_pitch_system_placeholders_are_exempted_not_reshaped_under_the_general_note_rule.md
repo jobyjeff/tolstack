@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: topologies/pitch-system
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md
+class: retired_stand_in_exemption
+defer_until: 2026-11-21
 ---
 
 # Two pitch-system placeholders are exempted from the retired-stand-in rule, not re-shaped by it

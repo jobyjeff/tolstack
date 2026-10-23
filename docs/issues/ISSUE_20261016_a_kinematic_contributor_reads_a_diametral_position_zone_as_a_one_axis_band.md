@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: resolved
+status: triaged
 area: topologies/kinematic
 reporter: agent
 audience: strategy
-handoff: docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md
+handoff: docs/sessions/HANDOFF_20261022_the_pitch_plate_link_hole_states_its_axis.md
 found_by: docs/sessions/HANDOFF_20261016_a_kinematic_study_folds_the_sweeps_jacobian.md
-resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `a_general_profile_note_bands_a_model_defined_term` moved to completed/; not independently verified.
+resolution: reopened 2026-10-22 (second triage sweep): the automatic close-out was false -- a_general_profile_note_bands_a_model_defined_term decided the rule but could not convert this contributor (no axis on the link hole), so it is still a one-axis band; routed to the_pitch_plate_link_hole_states_its_axis
 ---
 
 # A kinematic contributor reads a diametral position zone as a one-axis band
