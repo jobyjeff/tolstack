@@ -65,7 +65,10 @@ FAKE_SLOT = textwrap.dedent("""
     with open(sys.argv[1], "a", encoding="utf-8") as log:
         log.write("taken\\n")
     argv = sys.argv[sys.argv.index("--") + 1:]
-    sys.exit(subprocess.call(argv, env={**os.environ, "DISPATCH_SLOT_HELD": "browser"}))
+    code = subprocess.call(argv, env={**os.environ, "DISPATCH_SLOT_HELD": "browser"})
+    with open(sys.argv[1], "a", encoding="utf-8") as log:
+        log.write("released\\n")
+    sys.exit(code)
 """)
 
 CONFTEST = textwrap.dedent("""
@@ -86,6 +89,11 @@ TESTS = textwrap.dedent("""
 
     def test_another_browser(browser_slot):
         assert os.environ.get("DISPATCH_SLOT_HELD") == "browser"
+
+    def test_plain_after_browser():
+        # The stand-in's holder has exited (it logs "released"), and the env is clear.
+        assert "DISPATCH_SLOT_HELD" not in os.environ
+        assert open({log!r}, encoding="utf-8").read().count("released") == 1
 """)
 
 
@@ -96,7 +104,7 @@ def _inner_pytest(tmp_path: Path, *select: str) -> int:
     fake.write_text(FAKE_SLOT, encoding="utf-8")
     (tmp_path / "conftest.py").write_text(
         CONFTEST.format(fake=str(fake), log=str(log)), encoding="utf-8")
-    (tmp_path / "test_inner.py").write_text(TESTS, encoding="utf-8")
+    (tmp_path / "test_inner.py").write_text(TESTS.replace("{log!r}", repr(str(log))), encoding="utf-8")
     env = {k: v for k, v in os.environ.items() if k != browser_slot.HELD_ENV}
     env["PYTHONPATH"] = str(REPO_ROOT)
     proc = subprocess.run(
@@ -116,6 +124,12 @@ def test_a_session_takes_the_slot_once_however_many_browser_tests_it_runs(tmp_pa
     # The other arm, so the one above cannot pass by the stand-in never working.
     assert _inner_pytest(tmp_path, "test_no_browser", "test_a_browser",
                          "test_another_browser") == 1
+
+
+def test_the_slot_is_released_before_a_plain_test_that_follows_the_last_browser_test(tmp_path):
+    # Selection order is file order: the browser tests, then the plain test behind them.
+    assert _inner_pytest(tmp_path, "test_a_browser", "test_another_browser",
+                         "test_plain_after_browser") == 1
 
 
 def test_a_held_slot_is_not_taken_again(monkeypatch):

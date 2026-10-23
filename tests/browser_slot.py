@@ -3,8 +3,8 @@
 A test that starts a Chrome asks for the ``browser_slot`` fixture
 (``tests/conftest.py`` makes it visible everywhere under ``tests/``). The first
 such test to be set up takes dispatch's browser slot, and the session holds it
-until it ends; every browser test after that runs at once. A run that selects no
-browser test never asks, so it never queues -- wrapping the whole ``pytest``
+until the last browser test has torn down; every browser test between runs at
+once. A run that selects no browser test never asks, so it never queues -- wrapping the whole ``pytest``
 command instead would hold the one slot through minutes of tests that start no
 browser (handoff browser_runners_take_the_slot_and_free_the_box).
 
@@ -82,8 +82,41 @@ def holding_the_browser_slot():
         holder.wait(timeout=60)
 
 
-@pytest.fixture(scope="session")
-def browser_slot():
-    """Holds the machine's browser slot from first use to the end of the session."""
-    with holding_the_browser_slot():
-        yield
+def _hold_of(config) -> contextlib.ExitStack:
+    """The session's one hold, made on first use; ended at the latest by pytest's cleanup.
+
+    Kept on ``config`` rather than in a session fixture so that importing
+    ``browser_slot`` alone (as a conftest does) is the whole contract.
+    """
+    stack = getattr(config, "_browser_slot_stack", None)
+    if stack is None:
+        stack = config._browser_slot_stack = contextlib.ExitStack()
+        stack.held = False
+        config.add_cleanup(stack.close)
+    return stack
+
+
+def _browser_items_after(item) -> bool:
+    """True when a test still to run in this session asks for ``browser_slot``."""
+    items = item.session.items
+    return any("browser_slot" in later.fixturenames for later in items[items.index(item) + 1:])
+
+
+@pytest.fixture
+def browser_slot(request):
+    """Holds the machine's browser slot from the first browser test to the last.
+
+    Function-scoped on purpose: ``scope="module"`` would be enough only while every
+    browser test lives in one module. The test that finds no browser test after it
+    in ``session.items`` (the final run order, so ``--lf`` and ``-k`` are counted as
+    selected) closes the hold in its own teardown, and the plain tests behind it
+    never see the slot taken.
+    """
+    hold = _hold_of(request.config)
+    if not hold.held:
+        hold.enter_context(holding_the_browser_slot())
+        hold.held = True
+    yield
+    if not _browser_items_after(request.node):
+        hold.close()
+        hold.held = False
