@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate renders on demand (a still scene draws nothing, an orbit draws)",
+  "expect_red": "a still scene (no input, no sweep playing) draws no frames over a second",
+  "mutations": [
+    {
+      "contract": "The annotator's render loop draws only when something changed, so an idle scene costs no GPU or software-raster time.",
+      "issue": "docs/issues/ISSUE_20261021_the_annotate_scene_renders_every_animation_frame_whether_or_not_anything_changed.md",
+      "note": "Re-dirtying at the end of every frame is the original always-render loop wearing a flag.",
+      "file": "apps/annotate/scene.js",
+      "find": "      this.renderCount++;\n",
+      "replace": "      this.renderCount++;\n      this.dirty = true;\n"
+    }
+  ]
+}

@@ -161,7 +161,7 @@ export const GUARD_SOURCES = {
 export const DECLARED_GUARDS = {
   fast: { declared: 551, enrollable: 551, names: "f42fb378b079" },
   annotate: { declared: 213, enrollable: 213, names: "d0fa26b10662" },
-  browser: { declared: 581, enrollable: 548, names: "0772405e40e5" },
+  browser: { declared: 583, enrollable: 550, names: "5b5d619eae5a" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

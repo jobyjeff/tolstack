@@ -455,6 +455,20 @@ async function checkEverything(browser, base) {
 // is hidden for the two raycasts, because what is being measured is this
 // part's own geometry under a rigid move, not what happens to stand in front
 // of it.
+// Waits until the scene has DRAWN `n` more frames (forcing the first). The
+// scene renders on demand, so counting requestAnimationFrame ticks no longer
+// says a frame was drawn; the counter does.
+async function framesRendered(page, n) {
+  await page.evaluate(async (want) => {
+    const scene = window.__scene;
+    const target = scene.renderCount + want;
+    while (scene.renderCount < target) {
+      scene.requestRender();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }, n);
+}
+
 async function pickSameFaceBothWays(page, sha, occurrence, faceId) {
   return page.evaluate(({ sha, occurrence, faceId }) => {
     const scene = window.__scene;
@@ -932,11 +946,7 @@ async function captureShots(page, url, tag) {
       // rasterisation of 1.4 million triangles at about 4 fps, and the
       // 72-degree screenshot came out empty with a perfectly correct scene
       // behind it. SWEEP_PROBE=1 dumps the state that showed that.
-      await page.evaluate(async () => {
-        for (let i = 0; i < 6; i++) {
-          await new Promise((resolve) => requestAnimationFrame(resolve));
-        }
-      });
+      await framesRendered(page, 2);
       await page.waitForTimeout(350);
       if (process.env.SWEEP_PROBE) {
         console.log("      probe " + degrees + "deg " + JSON.stringify(await page.evaluate(() => {
@@ -1123,9 +1133,7 @@ async function realPass(browser, base) {
     // See-through, so the linkage reads through the hub and housings it sits
     // inside -- the same preference sweep mode applies by default.
     await page.evaluate(() => window.AnnotateApp.exec(["transparency", "on"]));
-    await page.evaluate(async () => {
-      for (let i = 0; i < 6; i++) await new Promise((r) => requestAnimationFrame(r));
-    });
+    await framesRendered(page, 2);
     await page.waitForTimeout(500);
     await page.screenshot({ path: join(SHOTS, "assembled_real_dark_out_of_sweep.png"), timeout: SHOT_TIMEOUT_MS });
     console.log("      assembled_real_dark_out_of_sweep.png written");
@@ -1292,14 +1300,13 @@ async function realPass(browser, base) {
   // requestAnimationFrame loop of this check's own, which the browser
   // services once per rendered frame like the scene's.
   const countFrames = async (ms) => page.evaluate(async (window_ms) => {
-    let frames = 0;
-    let live = true;
-    const tick = () => { if (!live) return; frames++; requestAnimationFrame(tick); };
+    // The scene's own rendered-frame counter: it draws only when something
+    // changed, so a tick of the browser's loop no longer means a drawn frame.
+    const scene = window.__scene;
+    const before = scene.renderCount;
     const t0 = performance.now();
-    requestAnimationFrame(tick);
     await new Promise((r) => setTimeout(r, window_ms));
-    live = false;
-    return frames / ((performance.now() - t0) / 1000);
+    return (scene.renderCount - before) / ((performance.now() - t0) / 1000);
   }, ms);
   await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
   await page.evaluate(() => window.AnnotateApp.exec(["loop", "pingpong"]));

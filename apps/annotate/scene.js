@@ -260,14 +260,30 @@ export class AnnotateScene {
       this._resizeObserver.observe(hostEl);
     }
 
+    // RENDER ON DEMAND (handoff the_annotate_scene_renders_only_when_
+    // something_changed). The loop keeps ticking -- it is cheap -- but draws
+    // only when `dirty`. Headless, WebGL is software, and an idle scene drawn
+    // sixty times a second kept several cores busy for nothing. The camera
+    // reaches `dirty` through OrbitControls' own `change` event (which also
+    // covers damping: update() dispatches it while the view still moves);
+    // every scene method that changes what is drawn calls requestRender().
+    this.dirty = true;
+    this.renderCount = 0;
+    this.controls.addEventListener("change", () => this.requestRender());
     const animate = () => {
       requestAnimationFrame(animate);
       this.controls.update();
+      if (!this.dirty) return;
+      this.dirty = false;
       this._layoutLeader();
       this.renderer.render(this.scene, this.camera);
+      this.renderCount++;
     };
     animate();
   }
+
+  // The single way in: something drawn has changed, draw the next frame.
+  requestRender() { this.dirty = true; }
 
   // Re-sizes the drawing buffer and the projection to the host's current box.
   // A zero dimension (a hidden host) is ignored rather than clamped: three.js
@@ -279,6 +295,7 @@ export class AnnotateScene {
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    this.requestRender();
     return true;
   }
 
@@ -365,6 +382,7 @@ export class AnnotateScene {
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
     this._drawAt(sha256);
+    this.requestRender();
     // ...but NOT while a sweep is running. Sweep mode frames the whole swept
     // path and the bodies round it (frameSweepScene) and then opens each
     // body's part, so this call
@@ -386,6 +404,7 @@ export class AnnotateScene {
     mesh.geometry.dispose();
     mesh.material.dispose();
     this.parts.delete(sha256);
+    this.requestRender();
   }
 
   // Part show/hide (handoff annotate_deep_link_and_part_filter, deliverable
@@ -400,6 +419,7 @@ export class AnnotateScene {
     if (!mesh) return false;
     mesh.visible = !!visible;
     for (const repeat of this._repeats.get(sha256) || []) repeat.visible = mesh.visible;
+    this.requestRender();
     return true;
   }
 
@@ -442,6 +462,7 @@ export class AnnotateScene {
     const list = mesh.userData.override || mesh.userData.rest || [OWN_ORIGIN];
     applyPlacement4(mesh, list[0]);
     this._setRepeats(sha256, mesh, list.slice(1));
+    this.requestRender();
   }
 
   // The second and later occurrences of one mesh. Kept IN STEP with the list
@@ -488,6 +509,7 @@ export class AnnotateScene {
     mesh.material.opacity = on ? GHOST_OPACITY : 1;
     mesh.material.depthWrite = !on;
     mesh.material.needsUpdate = true;
+    this.requestRender();
     return true;
   }
 
@@ -535,6 +557,7 @@ export class AnnotateScene {
     const mark = { sha256, faceId, role: which, geometry, material, meshes: [] };
     this._marks.push(mark);
     this._syncMarks(sha256);
+    this.requestRender();
     return true;
   }
 
@@ -577,6 +600,7 @@ export class AnnotateScene {
       m.material.dispose();
     }
     this._marks = keep;
+    this.requestRender();
   }
 
   isVisible(sha256) {
@@ -617,6 +641,7 @@ export class AnnotateScene {
     this.camera.lookAt(center);
     this.controls.target.copy(center);
     this.controls.update();
+    this.requestRender();
   }
 
   // One part's drawn occurrences, as one box in the assembly frame.
@@ -670,6 +695,7 @@ export class AnnotateScene {
     const attr = mesh.geometry.attributes.color;
     attr.array.set(mesh.userData.baseColors);
     attr.needsUpdate = true;
+    this.requestRender();
   }
 
   // Put the highlighted face back to its own colours, and forget it -- the
@@ -720,6 +746,7 @@ export class AnnotateScene {
         attr.setXYZ(i, HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
       }
       attr.needsUpdate = true;
+      this.requestRender();
       this._tintedShas.push(face.sha256);
       if (!this._lastPick) this._lastPick = { sha256: face.sha256, faceId: face.faceId };
     }
@@ -739,6 +766,7 @@ export class AnnotateScene {
     }
     attr.needsUpdate = true;
     this._lastPick = { sha256, faceId };
+    this.requestRender();
   }
 
   // --- the bind leader -------------------------------------------------------
@@ -755,6 +783,7 @@ export class AnnotateScene {
   // thickness are on opposite sides of the part, so a depth-tested line
   // between them would be inside it.
   setBindLeader(leader) {
+    this.requestRender();
     this._disposeLeader();
     if (!leader) return false;
     const a = this._drawnCentroid(leader.picked.sha256, leader.picked.faceId);
@@ -967,6 +996,7 @@ export class AnnotateScene {
       }
     }
     this.scene.add(group);
+    this.requestRender();
     this._sweep = {
       group, joints, links, triads, trails, trailGroup, pathBox,
       // sha256 -> its translucent as-modelled copies (the `ghost` layer).
@@ -999,6 +1029,7 @@ export class AnnotateScene {
   setSweepEmphasis(jointName) {
     if (!this._sweep) return false;
     this._sweep.emphasis = jointName || null;
+    this.requestRender();
     for (const [name, bead] of this._sweep.joints) {
       const on = name === this._sweep.emphasis;
       bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);
@@ -1037,6 +1068,7 @@ export class AnnotateScene {
     if (!mesh || !this._sweep) return false;
     mesh.userData.override = normalisePlacements(placements);
     this._drawAt(sha256);
+    this.requestRender();
     return true;
   }
 
@@ -1045,6 +1077,7 @@ export class AnnotateScene {
   // a reader can see rather than compute.
   setSweepGhost(sha256, placements) {
     if (!this._sweep) return false;
+    this.requestRender();
     const list = normalisePlacements(placements);
     for (const old of this._sweep.ghosts.get(sha256) || []) {
       this.scene.remove(old);
@@ -1081,6 +1114,7 @@ export class AnnotateScene {
     if (!this._sweep) return false;
     const { joints, links, triads } = this._sweep;
     this._sweep.warned = converged === false;
+    this.requestRender();
     const stick = this._sweep.stickVisible !== false;
 
     for (const [name, bead] of joints) {
@@ -1134,6 +1168,7 @@ export class AnnotateScene {
   // turns the stick figure off wants the bodies on their own.
   setSweepLayer(name, on) {
     if (!this._sweep) return false;
+    this.requestRender();
     if (name === "trail") { this._sweep.trailGroup.visible = !!on; return true; }
     if (name === "stick") {
       // `.visible`, not `.layers`: a Group's layer mask does not reach its
@@ -1189,6 +1224,7 @@ export class AnnotateScene {
     this.camera.lookAt(centre);
     this.controls.target.copy(centre);
     this.controls.update();
+    this.requestRender();
     return true;
   }
 
@@ -1204,6 +1240,7 @@ export class AnnotateScene {
       if (node.material) node.material.dispose();
     });
     this._sweep = null;
+    this.requestRender();
     return true;
   }
 

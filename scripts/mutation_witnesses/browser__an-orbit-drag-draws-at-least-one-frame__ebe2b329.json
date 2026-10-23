@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate renders on demand (a still scene draws nothing, an orbit draws)",
+  "expect_red": "an orbit drag draws at least one frame",
+  "mutations": [
+    {
+      "contract": "A camera move marks the scene dirty, so render-on-demand never leaves a stale frame under an orbit.",
+      "issue": "docs/issues/ISSUE_20261021_the_annotate_scene_renders_every_animation_frame_whether_or_not_anything_changed.md",
+      "note": "Without the OrbitControls change listener nothing else marks the scene dirty on a drag.",
+      "file": "apps/annotate/scene.js",
+      "find": "    this.controls.addEventListener(\"change\", () => this.requestRender());\n",
+      "replace": ""
+    }
+  ]
+}

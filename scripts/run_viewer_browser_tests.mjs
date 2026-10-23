@@ -8969,6 +8969,51 @@ async function testAnnotateBindForm(browser, label) {
   }
 }
 
+// The annotator draws a frame only when something changed (handoff the_
+// annotate_scene_renders_only_when_something_changed). `scene.renderCount` is
+// the count of frames actually drawn; the rAF loop itself keeps ticking.
+async function testAnnotateRenderOnDemand(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const rendered = () => page.evaluate(() => window.__scene.renderCount);
+  try {
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+      { waitUntil: "load" });
+    await page.waitForFunction(() => window.__scene &&
+      window.__scene.parts.has(window.AnnotateApp.FIXTURES.demoSha), null, { timeout: 15000 });
+    // Let load-time work (part open, framing, resize) finish drawing.
+    await page.waitForTimeout(1500);
+    const before = await rendered();
+    await page.waitForTimeout(1000);
+    const still = (await rendered()) - before;
+    push("a still scene (no input, no sweep playing) draws no frames over a second",
+      still === 0);
+    const box = await page.locator("#canvas-host canvas").boundingBox();
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    const beforeDrag = await rendered();
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 120, y + 40, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    push("an orbit drag draws at least one frame", (await rendered()) > beforeDrag);
+    push("no page error anywhere in the run", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 (async () => {
   const server = await startServer();
   const { port } = server.address();
@@ -9065,6 +9110,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
           realResults, crops)],
       ["annotate bind form (a drag keeps the pick, the ends by name, the leader)", (label) =>
         testAnnotateBindForm(browser, label)],
+      ["annotate renders on demand (a still scene draws nothing, an orbit draws)", (label) =>
+        testAnnotateRenderOnDemand(browser, label)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
