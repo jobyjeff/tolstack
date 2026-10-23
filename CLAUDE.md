@@ -183,7 +183,11 @@ Know these before you write code; each has a test standing on it.
   `DISPATCH_SLOT_HELD` and runs at once). A pytest test that starts Chrome asks
   for the `browser_slot` fixture instead, so a run with no browser test never
   queues. The Chrome a runner launches is CPU-capped to a few cores of the box
-  and closed however the run ends. A scratch script that drives a browser gets
+  and closed however the run ends: every way out kills the recorded Chrome tree
+  and waits until each killed process's handle is *signalled* (a killed Chrome
+  stays un-signalled for up to 30s+ on this box, so `process.kill(pid, 0)` is
+  not "gone"); past 60s it prints `BROWSER LEFT RUNNING` naming the pids
+  (2026-10-22, `the_kill_witness_fix_is_ported_from_drawing_checker`). A scratch script that drives a browser gets
   the same by importing that helper.
 - **Never generate synthetic load on this workstation** — no CPU burners,
   memory hogs or fork loops, not even to reproduce contention. It runs Jeff's
