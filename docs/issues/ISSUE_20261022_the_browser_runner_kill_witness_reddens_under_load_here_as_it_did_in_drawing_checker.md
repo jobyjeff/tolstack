@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: browser runner / kill witness
 class: browser_tier_flake_under_load
 reporter: agent
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261022_triage_sweep.md
 handoff: docs/sessions/HANDOFF_20261022_the_kill_witness_fix_is_ported_from_drawing_checker.md
+resolution: handoff completed 2026-10-23 -- closed automatically by dispatch when handoff `the_kill_witness_fix_is_ported_from_drawing_checker` moved to completed/; not independently verified.
 ---
 
 # The browser runner's kill witness reddens under load here, as it did in drawing-checker
