@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: scripts/browser-tier
 reporter: agent
 class: guard_cannot_fail
 found_by: docs/sessions/HANDOFF_20261021_browser_tiers_name_their_failure_instead_of_aborting.md
 handoff: docs/sessions/HANDOFF_20261022_kinematic_citation_card_wiring_is_witnessed.md
+resolution: handoff completed 2026-10-22 -- closed automatically by dispatch when handoff `kinematic_citation_card_wiring_is_witnessed` moved to completed/; not independently verified.
 ---
 
 # `hoverRailBar` throws, so a bar with no hit path aborts the topology suite instead of failing a check by name
