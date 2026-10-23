@@ -400,8 +400,21 @@
             "status": "established",
             "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/212966-006-A.pdf",
             "sha256": "b0c19da5a8cf992bf3ae31c3b589edb14e1d68347617964f2f847b0c219d0d6b",
-            "runs": [],
-            "note": "Read directly off the PDF text layer/rendered crop during handoff endstop_vision_baseline (2026-09-01); not run through drawing-checker's pipeline this session."
+            "runs": [
+              {
+                "run_id": "20260813_180416_212966-006-A",
+                "ts": "2026-08-14T01:05:35.989237+00:00"
+              },
+              {
+                "run_id": "20260819_150150_212966-006-A",
+                "ts": "2026-08-19T22:03:13.880150+00:00"
+              },
+              {
+                "run_id": "20261001_181931_212966-006-A",
+                "ts": "2026-10-02T01:21:20.842698+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer/rendered crop during handoff endstop_vision_baseline (2026-09-01); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
           },
           "confidence": "traced",
           "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a73 row 17, findings F1/F2): identity established (the hub's one 5X-INDIVIDUALLY blade-root-seat position frame). The band is 0.10 mm total (+/-0.05), NOT the prior workbook's 0.12 mm (+/-0.06) -- the drawing is the value of record, so this edge's stored band now matches it exactly. F1: the drawing's modifier is LMC (\u24c1), where the workbook's own comment says 'diameter MMC' -- this repo's load-bearing design decision 2 (LMC/MMC are material conditions, not extremes; for a subtracted feature the mapping inverts) surfacing in live source data. F2: the workbook's 0.12 mm is reconstructible as this 0.10 mm position PLUS the mating seat's 0.022 mm size band (\u00d892.030 0.000/-0.022) -- a bonus-tolerance hypothesis, not folded in here, since v0 carries no per-term MMC/LMC weight (see this topology's own notes on what it cannot reproduce)."
@@ -464,8 +477,13 @@
             "status": "established",
             "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214700-002-A.pdf",
             "sha256": "795b557ed1fa29123f3fb785274e19efb3a66ee580361d206bf56e970775d9f2",
-            "runs": [],
-            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78b row 39); not run through drawing-checker's pipeline this session."
+            "runs": [
+              {
+                "run_id": "20260904_181232_214700-002-A",
+                "ts": "2026-09-05T01:12:55.159701+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78b row 39); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
           },
           "confidence": "untraced",
           "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a78b row 39, 'candidate (strong)') -- explicitly NOT scored traced. This callout matches the prior workbook value (0.10 mm total = B39) AND its comment ('tol +/-0.05') exactly, at a small groove near the piston's threaded tip. But nothing on the sheet names it an end-stop contact face -- it could be a thread-relief/retaining-ring groove, and the row may describe an assembly clearance a single-part drawing cannot state alone. THE ROW THAT NAMES THE END STOP ITSELF is the one this repo is least willing to overclaim; confidence stays `untraced` until the identity is nailed down (see this topology's unresolved-identity list)."
@@ -492,8 +510,13 @@
             "status": "established",
             "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214700-002-A.pdf",
             "sha256": "795b557ed1fa29123f3fb785274e19efb3a66ee580361d206bf56e970775d9f2",
-            "runs": [],
-            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78b row 38); not run through drawing-checker's pipeline this session."
+            "runs": [
+              {
+                "run_id": "20260904_181232_214700-002-A",
+                "ts": "2026-09-05T01:12:55.159701+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78b row 38); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
           },
           "confidence": "inferred",
           "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a78b row 38, 'convention-traced'): the OWNER's own drawing (214700-002-A, the piston body itself) carries both the \u00b10.10 general-tolerance block and the un-toleranced 113.67 overall-length dimension it applies to -- a documented derivation off a traced convention on the same sheet, not a specific numeric callout, hence `inferred` (SOP CONFIDENCES: derived from something traced, with the derivation written down) rather than `traced`. Stronger than the prior session's convention-traced cases, which borrowed a sibling part's block; this is the owner's own. Value 0.20 mm total matches the prior workbook cell (B38) exactly, so no numeric change."
@@ -519,8 +542,17 @@
             "status": "established",
             "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
             "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
-            "runs": [],
-            "note": "Read directly off the PDF text layer during handoff endstop_vision_baseline (2026-09-01); not run through drawing-checker's pipeline this session."
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer during handoff endstop_vision_baseline (2026-09-01); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
           },
           "confidence": "traced",
           "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a73/\u00a78b, row 37): identity by count (5X bores <-> 5 blades) plus the row's own name citing this frame's A-datum. Value 0.20 mm total matches the prior workbook cell (B37) exactly, so no numeric change. F4 (same worksheet): this SAME callout also serves the pitch plate's vertical (row 32) and tangential (row 48) position rows, neither of which is a topology edge here -- and rows 32/37 are both vertical and both 0.20, so whether that is a deliberate second contributor or one tolerance counted twice is open, and Jeff's to resolve, not this session's."
@@ -705,8 +737,29 @@
             "status": "established",
             "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf",
             "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
-            "runs": [],
-            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78a/\u00a78b row 41); not run through drawing-checker's pipeline this session."
+            "runs": [
+              {
+                "run_id": "20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-14T11:11:24+00:00"
+              },
+              {
+                "run_id": "20260727_145424_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-27T14:54:24+00:00"
+              },
+              {
+                "run_id": "20260730_133150_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-30T20:32:14.614196+00:00"
+              },
+              {
+                "run_id": "20260813_180536_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-14T01:05:58.595436+00:00"
+              },
+              {
+                "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-19T22:03:41.397347+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78a/\u00a78b row 41); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
           },
           "confidence": "traced",
           "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a78a/\u00a78b row 41): owner resolved via 215176-002-A's own parts list (find no. 1 -> 213668-002), a part already read in full during the 2026-09-01 session for a different set of rows (60/61/62). Value 0.20 mm total matches the prior workbook cell (B41) exactly -- overall height, top rim to mounting-flange plane -- so no numeric change."
@@ -756,8 +809,29 @@
             "status": "established",
             "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf",
             "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
-            "runs": [],
-            "note": "Read directly off a 10x rendered crop, review/endstop_vision_baseline (2026-09-01, F7); not run through drawing-checker's pipeline. This drawing's GD&T frames are vector geometry, absent from its text layer entirely (WORKSHEET \u00a72g)."
+            "runs": [
+              {
+                "run_id": "20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-14T11:11:24+00:00"
+              },
+              {
+                "run_id": "20260727_145424_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-27T14:54:24+00:00"
+              },
+              {
+                "run_id": "20260730_133150_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-30T20:32:14.614196+00:00"
+              },
+              {
+                "run_id": "20260813_180536_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-14T01:05:58.595436+00:00"
+              },
+              {
+                "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-19T22:03:41.397347+00:00"
+              }
+            ],
+            "note": "Read directly off a 10x rendered crop, review/endstop_vision_baseline (2026-09-01, F7); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used. This drawing's GD&T frames are vector geometry, absent from its text layer entirely (WORKSHEET \u00a72g)."
           },
           "confidence": "untraced",
           "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a73 row 61 / F7, 'candidate') -- explicitly NOT scored traced. A real true-position frame of exactly 0.20 mm total exists on this drawing, but which feature it controls, and whether that feature is the tan-link-mount interface this row names, is not establishable from the sheet; the mating half's owner (215175-001 -> 215198-001/-002 per \u00a78d) is unacquired. F7 is this worksheet's sharpest false-absence lesson: this same drawing's frames are invisible to a text-layer sweep, so an earlier pass wrongly scored this row a gap before a rendered crop found the frame -- corrected here to `untraced`/candidate rather than left as a false absence."
@@ -787,8 +861,13 @@
             "status": "established",
             "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215198-A.pdf",
             "sha256": "7b35fde1488410293e1d8fccc418fc4760ff0880accfe4b719438913ef3b6e80",
-            "runs": [],
-            "note": "Read directly off the PDF text layer/rendered crop during handoff endstop_piece_part_acquisition (2026-09-10, §11b); not run through drawing-checker's pipeline. One drawing number covers the mirrored pair -- its own sheet 1 note 5 says it shall be used with model 215198-001 AND (MIRROR COMPONENT) 215198-002 -- so a single citation serves this edge whichever hand the part is."
+            "runs": [
+              {
+                "run_id": "20260910_154303_215198-A",
+                "ts": "2026-09-10T22:43:46.565105+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer/rendered crop during handoff endstop_piece_part_acquisition (2026-09-10, §11b); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used. One drawing number covers the mirrored pair -- its own sheet 1 note 5 says it shall be used with model 215198-001 AND (MIRROR COMPONENT) 215198-002 -- so a single citation serves this edge whichever hand the part is."
           },
           "confidence": "traced",
           "note": "Retraced 2026-09-10 (WORKSHEET_endstop_vision_baseline.md §11b row 42), cited here 2026-09-22 (handoff policy_free_brief_residues): identity established as the mount's own overall axial height, top face to bottom face of the two-seat machined ring. A plain, directly toleranced ± dimension on the correct piece-part owner -- no basic box and no derivation -- which is why this is `traced` and not the `candidate` the same drawing's sheet-2 feature sizes are (see this topology's provenance.retrace_update_20260922 for row 59). Band is an exact match to the prior workbook cell (B42), and the nominal is an exact match to 215175-A's own parenthesized reference for the same height (§8b row 42) -- the number the assembly sheet could only state untoleranced now appears toleranced on the owner. So NO numeric change: the stored band is what it was. The one assumption this reading carries, stated rather than buried: the drawing does not label either end face `gas spring seat` or `hub seat` by name, and the dimension was read as spanning the two mounting planes visible in the section, there being no third face candidate on the sheet -- the same class of feature-identification judgment §8a's mating-pin method established for this repo, applied to a single-part envelope instead of a cross-part pin."

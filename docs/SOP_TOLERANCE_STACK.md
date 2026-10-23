@@ -499,8 +499,11 @@ source's, not yours.
   their own file. 217755 has six exports on disk and Jeff re-exports over the same
   filename, so only the bytes pin it. `runs` lists the drawing-checker runs
   whose recorded input sha256 equals yours: corroboration and a pointer to
-  extracted JSON, never the identity — one export feeds several runs, and a part
-  drawing read straight off the PDF feeds none (`runs: []`, empty by fact).
+  extracted JSON, never the identity — one export feeds several runs (list **all** of them, not
+  the one you looked at), and a part drawing read straight off a PDF no run has
+  consumed feeds none (`runs: []`, empty by fact).
+  `tests/test_export_runs_match_the_run_log.py` pairs the list against
+  drawing-checker's `runs.jsonl` and skips where that log is unreadable.
 
   **Each run is `{"run_id": ..., "ts": ...}`, and the `ts` is copied verbatim
   from that run's own `run_meta.json`** (since 2026-08-07,
