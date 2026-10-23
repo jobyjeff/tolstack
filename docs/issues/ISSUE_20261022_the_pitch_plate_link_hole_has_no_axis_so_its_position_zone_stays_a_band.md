@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: topologies/kinematic
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md
 handoff: docs/sessions/HANDOFF_20261022_the_pitch_plate_link_hole_states_its_axis.md
+resolution: handoff completed 2026-10-23 -- closed automatically by dispatch when handoff `the_pitch_plate_link_hole_states_its_axis` moved to completed/; not independently verified.
 ---
 
 # The pitch plate's link hole has no axis in either topology, so its ⌖Ø0.2 stays a one-axis band
