@@ -64,8 +64,40 @@
       "parameters": ["tan_link.length"],
       "feature": {"edge": "tan_link_length"},
       "zone": "band",
-      "gap": "No band for the tangential link's centre-to-centre length is cited anywhere in this repo: pitch_system does not model the tangential link at all, and vpa_pitch_linkage's own tan_link_length edge carries no dimension (212956-005's drawing has not been read for it).",
-      "note": "Its sensitivity is shown so the cost of a band here is visible before one is cited."
+      "units": "mm",
+      "dimension": {
+        "id": "tan_link_length",
+        "name": "tangential link length band about the sweep nominal",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "213863-004-A",
+          "revision": "A",
+          "sheet": 1,
+          "zone": null,
+          "view": "PART DETAIL (plan view)",
+          "callout": "61.40 (basic, boxed) with ⌖Ø0.1 B on Ø 14.288 +/-0.006",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213863-004-A.pdf",
+            "sha256": "4e1a130436bd257b47e12560ceee0efca0ff8783df7bcd64f7b2b5f5cbbfec75",
+            "runs": [
+              {
+                "run_id": "20260910_154233_213863-004-A",
+                "ts": "2026-09-10T22:42:43.204081+00:00"
+              }
+            ],
+            "note": "Read 2026-10-26 off the PDF text layer and the page_1.png render of the run. The part drawing of the bare link body (find 3 of 212956-005); the run recorded no dimensions, so the callouts were read by eye and by text layer."
+          },
+          "confidence": "traced",
+          "note": "213863-004 A sheet 1 of 1 (PART DETAIL, PITCH ANTI ROTATION LINK, PROPELLER), page 1190.56 x 841.89 pt. The length: boxed basic dimension 61.40 between the two bore centres, bbox [332.97, 139.52, 365.25, 155.67]. Its band: ⌖Ø0.1 B on the Ø 14.288 +/-0.006 bore, frame bbox [93.43, 186.58, 159.12, 202.73], callout bbox [86.72, 170.71, 187.38, 186.86]; datum B is the Ø 15.876 +/-0.006 bore (callout bbox [481.35, 329.45, 581.15, 345.6]). So one bore sits within a Ø0.1 zone of 61.40 from the other: a radius of 0.05 mm, taken along the centre line as the worst case, +/-0.05. The bore diameters' own tolerances (+/-0.006) do not move a bore's centre and are not added.\nWhat this is and is not: the distance between the link BODY's two bore axes. The solver's sphere centres are the bearings' ball centres in those bores; the ball-centre offset from the bore axis is the two `*_ball_centre_offset` edges, still uncited, and is not in this band. The 212956-005 A assembly sheet gives only reference lengths (overall (81.43), (11.10), (21.00)) and no centre distance.\nMesh agreement: run P2's two sphere centres sit 61.45 mm apart (tan_link.point_a_world / point_b_world), 0.05 mm over the drawing's 61.40 -- inside the band's full width and inside what a bearing fit can account for. A fit is a measurement of a mesh and is not what is cited."
+        },
+        "note": "The basic 61.40 with its ⌖Ø0.1 B zone as +/-0.05 along the centre line. The study reads the same band about zero (its contributors are variations about the sweep's own nominal), with this same citation inline; tests/test_kinematic.py pairs the two."
+      },
+      "note": "Cited 2026-10-26 from 213863-004 A (61.40 basic, ⌖Ø0.1 B). Authored about zero here, as a contributor requires; vpa_pitch_linkage's tan_link_length edge carries the same citation about 61.40."
     },
     {
       "edge": "tan_link_mount_height",
@@ -80,8 +112,8 @@
       "parameters": ["tan_link.point_b[0]", "tan_link.point_b[1]", "tan_link.point_b[2]"],
       "feature": {"node": "tan_link_upper_sphere_centre", "body": "pitch_plate"},
       "zone": "sphere",
-      "gap": "No positional tolerance for the pitch plate's tangential-link attach point is cited anywhere in this repo: vpa_pitch_linkage's pitch_plate_tan_link_attach_radius edge carries no dimension, and pitch_system does not model the tangential link.",
-      "note": "A sphere because the attach point's location error has no preferred direction until a drawing says which callout controls it."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_plate_tan_link_attach_radius"},
+      "note": "215735-A sheet 2 positions the 3X attach bores from the spindle bore by ⌖Ø0.2 A B; read as a ball of radius 0.10 mm about the attach point, which is conservative along the bore axis. The hole's axis is not stated, so no disk is authored (same gap as pitch_plate_attach_height)."
     }
   ],
   "checks": [

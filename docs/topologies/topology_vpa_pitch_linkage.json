@@ -29,7 +29,7 @@
     },
     {
       "id": "blade_root",
-      "name": "blade root",
+      "name": "blade bonded assembly",
       "drawing": "216332-001",
       "note": "BLADE BONDED ASSEMBLY, PROPELLER, 216231 B.1 find 19 (the instrumented blade is 551438-001, find 2). `blade_oml` in data/meshes/ is a clean outer-mould-line export of the blade from a separate STEP, not this assembly -- it carries no root bearing geometry, so it is not aliased to this part. The real blade arrived 2026-10-01 as TWO geometries under this drawing number, and blade 1 carries the instrumented 551438-001 besides -- so this part still has no row, for a reason that is a decision rather than a missing file (see ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md)."
     },
@@ -476,7 +476,29 @@
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_tan_link_attach_bore",
-      "note": "No value recorded. Phase 2. What would close it: 215177-001's drawing, or a fit of the installed mesh."
+      "dimension": {
+        "id": "pitch_plate_tan_link_attach_radius",
+        "name": "pitch plate spindle axis to tangential-link attachment bore, position zone",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "drawing", "document": "215735-A", "revision": "A", "sheet": 2,
+          "zone": null, "view": "SECTION A-A",
+          "callout": "3X Ø 7.950 +0.015/0.000 with ⌖Ø0.2 A B",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {"run_id": "20260813_180734_215735-A", "ts": "2026-08-14T01:07:56.112994+00:00"},
+              {"run_id": "20260819_153213_215735-A", "ts": "2026-08-19T22:32:36.201417+00:00"}
+            ],
+            "note": "Read 2026-10-26 off the PDF text layer and the page_2.png render of run 20260819_153213_215735-A. The same sha256 is copied into this repo's own inbox (data/inbox/drawings/215735-A.pdf)."
+          },
+          "confidence": "traced",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, callout block bbox [1182.66, 740.04, 1289.72, 769.8] (Ø7.950 +0.015/0.000, 3X) with its frame at [1186.91, 774.91, 1267.66, 791.06] (⌖Ø0.2 A B), page 1683.78 x 1190.56 pt. Identity by count, as the 5X group's is: 3X bores <-> the three tangential links (212956-005 qty 3, stack_tan_link_to_pitch_plate.json). Datum B is the plate's central bore (sheet 1: Ø 41.040 +/-0.025 carries the B datum box), i.e. the spindle bore axis this edge starts from, so the frame is a position of the attach bore from that axis.\nMapping to the study: a diametral position zone ⌖Øt is read as a ball of radius t/2 = 0.10 mm about the attach point (the study's `sphere` zone). That treats an in-plane position zone as a ball, which is conservative along the bore axis; no `disk` is invented because the hole's axis is not stated (ISSUE_20261022_the_pitch_plate_link_hole_has_no_axis...). The companion Ø 8.520 +/-0.008 bore carries ⌖Ø0.03 relative to the 7.950 hole (datum F) and is not this edge's band. Not leaned on: the mesh fit of the same bore, which has no band."
+        },
+        "note": "A position zone, not a plus-minus: nominal 0 with +/-0.10 is the radius of the ⌖Ø0.2 zone, authored about zero as a kinematic contributor requires."
+      }
     },
     {
       "id": "gas_spring_installed_length",
@@ -534,7 +556,38 @@
       "part": "tan_link_212956_005",
       "from": "tan_link_lower_sphere_centre",
       "to": "tan_link_upper_sphere_centre",
-      "note": "No value recorded. Phase 2. The tangential link's analogue of `pitch_link_length`, and unlike that edge the 3DX sweep sheet does not carry its endpoints. What would close it: 213863-004's drawing (acquired 2026-09-10, run 20260910_154233), or a fit of the installed `asm217755_212956_005` mesh, whose four solids include both bearings."
+      "dimension": {
+        "id": "tan_link_length",
+        "name": "tangential link length, bore centre to bore centre",
+        "nominal": 61.4,
+        "min": 61.35,
+        "max": 61.45,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "213863-004-A",
+          "revision": "A",
+          "sheet": 1,
+          "zone": null,
+          "view": "PART DETAIL (plan view)",
+          "callout": "61.40 (basic, boxed) with ⌖Ø0.1 B on Ø 14.288 +/-0.006",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213863-004-A.pdf",
+            "sha256": "4e1a130436bd257b47e12560ceee0efca0ff8783df7bcd64f7b2b5f5cbbfec75",
+            "runs": [
+              {
+                "run_id": "20260910_154233_213863-004-A",
+                "ts": "2026-09-10T22:42:43.204081+00:00"
+              }
+            ],
+            "note": "Read 2026-10-26 off the PDF text layer and the page_1.png render of the run. The part drawing of the bare link body (find 3 of 212956-005); the run recorded no dimensions, so the callouts were read by eye and by text layer."
+          },
+          "confidence": "traced",
+          "note": "213863-004 A sheet 1 of 1 (PART DETAIL, PITCH ANTI ROTATION LINK, PROPELLER), page 1190.56 x 841.89 pt. The length: boxed basic dimension 61.40 between the two bore centres, bbox [332.97, 139.52, 365.25, 155.67]. Its band: ⌖Ø0.1 B on the Ø 14.288 +/-0.006 bore, frame bbox [93.43, 186.58, 159.12, 202.73], callout bbox [86.72, 170.71, 187.38, 186.86]; datum B is the Ø 15.876 +/-0.006 bore (callout bbox [481.35, 329.45, 581.15, 345.6]). So one bore sits within a Ø0.1 zone of 61.40 from the other: a radius of 0.05 mm, taken along the centre line as the worst case, +/-0.05. The bore diameters' own tolerances (+/-0.006) do not move a bore's centre and are not added.\nWhat this is and is not: the distance between the link BODY's two bore axes. The solver's sphere centres are the bearings' ball centres in those bores; the ball-centre offset from the bore axis is the two `*_ball_centre_offset` edges, still uncited, and is not in this band. The 212956-005 A assembly sheet gives only reference lengths (overall (81.43), (11.10), (21.00)) and no centre distance.\nMesh agreement: run P2's two sphere centres sit 61.45 mm apart (tan_link.point_a_world / point_b_world), 0.05 mm over the drawing's 61.40 -- inside the band's full width and inside what a bearing fit can account for. A fit is a measurement of a mesh and is not what is cited."
+        },
+        "note": "The basic 61.40 with its ⌖Ø0.1 B zone as +/-0.05 along the centre line. The study reads the same band about zero (its contributors are variations about the sweep's own nominal), with this same citation inline; tests/test_kinematic.py pairs the two."
+      }
     },
     {
       "id": "tan_link_ms14101_ball_centre_offset",
