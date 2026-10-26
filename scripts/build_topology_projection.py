@@ -1167,7 +1167,7 @@ def worksheet_for(path: Path, raw: Dict[str, Any]) -> Tuple[Optional[Path], Opti
     1. **A declared worksheet wins** -- ``provenance.worksheet`` in the topology
        file. Expected to be the *common* case here, unlike a stack's: a
        topology's id rarely shares a stem with the worksheet documenting its
-       source workbook (``topology_pitch_system.json``'s is ``WORKSHEET_end_
+       source workbook (``topology_vpa_pitch_linkage.json``'s is ``WORKSHEET_end_
        stop_graft.md``, named for the workbook, not the system).
     2. **Otherwise match by name**, ``topology_X.json`` -> ``WORKSHEET_X.md``,
        and report ``None`` when there is none.
@@ -1201,6 +1201,12 @@ def project_part(part: Any, meshes: Sequence[Dict[str, str]],
     return row
 
 
+def project_body(body: Any) -> Dict[str, Any]:
+    """One authored body, every key present (``note`` ``None`` when unwritten)."""
+    return {"id": body.id, "name": body.name, "kind": body.kind,
+            "parts": list(body.parts), "note": body.note}
+
+
 def gap_row(kind: str, text: str, hardware_id: Optional[str] = None,
             edge: Optional[str] = None, edge_name: Optional[str] = None
             ) -> Dict[str, Any]:
@@ -1230,7 +1236,7 @@ def topology_gaps(topology: Topology, studies: Sequence[Dict[str, Any]],
     * ``stack_gaps`` matches an entry's ``used_by`` prefix against the id it is
       given -- here the *topology's* id, which is also the covered stack's id for
       every topology that re-expresses one. A topology that covers no stack
-      (``pitch_system``) matches nothing this way, and that is correct for a
+      (``vpa_pitch_linkage``) matches nothing this way, and that is correct for a
       ``used_by`` list keyed by stack.
     * ...which is why the edges are asked too: an entry named by a
       ``hardware_ref`` on an edge of THIS topology is hardware on this page,
@@ -1313,7 +1319,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         "topology": raw,
         # Free-form assembly/context prose, mirroring a stack's own `joint` --
         # added 2026-09-08, deliverable 2. `{}` when the topology spans more
-        # than one physical joint (pitch_system).
+        # than one physical joint (vpa_pitch_linkage).
         "joint": dict(topology.joint),
         "worksheet_file": as_posix_rel(worksheet) if worksheet else None,
         # `declared` (provenance.worksheet) or `by_name`, the same pairing
@@ -1324,6 +1330,9 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         "edges": [project_edge(topology, e) for e in topology.edges],
         "transforms": [dataclasses.asdict(topology.transform(t.id))
                        for t in topology.transforms],
+        # The rigid bodies, as authored (docs/DAG_TOPOLOGY.md, "Bodies"); `[]`
+        # for a topology that declares none. Nothing on the page draws them yet.
+        "bodies": [project_body(b) for b in topology.bodies],
         "branch_nodes": branch_nodes,
         "layout": serialize_topology(topology).as_dict(),
         "confidence_counts": counts,

@@ -197,7 +197,9 @@ def test_the_two_pitch_link_joint_centres_land_where_the_sweep_sheet_puts_them(b
     )
 
     topology = load_topology(TOPOLOGY_FILE)
-    sheet_length = topology.edge("pitch_link_length").dimension.nominal
+    # Beside the band since the 2026-10-26 fold: the edge's dimension is the
+    # pitch-system studies' variation band, its nominal sits in properties.
+    sheet_length = topology.edge("pitch_link_length").properties["nominal_length_mm"]
     fitted = math.dist(centres[0], centres[1])
     assert fitted == pytest.approx(sheet_length, abs=0.001), (
         f"the fitted pitch-link length is {fitted:.6f} mm and the sweep sheet's "

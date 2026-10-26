@@ -51,17 +51,21 @@ import pytest
 from tolerance_stack import load_stack
 from tolerance_stack.stack import ELEMENT_ROLES, SOURCE_REF_KINDS, fold
 from tolerance_stack.topology import (
+    BODY_KINDS,
     EDGE_KINDS,
     IDENTITY,
     NODE_KINDS,
     TRANSFORM_KINDS,
+    Body,
     BranchAmbiguity,
     BrokenChain,
     CycleDetected,
     Dimension,
     Edge,
     Node,
+    Part,
     StudyError,
+    Topology,
     TopologyError,
     Transform,
     UnitMismatch,
@@ -80,7 +84,12 @@ DOC = REPO_ROOT / "docs" / "DAG_TOPOLOGY.md"
 L1_TOPOLOGY = TOPOLOGIES_DIR / "topology_vpa_output_to_pitch_plate.json"
 L1_STUDY = TOPOLOGIES_DIR / "study_vpa_output_shank_out.json"
 L1_STACK = STACKS_DIR / "stack_vpa_output_to_pitch_plate.json"
-L2_TOPOLOGY = TOPOLOGIES_DIR / "topology_pitch_system.json"
+L2_TOPOLOGY = TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json"
+#: ``topology_pitch_system.json`` as it was the day it was folded into
+#: ``L2_TOPOLOGY`` (2026-10-26), frozen for the tests that replay a figure
+#: measured on that graph. Not a committed topology: nothing studies it.
+L2_BEFORE_THE_FOLD = (REPO_ROOT / "tests" / "fixtures"
+                      / "topology_pitch_system_before_the_fold.json")
 
 
 # --------------------------------------------------------------------------- #
@@ -344,7 +353,24 @@ def _write_and_load(raw: dict):
 
 @pytest.fixture(scope="module")
 def pitch_system():
+    """The one pitch-system topology, since 2026-10-26 ``vpa_pitch_linkage``.
+
+    ``topology_pitch_system.json`` was folded into it that day (handoff
+    ``pitch_system_folds_into_the_pitch_linkage_model``); the fixture keeps its
+    name because every test below is about the pitch-system half of the graph,
+    which the document's ``provenance.pitch_system_ids`` still names.
+    """
     return load_topology(L2_TOPOLOGY)
+
+
+#: The seven studies that were ``pitch_system``'s, by their unchanged file names.
+PITCH_SYSTEM_STUDIES = sorted(TOPOLOGIES_DIR.glob("study_pitch_system_*.json"))
+
+
+def pitch_system_half(topology):
+    """The edges that came from ``pitch_system`` when it was folded in."""
+    return [topology.edge(e)
+            for e in topology.provenance["pitch_system_ids"]["edges"]]
 
 
 def test_the_pitch_system_has_the_branch_structure_the_brief_describes(pitch_system):
@@ -474,7 +500,7 @@ def test_a_millimetre_study_that_crosses_the_coupling_is_refused(pitch_system):
         selection=list(study.selection) + ["pitch_arm_link_hole_to_clocking_hole"],
     )
     # The chain itself is fine -- it is the summation that cannot proceed.
-    assert len(traverse(pitch_system, crossing)) == 9
+    assert len(traverse(pitch_system, crossing)) == 11
     with pytest.raises(UnitMismatch) as excinfo:
         summarize(pitch_system, crossing)
     message = str(excinfo.value)
@@ -549,7 +575,7 @@ def test_the_coupling_edge_is_the_only_declared_non_identity_default():
             if edge.transform is not None:
                 carriers[f"{path.stem}:{edge.id}"] = edge.transform
     assert carriers == {
-        "topology_pitch_system:pitch_arm_link_hole_to_clocking_hole":
+        "topology_vpa_pitch_linkage:pitch_arm_link_hole_to_clocking_hole":
             "blade_root_tangential_to_rotary",
     }, (
         f"edges carrying a default transform: {carriers}. Only the pitch-arm "
@@ -765,7 +791,9 @@ def test_every_value_in_a_topology_carries_a_source_ref(path):
 #: `untraced` still fails below. Four came from handoff
 #: ``endstop_location_stack`` (2026-09-06, worksheet §3/§8b); the fifth,
 #: ``tan_link_mount_height``, from ``policy_free_brief_residues`` (2026-09-22)
-#: carrying §11b's 2026-09-10 disposition into this document at last.
+#: carrying §11b's 2026-09-10 disposition into this document at last -- spelled
+#: ``tan_link_mount_overall_height`` since the 2026-10-26 fold, because the
+#: linkage half's own ``tan_link_mount_height`` is a different feature.
 #:
 #: Every one of these is a disposition ``WORKSHEET_endstop_vision_baseline.md``
 #: scored `traced` or `convention-traced` -- never a `candidate` or
@@ -779,7 +807,7 @@ _RETRACED_CONFIDENCES = {
     "hub_blade_root_seat_position": "traced",
     "gas_spring_body_height": "traced",
     "piston_length": "inferred",
-    "tan_link_mount_height": "traced",
+    "tan_link_mount_overall_height": "traced",
 }
 
 
@@ -793,7 +821,7 @@ def test_every_placeholder_in_the_pitch_system_says_so(pitch_system):
     the viewer will show the note long before it shows the kind.
     """
     assumed = [(e.id, e.dimension.source_ref)
-               for e in pitch_system.edges
+               for e in pitch_system_half(pitch_system)
                if not e.derived and e.dimension.source_ref.kind == "assumed"]
     assert assumed, (
         "the pitch-system topology has no `assumed` values at all -- either "
@@ -816,14 +844,15 @@ def test_every_placeholder_in_the_pitch_system_says_so(pitch_system):
     # pinned, rather than a blanket refusal. Anything claiming better than
     # `untraced` that is not in `_RETRACED_CONFIDENCES` is still overclaiming.
     claiming = {e.id: e.dimension.source_ref.confidence
-                for e in pitch_system.edges
+                for e in pitch_system_half(pitch_system)
                 if not e.derived and e.dimension.source_ref.confidence != "untraced"}
     assert claiming == _RETRACED_CONFIDENCES, (
         f"edges claiming better than `untraced`: {claiming}; expected exactly "
         f"{_RETRACED_CONFIDENCES}. A new entry here must be a real disposition in "
         f"WORKSHEET_endstop_vision_baseline.md, not an inline upgrade -- and a "
         f"missing one means a citation this handoff traced quietly regressed.")
-    for edge_id, ref in ((e.id, e.dimension.source_ref) for e in pitch_system.edges
+    for edge_id, ref in ((e.id, e.dimension.source_ref)
+                         for e in pitch_system_half(pitch_system)
                          if not e.derived and e.id in _RETRACED_CONFIDENCES):
         assert ref.kind in ("drawing", "spec"), (
             f"{edge_id}: claims {ref.confidence!r} but cites kind {ref.kind!r} -- "
@@ -870,21 +899,145 @@ def test_every_declared_transform_cites_where_its_ratio_came_from(path):
 
 
 def test_the_pitch_system_dimensions_are_variation_only(pitch_system):
-    """Every band is centred on zero, and the document says why.
+    """Every pitch-system band is centred on zero, and the document says why.
 
     A single nominal-carrying dimension among them would make a study's
     ``nominal`` total read as a position sum when the rest are variations about
     an unstated nominal -- a plausible-looking number with no meaning, which is
     this repo's characteristic failure mode.
+
+    Since the 2026-10-26 fold the document holds both kinds -- the linkage
+    half carries absolute nominals -- so the rule is per edge set: every edge
+    that came from ``pitch_system`` and every edge one of its seven studies
+    selects (which adds the two pitch-link joints and ``pitch_link_length``).
     """
-    for edge in pitch_system.edges:
+    assert len(PITCH_SYSTEM_STUDIES) == 7
+    selected = {e for path in PITCH_SYSTEM_STUDIES
+                for e in load_study(path).selection}
+    edges = {e.id: e for e in pitch_system_half(pitch_system)}
+    edges.update({e: pitch_system.edge(e) for e in selected})
+    assert {"pitch_plate_link_joint", "pitch_arm_link_joint",
+            "pitch_link_length"} <= set(edges)
+    for edge in edges.values():
         if edge.derived:
             continue
         assert edge.dimension.nominal == 0.0, (
-            f"{edge.id}: nominal {edge.dimension.nominal} in a variation-only "
-            f"topology. See its provenance.variation_only.")
+            f"{edge.id}: nominal {edge.dimension.nominal} on a pitch-system "
+            f"edge. See the topology's provenance.variation_only.")
         assert edge.dimension.min == -edge.dimension.max
     assert "variation_only" in pitch_system.provenance
+
+
+# --------------------------------------------------------------------------- #
+# 4b. bodies: which parts move as one (2026-10-26)                             #
+# --------------------------------------------------------------------------- #
+
+#: The sibling solver's body and link part lists, read with ``ast`` when it is
+#: on disk -- the sibling is never imported.
+LINKAGE_VPA_PY = Path(r"C:\workspace\linkage\linkage\vpa.py")
+
+#: Parts this topology puts in a mechanism body that linkage's list leaves out,
+#: each with why. A difference is declared here or it is a defect; a row whose
+#: difference has closed fails below, so this cannot quietly go stale.
+BODY_PARTS_LINKAGE_DOES_NOT_LIST = {
+    # Pressed into the 212956-005 assembly, so they move with it; linkage
+    # lists the assembly alone because its mesh already draws both bearings.
+    "tan_link": {"spherical_bearing_tan_link",
+                 "spherical_bearing_tan_link_ms14103_3"},
+}
+
+
+def _two_part_topology(bodies):
+    return Topology(
+        id="t", title="t", units="mm",
+        parts=[Part(id="a", name="a"), Part(id="b", name="b")],
+        nodes=[Node(id="n", name="n", parts=("a", "b"), kind="mating_surface")],
+        bodies=bodies)
+
+
+def test_a_body_is_a_set_of_declared_parts_and_every_part_has_exactly_one():
+    """``Body`` and the ``Topology`` constructor, each refusal shown."""
+    with pytest.raises(TopologyError, match="kind must be one of"):
+        Body(id="x", name="x", parts=("a",), kind="assembly")
+    with pytest.raises(TopologyError, match="at least one part"):
+        Body(id="x", name="x", parts=())
+    with pytest.raises(TopologyError, match="lists a part twice"):
+        Body(id="x", name="x", parts=("a", "a"))
+    with pytest.raises(TopologyError, match="does not declare"):
+        _two_part_topology([Body(id="x", name="x", parts=("a", "b", "c"))])
+    with pytest.raises(TopologyError, match="moves with one body"):
+        _two_part_topology([Body(id="x", name="x", parts=("a", "b")),
+                            Body(id="y", name="y", parts=("b",))])
+    with pytest.raises(TopologyError, match=r"no body round part\(s\) \['b'\]"):
+        _two_part_topology([Body(id="x", name="x", parts=("a",))])
+    with pytest.raises(TopologyError, match="duplicate body id"):
+        _two_part_topology([Body(id="x", name="x", parts=("a",)),
+                            Body(id="x", name="y", parts=("b",))])
+
+    # Optional: a document that declares none has no body round anything.
+    none = _two_part_topology([])
+    assert none.body_of("a") is None
+    both = _two_part_topology([Body(id="x", name="x", parts=("a", "b"), kind="link")])
+    assert both.body_of("b").id == "x" and both.body("x").kind == "link"
+
+
+def test_the_pitch_system_declares_a_body_round_every_part(pitch_system):
+    """The one topology that declares bodies, and the shape it declares."""
+    assert pitch_system.bodies, "vpa_pitch_linkage declares no bodies"
+    for part in pitch_system.parts:
+        assert pitch_system.body_of(part.id) is not None
+    kinds = {b.id: b.kind for b in pitch_system.bodies}
+    assert {k for k, v in kinds.items() if v == "link"} == {"pitch_link", "tan_link"}
+    # Every topology that does not declare them still loads, and none do.
+    for path in topology_files():
+        if path != L2_TOPOLOGY:
+            assert load_topology(path).bodies == []
+
+
+def _linkage_part_lists(source: str) -> dict:
+    """``{"BODY_PARTS": {...}, "LINK_PARTS": {...}}`` out of ``linkage/vpa.py``."""
+    import ast
+
+    out = {}
+    for node in ast.parse(source).body:
+        target = (node.target if isinstance(node, ast.AnnAssign)
+                  else node.targets[0] if isinstance(node, ast.Assign)
+                  and len(node.targets) == 1 else None)
+        if isinstance(target, ast.Name) and target.id in ("BODY_PARTS", "LINK_PARTS"):
+            out[target.id] = ast.literal_eval(node.value)
+    return out
+
+
+@pytest.mark.skipif(not LINKAGE_VPA_PY.exists(),
+                    reason=f"the linkage repo is not at {LINKAGE_VPA_PY}")
+def test_the_mechanism_bodies_are_linkages_own(pitch_system):
+    """The five bodies linkage poses carry linkage's part lists, compared whole.
+
+    ``kind`` follows the list it came from: ``BODY_PARTS`` are bodies,
+    ``LINK_PARTS`` are links. The only difference allowed is the declared one.
+    Linkage reading this file instead of keeping its own lists is linkage's
+    change to make, later.
+    """
+    theirs = _linkage_part_lists(LINKAGE_VPA_PY.read_text(encoding="utf-8"))
+    assert set(theirs) == {"BODY_PARTS", "LINK_PARTS"}, (
+        f"read {sorted(theirs)} out of linkage/vpa.py")
+    expected = {**{k: ("body", set(v)) for k, v in theirs["BODY_PARTS"].items()},
+                **{k: ("link", set(v)) for k, v in theirs["LINK_PARTS"].items()}}
+    ours = {b.id: (b.kind, set(b.parts)) for b in pitch_system.bodies
+            if b.id in expected}
+    assert set(ours) == set(expected), (
+        f"linkage poses {sorted(expected)}; this topology declares "
+        f"{sorted(ours)} of them")
+    for body_id, (kind, parts) in expected.items():
+        our_kind, our_parts = ours[body_id]
+        extra = BODY_PARTS_LINKAGE_DOES_NOT_LIST.get(body_id, set())
+        assert our_kind == kind, f"{body_id}: {our_kind!r} here, {kind!r} in linkage"
+        assert our_parts == parts | extra, (
+            f"{body_id}: {sorted(our_parts)} here, {sorted(parts)} in linkage, "
+            f"and the declared difference is {sorted(extra)}")
+        assert not (extra & parts), (
+            f"{body_id}: linkage now lists {sorted(extra & parts)} itself -- "
+            f"delete them from BODY_PARTS_LINKAGE_DOES_NOT_LIST")
 
 
 # --------------------------------------------------------------------------- #
@@ -899,6 +1052,7 @@ _DOC_VOCABULARIES = (
     ("Node.kind", "\n`kind` on a node is one of ", NODE_KINDS),
     ("Edge.kind", "\n`kind` on an edge is one of ", EDGE_KINDS),
     ("Transform.kind", "\n`kind` on a transform is one of ", TRANSFORM_KINDS),
+    ("Body.kind", "\n`kind` on a body is one of ", BODY_KINDS),
 )
 
 
@@ -1253,7 +1407,7 @@ def test_the_structural_count_pairing_can_fail():
                      "branch points, three grounded loops (pitch links, gas "
                      "spring, ring gear), one gap edge (the end stop).")
     assert stated_counts(l2_as_shipped)["grounded loop"] == [3]
-    assert _cycle_rank(load_topology(L2_TOPOLOGY)) == 4, (
+    assert _cycle_rank(load_topology(L2_BEFORE_THE_FOLD)) == 4, (
         "the pitch system's cycle rank -- 4, not the 3 the document shipped")
     assert stated_counts(l2_as_shipped)["interface"] == [20]     # this one was right
 
@@ -1536,7 +1690,7 @@ def test_an_end_stop_study_loads_its_check_and_folds_a_real_margin(
     of the file would get. ``expected_half`` is pinned literally in
     ``END_STOP_STUDIES``, not recomputed and compared against itself.
     """
-    topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+    topology = load_topology(L2_TOPOLOGY)
     study = load_study(path)
     assert study.checks and study.checks[0]["check_id"] == check_id
 
@@ -1589,7 +1743,7 @@ def test_an_end_stop_study_s_selection_and_transforms_equal_its_source_study(
 
 
 def test_check_study_refuses_an_unknown_check_id():
-    topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+    topology = load_topology(L2_TOPOLOGY)
     study = load_study(TOPOLOGIES_DIR / "study_pitch_system_end_stop_minus7.json")
     with pytest.raises(StudyError, match="has no check"):
         check_study(topology, study, "no_such_check")
@@ -1693,7 +1847,7 @@ def test_a_mechanical_stroke_check_folds_a_real_margin(
     first (S461-607) `checks` entry, which `test_an_end_stop_study_loads_its_
     check_and_folds_a_real_margin` above still pins unchanged.
     """
-    topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+    topology = load_topology(L2_TOPOLOGY)
     study = load_study(path)
     ids = [c["check_id"] for c in study.checks]
     assert check_id in ids, f"{path.name}: no check named {check_id!r} in {ids}"
@@ -1722,7 +1876,7 @@ def test_the_end_stop_studies_first_check_is_unchanged_by_the_appended_second():
             f"{path.name}: expected exactly 2 checks (the original S461-607 "
             f"margin plus the appended S461-617 one), found {len(raw['checks'])}")
         assert raw["checks"][0]["check_id"] == check_id
-        topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+        topology = load_topology(L2_TOPOLOGY)
         study = load_study(path)
         result = check_study(topology, study, check_id)
         assert result.interval.min == pytest.approx(0.5 - expected_half)
@@ -1739,7 +1893,7 @@ def test_the_gas_spring_stroke_edge_reuses_an_existing_node_and_stays_connected(
     session and it broke that projection test; this asserts the shape that
     replaced it, so a future edit re-isolating the edge fails here first.
     """
-    topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+    topology = load_topology(L2_TOPOLOGY)
     edge = topology.edge("gas_spring_mechanical_stroke")
     assert edge.to_node == "gas_spring_mount_flange", (
         "the stroke edge's `to` end must reuse an existing node -- see its own "
@@ -1903,7 +2057,7 @@ TOPOLOGY_PART_REVISIONS = {
         ("215735", "A"),
     ("topology_vpa_output_to_pitch_plate.json", "pitch_flange_215197"):
         ("215735", "A"),
-    ("topology_pitch_system.json", "gas_spring_mount_213668_002"):
+    ("topology_vpa_pitch_linkage.json", "gas_spring_mount_213668_002"):
         ("213668-002", "A.1"),
 }
 
