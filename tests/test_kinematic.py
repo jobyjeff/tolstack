@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from tests.test_thermal_exception_list import combining_sites, element_value_fields
+from tolerance_stack.topology import load_topology
 from tolerance_stack.kinematic import (
     DIRECTION_UNITS,
     LINKAGE_LENGTH_UNITS,
@@ -457,21 +458,21 @@ def test_the_builder_projects_the_fixture_and_draws_its_plot():
 #: Per stop, from the lesson: index, nominal blade pitch, worst-case half, RSS
 #: half, S461-607 margin, and the ranked table as (edge, kind, sign, coefficient).
 REAL = {
-    "minus7": (0, -6.992, 0.244, 0.165, 0.256, [
+    "minus7": (0, -6.992, 0.290, 0.169, 0.210, [
         ("pitch_plate_attach_height", "term", -1, 1.555),
         ("pitch_link_length", "term", 1, 1.574),
+        ("pitch_plate_tan_link_attach_radius", "term", 1, 0.311),
         ("pitch_arm_radius", "term", 1, 1.574),
         ("tan_link_mount_height", "term", 1, 0.172),
-        ("tan_link_length", "gap", 1, 0.311),
-        ("pitch_plate_tan_link_attach_radius", "gap", 1, 0.311),
+        ("tan_link_length", "term", 1, 0.311),
     ]),
-    "plus72": (79, 72.001, 0.242, 0.159, 0.258, [
+    "plus72": (79, 72.001, 0.315, 0.169, 0.185, [
         ("pitch_plate_attach_height", "term", -1, 1.489),
+        ("pitch_plate_tan_link_attach_radius", "term", 1, 0.487),
         ("pitch_link_length", "term", 1, 1.542),
+        ("tan_link_length", "term", 1, 0.487),
         ("tan_link_mount_height", "term", -1, 0.241),
         ("pitch_arm_radius", "term", 1, 1.542),
-        ("tan_link_length", "gap", 1, 0.487),
-        ("pitch_plate_tan_link_attach_radius", "gap", 1, 0.487),
     ]),
 }
 
@@ -486,7 +487,7 @@ def test_real_the_first_study_pins_both_stops_against_p2(stop):
     assert round(result.nominal, 3) == nominal
     assert round(result.interval.worst_case_half, 3) == worst
     assert round(result.interval.rss_half, 3) == rss
-    assert result.gap_count == 2
+    assert result.gap_count == 0
     assert [(r.contributor.edge, r.kind, r.sign, round(r.coefficient, 3))
             for r in result.rows] == table
     check = check_at_stop(study, sweep, f"s461_607_margin_at_{stop}")
@@ -669,3 +670,20 @@ def test_real_every_published_joint_reads_as_exactly_one_type():
             assert tuple(rows) in by_rows, f"{path.name}: {joint} rows {rows}"
             seen += 1
     assert seen
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_the_tangential_link_length_band_is_the_topology_edges_citation_about_zero():
+    """The study's inline band is authored about 0 (a contributor requires it);
+    the topology edge carries the same citation about the drawn 61.40. One
+    citation, two spellings: half-width and source_ref must agree."""
+    study, _ = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    band = next(c for c in study.contributors if c.edge == "tan_link_length").dimension
+    topo = load_topology(REAL_STUDY.parent / "topology_vpa_pitch_linkage.json")
+    edge = topo.edge("tan_link_length").dimension
+    assert (band.nominal, edge.nominal) == (0.0, 61.40)
+    assert band.max == pytest.approx(0.05)
+    assert edge.max - edge.nominal == pytest.approx(band.max)
+    assert edge.nominal - edge.min == pytest.approx(band.max)
+    assert band.source_ref == edge.source_ref
+    assert edge.source_ref.confidence == "traced"
