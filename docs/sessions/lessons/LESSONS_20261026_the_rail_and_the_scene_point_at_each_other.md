@@ -179,3 +179,39 @@ unchanged:
   its own activation target), but its click still bubbles, so the handler
   stops propagation. Making the summary `display: flex` to lay the checkbox out
   removes the disclosure marker; it floats right instead.
+
+## Verification, as recorded
+
+All runs are from this worktree. `[real]` and browser runs read the main
+checkout's data (`--repo C:\workspace\tolstack`, or the browser check's own
+main-checkout reads). `node_modules` is a junction to the main checkout's
+copy; it is gitignored and not committed.
+
+- `node apps/annotate/run_tests.cjs`: **220/220** (213 + 7 new).
+- `node apps/annotate/run_browser_check.mjs`: **67/67**. The first run on the
+  final tree was 66/67 on "the speed control changes reduced-motion
+  playback's rate", which compares two 500 ms wall-clock runs on the mock
+  sweep. The rerun was 67/67. Nothing in this diff touches the sweep clock.
+  This is a timing flake on a shared box, recorded here rather than counted as
+  a pass.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack --only "annotate"`:
+  **9/9 suites**. The new `annotate rail and scene (…)` suite passes 22/22.
+  The existing `annotate sweep rail` suite passes 15/15, with the bind
+  snapshot regenerated as stated above.
+- `… --only "3D pane"`: **13/13**. The viewer pane's `highlight` path is
+  unchanged.
+- `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only <id>`,
+  once for each of the **30 specs this branch added or changed** (the list
+  the runner prints against `integration`): **30/30 witnessed**. That is the
+  28 new specs plus the 2 re-pointed ones. They ran before the last commit
+  (the rail rebuild clearing the hover), which changes no anchor. The full
+  registry was not run; it belongs to the merge.
+- `venv-win/Scripts/python.exe -m pytest -q`, single process, because xdist
+  is not installed in `venv-win`: **1 failed, 1573 passed, 1 skipped,
+  6:33**. Recorded with `suite-time record` (inside budget). The failure is
+  the documented worktree-only `tests/test_viewer_js_suite.py` (no
+  projection in a worktree). The skip is `test_fit_bound_features.py:422`
+  (the pitch-link bearing re-extraction is not installed).
+- Not run: `node apps/viewer/run_tests.cjs`, the viewer browser tier beyond
+  the 3D-pane suite, and `scripts/rebuild_projections.ps1`. This diff touches
+  no `apps/viewer/` file and no projection input.
