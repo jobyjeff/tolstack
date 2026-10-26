@@ -1698,8 +1698,10 @@
     AA.edgePartIds(topology, row.edge).forEach(function (id) {
       var part = parts.filter(function (p) { return p.id === id; })[0];
       if (!part || !part.drawing) return;
-      var words = part.drawing + (part.name && part.name.indexOf(part.drawing) === -1
-        ? " " + part.name : "");
+      // A name that already carries its number ("212956-005 pitch anti-
+      // rotation link assembly") is the whole label; otherwise number first.
+      var words = !part.name ? part.drawing
+        : (part.name.indexOf(part.drawing) === -1 ? part.drawing + " " + part.name : part.name);
       if (drawings.indexOf(words) === -1) drawings.push(words);
     });
     var text = row.gap;

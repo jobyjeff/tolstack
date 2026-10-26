@@ -1270,6 +1270,131 @@ check("a sweep link carries its kinematic study onto the sweep verb, and inspect
   assertEqual(threw, 2, "an unknown target and a missing name both refuse");
 });
 
+// --- the rail and the scene point at each other (handoff the_rail_and_the_
+// scene_point_at_each_other) -------------------------------------------------
+
+// The anchoring rows' shape (app.js's anchorSweepBodies): the pitch arm is
+// placed at blade 1's occurrence only, and drawn at five.
+const ANCHOR_ROWS = [
+  { subject: "base", part: "hub", sha256: "h", state: "ground",
+    placements: [{ key: "A/hub.1" }] },
+  { subject: "blade", part: "pitch_arm", sha256: "arm", state: "matched",
+    placements: [{ key: "A/arm.2" }] },
+  { subject: "blade", part: "blade_root", sha256: "root", state: "matched",
+    placements: [{ key: "A/root.3" }, { key: "A/root.3" }] },
+  { subject: "pitch_plate", part: "bushing", sha256: "bush", state: "carried",
+    placements: [{ key: "A/plate.1/bush.1" }] },
+  { subject: "pitch_link", part: "bushing", sha256: "bush", state: "matched",
+    placements: [{ key: "A/plate.1/bush.1" }] },
+  { subject: "blade", part: "missing", state: "no-mesh" },
+];
+
+check("a body's drawn occurrences are the anchoring rows' placements, keyed, each once", () => {
+  const by = AA.sweepSubjectOccurrences(ANCHOR_ROWS);
+  assertEqual(by.blade, [{ sha256: "arm", key: "A/arm.2" }, { sha256: "root", key: "A/root.3" }]);
+  assertEqual(by.base, [{ sha256: "h", key: "A/hub.1" }]);
+  assertEqual(AA.sweepPartOccurrences(by, "blade", "arm"), [{ sha256: "arm", key: "A/arm.2" }]);
+  assertEqual(AA.sweepPartOccurrences(by, null, "arm"), null,
+    "outside any body a part row is every occurrence of its mesh");
+});
+
+check("a picked occurrence finds its body; a listed part beats one carried inside another; " +
+  "an occurrence no body was placed at finds none", () => {
+  assertEqual(AA.sweepOccurrenceSubject(ANCHOR_ROWS, "arm", "A/arm.2"), "blade");
+  assertEqual(AA.sweepOccurrenceSubject(ANCHOR_ROWS, "arm", "A/arm.4"), null);
+  assertEqual(AA.sweepOccurrenceSubject(ANCHOR_ROWS, "bush", "A/plate.1/bush.1"), "pitch_link");
+  assertEqual(AA.sweepOccurrenceSubject(ANCHOR_ROWS.filter((r) => r.subject !== "pitch_link"),
+    "bush", "A/plate.1/bush.1"), "pitch_plate");
+});
+
+const FACE_IDENTITY = { stack_keys: [
+  { stack_key: AA.topologyEdgeKey("t", "len"), bindings: [
+    { direction: "from", geometry_key: { source_step_sha256: "arm", face_id: 110 } },
+    { direction: "to", geometry_key: { source_step_sha256: "zzz9", face_id: 4 } }] },
+  { stack_key: AA.topologyEdgeKey("other", "len"), bindings: [
+    { direction: "from", geometry_key: { source_step_sha256: "arm", face_id: 110 } }] },
+] };
+
+check("a face finds the feature rows it is bound to, by edge and end, in its own topology only", () => {
+  const found = AA.bindingsOfFace(FACE_IDENTITY, "t", "arm", 110);
+  assertEqual(found, [{ edgeId: "len", direction: "from" }]);
+  assertEqual(AA.bindingsOfFace(FACE_IDENTITY, "t", "arm", 111), []);
+  assertEqual(AA.featureReadMatches({ edgeId: "len", direction: "from" }, found), true);
+  assertEqual(AA.featureReadMatches({ edgeId: "len", direction: "to" }, found), false);
+  assertEqual(AA.featureReadMatches({ edgeId: "len", direction: null }, found), true,
+    "an edge feature is either end");
+  assertEqual(AA.featureReadMatches({ edgeId: null }, found), false);
+});
+
+check("a feature row names its bound face by face id and drawing number, or says none is bound", () => {
+  const meshes = [{ sha256: "arm", label: "214698-002 (extracted from asm.stp)" }];
+  const rows = AA.boundFaceRows(FACE_IDENTITY, "t", { edgeId: "len", direction: null }, meshes);
+  assertEqual(rows.map((r) => r.text), ["face 110 of 214698-002", "face 4 of zzz9"]);
+  assertEqual(AA.boundFaceRows(FACE_IDENTITY, "t", { edgeId: "len", direction: "to" }, meshes)
+    .map((r) => r.text), ["face 4 of zzz9"], "a node feature reads only its own end");
+  assertEqual(AA.boundFaceRows(FACE_IDENTITY, "t", { edgeId: "nope", direction: null }, meshes), []);
+  assertEqual(AA.BOUND_FACE_WORDS.none, "no face bound");
+});
+
+const ALERT_TOPOLOGY = {
+  parts: [
+    { id: "tan", name: "212956-005 pitch anti-rotation link assembly", drawing: "212956-005" },
+    { id: "plate", name: "pitch plate", drawing: "215177-001" },
+    { id: "bearing", name: "tangential-link bearing", drawing: null },
+  ],
+  nodes: [{ id: "a", parts: ["bearing"] }, { id: "b", parts: ["plate", "tan"] }],
+  edges: [{ id: "tan_len", part: "tan", from: "a", to: "b" }],
+};
+
+check("a gap contributor's alert is the badge's {state, text} with its gap, the drawings to " +
+  "read and Pick", () => {
+  assertEqual(AA.edgePartIds(ALERT_TOPOLOGY, "tan_len"), ["tan", "bearing", "plate"]);
+  const alerts = AA.contributorAlerts({ edge: "tan_len", gap: "No band is cited." }, ALERT_TOPOLOGY);
+  assertEqual(alerts.length, 1);
+  assertEqual(alerts[0].state, AA.CONTRIBUTOR_ALERT_STATE);
+  assertEqual(alerts[0].text, "No band is cited. Drawings to read: " +
+    "212956-005 pitch anti-rotation link assembly; 215177-001 pitch plate. " +
+    AA.CONTRIBUTOR_ALERT_WORDS.pick);
+  assertEqual(AA.contributorAlerts({ edge: "tan_len", gap: null }, ALERT_TOPOLOGY), []);
+  assertNothingBanned(alerts[0].text, "a contributor alert");
+});
+
+check("the type chips: the tree's own row kinds, toggled one at a time, remembered, and " +
+  "anything unreadable is nothing hidden", () => {
+  assertEqual(AA.SWEEP_ROW_KINDS.filter((k) => !AA.SWEEP_ROW_KIND_WORDS[k]), []);
+  assertEqual(AA.toggleRowKind([], "features"), ["features"]);
+  assertEqual(AA.toggleRowKind(["contributors", "features"], "features"), ["contributors"]);
+  let threw = false;
+  try { AA.toggleRowKind([], "faces"); } catch (_) { threw = true; }
+  assertEqual(threw, true, "a kind the tree does not have refuses");
+  const store = { data: {}, getItem(k) { return this.data[k] === undefined ? null : this.data[k]; },
+    setItem(k, v) { this.data[k] = v; } };
+  assertEqual(AA.readHiddenRowKinds(store), []);
+  AA.writeHiddenRowKinds(store, ["joints", "bogus", "bodies"]);
+  assertEqual(AA.readHiddenRowKinds(store), ["bodies", "joints"]);
+  store.data[AA.PREF_KEYS.sweepRowKinds] = "{not json";
+  assertEqual(AA.readHiddenRowKinds(store), []);
+  AA.SWEEP_ROW_KINDS.forEach((k) => assertNothingBanned(AA.SWEEP_ROW_KIND_WORDS[k], "chip " + k));
+});
+
+check("hover's and inspect part's grammar take what the rail sends and refuse the rest", () => {
+  assertEqual(AA.parseHover("body", "blade"), { kind: "body", name: "blade" });
+  assertEqual(AA.parseHover("part", "arm", "blade"), { kind: "part", name: "arm", subject: "blade" });
+  assertEqual(AA.parseHover("part", "arm"), { kind: "part", name: "arm", subject: null });
+  assertEqual(AA.parseHover("feature", "len", "to"), { kind: "feature", name: "len", direction: "to" });
+  assertEqual(AA.parseHover("clear"), { kind: null });
+  assertEqual(AA.parseInspect("part", "arm", "110", "blade"),
+    { kind: "part", name: "arm", faceId: 110, subject: "blade" });
+  assertEqual(AA.parseInspect("part", "arm", "7"), { kind: "part", name: "arm", faceId: 7, subject: null });
+  let threw = 0;
+  try { AA.parseHover("surface", "x"); } catch (_) { threw++; }
+  try { AA.parseHover("body"); } catch (_) { threw++; }
+  try { AA.parseHover("feature", "len", "up"); } catch (_) { threw++; }
+  try { AA.parseInspect("part", "arm", "1.5"); } catch (_) { threw++; }
+  try { AA.parseInspect("part", "arm"); } catch (_) { threw++; }
+  assertEqual(threw, 5);
+});
+
 check("planStudyTrace over the mock fixture's own study matches its data end to end", () => {
   const topo = AA.FIXTURES.topologyProjection.topologies[0];
   const meshes = [{ sha256: AA.FIXTURES.demoSha, label: "demo", part_id: "demo_triangle" }];
