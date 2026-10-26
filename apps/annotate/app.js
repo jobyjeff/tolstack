@@ -2093,6 +2093,14 @@ function hoverOn(node, command) {
   node.addEventListener("mouseleave", () => { railExec(["hover", "clear"], null); });
 }
 
+// The occurrences a body or a link is drawn at right now: its map entry,
+// less any mesh that is not open (the instrumented blade recorded at the
+// design blade's own path is the same occurrence, and is not drawn twice).
+function subjectOccurrences(name) {
+  const open = new Set(state.scene.listOpenParts());
+  return ((state.sweep && state.sweep.occurrences[name]) || []).filter((o) => open.has(o.sha256));
+}
+
 // Is `name` a body or a link this run's rail lists?
 function subjectKnown(name) {
   const tree = state.sweep && state.sweep.tree;
@@ -2129,7 +2137,7 @@ function occurrencesShown(list) {
 function cmdSubjectView(visible, name) {
   const sweep = sweepState();
   if (!subjectKnown(name)) throw new Error("this run has no body or link \"" + name + "\"");
-  const list = sweep.occurrences[name] || [];
+  const list = subjectOccurrences(name);
   setOccurrences(list, visible);
   renderSweepRail();
   return { subject: name, occurrences: list.length, visible };
@@ -2154,7 +2162,7 @@ function cmdHover(what, name, extra) {
   const spec = { occurrences: [], faces: [], joint: null };
   if (target.kind === "body") {
     if (!subjectKnown(target.name)) throw new Error("this run has no body or link \"" + target.name + "\"");
-    spec.occurrences = (sweep.occurrences[target.name] || []).filter((o) => isOpen(o.sha256));
+    spec.occurrences = subjectOccurrences(target.name);
   } else if (target.kind === "part") {
     const mesh = resolveMeshOrThrow(target.name);
     const scoped = target.subject ? AA.sweepPartOccurrences(sweep.occurrences, target.subject, mesh.sha256) : null;
@@ -2456,7 +2464,7 @@ function renderSweepRail() {
 // it is drawn at, and no other. Disabled until the bodies have resolved and
 // there is something to hide.
 function subjectCheckbox(node, subject) {
-  const list = state.sweep.occurrences[subject] || [];
+  const list = subjectOccurrences(subject);
   const cb = document.createElement("input");
   cb.type = "checkbox";
   cb.className = "an__tree-check";
@@ -2507,7 +2515,8 @@ function applySceneHover() {
   if (!hover) return;
   const scoped = root.querySelectorAll('.part-row[data-sha="' + hover.sha256 + '"]');
   for (const row of scoped) {
-    if (!hover.subject || row.dataset.subject === hover.subject) row.classList.add("is-scene-hover");
+    // An occurrence no body carries is none of the tree's rows.
+    if ((row.dataset.subject || null) === hover.subject) row.classList.add("is-scene-hover");
   }
   for (const row of root.querySelectorAll(".tree-row[data-edge]")) {
     const via = { edgeId: row.dataset.edge, direction: row.dataset.direction || null };
@@ -3997,12 +4006,14 @@ async function main() {
     if (state.sweep) {
       const sweep = state.sweep;
       const was = sweep.inspect;
-      if (bead) railExec(["inspect", "joint", bead.name]);
+      // Quiet: a selection that cannot be made (a part this store no longer
+      // lists) is not worth a banner over the frame rule's own line below.
+      if (bead) railExec(["inspect", "joint", bead.name], null);
       else if (!pick || (was && was.kind === AA.INSPECT_TARGETS[3] && was.name === pick.sha256 &&
-        was.faceId === pick.faceId)) railExec(["inspect", "clear"]);
+        was.faceId === pick.faceId)) railExec(["inspect", "clear"], null);
       else {
         const subject = AA.sweepOccurrenceSubject(sweep.bodies, pick.sha256, pick.key);
-        railExec(["inspect", "part", pick.sha256, String(pick.faceId)].concat(subject ? [subject] : []));
+        railExec(["inspect", "part", pick.sha256, String(pick.faceId)].concat(subject ? [subject] : []), null);
       }
       if (bead) return;
     }

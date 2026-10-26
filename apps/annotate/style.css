@@ -557,6 +557,10 @@ body {
 .part-row__count { flex: none; color: #9aa1ab; font-size: var(--t-micro); font-variant-numeric: tabular-nums; }
 /* A body's own checkbox sits at the end of its summary line. */
 .an__tree-check { float: right; margin: 2px 0 0 6px; }
+.an__tree-row:has(> .an__tree-check) > .an__tree-text {
+  display: inline-block; max-width: calc(100% - 40px); vertical-align: bottom;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 /* What the scene's pointer rests on, in the rail: the lighter emphasis, a
    background wash -- the outline and the spine are selection's. */
 .part-row.is-scene-hover, .tree-row.is-scene-hover { background: #2c3138; }
