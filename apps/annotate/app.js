@@ -2388,6 +2388,10 @@ function renderSweepRail() {
     // stays -- and above the parts panel's label.
     el.studySelect.insertAdjacentElement("afterend", root);
   }
+  // The rows are about to be replaced, and a replaced row under a still
+  // pointer never fires its mouseleave: the hover goes with the old rows.
+  state.scene.clearHover();
+  window.__lastHover = null;
   root.innerHTML = "";
   const tree = sweep.tree;
   const topology = sweepTopology();
