@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "expect_red": "[real] leaving sweep mode puts back every occurrence a body checkbox hid and takes the hover down",
+  "mutations": [
+    {
+      "contract": "Leaving sweep mode re-shows every occurrence a rail checkbox hid.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "A part opened before the sweep would come back with blade 1's arm missing.",
+      "file": "apps/annotate/app.js",
+      "find": "  for (const o of sweep.hidden) state.scene.setOccurrencesVisible(o.sha256, [o.key], true);",
+      "replace": "  for (const o of []) state.scene.setOccurrencesVisible(o.sha256, [o.key], true);"
+    }
+  ]
+}

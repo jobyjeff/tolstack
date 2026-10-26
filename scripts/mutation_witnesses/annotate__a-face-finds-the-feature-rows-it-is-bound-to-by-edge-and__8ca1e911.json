@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a face finds the feature rows it is bound to, by edge and end, in its own topology only",
+  "mutations": [
+    {
+      "contract": "A face's bindings are read in the open topology only.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Another topology's binding of the same face would select a feature row it is not bound to.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (!key || key.kind !== \"topology_edge\" || key.topology_id !== topologyId) return;",
+      "replace": "      if (!key || key.kind !== \"topology_edge\") return;"
+    }
+  ]
+}

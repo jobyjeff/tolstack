@@ -186,6 +186,24 @@ function resolveMeshOrThrow(identifier) {
   );
 }
 
+// show <part> <subject> / hide <part> <subject> -- the sweep rail's part row
+// inside a body: only the occurrence(s) that body is drawn at (handoff
+// the_rail_and_the_scene_point_at_each_other, deliverable 3). Without the
+// subject, every occurrence of the mesh -- the parts panel's rule.
+function scopedOccurrences(mesh, subject) {
+  const sweep = sweepState();
+  if (!subjectKnown(subject)) throw new Error("this run has no body or link \"" + subject + "\"");
+  return AA.sweepPartOccurrences(sweep.occurrences, subject, mesh.sha256);
+}
+
+async function cmdShow(identifier, subject) {
+  if (subject === undefined) return cmdOpenPart(identifier);
+  const mesh = resolveMeshOrThrow(identifier);
+  setOccurrences(scopedOccurrences(mesh, subject), true);
+  renderPartsPanel();
+  return mesh.sha256;
+}
+
 async function cmdOpenPart(identifier) {
   const mesh = resolveMeshOrThrow(identifier);
   await state.scene.loadPart(mesh.sha256);
@@ -201,8 +219,13 @@ async function cmdOpenPart(identifier) {
   return mesh.sha256;
 }
 
-function cmdHide(identifier) {
+function cmdHide(identifier, subject) {
   const mesh = resolveMeshOrThrow(identifier);
+  if (subject !== undefined) {
+    setOccurrences(scopedOccurrences(mesh, subject), false);
+    renderPartsPanel();
+    return mesh.sha256;
+  }
   state.scene.setVisible(mesh.sha256, false);
   renderPartsPanel();
   return mesh.sha256;
@@ -1048,6 +1071,13 @@ async function cmdSweep(target, studyId) {
     tree: AA.sweepMechanismTree(artifact),
     treeOpen: {},
     inspect: null,
+    // Which drawn occurrences each body and link is ({subject: [{sha256,
+    // key}]}, AA.sweepSubjectOccurrences), written once the bodies resolve;
+    // the occurrences a rail checkbox has hidden, put back on the way out;
+    // and the part the scene's pointer rests on ({sha256, subject, bindings}).
+    occurrences: {},
+    hidden: [],
+    sceneHover: null,
     study,
     studyDecimals,
     stopId: null,
@@ -1086,6 +1116,11 @@ function leaveSweep() {
   if (!sweep) return null;
   state.sweep = null;
   showSweepTip(null, null);
+  state.scene.clearHover();
+  window.__lastHover = null;
+  // An occurrence a body's checkbox hid is the sweep rail's state, and the
+  // rail is going: every one comes back with it.
+  for (const o of sweep.hidden) state.scene.setOccurrencesVisible(o.sha256, [o.key], true);
   setRailSweepPosture(false);
   if (sweep.inspect && sweep.inspect.faces.length) {
     if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
@@ -1327,6 +1362,7 @@ async function anchorSweepBodies() {
     } catch (err) { /* the row already says what happened */ }
   }
   sweep.bodies = rows;
+  sweep.occurrences = AA.sweepSubjectOccurrences(rows);
   renderPartsPanel();
   applySweepFrame();
   // The scene is only now what it is going to be, so this is where it gets
@@ -1402,8 +1438,11 @@ function applySweepFrame() {
   for (const sha of sweep.anchored) {
     const entries = sweep.plan[sha];
     if (entries) {
+      // Keyed, index for index, so an occurrence a rail checkbox hid stays
+      // hidden whichever list is drawn.
       state.scene.setPartMatrix(sha, sweep.layers.bodies
-        ? AA.sweepMeshMatrices(entries, sweep.frame) : null);
+        ? AA.sweepMeshMatrices(entries, sweep.frame) : null,
+      sweep.layers.bodies ? entries.map((e) => e.key) : null);
     }
     state.scene.setVisible(sha, !!sweep.layers.bodies);
     // THE SAME "See-through parts" PREFERENCE the rest of this app honours,
@@ -2020,7 +2059,9 @@ function treeOpen(key, fallback) {
 
 // A <details> node whose summary is one clipped line with its full text on
 // hover (the truncation rule), and whose open state survives a repaint.
-function treeNode(key, text, fallbackOpen, onToggle) {
+// `hover` is the `hover` command its summary runs while the pointer rests on
+// it (the rail lights its thing in the scene), or null.
+function treeNode(key, text, fallbackOpen, onToggle, hover) {
   const box = document.createElement("details");
   box.className = "an__tree-node";
   box.open = treeOpen(key, fallbackOpen);
@@ -2032,6 +2073,7 @@ function treeNode(key, text, fallbackOpen, onToggle) {
   words.textContent = text;
   head.appendChild(words);
   box.appendChild(head);
+  if (hover) hoverOn(head, hover);
   // A repaint sets `open` on a fresh node, which queues a toggle event of its
   // own; only a change from the remembered state is the reader's.
   box.ontoggle = () => {
@@ -2041,6 +2083,138 @@ function treeNode(key, text, fallbackOpen, onToggle) {
     if (box.open !== was && onToggle) onToggle(box.open);
   };
   return box;
+}
+
+// The pointer resting on a rail row lights its thing in the scene, and
+// leaving puts the scene back -- one verb both ways, quiet on failure (a
+// hover is not worth a banner).
+function hoverOn(node, command) {
+  node.addEventListener("mouseenter", () => { railExec(command, null); });
+  node.addEventListener("mouseleave", () => { railExec(["hover", "clear"], null); });
+}
+
+// The occurrences a body or a link is drawn at right now: its map entry,
+// less any mesh that is not open (the instrumented blade recorded at the
+// design blade's own path is the same occurrence, and is not drawn twice).
+function subjectOccurrences(name) {
+  const open = new Set(state.scene.listOpenParts());
+  return ((state.sweep && state.sweep.occurrences[name]) || []).filter((o) => open.has(o.sha256));
+}
+
+// Is `name` a body or a link this run's rail lists?
+function subjectKnown(name) {
+  const tree = state.sweep && state.sweep.tree;
+  if (!tree || !name) return false;
+  return tree.bodies.some((b) => b.name === name) ||
+    tree.joints.some((j) => j.name === name && j.parts.length);
+}
+
+// Show or hide a list of occurrences, remembering which the rail hid so
+// leaving sweep mode can put them back.
+function setOccurrences(list, visible) {
+  const sweep = state.sweep;
+  const bySha = new Map();
+  for (const o of list || []) {
+    if (!bySha.has(o.sha256)) bySha.set(o.sha256, []);
+    bySha.get(o.sha256).push(o.key);
+  }
+  for (const [sha, keys] of bySha) state.scene.setOccurrencesVisible(sha, keys, visible);
+  if (!sweep) return;
+  const same = (a, b) => a.sha256 === b.sha256 && a.key === b.key;
+  sweep.hidden = sweep.hidden.filter((h) => !(list || []).some((o) => same(o, h)));
+  if (!visible) for (const o of list || []) sweep.hidden.push({ sha256: o.sha256, key: o.key });
+}
+
+// How much of a list of occurrences is drawn: {checked, indeterminate} for a
+// checkbox over it (AA.planShowAllHeader's shape and rule).
+function occurrencesShown(list) {
+  return AA.planShowAllHeader((list || []).map((o) =>
+    state.scene.isOccurrenceVisible(o.sha256, o.key)));
+}
+
+// show-body <name> / hide-body <name>: every occurrence a body or a link is
+// drawn at, and no other (the body row's checkbox).
+function cmdSubjectView(visible, name) {
+  const sweep = sweepState();
+  if (!subjectKnown(name)) throw new Error("this run has no body or link \"" + name + "\"");
+  const list = subjectOccurrences(name);
+  setOccurrences(list, visible);
+  renderSweepRail();
+  return { subject: name, occurrences: list.length, visible };
+}
+
+// hover <kind> <name> ... | hover clear -- what a rail row lights in the
+// scene (AA.parseHover has the grammar). A viewing aid: it writes nothing,
+// tints nothing into a colour buffer, and an empty answer is ordinary (an
+// unbound feature, a part not opened).
+function cmdHover(what, name, extra) {
+  const sweep = sweepState();
+  const target = AA.parseHover(what, name, extra);
+  if (!target.kind) {
+    state.scene.clearHover();
+    window.__lastHover = null;
+    return null;
+  }
+  const topology = sweepTopology();
+  const open = new Set(state.scene.listOpenParts());
+  const isOpen = (sha) => open.has(sha);
+  const identity = mergedIdentityProjection();
+  const spec = { occurrences: [], faces: [], joint: null };
+  if (target.kind === "body") {
+    if (!subjectKnown(target.name)) throw new Error("this run has no body or link \"" + target.name + "\"");
+    spec.occurrences = subjectOccurrences(target.name);
+  } else if (target.kind === "part") {
+    const mesh = resolveMeshOrThrow(target.name);
+    const scoped = target.subject ? AA.sweepPartOccurrences(sweep.occurrences, target.subject, mesh.sha256) : null;
+    if (isOpen(mesh.sha256)) spec.occurrences = scoped || [{ sha256: mesh.sha256, key: null }];
+  } else if (target.kind === "joint") {
+    const joint = sweep.tree.joints.find((j) => j.name === target.name);
+    if (!joint) throw new Error("this run has no joint \"" + target.name + "\"");
+    spec.joint = joint.name;
+    if (topology) {
+      spec.faces = AA.planHighlightFaces(identity, topology.id, joint.features
+        .map((f) => AA.sweepFeatureEdge(topology, f, joint.features)).filter((v) => v.edgeId), isOpen);
+    }
+  } else if (target.kind === "feature") {
+    if (topology) {
+      spec.faces = AA.planHighlightFaces(identity, topology.id,
+        [{ edgeId: target.name, direction: target.direction }], isOpen);
+    }
+  } else {
+    const row = currentContributorRows().find((r) => r.edge === target.name);
+    if (!row) throw new Error("the open study lists no contributor \"" + target.name + "\" here");
+    // The faces bound at its edge's two ends; when none is bound, the parts
+    // at those ends, at the occurrences the mechanism draws them at.
+    spec.faces = AA.planHighlightFaces(identity, topology.id, [{ edgeId: row.edge, direction: null }], isOpen);
+    if (!spec.faces.length) spec.occurrences = edgeOccurrences(topology, row.edge).filter((o) => isOpen(o.sha256));
+  }
+  const shown = state.scene.setHover(spec);
+  window.__lastHover = Object.assign({ target }, shown);
+  return window.__lastHover;
+}
+
+// The drawn occurrences of an edge's parts: each part's occurrences on the
+// bodies and links that carry it, or every occurrence where none does.
+function edgeOccurrences(topology, edgeId) {
+  const sweep = state.sweep;
+  const out = [];
+  for (const id of AA.edgePartIds(topology, edgeId)) {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    if (!mesh) continue;
+    const placed = [];
+    for (const name of Object.keys(sweep.occurrences)) {
+      for (const o of sweep.occurrences[name]) if (o.sha256 === mesh.sha256) placed.push(o);
+    }
+    for (const o of placed.length ? placed : [{ sha256: mesh.sha256, key: null }]) out.push(o);
+  }
+  return out;
+}
+
+// The open study's contributor rows at the stop nearest the frame, or [].
+function currentContributorRows() {
+  const sweep = state.sweep;
+  const stop = sweep && sweep.study ? AA.kinematicStopAt(sweep.study, sweep.frame) : null;
+  return stop ? AA.kinematicContributorRows(sweep.study, stop, sweepTopology(), sweep.studyDecimals) : [];
 }
 
 function treeHead(text) {
@@ -2066,15 +2240,23 @@ function missingPartRow(partId) {
 
 // The parts a body or a link carries, as THE parts-panel rows (buildPartRow):
 // one implementation of a part row, wherever it is listed.
-function treePartRows(partIds) {
+//
+// Inside a body (or a link) a row stands for that subject's occurrence(s) of
+// the mesh, not every repeat of it: its checkbox hides only those, and its
+// hover lights only those. A part the subject has no occurrence of yet --
+// the bodies still resolving, or a part that could not be placed -- keeps the
+// whole-mesh row.
+function treePartRows(partIds, subject) {
   const list = document.createElement("ul");
   list.className = "parts-panel an__tree-parts";
   const inModel = new Set(currentContext().inModel.map((m) => m.sha256));
   const isolated = (state.isolation && state.isolation.targets) || [];
   for (const partId of partIds) {
     const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
-    list.appendChild(mesh ? buildPartRow(mesh, inModel.has(mesh.sha256), isolated)
-      : missingPartRow(partId));
+    if (!mesh) { list.appendChild(missingPartRow(partId)); continue; }
+    const scoped = AA.sweepPartOccurrences(state.sweep.occurrences, subject, mesh.sha256);
+    list.appendChild(buildPartRow(mesh, inModel.has(mesh.sha256), isolated,
+      scoped && scoped.length ? { subject, occurrences: scoped } : null));
   }
   return list;
 }
@@ -2091,17 +2273,31 @@ function featureRow(topology, joint, feature) {
   li.dataset.feature = feature.id;
   li.dataset.state = bindingState;
   const name = AA.sweepFeatureName(topology, feature);
-  li.title = name;
+  // The surface that defines it, in words a reader can check against the
+  // model -- `face 110 of 214698-002` -- with the mesh's sha on hover, or
+  // `no face bound`. Under the name, muted: it is the row's second fact.
+  const faces = AA.boundFaceRows(mergedIdentityProjection(), topology.id, via, state.meshList);
+  const faceWords = faces.length ? faces.map((f) => f.text).join(", ") : AA.BOUND_FACE_WORDS.none;
+  li.title = name + "\n" + faceWords +
+    (faces.length ? "\n" + faces.map((f) => f.sha256.slice(0, 12)).join(", ") : "");
+  if (via.edgeId) {
+    li.dataset.edge = via.edgeId;
+    if (via.direction) li.dataset.direction = via.direction;
+  }
+  const text = document.createElement("span");
+  text.className = "tree-row__text";
   const words = document.createElement("span");
   words.className = "tree-row__name";
   words.textContent = name;
-  li.appendChild(words);
+  text.appendChild(words);
+  const face = document.createElement("span");
+  face.className = "tree-row__face";
+  face.textContent = faceWords;
+  text.appendChild(face);
+  li.appendChild(text);
   if (via.edgeId) {
-    li.onmouseenter = () => {
-      railExec(via.direction ? ["highlight", topology.id, via.edgeId, via.direction]
-        : ["highlight", topology.id, via.edgeId], null);
-    };
-    li.onmouseleave = () => { railExec(["highlight", "clear"], null); };
+    hoverOn(li, via.direction ? ["hover", "feature", via.edgeId, via.direction]
+      : ["hover", "feature", via.edgeId]);
     const repick = document.createElement("button");
     repick.className = "tree-row__repick";
     repick.textContent = bindingState === AA.BINDING_STATES.BOUND
@@ -2135,6 +2331,7 @@ function contributorsGroup(topology) {
     const li = document.createElement("li");
     li.className = "tree-row tree-row--contributor";
     li.dataset.edge = row.edge;
+    hoverOn(li, ["hover", "contributor", row.edge]);
     li.title = row.name + (row.magnitude ? " · " + row.magnitude : "");
     const words = document.createElement("span");
     words.className = "tree-row__name";
@@ -2146,7 +2343,25 @@ function contributorsGroup(topology) {
       value.textContent = row.magnitude;
       li.appendChild(value);
     }
-    if (row.gap) li.appendChild(alertBadge([row.gap]));
+    // The badge's {state, text} shape, which every other badge is handed: the
+    // gap sentence, the drawing(s) to read, and what the row's Pick does.
+    const alerts = AA.contributorAlerts(row, topology);
+    if (alerts.length) li.appendChild(alertBadge(alerts));
+    // The same jump to bind mode a feature row's Pick makes: the edge, at the
+    // as-modelled frame, where a binding may be written. Nothing is written
+    // from here.
+    const bound = AA.elementBindingState(AA.findBindingRecord(mergedIdentityProjection(),
+      AA.topologyEdgeKey(topology.id, row.edge)), state.identityProjection &&
+      state.identityProjection.staleness) === AA.BINDING_STATES.BOUND;
+    const pick = document.createElement("button");
+    pick.className = "tree-row__repick";
+    pick.textContent = bound ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick;
+    pick.title = AA.SWEEP_RAIL_WORDS.repickTitle;
+    pick.onclick = (ev) => {
+      ev.stopPropagation();
+      railExec(["goto", topology.id, row.edge]);
+    };
+    li.appendChild(pick);
     if (selected === row.edge) li.classList.add("selected");
     li.onclick = () => {
       railExec(selected === row.edge ? ["inspect", "clear"]
@@ -2173,18 +2388,29 @@ function renderSweepRail() {
     // stays -- and above the parts panel's label.
     el.studySelect.insertAdjacentElement("afterend", root);
   }
+  // The rows are about to be replaced, and a replaced row under a still
+  // pointer never fires its mouseleave: the hover goes with the old rows.
+  state.scene.clearHover();
+  window.__lastHover = null;
   root.innerHTML = "";
   const tree = sweep.tree;
   const topology = sweepTopology();
+  root.appendChild(rowKindChips(root));
+  const selectedPart = sweep.inspect && sweep.inspect.kind === AA.INSPECT_TARGETS[3]
+    ? sweep.inspect : null;
 
   const bodies = document.createElement("section");
   bodies.className = "an__tree-group";
   bodies.dataset.group = "bodies";
   bodies.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.bodies + " (" + tree.bodies.length + ")"));
   for (const body of tree.bodies) {
-    const node = treeNode("body:" + body.name, AA.sweepBodyRowWords(body), body.open);
+    // A part picked in the scene opens the body it was picked on.
+    if (selectedPart && selectedPart.subject === body.name) sweep.treeOpen["body:" + body.name] = true;
+    const node = treeNode("body:" + body.name, AA.sweepBodyRowWords(body), body.open, null,
+      ["hover", "body", body.name]);
     node.dataset.body = body.name;
-    node.appendChild(treePartRows(body.parts));
+    subjectCheckbox(node, body.name);
+    node.appendChild(treePartRows(body.parts, body.name));
     bodies.appendChild(node);
   }
   root.appendChild(bodies);
@@ -2196,33 +2422,132 @@ function renderSweepRail() {
   const selectedJoint = sweep.inspect && sweep.inspect.kind === AA.INSPECT_TARGETS[0]
     ? sweep.inspect.name : null;
   for (const joint of tree.joints) {
+    // A face picked in the scene that is bound to one of this joint's
+    // features opens the joint, so its feature row is on screen selected.
+    const holds = selectedPart && topology && joint.features.some((f) =>
+      AA.featureReadMatches(AA.sweepFeatureEdge(topology, f, joint.features), selectedPart.bindings));
+    if (holds || (selectedPart && selectedPart.subject === joint.name)) {
+      sweep.treeOpen["joint:" + joint.name] = true;
+    }
     // Opening a joint is looking at it: it selects the joint (its bead is
     // drawn emphasised) and closing the selected one lets it go.
     const node = treeNode("joint:" + joint.name, AA.sweepJointRowWords(joint), false, (open) => {
       const isSelected = state.sweep.inspect && state.sweep.inspect.name === joint.name;
       if (open && !isSelected) railExec(["inspect", "joint", joint.name]);
       else if (!open && isSelected) railExec(["inspect", "clear"]);
-    });
+    }, ["hover", "joint", joint.name]);
     node.dataset.joint = joint.name;
-    if (selectedJoint === joint.name) node.classList.add("selected");
+    if (joint.parts.length) subjectCheckbox(node, joint.name);
+    if (selectedJoint === joint.name || holds) node.classList.add("selected");
     if (topology && joint.features.length) {
       const list = document.createElement("ul");
       list.className = "an__tree-list";
-      for (const feature of joint.features) list.appendChild(featureRow(topology, joint, feature));
+      for (const feature of joint.features) {
+        const row = featureRow(topology, joint, feature);
+        if (selectedPart && AA.featureReadMatches(AA.sweepFeatureEdge(topology, feature,
+          joint.features), selectedPart.bindings)) row.classList.add("selected");
+        list.appendChild(row);
+      }
       node.appendChild(list);
     }
-    if (joint.parts.length) node.appendChild(treePartRows(joint.parts));
+    if (joint.parts.length) node.appendChild(treePartRows(joint.parts, joint.name));
     joints.appendChild(node);
   }
   root.appendChild(joints);
 
   if (sweep.study) root.appendChild(contributorsGroup(topology));
+  if (selectedPart) {
+    const row = root.querySelector('.part-row[data-sha="' + selectedPart.name + '"]' +
+      (selectedPart.subject ? '[data-subject="' + CSS.escape(selectedPart.subject) + '"]' : ""));
+    if (row) row.classList.add("selected");
+  }
+  applySceneHover();
+}
+
+// A body's (or a link's) own checkbox, in its summary line: every occurrence
+// it is drawn at, and no other. Disabled until the bodies have resolved and
+// there is something to hide.
+function subjectCheckbox(node, subject) {
+  const list = subjectOccurrences(subject);
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.className = "an__tree-check";
+  cb.title = AA.SWEEP_RAIL_WORDS.showBody;
+  const shown = occurrencesShown(list);
+  cb.checked = list.length ? shown.checked : true;
+  cb.indeterminate = list.length ? shown.indeterminate : false;
+  cb.disabled = !list.length;
+  // A click on the box is the box's, never the <details>' toggle.
+  cb.onclick = (ev) => { ev.stopPropagation(); };
+  cb.onchange = () => { railExec([cb.checked ? "show-body" : "hide-body", subject]); };
+  node.querySelector("summary").appendChild(cb);
+}
+
+// The type filter: one chip per row kind (AA.SWEEP_ROW_KINDS), pressed =
+// listed. A VIEW filter -- what the rail lists, never what the scene draws or
+// what the run's context is -- remembered the way the rail's width is.
+function rowKindChips(root) {
+  const hidden = AA.readHiddenRowKinds(prefStore());
+  for (const kind of AA.SWEEP_ROW_KINDS) root.classList.toggle("an__tree--no-" + kind, hidden.indexOf(kind) !== -1);
+  const bar = document.createElement("div");
+  bar.className = "an__tree-chips";
+  bar.setAttribute("role", "group");
+  for (const kind of AA.SWEEP_ROW_KINDS) {
+    const chip = document.createElement("button");
+    chip.className = "an__tree-chip";
+    chip.dataset.kind = kind;
+    chip.textContent = AA.SWEEP_ROW_KIND_WORDS[kind];
+    chip.setAttribute("aria-pressed", hidden.indexOf(kind) === -1 ? "true" : "false");
+    chip.onclick = () => {
+      AA.writeHiddenRowKinds(prefStore(), AA.toggleRowKind(AA.readHiddenRowKinds(prefStore()), kind));
+      renderSweepRail();
+    };
+    bar.appendChild(chip);
+  }
+  return bar;
+}
+
+// The part the scene's pointer rests on, emphasised in the rail: its row
+// inside the subject it is drawn for, and the feature rows its face is bound
+// to. Applied to the rows as they are, so a pointer moving over the view
+// never rebuilds the tree.
+function applySceneHover() {
+  const root = document.getElementById("sweep-tree");
+  if (!root) return;
+  for (const n of root.querySelectorAll(".is-scene-hover")) n.classList.remove("is-scene-hover");
+  const hover = state.sweep && state.sweep.sceneHover;
+  if (!hover) return;
+  const scoped = root.querySelectorAll('.part-row[data-sha="' + hover.sha256 + '"]');
+  for (const row of scoped) {
+    // An occurrence no body carries is none of the tree's rows.
+    if ((row.dataset.subject || null) === hover.subject) row.classList.add("is-scene-hover");
+  }
+  for (const row of root.querySelectorAll(".tree-row[data-edge]")) {
+    const via = { edgeId: row.dataset.edge, direction: row.dataset.direction || null };
+    if (row.dataset.feature && AA.featureReadMatches(via, hover.bindings)) row.classList.add("is-scene-hover");
+  }
+}
+
+// What the scene says the pointer rests on (scene.onPartHover), into the
+// rail. Null is off every part.
+function sceneHoverPart(pick) {
+  const sweep = state.sweep;
+  if (!sweep) return;
+  const topology = sweepTopology();
+  sweep.sceneHover = pick ? {
+    sha256: pick.sha256,
+    subject: AA.sweepOccurrenceSubject(sweep.bodies, pick.sha256, pick.key),
+    bindings: topology ? AA.bindingsOfFace(mergedIdentityProjection(), topology.id,
+      pick.sha256, pick.faceId) : [],
+  } : null;
+  applySceneHover();
 }
 
 // inspect joint <name> | inspect contributor <edge> | inspect clear
-function cmdInspect(what, name) {
+function cmdInspect(what, name, face, subject) {
   const sweep = sweepState();
-  const target = AA.parseInspect(what, name);
+  const target = AA.parseInspect(what, name, face, subject);
+  if (target.kind === AA.INSPECT_TARGETS[3]) return inspectPart(target);
   if (target.kind === AA.INSPECT_TARGETS[0] &&
       !sweep.tree.joints.some((j) => j.name === target.name)) {
     throw new Error("this run has no joint \"" + target.name + "\"");
@@ -2243,6 +2568,35 @@ function cmdInspect(what, name) {
   if (faces.length) state.scene.highlightFaces(faces);
   else if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
   else state.scene.clearHighlight();
+  window.__lastInspect = sweep.inspect;
+  renderSweepRail();
+  return sweep.inspect;
+}
+
+// inspect part <mesh> <face> [<subject>] -- a pick in the scene, selected in
+// the rail: the part's row inside the subject it was picked on (that body
+// opened), and the feature rows the face is bound to (their joint opened).
+// The face carries the pick tint while it is selected -- the same tint a
+// selected contributor's faces carry, given back by `highlight clear`.
+function inspectPart(target) {
+  const sweep = state.sweep;
+  const mesh = resolveMeshOrThrow(target.name);
+  if (!state.scene.faceRecord(mesh.sha256, target.faceId)) {
+    throw new Error("part \"" + target.name + "\" has no face " + target.faceId);
+  }
+  if (target.subject && !subjectKnown(target.subject)) {
+    throw new Error("this run has no body or link \"" + target.subject + "\"");
+  }
+  const topology = sweepTopology();
+  const faces = [{ sha256: mesh.sha256, faceId: target.faceId }];
+  sweep.inspect = {
+    kind: target.kind, name: mesh.sha256, faceId: target.faceId, subject: target.subject,
+    bindings: topology ? AA.bindingsOfFace(mergedIdentityProjection(), topology.id,
+      mesh.sha256, target.faceId) : [],
+    faces,
+  };
+  state.scene.setSweepEmphasis(null);
+  state.scene.highlightFaces(faces);
   window.__lastInspect = sweep.inspect;
   renderSweepRail();
   return sweep.inspect;
@@ -2269,7 +2623,7 @@ function announced(fn) {
 
 const commands = new AA.CommandLayer();
 commands.register("open-part", cmdOpenPart);
-commands.register("show", cmdOpenPart); // "show" on a part never opened is "open it and show it"
+commands.register("show", cmdShow); // "show" on a part never opened is "open it and show it"
 commands.register("hide", cmdHide);
 commands.register("show-all", cmdShowAll);
 commands.register("hide-all", cmdHideAll);
@@ -2304,6 +2658,9 @@ commands.register("step", cmdStep);
 commands.register("loop", cmdLoop);
 commands.register("layer", cmdLayer);
 commands.register("inspect", cmdInspect);
+commands.register("hover", cmdHover);
+commands.register("show-body", (name) => cmdSubjectView(true, name));
+commands.register("hide-body", (name) => cmdSubjectView(false, name));
 AA.exec = (input) => commands.exec(input);
 
 // The last arrival, run again -- what ticking an auto-setup box back on does.
@@ -3216,9 +3573,18 @@ function renderPartsPanel() {
   if (state.sweep) renderSweepRail();
 }
 
-function buildPartRow(mesh, inModel, isolated) {
+// `scope` ({subject, occurrences}) makes it a sweep-rail row inside a body:
+// its checkbox and its hover reach that body's occurrences only. Without it,
+// the row is the mesh -- every occurrence -- and says how many when that is
+// more than one.
+function buildPartRow(mesh, inModel, isolated, scope) {
   const li = document.createElement("li");
   li.className = "part-row";
+  if (state.sweep) {
+    li.dataset.sha = mesh.sha256;
+    if (scope) li.dataset.subject = scope.subject;
+    hoverOn(li, scope ? ["hover", "part", mesh.sha256, scope.subject] : ["hover", "part", mesh.sha256]);
+  }
 
   const label = document.createElement("span");
   label.className = "part-row__label";
@@ -3229,14 +3595,28 @@ function buildPartRow(mesh, inModel, isolated) {
   label.textContent = words.text;
   label.title = words.title;
   li.appendChild(label);
+  const drawn = state.scene.drawnOccurrenceKeys(mesh.sha256).length;
+  if (!scope && drawn > 1) {
+    const count = document.createElement("span");
+    count.className = "part-row__count";
+    count.textContent = AA.PARTS_COPY.occurrences.replace("{n}", String(drawn));
+    count.title = AA.PARTS_COPY.occurrencesTitle.replace("{n}", String(drawn));
+    li.appendChild(count);
+  }
 
   const cb = document.createElement("input");
   cb.type = "checkbox";
   cb.title = "show/hide in the 3D view";
-  cb.checked = state.scene.isVisible(mesh.sha256);
+  if (scope) {
+    const shown = occurrencesShown(scope.occurrences);
+    cb.checked = shown.checked;
+    cb.indeterminate = shown.indeterminate;
+  } else {
+    cb.checked = state.scene.isVisible(mesh.sha256);
+  }
   cb.onchange = async () => {
     try {
-      await AA.exec([cb.checked ? "show" : "hide", mesh.sha256]);
+      await AA.exec([cb.checked ? "show" : "hide", mesh.sha256].concat(scope ? [scope.subject] : []));
     } catch (err) {
       setBanner(err.message, "error");
       cb.checked = !cb.checked;
@@ -3571,8 +3951,13 @@ async function main() {
   state.scene.placementsFor = async (sha256) => {
     await loadOccurrences();
     const rest = restOf(sha256);
-    return rest.placements.length ? rest.placements : null;
+    // Keyed, so one occurrence can be hidden or hovered by the key the
+    // assembly recorded it under (setOccurrencesVisible, setHover).
+    return rest.placements.length ? { placements: rest.placements, keys: rest.keys } : null;
   };
+  // The part under a pointer that has come to rest, into the rail (sweep
+  // mode only; the scene asks nothing outside it).
+  state.scene.onPartHover = sceneHoverPart;
   // The same read-only convention, for sweep mode: a harness (and the
   // screenshot pass) can ask where the scrubber is and what frame rate the
   // playback is actually getting. Nothing in this app reads it, and it is
@@ -3616,7 +4001,26 @@ async function main() {
   // Before this, a miss set `state.currentPick = null` and left the orange
   // tint exactly where it was, and a re-click re-highlighted the same face --
   // so there were three ways to pick a face and none to unpick one.
-  state.scene.onPick = (pick) => {
+  state.scene.onPick = (pick, bead) => {
+    // IN SWEEP MODE A CLICK SELECTS IN THE RAIL, at any frame (handoff
+    // the_rail_and_the_scene_point_at_each_other): a bead selects its joint,
+    // a face selects its part inside the body it was picked on, and empty
+    // space lets the selection go. Selecting writes nothing, so it is not the
+    // frame rule's business; what follows is, unchanged.
+    if (state.sweep) {
+      const sweep = state.sweep;
+      const was = sweep.inspect;
+      // Quiet: a selection that cannot be made (a part this store no longer
+      // lists) is not worth a banner over the frame rule's own line below.
+      if (bead) railExec(["inspect", "joint", bead.name], null);
+      else if (!pick || (was && was.kind === AA.INSPECT_TARGETS[3] && was.name === pick.sha256 &&
+        was.faceId === pick.faceId)) railExec(["inspect", "clear"], null);
+      else {
+        const subject = AA.sweepOccurrenceSubject(sweep.bodies, pick.sha256, pick.key);
+        railExec(["inspect", "part", pick.sha256, String(pick.faceId)].concat(subject ? [subject] : []), null);
+      }
+      if (bead) return;
+    }
     // THE FRAME RULE. A face is still the right face while the linkage is
     // swept, but every reason a reader has to trust what they clicked is
     // about where it was: a binding is identity, recorded against geometry

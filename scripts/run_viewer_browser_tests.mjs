@@ -5891,6 +5891,294 @@ async function testAnnotateSweepRail(browser, label, topologies) {
   }
 }
 
+
+// --- the rail and the scene point at each other (handoff the_rail_and_the_
+// scene_point_at_each_other) -------------------------------------------------
+//
+// On P2, opened from its kinematic study, with real meshes: every rail row
+// lights its thing in the scene on hover (read as what the scene DREW for it,
+// `__scene.hoverState()`, never as the command having run); a face picked in
+// the scene selects its part inside the body it was picked on; a body's
+// checkbox hides that body's occurrences and no other repeat of its meshes;
+// the type chips hide and restore row kinds; a gap contributor's badge names
+// the drawings to read. Screenshots of the hide when SHOTS_DIR is set.
+const RAIL_SCENE_SHOTS = process.env.RAIL_SCENE_SHOTS || null;
+
+async function testAnnotateRailAndScene(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const index = await realDataIndexForTheAnnotator();
+  if (!study || !topology || index.runs.indexOf(SWEEP_RAIL_RUN) === -1) {
+    push("[real] the rail and the scene on P2 (skipped: the run, the kinematic or the " +
+      "topology projection is not on disk -- build them, or pass --repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases,
+    binding: { topology: study.topology, edge: "pitch_link_length",
+      faces: [["from", 0], ["to", 1]] } });
+  const hovered = () => page.evaluate(() => window.__scene.hoverState());
+  const leave = async () => {
+    await page.mouse.move(1590, 990);
+    await page.waitForFunction(() => window.__scene.hoverState().overlays === 0 &&
+      !window.__scene.hoverState().joint, null, { timeout: 3000 }).catch(() => {});
+  };
+  const hoverRow = async (selector) => {
+    await leave();
+    await page.locator(selector).first().hover({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__lastHover, null, { timeout: 3000 }).catch(() => {});
+    return hovered();
+  };
+  try {
+    await page.goto(`${url}?sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.__sweep && window.__sweep.bodies &&
+      window.__sweep.bodies.length > 0 && Object.keys(window.__sweep.occurrences).length > 0 &&
+      document.getElementById("sweep-tree"), null, { timeout: 180000 }).catch(() => {});
+    await page.evaluate(() => {
+      try { localStorage.removeItem(window.AnnotateApp.PREF_KEYS.sweepRowKinds); } catch (_) { /* none */ }
+      return window.AnnotateApp.exec(["seek", "#40"]);
+    });
+
+    // --- 1. hover, row to scene --------------------------------------------
+    const facts = await page.evaluate(() => {
+      const sweep = window.__sweep;
+      const armRow = sweep.bodies.find((r) => r.subject === "blade" && r.part === "pitch_arm");
+      return {
+        bodies: sweep.tree.bodies.map((b) => b.name),
+        joints: sweep.tree.joints.map((j) => j.name),
+        // Drawn occurrences only: a mesh carried at exactly a matched path
+        // (the instrumented blade at the design blade's) is not opened.
+        occurrences: Object.fromEntries(Object.keys(sweep.occurrences).map((k) => [k,
+          sweep.occurrences[k].filter((o) => window.__scene.parts.has(o.sha256)).length])),
+        armSha: armRow ? armRow.sha256 : null,
+        armKey: armRow && armRow.placements[0] ? armRow.placements[0].key : null,
+        armDrawn: armRow ? window.__scene.drawnOccurrenceKeys(armRow.sha256).length : 0,
+      };
+    });
+    // One literal name per body, so each is a guard a witness can name.
+    const bodyLit = async (body) => {
+      const h = await hoverRow(`#sweep-tree [data-body="${body}"] > summary`);
+      return { h, ok: facts.occurrences[body] > 0 && h.overlays >= 1 &&
+        h.occurrences === facts.occurrences[body] };
+    };
+    push("[real] hovering the base body lights every one of its drawn occurrences",
+      (await bodyLit("base")).ok);
+    push("[real] hovering the pitch_plate body lights every one of its drawn occurrences",
+      (await bodyLit("pitch_plate")).ok);
+    const blade = await bodyLit("blade");
+    push("[real] hovering the blade body lights every one of its drawn occurrences", blade.ok);
+    const arms = blade.h.keys.filter((k) => k.sha256 === facts.armSha);
+    push("[real] ...and on blade it is blade 1's pitch arm, one of the five drawn",
+      facts.armDrawn === 5 && arms.length === 1 && arms[0].key === facts.armKey);
+    await leave();
+    push("[real] the pointer leaving a row takes the hover down", (await hovered()).overlays === 0);
+    let jointsLit = 0;
+    for (const joint of facts.joints) {
+      const h = await hoverRow(`#sweep-tree [data-joint="${joint}"] > summary`);
+      // Read off the bead the scene DREW, against a joint not hovered.
+      const scale = await page.evaluate((j) => {
+        const beads = window.__scene._sweep.joints;
+        const other = [...beads.keys()].find((k) => k !== j);
+        return beads.get(j).scale.x / beads.get(other).scale.x;
+      }, joint);
+      if (h.joint === joint && scale > 1.2) jointsLit++;
+    }
+    push("[real] hovering each joint draws its bead larger", jointsLit === facts.joints.length &&
+      jointsLit === 5);
+    const pitchLink = await hoverRow(`#sweep-tree [data-joint="pitch_link"] > summary`);
+    push("[real] ...and a joint with a bound feature lights its bound faces too",
+      pitchLink.faces === 2 && pitchLink.overlays > 0);
+    await page.locator('#sweep-tree [data-joint="pitch_link"] > summary').click({ timeout: 5000 }).catch(() => {});
+    const feature = await hoverRow('#sweep-tree .tree-row[data-feature="pitch_link_length"]');
+    push("[real] hovering a bound feature lights both of its faces", feature.faces === 2 &&
+      feature.overlays > 0);
+    // pitch_link was opened (selected) above; a hover over one of its rows
+    // must leave its bead drawn as the selected one.
+    push("[real] a hover leaves the selection where it was",
+      await page.evaluate(() => window.__scene.sweepEmphasis() === "pitch_link"));
+    const edges = await page.evaluate(() => [...document.querySelectorAll(
+      '#sweep-tree [data-group="contributors"] .tree-row')].map((n) => n.dataset.edge));
+    let contributorsLit = 0;
+    for (const edge of edges) {
+      const h = await hoverRow(`#sweep-tree [data-group="contributors"] .tree-row[data-edge="${edge}"]`);
+      if (h.overlays > 0) contributorsLit++;
+    }
+    push("[real] hovering each contributor lights its bound faces, or its edge's parts",
+      edges.length === 6 && contributorsLit === edges.length);
+
+    // --- 2. a feature row names its surface ---------------------------------
+    const faceWords = await page.evaluate(() => [...document.querySelectorAll(
+      '#sweep-tree [data-joint="pitch_link"] .tree-row[data-feature] .tree-row__face')]
+      .map((n) => ({ id: n.closest(".tree-row").dataset.feature, text: n.textContent })));
+    const length = faceWords.find((f) => f.id === "pitch_link_length");
+    push("[real] a bound feature row says which face of which part defines it, and an " +
+      "unbound one says none is bound",
+      length && /^face 0 of .+, face 1 of .+$/.test(length.text) &&
+      faceWords.every((f) => f.id === "pitch_link_length" || /^face \d+ of |^no face bound$/.test(f.text)));
+    const contributorPick = await page.evaluate(() => [...document.querySelectorAll(
+      '#sweep-tree [data-group="contributors"] .tree-row')].every((n) =>
+      n.querySelector(".tree-row__repick")));
+    push("[real] every contributor row carries the Pick control a feature row does", contributorPick);
+
+    // --- 3. scene to rail ---------------------------------------------------
+    await page.evaluate((f) => window.__scene.onPick({ sha256: f.armSha, faceId: 0, key: f.armKey }), facts);
+    await page.waitForFunction(() => window.__lastInspect && window.__lastInspect.kind === "part",
+      null, { timeout: 3000 }).catch(() => {});
+    const picked = await page.evaluate((f) => {
+      const row = document.querySelector(`#sweep-tree .part-row.selected[data-sha="${f.armSha}"]`);
+      return { subject: row ? row.dataset.subject : null,
+        open: document.querySelector('#sweep-tree [data-body="blade"]').open,
+        shown: !!row && row.getClientRects().length > 0 };
+    }, facts);
+    push("[real] picking blade 1's pitch arm in the scene, away from the as-modelled frame, " +
+      "selects its row under blade and opens blade",
+      picked.subject === "blade" && picked.open && picked.shown);
+    const elsewhere = await page.evaluate((f) => {
+      const keys = window.__scene.drawnOccurrenceKeys(f.armSha).filter((k) => k !== f.armKey);
+      window.__scene.onPartHover({ sha256: f.armSha, faceId: 0, key: keys[0] });
+      const lit = [...document.querySelectorAll("#sweep-tree .is-scene-hover")].length;
+      window.__scene.onPartHover({ sha256: f.armSha, faceId: 0, key: f.armKey });
+      const mine = [...document.querySelectorAll("#sweep-tree .part-row.is-scene-hover")]
+        .map((n) => n.dataset.subject);
+      window.__scene.onPartHover(null);
+      return { lit, mine, after: document.querySelectorAll("#sweep-tree .is-scene-hover").length };
+    }, facts);
+    push("[real] the pointer resting on blade 1's pitch arm emphasises its row under blade; " +
+      "on a pitch arm no body carries, nothing",
+      elsewhere.lit === 0 && elsewhere.mine.join() === "blade" && elsewhere.after === 0);
+    await page.evaluate(() => window.__scene.onPick(null));
+
+    // --- 4. hiding a body hides its occurrences, not every repeat ------------
+    const drawnOf = () => page.evaluate((f) => {
+      const scene = window.__scene;
+      const blade = window.__sweep.occurrences.blade.filter((o) => scene.parts.has(o.sha256));
+      const nodes = (sha) => scene._occurrenceNodes(sha);
+      return {
+        arm: nodes(f.armSha).filter((n) => n.visible).length,
+        armHiddenIsBlade1: nodes(f.armSha).filter((n) => !n.visible).map((n) => n.userData.key).join() === f.armKey,
+        blade: blade.filter((o) => scene.isOccurrenceVisible(o.sha256, o.key)).length,
+        of: blade.length,
+        checkbox: document.querySelector('#sweep-tree [data-body="blade"] > summary input').checked,
+      };
+    }, facts);
+    if (RAIL_SCENE_SHOTS) await page.screenshot({ path: join(RAIL_SCENE_SHOTS, "1_blade_shown.png") });
+    const before = await drawnOf();
+    await page.locator('#sweep-tree [data-body="blade"] > summary input').click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    if (RAIL_SCENE_SHOTS) await page.screenshot({ path: join(RAIL_SCENE_SHOTS, "2_blade_hidden.png") });
+    const after = await drawnOf();
+    push("[real] unticking blade hides blade 1 and its pitch arm; the other four pitch arms stay",
+      before.arm === 5 && before.blade === before.of && before.checkbox &&
+      after.arm === 4 && after.armHiddenIsBlade1 && after.blade === 0 && !after.checkbox);
+    await page.evaluate(() => window.AnnotateApp.exec(["seek", "#10"]));
+    push("[real] ...and it stays hidden as the sweep moves", (await drawnOf()).arm === 4);
+    await page.locator('#sweep-tree [data-body="blade"] > summary input').click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(200);
+    push("[real] ticking it again brings both back", (await drawnOf()).arm === 5);
+
+    // --- 5. the type chips ----------------------------------------------------
+    const kinds = () => page.evaluate(() => {
+      const shown = (sel) => [...document.querySelectorAll(sel)].some((n) => n.getClientRects().length > 0);
+      return { bodies: shown('#sweep-tree [data-group="bodies"]'),
+        joints: shown('#sweep-tree [data-group="joints"]'),
+        features: shown("#sweep-tree .tree-row[data-feature]"),
+        contributors: shown('#sweep-tree [data-group="contributors"]') };
+    });
+    const all = await kinds();
+    const chips = ["bodies", "features", "contributors", "joints"];
+    let hidesOnlyItsOwn = true;
+    for (const kind of chips) {
+      await page.locator(`#sweep-tree .an__tree-chip[data-kind="${kind}"]`).click({ timeout: 5000 }).catch(() => {});
+      const k = await kinds();
+      if (k[kind]) hidesOnlyItsOwn = false;
+      if (kind === "bodies" && (!k.joints || !k.contributors)) hidesOnlyItsOwn = false;
+    }
+    const none = await kinds();
+    const remembered = await page.evaluate(() =>
+      localStorage.getItem(window.AnnotateApp.PREF_KEYS.sweepRowKinds));
+    for (const kind of chips) {
+      await page.locator(`#sweep-tree .an__tree-chip[data-kind="${kind}"]`).click({ timeout: 5000 }).catch(() => {});
+    }
+    const back = await kinds();
+    push("[real] each type chip hides its row kind and only that, the choice is remembered, " +
+      "and pressing it again restores it",
+      all.bodies && all.joints && all.features && all.contributors && hidesOnlyItsOwn &&
+      !none.bodies && !none.joints && !none.contributors &&
+      JSON.parse(remembered || "[]").length === 4 &&
+      back.bodies && back.joints && back.features && back.contributors);
+
+    // --- 6. a gap contributor's alert says what resolves it -------------------
+    const popFor = async (edge) => {
+      await page.locator(`#sweep-tree .tree-row[data-edge="${edge}"] .alertbadge`).hover({ timeout: 5000 }).catch(() => {});
+      return page.evaluate(() => {
+        const pop = document.getElementById("alert-pop");
+        return pop && pop.style.display !== "none" ? pop.textContent : "";
+      });
+    };
+    const tan = await popFor("tan_link_length");
+    const attach = await popFor("pitch_plate_tan_link_attach_radius");
+    push("[real] the tangential link's gap badge opens a popup naming 212956-005 and Pick",
+      tan.indexOf("212956-005") !== -1 && tan.indexOf("Pick") !== -1 && tan.indexOf("No band") !== -1);
+    push("[real] the attach radius's gap badge opens a popup naming 215177-001 and Pick",
+      attach.indexOf("215177-001") !== -1 && attach.indexOf("Pick") !== -1);
+
+    // --- the frame-rate cost of a hover, measured, never checked --------------
+    // Drawn frames per second while the sweep plays, with nothing hovered and
+    // with the base body (the 286-solid hub) lit: the lesson's figure.
+    const rate = (command) => page.evaluate(async (cmd) => {
+      const AA = window.AnnotateApp;
+      await AA.exec(cmd);
+      await AA.exec(["play"]);
+      const n0 = window.__scene.renderCount, t0 = performance.now();
+      await new Promise((r) => setTimeout(r, 3000));
+      const fps = (window.__scene.renderCount - n0) / ((performance.now() - t0) / 1000);
+      await AA.exec(["pause"]);
+      await AA.exec(["hover", "clear"]);
+      return fps;
+    }, command);
+    await leave();
+    const plain = await rate(["hover", "clear"]);
+    const lit = await rate(["hover", "body", "base"]);
+    console.log(`[${label}] playing P2: ${plain.toFixed(1)} drawn fps with nothing hovered, ` +
+      `${lit.toFixed(1)} with the base body hovered`);
+
+    // --- 7. leaving puts every occurrence back --------------------------------
+    // The pitch arm stays loaded past `sweep off` only if the sweep did not
+    // open it, so it is taken off that list: the case of a part the reader
+    // had open before the sweep, which is the case the put-back is for.
+    await page.evaluate((f) => {
+      window.__sweep.openedBySweep = window.__sweep.openedBySweep.filter((s) => s !== f.armSha);
+      return window.AnnotateApp.exec(["hide-body", "blade"]);
+    }, facts);
+    await page.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
+    const restored = await page.evaluate((f) => ({
+      loaded: window.__scene.parts.has(f.armSha),
+      hidden: window.__scene.parts.has(f.armSha)
+        ? window.__scene._occurrenceNodes(f.armSha).filter((n) => !n.visible).length : -1,
+      hover: window.__scene.hoverState().overlays,
+    }), facts);
+    push("[real] leaving sweep mode puts back every occurrence a body checkbox hid and takes the hover down",
+      restored.loaded && restored.hidden === 0 && restored.hover === 0);
+
+    push("[real] nothing above produced an uncaught error", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
 // --- the annotator's rail: scoped to one element, and a face that can be
 // deselected (handoff flyout_resize_annotator_filter_and_deselect, 2 and 3) ---
 //
@@ -9095,6 +9383,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateRail(browser, label)],
       ["annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)", (label) =>
         testAnnotateSweepRail(browser, label, topologies)],
+      ["annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)", (label) =>
+        testAnnotateRailAndScene(browser, label, topologies)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>
         testAnnotateHostedPosture(browser, label)],
       ["annotate top bar + entry context (auto-filter, see-through)", (label) =>

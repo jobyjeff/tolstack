@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "expect_red": "[real] hovering the pitch_plate body lights every one of its drawn occurrences",
+  "mutations": [
+    {
+      "contract": "A body's hover lights every occurrence it carries, its carried bushings included.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Lighting only the first occurrence drops everything carried inside the plate.",
+      "file": "apps/annotate/app.js",
+      "find": "    spec.occurrences = subjectOccurrences(target.name);",
+      "replace": "    spec.occurrences = subjectOccurrences(target.name).slice(0, 1);"
+    }
+  ]
+}

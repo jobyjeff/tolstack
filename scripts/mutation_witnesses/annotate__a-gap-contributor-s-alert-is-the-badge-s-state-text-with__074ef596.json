@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a gap contributor's alert is the badge's {state, text} with its gap, the drawings to read and Pick",
+  "mutations": [
+    {
+      "contract": "A contributor's alert ends by saying what its row's Pick does.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "The pre-handoff popup offered nothing that resolves the alert.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    text += \" \" + AA.CONTRIBUTOR_ALERT_WORDS.pick;",
+      "replace": "    text += \"\";"
+    }
+  ]
+}

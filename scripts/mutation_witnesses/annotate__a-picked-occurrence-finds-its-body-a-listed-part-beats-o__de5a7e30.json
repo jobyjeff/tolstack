@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a picked occurrence finds its body; a listed part beats one carried inside another; an occurrence no body was placed at finds none",
+  "mutations": [
+    {
+      "contract": "A pick resolves to the subject a part is LISTED on before one it is carried inside.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Without the carried test the first matching row wins, which is the plate's carried bushing.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (row.state !== \"carried\") return row.subject;",
+      "replace": "      return row.subject;"
+    }
+  ]
+}
