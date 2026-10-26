@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
       "note": "The selection stays in state; only the scene stops showing it, which is what the check reads off the bead.",
       "file": "apps/annotate/scene.js",
-      "find": "      bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);",
-      "replace": "      bead.scale.setScalar(1);"
+      "find": "      bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE\n",
+      "replace": "      bead.scale.setScalar(on ? 1\n"
     }
   ]
 }

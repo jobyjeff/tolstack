@@ -5964,23 +5964,33 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
         armDrawn: armRow ? window.__scene.drawnOccurrenceKeys(armRow.sha256).length : 0,
       };
     });
-    for (const body of ["base", "pitch_plate", "blade"]) {
+    // One literal name per body, so each is a guard a witness can name.
+    const bodyLit = async (body) => {
       const h = await hoverRow(`#sweep-tree [data-body="${body}"] > summary`);
-      push(`[real] hovering the ${body} body lights every one of its drawn occurrences and ` +
-        "nothing else", facts.occurrences[body] > 0 && h.overlays >= 1 &&
-        h.occurrences === facts.occurrences[body]);
-      if (body === "blade") {
-        const arms = h.keys.filter((k) => k.sha256 === facts.armSha);
-        push("[real] ...and on blade it is blade 1's pitch arm, one of the five drawn",
-          facts.armDrawn === 5 && arms.length === 1 && arms[0].key === facts.armKey);
-      }
-    }
+      return { h, ok: facts.occurrences[body] > 0 && h.overlays >= 1 &&
+        h.occurrences === facts.occurrences[body] };
+    };
+    push("[real] hovering the base body lights every one of its drawn occurrences",
+      (await bodyLit("base")).ok);
+    push("[real] hovering the pitch_plate body lights every one of its drawn occurrences",
+      (await bodyLit("pitch_plate")).ok);
+    const blade = await bodyLit("blade");
+    push("[real] hovering the blade body lights every one of its drawn occurrences", blade.ok);
+    const arms = blade.h.keys.filter((k) => k.sha256 === facts.armSha);
+    push("[real] ...and on blade it is blade 1's pitch arm, one of the five drawn",
+      facts.armDrawn === 5 && arms.length === 1 && arms[0].key === facts.armKey);
     await leave();
     push("[real] the pointer leaving a row takes the hover down", (await hovered()).overlays === 0);
     let jointsLit = 0;
     for (const joint of facts.joints) {
       const h = await hoverRow(`#sweep-tree [data-joint="${joint}"] > summary`);
-      if (h.joint === joint) jointsLit++;
+      // Read off the bead the scene DREW, against a joint not hovered.
+      const scale = await page.evaluate((j) => {
+        const beads = window.__scene._sweep.joints;
+        const other = [...beads.keys()].find((k) => k !== j);
+        return beads.get(j).scale.x / beads.get(other).scale.x;
+      }, joint);
+      if (h.joint === joint && scale > 1.2) jointsLit++;
     }
     push("[real] hovering each joint draws its bead larger", jointsLit === facts.joints.length &&
       jointsLit === 5);
@@ -5991,11 +6001,10 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
     const feature = await hoverRow('#sweep-tree .tree-row[data-feature="pitch_link_length"]');
     push("[real] hovering a bound feature lights both of its faces", feature.faces === 2 &&
       feature.overlays > 0);
-    const tintKept = await page.evaluate(() => {
-      const f = window.__lastInspect;
-      return f && f.kind === "joint";
-    });
-    push("[real] a hover leaves the selection where it was", tintKept);
+    // pitch_link was opened (selected) above; a hover over one of its rows
+    // must leave its bead drawn as the selected one.
+    push("[real] a hover leaves the selection where it was",
+      await page.evaluate(() => window.__scene.sweepEmphasis() === "pitch_link"));
     const edges = await page.evaluate(() => [...document.querySelectorAll(
       '#sweep-tree [data-group="contributors"] .tree-row')].map((n) => n.dataset.edge));
     let contributorsLit = 0;
@@ -6143,15 +6152,22 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
       `${lit.toFixed(1)} with the base body hovered`);
 
     // --- 7. leaving puts every occurrence back --------------------------------
-    await page.evaluate(() => window.AnnotateApp.exec(["hide-body", "blade"]));
+    // The pitch arm stays loaded past `sweep off` only if the sweep did not
+    // open it, so it is taken off that list: the case of a part the reader
+    // had open before the sweep, which is the case the put-back is for.
+    await page.evaluate((f) => {
+      window.__sweep.openedBySweep = window.__sweep.openedBySweep.filter((s) => s !== f.armSha);
+      return window.AnnotateApp.exec(["hide-body", "blade"]);
+    }, facts);
     await page.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
     const restored = await page.evaluate((f) => ({
-      arm: window.__scene.parts.has(f.armSha)
-        ? window.__scene._occurrenceNodes(f.armSha).filter((n) => !n.visible).length : 0,
+      loaded: window.__scene.parts.has(f.armSha),
+      hidden: window.__scene.parts.has(f.armSha)
+        ? window.__scene._occurrenceNodes(f.armSha).filter((n) => !n.visible).length : -1,
       hover: window.__scene.hoverState().overlays,
     }), facts);
     push("[real] leaving sweep mode puts back every occurrence a body checkbox hid and takes the hover down",
-      restored.arm === 0 && restored.hover === 0);
+      restored.loaded && restored.hidden === 0 && restored.hover === 0);
 
     push("[real] nothing above produced an uncaught error", errors.length === 0);
     return reportSuite(label, checks, errors);

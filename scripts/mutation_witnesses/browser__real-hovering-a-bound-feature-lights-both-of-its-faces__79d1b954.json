@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "expect_red": "[real] hovering a bound feature lights both of its faces",
+  "mutations": [
+    {
+      "contract": "An edge feature's hover lights both ends' faces.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Narrowing to one end drops the other.",
+      "file": "apps/annotate/app.js",
+      "find": "        [{ edgeId: target.name, direction: target.direction }], isOpen);",
+      "replace": "        [{ edgeId: target.name, direction: \"from\" }], isOpen);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "expect_red": "[real] unticking blade hides blade 1 and its pitch arm; the other four pitch arms stay",
+  "mutations": [
+    {
+      "contract": "A node is drawn only when its part is shown and its key is not hidden.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Without the key test a body checkbox hides nothing.",
+      "file": "apps/annotate/scene.js",
+      "find": "      node.visible = shown && !(node.userData.key != null && hidden.has(node.userData.key));",
+      "replace": "      node.visible = shown;"
+    }
+  ]
+}

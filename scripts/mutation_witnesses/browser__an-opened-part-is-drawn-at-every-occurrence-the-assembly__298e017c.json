@@ -8,7 +8,7 @@
       "issue": "docs/issues/ISSUE_20261014_the_annotators_placement_wiring_can_be_deleted_green_in_every_gated_tier.md",
       "note": "The scene asks placementsFor once per part; returning null is the part drawn once at its own origin, which is the pre-2026-10-14 picture and what deleting the wiring leaves. Only apps/annotate/run_browser_check.mjs, which no gate runs, saw this before the checks were ported into the gated annotate rail suite.",
       "file": "apps/annotate/app.js",
-      "find": "    return rest.placements.length ? rest.placements : null;",
+      "find": "    return rest.placements.length ? { placements: rest.placements, keys: rest.keys } : null;",
       "replace": "    return null;"
     }
   ]

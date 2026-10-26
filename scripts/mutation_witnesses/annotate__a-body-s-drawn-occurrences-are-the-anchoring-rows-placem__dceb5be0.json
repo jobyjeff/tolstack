@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a body's drawn occurrences are the anchoring rows' placements, keyed, each once",
+  "mutations": [
+    {
+      "contract": "A body's occurrence list names each (mesh, key) once, however many rows repeat it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "A duplicate would hide or hover one occurrence twice and miscount the body's checkbox.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        if (!known) list.push({ sha256: row.sha256, key: p.key });",
+      "replace": "        list.push({ sha256: row.sha256, key: p.key });"
+    }
+  ]
+}

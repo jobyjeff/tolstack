@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "expect_red": "[real] the pointer leaving a row takes the hover down",
+  "mutations": [
+    {
+      "contract": "Leaving a rail row clears the hover.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "A hover that never leaves stays lit after the pointer has gone.",
+      "file": "apps/annotate/app.js",
+      "find": "  node.addEventListener(\"mouseleave\", () => { railExec([\"hover\", \"clear\"], null); });",
+      "replace": "  node.addEventListener(\"mouseleave\", () => {});"
+    }
+  ]
+}
