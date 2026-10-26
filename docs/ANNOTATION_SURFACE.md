@@ -533,6 +533,47 @@ flow on that edge, which is where the write boundary has always been. The tree
 is built on entering sweep mode and removed on leaving it, so the bind-mode
 rail is node for node what it was before the tree existed.
 
+### The rail and the scene point at each other (2026-10-26)
+
+- **One fact underneath: which drawn occurrence a rail subject is.** A body
+  (or a link) is drawn at the occurrences its parts were placed at — every
+  recorded occurrence for a ground body, the one that earned the placement for
+  a moving one, and everything carried inside it (`AA.sweepSubjectOccurrences`
+  over the anchoring rows). An occurrence is addressed by its **recorded key**,
+  the instance path the extraction wrote, never by its index in a drawn list:
+  the scene keeps a key on every drawn node (`placementsFor` and
+  `setPartMatrix` hand keys over beside the matrices), so an occurrence stays
+  itself whether it is drawn at rest or swept.
+- **Hover, row to scene.** The pointer resting on a body, part, joint,
+  feature or contributor row lights its thing in one pale hover tint — drawn
+  *over* the part, never into its colour buffer, so a picked face keeps its
+  tint through any number of hovers (the `hover` verb). A body lights its
+  parts at its own occurrences; a part row inside a body, that body's
+  occurrence only; a joint, its bead and its bound faces; a contributor, the
+  faces bound at its edge's two ends, or the edge's parts where none is
+  bound.
+- **Picking, scene to rail.** A click in sweep mode selects in the rail at
+  any frame (`inspect part`): the part's row inside the body it was picked on,
+  and every feature row the face is bound to; a bead selects its joint.
+  Selecting writes nothing, so it is not the frame rule's business — binding
+  stays gated to the as-modelled pose, and a click away from it still pulses
+  the gate line. The pointer resting on a part emphasises its row.
+- **Visibility per body.** Each body (and link) row has a checkbox that shows
+  or hides the occurrences that body is drawn at and no other
+  (`show-body` / `hide-body`): hiding `blade` on P2 hides blade 1 and its
+  pitch arm, and the other four pitch arms stay. A part row inside a body is
+  scoped the same way. The parts panel's row is still the mesh — every
+  occurrence — and says how many (`×5`). Everything a rail checkbox hid comes
+  back when sweep mode ends.
+- **What defines a joint.** A feature row's second line names its bound face
+  (`face 110 of 214698-002`, the sha on hover) or says `no face bound`.
+  Contributor rows carry the same **Pick** / **Re-pick** jump as feature rows,
+  and a gap contributor's alert says the gap, the drawing(s) of the edge's
+  parts to read, and what Pick does.
+- **A type filter.** Chips above the tree — bodies · joints · surfaces ·
+  contributors — hide row kinds from the list. A view filter: what is listed,
+  never what is drawn or what the run's context is; remembered per browser.
+
 ## What this MVP does not build
 
 - **Measurement from geometry.** Explicitly out of scope by the brief's

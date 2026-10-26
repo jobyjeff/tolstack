@@ -63,3 +63,30 @@ DATA_MOUNT serves `data/projections/` today; whether it also serves
 `data/meshes/` needs checking on that side first — if it does not, that is
 the real blocker and this issue becomes partly a drawing-checker mount
 decision.
+
+> **Addendum, 2026-10-26 (handoff `the_rail_and_the_scene_point_at_each_other`,
+> deliverable 7 — not built there).** Jeff's fresh-profile 3D pane on
+> `http://127.0.0.1:8000/tolstack/viewer/topology.html?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops`
+> showed **Connect folder** and never entered sweep mode, because this issue is
+> still open: the annotator has no read transport but FSA. Measured on that
+> origin the same day, with `curl`:
+>
+> | path under `/tolstack/` | status | what the annotator reads it for |
+> |---|---|---|
+> | `data/topologies.json` | 200 | the topology projection |
+> | `data/kinematic/kinematic_studies.json` | 200 | the study's contributors |
+> | `data/meshes/<sha>/manifest.json` | 200 | the meshes (so the drawing-checker half the shape above worried about is done) |
+> | `data/inbox/linkage-sweeps/<run>.json`, `data/linkage-sweeps/<run>.json` | 404 | **the sweep run itself** |
+> | `data/feature-identity/bindings.json` | 404 | bindings (absent is legal: nothing bound) |
+> | `data/parts/names.json` | 404 | everyday part names (absent is legal) |
+>
+> So sweep mode with no grant needs two halves: this transport on the
+> annotator side, and a drawing-checker mount that publishes
+> `data/inbox/linkage-sweeps/` (and ideally the feature-identity and
+> part-names projections) beside the viewer projection. Without the second,
+> an HTTP adapter can read everything but the run and still cannot enter sweep
+> mode. A run listing has a source already: `kinematic_studies.json` carries
+> each model's runs (`run_id`, `ts`, `mechanism`). The queued-command gate the
+> handoff named ("waits only for a verb that writes") follows once a read
+> transport exists; today every command waits on `loadAll()`, which waits on
+> the grant because nothing else can read.
