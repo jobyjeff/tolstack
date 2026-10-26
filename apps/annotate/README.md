@@ -207,8 +207,8 @@ a scope decision this handoff did not have, and it is filed.
 | verb | does |
 |---|---|
 | `open-part <mesh-id\|part>` | loads a mesh (sha256 or its `provenance.json` `part_id`) and shows it |
-| `show <part>` | same as `open-part` — a part never opened is opened and shown |
-| `hide <part>` | hides an open part (`.visible = false`; not unloaded, so re-showing is instant) |
+| `show <part> [<body>]` | same as `open-part` — a part never opened is opened and shown; with a body (sweep mode), shows only the occurrence(s) that body is drawn at |
+| `hide <part> [<body>]` | hides an open part (`.visible = false`; not unloaded, so re-showing is instant); with a body (sweep mode), only the occurrence(s) that body is drawn at |
 | `isolate <part…>` | shows only the named part(s), hiding every other open part; opens any not yet loaded; frames the camera on them. `isolate off` puts the view back exactly as it was before the first isolate or ghost — the panel's **Isolate** button is this toggle |
 | `ghost <part…>` | `isolate`'s translucent twin (handoff `study_3d_flyout`): shows only the named part(s), rendered ghosted, so opaque `mark-face` overlays trace a chain over them. `ghost off` is `isolate off` |
 | `show-all` / `hide-all` | draw or hide every part in the model (the panel's header checkbox, which is unchecked, checked or mixed to match the rows below it) |
@@ -234,7 +234,9 @@ a scope decision this handoff did not have, and it is filed.
 | `seek <mm\|#index>` | moves the scrubber — a driver value in the run's own unit, or `#` and a point index. Clamped at both ends, never extrapolated |
 | `step <±n>` | moves by whole points from the nearest one. The arrow keys do the same |
 | `loop <off\|on\|pingpong>` | once, repeat, or out and back (the default) |
-| `inspect <joint\|contributor> <name>` / `inspect clear` | the sweep rail's selection, in sweep mode only: a joint's bead is drawn larger in the pick tint; a contributor tints its feature's bound face — both ends, for a length. Writes nothing; `clear` lets it go |
+| `inspect <joint\|contributor> <name>` / `inspect part <mesh> <face> [<body>]` / `inspect clear` | the sweep rail's selection, in sweep mode only: a joint's bead is drawn larger in the pick tint; a contributor tints its feature's bound face — both ends, for a length. `part` is a face picked in the scene, at any frame: its row is selected inside the body it was picked on (that body opened), and so is every feature row the face is bound to (their joint opened). Writes nothing; `clear` lets it go |
+| `hover <body\|joint\|contributor> <name>` / `hover part <mesh> [<body>]` / `hover feature <edge> [from\|to]` / `hover clear` | what a sweep-rail row lights while the pointer rests on it, in one pale hover tint drawn over the part (never into its colours, so a picked face keeps its tint): a body's parts at the occurrences the mechanism draws them at; a part at its body's occurrence (every occurrence with no body); a joint's bead and its bound faces; a feature's bound face; a contributor's bound faces at both ends of its edge, or its edge's parts when none is bound. Sweep mode only; writes nothing |
+| `show-body <body>` / `hide-body <body>` | a sweep-rail body's (or link's) checkbox: shows or hides every occurrence that body is drawn at and no other — hiding `blade` hides blade 1 and its pitch arm, never the other four. Put back on leaving sweep mode |
 | `layer <stick\|bodies\|trail\|ghost> [on\|off]` | what is drawn; no argument toggles. The same four as the **Display** boxes in sweep mode, written from one vocabulary |
 
 `resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and

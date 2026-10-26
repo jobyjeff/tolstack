@@ -44,6 +44,20 @@ const GHOST_OPACITY = 0.22;
 // run_tests.cjs pairs `suggested` against that stylesheet's own `--accent`
 // declaration, so the two cannot drift.
 const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };
+// THE HOVER TINT (handoff the_rail_and_the_scene_point_at_each_other): what
+// the pointer resting on a sweep-rail row lights -- a whole part at one
+// occurrence, a bound face, a joint's bead. A pale wash drawn OVER the part
+// (an overlay, never the colour buffer), so it is the lighter emphasis the
+// accent rule asks for (selection keeps the pick orange and the accent blue,
+// docs/DESIGN_TYPE_AND_COLOUR.md) and it can never take a picked face's tint
+// down when it leaves. Neutral, not a state hue: it says "this one", nothing
+// about provenance.
+const HOVER_COLOR = 0xfff4d6;
+const HOVER_OPACITY = 0.45;
+const HOVER_RENDER_ORDER = 5;
+// How much larger a hovered joint's bead is drawn: less than the selected
+// joint's SWEEP_EMPHASIS_SCALE, for the same reason the tint is pale.
+const SWEEP_HOVER_SCALE = 1.4;
 const DEFAULT_MARK_ROLE = "bound";
 // The bind leader (setBindLeader): drawn after the parts and the marks, and
 // its labels after its line. The label's text size is in CSS px; the
@@ -208,7 +222,9 @@ export class AnnotateScene {
       if (!at) return;
       const ndcX = ((at.x - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((at.y - rect.top) / rect.height) * 2 + 1;
-      this.onPick(this.pick(ndcX, ndcY));
+      // In sweep mode a bead under the pointer is handed over too: a click
+      // on a joint selects the joint (the rail's side of it is app.js's).
+      this.onPick(this.pick(ndcX, ndcY), this._sweep ? this.sweepHover(ndcX, ndcY) : null);
     });
     canvas.addEventListener("pointercancel", (ev) => {
       pointersDown.delete(ev.pointerId);
@@ -216,7 +232,9 @@ export class AnnotateScene {
     });
 
     // Overridable by the app: called with {sha256, faceId, record,
-    // occurrence} on a successful pick, null on a miss into empty space.
+    // occurrence, key} on a successful pick, null on a miss into empty
+    // space -- and, in sweep mode, with the joint bead under the pointer
+    // (sweepHover's answer, or null) as the second argument.
     this.onPick = function () {};
 
     // Overridable by the app: where a part sits in the assembly, as a list
@@ -236,15 +254,34 @@ export class AnnotateScene {
     // over 1.4 million triangles of anchored assembly, at pointer rate, is the
     // one thing that would make this mode feel slow.
     this.onSweepHover = function () {};
+    // ...and, in sweep mode, the PART under a pointer that has come to rest
+    // (handoff the_rail_and_the_scene_point_at_each_other: hovering a mesh
+    // emphasises its rail row). The parts raycast is the expensive one the
+    // note above keeps off the pointer rate, so it runs once per settle --
+    // PART_HOVER_SETTLE_MS after the last move -- and never during a drag.
+    this.onPartHover = function () {};
+    this._partHoverTimer = null;
     this.renderer.domElement.addEventListener("pointermove", (ev) => {
       if (!this._sweep) return;
       const rect = this.renderer.domElement.getBoundingClientRect();
       const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
       this.onSweepHover(this.sweepHover(ndcX, ndcY), ev);
+      if (this._partHoverTimer) clearTimeout(this._partHoverTimer);
+      this._partHoverTimer = null;
+      if (ev.buttons) return;
+      this._partHoverTimer = setTimeout(() => {
+        this._partHoverTimer = null;
+        if (this._sweep) this.onPartHover(this.pick(ndcX, ndcY));
+      }, AnnotateScene.PART_HOVER_SETTLE_MS);
     });
     this.renderer.domElement.addEventListener("pointerleave", () => {
-      if (this._sweep) this.onSweepHover(null, null);
+      if (this._partHoverTimer) clearTimeout(this._partHoverTimer);
+      this._partHoverTimer = null;
+      if (this._sweep) {
+        this.onSweepHover(null, null);
+        this.onPartHover(null);
+      }
     });
 
     // The canvas follows its host box. Until 2026-09-21 the renderer was sized
@@ -371,6 +408,18 @@ export class AnnotateScene {
       // sweep has put in its place for now (null: nothing).
       rest: null,
       override: null,
+      // The recorded occurrence KEY of each placement above, index for
+      // index (null where the caller named none) -- how one occurrence is
+      // addressed for visibility and hover, whichever list is being drawn.
+      restKeys: null,
+      overrideKeys: null,
+      // The part's own show/hide (`setVisible`), and the occurrences hidden
+      // on their own (`setOccurrencesVisible`), kept apart so neither undoes
+      // the other: a node is drawn when the part is shown AND its key is not
+      // hidden.
+      shown: true,
+      hiddenKeys: new Set(),
+      key: null,
     };
     // Placed BEFORE it joins the scene: the side-by-side row this replaced
     // put every part somewhere first and nowhere meaningful, and a part that
@@ -378,7 +427,12 @@ export class AnnotateScene {
     // defect for one frame.
     let rest = null;
     try { rest = await this.placementsFor(sha256); } catch (err) { rest = null; }
+    // A list of placements, or {placements, keys} naming each one's
+    // recorded occurrence.
+    const restKeys = rest && !Array.isArray(rest) ? rest.keys || null : null;
+    if (rest && !Array.isArray(rest)) rest = rest.placements;
     mesh.userData.rest = rest && rest.length ? rest : null;
+    mesh.userData.restKeys = mesh.userData.rest ? restKeys : null;
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
     this._drawAt(sha256);
@@ -398,6 +452,7 @@ export class AnnotateScene {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;
     this._disposeMarks((m) => m.sha256 === sha256);
+    this._disposeHoverOf(sha256);
     for (const repeat of this._repeats.get(sha256) || []) this.scene.remove(repeat);
     this._repeats.delete(sha256);
     this.scene.remove(mesh);
@@ -414,13 +469,57 @@ export class AnnotateScene {
   // no removal, no geometry disposal, so a re-`show` is instant. A part's
   // bound-face marks follow its visibility for free -- they are children of
   // the occurrence they sit on -- and so does every repeat, here.
+  //
+  // The PART's flag. One occurrence on its own is setOccurrencesVisible's,
+  // and the two are kept apart (see `shown` / `hiddenKeys` in loadPart), so
+  // showing a part never re-shows an occurrence a body checkbox hid.
   setVisible(sha256, visible) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
-    mesh.visible = !!visible;
-    for (const repeat of this._repeats.get(sha256) || []) repeat.visible = mesh.visible;
+    if (mesh.userData.shown === !!visible) return true;
+    mesh.userData.shown = !!visible;
+    this._applyVisibility(sha256);
     this.requestRender();
     return true;
+  }
+
+  // Hide or show SOME occurrences of a part, by their recorded keys (handoff
+  // the_rail_and_the_scene_point_at_each_other, deliverable 3): a body's
+  // checkbox hides the one pitch arm blade 1 carries and leaves the four the
+  // run does not move. A key this part is not drawn at is remembered anyway,
+  // so it applies the moment a sweep or a rest list draws it.
+  setOccurrencesVisible(sha256, keys, visible) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return false;
+    for (const key of keys || []) {
+      if (visible) mesh.userData.hiddenKeys.delete(key);
+      else mesh.userData.hiddenKeys.add(key);
+    }
+    this._applyVisibility(sha256);
+    this.requestRender();
+    return true;
+  }
+
+  // Is this occurrence drawn? The part shown and the key not hidden.
+  isOccurrenceVisible(sha256, key) {
+    const mesh = this.parts.get(sha256);
+    return !!mesh && mesh.userData.shown && !mesh.userData.hiddenKeys.has(key);
+  }
+
+  // Every drawn node's key, in draw order -- the read side a test uses to
+  // see which occurrence is which rather than trust it.
+  drawnOccurrenceKeys(sha256) {
+    return this._occurrenceNodes(sha256).map((node) => node.userData.key);
+  }
+
+  _applyVisibility(sha256) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return;
+    const shown = mesh.userData.shown;
+    const hidden = mesh.userData.hiddenKeys;
+    for (const node of this._occurrenceNodes(sha256)) {
+      node.visible = shown && !(node.userData.key != null && hidden.has(node.userData.key));
+    }
   }
 
   // --- where a part is drawn (handoff parts_sit_where_the_assembly_puts_them)
@@ -434,11 +533,12 @@ export class AnnotateScene {
 
   // Where the assembly puts a part, replacing whatever was recorded before.
   // null is "nothing records a position": its own origin.
-  setRestPlacements(sha256, placements) {
+  setRestPlacements(sha256, placements, keys) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
     const list = normalisePlacements(placements);
     mesh.userData.rest = list;
+    mesh.userData.restKeys = list ? keys || null : null;
     this._drawAt(sha256);
     return true;
   }
@@ -460,8 +560,12 @@ export class AnnotateScene {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;
     const list = mesh.userData.override || mesh.userData.rest || [OWN_ORIGIN];
+    const keys = (mesh.userData.override ? mesh.userData.overrideKeys
+      : (mesh.userData.rest ? mesh.userData.restKeys : null)) || [];
     applyPlacement4(mesh, list[0]);
-    this._setRepeats(sha256, mesh, list.slice(1));
+    mesh.userData.key = keys[0] == null ? null : keys[0];
+    this._setRepeats(sha256, mesh, list.slice(1), keys.slice(1));
+    this._applyVisibility(sha256);
     this.requestRender();
   }
 
@@ -469,7 +573,7 @@ export class AnnotateScene {
   // rather than rebuilt from it: a playing sweep calls this sixty times a
   // second, and allocating a THREE.Mesh per frame is the one thing here that
   // would show up as a frame rate.
-  _setRepeats(sha256, mesh, placements) {
+  _setRepeats(sha256, mesh, placements, keys) {
     const mine = this._repeats.get(sha256) || [];
     const before = mine.length;
     while (mine.length > placements.length) {
@@ -492,11 +596,14 @@ export class AnnotateScene {
       mine.push(repeat);
     }
     placements.forEach((placement, i) => {
-      mine[i].visible = mesh.visible;
+      mine[i].userData.key = keys && keys[i] != null ? keys[i] : null;
       applyPlacement4(mine[i], placement);
     });
     this._repeats.set(sha256, mine);
-    if (mine.length !== before) this._syncMarks(sha256);
+    if (mine.length !== before) {
+      this._syncMarks(sha256);
+      this._syncHover(sha256);
+    }
   }
 
   // Ghost rendering (handoff study_3d_flyout): the whole part goes translucent
@@ -605,7 +712,7 @@ export class AnnotateScene {
 
   isVisible(sha256) {
     const mesh = this.parts.get(sha256);
-    return !!(mesh && mesh.visible);
+    return !!(mesh && mesh.userData.shown);
   }
 
   listOpenParts() {
@@ -673,9 +780,11 @@ export class AnnotateScene {
     // never its `.visible`, so a hidden part used to be pickable -- harmless
     // while parts sat in a row, and not now: hidden or not, a part drawn in
     // the assembly sits in front of the one a reader is aiming at.
+    // One occurrence hidden on its own (a body's checkbox) is not pickable
+    // either, so the node's own flag is the test.
     const meshes = [];
-    for (const [sha256, mesh] of this.parts) {
-      if (mesh.visible) meshes.push(...this._occurrenceNodes(sha256));
+    for (const [sha256] of this.parts) {
+      for (const node of this._occurrenceNodes(sha256)) if (node.visible) meshes.push(node);
     }
     const hits = this.raycaster.intersectObjects(meshes, false);
     if (!hits.length) return null;
@@ -686,6 +795,9 @@ export class AnnotateScene {
       faceId,
       record: hit.object.userData.manifest.faces[faceId],
       occurrence: hit.object.userData.occurrence || 0,
+      // The recorded occurrence it landed on (null where none is named):
+      // how a pick finds its body in the sweep rail.
+      key: hit.object.userData.key == null ? null : hit.object.userData.key,
     };
   }
 
@@ -767,6 +879,128 @@ export class AnnotateScene {
     attr.needsUpdate = true;
     this._lastPick = { sha256, faceId };
     this.requestRender();
+  }
+
+  // --- hover (handoff the_rail_and_the_scene_point_at_each_other) ------------
+  //
+  // What a sweep-rail row lights while the pointer rests on it, in ONE tint
+  // (HOVER_COLOR), as overlays: a whole part at the occurrences named, a
+  // face on every occurrence of its part (a binding is part-local), and a
+  // joint's bead a little larger. `spec` is {occurrences: [{sha256, key}],
+  // faces: [{sha256, faceId}], joint}; a key of null is every occurrence of
+  // that part. Replaces whatever was hovered; `clearHover()` takes it all
+  // down. Never touches the colour buffer, so the pick and an inspected
+  // contributor keep their tint through any number of hovers.
+  setHover(spec) {
+    this._disposeHover();
+    const s = spec || {};
+    this._hover = {
+      occurrences: (s.occurrences || []).slice(),
+      faces: (s.faces || []).slice(),
+      joint: s.joint || null,
+      meshes: [],
+      geometries: [],
+    };
+    if (!this._hoverMaterial) {
+      this._hoverMaterial = new THREE.MeshBasicMaterial({
+        color: HOVER_COLOR, transparent: true, opacity: HOVER_OPACITY,
+        depthWrite: false, side: THREE.DoubleSide,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      });
+    }
+    for (const sha of new Set(this._hover.occurrences.map((o) => o.sha256)
+      .concat(this._hover.faces.map((f) => f.sha256)))) this._syncHover(sha);
+    if (this._sweep) {
+      this._sweep.hoverJoint = this._hover.joint;
+      this.setSweepEmphasis(this._sweep.emphasis || null);
+    }
+    this.requestRender();
+    return this.hoverState();
+  }
+
+  clearHover() { return this.setHover(null); }
+
+  // What is hovered right now, as counts of what is DRAWN for it: a harness
+  // reads this rather than trusting that a row's mouseenter reached here.
+  hoverState() {
+    const h = this._hover;
+    if (!h) return { occurrences: 0, faces: 0, joint: null, overlays: 0, keys: [] };
+    return {
+      occurrences: h.occurrences.length,
+      faces: h.faces.length,
+      joint: h.joint,
+      overlays: h.meshes.filter((m) => m.parent).length,
+      keys: h.meshes.filter((m) => m.parent && m.userData.hoverKind === "part")
+        .map((m) => ({ sha256: m.userData.sha256, key: m.parent.userData.key })),
+    };
+  }
+
+  // One part's hover overlays, rebuilt: called by setHover and whenever the
+  // part's occurrence COUNT changes (_setRepeats), never per frame -- an
+  // overlay is a child of its occurrence and moves with it.
+  _syncHover(sha256) {
+    const h = this._hover;
+    if (!h) return;
+    const mesh = this.parts.get(sha256);
+    for (const old of h.meshes.filter((m) => m.userData.sha256 === sha256)) {
+      if (old.parent) old.parent.remove(old);
+    }
+    h.meshes = h.meshes.filter((m) => m.userData.sha256 !== sha256);
+    if (!mesh) return;
+    const nodes = this._occurrenceNodes(sha256);
+    const wanted = h.occurrences.filter((o) => o.sha256 === sha256);
+    for (const node of nodes) {
+      const lit = wanted.some((o) => o.key == null || o.key === node.userData.key);
+      if (!lit) continue;
+      const overlay = new THREE.Mesh(mesh.geometry, this._hoverMaterial);
+      overlay.renderOrder = HOVER_RENDER_ORDER;
+      overlay.userData = { sha256, hoverKind: "part" };
+      node.add(overlay);
+      h.meshes.push(overlay);
+    }
+    const AA = window.AnnotateApp;
+    for (const face of h.faces.filter((f) => f.sha256 === sha256)) {
+      const range = mesh.userData.faceRanges[face.faceId];
+      if (!range) continue;
+      const sub = AA.faceSubGeometry(mesh.geometry.attributes.position.array,
+        mesh.geometry.index.array, mesh.userData.faceIdPerTriangle, range, face.faceId);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(
+        sub.positions instanceof Float32Array ? sub.positions : new Float32Array(sub.positions), 3));
+      geometry.setIndex(sub.indices);
+      h.geometries.push(geometry);
+      for (const node of nodes) {
+        const overlay = new THREE.Mesh(geometry, this._hoverMaterial);
+        overlay.renderOrder = HOVER_RENDER_ORDER + 1;
+        overlay.userData = { sha256, hoverKind: "face" };
+        node.add(overlay);
+        h.meshes.push(overlay);
+      }
+    }
+  }
+
+  _disposeHover() {
+    const h = this._hover;
+    if (!h) return;
+    for (const m of h.meshes) if (m.parent) m.parent.remove(m);
+    for (const g of h.geometries) g.dispose();
+    this._hover = null;
+    if (this._sweep && this._sweep.hoverJoint) {
+      this._sweep.hoverJoint = null;
+      this.setSweepEmphasis(this._sweep.emphasis || null);
+    }
+  }
+
+  // A part leaving the scene takes its share of the hover with it.
+  _disposeHoverOf(sha256) {
+    const h = this._hover;
+    if (!h) return;
+    h.occurrences = h.occurrences.filter((o) => o.sha256 !== sha256);
+    h.faces = h.faces.filter((f) => f.sha256 !== sha256);
+    for (const m of h.meshes.filter((x) => x.userData.sha256 === sha256)) {
+      if (m.parent) m.parent.remove(m);
+    }
+    h.meshes = h.meshes.filter((x) => x.userData.sha256 !== sha256);
   }
 
   // --- the bind leader -------------------------------------------------------
@@ -867,7 +1101,7 @@ export class AnnotateScene {
   // is hidden, or a face the manifest has no centroid for.
   _drawnCentroid(sha256, faceId) {
     const mesh = this.parts.get(sha256);
-    if (!mesh || !mesh.visible) return null;
+    if (!mesh || !mesh.userData.shown) return null;
     const record = mesh.userData.manifest.faces[faceId];
     const c = record && record.centroid_native;
     if (!c) return null;
@@ -1032,7 +1266,8 @@ export class AnnotateScene {
     this.requestRender();
     for (const [name, bead] of this._sweep.joints) {
       const on = name === this._sweep.emphasis;
-      bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);
+      bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE
+        : (name === this._sweep.hoverJoint ? SWEEP_HOVER_SCALE : 1));
       if (on) bead.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
       else if (!this._sweep.warned) bead.material.color.copy(bead.userData.baseColor);
     }
@@ -1063,10 +1298,15 @@ export class AnnotateScene {
   // link carries two spherical bearings, one at each end, both the same
   // installed mesh -- and a pitch arm moved by the run at blade 1 still has
   // four more occurrences the run does not move.
-  setPartMatrix(sha256, placements) {
+  //
+  // `keys` names each placement's recorded occurrence, index for index, so
+  // an occurrence hidden or hovered by its key stays that one occurrence
+  // whichever list is drawn.
+  setPartMatrix(sha256, placements, keys) {
     const mesh = this.parts.get(sha256);
     if (!mesh || !this._sweep) return false;
     mesh.userData.override = normalisePlacements(placements);
+    mesh.userData.overrideKeys = mesh.userData.override ? keys || null : null;
     this._drawAt(sha256);
     this.requestRender();
     return true;
@@ -1190,6 +1430,11 @@ export class AnnotateScene {
   //: real P1 run.
   static get SWEEP_CONTEXT_RATIO() { return 6; }
 
+  // How long the pointer rests on the canvas before the parts under it are
+  // raycast for the rail's row emphasis (onPartHover). Long enough that a
+  // pointer crossing the view costs nothing; short enough to read as hover.
+  static get PART_HOVER_SETTLE_MS() { return 120; }
+
   // Frames the camera on the swept path TOGETHER WITH the bodies anchored
   // around it, which is not the same as either on its own: the path alone put
   // the camera inside the hub, and the parts alone move out of any box drawn
@@ -1209,8 +1454,8 @@ export class AnnotateScene {
     // are what the mechanism is read against. One OCCURRENCE at a time, so
     // a part repeated round the hub does not inflate into a hub-sized box.
     for (const [sha256, mesh] of this.parts) {
-      if (!mesh.visible) continue;
       for (const node of this._occurrenceNodes(sha256)) {
+        if (!node.visible) continue;
         const partBox = mesh.geometry.boundingBox.clone().applyMatrix4(node.matrix);
         const size = partBox.getSize(new THREE.Vector3());
         if (Math.max(size.x, size.y, size.z) > limit) continue;

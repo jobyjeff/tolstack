@@ -547,3 +547,28 @@ body {
 .tree-row__repick:hover, .tree-row__repick:focus { color: #e8e8e8; border-color: #4a515a; outline: none; }
 .tree-row:not(:hover):not(:focus-within) .tree-row__repick { visibility: hidden; }
 .part-row--missing { color: #9aa1ab; }
+/* A feature row's second line: the surface that defines it, muted. */
+.tree-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tree-row__face {
+  color: #9aa1ab; font-size: var(--t-micro);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* A part row standing for more than one drawn position: how many, muted. */
+.part-row__count { flex: none; color: #9aa1ab; font-size: var(--t-micro); font-variant-numeric: tabular-nums; }
+/* A body's own checkbox sits at the end of its summary line. */
+.an__tree-check { float: right; margin: 2px 0 0 6px; }
+/* What the scene's pointer rests on, in the rail: the lighter emphasis, a
+   background wash -- the outline and the spine are selection's. */
+.part-row.is-scene-hover, .tree-row.is-scene-hover { background: #2c3138; }
+.part-row.selected { outline: 2px solid #5b8dd6; }
+/* The type filter: one quiet chip per row kind, pressed = listed. */
+.an__tree-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; }
+.an__tree-chip {
+  background: none; border: 1px solid #3a4048; color: #9aa1ab; border-radius: 10px;
+  padding: 1px 8px; font: inherit; font-size: var(--t-micro); cursor: pointer;
+}
+.an__tree-chip[aria-pressed="true"] { color: #e8e8e8; border-color: #4a515a; background: #2c3138; }
+.an__tree--no-bodies [data-group="bodies"],
+.an__tree--no-joints [data-group="joints"],
+.an__tree--no-contributors [data-group="contributors"],
+.an__tree--no-features .tree-row[data-feature] { display: none; }

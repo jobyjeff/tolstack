@@ -1371,6 +1371,7 @@
     repick: "Re-pick",
     pick: "Pick",
     repickTitle: "leave the sweep and pick this feature's face at the as-modelled pose",
+    showBody: "show or hide this body where the mechanism draws it",
   });
 
   // One body row's text: its name and how many parts it carries.
@@ -1544,5 +1545,217 @@
     })[0];
     var via = AA.sweepFeatureEdge(topology, f, joint ? joint.features : []);
     return via.edgeId ? [via] : [];
+  };
+
+  // --- the rail and the scene point at each other (handoff the_rail_and_the_
+  // scene_point_at_each_other) ------------------------------------------------
+  //
+  // One fact underneath all of it: WHICH DRAWN OCCURRENCE IS A RAIL SUBJECT.
+  // A subject is a body (`bodies[]`) or a link (`links[]`, named by its
+  // joint), and app.js's anchoring rows (anchorSweepBodies) already say, per
+  // part, which recorded occurrence(s) the subject was placed at: a ground
+  // body at every occurrence its own meshes record, a moving one at the
+  // occurrence that earned the placement, plus everything carried inside it.
+  // An occurrence is addressed by its recorded `key` (the instance path the
+  // extraction wrote), never by its index in a drawn list -- the index of an
+  // occurrence in a sweep's override is not its index at rest.
+
+  // {subject: [{sha256, key}]}, in row order, each pair once.
+  AA.sweepSubjectOccurrences = function (rows) {
+    var out = {};
+    (rows || []).forEach(function (row) {
+      if (!row || !row.subject || !row.sha256) return;
+      var list = out[row.subject] = out[row.subject] || [];
+      (row.placements || []).forEach(function (p) {
+        if (!p || p.key == null) return;
+        var known = list.some(function (o) { return o.sha256 === row.sha256 && o.key === p.key; });
+        if (!known) list.push({ sha256: row.sha256, key: p.key });
+      });
+    });
+    return out;
+  };
+
+  // The subject a drawn occurrence belongs to -- the pick's way back into the
+  // rail -- or null for an occurrence no subject was placed at (the four
+  // pitch arms the run leaves still). A part LISTED on a subject beats one
+  // carried inside it.
+  AA.sweepOccurrenceSubject = function (rows, sha256, key) {
+    var carried = null;
+    var list = rows || [];
+    for (var i = 0; i < list.length; i++) {
+      var row = list[i];
+      if (!row || row.sha256 !== sha256) continue;
+      var here = (row.placements || []).some(function (p) { return p && p.key === key; });
+      if (!here) continue;
+      if (row.state !== "carried") return row.subject;
+      if (!carried) carried = row.subject;
+    }
+    return carried;
+  };
+
+  // The occurrences one tree part row stands for: that mesh's occurrences on
+  // its subject -- or, with no subject, null, meaning every occurrence the
+  // mesh has (the parts panel's rule).
+  AA.sweepPartOccurrences = function (bySubject, subject, sha256) {
+    if (!subject) return null;
+    return ((bySubject || {})[subject] || []).filter(function (o) { return o.sha256 === sha256; });
+  };
+
+  // Every (edge, end) the binding projection binds THIS face to in one
+  // topology -- the reverse of AA.planHighlight, for a pick that has to find
+  // its feature rows. [] for an unbound face, the ordinary answer.
+  AA.bindingsOfFace = function (identityProjection, topologyId, sha256, faceId) {
+    var out = [];
+    ((identityProjection && identityProjection.stack_keys) || []).forEach(function (row) {
+      var key = row && row.stack_key;
+      if (!key || key.kind !== "topology_edge" || key.topology_id !== topologyId) return;
+      (row.bindings || []).forEach(function (b) {
+        var g = (b && b.geometry_key) || {};
+        if (g.source_step_sha256 === sha256 && g.face_id === faceId) {
+          out.push({ edgeId: key.edge_id, direction: b.direction || null });
+        }
+      });
+    });
+    return out;
+  };
+
+  // Does a feature row's read ({edgeId, direction}, AA.sweepFeatureEdge) name
+  // one of a face's bindings? An edge feature (direction null) is either end.
+  AA.featureReadMatches = function (via, bindings) {
+    if (!via || !via.edgeId) return false;
+    return (bindings || []).some(function (b) {
+      return b.edgeId === via.edgeId &&
+        (!via.direction || !b.direction || b.direction === via.direction);
+    });
+  };
+
+  //: A feature row's bound face, in words a reader can check against the
+  //: model: the face id and the part's drawing number. `none` is the row's
+  //: line when nothing is bound at its end.
+  AA.BOUND_FACE_WORDS = Object.freeze({
+    face: "face {face} of {part}",
+    none: "no face bound",
+  });
+
+  // The faces a feature's read names, each with the words for it: [{sha256,
+  // faceId, text}]. The part is named by its number (AA.partNumberOf, the
+  // parts panel's own reading of a mesh label); a mesh this store does not
+  // carry is named by the start of its sha, which is all there is to say.
+  AA.boundFaceRows = function (identityProjection, topologyId, via, meshList) {
+    if (!via || !via.edgeId) return [];
+    var record = AA.findBindingRecord(identityProjection, AA.topologyEdgeKey(topologyId, via.edgeId));
+    var out = [];
+    ((record && record.bindings) || []).forEach(function (b) {
+      if (via.direction && (!b || b.direction !== via.direction)) return;
+      var g = (b && b.geometry_key) || {};
+      if (!g.source_step_sha256 || typeof g.face_id !== "number") return;
+      var mesh = (meshList || []).filter(function (m) { return m.sha256 === g.source_step_sha256; })[0];
+      var part = (mesh && (AA.partNumberOf(mesh.label) || AA.meshShortName(mesh.label))) ||
+        String(g.source_step_sha256).slice(0, 12);
+      out.push({ sha256: g.source_step_sha256, faceId: g.face_id,
+        text: AA.BOUND_FACE_WORDS.face.replace("{face}", String(g.face_id)).replace("{part}", part) });
+    });
+    return out;
+  };
+
+  // The topology part ids on an edge and at its two ends, each once, edge
+  // first: what a contributor's alert names the drawings of, and what its
+  // hover lights when no face is bound at either end.
+  AA.edgePartIds = function (topology, edgeId) {
+    var edges = (topology && topology.edges) || [];
+    var nodes = (topology && topology.nodes) || [];
+    var edge = edges.filter(function (e) { return e.id === edgeId; })[0];
+    if (!edge) return [];
+    var ids = [];
+    function add(id) { if (id && ids.indexOf(id) === -1) ids.push(id); }
+    add(edge.part);
+    (edge.parts || []).forEach(add);
+    [edge.from, edge.to].forEach(function (nodeId) {
+      var node = nodes.filter(function (n) { return n.id === nodeId; })[0];
+      if (!node) return;
+      add(node.part);
+      (node.parts || []).forEach(add);
+    });
+    return ids;
+  };
+
+  //: What a contributor's alert adds to its gap sentence: the drawing(s) to
+  //: read to close it, and what the row's Pick does.
+  AA.CONTRIBUTOR_ALERT_WORDS = Object.freeze({
+    drawing: "Drawing to read: {list}.",
+    drawings: "Drawings to read: {list}.",
+    pick: "Pick binds its faces at the as-modelled pose.",
+  });
+
+  // A contributor row's alerts, in the {state, text} shape every badge in
+  // this app is handed (AA.elementAlerts). One alert: the gap sentence, the
+  // drawings of the edge's parts (number and everyday name, from the
+  // topology's own `parts[]`), and what Pick does. [] for a row with no gap.
+  AA.contributorAlerts = function (row, topology) {
+    if (!row || !row.gap) return [];
+    var parts = (topology && topology.parts) || [];
+    var drawings = [];
+    AA.edgePartIds(topology, row.edge).forEach(function (id) {
+      var part = parts.filter(function (p) { return p.id === id; })[0];
+      if (!part || !part.drawing) return;
+      var words = part.drawing + (part.name && part.name.indexOf(part.drawing) === -1
+        ? " " + part.name : "");
+      if (drawings.indexOf(words) === -1) drawings.push(words);
+    });
+    var text = row.gap;
+    if (drawings.length) {
+      text += " " + (drawings.length === 1 ? AA.CONTRIBUTOR_ALERT_WORDS.drawing
+        : AA.CONTRIBUTOR_ALERT_WORDS.drawings).replace("{list}", drawings.join("; "));
+    }
+    text += " " + AA.CONTRIBUTOR_ALERT_WORDS.pick;
+    return [{ state: AA.CONTRIBUTOR_ALERT_STATE, text: text }];
+  };
+
+  //: The one state a contributor's alert is in: its row has no cited band.
+  AA.CONTRIBUTOR_ALERT_STATE = "gap";
+
+  //: The rail's row kinds, in the tree's own order, and the word each one's
+  //: filter chip wears. The kinds ARE the tree's: three are its groups'
+  //: `data-group`, and `features` is the joint group's feature rows.
+  AA.SWEEP_ROW_KINDS = Object.freeze(["bodies", "joints", "features", "contributors"]);
+  AA.SWEEP_ROW_KIND_WORDS = Object.freeze({
+    bodies: AA.SWEEP_RAIL_WORDS.bodies,
+    joints: AA.SWEEP_RAIL_WORDS.joints,
+    features: "surfaces",
+    contributors: AA.SWEEP_RAIL_WORDS.contributors,
+  });
+
+  // The chips' remembered state: the kinds a reader has hidden, in
+  // AA.SWEEP_ROW_KINDS' order. Anything unreadable -- nothing stored, a
+  // broken value, a kind this build does not have -- reads as nothing hidden.
+  AA.readHiddenRowKinds = function (store) {
+    var raw = null;
+    try { raw = store ? store.getItem(AA.PREF_KEYS.sweepRowKinds) : null; } catch (err) { raw = null; }
+    var list = null;
+    try { list = JSON.parse(raw); } catch (err) { list = null; }
+    if (!Array.isArray(list)) return [];
+    return AA.SWEEP_ROW_KINDS.filter(function (k) { return list.indexOf(k) !== -1; });
+  };
+
+  AA.writeHiddenRowKinds = function (store, hidden) {
+    try {
+      if (store) {
+        store.setItem(AA.PREF_KEYS.sweepRowKinds, JSON.stringify(
+          AA.SWEEP_ROW_KINDS.filter(function (k) { return (hidden || []).indexOf(k) !== -1; })));
+      }
+    } catch (err) {
+      // A browser that refuses to store it still honours the chips now.
+    }
+  };
+
+  // One chip pressed: that kind hidden if it was shown, shown if hidden.
+  AA.toggleRowKind = function (hidden, kind) {
+    if (AA.SWEEP_ROW_KINDS.indexOf(kind) === -1) {
+      throw new Error("the rail lists " + AA.SWEEP_ROW_KINDS.join(", ") + ", got " + JSON.stringify(kind));
+    }
+    var on = (hidden || []).indexOf(kind) !== -1;
+    return AA.SWEEP_ROW_KINDS.filter(function (k) {
+      return k === kind ? !on : (hidden || []).indexOf(k) !== -1;
+    });
   };
 })(window.AnnotateApp = window.AnnotateApp || {});

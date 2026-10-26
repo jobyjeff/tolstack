@@ -447,6 +447,9 @@
     isolate: "Isolate",
     noStudies: "no studies yet",
     noName: "no name on file",
+    // A mesh drawn at more than one position: its row's checkbox reaches all of them.
+    occurrences: "×{n}",
+    occurrencesTitle: "drawn at {n} positions; the checkbox shows or hides all of them",
   });
 
   // --- a part, called by name (handoff the_annotator_rail_resizes_and_names_
@@ -928,6 +931,7 @@
     transparentParts: "tolstack.annotate.transparentParts",
     faceSuggestions: "tolstack.annotate.faceSuggestions",
     railWidth: "tolstack.annotate.railWidth",
+    sweepRowKinds: "tolstack.annotate.sweepRowKinds",
   });
 
   // --- the rail's width (handoff the_annotator_rail_resizes_and_names_what_
@@ -1126,14 +1130,50 @@
   // sweep rail's selection (handoff the_sweep_rail_shows_the_mechanism). A
   // viewing aid, like `highlight`: it tints and emphasises, and writes
   // nothing. The grammar is here so a tier with no DOM can hold it.
-  AA.INSPECT_TARGETS = Object.freeze(["joint", "contributor", "clear"]);
-  AA.parseInspect = function (what, name) {
+  //
+  // inspect part <mesh> <face> [<subject>] -- a face picked in the scene,
+  // selected in the rail (handoff the_rail_and_the_scene_point_at_each_other):
+  // the part's row inside the subject it was picked on, and the feature rows
+  // the face is bound to. `subject` is absent for an occurrence no body or
+  // link was placed at. Appended, so the three older indices keep their words.
+  AA.INSPECT_TARGETS = Object.freeze(["joint", "contributor", "clear", "part"]);
+  AA.parseInspect = function (what, name, face, subject) {
     if (AA.INSPECT_TARGETS.indexOf(what) === -1) {
       throw new Error("inspect takes " + AA.INSPECT_TARGETS.join(", ") +
         ", got " + JSON.stringify(what));
     }
     if (what === AA.INSPECT_TARGETS[2]) return { kind: null, name: null };
     if (!name) throw new Error("inspect " + what + " needs a name");
-    return { kind: what, name: String(name) };
+    if (what !== AA.INSPECT_TARGETS[3]) return { kind: what, name: String(name) };
+    var faceId = parseInt(face, 10);
+    if (!isFinite(faceId) || String(faceId) !== String(face)) {
+      throw new Error("inspect part needs <mesh> <face id>, got face " + JSON.stringify(face));
+    }
+    return { kind: what, name: String(name), faceId: faceId, subject: subject ? String(subject) : null };
+  };
+
+  // hover body <name> | hover part <mesh> [<subject>] | hover joint <name> |
+  // hover feature <edge> [from|to] | hover contributor <edge> | hover clear --
+  // what the pointer resting on a sweep-rail row lights in the scene (handoff
+  // the_rail_and_the_scene_point_at_each_other, deliverable 1). One lighter
+  // tint for all of them, drawn OVER the part rather than into its colours, so
+  // a hover can never take a picked face's tint down with it. Writes nothing.
+  AA.HOVER_TARGETS = Object.freeze(["body", "part", "joint", "feature", "contributor", "clear"]);
+  AA.parseHover = function (what, name, extra) {
+    if (AA.HOVER_TARGETS.indexOf(what) === -1) {
+      throw new Error("hover takes " + AA.HOVER_TARGETS.join(", ") + ", got " + JSON.stringify(what));
+    }
+    if (what === "clear") return { kind: null };
+    if (!name) throw new Error("hover " + what + " needs a name");
+    var out = { kind: what, name: String(name) };
+    if (what === "part") out.subject = extra ? String(extra) : null;
+    if (what === "feature") {
+      if (extra !== undefined && AA.DIRECTIONS.indexOf(extra) === -1) {
+        throw new Error("hover feature's third word is one of " + AA.DIRECTIONS.join(", ") +
+          ", got " + JSON.stringify(extra));
+      }
+      out.direction = extra === undefined ? null : extra;
+    }
+    return out;
   };
 })(window.AnnotateApp = window.AnnotateApp || {});
