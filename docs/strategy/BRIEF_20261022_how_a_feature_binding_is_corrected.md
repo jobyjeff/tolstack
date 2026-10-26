@@ -1,5 +1,7 @@
 # BRIEF 2026-10-22 — a feature-identity binding written at the wrong end cannot be corrected: what does a correction look like in an append-only event stream?
 
+> **CONSUMED 2026-10-26 — option 1, in its `supersedes:` form: a later `bound` event names the earlier event it corrects on the same `(topology, edge)` key; the fold hides the superseded event and keeps it as history; no new verdict word; a correction may change face, direction or both; the rule is general to every append-only stream here but implemented now for feature identity only (the spec library adopts the field when it first needs a correction); `fit_bound_features.py` folds the same way. Expanded to `docs/sessions/HANDOFF_20261026_a_binding_may_be_superseded.md` (sonnet, med, after `the_rail_and_the_scene_point_at_each_other`). Jeff's first binding sitting waits on it and on `pitch_system_folds_into_the_pitch_linkage_model`, so every binding keys on the merged model.**
+
 > **Routing note.** Filed by the 2026-10-22 triage sweep from
 > `docs/issues/ISSUE_20261021_a_binding_written_at_the_wrong_end_has_no_correction.md`
 > (feature, med, `audience: strategy`, found by
