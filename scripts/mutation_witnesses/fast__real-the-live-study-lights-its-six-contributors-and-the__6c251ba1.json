@@ -1,7 +1,7 @@
 {
   "tier": "fast",
   "suite": null,
-  "expect_red": "[real] the live study lights its six contributors and the three edges they borrow a band from, and every one has a coefficient curve",
+  "expect_red": "[real] the live study lights its six contributors, the three edges they borrow a band from and the travel study's four, and every direct one has a coefficient curve",
   "mutations": [
     {
       "contract": "Every live contributor's row carries its coefficient at every sweep point.",
