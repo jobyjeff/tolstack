@@ -340,6 +340,12 @@ class Body:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Body":
+        missing = [k for k in ("id", "name") if not d.get(k)]
+        if missing:
+            raise TopologyError(
+                f"body {d.get('id')!r} (parts {d.get('parts')!r}) has no "
+                f"{' or '.join(missing)}; a body is named so a reader can tell "
+                f"which one it is")
         known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
         return cls(**known)
 

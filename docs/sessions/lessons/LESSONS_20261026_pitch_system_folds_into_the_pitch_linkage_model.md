@@ -213,3 +213,48 @@ scratch root after review.
   It was not run `--only` on its own; it runs at the merge's `--full`.
 - Not run: `scripts/rebuild_projections.ps1` and the main-checkout pytest. The
   main checkout is on `master`, without this change.
+
+## Re-run 2026-10-26 -- rework after REQUEST CHANGES
+
+**The blocker: I called a regression a flake.** The lesson above said the
+respine suite "flake[s] on frame timing under load". The review ran the same
+suite against both trees on a quiet box: `integration` passed 40/40 twice, and
+the fold was 39/40 or worse in 4 of 4 runs. A red that is the normal outcome
+on one tree and absent on the other is the change, whatever the load. What
+should have stopped me was my own record: four runs, four different reds, and
+I never ran the pre-change tree once. **Compare against the base tree before
+calling anything a flake.**
+
+Fix, inside the handoff's scope: the page already has a duration knob
+(`VA.RESPINE`, `{ duration: 260 }`). The respine suite sets it to 1200 ms after
+boot (`RESPINE_SUITE_DURATION_MS`), so `catchFrame()` and the interruption
+probe get a window a 106-row paint fits inside. Nothing in the suite asserts
+the duration, and the 700 ms wait after the interrupting paint is unaffected,
+because that paint cancels the tween.
+
+Review nits, both done: `Body.from_dict` refuses a missing `id`/`name` with a
+`TopologyError` that names the body (tested). The end-stop worksheet and the
+2026-09-15 audit carry a dated pointer to where `topology_pitch_system.json`
+went.
+
+Runs, all on the rework tree `b76462d`, with projections rebuilt from it into
+`data/scratch/pitch_merge/root` (`docs` and `linkage-sweeps` junctioned for
+the run, then removed):
+
+- `node scripts/run_viewer_browser_tests.mjs --repo <root> --only "topology file:// respine"`,
+  5 runs: 40/40 each time.
+- `node scripts/run_viewer_browser_tests.mjs --repo <root>`: 28/28 suites,
+  exit 0, 190s.
+- `node apps/viewer/run_tests.cjs --repo <root>`: 550/550, plus the named
+  per-document SKIP.
+- `node apps/annotate/run_tests.cjs --repo <root>`: 213/213.
+- `pytest -q` over `test_topology`, `test_topology_projection`,
+  `test_mutation_witnesses`, `test_claims_registry`, `test_provenance`,
+  `test_tolerance_stack`, `test_general_note_band` and `test_kinematic`:
+  497 passed. Not the full suite: the full run recorded above is from
+  `b957450`, and the rework touched only the browser runner, one constructor
+  check, its test and two doc notes.
+
+Not mine, as the review said: `annotate rail and scene` is 20/22 on a merge
+with `integration` because of the sibling's gap-badge checks. That suite is
+not on this branch.

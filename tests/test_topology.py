@@ -974,6 +974,10 @@ def test_a_body_is_a_set_of_declared_parts_and_every_part_has_exactly_one():
         _two_part_topology([Body(id="x", name="x", parts=("a",)),
                             Body(id="x", name="y", parts=("b",))])
 
+    # Read from a document, a missing name is refused naming the body.
+    with pytest.raises(TopologyError, match=r"body 'x' .* has no name"):
+        Body.from_dict({"id": "x", "parts": ["a"], "kind": "body"})
+
     # Optional: a document that declares none has no body round anything.
     none = _two_part_topology([])
     assert none.body_of("a") is None

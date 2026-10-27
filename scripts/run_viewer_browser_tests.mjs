@@ -8465,6 +8465,9 @@ async function testHostedUnpublished(browser, realProjection, label) {
   }
 }
 
+//: The respine suite's transition length -- see the call in testRespine.
+const RESPINE_SUITE_DURATION_MS = 1200;
+
 // The respine, measured in the page (viewer_study_respine_animation).
 //
 // Against the REAL projection, because the animation's whole point is the
@@ -8616,6 +8619,14 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       window.ViewerApp.bootTopology();
     }, { projection: realProjection, crops: realCrops });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    // Widen the transition for this suite only (VA.RESPINE is the page's own
+    // duration knob). Every check below samples a frame IN FLIGHT from outside
+    // the page, and on the product graph (106 walk rows since the 2026-10-26
+    // fold) a single paint is long enough that a 260 ms window often closed
+    // before the sampler saw a frame: 39/40 in 4 of 4 runs, against 40/40 on
+    // the pre-fold tree. Nothing here asserts the duration itself.
+    await page.evaluate((ms) => { window.ViewerApp.RESPINE.duration = ms; },
+      RESPINE_SUITE_DURATION_MS);
     await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
     await settled();
 
