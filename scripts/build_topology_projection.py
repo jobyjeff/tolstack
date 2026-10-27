@@ -201,11 +201,23 @@ VALUE_SOURCES = ("inline", "stack_ref", "derived")
 #: check: the DAG page's reader is looking at a topology, and a gap that is only
 #: reachable by selecting the one study whose check happens to name it is a gap
 #: nobody finds (the 2026-09-15 review's finding, one level up).
+#: Two more since 2026-10-26 (``the_dag_draws_bodies_as_containers_and_joints_as_symbols``),
+#: both facts about an edge's authoring rather than its value:
+#:
+#: * ``contact_kind_not_stated`` -- a gap edge with no ``interface``
+#:   (``tolerance_stack.topology.INTERFACE_KINDS``): the DAG draws it as a
+#:   plain dash because nobody has said what kind of contact it is.
+#: * ``form_not_folded`` -- a form callout carried as a ``modifier`` on a size
+#:   band. It can only tighten that band, and v0 folds the band as it is, so
+#:   every interval the edge feeds may be wider than the callout allows
+#:   (``docs/SOP_TOLERANCE_STACK.md``, "A form callout").
 TOPOLOGY_GAP_KINDS = (
     "excluded_from_model",
     "hardware_entry",
     "unverified_value",
     "no_tolerance_recorded",
+    "contact_kind_not_stated",
+    "form_not_folded",
 )
 
 #: The hardware register, beside the stack documents whose elements cite it
@@ -1238,6 +1250,9 @@ def project_edge(topology: Topology, edge: Edge) -> Dict[str, Any]:
             "units_out": transform.units_out,
         },
         "transform_declared": edge.transform,
+        # The kind of contact a gap edge crosses (INTERFACE_KINDS), `null`
+        # when unstated and on every structural edge. The DAG's glyph.
+        "interface": edge.interface,
     }
 
 
@@ -1385,10 +1400,13 @@ def project_part(part: Any, meshes: Sequence[Dict[str, str]],
     return row
 
 
-def project_body(body: Any) -> Dict[str, Any]:
+def project_body(topology: Topology, body: Any) -> Dict[str, Any]:
     """One authored body, every key present (``note`` ``None`` when unwritten)."""
     return {"id": body.id, "name": body.name, "kind": body.kind,
-            "parts": list(body.parts), "note": body.note, "tags": dict(body.tags)}
+            "parts": list(body.parts), "note": body.note, "tags": dict(body.tags),
+            # Where this body meets another (`Topology.joint_nodes`): the count
+            # a collapsed body carries on its face.
+            "joint_nodes": topology.joint_nodes(body.id)}
 
 
 def gap_row(kind: str, text: str, hardware_id: Optional[str] = None,
@@ -1409,9 +1427,11 @@ def topology_gaps(topology: Topology, studies: Sequence[Dict[str, Any]],
                   hardware: Dict[str, Any]) -> List[Dict[str, Any]]:
     """*What is missing* for one topology -- the DAG page's gap list.
 
-    Four kinds (:data:`TOPOLOGY_GAP_KINDS`), in the order a reader needs them:
+    Six kinds (:data:`TOPOLOGY_GAP_KINDS`), in the order a reader needs them:
     a term the model excludes outright is the most consequential and comes
-    first, exactly as ``stack_gaps`` orders its own two.
+    first, exactly as ``stack_gaps`` orders its own two; the two authoring
+    gaps (an unstated contact kind, an unfolded form modifier) come after the
+    value gaps and before the hardware rows.
 
     **The excluded terms and the hardware rows are `stack_gaps`' output**, from
     the studies' own projected checks. Two lookups find the hardware entries,
@@ -1475,7 +1495,18 @@ def topology_gaps(topology: Topology, studies: Sequence[Dict[str, Any]],
         if dimension.min == dimension.max:
             no_band.append(gap_row("no_tolerance_recorded", edge.name,
                                    edge=edge.id, edge_name=edge.name))
-    return excluded + unverified + no_band + hardware_rows
+    # Every gap edge, valued or not: what kind of contact it crosses is a
+    # question about the joint, not about its number.
+    no_contact = [gap_row("contact_kind_not_stated", edge.name,
+                          edge=edge.id, edge_name=edge.name)
+                  for edge in topology.edges
+                  if edge.kind == "gap" and edge.interface is None]
+    unfolded = [gap_row("form_not_folded", edge.name,
+                        edge=edge.id, edge_name=edge.name)
+                for edge in topology.edges
+                if edge.dimension is not None and edge.dimension.form is not None
+                and edge.dimension.form.kind == "modifier"]
+    return excluded + unverified + no_band + no_contact + unfolded + hardware_rows
 
 
 def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
@@ -1515,8 +1546,9 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         "transforms": [dataclasses.asdict(topology.transform(t.id))
                        for t in topology.transforms],
         # The rigid bodies, as authored (docs/DAG_TOPOLOGY.md, "Bodies"); `[]`
-        # for a topology that declares none. Nothing on the page draws them yet.
-        "bodies": [project_body(b) for b in topology.bodies],
+        # for a topology that declares none. Drawn as the DAG's containers,
+        # where `layout.bodies` says.
+        "bodies": [project_body(topology, b) for b in topology.bodies],
         "branch_nodes": branch_nodes,
         "layout": serialize_topology(topology).as_dict(),
         "confidence_counts": counts,

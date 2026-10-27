@@ -136,7 +136,7 @@
     // scripts/build_topology_projection.py: TOPOLOGY_GAP_KINDS
     GAP_KINDS: [
       "excluded_from_model", "hardware_entry", "unverified_value",
-      "no_tolerance_recorded"
+      "no_tolerance_recorded", "contact_kind_not_stated", "form_not_folded"
     ],
 
     // tolerance_stack/topology.py: NODE_KINDS
@@ -147,6 +147,15 @@
 
     // tolerance_stack/topology.py: TRANSFORM_KINDS
     TRANSFORM_KINDS: ["identity", "ratio", "linear_to_rotary"],
+
+    // tolerance_stack/topology.py: INTERFACE_KINDS
+    INTERFACE_KINDS: [
+      "planar", "pin_in_bore", "spherical", "cylindrical_slide", "thread",
+      "clearance"
+    ],
+
+    // tolerance_stack/topology.py: FORM_KINDS
+    FORM_KINDS: ["element", "modifier"],
 
     // tolerance_stack/topology.py: the StudyError subclasses
     STUDY_ERRORS: [

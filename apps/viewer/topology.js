@@ -1017,6 +1017,18 @@
       closes: "Find the plus/minus on the drawing. Until then every spread " +
         "these feed is a lower bound.",
     },
+    contact_kind_not_stated: {
+      heading: "Joints with no contact kind",
+      says: "contact kind not stated",
+      closes: "Say what kind of contact the joint is — flat faces, a pin, " +
+        "a ball, a slide, a thread or a clearance — and the model draws it.",
+    },
+    form_not_folded: {
+      heading: "Form callouts not in the total",
+      says: "a form callout that can only tighten this band, not folded",
+      closes: "The callout narrows what the size band allows; the total " +
+        "still uses the size band alone.",
+    },
     hardware_entry: {
       heading: "Open questions about the hardware",
       says: "an open question recorded against the part",

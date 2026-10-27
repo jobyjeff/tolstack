@@ -53,7 +53,9 @@ from tolerance_stack.stack import ELEMENT_ROLES, SOURCE_REF_KINDS, fold
 from tolerance_stack.topology import (
     BODY_KINDS,
     EDGE_KINDS,
+    FORM_KINDS,
     IDENTITY,
+    INTERFACE_KINDS,
     NODE_KINDS,
     TRANSFORM_KINDS,
     Body,
@@ -1057,6 +1059,8 @@ _DOC_VOCABULARIES = (
     ("Edge.kind", "\n`kind` on an edge is one of ", EDGE_KINDS),
     ("Transform.kind", "\n`kind` on a transform is one of ", TRANSFORM_KINDS),
     ("Body.kind", "\n`kind` on a body is one of ", BODY_KINDS),
+    ("Edge.interface", "\n`interface` on a gap edge is one of ", INTERFACE_KINDS),
+    ("Form.kind", "\n`kind` on a form callout is one of ", FORM_KINDS),
 )
 
 
@@ -2122,3 +2126,184 @@ def test_a_topology_parts_drawing_and_revision_are_a_pair_something_cites():
     # Non-vacuity, and the half that catches the opposite drift: a part losing
     # its revision, or a new one appearing unclassified, both want a human.
     assert found == TOPOLOGY_PART_REVISIONS
+
+
+# --------------------------------------------------------------------------- #
+# the interface vocabulary on gap edges, and the form rule (2026-10-26,        #
+# the_dag_draws_bodies_as_containers_and_joints_as_symbols)                     #
+# --------------------------------------------------------------------------- #
+
+from tolerance_stack.kinematic import (  # noqa: E402
+    LINKAGE_JOINT_INTERFACES, LINKAGE_JOINT_ROW_NAMES, LINKAGE_JOINT_TYPES)
+from tolerance_stack.stack import SourceRef, Term  # noqa: E402
+from tolerance_stack.topology import Form  # noqa: E402
+
+LINKAGE_TOPOLOGY = TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json"
+
+#: The sweep the kinematic study reads, in the main checkout's gitignored inbox.
+LINKAGE_SWEEP = Path(r"C:\workspace\tolstack\data\inbox\linkage-sweeps"
+                     r"\vpa-pitch-p2-20261016-235852.json")
+
+#: Which of linkage's swept joints each gap edge stands at, read off the
+#: sweep's own ``links[]`` (a ``distance`` joint is the link between two ball
+#: joints, so both ends stand at it) and the plate's slide on the spindle. A
+#: test-side table because the topology names no sweep joint; the test below
+#: derives each joint's TYPE from the sweep's own rows, so the only thing
+#: written here is which edge is at which joint.
+SWEPT_JOINT_EDGES = {
+    "pitch_arm_link_joint": "pitch_link",
+    "pitch_plate_link_joint": "pitch_link",
+    "tan_link_mount_joint": "tan_link",
+    "tan_link_plate_joint": "tan_link",
+    "hub_to_pitch_plate_spindle_coaxiality": "plate_slide",
+}
+
+
+def _gap_topology(interface=None, kind="gap"):
+    parts = [Part(id="a", name="a"), Part(id="b", name="b")]
+    nodes = [Node(id="na", name="na", parts=("a",), kind="datum_feature"),
+             Node(id="nb", name="nb", parts=("b",), kind="datum_feature"),
+             Node(id="na2", name="na2", parts=("a",), kind="datum_feature")]
+    edge = (Edge(id="e", name="e", from_node="na", to_node="nb", kind="gap",
+                 interface=interface)
+            if kind == "gap" else
+            Edge(id="e", name="e", from_node="na", to_node="na2", part="a",
+                 interface=interface))
+    return Topology(id="t", title="t", units="mm", parts=parts, nodes=nodes,
+                    edges=[edge])
+
+
+def test_an_interface_is_a_gap_edges_word_and_only_a_gap_edges():
+    assert _gap_topology().edges[0].interface is None      # optional in v0
+    for word in INTERFACE_KINDS:
+        assert _gap_topology(word).edges[0].interface == word
+    with pytest.raises(TopologyError, match="interface must be one of"):
+        _gap_topology("ball_joint")
+    with pytest.raises(TopologyError, match="on a 'structural' edge"):
+        _gap_topology("planar", kind="structural")
+
+
+def test_every_gap_edge_of_the_product_model_states_its_contact_kind():
+    topology = load_topology(LINKAGE_TOPOLOGY)
+    gaps = [e for e in topology.edges if e.kind == "gap"]
+    unstated = [e.id for e in gaps if e.interface is None]
+    assert not unstated, f"gap edges with no interface: {unstated}"
+    assert len(gaps) >= 13
+
+
+def test_the_linkage_joint_types_map_onto_the_interface_words():
+    assert tuple(LINKAGE_JOINT_INTERFACES) == LINKAGE_JOINT_TYPES
+    assert set(LINKAGE_JOINT_INTERFACES.values()) - {None} <= set(INTERFACE_KINDS)
+    assert LINKAGE_JOINT_INTERFACES["distance"] == "spherical"
+    assert LINKAGE_JOINT_INTERFACES["revolute"] == "pin_in_bore"
+    assert LINKAGE_JOINT_INTERFACES["screw"] == "thread"
+    assert LINKAGE_JOINT_INTERFACES["fixed"] is None
+    assert LINKAGE_JOINT_INTERFACES["axial_position"] is None
+
+
+def test_an_edge_at_a_swept_joint_says_what_the_joints_type_suggests():
+    """The sweep's joint type, read off its own residual rows, suggests the
+    word; an authored edge that disagrees fails here. One set of words."""
+    if not LINKAGE_SWEEP.exists():
+        pytest.skip(f"{LINKAGE_SWEEP} is not on disk (gitignored inbox)")
+    sweep = json.loads(LINKAGE_SWEEP.read_text(encoding="utf-8"))
+    rows: dict = {}
+    for label in sweep["mechanism"]["row_labels"]:
+        joint, row = label.split(".", 1)
+        rows.setdefault(joint, []).append(row)
+    type_of = {}
+    for joint, names in rows.items():
+        matches = [t for t, sig in LINKAGE_JOINT_ROW_NAMES.items()
+                   if tuple(names) == sig]
+        assert len(matches) == 1, (joint, names)
+        type_of[joint] = matches[0]
+    topology = load_topology(LINKAGE_TOPOLOGY)
+    wrong = []
+    for edge_id, joint in SWEPT_JOINT_EDGES.items():
+        suggested = LINKAGE_JOINT_INTERFACES[type_of[joint]]
+        authored = topology.edge(edge_id).interface
+        if authored != suggested:
+            wrong.append(f"{edge_id}: {authored!r}, joint {joint} "
+                         f"({type_of[joint]}) suggests {suggested!r}")
+    assert not wrong, "\n".join(wrong)
+
+
+def _form_edge(form, nominal=0.0, lo=-0.025, hi=0.025, kind="structural"):
+    dimension = Dimension(
+        id="e", name="e", nominal=nominal, min=lo, max=hi,
+        source_ref=SourceRef(kind="assumed"), form=form)
+    if kind == "gap":
+        return Edge(id="e", name="e", from_node="na", to_node="nb", kind="gap",
+                    dimension=dimension)
+    return Edge(id="e", name="e", from_node="na", to_node="na2", part="a",
+                dimension=dimension)
+
+
+def test_a_form_callout_on_an_attached_surface_is_a_structural_edge_of_nominal_zero():
+    """Case one of the form rule: nothing else bands the surface, so the
+    callout IS the element -- nominal 0, plus or minus half its zone."""
+    edge = _form_edge(Form(kind="element", zone=0.05))
+    assert edge.dimension.form.kind == "element"
+    with pytest.raises(TopologyError, match="a form element is a structural edge"):
+        _form_edge(Form(kind="element", zone=0.05), kind="gap")
+    with pytest.raises(TopologyError, match="nominal 0 and plus or minus half"):
+        _form_edge(Form(kind="element", zone=0.05), lo=-0.05, hi=0.05)
+    with pytest.raises(TopologyError, match="nominal 0 and plus or minus half"):
+        _form_edge(Form(kind="element", zone=0.05), nominal=1.0, lo=0.975, hi=1.025)
+    with pytest.raises(TopologyError, match="names no node"):
+        _form_edge(Form(kind="element", zone=0.05, node="na"))
+
+
+def test_a_form_callout_on_a_size_band_only_tightens_it_and_the_fold_is_unchanged():
+    """Case two: a modifier on a feature that already has a size band. A zone
+    inside the band loads, a wider one is refused, and v0's fold reads the size
+    band alone -- the total is the same with and without the callout."""
+    tight = _form_edge(Form(kind="modifier", zone=0.02, node="na"),
+                       nominal=6.0, lo=5.95, hi=6.05)
+    plain = Dimension(id="e", name="e", nominal=6.0, min=5.95, max=6.05,
+                      source_ref=SourceRef(kind="assumed"))
+    assert fold([Term(tight.dimension, 1)]) == fold([Term(plain, 1)])
+    _form_edge(Form(kind="modifier", zone=0.1, node="na2"),
+               nominal=6.0, lo=5.95, hi=6.05)          # equal to the band: allowed
+    with pytest.raises(TopologyError, match="can only tighten the size band"):
+        _form_edge(Form(kind="modifier", zone=0.2, node="na"),
+                   nominal=6.0, lo=5.95, hi=6.05)
+    with pytest.raises(TopologyError, match="one of the edge's two ends"):
+        _form_edge(Form(kind="modifier", zone=0.02, node="nb"),
+                   nominal=6.0, lo=5.95, hi=6.05)
+    with pytest.raises(TopologyError, match="one of the edge's two ends"):
+        _form_edge(Form(kind="modifier", zone=0.02), nominal=6.0, lo=5.95, hi=6.05)
+    with pytest.raises(TopologyError, match="kind must be one of"):
+        Form(kind="flatness", zone=0.02)
+    with pytest.raises(TopologyError, match="zone must be a finite number"):
+        Form(kind="modifier", zone=0.0)
+
+
+def test_a_form_callout_loads_from_json_and_rides_through_about_nominal():
+    raw = json.loads(LINKAGE_TOPOLOGY.read_text(encoding="utf-8"))
+    edge = next(e for e in raw["edges"]
+                if e.get("kind", "structural") == "structural"
+                and e.get("dimension") and e["dimension"]["max"] > e["dimension"]["min"])
+    dim = edge["dimension"]
+    zone = (dim["max"] - dim["min"]) / 2
+    dim["form"] = {"kind": "modifier", "zone": zone, "node": edge["from"],
+                   "source_ref": {"kind": "assumed"}}
+    loaded = _write_and_load(raw).edge(edge["id"])
+    assert loaded.dimension.form == Form(kind="modifier", zone=zone,
+                                         node=edge["from"],
+                                         source_ref=SourceRef(kind="assumed"))
+    assert loaded.dimension.about_nominal().form == loaded.dimension.form
+
+
+def test_which_body_an_element_is_in_on_the_product_model():
+    topology = load_topology(LINKAGE_TOPOLOGY)
+    # A ball joint between two bodies is a joint, in no body.
+    assert topology.edge_body(topology.edge("pitch_arm_link_joint")) is None
+    # A bearing's centre and the link it is pressed into: inside the link.
+    assert topology.edge_body(
+        topology.edge("pitch_link_lower_centre_is_this_bearing")) == "pitch_link"
+    assert set(topology.node_bodies("blade_root_hub_seat")) == {"blade", "base"}
+    assert topology.joint_nodes("pitch_link") == [
+        "pitch_link_lower_sphere_centre", "pitch_link_upper_sphere_centre"]
+    # Every body meets another somewhere: the model is one component.
+    assert all(topology.joint_nodes(b.id) for b in topology.bodies)
