@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "hovering a coefficient opens its curve as the page's hover card, and draws it in the cell where there is no card host",
+  "mutations": [
+    {
+      "contract": "A coefficient's hover opens its curve as the page's hover card.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Never hands the card to the host.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      if (ctx.onCardShow) ctx.onCardShow(card, td);",
+      "replace": "      if (false) ctx.onCardShow(card, td);"
+    }
+  ]
+}

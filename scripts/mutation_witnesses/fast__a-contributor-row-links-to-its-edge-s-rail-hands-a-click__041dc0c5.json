@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a contributor row links to its edge's rail, hands a click to the page, and wears the selection the page has",
+  "mutations": [
+    {
+      "contract": "A contributor row's name links to that edge on its rail, for a new tab.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Points the link nowhere. Carried over from the per-stop table's guard.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    link.setAttribute(\"href\", VA.viewerLink({ topology: row.topology, edge: row.edge }));",
+      "replace": "    link.setAttribute(\"href\", \"#\");"
+    }
+  ]
+}

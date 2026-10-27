@@ -3313,11 +3313,24 @@
     var say = function (text) { out.notices.push(text); };
 
     if (link.kinematic) {
-      if (VA.findKinematicStudy && VA.findKinematicStudy(kinematic, link.kinematic)) {
+      var kinematicStudy = VA.findKinematicStudy &&
+        VA.findKinematicStudy(kinematic, link.kinematic);
+      if (kinematicStudy) {
         out.mode = "kinematic";
         out.kinematicId = link.kinematic;
-        if (link.topology || link.study || link.edge || link.node || link.stack ||
-            link.element) {
+        // An edge beside it is selected ON the study's page (2026-10-26), the
+        // way a row click selects one: an edge of the study's own topology.
+        if (link.edge) {
+          var under = VA.findTopology(topologies, kinematicStudy.topology);
+          if (under && VA.topologyIndex(under).edges[link.edge]) {
+            out.topologyId = under.id;
+            out.selection = { kind: "edge", id: link.edge };
+          } else {
+            say("This link asks for edge `" + link.edge + "`, which kinematic study `" +
+              link.kinematic + "`'s model does not carry — nothing was selected.");
+          }
+        }
+        if (link.topology || link.study || link.node || link.stack || link.element) {
           say("This link names a kinematic study and something else beside it; " +
             "the kinematic study won and the rest was ignored.");
         }

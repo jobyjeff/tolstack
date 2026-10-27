@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the contributor table names each contributor once, from the topology's edge, with a column group per stop and no machine word",
+  "mutations": [
+    {
+      "contract": "A contributor row is named by the topology's own edge name, never by its id.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Prints the edge id as the name, which is what the page would show if the topology lookup were skipped. Carried over from the per-stop table's guard.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        name: edge ? edge.name : edgeId,",
+      "replace": "        name: edgeId,"
+    }
+  ]
+}

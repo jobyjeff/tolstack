@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a contributor that borrows its band from another edge names that edge in the preview pane, one click from its citation",
+  "mutations": [
+    {
+      "contract": "The preview pane names a contributor's borrowed band edge.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Never renders the band line.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (bandEdge) {",
+      "replace": "    if (false) {"
+    }
+  ]
+}

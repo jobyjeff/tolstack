@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] hovering a coefficient shows its curve across the sweep, both signs of the mount height's on its axis",
+  "mutations": [
+    {
+      "contract": "The hover card renders a curve card.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). The card renderer has no branch for the curve kind.",
+      "file": "apps/viewer/views/cards.js",
+      "find": "    else if (card.kind === \"curve\") root.appendChild(VA.kinematicCurveFigure(card.curve, card.title));",
+      "replace": ""
+    }
+  ]
+}

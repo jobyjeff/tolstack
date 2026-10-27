@@ -11298,6 +11298,17 @@
         eq(both.mode, "kinematic");
         eq(both.notices.length, 1);
 
+        // An edge of the study's own model is selected on the study's page.
+        var withEdge = VA.resolveDeepLink({ kinematic: KIN_STUDY.id,
+          edge: "base_thickness" }, KIN_TOPOLOGIES, FIXTURE.results, KIN);
+        eq(withEdge.mode, "kinematic");
+        eq(withEdge.selection, { kind: "edge", id: "base_thickness" });
+        eq(withEdge.notices, []);
+        var strayEdge = VA.resolveDeepLink({ kinematic: KIN_STUDY.id,
+          edge: "nope" }, KIN_TOPOLOGIES, FIXTURE.results, KIN);
+        eq(strayEdge.selection, null);
+        has(strayEdge.notices[0], "edge `nope`");
+
         var missing = VA.resolveDeepLink({ kinematic: "nope" }, KIN_TOPOLOGIES,
           FIXTURE.results, null);
         eq(missing.mode, null);

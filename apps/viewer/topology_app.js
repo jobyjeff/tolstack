@@ -477,6 +477,7 @@
         state.deepLinkNotices = linked.notices;
         if (linked.mode === "kinematic") {
           selectKinematic(linked.kinematicId);
+          state.selection = linked.selection;
         } else if (linked.mode === "topology") {
           selectTopology(linked.topologyId);
           state.studyId = linked.studyId;
@@ -545,8 +546,8 @@
     state.mode = "kinematic";
     state.kinematicId = studyId;
     state.topologyId = study ? study.topology : null;
-    state.studyId = null;
     state.selection = null;
+    state.studyId = null;
     state.detailImage = null;
   }
 

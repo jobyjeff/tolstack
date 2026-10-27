@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the toolbar's Unused toggle hides the unlit model and brings it back",
+  "mutations": [
+    {
+      "contract": "The toggle moves the page between dimmed and hidden.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). The toggle's click changes nothing.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          state.unlitStyle = style ? style.next : VA.DEFAULT_UNLIT_STYLE;",
+      "replace": "          state.unlitStyle = state.unlitStyle;"
+    }
+  ]
+}

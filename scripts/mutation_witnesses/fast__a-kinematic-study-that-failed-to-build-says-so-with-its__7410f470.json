@@ -6,10 +6,10 @@
     {
       "contract": "A study whose status is an error renders its error and nothing it does not have.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Only an UNKNOWN status takes the error branch, so a failed study tries to draw a page out of fields it does not carry.",
+      "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Only an UNKNOWN status takes the error branch, so a failed study tries to draw a page out of fields it does not carry. Re-anchored 2026-10-26 onto studyFailed(), which both the head and the body read.",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "    if (!status || status.failed) {",
-      "replace": "    if (!status) {"
+      "find": "    return !status || status.failed;",
+      "replace": "    return !status;"
     }
   ]
 }

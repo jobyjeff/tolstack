@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] clicking the first contributor selects pitch_plate_attach_height in place: the page stays the study, the model marks it, the preview pane shows it",
+  "mutations": [
+    {
+      "contract": "A row click selects the edge without leaving the kinematic page.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Leaves for the topology page on a click, as before 2026-10-26.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    hideCrop();\n    selectElement(\"edge\", edgeId);",
+      "replace": "    hideCrop();\n    selectTopology(topologyId);\n    selectElement(\"edge\", edgeId);"
+    }
+  ]
+}

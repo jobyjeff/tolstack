@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "hiding the unlit model keeps the lit rows in walk order, drops every emptied column and re-lays the rails between what is left",
+  "mutations": [
+    {
+      "contract": "Hiding the unlit model drops every column left with nothing on it.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Keeps the walk's full column count, leaving empty lanes behind.",
+      "file": "apps/viewer/topology.js",
+      "find": "    out.columns = columns.length;",
+      "replace": "    out.columns = layout.columns;"
+    }
+  ]
+}

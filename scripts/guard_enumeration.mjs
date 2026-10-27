@@ -159,9 +159,9 @@ export const GUARD_SOURCES = {
 // `node scripts/run_mutation_witness_tests.mjs --unenrolled` is what names the
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
-  fast: { declared: 551, enrollable: 551, names: "6a3b0abb5fff" },
+  fast: { declared: 564, enrollable: 564, names: "b23fb13aa0c8" },
   annotate: { declared: 225, enrollable: 225, names: "c7f8fe3a3d7d" },
-  browser: { declared: 605, enrollable: 572, names: "f0775be1d6ab" },
+  browser: { declared: 609, enrollable: 576, names: "f5185de936eb" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

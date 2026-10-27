@@ -6,10 +6,10 @@
     {
       "contract": "A stop's limit on the kinematic study page opens the citation card carrying the requirement and its adoption note, not a native tooltip.",
       "issue": "docs/issues/ISSUE_20261022_the_kinematic_pages_citation_card_wiring_can_be_deleted_green_in_every_tier.md",
-      "note": "topology_app.js hands the kinematic view `onCardShow: showCard`; without it citationTrigger falls back to a title tooltip holding only the where-line. Every fast-tier check passes its own onCardShow, so only a real hover on the live page sees it.",
+      "note": "topology_app.js hands the kinematic view `onCardShow: showCard`; without it citationTrigger falls back to a title tooltip holding only the where-line. Every fast-tier check passes its own onCardShow, so only a real hover on the live page sees it. Re-anchored 2026-10-26: the kinematic page's ctx is one object handed to its head and its body.",
       "file": "apps/viewer/topology_app.js",
-      "find": "        onAttach3d: launchAnnotate,\n        onCardShow: showCard,\n      });\n    } else {\n      VA.renderStack(",
-      "replace": "        onAttach3d: launchAnnotate,\n      });\n    } else {\n      VA.renderStack("
+      "find": "        onAttach3d: launchAnnotate,\n        onCardShow: showCard,\n      };\n      if (nodes.kinematichead)",
+      "replace": "        onAttach3d: launchAnnotate,\n      };\n      if (nodes.kinematichead)"
     }
   ]
 }

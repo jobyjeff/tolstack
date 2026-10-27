@@ -161,11 +161,11 @@ semantics change as **breaking**, and change this section with it.
 |---|---|
 | `topology=<id>` | topology mode, that topology |
 | `study=<id>` | …with that study emphasized on the walk (chain lit, the rest dimmed, the grid on the chain's rows, the totals as that grid's own footer rows). Requires `topology`. |
-| `edge=<id>` | …with that edge selected in the detail pane. Requires `topology`. |
+| `edge=<id>` | …with that edge selected in the detail pane. Requires `topology` — or `kinematic`, where it selects an edge of that study's model on the study's own page. |
 | `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
 | `stack=<id>` | stack mode — the elements table — on that stack. Resolves against the projection, not the nav, so it still reaches a stack a topology re-expresses (which has no row of its own). |
 | `element=<id>` | …with that element's row selected and its sourcing in the right pane. Requires `stack`. |
-| `kinematic=<id>` | a kinematic study's own page (see "Kinematic studies" below). Stands alone: given beside any other param, it wins and the banner says the rest was ignored. |
+| `kinematic=<id>` | a kinematic study's own page (see "Kinematic studies" below). Stands alone but for `edge`: given beside any other param, it wins and the banner says the rest was ignored. |
 
 The rules a consumer can rely on:
 
@@ -197,6 +197,7 @@ topology.html?topology=vpa_pitch_linkage&edge=end_stop_clearance
 topology.html?stack=rotor_fastener_length&element=fastener_grip
 topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip
 topology.html?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops
+topology.html?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops&edge=pitch_link_length
 ```
 
 The outbound twin, for building one of these links in code, is
@@ -406,14 +407,33 @@ has not been built.
   what the model rows come from: per topology, the runs whose
   `geometry.features[]` name it, newest first by timestamp.
 - **A study row** opens the study's page (`views/kinematic.js`), in the main
-  column, with the preview pane stood down: the verdict per stop (the chain
-  studies' own verdict chip and words, its margin and the limit it is judged
-  against, and `BUDGET` where the check is a budget), the envelope chart, one
-  ranked contributor table per stop, and one **Where these numbers come from**
-  fold — the sweep run, the solver commit, the sweep's own analytic-against-
-  finite-difference agreement, how the features were identified, the study's
-  authored provenance, and the check's excluded terms as **Not in these
-  numbers**.
+  column, with the preview pane beside it as on every topology page: the
+  verdict per stop (the chain studies' own verdict chip and words, its margin
+  and the limit it is judged against, and `BUDGET` where the check is a
+  budget), then **the model**, then the envelope chart, one contributor table,
+  and one **Where these numbers come from** fold — the sweep run, the solver
+  commit, the sweep's own analytic-against-finite-difference agreement, how
+  the features were identified, the study's authored provenance, and the
+  check's excluded terms as **Not in these numbers**.
+- **The model** (2026-10-26, `the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`).
+  A kinematic study is a lit subset of its topology's one model, so its page
+  draws that model's DAG between the verdicts and the chart, exactly as a chain
+  study's page does: the study's **lit set** (`VA.kinematicLitSet` — every
+  contributor's edge, the edge each one borrows its band from, and every node
+  either end of one stands on) is on, the rest of the walk dimmed, the grid
+  beside it holds the lit edges and the leaders run only to lit nodes. The DAG
+  sits in a box of bounded height with its own scroll, so the verdicts, the
+  model and the top of the chart share the first screen; the box opens on the
+  grid of lit rows and keeps its scroll across repaints. The toolbar's
+  **Unused** toggle hides the unlit part instead (see "Studies" below).
+- **Rows reached from the page select in place.** A click on a contributor —
+  or on anything in the DAG — selects that edge here: the page stays the
+  study, the DAG marks the edge, and the preview pane shows its citation and
+  crop. Where a contributor has no value of its own and borrows its band from
+  another edge, the pane names that edge as **band in this study**, one click
+  from its citation. The row's `href` is still the edge's own
+  `?topology=…&edge=…` link, for a reader who opens it in a new tab, and
+  `?kinematic=…&edge=…` opens the study with the edge already selected.
 - **The envelope chart** is drawn live from `envelope[]` as inline SVG, in the
   `:root` type and colour tokens. x is the sweep's driver; y is the
   **deviation from nominal**, on an axis symmetric about zero that always
@@ -423,15 +443,34 @@ has not been built.
   plot reads the nearest sweep point: the driver, the measure there, ± worst
   case, ± RSS, each with its unit. The SVG the builder writes beside the JSON
   is its evidence file and is not embedded.
-- **A contributor row** names the topology's own edge (its id on hover), its
-  zone, sign, coefficient, band, magnitude and confidence, at the precision the
-  projection states (`display_decimals`, set in Python), with every unit in
-  the column header. A row with no band reads **no band on file**, the way a
-  valueless edge reads on the rails; a row with no effect at that point is
-  muted. The name is a link to that edge on its rail (`?topology=…&edge=…`,
-  followed in place on a click), and where the edge's part has a mesh, a
-  quiet **3D** control opens it in the 3D panel (or the annotator in a new
-  tab, where the panel cannot be served).
+- **One contributor table, a contributor said once.** The same features are
+  the contributors at every blade angle; what the sweep changes is their
+  coefficients. So a row is one contributor — the topology's own edge name
+  (its id on hover) with its zone after it — and a **column group per stop**
+  carries that stop's sign, coefficient and magnitude, under a group header
+  with the stop's name and its summary line (the measure there, ± worst case,
+  ± RSS). The band, the confidence and the 3D control follow. Rows are
+  ordered by the larger of their stop magnitudes; a row with no band sorts
+  last. Every number is at the precision the projection states
+  (`display_decimals`, set in Python), with every unit in a column header. A
+  cell with no effect at that stop is muted. The contributor's name stays
+  pinned at the left when the table scrolls sideways, which it does beside the
+  preview pane on a narrow window. Where the edge's part has a mesh, a quiet
+  **3D** control opens it in the 3D panel (or the annotator in a new tab,
+  where the panel cannot be served).
+- **A coefficient's hover is its curve across the sweep**: the signed
+  coefficient at every sweep point (the projection's
+  `contributors[].by_point[]`) against the driver, zero drawn, the stops
+  marked and this cell's stop emphasized — so a coefficient that changes sign
+  between the stops is visible rather than a sentence somewhere. It opens as
+  the page's one hover card (kind `curve`), which no table scroll box can
+  clip.
+- **A row with no band** reads **no band on file**, the way a valueless edge
+  reads on the rails, and the chip opens a card saying what would resolve it:
+  the drawing each of the edge's parts names, and whether a copy of it is on
+  file to be read (the builder's `gap_rows[].drawings`, off drawing-checker's
+  drawing inbox) — "drawing on file, not yet read", "no drawing on file", or
+  that the part names no drawing at all.
 - **The Kinematic model row** opens the 3D scene in sweep mode on the
   topology's newest run (`VA.annotateLink({ sweep })`, whose already-open twin
   is `VA.annotateExecCommands`' `["sweep", run]`): the flyout where the
@@ -935,6 +974,19 @@ below).
 
 The change of emphasis is **animated** — see "Selecting a study re-spines the
 DAG" below.
+
+**Dimmed or hidden** (2026-10-26). On a product-sized model the walk outside a
+study is most of the picture, so the toolbar carries one more toggle wherever
+something is lit — a chain study, or a kinematic study's page — **Unused:
+dimmed** (the default) or **Unused: hidden** (`VA.UNLIT_STYLES`,
+`VA.DEFAULT_UNLIT_STYLE`). Hidden draws only the lit rows, in walk order, and
+re-lays them (`VA.hideUnlit`): a column left with nothing on it is dropped, the
+rails and links are re-derived from what is left (`VA.walkRailsAndLinks`, which
+on every committed topology reproduces the projection's own rails and links
+exactly — the fast tier pins that), and a run of the walk that a hidden edge
+used to join becomes two runs with nothing drawn between them. A node a hidden
+edge shares with a lit one stays: it is lit. The leaders still land on their
+grid rows. The choice is kept for the session, like the leader style.
 
 **A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,
 `BrokenChain`, `CycleDetected` and `UnitMismatch` each render as a block carrying
@@ -1723,7 +1775,11 @@ and `VA.annotateExecCommands` re-drives a warm one with. Open/closed and the
 width are remembered per browser. The nav rail stays beside it (it used to
 stand down). Resting the pointer on an edge's row, rail mark or kinematic
 contributor posts `highlight` (debounced, `VA.PANE_HOVER_DEBOUNCE_MS`), and
-the panel's head line is the annotator's own `annotate:state` answer.
+the panel's head line is the annotator's own `annotate:state` answer. On a
+kinematic study's page a selection never moves the panel out of sweep mode:
+`VA.annotateParamsFor` keeps answering the study's sweep whatever is selected,
+and the selected edge is posted as a `highlight` instead — the one the panel
+shows whenever the pointer is resting on nothing in particular.
 
 **Probed, never assumed** (`VA.probeAnnotateMount`): at boot the page HEADs
 `../annotate/index.html` and requires an ok `text/html` answer — the same

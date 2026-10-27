@@ -806,8 +806,12 @@ each pairing argued in the contributor's own `note`.
 `the_viewer_shows_a_kinematic_study`): a page of its own, reached from a
 **Kinematic studies** section of the nav or `topology.html?kinematic=<study id>`
 — the verdict per stop, the envelope drawn live as deviation from nominal over
-the driver, one ranked contributor table per stop whose rows follow their edge
-to the rail, and the provenance behind one fold. It reads the projection the
+the driver, and the provenance behind one fold. Since 2026-10-26
+(`the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`) the page
+also draws the topology's model with the study's contributors and the edges
+they borrow a band from lit, the rest dimmed or hidden, and says each
+contributor once, with a column group per stop and its coefficient's curve
+across the sweep on hover; a row selects its edge in place. It reads the projection the
 builder above writes into the viewer's own projection directory, and adds
 nothing up. `apps/viewer/README.md`, "Kinematic studies — a section of their
 own", is where the page is described; `apps/viewer/views/kinematic.js` is the
