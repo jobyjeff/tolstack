@@ -412,14 +412,14 @@ body { display: flex; flex-direction: column; }
    hue or as the accent. A body the current study does not reach is a flat
    outline. pointer-events off: the field is wayfinding; its NAME is the one
    control (it folds the body). */
-.tv__body { stroke: rgba(255, 255, 255, .07); stroke-width: 1; pointer-events: none; }
-.tv__body--t0 { fill: rgba(140, 160, 200, .075); }
-.tv__body--t1 { fill: rgba(150, 190, 170, .065); }
-.tv__body--t2 { fill: rgba(190, 170, 140, .065); }
-.tv__body--t3 { fill: rgba(170, 150, 200, .07); }
-.tv__body--t4 { fill: rgba(140, 185, 195, .065); }
-.tv__body--t5 { fill: rgba(190, 150, 165, .065); }
-.tv__body--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
+.tv__bodyfield { stroke: rgba(255, 255, 255, .07); stroke-width: 1; pointer-events: none; }
+.tv__bodyfield--t0 { fill: rgba(140, 160, 200, .075); }
+.tv__bodyfield--t1 { fill: rgba(150, 190, 170, .065); }
+.tv__bodyfield--t2 { fill: rgba(190, 170, 140, .065); }
+.tv__bodyfield--t3 { fill: rgba(170, 150, 200, .07); }
+.tv__bodyfield--t4 { fill: rgba(140, 185, 195, .065); }
+.tv__bodyfield--t5 { fill: rgba(190, 150, 165, .065); }
+.tv__bodyfield--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
 .tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }

@@ -1299,8 +1299,8 @@
       if (pillRows[field.start]) return;
       var body = bodiesById[field.body] || { id: field.body, name: field.body };
       var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
-      var cls = "tv__body tv__body--t" + VA.bodyTint(ctx.topoProj, field.body) +
-        (flat ? " tv__body--flat" : "");
+      var cls = "tv__bodyfield tv__bodyfield--t" + VA.bodyTint(ctx.topoProj, field.body) +
+        (flat ? " tv__bodyfield--flat" : "");
       var rect = VA.svg("rect", cls, {
         x: field.x1, y: field.y1, width: Math.max(0, field.x2 - field.x1),
         height: Math.max(0, field.y2 - field.y1), rx: 6, ry: 6,
@@ -1677,9 +1677,9 @@
     var r = M.branchDot;
     var x1 = Math.min(mark.x, mark.x2) - r;
     var x2 = Math.max(mark.x, mark.x2) + r;
-    g.appendChild(VA.svg("rect", "tv__body tv__body--t" +
+    g.appendChild(VA.svg("rect", "tv__bodyfield tv__bodyfield--t" +
       VA.bodyTint(ctx.topoProj, info.body) + " tv__pill__shape" +
-      (flat ? " tv__body--flat" : ""), {
+      (flat ? " tv__bodyfield--flat" : ""), {
         x: x1, y: mark.y - r - 1, width: x2 - x1, height: 2 * r + 2,
         rx: r + 1, ry: r + 1,
       }));

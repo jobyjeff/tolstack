@@ -11882,7 +11882,8 @@
       "gap edge's glyph on its bar in the bar's own colour", function () {
         eq(Object.keys(VA.INTERFACE_GLYPHS), VA.INTERFACE_KINDS);
         var defs = VA.interfaceGlyphDefs();
-        var ids = defs.childNodes.map(function (n) { return n.getAttribute("id"); });
+        var ids = Array.prototype.map.call(defs.childNodes,
+          function (n) { return n.getAttribute("id"); });
         eq(ids, VA.INTERFACE_KINDS.map(VA.interfaceGlyphId).concat([VA.FORM_GLYPH_ID]));
         var topo = JSON.parse(JSON.stringify(KIN_TOPOLOGIES.topologies[0]));
         var gap = topo.edges.filter(function (e) { return e.kind === "gap"; })[0];
@@ -16500,7 +16501,7 @@
             eq(pill.length, 1);
             eq(pill[0].getAttribute("data-collapsed-body"), "base");
             has(pill[0].textContent, base.joint_nodes.length + " joints");
-            eq(all(root, "rect.tv__body").filter(function (n) {
+            eq(all(root, "rect.tv__bodyfield").filter(function (n) {
               return n.getAttribute("data-body") === "base";
             }).length, 0, "a collapsed body has no field of its own");
           });
@@ -16515,7 +16516,7 @@
                 selection: null, onSelect: function () {},
                 onToggleBody: function (id) { toggled.push(id); } });
             });
-            var fields = all(root, "rect.tv__body");
+            var fields = all(root, "rect.tv__bodyfield");
             eq(fields.length, topo.bodies.length);
             var names = all(root, "text.tv__bodyname");
             eq(names.map(function (n) { return n.getAttribute("data-body-toggle"); }).sort(),
