@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: open
+status: resolved
 area: viewer/annotate pane
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_model_is_drawn_in_the_scene.md
@@ -41,3 +41,12 @@ The staged handoff `leaders_follow_the_active_study_across_the_seam` (scope
 `apps/viewer/`) is the natural owner: its deliverable 2 already scopes the 3D
 leaders to the same lit set and the same toggle. A TRUTH check there can read
 `window.__model.lit` / `window.__model.unlit` in the pane after a toggle.
+
+## Resolved 2026-10-27 (handoff `leaders_follow_the_active_study_across_the_seam`)
+
+`apps/viewer/topology_app.js`'s `syncSceneModel` posts `model lit <edge>…`
+(`model lit all` with nothing lit, `VA.sceneLitCommand`) and `model unlit
+<word>` after every paint in which either changed, and again on each
+`annotate:state` the pane sends (the scene has just reloaded what it shows).
+The browser tier's `leaders across the seam (…)` suite reads `__model.lit` and
+`__model.unlit` in the pane, before and after the toolbar's toggle.

@@ -1820,6 +1820,51 @@ annotator's: hover lights the thing in the scene, a click selects it, a
 disclosure opens, a checkbox shows or hides, and a selection made in the
 scene comes back marked. Every row that does something is reachable by Tab.
 
+**Leaders across the seam** (handoff `leaders_follow_the_active_study_across_the_seam`,
+2026-10-27; Jeff: "if you selected a single element in 2d or 3d, you could
+quickly trace its 2d and 3d representation, as well as the line of the
+tolerance rollup"). The scene posts where it draws each node
+(`annotate:anchors`, in the iframe's own pixels — docs/ANNOTATION_SURFACE.md,
+"Talking to the shell"); the pane publishes each lit node's DAG end
+(`VA.lastTopoRender.seam`, from `VA.seamDots`: the left side of its dot, or
+its own column on a collapsed body's pill); and one page-level SVG
+(`svg.seamleaders`) draws a leader between the two, offset by the rails SVG's
+and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
+
+- **The lit set only** — a kinematic study's own, a chain study's chain; the
+  whole walk has none, and a node outside the lit set never gets one whatever
+  the scene posts. A node whose anchor is `null`, whose anchor is outside the
+  scene's visible frame, or whose dot is scrolled out of the DAG's view gets
+  nothing: no leader, no stub.
+- **One bend.** A leader runs level out of its dot to half a gutter left of
+  the leftmost thing the DAG draws, turns once, and runs straight to the
+  anchor. Leaving level with its own row is what keeps it off every lit edge's
+  bar: no other row's bar reaches into that row (`VA.seamBarCrossings` counts,
+  and the tiers pin it at none). Crossings among the leaders are counted
+  (`VA.seamCrossings`), not minimised.
+- **One selection, three representations.** `VA.selectedLeaderNodes` — a
+  node's own, an edge's two ends — is the rule both the DAG↔grid leaders and
+  these read: the selected element's leaders wear the accent, every other
+  leader steps back, and the pane's hover lights them lighter. The scene's
+  line lights through the `highlight` a kinematic page already posts; a
+  selected node is selected in the scene's layer (`model select node`). A pick
+  in the scene selects its row in the scene's rail, and the tree it sends back
+  marks that row: a row naming an edge, or a body carrying exactly one lit
+  edge, selects it here (`VA.sceneRowElement`), so a pick and a click on its
+  contributor row arrive at the same state. A selection brings its grid row
+  into view in the kinematic page's bounded box — never by scrolling the
+  document, which slides another row under a pointer that has not moved.
+- **The scene is told the page's lit set and its dim-or-hide word** in its
+  own verb (`model lit …` / `model lit all`, `model unlit dim|hide`), each
+  only when it changed.
+- **Re-drawn on every anchors message, every pane paint (a respine's frames
+  included), every scroll and every resize** — one `ResizeObserver`, one
+  measurement of the three rects, at most one draw per frame.
+
+The DAG↔grid leaders stay in the rails SVG: they share that SVG's scroll
+exactly, where an overlay redrawn on a scroll event trails a
+compositor-scrolled pane by a frame.
+
 **Probed, never assumed** (`VA.probeAnnotateMount`): at boot the page HEADs
 `../annotate/index.html` and requires an ok `text/html` answer — the same
 posture (and the same catch-all-server trap) as `storage/http.js`'s data

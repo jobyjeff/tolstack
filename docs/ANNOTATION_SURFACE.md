@@ -679,7 +679,10 @@ a key; a node is `null` when it is off screen, behind the camera, hidden, or
 has no anchor geometry. An edge is listed only while it is drawn (not hidden
 by `model unlit hide`) and both its ends are on screen. When the layer goes
 down the scene posts the message once with both maps empty. The shell offsets
-by the iframe's measured rect.
+by the iframe's measured rect and draws a leader from each lit node's DAG dot
+to its anchor (`apps/viewer/README.md`, "Leaders across the seam"); it posts
+its lit set and its dim-or-hide word whenever either changes, so the
+fallback above is what a full page, or a shell that has not yet spoken, sees.
 
 ## What this MVP does not build
 
