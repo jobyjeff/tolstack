@@ -1572,9 +1572,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       settle it. A stale count in a lesson is a documentation finding, not a test
       failure; the shipping count comes from the post-merge run, and whatever you
       quote from it names the checkout that produced it.
-- [ ] **After you merge `integration` into your review branch, re-run
+- [ ] **INTERIM (strategy 2026-10-26, Jeff): a review never runs `--full`.**
+      The whole registry (312 entries) took ~2 h under the one browser slot on
+      the `pitch_system_folds…` review with eleven handoffs queued behind it,
+      and in six weeks a full run caught one decay that `--only` could not
+      (10-20, a witness defect with no product exposure). The full registry
+      is becoming a scheduled sweep that files `class: decayed_witness`
+      issues (`HANDOFF_20261026_the_full_registry_leaves_the_merge_gate`,
+      which also gives the runner `--changed-since` and rewrites this entry).
+      **Until that lands, after you merge `integration` into your review
+      branch run `--only <id>` for every spec whose mutation `file` the
+      merged diff touches** (`git diff --name-only master...HEAD` against
+      the `file` fields in `scripts/mutation_witnesses/*.json`; the runner's
+      refusal of a bare run prints the `--only` lines for this branch's own
+      specs), report the selection and the count, and treat a drop within
+      the selection exactly as the paragraph below says. A decay the diff
+      could not reach is the sweep's finding, the next morning, not yours.
+      The paragraph below is kept for its argument and its measurements; its
+      instruction to run `--full` is retired.
+      *Was:* After you merge `integration` into your review branch, re-run
       `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --full`
-      and report the count in your review.** (`--full` because this run is the
+      and report the count in your review. (`--full` because this run is the
       whole registry on purpose: since 2026-10-21 the runner refuses one off the
       main checkout without it, which is aimed at tactical branches, not here.) This is an instruction, not a
       ritual, and the reason is that **your merge is the only point in the
@@ -5033,8 +5051,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `-300px`, the rail's width) put the rail under the panel instead of the
       DAG, and went NOT WITNESSED. The author re-pointed the two sibling
       specs, ran `--only` on the specs it touched, and missed this one.
-      Whenever a diff changes what is in normal flow beside the flyout, run the
-      FULL registry before you approve, not `--only`. If that run shows a
+      Whenever a diff changes what is in normal flow beside the flyout, add
+      every geometric spec of the viewer's `browser` tier to your `--only`
+      set (grep `scripts/mutation_witnesses/browser__*.json` for `shift` /
+      `offset` mutations) — **not the full registry** (strategy 2026-10-26,
+      see the INTERIM entry above; the scheduled sweep covers the rest within
+      a day). If that run shows a
       `the tier's process could not be started` (ENOENT) miss, check the
       scratch root's junctions. Another session sharing that root may have
       removed them mid-run (round 2, 21 `python__` specs). Re-run
