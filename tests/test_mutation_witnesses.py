@@ -1048,3 +1048,86 @@ def test_a_name_continued_in_the_other_quote_kind_is_read_whole(enumeration):
             f"{guard['source']}: {guard['name']!r} ends on a space, which is "
             "where a mixed-quote continuation was cut off"
         )
+
+
+# --- ``--changed-since``: the merge gate runs what the diff could have decayed -
+
+
+RUNNER = REPO_ROOT / "scripts" / "run_mutation_witness_tests.mjs"
+#: The one line the runner prints per selected entry: ``  <id>  [<arm>]``.
+SELECTED_LINE = re.compile(r"^  (\S+)  \[(.+)\]$")
+
+
+def _selection_for(tmp_path: Path, *changed: str) -> tuple[dict[str, str], str]:
+    """The runner's selection for a throwaway repo whose second commit touches ``changed``.
+
+    ``--diff-root`` points git at the throwaway repo, so the entries are the
+    real registry's and the diff is whatever this test says it is -- no browser,
+    no tier run (``--selection-only`` stops after the selection is printed).
+    """
+    def git(*args: str) -> None:
+        subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t",
+                        "-c", "user.email=t@t", *args],
+                       check=True, capture_output=True)
+
+    git("init", "-q")
+    (tmp_path / "seed.txt").write_text("seed", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-q", "-m", "one")
+    for relative in changed:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("changed", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-q", "-m", "two")
+    proc = subprocess.run(
+        [shutil.which("node"), str(RUNNER), "--changed-since", "HEAD~1",
+         "--diff-root", str(tmp_path), "--selection-only"],
+        cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", timeout=120,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    picked = {}
+    for line in proc.stdout.splitlines():
+        found = SELECTED_LINE.match(line)
+        if found:
+            picked[found.group(1)] = found.group(2)
+    return picked, proc.stdout
+
+
+def test_changed_since_selects_an_entry_whose_mutation_file_changed(tmp_path, mutations):
+    name, _spec, mutation = next(m for m in mutations if m[2]["file"].startswith("apps/annotate/"))
+    picked, _out = _selection_for(tmp_path, mutation["file"])
+    assert picked.get(name.removesuffix(".json")) == "mutation file changed" or any(
+        key.startswith(name.removesuffix(".json")) and arm == "mutation file changed"
+        for key, arm in picked.items()), picked
+    assert set(picked.values()) == {"mutation file changed"}
+
+
+def test_changed_since_selects_an_entry_whose_spec_changed(tmp_path, specs):
+    name, spec = specs[0]
+    picked, _out = _selection_for(tmp_path, f"scripts/mutation_witnesses/{name}")
+    stem = name.removesuffix(".json")
+    assert {k for k in picked if k.split("#")[0] == stem} == {
+        f"{stem}#{i + 1}" if len(spec["mutations"]) > 1 else stem
+        for i in range(len(spec["mutations"]))}
+    assert set(picked.values()) == {"spec added or changed"}
+
+
+def test_changed_since_selects_every_entry_of_a_tier_whose_harness_changed(tmp_path, specs):
+    picked, _out = _selection_for(tmp_path, "apps/annotate/run_tests.cjs")
+    annotate = {name.removesuffix(".json") for name, spec in specs if spec["tier"] == "annotate"}
+    assert annotate, "no annotate specs: the arm this test pins has nothing to select"
+    assert {k.split("#")[0] for k in picked} >= annotate
+    assert "tier harness changed" in set(picked.values())
+
+
+def test_changed_since_selects_a_python_entry_whose_pytest_file_changed(tmp_path, specs):
+    name, spec = next((n, s) for n, s in specs if s["tier"] == "python")
+    picked, _out = _selection_for(tmp_path, spec["suite"])
+    assert name.removesuffix(".json") in {k.split("#")[0] for k in picked}
+
+
+def test_changed_since_an_unreachable_diff_is_a_result_not_a_refusal(tmp_path, specs):
+    picked, out = _selection_for(tmp_path, "README.md")
+    assert picked == {}
+    assert re.search(r"^0 of \d+ entries can be reached by this diff against HEAD~1$", out, re.M), out

@@ -2120,8 +2120,8 @@ node scripts\run_viewer_browser_tests.mjs               # truth tier (installed 
 node scripts\run_viewer_browser_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
 node scripts\run_viewer_browser_tests.mjs --only "topology height budget"  # one suite
 
-npm run test:mutations                                  # mutation-witness tier, every entry (--full)
-node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --only "<guard>"   # ...from a worktree, per guard touched
+npm run test:mutations                                  # mutation-witness tier, every entry (--full): the scheduled sweep's run, not a landing's
+node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --changed-since integration   # ...from a worktree: the entries this diff could have decayed
 ```
 
 ### The mutation-witness tier
@@ -2167,6 +2167,18 @@ spec reddens `pytest -q` rather than becoming somebody else's backlog: that gap
 used to be recorded by hand, one issue at a time, and fourteen of those were open
 at once. If you find a guard that shrugs off a hand mutation, that is exactly what
 a spec is for.
+
+**What runs where.** A landing runs `--changed-since <ref>` — every entry whose
+mutation file, spec file or tier harness the diff touched — and `--only <guard>`
+re-checks one. The whole registry (`--full`) is the scheduled sweep's
+(`docs/prompts/WITNESS_SWEEP.md`): it held the machine's one browser slot for
+hours on every landing, and a decay is a test-quality defect with no product
+exposure, so a day's latency finding one is the better trade. The case the gate
+cannot see is the one the sweep is for: `--changed-since` would not have
+selected `browser__and-it-sits-to-the-panel-s-right…237dba65` on 2026-10-20,
+when a layout shift left a spec whose own file was untouched blind. It arrives
+as a `class: decayed_witness` issue, not as a reason to put `--full` back on a
+merge.
 
 Its cheap half runs on every `pytest -q`: `tests/test_mutation_witnesses.py`
 requires every declared `find` to still resolve to exactly one place in the

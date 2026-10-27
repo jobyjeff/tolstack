@@ -483,9 +483,9 @@ problem as an unrecorded full suite one step later.
   tier as above.
 - **A guard, a witness, or `scripts/mutation_witnesses/`** → `pytest -q
   tests/test_mutation_witnesses.py` plus `node
-  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only
-  "<guard>"` for each guard the diff adds or changes (a bare run off the main
-  checkout is refused and prints those `--only` lines for the branch's specs).
+  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
+  --changed-since integration` (`--only "<guard>"` re-checks one entry; a bare
+  run off the main checkout is refused and prints both spellings).
   **Any diff that adds a guard at all** is in this row since 2026-09-23: the
   per-source guard *set* is pinned (`DECLARED_GUARDS`,
   `scripts/guard_enumeration.mjs` — a count, an enrollable count and a digest
@@ -1572,29 +1572,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       settle it. A stale count in a lesson is a documentation finding, not a test
       failure; the shipping count comes from the post-merge run, and whatever you
       quote from it names the checkout that produced it.
-- [ ] **INTERIM (strategy 2026-10-26, Jeff): a review never runs `--full`.**
-      The whole registry (312 entries) took ~2 h under the one browser slot on
-      the `pitch_system_folds…` review with eleven handoffs queued behind it,
-      and in six weeks a full run caught one decay that `--only` could not
-      (10-20, a witness defect with no product exposure). The full registry
-      is becoming a scheduled sweep that files `class: decayed_witness`
-      issues (`HANDOFF_20261026_the_full_registry_leaves_the_merge_gate`,
-      which also gives the runner `--changed-since` and rewrites this entry).
-      **Until that lands, after you merge `integration` into your review
-      branch run `--only <id>` for every spec whose mutation `file` the
-      merged diff touches** (`git diff --name-only master...HEAD` against
-      the `file` fields in `scripts/mutation_witnesses/*.json`; the runner's
-      refusal of a bare run prints the `--only` lines for this branch's own
-      specs), report the selection and the count, and treat a drop within
-      the selection exactly as the paragraph below says. A decay the diff
-      could not reach is the sweep's finding, the next morning, not yours.
-      The paragraph below is kept for its argument and its measurements; its
-      instruction to run `--full` is retired.
-      *Was:* After you merge `integration` into your review branch, re-run
-      `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --full`
-      and report the count in your review. (`--full` because this run is the
-      whole registry on purpose: since 2026-10-21 the runner refuses one off the
-      main checkout without it, which is aimed at tactical branches, not here.) This is an instruction, not a
+- [ ] **After you merge `integration` into your review branch, re-run the
+      witnesses the merge could have reached:**
+      `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since master`
+      on the merged tree. Report the selection (the runner prints one line per
+      entry with the arm that selected it) and the count; **a drop within the
+      selection is REQUEST CHANGES on the merge.** A review never runs
+      `--full`: the whole registry is the scheduled sweep's
+      (`docs/prompts/WITNESS_SWEEP.md`), and a decay it finds arrives the next
+      morning as a `class: decayed_witness` issue, not as your finding. It took
+      ~2 h under the one browser slot on 2026-10-26 (312 entries, eleven
+      handoffs queued behind it), and in six weeks it caught one decay nothing
+      cheaper could (10-20, a witness defect with no product exposure, in a spec
+      whose own file the branch never touched). That case is the sweep's job
+      and the reason a decay found there is not a reason to put `--full` back on
+      the gate. `--only <guard>` re-checks one entry. This is an instruction,
+      not a
       ritual, and the reason is that **your merge is the only point in the
       lifecycle where nothing re-runs this tier**. The other three tiers answer
       *does the app still behave?*; this one answers *would the guards notice if
@@ -3037,7 +3030,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the grid trigger's 418.5–444.5 for a rail bar until the tail was fixed).
       **Second sighting 2026-09-15 (`viewer_component_names_and_reference_copy`),
       and it names the tier the entry above leaves out: run
-      `run_mutation_witness_tests.mjs` after the integration merge too.** The
+      `run_mutation_witness_tests.mjs --changed-since master` after the integration merge too.** The
       handoff branch witnessed 16/16 and the merged tree 21/22 --
       `card-layout-out-of-flow` no longer reddens on its declared sub-check.
       Bisected by `git archive <rev>` into scratch trees: witnessed at the
@@ -5054,9 +5047,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Whenever a diff changes what is in normal flow beside the flyout, add
       every geometric spec of the viewer's `browser` tier to your `--only`
       set (grep `scripts/mutation_witnesses/browser__*.json` for `shift` /
-      `offset` mutations) — **not the full registry** (strategy 2026-10-26,
-      see the INTERIM entry above; the scheduled sweep covers the rest within
-      a day). If that run shows a
+      `offset` mutations) — **not the full registry**: the change runs
+      `--changed-since` like any other, and the scheduled sweep covers what the
+      diff cannot reach, within a day. If that run shows a
       `the tier's process could not be started` (ENOENT) miss, check the
       scratch root's junctions. Another session sharing that root may have
       removed them mid-run (round 2, 21 `python__` specs). Re-run

@@ -1,13 +1,12 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: resolved
 area: tests/mutation-witness
 reporter: agent
 class: suite_over_budget
-defer_until: 2026-11-05
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261022_triage_sweep.md
-resolution: triage 2026-10-22 (second sweep): med beyond this sweep's BUDGET=3 for tolstack (3 staged); deferred 14 days (the class has no program)
+resolution: the_full_registry_leaves_the_merge_gate (2026-10-26) -- the full registry no longer runs on a landing's path (a merge runs --changed-since); it is the scheduled sweep's, and its budget is the `sweep` tier's
 ---
 
 # The mutation-witness full registry runs 76 minutes against a 30-minute merge-tier budget
