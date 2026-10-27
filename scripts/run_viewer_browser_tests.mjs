@@ -5644,6 +5644,11 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     }
 
     // Hover from the nav lights the body in the scene; leaving lets it go.
+    // Paused first: a playing sweep rebuilds the rail as the frame crosses a
+    // stop, and a rebuild clears the hover on its own -- which would let a
+    // missing `leave` pass the second check.
+    await inPane((w) => w.AnnotateApp.exec(["pause"]));
+    await page.waitForTimeout(500);
     const bodyName = await inPane((w) => w.__sweep.tree.bodies[0].name);
     await page.locator(sceneRow("#sweep-tree/body=" + bodyName))
       .first().hover({ timeout: 5000 }).catch(() => {});
@@ -5651,8 +5656,23 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       await until((w, name) => w.__lastHover && w.__lastHover.target &&
         w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name,
       bodyName, 10000));
-    await page.mouse.move(5, 5);
+    // Left for a spot still inside the tree but on no row -- the empty end of
+    // the chip bar -- so the only thing that can take the light down is the
+    // row's own `leave`. (Leaving the nav altogether also posts the page's
+    // `highlight clear`, which clears it too and would hide a missing leave.)
+    // Held, not sampled: a rail rebuild just after the hover clears it for a
+    // moment and the row under the pointer sends `enter` again -- leaving
+    // during that moment would read the rebuild's clear as the leave's.
+    await page.waitForTimeout(800);
+    const held = await until((w) => !!w.__lastHover, null, 5000);
+    const lastChip = await page.locator(`${studyItem} .navtree__scenechip`).last().boundingBox();
+    if (lastChip) await page.mouse.move(lastChip.x + lastChip.width + 6, lastChip.y + lastChip.height / 2);
+    const leftOnto = await page.evaluate(([x, y]) => {
+      const hit = document.elementFromPoint(x, y);
+      return hit ? hit.className : null;
+    }, lastChip ? [lastChip.x + lastChip.width + 6, lastChip.y + lastChip.height / 2] : [0, 0]);
     push("[real] ...and leaving it takes the light down",
+      held && leftOnto === "navtree__scenechips" &&
       await until((w) => w.__lastHover === null, null, 10000));
 
     // A click on a contributor row in the nav selects it in the scene, and the
