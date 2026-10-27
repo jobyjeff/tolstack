@@ -2099,8 +2099,8 @@ KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES: dict = {
     # `topology_vpa_pitch_linkage` 105.9908 mm in its `dimension`, 3.41 mm
     # apart on one rigid link
     # (ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md).
-    # The pair still exists and is still compared -- it agrees now, which is
-    # what the non-vacuity test below pins.
+    # Since 2026-10-26 the pair is one edge of one topology; the guard below
+    # rebuilds it in memory to show it would still be seen.
 }
 
 
@@ -2130,7 +2130,7 @@ def _edge_nominal_statements(edge):
     return stated
 
 
-def _topology_nominal_statements():
+def _topology_nominal_statements(topologies=None):
     """``{(part, edge id): [(topology id, where, value), ...]}`` over the corpus.
 
     Keyed on **part + edge id**, the grain the SOP's rule is written at: the
@@ -2139,12 +2139,17 @@ def _topology_nominal_statements():
     a relation between two parts, so it has no part+feature key to be consistent
     under, and three of them share the id ``shank_out`` across three topologies
     while measuring three different clearances.
+
+    ``topologies`` defaults to the committed corpus; the guard below also hands
+    it the pair that broke, rebuilt in memory (``_the_pair_that_broke``).
     """
     from tolerance_stack.topology import load_topology  # noqa: PLC0415
 
+    if topologies is None:
+        topologies = [load_topology(STACKS_DIR.parent / "topologies" / filename)
+                      for filename in ALL_TOPOLOGY_FILES]
     statements: dict = {}
-    for filename in ALL_TOPOLOGY_FILES:
-        topology = load_topology(STACKS_DIR.parent / "topologies" / filename)
+    for topology in topologies:
         for edge in topology.edges:
             if not edge.part:
                 continue
@@ -2152,6 +2157,57 @@ def _topology_nominal_statements():
                 statements.setdefault((edge.part, edge.id), []).append(
                     (topology.id, where, value))
     return statements
+
+
+def _nominal_divergences(statements):
+    """``(divergent, known-and-seen)`` -- the guard's whole decision, in one place."""
+    divergent = []
+    seen_divergences = set()
+    for key, stmts in sorted(statements.items()):
+        values = [value for _, _, value in stmts]
+        if max(values) - min(values) <= TOL:
+            assert key not in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES, (
+                f"{key} is listed in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES and "
+                f"now agrees on {values[0]} -- delete the row, the divergence "
+                f"is closed")
+            continue
+        if key in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES:
+            seen_divergences.add(key)
+            continue
+        divergent.append((key, stmts))
+    return divergent, seen_divergences
+
+
+def _the_pair_that_broke():
+    """The 2026-09-30 defect, rebuilt in memory: two topologies, one rigid link.
+
+    ``pitch_system`` stated the pitch link's length as 109.4 mm in an edge's
+    ``properties`` beside a variation-only band; ``vpa_pitch_linkage`` stated
+    105.9908 mm in a ``dimension``. Since 2026-10-26 the two are one edge in
+    one document (handoff ``pitch_system_folds_into_the_pitch_linkage_model``),
+    so no committed pair is left to show the guard straddling the two places --
+    this is that pair, at the values it broke at.
+    """
+    from tolerance_stack.topology import Dimension, Edge, Node, Part, Topology  # noqa: PLC0415
+
+    def one(topology_id, **edge):
+        return Topology(
+            id=topology_id, title=topology_id, units="mm",
+            parts=[Part(id="pitch_link", name="pitch link")],
+            nodes=[Node(id="a", name="a", parts=("pitch_link",), kind="datum_feature"),
+                   Node(id="b", name="b", parts=("pitch_link",), kind="datum_feature")],
+            edges=[Edge(id="pitch_link_length", name="pitch link length",
+                        from_node="a", to_node="b", part="pitch_link", **edge)])
+
+    return [
+        one("pitch_system",
+            properties={"nominal_length_mm": 109.4},
+            dimension=Dimension(id="pitch_link_length", name="band",
+                                nominal=0.0, min=-0.03, max=0.03)),
+        one("vpa_pitch_linkage",
+            dimension=Dimension(id="pitch_link_length", name="length",
+                                nominal=105.9908, min=105.9908, max=105.9908)),
+    ]
 
 
 def test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_it():
@@ -2170,36 +2226,36 @@ def test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_i
     from **both** places a topology may state it (see
     ``_edge_nominal_statements``), because the pair that broke straddled them.
 
-    **Nominals, not bands**, and that is a corpus fact rather than a decision:
-    no part+feature in the topology corpus states two *comparable* bands today
-    -- ``pitch_system`` is variation-only (a width about an unstated nominal)
-    where ``vpa_pitch_linkage`` carries an absolute ``min == max`` with no
-    tolerance recorded at all, and the corpus's one other repeated key,
-    ``tan_link_mount_215175_002``/``tan_link_mount_height``, has a band in one
-    topology and no dimension in the other. A band comparison written now would
-    be asserted against nothing, which this repo counts as worse than absent.
-    ISSUE_20261001_the_topology_pairing_compares_nominals_and_not_bands.md.
+    **Its corpus subject is gone, and that is the fix, not a hole.** Since the
+    2026-10-26 fold the pitch link's length is one edge of one topology, and no
+    part+feature is stated in two committed topologies, so the corpus half below
+    compares nothing today and guards the next document that restates a part.
+    What keeps the guard from being vacuous is the first half: the same
+    decision, over the pair that broke rebuilt in memory, must still see it.
+
+    **Nominals, not bands**, and that is a corpus fact rather than a decision
+    -- ISSUE_20261001_the_topology_pairing_compares_nominals_and_not_bands.md.
 
     **Enrolled** (2026-10-15): two mutations, one per branch of
     ``_edge_nominal_statements``, in
     ``scripts/mutation_witnesses/python__test-one-part-and-feature-states-one-
-    nominal-in-every-to__31a8b9ea.json``.
+    nominal-in-every-to__31a8b9ea.json`` -- since 2026-10-26 on the helper
+    itself, which the rebuilt pair reddens.
     """
-    divergent = []
-    seen_divergences = set()
-    for key, statements in sorted(_topology_nominal_statements().items()):
-        values = [value for _, _, value in statements]
-        if max(values) - min(values) <= TOL:
-            assert key not in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES, (
-                f"{key} is listed in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES and "
-                f"now agrees on {values[0]} -- delete the row, the divergence "
-                f"is closed")
-            continue
-        if key in KNOWN_TOPOLOGY_NOMINAL_DIVERGENCES:
-            seen_divergences.add(key)
-            continue
-        divergent.append((key, statements))
+    rebuilt = _topology_nominal_statements(_the_pair_that_broke())
+    broke = rebuilt.get(("pitch_link", "pitch_link_length"), [])
+    assert {where for _, where, _ in broke} == {
+        "properties.nominal_length_mm", "dimension.nominal"}, (
+        "the pairing no longer reads both places a nominal lives -- the rebuilt "
+        f"2026-09-30 pair yields {broke}, and a `properties` nominal and a "
+        "`dimension` nominal must be compared against each other")
+    divergent, _ = _nominal_divergences(rebuilt)
+    assert [key for key, _ in divergent] == [("pitch_link", "pitch_link_length")], (
+        "the guard's decision does not see the 3.41 mm divergence it was "
+        "written for")
 
+    divergent, seen_divergences = _nominal_divergences(
+        _topology_nominal_statements())
     assert not divergent, (
         "one part+feature stated at two different nominals:\n" + "\n".join(
             f"  {part} / {edge_id}:\n" + "\n".join(
@@ -2212,40 +2268,21 @@ def test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_i
         f"and were not found -- a stale row here is a value nobody is checking")
 
 
-def test_the_topology_nominal_pairing_reads_both_places_a_nominal_lives():
-    """Not vacuous, and -- the half that matters here -- not half-vacuous.
+def test_the_topology_nominal_pairing_still_reads_the_corpus():
+    """The corpus half is not a no-op: it loads every topology and reads
+    ``properties`` where a committed edge states its nominal there.
 
-    The loop above finds nothing when it reaches nothing, so three things have
-    to be asserted rather than assumed: that some key is stated more than once
-    at all; that ``properties`` is reached, which is the hole this guard exists
-    to close and the one a ``dimension``-only reader would leave open; and that
-    the exact pair which broke is still the pair being compared.
+    The one such edge is ``pitch_link_length`` (its band is variation-only and
+    its nominal sits beside it), so a reader that silently stopped loading the
+    corpus, or stopped reading ``properties``, goes red here even though no
+    committed pair exists to diverge.
     """
     statements = _topology_nominal_statements()
-
-    paired = {k: v for k, v in statements.items() if len(v) >= 2}
-    assert paired, (
-        "no part+feature states a nominal in more than one topology, so the "
-        "pairing above is asserted against nothing")
-
+    assert statements, "the corpus pairing read no nominal at all"
     places = {where for stmts in statements.values() for _, where, _ in stmts}
     assert "dimension.nominal" in places
-    assert any(p.startswith("properties.") for p in places), (
-        "no topology edge states a nominal in `properties`, so the half of "
-        f"this guard that reads {EDGE_NOMINAL_PROPERTY_KEYS} is checking "
-        "nothing -- which is exactly the shape that let "
-        "ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart "
-        "through")
-
-    # And the pair that broke, named, so that deleting either half is loud.
-    broke = paired.get(("pitch_link", "pitch_link_length"))
-    assert broke is not None, (
-        "pitch_link / pitch_link_length is no longer stated in two topologies "
-        "-- it is the pair this guard was written for, and the demonstration "
-        "that a `properties` nominal and a `dimension` nominal are compared "
-        "against each other rather than only among their own kind")
-    assert {where for _, where, _ in broke} == {
-        "properties.nominal_length_mm", "dimension.nominal"}
+    assert [where for _, where, _ in statements[("pitch_link", "pitch_link_length")]] == [
+        "properties.nominal_length_mm"]
 
 
 def test_the_topology_nominal_pairing_covers_the_corpus_because_the_id_spaces_are_disjoint():

@@ -94,7 +94,14 @@ def test_every_committed_assumed_band_on_a_drawn_part_says_why():
                 assert ref.kind == "assumed"
                 assert topology.part(edge.part).drawing
                 exempt.append(edge.id)
-    # The two pitch-system placeholders filed for re-shaping under the rule;
-    # a third is a new decision, not a quiet addition.
-    assert sorted(exempt) == ["pitch_plate_flange_to_brake_attachment",
+    # The two pitch-system placeholders filed for re-shaping under the rule,
+    # and the four the 2026-10-26 fold exposed when the pitch-system half met
+    # the linkage half's part drawings (hub 214373-002, blade root 216332-001);
+    # all six in ISSUE_20261022_two_pitch_system_placeholders_are_exempted_...
+    # A seventh is a new decision, not a quiet addition.
+    assert sorted(exempt) == ["blade_root_clocking_to_oml",
+                              "hub_ring_gear_seat_position",
+                              "hub_top_deck_to_brake_mount",
+                              "hub_top_deck_to_vpa_mount",
+                              "pitch_plate_flange_to_brake_attachment",
                               "vpa_mount_to_end_stop_feature"]

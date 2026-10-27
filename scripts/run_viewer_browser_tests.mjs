@@ -2557,7 +2557,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
       const ids = realProjection.topologies.map((t) => t.id);
       push("[real] both MVP topologies are offered",
-        ids.includes("pitch_system") && ids.includes("vpa_output_to_pitch_plate"));
+        ids.includes("vpa_pitch_linkage") && ids.includes("vpa_output_to_pitch_plate"));
 
       for (const topology of realProjection.topologies) {
         await page.locator(navRow("topology", topology.id)).click();
@@ -2620,7 +2620,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           "worksheet_file is set",
           (await page.locator("#worksheet-toggle").isVisible()) ===
             !!topology.worksheet_file);
-        if (topology.id === "pitch_system" && topology.worksheet_file) {
+        if (topology.id === "vpa_pitch_linkage" && topology.worksheet_file) {
           // The real-projection swap above (`demoTopologyFixture`) wires
           // `topologies`/`crops`/`images` only, not `texts` — WORKSHEET_*.md's
           // own content, over this seam, is unreachable without a second
@@ -2940,7 +2940,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // hit path really makes a 2px line hoverable with a REAL pointer, and
       // whether the emphasis is actually PAINTED -- a class name would pass
       // through a stylesheet typo untouched.
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       await dismissCard(page);
       // Everything lit, with the one coordinate that says which column each
@@ -3166,10 +3166,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // length, at least one narrow one floored). Leaders re-measured at
       // every stop: the grid stays evenly spaced while the DAG stretches,
       // which is what the jogged leaders exist to absorb.
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const realBars = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
-        { topologyId: "pitch_system", mode });
+        { topologyId: "vpa_pitch_linkage", mode });
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
       const realTol = await realBars("tolerance");
@@ -3210,10 +3210,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const realBands = await page.evaluate(BANDS_IN_PAGE);
       push("[real] pitch_system's rows and bands are tinted from one parity, " +
         "and its untraced rows keep their provenance tint as well",
-        realBands.bad.length === 0 && realBands.bands === 17 &&
-        realBands.drawn === 17 &&
+        // 39 bands off 38 leaders since the 2026-10-26 fold made this the
+        // one product graph (17 off 16 on the pitch_system document alone).
+        realBands.bad.length === 0 && realBands.bands === 39 &&
+        realBands.drawn === 39 &&
         realBands.tinted === realBands.rowHeights.length &&
-        realBands.provenanceLayers > realBands.tinted / 2);
+        // A floor, not a share: 21 of the product graph's 59 rows are
+        // untraced since the 2026-10-26 fold (20 of pitch_system's 24 were).
+        realBands.provenanceLayers >= 20);
       if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
       // Both styles against the real mechanism. The page arrives in ANGLED
       // (VA.DEFAULT_LEADER_STYLE since 2026-09-21), so the click reaches
@@ -3224,7 +3228,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] pitch_system's jogged leaders still land on every dot and seam",
         (await correspondence()).drift.length === 0 &&
         realJogged.bad.length === 0 &&
-        realJogged.leaderPaths.length === 16 &&
+        realJogged.leaderPaths.length === 38 &&
         realJogged.leaderPaths.every((d) => / H .* V .* H /.test(d)));
       if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
       await page.locator("#leader-style-toggle").click();
@@ -3233,7 +3237,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] and back in angled style, one straight segment each",
         (await correspondence()).drift.length === 0 &&
         /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
-        realAngled.leaderPaths.length === 16 &&
+        realAngled.leaderPaths.length === 38 &&
         realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
 
       // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
@@ -3247,9 +3251,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // Not asserted to be 1: the mock block above dragged it, and the app's
       // state module survives the fixture swap and re-boot this tier does --
       // which is itself the preference behaving. What is asserted is that the
-      // scale is re-derived against THIS topology's own 16 leaders.
-      push("[real] the jog zone is measured against pitch_system's own 16 leaders",
-        before.leaders === 16 && before.scale >= 1);
+      // scale is re-derived against THIS topology's own leaders.
+      push("[real] the jog zone is measured against the product graph's own 38 leaders",
+        before.leaders === 38 && before.scale >= 1);
       const realGrip = await page.locator(".tvgrip--jog").boundingBox();
       await page.mouse.move(realGrip.x + realGrip.width / 2,
                             realGrip.y + realGrip.height / 2);
@@ -3305,7 +3309,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // Back to angled, so everything below this sees the default it expects.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // ...and the three OLDER display preferences, whose precedent both docs
@@ -3348,7 +3352,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("#edge-length-toggle").click();
       await page.locator("#edge-value-toggle").click();
       await page.waitForTimeout(80);
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // The preview pane over a real citation, with a real crop behind it.
@@ -3418,7 +3422,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         return page.evaluate(() =>
           Math.round(document.getElementById("detail").getBoundingClientRect().width));
       };
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const paneAtStart = await page.evaluate(() =>
         Math.round(document.getElementById("detail").getBoundingClientRect().width));
@@ -3716,9 +3720,9 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       }, { projection: realProjection, crops: realCrops });
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-      const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+      const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
       const okStudy = pitch && pitch.studies.find((s) => s.status === "ok");
       if (okStudy) {
         await page.locator(navRow("study", okStudy.id)).click();
@@ -3727,7 +3731,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
         // Deselect, same reason as the mock block above: the height
         // contracts are about the whole serialisation's own table.
-        await page.locator(navRow("topology", "pitch_system")).click();
+        await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
         await page.waitForFunction(
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
       }
@@ -4566,7 +4570,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
 
       // A deep link opens the viewer with the named study selected.
       await page.goto(url + "/apps/viewer/topology.html" +
-        "?topology=pitch_system&study=pitch_system_gas_spring_branch",
+        "?topology=vpa_pitch_linkage&study=pitch_system_gas_spring_branch",
         { waitUntil: "load" });
       await page.waitForSelector("tfoot.tvfoot", { timeout: 15000 });
       push("[real] a deep link opens the named study selected, over the real " +
@@ -4631,7 +4635,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       // most interesting one to hover is the boundary with the most
       // crop-bearing parts around it.
       const boundary = realProjection && (() => {
-        const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+        const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
         if (!pitch) return null;
         const sides = {}, cropped = {};
         pitch.edges.forEach((e) => {
@@ -8281,8 +8285,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const verdicts = await page.locator("div.kmverdict").allTextContents();
       push("[real] the study page reads one verdict chip per stop",
         verdicts.length === 2 &&
-        /pass/.test(verdicts[0]) && /margin \+0\.256 deg/.test(verdicts[0]) &&
-        /pass/.test(verdicts[1]) && /margin \+0\.258 deg/.test(verdicts[1]) &&
+        /pass/.test(verdicts[0]) && /margin \+0\.210 deg/.test(verdicts[0]) &&
+        /pass/.test(verdicts[1]) && /margin \+0\.185 deg/.test(verdicts[1]) &&
         await page.locator("div.kmverdict span.tvverdict--pass").count() === 2);
 
       // The wiring, not the view: topology_app.js hands the kinematic view its
@@ -8308,19 +8312,18 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const tipText = (await tip.isVisible()) ? await tip.innerText() : "";
       push("[real] hovering an envelope point reads its driver, nominal and both spreads",
         /actuator travel/.test(tipText) && /64\.466 mm/.test(tipText) &&
-        /-6\.992 deg/.test(tipText) && /±0\.244 deg/.test(tipText) &&
-        /RSS/.test(tipText) && /±0\.165 deg/.test(tipText));
+        /-6\.992 deg/.test(tipText) && /±0\.290 deg/.test(tipText) &&
+        /RSS/.test(tipText) && /±0\.169 deg/.test(tipText));
 
       const rows = page.locator('section.kmstop[data-stop="minus7"] tr.kmrow');
       const classes = [];
       for (let i = 0; i < await rows.count(); i++) {
         classes.push(await rows.nth(i).getAttribute("class"));
       }
-      push("[real] the -7 deg stop ranks six contributors, the fifth and sixth gaps",
+      // No gap rows since the tangential link cited its drawing (2026-10-26).
+      push("[real] the -7 deg stop ranks six contributors, every one a banded term",
         classes.length === 6 &&
-        classes.map((c) => /kmrow--gap/.test(c)).join() ===
-          [false, false, false, false, true, true].join() &&
-        /no band on file/.test(await rows.nth(5).innerText()));
+        classes.every((c) => /kmrow--term/.test(c) && !/kmrow--gap/.test(c)));
 
       // Waits for the RAIL, not for the selection: a follow that lands on the
       // rail and selects nothing is the failure this check names, and waiting
@@ -8613,10 +8616,10 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       window.ViewerApp.bootTopology();
     }, { projection: realProjection, crops: realCrops });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
-    await page.locator(navRow("topology", "pitch_system")).click();
+    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
     await settled();
 
-    const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+    const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
     const study = pitch.studies.find((s) => s.status === "ok" && s.layout);
     const walk = await geometry();
     push("[real] the walk is the default layout and it settled clean",
@@ -8633,7 +8636,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     await page.locator(navRow("study", study.id)).click();
     await settled();
     const chainSettled = await geometry();
-    await page.locator(navRow("topology", "pitch_system")).click();
+    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
     await settled();
 
     await page.locator(navRow("study", study.id)).click();
@@ -8711,7 +8714,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // in-session state and survives a selection, so the modes are cycled
     // once around the outside of the pair of routes.
     const modes = ["uniform", "tolerance", "absolute"];
-    const walkRow = navRow("topology", "pitch_system");
+    const walkRow = navRow("topology", "vpa_pitch_linkage");
     const studyRow = navRow("study", study.id);
     let chainUniform = null;
     for (let i = 0; i < modes.length; i++) {

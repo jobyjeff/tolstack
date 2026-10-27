@@ -65,7 +65,7 @@ if (!["before", "after"].includes(PHASE)) {
 }
 
 const PREFIX = "LESSONS_20260916_design_pass_typography";
-const TOPOLOGY = "pitch_system";
+const TOPOLOGY = "vpa_pitch_linkage";  // pitch_system, folded in 2026-10-26
 const STUDY = "pitch_system_blade_angle_average";
 const MIME = {
   ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",

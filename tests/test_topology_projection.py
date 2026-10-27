@@ -81,6 +81,20 @@ def topologies() -> dict:
             for path in sorted(TOPOLOGIES_DIR.glob("topology_*.json"))}
 
 
+#: ``topology_pitch_system.json`` as it was when it was folded into
+#: ``vpa_pitch_linkage`` (2026-10-26): the graph the column-order measurements
+#: below were taken on, frozen so the numbers keep a subject. Not a committed
+#: topology -- the projection never sees it.
+PITCH_SYSTEM_BEFORE_THE_FOLD = (REPO_ROOT / "tests" / "fixtures"
+                                / "topology_pitch_system_before_the_fold.json")
+
+
+def pitch_system_half(row: dict) -> list:
+    """A projected ``vpa_pitch_linkage`` row's edges that came from pitch_system."""
+    ids = set(row["topology"]["provenance"]["pitch_system_ids"]["edges"])
+    return [e for e in row["edges"] if e["id"] in ids]
+
+
 def projected(projection: dict, topology_id: str) -> dict:
     matches = [t for t in projection["topologies"] if t["id"] == topology_id]
     assert len(matches) == 1, f"expected exactly one {topology_id!r} topology"
@@ -115,7 +129,7 @@ def test_the_two_mvp_cases_are_both_there(projection):
     """The brief's L1 and L2, by id. Both must render, and the degenerate
     single-chain L1 is as much of the deliverable as the branching L2."""
     ids = {t["id"] for t in projection["topologies"]}
-    assert {"vpa_output_to_pitch_plate", "pitch_system"} <= ids
+    assert {"vpa_output_to_pitch_plate", "vpa_pitch_linkage"} <= ids
 
 
 def test_the_authored_document_rides_through_verbatim(projection):
@@ -346,8 +360,8 @@ def test_the_pitch_system_marks_its_four_branch_points(projection, topologies):
     test that spelled the four ids would be a third copy of a thing the module
     already derives.
     """
-    row = projected(projection, "pitch_system")
-    expected = topologies["pitch_system"].branch_nodes()
+    row = projected(projection, "vpa_pitch_linkage")
+    expected = topologies["vpa_pitch_linkage"].branch_nodes()
     assert expected, "the pitch system must have forks or this asserts nothing"
     assert row["branch_nodes"] == expected
     marked = {r["id"] for r in row["layout"]["rows"] if r.get("branch")}
@@ -481,7 +495,7 @@ def test_the_pitch_systems_short_legs_now_sit_nearest_the_trunk(
     against the spine are now the outermost pair. The COUNT: what that shape is
     worth, pinned so a future allocation change has to restate it.
     """
-    topology = topologies["pitch_system"]
+    topology = load_topology(PITCH_SYSTEM_BEFORE_THE_FOLD)
     layout = B.serialize_topology(topology).as_dict()
     assert layout["column_order"] == "exact", (
         "pitch_system has nine non-trunk columns, inside "
@@ -557,7 +571,7 @@ def test_no_other_column_order_beats_the_one_the_search_chose(topologies):
     import itertools
     import random
 
-    topology = topologies["pitch_system"]
+    topology = load_topology(PITCH_SYSTEM_BEFORE_THE_FOLD)
     chosen = B.serialize_topology(topology).as_dict()
     best = sum(B.layout_crossings(chosen).values())
 
@@ -760,7 +774,7 @@ def test_the_pitch_system_worksheet_resolves_through_the_declared_field(projecti
     which shares no stem with `pitch_system` -- so only the declared-field rule
     finds it, not the `topology_X.json` -> `WORKSHEET_X.md` by-name fallback.
     """
-    row = projected(projection, "pitch_system")
+    row = projected(projection, "vpa_pitch_linkage")
     assert row["worksheet_source"] == "declared"
     assert row["worksheet_file"] == (
         "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md")
@@ -780,13 +794,13 @@ def test_the_l1_topologys_joint_rides_into_the_projection(projection):
     assert row["joint"]["assembly_drawing"] == "217755"
     assert row["joint"]["scope"] == "grip length only"
 
-    pitch_system_row = projected(projection, "pitch_system")
+    pitch_system_row = projected(projection, "vpa_pitch_linkage")
     assert pitch_system_row["joint"] == {}
 
 
 def test_a_studys_configuration_rides_into_the_projection(projection):
     """Deliverable 5, gap 3, through the projection."""
-    row = projected(projection, "pitch_system")
+    row = projected(projection, "vpa_pitch_linkage")
     branch = next(s for s in row["studies"]
                   if s["id"] == "pitch_system_gas_spring_branch")
     assert branch["configuration"]["load_case"].startswith("collective")
@@ -873,10 +887,10 @@ def test_a_study_that_refuses_to_sum_is_carried_as_a_result(topologies):
     author lassoing interactively hits this constantly; a builder that raised
     here would take the page down instead of answering the question.
     """
-    topology = topologies["pitch_system"]
+    topology = topologies["vpa_pitch_linkage"]
     ambiguous = Study(
         id="deliberately_ambiguous", title="two paths at once",
-        topology="pitch_system", from_node="hub_lower_bearing_flange",
+        topology="vpa_pitch_linkage", from_node="hub_lower_bearing_flange",
         to_node="blade_root_oml",
         selection=["hub_lower_to_top_bearing_flange", "hub_top_flange_to_top_deck",
                    "hub_top_deck_to_vpa_mount", "hub_top_deck_to_brake_mount"],
@@ -924,6 +938,8 @@ def test_an_inline_dimension_with_a_croppable_citation_carries_a_topology_scoped
     projection,
 ):
     """The pitch system is authored topology-first, so no ``dimension_ref``
+    (since 2026-10-26 the pitch-system half of ``vpa_pitch_linkage``, which
+    ``pitch_system_half`` reads off the document's own provenance)
     edge covers it -- but seven of its inline edges carry a real drawing
     citation (six from handoff ``inline_edge_crops``, 2026-09-08;
     ``tan_link_mount_height`` added by ``policy_free_brief_residues``,
@@ -944,17 +960,18 @@ def test_an_inline_dimension_with_a_croppable_citation_carries_a_topology_scoped
     a real citation) -- which is why every edge here is ``inline`` -- the
     derived state lives in L1 and is asserted there.
     """
-    row = projected(projection, "pitch_system")
-    assert {e["value_source"] for e in row["edges"]} == {"inline"}
-    keyed = {e["id"]: e["crop_key"] for e in row["edges"] if e["crop_key"]}
+    row = projected(projection, "vpa_pitch_linkage")
+    half = pitch_system_half(row)
+    assert {e["value_source"] for e in half} == {"inline"}
+    keyed = {e["id"]: e["crop_key"] for e in half if e["crop_key"]}
     assert set(keyed) == {
         "hub_blade_root_seat_position", "end_stop_clearance", "piston_length",
         "pitch_plate_flange_to_link_hole", "gas_spring_body_height",
-        "gas_spring_mount_position", "tan_link_mount_height",
+        "gas_spring_mount_position", "tan_link_mount_overall_height",
     }
     for edge_id, key in keyed.items():
-        assert key == {"topology": "pitch_system", "edge": edge_id}
-    gaps = [e for e in row["edges"] if e["kind"] == "gap"]
+        assert key == {"topology": "vpa_pitch_linkage", "edge": edge_id}
+    gaps = [e for e in half if e["kind"] == "gap"]
     assert [e["id"] for e in gaps] == ["end_stop_clearance"]
     assert gaps[0]["dimension"] is not None
 
@@ -1029,8 +1046,8 @@ def test_a_workbook_or_assumed_inline_dimension_still_has_no_crop_key(projection
     ``policy_free_brief_residues``). The count is paired with the keyed set in
     the test above: one edge leaving this side lands on that one, and a drop
     here with no matching gain there is a citation lost rather than upgraded."""
-    row = projected(projection, "pitch_system")
-    uncroppable = [e for e in row["edges"] if e["crop_key"] is None]
+    row = projected(projection, "vpa_pitch_linkage")
+    uncroppable = [e for e in pitch_system_half(row) if e["crop_key"] is None]
     assert len(uncroppable) == 17
     assert {e["dimension"]["source_ref"]["kind"] for e in uncroppable} == {
         "workbook", "assumed"}

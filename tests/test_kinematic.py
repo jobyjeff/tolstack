@@ -687,3 +687,33 @@ def test_real_the_tangential_link_length_band_is_the_topology_edges_citation_abo
     assert edge.nominal - edge.min == pytest.approx(band.max)
     assert band.source_ref == edge.source_ref
     assert edge.source_ref.confidence == "traced"
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_every_contributor_carries_the_body_its_part_moves_with():
+    """Each contributor's ``body`` is read off the topology's own ``bodies``
+    (2026-10-26), and where the run names a body for the contributor's feature
+    the two agree -- the topology's grouping and the solver's, met on one row."""
+    study, _ = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    topo = load_topology(REAL_STUDY.parent / "topology_vpa_pitch_linkage.json")
+    for c in study.contributors:
+        part = topo.edge(c.edge).part
+        assert c.body == topo.body_of(part).id, c.edge
+        if c.feature.get("body") is not None:
+            assert c.feature["body"] == c.body, (
+                f"{c.edge}: the run says {c.feature['body']!r}, the topology "
+                f"puts {part!r} in {c.body!r}")
+    assert {c.body for c in study.contributors} == {
+        "pitch_link", "blade", "pitch_plate", "tan_link", "base"}
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_every_borrowed_band_is_an_edge_of_the_studys_own_topology():
+    """Since the 2026-10-26 fold the kinematic study's bands come from inside the
+    one topology: no contributor names a second model (the cross-topology ref
+    stays legal in the schema, for a document that has one to borrow from)."""
+    study, _ = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    raw = json.loads(REAL_STUDY.read_text(encoding="utf-8"))
+    refs = [c["dimension_ref"] for c in raw["contributors"] if "dimension_ref" in c]
+    assert len(refs) == 5
+    assert {r["topology"] for r in refs} == {study.topology}

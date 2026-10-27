@@ -226,7 +226,7 @@ try {
 
   // --- 2. a branch leg, lit end to end ----------------------------------
   console.log("\n2. a branch leg hovered mid-rail");
-  await page.locator(navRow("topology", "pitch_system")).click();
+  await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
   await page.waitForSelector("tr.tvrow", { timeout: 5000 });
   const rails = await page.locator("svg.tv__rails line.rail__hit").count();
   let best = null;

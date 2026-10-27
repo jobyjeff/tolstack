@@ -184,6 +184,20 @@ EDGE_KINDS = ("structural", "gap")
 #: constant: the schema break is pre-paid.
 TRANSFORM_KINDS = ("identity", "ratio", "linear_to_rotary")
 
+#: What a rigid body is, added 2026-10-26 (handoff
+#: ``pitch_system_folds_into_the_pitch_linkage_model``) so the topology can say
+#: which parts move as one -- the grouping the linkage solver's sweeps already
+#: name and the DAG has had no way to draw:
+#:
+#: * ``body`` -- a set of parts that move together: ground, the blade, the
+#:   pitch plate. A part the mechanism does not place is a body of its own.
+#: * ``link`` -- a two-force member between two bodies, its pose fixed by its
+#:   two joint centres: the pitch link, the tangential link.
+#:
+#: A word, not a solver input: nothing here poses a body or reads ``kind``
+#: to compute anything. Paired against ``docs/DAG_TOPOLOGY.md``, "Bodies".
+BODY_KINDS = ("body", "link")
+
 
 # ---------------------------------------------------------------------------
 # Errors
@@ -295,6 +309,39 @@ class Node:
         src = d.pop("source_ref", None)
         known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
         return cls(source_ref=SourceRef.from_dict(src) if src else None, **known)
+
+
+@dataclass(frozen=True)
+class Body:
+    """A rigid set of parts -- what moves as one when the mechanism moves.
+
+    Optional on a topology; when a document declares any, :class:`Topology`
+    holds it to declaring them all: every part in exactly one body, every
+    body's parts declared. ``docs/DAG_TOPOLOGY.md``, "Bodies".
+    """
+
+    id: str
+    name: str
+    parts: Tuple[str, ...] = ()
+    kind: str = "body"               # one of BODY_KINDS, above -- and checked
+    note: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in BODY_KINDS:
+            raise TopologyError(
+                f"body {self.id!r}: kind must be one of {BODY_KINDS}, got "
+                f"{self.kind!r}")
+        object.__setattr__(self, "parts", tuple(self.parts))
+        if not self.parts:
+            raise TopologyError(f"body {self.id!r}: a body is at least one part")
+        if len(set(self.parts)) != len(self.parts):
+            raise TopologyError(
+                f"body {self.id!r}: parts {list(self.parts)} lists a part twice")
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "Body":
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**known)
 
 
 # ---------------------------------------------------------------------------
@@ -571,7 +618,7 @@ class Topology:
     (or documents) a single physical joint, exactly as ``topology_vpa_output_to_
     pitch_plate.json`` does for the L1 proof. It is optional and unvalidated,
     like a stack's: a topology spanning a whole mechanism rather than one joint
-    (``topology_pitch_system.json``) carries no ``joint`` at all rather than a
+    (``topology_vpa_pitch_linkage.json``) carries no ``joint`` at all rather than a
     misleading one. Carried into the projection verbatim, never read by
     ``fold``/``traverse``/``summarize``.
 
@@ -580,6 +627,13 @@ class Topology:
     see ``docs/SOP_TOLERANCE_STACK.md``'s "Titling an artifact", which
     ``docs/DAG_TOPOLOGY.md`` points at rather than restating. Additive,
     optional, read by nothing that folds, so the schema stays ``/v0``.
+
+    ``bodies``, added 2026-10-26 (handoff
+    ``pitch_system_folds_into_the_pitch_linkage_model``), is the rigid-body
+    grouping of :attr:`parts` -- :class:`Body`. Optional and additive, so the
+    schema stays ``/v0``; but all-or-nothing: a document that declares one
+    body declares a body for every part. Read by the projections, never by
+    ``fold``/``traverse``/``summarize``.
     """
 
     id: str
@@ -590,6 +644,7 @@ class Topology:
     nodes: List[Node] = field(default_factory=list)
     edges: List[Edge] = field(default_factory=list)
     transforms: List[Transform] = field(default_factory=list)
+    bodies: List[Body] = field(default_factory=list)
     joint: Dict[str, Any] = field(default_factory=dict)
     provenance: Dict[str, Any] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
@@ -599,6 +654,26 @@ class Topology:
         self._nodes = _unique("node", self.nodes)
         self._edges = _unique("edge", self.edges)
         self._transforms = _unique("transform", self.transforms)
+        self._bodies = _unique("body", self.bodies)
+        self._body_of: Dict[str, Body] = {}
+        for body in self.bodies:
+            for part_id in body.parts:
+                if part_id not in self._parts:
+                    raise TopologyError(
+                        f"topology {self.id!r}: body {body.id!r} names part "
+                        f"{part_id!r}, which the document does not declare")
+                if part_id in self._body_of:
+                    raise TopologyError(
+                        f"topology {self.id!r}: part {part_id!r} is in body "
+                        f"{self._body_of[part_id].id!r} and in body "
+                        f"{body.id!r}. A part moves with one body.")
+                self._body_of[part_id] = body
+        unplaced = [p.id for p in self.parts if p.id not in self._body_of]
+        if self.bodies and unplaced:
+            raise TopologyError(
+                f"topology {self.id!r} declares bodies but puts no body round "
+                f"part(s) {unplaced}. Every part is in exactly one body; a part "
+                f"the mechanism does not place is a body of its own.")
         if "identity" in self._transforms:
             raise TopologyError(
                 f"topology {self.id!r}: 'identity' is the reserved id of the "
@@ -690,6 +765,14 @@ class Topology:
 
     def edge(self, edge_id: str) -> Edge:
         return _get("edge", self._edges, edge_id, self.id)
+
+    def body(self, body_id: str) -> Body:
+        return _get("body", self._bodies, body_id, self.id)
+
+    def body_of(self, part_id: str) -> Optional[Body]:
+        """The body ``part_id`` moves with; ``None`` when no body is declared."""
+        self.part(part_id)
+        return self._body_of.get(part_id)
 
     def transform(self, transform_id: Optional[str]) -> Transform:
         """The resolved transform for ``transform_id``; ``None`` -> :data:`IDENTITY`."""
@@ -1322,6 +1405,7 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topo
         nodes=[Node.from_dict(n) for n in data.get("nodes", [])],
         edges=edges,
         transforms=[Transform.from_dict(t) for t in data.get("transforms", [])],
+        bodies=[Body.from_dict(b) for b in data.get("bodies", [])],
         joint=data.get("joint", {}),
         provenance=data.get("provenance", {}),
         notes=data.get("notes", []),

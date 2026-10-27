@@ -49,7 +49,10 @@ traced ratio" — never restate the rule elsewhere).
   `docs/DAG_TOPOLOGY.md`. The third archetype (2026-08-31): interfaces as nodes,
   dimensions and gaps as edges, a study = a human-lassoed chain. It carries a
   hard fence — **it is not a solver** — and that fence rules out the most
-  natural-looking next feature.
+  natural-looking next feature. Since 2026-10-26 there is **one topology per
+  product** (`topology_vpa_pitch_linkage.json`; `pitch_system` was folded into
+  it) and every study is a subset of it; which parts move as one rigid body is
+  declared on it — `docs/DAG_TOPOLOGY.md`, "Bodies".
 - **A stack element or topology edge whose physical feature is unresolved** →
   `docs/ANNOTATION_SURFACE.md`. The select-and-tag surface (2026-09-06):
   `apps/annotate/` binds a stack-side key to a mesh face and writes an

@@ -37,7 +37,7 @@ The three zones, and why each is one ``Term``
 ---------------------------------------------
 
 Each contributor's band is a :class:`~tolerance_stack.topology.Dimension` about a
-nominal of ``0.0`` -- variation only, the ``pitch_system`` convention -- because
+nominal of ``0.0`` -- variation only, the pitch-system studies' convention -- because
 the nominal geometry is the sweep's own and the study asks how far the measure
 moves *from* it. The Jacobian entries for the zone's parameters at one point are
 ``J = (J_1, ..., J_k)`` (output unit per parameter unit):
@@ -379,7 +379,11 @@ class Contributor:
     ``dimension``) and is ``None`` exactly when this contributor is a gap row --
     ``band_source`` then says why. ``feature`` is the authored join (which
     topology node or edge the labels are); ``feature_source`` records whether the
-    artifact's own ``geometry.features[]`` confirmed it.
+    artifact's own ``geometry.features[]`` confirmed it. ``body`` is the id of
+    the topology body the contributor's edge's part moves with
+    (:meth:`~tolerance_stack.topology.Topology.body_of`), ``None`` for a gap
+    edge or a topology that declares no bodies -- read off the topology at
+    load, never authored here.
     """
 
     edge: str
@@ -393,6 +397,7 @@ class Contributor:
     feature_source: str = "authored"
     gap: Optional[str] = None
     note: Optional[str] = None
+    body: Optional[str] = None
 
     def __post_init__(self) -> None:
         self.parameters = tuple(self.parameters)
@@ -586,8 +591,8 @@ def _resolve_band(study_id: str, contributor: Contributor, raw: Dict[str, Any],
             f"kinematic study {study_id!r}: contributor {contributor.edge!r}'s band "
             f"{dim.id!r} has nominal {dim.nominal!r}. A kinematic contributor is a "
             f"variation about the sweep's own nominal geometry, so its band is "
-            f"authored about 0.0 (the pitch_system convention); the nominal is the "
-            f"sweep's, not the band's.")
+            f"authored about 0.0 (the pitch-system studies' convention); the nominal is "
+            f"the sweep's, not the band's.")
     if contributor.zone != "band" and dim.min != -dim.max:
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: contributor {contributor.edge!r} is a "
@@ -718,12 +723,14 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
                 f"contributor twice")
         seen.add(contributor.edge)
         try:
-            topology.edge(contributor.edge)
+            edge = topology.edge(contributor.edge)
         except KeyError:
             raise KinematicStudyError(
                 f"kinematic study {study_id!r}: contributor edge "
                 f"{contributor.edge!r} is not an edge of topology "
                 f"{topology.id!r}") from None
+        body = topology.body_of(edge.part) if edge.part else None
+        contributor.body = body.id if body is not None else None
         for label in contributor.parameters:
             sweep.parameter_index(label)
         contributor.feature_source = _reconcile_feature(
@@ -825,6 +832,7 @@ class ContributorRow:
             "zone": c.zone,
             "feature": dict(c.feature),
             "feature_source": c.feature_source,
+            "body": c.body,
             "entries": list(self.entries),
             "sign": self.sign,
             "coefficient": self.coefficient,

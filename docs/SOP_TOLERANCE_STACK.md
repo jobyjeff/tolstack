@@ -26,6 +26,12 @@ re-expresses a committed stack as a graph with **zero copied numbers** and
 folds to that stack's own published check, to the digit
 (`docs/DAG_TOPOLOGY.md`, "The two committed examples", L1).
 
+**One topology per product, and every study is a subset of it** (Jeff,
+2026-10-26): a new question about the pitch system is a new study of
+`topology_vpa_pitch_linkage.json`, adding the parts, nodes and edges it needs
+to that graph, not a second topology of the same parts. (The joint-level
+re-expressions of committed stacks, L1 and its siblings, predate the rule.)
+
 **Which document to start from:**
 
 - **Your question is graph-shaped** — a mechanism with more than one

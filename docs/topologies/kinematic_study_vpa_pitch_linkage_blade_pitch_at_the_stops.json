@@ -40,24 +40,24 @@
       "parameters": ["pitch_link.length"],
       "feature": {"edge": "pitch_link_length"},
       "zone": "band",
-      "dimension_ref": {"topology": "pitch_system", "edge": "pitch_link_length"},
-      "note": "Same physical dimension in both topologies: the pitch link's centre-to-centre length. pitch_system names it plate-hole to arm-hole, vpa_pitch_linkage sphere centre to sphere centre; the two holes are where those sphere centres sit."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_link_length"},
+      "note": "The edge's own band: the pitch link's centre-to-centre length was one dimension stated in two topologies (plate hole to arm hole, and sphere centre to sphere centre -- the two holes are where those sphere centres sit), and since the 2026-10-26 fold it is one edge."
     },
     {
       "edge": "pitch_arm_radius",
       "parameters": ["pitch_link.point_b[0]", "pitch_link.point_b[1]", "pitch_link.point_b[2]"],
       "feature": {"node": "pitch_link_lower_sphere_centre", "body": "blade"},
       "zone": "sphere",
-      "dimension_ref": {"topology": "pitch_system", "edge": "pitch_arm_link_hole_to_clocking_hole"},
-      "note": "pitch_system's arm link-hole-to-clocking-hole position is where the pitch arm puts the link's blade-side joint centre relative to the blade root, which is what vpa_pitch_linkage's pitch_arm_radius edge spans. pitch_system carries it as a tangential tolerance with its own rotary transform; here the same band is read as a position zone of that radius about the joint centre, in every direction, which is the worst-azimuth reading of a positional tolerance. linkage's point_b is the blade body's end: it rotates about CAD X with blade pitch while point_a rides the plate (see provenance)."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_arm_link_hole_to_clocking_hole"},
+      "note": "The arm's link-hole-to-clocking-hole position (the pitch-system studies' edge) is where the pitch arm puts the link's blade-side joint centre relative to the blade root, which is what this topology's pitch_arm_radius edge spans. That edge carries it as a tangential tolerance with its own rotary transform; here the same band is read as a position zone of that radius about the joint centre, in every direction, which is the worst-azimuth reading of a positional tolerance. linkage's point_b is the blade body's end: it rotates about CAD X with blade pitch while point_a rides the plate (see provenance)."
     },
     {
       "edge": "pitch_plate_attach_height",
       "parameters": ["pitch_link.point_a[2]"],
       "feature": {"node": "pitch_link_upper_sphere_centre", "component": "z", "body": "pitch_plate"},
       "zone": "band",
-      "dimension_ref": {"topology": "pitch_system", "edge": "pitch_plate_flange_to_link_hole"},
-      "note": "pitch_system's plate flange-to-link-hole is the axial (spindle-axis, CAD Z) height of the link hole on the pitch plate, which is the height half of vpa_pitch_linkage's spindle-bore-to-link-attach-bore pair (its radius half is pitch_plate_attach_radius, not banded anywhere). So the band perturbs only the plate-side point's Z component. linkage's point_a is the plate body's end (see provenance). A position zone (215735-A ⌖Ø0.2 A B C) is a disk of radius 0.1 normal to the hole's axis, not a one-axis band (docs/SOP_TOLERANCE_STACK.md, 'What a term cites when its drawing does not band it'). It stays a band here because neither topology states that hole's axis (vpa_pitch_linkage's pitch_plate_link_attach_bore and pitch_system's pitch_plate_link_hole carry none), and the axis is not guessed: the second in-plane component is the gap named in both checks' excluded_terms (2026-10-22)."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_plate_flange_to_link_hole"},
+      "note": "The plate's flange-to-link-hole edge (the pitch-system studies') is the axial (spindle-axis, CAD Z) height of the link hole on the pitch plate, which is the height half of this topology's spindle-bore-to-link-attach-bore pair (its radius half is pitch_plate_attach_radius, not banded anywhere). So the band perturbs only the plate-side point's Z component. linkage's point_a is the plate body's end (see provenance). A position zone (215735-A ⌖Ø0.2 A B C) is a disk of radius 0.1 normal to the hole's axis, not a one-axis band (docs/SOP_TOLERANCE_STACK.md, 'What a term cites when its drawing does not band it'). It stays a band here because no node states that hole's axis (pitch_plate_link_attach_bore carries none, and since the 2026-10-26 fold both edges end there), and the axis is not guessed: the second in-plane component is the gap named in both checks' excluded_terms (2026-10-22)."
     },
     {
       "edge": "tan_link_length",
@@ -104,8 +104,8 @@
       "parameters": ["tan_link.point_a[2]"],
       "feature": {"node": "tan_link_lower_sphere_centre", "component": "z", "body": "base"},
       "zone": "band",
-      "dimension_ref": {"topology": "pitch_system", "edge": "tan_link_mount_height"},
-      "note": "Same name, same quantity: the height of the tangential-link mount's bore along the spindle axis (CAD Z). pitch_system measures it from the gas-spring seat to the hub seat, vpa_pitch_linkage from the mount's hub face to its bore; either way it moves the base-side joint centre axially, so the band perturbs only that point's Z component. linkage's tan_link point_a is the base end (see provenance)."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "tan_link_mount_overall_height"},
+      "note": "The mount's height along the spindle axis (CAD Z), banded by its overall seat-to-seat height (tan_link_mount_overall_height, 215198's 79.00) where this edge runs from the mount's hub face to its bore -- two features of one part, so two edges since the 2026-10-26 fold; either way it moves the base-side joint centre axially, so the band perturbs only that point's Z component. linkage's tan_link point_a is the base end (see provenance)."
     },
     {
       "edge": "pitch_plate_tan_link_attach_radius",
@@ -194,7 +194,7 @@
     "authored_by": "handoff a_kinematic_study_folds_the_sweeps_jacobian, 2026-10-16",
     "sweep": "linkage run P2 (tangential link turns the plate), run_id vpa-pitch-p2-20261016-235852, read from data/inbox/linkage-sweeps/: linkage's republish, the first P2 run to carry geometry.features[], so every contributor's authored feature join is checked against the artifact's own. Re-pointed 2026-10-21 from vpa-pitch-p2-20261015-013931, whose Jacobian, solved blade pitch and driver values are identical to this run's entry for entry. Its sensitivity block states its own analytic-vs-finite-difference agreement (sensitivity.max_finite_difference_disagreement); the projection carries that number beside every result built from it.",
     "which_end_is_which": "The artifact's `mechanism` block names no body per joint end, so the sides were read off the artifact's own motion: at every point pitch_link.point_a_world sits at geometry pitch_link.point_a[2] plus the driver value on CAD Z (it rides the pitch plate's slide) while point_b_world keeps x = 83 and turns about CAD X (the blade's pitch axis). So pitch_link point_a = pitch_plate, point_b = blade. For the tangential link, point_a_world never moves and equals provenance.tangential_link.ends.base.centre_world_mm, and point_b equals ends.plate.centre_world_mm at zero travel: tan_link point_a = base, point_b = pitch_plate. Each contributor's `feature.body` records its side, and the run's own geometry.features[] names the same body for every label a contributor perturbs.",
-    "band_pairings": "Each band is borrowed from topology_pitch_system.json by dimension_ref and carries that edge's own source_ref and confidence unchanged; why each pitch_system edge stands for each vpa_pitch_linkage edge is in that contributor's `note`."
+    "band_pairings": "Each band is borrowed from another edge of this topology by dimension_ref (an edge of topology_pitch_system.json until the 2026-10-26 fold folded that document into this one) and carries that edge's own source_ref and confidence unchanged; why each lending edge stands for the contributor's edge is in that contributor's `note`."
   },
   "notes": [
     "Variation only: every band is about a nominal of 0.0, so each point's fold is the deviation of blade pitch from the sweep's own nominal there. The nominal itself is the sweep's solved value, carried beside the fold, never added to it.",

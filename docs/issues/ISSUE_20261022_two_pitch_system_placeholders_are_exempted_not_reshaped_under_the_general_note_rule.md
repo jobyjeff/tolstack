@@ -38,3 +38,24 @@ Recommendation: the brake edge is a design-concept alternative, and I would
 leave it exempt. The VPA edge waits on the same VPA identity question as
 `ISSUE_20261016_two_vpa_part_facts_the_pitch_stacks_wait_on.md`, so re-shape it in
 the handoff that acts on Jeff's answer there.
+
+## Addendum 2026-10-26 — four more, exposed by the fold
+
+Handoff `pitch_system_folds_into_the_pitch_linkage_model` folded
+`topology_pitch_system.json` into `docs/topologies/topology_vpa_pitch_linkage.json`
+(ids unchanged; both edges above now live there). The pitch-system half had
+declared no drawing on the hub or the blade root; the linkage half declares
+214373-002 and 216332-001. So four more `assumed` placeholders now sit on drawn
+parts. Re-shaping them would move study totals, which the fold was forbidden to
+do, so each carries a `no_drawing_governs` that says which kind it is, and the
+pin in `tests/test_general_note_band.py` now lists six:
+
+| edge | part / drawing | what its `no_drawing_governs` says |
+| --- | --- | --- |
+| `hub_top_deck_to_vpa_mount` | `hub` / 214373-002 | an exemption made by the fold, **not** a finding that nothing governs it: the hub drawing is unread for the actuator mounting face |
+| `blade_root_clocking_to_oml` | `blade_root` / 216332-001 | the same: the blade drawing is unread for clocking hole to outer mould line |
+| `hub_ring_gear_seat_position` | `hub` / 214373-002 | genuinely ungoverned: the workbook says the ring-gear seat tolerance does not exist yet as design intent |
+| `hub_top_deck_to_brake_mount` | `hub` / 214373-002 | genuinely ungoverned: the brake is a design concept with no geometry, as for the plate's brake attachment above |
+
+The two "made by the fold" rows are the ones to act on first: read 214373-002
+and 216332-001 for those two quantities, then cite or make each a gap.

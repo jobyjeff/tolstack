@@ -3,7 +3,7 @@
   "id": "pitch_system_blade_angle_worst",
   "title": "Blade OML angular position, worst-case sensitivity",
   "description": "Hub A datum to blade OML, in degrees, at the -5 deg worst-case sensitivity.",
-  "topology": "pitch_system",
+  "topology": "vpa_pitch_linkage",
   "from": "hub_lower_bearing_flange",
   "to": "blade_root_oml",
   "selection": [
@@ -14,7 +14,9 @@
     "end_stop_clearance",
     "piston_length",
     "pitch_plate_flange_to_link_hole",
+    "pitch_plate_link_joint",
     "pitch_link_length",
+    "pitch_arm_link_joint",
     "pitch_arm_link_hole_to_clocking_hole",
     "blade_root_clocking_to_oml"
   ],
@@ -26,7 +28,9 @@
     "end_stop_clearance": "pitch_arm_linear_to_rotary",
     "piston_length": "pitch_arm_linear_to_rotary",
     "pitch_plate_flange_to_link_hole": "pitch_arm_linear_to_rotary",
+    "pitch_plate_link_joint": "pitch_arm_linear_to_rotary",
     "pitch_link_length": "pitch_arm_linear_to_rotary",
+    "pitch_arm_link_joint": "pitch_arm_linear_to_rotary",
     "blade_root_clocking_to_oml": "pitch_arm_linear_to_rotary"
   },
   "no_checks_reason": "The requirement-cited checks over this exact selection and transform set live in study_pitch_system_end_stop_minus7.json, whose selection and transforms are byte-identical to this study's by test (test_an_end_stop_study_s_selection_and_transforms_equal_its_source_study[minus7-vs-worst]); duplicating its S461-607 / S461-617 checks here would render the same criteria twice over the same total. This study exists to hold the worst-case sensitivity column beside its full-sweep-average twin. No further criterion is citable in-repo: S461-805 (Blade Pitch Position Accuracy) states its threshold as literally 'TBD deg'. Recorded 2026-09-15 (stack_fable_audit, check-coverage sweep).",

@@ -69,6 +69,12 @@
 //
 // The numbers are arbitrary and internally consistent with a fold; nothing here
 // is a claim about any Joby part.
+//
+// The topology's `bodies: []` is the sixth (pitch_system_folds_into_the_
+// pitch_linkage_model, 2026-10-26): project_topology() carries a topology's
+// rigid bodies since then, and the demo mechanism declares none -- `[]` is
+// what the builder writes for such a document, a shape fix and no number.
+
 (function (VA) {
   "use strict";
 
@@ -771,6 +777,7 @@
             "note": null
           }
         ],
+        "bodies": [],
         "branch_nodes": [
           "base_post_seat"
         ],
