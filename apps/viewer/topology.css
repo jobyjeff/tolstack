@@ -1450,6 +1450,9 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   background: var(--bg);
 }
 .kmrow__zone { margin-left: 6px; color: var(--muted); font-size: var(--t-micro); }
+/* A contributor that is a study: its row, and its terms indented under it. */
+.kmgroup__toggle { padding: 0 6px 0 0; border: 0; background: none; color: var(--muted); font: inherit; }
+.kmchild .kmrow__name { padding-left: 22px; }
 .kmtable tbody tr:hover { background: #20242c; }
 .kmtable tbody tr { cursor: pointer; }
 .kmrow--selected td { background: #252b36; }

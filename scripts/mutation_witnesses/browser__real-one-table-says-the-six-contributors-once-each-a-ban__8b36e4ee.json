@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Writes every row as a gap. Carried over from the -7 deg stop's table guard.",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "    var tr = VA.el(\"tr\", \"kmrow kmrow--\" + row.kind +",
-      "replace": "    var tr = VA.el(\"tr\", \"kmrow kmrow--gap\" +"
+      "find": "    var tr = VA.el(\"tr\", (row.child ? \"kmchild\" : \"kmrow\") + \" kmrow--\" + row.kind +",
+      "replace": "    var tr = VA.el(\"tr\", (row.child ? \"kmchild\" : \"kmrow\") + \" kmrow--gap\" +"
     }
   ]
 }

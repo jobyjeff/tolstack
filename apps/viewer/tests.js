@@ -11476,6 +11476,93 @@
            "a row carries its coefficient at every point");
       });
 
+    // A contributor that is itself a study (a_contributor_may_be_a_study): the
+    // builder's `study_refs[]` and `stops[].groups[]`, over two of the demo
+    // topology's own edges, authored inline so the demo fixture's own pins
+    // (its four rows, its lit set) stay what they were.
+    function withAStudyRef() {
+      var study = JSON.parse(JSON.stringify(KIN_STUDY));
+      var child = function (edge, name, sign, coefficient, half) {
+        return { edge: edge, name: name, kind: "term", sign: sign, coefficient: coefficient,
+                 magnitude: coefficient * half, own_sign: 1, own_ratio: 1,
+                 band: { id: edge, name: name + " band", nominal: 0.0, min: -half, max: half,
+                         half_range: half, units: "mm" },
+                 confidence: "traced", source_kind: "drawing" };
+      };
+      var group = function (entry) {
+        var k = Math.abs(entry);
+        var kids = [child("post_bushing_offset", "post bushing offset", entry < 0 ? -1 : 1, k, 0.2),
+                    child("base_thickness", "base plate thickness", entry < 0 ? 1 : -1, k, 0.1)];
+        return { study: "demo_travel", topology: "demo_mechanism", title: "Travel between stops",
+                 parameter: "actuator.value", entry: entry, sign: entry < 0 ? -1 : 1,
+                 units: "mm", reach: kids[0].magnitude + kids[1].magnitude, children: kids };
+      };
+      var entries = [-2.0, -1.0];
+      study.stops.forEach(function (stop, s) { stop.groups = [group(entries[s])]; });
+      var byPoint = function (k) {
+        return study.envelope.map(function (p, i) {
+          return { index: i, sign: 1, coefficient: k, magnitude: k * 0.1 };
+        });
+      };
+      study.study_refs = [{
+        study: "demo_travel", topology: "demo_mechanism", title: "Travel between stops",
+        parameter: "actuator.value", units: "mm", completeness: { complete: true, open_terms: [] },
+        total: { worst_case_half: 0.3 },
+        children: [{ edge: "post_bushing_offset", name: "post bushing offset", by_point: byPoint(2.0) },
+                   { edge: "base_thickness", name: "base plate thickness", by_point: byPoint(2.0) }],
+      }];
+      return study;
+    }
+
+    await test("a contributor that is a study is one group row, and its terms are rows " +
+      "under it with the composed coefficient", function () {
+        var study = withAStudyRef();
+        var model = VA.kinematicTable(study, KIN_TOPOLOGIES.topologies[0], 3);
+        eq(model.rows.length, 4, "the direct contributors are still said once each");
+        eq(model.groups.length, 1);
+        var group = model.groups[0];
+        eq([group.name, group.zone, group.band], ["Travel between stops", "study", "±0.300"]);
+        eq(group.cells.map(function (c) { return [c.sign, c.coefficient, c.magnitude]; }),
+           [["−", "2.000", "0.600"], ["−", "1.000", "0.300"]]);
+        eq(group.children.map(function (c) { return c.name; }),
+           ["post bushing offset", "base plate thickness"]);
+        eq(group.children[1].cells.map(function (c) { return [c.sign, c.coefficient, c.magnitude]; }),
+           [["+", "2.000", "0.200"], ["+", "1.000", "0.100"]]);
+        eq(group.children[0].band, "±0.200");
+        ok(Array.isArray(group.children[0].curve), "a term carries its curve across the sweep");
+        eq(VA.kinematicTable(KIN_STUDY, KIN_TOPOLOGIES.topologies[0], 3).groups, [],
+           "a study with no study_refs has no group");
+      });
+
+    await test("the group row is collapsed until opened; opening it shows its terms, " +
+      "and the contributor rows are unchanged in count", function () {
+        var root = kinematicPage({ study: withAStudyRef() });
+        eq(kinematicRowsOf(root).length, 4);
+        eq(all(root, "tr.kmgroup").length, 1);
+        var kids = all(root, "tr.kmchild");
+        eq(kids.length, 2);
+        ok(kids.every(function (k) { return k.hidden === true; }), "collapsed by default");
+        var toggle = all(root, "button.kmgroup__toggle")[0];
+        eq(toggle.getAttribute("aria-expanded"), "false");
+        toggle.onclick({});
+        eq(toggle.getAttribute("aria-expanded"), "true");
+        ok(kids.every(function (k) { return k.hidden === false; }), "opened");
+        eq(kids.map(function (k) { return k.getAttribute("data-edge"); }),
+           ["post_bushing_offset", "base_thickness"]);
+        toggle.onclick({});
+        ok(kids.every(function (k) { return k.hidden === true; }), "closed again");
+      });
+
+    await test("a study's lit set includes the chain a study_ref's terms stand on", function () {
+        var topo = KIN_TOPOLOGIES.topologies[0];
+        var lit = VA.kinematicLitSet(withAStudyRef(), topo);
+        ok(lit.edges.post_bushing_offset && lit.edges.base_thickness, "the terms' edges are lit");
+        var elsewhere = withAStudyRef();
+        elsewhere.stops.forEach(function (stop) { stop.groups[0].topology = "elsewhere"; });
+        ok(!VA.kinematicLitSet(elsewhere, topo).edges.post_bushing_offset,
+           "an edge of another topology is never lit here");
+      });
+
     await test("the kinematic page renders a verdict per stop, the envelope chart " +
       "and ONE contributor table with a column group per stop", function () {
         var root = kinematicPage();
@@ -16108,7 +16195,24 @@
             eq(realKinStudy.status, "ok");
             eq(realKinStudy.checks.map(function (c) {
               return [c.stop, c.verdict, VA.kinematicNumber(c.margin, 3)];
-            }), [["minus7", "pass", "0.210"], ["plus72", "pass", "0.185"]]);
+            }), [["minus7", "marginal", "-1.207"], ["plus72", "marginal", "-0.839"]]);
+            // The travel between the end stops enters as a study_ref on the
+            // driver (a_contributor_may_be_a_study): one group per stop, its
+            // four terms scaled by the motion ratio there.
+            eq(realKinStudy.study_ref_count, 1);
+            eq(realKinStudy.study_refs[0].study, "vpa_pitch_linkage_travel_between_end_stops");
+            eq(realKinStudy.stops.map(function (s) {
+              return [s.id, s.groups.length, s.groups[0].children.map(function (c) {
+                return [c.edge, c.sign, VA.kinematicNumber(c.coefficient, 3)];
+              })];
+            }), [["minus7", 1, [["piston_head_upper_thickness", 1, "1.728"],
+                                ["piston_head_lower_thickness", 1, "1.728"],
+                                ["gas_spring_mount_flange_to_end_stop", 1, "1.728"],
+                                ["piston_cover_flange_to_end_stop", -1, "1.728"]]],
+                 ["plus72", 1, [["piston_head_upper_thickness", 1, "1.249"],
+                                ["piston_head_lower_thickness", 1, "1.249"],
+                                ["gas_spring_mount_flange_to_end_stop", 1, "1.249"],
+                                ["piston_cover_flange_to_end_stop", -1, "1.249"]]]]);
             // Both former gap rows carry a drawing's band since handoff
             // the_tangential_link_cites_its_drawing (2026-10-26).
             var minus7 = realKinStudy.stops.filter(function (s) {
@@ -16144,14 +16248,23 @@
             eq(rows[0].getAttribute("data-edge"), "pitch_plate_attach_height");
             has(rows[0].textContent, "0.156");
             has(rows[0].textContent, "0.149");
+            // The travel study is ONE group row, collapsed, over its four terms.
+            eq(all(root, "tr.kmgroup").length, 1);
+            has(all(root, "tr.kmgroup")[0].textContent, "Travel between end stops");
+            var travel = all(root, "tr.kmchild");
+            eq(travel.length, 4);
+            ok(travel.every(function (t) { return t.hidden === true; }), "collapsed by default");
             bannedIn(viewerAuthoredText(root), "[real] kinematic page");
           });
 
-        await test("[real] the live study lights its six contributors and the three " +
-          "edges they borrow a band from, and every one has a coefficient curve", function () {
+        await test("[real] the live study lights its six contributors, the three " +
+          "edges they borrow a band from and the travel study's four, and every direct " +
+          "one has a coefficient curve", function () {
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var lit = VA.kinematicLitSet(realKinStudy, topo);
             eq(Object.keys(lit.edges).sort(), [
+              "gas_spring_mount_flange_to_end_stop", "piston_cover_flange_to_end_stop",
+              "piston_head_lower_thickness", "piston_head_upper_thickness",
               "pitch_arm_link_hole_to_clocking_hole", "pitch_arm_radius",
               "pitch_link_length", "pitch_plate_attach_height",
               "pitch_plate_flange_to_link_hole", "pitch_plate_tan_link_attach_radius",
@@ -16189,7 +16302,7 @@
           });
 
         await test("[real] every live walk's rails and links re-derive from its rows, " +
-          "and hiding the blade-pitch study's unlit model leaves 23 rows on 8 columns", function () {
+          "and hiding the blade-pitch study's unlit model leaves 32 rows on 9 columns", function () {
             realKinTopologies.topologies.forEach(function (topo) {
               if (!topo.layout) return;
               var derived = VA.walkRailsAndLinks(topo.layout.rows);
@@ -16198,11 +16311,11 @@
             });
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var lit = VA.kinematicLitSet(realKinStudy, topo);
-            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [9, 14]);
+            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [13, 19]);
             var hidden = VA.hideUnlit(topo.layout, lit);
             eq([topo.layout.rows.length, topo.layout.columns], [106, 18]);
-            eq([hidden.rows.length, hidden.columns], [23, 8]);
-            eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 9,
+            eq([hidden.rows.length, hidden.columns], [32, 9]);
+            eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 13,
                "every lit edge is a grid row in the hidden walk too");
           });
 

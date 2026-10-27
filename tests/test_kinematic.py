@@ -455,10 +455,13 @@ def test_the_builder_projects_the_fixture_and_draws_its_plot():
 # 8. [real] the first study against P2                                        #
 # --------------------------------------------------------------------------- #
 
-#: Per stop, from the lesson: index, nominal blade pitch, worst-case half, RSS
-#: half, S461-607 margin, and the ranked table as (edge, kind, sign, coefficient).
+#: Per stop: index, nominal blade pitch, worst-case half, RSS half, S461-607
+#: margin, and the DIRECT contributors' ranked table as (edge, kind, sign,
+#: coefficient). The worst/RSS/margin figures include the travel study's four
+#: leaves since a_contributor_may_be_a_study (before it: 0.290/0.169/0.210 at
+#: -7 and 0.315/0.169/0.185 at +72); the table is unchanged by it.
 REAL = {
-    "minus7": (0, -6.992, 0.290, 0.169, 0.210, [
+    "minus7": (0, -6.992, 1.707, 0.985, -1.207, [
         ("pitch_plate_attach_height", "term", -1, 1.555),
         ("pitch_link_length", "term", 1, 1.574),
         ("pitch_plate_tan_link_attach_radius", "term", 1, 0.311),
@@ -466,7 +469,7 @@ REAL = {
         ("tan_link_mount_height", "term", 1, 0.172),
         ("tan_link_length", "term", 1, 0.311),
     ]),
-    "plus72": (79, 72.001, 0.315, 0.169, 0.185, [
+    "plus72": (79, 72.001, 1.339, 0.721, -0.839, [
         ("pitch_plate_attach_height", "term", -1, 1.489),
         ("pitch_plate_tan_link_attach_radius", "term", 1, 0.487),
         ("pitch_link_length", "term", 1, 1.542),
@@ -492,7 +495,7 @@ def test_real_the_first_study_pins_both_stops_against_p2(stop):
             for r in result.rows] == table
     check = check_at_stop(study, sweep, f"s461_607_margin_at_{stop}")
     assert round(check.margin, 3) == margin
-    assert (check.verdict, check.verdict_scope) == ("pass", "budget")
+    assert (check.verdict, check.verdict_scope) == ("marginal", "budget")
 
 
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
@@ -801,3 +804,238 @@ def test_real_every_borrowed_band_is_an_edge_of_the_studys_own_topology():
     refs = [c["dimension_ref"] for c in raw["contributors"] if "dimension_ref" in c]
     assert len(refs) == 5
     assert {r["topology"] for r in refs} == {study.topology}
+
+
+# --------------------------------------------------------------------------- #
+# 10. a contributor that is itself a study (a_contributor_may_be_a_study)     #
+# --------------------------------------------------------------------------- #
+
+#: The driver's Jacobian column for the fixture sweep, added by the edit below:
+#: d(angle)/d(drive) at the three points (and a zero column for ``travel``).
+DRIVE_J = [1.5, -2.0, 0.5]
+
+#: A chain study of the fixture topology, two terms: ``link_length`` walked
+#: with its authored direction (+1, band -0.1..+0.3 about 0) and ``link_back``
+#: walked AGAINST it (-1, band 2.8..3.4 about a nominal of 3.0 -- so about
+#: zero it is -0.2..+0.4, asymmetric on purpose).
+CHAIN_STUDY = {
+    "schema": "joby.tolerance_stack/study/v0", "id": "fixture_chain", "title": "Fixture chain",
+    "topology": "kin_fixture", "from": "link_end_a", "to": "link_end_c",
+    "selection": ["link_length", "link_back"], "no_checks_reason": "fixture",
+}
+
+
+def copy_fixture_with_a_chain(tmp_path, driver_unit=None):
+    """A fixture copy whose sweep carries a driver column, whose topology carries
+    the two-term chain, and whose study has a ``study_ref`` on ``drive.value``."""
+
+    def sweep_edit(data):
+        data["sensitivity"]["parameters"].append("drive.value")
+        data["sensitivity"]["by_measure"]["angle"].append(list(DRIVE_J))
+        data["sensitivity"]["by_measure"]["travel"].append([0.0, 0.0, 0.0])
+        if driver_unit is not None:
+            data["mechanism"]["driver"]["unit"] = driver_unit
+
+    def study_edit(data):
+        data["contributors"].append({"study_ref": {
+            "topology": "kin_fixture", "study_id": "fixture_chain", "parameter": "drive.value"}})
+
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path, study_edit=study_edit, sweep_edit=sweep_edit)
+    topology_path = topologies / "topology_kin_fixture.json"
+    data = json.loads(topology_path.read_text(encoding="utf-8"))
+    data["nodes"].append({"id": "link_end_c", "name": "Link end C", "parts": ["link"],
+                          "kind": "datum_feature"})
+    data["edges"].append({
+        "id": "link_back", "name": "Link back", "from": "link_end_c", "to": "link_end_b",
+        "kind": "structural", "part": "link",
+        "dimension": {"id": "link_back", "name": "Link back", "nominal": 3.0, "min": 2.8,
+                      "max": 3.4, "source_ref": {"kind": "spec", "document": "FIXTURE-2.pdf",
+                                                 "sheet": 1, "confidence": "untraced"}}})
+    topology_path.write_text(json.dumps(data), encoding="utf-8")
+    (topologies / "study_fixture_chain.json").write_text(
+        json.dumps(CHAIN_STUDY), encoding="utf-8")
+    return study_path, data_root, topologies
+
+
+def test_a_study_ref_enters_its_terms_scaled_by_the_jacobian_with_signs_multiplied(tmp_path):
+    """Parent coefficient k = |J| at each point; the leaves are k x 1 each, and the
+    sign is sign(J) x the term's own sign (link_back is walked against)."""
+    study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
+    (ref,) = study.study_refs
+    assert (ref.study_id, ref.parameter, ref.units) == ("fixture_chain", "drive.value", "mm")
+    assert [t.edge for t in ref.terms] == ["link_length", "link_back"]
+    assert [t.sign for t in ref.terms] == [1, -1]
+    back = ref.terms[1]
+    # the leaf's band is read about zero: link_back's 2.8..3.4 about 3.0 ...
+    assert (back.dimension.nominal, back.dimension.min, back.dimension.max) == (
+        0.0, pytest.approx(-0.2), pytest.approx(0.4))
+    # ... and its citation is the sub-study edge's own, untouched
+    assert back.dimension.source_ref is back.source.source_ref
+    for point, j in enumerate(DRIVE_J):
+        (group,) = fold_at(study, sweep, point).groups
+        assert group.entry == j
+        assert [c.coefficient for c in group.children] == pytest.approx([abs(j), abs(j)])
+        own = (1 if j > 0 else -1)
+        assert [c.sign for c in group.children] == [own * 1, own * -1]
+
+
+def test_worst_case_is_the_sum_over_leaves_and_rss_is_one_quadrature(tmp_path):
+    """Point 0 (J = 1.5), by hand. The direct contributors are the fixture's own
+    [-0.3, 0.7] (RSS centre 0.2, half sqrt(0.4^2 + 0.1^2)). The leaves are
+    link_length (half 0.2, mid +0.1, weight +1.5) and link_back (half 0.3, mid
+    +0.1, weight -1.5): worst case 1.5 x (0.2 + 0.3) = 0.75 each way about a
+    centre of 1.5 x 0.1 - 1.5 x 0.1 = 0; RSS one quadrature over ALL FOUR terms."""
+    study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
+    interval = fold_at(study, sweep, 0).interval
+    assert interval.min == pytest.approx(-0.3 - 0.75)
+    assert interval.max == pytest.approx(0.7 + 0.75)
+    assert interval.rss_center == pytest.approx(0.2)
+    assert interval.rss_half == pytest.approx(
+        math.sqrt(0.4 ** 2 + 0.1 ** 2 + (1.5 * 0.2) ** 2 + (1.5 * 0.3) ** 2))
+
+
+def test_the_chain_rule_differs_from_the_folded_interval_routes_by_a_stated_amount(tmp_path):
+    """The sub-study's own total is [-0.5, +0.5] about zero (worst half 0.5, RSS
+    half sqrt(0.2^2 + 0.3^2) = 0.3606). Folded first and used as one band times
+    J = 1.5, the worst case is the same 0.75 (the chain is linear, so worst case
+    cannot tell the two routes apart) but the RSS half would be 1.5 x 0.5 = 0.75
+    -- a worst-case half read as one variate -- against the chain rule's
+    1.5 x 0.3606 = 0.5408: 0.2092 too wide. The unscaled reading, "the direct
+    fold +/- the sub-study's interval", misses the motion ratio entirely: its
+    worst case is [-0.3 - 0.5, 0.7 + 0.5], 0.25 short each way of the chain
+    rule's [-1.05, 1.45]."""
+    study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
+    (ref,) = study.study_refs
+    assert ref.total.worst_case_half == pytest.approx(0.5)
+    assert ref.total.rss_half == pytest.approx(math.sqrt(0.2 ** 2 + 0.3 ** 2))
+    point = fold_at(study, sweep, 0)
+    (group,) = point.groups
+    assert group.reach == pytest.approx(1.5 * ref.total.worst_case_half)
+    chain_rss = math.sqrt(sum((c.coefficient * c.sub.dimension.half_range) ** 2
+                              for c in group.children))
+    assert chain_rss == pytest.approx(1.5 * ref.total.rss_half)
+    assert 1.5 * ref.total.worst_case_half - chain_rss == pytest.approx(0.2092, abs=1e-4)
+    assert point.interval.min - (-0.3 - 0.5) == pytest.approx(-0.25)
+    assert (0.7 + 0.5) - point.interval.max == pytest.approx(-0.25)
+
+
+def test_a_zero_sensitivity_parameter_enters_no_leaf(tmp_path):
+    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
+    run = data_root / "inbox" / "linkage-sweeps" / "kin-fixture-run.json"
+    data = json.loads(run.read_text(encoding="utf-8"))
+    data["sensitivity"]["by_measure"]["angle"][-1][0] = 0.0
+    run.write_text(json.dumps(data), encoding="utf-8")
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    result = fold_at(study, sweep, 0)
+    assert [c["kind"] for c in result.groups[0].as_dict()["children"]] == ["zero_sensitivity"] * 2
+    assert result.interval.max == pytest.approx(HAND[0][1])      # the direct fold alone
+
+
+def test_a_study_ref_names_the_unit_mismatch_in_the_existing_words(tmp_path):
+    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path, driver_unit="in")
+    with pytest.raises(KinematicStudyError) as refusal:
+        load_kinematic_study(study_path, data_root, topologies)
+    message = str(refusal.value)
+    assert "contributor 'fixture_chain'" in message
+    assert "is in 'mm'" in message and "'drive.value' is a driver parameter in 'in'" in message
+    assert "dimensionally wrong" in message
+
+
+def test_a_study_ref_on_a_label_the_sweep_lacks_is_refused_naming_it(tmp_path):
+    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
+    data = json.loads(study_path.read_text(encoding="utf-8"))
+    data["contributors"][-1]["study_ref"]["parameter"] = "actuator.nope"
+    study_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(KinematicStudyError, match="actuator.nope"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_a_study_ref_that_names_a_study_holding_a_study_ref_is_refused_as_nesting(tmp_path):
+    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
+    inner = json.loads(study_path.read_text(encoding="utf-8"))
+    inner["id"] = "inner"
+    (topologies / "kinematic_study_inner.json").write_text(json.dumps(inner), encoding="utf-8")
+    outer = json.loads(study_path.read_text(encoding="utf-8"))
+    outer["contributors"][-1]["study_ref"]["study_id"] = "inner"
+    study_path.write_text(json.dumps(outer), encoding="utf-8")
+    with pytest.raises(KinematicStudyError, match="nested study_refs are not supported in v0"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_a_study_ref_with_an_edge_of_its_own_is_refused(tmp_path):
+    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
+    data = json.loads(study_path.read_text(encoding="utf-8"))
+    data["contributors"][-1]["edge"] = "link_length"
+    study_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(KinematicStudyError, match="carries no edge, parameters or band"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_a_check_is_incomplete_while_a_study_ref_leaf_is_open_and_says_which(tmp_path):
+    """``link_back`` cites ``confidence: untraced`` in the fixture: it is open in the
+    sub-study, so it is open here -- and the check's own ``complete: true``
+    cannot paper over it."""
+    study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
+    (ref,) = study.study_refs
+    assert ref.completeness["open_terms"] == ["link_back"]
+    check = check_at_stop(study, sweep, "low_margin")
+    assert check.complete is False
+    assert any("fixture_chain" in t and "link_back" in t for t in check.excluded_terms)
+
+
+def test_the_projection_carries_the_group_and_every_leaf_at_every_point(tmp_path):
+    _, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
+    projection = builder.build(topologies, data_root, provenance={"built_at": "fixture"})
+    (row,) = projection["studies"]
+    assert row["status"] == "ok", row["error"]
+    assert (row["contributor_count"], row["study_ref_count"]) == (2, 1)
+    (ref,) = row["study_refs"]
+    assert ref["study"] == "fixture_chain" and ref["completeness"]["open_terms"] == ["link_back"]
+    assert [c["edge"] for c in ref["children"]] == ["link_length", "link_back"]
+    assert {len(c["by_point"]) for c in ref["children"]} == {3}
+    assert [e["entry"] for e in ref["entries"]] == DRIVE_J
+    for stop in row["stops"]:
+        (group,) = stop["groups"]
+        assert group["study"] == "fixture_chain" and len(group["children"]) == 2
+        assert group["entry"] == DRIVE_J[stop["index"]]
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+@pytest.mark.parametrize("stop, index, entry, children", [
+    ("minus7", 0, -1.728, [("piston_head_upper_thickness", 1, 1.728, 0.432),
+                           ("piston_head_lower_thickness", 1, 1.728, 0.086),
+                           ("gas_spring_mount_flange_to_end_stop", 1, 1.728, 0.864),
+                           ("piston_cover_flange_to_end_stop", -1, 1.728, 0.035)]),
+    ("plus72", 79, -1.249, [("piston_head_upper_thickness", 1, 1.249, 0.312),
+                            ("piston_head_lower_thickness", 1, 1.249, 0.062),
+                            ("gas_spring_mount_flange_to_end_stop", 1, 1.249, 0.624),
+                            ("piston_cover_flange_to_end_stop", -1, 1.249, 0.025)]),
+])
+def test_real_the_travel_study_enters_the_blade_pitch_study_by_its_terms(
+        stop, index, entry, children):
+    """The motion ratio at each stop and the four leaves it scales; the totals it
+    moved are pinned in REAL above."""
+    study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    (ref,) = study.study_refs
+    assert (ref.study_id, ref.parameter, ref.units) == (
+        "vpa_pitch_linkage_travel_between_end_stops", "actuator.value", "mm")
+    (group,) = fold_at(study, sweep, index).groups
+    assert round(group.entry, 3) == entry
+    assert [(c.sub.edge, c.sign, round(c.coefficient, 3), round(c.magnitude, 3))
+            for c in group.children] == children
+    assert ref.completeness["open_terms"] == []
+    assert round(group.reach, 3) == round(abs(entry) * ref.total.worst_case_half, 3)
+    assert not any("end-stop location" in term
+                   for spec in study.checks for term in spec.get("excluded_terms", ()))
+
+
+def test_a_band_about_nominal_keeps_its_asymmetry_and_its_citation(tmp_path):
+    """``Dimension.about_nominal``: the sub-study term's band as a variation."""
+    study, _ = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
+    source = study.study_refs[0].terms[1].source          # 2.8 .. 3.4 about 3.0
+    shifted = source.about_nominal()
+    assert (shifted.nominal, shifted.min, shifted.max) == (
+        0.0, pytest.approx(-0.2), pytest.approx(0.4))
+    assert shifted.half_range == pytest.approx(source.half_range)
+    assert shifted.source_ref is source.source_ref

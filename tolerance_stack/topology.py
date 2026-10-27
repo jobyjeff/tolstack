@@ -458,6 +458,20 @@ class Dimension:
     def half_range(self) -> float:
         return (self.max - self.min) / 2.0
 
+    def about_nominal(self) -> "Dimension":
+        """This band as a variation: ``nominal`` 0.0, ``min``/``max`` the
+        deviations from the old nominal. The citation, hardware and note ride
+        along unchanged -- it is the same band, read about zero.
+
+        What a kinematic study's ``study_ref`` needs of a sub-study's edge: the
+        sweep's own solved value is the nominal, so only the band enters.
+        """
+        return Dimension(
+            id=self.id, name=self.name, nominal=0.0,
+            min=self.min - self.nominal, max=self.max - self.nominal,
+            hardware_ref=self.hardware_ref, source_ref=self.source_ref,
+            note=self.note)
+
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Dimension":
         d = dict(d)

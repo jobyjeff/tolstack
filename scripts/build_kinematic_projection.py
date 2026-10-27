@@ -168,6 +168,9 @@ def project_stop(study, sweep, stop) -> Dict[str, Any]:
         **project_point(point),
         "gap_count": point.gap_count,
         "rows": [row.as_dict() for row in point.rows],
+        # A study_ref's leaves at this stop (`kinematic.study_ref_group`): each
+        # a term of the one fold, never the sub-study's folded interval.
+        "groups": [group.as_dict() for group in point.groups],
     }
 
 
@@ -187,6 +190,36 @@ def project_contributors(study, points: Sequence[PointResult]) -> List[Dict[str,
                 "index": point.index, "sign": row.sign,
                 "coefficient": row.coefficient, "magnitude": row.magnitude})
     return [{"edge": c.edge, "by_point": by_point[id(c)]} for c in study.contributors]
+
+
+def project_study_refs(study, points: Sequence[PointResult]) -> List[Dict[str, Any]]:
+    """Per ``study_ref``, in document order: what it is, and every leaf's
+    coefficient at EVERY sweep point (the curve a hover shows, as
+    :func:`project_contributors` carries for a direct contributor).
+
+    ``completeness`` is the sub-study's own, derived there; ``total`` is its
+    own published interval, carried to be read beside the result and never
+    folded here.
+    """
+    out = []
+    for n, ref in enumerate(study.study_refs):
+        children = []
+        for m, sub in enumerate(ref.terms):
+            children.append({
+                "edge": sub.edge, "name": sub.name,
+                "by_point": [{"index": p.index, "sign": p.groups[n].children[m].sign,
+                              "coefficient": p.groups[n].children[m].coefficient,
+                              "magnitude": p.groups[n].children[m].magnitude}
+                             for p in points]})
+        out.append({
+            "study": ref.study_id, "topology": ref.topology, "title": ref.title,
+            "parameter": ref.parameter, "units": ref.units, "note": ref.note,
+            "source_file": ref.source_file, "completeness": ref.completeness,
+            "total": rounded(ref.total.as_dict()),
+            "entries": [{"index": p.index, "entry": p.groups[n].entry,
+                         "sign": p.groups[n].sign} for p in points],
+            "children": children})
+    return out
 
 
 def drawings_on_file(dc_root: Path) -> List[str]:
@@ -254,6 +287,7 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path,
                     if raw_topology_path.exists() else None)
     points = envelope(study, sweep)
     bands = [c.dimension for c in study.contributors if c.dimension is not None]
+    bands += [t.source for ref in study.study_refs for t in ref.terms]
     checks = []
     for spec in study.checks:
         projected = rounded_check(check_at_stop(study, sweep, spec["check_id"]))
@@ -275,6 +309,7 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path,
             "features_in_artifact": sweep.features is not None,
         },
         "contributor_count": len(study.contributors),
+        "study_ref_count": len(study.study_refs),
         "gap_count": sum(1 for c in study.contributors if c.is_gap),
         "gap_rows": [{"edge": c.edge, "gap": c.gap, "band_source": c.band_source,
                       "drawings": gap_drawings(raw_topology, c.edge, drawing_names)}
@@ -282,6 +317,7 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path,
         "envelope": [project_point(p) for p in points],
         "stops": [project_stop(study, sweep, s) for s in study.stops],
         "contributors": project_contributors(study, points),
+        "study_refs": project_study_refs(study, points),
         "checks": checks,
         "no_checks_reason": study.no_checks_reason,
         "provenance": study.provenance,

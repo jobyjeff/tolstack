@@ -461,6 +461,11 @@ primitive. Every stack authored before it folds to the same numbers; the seeded
 three re-derive against the 260729 workbook with a largest delta of 6.4e-15,
 unchanged.
 
+A kinematic study's `study_ref` contributor (a chain study entering another
+study's fold) adds **terms, not a combiner**: each of the sub-study's signed
+terms becomes one `Term` whose coefficient is the parent's Jacobian entry times
+the term's own, and the sub-study's folded interval is never an input.
+
 Two consequences worth knowing:
 
 - **Direction stays in `sign`.** `coefficient` must be `> 0` and a test enforces

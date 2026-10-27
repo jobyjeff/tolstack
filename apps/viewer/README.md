@@ -426,6 +426,12 @@ has not been built.
   model and the top of the chart share the first screen; the box opens on the
   grid of lit rows and keeps its scroll across repaints. The toolbar's
   **Unused** toggle hides the unlit part instead (see "Studies" below).
+- **A contributor that is a study** (2026-10-26, `a_contributor_may_be_a_study`) is
+  one **group row** in the same table, collapsed until opened, and under it the
+  study's own terms as ordinary rows: each term's coefficient is the sweep's
+  sensitivity to the study's parameter times the term's own, folded by the
+  builder. The group's band is the study's own total, shown for reading and never
+  added; the DAG lights the terms' edges too.
 - **Rows reached from the page select in place.** A click on a contributor —
   or on anything in the DAG — selects that edge here: the page stays the
   study, the DAG marks the edge, and the preview pane shows its citation and
