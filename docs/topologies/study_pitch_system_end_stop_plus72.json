@@ -3,7 +3,7 @@
   "id": "pitch_system_end_stop_plus72",
   "title": "High-pitch end stop",
   "description": "Blade OML angular position at the +72 deg end stop, hub A datum to blade OML, in degrees, at the full-sweep-average sensitivity.",
-  "topology": "pitch_system",
+  "topology": "vpa_pitch_linkage",
   "from": "hub_lower_bearing_flange",
   "to": "blade_root_oml",
   "selection": [
@@ -14,7 +14,9 @@
     "end_stop_clearance",
     "piston_length",
     "pitch_plate_flange_to_link_hole",
+    "pitch_plate_link_joint",
     "pitch_link_length",
+    "pitch_arm_link_joint",
     "pitch_arm_link_hole_to_clocking_hole",
     "blade_root_clocking_to_oml"
   ],
@@ -26,7 +28,9 @@
     "end_stop_clearance": "pitch_arm_linear_to_rotary_average",
     "piston_length": "pitch_arm_linear_to_rotary_average",
     "pitch_plate_flange_to_link_hole": "pitch_arm_linear_to_rotary_average",
+    "pitch_plate_link_joint": "pitch_arm_linear_to_rotary_average",
     "pitch_link_length": "pitch_arm_linear_to_rotary_average",
+    "pitch_arm_link_joint": "pitch_arm_linear_to_rotary_average",
     "pitch_arm_link_hole_to_clocking_hole": "blade_root_tangential_to_rotary_average",
     "blade_root_clocking_to_oml": "pitch_arm_linear_to_rotary_average"
   },

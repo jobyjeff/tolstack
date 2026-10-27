@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "switching the toggle to hide tells the scene and re-draws every leader from the re-laid DAG",
+  "mutations": [
+    {
+      "contract": "The scene hears the page's own dim-or-hide word.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Always tells it dim.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    var model = [VA.sceneLitCommand(pageLitSet()), [\"model\", \"unlit\", state.unlitStyle]];",
+      "replace": "    var model = [VA.sceneLitCommand(pageLitSet()), [\"model\", \"unlit\", \"dim\"]];"
+    }
+  ]
+}

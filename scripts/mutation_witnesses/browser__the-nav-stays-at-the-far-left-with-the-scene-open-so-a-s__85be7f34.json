@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the nav stays at the far left with the scene open, so a selection made in it can follow into the scene",
+  "mutations": [
+    {
+      "contract": "With the scene open the nav keeps the far-left column.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "Reordering the row so the nav follows the scene is the one-declaration way to lose it; only a measured box sees it.",
+      "file": "apps/viewer/topology.css",
+      "find": "body.flyout-open .navtree { border-right: none; }",
+      "replace": "body.flyout-open .navtree { border-right: none; order: 2; }"
+    }
+  ]
+}

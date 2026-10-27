@@ -483,9 +483,9 @@ problem as an unrecorded full suite one step later.
   tier as above.
 - **A guard, a witness, or `scripts/mutation_witnesses/`** → `pytest -q
   tests/test_mutation_witnesses.py` plus `node
-  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only
-  "<guard>"` for each guard the diff adds or changes (a bare run off the main
-  checkout is refused and prints those `--only` lines for the branch's specs).
+  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
+  --changed-since integration` (`--only "<guard>"` re-checks one entry; a bare
+  run off the main checkout is refused and prints both spellings).
   **Any diff that adds a guard at all** is in this row since 2026-09-23: the
   per-source guard *set* is pinned (`DECLARED_GUARDS`,
   `scripts/guard_enumeration.mjs` — a count, an enrollable count and a digest
@@ -1572,29 +1572,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       settle it. A stale count in a lesson is a documentation finding, not a test
       failure; the shipping count comes from the post-merge run, and whatever you
       quote from it names the checkout that produced it.
-- [ ] **INTERIM (strategy 2026-10-26, Jeff): a review never runs `--full`.**
-      The whole registry (312 entries) took ~2 h under the one browser slot on
-      the `pitch_system_folds…` review with eleven handoffs queued behind it,
-      and in six weeks a full run caught one decay that `--only` could not
-      (10-20, a witness defect with no product exposure). The full registry
-      is becoming a scheduled sweep that files `class: decayed_witness`
-      issues (`HANDOFF_20261026_the_full_registry_leaves_the_merge_gate`,
-      which also gives the runner `--changed-since` and rewrites this entry).
-      **Until that lands, after you merge `integration` into your review
-      branch run `--only <id>` for every spec whose mutation `file` the
-      merged diff touches** (`git diff --name-only master...HEAD` against
-      the `file` fields in `scripts/mutation_witnesses/*.json`; the runner's
-      refusal of a bare run prints the `--only` lines for this branch's own
-      specs), report the selection and the count, and treat a drop within
-      the selection exactly as the paragraph below says. A decay the diff
-      could not reach is the sweep's finding, the next morning, not yours.
-      The paragraph below is kept for its argument and its measurements; its
-      instruction to run `--full` is retired.
-      *Was:* After you merge `integration` into your review branch, re-run
-      `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --full`
-      and report the count in your review. (`--full` because this run is the
-      whole registry on purpose: since 2026-10-21 the runner refuses one off the
-      main checkout without it, which is aimed at tactical branches, not here.) This is an instruction, not a
+- [ ] **After you merge `integration` into your review branch, re-run the
+      witnesses the merge could have reached:**
+      `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since master`
+      on the merged tree. Report the selection (the runner prints one line per
+      entry with the arm that selected it) and the count; **a drop within the
+      selection is REQUEST CHANGES on the merge.** A review never runs
+      `--full`: the whole registry is the scheduled sweep's
+      (`docs/prompts/WITNESS_SWEEP.md`), and a decay it finds arrives the next
+      morning as a `class: decayed_witness` issue, not as your finding. It took
+      ~2 h under the one browser slot on 2026-10-26 (312 entries, eleven
+      handoffs queued behind it), and in six weeks it caught one decay nothing
+      cheaper could (10-20, a witness defect with no product exposure, in a spec
+      whose own file the branch never touched). That case is the sweep's job
+      and the reason a decay found there is not a reason to put `--full` back on
+      the gate. `--only <guard>` re-checks one entry. This is an instruction,
+      not a
       ritual, and the reason is that **your merge is the only point in the
       lifecycle where nothing re-runs this tier**. The other three tiers answer
       *does the app still behave?*; this one answers *would the guards notice if
@@ -2804,6 +2797,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       purely proves the function, never that the page calls it — the overlay's
       "`[real]` test that asks the view-model instead of the page" entry above,
       one seam further out.
+- [ ] **A shell→scene message the diff starts sending reddens the ANNOTATE
+      suites, which a tactical `--only "<its own suite>"` run never reaches.**
+      New 2026-10-27 (`leaders_follow_the_active_study_across_the_seam`,
+      REQUEST CHANGES): `topology_app.js` began posting `model lit/unlit` on
+      every `annotate:state`. The branch's own suite was 17/17, but `annotate
+      model in the scene` went 15/15 → 13/15, because its checks read the
+      scene's state "until the shell posts". When a diff adds a `postToPane`
+      call or a new scene verb, run the full browser tier, and baseline any
+      red against `git archive integration` under `data/scratch/` with the
+      same `--repo` before blaming the diff. That same run separated a flake
+      (`3D pane follows the selection`) and a pre-existing red (gap badges)
+      from the real one.
+- [ ] **A `[real]` count window over what a bounded, scrolled box shows.**
+      Same handoff: "six to ten leaders at hide" read 9 on the branch and 11
+      here, with the expected set matching both times. A count of what is *in
+      view* depends on where earlier clicks left the scroll. Require a pinned
+      scroll state or a rule-shaped assertion.
 - [ ] **A measured deviation from the handoff, shipped with nothing pinning the
       rule that replaced it.** Same handoff, and the reason the `centreOffsets`
       mutation above is not just a coverage nit. Good tactical agents here
@@ -3037,7 +3047,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the grid trigger's 418.5–444.5 for a rail bar until the tail was fixed).
       **Second sighting 2026-09-15 (`viewer_component_names_and_reference_copy`),
       and it names the tier the entry above leaves out: run
-      `run_mutation_witness_tests.mjs` after the integration merge too.** The
+      `run_mutation_witness_tests.mjs --changed-since master` after the integration merge too.** The
       handoff branch witnessed 16/16 and the merged tree 21/22 --
       `card-layout-out-of-flow` no longer reddens on its declared sub-check.
       Bisected by `git archive <rev>` into scratch trees: witnessed at the
@@ -5014,6 +5024,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       clearance band loads cleanly.
       `ISSUE_20261016_a_kinematic_contributor_reads_a_diametral_position_zone_as_a_one_axis_band.md`,
       `ISSUE_20261016_a_kinematic_study_never_checks_a_bands_units_against_the_jacobian_column.md`.
+      **And a `disk` over two labels is only right when the feature's axis
+      IS the third CAD axis** (2026-10-23, `the_pitch_plate_link_hole_states_its_axis`):
+      a hole axis in the XY plane but not ∥ X or Y (point_a sits at −11.4°)
+      has no two-label disk. Check the cited axis against the frame, not just
+      that one is cited.
+      `ISSUE_20261023_a_kinematic_disk_spans_two_frame_axes_so_an_off_axis_hole_cannot_be_one.md`.
 - [ ] **A viewer page that renders a verdict but not the citation of the
       limit it was judged against.** New 2026-10-20
       (`the_viewer_shows_a_kinematic_study`). The kinematic page shows
@@ -5048,9 +5064,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Whenever a diff changes what is in normal flow beside the flyout, add
       every geometric spec of the viewer's `browser` tier to your `--only`
       set (grep `scripts/mutation_witnesses/browser__*.json` for `shift` /
-      `offset` mutations) — **not the full registry** (strategy 2026-10-26,
-      see the INTERIM entry above; the scheduled sweep covers the rest within
-      a day). If that run shows a
+      `offset` mutations) — **not the full registry**: the change runs
+      `--changed-since` like any other, and the scheduled sweep covers what the
+      diff cannot reach, within a day. If that run shows a
       `the tier's process could not be started` (ENOENT) miss, check the
       scratch root's junctions. Another session sharing that root may have
       removed them mid-run (round 2, 21 `python__` specs). Re-run
@@ -5128,6 +5144,94 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `runs: []`. No test reads `runs` against the run log. For each sha a
       diff cites, grep `runs.jsonl` for it and count
       (`ISSUE_20261022_two_213668_export_citations_list_one_of_five_runs_that_consumed_the_export.md`).
+- [ ] **A second state fact added beside an old one, and the old one's readers
+      left reading half the truth.** New 2026-10-26
+      (`the_rail_and_the_scene_point_at_each_other`): `scene.js` split visibility
+      into `userData.shown` + `hiddenKeys`, but the parts panel's checkbox and its
+      "shows or hides all of them" tooltip still read `isVisible` (= `shown`), so
+      the row reads ticked with an occurrence hidden and its `show` cannot bring it
+      back (`ISSUE_20261026_the_parts_panel_checkbox_cannot_show_an_occurrence_a_body_checkbox_hid.md`).
+      Grep every reader of the old accessor and ask which fact each one meant.
+- [ ] **Read the branch's own screenshots for layout, not only for the DoD
+      claim.** Same handoff: the shot taken to prove a hide also showed the new
+      link-joint checkbox wrapping to its own line (a right `float` appended after
+      an inline-block that fills its line). No tier measures it; the PNG did.
+- [ ] **A browser suite labelled "flakes under load" on a diff that grew the
+      graph it paints — A/B it against `integration` before accepting the
+      label.** New 2026-10-26 (`pitch_system_folds_into_the_pitch_linkage_model`).
+      The fold made the live DAG ~106 rows and `topology file:// respine`'s
+      `catchFrame()` checks went red in 4 of 4 runs at 16% CPU. The same suite
+      against a projection built from `integration` passed 2 of 2. The lesson
+      and an issue called it a load race with an `--only` 40/40 as proof. Build
+      a scratch root per tree (`git archive integration` into
+      `data/scratch/…`, then the five builders) and run the suite `--only` on
+      each, several times. A red that follows the tree is a regression, even when
+      its mechanism is a timing race. `VA.RESPINE.duration` is a mutable test
+      knob for this suite.
+- [ ] **A sibling's `[real]` browser pin that only passes on the main
+      checkout's STALE projection.** Same review: the rail's gap-badge checks
+      expect two kinematic rows that `the_tangential_link_cites_its_drawing` had
+      already banded. They were green only because `data/projections/` predated
+      that handoff. When a red `[real]` check names data your diff did not
+      touch, run it on a fresh `integration` build before charging it to the
+      branch (`ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has.md`).
+- [ ] **A builder field added with the `[real]` fast tier skipped lands the
+      fixture-shape red on `integration`.** New 2026-10-26
+      (`the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`):
+      `bodies_and_studies_carry_forge_tags` added `variant_axis` and study
+      `tags` to the topology builder; its review ran `run_tests.cjs` with no
+      `--repo` (454/454, `[real]` skipped), so `[real] the topology fixture's
+      shapes still match the builder's` went red for the next merge instead.
+      Any diff to a `build_*_projection.py` output shape: run the fast tier
+      through `--repo` on a projection that diff built, and expect
+      `topology_fixtures.js` / `fixtures.js` in the same diff
+      (`ISSUE_20261026_topology_fixtures_lack_the_tags_fields_so_the_real_fixture_pairing_is_red_on_integration.md`).
+- [ ] **A projection field read off another repo's directory listing sits
+      outside the provenance stamp.** Same review: the kinematic builder's
+      `gap_rows[].drawings[].on_file` lists drawing-checker's
+      `data/inbox/drawings/`, and `projection_provenance` stamps only this
+      repo's tree, so a drawing arriving there leaves the projection "fresh"
+      and wrong until an unrelated rebuild. Ask of every new cross-repo input
+      which gate would notice it moving.
+- [ ] **Integration moves while a long tier is running — check
+      `git log HEAD..integration` before you start the slow tiers, not after.**
+      Same review: two handoffs landed mid-review, both touching
+      `apps/viewer/views/topology.js`, and the first witness run was measuring
+      a superseded tree. Stopping an `xargs` loop of `--only` runs leaves its
+      current child holding the browser slot until that spec ends.
+- [ ] **A message between the viewer and the embedded annotator whose verb
+      set is exercised only in part.** New 2026-10-27
+      (`the_shell_seats_the_scene_beside_the_model`). `annotate:rail`'s
+      `act` is six inline words in `views/nav.js` and six in `app.js`'s
+      `railGesture`; the fast tier pins the sender only, and the browser
+      tier reaches four. Renaming the receiver's `toggle` and `check` left
+      every tier green. For any new cross-frame message, list its verbs and
+      grep the browser tier for one real-iframe check per verb; then rename
+      one receiver branch and run that suite `--only`
+      (`ISSUE_20261027_the_nav_scene_trees_toggle_and_check_gestures_can_be_broken_green_in_every_tier.md`).
+- [ ] **A new CSS class whose name the views already use for structure.**
+      New 2026-10-27 (`the_dag_draws_bodies_as_containers_and_joints_as_symbols`).
+      The container rect was named `tv__body`, which is also `renderTopoPane`'s
+      wrapper `<div>`, so `.tv__body { pointer-events: none }` switched off
+      every click on the DAG and grid. The fast and `[real]` tiers stayed
+      green because the DOM shim has no CSS, and only the browser tier caught
+      it. For every class a diff adds to `topology.css`/`style.css`, run
+      `git grep -n '"<class>"\|<class>' -- apps/` against the pre-diff tree.
+      Any hit outside the new code is a collision.
+- [ ] **A bridged worktree's untracked `venv-win` link rides in on
+      `git add -A`.** `.gitignore`'s `venv-win/` is slash-only and misses the
+      symlink `dispatch bridge-test-inputs` leaves. Read the diff's `A`
+      entries for a bare `venv-win`
+      (`ISSUE_20261027_gitignore_venv_win_slash_pattern_misses_the_bridge_symlink.md`).
+- [ ] **"The body's frame origin" is one point for every body here.** New
+      2026-10-27 (`the_model_is_drawn_in_the_scene`). A sweep pose maps the
+      as-modelled assembly frame onto itself, so every solver body's frame is
+      the assembly frame. A handoff rule anchored "at the body's frame origin"
+      (a fallback, a section plane) therefore collapses every body onto the
+      hub's centre: seven no-mesh nodes made one star there on P2. When a 3D
+      rule names a body's frame, ask what it does on two bodies at once. Read
+      the branch's screenshots for a fan of lines meeting at one point
+      (`ISSUE_20261027_design_the_model_layer_draws_a_star_at_the_assembly_origin_…`).
 
 ## Architectural errors to check
 

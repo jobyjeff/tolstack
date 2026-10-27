@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] resting on a body row in the nav lights that body in the scene",
+  "mutations": [
+    {
+      "contract": "A pointer resting on a mirrored row runs that row's own hover in the annotator.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "A row that renders and clicks but never passes the pointer over loses the coupling silently.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    line.onmouseenter = function () { send(row.key, \"enter\"); };",
+      "replace": "    line.onmouseenter = function () { };"
+    }
+  ]
+}

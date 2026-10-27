@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] on a chain study at 1600 wide, the DAG and grid get at least as much room with the scene at its floor as with no scene open",
+  "mutations": [
+    {
+      "contract": "At 1600 wide with the scene at its floor, the DAG and grid keep at least their no-scene width.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "A floor above the preview pane's own width buys scene with diagram; 640 is past the 560 the preview takes.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "  VA.FLYOUT_WIDTH = { min: 400, max: 1200, reserve: 320 };",
+      "replace": "  VA.FLYOUT_WIDTH = { min: 640, max: 1200, reserve: 320 };"
+    }
+  ]
+}

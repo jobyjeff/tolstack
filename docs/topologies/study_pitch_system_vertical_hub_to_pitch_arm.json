@@ -3,9 +3,9 @@
   "id": "pitch_system_vertical_hub_to_pitch_arm",
   "title": "Pitch-arm link hole vertical position",
   "description": "Vertical position of the pitch-arm link hole relative to the hub A datum, in millimetres -- the topology's millimetre baseline, stopping at the interface just before the linear-rotary coupling.",
-  "topology": "pitch_system",
+  "topology": "vpa_pitch_linkage",
   "from": "hub_lower_bearing_flange",
-  "to": "pitch_link_arm_hole",
+  "to": "pitch_arm_link_bore",
   "selection": [
     "hub_lower_to_top_bearing_flange",
     "hub_top_flange_to_top_deck",
@@ -14,7 +14,9 @@
     "end_stop_clearance",
     "piston_length",
     "pitch_plate_flange_to_link_hole",
-    "pitch_link_length"
+    "pitch_plate_link_joint",
+    "pitch_link_length",
+    "pitch_arm_link_joint"
   ],
   "no_checks_reason": "No document in this repo states a millimetre criterion at the pitch-arm link hole. The citable criteria for this topology are angular (S461-607's +/-0.5 deg blade-to-blade limit, the S461-241/S461-516 derived stop margin) and apply downstream of the linear-rotary coupling, in the blade-angle and end-stop studies; this study deliberately stops at the interface BEFORE that coupling, so applying an angular limit here would need exactly the transform crossing it exists to avoid. A millimetre limit invented to fill the slot would have no source. Recorded 2026-09-15 (stack_fable_audit, check-coverage sweep).",
   "provenance": {

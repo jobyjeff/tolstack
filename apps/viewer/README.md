@@ -161,11 +161,11 @@ semantics change as **breaking**, and change this section with it.
 |---|---|
 | `topology=<id>` | topology mode, that topology |
 | `study=<id>` | …with that study emphasized on the walk (chain lit, the rest dimmed, the grid on the chain's rows, the totals as that grid's own footer rows). Requires `topology`. |
-| `edge=<id>` | …with that edge selected in the detail pane. Requires `topology`. |
+| `edge=<id>` | …with that edge selected in the detail pane. Requires `topology` — or `kinematic`, where it selects an edge of that study's model on the study's own page. |
 | `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
 | `stack=<id>` | stack mode — the elements table — on that stack. Resolves against the projection, not the nav, so it still reaches a stack a topology re-expresses (which has no row of its own). |
 | `element=<id>` | …with that element's row selected and its sourcing in the right pane. Requires `stack`. |
-| `kinematic=<id>` | a kinematic study's own page (see "Kinematic studies" below). Stands alone: given beside any other param, it wins and the banner says the rest was ignored. |
+| `kinematic=<id>` | a kinematic study's own page (see "Kinematic studies" below). Stands alone but for `edge`: given beside any other param, it wins and the banner says the rest was ignored. |
 
 The rules a consumer can rely on:
 
@@ -192,11 +192,12 @@ The rules a consumer can rely on:
 Examples:
 
 ```
-topology.html?topology=pitch_system&study=pitch_system_gas_spring_branch
-topology.html?topology=pitch_system&edge=end_stop_clearance
+topology.html?topology=vpa_pitch_linkage&study=pitch_system_gas_spring_branch
+topology.html?topology=vpa_pitch_linkage&edge=end_stop_clearance
 topology.html?stack=rotor_fastener_length&element=fastener_grip
 topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip
 topology.html?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops
+topology.html?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops&edge=pitch_link_length
 ```
 
 The outbound twin, for building one of these links in code, is
@@ -300,8 +301,8 @@ of the browser dropping a plain box over the card.
   `VA.componentLabel` text, so there is one label style where there were two
   (ids in the pane, names on the card) and the two can no longer read
   differently about the same interface. The pane printed the authored `parts`
-  list until handoff `surfaces_that_state_something_false`, which is 36 of the
-  77 live nodes answering differently hovered and clicked.
+  list until handoff `surfaces_that_state_something_false`, which is 35 of the
+  74 live nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
@@ -406,14 +407,39 @@ has not been built.
   what the model rows come from: per topology, the runs whose
   `geometry.features[]` name it, newest first by timestamp.
 - **A study row** opens the study's page (`views/kinematic.js`), in the main
-  column, with the preview pane stood down: the verdict per stop (the chain
-  studies' own verdict chip and words, its margin and the limit it is judged
-  against, and `BUDGET` where the check is a budget), the envelope chart, one
-  ranked contributor table per stop, and one **Where these numbers come from**
-  fold — the sweep run, the solver commit, the sweep's own analytic-against-
-  finite-difference agreement, how the features were identified, the study's
-  authored provenance, and the check's excluded terms as **Not in these
-  numbers**.
+  column, with the preview pane beside it as on every topology page: the
+  verdict per stop (the chain studies' own verdict chip and words, its margin
+  and the limit it is judged against, and `BUDGET` where the check is a
+  budget), then **the model**, then the envelope chart, one contributor table,
+  and one **Where these numbers come from** fold — the sweep run, the solver
+  commit, the sweep's own analytic-against-finite-difference agreement, how
+  the features were identified, the study's authored provenance, and the
+  check's excluded terms as **Not in these numbers**.
+- **The model** (2026-10-26, `the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`).
+  A kinematic study is a lit subset of its topology's one model, so its page
+  draws that model's DAG between the verdicts and the chart, exactly as a chain
+  study's page does: the study's **lit set** (`VA.kinematicLitSet` — every
+  contributor's edge, the edge each one borrows its band from, and every node
+  either end of one stands on) is on, the rest of the walk dimmed, the grid
+  beside it holds the lit edges and the leaders run only to lit nodes. The DAG
+  sits in a box of bounded height with its own scroll, so the verdicts, the
+  model and the top of the chart share the first screen; the box opens on the
+  grid of lit rows and keeps its scroll across repaints. The toolbar's
+  **Unused** toggle hides the unlit part instead (see "Studies" below).
+- **A contributor that is a study** (2026-10-26, `a_contributor_may_be_a_study`) is
+  one **group row** in the same table, collapsed until opened, and under it the
+  study's own terms as ordinary rows: each term's coefficient is the sweep's
+  sensitivity to the study's parameter times the term's own, folded by the
+  builder. The group's band is the study's own total, shown for reading and never
+  added; the DAG lights the terms' edges too.
+- **Rows reached from the page select in place.** A click on a contributor —
+  or on anything in the DAG — selects that edge here: the page stays the
+  study, the DAG marks the edge, and the preview pane shows its citation and
+  crop. Where a contributor has no value of its own and borrows its band from
+  another edge, the pane names that edge as **band in this study**, one click
+  from its citation. The row's `href` is still the edge's own
+  `?topology=…&edge=…` link, for a reader who opens it in a new tab, and
+  `?kinematic=…&edge=…` opens the study with the edge already selected.
 - **The envelope chart** is drawn live from `envelope[]` as inline SVG, in the
   `:root` type and colour tokens. x is the sweep's driver; y is the
   **deviation from nominal**, on an axis symmetric about zero that always
@@ -423,15 +449,34 @@ has not been built.
   plot reads the nearest sweep point: the driver, the measure there, ± worst
   case, ± RSS, each with its unit. The SVG the builder writes beside the JSON
   is its evidence file and is not embedded.
-- **A contributor row** names the topology's own edge (its id on hover), its
-  zone, sign, coefficient, band, magnitude and confidence, at the precision the
-  projection states (`display_decimals`, set in Python), with every unit in
-  the column header. A row with no band reads **no band on file**, the way a
-  valueless edge reads on the rails; a row with no effect at that point is
-  muted. The name is a link to that edge on its rail (`?topology=…&edge=…`,
-  followed in place on a click), and where the edge's part has a mesh, a
-  quiet **3D** control opens it in the 3D panel (or the annotator in a new
-  tab, where the panel cannot be served).
+- **One contributor table, a contributor said once.** The same features are
+  the contributors at every blade angle; what the sweep changes is their
+  coefficients. So a row is one contributor — the topology's own edge name
+  (its id on hover) with its zone after it — and a **column group per stop**
+  carries that stop's sign, coefficient and magnitude, under a group header
+  with the stop's name and its summary line (the measure there, ± worst case,
+  ± RSS). The band, the confidence and the 3D control follow. Rows are
+  ordered by the larger of their stop magnitudes; a row with no band sorts
+  last. Every number is at the precision the projection states
+  (`display_decimals`, set in Python), with every unit in a column header. A
+  cell with no effect at that stop is muted. The contributor's name stays
+  pinned at the left when the table scrolls sideways, which it does beside the
+  preview pane on a narrow window. Where the edge's part has a mesh, a quiet
+  **3D** control opens it in the 3D panel (or the annotator in a new tab,
+  where the panel cannot be served).
+- **A coefficient's hover is its curve across the sweep**: the signed
+  coefficient at every sweep point (the projection's
+  `contributors[].by_point[]`) against the driver, zero drawn, the stops
+  marked and this cell's stop emphasized — so a coefficient that changes sign
+  between the stops is visible rather than a sentence somewhere. It opens as
+  the page's one hover card (kind `curve`), which no table scroll box can
+  clip.
+- **A row with no band** reads **no band on file**, the way a valueless edge
+  reads on the rails, and the chip opens a card saying what would resolve it:
+  the drawing each of the edge's parts names, and whether a copy of it is on
+  file to be read (the builder's `gap_rows[].drawings`, off drawing-checker's
+  drawing inbox) — "drawing on file, not yet read", "no drawing on file", or
+  that the part names no drawing at all.
 - **The Kinematic model row** opens the 3D scene in sweep mode on the
   topology's newest run (`VA.annotateLink({ sweep })`, whose already-open twin
   is `VA.annotateExecCommands`' `["sweep", run]`): the flyout where the
@@ -626,7 +671,8 @@ works out as **shortest leg nearest the trunk**: Jeff, reading the real
 the trunk would help a lot."* The objective is three kinds of line counted
 equally — a fan-out curve, a loop-closing curve, and a node's own leader on its
 way to the grid — and the search is exhaustive up to a declared width
-(`EXACT_ORDER_MAX_COLUMNS`, which every committed topology is inside), so a
+(`EXACT_ORDER_MAX_COLUMNS`, which every committed topology but the product
+graph is inside), so a
 diagram this wide gets a proved minimum rather than a good guess. Past that
 width the layout is the rule above and `layout.column_order` says so, which is
 what stops a wide diagram claiming a minimum it did not prove. A renumbering is a bijection on
@@ -634,21 +680,28 @@ column ids, so rail continuity, column reuse and the one-dashed-curve-per-cycle
 invariant all survive it untouched. The trade, taken deliberately: adding one
 edge can now re-order the columns.
 
-What that is worth on `pitch_system` is below. The three numbers it reaches are
-declared and re-derived from the committed document on every run; the baseline
-it came from — branch 20, close 12, leader 52, as the walk allocated them on
-2026-09-30 — is pinned by name in `tests/test_topology_projection.py`, which
-reaches that layout by patching the pass back out of the walk. It is pinned
-rather than declared because the `layout_crossings` metric re-derives through
-`serialize_topology`, and that always orders. So the pass takes branch and
-leader crossings to zero and pays for it in close links:
+What that was worth on `pitch_system`, the graph Jeff was reading: branch 20,
+close 12, leader 52 as the walk allocated them on 2026-09-30, and branch 0,
+close 17, leader 0 after the pass — branch and leader crossings to zero, paid
+for in close links. Both are pinned by name in
+`tests/test_topology_projection.py` against a frozen copy of that graph, since
+it was folded into `vpa_pitch_linkage` on 2026-10-26. The product graph is past
+the exact width, so it takes the rule above and then single-column moves while
+any lowers the count (`_improved`, still a local minimum and still declared
+`shortest_first`). Since 2026-10-26 its walk is also **body-major**: every
+rigid body's rows are one block the page draws a container behind
+(`docs/DAG_TOPOLOGY.md`, "Bodies on the DAG"), joints deferred until a body is
+finished. On the merged model that went from 18 columns and branch 5 / close
+115 / leader 2 (122) to 11 columns and the figures below (109): fewer closing
+curves, more leaders crossing a rail. What it reaches is declared and
+re-derived from the committed document on every run:
 
 ```claim
 metric: layout_crossings
-topology: pitch_system
-branch: 0
-close: 17
-leader: 0
+topology: vpa_pitch_linkage
+branch: 16
+close: 81
+leader: 62
 ```
 
 **The spine draws on the RIGHT**, hard against the jog zone, with branches
@@ -658,12 +711,15 @@ called once in `renderTopoPane`). Which column an edge lands on is the graph's
 business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
-between a spine node and its row is now on the far side of it. Over the six
-committed topologies, leader-vs-rail crossings went **314 → 0**, six of the
-six to zero; on `pitch_system` that one topology's total moves 90 → 0. Both
+between a spine node and its row is now on the far side of it. Over the one
+committed topology, leader-vs-rail crossings went **162 → 30**, zero of the
+one to zero; on `vpa_pitch_linkage`, the product graph since the 2026-10-26
+fold (and with the four fastener stacks in it since 2026-10-27, when the
+before-and-after were 125 → 25 over its mechanism alone), that one
+topology's total moves 162 → 30. Both
 sides of those are measured at the column order above, so the before-side is a
-counterfactual — and the zero is the two mechanisms together, not the mirror
-alone: `order_columns` minimises leader crossings counted *towards column 0*,
+counterfactual — and where it is zero it is the two mechanisms together, not the
+mirror alone: `order_columns` minimises leader crossings counted *towards column 0*,
 which is the side the mirror puts the grid on.
 
 Three shapes come out of it, and all three are in the projection:
@@ -677,11 +733,14 @@ Three shapes come out of it, and all three are in the projection:
 * **column reuse** — a column is freed when its branch ends and the next
   allocation may take it, so a column holds a *list* of disjoint rail spans
   rather than one extent. Re-measured live, 2026-09-30: reuse **fires**, on
-  one topology. Rail allocations over columns, per committed topology: 3 over 3
-  for `pitch_link_to_pitch_plate`, 10 over 10 for `pitch_system`, 10 over 10
-  for `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, 2
-  over 2 for `vpa_output_to_pitch_plate`, and 14 over 11 for
-  `vpa_pitch_linkage`, where some columns carry more than one disjoint span (13 over 11 until 2026-10-22's datum-A edge on the gas-spring mount). Until that
+  one topology. Rail allocations over columns, per committed topology: 58 over 11 for
+  `vpa_pitch_linkage`, where some columns carry more than one disjoint span (37
+  over 11 before the four fastener stacks folded in on 2026-10-27, when they were
+  3 over 3, 10 over 10, 2 over 2 and 2 over 2 as topologies of their own; 23
+  over 18 until the 2026-10-26 body-major walk, whose deferred joints reuse a
+  column once the rows below a fork are clear; 14 over 11 until the 2026-10-26
+  fold brought `pitch_system`'s ten in, 13 over 11 until 2026-10-22's datum-A
+  edge on the gas-spring mount). Until that
   topology was committed the count was one-to-one everywhere, and the
   2026-09-15 reading recorded here said so; disabling reuse would now visibly
   widen one page. It is still the mechanism the disjointness invariant guards
@@ -931,6 +990,19 @@ below).
 
 The change of emphasis is **animated** — see "Selecting a study re-spines the
 DAG" below.
+
+**Dimmed or hidden** (2026-10-26). On a product-sized model the walk outside a
+study is most of the picture, so the toolbar carries one more toggle wherever
+something is lit — a chain study, or a kinematic study's page — **Unused:
+dimmed** (the default) or **Unused: hidden** (`VA.UNLIT_STYLES`,
+`VA.DEFAULT_UNLIT_STYLE`). Hidden draws only the lit rows, in walk order, and
+re-lays them (`VA.hideUnlit`): a column left with nothing on it is dropped, the
+rails and links are re-derived from what is left (`VA.walkRailsAndLinks`, which
+on every committed topology reproduces the projection's own rails and links
+exactly — the fast tier pins that), and a run of the walk that a hidden edge
+used to join becomes two runs with nothing drawn between them. A node a hidden
+edge shares with a lit one stays: it is lit. The leaders still land on their
+grid rows. The choice is kept for the session, like the leader style.
 
 **A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,
 `BrokenChain`, `CycleDetected` and `UnitMismatch` each render as a block carrying
@@ -1334,8 +1406,8 @@ window, which was measured to make the leaders' jog worse rather than better.
 The **floor is never given up**, so the fit has an honest failure: where one
 row per edge is already past the budget, every bar sits on the floor wearing
 its break mark, the DAG is exactly as tall as its own row count demands and
-the page scrolls. (`pitch_system` at comfortable density is exactly this: 45
-rows × 26px = 1170px, past any ordinary window. Compact density is the control
+the page scrolls. (`vpa_pitch_linkage` at comfortable density is exactly
+this: 169 rows × 26px = 4394px, past any ordinary window. Compact density is the control
 that actually makes it fit; under the fit its tolerance-width and uniform
 renderings are the same height, and every bar says it is not to scale.) A
 collapsed scale marks **every** bar, including the widest ones that landed on
@@ -1355,7 +1427,7 @@ its length wherever the big dimensions are, so on
 `pitch_link_to_pitch_plate` under tolerance width all five leaders live in the
 top 236px of a 691px DAG and centring the heights would make every one of them
 jog *further*. Centring the leader span is what minimises the largest jog,
-which is the thing the change is for: `pitch_system`'s max jog 507px → 208px,
+which is the thing the change is for: `vpa_pitch_linkage`'s max jog 1911px → 949px,
 and every topology × mode pair on the shelf improves.
 
 A leader can therefore now **descend** left-to-right, where before it always
@@ -1397,12 +1469,12 @@ picked between.)
 not: both frames are the same walk, so every column, every rail and every dot's
 `y` is identical on the two sides and `VA.respineX` returns a zero column
 shift. What is left is real, and measured per study on the live corpus. Taking
-`pitch_system`'s `gas_spring_branch`:
+`pitch_system_gas_spring_branch`, over the product graph:
 
 * the **jog zone narrows** as leaders drop, and the pane width with it — the
-  pane goes **316 → 250px**;
+  pane goes **606 → 270px**;
 * the **grid block travels**, because a shorter table re-centres against a DAG
-  of unchanged height — `gridOffset` goes **299 → 143px**;
+  of unchanged height — `gridOffset` goes **962 → 624px**;
 * the grid **cross-fades** between two different row sets, as it always did.
 
 Every committed study moves at least one of those, which the `[real]` tier
@@ -1428,8 +1500,8 @@ things are worth knowing about it:
   animator reads it back as `from`;
 * **x cannot go through the store either, so the drawn LAYOUT is what is
   interpolated.** Which column a row lands on is a claim about the graph, the
-  two serialisations disagree about how many columns there are (`pitch_system`'s
-  walk needs **10 columns**, while every one of its study chains is linear and
+  two serialisations disagree about how many columns there are (`vpa_pitch_linkage`'s
+  walk needs **11 columns**, while every one of its study chains is linear and
   needs **1**), and a rail belongs to a *column* rather than to an element, so
   there is nothing to pair the two frames' rails on. What the two frames do
   agree about is **depth from the spine** — both are right-justified, so the
@@ -1699,9 +1771,19 @@ static server — every annotate affordance upgrades in place:
   closes the card behind it. Before that, a card's link opened a second tab
   even with the flyout live — two annotators, two folder grants, two cameras.
 
-The panel is a non-modal, `position: fixed` `<dialog>` pinned to the
-viewport's LEFT edge (`#annotate-flyout`, Jeff 2026-09-16: adjacent to the
-DAG), and the page yields it the room rather than lying under it. It holds ONE
+The panel is a non-modal `<dialog>` (`#annotate-flyout`) laid out as a
+**column of the page's own row**: nav | scene | DAG + grid, left to right
+(handoff `the_shell_seats_the_scene_beside_the_model`, 2026-10-26; Jeff: "a
+single canvas that contains the 3d viewer and the DAG view, with the dag on
+the right side"). It wears the page's background with no border at either
+seam, and while it is open on a topology or kinematic page the preview pane
+stands down — the scene's own detail line and the hover card answer for an
+edge — and comes back when it closes (a stack page keeps its preview). Its
+floor (`VA.FLYOUT_WIDTH.min`) sits under the preview pane's own width, so at
+the floor the DAG and grid have more room than with no scene open; the browser
+tier measures that on a live chain study at 1600 wide. Until then it was
+pinned to the viewport's left edge with the page shifted out from under it
+(pane | nav | DAG). It holds ONE
 iframe of the real annotate app, created on the first launch and kept: the
 folder grant, loaded meshes and camera survive across launches, because a
 later launch drives the open panel over `postMessage` → `AA.exec` (the
@@ -1716,10 +1798,73 @@ annotator's sweep mode on the run it folds, a chain study or an edge the goto
 its row would post (which leaves sweep mode), all through one rule,
 `VA.annotateParamsFor`, whose result `VA.annotateLink` boots a cold panel with
 and `VA.annotateExecCommands` re-drives a warm one with. Open/closed and the
-width are remembered per browser. The nav rail stays beside it (it used to
+width are remembered per browser. The nav stays at the far left (it used to
 stand down). Resting the pointer on an edge's row, rail mark or kinematic
 contributor posts `highlight` (debounced, `VA.PANE_HOVER_DEBOUNCE_MS`), and
-the panel's head line is the annotator's own `annotate:state` answer.
+the panel's head line is the annotator's own `annotate:state` answer. On a
+kinematic study's page a selection never moves the panel out of sweep mode:
+`VA.annotateParamsFor` keeps answering the study's sweep whatever is selected,
+and the selected edge is posted as a `highlight` instead — the one the panel
+shows whenever the pointer is resting on nothing in particular.
+
+**The annotator's rail is drawn in the nav** (2026-10-26). The iframe boots
+with `embedded=1` (`VA.annotateEmbedHref`; the "Open full page" link keeps
+the plain url): the annotator then lays its rail out but does not show it,
+hides its command box, takes the page's background, and sends the rows its
+rail has just rendered as `{type: "annotate:tree", mode, chips, rows}`. The
+page draws them under the nav row the scene is showing — a kinematic study's
+bodies, joints with their surfaces and parts, and contributors, with the type
+chips; a chain study's elements and parts (`VA.renderSceneTree`). A gesture
+on a row goes back as `{type: "annotate:rail", key, act, index?}` and runs
+on the very rail row it mirrors, so the words and the effects stay the
+annotator's: hover lights the thing in the scene, a click selects it, a
+disclosure opens, a checkbox shows or hides, and a selection made in the
+scene comes back marked. Every row that does something is reachable by Tab.
+
+**Leaders across the seam** (handoff `leaders_follow_the_active_study_across_the_seam`,
+2026-10-27; Jeff: "if you selected a single element in 2d or 3d, you could
+quickly trace its 2d and 3d representation, as well as the line of the
+tolerance rollup"). The scene posts where it draws each node
+(`annotate:anchors`, in the iframe's own pixels — docs/ANNOTATION_SURFACE.md,
+"Talking to the shell"); the pane publishes each lit node's DAG end
+(`VA.lastTopoRender.seam`, from `VA.seamDots`: the left side of its dot, or
+its own column on a collapsed body's pill); and one page-level SVG
+(`svg.seamleaders`) draws a leader between the two, offset by the rails SVG's
+and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
+
+- **The lit set only** — a kinematic study's own, a chain study's chain; the
+  whole walk has none, and a node outside the lit set never gets one whatever
+  the scene posts. A node whose anchor is `null`, whose anchor is outside the
+  scene's visible frame, or whose dot is scrolled out of the DAG's view gets
+  nothing: no leader, no stub.
+- **One bend.** A leader runs level out of its dot to half a gutter left of
+  the leftmost thing the DAG draws, turns once, and runs straight to the
+  anchor. Leaving level with its own row is what keeps it off every lit edge's
+  bar: no other row's bar reaches into that row (`VA.seamBarCrossings` counts,
+  and the tiers pin it at none). Crossings among the leaders are counted
+  (`VA.seamCrossings`), not minimised.
+- **One selection, three representations.** `VA.selectedLeaderNodes` — a
+  node's own, an edge's two ends — is the rule both the DAG↔grid leaders and
+  these read: the selected element's leaders wear the accent, every other
+  leader steps back, and the pane's hover lights them lighter. The scene's
+  line lights through the `highlight` a kinematic page already posts; a
+  selected node is selected in the scene's layer (`model select node`). A pick
+  in the scene selects its row in the scene's rail, and the tree it sends back
+  marks that row: a row naming an edge, or a body carrying exactly one lit
+  edge, selects it here (`VA.sceneRowElement`), so a pick and a click on its
+  contributor row arrive at the same state. A selection brings its grid row
+  into view in the kinematic page's bounded box — never by scrolling the
+  document, which slides another row under a pointer that has not moved.
+- **The scene is told the page's lit set and its dim-or-hide word** in its
+  own verb (`model lit …` / `model lit all`, `model unlit dim|hide`), each
+  only when it changed.
+- **Re-drawn on every anchors message, every pane paint (a respine's frames
+  included), every scroll and every resize** — one `ResizeObserver`, one
+  measurement of the three rects, at most one draw per frame.
+
+The DAG↔grid leaders stay in the rails SVG: they share that SVG's scroll
+exactly, where an overlay redrawn on a scroll event trails a
+compositor-scrolled pane by a frame.
 
 **Probed, never assumed** (`VA.probeAnnotateMount`): at boot the page HEADs
 `../annotate/index.html` and requires an ok `text/html` answer — the same
@@ -2116,8 +2261,8 @@ node scripts\run_viewer_browser_tests.mjs               # truth tier (installed 
 node scripts\run_viewer_browser_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
 node scripts\run_viewer_browser_tests.mjs --only "topology height budget"  # one suite
 
-npm run test:mutations                                  # mutation-witness tier, every entry (--full)
-node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --only "<guard>"   # ...from a worktree, per guard touched
+npm run test:mutations                                  # mutation-witness tier, every entry (--full): the scheduled sweep's run, not a landing's
+node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --changed-since integration   # ...from a worktree: the entries this diff could have decayed
 ```
 
 ### The mutation-witness tier
@@ -2163,6 +2308,18 @@ spec reddens `pytest -q` rather than becoming somebody else's backlog: that gap
 used to be recorded by hand, one issue at a time, and fourteen of those were open
 at once. If you find a guard that shrugs off a hand mutation, that is exactly what
 a spec is for.
+
+**What runs where.** A landing runs `--changed-since <ref>` — every entry whose
+mutation file, spec file or tier harness the diff touched — and `--only <guard>`
+re-checks one. The whole registry (`--full`) is the scheduled sweep's
+(`docs/prompts/WITNESS_SWEEP.md`): it held the machine's one browser slot for
+hours on every landing, and a decay is a test-quality defect with no product
+exposure, so a day's latency finding one is the better trade. The case the gate
+cannot see is the one the sweep is for: `--changed-since` would not have
+selected `browser__and-it-sits-to-the-panel-s-right…237dba65` on 2026-10-20,
+when a layout shift left a spec whose own file was untouched blind. It arrives
+as a `class: decayed_witness` issue, not as a reason to put `--full` back on a
+merge.
 
 Its cheap half runs on every `pytest -q`: `tests/test_mutation_witnesses.py`
 requires every declared `find` to still resolve to exactly one place in the

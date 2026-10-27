@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: a node anchors on its link's joint point, then its bound face, then its part's section, then its body's origin",
+  "mutations": [
+    {
+      "contract": "A link end is anchored on the solver's joint point before anything else.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "Without it the pitch and tangential link lines stop being the stick figure's.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (linkEnds[n.id]) {",
+      "replace": "      if (false && linkEnds[n.id]) {"
+    }
+  ]
+}

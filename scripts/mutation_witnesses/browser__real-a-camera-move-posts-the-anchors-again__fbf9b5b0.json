@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] a camera move posts the anchors again",
+  "mutations": [
+    {
+      "contract": "A changed view posts again; only an unchanged message is dropped.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "A shell holding the first frame's anchors draws leaders to where the parts were.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (text === model.postedText) return;",
+      "replace": "  if (text === model.postedText || model.postCount > 0) return;"
+    }
+  ]
+}

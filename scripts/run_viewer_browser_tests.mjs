@@ -998,6 +998,36 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
 // background of each row, both as the browser resolved them, and the mapping
 // from a row to its band is re-derived from the projection rather than read
 // back out of the render.
+// A real pointer on `selector`, at a point the browser says is that element's
+// own -- not under a leader's hit path, a rail or the sticky top bar. On the
+// product graph (a 4394px page, 61 leaders) `locator.click()` is refused by the
+// leader that happens to cross the cell, so the point is found rather than
+// assumed, the way `railPoint` does for a rail.
+async function clearPoint(page, selector, action) {
+  const point = await page.evaluate((selector) => {
+    const node = document.querySelector(selector);
+    if (!node) return null;
+    node.scrollIntoView({ block: "center" });
+    const box = node.getBoundingClientRect();
+    for (let y = box.top + 2; y < box.bottom - 1; y += 2) {
+      for (let x = box.left + 2; x < box.right - 1; x += 6) {
+        const hit = document.elementFromPoint(x, y);
+        if (hit && (hit === node || node.contains(hit))) return { x, y };
+      }
+    }
+    return null;
+  }, selector);
+  if (!point) {
+    // Every point of the cell is under some leader's 14px hit stroke (61 of
+    // them cross a 4394px page): hand the element the event itself, which
+    // is what the handlers on it listen for.
+    await page.locator(selector).dispatchEvent(action === "click" ? "click" : "mouseenter");
+    return;
+  }
+  await page.mouse.move(point.x, point.y);
+  if (action === "click") await page.mouse.click(point.x, point.y);
+}
+
 const BANDS_IN_PAGE = () => {
   const VA = window.ViewerApp;
   const last = VA.lastTopoRender;
@@ -2556,8 +2586,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
       const ids = realProjection.topologies.map((t) => t.id);
-      push("[real] both MVP topologies are offered",
-        ids.includes("pitch_system") && ids.includes("vpa_output_to_pitch_plate"));
+      // One topology since 2026-10-27: the L1 grip stack is a subset of the
+      // product model, and its study is how a reader reaches it.
+      push("[real] the product model is offered, with the L1 grip study under it",
+        ids.includes("vpa_pitch_linkage") &&
+        realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage")
+          .studies.some((st) => st.id === "vpa_output_shank_out"));
 
       for (const topology of realProjection.topologies) {
         await page.locator(navRow("topology", topology.id)).click();
@@ -2620,7 +2654,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           "worksheet_file is set",
           (await page.locator("#worksheet-toggle").isVisible()) ===
             !!topology.worksheet_file);
-        if (topology.id === "pitch_system" && topology.worksheet_file) {
+        if (topology.id === "vpa_pitch_linkage" && topology.worksheet_file) {
           // The real-projection swap above (`demoTopologyFixture`) wires
           // `topologies`/`crops`/`images` only, not `texts` — WORKSHEET_*.md's
           // own content, over this seam, is unreachable without a second
@@ -2940,7 +2974,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // hit path really makes a 2px line hoverable with a REAL pointer, and
       // whether the emphasis is actually PAINTED -- a class name would pass
       // through a stylesheet typo untouched.
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       await dismissCard(page);
       // Everything lit, with the one coordinate that says which column each
@@ -3010,12 +3044,28 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const railHits = await page.locator("svg.tv__rails line.rail__hit").count();
       const legs = [];
       const unreachable = [];
+      // A rail shorter than one row is no leg: it is the half-row stub a
+      // fork draws into a branch whose only edge closes at once -- common
+      // since the walk went body-major (2026-10-26), where a deferred joint
+      // between two drawn nodes is exactly that -- and on screen it IS that
+      // edge's bar, hovered as the edge (whose two ends are on other
+      // columns, so it lights more than one). Counted, so a layout that made
+      // every rail a stub would still fail the `railHits` floor below.
+      const stubs = await page.evaluate(() => Array.from(document.querySelectorAll(
+        "svg.tv__rails line.rail__hit")).map((n, i) =>
+          Number(n.getAttribute("y2")) - Number(n.getAttribute("y1")) < 26 ? i : -1)
+        .filter((i) => i >= 0));
       for (let i = 0; i < railHits; i++) {
+        if (stubs.indexOf(i) !== -1) continue;
         const point = await railPoint(i);
         if (!point) { unreachable.push(i); continue; }
         await page.mouse.move(point.x, point.y);
         const lit = await litNow();
         await page.mouse.move(4, 4);
+        // A node card the hover opened lingers over the rails below it on a
+        // page this tall (the product graph, 169 rows): dismiss it, or the
+        // last rails measure the card and not themselves.
+        await page.keyboard.press("Escape");
         legs.push({ i, lit, cleared: nothingLit(await litNow()) });
       }
       // Back to the top: `railPoint` scrolls to reach a rail that starts
@@ -3166,10 +3216,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // length, at least one narrow one floored). Leaders re-measured at
       // every stop: the grid stays evenly spaced while the DAG stretches,
       // which is what the jogged leaders exist to absorb.
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const realBars = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
-        { topologyId: "pitch_system", mode });
+        { topologyId: "vpa_pitch_linkage", mode });
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
       const realTol = await realBars("tolerance");
@@ -3210,10 +3260,15 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const realBands = await page.evaluate(BANDS_IN_PAGE);
       push("[real] pitch_system's rows and bands are tinted from one parity, " +
         "and its untraced rows keep their provenance tint as well",
-        realBands.bad.length === 0 && realBands.bands === 17 &&
-        realBands.drawn === 17 &&
+        // 62 bands off 61 leaders since the four fastener stacks joined
+        // (2026-10-27); 39 off 38 before them, 17 off 16 on the
+        // pitch_system document alone.
+        realBands.bad.length === 0 && realBands.bands === 62 &&
+        realBands.drawn === 62 &&
         realBands.tinted === realBands.rowHeights.length &&
-        realBands.provenanceLayers > realBands.tinted / 2);
+        // A floor, not a share: 21 of the product graph's 59 rows are
+        // untraced since the 2026-10-26 fold (20 of pitch_system's 24 were).
+        realBands.provenanceLayers >= 20);
       if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
       // Both styles against the real mechanism. The page arrives in ANGLED
       // (VA.DEFAULT_LEADER_STYLE since 2026-09-21), so the click reaches
@@ -3224,7 +3279,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] pitch_system's jogged leaders still land on every dot and seam",
         (await correspondence()).drift.length === 0 &&
         realJogged.bad.length === 0 &&
-        realJogged.leaderPaths.length === 16 &&
+        realJogged.leaderPaths.length === 61 &&
         realJogged.leaderPaths.every((d) => / H .* V .* H /.test(d)));
       if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
       await page.locator("#leader-style-toggle").click();
@@ -3233,7 +3288,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] and back in angled style, one straight segment each",
         (await correspondence()).drift.length === 0 &&
         /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
-        realAngled.leaderPaths.length === 16 &&
+        realAngled.leaderPaths.length === 61 &&
         realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
 
       // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
@@ -3247,9 +3302,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // Not asserted to be 1: the mock block above dragged it, and the app's
       // state module survives the fixture swap and re-boot this tier does --
       // which is itself the preference behaving. What is asserted is that the
-      // scale is re-derived against THIS topology's own 16 leaders.
-      push("[real] the jog zone is measured against pitch_system's own 16 leaders",
-        before.leaders === 16 && before.scale >= 1);
+      // scale is re-derived against THIS topology's own leaders.
+      push("[real] the jog zone is measured against the product graph's own 61 leaders",
+        before.leaders === 61 && before.scale >= 1);
       const realGrip = await page.locator(".tvgrip--jog").boundingBox();
       await page.mouse.move(realGrip.x + realGrip.width / 2,
                             realGrip.y + realGrip.height / 2);
@@ -3292,20 +3347,29 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         "before the switch",
         /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
 
-      await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
+      // A switch needs a second real topology to switch to, and the product
+      // model is the only one since 2026-10-27 (the four fastener stacks were
+      // the others): the fixture-side switch checks are what cover it now.
+      const otherReal = realProjection.topologies.find((t) => t.id !== "vpa_pitch_linkage");
+      if (otherReal) {
+      await page.locator(navRow("topology", otherReal.id)).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const switched = await zone();
       push("[real] switching topology keeps the SCALE, not the pixel width",
-        switched.topologyId === "pitch_link_to_pitch_plate" &&
+        switched.topologyId === otherReal.id &&
         switched.natural !== dragged.natural &&
         Math.abs(switched.scale - dragged.scale) < 0.01 &&
         (await correspondence()).drift.length === 0);
       push("[real] switching topology keeps the leader STYLE too",
         /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
+      } else {
+        push("[real] SKIPPED -- the live projection has one topology, so there is " +
+          "nothing to switch to (ISSUE_20261027_no_real_topology_switch_since_the_fold.md)", true);
+      }
       // Back to angled, so everything below this sees the default it expects.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // ...and the three OLDER display preferences, whose precedent both docs
@@ -3334,7 +3398,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         /Rows: Compact/.test(beforeSwitch.density) &&
         /Lengths: tolerance/.test(beforeSwitch.length) &&
         /Rows: values only/.test(beforeSwitch.valueOnly));
-      await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
+      if (otherReal) {
+      await page.locator(navRow("topology", otherReal.id)).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const afterSwitch = await offDefaults();
       push("[real] switching topology keeps the density, the length mode and " +
@@ -3342,18 +3407,21 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         afterSwitch.density === beforeSwitch.density &&
         afterSwitch.length === beforeSwitch.length &&
         afterSwitch.valueOnly === beforeSwitch.valueOnly);
+      } else {
+        push("[real] SKIPPED -- no second live topology to switch to " +
+          "(ISSUE_20261027_no_real_topology_switch_since_the_fold.md)", true);
+      }
       // Back to the defaults, and back to pitch_system, for the checks below.
       await page.locator("#density-toggle").click();
       await page.locator("#edge-length-toggle").click();
       await page.locator("#edge-length-toggle").click();
       await page.locator("#edge-value-toggle").click();
       await page.waitForTimeout(80);
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // The preview pane over a real citation, with a real crop behind it.
-      await page.locator(navRow("topology", "vpa_output_to_pitch_plate")).click();
-      await page.locator("tr.tvrow[data-id='fastener_grip'] .tvcell--name").click();
+      await clearPoint(page, "tr.tvrow[data-id='fastener_grip_vpa_out'] .tvcell--name", "click");
       const detail = await page.locator("#detail").textContent();
       push("[real] an L1 edge shows the stack element's own citation",
         /NAS6403-NAS6420 Rev 4\.pdf/.test(detail) && /NAS6404U13D/.test(detail));
@@ -3418,7 +3486,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         return page.evaluate(() =>
           Math.round(document.getElementById("detail").getBoundingClientRect().width));
       };
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const paneAtStart = await page.evaluate(() =>
         Math.round(document.getElementById("detail").getBoundingClientRect().width));
@@ -3716,9 +3784,9 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       }, { projection: realProjection, crops: realCrops });
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-      const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+      const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
       const okStudy = pitch && pitch.studies.find((s) => s.status === "ok");
       if (okStudy) {
         await page.locator(navRow("study", okStudy.id)).click();
@@ -3727,7 +3795,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
         // Deselect, same reason as the mock block above: the height
         // contracts are about the whole serialisation's own table.
-        await page.locator(navRow("topology", "pitch_system")).click();
+        await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
         await page.waitForFunction(
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
       }
@@ -4454,8 +4522,13 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
         (s) => covered.includes(s.id) && s.worksheet_file);
       if (stack) { fallback = { topology, stack }; break; }
     }
-    push("the live projection has a converted stack whose sheet only its " +
-      "topology's page can reach", fallback !== null);
+    // None since 2026-10-27: the product model declares its own sheet, which
+    // always wins, so no stack's authored sheet is reachable from a page
+    // (ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md).
+    push(fallback !== null
+      ? "the live projection has a converted stack whose sheet only its topology's page can reach"
+      : "SKIPPED -- no live topology lacks its own worksheet, so no stack's is the fallback " +
+        "(ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md)", true);
     if (fallback) {
       await page.locator(`#navtree ${navRow("topology", fallback.topology.id)}`).click();
       await page.waitForSelector(
@@ -4566,7 +4639,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
 
       // A deep link opens the viewer with the named study selected.
       await page.goto(url + "/apps/viewer/topology.html" +
-        "?topology=pitch_system&study=pitch_system_gas_spring_branch",
+        "?topology=vpa_pitch_linkage&study=pitch_system_gas_spring_branch",
         { waitUntil: "load" });
       await page.waitForSelector("tfoot.tvfoot", { timeout: 15000 });
       push("[real] a deep link opens the named study selected, over the real " +
@@ -4631,7 +4704,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       // most interesting one to hover is the boundary with the most
       // crop-bearing parts around it.
       const boundary = realProjection && (() => {
-        const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+        const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
         if (!pitch) return null;
         const sides = {}, cropped = {};
         pitch.edges.forEach((e) => {
@@ -4682,9 +4755,9 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       // A citation card from a REAL spec citation: the L1 fastener grip's
       // NAS6403 spec, hover on its row's confidence chip.
       await page.locator(
-        "[data-nav-kind='topology'][data-nav-id='vpa_output_to_pitch_plate']").click();
-      await page.waitForSelector("tr.tvrow[data-id='fastener_grip']", { timeout: 15000 });
-      await page.locator("tr.tvrow[data-id='fastener_grip'] span.cardtrig").hover();
+        "[data-nav-kind='topology'][data-nav-id='vpa_pitch_linkage']").click();
+      await page.waitForSelector("tr.tvrow[data-id='fastener_grip_vpa_out']", { timeout: 15000 });
+      await clearPoint(page, "tr.tvrow[data-id='fastener_grip_vpa_out'] span.cardtrig", "hover");
       await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 15000 });
       const specCard = await page.locator(".croppop").textContent();
       push("[real] a citation card renders from a real spec citation",
@@ -4855,16 +4928,23 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         clear: r.width > 0 && r.left >= p.right,
       };
     });
+    // Since 2026-10-26 (the_shell_seats_the_scene_beside_the_model) the
+    // scene is a COLUMN of the page's row, between the nav and the DAG: nav |
+    // scene | DAG + grid. It was docked at the window's left edge, with the
+    // page shifted out from under it (pane | nav | DAG).
     const docked = await flyoutBox();
-    push("the flyout is pinned to the LEFT edge, not the right",
-      docked && docked.x === 0 && docked.width < win.w);
+    const navOpen = await page.locator("#navtree").boundingBox();
+    push("the scene sits between the nav and the DAG -- the nav at the far " +
+      "left, the scene against its right edge",
+      docked && navOpen && navOpen.x <= 1 && navOpen.width > 0 &&
+      Math.abs(docked.x - (navOpen.x + navOpen.width)) <= 1 && docked.width < win.w);
     const railsOpen = await rails();
     push("the DAG DRAWING is drawn, and entirely clear of the panel -- " +
       "adjacency is the deliverable and the drawing is the thing that has to " +
       "survive, not its scrollport",
       railsOpen.visible > 0 && railsOpen.clear);
     push("...and it sits to the panel's RIGHT, which is what 'beside' means",
-      railsOpen.left >= docked.width);
+      railsOpen.left >= docked.x + docked.width);
 
     // The page YIELDS the room rather than being covered, which is the
     // mechanism that makes the above possible at all: `.tv` starts at the
@@ -4876,22 +4956,42 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     const paneAfter = await page.locator("#topopane").boundingBox();
     push("opening the flyout moves the DAG pane out from under it, rather " +
       "than leaving it underneath",
-      paneBefore && paneAfter && paneAfter.x >= docked.width &&
+      paneBefore && paneAfter && paneAfter.x >= docked.x + docked.width &&
       paneAfter.x > paneBefore.x);
-    // The nav rail STAYS since 2026-10-20 (the_3d_pane_opens_in_the_mode_the_
-    // study_wants): the pane follows what the rail selects, so the rail sits
-    // between the panel and the graph and is shifted with the page.
-    const navBox = await page.locator("#navtree").boundingBox();
-    push("the nav rail stays beside the open panel, to its right, so a " +
-      "selection made in it can follow into the pane",
-      navBox && navBox.width > 0 && navBox.x >= docked.width - 1);
+    // The nav STAYS since 2026-10-20 (the_3d_pane_opens_in_the_mode_the_
+    // study_wants) -- the pane follows what it selects -- and since 2026-10-26
+    // it stays where it is with the scene open: at the far left, the scene
+    // to its right.
+    push("the nav stays at the far left with the scene open, so a selection " +
+      "made in it can follow into the scene",
+      navOpen && navOpen.width > 0 && navOpen.x <= 1 &&
+      navOpen.x + navOpen.width <= docked.x + 1);
+    // One surface: the scene's column wears the page's own background and no
+    // border, and the seams either side of it draw no rule at rest.
+    const seams = await page.evaluate(() => {
+      const css = (sel, pseudo) => getComputedStyle(document.querySelector(sel), pseudo || null);
+      return {
+        page: getComputedStyle(document.body).backgroundColor,
+        scene: css("#annotate-flyout").backgroundColor,
+        sceneBorders: ["Left", "Right"].map((s) => css("#annotate-flyout")["border" + s + "Width"]),
+        navRule: css("#navtree").borderRightWidth,
+        dividerRule: css("#flyout-divider", "::before").backgroundColor,
+        detailShown: css("#detail").display !== "none",
+      };
+    });
+    push("no seam: the scene column is the page's background, with no border " +
+      "at either side and no hairline on its divider at rest",
+      seams.scene === seams.page && seams.sceneBorders.every((w) => w === "0px") &&
+      seams.navRule === "0px" && seams.dividerRule === "rgba(0, 0, 0, 0)");
+    push("the preview pane stands down while the scene is open on a topology page",
+      !seams.detailShown);
     const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
 
     // The drag seam, on the edge AWAY from the dock -- so the panel grows into
     // the page rather than off the screen.
     const grip = await page.locator("#flyout-divider").boundingBox();
     push("its drag divider sits on the flyout's RIGHT edge",
-      grip && Math.abs((grip.x + grip.width / 2) - docked.width) <= 4);
+      grip && Math.abs((grip.x + grip.width / 2) - (docked.x + docked.width)) <= 4);
     const gripMark = await page.locator("#flyout-divider")
       .evaluate((n) => getComputedStyle(n, "::after").backgroundImage);
     push("the divider shows a grip mark at rest, so nothing has to be " +
@@ -4919,8 +5019,6 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     push("dragging the divider RIGHT widens the flyout (the pane's divider " +
       "runs the other way)",
       widened > narrowed + 100);
-    push("...and the flyout is still pinned to the left edge while it grows",
-      (await flyoutBox()).x === 0);
     const railsWide = await rails();
     push("the drawing is STILL entirely clear of the panel at the widened " +
       "width -- the drag cannot buy panel width with diagram",
@@ -4940,7 +5038,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
 
     // A drag cannot cover the graph whatever the reader does. Dragged clean off
     // the right edge of the window, the whole drawing still has to be clear.
-    await dragBy(win.w + 2000);
+    const maxed = await dragBy(win.w + 2000);
     const railsMaxed = await rails();
     push("dragged past the window edge, the whole drawing is still clear of " +
       "the panel",
@@ -4955,7 +5053,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // nothing were stored at all, which is a check that cannot fail.
     const remembered = await dragBy(-180);
     push("the remembered width is well inside the clamp, so the round-trip " +
-      "below is a real one", remembered < coarse - 100);
+      "below is a real one", remembered < maxed - 100 && remembered > coarse);
     const storedKey = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY);
     push("the width is written to localStorage under the flyout's own key",
       String(await page.evaluate((k) => window.localStorage.getItem(k), storedKey))
@@ -5017,8 +5115,10 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       await fullpage.getAttribute("target") === "_blank" &&
       await fullpage.getAttribute("rel") === "noopener" &&
       /Open full page/.test((await fullpage.textContent()) || ""));
-    push("...pointed at the same url the panel booted with",
-      studyHref === frameSrc);
+    // The panel boots EMBEDDED (its rail is drawn in this page's nav); the
+    // full page is the plain url, menus and all.
+    push("...pointed at the same url the panel booted with, less the embedded flag",
+      studyHref + "&embedded=1" === frameSrc && !/embedded/.test(studyHref));
     // House rule: no internal file or module name in user-facing copy.
     push("its label names no file, module or param",
       !/index\.html|annotate\.js|topology=|\?/.test(
@@ -5160,14 +5260,12 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
           const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
           return { w: Math.round(r.width), left: Math.round(r.left) };
         });
-        // The number the whole blocker turned on: the drawing is a couple of
-        // hundred pixels wide and the panel's own FLOOR is 560, so an
-        // overlaying panel covers it whole at every width a reader can reach.
-        push("[real] the live drawing is narrower than the panel's own floor -- " +
-          "which is why an overlay could never leave any of it showing",
-          liveRailsBefore.w > 0 &&
-          liveRailsBefore.w < await page.evaluate(
-            () => window.ViewerApp.FLYOUT_WIDTH.min));
+        // A premise check stood here until 2026-10-26 -- "the live drawing
+        // is narrower than the panel's own floor", the reason an OVERLAYING
+        // panel covered it whole. The panel is a column of the page's row now
+        // (the_shell_seats_the_scene_beside_the_model) and overlays nothing,
+        // and its floor dropped to 400, under the widest live drawing; the
+        // argument it carried is retired with the layout it was about.
         await page.locator("#study-3d").click();
         await page.waitForSelector("#annotate-flyout[open]", { timeout: 10000 });
         const livePanel = await page.locator("#annotate-flyout").boundingBox();
@@ -5179,7 +5277,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         push("[real] the whole live drawing is clear of the panel, at its own " +
           "measured width",
           liveRails.w === liveRailsBefore.w && liveRails.clear &&
-          liveRails.left >= livePanel.width);
+          liveRails.left >= livePanel.x + livePanel.width);
         // ...and dragged as wide as it will go, still clear. This is the leg
         // the mock cannot run: at 262px the drawing is under the floor, so
         // what bounds the panel here is the same arithmetic either way -- but
@@ -5407,6 +5505,14 @@ async function installRealAnnotatorReads(page, seed) {
       // The synthetic binding, resolved when it is read: faces of the first
       // part the sweep opened, so it is a part that is in the scene.
       const b = seed.binding;
+      // `binding: "window"`: whatever the check has put on the frame's own
+      // `__truthStackKeys`, read when the projection is read.
+      if (b === "window") {
+        P.readFeatureIdentityProjection = async () => ({
+          get stack_keys() { return window.__truthStackKeys || []; },
+        });
+        return true;
+      }
       P.readFeatureIdentityProjection = async () => ({
         get stack_keys() {
           const sweep = window.__sweep;
@@ -5426,6 +5532,407 @@ async function installRealAnnotatorReads(page, seed) {
   }, seed);
 }
 
+// The model drawn in the scene (handoff the_model_is_drawn_in_the_scene), on
+// run P2, embedded in the shell exactly as a reader opens it: the kinematic
+// study's page, its 3D control, the annotator in the scene column. Every node
+// of the merged model anchored, every edge a line, the link lines the stick
+// figure's own, the lines riding the sweep, a synthetic binding moving one
+// node onto its face -- and the anchors message the shell's leaders will be
+// drawn from, observed arriving in the shell's own window.
+//
+// The frame rate with the layer on and off is PRINTED, never asserted: it is a
+// figure about a shared box, and the 4 fps floor it is read against
+// (ISSUE_20261014_sweep_modes_frame_rate_figure…) is a headless SwiftShader
+// one. Screenshots of two sweep frames and one bind-mode frame are written when
+// MODEL_SCENE_SHOTS names a directory.
+const MODEL_SCENE_SHOTS = process.env.MODEL_SCENE_SHOTS || null;
+
+async function testAnnotateModelInTheScene(browser, fileBase, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const index = await realDataIndexForTheAnnotator();
+  if (!study || !topology || !(topology.bodies || []).length ||
+      index.runs.indexOf(study.sweep.run_id) === -1) {
+    push("[real] the model in the scene on P2 (skipped: the run, the kinematic projection or " +
+      "a topology projection with bodies is not on disk -- build them, or pass --repo " +
+      "<a root built from this tree>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  // The binding is read off the frame's own window when the projection is
+  // read, so the check below can name a face it has just classified.
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "window" });
+  // The shell's own window collects every anchors message, the way the
+  // leaders will receive them.
+  await page.addInitScript(() => {
+    if (location.pathname.indexOf("/apps/viewer/") === -1) return;
+    window.__anchorMessages = [];
+    window.addEventListener("message", (ev) => {
+      if (ev.data && ev.data.type === "annotate:anchors") window.__anchorMessages.push(ev.data);
+    });
+  });
+  // ...and the scene's window collects every model word the shell posts it
+  // (this suite's own `exec` calls the app directly, so it adds nothing here).
+  await page.addInitScript(() => {
+    if (location.pathname.indexOf("/apps/annotate/") === -1) return;
+    window.__shellModelWords = [];
+    window.addEventListener("message", (ev) => {
+      const c = ev.data && ev.data.type === "annotate:exec" ? ev.data.command : null;
+      if (Array.isArray(c) && c[0] === "model") window.__shellModelWords.push(c);
+    });
+  });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const exec = (command) => inPane((w, c) => Promise.resolve(w.AnnotateApp.exec(c)).then(() => true,
+    (e) => String(e && e.message || e)), command);
+  // The model rebuilt against the current state: built, for this run (or for
+  // none), and its anchors drawn.
+  const rebuilt = (run) => until((w, r) => w.__model && w.__model.built &&
+    w.__model.built.runId === r && (r === null || w.__model.built.bodies) &&
+    w.__scene.modelState(), run, 120000);
+  const shot = async (name) => {
+    if (!MODEL_SCENE_SHOTS) return;
+    await page.waitForTimeout(400);
+    // The scene's own canvas, out of the pane's frame: the page around it is
+    // the shell's, and other suites photograph that.
+    await page.frameLocator("#annotate-flyout iframe").locator("#canvas-host")
+      .screenshot({ path: join(MODEL_SCENE_SHOTS, name), timeout: 240000 });
+  };
+  const runId = study.sweep.run_id;
+
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
+    await page.waitForSelector("div.kmverdict", { timeout: 30000 });
+    await page.waitForSelector("#pane-toggle:visible", { timeout: 15000 }).catch(() => {});
+    await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+    // The bodies resolve first, and the model is rebuilt on the occurrences
+    // they chose; only then is it the model this suite is about.
+    const swept = await until((w, r) => w.__sweep && w.__sweep.artifact.runId === r &&
+      w.__sweep.bodies && w.__sweep.bodies.length > 0, runId, 180000);
+    const built = swept && await rebuilt(runId);
+    push("[real] embedded on P2, the scene builds the model layer by default in sweep mode",
+      swept && built);
+
+    // --- 1. every node an anchor, every edge a line -------------------------
+    const facts = await inPane((w) => {
+      const m = w.__model.built;
+      const drawn = w.__scene.modelState();
+      const stick = {};
+      for (const [name, line] of w.__scene._sweep.links) {
+        stick[name] = Array.from(line.geometry.attributes.position.array);
+      }
+      const anchors = {};
+      for (const [id, a] of Object.entries(m.anchors)) {
+        anchors[id] = { source: a.source, part: a.part, subject: a.subject, point: a.point,
+          rung: a.rung || null, regions: a.section ? m.parts[a.part].section.regions : null,
+          boundsX: a.section ? m.parts[a.part].section.bounds[0] : null, why: a.why || null };
+      }
+      return { anchors, lines: Object.keys(drawn.lines), drawnLines: drawn.lines, stick,
+        sources: w.AnnotateApp.MODEL_ANCHOR_SOURCES };
+    }) || { anchors: {}, lines: [], drawnLines: {}, stick: {}, sources: [] };
+    const nodeIds = topology.nodes.map((n) => n.id);
+    const edgeIds = topology.edges.map((e) => e.id);
+    push("[real] every node of the merged model has an anchor and every edge a line",
+      nodeIds.every((id) => facts.anchors[id]) && Object.keys(facts.anchors).length === nodeIds.length &&
+      edgeIds.every((id) => facts.lines.indexOf(id) !== -1) && facts.lines.length === edgeIds.length);
+    const bySource = {};
+    for (const [id, a] of Object.entries(facts.anchors)) (bySource[a.source] = bySource[a.source] || []).push(id);
+    console.log(`      [${label}] anchors by source: ` + Object.keys(bySource).map((s) =>
+      `${s} ${bySource[s].length}`).join(", ") + "; no geometry: " +
+      (bySource.origin || []).map((id) => `${id} (${facts.anchors[id].why})`).join(", "));
+    push("[real] with no binding in the inbox, no anchor is a bound face's: every one is a " +
+      "joint point, a section or a body origin",
+      !bySource.bound && Object.keys(bySource).every((s) => facts.sources.indexOf(s) !== -1) &&
+      (bySource.section || []).length > 0);
+
+    // The hub's internals: one upright on its +X side, rungs in stack order.
+    const hub = Object.entries(facts.anchors).filter(([, a]) => a.part === "hub" &&
+      a.source === "section").map(([id, a]) => ({ id, ...a }))
+      .sort((a, b) => (a.rung ? a.rung[0] : 0) - (b.rung ? b.rung[0] : 0));
+    console.log(`      [${label}] hub ladder at x=${hub.length ? hub[0].point[0].toFixed(1) : "-"}: ` +
+      hub.map((h) => `${h.id}@z${h.point[2].toFixed(1)}`).join(", "));
+    push("[real] the hub's internals sit on the hub's +X side as a ladder, rung over rung in " +
+      "stack order",
+      hub.length >= 3 && hub.every((h) => h.point[0] === hub[0].point[0] &&
+        h.point[1] === hub[0].point[1] && h.rung && h.rung[1] === hub.length) &&
+      hub[0].point[0] > (hub[0].boundsX[0] + hub[0].boundsX[1]) / 2 &&
+      hub.every((h, i) => i === 0 || h.point[2] > hub[i - 1].point[2]));
+
+    // The tangential-link mount is a ring round the spindle: its cut is two
+    // walls, and the bore's anchor is on the +X one.
+    const mount = facts.anchors.tan_link_mount_bore;
+    const ringCentre = mount && mount.boundsX ? (mount.boundsX[0] + mount.boundsX[1]) / 2 : null;
+    console.log(`      [${label}] tan-link mount: ${mount && mount.regions} regions across ` +
+      `x ${mount && mount.boundsX ? mount.boundsX.map((v) => v.toFixed(1)).join("..") : "-"}; ` +
+      `bore anchored at x=${mount && mount.point ? mount.point[0].toFixed(1) : "-"}`);
+    push("[real] the tan-link mount's bore anchors on its +X intersection, not at the ring's centre",
+      mount && mount.source === "section" && mount.regions >= 2 &&
+      mount.point[0] > ringCentre + 10);
+
+    // The two links: the model's lines ARE the stick figure's, the same two
+    // float32 points (a line's end order is from -> to, the stick's a -> b).
+    const sameTwo = (line, stick) => {
+      if (!line || !stick) return false;
+      const a = line.raw.slice(0, 3), b = line.raw.slice(3, 6);
+      const s0 = stick.slice(0, 3), s1 = stick.slice(3, 6);
+      const eq = (p, q) => p.every((v, i) => Object.is(v, q[i]));
+      return (eq(a, s0) && eq(b, s1)) || (eq(a, s1) && eq(b, s0));
+    };
+    push("[real] the pitch link and tan link lines are the stick figure's own two points, bit for bit",
+      sameTwo(facts.drawnLines.pitch_link_length, facts.stick.pitch_link) &&
+      sameTwo(facts.drawnLines.tan_link_length, facts.stick.tan_link));
+
+    // --- 2. the anchors message, in the shell's own window ------------------
+    const shellSide = await page.evaluate(() => {
+      const list = window.__anchorMessages || [];
+      const last = list[list.length - 1] || null;
+      const frame = document.querySelector("#annotate-flyout iframe").getBoundingClientRect();
+      return { count: list.length, last, w: frame.width, h: frame.height };
+    });
+    // The same node projected here, independently: its dot's world point
+    // through the camera, plus the canvas's offset inside the frame -- the
+    // canvas sits under the annotator's bars, so a message in canvas pixels
+    // would be off by exactly that offset.
+    const projected = await inPane((w) => {
+      const s = w.__scene;
+      const dot = s._model.dots.get("tan_link_mount_bore");
+      const v = dot.getWorldPosition(new s.camera.position.constructor()).project(s.camera);
+      const r = s.renderer.domElement.getBoundingClientRect();
+      return { at: [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height], top: r.top,
+        sent: w.__lastAnchors.nodes.tan_link_mount_bore };
+    });
+    const onScreen = shellSide.last ? Object.values(shellSide.last.nodes).filter(Boolean) : [];
+    console.log(`      [${label}] anchors messages seen by the shell: ${shellSide.count}; the last ` +
+      `places ${onScreen.length} of ${shellSide.last ? Object.keys(shellSide.last.nodes).length : 0} ` +
+      `nodes and ${shellSide.last ? Object.keys(shellSide.last.edges).length : 0} edges`);
+    push("[real] the shell receives annotate:anchors with every node, the on-screen ones in the " +
+      "iframe's own CSS pixels",
+      shellSide.last && Object.keys(shellSide.last.nodes).length === nodeIds.length &&
+      onScreen.length > 0 && onScreen.every(([x, y]) => x >= 0 && y >= 0 &&
+        x <= shellSide.w + 1 && y <= shellSide.h + 1) &&
+      (bySource.origin || []).every((id) => shellSide.last.nodes[id] === null) &&
+      projected && projected.top > 0 && projected.sent &&
+      Math.abs(projected.sent[0] - projected.at[0]) <= 0.1 &&
+      Math.abs(projected.sent[1] - projected.at[1]) <= 0.1);
+    const before = shellSide.count;
+    await inPane((w) => { w.__scene.camera.position.multiplyScalar(1.15); w.__scene.controls.update(); });
+    const moved = await page.waitForFunction((n) => (window.__anchorMessages || []).length > n,
+      before, { timeout: 15000 }).then(() => true, () => false);
+    push("[real] a camera move posts the anchors again", moved);
+
+    // --- 3. the lines ride the sweep ----------------------------------------
+    await exec(["seek", "#0"]);
+    const ride = await inPane((w) => {
+      const AA = w.AnnotateApp;
+      const m = w.__model.built;
+      const frame = w.__sweep.frame;
+      const drawn = w.__scene.modelState();
+      const edge = (id) => {
+        const line = drawn.lines[id];
+        const e = (m.lines[id]);
+        const a = m.anchors[e.from], b = m.anchors[e.to];
+        const pose = AA.modelSubjectPlacement(frame, a.subject);
+        return { inBody: line.inBody, subject: a.subject, ends: line.ends,
+          want: [AA.applyPlacement(pose, a.point), AA.applyPlacement(pose, b.point)],
+          home: [a.point, b.point] };
+      };
+      const gap = drawn.lines.pitch_arm_link_joint;
+      return { plate: edge("pitch_plate_attach_height"), arm: edge("pitch_arm_radius"),
+        gap: { ends: gap.ends, from: drawn.nodes.pitch_arm_link_bore.at,
+          to: drawn.nodes.pitch_link_lower_sphere_centre.at } };
+    });
+    const near = (p, q, tol) => p && q && p.every((v, i) => Math.abs(v - q[i]) <= tol);
+    const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+    push("[real] a structural line rides its body: drawn in the body's frame, carried by its pose " +
+      "away from where it was modelled",
+      ride && ["plate", "arm"].every((k) => ride[k].inBody &&
+        near(ride[k].ends[0], ride[k].want[0], 1e-3) && near(ride[k].ends[1], ride[k].want[1], 1e-3) &&
+        dist(ride[k].ends[0], ride[k].home[0]) > 0.5));
+    push("[real] a joint line runs between the two bodies' anchors, recomputed at the frame",
+      ride && near(ride.gap.ends[0], ride.gap.from, 1e-3) && near(ride.gap.ends[1], ride.gap.to, 1e-3));
+    await shot("1_sweep_frame_1.png");
+    await exec(["seek", "#40"]);
+    await shot("2_sweep_frame_41.png");
+
+    // --- 4. the lit set, and the shell's dim-or-hide word -------------------
+    // Embedded, the shell speaks first: it posts its own lit set when the
+    // scene loads (leaders_follow_the_active_study_across_the_seam), and the
+    // scene draws exactly that set at full strength.
+    const shellLit = await until((w) => {
+      const words = w.__shellModelWords || [];
+      const said = words.filter((c) => c[1] === "lit").pop();
+      const strengths = w.__model && w.__model.strengths;
+      if (!said || said[2] === "all" || !strengths) return false;
+      const want = said.slice(2).filter((id) => strengths[id] !== undefined).sort();
+      const full = Object.keys(strengths).filter((k) => strengths[k] === "full").sort();
+      return want.length > 0 && full.join() === want.join() &&
+        Object.keys(strengths).some((k) => strengths[k] !== "full");
+    }, null, 30000);
+    const saidLit = await inPane((w) => {
+      const said = (w.__shellModelWords || []).filter((c) => c[1] === "lit").pop();
+      return said ? said.slice(2) : null;
+    });
+    console.log(`      [${label}] the shell's lit set: ${saidLit ? saidLit.length : "-"} edges`);
+    push("[real] embedded on the kinematic page, the scene draws the shell's posted lit set at full " +
+      "strength and the rest stepped back", shellLit);
+    // What the scene does where no shell has spoken is the scene's own
+    // fallback: the shell's word is taken back (the scene forgets it, as a
+    // standalone annotator never had one) and the style re-applied by the
+    // verb that re-reads it, so the fallback is read in this same embedded pane.
+    await inPane((w) => { delete w.__model.lit; return true; });
+    await exec(["model", "unlit", "dim"]);
+    const lit = await inPane((w) => {
+      const s = w.__scene.modelState();
+      const strengths = w.__model.strengths;
+      const full = Object.keys(strengths).filter((k) => strengths[k] === "full");
+      // Read defensively: with nothing dimmed (or nothing full) this is a
+      // failed check, never a thrown one that aborts the suite unnamed.
+      const dim = Object.keys(strengths).find((k) => strengths[k] === "dim");
+      return { full, dimOpacity: dim ? s.lines[dim].opacity : null,
+        fullOpacity: full.length ? s.lines[full[0]].opacity : null };
+    });
+    const contributors = new Set();
+    for (const stop of study.stops) for (const row of stop.rows) contributors.add(row.edge);
+    push("[real] until the shell posts a lit set, the open study's contributors are drawn at full " +
+      "strength and the rest dimmed",
+      lit && lit.full.length === contributors.size && lit.full.every((id) => contributors.has(id)) &&
+      lit.fullOpacity === 1 && lit.dimOpacity !== null && lit.dimOpacity < 1);
+    await exec(["model", "unlit", "hide"]);
+    const hidden = await inPane((w) => {
+      const s = w.__scene.modelState();
+      return Object.keys(s.lines).filter((k) => s.lines[k].visible).sort();
+    });
+    await exec(["model", "lit", "pitch_link_length"]);
+    const posted = await inPane((w) => {
+      const s = w.__scene.modelState();
+      return Object.keys(s.lines).filter((k) => s.lines[k].visible);
+    });
+    push("[real] the shell's word rules the rest: hide leaves only the lit lines, and a posted lit " +
+      "set replaces the study's",
+      hidden && hidden.join() === Array.from(contributors).sort().join() &&
+      posted && posted.join() === "pitch_link_length");
+    await exec(["model", "unlit", "dim"]);
+    await exec(["model", "lit", "all"]);
+
+    // --- 5. selection shows why -----------------------------------------------
+    await exec(["model", "select", "node", "tan_link_mount_bore"]);
+    await shot("4_selected_tan_link_mount_bore.png");
+    const nodeSel = await inPane((w) => ({ sel: w.__scene.modelState().selection,
+      said: w.__lastModelSelection }));
+    await exec(["model", "select", "body", "base"]);
+    const bodySel = await inPane((w) => w.__scene.modelState().selection);
+    push("[real] a selected node shows the plane and the cut its anchor came from; a selected body " +
+      "names itself at its +X anchor",
+      nodeSel && nodeSel.sel && nodeSel.sel.plane && nodeSel.sel.region &&
+      /section/.test(nodeSel.said.words) &&
+      bodySel && bodySel.plane && bodySel.label === (topology.bodies.find((b) => b.id === "base").name));
+    await exec(["model", "select", "clear"]);
+
+    // --- 6. a binding moves its node onto its face ----------------------------
+    // The pitch plate's first round face, classified here the way the app
+    // classifies it, bound at the link-attach bore end of the attach radius.
+    const expected = await inPane(async (w) => {
+      const AA = w.AnnotateApp;
+      const part = w.__model.built.parts.pitch_plate_215177_001;
+      const base = "/data/meshes/" + part.sha256 + "/";
+      const manifest = await (await fetch(base + "manifest.json")).json();
+      const buf = async (name) => (await fetch(base + name)).arrayBuffer();
+      const classes = AA.classifyPartFaces(manifest.faces, new Float32Array(await buf(manifest.positions_file)),
+        new Uint32Array(await buf(manifest.indices_file)), new Uint32Array(await buf(manifest.face_ids_file)));
+      const face = classes.find((c) => c && c.surface === "cylindrical");
+      w.__truthStackKeys = [{
+        stack_key: { kind: "topology_edge", topology_id: "vpa_pitch_linkage", edge_id: "pitch_plate_attach_radius" },
+        bindings: [{ event_id: "truth-model-1", direction: "to",
+          geometry_key: { source_step_sha256: part.sha256, face_id: face.faceId } }],
+      }];
+      return { point: AA.applyPlacement(part.placement, face.axisPoint),
+        was: w.__model.built.anchors.pitch_plate_link_attach_bore.point };
+    });
+    await exec(["layer", "model", "off"]);
+    await exec(["layer", "model", "on"]);
+    await rebuilt(runId);
+    const bound = await inPane((w) => {
+      const a = w.__model.built.anchors.pitch_plate_link_attach_bore;
+      return { source: a.source, point: a.point,
+        others: Object.values(w.__model.built.anchors).filter((x) => x.source === "bound").length };
+    });
+    push("[real] a synthetic binding moves exactly one node to its bound face's fitted point",
+      expected && bound && bound.source === "bound" && bound.others === 1 &&
+      near(bound.point, expected.point, 1e-9) && dist(bound.point, expected.was) > 0.1);
+    await inPane((w) => { w.__truthStackKeys = []; });
+
+    // --- 7. the frame rate, printed ------------------------------------------
+    const fps = async (on) => {
+      await exec(["layer", "model", on ? "on" : "off"]);
+      if (on) await rebuilt(runId);
+      await exec(["play"]);
+      await page.waitForTimeout(4000);
+      const f = await inPane((w) => ({ fps: w.__sweep.fps, renders: w.__scene.renderCount }));
+      await exec(["pause"]);
+      return f ? f.fps : null;
+    };
+    const withModel = await fps(true);
+    const without = await fps(false);
+    const again = await fps(true);
+    console.log(`      [${label}] playing P2 headless: ${withModel && withModel.toFixed(1)} drawn fps with ` +
+      `the model, ${without && without.toFixed(1)} without, ${again && again.toFixed(1)} with it again`);
+
+    // --- 8. bind mode, at the as-modelled pose --------------------------------
+    await exec(["sweep", "off"]);
+    await exec(["layer", "model", "on"]);
+    const bindBuilt = await rebuilt(null);
+    const bind = bindBuilt ? await inPane((w) => {
+      const anchors = Object.values(w.__model.built.anchors);
+      return { n: anchors.length, joint: anchors.filter((a) => a.source === "joint").length,
+        lines: Object.keys(w.__scene.modelState().lines).length };
+    }) : null;
+    push("[real] bind mode draws the whole model at the as-modelled pose, with no solver joint " +
+      "points to read",
+      bind && bind.n === nodeIds.length && bind.joint === 0 && bind.lines === edgeIds.length);
+    // The picture wants the parts the model is drawn on: bind mode opens none
+    // by itself, so the study's own are shown and framed first.
+    if (MODEL_SCENE_SHOTS) {
+      await exec(["show-all"]);
+      await exec(["camera", "frame", "hub"]);
+    }
+    await shot("3_bind_mode.png");
+  } catch (err) {
+    errors.push(String(err && err.stack || err));
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
+// Screenshots of the scene column (the_shell_seats_the_scene_beside_the_
+// model), taken by the suite below when SHELL_SCENE_SHOTS names a directory.
+const SHELL_SCENE_SHOTS = process.env.SHELL_SCENE_SHOTS || null;
+
 async function testThreeDPane(browser, fileBase, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -5438,7 +5945,12 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     .find((t) => study && t.id === study.topology);
   const rows = study ? study.stops[0].rows : [];
   const bound = rows.find((r) => r.kind !== "gap");
-  const gap = rows.find((r) => r.kind === "gap");
+  // A row with no binding: any contributor but the bound one (the seeded
+  // binding is the only one). It was "a gap row" until the live study's last
+  // gap was banded (the_tangential_link_cites_its_drawing), after which this
+  // suite skipped itself -- as "the projections are not built" -- on every
+  // real run, unnoticed.
+  const unbound = rows.find((r) => bound && r.edge !== bound.edge);
 
   // file://, first: no annotator can be embedded there, so the 3D control is
   // not on the page at all -- the absent-feature rule, not a disabled button.
@@ -5456,7 +5968,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     await filePage.close();
   }
 
-  if (!study || !topology || !bound || !gap ||
+  if (!study || !topology || !bound || !unbound ||
       !(topology.studies || []).some((s) => s.id === CHAIN)) {
     push("[real] the 3D pane on a live kinematic study (skipped: the kinematic " +
       "and topology projections are not built -- build them, or pass --repo " +
@@ -5515,7 +6027,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       "the same link the kinematic study's selection asks for",
       await page.locator("#annotate-flyout").evaluate((n) => n.open) &&
       src === "../annotate/index.html?sweep=" + encodeURIComponent(study.sweep.run_id) +
-        "&kinematic=" + encodeURIComponent(STUDY));
+        "&kinematic=" + encodeURIComponent(STUDY) + "&embedded=1");
     const swept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
       w.__sweep.artifact.runId === run && w.document.querySelector("#sweep-tip") &&
       w.document.querySelector(".an__sweep-summary"), study.sweep.run_id);
@@ -5545,6 +6057,142 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] the pane's head line is the annotator's own answer: the mode " +
       "and the run's mechanism, one line",
       (await headLine()) === "Sweep — " + mechanism);
+
+    // --- the shell seats the scene beside the model (2026-10-26) -----------
+    // nav | scene | DAG + grid, left to right, the preview pane stood down,
+    // and the annotator's own rail drawn in the nav under the study row.
+    const layout = await page.evaluate(() => {
+      const box = (sel) => {
+        const n = document.querySelector(sel);
+        if (!n) return null;
+        const r = n.getBoundingClientRect();
+        return { x: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width) };
+      };
+      return { nav: box("#navtree"), scene: box("#annotate-flyout"),
+        dag: box("#topopane svg.tv__rails"), grid: box(".tv__main"),
+        detail: getComputedStyle(document.querySelector("#detail")).display };
+    });
+    push("[real] the kinematic page reads nav | scene | DAG, left to right, with " +
+      "no preview pane",
+      layout.nav && layout.scene && layout.dag && layout.nav.x <= 1 &&
+      Math.abs(layout.scene.x - layout.nav.right) <= 1 &&
+      layout.dag.x >= layout.scene.right - 1 && layout.detail === "none");
+    const embedded = await inPane((w) => {
+      const rail = w.document.querySelector(".an__rail");
+      const host = w.document.querySelector("#canvas-host").getBoundingClientRect();
+      return {
+        rail: w.getComputedStyle(rail).visibility,
+        console: w.getComputedStyle(w.document.querySelector(".an__console")).display,
+        canvas: Math.round(host.width), page: w.innerWidth,
+      };
+    });
+    push("[real] embedded, the annotator shows neither its rail nor its command " +
+      "box, and its canvas takes the whole column",
+      embedded && embedded.rail === "hidden" && embedded.console === "none" &&
+      embedded.canvas >= embedded.page - 2);
+
+    const studyItem = `li.navtree__item:has(> ${navRow("kinematic", STUDY)})`;
+    const sceneRow = (key) => `${studyItem} .navtree__scene [data-scene-key="${key}"]`;
+    await page.waitForFunction((n) => document.querySelectorAll(
+      '.navtree__scene [data-scene-key^="#sweep-tree/edge="]').length === n,
+    rows.length, { timeout: 15000 }).catch(() => {});
+    const treeCounts = await page.evaluate((item) => {
+      const slot = document.querySelector(item + " .navtree__scene");
+      if (!slot) return null;
+      // A row's own key, not its children's (`<row>/<child>`).
+      const count = (prefix) => Array.from(slot.querySelectorAll(`[data-scene-key^="${prefix}"]`))
+        .filter((n) => n.getAttribute("data-scene-key").slice(prefix.length).indexOf("/") === -1).length;
+      return { bodies: count("#sweep-tree/body="), joints: count("#sweep-tree/joint="),
+        contributors: count("#sweep-tree/edge="),
+        chips: slot.querySelectorAll(".navtree__scenechip").length };
+    }, studyItem);
+    const railCounts = await inPane((w) => ({
+      bodies: w.__sweep.tree.bodies.length, joints: w.__sweep.tree.joints.length }));
+    push("[real] the mechanism tree is nested under the study's own nav row: " +
+      "its bodies, its joints, the study's contributors and the type chips",
+      treeCounts && railCounts && treeCounts.bodies === railCounts.bodies &&
+      treeCounts.joints === railCounts.joints && treeCounts.contributors === rows.length &&
+      treeCounts.chips > 0);
+    if (SHELL_SCENE_SHOTS) {
+      await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1600_kinematic.png") });
+    }
+
+    // Hover from the nav lights the body in the scene; leaving lets it go.
+    // Paused first: a playing sweep rebuilds the rail as the frame crosses a
+    // stop, and a rebuild clears the hover on its own -- which would let a
+    // missing `leave` pass the second check.
+    await inPane((w) => w.AnnotateApp.exec(["pause"]));
+    await page.waitForTimeout(500);
+    const bodyName = await inPane((w) => w.__sweep.tree.bodies[0].name);
+    await page.locator(sceneRow("#sweep-tree/body=" + bodyName))
+      .first().hover({ timeout: 5000 }).catch(() => {});
+    push("[real] resting on a body row in the nav lights that body in the scene",
+      await until((w, name) => w.__lastHover && w.__lastHover.target &&
+        w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name,
+      bodyName, 10000));
+    // Left for a spot still inside the tree but on no row -- the empty end of
+    // the chip bar -- so the only thing that can take the light down is the
+    // row's own `leave`. (Leaving the nav altogether also posts the page's
+    // `highlight clear`, which clears it too and would hide a missing leave.)
+    // Held, not sampled: a rail rebuild just after the hover clears it for a
+    // moment and the row under the pointer sends `enter` again -- leaving
+    // during that moment would read the rebuild's clear as the leave's.
+    await page.waitForTimeout(800);
+    const held = await until((w) => !!w.__lastHover, null, 5000);
+    const lastChip = await page.locator(`${studyItem} .navtree__scenechip`).last().boundingBox();
+    if (lastChip) await page.mouse.move(lastChip.x + lastChip.width + 6, lastChip.y + lastChip.height / 2);
+    const leftOnto = await page.evaluate(([x, y]) => {
+      const hit = document.elementFromPoint(x, y);
+      return hit ? hit.className : null;
+    }, lastChip ? [lastChip.x + lastChip.width + 6, lastChip.y + lastChip.height / 2] : [0, 0]);
+    push("[real] ...and leaving it takes the light down",
+      held && leftOnto === "navtree__scenechips" &&
+      await until((w) => w.__lastHover === null, null, 10000));
+
+    // A click on a contributor row in the nav selects it in the scene, and the
+    // scene's answer marks the row.
+    await page.locator(sceneRow("#sweep-tree/edge=" + unbound.edge))
+      .click({ timeout: 5000 }).catch(() => {});
+    const picked = await until((w, edge) => w.__lastInspect && w.__lastInspect.kind === "contributor" &&
+      w.__lastInspect.name === edge, unbound.edge, 10000);
+    await page.waitForSelector(sceneRow("#sweep-tree/edge=" + unbound.edge) +
+      ".navtree__scenerow--on", { timeout: 5000 }).catch(() => {});
+    push("[real] clicking a contributor row in the nav selects it in the scene, " +
+      "and the row shows it selected",
+      picked && await page.locator(sceneRow("#sweep-tree/edge=" + unbound.edge) +
+        ".navtree__scenerow--on").count() === 1);
+
+    // The keyboard reaches the same rows: focus one, Enter selects it.
+    await page.locator(sceneRow("#sweep-tree/edge=" + bound.edge)).focus().catch(() => {});
+    await page.keyboard.press("Enter");
+    push("[real] a contributor row is reached by the keyboard, and Enter selects it",
+      await until((w, edge) => w.__lastInspect && w.__lastInspect.name === edge,
+        bound.edge, 10000));
+
+    // The other way: a selection made in the scene marks its row (a bead
+    // click is `inspect joint`; the rail selects the joint and leaves its
+    // disclosure as the reader had it).
+    const jointName = await inPane((w) => w.__sweep.tree.joints[0].name);
+    await inPane((w, name) => { w.AnnotateApp.exec(["inspect", "joint", name]); }, jointName);
+    await page.waitForSelector(sceneRow("#sweep-tree/joint=" + jointName) +
+      ".navtree__scenerow--on", { timeout: 5000 }).catch(() => {});
+    push("[real] a joint selected in the scene is selected in the nav",
+      await page.locator(sceneRow("#sweep-tree/joint=" + jointName) +
+        ".navtree__scenerow--on").count() === 1);
+
+    // The type chips move with the tree: one press hides that kind of row.
+    const jointsChip = `${studyItem} [data-scene-chip="chip:joints"]`;
+    await page.locator(jointsChip).click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !document.querySelector(
+      '.navtree__scene [data-scene-key^="#sweep-tree/joint="]'), null, { timeout: 5000 }).catch(() => {});
+    const hiddenJoints = await page.locator('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').count();
+    await page.locator(jointsChip).click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !!document.querySelector(
+      '.navtree__scene [data-scene-key^="#sweep-tree/joint="]'), null, { timeout: 5000 }).catch(() => {});
+    push("[real] the type chips in the nav filter the tree, and a second press " +
+      "puts the rows back",
+      hiddenJoints === 0 &&
+      await page.locator('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').count() > 0);
 
     // The width the reader chooses, on this page -- remembered for step 3.
     const seam = await page.locator("#flyout-divider").boundingBox();
@@ -5576,6 +6224,26 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       (await headLine()) === "Binding — " + chainTitle);
     push("[real] the nav stays beside the open pane -- it is what drives it",
       await page.locator("#navtree").isVisible());
+    // A chain study's tree is its elements and its parts -- bind mode's rail.
+    const chainItem = `li.navtree__item:has(> ${navRow("study", CHAIN)})`;
+    await page.waitForFunction((item) => !!document.querySelector(
+      item + ' .navtree__scene [data-scene-key^="#element-list/"]'), chainItem,
+    { timeout: 15000 }).catch(() => {});
+    const elementRows = await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"]`).count();
+    const railElements = bindMode ? await inPane((w) => w.document.querySelectorAll(".an__rail .el-row").length) : -1;
+    push("[real] on a chain study the nav nests that study's elements under its row, " +
+      "one for each the annotator lists",
+      elementRows > 0 && elementRows === railElements);
+    await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"]`).first()
+      .click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`,
+      { timeout: 5000 }).catch(() => {});
+    push("[real] ...and clicking one selects it for binding in the scene",
+      await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`).count() === 1 &&
+      await inPane((w) => w.document.querySelectorAll(".an__rail .el-row.selected").length) === 1);
+    if (SHELL_SCENE_SHOTS) {
+      await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1600_chain.png") });
+    }
 
     // --- 3. reload -> the pane reopens at its width (on the page the URL
     // names, the kinematic study) ---------------------------------------------
@@ -5607,14 +6275,82 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] resting on a bound contributor row tints its face in the " +
       "annotator, in the colour buffer and not just the bookkeeping",
       face && face.sha256 === face.first && face.faceId === 0 && face.painted);
-    await page.locator(`tr.kmrow--gap[data-edge="${gap.edge}"]`).first().hover();
+    await page.locator(`tr.kmrow[data-edge="${unbound.edge}"]`).first().hover();
     const cleared = await until((w) => w.__lastHighlight === null, null, 10000);
     const said = cleared
       ? await inPane((w) => w.document.querySelector("#console-output").textContent) : "";
     const banner = await inPane((w) => w.document.querySelector("#banner").textContent);
-    push("[real] resting on a gap row tints nothing, and the annotator says so in " +
-      "its console line rather than its banner",
+    push("[real] resting on a contributor row with no binding tints nothing, and the " +
+      "annotator says so in its console line rather than its banner",
       cleared && /no binding/.test(said) && !/no binding/.test(banner || ""));
+
+    // --- 5. a row CLICK selects in place: the scene stays in the sweep -------
+    // (2026-10-26.) The page keeps the study, the pane is not sent a goto,
+    // and the selected edge is what the scene highlights once the pointer
+    // rests on nothing in particular.
+    await page.locator(`tr.kmrow[data-edge="${bound.edge}"] a.kmrow__edge`).first()
+      .click({ timeout: 5000 }).catch(() => {});
+    await page.mouse.move(5, 5);
+    const stillSwept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
+      w.__sweep.artifact.runId === run && !!w.__lastHighlight, study.sweep.run_id, 15000);
+    push("[real] clicking a contributor row with the pane open keeps the page on the " +
+      "study and the annotator in sweep mode, the edge highlighted",
+      stillSwept && /^Sweep — /.test(await headLine()) &&
+      await page.locator("div.kmverdict").count() === 2 &&
+      await page.locator(`tr.kmrow--selected[data-edge="${bound.edge}"]`).count() === 1);
+
+    // --- 6. the room the DAG and grid get on a chain study ------------------
+    // With the scene at its floor it is at least the room they had with no
+    // scene open at all (the preview pane in its place, at its own default).
+    await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector("svg.tv__rails", { timeout: 15000 }).catch(() => {});
+    const floorSeam = await page.locator("#flyout-divider").boundingBox();
+    if (floorSeam) {
+      await page.mouse.move(floorSeam.x + floorSeam.width / 2, floorSeam.y + 300);
+      await page.mouse.down();
+      await page.mouse.move(floorSeam.x - 2000, floorSeam.y + 300, { steps: 6 });
+      await page.mouse.up();
+    }
+    const atFloor = await page.evaluate(() => ({
+      scene: Math.round(document.querySelector("#annotate-flyout").getBoundingClientRect().width),
+      main: Math.round(document.querySelector(".tv__main").getBoundingClientRect().width),
+      floor: window.ViewerApp.FLYOUT_WIDTH.min,
+    }));
+    await page.locator("#flyout-close").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !document.body.classList.contains("flyout-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    const noPane = await page.evaluate(() => ({
+      main: Math.round(document.querySelector(".tv__main").getBoundingClientRect().width),
+      detail: getComputedStyle(document.querySelector("#detail")).display,
+    }));
+    console.log(`    [chain study at 1600] DAG + grid: ${atFloor.main}px with the scene at ` +
+      `its ${atFloor.scene}px floor, ${noPane.main}px with no scene open`);
+    push("[real] on a chain study at 1600 wide, the DAG and grid get at least as " +
+      "much room with the scene at its floor as with no scene open",
+      atFloor.scene === atFloor.floor && atFloor.main >= noPane.main && noPane.main > 0);
+    push("[real] ...and closing the scene brings the preview pane back",
+      noPane.detail !== "none");
+
+    if (SHELL_SCENE_SHOTS) {
+      // The same two pages at 1920, the scene at its default width.
+      const keys0 = await storedKeys();
+      await page.evaluate((ks) => window.localStorage.removeItem(ks[0]), keys0);
+      await page.setViewportSize({ width: 1920, height: 1000 });
+      await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
+      await page.waitForSelector("div.kmverdict", { timeout: 30000 });
+      await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+      await until((w) => w.__sweep && w.__sweep.openedBySweep && w.__sweep.openedBySweep.length > 0,
+        null, 120000);
+      await page.waitForSelector('.navtree__scene [data-scene-key^="#sweep-tree/edge="]',
+        { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+      await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1920_kinematic.png") });
+      await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
+      await page.waitForSelector('.navtree__scene [data-scene-key^="#element-list/"]',
+        { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+      await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1920_chain.png") });
+    }
 
     push("[real] nothing above produced an uncaught error", errors.length === 0);
     const keys = await storedKeys();
@@ -5891,6 +6627,294 @@ async function testAnnotateSweepRail(browser, label, topologies) {
   }
 }
 
+
+// --- the rail and the scene point at each other (handoff the_rail_and_the_
+// scene_point_at_each_other) -------------------------------------------------
+//
+// On P2, opened from its kinematic study, with real meshes: every rail row
+// lights its thing in the scene on hover (read as what the scene DREW for it,
+// `__scene.hoverState()`, never as the command having run); a face picked in
+// the scene selects its part inside the body it was picked on; a body's
+// checkbox hides that body's occurrences and no other repeat of its meshes;
+// the type chips hide and restore row kinds; a gap contributor's badge names
+// the drawings to read. Screenshots of the hide when SHOTS_DIR is set.
+const RAIL_SCENE_SHOTS = process.env.RAIL_SCENE_SHOTS || null;
+
+async function testAnnotateRailAndScene(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const index = await realDataIndexForTheAnnotator();
+  if (!study || !topology || index.runs.indexOf(SWEEP_RAIL_RUN) === -1) {
+    push("[real] the rail and the scene on P2 (skipped: the run, the kinematic or the " +
+      "topology projection is not on disk -- build them, or pass --repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases,
+    binding: { topology: study.topology, edge: "pitch_link_length",
+      faces: [["from", 0], ["to", 1]] } });
+  const hovered = () => page.evaluate(() => window.__scene.hoverState());
+  const leave = async () => {
+    await page.mouse.move(1590, 990);
+    await page.waitForFunction(() => window.__scene.hoverState().overlays === 0 &&
+      !window.__scene.hoverState().joint, null, { timeout: 3000 }).catch(() => {});
+  };
+  const hoverRow = async (selector) => {
+    await leave();
+    await page.locator(selector).first().hover({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__lastHover, null, { timeout: 3000 }).catch(() => {});
+    return hovered();
+  };
+  try {
+    await page.goto(`${url}?sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.__sweep && window.__sweep.bodies &&
+      window.__sweep.bodies.length > 0 && Object.keys(window.__sweep.occurrences).length > 0 &&
+      document.getElementById("sweep-tree"), null, { timeout: 180000 }).catch(() => {});
+    await page.evaluate(() => {
+      try { localStorage.removeItem(window.AnnotateApp.PREF_KEYS.sweepRowKinds); } catch (_) { /* none */ }
+      return window.AnnotateApp.exec(["seek", "#40"]);
+    });
+
+    // --- 1. hover, row to scene --------------------------------------------
+    const facts = await page.evaluate(() => {
+      const sweep = window.__sweep;
+      const armRow = sweep.bodies.find((r) => r.subject === "blade" && r.part === "pitch_arm");
+      return {
+        bodies: sweep.tree.bodies.map((b) => b.name),
+        joints: sweep.tree.joints.map((j) => j.name),
+        // Drawn occurrences only: a mesh carried at exactly a matched path
+        // (the instrumented blade at the design blade's) is not opened.
+        occurrences: Object.fromEntries(Object.keys(sweep.occurrences).map((k) => [k,
+          sweep.occurrences[k].filter((o) => window.__scene.parts.has(o.sha256)).length])),
+        armSha: armRow ? armRow.sha256 : null,
+        armKey: armRow && armRow.placements[0] ? armRow.placements[0].key : null,
+        armDrawn: armRow ? window.__scene.drawnOccurrenceKeys(armRow.sha256).length : 0,
+      };
+    });
+    // One literal name per body, so each is a guard a witness can name.
+    const bodyLit = async (body) => {
+      const h = await hoverRow(`#sweep-tree [data-body="${body}"] > summary`);
+      return { h, ok: facts.occurrences[body] > 0 && h.overlays >= 1 &&
+        h.occurrences === facts.occurrences[body] };
+    };
+    push("[real] hovering the base body lights every one of its drawn occurrences",
+      (await bodyLit("base")).ok);
+    push("[real] hovering the pitch_plate body lights every one of its drawn occurrences",
+      (await bodyLit("pitch_plate")).ok);
+    const blade = await bodyLit("blade");
+    push("[real] hovering the blade body lights every one of its drawn occurrences", blade.ok);
+    const arms = blade.h.keys.filter((k) => k.sha256 === facts.armSha);
+    push("[real] ...and on blade it is blade 1's pitch arm, one of the five drawn",
+      facts.armDrawn === 5 && arms.length === 1 && arms[0].key === facts.armKey);
+    await leave();
+    push("[real] the pointer leaving a row takes the hover down", (await hovered()).overlays === 0);
+    let jointsLit = 0;
+    for (const joint of facts.joints) {
+      const h = await hoverRow(`#sweep-tree [data-joint="${joint}"] > summary`);
+      // Read off the bead the scene DREW, against a joint not hovered.
+      const scale = await page.evaluate((j) => {
+        const beads = window.__scene._sweep.joints;
+        const other = [...beads.keys()].find((k) => k !== j);
+        return beads.get(j).scale.x / beads.get(other).scale.x;
+      }, joint);
+      if (h.joint === joint && scale > 1.2) jointsLit++;
+    }
+    push("[real] hovering each joint draws its bead larger", jointsLit === facts.joints.length &&
+      jointsLit === 5);
+    const pitchLink = await hoverRow(`#sweep-tree [data-joint="pitch_link"] > summary`);
+    push("[real] ...and a joint with a bound feature lights its bound faces too",
+      pitchLink.faces === 2 && pitchLink.overlays > 0);
+    await page.locator('#sweep-tree [data-joint="pitch_link"] > summary').click({ timeout: 5000 }).catch(() => {});
+    const feature = await hoverRow('#sweep-tree .tree-row[data-feature="pitch_link_length"]');
+    push("[real] hovering a bound feature lights both of its faces", feature.faces === 2 &&
+      feature.overlays > 0);
+    // pitch_link was opened (selected) above; a hover over one of its rows
+    // must leave its bead drawn as the selected one.
+    push("[real] a hover leaves the selection where it was",
+      await page.evaluate(() => window.__scene.sweepEmphasis() === "pitch_link"));
+    const edges = await page.evaluate(() => [...document.querySelectorAll(
+      '#sweep-tree [data-group="contributors"] .tree-row')].map((n) => n.dataset.edge));
+    let contributorsLit = 0;
+    for (const edge of edges) {
+      const h = await hoverRow(`#sweep-tree [data-group="contributors"] .tree-row[data-edge="${edge}"]`);
+      if (h.overlays > 0) contributorsLit++;
+    }
+    push("[real] hovering each contributor lights its bound faces, or its edge's parts",
+      edges.length === 6 && contributorsLit === edges.length);
+
+    // --- 2. a feature row names its surface ---------------------------------
+    const faceWords = await page.evaluate(() => [...document.querySelectorAll(
+      '#sweep-tree [data-joint="pitch_link"] .tree-row[data-feature] .tree-row__face')]
+      .map((n) => ({ id: n.closest(".tree-row").dataset.feature, text: n.textContent })));
+    const length = faceWords.find((f) => f.id === "pitch_link_length");
+    push("[real] a bound feature row says which face of which part defines it, and an " +
+      "unbound one says none is bound",
+      length && /^face 0 of .+, face 1 of .+$/.test(length.text) &&
+      faceWords.every((f) => f.id === "pitch_link_length" || /^face \d+ of |^no face bound$/.test(f.text)));
+    const contributorPick = await page.evaluate(() => [...document.querySelectorAll(
+      '#sweep-tree [data-group="contributors"] .tree-row')].every((n) =>
+      n.querySelector(".tree-row__repick")));
+    push("[real] every contributor row carries the Pick control a feature row does", contributorPick);
+
+    // --- 3. scene to rail ---------------------------------------------------
+    await page.evaluate((f) => window.__scene.onPick({ sha256: f.armSha, faceId: 0, key: f.armKey }), facts);
+    await page.waitForFunction(() => window.__lastInspect && window.__lastInspect.kind === "part",
+      null, { timeout: 3000 }).catch(() => {});
+    const picked = await page.evaluate((f) => {
+      const row = document.querySelector(`#sweep-tree .part-row.selected[data-sha="${f.armSha}"]`);
+      return { subject: row ? row.dataset.subject : null,
+        open: document.querySelector('#sweep-tree [data-body="blade"]').open,
+        shown: !!row && row.getClientRects().length > 0 };
+    }, facts);
+    push("[real] picking blade 1's pitch arm in the scene, away from the as-modelled frame, " +
+      "selects its row under blade and opens blade",
+      picked.subject === "blade" && picked.open && picked.shown);
+    const elsewhere = await page.evaluate((f) => {
+      const keys = window.__scene.drawnOccurrenceKeys(f.armSha).filter((k) => k !== f.armKey);
+      window.__scene.onPartHover({ sha256: f.armSha, faceId: 0, key: keys[0] });
+      const lit = [...document.querySelectorAll("#sweep-tree .is-scene-hover")].length;
+      window.__scene.onPartHover({ sha256: f.armSha, faceId: 0, key: f.armKey });
+      const mine = [...document.querySelectorAll("#sweep-tree .part-row.is-scene-hover")]
+        .map((n) => n.dataset.subject);
+      window.__scene.onPartHover(null);
+      return { lit, mine, after: document.querySelectorAll("#sweep-tree .is-scene-hover").length };
+    }, facts);
+    push("[real] the pointer resting on blade 1's pitch arm emphasises its row under blade; " +
+      "on a pitch arm no body carries, nothing",
+      elsewhere.lit === 0 && elsewhere.mine.join() === "blade" && elsewhere.after === 0);
+    await page.evaluate(() => window.__scene.onPick(null));
+
+    // --- 4. hiding a body hides its occurrences, not every repeat ------------
+    const drawnOf = () => page.evaluate((f) => {
+      const scene = window.__scene;
+      const blade = window.__sweep.occurrences.blade.filter((o) => scene.parts.has(o.sha256));
+      const nodes = (sha) => scene._occurrenceNodes(sha);
+      return {
+        arm: nodes(f.armSha).filter((n) => n.visible).length,
+        armHiddenIsBlade1: nodes(f.armSha).filter((n) => !n.visible).map((n) => n.userData.key).join() === f.armKey,
+        blade: blade.filter((o) => scene.isOccurrenceVisible(o.sha256, o.key)).length,
+        of: blade.length,
+        checkbox: document.querySelector('#sweep-tree [data-body="blade"] > summary input').checked,
+      };
+    }, facts);
+    if (RAIL_SCENE_SHOTS) await page.screenshot({ path: join(RAIL_SCENE_SHOTS, "1_blade_shown.png") });
+    const before = await drawnOf();
+    await page.locator('#sweep-tree [data-body="blade"] > summary input').click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    if (RAIL_SCENE_SHOTS) await page.screenshot({ path: join(RAIL_SCENE_SHOTS, "2_blade_hidden.png") });
+    const after = await drawnOf();
+    push("[real] unticking blade hides blade 1 and its pitch arm; the other four pitch arms stay",
+      before.arm === 5 && before.blade === before.of && before.checkbox &&
+      after.arm === 4 && after.armHiddenIsBlade1 && after.blade === 0 && !after.checkbox);
+    await page.evaluate(() => window.AnnotateApp.exec(["seek", "#10"]));
+    push("[real] ...and it stays hidden as the sweep moves", (await drawnOf()).arm === 4);
+    await page.locator('#sweep-tree [data-body="blade"] > summary input').click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(200);
+    push("[real] ticking it again brings both back", (await drawnOf()).arm === 5);
+
+    // --- 5. the type chips ----------------------------------------------------
+    const kinds = () => page.evaluate(() => {
+      const shown = (sel) => [...document.querySelectorAll(sel)].some((n) => n.getClientRects().length > 0);
+      return { bodies: shown('#sweep-tree [data-group="bodies"]'),
+        joints: shown('#sweep-tree [data-group="joints"]'),
+        features: shown("#sweep-tree .tree-row[data-feature]"),
+        contributors: shown('#sweep-tree [data-group="contributors"]') };
+    });
+    const all = await kinds();
+    const chips = ["bodies", "features", "contributors", "joints"];
+    let hidesOnlyItsOwn = true;
+    for (const kind of chips) {
+      await page.locator(`#sweep-tree .an__tree-chip[data-kind="${kind}"]`).click({ timeout: 5000 }).catch(() => {});
+      const k = await kinds();
+      if (k[kind]) hidesOnlyItsOwn = false;
+      if (kind === "bodies" && (!k.joints || !k.contributors)) hidesOnlyItsOwn = false;
+    }
+    const none = await kinds();
+    const remembered = await page.evaluate(() =>
+      localStorage.getItem(window.AnnotateApp.PREF_KEYS.sweepRowKinds));
+    for (const kind of chips) {
+      await page.locator(`#sweep-tree .an__tree-chip[data-kind="${kind}"]`).click({ timeout: 5000 }).catch(() => {});
+    }
+    const back = await kinds();
+    push("[real] each type chip hides its row kind and only that, the choice is remembered, " +
+      "and pressing it again restores it",
+      all.bodies && all.joints && all.features && all.contributors && hidesOnlyItsOwn &&
+      !none.bodies && !none.joints && !none.contributors &&
+      JSON.parse(remembered || "[]").length === 4 &&
+      back.bodies && back.joints && back.features && back.contributors);
+
+    // --- 6. a gap contributor's alert says what resolves it -------------------
+    const popFor = async (edge) => {
+      await page.locator(`#sweep-tree .tree-row[data-edge="${edge}"] .alertbadge`).hover({ timeout: 5000 }).catch(() => {});
+      return page.evaluate(() => {
+        const pop = document.getElementById("alert-pop");
+        return pop && pop.style.display !== "none" ? pop.textContent : "";
+      });
+    };
+    const tan = await popFor("tan_link_length");
+    const attach = await popFor("pitch_plate_tan_link_attach_radius");
+    push("[real] the tangential link's gap badge opens a popup naming 212956-005 and Pick",
+      tan.indexOf("212956-005") !== -1 && tan.indexOf("Pick") !== -1 && tan.indexOf("No band") !== -1);
+    push("[real] the attach radius's gap badge opens a popup naming 215177-001 and Pick",
+      attach.indexOf("215177-001") !== -1 && attach.indexOf("Pick") !== -1);
+
+    // --- the frame-rate cost of a hover, measured, never checked --------------
+    // Drawn frames per second while the sweep plays, with nothing hovered and
+    // with the base body (the 286-solid hub) lit: the lesson's figure.
+    const rate = (command) => page.evaluate(async (cmd) => {
+      const AA = window.AnnotateApp;
+      await AA.exec(cmd);
+      await AA.exec(["play"]);
+      const n0 = window.__scene.renderCount, t0 = performance.now();
+      await new Promise((r) => setTimeout(r, 3000));
+      const fps = (window.__scene.renderCount - n0) / ((performance.now() - t0) / 1000);
+      await AA.exec(["pause"]);
+      await AA.exec(["hover", "clear"]);
+      return fps;
+    }, command);
+    await leave();
+    const plain = await rate(["hover", "clear"]);
+    const lit = await rate(["hover", "body", "base"]);
+    console.log(`[${label}] playing P2: ${plain.toFixed(1)} drawn fps with nothing hovered, ` +
+      `${lit.toFixed(1)} with the base body hovered`);
+
+    // --- 7. leaving puts every occurrence back --------------------------------
+    // The pitch arm stays loaded past `sweep off` only if the sweep did not
+    // open it, so it is taken off that list: the case of a part the reader
+    // had open before the sweep, which is the case the put-back is for.
+    await page.evaluate((f) => {
+      window.__sweep.openedBySweep = window.__sweep.openedBySweep.filter((s) => s !== f.armSha);
+      return window.AnnotateApp.exec(["hide-body", "blade"]);
+    }, facts);
+    await page.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
+    const restored = await page.evaluate((f) => ({
+      loaded: window.__scene.parts.has(f.armSha),
+      hidden: window.__scene.parts.has(f.armSha)
+        ? window.__scene._occurrenceNodes(f.armSha).filter((n) => !n.visible).length : -1,
+      hover: window.__scene.hoverState().overlays,
+    }), facts);
+    push("[real] leaving sweep mode puts back every occurrence a body checkbox hid and takes the hover down",
+      restored.loaded && restored.hidden === 0 && restored.hover === 0);
+
+    push("[real] nothing above produced an uncaught error", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
 // --- the annotator's rail: scoped to one element, and a face that can be
 // deselected (handoff flyout_resize_annotator_filter_and_deselect, 2 and 3) ---
 //
@@ -7928,10 +8952,14 @@ async function testDeepLinks(browser, url, label) {
 // --- the kinematic study page (the_viewer_shows_a_kinematic_study) ---------
 //
 // The DoD, in a real browser: a `?kinematic=` deep link opens the study page
-// with one verdict chip per stop; a hover on the chart reads a sweep point; the
-// -7 deg stop's table holds six ranked rows, the last two gaps; the first row
-// follows to its edge's rail; and with the projection absent the nav has no
-// section and the page raises nothing. The real half boots the live
+// with one verdict chip per stop above the fold, the model under them with
+// the study's lit set on and the rest dimmed (or hidden, by the toolbar's
+// toggle); a hover on the chart reads a sweep point; one table says each
+// contributor once with a column group per stop, and a coefficient's hover
+// draws its curve; a row click selects its edge IN PLACE; and with the
+// projection absent the nav has no section and the page raises nothing
+// (the_kinematic_page_keeps_the_dag_and_says_each_contributor_once,
+// 2026-10-26). The real half boots the live
 // projections through a MemoryAdapter on file:// (the "real render path"
 // suite's seam), then once more over a repo-root static server, so the HTTP
 // transport's own read of kinematic/kinematic_studies.json is the one proved.
@@ -7973,16 +9001,28 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await page.locator("div.kmverdict").count() === 2 &&
       await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops") +
         ".navtree__row--on").count() === 1);
-    push("the kinematic page stands the preview pane down and draws its chart",
-      !(await page.locator("#detail").isVisible()) &&
-      await page.locator("figure.kmchart svg").isVisible());
+    // The head above the model, the model above the chart, the preview pane
+    // beside them all.
+    const order = await page.evaluate(() => {
+      const top = (sel) => document.querySelector(sel).getBoundingClientRect().top;
+      return [top("#kinematichead"), top("#topopane"), top("figure.kmchart")];
+    });
+    push("the kinematic page draws the model between its verdicts and its chart, " +
+      "with the preview pane beside it",
+      await page.locator("#topopane svg.tv__rails").isVisible() &&
+      await page.locator("#detail").isVisible() &&
+      await page.locator("figure.kmchart svg").isVisible() &&
+      order[0] < order[1] && order[1] < order[2]);
     await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops")).click();
     await page.waitForSelector("div.kmverdict", { timeout: 5000 });
+    await page.waitForTimeout(600);
     push("the nav's kinematic row brings the page back after a topology",
-      await page.locator("#detail").isVisible() === false &&
-      await page.locator("#topopane").isVisible() === false);
+      await page.locator("div.kmverdict").count() === 2 &&
+      await page.locator("#topopane").isVisible() &&
+      await page.locator("#topopane .rail__bar--on").count() > 0 &&
+      await page.locator("#topopane .rail__bar--off").count() > 0);
 
     if (!realProjection || !realResults || !realKinematic) {
       push("[real] kinematic study page (skipped: the projections are not built " +
@@ -7990,12 +9030,52 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
     } else {
       await boot("?kinematic=" + STUDY, realKinematic);
       await page.waitForSelector("div.kmverdict", { timeout: 15000 });
+      // The real-data seam boots twice (the page's own boot, then this
+      // one), so the model is read after the second paint has settled.
+      await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(600);
       const verdicts = await page.locator("div.kmverdict").allTextContents();
       push("[real] the study page reads one verdict chip per stop",
         verdicts.length === 2 &&
-        /pass/.test(verdicts[0]) && /margin \+0\.256 deg/.test(verdicts[0]) &&
-        /pass/.test(verdicts[1]) && /margin \+0\.258 deg/.test(verdicts[1]) &&
-        await page.locator("div.kmverdict span.tvverdict--pass").count() === 2);
+        // Both read `marginal` since the travel between the end stops entered
+        // by its terms (a_contributor_may_be_a_study; they read `pass` at
+        // +0.210 and +0.185 before it).
+        /marginal/.test(verdicts[0]) && /margin -1\.207 deg/.test(verdicts[0]) &&
+        /marginal/.test(verdicts[1]) && /margin -0\.839 deg/.test(verdicts[1]) &&
+        await page.locator("div.kmverdict span.tvverdict--marginal").count() === 2);
+
+      // The model: the study's thirteen lit edges on (six contributors, the
+      // three edges three of them borrow a band from, and the four edges the
+      // travel study's terms stand on), the other eighty-two dimmed (forty-six before the four fastener stacks joined the model, 2026-10-27), the grid
+      // beside them the thirteen, all under verdicts that are on the first
+      // screen.
+      const fold = await page.evaluate(() => {
+        const bottoms = [...document.querySelectorAll("div.kmverdict > *")]
+          .map((n) => n.getBoundingClientRect().bottom);
+        const pane = document.querySelector("#topopane").getBoundingClientRect();
+        return { verdicts: Math.max(...bottoms), paneTop: pane.top,
+                 viewport: window.innerHeight };
+      });
+      const litCounts = async () => [
+        await page.locator("#topopane .rail__bar--on").count(),
+        await page.locator("#topopane .rail__bar--off").count(),
+        await page.locator("#topopane tr.tvrow--edge").count()];
+      const dimmed = await litCounts();
+      push("[real] above the fold, the verdicts; under them the model, the study's " +
+        "contributors and the edges they stand on lit and the rest dimmed",
+        fold.verdicts < fold.viewport && fold.paneTop < fold.viewport &&
+        dimmed[0] === 13 && dimmed[1] === 82 && dimmed[2] === 13);
+      await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const hidden = await litCounts();
+      const hiddenLabel = await page.locator("#unlit-style-toggle").textContent().catch(() => "");
+      await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const restored = await litCounts();
+      push("[real] the toolbar's Unused toggle hides the unlit model and brings it back",
+        hiddenLabel === "Unused: hidden" &&
+        hidden[0] === 13 && hidden[1] === 0 && hidden[2] === 13 &&
+        restored[0] === 13 && restored[1] === 82);
 
       // The wiring, not the view: topology_app.js hands the kinematic view its
       // `onCardShow: showCard`. Without it citationTrigger falls back to a
@@ -8020,31 +9100,72 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const tipText = (await tip.isVisible()) ? await tip.innerText() : "";
       push("[real] hovering an envelope point reads its driver, nominal and both spreads",
         /actuator travel/.test(tipText) && /64\.466 mm/.test(tipText) &&
-        /-6\.992 deg/.test(tipText) && /±0\.244 deg/.test(tipText) &&
-        /RSS/.test(tipText) && /±0\.165 deg/.test(tipText));
+        /-6\.992 deg/.test(tipText) && /±1\.707 deg/.test(tipText) &&
+        /RSS/.test(tipText) && /±0\.985 deg/.test(tipText));
 
-      const rows = page.locator('section.kmstop[data-stop="minus7"] tr.kmrow');
+      const rows = page.locator("table.kmtable tr.kmrow");
       const classes = [];
       for (let i = 0; i < await rows.count(); i++) {
         classes.push(await rows.nth(i).getAttribute("class"));
       }
-      push("[real] the -7 deg stop ranks six contributors, the fifth and sixth gaps",
+      // No gap rows since the tangential link cited its drawing (2026-10-26).
+      push("[real] one table says the six contributors once, each a banded term, " +
+        "with a column group per stop",
+        await page.locator("table.kmtable").count() === 1 &&
+        await page.locator("th.kmtable__stop").count() === 2 &&
         classes.length === 6 &&
-        classes.map((c) => /kmrow--gap/.test(c)).join() ===
-          [false, false, false, false, true, true].join() &&
-        /no band on file/.test(await rows.nth(5).innerText()));
+        classes.every((c) => /kmrow--term/.test(c) && !/kmrow--gap/.test(c)) &&
+        !/contributors at/.test(await page.locator("#kinematicview").innerText()));
 
-      // Waits for the RAIL, not for the selection: a follow that lands on the
-      // rail and selects nothing is the failure this check names, and waiting
-      // on the selection itself would turn it into an unattributed timeout.
+      // The travel between the end stops is a contributor that is a study: one
+      // group row, collapsed, that opens onto its four terms with the motion
+      // ratio's magnitude at each stop as their coefficient (the first stop's
+      // 1.728 deg/mm, the second's 1.249).
+      const kids = page.locator("table.kmtable tr.kmchild");
+      const closedKids = await kids.count() === 4 && !(await kids.first().isVisible());
+      await page.locator("tr.kmgroup button.kmgroup__toggle").click();
+      const openKids = await kids.first().isVisible() && await kids.last().isVisible();
+      const kidTexts = await kids.allInnerTexts();
+      await page.locator("tr.kmgroup button.kmgroup__toggle").click();
+      push("[real] the travel study is one group row, collapsed, that opens onto its " +
+        "four terms with the composed coefficients",
+        await page.locator("table.kmtable tr.kmgroup").count() === 1 &&
+        /Travel between end stops/.test(await page.locator("tr.kmgroup").innerText()) &&
+        closedKids && openKids && kidTexts.length === 4 &&
+        kidTexts.every((t) => /1\.728/.test(t) && /1\.249/.test(t)) &&
+        !(await kids.first().isVisible()));
+
+      // A coefficient's hover: its curve across P2, in the page's one popover.
+      // The tangential-link mount height's coefficient changes sign between
+      // the stops, so both signs are on the card's axis.
+      await page.locator('tr.kmrow[data-edge="tan_link_mount_height"] ' +
+        'td.kmcell--coef[data-stop="plus72"]').hover();
+      const curveCard = await page.waitForFunction(() => {
+        const pop = document.querySelector("#croppop");
+        return pop && pop.style.display === "block" &&
+          pop.className.indexOf("hovercard--curve") !== -1 &&
+          pop.querySelector("path.kmcurve__line") ? pop.innerText : null;
+      }, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => "");
+      push("[real] hovering a coefficient shows its curve across the sweep, both signs " +
+        "of the mount height's on its axis",
+        /tangential link mount/.test(curveCard) && /\+0\.172/.test(curveCard) &&
+        /-0\.241/.test(curveCard));
+      await dismissCard(page);
+
+      // In place: the page stays the study, the model marks the edge, the
+      // preview pane shows it. Waits for the SELECTION in the grid, which a
+      // click that left the page would also produce -- so the check reads the
+      // page's own head too.
       await rows.nth(0).locator("a.kmrow__edge").click();
-      await page.waitForSelector("#topopane tr.tvrow", { timeout: 15000 });
-      push("[real] the first contributor follows to pitch_plate_attach_height's rail",
-        await page.locator(navRow("topology", "vpa_pitch_linkage") +
-          ".navtree__row--on").count() === 1 &&
+      await page.waitForSelector("#topopane tr.tvrow--selected", { timeout: 15000 }).catch(() => {});
+      push("[real] clicking the first contributor selects pitch_plate_attach_height in " +
+        "place: the page stays the study, the model marks it, the preview pane shows it",
+        await page.locator("div.kmverdict").count() === 2 &&
+        await page.locator(navRow("kinematic", STUDY) + ".navtree__row--on").count() === 1 &&
         /pitch-link attachment bore, height/.test(
           await page.locator("#detail").innerText()) &&
-        await page.locator("tr.tvrow--selected").count() === 1);
+        await page.locator("#topopane tr.tvrow--selected").count() === 1 &&
+        await page.locator('tr.kmrow--selected[data-edge="pitch_plate_attach_height"]').count() === 1);
 
       await boot("", null);
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -8071,7 +9192,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await page.waitForSelector("div.kmverdict, .banner__notice", { timeout: 15000 });
       push("[real] served over HTTP, the page reads the projection through the same transport",
         await page.locator("div.kmverdict").count() === 2 &&
-        await page.locator('section.kmstop[data-stop="minus7"] tr.kmrow').count() === 6);
+        await page.locator("table.kmtable tr.kmrow").count() === 6);
     }
     return reportSuite(label, checks, errors);
   } catch (err) {
@@ -8173,6 +9294,9 @@ async function testHostedUnpublished(browser, realProjection, label) {
     server.close();
   }
 }
+
+//: The respine suite's transition length -- see the call in testRespine.
+const RESPINE_SUITE_DURATION_MS = 1200;
 
 // The respine, measured in the page (viewer_study_respine_animation).
 //
@@ -8325,10 +9449,18 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       window.ViewerApp.bootTopology();
     }, { projection: realProjection, crops: realCrops });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
-    await page.locator(navRow("topology", "pitch_system")).click();
+    // Widen the transition for this suite only (VA.RESPINE is the page's own
+    // duration knob). Every check below samples a frame IN FLIGHT from outside
+    // the page, and on the product graph (106 walk rows since the 2026-10-26
+    // fold) a single paint is long enough that a 260 ms window often closed
+    // before the sampler saw a frame: 39/40 in 4 of 4 runs, against 40/40 on
+    // the pre-fold tree. Nothing here asserts the duration itself.
+    await page.evaluate((ms) => { window.ViewerApp.RESPINE.duration = ms; },
+      RESPINE_SUITE_DURATION_MS);
+    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
     await settled();
 
-    const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+    const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
     const study = pitch.studies.find((s) => s.status === "ok" && s.layout);
     const walk = await geometry();
     push("[real] the walk is the default layout and it settled clean",
@@ -8345,7 +9477,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     await page.locator(navRow("study", study.id)).click();
     await settled();
     const chainSettled = await geometry();
-    await page.locator(navRow("topology", "pitch_system")).click();
+    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
     await settled();
 
     await page.locator(navRow("study", study.id)).click();
@@ -8423,7 +9555,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // in-session state and survives a selection, so the modes are cycled
     // once around the outside of the pair of routes.
     const modes = ["uniform", "tolerance", "absolute"];
-    const walkRow = navRow("topology", "pitch_system");
+    const walkRow = navRow("topology", "vpa_pitch_linkage");
     const studyRow = navRow("study", study.id);
     let chainUniform = null;
     for (let i = 0; i < modes.length; i++) {
@@ -8969,6 +10101,507 @@ async function testAnnotateBindForm(browser, label) {
   }
 }
 
+// The leaders across the seam (handoff leaders_follow_the_active_study_
+// across_the_seam, 2026-10-27): one page-level overlay from the active
+// study's lit nodes on the DAG to where the scene draws them.
+//
+// The first half is the TRUTH check the handoff asks for: the annotator is
+// booted in its mock, where no model layer posts anything, and a SYNTHETIC
+// `annotate:anchors` message is posted from the pane's own window -- so the
+// leader endpoints asserted below are the iframe's rect plus numbers this
+// suite chose, not whatever a camera happened to show. The second half is the
+// live P2 kinematic study with the real scene posting its own anchors, and
+// photographs it when SEAM_LEADER_SHOTS names a directory.
+const SEAM_LEADER_SHOTS = process.env.SEAM_LEADER_SHOTS || null;
+
+async function testSeamLeaders(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  // The annotator on its own mock too, so the commands the page posts run
+  // instead of queueing behind a folder grant nobody is there to give.
+  await page.addInitScript(() => {
+    if (location.pathname.indexOf("/apps/annotate/") === -1) return;
+    if (!/[?&]mock=1(&|$)/.test(location.search)) {
+      history.replaceState(null, "", location.pathname +
+        (location.search ? location.search + "&" : "?") + "mock=1" + location.hash);
+    }
+  });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 30000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => !!new Function("arg",
+        "return (" + src + ")(arg);")(arg), { src: fn.toString(), arg }, { timeout, polling: 50 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const settled = () => until(() => window.ViewerApp && window.ViewerApp.lastTopoRender &&
+    !window.ViewerApp.lastTopoRender.tweening, null, 10000);
+  // The anchors as the scene would post them: from the pane's own window, so
+  // the shell's source check passes exactly as it does for the real one.
+  // `w.Function`, not this realm's: a postMessage's source is the window of
+  // the script that CALLED it, and a call made from the shell's realm would
+  // arrive from the shell.
+  const fromPane = (msg) => inPane((w, msg) => {
+    new w.Function("msg", "window.parent.postMessage(msg, window.location.origin);")(msg);
+    return true;
+  }, msg);
+  const postAnchors = (nodes) => fromPane({ type: "annotate:anchors", nodes, edges: {} });
+  const draws = () => page.evaluate(() =>
+    (window.ViewerApp.lastSeamDraw && window.ViewerApp.lastSeamDraw.draws) || 0);
+  const drawnAfter = (n) => until((n) => window.ViewerApp.lastSeamDraw &&
+    window.ViewerApp.lastSeamDraw.draws > n, n, 10000);
+  // Every leader on the overlay, its two ends read off the drawn path, beside
+  // the two rects and the DAG ends the pane published.
+  const measure = () => page.evaluate(() => {
+    const VA = window.ViewerApp;
+    const svg = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
+    const frame = document.querySelector("#annotate-flyout iframe");
+    const r = svg ? svg.getBoundingClientRect() : null;
+    const f = frame ? frame.getBoundingClientRect() : null;
+    const paths = [...document.querySelectorAll("svg.seamleaders path.seam__leader")].map((p) => {
+      const n = p.getTotalLength();
+      const a = p.getPointAtLength(0);
+      const b = p.getPointAtLength(n);
+      return { id: p.getAttribute("data-node-id"), cls: p.getAttribute("class"),
+        d: p.getAttribute("d"), from: [a.x, a.y], to: [b.x, b.y] };
+    });
+    const grid = {};
+    const lines = [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leader")];
+    [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leaderhit")].forEach((h, i) => {
+      grid[h.getAttribute("data-leader-id")] = lines[i] ? lines[i].getAttribute("class") : null;
+    });
+    const draw = VA.lastSeamDraw;
+    return { paths, grid, seam: VA.lastTopoRender && VA.lastTopoRender.seam,
+      rails: r && { left: r.left, top: r.top },
+      frame: f && { left: f.left + frame.clientLeft, top: f.top + frame.clientTop },
+      draw: draw && { crossings: draw.crossings, ms: draw.ms, draws: draw.draws,
+        skipped: draw.skipped, states: draw.states } };
+  });
+  const near = (p, q) => p && q && Math.abs(p[0] - q[0]) <= 0.5 && Math.abs(p[1] - q[1]) <= 0.5;
+  // Every drawn leader starts at its DAG dot (the rails SVG's rect + the
+  // pane's own point) and ends at its anchor (the iframe's rect + `anchors`).
+  const endsHold = (m, anchors) => m.paths.length > 0 && m.paths.every((p) =>
+    near(p.from, [m.rails.left + m.seam.dots[p.id][0], m.rails.top + m.seam.dots[p.id][1]]) &&
+    near(p.to, [m.frame.left + anchors[p.id][0], m.frame.top + anchors[p.id][1]]));
+
+  try {
+    // --- the TRUTH half: the fixture model, a synthetic anchors message ----
+    await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForSelector("#study-3d", { timeout: 15000 });
+    await settled();
+    await page.locator("#study-3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    const loaded = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.AnnotateApp && w.__model && w.document.readyState === "complete";
+    }, null, 30000);
+    await settled();
+    const lit = await page.evaluate(() => Object.keys(window.ViewerApp.lastTopoRender.seam.dots).sort());
+    // One lit node with no anchor, one off the scene's screen, one node the
+    // study does not light that the scene placed anyway, and every other lit
+    // node somewhere inside the frame.
+    const unlit = (await page.evaluate(() => window.ViewerApp.demoTopologyProjection()
+      .topologies[0].nodes.map((n) => n.id))).find((id) => lit.indexOf(id) === -1);
+    const anchors = {};
+    lit.forEach((id, i) => { anchors[id] = [40 + 9 * i, 140 + 45 * i]; });
+    anchors[lit[0]] = null;
+    anchors[lit[1]] = [40, 99999];
+    if (unlit) anchors[unlit] = [60, 60];
+    const before = await draws();
+    await postAnchors(anchors);
+    const drew = loaded && await drawnAfter(before);
+    let m = await measure();
+    const drawnIds = m.paths.map((p) => p.id).sort();
+    console.log(`      [${label}] lit nodes ${lit.length}; leaders drawn ${drawnIds.length}; ` +
+      `skipped ${JSON.stringify(m.draw && m.draw.skipped)}; draw ${m.draw && m.draw.ms.toFixed(2)} ms`);
+    push("a synthetic annotate:anchors message draws one leader per lit node, from its DAG dot " +
+      "to the iframe's rect plus its anchor",
+      drew && JSON.stringify(drawnIds) === JSON.stringify(lit.slice(2)) && endsHold(m, anchors));
+    push("a node whose anchor is null, or lies off the scene, gets no leader and no stub",
+      drew && m.paths.every((p) => p.id !== lit[0] && p.id !== lit[1]) &&
+      await page.locator(`svg.seamleaders [data-node-id="${lit[0]}"]`).count() === 0);
+    push("no leader across the seam for a node outside the lit set, whatever the scene posts",
+      drew && !!unlit && m.paths.every((p) => p.id !== unlit));
+    push("every leader across the seam turns once, left of the DAG's rails, level with its dot",
+      drew && m.paths.every((p) => {
+        const bend = m.rails.left + m.seam.bend;
+        return /^M [-\d.e]+ [-\d.e]+ H [-\d.e]+ L [-\d.e]+ [-\d.e]+$/.test(p.d) &&
+          Math.abs(Number(p.d.split(" ")[4]) - bend) <= 0.5 && bend < p.from[0];
+      }));
+
+    // A column resized with no repaint behind it -- the scene narrowed by
+    // hand, which moves the DAG's rect and nothing else: only the one
+    // ResizeObserver can bring the leaders along, with no new anchors message.
+    const beforeResize = await draws();
+    await page.evaluate(() => {
+      const f = document.querySelector("#annotate-flyout");
+      f.style.width = (f.getBoundingClientRect().width - 80) + "px";
+    });
+    const resized = await drawnAfter(beforeResize);
+    await page.waitForTimeout(150);
+    m = await measure();
+    push("a column resized with no repaint re-draws the leaders onto the moved rects, with no new " +
+      "anchors message",
+      resized && endsHold(m, anchors));
+    await page.evaluate(() => { document.querySelector("#annotate-flyout").style.width = ""; });
+    await settled();
+    await page.waitForTimeout(150);
+
+    // From here on every lit node is placed, so each edge has both its ends.
+    const full = {};
+    lit.forEach((id, i) => { full[id] = [40 + 9 * i, 140 + 45 * i]; });
+    const beforeFull = await draws();
+    await postAnchors(full);
+    await drawnAfter(beforeFull);
+    m = await measure();
+    // Hover: the pointer on a grid row lights its two ends, lighter than a click.
+    const edges = await page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const topo = VA.demoTopologyProjection().topologies[0];
+      const study = VA.findStudy(topo, "demo_base_to_tip");
+      const index = VA.topologyIndex(topo);
+      return study.selection.map((id) => index.edges[id]).filter(Boolean)
+        .map((e) => ({ id: e.id, from: e.from, to: e.to }));
+    });
+    const drawnNow = new Set(m.paths.map((p) => p.id));
+    const both = edges.filter((e) => drawnNow.has(e.from) && drawnNow.has(e.to));
+    const first = both[0];
+    const second = both.find((e) => e !== first && (e.from !== first.from || e.to !== first.to));
+    const S = await page.evaluate(() => window.ViewerApp.SEAM_LEADER_STATES);
+    const stateOf = (m, id) => (m.paths.find((p) => p.id === id) || {}).cls || "";
+    let hovered = false;
+    if (first) {
+      const beforeHover = await draws();
+      await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().hover();
+      hovered = await drawnAfter(beforeHover);
+      m = await measure();
+    }
+    push("hovering a grid row lights its two ends' leaders across the seam, lighter than a selection",
+      hovered && first && [first.from, first.to].every((id) =>
+        stateOf(m, id).indexOf("seam__leader--" + S[1]) !== -1) &&
+      m.paths.every((p) => p.cls.indexOf("--" + S[2]) === -1 && p.cls.indexOf("--" + S[0]) === -1));
+    await page.mouse.move(5, 995);
+
+    // Selection: a grid row click lights the triple and dims the rest.
+    let clicked = false;
+    if (first) {
+      const beforeClick = await draws();
+      await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().click();
+      await settled();
+      clicked = await drawnAfter(beforeClick);
+      m = await measure();
+    }
+    const ends = first ? [first.from, first.to] : [];
+    push("clicking a grid row lights its ends' leaders on both overlays in the accent and dims the rest",
+      clicked && ends.every((id) => stateOf(m, id).indexOf("seam__leader--" + S[0]) !== -1) &&
+      m.paths.filter((p) => ends.indexOf(p.id) === -1)
+        .every((p) => p.cls.indexOf("seam__leader--" + S[2]) !== -1) &&
+      Object.keys(m.grid).length > 0 && Object.entries(m.grid).every(([id, cls]) =>
+        ends.indexOf(id) !== -1 ? /rail__leader--selected/.test(cls) : /rail__leader--dim/.test(cls)));
+
+    // The scene's tree marks a row selected (a pick in the scene does that):
+    // the page selects the element the row names -- the same state a click makes.
+    let picked = false;
+    if (second) {
+      const beforePick = await draws();
+      await fromPane({ type: "annotate:tree", mode: "bind", chips: [],
+        rows: [{ key: "#sweep-tree/group=contributors/edge=" + second.id, text: second.id,
+          selected: true }] });
+      picked = await until((id) => !!document.querySelector(
+        `#topopane .tv__hscroll tr.tvrow--selected[data-id="${id}"]`), second.id, 10000);
+      await drawnAfter(beforePick);
+      m = await measure();
+    }
+    push("a row the scene marks selected (a pick there) selects its element here, lighting the " +
+      "same leaders a click on its grid row does",
+      picked && [second.from, second.to].every((id) =>
+        stateOf(m, id).indexOf("seam__leader--" + S[0]) !== -1));
+
+    // The scene is told the page's lit set and the dim-or-hide word.
+    const told = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.lit && w.__model.unlit === "dim";
+    }, null, 10000);
+    const sceneLit = await inPane((w) => Object.keys(w.__model.lit || {}).sort());
+    push("the scene is told the page's lit set and its dim-or-hide word, in its own model verb",
+      told && JSON.stringify(sceneLit) === JSON.stringify(edges.map((e) => e.id).sort()));
+    const beforeHide = await draws();
+    await page.locator("#unlit-style-toggle").click();
+    await settled();
+    const hid = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.unlit === "hide";
+    }, null, 10000);
+    await drawnAfter(beforeHide);
+    await page.waitForTimeout(150);
+    m = await measure();
+    push("switching the toggle to hide tells the scene and re-draws every leader from the re-laid DAG",
+      hid && endsHold(m, full) && m.paths.length === lit.length);
+    await page.locator("#unlit-style-toggle").click();
+    await settled();
+
+    // The re-draw cost per anchors message, printed: forty messages, each
+    // moving every anchor by a pixel.
+    const costs = [];
+    for (let k = 0; k < 40; k++) {
+      const moved = {};
+      Object.keys(full).forEach((id) => { moved[id] = [full[id][0] + (k % 2), full[id][1]]; });
+      const n = await draws();
+      await postAnchors(moved);
+      if (await drawnAfter(n)) costs.push(await page.evaluate(() => window.ViewerApp.lastSeamDraw.ms));
+    }
+    costs.sort((a, b) => a - b);
+    console.log(`      [${label}] re-draw per anchors message (fixture, ${lit.length} leaders, ` +
+      `${costs.length} draws): median ${costs.length ? costs[costs.length >> 1].toFixed(3) : "-"} ms, ` +
+      `max ${costs.length ? costs[costs.length - 1].toFixed(3) : "-"} ms`);
+
+    // Closing the scene takes them all down.
+    await page.locator("#flyout-close").click();
+    const gone = await until(() =>
+      document.querySelectorAll("svg.seamleaders path").length === 0, null, 5000);
+    push("closing the scene takes every leader across the seam down", gone);
+  } catch (err) {
+    errors.push(String(err && err.stack || err));
+  } finally {
+    await page.close();
+  }
+
+  // --- the live half: P2's kinematic study, the real scene's anchors ------
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const index = await realDataIndexForTheAnnotator();
+  if (!study || !topology || !(topology.bodies || []).length ||
+      index.runs.indexOf(study.sweep.run_id) === -1) {
+    push("[real] the leaders across the seam on P2 (skipped: the run, the kinematic projection or " +
+      "a topology projection with bodies is not on disk -- build them, or pass --repo " +
+      "<a root built from this tree>)", true);
+    server.closeAllConnections();
+    server.close();
+    return reportSuite(label, checks, errors);
+  }
+  const live = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  live.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(live, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "window" });
+  const livePane = (fn, arg) => live.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const liveUntil = async (fn, arg, timeout = 60000) => {
+    try {
+      await live.waitForFunction(({ src, arg }) => !!new Function("arg",
+        "return (" + src + ")(arg);")(arg), { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const shot = async (name) => {
+    if (!SEAM_LEADER_SHOTS) return;
+    await live.waitForTimeout(400);
+    await live.screenshot({ path: join(SEAM_LEADER_SHOTS, name), timeout: 240000 });
+  };
+  const liveMeasure = () => live.evaluate(() => {
+    const VA = window.ViewerApp;
+    const draw = VA.lastSeamDraw;
+    const svg = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
+    const r = svg ? svg.getBoundingClientRect() : null;
+    const leaders = draw ? draw.leaders : [];
+    const bars = (VA.lastTopoRender.seam.bars || []).map((b) => ({ id: b.id,
+      x: r.left + b.x, y1: r.top + b.y1, y2: r.top + b.y2 }));
+    const grid = {};
+    const lines = [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leader")];
+    [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leaderhit")].forEach((h, i) => {
+      grid[h.getAttribute("data-leader-id")] = lines[i] ? lines[i].getAttribute("class") : null;
+    });
+    // What should be drawn, from the two sources directly: a lit node with an
+    // anchor in the scene's last message and a dot inside the DAG's view.
+    const frame = document.querySelector("#annotate-flyout iframe");
+    const sent = (frame.contentWindow.__lastAnchors || {}).nodes || {};
+    const fr = frame.getBoundingClientRect();
+    const onScene = (a) => a && a[0] >= 0 && a[0] <= fr.width && fr.top + a[1] >= Math.max(fr.top, 0) &&
+      fr.top + a[1] <= Math.min(fr.bottom, innerHeight);
+    const pane = document.querySelector("#topopane").getBoundingClientRect();
+    const head = document.querySelector("#topopane .tv__hscroll .tv__head").getBoundingClientRect();
+    const dots = VA.lastTopoRender.seam.dots;
+    const expected = Object.keys(dots).filter((id) => {
+      const y = r.top + dots[id][1];
+      return onScene(sent[id]) && y >= Math.max(pane.top, head.bottom) &&
+        y <= Math.min(pane.bottom, innerHeight);
+    }).sort();
+    return { ids: leaders.map((l) => l.id), expected, states: draw ? draw.states : {},
+      crossings: draw ? draw.crossings : null, ms: draw ? draw.ms : null,
+      skipped: draw ? draw.skipped : null, barCrossings: VA.seamBarCrossings(leaders, bars),
+      lit: Object.keys(VA.lastTopoRender.seam.dots).sort(), grid,
+      paths: document.querySelectorAll("svg.seamleaders path.seam__leader").length };
+  });
+  const S = ["selected", "hot", "dim"];
+  try {
+    await live.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
+    await live.waitForSelector("div.kmverdict", { timeout: 30000 });
+    await live.waitForSelector("#pane-toggle:visible", { timeout: 15000 }).catch(() => {});
+    await live.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+    const runId = study.sweep.run_id;
+    const built = await liveUntil((r) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__sweep && w.__sweep.artifact && w.__sweep.artifact.runId === r &&
+        w.__sweep.bodies && w.__sweep.bodies.length > 0 && w.__model && w.__model.built &&
+        w.__model.built.runId === r && window.ViewerApp.lastSeamDraw &&
+        window.ViewerApp.lastSeamDraw.leaders.length > 0;
+    }, runId, 240000);
+    await livePane((w) => w.AnnotateApp.exec(["pause"]));
+    await live.waitForTimeout(600);
+    let lm = await liveMeasure();
+    console.log(`      [${label}] P2: lit nodes ${lm.lit.length}, leaders ${lm.ids.length} ` +
+      `(${lm.ids.join(", ")}); no anchor: ${(lm.skipped && lm.skipped.noAnchor || []).join(", ") || "-"}; ` +
+      `off the DAG's view: ${(lm.skipped && lm.skipped.offDag || []).join(", ") || "-"}; ` +
+      `off the scene: ${(lm.skipped && lm.skipped.offScene || []).join(", ") || "-"}; ` +
+      `crossings among them ${lm.crossings}; through a lit bar ${lm.barCrossings}; draw ${lm.ms && lm.ms.toFixed(2)} ms`);
+    push("[real] on P2 every lit node with an anchor and a dot in the DAG's view has its leader " +
+      "across the seam, and nothing else has one",
+      built && lm.ids.length > 0 && lm.paths === lm.ids.length &&
+      JSON.stringify(lm.ids.slice().sort()) === JSON.stringify(lm.expected));
+    push("[real] no leader across the seam runs through a lit edge's bar", built && lm.barCrossings === 0);
+    await shot("1_kinematic_study_leaders.png");
+
+    // A contributor row: its two ends light on both overlays, and the scene's line.
+    const CONTRIBUTOR = "tan_link_length";
+    const edge = topology.edges.find((e) => e.id === CONTRIBUTOR);
+    // The contributor table is below the fold, so the click scrolls the page
+    // down to it; the reader scrolls back up to the model to trace the leaders.
+    const backUp = async () => {
+      await live.mouse.move(800, 20);
+      await live.evaluate(() => window.scrollTo(0, 0));
+    };
+    await live.locator(`tr.kmrow[data-edge="${CONTRIBUTOR}"] td.kmrow__name a`).first().click();
+    await backUp();
+    const lit1 = await liveUntil((ends) => {
+      const d = window.ViewerApp.lastSeamDraw;
+      return d && ends.every((id) => !d.states[id] || d.states[id] === "selected") &&
+        Object.values(d.states).some((s) => s === "selected");
+    }, [edge.from, edge.to], 15000);
+    const emphasis = await liveUntil((id) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.emphasis === id;
+    }, CONTRIBUTOR, 15000);
+    lm = await liveMeasure();
+    const selectedIds = Object.keys(lm.states).filter((id) => lm.states[id] === S[0]).sort();
+    console.log(`      [${label}] contributor ${CONTRIBUTOR}: selected leaders ${selectedIds.join(", ")}`);
+    push("[real] clicking a contributor row lights its 2D-grid and 2D-3D leaders and the scene's line",
+      lit1 && emphasis && selectedIds.length > 0 &&
+      selectedIds.every((id) => id === edge.from || id === edge.to) &&
+      Object.keys(lm.states).filter((id) => selectedIds.indexOf(id) === -1)
+        .every((id) => lm.states[id] === S[2]) &&
+      Object.entries(lm.grid).every(([id, cls]) => (id === edge.from || id === edge.to)
+        ? /rail__leader--selected/.test(cls) : /rail__leader--dim/.test(cls)));
+    await shot("2_contributor_selected.png");
+    // What the click made: which leaders wear the accent, and that every other
+    // drawn one stepped back. (WHICH others are drawn depends on where the box
+    // is scrolled, which the clicks in between move.)
+    const selectedBy = (states) => JSON.stringify({
+      selected: Object.keys(states).filter((id) => states[id] === "selected").sort(),
+      rest: Object.keys(states).every((id) => states[id] === "selected" || states[id] === "dim") });
+    const stateAfterClick = selectedBy(lm.states);
+
+    // Another contributor, then the pitch link's face picked in the scene --
+    // `inspect part`, what a click on the mesh runs -- back to the same state.
+    await live.locator('tr.kmrow[data-edge="pitch_link_length"] td.kmrow__name a').first().click();
+    await backUp();
+    await liveUntil((ends) => {
+      const d = window.ViewerApp.lastSeamDraw;
+      return d && ends.every((id) => d.states[id] !== "selected");
+    }, [edge.from, edge.to], 10000);
+    const pickedFace = await livePane((w) => {
+      const row = (w.__sweep.bodies || []).find((b) => b.subject === "tan_link" && b.sha256);
+      if (!row) return "no tan link occurrence";
+      return Promise.resolve(w.AnnotateApp.exec(["inspect", "part", row.sha256, "0", "tan_link"]))
+        .then(() => true, (e) => String(e && e.message || e));
+    });
+    const samePick = await liveUntil(({ want, edge }) => {
+      const d = window.ViewerApp.lastSeamDraw;
+      if (!d || !document.querySelector(`#topopane .tv__hscroll tr.tvrow--selected[data-id="${edge}"]`)) {
+        return false;
+      }
+      const states = d.states;
+      return JSON.stringify({
+        selected: Object.keys(states).filter((id) => states[id] === "selected").sort(),
+        rest: Object.keys(states).every((id) => states[id] === "selected" || states[id] === "dim") }) === want;
+    }, { want: stateAfterClick, edge: CONTRIBUTOR }, 15000);
+    push("[real] picking the tangential link's face in the scene produces the state its contributor row does",
+      pickedFace === true && samePick);
+    await shot("3_picked_in_the_scene.png");
+
+    // A node selected on the DAG is selected in the scene's own layer.
+    lm = await liveMeasure();
+    const node = Object.keys(lm.grid).find((id) => lm.ids.indexOf(id) !== -1) || null;
+    if (node) {
+      await live.locator(`#topopane .tv__hscroll path.rail__leaderhit[data-leader-id="${node}"]`)
+        .first().dispatchEvent("click");
+    }
+    const sceneSelected = !!node && await liveUntil((id) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.selected && w.__model.selected.id === id;
+    }, node, 15000);
+    push("[real] a node selected on the DAG is selected in the scene's model layer", sceneSelected);
+
+    // Hide: the unlit DAG goes, the leaders stay, re-drawn from the re-laid walk.
+    await live.locator("#unlit-style-toggle").click();
+    const hidden = await liveUntil(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.unlit === "hide" && window.ViewerApp.lastTopoRender &&
+        !window.ViewerApp.lastTopoRender.tweening;
+    }, null, 15000);
+    await live.waitForTimeout(600);
+    // Which dots are in the bounded box's view depends on where the clicks
+    // above left it scrolled, so the count is read in one pinned state: the
+    // page at its top, the pointer off the page's rows, the box at its top.
+    await backUp();
+    const drawsBefore = await live.evaluate(() => {
+      const box = document.querySelector("#topopane");
+      const n = box.scrollTop > 0 ? (window.ViewerApp.lastSeamDraw || {}).draws || 0 : -1;
+      box.scrollTop = 0;
+      return n;
+    });
+    await liveUntil((n) => {
+      const d = window.ViewerApp.lastSeamDraw;
+      return d && d.draws > n && document.querySelector("#topopane").scrollTop === 0;
+    }, drawsBefore, 5000);
+    await live.waitForTimeout(300);
+    const after = await liveMeasure();
+    console.log(`      [${label}] hidden, the box at its top: leaders ${after.ids.length} (${after.ids.join(", ")}); ` +
+      `off the DAG's view: ${(after.skipped && after.skipped.offDag || []).join(", ") || "-"}; ` +
+      `crossings among them ${after.crossings}; through a lit bar ${after.barCrossings}`);
+    push("[real] with the toggle at hide, six to ten leaders across the seam, drawn from the lit " +
+      "part alone",
+      hidden && after.ids.length >= 6 && after.ids.length <= 10 && after.paths === after.ids.length &&
+      JSON.stringify(after.ids.slice().sort()) === JSON.stringify(after.expected));
+    await shot("4_unlit_hidden.png");
+  } catch (err) {
+    errors.push(String(err && err.stack || err));
+  } finally {
+    await live.close();
+    server.closeAllConnections();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 // The annotator draws a frame only when something changed (handoff the_
 // annotate_scene_renders_only_when_something_changed). `scene.renderCount` is
 // the count of frames actually drawn; the rAF loop itself keeps ticking.
@@ -9095,6 +10728,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateRail(browser, label)],
       ["annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)", (label) =>
         testAnnotateSweepRail(browser, label, topologies)],
+      ["annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)", (label) =>
+        testAnnotateRailAndScene(browser, label, topologies)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>
         testAnnotateHostedPosture(browser, label)],
       ["annotate top bar + entry context (auto-filter, see-through)", (label) =>
@@ -9112,6 +10747,10 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateBindForm(browser, label)],
       ["annotate renders on demand (a still scene draws nothing, an orbit draws)", (label) =>
         testAnnotateRenderOnDemand(browser, label)],
+      ["annotate model in the scene (anchors, lines, the sweep, the anchors message)", (label) =>
+        testAnnotateModelInTheScene(browser, fileBase, label, topologies)],
+      ["leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)", (label) =>
+        testSeamLeaders(browser, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));

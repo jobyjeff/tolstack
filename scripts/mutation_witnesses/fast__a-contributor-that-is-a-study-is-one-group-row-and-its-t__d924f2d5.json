@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a contributor that is a study is one group row, and its terms are rows under it with the composed coefficient",
+  "mutations": [
+    {
+      "contract": "A group row's coefficient is the motion ratio's magnitude, its sign a column of its own.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_contributor_may_be_a_study (2026-10-26). Prints the signed Jacobian entry as the coefficient.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      return tableCell({ kind: \"term\", sign: g.sign, coefficient: Math.abs(g.entry),",
+      "replace": "      return tableCell({ kind: \"term\", sign: g.sign, coefficient: g.entry,"
+    }
+  ]
+}

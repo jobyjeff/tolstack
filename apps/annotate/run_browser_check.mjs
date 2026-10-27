@@ -420,6 +420,70 @@ async function checkEverything(browser, base) {
     boxes.some((t) => t.indexOf("See-through") !== -1), JSON.stringify(boxes));
   await page.evaluate(() => window.AnnotateApp.exec(["help", "off"]));
 
+  // The model layer (handoff the_model_is_drawn_in_the_scene): on by
+  // default in sweep mode, every node of the topology anchored, and its
+  // anchors computed after every drawn frame.
+  await page.waitForFunction(() => window.__model && window.__model.built, null,
+    { timeout: 20000 }).catch(() => {});
+  const model = await page.evaluate(() => {
+    const built = window.__model.built;
+    const topology = window.AnnotateApp.FIXTURES.topologyProjection.topologies[0];
+    const sources = {};
+    for (const [id, a] of Object.entries((built && built.anchors) || {})) sources[id] = a.source;
+    const drawn = window.__scene.modelState();
+    return { sources, nodes: topology.nodes.map((n) => n.id),
+      lines: drawn ? Object.keys(drawn.lines).sort() : null,
+      edges: topology.edges.map((e) => e.id).sort(),
+      c: built && built.anchors.c ? built.anchors.c.point : null,
+      dotC: drawn && drawn.nodes.c ? drawn.nodes.c.at : null,
+      message: window.__lastAnchors };
+  });
+  check("the model layer anchors every node of the topology and draws a line for every edge",
+    Object.keys(model.sources).sort().join() === model.nodes.slice().sort().join() &&
+    JSON.stringify(model.lines) === JSON.stringify(model.edges), JSON.stringify(model));
+  // The mock's one committed binding is demo_edge_untraced's `to` end, on the
+  // triangle's face 0 -- so node c anchors on that flat face's centroid, and
+  // the mock's nodes name no part, so every other node has no geometry.
+  check("the mock's bound face moves its node onto the face's fitted point; the rest say " +
+    "they have no anchor geometry",
+    model.sources.c === "bound" && ["a", "b", "d"].every((id) => model.sources[id] === "origin") &&
+    model.dotC && model.c && model.dotC.every((v, i) => Math.abs(v - model.c[i]) < 1e-4),
+    JSON.stringify(model));
+  check("the anchors message is computed for a drawn frame, in the shape the shell reads",
+    model.message && model.message.type === "annotate:anchors" &&
+    Object.keys(model.message.nodes).length === model.nodes.length &&
+    model.message.nodes.a === null && Array.isArray(model.message.nodes.c),
+    JSON.stringify(model.message));
+  const postsBefore = await page.evaluate(() => window.__model.postCount);
+  await page.evaluate(() => {
+    const s = window.__scene;
+    s.camera.position.applyAxisAngle(new s.camera.up.constructor(0, 0, 1), 0.4);
+    s.controls.update();
+  });
+  await page.waitForFunction((n) => window.__model.postCount > n, postsBefore,
+    { timeout: 10000 }).catch(() => {});
+  check("a camera move re-posts the anchors, and a still scene does not",
+    await page.evaluate((n) => window.__model.postCount > n, postsBefore) &&
+    await page.evaluate(async () => {
+      const n = window.__model.postCount;
+      window.__scene.requestRender();
+      await new Promise((r) => setTimeout(r, 300));
+      return window.__model.postCount === n;
+    }));
+  await page.evaluate(() => window.AnnotateApp.exec(["model", "select", "node", "c"]));
+  const selected = await page.evaluate(() => ({ sel: window.__lastModelSelection,
+    drawn: window.__scene.modelState().selection }));
+  check("selecting a node says where its anchor came from",
+    selected.sel && selected.sel.source === "bound" && selected.drawn.node === "c" &&
+    /bound face/.test(selected.sel.words), JSON.stringify(selected));
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "model", "off"]));
+  const down = await page.evaluate(() => ({ drawn: window.__scene.modelState(),
+    message: window.__lastAnchors }));
+  check("switching the model layer off takes it down and posts an empty anchors message",
+    down.drawn === null && down.message && Object.keys(down.message.nodes).length === 0,
+    JSON.stringify(down));
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "model", "on"]));
+
   // Leaving restores the scene: no sweep state, and the parts sweep mode
   // opened are closed again.
   await page.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
@@ -432,6 +496,16 @@ async function checkEverything(browser, base) {
   const backToBind = await page.locator("#detail").innerText();
   check("...and the bind instruction is back",
     backToBind.includes("Pick an element on the left"), backToBind);
+  // Bind mode draws the model only when asked, at the as-modelled pose.
+  await page.waitForFunction(() => !window.__model.built, null, { timeout: 10000 }).catch(() => {});
+  const bindOff = await page.evaluate(() => window.__scene.modelState());
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "model", "on"]));
+  await page.waitForFunction(() => window.__model.built, null, { timeout: 10000 }).catch(() => {});
+  const bindOn = await page.evaluate(() => ({ built: !!window.__model.built,
+    run: window.__model.built && window.__model.built.runId }));
+  check("bind mode leaves the model down until its Display box asks, then draws it with no run",
+    bindOff === null && bindOn.built && bindOn.run === null, JSON.stringify({ bindOff, bindOn }));
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "model", "off"]));
 
   check("nothing above produced an uncaught error", consoleErrors.length === 0,
     consoleErrors.join("\n      "));
@@ -440,6 +514,7 @@ async function checkEverything(browser, base) {
   await railResizePass(browser, base);
   await railRealPass(browser, base);
   await contextViewPass(browser, base);
+  await correctionPass(browser, base);
   await reducedMotionTimingPass(browser, base);
 
   if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=synthetic-demo-sweep`, "mock");
@@ -816,6 +891,43 @@ async function contextViewPass(browser, base) {
   const banner = (await page.locator("#banner").innerText()).trim();
   check("a face clicked with no element selected says what to do, in the banner",
     banner.includes("Pick an element"), banner);
+  await page.close();
+}
+
+// A binding written at the wrong end is corrected, not deleted: one click on
+// Flip direction writes a second event that supersedes the first, the row reads
+// the corrected end, and the first is one entry under a disclosure.
+async function correctionPass(browser, base) {
+  console.log("\n--- correcting a binding (mock)");
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  await page.goto(`${base}?mock=1&topology=demo_system&edge=demo_edge_traced&isolate=demo_triangle`);
+  await page.waitForFunction(() => window.__scene && window.AnnotateApp && window.AnnotateApp.exec, null,
+    { timeout: 20000 });
+  await page.evaluate(() => window.AnnotateApp.exec(["select-edge", "demo_edge_traced"]));
+  await page.waitForFunction(() => window.__scene.listOpenParts().length > 0, null, { timeout: 20000 });
+  await page.evaluate(() => window.AnnotateApp.exec(["select-face", "demo_triangle", "0"]));
+  await page.locator(".an__end[data-direction=from]").click();
+  await page.locator(".bind-form__bind").click();
+  const bound = page.locator(".an__bound-row");
+  await bound.first().waitFor({ timeout: 5000 });
+  const first = await bound.first().innerText();
+  check("a bound end is listed with its interface name and face, and offers both corrections",
+    first.includes("demo bolt-head bearing face") && first.includes("face 0") &&
+    first.includes("Flip direction") && first.includes("Correct this binding"), first);
+  check("an element with no earlier binding shows no history",
+    (await page.locator(".an__bound-history").count()) === 0);
+
+  await page.locator(".an__bound-flip").click();
+  await page.waitForFunction(() => document.querySelector(".an__bound-history"), null, { timeout: 5000 });
+  const rows = await page.locator(".an__bound-row .an__bound-text").allInnerTexts();
+  check("Flip direction leaves one standing binding, at the other end, same face",
+    rows.length === 1 && rows[0].includes("demo bushing face against the plate") &&
+    rows[0].includes("face 0"), JSON.stringify(rows));
+  const earlier = await page.locator(".an__bound-earlier").allTextContents();
+  check("...and one history entry: the end it was first written at",
+    earlier.length === 1 && earlier[0].includes("demo bolt-head bearing face"), JSON.stringify(earlier));
+  const surface = await page.locator("#detail").innerText();
+  check("no event id reaches the surface", !/annotate-\d+/.test(surface), surface);
   await page.close();
 }
 

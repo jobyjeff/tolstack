@@ -6,10 +6,10 @@
     {
       "contract": "While the panel is open the page yields the room -- `.tv` (the nav rail and the graph) starts at the panel's right edge -- which is the only reason the drawing can be beside it at all.",
       "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
-      "note": "This reverses, on purpose, what topology.css argued until 2026-09-16 (\"opening it cannot shrink or reflow the DAG pane by construction\"). That invariant was right for a RIGHT-docked panel and is exactly what made a left-docked one useless: the drawing is 90-262px wide at the pane's left edge and the panel's floor is 560. The mutation removes the shift, which is the pre-review build; the drawing then sits under the panel and the adjacency checks go red. Its twin is `flyout-close-restores-the-page`.",
+      "note": "This reverses, on purpose, what topology.css argued until 2026-09-16 (\"opening it cannot shrink or reflow the DAG pane by construction\"). That invariant was right for a RIGHT-docked panel and is exactly what made a left-docked one useless: the drawing is 90-262px wide at the pane's left edge and the panel's floor is 560. The mutation removes the shift, which is the pre-review build; the drawing then sits under the panel and the adjacency checks go red. Its twin is `flyout-close-restores-the-page`. Re-pointed 2026-10-26 (the_shell_seats_the_scene_beside_the_model): the page no longer shifts by a margin; the scene is a column of the page's row. Taken out of the row, the scene covers the DAG pane instead of moving it.",
       "file": "apps/viewer/topology.css",
-      "find": "body.flyout-open .topbar,\nbody.flyout-open #banner,\nbody.flyout-open .tv { margin-left: var(--flyout-width, 0); }",
-      "replace": "body.flyout-open .topbar,\nbody.flyout-open #banner,\nbody.flyout-open .tv { margin-left: 0; }"
+      "find": "  flex: none; width: min(560px, 40vw);",
+      "replace": "  flex: none; width: min(560px, 40vw); position: absolute;"
     }
   ]
 }

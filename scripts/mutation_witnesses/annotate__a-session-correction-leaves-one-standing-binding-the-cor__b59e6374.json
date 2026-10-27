@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a session correction leaves one standing binding, the corrected one, and one earlier",
+  "mutations": [
+    {
+      "contract": "The browser's fold hides the superseded binding and keeps it as history, as build_projection does.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_a_binding_may_be_superseded.md",
+      "note": "Without the move a corrected binding keeps standing and the row shows both ends bound.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "        (b.event_id === event.supersedes ? row.superseded : kept).push(b);",
+      "replace": "        kept.push(b);"
+    }
+  ]
+}

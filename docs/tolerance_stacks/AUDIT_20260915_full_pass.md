@@ -1,5 +1,12 @@
 # Audit — full pass over every stack and topology, 2026-09-15
 
+> **2026-10-26:** `docs/topologies/topology_pitch_system.json`, cited below by
+> path, was folded into `docs/topologies/topology_vpa_pitch_linkage.json` that
+> day and deleted; its edge and node ids are unchanged there except as
+> `provenance.pitch_system_ids.renamed` lists (handoff
+> `pitch_system_folds_into_the_pitch_linkage_model`). The text below is the
+> dated record and is not rewritten.
+
 Handoff `stack_fable_audit`, from Jeff's 2026-09-15 review (forge note
 `20260915T145908_fwc7qp`): *"I think it might be worth a pass at these with
 Fable to see if they can identify and correct these errors."* First time all

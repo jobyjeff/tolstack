@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a gap row's chip opens a card naming what to read for its band, and whether a copy is on file",
+  "mutations": [
+    {
+      "contract": "A gap card says, per drawing, whether a copy is on file to read.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Says 'no drawing on file' for every drawing, on file or not.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        state: !d.drawing ? words.noneNamed : d.on_file ? words.onFile : words.notOnFile,",
+      "replace": "        state: words.notOnFile,"
+    }
+  ]
+}

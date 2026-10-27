@@ -44,6 +44,20 @@ const GHOST_OPACITY = 0.22;
 // run_tests.cjs pairs `suggested` against that stylesheet's own `--accent`
 // declaration, so the two cannot drift.
 const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };
+// THE HOVER TINT (handoff the_rail_and_the_scene_point_at_each_other): what
+// the pointer resting on a sweep-rail row lights -- a whole part at one
+// occurrence, a bound face, a joint's bead. A pale wash drawn OVER the part
+// (an overlay, never the colour buffer), so it is the lighter emphasis the
+// accent rule asks for (selection keeps the pick orange and the accent blue,
+// docs/DESIGN_TYPE_AND_COLOUR.md) and it can never take a picked face's tint
+// down when it leaves. Neutral, not a state hue: it says "this one", nothing
+// about provenance.
+const HOVER_COLOR = 0xfff4d6;
+const HOVER_OPACITY = 0.45;
+const HOVER_RENDER_ORDER = 5;
+// How much larger a hovered joint's bead is drawn: less than the selected
+// joint's SWEEP_EMPHASIS_SCALE, for the same reason the tint is pale.
+const SWEEP_HOVER_SCALE = 1.4;
 const DEFAULT_MARK_ROLE = "bound";
 // The bind leader (setBindLeader): drawn after the parts and the marks, and
 // its labels after its line. The label's text size is in CSS px; the
@@ -86,6 +100,24 @@ const SWEEP_GHOST_OPACITY = 0.12;
 // not be axis-aligned is this one. Measured on the mock run, which is exactly
 // that degenerate case.
 const SWEEP_VIEW_AXIS = new THREE.Vector3(0.62, -0.72, 0.31).normalize();
+
+// The model layer (handoff the_model_is_drawn_in_the_scene). Neutral lines,
+// so the accent stays selection's (docs/DESIGN_TYPE_AND_COLOUR.md); a dot's
+// colour says where its anchor came from (AA.MODEL_ANCHOR_SOURCES), and an
+// anchor with no geometry behind it is the warn colour, because it is a gap.
+const MODEL_COLORS = {
+  line: 0xaab3bf,
+  joint: 0xffc14d,
+  bound: 0x35c26e,
+  section: 0xdfe4ea,
+  origin: 0xff6b5b,
+  plane: 0x6ea8fe,
+  region: 0x6ea8fe,
+};
+const MODEL_NODE_RADIUS = 2;     // mm, half a joint bead
+const MODEL_RENDER_ORDER = 20;   // over the parts, the leader and the hover
+const MODEL_DIM_OPACITY = 0.22;
+const MODEL_PLANE_OPACITY = 0.08;
 
 // A 3x4 row-major placement (sweep.js's one layout) onto an object's local
 // matrix, in the ONE place that conversion happens in this app.
@@ -208,7 +240,13 @@ export class AnnotateScene {
       if (!at) return;
       const ndcX = ((at.x - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((at.y - rect.top) / rect.height) * 2 + 1;
-      this.onPick(this.pick(ndcX, ndcY));
+      // A model dot under the pointer is a node selected, and nothing else:
+      // the dots are drawn over the parts, so the click is the dot's.
+      const node = this.modelHit(ndcX, ndcY);
+      if (node) { this.onModelPick(node); return; }
+      // In sweep mode a bead under the pointer is handed over too: a click
+      // on a joint selects the joint (the rail's side of it is app.js's).
+      this.onPick(this.pick(ndcX, ndcY), this._sweep ? this.sweepHover(ndcX, ndcY) : null);
     });
     canvas.addEventListener("pointercancel", (ev) => {
       pointersDown.delete(ev.pointerId);
@@ -216,7 +254,9 @@ export class AnnotateScene {
     });
 
     // Overridable by the app: called with {sha256, faceId, record,
-    // occurrence} on a successful pick, null on a miss into empty space.
+    // occurrence, key} on a successful pick, null on a miss into empty
+    // space -- and, in sweep mode, with the joint bead under the pointer
+    // (sweepHover's answer, or null) as the second argument.
     this.onPick = function () {};
 
     // Overridable by the app: where a part sits in the assembly, as a list
@@ -236,15 +276,38 @@ export class AnnotateScene {
     // over 1.4 million triangles of anchored assembly, at pointer rate, is the
     // one thing that would make this mode feel slow.
     this.onSweepHover = function () {};
+    // ...and, in sweep mode, the PART under a pointer that has come to rest
+    // (handoff the_rail_and_the_scene_point_at_each_other: hovering a mesh
+    // emphasises its rail row). The parts raycast is the expensive one the
+    // note above keeps off the pointer rate, so it runs once per settle --
+    // PART_HOVER_SETTLE_MS after the last move -- and never during a drag.
+    this.onPartHover = function () {};
+    // ...and after every frame drawn with the model layer up (see animate),
+    // and with the node id of a model dot that was clicked.
+    this.onModelRendered = function () {};
+    this.onModelPick = function () {};
+    this._partHoverTimer = null;
     this.renderer.domElement.addEventListener("pointermove", (ev) => {
       if (!this._sweep) return;
       const rect = this.renderer.domElement.getBoundingClientRect();
       const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
       this.onSweepHover(this.sweepHover(ndcX, ndcY), ev);
+      if (this._partHoverTimer) clearTimeout(this._partHoverTimer);
+      this._partHoverTimer = null;
+      if (ev.buttons) return;
+      this._partHoverTimer = setTimeout(() => {
+        this._partHoverTimer = null;
+        if (this._sweep) this.onPartHover(this.pick(ndcX, ndcY));
+      }, AnnotateScene.PART_HOVER_SETTLE_MS);
     });
     this.renderer.domElement.addEventListener("pointerleave", () => {
-      if (this._sweep) this.onSweepHover(null, null);
+      if (this._partHoverTimer) clearTimeout(this._partHoverTimer);
+      this._partHoverTimer = null;
+      if (this._sweep) {
+        this.onSweepHover(null, null);
+        this.onPartHover(null);
+      }
     });
 
     // The canvas follows its host box. Until 2026-09-21 the renderer was sized
@@ -276,14 +339,30 @@ export class AnnotateScene {
       if (!this.dirty) return;
       this.dirty = false;
       this._layoutLeader();
+      if (this._model && this._model.selection && this._model.selection.labelSprite) {
+        this._sizeLabel(this._model.selection.labelSprite);
+      }
       this.renderer.render(this.scene, this.camera);
       this.renderCount++;
+      // After every drawn frame -- so a camera move or a sweep frame -- the
+      // app may read where the model's anchors landed (the embedded scene
+      // posts them to the shell). Once per animation frame at most, which is
+      // the debounce the shell's leaders want.
+      if (this._model) this.onModelRendered();
     };
     animate();
   }
 
   // The single way in: something drawn has changed, draw the next frame.
   requestRender() { this.dirty = true; }
+
+  // The clear colour, as a CSS colour: embedded, the page beside the scene
+  // lends its own background so the two read as one surface (app.js's
+  // adoptEmbedderBackground).
+  setBackground(css) {
+    this.scene.background = new THREE.Color(css);
+    this.requestRender();
+  }
 
   // Re-sizes the drawing buffer and the projection to the host's current box.
   // A zero dimension (a hidden host) is ignored rather than clamped: three.js
@@ -371,6 +450,18 @@ export class AnnotateScene {
       // sweep has put in its place for now (null: nothing).
       rest: null,
       override: null,
+      // The recorded occurrence KEY of each placement above, index for
+      // index (null where the caller named none) -- how one occurrence is
+      // addressed for visibility and hover, whichever list is being drawn.
+      restKeys: null,
+      overrideKeys: null,
+      // The part's own show/hide (`setVisible`), and the occurrences hidden
+      // on their own (`setOccurrencesVisible`), kept apart so neither undoes
+      // the other: a node is drawn when the part is shown AND its key is not
+      // hidden.
+      shown: true,
+      hiddenKeys: new Set(),
+      key: null,
     };
     // Placed BEFORE it joins the scene: the side-by-side row this replaced
     // put every part somewhere first and nowhere meaningful, and a part that
@@ -378,7 +469,12 @@ export class AnnotateScene {
     // defect for one frame.
     let rest = null;
     try { rest = await this.placementsFor(sha256); } catch (err) { rest = null; }
+    // A list of placements, or {placements, keys} naming each one's
+    // recorded occurrence.
+    const restKeys = rest && !Array.isArray(rest) ? rest.keys || null : null;
+    if (rest && !Array.isArray(rest)) rest = rest.placements;
     mesh.userData.rest = rest && rest.length ? rest : null;
+    mesh.userData.restKeys = mesh.userData.rest ? restKeys : null;
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
     this._drawAt(sha256);
@@ -398,6 +494,7 @@ export class AnnotateScene {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;
     this._disposeMarks((m) => m.sha256 === sha256);
+    this._disposeHoverOf(sha256);
     for (const repeat of this._repeats.get(sha256) || []) this.scene.remove(repeat);
     this._repeats.delete(sha256);
     this.scene.remove(mesh);
@@ -414,13 +511,57 @@ export class AnnotateScene {
   // no removal, no geometry disposal, so a re-`show` is instant. A part's
   // bound-face marks follow its visibility for free -- they are children of
   // the occurrence they sit on -- and so does every repeat, here.
+  //
+  // The PART's flag. One occurrence on its own is setOccurrencesVisible's,
+  // and the two are kept apart (see `shown` / `hiddenKeys` in loadPart), so
+  // showing a part never re-shows an occurrence a body checkbox hid.
   setVisible(sha256, visible) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
-    mesh.visible = !!visible;
-    for (const repeat of this._repeats.get(sha256) || []) repeat.visible = mesh.visible;
+    if (mesh.userData.shown === !!visible) return true;
+    mesh.userData.shown = !!visible;
+    this._applyVisibility(sha256);
     this.requestRender();
     return true;
+  }
+
+  // Hide or show SOME occurrences of a part, by their recorded keys (handoff
+  // the_rail_and_the_scene_point_at_each_other, deliverable 3): a body's
+  // checkbox hides the one pitch arm blade 1 carries and leaves the four the
+  // run does not move. A key this part is not drawn at is remembered anyway,
+  // so it applies the moment a sweep or a rest list draws it.
+  setOccurrencesVisible(sha256, keys, visible) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return false;
+    for (const key of keys || []) {
+      if (visible) mesh.userData.hiddenKeys.delete(key);
+      else mesh.userData.hiddenKeys.add(key);
+    }
+    this._applyVisibility(sha256);
+    this.requestRender();
+    return true;
+  }
+
+  // Is this occurrence drawn? The part shown and the key not hidden.
+  isOccurrenceVisible(sha256, key) {
+    const mesh = this.parts.get(sha256);
+    return !!mesh && mesh.userData.shown && !mesh.userData.hiddenKeys.has(key);
+  }
+
+  // Every drawn node's key, in draw order -- the read side a test uses to
+  // see which occurrence is which rather than trust it.
+  drawnOccurrenceKeys(sha256) {
+    return this._occurrenceNodes(sha256).map((node) => node.userData.key);
+  }
+
+  _applyVisibility(sha256) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return;
+    const shown = mesh.userData.shown;
+    const hidden = mesh.userData.hiddenKeys;
+    for (const node of this._occurrenceNodes(sha256)) {
+      node.visible = shown && !(node.userData.key != null && hidden.has(node.userData.key));
+    }
   }
 
   // --- where a part is drawn (handoff parts_sit_where_the_assembly_puts_them)
@@ -434,11 +575,12 @@ export class AnnotateScene {
 
   // Where the assembly puts a part, replacing whatever was recorded before.
   // null is "nothing records a position": its own origin.
-  setRestPlacements(sha256, placements) {
+  setRestPlacements(sha256, placements, keys) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
     const list = normalisePlacements(placements);
     mesh.userData.rest = list;
+    mesh.userData.restKeys = list ? keys || null : null;
     this._drawAt(sha256);
     return true;
   }
@@ -460,8 +602,12 @@ export class AnnotateScene {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;
     const list = mesh.userData.override || mesh.userData.rest || [OWN_ORIGIN];
+    const keys = (mesh.userData.override ? mesh.userData.overrideKeys
+      : (mesh.userData.rest ? mesh.userData.restKeys : null)) || [];
     applyPlacement4(mesh, list[0]);
-    this._setRepeats(sha256, mesh, list.slice(1));
+    mesh.userData.key = keys[0] == null ? null : keys[0];
+    this._setRepeats(sha256, mesh, list.slice(1), keys.slice(1));
+    this._applyVisibility(sha256);
     this.requestRender();
   }
 
@@ -469,7 +615,7 @@ export class AnnotateScene {
   // rather than rebuilt from it: a playing sweep calls this sixty times a
   // second, and allocating a THREE.Mesh per frame is the one thing here that
   // would show up as a frame rate.
-  _setRepeats(sha256, mesh, placements) {
+  _setRepeats(sha256, mesh, placements, keys) {
     const mine = this._repeats.get(sha256) || [];
     const before = mine.length;
     while (mine.length > placements.length) {
@@ -492,11 +638,14 @@ export class AnnotateScene {
       mine.push(repeat);
     }
     placements.forEach((placement, i) => {
-      mine[i].visible = mesh.visible;
+      mine[i].userData.key = keys && keys[i] != null ? keys[i] : null;
       applyPlacement4(mine[i], placement);
     });
     this._repeats.set(sha256, mine);
-    if (mine.length !== before) this._syncMarks(sha256);
+    if (mine.length !== before) {
+      this._syncMarks(sha256);
+      this._syncHover(sha256);
+    }
   }
 
   // Ghost rendering (handoff study_3d_flyout): the whole part goes translucent
@@ -605,7 +754,7 @@ export class AnnotateScene {
 
   isVisible(sha256) {
     const mesh = this.parts.get(sha256);
-    return !!(mesh && mesh.visible);
+    return !!(mesh && mesh.userData.shown);
   }
 
   listOpenParts() {
@@ -673,9 +822,11 @@ export class AnnotateScene {
     // never its `.visible`, so a hidden part used to be pickable -- harmless
     // while parts sat in a row, and not now: hidden or not, a part drawn in
     // the assembly sits in front of the one a reader is aiming at.
+    // One occurrence hidden on its own (a body's checkbox) is not pickable
+    // either, so the node's own flag is the test.
     const meshes = [];
-    for (const [sha256, mesh] of this.parts) {
-      if (mesh.visible) meshes.push(...this._occurrenceNodes(sha256));
+    for (const [sha256] of this.parts) {
+      for (const node of this._occurrenceNodes(sha256)) if (node.visible) meshes.push(node);
     }
     const hits = this.raycaster.intersectObjects(meshes, false);
     if (!hits.length) return null;
@@ -686,6 +837,9 @@ export class AnnotateScene {
       faceId,
       record: hit.object.userData.manifest.faces[faceId],
       occurrence: hit.object.userData.occurrence || 0,
+      // The recorded occurrence it landed on (null where none is named):
+      // how a pick finds its body in the sweep rail.
+      key: hit.object.userData.key == null ? null : hit.object.userData.key,
     };
   }
 
@@ -767,6 +921,128 @@ export class AnnotateScene {
     attr.needsUpdate = true;
     this._lastPick = { sha256, faceId };
     this.requestRender();
+  }
+
+  // --- hover (handoff the_rail_and_the_scene_point_at_each_other) ------------
+  //
+  // What a sweep-rail row lights while the pointer rests on it, in ONE tint
+  // (HOVER_COLOR), as overlays: a whole part at the occurrences named, a
+  // face on every occurrence of its part (a binding is part-local), and a
+  // joint's bead a little larger. `spec` is {occurrences: [{sha256, key}],
+  // faces: [{sha256, faceId}], joint}; a key of null is every occurrence of
+  // that part. Replaces whatever was hovered; `clearHover()` takes it all
+  // down. Never touches the colour buffer, so the pick and an inspected
+  // contributor keep their tint through any number of hovers.
+  setHover(spec) {
+    this._disposeHover();
+    const s = spec || {};
+    this._hover = {
+      occurrences: (s.occurrences || []).slice(),
+      faces: (s.faces || []).slice(),
+      joint: s.joint || null,
+      meshes: [],
+      geometries: [],
+    };
+    if (!this._hoverMaterial) {
+      this._hoverMaterial = new THREE.MeshBasicMaterial({
+        color: HOVER_COLOR, transparent: true, opacity: HOVER_OPACITY,
+        depthWrite: false, side: THREE.DoubleSide,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      });
+    }
+    for (const sha of new Set(this._hover.occurrences.map((o) => o.sha256)
+      .concat(this._hover.faces.map((f) => f.sha256)))) this._syncHover(sha);
+    if (this._sweep) {
+      this._sweep.hoverJoint = this._hover.joint;
+      this.setSweepEmphasis(this._sweep.emphasis || null);
+    }
+    this.requestRender();
+    return this.hoverState();
+  }
+
+  clearHover() { return this.setHover(null); }
+
+  // What is hovered right now, as counts of what is DRAWN for it: a harness
+  // reads this rather than trusting that a row's mouseenter reached here.
+  hoverState() {
+    const h = this._hover;
+    if (!h) return { occurrences: 0, faces: 0, joint: null, overlays: 0, keys: [] };
+    return {
+      occurrences: h.occurrences.length,
+      faces: h.faces.length,
+      joint: h.joint,
+      overlays: h.meshes.filter((m) => m.parent).length,
+      keys: h.meshes.filter((m) => m.parent && m.userData.hoverKind === "part")
+        .map((m) => ({ sha256: m.userData.sha256, key: m.parent.userData.key })),
+    };
+  }
+
+  // One part's hover overlays, rebuilt: called by setHover and whenever the
+  // part's occurrence COUNT changes (_setRepeats), never per frame -- an
+  // overlay is a child of its occurrence and moves with it.
+  _syncHover(sha256) {
+    const h = this._hover;
+    if (!h) return;
+    const mesh = this.parts.get(sha256);
+    for (const old of h.meshes.filter((m) => m.userData.sha256 === sha256)) {
+      if (old.parent) old.parent.remove(old);
+    }
+    h.meshes = h.meshes.filter((m) => m.userData.sha256 !== sha256);
+    if (!mesh) return;
+    const nodes = this._occurrenceNodes(sha256);
+    const wanted = h.occurrences.filter((o) => o.sha256 === sha256);
+    for (const node of nodes) {
+      const lit = wanted.some((o) => o.key == null || o.key === node.userData.key);
+      if (!lit) continue;
+      const overlay = new THREE.Mesh(mesh.geometry, this._hoverMaterial);
+      overlay.renderOrder = HOVER_RENDER_ORDER;
+      overlay.userData = { sha256, hoverKind: "part" };
+      node.add(overlay);
+      h.meshes.push(overlay);
+    }
+    const AA = window.AnnotateApp;
+    for (const face of h.faces.filter((f) => f.sha256 === sha256)) {
+      const range = mesh.userData.faceRanges[face.faceId];
+      if (!range) continue;
+      const sub = AA.faceSubGeometry(mesh.geometry.attributes.position.array,
+        mesh.geometry.index.array, mesh.userData.faceIdPerTriangle, range, face.faceId);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(
+        sub.positions instanceof Float32Array ? sub.positions : new Float32Array(sub.positions), 3));
+      geometry.setIndex(sub.indices);
+      h.geometries.push(geometry);
+      for (const node of nodes) {
+        const overlay = new THREE.Mesh(geometry, this._hoverMaterial);
+        overlay.renderOrder = HOVER_RENDER_ORDER + 1;
+        overlay.userData = { sha256, hoverKind: "face" };
+        node.add(overlay);
+        h.meshes.push(overlay);
+      }
+    }
+  }
+
+  _disposeHover() {
+    const h = this._hover;
+    if (!h) return;
+    for (const m of h.meshes) if (m.parent) m.parent.remove(m);
+    for (const g of h.geometries) g.dispose();
+    this._hover = null;
+    if (this._sweep && this._sweep.hoverJoint) {
+      this._sweep.hoverJoint = null;
+      this.setSweepEmphasis(this._sweep.emphasis || null);
+    }
+  }
+
+  // A part leaving the scene takes its share of the hover with it.
+  _disposeHoverOf(sha256) {
+    const h = this._hover;
+    if (!h) return;
+    h.occurrences = h.occurrences.filter((o) => o.sha256 !== sha256);
+    h.faces = h.faces.filter((f) => f.sha256 !== sha256);
+    for (const m of h.meshes.filter((x) => x.userData.sha256 === sha256)) {
+      if (m.parent) m.parent.remove(m);
+    }
+    h.meshes = h.meshes.filter((x) => x.userData.sha256 !== sha256);
   }
 
   // --- the bind leader -------------------------------------------------------
@@ -867,7 +1143,7 @@ export class AnnotateScene {
   // is hidden, or a face the manifest has no centroid for.
   _drawnCentroid(sha256, faceId) {
     const mesh = this.parts.get(sha256);
-    if (!mesh || !mesh.visible) return null;
+    if (!mesh || !mesh.userData.shown) return null;
     const record = mesh.userData.manifest.faces[faceId];
     const c = record && record.centroid_native;
     if (!c) return null;
@@ -905,6 +1181,324 @@ export class AnnotateScene {
     sprite.renderOrder = LEADER_RENDER_ORDER + 1;
     sprite.userData.label = text;
     return sprite;
+  }
+
+  // --- the model layer -----------------------------------------------------
+  //
+  // The topology drawn on its parts (handoff the_model_is_drawn_in_the_scene):
+  // a dot at every node's anchor and a line along every edge. Which point each
+  // anchor is, and which body it rides, is model_layer.js's; this draws it.
+  //
+  // A structural line whose two ends ride one body is drawn IN that body's
+  // group, at its as-modelled points, and the group carries the body's pose
+  // -- so it rides the sweep with the body the way the body's mesh does. A
+  // joint line (between two bodies) and every dot that is the solver's own
+  // joint point live in world and are re-placed every frame.
+  //
+  // Lines and dots draw over the parts (depthTest off): the parts are what
+  // the graph is read against, and a line hidden inside the hub it describes
+  // is a line nobody reads.
+
+  // `model` is {nodes: {id: {source, subject, point, exported}}, lines: {id:
+  // {from, to, body}}}, or null to take the layer down.
+  setModel(model) {
+    this._disposeModel();
+    this.requestRender();
+    if (!model) return false;
+    const root = new THREE.Group();
+    root.visible = this._modelVisible !== false;
+    const groups = new Map();
+    const groupOf = (body) => {
+      if (body === null) return root;
+      if (!groups.has(body)) {
+        const g = new THREE.Group();
+        g.matrixAutoUpdate = false;
+        root.add(g);
+        groups.set(body, g);
+      }
+      return groups.get(body);
+    };
+    const dotGeometry = new THREE.SphereGeometry(MODEL_NODE_RADIUS, 12, 8);
+    const dots = new Map();
+    for (const [id, node] of Object.entries(model.nodes)) {
+      const material = new THREE.MeshBasicMaterial({
+        color: MODEL_COLORS[node.source] || MODEL_COLORS.line,
+        depthTest: false, transparent: true,
+      });
+      const dot = new THREE.Mesh(dotGeometry, material);
+      dot.renderOrder = MODEL_RENDER_ORDER + 1;
+      // A world dot is re-placed per frame; a body dot sits at its
+      // as-modelled point inside its body's group.
+      const inBody = node.source !== "joint";
+      dot.userData = { modelNode: id, inBody, exported: !!node.exported, source: node.source };
+      if (inBody) dot.position.fromArray(node.point);
+      groupOf(inBody ? (node.subject || "") : null).add(dot);
+      dots.set(id, dot);
+    }
+    const lines = new Map();
+    for (const [id, line] of Object.entries(model.lines)) {
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(6);
+      if (line.body !== null) {
+        positions.set(model.nodes[line.from].point, 0);
+        positions.set(model.nodes[line.to].point, 3);
+      }
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+        color: MODEL_COLORS.line, depthTest: false, transparent: true,
+      }));
+      object.renderOrder = MODEL_RENDER_ORDER;
+      // Its ends move every frame, so the bounding sphere three.js computed
+      // once would cull it against where it used to be.
+      object.frustumCulled = false;
+      object.userData = { modelEdge: id, from: line.from, to: line.to, inBody: line.body !== null };
+      groupOf(line.body).add(object);
+      lines.set(id, object);
+    }
+    this.scene.add(root);
+    this._model = { root, groups, dots, lines, dotGeometry, selection: null, strengths: {} };
+    return true;
+  }
+
+  // One frame: {world: {node id: [x,y,z] | null}, subjects: {body: 3x4}}.
+  setModelFrame(frame) {
+    const model = this._model;
+    if (!model) return false;
+    this.requestRender();
+    for (const [body, group] of model.groups) {
+      const placement = frame.subjects && frame.subjects[body];
+      applyPlacement4(group, placement || OWN_ORIGIN);
+    }
+    for (const [id, dot] of model.dots) {
+      if (dot.userData.inBody) continue;
+      const p = frame.world[id];
+      dot.userData.live = !!p;
+      if (p) dot.position.fromArray(p);
+    }
+    for (const [, line] of model.lines) {
+      if (line.userData.inBody) continue;
+      const a = frame.world[line.userData.from], b = frame.world[line.userData.to];
+      line.userData.live = !!(a && b);
+      if (!line.userData.live) continue;
+      const attr = line.geometry.attributes.position;
+      attr.array.set(a, 0);
+      attr.array.set(b, 3);
+      attr.needsUpdate = true;
+    }
+    this._applyModelStyle();
+    return true;
+  }
+
+  // {strengths: {edge id: "full"|"dim"|"hidden"}, nodes: {id: true} | null
+  // (the lit nodes; null is every node), hideUnlit, emphasis: edge id | null}.
+  setModelStyle(style) {
+    const model = this._model;
+    if (!model) return false;
+    model.strengths = style.strengths || {};
+    model.litNodes = style.nodes || null;
+    model.emphasis = style.emphasis || null;
+    model.hideUnlit = !!style.hideUnlit;
+    this._applyModelStyle();
+    this.requestRender();
+    return true;
+  }
+
+  _applyModelStyle() {
+    const model = this._model;
+    if (!model) return;
+    const emphasisNodes = new Set();
+    for (const [id, line] of model.lines) {
+      const strength = model.strengths[id] || "full";
+      const live = line.userData.inBody || line.userData.live;
+      line.visible = !!live && strength !== "hidden";
+      const on = id === model.emphasis;
+      if (on) { emphasisNodes.add(line.userData.from); emphasisNodes.add(line.userData.to); }
+      if (on) line.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
+      else line.material.color.setHex(MODEL_COLORS.line);
+      line.material.opacity = strength === "dim" && !on ? MODEL_DIM_OPACITY : 1;
+    }
+    const selected = model.selection && model.selection.node;
+    for (const [id, dot] of model.dots) {
+      const live = dot.userData.inBody || dot.userData.live;
+      const lit = !model.litNodes || model.litNodes[id];
+      // An unlit node goes with its lines when the rest of the model is hidden.
+      const hidden = !lit && model.hideUnlit && !emphasisNodes.has(id);
+      dot.visible = !!live && !hidden;
+      dot.material.opacity = lit || emphasisNodes.has(id) ? 1 : MODEL_DIM_OPACITY;
+      const on = id === selected || emphasisNodes.has(id);
+      dot.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);
+      if (id === selected) dot.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
+      else dot.material.color.setHex(MODEL_COLORS[dot.userData.source] || MODEL_COLORS.line);
+    }
+  }
+
+  setModelVisible(on) {
+    this._modelVisible = !!on;
+    if (this._model) this._model.root.visible = !!on;
+    this.requestRender();
+    return true;
+  }
+
+  // What a selection shows, faintly: the section plane and the cut region a
+  // section anchor was taken from, in the body's frame (so they ride with
+  // it), and -- for a selected body -- its name at its anchor.
+  // {node?, body?, subject, plane?: {normalAxis, at, bounds: [[lo, hi] per
+  // axis]}, region?: flat segment list, label?: {text, at}} or null.
+  setModelSelection(selection) {
+    const model = this._model;
+    if (!model) return false;
+    this.requestRender();
+    if (model.selection && model.selection.group) {
+      const old = model.selection.group;
+      old.parent.remove(old);
+      old.traverse((n) => {
+        if (n.geometry) n.geometry.dispose();
+        if (n.material) { if (n.material.map) n.material.map.dispose(); n.material.dispose(); }
+      });
+    }
+    model.selection = selection ? { node: selection.node || null, body: selection.body || null } : null;
+    if (selection && (selection.plane || selection.region || selection.label)) {
+      const group = new THREE.Group();
+      const parent = model.groups.get(selection.subject || "") || model.root;
+      if (selection.plane) {
+        const { normalAxis, at, bounds } = selection.plane;
+        const axes = [0, 1, 2].filter((a) => a !== normalAxis);
+        const corners = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([i, j]) => {
+          const p = [0, 0, 0];
+          p[normalAxis] = at;
+          p[axes[0]] = bounds[axes[0]][i];
+          p[axes[1]] = bounds[axes[1]][j];
+          return p;
+        });
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(
+          [0, 1, 2, 0, 2, 3].flatMap((k) => corners[k])), 3));
+        const quad = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+          color: MODEL_COLORS.plane, transparent: true, opacity: MODEL_PLANE_OPACITY,
+          side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+        }));
+        quad.renderOrder = MODEL_RENDER_ORDER - 1;
+        quad.userData.modelPlane = true;
+        group.add(quad);
+      }
+      if (selection.region && selection.region.length) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position",
+          new THREE.BufferAttribute(new Float32Array(selection.region), 3));
+        const outline = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
+          color: MODEL_COLORS.region, depthTest: false, transparent: true, opacity: 0.8,
+        }));
+        outline.renderOrder = MODEL_RENDER_ORDER;
+        outline.frustumCulled = false;
+        outline.userData.modelRegion = true;
+        group.add(outline);
+      }
+      if (selection.label) {
+        const sprite = this._leaderLabel(selection.label.text,
+          new THREE.Vector3().fromArray(selection.label.at));
+        if (sprite) {
+          sprite.center.set(0, 0);
+          sprite.userData.modelLabel = selection.label.text;
+          group.add(sprite);
+          model.selection.labelSprite = sprite;
+          this._sizeLabel(sprite);
+        }
+      }
+      parent.add(group);
+      model.selection.group = group;
+    }
+    this._applyModelStyle();
+    return true;
+  }
+
+  // The read side, for a test: what is drawn, where, and how strongly.
+  modelState() {
+    const model = this._model;
+    if (!model) return null;
+    this.scene.updateMatrixWorld();
+    const world = (o) => o.getWorldPosition(new THREE.Vector3()).toArray();
+    const nodes = {};
+    for (const [id, dot] of model.dots) {
+      nodes[id] = { at: world(dot), visible: dot.visible, opacity: dot.material.opacity,
+        source: dot.userData.source };
+    }
+    const lines = {};
+    for (const [id, line] of model.lines) {
+      const attr = line.geometry.attributes.position.array;
+      const a = new THREE.Vector3(attr[0], attr[1], attr[2]).applyMatrix4(line.matrixWorld);
+      const b = new THREE.Vector3(attr[3], attr[4], attr[5]).applyMatrix4(line.matrixWorld);
+      lines[id] = { ends: [a.toArray(), b.toArray()], raw: Array.from(attr),
+        inBody: line.userData.inBody, visible: line.visible, opacity: line.material.opacity,
+        color: line.material.color.getHexString() };
+    }
+    const sel = model.selection;
+    return {
+      visible: model.root.visible, nodes, lines,
+      selection: sel ? {
+        node: sel.node, body: sel.body,
+        plane: !!(sel.group && sel.group.children.some((c) => c.userData.modelPlane)),
+        region: !!(sel.group && sel.group.children.some((c) => c.userData.modelRegion)),
+        label: sel.labelSprite ? sel.labelSprite.userData.modelLabel : null,
+      } : null,
+    };
+  }
+
+  // The model node whose dot is under the pointer, or null. The dots only --
+  // a few dozen spheres, cheap at click rate.
+  modelHit(ndcX, ndcY) {
+    const model = this._model;
+    if (!model || !model.root.visible) return null;
+    const dots = Array.from(model.dots.values()).filter((d) => d.visible);
+    if (!dots.length) return null;
+    this.scene.updateMatrixWorld();
+    this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+    const hits = this.raycaster.intersectObjects(dots, false);
+    return hits.length ? hits[0].object.userData.modelNode : null;
+  }
+
+  // Every exported node's dot in CSS pixels of THIS PAGE's viewport -- the
+  // canvas's own offset added, because embedded the canvas sits under the
+  // bars, and the shell measures the iframe, not the canvas -- or null when
+  // it is behind the camera, outside the view, hidden, or has no anchor
+  // geometry.
+  modelScreenPoints() {
+    const model = this._model;
+    if (!model || !model.root.visible) return null;
+    this.scene.updateMatrixWorld();
+    this.camera.updateMatrixWorld();
+    const canvas = this.renderer.domElement;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    const out = {};
+    const v = new THREE.Vector3();
+    for (const [id, dot] of model.dots) {
+      if (!dot.userData.exported || !dot.visible) { out[id] = null; continue; }
+      dot.getWorldPosition(v).project(this.camera);
+      if (v.z < -1 || v.z > 1 || v.x < -1 || v.x > 1 || v.y < -1 || v.y > 1) { out[id] = null; continue; }
+      out[id] = [rect.left + (v.x + 1) / 2 * w, rect.top + (1 - v.y) / 2 * h];
+    }
+    return out;
+  }
+
+  // A screen-sized label's scale for the canvas as it is now -- the same
+  // arithmetic _layoutLeader applies to the bind leader's two labels.
+  _sizeLabel(sprite) {
+    const viewPx = this.renderer.domElement.clientHeight || LEADER_FALLBACK_VIEW_PX;
+    const full = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+    const height = full * sprite.userData.px / viewPx;
+    sprite.scale.set(height * sprite.userData.aspect, height, 1);
+  }
+
+  _disposeModel() {
+    const model = this._model;
+    if (!model) return;
+    this.scene.remove(model.root);
+    model.root.traverse((node) => {
+      if (node.geometry && node.geometry !== model.dotGeometry) node.geometry.dispose();
+      if (node.material) { if (node.material.map) node.material.map.dispose(); node.material.dispose(); }
+    });
+    model.dotGeometry.dispose();
+    this._model = null;
   }
 
   // --- sweep mode ----------------------------------------------------------
@@ -1032,7 +1626,8 @@ export class AnnotateScene {
     this.requestRender();
     for (const [name, bead] of this._sweep.joints) {
       const on = name === this._sweep.emphasis;
-      bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);
+      bead.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE
+        : (name === this._sweep.hoverJoint ? SWEEP_HOVER_SCALE : 1));
       if (on) bead.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
       else if (!this._sweep.warned) bead.material.color.copy(bead.userData.baseColor);
     }
@@ -1063,10 +1658,15 @@ export class AnnotateScene {
   // link carries two spherical bearings, one at each end, both the same
   // installed mesh -- and a pitch arm moved by the run at blade 1 still has
   // four more occurrences the run does not move.
-  setPartMatrix(sha256, placements) {
+  //
+  // `keys` names each placement's recorded occurrence, index for index, so
+  // an occurrence hidden or hovered by its key stays that one occurrence
+  // whichever list is drawn.
+  setPartMatrix(sha256, placements, keys) {
     const mesh = this.parts.get(sha256);
     if (!mesh || !this._sweep) return false;
     mesh.userData.override = normalisePlacements(placements);
+    mesh.userData.overrideKeys = mesh.userData.override ? keys || null : null;
     this._drawAt(sha256);
     this.requestRender();
     return true;
@@ -1190,6 +1790,11 @@ export class AnnotateScene {
   //: real P1 run.
   static get SWEEP_CONTEXT_RATIO() { return 6; }
 
+  // How long the pointer rests on the canvas before the parts under it are
+  // raycast for the rail's row emphasis (onPartHover). Long enough that a
+  // pointer crossing the view costs nothing; short enough to read as hover.
+  static get PART_HOVER_SETTLE_MS() { return 120; }
+
   // Frames the camera on the swept path TOGETHER WITH the bodies anchored
   // around it, which is not the same as either on its own: the path alone put
   // the camera inside the hub, and the parts alone move out of any box drawn
@@ -1209,8 +1814,8 @@ export class AnnotateScene {
     // are what the mechanism is read against. One OCCURRENCE at a time, so
     // a part repeated round the hub does not inflate into a hub-sized box.
     for (const [sha256, mesh] of this.parts) {
-      if (!mesh.visible) continue;
       for (const node of this._occurrenceNodes(sha256)) {
+        if (!node.visible) continue;
         const partBox = mesh.geometry.boundingBox.clone().applyMatrix4(node.matrix);
         const size = partBox.getSize(new THREE.Vector3());
         if (Math.max(size.x, size.y, size.z) > limit) continue;

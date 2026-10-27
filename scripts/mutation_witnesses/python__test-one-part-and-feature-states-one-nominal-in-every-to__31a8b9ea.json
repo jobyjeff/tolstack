@@ -6,18 +6,18 @@
     {
       "contract": "One part+edge states one nominal in every topology that states it -- a rigid link's length may not differ between two topology documents.",
       "issue": "docs/issues/ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md",
-      "note": "The `properties` half: replays the real defect (pitch_system's link length 3.4 mm off vpa_pitch_linkage's). Paired with the `dimension` half below because _edge_nominal_statements builds its list from two independent branches.",
-      "file": "docs/topologies/topology_pitch_system.json",
-      "find": "\"nominal_length_mm\": 105.9908,",
-      "replace": "\"nominal_length_mm\": 109.4,"
+      "note": "The `properties` half. Until 2026-10-26 this replayed the real defect in the data (pitch_system's link length 3.4 mm off vpa_pitch_linkage's); the fold made the two one edge of one document, so no committed pair is left to break. The guard now rebuilds that pair in memory, and this mutation blinds _edge_nominal_statements to `properties` -- the reader that defect slipped past.",
+      "file": "tests/test_tolerance_stack.py",
+      "find": "        for key in EDGE_NOMINAL_PROPERTY_KEYS\n",
+      "replace": "        for key in ()\n"
     },
     {
       "contract": "One part+edge states one nominal in every topology that states it -- a rigid link's length may not differ between two topology documents.",
       "issue": "docs/issues/ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md",
-      "note": "The `dimension` half: the same pair broken from the other document, so a witness on only one branch of _edge_nominal_statements cannot pass for both.",
-      "file": "docs/topologies/topology_vpa_pitch_linkage.json",
-      "find": "\"nominal\": 105.9908,",
-      "replace": "\"nominal\": 106.9908,"
+      "note": "The `dimension` half: the same helper blinded to `dimension.nominal`, so a witness on only one branch of _edge_nominal_statements cannot pass for both.",
+      "file": "tests/test_tolerance_stack.py",
+      "find": "    if edge.dimension is not None and edge.dimension.nominal != 0.0:\n",
+      "replace": "    if False:\n"
     }
   ]
 }

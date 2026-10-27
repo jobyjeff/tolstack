@@ -57,13 +57,11 @@ TOPOLOGY_DIR = REPO_ROOT / "docs" / "topologies"
 PITCH_LINK_PART_NAMES = {
     "bolt_nas6403u11d": "NAS6403U11D hex-head bolt",
     "bushing_214820_002": "214820-002 plain bushing",
-    "spherical_bearing_pitch_link": "pitch-link spherical bearing (unconfirmed)",
+    "spherical_bearing_pitch_link": "pitch-link spherical bearing",
     "flanged_bushing_nas77a3_015a": "NAS77A3-015A flanged bushing",
-    # Id and name disagree on the part number on purpose, since 2026-09-16:
-    # the citation moved to the released plate 215735 and the id did not,
-    # because it is a deep link and an annotate key
-    # (docs/strategy/BRIEF_20260916_link_name_authority.md).
-    "pitch_plate_215197": "215735 pitch plate",
+    # The plate's own part id (and its 2026-09-16 name/id disagreement, see
+    # docs/strategy/BRIEF_20260916_link_name_authority.md) folded into the
+    # model's `pitch_plate_215177_001` on 2026-10-27.
     "washer_nas1149v0332h": "NAS1149V0332H flat washer",
 }
 
@@ -98,7 +96,7 @@ MAX_PART_NAME_CHARS = 44
 def topology_documents():
     paths = sorted(TOPOLOGY_DIR.glob("topology_*.json"))
     # A scan that silently finds nothing passes against anything.
-    assert len(paths) == 6, f"expected six topologies, found {len(paths)}"
+    assert len(paths) == 1, f"expected the one product topology, found {len(paths)}"
     return [(p.relative_to(REPO_ROOT).as_posix(),
              json.loads(p.read_text(encoding="utf-8"))) for p in paths]
 
@@ -142,10 +140,10 @@ def test_a_rendered_string_is_written_for_a_reader(where, field, text):
 
 def test_the_four_pitch_link_parts_read_as_human_names():
     """Jeff's own example, on the document he was reading."""
-    path = TOPOLOGY_DIR / "topology_pitch_link_to_pitch_plate.json"
+    path = TOPOLOGY_DIR / "topology_vpa_pitch_linkage.json"
     parts = {p["id"]: p for p in json.loads(path.read_text(encoding="utf-8"))["parts"]}
-    assert set(parts) == set(PITCH_LINK_PART_NAMES), (
-        "the pitch-link topology's parts changed; update PITCH_LINK_PART_NAMES "
+    assert set(PITCH_LINK_PART_NAMES) <= set(parts), (
+        "the pitch-link grip parts changed; update PITCH_LINK_PART_NAMES "
         "and check the grid still reads like Jeff's example"
     )
     for part_id, expected in PITCH_LINK_PART_NAMES.items():

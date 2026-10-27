@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic page's lit set dims the rest of the walk, and hidden draws only the lit part",
+  "mutations": [
+    {
+      "contract": "With the unlit part hidden, the pane draws only the lit part of the walk.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Ignores the hide preference: the unlit walk stays drawn, dimmed.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var hiding = marking && ctx.unlitStyle === \"hide\";",
+      "replace": "    var hiding = false;"
+    }
+  ]
+}

@@ -93,8 +93,9 @@ scripts/
                                DOM scraping. Added 2026-09-04; stdlib only.
   build_kinematic_projection.py the kinematic studies' projection: the
                                envelope over the sweep, the ranked contributor
-                               table per stop, the stop checks, and per topology
-                               its published runs ->
+                               table per stop, per contributor its coefficient
+                               across the sweep, a gap row's drawings, the stop
+                               checks, and per topology its published runs ->
                                data/projections/viewer/kinematic/ (moved there
                                2026-10-20, the directory the viewer is served
                                from; apps/viewer/views/kinematic.js reads it),
@@ -459,6 +460,11 @@ positive `coefficient` (default `1.0`), the effective weight is
 primitive. Every stack authored before it folds to the same numbers; the seeded
 three re-derive against the 260729 workbook with a largest delta of 6.4e-15,
 unchanged.
+
+A kinematic study's `study_ref` contributor (a chain study entering another
+study's fold) adds **terms, not a combiner**: each of the sub-study's signed
+terms becomes one `Term` whose coefficient is the parent's Jacobian entry times
+the term's own, and the sub-study's folded interval is never an input.
 
 Two consequences worth knowing:
 

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] clicking a contributor row with the pane open keeps the page on the study and the annotator in sweep mode, the edge highlighted",
+  "mutations": [
+    {
+      "contract": "On a kinematic page a selection is a highlight, never a goto.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Asks the pane for the edge's goto when one is selected, which takes the scene out of the sweep.",
+      "file": "apps/viewer/viewer.js",
+      "find": "      return run ? { topologyId: study.topology, sweep: run, kinematicId: study.id } : null;",
+      "replace": "      return view.selection && view.selection.kind === \"edge\" ? { topologyId: study.topology, edgeId: view.selection.id } : run ? { topologyId: study.topology, sweep: run, kinematicId: study.id } : null;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a coefficient's curve across the sweep is the signed coefficient against the driver, with zero and the stops marked",
+  "mutations": [
+    {
+      "contract": "The curve plots sign x coefficient, so a sign change crosses zero.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Plots the unsigned coefficient: the mount height's sign change would vanish from the picture.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      return { d: driverAt(p), v: p.sign < 0 ? -p.coefficient : p.coefficient };",
+      "replace": "      return { d: driverAt(p), v: p.coefficient };"
+    }
+  ]
+}

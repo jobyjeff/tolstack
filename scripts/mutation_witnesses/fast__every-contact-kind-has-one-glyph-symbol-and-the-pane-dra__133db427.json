@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every contact kind has one glyph symbol, and the pane draws a gap edge's glyph on its bar in the bar's own colour",
+  "mutations": [
+    {
+      "contract": "A gap edge's glyph wears the bar's confidence colour.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Draws every glyph in the neutral stroke.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "          (edge ? VA.confidenceClass(edge.confidence) : \"\") +",
+      "replace": "          \"\" +"
+    },
+    {
+      "contract": "The glyph selects its own edge.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Leaves the glyph unwired.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "          wire(use, ctx, \"edge\", mark.id);\n          svg.appendChild(use);",
+      "replace": "          svg.appendChild(use);"
+    }
+  ]
+}

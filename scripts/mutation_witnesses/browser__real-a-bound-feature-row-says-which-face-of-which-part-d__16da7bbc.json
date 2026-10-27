@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "expect_red": "[real] a bound feature row says which face of which part defines it, and an unbound one says none is bound",
+  "mutations": [
+    {
+      "contract": "A feature row names its bound face.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Saying none is bound for every row is the pre-handoff state, in words.",
+      "file": "apps/annotate/app.js",
+      "find": "  const faceWords = faces.length ? faces.map((f) => f.text).join(\", \") : AA.BOUND_FACE_WORDS.none;",
+      "replace": "  const faceWords = AA.BOUND_FACE_WORDS.none;"
+    }
+  ]
+}

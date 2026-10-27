@@ -261,8 +261,12 @@ about reading the rail rather than about binding:
 - **The width is the reader's.** A drag handle on the rail's right edge sets one
   CSS custom property the grid reads, clamped to a minimum and to half the
   window, remembered per browser (`AA.PREF_KEYS.railWidth`; absent or blocked
-  storage means the default). The handle lives in the annotator, so inside the
-  viewer's flyout it comes with the iframe and the same remembered width.
+  storage means the default). The handle lives in the annotator. Embedded in
+  the viewer (`embedded=1`, since 2026-10-26) the rail is not shown at all:
+  the viewer draws its rows in its own nav, under the study row, and every
+  gesture there runs on the rail row it mirrors
+  (`the_shell_seats_the_scene_beside_the_model`; apps/viewer/README.md, "The
+  3D flyout").
 - **Clipped text is always reachable.** Every line the rail clips carries its
   full text on hover (`title`): part rows, element rows, the group header, and
   the two selects, which carry the *selected* option's text because a native
@@ -532,6 +536,153 @@ mode — every part back at its as-modelled placement — and lands in the bind
 flow on that edge, which is where the write boundary has always been. The tree
 is built on entering sweep mode and removed on leaving it, so the bind-mode
 rail is node for node what it was before the tree existed.
+
+### The rail and the scene point at each other (2026-10-26)
+
+- **One fact underneath: which drawn occurrence a rail subject is.** A body
+  (or a link) is drawn at the occurrences its parts were placed at — every
+  recorded occurrence for a ground body, the one that earned the placement for
+  a moving one, and everything carried inside it (`AA.sweepSubjectOccurrences`
+  over the anchoring rows). An occurrence is addressed by its **recorded key**,
+  the instance path the extraction wrote, never by its index in a drawn list:
+  the scene keeps a key on every drawn node (`placementsFor` and
+  `setPartMatrix` hand keys over beside the matrices), so an occurrence stays
+  itself whether it is drawn at rest or swept.
+- **Hover, row to scene.** The pointer resting on a body, part, joint,
+  feature or contributor row lights its thing in one pale hover tint — drawn
+  *over* the part, never into its colour buffer, so a picked face keeps its
+  tint through any number of hovers (the `hover` verb). A body lights its
+  parts at its own occurrences; a part row inside a body, that body's
+  occurrence only; a joint, its bead and its bound faces; a contributor, the
+  faces bound at its edge's two ends, or the edge's parts where none is
+  bound.
+- **Picking, scene to rail.** A click in sweep mode selects in the rail at
+  any frame (`inspect part`): the part's row inside the body it was picked on,
+  and every feature row the face is bound to; a bead selects its joint.
+  Selecting writes nothing, so it is not the frame rule's business — binding
+  stays gated to the as-modelled pose, and a click away from it still pulses
+  the gate line. The pointer resting on a part emphasises its row.
+- **Visibility per body.** Each body (and link) row has a checkbox that shows
+  or hides the occurrences that body is drawn at and no other
+  (`show-body` / `hide-body`): hiding `blade` on P2 hides blade 1 and its
+  pitch arm, and the other four pitch arms stay. A part row inside a body is
+  scoped the same way. The parts panel's row is still the mesh — every
+  occurrence — and says how many (`×5`). Everything a rail checkbox hid comes
+  back when sweep mode ends.
+- **What defines a joint.** A feature row's second line names its bound face
+  (`face 110 of 214698-002`, the sha on hover) or says `no face bound`.
+  Contributor rows carry the same **Pick** / **Re-pick** jump as feature rows,
+  and a gap contributor's alert says the gap, the drawing(s) of the edge's
+  parts to read, and what Pick does.
+- **A type filter.** Chips above the tree — bodies · joints · surfaces ·
+  contributors — hide row kinds from the list. A view filter: what is listed,
+  never what is drawn or what the run's context is; remembered per browser.
+
+### Correcting a binding (2026-10-26)
+
+A binding written at the wrong end or on the wrong face is corrected by a new
+event, never by deleting a file. A `bound` event may carry `supersedes: <event
+id>`, naming an earlier event on the same `(topology, edge)` key; the fold
+(`tolerance_stack/feature_identity.py`) hides that event from the key's
+`bindings` and lists it under `superseded`, and history keeps it. A `supersedes`
+that names a missing event, an event on another key, a later event or a
+non-`bound` event fails the projection build naming both ids. Two `bound` events
+on one key with no `supersedes` between them are still two faces — the state
+the surface has always allowed.
+
+- **The bar lists each standing binding** of the selected element — the
+  interface it is at and the face — and, where the transport can write, two
+  quiet controls: **Flip direction** (same face, the other interface; offered
+  only while that interface has no face) and **Correct this binding** (arms the
+  bind form: pick the right face and/or interface, and the write replaces the
+  armed binding). Both write one event carrying `supersedes`; fields recorded on
+  the earlier binding (owner, modifier, regime, note) carry over.
+- **History is one disclosure**, "Earlier bindings (n)": date, interface and
+  face. No event ids on the surface.
+- **Consumers fold the same way.** `scripts/fit_bound_features.py` reads the
+  projection's standing bindings, so a superseded binding produces no fit;
+  `fits.json` never carries a feature for an event another event supersedes.
+
+## The model in the scene (2026-10-26)
+
+The topology the viewer draws in 2D is also drawn on its parts: a dot at
+every node's **anchor** and a line along every edge — the `model` layer, beside
+stick / bodies / trail / ghost, on by default in sweep mode and behind its own
+**Display** box in bind mode (where it draws the as-modelled pose).
+`apps/annotate/model_layer.js` decides every anchor and line; the scene draws.
+**An anchor is a place to draw, never a value**: nothing here reaches a
+binding, a stack or a fitted nominal.
+
+**Where a node anchors**, in order (`AA.MODEL_ANCHOR_SOURCES`):
+
+1. **The solver's joint point** — a node the run's `geometry.features` name as
+   an end of a two-force link (the pitch link's and tangential link's sphere
+   centres). Read off the frame unchanged, so those two lines are the stick
+   figure's own two points, bit for bit.
+2. **Its bound face** — the fitted point of the face a committed binding names
+   at that node's end of an edge: a ball's centre, a bore's axis point, a
+   plane's centroid (`point`, as `tolerance_stack/feature_geometry.py`'s
+   `fit_plane` names it), at the occurrence the node's body anchors. A binding
+   with no `direction` binds an edge, not a node, and anchors nothing.
+3. **The +X-bias section** of the node's part (`AA.modelPartSection`): the
+   part's mesh, at the occurrence the body anchors, cut by the plane spanned by
+   the bias and stack axes, through the middle of the occurrence's own box
+   along the third axis; the connected cut region furthest along the bias is
+   the anchor. A ring round the spindle cuts as two walls and anchors on its
+   +X one, never at its centre. Several such nodes on one part are spread up
+   the stack axis across the cut's whole height, in the order the part's own
+   structural edges run (`from` → `to`) — so a part's linear stack is a
+   ladder on its +X side. **A rung's height is its place in the stack, not
+   where its feature is**; selecting the node says so.
+4. **No anchor geometry** — the part has no mesh, or the plane cuts nothing:
+   the body's frame origin, the warn colour, and `null` in the anchors message.
+
+**The bias is per topology, authored**: `anchor_bias: {bias: "+x", stack:
+"z"}` on the topology document (absent is that default, Jeff's). A value that
+is not that shape is the default, with a banner saying so.
+
+**Which occurrence:** in sweep mode the one the run's anchoring matched (a
+ground body's first), so the anchor sits on the part the reader watches move;
+otherwise the part's first recorded occurrence.
+
+**Lines and frames.** A structural line whose two ends ride one body is drawn
+in that body's group, at its as-modelled points, and the group carries the
+body's pose — it rides the sweep as the body's mesh does. A joint line (two
+bodies) and a link line are recomputed in world every frame.
+
+**The lit set rules the layer.** Edges in the active study's lit set are drawn
+at full strength; the rest dimmed or hidden by the shell's word (`model lit
+<edge>…` / `model lit all`, `model unlit dim|hide`). Until the shell posts a
+lit set, the page's own study stands in: a chain study's selection in bind
+mode, the edges an open kinematic study's stops name in sweep mode (the
+shell's `VA.kinematicLitSet` also lights a borrowed band's edge, which is why a
+posted set always wins). `highlight <topology> <edge>` lights that edge's line
+in the accent. No glyphs in 3D; a selected node (`model select node <id>`, or a
+click on its dot) draws its section plane and cut region faintly, and a
+selected body (`model select body <id>`, or a pick in the scene) its name at
+its +X anchor.
+
+## Talking to the shell — the messages (embedded, same-origin only)
+
+| direction | message | sent when |
+|---|---|---|
+| shell → scene | `{type: "annotate:exec", command}` | the selection follows, a row's 3D control, the model row; `highlight` on a settled pointer |
+| shell → scene | `{type: "annotate:rail", key, act, index?}` | a gesture on a row of the nav's scene tree |
+| scene → shell | `{type: "annotate:result", id, ok, result\|error}` | every exec; ignored by the shell |
+| scene → shell | `{type: "annotate:state", mode, topology, study, run, title}` | after an announced verb |
+| scene → shell | `{type: "annotate:tree", mode, chips, rows}` | the rail's rendered rows changed, or an announced verb completed |
+| scene → shell | `{type: "annotate:anchors", nodes: {<node id>: [x, y] \| null}, edges: {<edge id>: [[x, y], [x, y]]}}` | after a drawn frame whose anchors moved — a camera change or a sweep frame — so at most once per animation frame |
+
+`annotate:anchors` is in **CSS pixels of the iframe's own viewport**, rounded
+to 0.1 px, so an unchanged scene posts nothing. Every node of the topology is
+a key; a node is `null` when it is off screen, behind the camera, hidden, or
+has no anchor geometry. An edge is listed only while it is drawn (not hidden
+by `model unlit hide`) and both its ends are on screen. When the layer goes
+down the scene posts the message once with both maps empty. The shell offsets
+by the iframe's measured rect and draws a leader from each lit node's DAG dot
+to its anchor (`apps/viewer/README.md`, "Leaders across the seam"); it posts
+its lit set and its dim-or-hide word whenever either changes, so the
+fallback above is what a full page, or a shell that has not yet spoken, sees.
 
 ## What this MVP does not build
 

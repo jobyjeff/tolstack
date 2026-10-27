@@ -49,7 +49,10 @@ traced ratio" — never restate the rule elsewhere).
   `docs/DAG_TOPOLOGY.md`. The third archetype (2026-08-31): interfaces as nodes,
   dimensions and gaps as edges, a study = a human-lassoed chain. It carries a
   hard fence — **it is not a solver** — and that fence rules out the most
-  natural-looking next feature.
+  natural-looking next feature. Since 2026-10-26 there is **one topology per
+  product** (`topology_vpa_pitch_linkage.json`; `pitch_system` was folded into
+  it) and every study is a subset of it; which parts move as one rigid body is
+  declared on it — `docs/DAG_TOPOLOGY.md`, "Bodies".
 - **A stack element or topology edge whose physical feature is unresolved** →
   `docs/ANNOTATION_SURFACE.md`. The select-and-tag surface (2026-09-06):
   `apps/annotate/` binds a stack-side key to a mesh face and writes an
@@ -104,6 +107,9 @@ Know these before you write code; each has a test standing on it.
    Three outcomes, not two: a value, an **absence** (read for, demonstrably not
    there) and an **unreadable** (on the page, the photocopy will not give it up —
    an acquisition gap, never a licence to infer). `docs/spec_library/README.md`.
+   A later event may name the earlier one it corrects (`supersedes`): folds
+   hide it, history keeps it — implemented for feature identity, adopted by the
+   spec library when a parse event first needs correcting.
 
 ## Environment
 
@@ -128,7 +134,7 @@ Know these before you write code; each has a test standing on it.
   most of all — run **in the main checkout**:
   `node apps/viewer/run_tests.cjs`, `node apps/annotate/run_tests.cjs`,
   `node scripts/run_viewer_browser_tests.mjs`
-  and `node scripts/run_mutation_witness_tests.mjs --full`.
+  and `node scripts/run_mutation_witness_tests.mjs --changed-since master`.
   **Rebuild the projections BEFORE those four, never after**
   (`scripts/rebuild_projections.ps1`): the `[real]` checks read
   `data/projections/`, so a tier run against a projection built from an older
@@ -155,25 +161,37 @@ Know these before you write code; each has a test standing on it.
   change. `node_modules` is deliberately **not** declared: the browser TRUTH
   tier it would arm already runs separately in the main checkout at merge time
   (above).
-- **The mutation-witness tier is on that list because a witness decays between
-  the branch that measured it and the trunk that runs it.** Three declared
-  mutations were `WITNESSED` on their own review branches and `NOT WITNESSED`
-  on trunk a day later, and nothing in the pipeline failed — **because nothing
-  ran the tier**, not because the tier was quiet about it: it has exited
-  non-zero on a decayed witness since `9c6c4a4`, and
+- **A witness decays between the branch that measured it and the trunk that
+  runs it, and the merge gate runs the witnesses the merge could have reached —
+  the whole registry is a schedule's, not a landing's (2026-10-26).** Three
+  declared mutations were `WITNESSED` on their own review branches and `NOT
+  WITNESSED` on trunk a day later, and nothing in the pipeline failed —
+  **because nothing ran the tier**, not because the tier was quiet about it: it
+  has exited non-zero on a decayed witness since `9c6c4a4`, and
   `LESSONS_20260922_mutation_witness_repair_and_enrollment.md` measured that
-  and corrected the "exits 0" claim the issues carry. What 2026-09-23 added is
-  two more non-zero classes — a spec naming a guard the tree no longer
-  declares, and a guard added without a spec — and this list, which is what
-  makes the merge the place any of the three is caught rather than the next
-  audit. It is the slow one (a browser, the whole registry, tens of minutes),
-  which is the argument for running it at the merge and not per-branch.
-  **Per branch, run `--only <guard>` for each guard you added or changed —
-  never the whole registry.** Since 2026-10-21 the runner refuses a run with no
-  `--only` outside the main checkout unless it says `--full`, and the refusal
-  prints the `--only` lines for the specs your branch touched against
-  `integration`. `--full` is for the batch merge and a review's post-merge
-  run (`docs/prompts/REVIEW_AGENT.md`), which are the whole registry on purpose.
+  and corrected the "exits 0" claim the issues carry. 2026-09-23 added two more
+  non-zero classes — a spec naming a guard the tree no longer declares, and a
+  guard added without a spec. What 2026-10-26 changed is *where* the whole
+  registry runs: it took ~2 h under the one browser slot, twice per landing
+  (the review's post-merge run and the batch merge), and in six weeks caught one
+  decay nothing cheaper could — a witness defect with no product exposure. So
+  **a branch, a review's post-merge run and the batch merge run
+  `--changed-since <ref>`** (`--repo C:/workspace/tolstack` from a worktree):
+  every entry the diff's *hunks* reach — a hunk within a few dozen lines of
+  the mutation's anchor (or the anchor gone), the spec file changed, or a
+  hunk inside the guard's own body in its harness file. Hunks, not files,
+  since the evening of 2026-10-26: this repo's harness files *are* its check
+  files and its viewer is a few large files, so the file-level first cut
+  selected 258 of 332 entries for one viewer handoff — the whole registry by
+  another name. What a hunk leaves unselected (the note the selection prints
+  says how many, and why) is the sweep's. **`--only <guard>` re-checks one.** The whole registry, `--full`, is the
+  scheduled sweep's (`docs/prompts/WITNESS_SWEEP.md`), and a decay it finds
+  arrives as a `class: decayed_witness` issue the next morning. The one case
+  the gate cannot see is the one the sweep exists for: `--changed-since` would
+  not have selected `237dba65` on 2026-10-20, a layout shift the spec's own file
+  never recorded. Do not put `--full` back on the gate over a decay like that.
+  Outside the main checkout the runner refuses a bare run and prints the
+  `--changed-since integration` line.
 - **Every browser run takes the machine's one browser slot, and the runners do
   it themselves** (2026-10-21, `scripts/browser_runner.mjs`): the viewer and
   annotate runners, the mutation-witness runner when it selects a browser
@@ -183,7 +201,11 @@ Know these before you write code; each has a test standing on it.
   `DISPATCH_SLOT_HELD` and runs at once). A pytest test that starts Chrome asks
   for the `browser_slot` fixture instead, so a run with no browser test never
   queues. The Chrome a runner launches is CPU-capped to a few cores of the box
-  and closed however the run ends. A scratch script that drives a browser gets
+  and closed however the run ends: every way out kills the recorded Chrome tree
+  and waits until each killed process's handle is *signalled* (a killed Chrome
+  stays un-signalled for up to 30s+ on this box, so `process.kill(pid, 0)` is
+  not "gone"); past 60s it prints `BROWSER LEFT RUNNING` naming the pids
+  (2026-10-22, `the_kill_witness_fix_is_ported_from_drawing_checker`). A scratch script that drives a browser gets
   the same by importing that helper.
 - **Never generate synthetic load on this workstation** — no CPU burners,
   memory hogs or fork loops, not even to reproduce contention. It runs Jeff's

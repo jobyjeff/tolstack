@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: the link ends are read off the run's own geometry features, for links only",
+  "mutations": [
+    {
+      "contract": "Only a two-force link's ends are joint anchors.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "A hinge's node would be pinned to the solver's axis point at the assembly origin.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (!m || !links[m[1]] || out[f.node]) return;",
+      "replace": "      if (!m || out[f.node]) return;"
+    }
+  ]
+}

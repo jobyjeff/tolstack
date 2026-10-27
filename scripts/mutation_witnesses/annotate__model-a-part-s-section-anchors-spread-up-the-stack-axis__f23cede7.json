@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: a part's section anchors spread up the stack axis in stack order, across the whole cut's height",
+  "mutations": [
+    {
+      "contract": "Several section anchors on one part are spread up the stack axis as rungs.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "Without the spread every node of the hub sits on one dot.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "        out[id].point[bias.stackAxis] = lo + (hi - lo) * (i + 1) / (ordered.length + 1);",
+      "replace": "        out[id].point[bias.stackAxis] = out[id].point[bias.stackAxis];"
+    }
+  ]
+}

@@ -18,5 +18,8 @@ That session can ask Jeff directly and act on the answer:
 1. **The VPA rod-end spherical bearing's part number.** Its 8.66/8.71 mm band
    equals MS14101-4's to the digit (`docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json`).
 2. **The VPA's actual moving output member** (the end-stop sheet's "piston",
-   rows 38/39 of `docs/topologies/topology_pitch_system.json`). Overlaps
+   rows 38/39 -- edges `piston_length` and `end_stop_clearance`, on part
+   `vpa_piston`, of `docs/topologies/topology_vpa_pitch_linkage.json` since
+   2026-10-26, when `topology_pitch_system.json` was folded into it with ids
+   unchanged). Overlaps
    `rotorkit/docs/issues/ISSUE_20260914_vpa_body_has_no_extractable_drawing_number.md`.

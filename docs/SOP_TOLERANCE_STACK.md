@@ -26,6 +26,12 @@ re-expresses a committed stack as a graph with **zero copied numbers** and
 folds to that stack's own published check, to the digit
 (`docs/DAG_TOPOLOGY.md`, "The two committed examples", L1).
 
+**One topology per product, and every study is a subset of it** (Jeff,
+2026-10-26): a new question about the pitch system is a new study of
+`topology_vpa_pitch_linkage.json`, adding the parts, nodes and edges it needs
+to that graph, not a second topology of the same parts. (The joint-level
+re-expressions of committed stacks, L1 and its siblings, predate the rule.)
+
 **Which document to start from:**
 
 - **Your question is graph-shaped** — a mechanism with more than one
@@ -499,8 +505,11 @@ source's, not yours.
   their own file. 217755 has six exports on disk and Jeff re-exports over the same
   filename, so only the bytes pin it. `runs` lists the drawing-checker runs
   whose recorded input sha256 equals yours: corroboration and a pointer to
-  extracted JSON, never the identity — one export feeds several runs, and a part
-  drawing read straight off the PDF feeds none (`runs: []`, empty by fact).
+  extracted JSON, never the identity — one export feeds several runs (list **all** of them, not
+  the one you looked at), and a part drawing read straight off a PDF no run has
+  consumed feeds none (`runs: []`, empty by fact).
+  `tests/test_export_runs_match_the_run_log.py` pairs the list against
+  drawing-checker's `runs.jsonl` and skips where that log is unreadable.
 
   **Each run is `{"run_id": ..., "ts": ...}`, and the `ts` is copied verbatim
   from that run's own `run_meta.json`** (since 2026-08-07,
@@ -593,6 +602,41 @@ the first row that is true of the term's drawing:
   unless its citation's `no_drawing_governs` says why no drawing governs it.
 - Worked example: `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md`
   (two dimensions, two general notes).
+
+### A form callout
+
+Jeff's rule (2026-10-26), for a flatness, straightness, circularity or
+cylindricity callout on a surface a chain crosses. It depends on what else in
+the chain bands that surface:
+
+- **Nothing else bands it — it is an element.** Two components are attached to
+  one flat surface and no size tolerance of that surface sits in the chain, so
+  the callout is a linear element in its own right: a **structural edge** on the
+  surface's part, nominal `0`, `min` and `max` at minus and plus half the
+  callout's zone (the zone is the full width the surface may wander), with
+  `dimension.form` = `{"kind": "element", "zone": <the callout's number>,
+  "source_ref": ...}`. It folds like any other edge, because it is one.
+- **A size band already covers it — it is a modifier.** The callout sits on one
+  face of a feature whose size band is already an edge in the chain. Form within
+  size can only **tighten** what the band allows, never loosen it, so the edge
+  keeps its size band and carries `dimension.form` = `{"kind": "modifier",
+  "zone": ..., "node": <the face's node>, "source_ref": ...}`; a zone wider than
+  the band does not load. **v0 does not fold a modifier**: the total uses the
+  size band as it is, the DAG marks the node, and the gap list says the callout
+  is not folded.
+
+The DAG draws a rough-surface squiggle on the edge's bar for an element and
+beside the node for a modifier (`docs/DAG_TOPOLOGY.md`, "Joint glyphs").
+
+### A gap edge's `interface`
+
+When you add a `gap` edge to a topology, say what kind of contact it crosses:
+`interface` is one of the words in `docs/DAG_TOPOLOGY.md`, "The vocabularies"
+(flat faces, a pin in a bore, a ball joint, a slide, a thread, or a clearance no
+contact closes). Where the joint is one linkage sweeps, its type suggests the
+word (`LINKAGE_JOINT_INTERFACES`); a disagreement fails the suite. Where the
+choice is not obvious, say why in the edge's `note`. An edge that states none
+loads, draws as a plain dash and is listed as "contact kind not stated".
 
 ## Step 3 — trace what you can
 

@@ -6,10 +6,10 @@
     {
       "contract": "The nav rail stays visible on a live page while the pane is open.",
       "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
-      "note": "The retired rule, verbatim; on the live page the rail is what the reader just clicked to drive the pane.",
+      "note": "The retired rule, verbatim; on the live page the rail is what the reader just clicked to drive the pane. Re-pointed 2026-10-26 (the_shell_seats_the_scene_beside_the_model): the page no longer shifts by a margin; the scene is a column of the page's row. The retired rule is now spelled on the nav's own open-scene rule.",
       "file": "apps/viewer/topology.css",
-      "find": "body.flyout-open .tv { margin-left: var(--flyout-width, 0); }",
-      "replace": "body.flyout-open .tv { margin-left: var(--flyout-width, 0); }\nbody.flyout-open .navtree { display: none; }"
+      "find": "body.flyout-open .navtree { border-right: none; }",
+      "replace": "body.flyout-open .navtree { border-right: none; display: none; }"
     }
   ]
 }

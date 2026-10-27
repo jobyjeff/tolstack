@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the kinematic page renders the live study: two verdicts, one table of six contributors said once, none of them a gap",
+  "mutations": [
+    {
+      "contract": "Every live contributor gets a row.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Renders only the rows with no band, which on the live study is none of them.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      body.appendChild(contributorRow(study, row, model, topoProj, decimals, ctx));",
+      "replace": "      if (!row.band) body.appendChild(contributorRow(study, row, model, topoProj, decimals, ctx));"
+    }
+  ]
+}

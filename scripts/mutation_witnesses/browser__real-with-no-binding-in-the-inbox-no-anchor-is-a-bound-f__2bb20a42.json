@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] with no binding in the inbox, no anchor is a bound face's: every one is a joint point, a section or a body origin",
+  "mutations": [
+    {
+      "contract": "A node with a cut part anchors on its section, not on its body's origin.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "Without it every unbound node falls to the origin pile.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (info.section && info.section.region) {",
+      "replace": "      if (false && info.section && info.section.region) {"
+    }
+  ]
+}

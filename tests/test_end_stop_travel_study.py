@@ -89,7 +89,7 @@ def test_the_cited_terms_name_the_run_they_were_read_from(topology):
     for edge_id, run_id in CITED_RUNS.items():
         ref = topology.edge(edge_id).dimension.source_ref
         assert ref.export is not None and ref.export.established, edge_id
-        assert ref.export.run_ids == [run_id], edge_id
+        assert run_id in ref.export.run_ids, edge_id   # one of every run the log records for the sha
         assert run_id in ref.note, edge_id
 
 

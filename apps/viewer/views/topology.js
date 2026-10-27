@@ -102,6 +102,19 @@
     leaderStyle.onclick = handlers.onLeaderStyle;
     root.appendChild(leaderStyle);
 
+    // The model outside the page's lit set, dimmed or hidden
+    // (VA.UNLIT_STYLES). Only where something IS lit -- a study, or a
+    // kinematic page -- since on the whole walk there is nothing outside it.
+    if (handlers.onUnlitStyle && (state.mode === "kinematic" || state.studyId)) {
+      var unlitPreset = VA.UNLIT_STYLES[state.unlitStyle] ||
+        VA.UNLIT_STYLES[VA.DEFAULT_UNLIT_STYLE];
+      var unlit = VA.el("button", "ghost tvpick__mode", "Unused: " + unlitPreset.label);
+      unlit.setAttribute("id", "unlit-style-toggle");
+      unlit.setAttribute("title", unlitPreset.title);
+      unlit.onclick = handlers.onUnlitStyle;
+      root.appendChild(unlit);
+    }
+
     // The study's own 3D affordance, only once a real study is selected --
     // "trace this in 3D" means nothing about the whole topology, only about
     // one human-lassoed chain. Two forms of the same capability (handoff
@@ -171,8 +184,15 @@
     // readers_sideways_scroll). See carriedScroll for why this is the first
     // line of the function and not a detail of the append below.
     var carried = carriedScroll(root, ctx.topoProj, ctx.tween);
+    // A BOUNDED pane scrolls vertically itself (the kinematic page's), and
+    // emptying it below clamps that scroll to 0 -- so it is read here and put
+    // back after the paint, or every repaint (a row click, a hover card)
+    // would throw the reader back to the walk's first row.
+    var carriedTop = ctx.bounded && typeof root.scrollTop === "number" ? root.scrollTop : 0;
     VA.clear(root);
-    root.className = "tv__scroll";
+    // `bounded`: the kinematic page's capped box (topology.css), which
+    // paneBudget below fits to instead of the window.
+    root.className = "tv__scroll" + (ctx.bounded ? " tv__scroll--bounded" : "");
     var topoProj = ctx.topoProj;
     if (!topoProj) {
       // The SAME two sentences the banner's own missing-projection box shows,
@@ -199,13 +219,26 @@
     // entire dag/model should still be visible." So the rails never change
     // shape; what a study selection changes is emphasis, leaders and the
     // table beside them.
-    var layout = VA.spineRight(topoProj.layout);
+    //
+    // What is EMPHASIZED is the page's lit set (VA.studyLitSet, topology.js):
+    // a kinematic page hands its own in as `ctx.lit`, a chain study's is its
+    // chain. A study that refused to sum has no chain to emphasize (the error
+    // is the result), so it leaves the walk at full emphasis exactly as no
+    // selection does. With the unlit part HIDDEN (VA.UNLIT_STYLES) the walk
+    // drawn is the lit part re-laid (VA.hideUnlit) rather than the whole of it.
+    var lit = ctx.lit || VA.studyLitSet(study);
+    var marking = !!lit;
+    var hiding = marking && ctx.unlitStyle === "hide";
+    // Collapsed bodies (VA.collapseBodies) fold AFTER hiding, so a body the
+    // study does not reach is simply gone and a pill stands only for what is
+    // drawn; the mirror runs last, as it always has.
+    var layout = VA.spineRight(VA.collapseBodies(
+      hiding ? VA.hideUnlit(topoProj.layout, lit) : topoProj.layout,
+      ctx.collapsedBodies || null, topoProj, lit));
+    // The chain's ordinals and contributions, for the grid's # and
+    // contribution columns: a chain study's own, empty on a kinematic page,
+    // whose contributions are its own table's business.
     var chain = VA.chainIndex(study);
-    var chainNodes = VA.chainNodes(study);
-    // Whether a study is EMPHASIZED here: a study that refused to sum has no
-    // chain to emphasize (the error is the result), so it leaves the walk at
-    // full emphasis exactly as no selection does.
-    var marking = !!(study && study.status === "ok");
     // The merged-row grid and the leaders come off ONE plan of the same walk
     // the rails were drawn from (viewer_leader_line_grid, 2026-09-10): the
     // grid holds only the edge rows, grouped into components, and each
@@ -217,8 +250,7 @@
     // the chain's rows and the leaders run only to chain nodes, while the
     // rails above keep every node and edge of the walk. The DAG holds the
     // context; the table holds the sum.
-    var plan = VA.gridPlan(layout, topoProj,
-      marking ? { edges: chain, nodes: chainNodes } : null);
+    var plan = VA.gridPlan(layout, topoProj, lit);
     // The keyed position store (viewer_edge_length_scaling): every dot and
     // bar's y, computed ONCE per render and addressed by id, under whichever
     // length mode is on. Both geometry passes below read this same store, so
@@ -263,6 +295,9 @@
     // per render with the nodes it points at, so there is nothing to unwire
     // and nothing that can outlive the elements it marks.
     var hot = hotState(layout);
+    // The page's own listener for the leaders across the seam, which light
+    // with whatever the pointer lights here (topology_app.js).
+    hot.onChange = ctx.onHot || null;
     var geometry = VA.railGeometry(layout, M, positions, { x: xTween });
     // The links' opacity, which is neither the store's business nor the
     // unfold's (VA.linkOpacity says why): a link on a column BOTH
@@ -309,7 +344,12 @@
                           columns: VA.drawnColumn(layout.columns - 1, xTween) + 1,
                           floor: VA.drawnColumn(0, xTween),
                           links: linkAlpha,
-                          width: leaderGeo.width, tweening: !!tween };
+                          width: leaderGeo.width, tweening: !!tween,
+                          // The DAG ends of the leaders across the seam, in
+                          // this SVG's pixels: the page adds the SVG's rect
+                          // (VA.seamDots, topology_app.js's drawSeamLeaders).
+                          seam: VA.seamDots(layout, geometry, marking ? lit : null,
+                                            M, xTween) };
     var index = VA.topologyIndex(topoProj);
 
     // The header and the body share ONE horizontal scrollport
@@ -332,8 +372,9 @@
     var head = header(leaderGeo, ctx, paneWidth);
     hscroll.appendChild(head);
     var body = VA.el("div", "tv__body");
-    body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes,
-      marking, ctx, fade, fadeLink, hot));
+    body.appendChild(railsSvg(geometry, leaderGeo, index,
+      marking ? lit.edges : {}, marking ? lit.nodes : {}, marking, ctx, fade,
+      fadeLink, hot, layout, lit));
     var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset,
       fade, hot);
     // The grid is the one block a respine CROSS-FADES rather than moves. Its
@@ -356,6 +397,14 @@
     // reader parked at the right-hand end of a grid that just got narrower
     // wants, and the reason this is a restore rather than a stored preference.
     if (carried) hscroll.scrollLeft = carried;
+    // ...and the bounded pane's vertical scroll: where the page asks for it,
+    // the grid of lit rows at the box's top (`scrollToGrid`, an arrival or a
+    // re-lay), otherwise wherever the reader left it.
+    if (ctx.bounded) {
+      root.scrollTop = ctx.scrollToGrid
+        ? Math.max(0, (positions.gridOffset || 0) - VA.DAG_FIT.headHeight)
+        : carriedTop;
+    }
     // The one grip whose boundary scrolls, kept over that boundary as the
     // reader scrolls (VA.columnGripLeft). The listener is on the node this
     // render just built, so the next render drops it with the node -- there is
@@ -390,6 +439,8 @@
           ? hscroll.scrollLeft : carried;
       }
     }
+    // The page's overlay reads VA.lastTopoRender.seam and this pane's rect.
+    if (ctx.onPainted) ctx.onPainted();
     return root;
   };
 
@@ -580,6 +631,15 @@
   function paneBudget(root, metrics) {
     if (!root || typeof root.getBoundingClientRect !== "function") return 0;
     if (typeof window === "undefined" || !window.innerHeight) return 0;
+    // A bounded pane (the kinematic page's, topology.css) fits its own cap,
+    // not the window: the rows past it are a scroll of the box away.
+    var cap = root.classList && root.classList.contains("tv__scroll--bounded") &&
+      typeof window.getComputedStyle === "function"
+      ? parseFloat(window.getComputedStyle(root).maxHeight) : NaN;
+    if (cap > 0) {
+      return Math.max(cap - VA.DAG_FIT.headHeight - VA.DAG_FIT.slack,
+                      metrics.rowHeight * VA.DAG_FIT.minRows);
+    }
     var rect = root.getBoundingClientRect();
     return VA.dagHeightBudget(rect.top + (window.scrollY || 0),
       window.innerHeight, metrics);
@@ -726,9 +786,13 @@
   // the preview pane's does not -- a strip of the page underneath must stay
   // uncovered whatever the window is.
   //
-  // `min` is the annotator's own three-column grid (260 + 320 of chrome either
-  // side of its canvas, apps/annotate/style.css) plus enough canvas to orbit in.
-  // `max` bounds a drag on a wide screen.
+  // `min` is enough canvas to orbit in, with the scene's one-line head and its
+  // sweep bar across the top. It was 560 while the annotator brought its own
+  // rail into the panel (260px of it); embedded, that rail is drawn in this
+  // page's nav instead (the_shell_seats_the_scene_beside_the_model), so the
+  // panel is all scene. Under the preview pane's own 560 on purpose: at the
+  // floor, the scene leaves the DAG and grid MORE room than the preview it
+  // stands in for. `max` bounds a drag on a wide screen.
   //
   // `reserve` is the FLOOR for what is left beside the panel, used when the
   // caller can measure nothing to keep (stack mode, which draws no graph; a
@@ -745,12 +809,12 @@
   // studies, it sits at the pane's left edge, and it is `position: sticky;
   // left: 0` so no scroll position can move it out from under anything. It is
   // the drawing that has to survive, so it is the drawing the caller measures.
-  VA.FLYOUT_WIDTH = { min: 560, max: 1200, reserve: 320 };
+  VA.FLYOUT_WIDTH = { min: 400, max: 1200, reserve: 320 };
 
   // `room` is the width the panel and the page's own content are dividing --
   // the viewport less what sits to the RIGHT of the graph (the preview pane and
-  // its divider) and less the nav rail, which stays beside the open panel
-  // because the panel follows what it selects.
+  // its divider, where they have not stood down for the scene) and less the
+  // nav, which sits to the scene's left.
   // `keep` is what must be left of that for the page: the drawing's own
   // measured width, floored at `reserve`. Both are the caller's measurements
   // (topology_app.js's roomBesideFlyout / graphNeed) because they are live
@@ -1150,6 +1214,7 @@
   function setHot(hot, key) {
     if (!hot || hot.on === key) return;
     hot.on = key;
+    if (hot.onChange) hot.onChange(key);
     while (hot.marked.length) {
       var was = hot.marked.pop();
       was.el.setAttribute("class", was.base);
@@ -1202,7 +1267,7 @@
   // --- the SVG -------------------------------------------------------------
 
   function railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx,
-                    fade, fadeLink, hot) {
+                    fade, fadeLink, hot, layout, lit) {
     // The SVG spans the rails AND the leader jog zone: its right edge is the
     // grid table's left edge, so a leader's final horizontal segment hands off
     // to its row's boundary with no seam to keep aligned.
@@ -1228,6 +1293,82 @@
       svg.appendChild(path);
     });
 
+    // 0b. the joint glyphs' symbols, once per SVG (interface_glyphs.js).
+    svg.appendChild(VA.interfaceGlyphDefs());
+
+    // 0c. the bodies (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a rounded
+    //     field behind each body's block, its name once at the top-left, in
+    //     the body's own muted tint -- or a flat outline when nothing the
+    //     current study lights is inside it. The name is the collapse
+    //     control; a collapsed body is its pill (drawn with the marks, 3.)
+    //     and gets no field of its own.
+    var bodiesById = {};
+    ((ctx.topoProj && ctx.topoProj.bodies) || []).forEach(function (b) {
+      bodiesById[b.id] = b;
+    });
+    var pillRows = {};
+    geometry.marks.forEach(function (mark) {
+      if (mark.collapsed) pillRows[mark.row] = true;
+    });
+    (geometry.bodies || []).forEach(function (field) {
+      if (pillRows[field.start]) return;
+      var body = bodiesById[field.body] || { id: field.body, name: field.body };
+      var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
+      var cls = "tv__bodyfield tv__bodyfield--t" + VA.bodyTint(ctx.topoProj, field.body) +
+        (flat ? " tv__bodyfield--flat" : "");
+      var rect = VA.svg("rect", cls, {
+        x: field.x1, y: field.y1, width: Math.max(0, field.x2 - field.x1),
+        height: Math.max(0, field.y2 - field.y1), rx: 6, ry: 6,
+      });
+      rect.setAttribute("data-body", field.body);
+      svg.appendChild(rect);
+      svg.appendChild(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
+    });
+
+    // 0d. the sub-stacks (a kinematic page's `study_ref`s,
+    //     VA.kinematicSubStacks): a dashed field around each of the chain's
+    //     bars -- inside whichever body each bar is in -- and the study's
+    //     title and folded interval once, at the topmost. CLOSED, the bars
+    //     inside are drawn as one muted fold (`rail__bar--folded`) and the
+    //     label stands for them; OPEN, they wear their own colours. The label
+    //     opens and closes it, and the contributor table's group row with it.
+    var folded = {};
+    (ctx.subStacks || []).forEach(function (sub) {
+      var open = !!(ctx.openSubStacks && ctx.openSubStacks[sub.id]);
+      var marks = geometry.marks.filter(function (mark) {
+        return mark.kind === "edge" && sub.edges.indexOf(mark.id) !== -1;
+      });
+      if (!marks.length) return;
+      marks.forEach(function (mark) {
+        if (!open) folded[mark.id] = true;
+        var field = VA.svg("rect", "tv__substack", {
+          x: mark.x - 7, y: mark.y1 - 1, width: 14,
+          height: Math.max(0, mark.y2 - mark.y1 + 2), rx: 4, ry: 4,
+        });
+        field.setAttribute("data-substack", sub.id);
+        svg.appendChild(field);
+      });
+      var top = marks.reduce(function (a, b) { return b.y1 < a.y1 ? b : a; });
+      var label = VA.svg("text", "tv__substackname", { x: top.x + 10, y: top.y1 + 9 });
+      label.textContent = (open ? "▾ " : "▸ ") + sub.title +
+        (sub.interval ? " · " + sub.interval : "");
+      label.appendChild(svgTitle(sub.title + (sub.interval ? ", " + sub.interval : "") +
+        " — its terms enter one by one; this total is shown, never added"));
+      label.setAttribute("data-substack-toggle", sub.id);
+      label.setAttribute("tabindex", "0");
+      label.setAttribute("role", "button");
+      label.setAttribute("aria-expanded", open ? "true" : "false");
+      var toggle = function () { if (ctx.onToggleSubStack) ctx.onToggleSubStack(sub.id); };
+      label.onclick = toggle;
+      label.onkeydown = function (event) {
+        if (event && (event.key === "Enter" || event.key === " ")) {
+          if (event.preventDefault) event.preventDefault();
+          toggle();
+        }
+      };
+      svg.appendChild(label);
+    });
+
     // 1. the rails themselves: continuous, neutral, alternating shade by column
     //    parity so two rails crossing can still be told apart. NOT a categorical
     //    palette — see the page's legend for why there isn't one.
@@ -1245,6 +1386,15 @@
     //    reachable gesture rather than a pixel hunt. Drawn immediately after
     //    its rail and therefore UNDER every bar, dot and leader, so it can
     //    never steal a hover from a mark that has a card to open.
+    // The links' hit paths sit UNDER every rail's (2026-10-26): a closing
+    // curve between two neighbouring columns is nearly vertical over a long
+    // loop, and its wide hit path lay over the rails beside it for hundreds of
+    // pixels, so on the body-major product model a dozen legs had no point a
+    // pointer could reach. Under them, a rail wins wherever the two overlap,
+    // and a link is still hoverable everywhere no rail is -- which is most of
+    // its length, and lights the same leg either way (2., below).
+    var linkHits = VA.svg("g", "rail__linkhits");
+    svg.appendChild(linkHits);
     geometry.rails.forEach(function (rail, i) {
       var railId = hot.rails[i];
       var base = "rail rail--" + (rail.column % 2 ? "odd" : "even");
@@ -1275,7 +1425,7 @@
         el: fadeLink(VA.svg("path", base, { d: link.d }), link.key),
         base: base, rail: railId, hot: "rail__link--hot",
       }));
-      svg.appendChild(hotHover(hot, hotRegister(hot, {
+      linkHits.appendChild(hotHover(hot, hotRegister(hot, {
         el: VA.svg("path", "rail__linkhit", { d: link.d }), base: "rail__linkhit",
         rail: railId, hot: "rail__linkhit--hot",
       }), railId));
@@ -1295,11 +1445,17 @@
     //     (viewer_respine_whole_walk), which is the "it should be fairly
     //     obvious that there are no leader lines pointing to certain
     //     elements" half of the emphasis — absence, not a faded line.
+    //
+    //     Selected by the one rule the leaders across the seam use too
+    //     (VA.selectedLeaderNodes): a node's own, an edge's two ends -- and
+    //     with anything selected, every other leader steps back.
+    var leaderLit = VA.selectedLeaderNodes(ctx.selection, index);
     leaderGeo.leaders.forEach(function (leader) {
       var node = index.nodes[leader.id];
       var classes = ["rail__leader"];
       if (marking) classes.push("rail__leader--on");
-      if (isSelected(ctx, "node", leader.id)) classes.push("rail__leader--selected");
+      if (leaderLit[leader.id]) classes.push("rail__leader--selected");
+      else if (ctx.selection) classes.push("rail__leader--dim");
       var leaderBase = classes.join(" ");
       // A leader is `--lead` only, never part of the leg's own glow: it leaves
       // the rail rather than running along it, and lighting every leader off a
@@ -1333,6 +1489,7 @@
 
     // 3. one mark per row: a bar for an edge (the dimension IS the segment), a
     //    dot for a node (the interface IS the point).
+    var formMarks = VA.formMarks(ctx.topoProj);
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
@@ -1343,6 +1500,10 @@
         if (edge && edge.value_source === "derived") classes.push("rail__bar--derived");
         if (mark.floored) classes.push("rail__bar--floored");
         if (marking) classes.push(inChain ? "rail__bar--on" : "rail__bar--off");
+        if (folded[mark.id]) classes.push("rail__bar--folded");
+        var otherVariant = !!(edge && edge.part && ctx.otherVariantParts &&
+          ctx.otherVariantParts[edge.part]);
+        if (otherVariant) classes.push("rail__bar--other-variant");
         // The bar's extent comes off the keyed position store (via
         // railGeometry's mark), not re-derived from rowHeight here — under a
         // scaled length mode a bar's slot is its own height.
@@ -1396,17 +1557,59 @@
         // (the fast tier's bare ctx) keeps the plain title.
         if (ctx.onCardShow) {
           cardOnHover(hit, function () {
-            return VA.edgeCard(ctx.topoProj, edge, ctx.crops, mark.floored
-              ? { renderNote: VA.FLOORED_RENDER_NOTE } : null);
+            return VA.edgeCard(ctx.topoProj, edge, ctx.crops,
+              otherVariant ? { renderNote: VA.OTHER_VARIANT_NOTE }
+                : mark.floored ? { renderNote: VA.FLOORED_RENDER_NOTE } : null);
           }, ctx);
         } else {
-          hit.appendChild(svgTitle(mark.floored
-            ? VA.flooredEdgeTitle(edge, mark.id)
-            : VA.edgeHoverTitle(edge, mark.id)));
+          hit.appendChild(svgTitle((otherVariant ? VA.OTHER_VARIANT_NOTE + ": " : "") +
+            (mark.floored
+              ? VA.flooredEdgeTitle(edge, mark.id)
+              : VA.edgeHoverTitle(edge, mark.id))));
         }
         wire(hit, ctx, "edge", mark.id);
         hotHover(hot, hit, hotKey("edge", mark.id));
         svg.appendChild(hit);
+
+        // The joint glyph (interface_glyphs.js) at the bar's midpoint, in the
+        // bar's colour, and the form mark for a form element on the bar
+        // itself. Each carries the edge's own hover card and click.
+        var glyphY = (y1 + y2) / 2;
+        var glyphClass = "rail__glyph " +
+          (edge ? VA.confidenceClass(edge.confidence) : "") +
+          (edge && edge.value_source === "derived" ? " rail__glyph--derived" : "") +
+          (marking ? (inChain ? " rail__glyph--on" : " rail__glyph--off") : "") +
+          (otherVariant ? " rail__glyph--other-variant" : "");
+        var glyphs = [];
+        if (edge && edge.interface && VA.INTERFACE_GLYPHS[edge.interface]) {
+          glyphs.push(VA.glyphUse(VA.interfaceGlyphId(edge.interface), mark.x,
+            glyphY, glyphClass));
+        }
+        if (formMarks.edges[mark.id]) {
+          glyphs.push(VA.glyphUse(VA.FORM_GLYPH_ID, mark.x,
+            glyphs.length ? glyphY + VA.INTERFACE_GLYPH_PX : glyphY, glyphClass));
+        }
+        glyphs.forEach(function (use) {
+          svg.appendChild(fade(VA.svg("circle", "rail__glyphbg", {
+            cx: mark.x,
+            cy: Number(use.getAttribute("y")) + VA.INTERFACE_GLYPH_PX / 2,
+            r: VA.INTERFACE_GLYPH_PX / 2 + 1,
+          }), "edge", mark.id));
+          fade(use, "edge", mark.id);
+          if (ctx.onCardShow) {
+            cardOnHover(use, function () {
+              return VA.edgeCard(ctx.topoProj, edge, ctx.crops, null);
+            }, ctx);
+          } else {
+            use.appendChild(svgTitle(VA.edgeHoverTitle(edge, mark.id)));
+          }
+          wire(use, ctx, "edge", mark.id);
+          svg.appendChild(use);
+        });
+        return;
+      }
+      if (mark.collapsed) {
+        svg.appendChild(collapsedPill(mark, bodiesById, ctx, marking, layout, lit));
         return;
       }
       var node = index.nodes[mark.id];
@@ -1414,6 +1617,11 @@
       if (mark.branch) dotClasses.push("rail__dot--branch");
       if (node && node.kind === "datum_feature") dotClasses.push("rail__dot--datum");
       if (marking) dotClasses.push(chainNodes[mark.id] ? "rail__dot--on" : "rail__dot--off");
+      // Dimmed only when every part meeting here belongs to the other variant.
+      if (node && node.parts && node.parts.length && ctx.otherVariantParts &&
+          node.parts.every(function (id) { return ctx.otherVariantParts[id]; })) {
+        dotClasses.push("rail__dot--other-variant");
+      }
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
@@ -1445,8 +1653,69 @@
       wire(dot, ctx, "node", mark.id);
       hotHover(hot, dot, hotKey("node", mark.id));
       svg.appendChild(dot);
+      // A form modifier's squiggle, beside the face it is on: to the left of
+      // the dot, the side away from the grid once the spine is mirrored right.
+      if (formMarks.nodes[mark.id]) {
+        var adorn = VA.glyphUse(VA.FORM_GLYPH_ID,
+          mark.x - M.dot - VA.INTERFACE_GLYPH_PX / 2 - 1, mark.y,
+          "rail__glyph rail__glyph--form" + (marking && !chainNodes[mark.id]
+            ? " rail__glyph--off" : ""));
+        adorn.appendChild(svgTitle(VA.FORM_GLYPH.label + ": " +
+          formMarks.nodes[mark.id].map(function (id) {
+            var e = index.edges[id];
+            return e ? e.name : id;
+          }).join(", ")));
+        svg.appendChild(fade(adorn, "node", mark.id));
+      }
     });
     return svg;
+  }
+
+  // A body's name, the control that collapses or opens it: muted, the micro
+  // step, its full name on hover however much of it the field shows (a
+  // one-column body's field is narrow and the name runs past it).
+  function bodyName(body, x, y, collapsed, ctx, text) {
+    var label = VA.svg("text", "tv__bodyname", { x: x, y: y });
+    label.textContent = text || body.name;
+    label.appendChild(svgTitle(body.name + (collapsed ? " — click to open"
+      : " — click to fold into one node")));
+    label.setAttribute("data-body-toggle", body.id);
+    label.setAttribute("tabindex", "0");
+    label.setAttribute("role", "button");
+    label.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    var toggle = function () { if (ctx.onToggleBody) ctx.onToggleBody(body.id); };
+    label.onclick = toggle;
+    label.onkeydown = function (event) {
+      if (event && (event.key === "Enter" || event.key === " ")) {
+        if (event.preventDefault) event.preventDefault();
+        toggle();
+      }
+    };
+    return label;
+  }
+
+  // A collapsed body (VA.collapseBodies): one wide node from the leftmost to
+  // the rightmost column its block held, the edges that leave it meeting its
+  // rim, and its name and joint count on it -- the count of the places it
+  // meets another body.
+  function collapsedPill(mark, bodiesById, ctx, marking, layout, lit) {
+    var info = mark.collapsed;
+    var body = bodiesById[info.body] || { id: info.body, name: info.name };
+    var g = VA.svg("g", "tv__pill");
+    g.setAttribute("data-collapsed-body", info.body);
+    var flat = marking && !VA.bodyIsLit(layout && layout.rows, info.body, lit);
+    var r = M.branchDot;
+    var x1 = Math.min(mark.x, mark.x2) - r;
+    var x2 = Math.max(mark.x, mark.x2) + r;
+    g.appendChild(VA.svg("rect", "tv__bodyfield tv__bodyfield--t" +
+      VA.bodyTint(ctx.topoProj, info.body) + " tv__pill__shape" +
+      (flat ? " tv__bodyfield--flat" : ""), {
+        x: x1, y: mark.y - r - 1, width: x2 - x1, height: 2 * r + 2,
+        rx: r + 1, ry: r + 1,
+      }));
+    g.appendChild(bodyName(body, x1 + 4, mark.y + 3.5, true, ctx,
+      body.name + " · " + info.joints + (info.joints === 1 ? " joint" : " joints")));
+    return g;
   }
 
   // A native SVG tooltip: the element's own name, so hovering the graph reads
@@ -1741,6 +2010,10 @@
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
     if (edge && edge.zero_width) el.className += " tvrow--zero-width";
+    if (edge && edge.part && ctx.otherVariantParts && ctx.otherVariantParts[edge.part]) {
+      el.className += " tvrow--other-variant";
+      el.setAttribute("title", VA.OTHER_VARIANT_NOTE);
+    }
     // No on/off marking on a grid row any more (viewer_respine_whole_walk):
     // with a study selected the table IS the chain, so every row in it is a
     // member and a faded non-member row is not a thing this grid can hold.
@@ -2279,10 +2552,10 @@
     // reader had no way to read.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 36 of the 77 live nodes the same dot answered differently
+    // false, and on 35 of the 74 live nodes the same dot answered differently
     // hovered and clicked. (That is the STRING count, which is what "answered
     // differently" means; 28 is the smaller count of nodes that differ as a
-    // SET. The other 8 name the same two parts in the opposite order --
+    // SET. The other 7 name the same two parts in the opposite order --
     // authoring order against first-seen-edge order -- and a reader looking at
     // two orders of two names is still reading two different answers. Every
     // digit in this paragraph, and the README's copy of the first sentence,
@@ -2357,8 +2630,23 @@
       "  ·  " + VA.nodeLabel(ctx.topoProj, edge.from) +
       " → " + VA.nodeLabel(ctx.topoProj, edge.to)));
 
+    // On a kinematic page, a contributor whose band is another edge's
+    // (VA.kinematicBandEdges): that edge, one click away, since this one may
+    // carry no value of its own.
+    var bandEdgeId = ctx.bandEdges && ctx.bandEdges[edge.id];
+    var bandEdge = bandEdgeId ? VA.topologyIndex(ctx.topoProj).edges[bandEdgeId] : null;
+    if (bandEdge) {
+      var band = VA.el("div", "detail__band");
+      band.appendChild(VA.el("span", "muted", "band in this study: "));
+      var follow = VA.el("button", "detail__bandlink", bandEdge.name);
+      follow.onclick = function () { if (ctx.onSelect) ctx.onSelect("edge", bandEdge.id); };
+      band.appendChild(follow);
+      root.appendChild(band);
+    }
+
     // Deep link OUT to apps/annotate/ (deliverable 4): only for the two loud
-    // gap confidences -- a traced/inferred edge already has a citation, and a
+    // gap confidences and, since 2026-10-26, a structural edge with no value
+    // at all (VA.needsAnnotation's `edge`) -- a traced/inferred edge already has a citation, and a
     // binding is identity, never a value source (docs/ANNOTATION_SURFACE.md),
     // so sending a click there for an already-sourced row would offer nothing.
     //
@@ -2368,7 +2656,7 @@
     // a face -- the click would land on its empty state. Nothing is shown in
     // that case, not a disabled control: the honest fix is installing the
     // mesh, and the row stays on the gap list either way.
-    if (VA.needsAnnotation(edge.confidence) &&
+    if (VA.needsAnnotation(edge.confidence, edge) &&
         VA.partHasMesh(ctx.topoProj, edge.part)) {
       var annotateParams = {
         topologyId: ctx.topoProj.id,
@@ -2571,4 +2859,33 @@
     VA.cropReference(box, entry, ctx.config, "detail__crop-", VA.PANE_CROP);
     return box;
   }
+
+  // --- the leaders across the seam (leaders_follow_the_active_study_across_
+  // the_seam) -----------------------------------------------------------------
+  //
+  // The page-level overlay's contents: one path per leader (VA.seamLeaderGeometry)
+  // and a small dot where it meets the scene, in the state the selection and
+  // the pointer give it (VA.seamLeaderStates). A selected leader is drawn
+  // last, so it is on top of the ones it crosses. The overlay takes no
+  // pointer: every gesture stays the DAG's, the grid's or the scene's.
+  VA.renderSeamLeaders = function (svg, geo, states) {
+    VA.clear(svg);
+    var order = (geo && geo.leaders || []).slice().sort(function (a, b) {
+      var sa = states[a.id] === VA.SEAM_LEADER_STATES[0] ? 1 : 0;
+      var sb = states[b.id] === VA.SEAM_LEADER_STATES[0] ? 1 : 0;
+      return sa - sb;
+    });
+    order.forEach(function (leader) {
+      var state = states[leader.id];
+      var suffix = state ? " seam__leader--" + state : "";
+      var path = VA.svg("path", "seam__leader" + suffix, { d: leader.d });
+      path.setAttribute("data-node-id", leader.id);
+      svg.appendChild(path);
+      var end = VA.svg("circle", "seam__end" + (state ? " seam__end--" + state : ""),
+        { cx: leader.to[0], cy: leader.to[1], r: VA.SEAM_END_RADIUS });
+      end.setAttribute("data-node-id", leader.id);
+      svg.appendChild(end);
+    });
+    return svg;
+  };
 })(window.ViewerApp = window.ViewerApp || {});

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "crossings among the leaders across the seam are counted by pairs",
+  "mutations": [
+    {
+      "contract": "Two leaders whose segments properly cross are one crossing.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Reports no crossing ever.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return d1 * d2 < 0 && d3 * d4 < 0;\n  }",
+      "replace": "    return false;\n  }"
+    }
+  ]
+}

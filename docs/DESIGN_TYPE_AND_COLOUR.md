@@ -24,6 +24,8 @@
 | The colour palette and what each hue means | `apps/viewer/style.css`'s header comment, and `apps/viewer/topology.css`'s | the palette is the app's subject, not a style token; see below |
 | Row geometry (row height, grip pixels) | `VA.RAIL_METRICS`, `VA.TOPO_GRIP` — **JS**, not CSS | `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs` |
 | The size of a drawn icon | `VA.WARNING_ICON_PX` — **JS**, not a type step | `apps/viewer/tests.js` (the attribute), `scripts/run_viewer_browser_tests.mjs` (the rendered box) |
+| The size of a joint glyph on the DAG | `VA.INTERFACE_GLYPH_PX` (`apps/viewer/interface_glyphs.js`) — **JS**, the same kind of picture | `apps/viewer/tests.js` (the glyphs it places) |
+| The body containers' tints | `apps/viewer/topology.css`, `.tv__bodyfield--t*` — region tints like the leader bands, low chroma and never the accent | — |
 
 **An icon is a picture, and its size is not a step on the scale.** The alert
 mark both apps wear (`VA.warningIcon`, 2026-09-22 -- the nav rail's rows, both

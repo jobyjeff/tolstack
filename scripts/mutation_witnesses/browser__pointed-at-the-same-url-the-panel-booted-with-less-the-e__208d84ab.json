@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "...pointed at the same url the panel booted with, less the embedded flag",
+  "mutations": [
+    {
+      "contract": "The full-page link opens the whole annotator, with its menus: the plain url, not the embedded one.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "Pointing it at the iframe's own url is the natural refactor and opens a page with no rail in a new tab.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (nodes.flyoutFullpage) nodes.flyoutFullpage.setAttribute(\"href\", href);",
+      "replace": "    if (nodes.flyoutFullpage) nodes.flyoutFullpage.setAttribute(\"href\", embedHref);"
+    }
+  ]
+}

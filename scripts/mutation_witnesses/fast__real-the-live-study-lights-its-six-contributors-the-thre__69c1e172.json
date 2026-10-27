@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the live study lights its six contributors, the three edges they borrow a band from and the travel study's four, and every direct one has a coefficient curve",
+  "mutations": [
+    {
+      "contract": "Every live contributor's row carries its coefficient at every sweep point.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Drops the per-point field from every row.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        curve: curves[edgeId] || null,",
+      "replace": "        curve: null,"
+    }
+  ]
+}

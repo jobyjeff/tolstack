@@ -146,10 +146,30 @@
           "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
           "sha256": "d0f1b50fa069f42e52f73a9d5f2d1bcbccac0651fee453c9c605e01bd7864a3f",
           "runs": [
-            {"run_id": "20260723_163810", "ts": "2026-07-23T16:38:10+00:00"},
-            {"run_id": "20260727_153847", "ts": "2026-07-27T15:38:47+00:00"},
-            {"run_id": "20260730_131903", "ts": "2026-07-30T20:21:09.210383+00:00"},
-            {"run_id": "20260730_132230", "ts": "2026-07-30T20:28:36.282195+00:00"}
+            {
+              "run_id": "20260723_163810",
+              "ts": "2026-07-23T16:38:10+00:00"
+            },
+            {
+              "run_id": "20260727_153847",
+              "ts": "2026-07-27T15:38:47+00:00"
+            },
+            {
+              "run_id": "20260730_131903",
+              "ts": "2026-07-30T20:21:09.210383+00:00"
+            },
+            {
+              "run_id": "20260730_132230",
+              "ts": "2026-07-30T20:28:36.282195+00:00"
+            },
+            {
+              "run_id": "20260817_164115_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER",
+              "ts": "2026-08-17T23:43:42.155248+00:00"
+            },
+            {
+              "run_id": "20260819_160306_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER",
+              "ts": "2026-08-19T23:05:32.577446+00:00"
+            }
           ],
           "note": "Established 2026-08-06 by handoff citation_export_provenance, confirmed not assumed. hardware_entries.json's provenance.parts_list_run names run 20260723_163810; that run's own 217755_A_balloons.json records source_pdf '[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf' (a contemporaneous record, written by the run), and data/runs.jsonl records the same file and this sha256 as its input. Independently corroborated by this stack's joint.zone_note, which says the cited zone is the one printed on the 2026-JUL-23 POST export. The file still hashes to this sha (mtime 2026-07-23T23:38:10Z, unchanged since the run)."
         },

@@ -20,8 +20,8 @@
 // Every runner calls both, so the rule is in the code rather than in a prompt
 // somebody has to have read: a human at a terminal gets the same queue and the
 // same bound as an agent.
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import childProcess, { spawnSync } from "node:child_process";
+import { existsSync, writeSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -29,6 +29,17 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
 const MAIN_CHECKOUT = normalize("C:/workspace/tolstack");
 const IS_WINDOWS = process.platform === "win32";
+
+// A measurement seam for tests/test_browser_runner.py: with this set, every step
+// of the close writes one `BROWSER RUNNER TRACE {json}` line to stderr,
+// synchronously (fd 2), so the lines written from the `exit` event survive.
+const TRACE_ENV = "TOLSTACK_BROWSER_RUNNER_TRACE";
+function trace(event, fields = {}) {
+  if (!process.env[TRACE_ENV]) return;
+  try {
+    writeSync(2, `BROWSER RUNNER TRACE ${JSON.stringify({ event, t: Date.now(), ...fields })}\n`);
+  } catch (_) { /* a closed stderr: nothing to tell */ }
+}
 
 // --- the slot ---------------------------------------------------------------
 //
@@ -176,9 +187,28 @@ let handlersInstalled = false;
 const SIGNALS = { SIGINT: 2, SIGTERM: 15, SIGBREAK: 21, SIGHUP: 1 };
 const CLOSE_GRACE_MS = 5000;
 
+// Playwright hands out no pid for a launched browser, but it starts it with
+// child_process.spawn from inside this process, so the pid is seen here. The cap
+// script's pid (the values of `open`) is the same Chrome; either is a root.
+const browserRoots = new Set();
+const spawnOnce = Symbol.for("tolstack.browser_runner.spawn");
+if (!childProcess.spawn[spawnOnce]) {
+  const realSpawn = childProcess.spawn;
+  childProcess.spawn = function spawn(command, ...rest) {
+    const child = realSpawn.call(this, command, ...rest);
+    if (/(^|[\\/])(chrome|msedge)(\.exe)?$/i.test(String(command)) && child && child.pid) {
+      browserRoots.add(child.pid);
+      child.once("exit", () => browserRoots.delete(child.pid));
+    }
+    return child;
+  };
+  childProcess.spawn[spawnOnce] = true;
+}
+
 /** Starts a browser the way every runner here must: capped, and closed on exit. */
 export async function launchBrowser(chromium, options = {}) {
   installHandlers();
+  killed = false;                    // a new browser is a new kill pass
   const browser = await chromium.launch(options);
   const pid = capTheNewBrowser([...capped]);
   if (pid) capped.add(pid);
@@ -187,22 +217,117 @@ export async function launchBrowser(chromium, options = {}) {
   return browser;
 }
 
-/** Closes every browser still open; never throws, never waits past the grace. */
+/**
+ * Ends every browser still open; never throws. On Windows that is the same
+ * bounded kill-and-wait the `exit` event runs (see killWhatIsLeft), not a
+ * `browser.close()`: measured 2026-10-22 under load in drawing-checker, a
+ * graceful close ran out its grace while Chrome's children were still tearing
+ * down, the browser had already disconnected, and so nothing waited for them.
+ */
 export async function closeEveryBrowser() {
+  if (IS_WINDOWS) {
+    killWhatIsLeft("close");
+    return;
+  }
   const closing = [...open.keys()].map((b) => b.close().catch(() => {}));
   await Promise.race([Promise.all(closing),
     new Promise((resolve) => setTimeout(resolve, CLOSE_GRACE_MS).unref())]);
-  killWhatIsLeft();
+  open.clear();
 }
 
-function killWhatIsLeft() {
-  for (const [browser, pid] of open) {
-    if (pid) {
-      spawnSync("taskkill", ["/T", "/F", "/PID", String(pid)],
-        { stdio: "ignore", windowsHide: true });
-    }
-    open.delete(browser);
+// How long node may wait, after the kill, for every Chrome process it killed to
+// be GONE. Past it, node exits anyway and says so on stderr (never silently).
+export const KILL_WAIT_BOUND_MS = 60000;
+// The line that says so: grep a runner's output for it.
+export const LEFT_RUNNING = "BROWSER LEFT RUNNING";
+
+// Set once a kill pass has run. After a signal, closeEveryBrowser kills and
+// waits, then process.exit fires the `exit` event; a root whose exit code is not
+// yet set still reads alive() there, so without this the same tree would be
+// taskkilled and waited on (up to the whole bound) a second time.
+let killed = false;
+
+// Synchronous, because it also runs from the `exit` event, where nothing async
+// runs. A clean run closed its browser in a `finally`, so nothing is open and
+// no Chrome it started is still running: it pays nothing here.
+function killWhatIsLeft(path = "exit") {
+  if (killed) {
+    trace("kill-skip", { path });
+    return;
   }
+  const roots = [...new Set([...browserRoots, ...[...open.values()].filter(Boolean)])].filter(alive);
+  trace("kill-start", { path, open: open.size, roots });
+  if (!open.size && !roots.length) return;
+  killed = true;
+  open.clear();
+  if (!IS_WINDOWS || !roots.length) return;
+  // `taskkill /T /F` names every process it kills, one line each:
+  //   SUCCESS: The process with PID 15588 (child process of PID 54860) has been terminated.
+  // Only the FIRST pid on a line is a killed process -- the second is its
+  // parent, which for a root is this node itself, and waiting for node to be
+  // gone from inside node always ran the whole bound (measured 2026-10-22).
+  const ids = new Set(roots);
+  const killedAt = Date.now();
+  for (const root of roots) {
+    const t0 = Date.now();
+    const out = spawnSync("taskkill", ["/T", "/F", "/PID", String(root)],
+      { encoding: "utf8", windowsHide: true, timeout: 15000 });
+    for (const line of String(out.stdout || "").split(/\r?\n/)) {
+      const m = /PID (\d+)/.exec(line);
+      if (m) ids.add(Number(m[1]));
+    }
+    trace("taskkill", { root, status: out.status, ms: Date.now() - t0 });
+  }
+  ids.delete(process.pid);
+  const t1 = Date.now();
+  const left = waitUntilGone([...ids], KILL_WAIT_BOUND_MS, killedAt);
+  trace("waited", { ids: [...ids], ms: Date.now() - t1, left });
+  if (left.length) {
+    console.error(`${LEFT_RUNNING}: Chrome process(es) ${left.join(", ")} were still ` +
+      `running ${KILL_WAIT_BOUND_MS} ms after taskkill; node is exiting anyway`);
+  }
+}
+
+function alive(pid) {
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; }
+}
+
+// Returns the pids still running when the bound ran out. "Gone" here means the
+// process's handle is SIGNALLED, which is what anything waiting on it (or
+// wanting its profile dir's files) sees -- NOT `process.kill(pid, 0)`, which
+// says gone as soon as the exit code is set: Windows sets that when the last
+// thread ends, and on this box a killed Chrome then stayed un-signalled for
+// 1-30+ s (measured 2026-10-22, drawing-checker's
+// tests/debug_kill_witness_under_load.py). Node cannot wait on a pid it did not
+// spawn, so PowerShell opens the handles. A pid no longer in the process list is
+// gone; one whose process STARTED after the kill is a recycled pid, a stranger,
+// and is not waited on.
+function waitUntilGone(pids, budgetMs, killedAt = Date.now()) {
+  if (!pids.length) return [];
+  const ps = [
+    `$deadline = [DateTime]::UtcNow.AddMilliseconds(${budgetMs})`,
+    `$killedAt = [DateTimeOffset]::FromUnixTimeMilliseconds(${killedAt}).UtcDateTime`,
+    "$left = @()",
+    `foreach ($id in @(${pids.join(",")})) {`,
+    "  try { $p = [System.Diagnostics.Process]::GetProcessById($id) } catch { continue }",
+    "  try { if ($p.StartTime.ToUniversalTime() -gt $killedAt) { continue } } catch { }",
+    "  $ms = [Math]::Max(0, [int]($deadline - [DateTime]::UtcNow).TotalMilliseconds)",
+    "  try { if (-not $p.WaitForExit($ms)) { $left += $id } } catch { $left += $id }",
+    "}",
+    "$left -join ','",
+  ].join("\n");
+  const out = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", ps],
+    { encoding: "utf8", windowsHide: true, timeout: budgetMs + 30000 });
+  if (out.error || out.status !== 0) {
+    // PowerShell did not answer: fall back to the exit-code poll, which is
+    // weaker but never claims a running process is gone.
+    trace("wait-fallback", { error: String(out.error || out.stderr || out.status) });
+    const until = Date.now() + budgetMs;
+    const nap = new Int32Array(new SharedArrayBuffer(4));
+    while (pids.some(alive) && Date.now() < until) Atomics.wait(nap, 0, 0, 25);
+    return pids.filter(alive);
+  }
+  return String(out.stdout || "").trim().split(",").filter(Boolean).map(Number);
 }
 
 function installHandlers() {
@@ -214,6 +339,7 @@ function installHandlers() {
       process.on(signal, () => {
         if (ending) process.exit(128 + number);   // a second signal: go now
         ending = true;
+        trace("signal", { signal });
         console.error(`browser runner: ${signal}; closing the browser`);
         closeEveryBrowser().finally(() => process.exit(128 + number));
       });
@@ -223,5 +349,5 @@ function installHandlers() {
   }
   // process.exit() and an uncaught throw skip every `finally` and every await:
   // only synchronous work runs here, so what is still open is killed outright.
-  process.on("exit", killWhatIsLeft);
+  process.on("exit", (code) => { trace("exit", { code }); killWhatIsLeft("exit"); });
 }

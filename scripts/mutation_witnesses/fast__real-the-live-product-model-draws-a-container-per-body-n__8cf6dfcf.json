@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the live product model draws a container per body, named once, and a glyph on every gap edge that states its contact",
+  "mutations": [
+    {
+      "contract": "Every gap edge that states its contact draws its glyph.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Draws a glyph only on a traced edge.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        if (edge && edge.interface && VA.INTERFACE_GLYPHS[edge.interface]) {",
+      "replace": "        if (edge && edge.interface && edge.confidence === \"traced\") {"
+    }
+  ]
+}

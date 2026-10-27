@@ -1,19 +1,473 @@
 {
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "vpa_pitch_linkage",
-  "title": "Propeller pitch linkage joints, blade 1",
-  "description": "The pitch linkage's joints and the kinematic dimensions between them, with no studies and almost no numbers: it exists to be BOUND to 3D geometry, so that the pitch-linkage solver can be handed nominal joint locations in the assembly frame. Nothing here should be quoted as a tolerance.",
+  "title": "Propeller pitch system, blade 1",
+  "description": "The propeller pitch system as one graph -- its parts, the interfaces between them and the dimensions and gaps that join them -- whose joints are bound to 3D geometry for the linkage solver and through which every pitch study is a chain. Most of its bands are placeholders; none should be quoted as a tolerance.",
   "units": "mm",
   "provenance": {
     "authored_by": "handoff vpa_pitch_linkage_topology_and_feature_fits, 2026-09-30",
     "structure_source": "Jeff, live, 2026-09-30, founding the `linkage` solver repo: the rigid bodies of the pitch linkage (base = hub + tangential-link mount + gas-spring mount; blade + pitch arm; pitch link assembly; pitch plate + piston; tangential link assembly), with the ask that this repo carry 'the right components' so that the 3D annotator can be used to select the spherical centres and the hub/gas-spring bores. The graph below is that statement of the mechanism; it is Jeff's description of his own design, not a reading of a drawing.",
     "parts_source": "The drawing numbers on every part below are read off parts lists extracted by drawing-checker runs, not transcribed from memory: 217755-001 A.1 PROPULSION ASSEMBLY (run 20260909_174538, sheet 1 parts list) for 212956-005 find 25 'PITCH ANTI ROTATION LINK ASSEMBLY, PROPELLER' qty 3, 215175-001 find 41 '...CW' qty 1 and 215175-002 find 73 '...CCW' qty '-'; 216231 B.1 HUB AND BLADE ASSEMBLY (run 20260904_184249) for 214373-002 find 1 'DUAL BEARING GEN5 HUB ASSEMBLY', 215071-001 find 11 'PITCH ARM, PROPELLER, CLOCKWISE', 216332-001 find 19 'BLADE BONDED ASSEMBLY' and 213862-002 find 30 'PITCH LINK ASSEMBLY, PROPELLER'; 213862-002 A (run 20260922_154236) for its own two rows, 213861-002 'PITCH LINK, PROPELLER' qty 1 and MS14101-3 qty 2. tolstack's dependency on drawing-checker is read-only (scripts/snapshot_drawing_checker.py).",
     "configuration": "The 217755-001 A.1 CW propulsion assembly as modelled at 72 degrees blade pitch -- the feather hard stop. That is the state the assembly STEP every installed mesh was extracted from is in, and the state the 3DX sweep sheet's own reference row (row 83, the row every actuator displacement in column K is measured from) describes.",
-    "no_worksheet": "This document has no `provenance.worksheet`, deliberately: there is no structured read of a source workbook behind it, because there is no source workbook. Its one cited number comes from a 3DX sweep sheet in another repo, cited inline on the edge that carries it.",
     "end_stop_travel_20261016": "Handoff the_travel_between_the_end_stops_is_a_study, 2026-10-16. Structure and the two Jeff figures: forge note 20261016T144810_kk46rp. Face order and nominals: planes fitted with tolerance_stack/feature_geometry.py to the installed meshes asm217755_214699_002, asm217755_214698_002 and machined_213668; the worksheet records the Z values. The authored orientation of every edge in the end-stop chain is +Z at the feather stop, so a study walking it reads signs straight off the walk.",
     "end_stop_travel_20261020": "Handoff the_travel_chain_cites_its_three_drawings, 2026-10-20. Three drawings extracted by drawing-checker the same day (runs 20261020_134240_214698-002-A, 20261020_134300_214699-002-A, 20261020_134315_214958-002-A). Two terms cite them; the other two have no dimension on their drawing and stay mesh fits under a placeholder band, each saying so in its own source_ref. The stop surfaces were reconciled against Jeff's 72 deg section: the heads rest on the mount's end-stop surface and the cover's internal shoulder is the far stop, so two nodes were renamed (`piston_head_upper_top_face` to `piston_head_upper_step_face`, `gas_spring_mount_end_stop_face` to `piston_cover_end_stop_shoulder`; neither carried a binding) and the cover and mount edges are authored from the flange seat in +Z.",
-    "end_stop_travel_20261022": "Handoff a_general_profile_note_bands_a_model_defined_term, 2026-10-22. The two terms with no dimension on their drawings are banded by each drawing's general profile note, on Jeff's ruling of 2026-10-20 (forge note 20261020T171900_km22z6): 214698-002 note 6 (profile 0.5, so ±0.25) and 213668-002 note 12 (profile 1, so ±0.5), each `drawing`/`traced` with the note as its anchor and the drawing's oversight said in its note. The assumed ±0.05 stand-ins are retired. 213668-002's 76.86 ±0.10 (datum A to the top face) is recorded as its own edge and not folded."
+    "end_stop_travel_20261022": "Handoff a_general_profile_note_bands_a_model_defined_term, 2026-10-22. The two terms with no dimension on their drawings are banded by each drawing's general profile note, on Jeff's ruling of 2026-10-20 (forge note 20261020T171900_km22z6): 214698-002 note 6 (profile 0.5, so ±0.25) and 213668-002 note 12 (profile 1, so ±0.5), each `drawing`/`traced` with the note as its anchor and the drawing's oversight said in its note. The assumed ±0.05 stand-ins are retired. 213668-002's 76.86 ±0.10 (datum A to the top face) is recorded as its own edge and not folded.",
+    "folded_20261026": "Handoff pitch_system_folds_into_the_pitch_linkage_model, 2026-10-26: topology_pitch_system.json was folded into this document and deleted, on Jeff's ask that every study be a subset of one global model of the product. Every part, node and edge kept its id except where one physical feature had two: the hub seat of the tangential link mount (this document's `tan_link_mount_hub_face` wins), the two pitch-link joints (pitch_system's one mating interface per joint is this document's two nodes and a joint gap, and its edges re-point to the node on their own part) and `pitch_link_length` (this document's edge wins; the band is pitch_system's, the nominal moved beside it). One id meant two features and was split: pitch_system's `tan_link_mount_height` (the mount's overall height, seat to seat) is `tan_link_mount_overall_height`, and this document's own `tan_link_mount_height` (base face to attachment bore) keeps its id. The lesson LESSONS_20261026_pitch_system_folds_into_the_pitch_linkage_model.md carries the whole collision table and the before/after counts; no study total moved.",
+    "pitch_system_authored_by": "handoff dag_topology_format, 2026-08-31",
+    "worksheet": "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md",
+    "worksheet_note": "Added 2026-09-08 (handoff topology_schema_v1), deliverable 3: the same `provenance.worksheet` convention scripts/build_viewer_projection.py already reads for a stack (`worksheet_for()`), now read for a topology by scripts/build_topology_projection.py. Declared rather than left to the `topology_X.json` -> `WORKSHEET_X.md` by-name convention, because this topology's worksheet is named for the source workbook (`end_stop_graft`), not the system (`pitch_system`) -- the two stems do not agree, so only the declared field finds it.",
+    "pitch_system_structure_source": "dispatch/docs/strategy/HANDOFF_20260831_tolstack_dag_strategy.md (locked brief), locked decision 1, level L2 -- Jeff's own description of the mechanism: 'VP actuator -> pitch plate connection; branch 1 -> gas spring (or hydraulic brake per design concept); branch 2 -> pitch plate -> pitch links -> pitch arms -> blade roots; from blade roots a further branch -> ring gear (cyclic-only)'. The graph below is that sentence, grounded back to the hub so the parallel paths are actually parallel. Cite the brief for the structure; it is Jeff's description of his own mechanism, not a reading of a drawing.",
+    "values_source": "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md, the structured read of data/inbox/tolerance_stacks/260825_End_Stop_JC.xlsx (handoff endstop_graft_workorder, 2026-08-25). Every band that has a source was, at founding, a `workbook` citation to a cell of that sheet, `untraced` -- which was the whole sheet's status: 0 traced, 0 inferred, 43 untraced of 43 element instances.",
+    "retrace_update_20260906": "Handoff endstop_location_stack re-cited six of this document's edges against the drawings acquired and read by handoffs endstop_vision_baseline (2026-09-01) and endstop_retrace_acquired_docs (2026-09-04) -- see WORKSHEET_endstop_vision_baseline.md, whose §3/§8b dispositions this document now follows edge by edge: `pitch_plate_flange_to_link_hole`, `gas_spring_body_height` and `hub_blade_root_seat_position` move to `traced` (the last with a corrected band, 0.12mm -> 0.10mm, per finding F1 -- the drawing's modifier is LMC where the workbook's comment says MMC); `piston_length` moves to `inferred` (a documented derivation off its OWN drawing's general-tolerance convention, `convention-traced` in the worksheet's vocabulary); `end_stop_clearance` and `gas_spring_mount_position` gain a real drawing citation but STAY `untraced` because the worksheet scored both `candidate` -- a plausible value exists, but the feature identity is not established, and this document does not overclaim what the worksheet declined to. Four further edges (`pitch_link_length`, `tan_link_mount_height`, `hub_top_deck_to_tan_link_mount_seat`, `pitch_plate_flange_to_gas_spring_bushing`) gained only a refined-owner note, no value or confidence change. Every edge this update did not touch is untouched because the worksheet's own disposition for it did not move.",
+    "retrace_update_20260922": "Handoff policy_free_brief_residues re-cited this document against §11 of WORKSHEET_endstop_vision_baseline.md -- the 2026-09-10 read of the last four piece-part drawings, whose dispositions had sat uncarried into this file for twelve days because BRIEF_20260911_endstop_topology_retrace_and_f12 routed them to strategy behind a Jeff/CAD question. THREE PROVENANCE EDITS, NO BAND NUMERIC TOUCHED, and that is the whole of this update. (1) `tan_link_mount_height` moves to `traced` on a real drawing citation -- 215198-A, a directly toleranced overall height on the correct piece-part owner, exact band match to the workbook cell it replaces, so the stored min/max are unchanged; see the edge's own note for the one feature-identification assumption it carries. (2) `pitch_plate_flange_to_gas_spring_bushing` (row 62) is flagged HYPOTHESIS WEAKENED rather than left scored against the 2026-09-04 guess: 214723-002-A is in hand and its own features point at the tangential-link attachment lug, not a gas-spring interface (§11e). Still `untraced`, still `still blocked`, but its owner is now open rather than pending one part's acquisition. (3) ROW 59 (`tan link mount size, mount feature`) STAYS `candidate` AND IS NOT AN EDGE HERE -- recorded because a reader who sees (1) will ask what else the same drawing settled, and the answer is nothing. 215198-A sheet 2's DETAIL B is a near-verbatim name match to the row and offers SEVERAL plausible size dimensions, none equal to the workbook's band and none labelled as the one a stack row would cite (§11d). A mismatch needs one identified feature to disagree with; this offers a handful with no way to choose among them from the sheet. What would close it is not another drawing: nobody has read the WORKBOOK's own row-59 comment against those DETAIL B candidates, and until someone does, this row is blocked on a reading nobody has attempted rather than on an acquisition -- which is a different queue. The F12 gate this brief was routed behind is separately gone: `pitch_link_length`'s own source_ref note records the 2026-09-15 owner re-refinement (handoff stack_fable_audit), so rows 31 and 52 do name two different physical links, no Jeff is needed, and the brief's instruction not to move that band is satisfied permanently by leaving it exactly as it is.",
+    "values_are_placeholders": "THE TOPOLOGY IS THE DELIVERABLE; THE VALUES ARE NOT. Bands with no workbook row carry `kind: \"assumed\"` and say so in their note. Even the sourced ones are one author's provisional workbook, two of which (rows 26 and 57) carry the author's own comment that the number needs correcting. Nothing here is fit to size a part.",
+    "variation_only": "Scoped since the 2026-10-26 fold: every edge that came from pitch_system, and every edge a pitch_system study selects, has `nominal: 0.0`. What follows is that document's own statement, still true of those edges. EVERY dimension in this document has `nominal: 0.0`. These are not lengths -- they are tolerance bands about an unstated nominal, because that is what the source sheet holds: a column of total tolerance widths, not dimensions (its own row 72 comment: 'note this is total range (divide by 2 for +/-)'). So min/max are -w/2 and +w/2 for a stated total width w, and a study's `nominal` total is 0 by construction while its worst-case and RSS bands are the real result. Mixing a nominal-carrying dimension into this topology would make the nominal column read as a position sum when it is not one; if real nominal lengths arrive, they arrive for ALL of these edges at once, or in a separate topology. The fold put both kinds in one document, so the rule is now per study: a study folds variation-only terms or absolute ones, never a mix (tests/test_topology.py pins the seven pitch_system studies).",
+    "geometry_not_in_the_bands": "Nominal geometry that IS known -- pitch arm radius 50 mm, blade root radius 32 mm, pitch link length 105.9908 mm at a 77 deg link angle, gas-spring bushing separation 34.7 mm -- is carried in `properties` on the edge or transform it belongs to, never in a `dimension`. It is context for a transform, not a term in a variation sum. Known is not the same as verified, and `properties` has no `confidence` field to say which: every figure in that list rests on a workbook alone, which the SOP makes `untraced`. The pitch link length was 109.4 mm here until 2026-10-01 -- see that edge's own citation note for what replaced it and why.",
+    "mechanical_stroke_extension_20260906": "Handoff mechanical_stroke_stack (sequenced after endstop_location_stack, same baseline) adds one new node (`gas_spring_full_extension_stop`) and one edge (`gas_spring_mechanical_stroke`, `gas_spring_full_extension_stop` to the EXISTING `gas_spring_mount_flange` node -- see the edge's own `properties` note for why full retraction reuses that node rather than adding a second new one) representing the gas spring's OWN mechanical stroke and mechanical stops -- S461-610/636 ('Gas Spring Stroke Definition'), S461-516/637 ('Gas Spring Mechanical Stroke', nominal 61.67mm/75deg), S461-616/617/638/639 ('Gas Spring Mechanical Stops') -- which nothing in this document represented before (the pre-existing gas-spring edges are external: body casing height and mounting position, not the piston's internal travel). Every one of those eight requirement ids is `c_status: validated` in the 2026-09-06 pull; read individually per the handoff's own instruction, each near-duplicate pair (610/636, 516/637, 616/638, 617/639) is a byte-identical duplicate -- same title, same c_description, different id and created timestamp, most plausibly two Polarion baseline exports of the same requirement rather than a per-variant split. No numeric tolerance for the new edge exists anywhere this repo can read (see the edge's own source_ref note), so it is `kind: assumed`, `confidence: untraced`, exactly like this document's other no-source placeholders. `docs/tolerance_stacks/WORKSHEET_endstop_vision_baseline.md` §10 carries the full reasoning, the two derived check margins, and why this session's unresolved-identity list (§9 of that worksheet) gains no new rows.",
+    "pitch_system_ids": {
+      "note": "The ids in this document that came from topology_pitch_system.json when it was folded in on 2026-10-26, as they are spelled here, and the old ids that changed. A node the fold split names every node it became; the edges list includes pitch_link_length, which both documents had.",
+      "parts": [
+        "hub",
+        "vpa_208510_007",
+        "vpa_piston",
+        "pitch_plate_215177_001",
+        "pitch_link",
+        "pitch_arm",
+        "blade_root",
+        "ring_gear",
+        "gas_spring",
+        "gas_spring_mount_213668_002",
+        "tan_link_mount_215175_002",
+        "hydraulic_brake"
+      ],
+      "nodes": [
+        "hub_lower_bearing_flange",
+        "hub_top_bearing_flange",
+        "hub_top_deck",
+        "hub_vpa_mount",
+        "vpa_end_stop_feature",
+        "piston_end_stop_face",
+        "piston_rod_end_bore",
+        "pitch_plate_link_attach_bore",
+        "pitch_link_upper_sphere_centre",
+        "pitch_link_lower_sphere_centre",
+        "pitch_arm_link_bore",
+        "pitch_arm_blade_root_clocking",
+        "blade_root_oml",
+        "blade_root_hub_seat",
+        "blade_root_ring_gear_mesh",
+        "ring_gear_hub_seat",
+        "pitch_plate_gas_spring_bushing",
+        "gas_spring_mount_flange",
+        "gas_spring_full_extension_stop",
+        "tan_link_mount_gas_spring_seat",
+        "tan_link_mount_hub_face",
+        "pitch_plate_brake_attachment",
+        "brake_hub_mount"
+      ],
+      "edges": [
+        "hub_lower_to_top_bearing_flange",
+        "hub_top_flange_to_top_deck",
+        "hub_top_deck_to_tan_link_mount_seat",
+        "hub_top_deck_to_vpa_mount",
+        "hub_blade_root_seat_position",
+        "hub_ring_gear_seat_position",
+        "vpa_mount_to_end_stop_feature",
+        "end_stop_clearance",
+        "piston_length",
+        "pitch_plate_flange_to_link_hole",
+        "pitch_plate_flange_to_gas_spring_bushing",
+        "pitch_plate_flange_to_brake_attachment",
+        "pitch_link_length",
+        "pitch_arm_link_hole_to_clocking_hole",
+        "blade_root_clocking_to_oml",
+        "blade_root_clocking_to_hub_seat",
+        "blade_root_clocking_to_ring_gear_mesh",
+        "ring_gear_mesh_to_hub_seat",
+        "gas_spring_body_height",
+        "gas_spring_mechanical_stroke",
+        "gas_spring_mount_position",
+        "tan_link_mount_overall_height",
+        "hydraulic_brake_body_height",
+        "hub_top_deck_to_brake_mount"
+      ],
+      "transforms": [
+        "pitch_arm_linear_to_rotary",
+        "pitch_arm_linear_to_rotary_average",
+        "blade_root_tangential_to_rotary",
+        "blade_root_tangential_to_rotary_average"
+      ],
+      "renamed": {
+        "hub_tan_link_mount_seat": [
+          "tan_link_mount_hub_face"
+        ],
+        "pitch_plate_link_hole": [
+          "pitch_plate_link_attach_bore",
+          "pitch_link_upper_sphere_centre"
+        ],
+        "pitch_link_arm_hole": [
+          "pitch_link_lower_sphere_centre",
+          "pitch_arm_link_bore"
+        ],
+        "tan_link_mount_height": "tan_link_mount_overall_height"
+      }
+    },
+    "folded_20261027": "Handoff the_fastener_stacks_join_the_model, 2026-10-27: the four linear-stack topologies (pitch_link_to_pitch_plate, rotor_fastener_length, tan_link_to_pitch_plate_take2, vpa_output_to_pitch_plate) were folded into this document and deleted, so their fourteen studies are studies of the one product graph. Every part, node and edge kept its id except where one id named a different thing in more than one stack; `grip_stack_ids` lists those. The four plate parts' ids pitch_plate_215197 and pitch_flange_215197 became this document's pitch_plate_215177_001 (same physical plate; the lug thickness edges still cite 215735 A). Values were not touched: every edge still carries a `dimension_ref` into its stack, and every study total, band and check verdict is identical before and after.",
+    "grip_stack_ids": {
+      "note": "Ids that named a different thing in more than one fastener stack, as spelled here. Every holder took its stack's suffix; no side kept the bare id.",
+      "nodes": {
+        "pitch_link_to_pitch_plate": {
+          "head_bearing_face": "head_bearing_face_pitch_link",
+          "washer_far_face": "washer_far_face_pitch_link",
+          "shank_full_dia_end": "shank_full_dia_end_pitch_link"
+        },
+        "rotor_fastener_length": {
+          "head_bearing_face": "head_bearing_face_rotor",
+          "washer_far_face": "washer_far_face_rotor",
+          "shank_full_dia_end": "shank_full_dia_end_rotor"
+        },
+        "tan_link_to_pitch_plate_take2": {
+          "head_bearing_face": "head_bearing_face_tan_link",
+          "shank_full_dia_end": "shank_full_dia_end_tan_link"
+        },
+        "vpa_output_to_pitch_plate": {
+          "head_bearing_face": "head_bearing_face_vpa_out",
+          "shank_full_dia_end": "shank_full_dia_end_vpa_out"
+        }
+      },
+      "edges": {
+        "pitch_link_to_pitch_plate": {
+          "flange_bushing_flange": "flange_bushing_flange_pitch_link",
+          "fastener_grip": "fastener_grip_pitch_link",
+          "shank_out": "shank_out_pitch_link"
+        },
+        "rotor_fastener_length": {
+          "shank_out": "shank_out_rotor"
+        },
+        "tan_link_to_pitch_plate_take2": {
+          "straight_bushing": "straight_bushing_tan_link",
+          "spherical_bearing": "spherical_bearing_tan_link",
+          "flange_bushing_flange": "flange_bushing_flange_tan_link"
+        },
+        "vpa_output_to_pitch_plate": {
+          "spherical_bearing": "spherical_bearing_vpa_out",
+          "straight_bushing": "straight_bushing_vpa_out",
+          "fastener_grip": "fastener_grip_vpa_out",
+          "shank_out": "shank_out_vpa_out"
+        }
+      },
+      "parts": {
+        "pitch_plate_215197": "pitch_plate_215177_001",
+        "pitch_flange_215197": "pitch_plate_215177_001"
+      }
+    },
+    "grip_stack_joints": {
+      "note": "The `joint` block and structure reading each fastener stack's own topology carried, kept as it was. This document is a whole product and declares no `joint` of its own.",
+      "pitch_link_to_pitch_plate": {
+        "joint": {
+          "assembly_drawing": "217755",
+          "assembly_revision": "A.1",
+          "sheet": 4,
+          "view": "DETAIL B",
+          "zone": "H3",
+          "description": "The 5-place joint in DETAIL B: NAS6403U11D bolt down through the pitch-link eye (spherical bearing) and a plain bushing, through a 4.06 mm pitch-plate lug, retained by a slotted nut + cotter pin over a flat washer.",
+          "scope": "Grip length only, and only along the bolt axis. Out of scope, deliberately: diameter and hole fits; bushing-to-bore interference; the pitch link's own internal stack; the joint at the other end of the pitch link; torque and preload."
+        },
+        "title": "Pitch link to pitch plate grip length",
+        "re_expresses": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+        "scope_note": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim, exactly as topology_vpa_output_to_pitch_plate.json's structure note describes for the L1 proof. The stack's axial order from the bolt head, complete since 2026-09-15 (handoff stack_fable_audit): bushing, pitch-link eye, flanged-bushing flange, pitch-plate lug, washer. Until that date the eye had no element to hang an interface on and the flange was not known to exist, so this topology omitted both and said so here; the stack modelling both (the eye as a loudly-marked placeholder) is what lets this graph carry them without inventing anything the stack does not claim. The bolt's own fastener dimensions (grip, overall length, cotter-hole-to-point) are read as edges sharing additional interfaces beyond the clamped stack's own (the bolt's point, and the cotter-hole centreline), which is what turns this graph into more than L1's single grounded loop: the clamped-stack/grip loop (closing at the derived `shank_out` gap) and the length/grip/thread-region loop (closing at the derived `thread_region` edge), which share the bolt-head interface."
+      },
+      "rotor_fastener_length": {
+        "joint": {
+          "assembly_drawing": "217755",
+          "assembly_revision": "A.1",
+          "sheet": 8,
+          "view": "SECTION T-T",
+          "zone": "H3",
+          "description": "The rotor (hub-and-blade) balance-mass retention bolt: a single fastener, selected at assembly from a nine-member NAS6403 grip family, clamping an optional countersunk washer, zero or more stacked balancing masses, and a flat washer against whatever structure carries the tapped hole at this section.",
+          "scope": "Grip length only, along the bolt axis. Deliberately out of scope: which of up to 10 balance-hole locations is used and how the 200 g total balance budget is allocated; torque; the safety-cable capture; diameter and hole fits; thread-engagement depth into the tapped member."
+        },
+        "title": "Rotor balance-mass bolt grip length",
+        "re_expresses": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+        "scope_note": "A reading of the stack's own element order and roles, not a sourced claim. The stack's own notes give the clamped order from the bolt head: MS21299C3 washer, [balancing mass(es) -- MISSING], NAS1149V0332H washer, [receiving-structure thickness -- MISSING], then whichever of the nine as-drawn NAS6403 grip options is installed. Neither missing member is modelled as a node or edge -- there is no element to hang one on. The nine grip options are modelled as parallel structural edges between shared interfaces (`head_bearing_face`/`shank_full_dia_end`), all naming a single part, `fastener_family` -- see that part's own note for why separate part ids per option were rejected. A study selecting more than one of the nine simultaneously is refused by `BranchAmbiguity` at both of those interfaces, which is the topology's own way of enforcing 'exactly one dash is ever installed', mechanically rather than only in prose."
+      },
+      "tan_link_to_pitch_plate_take2": {
+        "joint": {
+          "assembly_drawing": "217755",
+          "assembly_revision": "A.1",
+          "sheet": 4,
+          "view": "DETAIL B",
+          "zone": "I6",
+          "description": "Same joint as tan_link_to_pitch_plate (not converted -- its checks reference paths in a way docs/DAG_TOPOLOGY.md fences, see docs/sessions/lessons/LESSONS_20260908_linear_stack_conversions.md). Take 2 is the workbook's second pass: it folds the flanged bushing's flange and barrel into one running sub-total and evaluates only the -13 fastener.",
+          "scope": "grip length only"
+        },
+        "title": "Tangential link to pitch plate grip length, take 2",
+        "re_expresses": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+        "scope_note": "A reading of the stack's own element order, not a sourced claim, in the same spirit as topology_vpa_output_to_pitch_plate.json's own structure note. The stack's three `nut_geometry` elements (nut_minor_diameter, nut_cbore_diameter, nut_chamfer_depth) are NOT modelled here: the stack's own notes call them 'UNUSED by any path or check', a diametral castellation-engagement sketch the workbook itself never folded into a check, and they are not part of the axial grip chain this topology models. Leaving them out is documentation of an absence, not a loss -- they remain in the stack's own record for a reader who wants them."
+      },
+      "vpa_output_to_pitch_plate": {
+        "joint": {
+          "assembly_drawing": "217755",
+          "assembly_revision": "A.1",
+          "sheet": 5,
+          "view": "DETAIL X",
+          "zone": "C10",
+          "description": "0.250-28 bolt through the VPA output rod end into the mating flange, castellated nut + cotter pin retained, with a countersunk washer under the head.",
+          "scope": "grip length only",
+          "note": "Added 2026-09-08 (handoff topology_schema_v1), deliverable 2: this block MIRRORS docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json's own `joint` field for field -- both documents describe the same physical joint, and this is prose/context, not a toleranced value, so it carries no dimension_ref of its own the way an edge's value does. If the two ever disagree, the stack's is authoritative; this topology's `joint` is a reading of it, same as `provenance.structure` already is for the axial order."
+        },
+        "title": "VPA output to pitch plate grip length",
+        "re_expresses": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "authored_by": "handoff dag_topology_format, 2026-08-31",
+        "scope_note": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim. The stack transcribes workbook rows E63-E67 as an ordered clamped stack (bushing, spherical bearing, bushing flange, pitch flange, under-head washer) plus the fastener grip; laying those out head-side-first, as a chain of six clamped-stack faces, is this handoff's own arrangement. Two things make that safe to publish: a chain sum is invariant to the ordering (a signed term list does not care), and tests/test_topology.py pins the study's totals against the stack's own published check. What it is NOT is evidence that these specific faces mate in this order on the real part -- see notes."
+      }
+    }
   },
+  "transforms": [
+    {
+      "id": "pitch_arm_linear_to_rotary",
+      "kind": "linear_to_rotary",
+      "ratio": 1.67,
+      "units_in": "mm",
+      "units_out": "deg",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32,
+        "blade_pitch_condition": "-5 deg (worst case) column",
+        "how_the_source_obtained_it": "a constant typed into the source sheet, described there as CAD-sourced; NOT derived from the radii above, which are recorded here because they are the coupling's geometry and because the tangential transform below is derived from them"
+      },
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260825_End_Stop_JC.xlsx",
+        "sheet": "End Stop Tol Stack",
+        "cell": "D10",
+        "confidence": "untraced",
+        "note": "PLACEHOLDER RATIO, and doubly so. (1) The cell is an unsourced CAD-derived constant in a workbook that traces nothing. (2) Its own comment reads 'full sweep average' while it sits in the column headed 'pitch -5deg (worst)', and row 9's comment says 'at 40deg pitch' -- three different operating conditions named around one number. WORKSHEET_end_stop_graft.md flags this as F1 and says to ask Jeff before trusting the D column's precise value at -5 deg. Do not quote this ratio as a result."
+      },
+      "note": "THE one non-trivial transform this level of the model requires: vertical displacement of the pitch plate converted into blade pitch angle at the pitch arm. Applied by a study to every vertical contributor upstream of the pitch arm, which is exactly what the source sheet's D column does."
+    },
+    {
+      "id": "pitch_arm_linear_to_rotary_average",
+      "kind": "linear_to_rotary",
+      "ratio": 1.25,
+      "units_in": "mm",
+      "units_out": "deg",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32,
+        "blade_pitch_condition": "'full sweep average' column"
+      },
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260825_End_Stop_JC.xlsx",
+        "sheet": "End Stop Tol Stack",
+        "cell": "F10",
+        "confidence": "untraced",
+        "note": "PLACEHOLDER RATIO. The source sheet's second sensitivity column, described as the full-sweep-average motion ratio and explicitly not a literal average over angle (WORKSHEET_end_stop_graft.md section 1)."
+      },
+      "note": "The same coupling at the other operating condition. Its reason for existing in the schema is structural: one topology, two transform sets, selected per study -- which is why a study carries a `transforms` map at all."
+    },
+    {
+      "id": "blade_root_tangential_to_rotary",
+      "kind": "linear_to_rotary",
+      "ratio": 2.609375,
+      "units_in": "mm",
+      "units_out": "deg",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32,
+        "lever_ratio": "50 / 32 = 1.5625",
+        "derived_from": "pitch_arm_linear_to_rotary",
+        "blade_pitch_condition": "-5 deg (worst case) column"
+      },
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260825_End_Stop_JC.xlsx",
+        "sheet": "End Stop Tol Stack",
+        "cell": "D11",
+        "confidence": "untraced",
+        "note": "PLACEHOLDER RATIO, inheriting every caveat on D10 because it is D10 x B11. B11 = 50/32 with the sheet's own comment 'uses ratio of pitch arm to blade root radius'; that lever ratio IS the linear-rotary coupling's geometry at the pitch arm, taken at the blade-root radius instead of the pitch-plate one."
+      },
+      "note": "The same pitch-arm coupling, for a contributor that acts tangentially at the blade root rather than vertically at the pitch plate. This is the default transform of edge `pitch_arm_link_hole_to_clocking_hole`, because the source sheet applies exactly this column to that row (its section 2b, Blade Root Tangential Components)."
+    },
+    {
+      "id": "blade_root_tangential_to_rotary_average",
+      "kind": "linear_to_rotary",
+      "ratio": 1.953125,
+      "units_in": "mm",
+      "units_out": "deg",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32,
+        "lever_ratio": "50 / 32 = 1.5625",
+        "derived_from": "pitch_arm_linear_to_rotary_average",
+        "blade_pitch_condition": "'full sweep average' column"
+      },
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260825_End_Stop_JC.xlsx",
+        "sheet": "End Stop Tol Stack",
+        "cell": "F11",
+        "confidence": "untraced",
+        "note": "PLACEHOLDER RATIO. F10 x B11, the average-condition twin of D11."
+      }
+    }
+  ],
+  "bodies": [
+    {
+      "id": "base",
+      "name": "ground: the hub and the two mounts",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "hub",
+        "tan_link_mount_215175_002",
+        "gas_spring_mount_213668_002",
+        "fastener_family",
+        "washer_ms21299c3",
+        "washer_nas1149v0332_tt"
+      ],
+      "note": "The rotor balance-mass bolt hardware (the nine-grip bolt family and its two washers) is here because 217755 SECTION T-T retains it in a tapped hole in the hub and blade assembly (216231-002) -- the stack names no more exact receiving part, so the hub is the nearest body this model has, not a finding."
+    },
+    {
+      "id": "blade",
+      "name": "blade and pitch arm",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "blade_root",
+        "pitch_arm"
+      ]
+    },
+    {
+      "id": "pitch_plate",
+      "name": "pitch plate and gas-spring piston",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "pitch_plate_215177_001",
+        "gas_spring_piston_214700_002",
+        "bolt_nas6403u11d",
+        "bushing_214820_002",
+        "washer_nas1149v0332h",
+        "flanged_bushing_nas77a3_015a",
+        "bolt_nas6403u13h",
+        "straight_bushing_214820_002",
+        "flanged_bushing_tan_link",
+        "bolt_nas6404u13d",
+        "washer_ms21299c4k",
+        "flanged_bushing_unidentified",
+        "plain_bushing_214943_002"
+      ],
+      "note": "Also holds the grip-length hardware of the three joints that clamp to this plate -- the pitch link, the tangential link and the VPA output -- each bolt, washer and bushing stack with the body its bolt clamps to. Hardware is not a body of its own in v0."
+    },
+    {
+      "id": "pitch_link",
+      "name": "pitch link",
+      "kind": "link",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "pitch_link",
+        "spherical_bearing_pitch_link"
+      ]
+    },
+    {
+      "id": "tan_link",
+      "name": "tangential link",
+      "kind": "link",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "tan_link_212956_005",
+        "spherical_bearing_tan_link",
+        "spherical_bearing_tan_link_ms14103_3"
+      ],
+      "note": "Both bearings are pressed into the 212956-005 assembly, so they move with it; the linkage solver lists the assembly alone because its mesh already draws them."
+    },
+    {
+      "id": "gas_spring",
+      "name": "gas spring",
+      "kind": "body",
+      "tags": {"component": "propeller-system", "variant": "gas-spring"},
+      "parts": [
+        "gas_spring"
+      ],
+      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+    },
+    {
+      "id": "piston_head_lower_214699_002",
+      "name": "214699-002 lower piston head",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "piston_head_lower_214699_002"
+      ],
+      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+    },
+    {
+      "id": "piston_head_upper_214698_002",
+      "name": "214698-002 upper piston head",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "piston_head_upper_214698_002"
+      ],
+      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+    },
+    {
+      "id": "piston_cover_214958_002",
+      "name": "214958-002 piston cover",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "piston_cover_214958_002"
+      ],
+      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+    },
+    {
+      "id": "vpa_208510_007",
+      "name": "208510-007 variable pitch actuator",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "vpa_208510_007"
+      ],
+      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+    },
+    {
+      "id": "vpa_piston",
+      "name": "actuator piston (output rod end)",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "vpa_piston",
+        "spherical_bearing_in_vpa"
+      ],
+      "note": "The piston and the spherical bearing swaged into its output rod end (the bearing is internal to the 208510-007 actuator assembly). The linkage mechanism does not place either, and which body they move with is not recorded."
+    },
+    {
+      "id": "ring_gear",
+      "name": "ring gear",
+      "kind": "body",
+      "tags": {"component": "propeller-system"},
+      "parts": [
+        "ring_gear"
+      ],
+      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+    },
+    {
+      "id": "hydraulic_brake",
+      "name": "hydraulic brake",
+      "kind": "body",
+      "tags": {"component": "propeller-system", "variant": "hydraulic-brake"},
+      "parts": [
+        "hydraulic_brake"
+      ],
+      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+    }
+  ],
   "parts": [
     {
       "id": "hub",
@@ -29,7 +483,7 @@
     },
     {
       "id": "blade_root",
-      "name": "blade root",
+      "name": "blade bonded assembly",
       "drawing": "216332-001",
       "note": "BLADE BONDED ASSEMBLY, PROPELLER, 216231 B.1 find 19 (the instrumented blade is 551438-001, find 2). `blade_oml` in data/meshes/ is a clean outer-mould-line export of the blade from a separate STEP, not this assembly -- it carries no root bearing geometry, so it is not aliased to this part. The real blade arrived 2026-10-01 as TWO geometries under this drawing number, and blade 1 carries the instrumented 551438-001 besides -- so this part still has no row, for a reason that is a decision rather than a missing file (see ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md)."
     },
@@ -48,7 +502,7 @@
       "id": "pitch_plate_215177_001",
       "name": "215177-001 pitch plate",
       "drawing": "215177-001",
-      "note": "PITCH PLATE ASSEMBLY, PROPELLER, CW, 217755-001 A.1 find 32. The same physical part topology_pitch_system.json names; the id is reused so the declared alias table keeps resolving it to the installed mesh. That mesh is the INSTALLATION (plate plus its nine NAS77 bushings, 10 solids); its one machined detail is installed separately as `asm217755_215735_001`."
+      "note": "Also the plate of the three plate-side fastener stacks (pitch link, tangential link, VPA output): their lug-thickness edges `pitch_plate_flange` (5X group) and `pitch_flange_thickness` cite 215735 A, the machined detail inside this 215177-001 installation. Their old part ids pitch_plate_215197 and pitch_flange_215197 folded into this one on 2026-10-27. PITCH PLATE ASSEMBLY, PROPELLER, CW, 217755-001 A.1 find 32. The same physical part topology_pitch_system.json names; the id is reused so the declared alias table keeps resolving it to the installed mesh. That mesh is the INSTALLATION (plate plus its nine NAS77 bushings, 10 solids); its one machined detail is installed separately as `asm217755_215735_001`."
     },
     {
       "id": "gas_spring",
@@ -65,7 +519,8 @@
       "id": "gas_spring_mount_213668_002",
       "name": "213668-002 gas-spring mount",
       "drawing": "213668-002",
-      "note": "The same physical part topology_pitch_system.json names; id reused so the alias table keeps resolving it to `machined_213668`."
+      "note": "The same physical part topology_pitch_system.json names; id reused so the alias table keeps resolving it to `machined_213668`.",
+      "revision": "A.1"
     },
     {
       "id": "tan_link_mount_215175_002",
@@ -106,6 +561,105 @@
       "name": "214958-002 piston cover",
       "drawing": "214958-002",
       "note": "Named by Jeff in forge note 20261016T144810_kk46rp (piston cover 214958-002; length from bottom flange to end stop surface ~82.154 mm). NO installed mesh and no drawing in any inbox as of 2026-10-16 (checked drawing-checker and tolstack drawings inboxes), so the one number on it is Jeff's, cited as such, and the annotator's 'no installed mesh' empty state is the honest answer for it. It sits in the main rigid body with the tan link mount 215175-001 and the gas-spring mount."
+    },
+    {
+      "id": "vpa_208510_007",
+      "name": "208510-007 variable pitch actuator",
+      "drawing": "208510-007",
+      "note": "Balloon 1 in 217755 sheet 5 DETAIL X, as cited by the spherical-bearing width in the VPA-output stack. Modelled as the actuator body: the part the piston travels in and that carries the end-stop feature."
+    },
+    {
+      "id": "vpa_piston",
+      "name": "actuator piston (output rod end)",
+      "note": "Part identity not established -- internal to the actuator assembly. Split from the body as its own part because the source sheet tolerances the piston length (row 38) and the piston-end-to-stop-feature distance (row 39) separately, and those two cannot be dimensions of one part if the stop feature is on the body."
+    },
+    {
+      "id": "ring_gear",
+      "name": "ring gear",
+      "note": "Part identity not established. The cyclic-only branch: per the brief, the ring gear follows along for pure collective and only participates cyclically."
+    },
+    {
+      "id": "hydraulic_brake",
+      "name": "hydraulic brake",
+      "note": "NO part identity and NO values: the brief names it as an alternative to the gas spring 'per design concept'. It is in the graph so that branch 1 shows as a genuine choice between two designs rather than a single path, and every band on it is `assumed`."
+    },
+    {
+      "id": "bolt_nas6403u11d",
+      "name": "NAS6403U11D hex-head bolt",
+      "note": "A standard part: its dimensions come from NAS6403-NAS6420 Rev 4 sheet 3, not from a Joby part drawing. Hex head, 6Al-4V, .1900-32 thread, .688 in grip, per the 217755 parts-list nomenclature. Ballooned 5X in DETAIL B of 217755 sheet 4."
+    },
+    {
+      "id": "bushing_214820_002",
+      "name": "214820-002 plain bushing",
+      "drawing": "214820-002",
+      "note": "Plain bushing, aluminium bronze, .1900 in ID X .1875 in long, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4. Drawing 214820-002 itself is not in this repo, so nothing here can re-read the 4.76 +0.00/-0.13 length the operator read off it, and it stays on the gap list."
+    },
+    {
+      "id": "washer_nas1149v0332h",
+      "name": "NAS1149V0332H flat washer",
+      "note": "Flat washer, 6Al-4V, .203 x .438 x .032 in, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4 (find 32, qty 9 across the assembly)."
+    },
+    {
+      "id": "flanged_bushing_nas77a3_015a",
+      "name": "NAS77A3-015A flanged bushing",
+      "note": "Added 2026-09-15 (handoff stack_fable_audit); the name restyled to the reader-facing convention during review. Per the 215177-A parts-list nomenclature: BUSHING, FLANGED, PRESS FIT, ALUMINUM BRONZE, ALUMINUM COATED, .1900 in ID. Press-fit into the pitch plate assembly (215177-A parts list find 2, qty 8 = 3 tangential-link + 5 pitch-link lugs), which is why DETAIL B balloons no flanged bushing. Only its FLANGE is an edge here: the barrel sits inside the plate bore, parallel to the lug, and the referenced stack has no bore-depth path -- unlike the tan-link take-2 topology, which models the barrel and its chamfer for that stack's bore path."
+    },
+    {
+      "id": "washer_ms21299c3",
+      "name": "MS21299C3 countersunk washer",
+      "note": "The washer under the bolt head, .063 in thick. Balloon at SECTION T-T, find 60, qty AR (JPS00094 5.5.3.a allows 0-3); the element here models the ONE this section draws."
+    },
+    {
+      "id": "washer_nas1149v0332_tt",
+      "name": "NAS1149V0332H flat washer",
+      "note": "The flat washer under the rotor balance-mass bolt: 6Al-4V, .032 in thick. Same part number the pitch-link and tangential-link joints cite, a different balloon (find 32, zone K4, SECTION T-T) of the same 217755 sheet."
+    },
+    {
+      "id": "fastener_family",
+      "name": "NAS6403 grip-selection family",
+      "note": "The dash number is chosen at assembly: 217755 note 24 reads SELECT ONE FASTENER ... AS REQUIRED FOR CORRECT GRIP LENGTH. Modelled as ONE part rather than nine, because the nine dash options (U2H through U10H) are mutually-exclusive alternatives of a single designed feature -- 'whichever grip the assembler selects' -- not nine parts that could ever be present at once. Treating them as nine separate parts would force each of `head_bearing_face`/`shank_full_dia_end` to list up to nine part ids, which Node.parts refuses outright (an interface joins at most two parts); it would also misrepresent nine alternatives as nine simultaneous members. This is a repo-first pattern -- topology_vpa_output_to_pitch_plate.json and topology_pitch_link_to_pitch_plate.json each model one fixed as-drawn fastener -- and it exists because this is the repo's first genuine grip-SELECTION joint, exactly as the referenced stack's own joint.identification_note argues."
+    },
+    {
+      "id": "bolt_nas6403u13h",
+      "name": "NAS6403U13H hex-head bolt",
+      "note": "Hex head, 6Al-4V, .1900-32 thread, .812 in grip. A standard part: its grip comes from NAS6403-NAS6420 Rev 4 sheet 3, dash 13."
+    },
+    {
+      "id": "straight_bushing_214820_002",
+      "name": "214820-002 plain bushing",
+      "drawing": "214820-002",
+      "note": "Plain bushing, aluminium bronze, .1900 in ID X .1875 in long. Balloon find 34 in DETAIL B of 217755 sheet 4."
+    },
+    {
+      "id": "flanged_bushing_tan_link",
+      "name": "flanged bushing",
+      "note": "Candidate as-drawn part 214936-002 (BUSHING, PLAIN, COUNTERSUNK, .1900 in ID), balloned on 217755 sheet 5 DETAIL F, as the flange and barrel citations record -- NOT DETAIL B, so this is a candidate, not an established identity. Both the flange and the barrel dimensions (and the chamfer at the barrel's end) are modelled on this ONE part, since the stack's own elements name them together as one flanged bushing's two features."
+    },
+    {
+      "id": "bolt_nas6404u13d",
+      "name": "NAS6404U13D hex-head bolt",
+      "note": "A standard part: its dimensions come from NAS6403-NAS6420 Rev 4, not from a Joby part drawing. Hex head, 6Al-4V, .2500-28 thread, .812 in grip. Balloon 27 (find 27, qty 1) in DETAIL X of 217755 sheet 5."
+    },
+    {
+      "id": "washer_ms21299c4k",
+      "name": "MS21299C4K countersunk washer",
+      "note": "Countersunk washer, 17-4PH. Balloon 29 in DETAIL X of 217755 sheet 5. Its nominal comes from the parts-list nomenclature; its BAND does not, which is why the thickness here is `inferred` and on the gap list."
+    },
+    {
+      "id": "flanged_bushing_unidentified",
+      "name": "part not identified",
+      "note": "The referenced element `bushing_flange_thickness` cites workbook cell E65 and names no part at all. It is modelled as its own part because the flange is a separate 0.062 in feature from the straight bushing's length, and putting both dimensions on one part would be a structural claim (that they are one flanged bushing) with nothing behind it. Which part this is remains open -- see notes."
+    },
+    {
+      "id": "spherical_bearing_in_vpa",
+      "name": "spherical bearing",
+      "note": "Internal to 208510-007 VARIABLE PITCH ACTUATOR ASSEMBLY (balloon 1), so it has no balloon of its own in DETAIL X. Its part number is not established -- the workbook's comment column names MS21299C4K on this row, and that part is the countersunk washer, not a bearing (the referenced stack's `column_I_caveat`)."
+    },
+    {
+      "id": "plain_bushing_214943_002",
+      "name": "214943-002 plain bushing",
+      "drawing": "214943-002",
+      "note": "Plain bushing, aluminium bronze, .250 in ID. Balloon 28 in DETAIL X of 217755 sheet 5. Its modelled length is still `untraced` and still on the gap list: NAS77A4-015, the number the source workbook names, was RULED OUT on the merits in 2026-08-13 and 214943-002's own part drawing is not in the pile."
     }
   ],
   "nodes": [
@@ -369,6 +923,349 @@
       ],
       "kind": "datum_feature",
       "note": "The cover's internal shoulder: the surface the upper head's step face meets at the extend stop, 82.154 mm in from the cover's bottom flange face (214958-002 A sheet 3, SECTION CUT A-A). Until 2026-10-20 this node was named for the mount's end-stop surface; the section view shows that surface is where the heads rest at 72 deg (node `endstop_feather_contact`), and the shoulder is the cover's. No mesh of the cover exists."
+    },
+    {
+      "id": "hub_lower_bearing_flange",
+      "name": "hub lower bearing flange -- the A datum",
+      "parts": [
+        "hub"
+      ],
+      "kind": "datum_feature",
+      "note": "Named 'hub lower bearing flange (a-datum)' by the source sheet's row 43. The origin every study in this topology measures from."
+    },
+    {
+      "id": "hub_top_bearing_flange",
+      "name": "hub top bearing flange",
+      "parts": [
+        "hub"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "hub_top_deck",
+      "name": "hub top deck",
+      "parts": [
+        "hub"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "hub_vpa_mount",
+      "name": "actuator body mounted to the hub",
+      "parts": [
+        "hub",
+        "vpa_208510_007"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "vpa_end_stop_feature",
+      "name": "end-stop feature on the actuator body",
+      "parts": [
+        "vpa_208510_007"
+      ],
+      "kind": "datum_feature",
+      "note": "THE END STOP. The source sheet's row 39 tolerances the distance from the piston end to this feature, and WORKSHEET_end_stop_graft.md calls that 'the row whose name most directly names the end stop itself'."
+    },
+    {
+      "id": "piston_end_stop_face",
+      "name": "piston travel-limiting end face",
+      "parts": [
+        "vpa_piston"
+      ],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "piston_rod_end_bore",
+      "name": "piston rod end into the pitch plate -- the pitch plate connection",
+      "parts": [
+        "vpa_piston",
+        "pitch_plate_215177_001"
+      ],
+      "kind": "mating_surface",
+      "note": "The brief's 'pitch plate connection', and the branch point where the load path divides. It is also the joint the VPA-output topology models axially in millimetres -- one interface, two topologies, at two different levels of the same system. Joining them is a later handoff's decision, not assumed here."
+    },
+    {
+      "id": "pitch_arm_blade_root_clocking",
+      "name": "pitch arm clocked to the blade root",
+      "parts": [
+        "pitch_arm",
+        "blade_root"
+      ],
+      "kind": "mating_surface",
+      "note": "The second branch point, and the one the brief names: from the blade roots a further branch runs to the ring gear (cyclic-only), while the blade's own OML and the blade-root-to-hub seat carry on."
+    },
+    {
+      "id": "blade_root_oml",
+      "name": "blade outer mould line -- the quantity the rollup constrains",
+      "parts": [
+        "blade_root"
+      ],
+      "kind": "datum_feature",
+      "note": "The angular-position output. The source sheet's headline result is 'total blade OML angular position tol'."
+    },
+    {
+      "id": "blade_root_hub_seat",
+      "name": "blade root seated in the hub",
+      "parts": [
+        "blade_root",
+        "hub"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "blade_root_ring_gear_mesh",
+      "name": "blade root to ring gear",
+      "parts": [
+        "blade_root",
+        "ring_gear"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "ring_gear_hub_seat",
+      "name": "ring gear seated in the hub",
+      "parts": [
+        "ring_gear",
+        "hub"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "pitch_plate_gas_spring_bushing",
+      "name": "gas-spring bushing in the pitch plate",
+      "parts": [
+        "pitch_plate_215177_001",
+        "gas_spring"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "gas_spring_mount_flange",
+      "name": "gas-spring body mounting flange",
+      "parts": [
+        "gas_spring",
+        "gas_spring_mount_213668_002"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "gas_spring_full_extension_stop",
+      "name": "gas-spring piston full-extension position -- the 0mm stroke datum",
+      "parts": [
+        "gas_spring"
+      ],
+      "kind": "datum_feature",
+      "note": "S461-610/636's own datum convention: 'the Gas Spring Stroke shall be defined as 0mm at full extension'. A located feature internal to the gas spring's own piston travel, not a mate -- nothing else in this topology occupies this position. The OTHER end of the stroke, 'full retraction' per S461-610/636, reuses the existing `gas_spring_mount_flange` node rather than adding a second new one: the piston bottoms out near the body's own grounded/mounting reference, and this topology has no data placing a distinct internal stop face any more precisely than that (see the stroke edge's own `properties` note for why a second brand-new node was rejected -- it would have made this topology a two-component graph, which `scripts/build_topology_projection.py` and its test assume it never is)."
+    },
+    {
+      "id": "tan_link_mount_gas_spring_seat",
+      "name": "gas-spring mount seated on the tangential link mount",
+      "parts": [
+        "gas_spring_mount_213668_002",
+        "tan_link_mount_215175_002"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "pitch_plate_brake_attachment",
+      "name": "hydraulic brake attached to the pitch plate",
+      "parts": [
+        "pitch_plate_215177_001",
+        "hydraulic_brake"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "brake_hub_mount",
+      "name": "hydraulic brake mounted to the hub",
+      "parts": [
+        "hydraulic_brake",
+        "hub"
+      ],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "head_bearing_face_pitch_link",
+      "name": "bolt-head bearing face against the plain bushing",
+      "parts": ["bolt_nas6403u11d", "bushing_214820_002"],
+      "kind": "mating_surface",
+      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, and that is the definition the grip dimensions here are cited to."
+    },
+    {
+      "id": "bushing_eye_face",
+      "name": "plain bushing face against the pitch-link eye (spherical bearing ball)",
+      "parts": ["bushing_214820_002", "spherical_bearing_pitch_link"],
+      "kind": "mating_surface",
+      "note": "Replaced `bushing_pitch_plate_face` on 2026-09-15 (handoff stack_fable_audit): that interface was a reading that reproduced the stack's then-incomplete arithmetic (the eye was omitted for want of any source) and its own note said it did not assert the bushing and the lug actually touch. They do not -- the eye and the flange sit between, same architecture as the tan-link joint."
+    },
+    {
+      "id": "eye_flange_face",
+      "name": "pitch-link eye face against the flanged bushing's flange",
+      "parts": ["spherical_bearing_pitch_link", "flanged_bushing_nas77a3_015a"],
+      "kind": "mating_surface",
+      "note": "Added 2026-09-15 (stack_fable_audit); mirrors the tan-link take-2 topology's bearing_flanged_bushing_face."
+    },
+    {
+      "id": "flange_lug_face",
+      "name": "flanged bushing flange face against the pitch-plate lug",
+      "parts": ["flanged_bushing_nas77a3_015a", "pitch_plate_215177_001"],
+      "kind": "mating_surface",
+      "note": "Added 2026-09-15 (stack_fable_audit). The flange bears on the lug face; the bushing's barrel passes into the lug's bore (not modelled -- no bore-depth path in the referenced stack)."
+    },
+    {
+      "id": "pitch_plate_washer_face",
+      "name": "pitch-plate lug face against the flat washer",
+      "parts": ["pitch_plate_215177_001", "washer_nas1149v0332h"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "washer_far_face_pitch_link",
+      "name": "flat washer far face -- the last modelled clamped surface",
+      "parts": ["washer_nas1149v0332h"],
+      "kind": "datum_feature",
+      "note": "A datum_feature and not a mate: beyond it sits the slotted nut (MS9363-09) and cotter pin (MS24665-153), deliberately outside this joint's scope, exactly as topology_vpa_output_to_pitch_plate.json's bushing_far_face is."
+    },
+    {
+      "id": "shank_full_dia_end_pitch_link",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["bolt_nas6403u11d"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a). Not a mate: it is where the thread run-out begins."
+    },
+    {
+      "id": "bolt_point",
+      "name": "bolt point (tip)",
+      "parts": ["bolt_nas6403u11d"],
+      "kind": "datum_feature",
+      "note": "The far end of `bolt_length_11` (head bearing face to point) and the near end of `cotter_hole_from_point` (cotter-hole centreline to bolt point)."
+    },
+    {
+      "id": "cotter_hole_centerline",
+      "name": "cotter-pin hole centreline",
+      "parts": ["bolt_nas6403u11d"],
+      "kind": "datum_feature",
+      "note": "Located by dimension M on NAS6403-NAS6420 Rev 4 sheet 1, read off the figure."
+    },
+    {
+      "id": "head_bearing_face_rotor",
+      "name": "bolt-head bearing face against the MS21299C3 countersunk washer",
+      "parts": ["fastener_family", "washer_ms21299c3"],
+      "kind": "mating_surface",
+      "note": "Where grip is measured from, NAS6403-NAS6420 Rev 4 sheet 2 note (a), same as every other 217755 joint in this repo."
+    },
+    {
+      "id": "washer_junction_face",
+      "name": "MS21299C3 washer far face against the NAS1149V0332H washer",
+      "parts": ["washer_ms21299c3", "washer_nas1149v0332_tt"],
+      "kind": "mating_surface",
+      "note": "A reading, not a claim of physical adjacency: the stack's own notes place zero or more stacked balancing masses between these two washers, and that member is UNSOURCED (only weight in grams is printed, no part drawing). This interface reproduces the stack's own arithmetic, which omits the missing mass from the sum -- see both washers' checks' `excluded_terms`."
+    },
+    {
+      "id": "washer_far_face_rotor",
+      "name": "NAS1149V0332H washer far face -- the last modelled clamped surface",
+      "parts": ["washer_nas1149v0332_tt"],
+      "kind": "datum_feature",
+      "note": "Beyond it sits the receiving structure's own engagement thickness (216231-002 HUB AND BLADE ASSEMBLY, or a neighbour), also UNSOURCED -- reference-only balloons carry no dimension. Retention here is a blind tapped hole, not a nut: no castellation/cotter-hole caveat applies at this joint."
+    },
+    {
+      "id": "shank_full_dia_end_rotor",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["fastener_family"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a), wherever the installed dash number places it."
+    },
+    {
+      "id": "head_bearing_face_tan_link",
+      "name": "bolt-head bearing face against the straight bushing",
+      "parts": ["bolt_nas6403u13h", "straight_bushing_214820_002"],
+      "kind": "mating_surface",
+      "note": "Where grip is measured from, NAS6403-NAS6420 Rev 4 sheet 2 note (a)."
+    },
+    {
+      "id": "bushing_bearing_face",
+      "name": "straight bushing face against the spherical bearing",
+      "parts": ["straight_bushing_214820_002", "spherical_bearing_tan_link"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bearing_flanged_bushing_face",
+      "name": "spherical bearing face against the flanged bushing's flange",
+      "parts": ["spherical_bearing_tan_link", "flanged_bushing_tan_link"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "flanged_bushing_internal_step",
+      "name": "flanged bushing -- internal step between the flange and the barrel",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "Not a mate: an internal reference feature separating the flange and barrel dimensions of the SAME part. A datum_feature because nothing else touches it."
+    },
+    {
+      "id": "flanged_bushing_barrel_end_raw",
+      "name": "flanged bushing barrel end, before the chamfer is subtracted",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "The raw end of the barrel dimension `flange_bushing_L`; `bushing_chamfer` subtracts back from here to the effective clamped face."
+    },
+    {
+      "id": "flanged_bushing_effective_far_face",
+      "name": "flanged bushing effective far face -- the last modelled clamped surface",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "A datum_feature and not a mate: beyond it sits the retention nut, deliberately outside this joint's scope, exactly as the other 217755 joints in this repo."
+    },
+    {
+      "id": "shank_full_dia_end_tan_link",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["bolt_nas6403u13h"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, NAS6403-NAS6420 Rev 4 sheet 2 note (a)."
+    },
+    {
+      "id": "head_bearing_face_vpa_out",
+      "name": "bolt-head bearing face against the countersunk washer",
+      "parts": ["bolt_nas6404u13d", "washer_ms21299c4k"],
+      "kind": "mating_surface",
+      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, and that is the definition the grip dimension here is cited to."
+    },
+    {
+      "id": "washer_flange_face",
+      "name": "washer face against the pitch flange",
+      "parts": ["washer_ms21299c4k", "pitch_plate_215177_001"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "flange_bushing_flange_face",
+      "name": "pitch flange face against the bushing flange",
+      "parts": ["pitch_plate_215177_001", "flanged_bushing_unidentified"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bushing_flange_bearing_face",
+      "name": "bushing flange face against the spherical bearing",
+      "parts": ["flanged_bushing_unidentified", "spherical_bearing_in_vpa"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bearing_bushing_face",
+      "name": "spherical bearing face against the plain bushing",
+      "parts": ["spherical_bearing_in_vpa", "plain_bushing_214943_002"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bushing_far_face",
+      "name": "plain bushing far face -- the last clamped surface",
+      "parts": ["plain_bushing_214943_002"],
+      "kind": "datum_feature",
+      "note": "A datum_feature and not a mating_surface: what is beyond it is the castellated nut's face, and the nut is deliberately outside this joint's scope (see notes)."
+    },
+    {
+      "id": "shank_full_dia_end_vpa_out",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["bolt_nas6404u13d"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a). Not a mate: it is where the thread run-out begins."
     }
   ],
   "edges": [
@@ -379,13 +1276,11 @@
       "part": "pitch_link",
       "from": "pitch_link_lower_sphere_centre",
       "to": "pitch_link_upper_sphere_centre",
-      "dimension": {
-        "id": "pitch_link_length",
-        "name": "pitch link length, lower bearing centre to upper bearing centre",
-        "nominal": 105.9908,
-        "min": 105.9908,
-        "max": 105.9908,
-        "source_ref": {
+      "properties": {
+        "nominal_length_mm": 105.9908,
+        "link_angle_deg": 77,
+        "deferred_effect": "pitch-link swing-angle change -- named by the brief as a deferred kinematic effect, assumed negligible now. The source sheet linearises it once at the nominal 77 deg (its K1:N12 finite-difference block) and never re-evaluates at another pitch condition.",
+        "nominal_citation": {
           "kind": "workbook",
           "document": "250530_pitch_motion_ratios.xlsx",
           "sheet": "250530 pitch sweep",
@@ -393,9 +1288,25 @@
           "confidence": "untraced",
           "note": "The distance between the sheet's own two node columns at 72 degrees blade pitch (row 83, the row its column K measures every actuator displacement from): Pitch Arm Node C83:E83 = (83.000, -44.550, -22.700), Pitch Plate Node G83:I83 = (84.972, -17.139, 79.666), |A - P| = 105.9908 mm. It is a rigid link, so the length must come out constant over the sweep, and it does -- over all 80 rows (blade pitch -7 to +72, rows 4 to 83) it ranges 105.9896 to 105.9915, a spread of 0.0019 mm, which is the sheet's own three-decimal rounding and not a tolerance.\n`untraced`, and the arithmetic is why it is not better rather than why it is: the subtraction and the norm settle `traced` against `inferred` -- the sheet states the endpoints and not the length -- and say nothing about the SUPPORT, which is this workbook and no second document. The SOP's rule is that a value whose only support is 'the source workbook says so' is `untraced` and goes on the gap list however reasonable it looks, and this edge does. What would move it: 213861-002's own drawing, which this repo has not acquired. This handoff's own fit of the two bearing centres agrees to 0.00023 mm and is deliberately NOT leaned on -- a fit is a measurement of a mesh, not a citation.\nDIVERGENCE RESOLVED 2026-10-01, in this value's favour: docs/topologies/topology_pitch_system.json's own `pitch_link_length` edge stated 109.4 mm for the same hole-to-hole distance on this same link -- from a different workbook (260825_End_Stop_JC.xlsx K3) and carried in that edge's `properties` rather than in a `dimension`, which is why nothing paired the two. 3.41 mm apart, and a rigid link's length does not change with pitch. That document was corrected to 105.9908 mm; see its edge's citation note for the full argument, and ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md. tests/test_tolerance_stack.py::test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_it now pairs the two and goes red if they part again. Resolved does not mean verified: this value is still `untraced` for the reason above, and 213861-002's drawing is still what would move it.\nThe workbook lives in another repo, read-only: C:\\workspace\\atp-post\\docs\\references\\250530_pitch_motion_ratios.xlsx.",
           "callout": "Pitch Arm Node / Pitch Plate Node, X Y Z"
-        },
-        "note": "min == max because the sheet carries a nominal and NO tolerance -- so this edge appears on the gap list twice over: as a value with no band recorded, and as an unverified value, which workbook-only support makes it. A pitch-link length tolerance would come from 213861-002's own drawing."
-      }
+        }
+      },
+      "dimension": {
+        "id": "pitch_link_length",
+        "name": "pitch link length tolerance",
+        "nominal": 0.0,
+        "min": -0.03,
+        "max": 0.03,
+        "plus_minus": 0.03,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack",
+          "cell": "B31",
+          "confidence": "untraced",
+          "note": "0.06 mm total tolerance width. The nominal length is in this edge's `properties`, not in the band -- see provenance.variation_only. NOMINAL CORRECTED 2026-10-01, 109.4 mm -> 105.9908 mm (handoff one_part_feature_one_value_across_topologies). READ THIS IF YOU REMEMBER 109.4: that figure was this edge's `properties.nominal_length_mm` from 2026-08-31 until today, and several studies over this topology were built while it was. It came from 260825_End_Stop_JC.xlsx K3 -- the same workbook as the band below, which traces nothing -- and it was never re-checked when this row's owner was re-identified twice (2026-09-06, and again 2026-09-15 when that first refinement turned out to have pointed at the wrong link). What replaced it is two independent measurements that agree to 0.000231 mm: 250530_pitch_motion_ratios.xlsx's own two node columns (105.99079988848088 mm, and constant to 0.0019 mm over the whole 80-row sweep, so a rigid link's one length), and a fit of the installed asm217755_MS14101_3_815597cb mesh through the two placement matrices its own provenance.json records (105.99056896582033 mm). Both are cited cell-for-cell and row-for-row on docs/topologies/topology_vpa_pitch_linkage.json's `pitch_link_length` edge, which is the same dimension as this one: for an MS14101-3 spherical bearing the ball centre IS the joint-bolt axis through the housing bore, so its sphere-centre-to-sphere-centre run and this edge's hole-to-hole run are one distance, not two. The two documents disagreed by 3.41 mm until today and correcting this one closes it -- ISSUE_20260930_two_topologies_state_the_pitch_link_length_3mm_apart.md, with tests/test_tolerance_stack.py::test_one_part_and_feature_states_one_nominal_in_every_topology_that_states_it now red if they part again. NOTHING COMPUTED MOVED: this topology is variation-only, no code reads `properties`, and every study over it folds the band below rather than the nominal -- all were re-run before and after and every total, band and check verdict is identical. STILL UNVERIFIED: the corrected nominal is no better than `untraced` (a workbook and a mesh fit, and a fit is a measurement of a mesh, not a citation) and `properties` has no `confidence` field in which to say so; the 0.06 mm band below is unchanged and still the workbook's; the 77 deg `link_angle_deg` is K2 of the same unchecked K block, with no second measurement to check it against; 213862-002's drawing, still unacquired, is what would settle all three. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 31, 'still blocked, owner refined'): 212956-005-A (the pitch anti-rotation link assembly, now in hand) carries only a parenthesized reference length, (81.43) -- the toleranced length lives one BOM level deeper, on 213863-004, still unacquired. OWNER RE-REFINED 2026-09-15 (stack_fable_audit): that 2026-09-06 refinement pointed at the WRONG LINK. The 216231 A.1 HUB AND BLADE ASSEMBLY parts list (in tolstack's own spec pile) names 213862-002 PITCH LINK ASSEMBLY, PROPELLER at qty 5 -- one per blade, the count this topology's five pitch links need -- where 212956-005 is qty 3 and its machined link's (81.43) reference cannot be the nominal this edge carries (109.4 mm when that was written, 105.9908 mm now -- neither). The owner of this row is therefore 213862-002 (and its machined link one BOM level deeper), unacquired and on the operator queue; the band stays the workbook's, untraced, unchanged."
+        }
+      },
+      "note": "One edge for the link's length: a 0.06 mm band from the end-stop workbook, about the 105.9908 mm nominal the pitch sweep sheet's two node columns give. Both are workbook-only, so both are untraced."
     },
     {
       "id": "pitch_link_bearing_ball_centre_offset",
@@ -476,7 +1387,42 @@
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_tan_link_attach_bore",
-      "note": "No value recorded. Phase 2. What would close it: 215177-001's drawing, or a fit of the installed mesh."
+      "dimension": {
+        "id": "pitch_plate_tan_link_attach_radius",
+        "name": "pitch plate spindle axis to tangential-link attachment bore, position zone",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": null,
+          "view": "SECTION A-A",
+          "callout": "3X Ø 7.950 +0.015/0.000 with ⌖Ø0.2 A B",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-10-26 off the PDF text layer and the page_2.png render of run 20260819_153213_215735-A. The same sha256 is copied into this repo's own inbox (data/inbox/drawings/215735-A.pdf)."
+          },
+          "confidence": "traced",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, callout block bbox [1182.66, 740.04, 1289.72, 769.8] (Ø7.950 +0.015/0.000, 3X) with its frame at [1186.91, 774.91, 1267.66, 791.06] (⌖Ø0.2 A B), page 1683.78 x 1190.56 pt. Identity by count, as the 5X group's is: 3X bores <-> the three tangential links (212956-005 qty 3, stack_tan_link_to_pitch_plate.json). Datum B is the plate's central bore (sheet 1: Ø 41.040 +/-0.025 carries the B datum box), i.e. the spindle bore axis this edge starts from, so the frame is a position of the attach bore from that axis.\nMapping to the study: a diametral position zone ⌖Øt is read as a ball of radius t/2 = 0.10 mm about the attach point (the study's `sphere` zone). That treats an in-plane position zone as a ball, which is conservative along the bore axis; no `disk` is invented because the hole's axis is not stated (ISSUE_20261022_the_pitch_plate_link_hole_has_no_axis...). The companion Ø 8.520 +/-0.008 bore carries ⌖Ø0.03 relative to the 7.950 hole (datum F) and is not this edge's band. Not leaned on: the mesh fit of the same bore, which has no band."
+        },
+        "note": "A position zone, not a plus-minus: nominal 0 with +/-0.10 is the radius of the ⌖Ø0.2 zone, authored about zero as a kinematic contributor requires."
+      }
     },
     {
       "id": "gas_spring_installed_length",
@@ -491,22 +1437,51 @@
       "id": "pitch_arm_link_joint",
       "name": "pitch arm link bore to pitch link lower bearing centre",
       "kind": "gap",
+      "interface": "spherical",
       "from": "pitch_arm_link_bore",
       "to": "pitch_link_lower_sphere_centre",
-      "note": "No value recorded. The lower joint's own closure: the ball centre sits on the arm bore's axis, and by how much it does not is the joint's play. What would close it: the bearing's and the lug's own fits, plus a clearance from 215071-001's drawing."
+      "dimension": {
+        "id": "pitch_arm_link_joint",
+        "name": "pitch arm link joint, taken as closed",
+        "nominal": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "plus_minus": 0.0,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER -- zero by assumption, added 2026-10-26 when pitch_system was folded into this document. pitch_system modelled this joint as one interface, which assumed the bearing's ball centre sits exactly on the pitch arm bore's axis. Folding its studies into this graph makes that assumption a term, and it is written as one -- a zero, `assumed` -- so they still chain through the joint and say they are incomplete here rather than hiding it. Every total is unchanged by it. What would replace it: the bearing's and the pitch arm lug's own fits."
+        }
+      },
+      "note": "Taken as closed (zero, assumed) since 2026-10-26, for the pitch studies that cross it. The lower joint's own closure: the ball centre sits on the arm bore's axis, and by how much it does not is the joint's play. What would close it: the bearing's and the lug's own fits, plus a clearance from 215071-001's drawing."
     },
     {
       "id": "pitch_plate_link_joint",
       "name": "pitch plate link bore to pitch link upper bearing centre",
       "kind": "gap",
+      "interface": "spherical",
       "from": "pitch_plate_link_attach_bore",
       "to": "pitch_link_upper_sphere_centre",
-      "note": "No value recorded. The upper joint's own closure, the mirror of the lower one."
+      "dimension": {
+        "id": "pitch_plate_link_joint",
+        "name": "pitch plate link joint, taken as closed",
+        "nominal": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "plus_minus": 0.0,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER -- zero by assumption, added 2026-10-26 when pitch_system was folded into this document. pitch_system modelled this joint as one interface, which assumed the bearing's ball centre sits exactly on the pitch plate bore's axis. Folding its studies into this graph makes that assumption a term, and it is written as one -- a zero, `assumed` -- so they still chain through the joint and say they are incomplete here rather than hiding it. Every total is unchanged by it. What would replace it: the bearing's and the pitch plate lug's own fits."
+        }
+      },
+      "note": "Taken as closed (zero, assumed) since 2026-10-26, for the pitch studies that cross it. The upper joint's own closure, the mirror of the lower one."
     },
     {
       "id": "hub_to_pitch_plate_spindle_coaxiality",
       "name": "hub spindle bore axis to pitch plate spindle bore axis",
       "kind": "gap",
+      "interface": "cylindrical_slide",
       "from": "hub_spindle_bore_axis",
       "to": "pitch_plate_spindle_bore_axis",
       "note": "No value recorded. The plate rides on the spindle, so these two axes are expected coaxial; how far from coaxial they are allowed to be is a drawing question nobody has answered here."
@@ -515,17 +1490,19 @@
       "id": "gas_spring_bushing_coaxiality",
       "name": "hub spindle bore axis to gas-spring mount bushing bore",
       "kind": "gap",
+      "interface": "cylindrical_slide",
       "from": "hub_spindle_bore_axis",
       "to": "gas_spring_mount_bushing_bore",
-      "note": "No value recorded. The hub's spindle bore IS the gas-spring bushing bore in Jeff's statement of the mechanism; this edge is where the two are compared once both are bound, and it is the reason the hub node is named for both."
+      "note": "No value recorded. The hub's spindle bore IS the gas-spring bushing bore in Jeff's statement of the mechanism; this edge is where the two are compared once both are bound, and it is the reason the hub node is named for both. Interface cylindrical_slide: the gas-spring piston rides in this bushing bore along the spindle axis, so the contact the coaxiality is measured across is a slide, not a seat."
     },
     {
       "id": "gas_spring_rod_to_pitch_plate",
       "name": "gas-spring rod-end bore to pitch plate gas-spring bore",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "gas_spring_rod_end",
       "to": "pitch_plate_gas_spring_bore",
-      "note": "No value recorded."
+      "note": "No value recorded. Interface pin_in_bore: two bores joined by the pin through both; read as a pin in a bore until a drawing says the rod end carries a spherical bearing, which would make it spherical."
     },
     {
       "id": "tan_link_length",
@@ -534,7 +1511,38 @@
       "part": "tan_link_212956_005",
       "from": "tan_link_lower_sphere_centre",
       "to": "tan_link_upper_sphere_centre",
-      "note": "No value recorded. Phase 2. The tangential link's analogue of `pitch_link_length`, and unlike that edge the 3DX sweep sheet does not carry its endpoints. What would close it: 213863-004's drawing (acquired 2026-09-10, run 20260910_154233), or a fit of the installed `asm217755_212956_005` mesh, whose four solids include both bearings."
+      "dimension": {
+        "id": "tan_link_length",
+        "name": "tangential link length, bore centre to bore centre",
+        "nominal": 61.4,
+        "min": 61.35,
+        "max": 61.45,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "213863-004-A",
+          "revision": "A",
+          "sheet": 1,
+          "zone": null,
+          "view": "PART DETAIL (plan view)",
+          "callout": "61.40 (basic, boxed) with ⌖Ø0.1 B on Ø 14.288 +/-0.006",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213863-004-A.pdf",
+            "sha256": "4e1a130436bd257b47e12560ceee0efca0ff8783df7bcd64f7b2b5f5cbbfec75",
+            "runs": [
+              {
+                "run_id": "20260910_154233_213863-004-A",
+                "ts": "2026-09-10T22:42:43.204081+00:00"
+              }
+            ],
+            "note": "Read 2026-10-26 off the PDF text layer and the page_1.png render of the run. The part drawing of the bare link body (find 3 of 212956-005); the run recorded no dimensions, so the callouts were read by eye and by text layer."
+          },
+          "confidence": "traced",
+          "note": "213863-004 A sheet 1 of 1 (PART DETAIL, PITCH ANTI ROTATION LINK, PROPELLER), page 1190.56 x 841.89 pt. The length: boxed basic dimension 61.40 between the two bore centres, bbox [332.97, 139.52, 365.25, 155.67]. Its band: ⌖Ø0.1 B on the Ø 14.288 +/-0.006 bore, frame bbox [93.43, 186.58, 159.12, 202.73], callout bbox [86.72, 170.71, 187.38, 186.86]; datum B is the Ø 15.876 +/-0.006 bore (callout bbox [481.35, 329.45, 581.15, 345.6]). So one bore sits within a Ø0.1 zone of 61.40 from the other: a radius of 0.05 mm, taken along the centre line as the worst case, +/-0.05. The bore diameters' own tolerances (+/-0.006) do not move a bore's centre and are not added.\nWhat this is and is not: the distance between the link BODY's two bore axes. The solver's sphere centres are the bearings' ball centres in those bores; the ball-centre offset from the bore axis is the two `*_ball_centre_offset` edges, still uncited, and is not in this band. The 212956-005 A assembly sheet gives only reference lengths (overall (81.43), (11.10), (21.00)) and no centre distance.\nMesh agreement: run P2's two sphere centres sit 61.45 mm apart (tan_link.point_a_world / point_b_world), 0.05 mm over the drawing's 61.40 -- inside the band's full width and inside what a bearing fit can account for. A fit is a measurement of a mesh and is not what is cited."
+        },
+        "note": "The basic 61.40 with its ⌖Ø0.1 B zone as +/-0.05 along the centre line. The study reads the same band about zero (its contributors are variations about the sweep's own nominal), with this same citation inline; tests/test_kinematic.py pairs the two."
+      }
     },
     {
       "id": "tan_link_ms14101_ball_centre_offset",
@@ -558,6 +1566,7 @@
       "id": "tan_link_mount_joint",
       "name": "tangential link mount bore to link mount-end bearing centre",
       "kind": "gap",
+      "interface": "spherical",
       "from": "tan_link_mount_bore",
       "to": "tan_link_lower_sphere_centre",
       "note": "No value recorded. Phase 2."
@@ -566,6 +1575,7 @@
       "id": "tan_link_plate_joint",
       "name": "tangential link plate-end bearing centre to pitch plate bore",
       "kind": "gap",
+      "interface": "spherical",
       "from": "tan_link_upper_sphere_centre",
       "to": "pitch_plate_tan_link_attach_bore",
       "note": "No value recorded. Phase 2."
@@ -610,33 +1620,37 @@
       "id": "pitch_link_lower_centre_is_this_bearing",
       "name": "MS14101-3 ball centre to the pitch link's lower joint centre",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "pitch_link_bearing_ball_centre",
       "to": "pitch_link_lower_sphere_centre",
-      "note": "No value recorded, and nominally zero: the link's lower joint centre IS this bearing's ball centre, at instance 213862-002.1/MS14101-3.1. The edge exists because the two are different KINDS of thing -- one is a piece part's own feature, the other is a location in the mechanism -- and because it is the only thing in this document that says which geometry a reader should click to bind that centre. What would close it: the press-fit clearance off 213861-002's housing bore and the bearing's own OD."
+      "note": "No value recorded, and nominally zero: the link's lower joint centre IS this bearing's ball centre, at instance 213862-002.1/MS14101-3.1. The edge exists because the two are different KINDS of thing -- one is a piece part's own feature, the other is a location in the mechanism -- and because it is the only thing in this document that says which geometry a reader should click to bind that centre. What would close it: the press-fit clearance off 213861-002's housing bore and the bearing's own OD. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "pitch_link_upper_centre_is_this_bearing",
       "name": "MS14101-3 ball centre to the pitch link's upper joint centre",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "pitch_link_bearing_ball_centre",
       "to": "pitch_link_upper_sphere_centre",
-      "note": "The same statement for instance .2, and the reason the bearing's own centre is one node with two edges rather than two nodes: a topology part id names a part, and these are two instances of one."
+      "note": "The same statement for instance .2, and the reason the bearing's own centre is one node with two edges rather than two nodes: a topology part id names a part, and these are two instances of one. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "tan_link_mount_end_centre_is_this_bearing",
       "name": "MS14101-3 ball centre to the tangential link's mount-end joint centre",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "tan_link_ms14101_ball_centre",
       "to": "tan_link_lower_sphere_centre",
-      "note": "No value recorded. Phase 2. The tangential link's analogue of the pitch link's lower joint."
+      "note": "No value recorded. Phase 2. The tangential link's analogue of the pitch link's lower joint. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "tan_link_plate_end_centre_is_this_bearing",
       "name": "MS14103-3 ball centre to the tangential link's plate-end joint centre",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "tan_link_ms14103_ball_centre",
       "to": "tan_link_upper_sphere_centre",
-      "note": "No value recorded. Phase 2."
+      "note": "No value recorded. Phase 2. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "piston_head_lower_thickness",
@@ -794,11 +1808,27 @@
             "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
             "runs": [
               {
+                "run_id": "20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-14T11:11:24+00:00"
+              },
+              {
+                "run_id": "20260727_145424_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-27T14:54:24+00:00"
+              },
+              {
+                "run_id": "20260730_133150_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-30T20:32:14.614196+00:00"
+              },
+              {
+                "run_id": "20260813_180536_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-14T01:05:58.595436+00:00"
+              },
+              {
                 "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
                 "ts": "2026-08-19T22:03:41.397347+00:00"
               }
             ],
-            "note": "The run's own run_meta.json records this sha256 as its input, and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). Read-only: nothing was written into drawing-checker."
+            "note": "Five runs consumed this export: drawing-checker's runs.jsonl records its sha256 as the input of each (the run's own run_meta.json does too for the three from 20260730 on), and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). The ts of the first two (backfilled) is derived from the run id by drawing-checker's reconcile_run_log.py, not a stamped instant. Read-only: nothing was written into drawing-checker."
           },
           "element_id": null,
           "run_id": null,
@@ -812,9 +1842,10 @@
       "id": "travel_between_end_stops",
       "name": "travel between the two end stops",
       "kind": "gap",
+      "interface": "clearance",
       "from": "piston_head_upper_step_face",
       "to": "piston_cover_end_stop_shoulder",
-      "note": "The quantity the end-stop travel study computes; no value of its own. With the heads resting on the mount's end-stop surface (the feather stop), the clearance between the upper head's step face and the cover's internal shoulder is the distance the piston can travel to the other stop."
+      "note": "The quantity the end-stop travel study computes; no value of its own. With the heads resting on the mount's end-stop surface (the feather stop), the clearance between the upper head's step face and the cover's internal shoulder is the distance the piston can travel to the other stop. Interface clearance: free space between the upper head's step face and the cover's shoulder, closed only at the far stop; no contact holds it."
     },
     {
       "id": "gas_spring_mount_hub_face_to_cover_seat",
@@ -854,11 +1885,27 @@
             "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
             "runs": [
               {
+                "run_id": "20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-14T11:11:24+00:00"
+              },
+              {
+                "run_id": "20260727_145424_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-27T14:54:24+00:00"
+              },
+              {
+                "run_id": "20260730_133150_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-30T20:32:14.614196+00:00"
+              },
+              {
+                "run_id": "20260813_180536_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-14T01:05:58.595436+00:00"
+              },
+              {
                 "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
                 "ts": "2026-08-19T22:03:41.397347+00:00"
               }
             ],
-            "note": "The run's own run_meta.json records this sha256 as its input, and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). Read-only: nothing was written into drawing-checker."
+            "note": "Five runs consumed this export: drawing-checker's runs.jsonl records its sha256 as the input of each (the run's own run_meta.json does too for the three from 20260730 on), and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). The ts of the first two (backfilled) is derived from the run id by drawing-checker's reconcile_run_log.py, not a stamped instant. Read-only: nothing was written into drawing-checker."
           },
           "element_id": null,
           "run_id": null,
@@ -867,14 +1914,1149 @@
         }
       },
       "note": "A real dimension of 213668-002 that no study selects. It closes a ring with the mount's other two edges (base face to cover seat, which carries no value, and cover seat to end stop), so a study that selected all three would be refused, which is correct: they are one part's three faces, and the travel chain wants only the cover-seat-to-stop length."
+    },
+    {
+      "id": "hub_lower_to_top_bearing_flange",
+      "name": "hub lower bearing flange (A datum) to top bearing flange",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_lower_bearing_flange",
+      "to": "hub_top_bearing_flange",
+      "dimension": {
+        "id": "hub_lower_to_top_bearing_flange",
+        "name": "hub lower bearing flange to top bearing flange",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack",
+          "cell": "B43",
+          "confidence": "untraced",
+          "note": "0.20 mm total tolerance width, read as +/-0.10 about an unstated nominal (see provenance.variation_only)."
+        }
+      }
+    },
+    {
+      "id": "hub_top_flange_to_top_deck",
+      "name": "hub top bearing flange to hub top deck",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_top_bearing_flange",
+      "to": "hub_top_deck",
+      "dimension": {
+        "id": "hub_top_flange_to_top_deck",
+        "name": "hub top bearing flange to hub top deck",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack",
+          "cell": "B44",
+          "confidence": "untraced",
+          "note": "0.10 mm total tolerance width."
+        }
+      }
+    },
+    {
+      "id": "hub_top_deck_to_tan_link_mount_seat",
+      "name": "hub top deck to tangential link mount seat",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_top_deck",
+      "to": "tan_link_mount_hub_face",
+      "dimension": {
+        "id": "hub_top_deck_to_tan_link_mount_seat",
+        "name": "hub top deck to tan link mount",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack",
+          "cell": "B45",
+          "confidence": "untraced",
+          "note": "0.10 mm total tolerance width. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 45, 'still blocked'): spans two owners; the hub half is available (see `hub_lower_to_top_bearing_flange`/`hub_top_flange_to_top_deck`, both still `candidate`), but the tan-link-mount half is blocked exactly as `tan_link_mount_height` is, and no document states the spanning path between the two even once both are dimensioned."
+        }
+      }
+    },
+    {
+      "id": "hub_top_deck_to_vpa_mount",
+      "name": "hub top deck to actuator mounting face",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_top_deck",
+      "to": "hub_vpa_mount",
+      "dimension": {
+        "id": "hub_top_deck_to_vpa_mount",
+        "name": "hub top deck to actuator mounting face",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER. The source sheet has no row for the hub-to-actuator mounting face; 0.10 mm total width is the value it uses for the hub's other deck-to-feature dimensions (rows 44, 45), carried across as a stand-in so the actuator branch is not left valueless. The structure is the deliverable; this number is not.",
+          "no_drawing_governs": "An exemption made by the 2026-10-26 fold, not a finding that nothing governs this: pitch_system declared no drawing on the hub, this document declares 214373-002, and whether that drawing dimensions the actuator mounting face is unread. The band stays the one every pitch study was built on, so the fold moves no total; re-shaping it is filed."
+        }
+      }
+    },
+    {
+      "id": "hub_blade_root_seat_position",
+      "name": "hub A datum to blade root seat position",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_lower_bearing_flange",
+      "to": "blade_root_hub_seat",
+      "dimension": {
+        "id": "hub_blade_root_seat_position",
+        "name": "blade root seats in hub position tol",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "212966-006-A",
+          "revision": null,
+          "sheet": 4,
+          "zone": null,
+          "view": null,
+          "callout": "5X INDIVIDUALLY ⌖Ø0.10Ⓛ A B C, on Ø106.310 0.000/-0.025 CRITICAL PART",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/212966-006-A.pdf",
+            "sha256": "b0c19da5a8cf992bf3ae31c3b589edb14e1d68347617964f2f847b0c219d0d6b",
+            "runs": [
+              {
+                "run_id": "20260813_180416_212966-006-A",
+                "ts": "2026-08-14T01:05:35.989237+00:00"
+              },
+              {
+                "run_id": "20260819_150150_212966-006-A",
+                "ts": "2026-08-19T22:03:13.880150+00:00"
+              },
+              {
+                "run_id": "20261001_181931_212966-006-A",
+                "ts": "2026-10-02T01:21:20.842698+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer/rendered crop during handoff endstop_vision_baseline (2026-09-01); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
+          },
+          "confidence": "traced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §3 row 17, findings F1/F2): identity established (the hub's one 5X-INDIVIDUALLY blade-root-seat position frame). The band is 0.10 mm total (+/-0.05), NOT the prior workbook's 0.12 mm (+/-0.06) -- the drawing is the value of record, so this edge's stored band now matches it exactly. F1: the drawing's modifier is LMC (Ⓛ), where the workbook's own comment says 'diameter MMC' -- this repo's load-bearing design decision 2 (LMC/MMC are material conditions, not extremes; for a subtracted feature the mapping inverts) surfacing in live source data. F2: the workbook's 0.12 mm is reconstructible as this 0.10 mm position PLUS the mating seat's 0.022 mm size band (Ø92.030 0.000/-0.022) -- a bonus-tolerance hypothesis, not folded in here, since v0 carries no per-term MMC/LMC weight (see this topology's own notes on what it cannot reproduce)."
+        }
+      }
+    },
+    {
+      "id": "hub_ring_gear_seat_position",
+      "name": "hub A datum to ring gear seat position",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_lower_bearing_flange",
+      "to": "ring_gear_hub_seat",
+      "dimension": {
+        "id": "hub_ring_gear_seat_position",
+        "name": "ring gear seat position in the hub",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER, and the source says so itself: row 64's comment reads 'blade roots =0.12, ring gear needs positional tolerace [sic]' and row 57's reads 'does not exist yet. Must roll up ring gear seat and tan link mount position'. So this tolerance is not merely untraced, it does not exist as a design intent yet. 0.20 mm is a stand-in.",
+          "no_drawing_governs": "The source workbook says the ring-gear seat's positional tolerance does not exist yet as design intent (its rows 57 and 64), so no drawing of the hub can govern it today. Exposed by the 2026-10-26 fold, which declared the hub's drawing 214373-002 on this part; filed with the others."
+        }
+      }
+    },
+    {
+      "id": "vpa_mount_to_end_stop_feature",
+      "name": "actuator mounting face to the end-stop feature",
+      "kind": "structural",
+      "part": "vpa_208510_007",
+      "from": "hub_vpa_mount",
+      "to": "vpa_end_stop_feature",
+      "dimension": {
+        "id": "vpa_mount_to_end_stop_feature",
+        "name": "actuator mounting face to end-stop feature",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER. The source sheet tolerances the piston end to the end-stop feature (row 39) but nothing from the actuator's mounting face to that feature. 0.20 mm total width matches the sheet's other body-height rows (38, 41, 42). The structure -- that the end stop is located on the body relative to where the body mounts -- is the point of this edge.",
+          "no_drawing_governs": "208510-007 is the supplier's actuator and no drawing of it is in either drawings inbox or any drawing-checker run (checked 2026-10-22), so no document this repo holds governs the mounting face to the end-stop feature; the source workbook bands the piston end to that feature (row 39) and nothing else. Whether this edge should become a gap under the 2026-10-22 rule is filed, not decided here."
+        }
+      }
+    },
+    {
+      "id": "end_stop_clearance",
+      "name": "piston end to end-stop feature -- the end stop",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "vpa_end_stop_feature",
+      "to": "piston_end_stop_face",
+      "properties": {
+        "why_a_gap": "two features on two different parts with a distance between them -- the only such pair in this topology, and the one the whole source workbook exists to bound"
+      },
+      "dimension": {
+        "id": "end_stop_clearance",
+        "name": "piston end to end stop feature",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "214700-002-A",
+          "revision": null,
+          "sheet": 2,
+          "zone": "D5",
+          "view": null,
+          "callout": "5.00 ±0.05",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214700-002-A.pdf",
+            "sha256": "795b557ed1fa29123f3fb785274e19efb3a66ee580361d206bf56e970775d9f2",
+            "runs": [
+              {
+                "run_id": "20260904_181232_214700-002-A",
+                "ts": "2026-09-05T01:12:55.159701+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, §8b row 39); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
+          },
+          "confidence": "untraced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 39, 'candidate (strong)') -- explicitly NOT scored traced. This callout matches the prior workbook value (0.10 mm total = B39) AND its comment ('tol +/-0.05') exactly, at a small groove near the piston's threaded tip. But nothing on the sheet names it an end-stop contact face -- it could be a thread-relief/retaining-ring groove, and the row may describe an assembly clearance a single-part drawing cannot state alone. THE ROW THAT NAMES THE END STOP ITSELF is the one this repo is least willing to overclaim; confidence stays `untraced` until the identity is nailed down (see this topology's unresolved-identity list)."
+        }
+      },
+      "note": "A gap edge that DOES carry a value, unlike `shank_out` in the VPA-output topology: this clearance is toleranced, not derived. The two together are the pair worth knowing -- a gap is a distance across a clearance, and whether it is a term or an answer depends only on whether anyone has toleranced it."
+    },
+    {
+      "id": "piston_length",
+      "name": "piston length",
+      "kind": "structural",
+      "part": "vpa_piston",
+      "from": "piston_end_stop_face",
+      "to": "piston_rod_end_bore",
+      "dimension": {
+        "id": "piston_length",
+        "name": "piston length tolerance",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "214700-002-A",
+          "revision": null,
+          "sheet": 1,
+          "zone": null,
+          "view": null,
+          "callout": "general-tolerance block X.XX = ±0.10 (sheet 1), applied to sheet 2 zone F6's un-toleranced overall length 113.67",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214700-002-A.pdf",
+            "sha256": "795b557ed1fa29123f3fb785274e19efb3a66ee580361d206bf56e970775d9f2",
+            "runs": [
+              {
+                "run_id": "20260904_181232_214700-002-A",
+                "ts": "2026-09-05T01:12:55.159701+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, §8b row 38); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
+          },
+          "confidence": "inferred",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 38, 'convention-traced'): the OWNER's own drawing (214700-002-A, the piston body itself) carries both the ±0.10 general-tolerance block and the un-toleranced 113.67 overall-length dimension it applies to -- a documented derivation off a traced convention on the same sheet, not a specific numeric callout, hence `inferred` (SOP CONFIDENCES: derived from something traced, with the derivation written down) rather than `traced`. Stronger than the prior session's convention-traced cases, which borrowed a sibling part's block; this is the owner's own. Value 0.20 mm total matches the prior workbook cell (B38) exactly, so no numeric change."
+        }
+      }
+    },
+    {
+      "id": "pitch_plate_flange_to_link_hole",
+      "name": "pitch plate piston flange (A datum) to pitch link hole position",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "piston_rod_end_bore",
+      "to": "pitch_plate_link_attach_bore",
+      "dimension": {
+        "id": "pitch_plate_flange_to_link_hole",
+        "name": "pitch plate piston flange (A-datum) to pitch link hole position",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": null,
+          "sheet": 2,
+          "zone": "B9/C4",
+          "view": null,
+          "callout": "5X Ø 7.950 +0.015/0.000 with ⌖Ø0.2 A B C",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer during handoff endstop_vision_baseline (2026-09-01); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
+          },
+          "confidence": "traced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §3/§8b, row 37): identity by count (5X bores <-> 5 blades) plus the row's own name citing this frame's A-datum. Value 0.20 mm total matches the prior workbook cell (B37) exactly, so no numeric change. F4 (same worksheet): this SAME callout also serves the pitch plate's vertical (row 32) and tangential (row 48) position rows, neither of which is a topology edge here -- and rows 32/37 are both vertical and both 0.20, so whether that is a deliberate second contributor or one tolerance counted twice is open, and Jeff's to resolve, not this session's."
+        }
+      }
+    },
+    {
+      "id": "pitch_plate_flange_to_gas_spring_bushing",
+      "name": "pitch plate piston flange to gas-spring bushing position",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "piston_rod_end_bore",
+      "to": "pitch_plate_gas_spring_bushing",
+      "dimension": {
+        "id": "pitch_plate_flange_to_gas_spring_bushing",
+        "name": "gas spring bushing position",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack",
+          "cell": "B62",
+          "confidence": "untraced",
+          "note": "0.20 mm total tolerance width. The sheet places this row in its TANGENTIAL section, so a blade-angle study of this branch needs the tangential sensitivity (its D12 column), NOT the vertical one -- see this topology's notes for why that transform is deliberately not declared here. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 62, 'still blocked, hypothesis refined'): the best identified candidate owner is 214723-002 (the sealed bushing at the tan-link-mount joint, named by 215175-A's own parts list) -- a hypothesis, not a confirmed identity, and its piece-part drawing is unacquired. HYPOTHESIS WEAKENED 2026-09-10 (§11e; recorded here 2026-09-22 by handoff policy_free_brief_residues), and this row must stop being read as scored against it: 214723-002-A is now in hand and read in full, and what it shows points AWAY from a gas-spring interface. Nothing on it reads as a dimension from a gas-spring-side feature -- its datums are all local to itself -- and its outer bore pairs plausibly, as a press fit, with 215198's own DETAIL B housing bore, which puts this bushing at the tangential-link attachment lug instead. Circumstantial, not a refutation: the bore proximity is not the kind of exact cross-referenced match §8a's bore-ID pairing was, so the 2026-09-04 identity is not replaced by a new one. What changed is its standing -- new evidence arrived and it weakened the guess rather than strengthening it, so the honest label is under-supported rather than merely unconfirmed, and this row's owner is OPEN, not 214723-002 pending acquisition. Value and band unchanged, and this edge stays `untraced`: the disposition is still `still blocked`."
+        }
+      }
+    },
+    {
+      "id": "pitch_plate_flange_to_brake_attachment",
+      "name": "pitch plate piston flange to hydraulic brake attachment",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "piston_rod_end_bore",
+      "to": "pitch_plate_brake_attachment",
+      "dimension": {
+        "id": "pitch_plate_flange_to_brake_attachment",
+        "name": "hydraulic brake attachment position on the pitch plate",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER. The hydraulic brake is a design-concept alternative to the gas spring per the brief; no source in this repo tolerances anything about it. 0.20 mm total width mirrors the gas-spring bushing position it would replace.",
+          "no_drawing_governs": "The hydraulic brake is a design-concept alternative to the gas spring (per the brief) and no released drawing locates a brake attachment on the plate: no drawing-checker run of 215177 mentions a brake (checked 2026-10-22). Whether this edge should become a gap under the 2026-10-22 rule is filed, not decided here."
+        }
+      }
+    },
+    {
+      "id": "pitch_arm_link_hole_to_clocking_hole",
+      "name": "pitch arm link hole to blade-root clocking holes",
+      "kind": "structural",
+      "part": "pitch_arm",
+      "from": "pitch_arm_link_bore",
+      "to": "pitch_arm_blade_root_clocking",
+      "transform": "blade_root_tangential_to_rotary",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32
+      },
+      "dimension": {
+        "id": "pitch_arm_link_hole_to_clocking_hole",
+        "name": "pitch arm fastener-to-fastener tolerance position",
+        "nominal": 0.0,
+        "min": -0.015,
+        "max": 0.015,
+        "plus_minus": 0.015,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack",
+          "cell": "B26",
+          "confidence": "untraced",
+          "note": "0.03 mm total tolerance width. The row's OWN comment says the value needs correcting -- 'need to correct -- based on undersized hole for match drilling' -- and it never was; WORKSHEET_end_stop_graft.md flags it as F2. Untraced and known-provisional."
+        }
+      },
+      "note": "THE COUPLING EDGE. This is the only edge in the repo that declares a non-identity transform as its default, and it does so because the linear-rotary conversion here is the geometry of the pitch arm itself, not a choice of output quantity: a displacement across this edge IS an angle at the blade. Everything upstream is millimetres and needs a study to say which sensitivity applies; this edge does not. The consequence to know: a millimetre study that crosses this edge raises UnitMismatch, which is correct -- past the pitch arm the quantity has changed."
+    },
+    {
+      "id": "blade_root_clocking_to_oml",
+      "name": "clocking holes to the blade outer mould line",
+      "kind": "structural",
+      "part": "blade_root",
+      "from": "pitch_arm_blade_root_clocking",
+      "to": "blade_root_oml",
+      "dimension": {
+        "id": "blade_root_clocking_to_oml",
+        "name": "blade root to OML",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER, and a different kind from the others: the source sheet's row 22 has NO linear precursor at all -- it states 0.181 deg directly, with the author's own comment 'Probably closer to .03deg', i.e. a bare estimate he already doubted by a factor of six. A linear band cannot be recovered from that without inverting a placeholder ratio, so 0.10 mm total width is a stand-in chosen to be visible rather than to be right. This is the single value in this document most in need of Jeff.",
+          "no_drawing_governs": "An exemption made by the 2026-10-26 fold, not a finding that nothing governs this: pitch_system declared no drawing on the blade root, this document declares 216332-001, and whether it bands the clocking hole to the outer mould line is unread. Kept so the fold moves no total; re-shaping it is filed."
+        }
+      }
+    },
+    {
+      "id": "blade_root_clocking_to_hub_seat",
+      "name": "clocking holes to the hub bearing seat",
+      "kind": "structural",
+      "part": "blade_root",
+      "from": "pitch_arm_blade_root_clocking",
+      "to": "blade_root_hub_seat",
+      "dimension": {
+        "id": "blade_root_clocking_to_hub_seat",
+        "name": "blade root ID bearing race surface profile (AB)",
+        "nominal": 0.0,
+        "min": -0.025,
+        "max": 0.025,
+        "plus_minus": 0.025,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack",
+          "cell": "B19",
+          "confidence": "untraced",
+          "note": "0.05 mm total tolerance width, comment 'essentially behaves as diameter position'. Same dropped diameter-MMC weighting factor as `hub_blade_root_seat_position` -- see that edge's note."
+        }
+      }
+    },
+    {
+      "id": "blade_root_clocking_to_ring_gear_mesh",
+      "name": "clocking holes to the ring gear",
+      "kind": "structural",
+      "part": "blade_root",
+      "from": "pitch_arm_blade_root_clocking",
+      "to": "blade_root_ring_gear_mesh",
+      "dimension": {
+        "id": "blade_root_clocking_to_ring_gear_mesh",
+        "name": "blade root to hub tolerance (blade root to ring gear)",
+        "nominal": 0.0,
+        "min": -0.06,
+        "max": 0.06,
+        "plus_minus": 0.06,
+        "source_ref": {
+          "kind": "workbook",
+          "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack",
+          "cell": "B64",
+          "confidence": "untraced",
+          "note": "0.12 mm total tolerance width, comment 'blade roots =0.12, ring gear needs positional tolerace [sic]' -- so the blade-root half is a number and the ring-gear half is an admission."
+        }
+      },
+      "note": "The cyclic-only branch the brief names: for pure collective the ring gear follows along and this path carries nothing. That is a LOAD CASE, and v0 has nowhere to say so -- see this topology's notes."
+    },
+    {
+      "id": "ring_gear_mesh_to_hub_seat",
+      "name": "ring gear pitch line to its hub seat",
+      "kind": "structural",
+      "part": "ring_gear",
+      "from": "blade_root_ring_gear_mesh",
+      "to": "ring_gear_hub_seat",
+      "dimension": {
+        "id": "ring_gear_mesh_to_hub_seat",
+        "name": "ring gear pitch line to hub seat",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER. Row 57's comment is the direct statement that this does not exist: 'does not exist yet. Must roll up ring gear seat and tan link mount position'. 0.20 mm is the value that row nonetheless carries into every downstream sum of the source sheet."
+        }
+      }
+    },
+    {
+      "id": "gas_spring_body_height",
+      "name": "gas-spring bushing to its mounting flange",
+      "kind": "structural",
+      "part": "gas_spring",
+      "from": "pitch_plate_gas_spring_bushing",
+      "to": "gas_spring_mount_flange",
+      "properties": {
+        "bushing_vertical_separation_mm": 34.7,
+        "pitch_link_radius_from_gas_spring_axis_mm": 83.1,
+        "unmodelled_contributor": "gas-spring bushing tipping backlash. The source sheet's row 68 derives it from the bushing clearance and the two lengths above and it is that sheet's LARGEST single angular contributor (0.72 deg), yet it is excluded from the sheet's own headline total -- WORKSHEET_end_stop_graft.md flags this as F3. It is a RADIAL clearance producing an angular tip, not an axial distance, so no edge of this chain carries it. Open modelling question, named rather than approximated."
+      },
+      "dimension": {
+        "id": "gas_spring_body_height",
+        "name": "lower gas spring body height (top to mounting flange)",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "213668-002",
+          "revision": "A.1",
+          "sheet": 1,
+          "zone": "B12",
+          "view": "SECTION C-C",
+          "callout": "76.86 ±0.10",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf",
+            "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
+            "runs": [
+              {
+                "run_id": "20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-14T11:11:24+00:00"
+              },
+              {
+                "run_id": "20260727_145424_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-27T14:54:24+00:00"
+              },
+              {
+                "run_id": "20260730_133150_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-30T20:32:14.614196+00:00"
+              },
+              {
+                "run_id": "20260813_180536_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-14T01:05:58.595436+00:00"
+              },
+              {
+                "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-19T22:03:41.397347+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, §8a/§8b row 41); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
+          },
+          "confidence": "traced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8a/§8b row 41): owner resolved via 215176-002-A's own parts list (find no. 1 -> 213668-002), a part already read in full during the 2026-09-01 session for a different set of rows (60/61/62). Value 0.20 mm total matches the prior workbook cell (B41) exactly -- overall height, top rim to mounting-flange plane -- so no numeric change."
+        }
+      }
+    },
+    {
+      "id": "gas_spring_mechanical_stroke",
+      "name": "gas spring mechanical stroke (full extension to full retraction)",
+      "kind": "structural",
+      "part": "gas_spring",
+      "from": "gas_spring_full_extension_stop",
+      "to": "gas_spring_mount_flange",
+      "properties": {
+        "nominal_stroke_mm": 61.67,
+        "equivalent_blade_pitch_travel_deg": 75,
+        "datum_convention": "S461-610/636: 0mm at full extension, maximum stroke at full retraction",
+        "why_gas_spring_mount_flange_stands_in_for_full_retraction": "The piston's own full-retraction stop face is a genuinely different feature from `gas_spring_mount_flange` (which is the body's external mounting flange, the other end of the pre-existing `gas_spring_body_height` edge) -- but no source in this repo's pile places the piston's internal stop any more precisely than 'near the body's grounded end', so this edge reuses the existing node as the closest available reference rather than adding a second brand-new node with no more information behind it. A brand-new node at both ends was considered and rejected: it would have made this topology's own graph a two-component graph, which the viewer's projection builder (`scripts/build_topology_projection.py`) and its test (`test_the_number_of_closing_edges_is_the_graphs_cycle_count`) assert it never is -- `components == 1` is checked, not derived, precisely so a future disconnected topology reddens there with a readable message instead of silently changing the viewer's layout math. This edge is NOT claimed to be parallel to `gas_spring_body_height` in any physical sense (a rigid casing length and a piston's internal travel are different quantities that merely share a convenient reference point in this model's level of detail) -- a study selecting this edge does not also select that one, and nothing here asks a reader to add the two."
+      },
+      "dimension": {
+        "id": "gas_spring_mechanical_stroke",
+        "name": "gas spring mechanical stroke tolerance",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER. No source in this repo's pile states a numeric variation band for the gas spring's own internal mechanical-stroke length. S461-516/637 (validated, 'Gas Spring Mechanical Stroke') give only the nominal design stroke, 61.67 mm equivalent to 75 deg blade pitch travel -- a NOMINAL, not a tolerance. S461-613/663 (validated, 'Gas Spring Tolerances') cover the maximum resisting FORCE's tolerances (temperature variation, fill tolerance, leakage compensation) -- a different physical quantity, not a stroke-length band. WORKSHEET_end_stop_graft.md row 63 ('gas spring bushing clearance', identified as Trelleborg catalog p.239 by handoff endstop_retrace_acquired_docs) is a RADIAL bushing clearance feeding the bushing-tipping-backlash calculation (row 68), not an AXIAL stroke tolerance -- checked and ruled out, not merely unconsidered. 0.20 mm total width is a stand-in matching this document's other no-source placeholders (see `hub_top_deck_to_vpa_mount`, `hydraulic_brake_body_height`); it is not read off anything and should not be quoted."
+        }
+      },
+      "note": "Added by handoff mechanical_stroke_stack (2026-09-06), the first edge in this topology naming the gas spring's OWN mechanical stops (S461-616/617/638/639) rather than its external mounting/positional dimensions, which the pre-existing `gas_spring_body_height`/`gas_spring_mount_position` edges already covered."
+    },
+    {
+      "id": "gas_spring_mount_position",
+      "name": "gas-spring mount flange to its seat on the tangential link mount",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "gas_spring_mount_flange",
+      "to": "tan_link_mount_gas_spring_seat",
+      "dimension": {
+        "id": "gas_spring_mount_position",
+        "name": "gas spring mount position (tan link mount feature)",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "213668-002",
+          "revision": "A.1",
+          "sheet": 2,
+          "zone": null,
+          "view": null,
+          "callout": "⌖ Ø0.2 A B, on 220.37 0.00/-0.08",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf",
+            "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
+            "runs": [
+              {
+                "run_id": "20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-14T11:11:24+00:00"
+              },
+              {
+                "run_id": "20260727_145424_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-27T14:54:24+00:00"
+              },
+              {
+                "run_id": "20260730_133150_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-07-30T20:32:14.614196+00:00"
+              },
+              {
+                "run_id": "20260813_180536_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-14T01:05:58.595436+00:00"
+              },
+              {
+                "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-08-19T22:03:41.397347+00:00"
+              }
+            ],
+            "note": "Read directly off a 10x rendered crop, review/endstop_vision_baseline (2026-09-01, F7); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used. This drawing's GD&T frames are vector geometry, absent from its text layer entirely (WORKSHEET §2g)."
+          },
+          "confidence": "untraced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §3 row 61 / F7, 'candidate') -- explicitly NOT scored traced. A real true-position frame of exactly 0.20 mm total exists on this drawing, but which feature it controls, and whether that feature is the tan-link-mount interface this row names, is not establishable from the sheet; the mating half's owner (215175-001 -> 215198-001/-002 per §8d) is unacquired. F7 is this worksheet's sharpest false-absence lesson: this same drawing's frames are invisible to a text-layer sweep, so an earlier pass wrongly scored this row a gap before a rendered crop found the frame -- corrected here to `untraced`/candidate rather than left as a false absence."
+        }
+      }
+    },
+    {
+      "id": "tan_link_mount_overall_height",
+      "name": "tangential link mount height",
+      "kind": "structural",
+      "part": "tan_link_mount_215175_002",
+      "from": "tan_link_mount_gas_spring_seat",
+      "to": "tan_link_mount_hub_face",
+      "dimension": {
+        "id": "tan_link_mount_overall_height",
+        "name": "tangential link mount height",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215198-A",
+          "revision": null,
+          "sheet": 1,
+          "zone": null,
+          "view": "side view, SECTION A-A's parent view",
+          "callout": "79.00 ±0.10",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215198-A.pdf",
+            "sha256": "7b35fde1488410293e1d8fccc418fc4760ff0880accfe4b719438913ef3b6e80",
+            "runs": [
+              {
+                "run_id": "20260910_154303_215198-A",
+                "ts": "2026-09-10T22:43:46.565105+00:00"
+              }
+            ],
+            "note": "Read directly off the PDF text layer/rendered crop during handoff endstop_piece_part_acquisition (2026-09-10, §11b); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used. One drawing number covers the mirrored pair -- its own sheet 1 note 5 says it shall be used with model 215198-001 AND (MIRROR COMPONENT) 215198-002 -- so a single citation serves this edge whichever hand the part is."
+          },
+          "confidence": "traced",
+          "note": "Retraced 2026-09-10 (WORKSHEET_endstop_vision_baseline.md §11b row 42), cited here 2026-09-22 (handoff policy_free_brief_residues): identity established as the mount's own overall axial height, top face to bottom face of the two-seat machined ring. A plain, directly toleranced ± dimension on the correct piece-part owner -- no basic box and no derivation -- which is why this is `traced` and not the `candidate` the same drawing's sheet-2 feature sizes are (see this topology's provenance.retrace_update_20260922 for row 59). Band is an exact match to the prior workbook cell (B42), and the nominal is an exact match to 215175-A's own parenthesized reference for the same height (§8b row 42) -- the number the assembly sheet could only state untoleranced now appears toleranced on the owner. So NO numeric change: the stored band is what it was. The one assumption this reading carries, stated rather than buried: the drawing does not label either end face `gas spring seat` or `hub seat` by name, and the dimension was read as spanning the two mounting planes visible in the section, there being no third face candidate on the sheet -- the same class of feature-identification judgment §8a's mating-pin method established for this repo, applied to a single-part envelope instead of a cross-part pin."
+        }
+      }
+    },
+    {
+      "id": "hydraulic_brake_body_height",
+      "name": "hydraulic brake attachment to its hub mount",
+      "kind": "structural",
+      "part": "hydraulic_brake",
+      "from": "pitch_plate_brake_attachment",
+      "to": "brake_hub_mount",
+      "dimension": {
+        "id": "hydraulic_brake_body_height",
+        "name": "hydraulic brake body height",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER. Nothing in this repo describes the hydraulic brake dimensionally. 0.20 mm total width mirrors the gas-spring body height it would replace."
+        }
+      }
+    },
+    {
+      "id": "hub_top_deck_to_brake_mount",
+      "name": "hub top deck to hydraulic brake mounting face",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_top_deck",
+      "to": "brake_hub_mount",
+      "dimension": {
+        "id": "hub_top_deck_to_brake_mount",
+        "name": "hub top deck to brake mounting face",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "assumed",
+          "confidence": "untraced",
+          "note": "PLACEHOLDER. Mirrors `hub_top_deck_to_tan_link_mount_seat`, the gas-spring branch's equivalent, so the two design concepts ground to the hub through comparable structure.",
+          "no_drawing_governs": "The hydraulic brake is a design concept with no geometry (Jeff, 2026-10-16), so no drawing places its hub mount; the pitch plate's brake attachment is exempt for the same reason. Exposed by the 2026-10-26 fold, which declared the hub's drawing 214373-002 on this part."
+        }
+      }
+    },
+    {
+      "id": "bushing_214820",
+      "name": "plain bushing length (214820-002)",
+      "kind": "structural",
+      "part": "bushing_214820_002",
+      "from": "head_bearing_face_pitch_link",
+      "to": "bushing_eye_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "bushing_214820"
+      }
+    },
+    {
+      "id": "pitch_link_eye",
+      "name": "pitch-link eye: spherical bearing ball width (bearing identity UNCONFIRMED)",
+      "kind": "structural",
+      "part": "spherical_bearing_pitch_link",
+      "from": "bushing_eye_face",
+      "to": "eye_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "pitch_link_eye"
+      },
+      "note": "Added 2026-09-15 (stack_fable_audit). The referenced element is the repo's loudest placeholder -- MS14101-3's catalog band, `untraced`, awaiting the 213862-002 drawing -- and this edge inherits every caveat on it."
+    },
+    {
+      "id": "flange_bushing_flange_pitch_link",
+      "name": "flanged bushing flange thickness (NAS77A3-015A)",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a",
+      "from": "eye_flange_face",
+      "to": "flange_lug_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "flange_bushing_flange"
+      },
+      "note": "Added 2026-09-15 (stack_fable_audit)."
+    },
+    {
+      "id": "pitch_plate_flange",
+      "name": "pitch plate lug thickness (5X group)",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "flange_lug_face",
+      "to": "pitch_plate_washer_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "pitch_plate_flange"
+      }
+    },
+    {
+      "id": "washer_nas1149v0332",
+      "name": "washer thickness, NAS1149V0332H (.032 in)",
+      "kind": "structural",
+      "part": "washer_nas1149v0332h",
+      "from": "pitch_plate_washer_face",
+      "to": "washer_far_face_pitch_link",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "washer_nas1149v0332"
+      }
+    },
+    {
+      "id": "fastener_grip_pitch_link",
+      "name": "fastener grip, NAS6403U11D (.688 in)",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "head_bearing_face_pitch_link",
+      "to": "shank_full_dia_end_pitch_link",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "bolt_grip_11"
+      },
+      "note": "Runs PARALLEL to the clamped stack rather than in series with it. Together with `shank_out` it closes the loop `study_pitch_link_shank_out.json` sums."
+    },
+    {
+      "id": "bolt_length_11",
+      "name": "NAS6403U11D overall length, head bearing face to point (1.011 in)",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "head_bearing_face_pitch_link",
+      "to": "bolt_point",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "bolt_length_11"
+      },
+      "note": "Runs PARALLEL to `fastener_grip` + `thread_region` (together they close the loop `study_pitch_link_thread_region_t.json` sums) and to `cotter_hole_from_point` reversed (together with the clamped stack, the loop `study_pitch_link_cotter_hole_clearance.json` sums)."
+    },
+    {
+      "id": "cotter_hole_from_point",
+      "name": "cotter-hole centreline to bolt point (dimension M)",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "cotter_hole_centerline",
+      "to": "bolt_point",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "cotter_hole_from_point"
+      }
+    },
+    {
+      "id": "shank_out_pitch_link",
+      "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "washer_far_face_pitch_link",
+      "to": "shank_full_dia_end_pitch_link",
+      "note": "A DERIVED gap: it carries no dimension because it is the quantity `study_pitch_link_shank_out.json` computes. Its endpoints share no part (the washer, the bolt), so it is kind `gap` rather than a structural dimension. This is check `shank_out__11_sourced_only`'s own residual, and per that check's own guidance the missing pitch-link eye is what would need to fill it."
+    },
+    {
+      "id": "thread_region",
+      "name": "thread run-out and point region beyond the full-diameter shank",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "shank_full_dia_end_pitch_link",
+      "to": "bolt_point",
+      "note": "A DERIVED edge -- carries no dimension. Both its interfaces are on the bolt, so it is `structural` (kind `gap` is only for interfaces sharing no part), but it is `derived` in the same sense `shank_out` is: nothing in this repo sources this sub-region directly. `study_pitch_link_thread_region_t.json` computes it as `bolt_length_11 - fastener_grip`, reproducing the referenced stack's `thread_region_T` path exactly -- the stack's own notes call that quantity 'a provenance cross-check, not a design quantity', since it happens to equal NAS6403's T (Ref)."
+    },
+    {
+      "id": "washer_ms21299c3",
+      "name": "washer thickness, MS21299C3 (.063 in)",
+      "kind": "structural",
+      "part": "washer_ms21299c3",
+      "from": "head_bearing_face_rotor",
+      "to": "washer_junction_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "washer_ms21299c3"
+      }
+    },
+    {
+      "id": "washer_nas1149v0332_tt",
+      "name": "washer thickness, NAS1149V0332H (.032 in), rotor balance-mass bolt",
+      "kind": "structural",
+      "part": "washer_nas1149v0332_tt",
+      "from": "washer_junction_face",
+      "to": "washer_far_face_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "washer_nas1149v0332_tt"
+      }
+    },
+    {
+      "id": "fastener_grip_u2h",
+      "name": "NAS6403U2H grip length (.125 in) -- shortest of nine options",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u2h"
+      }
+    },
+    {
+      "id": "fastener_grip_u3h",
+      "name": "NAS6403U3H grip length (.188 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u3h"
+      }
+    },
+    {
+      "id": "fastener_grip_u4h",
+      "name": "NAS6403U4H grip length (.250 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u4h"
+      }
+    },
+    {
+      "id": "fastener_grip_u5h",
+      "name": "NAS6403U5H grip length (.312 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u5h"
+      }
+    },
+    {
+      "id": "fastener_grip_u6h",
+      "name": "NAS6403U6H grip length (.375 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u6h"
+      }
+    },
+    {
+      "id": "fastener_grip_u7h",
+      "name": "NAS6403U7H grip length (.438 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u7h"
+      }
+    },
+    {
+      "id": "fastener_grip_u8h",
+      "name": "NAS6403U8H grip length (.500 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u8h"
+      }
+    },
+    {
+      "id": "fastener_grip_u9h",
+      "name": "NAS6403U9H grip length (.562 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u9h"
+      }
+    },
+    {
+      "id": "fastener_grip_u10h",
+      "name": "NAS6403U10H grip length (.625 in) -- longest of nine options",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u10h"
+      }
+    },
+    {
+      "id": "shank_out_rotor",
+      "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "washer_far_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "note": "A DERIVED gap: no dimension, because it is the quantity each of the nine `study_rotor_fastener_grip_uXh.json` studies computes -- one per installed dash, never more than one at a time (selecting two of the nine `fastener_grip_uXh` edges in one study raises BranchAmbiguity at both `head_bearing_face` and `shank_full_dia_end`)."
+    },
+    {
+      "id": "straight_bushing_tan_link",
+      "name": "straight bushing length",
+      "kind": "structural",
+      "part": "straight_bushing_214820_002",
+      "from": "head_bearing_face_tan_link",
+      "to": "bushing_bearing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "straight_bushing"
+      }
+    },
+    {
+      "id": "spherical_bearing_tan_link",
+      "name": "spherical bearing width",
+      "kind": "structural",
+      "part": "spherical_bearing_tan_link",
+      "from": "bushing_bearing_face",
+      "to": "bearing_flanged_bushing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "spherical_bearing"
+      }
+    },
+    {
+      "id": "flange_bushing_flange_tan_link",
+      "name": "flange bushing flange thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "bearing_flanged_bushing_face",
+      "to": "flanged_bushing_internal_step",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "flange_bushing_flange"
+      }
+    },
+    {
+      "id": "flange_bushing_L",
+      "name": "flange bushing L (barrel) thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "flanged_bushing_internal_step",
+      "to": "flanged_bushing_barrel_end_raw",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "flange_bushing_L"
+      }
+    },
+    {
+      "id": "bushing_chamfer",
+      "name": "bushing chamfer size",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "flanged_bushing_effective_far_face",
+      "to": "flanged_bushing_barrel_end_raw",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "bushing_chamfer"
+      },
+      "note": "The inverting element: a BIGGER chamfer removes MORE material, so it is authored running FROM the effective far face TO the raw barrel end -- a chain walking from the raw end to the effective face crosses it against this orientation, giving it a negative sign, matching the referenced stack's own path (`bushing_chamfer` carries sign -1 in `total`)."
+    },
+    {
+      "id": "fastener_grip_13",
+      "name": "fastener grip, NAS6403U13H (.812 in)",
+      "kind": "structural",
+      "part": "bolt_nas6403u13h",
+      "from": "head_bearing_face_tan_link",
+      "to": "shank_full_dia_end_tan_link",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "fastener_grip_13"
+      },
+      "note": "Runs PARALLEL to the clamped stack. Together with `protrusion` it closes the loop `study_tan_link_take2_worst_case_protrusion.json` sums."
+    },
+    {
+      "id": "protrusion",
+      "name": "worst-case protrusion -- full-diameter shank beyond the modelled clamped stack",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "flanged_bushing_effective_far_face",
+      "to": "shank_full_dia_end_tan_link",
+      "note": "A DERIVED gap: no dimension, because it is the quantity check `worst_case_protrusion` computes. Positive means the shank protrudes past the effective clamped face; the referenced stack's own guidance says this is LESS conservative than take 1's equivalent check, because take 2 dropped the thread-transition allowance entirely."
+    },
+    {
+      "id": "under_head_chamfer_washer",
+      "name": "under head chamfer washer thickness",
+      "kind": "structural",
+      "part": "washer_ms21299c4k",
+      "from": "head_bearing_face_vpa_out",
+      "to": "washer_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "under_head_chamfer_washer"
+      }
+    },
+    {
+      "id": "pitch_flange_thickness",
+      "name": "pitch flange thickness",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "washer_flange_face",
+      "to": "flange_bushing_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "pitch_flange_thickness"
+      }
+    },
+    {
+      "id": "bushing_flange_thickness",
+      "name": "bushing flange thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_unidentified",
+      "from": "flange_bushing_flange_face",
+      "to": "bushing_flange_bearing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "bushing_flange_thickness"
+      }
+    },
+    {
+      "id": "spherical_bearing_vpa_out",
+      "name": "spherical bearing width",
+      "kind": "structural",
+      "part": "spherical_bearing_in_vpa",
+      "from": "bushing_flange_bearing_face",
+      "to": "bearing_bushing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "spherical_bearing"
+      }
+    },
+    {
+      "id": "straight_bushing_vpa_out",
+      "name": "straight bushing length",
+      "kind": "structural",
+      "part": "plain_bushing_214943_002",
+      "from": "bearing_bushing_face",
+      "to": "bushing_far_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "straight_bushing"
+      }
+    },
+    {
+      "id": "fastener_grip_vpa_out",
+      "name": "fastener grip (.812 in)",
+      "kind": "structural",
+      "part": "bolt_nas6404u13d",
+      "from": "head_bearing_face_vpa_out",
+      "to": "shank_full_dia_end_vpa_out",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "fastener_grip"
+      },
+      "note": "The one edge that runs PARALLEL to the clamped stack rather than in series with it. Together with `shank_out` it closes the loop, and that loop closure is what the stack's `worst_case_shank_out` check computes."
+    },
+    {
+      "id": "shank_out_vpa_out",
+      "name": "shank out -- full-diameter shank beyond the clamped stack",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "bushing_far_face",
+      "to": "shank_full_dia_end_vpa_out",
+      "note": "A DERIVED gap: it carries no dimension because it is the quantity a study computes, not one that is measured. Study `vpa_output_shank_out` names it in `closes`. Negative at the minimum means the thread run-out is pulled inside the joint; positive at the maximum means full-diameter shank protrudes past the nut face -- the referenced stack's own guidance."
     }
   ],
   "notes": [
+    "One model of the product since 2026-10-26: the pitch_system topology was folded into this one, and its seven studies are studies of this graph. The notes after this one were written for the two documents separately; each describes its own half as it was then, and a count in one is that document's. The first six are this document's own, the rest pitch_system's.",
     "Studyless by design. This topology has no studies and is not an analysis. It is a map of the pitch linkage's joints built to be bound to 3D geometry in apps/annotate/, so that scripts/fit_bound_features.py can hand the `linkage` solver nominal joint locations in the assembly frame at 72 degrees. Summing anything here would be summing a document that deliberately holds almost no numbers.",
     "The only edge that carries a value is `pitch_link_length`, derived from the 3DX sweep sheet's own two node columns and cited cell-for-cell -- and cited `untraced`, because the only support is that workbook. The derivation settles `traced` against `inferred`; it says nothing about whether a second document stands behind the number, and the SOP's rule is that workbook-only support is `untraced` and goes on the gap list however reasonable it looks. Every other edge carries no dimension at all. That is this repo's cite-or-gap rule applied honestly to a document whose numbers have not been acquired: an `untraced` band of 0.000 would put a plausible number on a reader's screen, and a reader cannot tell a placeholder zero from a measured one. Each valueless edge's own `note` says in one line what would close it -- a named drawing, or a fit of a named mesh.",
     "A consequence worth knowing: the DAG page's gap list reports an edge whose dimension is *unverified*, not an edge that has no dimension at all (scripts/build_topology_projection.py, `topology_gaps`), because a valueless edge there has always meant 'the quantity a study computes'. So this document's gaps are visible on its edges, each rendered as a value with no source, and only `pitch_link_length` reaches the gap list -- as a value with no tolerance band recorded, which it is. Filed as ISSUE_20260930_a_valueless_structural_edge_is_invisible_to_the_gap_list.md.",
     "What has a mesh today, which is what decides what Jeff can bind: the pitch-link bearing (`spherical_bearing_pitch_link`), the pitch plate (`pitch_plate_215177_001`), the gas spring (`gas_spring`), the gas-spring mount (`gas_spring_mount_213668_002`), the tangential link mount (`tan_link_mount_215175_002`), the whole tangential link (`tan_link_212956_005` and its two bearings), and -- since rotorkit's 2026-10-01 extraction -- the `hub` and the `pitch_arm`. Still without a row: `pitch_link`'s body and `blade_root`, whose meshes ARE installed but whose identity is open, because blade 1 carries the instrumented variants of both. The annotator's 'no installed mesh' empty state is the honest answer for those two until that is decided.",
     "The two pitch-link joint centres are nodes of the link, not of the bearing, because they are two instances of one bearing part and a topology part id names a part. The bearing carries its own features instead -- its ball centre against its seat and against its bore -- and a `gap` edge from that ball centre to each of the link's two joint centres says which geometry a reader binds for each. Those gap edges are nominally zero and carry no value; what they carry is the identity.",
-    "Update 2026-10-16 (handoff the_travel_between_the_end_stops_is_a_study): the first study over this graph now exists, `study_vpa_pitch_linkage_travel_between_end_stops.json`, and the 'studyless by design' note above is no longer true of this document as a whole. The mechanism joints above are still a map to bind and still hold almost no numbers; the end-stop chain added today is a separate small piece that does carry them, each term cited to its part drawing: two to a dimension (since 2026-10-20) and two to the drawing's general profile note (since 2026-10-22), listed in docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md."
+    "Update 2026-10-16 (handoff the_travel_between_the_end_stops_is_a_study): the first study over this graph now exists, `study_vpa_pitch_linkage_travel_between_end_stops.json`, and the 'studyless by design' note above is no longer true of this document as a whole. The mechanism joints above are still a map to bind and still hold almost no numbers; the end-stop chain added today is a separate small piece that does carry them, each term cited to its part drawing: two to a dimension (since 2026-10-20) and two to the drawing's general profile note (since 2026-10-22), listed in docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md.",
+    "(pitch_system) This is the L2 deliverable: the pitch system's STRUCTURE, with its branch points, its grounded loops (pitch links, gas spring, ring gear, and the hydraulic-brake alternative to the gas spring), the end-stop gap, and the one linear-rotary coupling the brief requires. It is not an analysis and none of its numbers should be quoted. Two thirds of the bands are workbook cells from a sheet that traces nothing; the rest are marked `assumed`.",
+    "(pitch_system) The three loops are the whole reason the not-a-solver rule is written down. hub -> actuator -> pitch plate -> pitch links -> pitch arm -> blade root -> hub, hub -> ... -> pitch plate -> gas spring -> gas-spring mount -> tangential link mount -> hub, and blade root -> ring gear -> hub are three statically redundant paths from the same source to the same ground. Which one carries the load is a mechanics question. A study picks one; nothing in the code will pick for you, and `Topology.branch_nodes()` exists to show a study author where the choices are (here: the hub A datum, the hub top deck, the pitch plate connection, the pitch-arm/blade-root clocking, and -- added 2026-09-06 by handoff mechanical_stroke_stack -- the gas-spring mount flange).",
+    "(pitch_system) TRANSFORM COVERAGE, deliberately incomplete. The source sheet has THREE sensitivity columns and this document declares two of the three coupling pairs: the vertical one (its D10/F10) and the blade-root tangential one (D11/F11). Its third -- the pitch-plate tangential sensitivity (D12/F12 = D10 x K12) -- is NOT declared, because K12 is a finite-difference linearisation of the pitch link's own geometry evaluated once at the nominal 77 deg link angle, and copying the resulting constant here would present a derivation as a datum. The gas-spring and tangential rows therefore have no honest blade-angle sensitivity in this document, and `study_gas_spring_branch_to_hub` is a millimetre study for that reason. Adding the third pair means either recording the linearisation as a transform `properties` payload with a reader for it, or getting the sensitivity from Jeff.",
+    "(pitch_system) LOAD CASES have no home in v0, and the ring-gear branch is where that bites: per the brief it participates cyclically and follows along for pure collective, so a collective study should exclude it and a cyclic study should not. Today that distinction lives in which edges a human puts in `selection`, which works and is unlabelled. If it needs a name, a study-level `configuration` block (the stack schema already has one on checks) is the cheap shape.",
+    "(pitch_system) WHAT THIS TOPOLOGY CANNOT REPRODUCE, stated so nobody assumes it can. The source sheet applies a diameter-MMC weighting factor built from the two blade-root bearing radii to three of its rows (17, 19, 20), and derives its largest single contributor (row 68, gas-spring bushing tipping backlash, 0.72 deg) from a radial clearance and two lever arms. Neither is expressible with one ratio per edge. That is a schema finding, not an oversight: it says the next transform kind is a weight computed from `properties`, and it says the brief's 'the pitch-system L2 case should be able to represent that workbook's structure' is true of the structure and not yet true of the arithmetic.",
+    "(pitch_system) The full 43-row import of that workbook is deliberately NOT done. The brief calls it 'a sanity check of the schema, not a required import', and it has served as one: the four findings above all came out of trying. What is here is the brief's named structure carrying a representative band per edge.",
+    "The graph: 35 parts, 74 interfaces, 95 edges, 24 branch points, 26 grounded loops, 17 gap edges. Five components: the mechanism, and the four fastener grip stacks folded in on 2026-10-27, each a bolt's own grip loop with no edge to the mechanism."
   ]
 }

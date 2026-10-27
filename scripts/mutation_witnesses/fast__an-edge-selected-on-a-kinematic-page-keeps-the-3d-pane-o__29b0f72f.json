@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an edge selected on a kinematic page keeps the 3D pane on the study's sweep -- never the edge's goto",
+  "mutations": [
+    {
+      "contract": "A kinematic page asks the 3D pane for its sweep whatever is selected.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Drops the sweep once an edge is selected.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    if (view.mode === \"kinematic\") {",
+      "replace": "    if (view.mode === \"kinematic\" && !view.selection) {"
+    }
+  ]
+}

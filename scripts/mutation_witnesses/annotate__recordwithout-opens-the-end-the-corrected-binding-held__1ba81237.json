@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "recordWithout opens the end the corrected binding held",
+  "mutations": [
+    {
+      "contract": "While a binding is corrected, the end it held is open again to the bind form.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_a_binding_may_be_superseded.md",
+      "note": "Without it the form offers the corrected end as 'already bound' and the correction cannot be aimed.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    copy.bindings = (record.bindings || []).filter(function (b) { return b.event_id !== eventId; });",
+      "replace": "    copy.bindings = record.bindings || [];"
+    }
+  ]
+}

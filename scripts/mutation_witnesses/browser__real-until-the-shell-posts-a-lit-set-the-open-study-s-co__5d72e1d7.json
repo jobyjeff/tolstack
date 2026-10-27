@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] until the shell posts a lit set, the open study's contributors are drawn at full strength and the rest dimmed",
+  "mutations": [
+    {
+      "contract": "With no posted lit set, the open kinematic study's contributors are lit.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "Without it a standalone sweep shows the whole model at full strength.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (sweep && sweep.study) {",
+      "replace": "  if (false && sweep && sweep.study) {"
+    }
+  ]
+}

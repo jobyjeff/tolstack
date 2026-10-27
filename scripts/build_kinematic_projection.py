@@ -7,9 +7,11 @@ tolerance sensitivities; this script runs it over every
 * ``<data-root>/projections/viewer/kinematic/kinematic_studies.json``
   (schema ``joby.tolerance_stack/kinematic_projection/v0``) -- per study the
   envelope (every point's driver value, nominal measure, worst case and RSS),
-  each named stop's ranked contributor table, the check results, the sweep's
-  ``run_id`` / ``pipeline_commit`` / ``max_finite_difference_disagreement``,
-  and the gap rows; plus, per topology, the published sweep runs that name it
+  each named stop's ranked contributor table, every contributor's coefficient
+  at every point (``contributors[].by_point[]``), the check results, the
+  sweep's ``run_id`` / ``pipeline_commit`` /
+  ``max_finite_difference_disagreement``, and the gap rows with the drawings
+  that would resolve them; plus, per topology, the published sweep runs that name it
   (``models``), newest first, so the viewer can offer a topology with no
   study yet its kinematic model;
 * ``<data-root>/projections/viewer/kinematic/<study id>.svg`` -- the evidence
@@ -57,6 +59,13 @@ the tree that built it and the gate in ``scripts/projection_provenance.py``
 refuses to overwrite one built from a tree this one does not contain
 (``--allow-older-tree`` overrides, loudly).
 
+A gap row's drawings say whether each one is **on file**: a PDF in
+drawing-checker's ``data/inbox/drawings/`` whose name starts with the drawing
+number, or with its base number where the export is named for the drawing and
+not the dash number (``215177-A.pdf`` for 215177-001, never ``215177-002-A.pdf``).
+The same directory ``build_viewer_crops.py`` resolves citations against; read
+here for the names only, never opened.
+
 Stdlib only, plus ``tolerance_stack`` and its sibling scripts
 (``projection_provenance``; ``build_viewer_projection`` for the shared
 check-rounding rule and confidence vocabulary).
@@ -102,6 +111,8 @@ PROJECTION_SUBDIR = Path("projections") / "viewer" / "kinematic"
 PROJECTION_NAME = "kinematic_studies.json"
 STYLESHEET = REPO_ROOT / "apps" / "viewer" / "style.css"
 BUILT_BY = "scripts/build_kinematic_projection.py"
+DEFAULT_DRAWING_CHECKER_ROOT = Path(r"C:\workspace\drawing-checker")
+DRAWINGS_SUBDIR = Path("data") / "inbox" / "drawings"
 
 #: A study row's outcome. An error is a **result**, exactly as in the topology
 #: projection: a study that refuses to load (a missing run, a label the sweep
@@ -157,10 +168,106 @@ def project_stop(study, sweep, stop) -> Dict[str, Any]:
         **project_point(point),
         "gap_count": point.gap_count,
         "rows": [row.as_dict() for row in point.rows],
+        # A study_ref's leaves at this stop (`kinematic.study_ref_group`): each
+        # a term of the one fold, never the sub-study's folded interval.
+        "groups": [group.as_dict() for group in point.groups],
     }
 
 
-def project_study(path: Path, data_root: Path, topologies_dir: Path) -> Dict[str, Any]:
+def project_contributors(study, points: Sequence[PointResult]) -> List[Dict[str, Any]]:
+    """Per contributor, in the study's own order, its row at EVERY sweep point.
+
+    The stops' tables carry a contributor's coefficient at two points; this is
+    the same field at all of them, so a reader can see a coefficient move
+    across the sweep (``tan_link_mount_height`` changes sign on P2) instead of
+    reading it in a lesson. Each entry is the point's own ``ContributorRow``
+    fields, unrounded -- nothing is computed here that ``fold_at`` did not.
+    """
+    by_point: Dict[int, List[Dict[str, Any]]] = {id(c): [] for c in study.contributors}
+    for point in points:
+        for row in point.rows:
+            by_point[id(row.contributor)].append({
+                "index": point.index, "sign": row.sign,
+                "coefficient": row.coefficient, "magnitude": row.magnitude})
+    return [{"edge": c.edge, "by_point": by_point[id(c)]} for c in study.contributors]
+
+
+def project_study_refs(study, points: Sequence[PointResult]) -> List[Dict[str, Any]]:
+    """Per ``study_ref``, in document order: what it is, and every leaf's
+    coefficient at EVERY sweep point (the curve a hover shows, as
+    :func:`project_contributors` carries for a direct contributor).
+
+    ``completeness`` is the sub-study's own, derived there; ``total`` is its
+    own published interval, carried to be read beside the result and never
+    folded here.
+    """
+    out = []
+    for n, ref in enumerate(study.study_refs):
+        children = []
+        for m, sub in enumerate(ref.terms):
+            children.append({
+                "edge": sub.edge, "name": sub.name,
+                "by_point": [{"index": p.index, "sign": p.groups[n].children[m].sign,
+                              "coefficient": p.groups[n].children[m].coefficient,
+                              "magnitude": p.groups[n].children[m].magnitude}
+                             for p in points]})
+        out.append({
+            "study": ref.study_id, "topology": ref.topology, "title": ref.title,
+            "parameter": ref.parameter, "units": ref.units, "note": ref.note,
+            "source_file": ref.source_file, "completeness": ref.completeness,
+            "total": rounded(ref.total.as_dict()),
+            "entries": [{"index": p.index, "entry": p.groups[n].entry,
+                         "sign": p.groups[n].sign} for p in points],
+            "children": children})
+    return out
+
+
+def drawings_on_file(dc_root: Path) -> List[str]:
+    """The PDF names in drawing-checker's drawing inbox; none where it is absent."""
+    inbox = dc_root / DRAWINGS_SUBDIR
+    if not inbox.is_dir():
+        return []
+    return sorted(p.name for p in inbox.iterdir() if p.suffix.lower() == ".pdf")
+
+
+_DASH_NUMBER = re.compile(r"-\d{3}")
+
+
+def drawing_on_file(drawing: str, names: Sequence[str]) -> bool:
+    """Whether a PDF named for ``drawing`` is on file (the module docstring says how)."""
+    base = drawing.split("-")[0]
+    for name in names:
+        if name.startswith(drawing):
+            return True
+        rest = name[len(base):]
+        if name.startswith(base) and rest and not rest[0].isdigit() \
+                and not _DASH_NUMBER.match(rest):
+            return True
+    return False
+
+
+def gap_drawings(raw_topology: Optional[Dict[str, Any]], edge_id: str,
+                 names: Sequence[str]) -> List[Dict[str, Any]]:
+    """The drawing a gap edge's part names, and whether it is on file.
+
+    A part that names no drawing is listed with ``drawing: None`` -- the reader
+    is told there is nothing to read rather than shown nothing -- and an edge
+    with no part (a clearance) lists none.
+    """
+    if not raw_topology:
+        return []
+    parts = {p.get("id"): p for p in raw_topology.get("parts") or []}
+    edge = next((e for e in raw_topology.get("edges") or [] if e.get("id") == edge_id), None)
+    if edge is None or not edge.get("part"):
+        return []
+    part = parts.get(edge["part"]) or {}
+    drawing = part.get("drawing")
+    return [{"part": edge["part"], "part_name": part.get("name"), "drawing": drawing,
+             "on_file": bool(drawing) and drawing_on_file(drawing, names)}]
+
+
+def project_study(path: Path, data_root: Path, topologies_dir: Path,
+                  drawing_names: Sequence[str] = ()) -> Dict[str, Any]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     row: Dict[str, Any] = {
         "id": raw.get("id"), "title": raw.get("title"),
@@ -175,7 +282,12 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path) -> Dict[str
         row["error"] = {"type": type(failure).__name__, "message": str(failure)}
         return row
 
+    raw_topology_path = topologies_dir / f"topology_{study.topology}.json"
+    raw_topology = (json.loads(raw_topology_path.read_text(encoding="utf-8"))
+                    if raw_topology_path.exists() else None)
+    points = envelope(study, sweep)
     bands = [c.dimension for c in study.contributors if c.dimension is not None]
+    bands += [t.source for ref in study.study_refs for t in ref.terms]
     checks = []
     for spec in study.checks:
         projected = rounded_check(check_at_stop(study, sweep, spec["check_id"]))
@@ -197,11 +309,15 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path) -> Dict[str
             "features_in_artifact": sweep.features is not None,
         },
         "contributor_count": len(study.contributors),
+        "study_ref_count": len(study.study_refs),
         "gap_count": sum(1 for c in study.contributors if c.is_gap),
-        "gap_rows": [{"edge": c.edge, "gap": c.gap, "band_source": c.band_source}
+        "gap_rows": [{"edge": c.edge, "gap": c.gap, "band_source": c.band_source,
+                      "drawings": gap_drawings(raw_topology, c.edge, drawing_names)}
                      for c in study.contributors if c.is_gap],
-        "envelope": [project_point(p) for p in envelope(study, sweep)],
+        "envelope": [project_point(p) for p in points],
         "stops": [project_stop(study, sweep, s) for s in study.stops],
+        "contributors": project_contributors(study, points),
+        "study_refs": project_study_refs(study, points),
         "checks": checks,
         "no_checks_reason": study.no_checks_reason,
         "provenance": study.provenance,
@@ -260,7 +376,8 @@ def project_models(runs: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def build(topologies_dir: Path, data_root: Path,
-          provenance: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+          provenance: Optional[Dict[str, Any]] = None,
+          drawing_checker_root: Path = DEFAULT_DRAWING_CHECKER_ROOT) -> Dict[str, Any]:
     if provenance is None:
         provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY, "topologies_dir")
     return {
@@ -270,7 +387,8 @@ def build(topologies_dir: Path, data_root: Path,
         prov.PROVENANCE_KEY: provenance,
         "study_statuses": list(STUDY_STATUSES),
         "display_decimals": DISPLAY_DECIMALS,
-        "studies": [project_study(p, data_root, topologies_dir)
+        "studies": [project_study(p, data_root, topologies_dir,
+                                  drawings_on_file(Path(drawing_checker_root)))
                     for p in sorted(topologies_dir.glob(STUDY_GLOB))],
         "models": project_models(sweep_runs(data_root)),
     }
@@ -445,6 +563,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="repo data/ dir (MAIN checkout's, if you are in a worktree)")
     ap.add_argument("--topologies-dir", default=str(REPO_ROOT / TOPOLOGIES_DIR),
                     help="directory holding kinematic_study_*.json")
+    ap.add_argument("--drawing-checker-root", default=str(DEFAULT_DRAWING_CHECKER_ROOT),
+                    help="drawing-checker checkout whose drawing inbox says which "
+                    "of a gap row's drawings are on file")
     ap.add_argument("--allow-older-tree", action="store_true",
                     help="overwrite a projection built from a tree this one does not "
                     "contain (see scripts/projection_provenance.py)")
@@ -478,7 +599,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     for line in notes + prov.note_lines(provenance):
         print(f"note: {line}", file=sys.stderr)
 
-    projection = build(topologies_dir, data_root, provenance)
+    projection = build(topologies_dir, data_root, provenance,
+                       Path(args.drawing_checker_root))
     tokens = viewer_tokens()
 
     # Wipe-and-rebuild this script's own files only: the JSON and its SVGs.

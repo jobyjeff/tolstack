@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] a node selected on the DAG is selected in the scene's model layer",
+  "mutations": [
+    {
+      "contract": "A selected node is selected in the scene's layer.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Always clears it.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    var sel = state.selection && state.selection.kind === \"node\"\n",
+      "replace": "    var sel = false\n"
+    }
+  ]
+}

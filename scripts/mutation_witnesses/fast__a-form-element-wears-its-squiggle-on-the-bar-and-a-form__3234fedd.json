@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a form element wears its squiggle on the bar and a form modifier beside the face it is on",
+  "mutations": [
+    {
+      "contract": "A modifier is marked at its node, not on its edge.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Reads a modifier as an element.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (form.kind === \"element\") out.edges[edge.id] = form;",
+      "replace": "      if (form.kind) out.edges[edge.id] = form;"
+    }
+  ]
+}

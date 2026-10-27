@@ -3,17 +3,17 @@
   "id": "vpa_output_shank_out",
   "title": "Shank out",
   "description": "Fastener grip against the clamped stack it passes through.",
-  "topology": "vpa_output_to_pitch_plate",
+  "topology": "vpa_pitch_linkage",
   "from": "bushing_far_face",
-  "to": "shank_full_dia_end",
-  "closes": "shank_out",
+  "to": "shank_full_dia_end_vpa_out",
+  "closes": "shank_out_vpa_out",
   "selection": [
-    "straight_bushing",
-    "spherical_bearing",
+    "straight_bushing_vpa_out",
+    "spherical_bearing_vpa_out",
     "bushing_flange_thickness",
     "pitch_flange_thickness",
     "under_head_chamfer_washer",
-    "fastener_grip"
+    "fastener_grip_vpa_out"
   ],
   "checks": [
     {

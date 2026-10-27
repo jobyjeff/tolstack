@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "a row the scene marks selected (a pick there) selects its element here, lighting the same leaders a click on its grid row does",
+  "mutations": [
+    {
+      "contract": "The scene's tree is read for a newly selected row.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Ignores it.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        renderSceneSlot();\n        followScenePick(msg);\n",
+      "replace": "        renderSceneSlot();\n"
+    }
+  ]
+}

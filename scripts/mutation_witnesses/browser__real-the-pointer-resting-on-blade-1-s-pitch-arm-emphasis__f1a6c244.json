@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "expect_red": "[real] the pointer resting on blade 1's pitch arm emphasises its row under blade; on a pitch arm no body carries, nothing",
+  "mutations": [
+    {
+      "contract": "A part under the pointer emphasises only the row of the body drawn at that occurrence.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Ignoring the subject lights blade's row for the four pitch arms the run leaves still.",
+      "file": "apps/annotate/app.js",
+      "find": "    if ((row.dataset.subject || null) === hover.subject) row.classList.add(\"is-scene-hover\");",
+      "replace": "    row.classList.add(\"is-scene-hover\");"
+    }
+  ]
+}

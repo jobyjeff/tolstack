@@ -66,6 +66,9 @@
     else if (card.kind === "node") nodeCard(root, card, images, config, source);
     else if (card.kind === "citation") citationCard(root, card, images, config, source);
     else if (card.kind === "alerts") alertsCard(root, card);
+    else if (card.kind === "gap") gapCard(root, card);
+    // A kinematic coefficient across the sweep (views/kinematic.js draws it).
+    else if (card.kind === "curve") root.appendChild(VA.kinematicCurveFigure(card.curve, card.title));
     else {
       // A card kind this renderer has no branch for is said out loud, the
       // same posture every enumerated field on this surface takes.
@@ -333,6 +336,32 @@
       var item = VA.el("li", "hovercard__alert hovercard__alert--" + alert.kind);
       item.appendChild(VA.el("div", "hovercard__alertwhat", alert.text));
       if (alert.why) item.appendChild(VA.el("div", "hovercard__alertwhy", alert.why));
+      list.appendChild(item);
+    });
+    root.appendChild(list);
+  }
+
+  // --- a kinematic contributor with no band: what would resolve it -----------
+  //
+  // (the_kinematic_page_keeps_the_dag_and_says_each_contributor_once,
+  // 2026-10-26.) The `no band on file` chip's card: which contributor, why it
+  // has no band, and the drawing to read for one -- each with whether a copy
+  // is on file (VA.kinematicGapCard, views/kinematic.js). No fold, for the
+  // alerts card's reason: the whole card is about an absence.
+  function gapCard(root, card) {
+    var head = VA.el("div", "hovercard__head");
+    head.appendChild(VA.el("h4", null, "No band on file"));
+    root.appendChild(head);
+    if (card.title) root.appendChild(VA.el("div", "hovercard__where", card.title));
+    if (card.why) root.appendChild(VA.el("p", "hovercard__note", card.why));
+    if (!card.drawings || !card.drawings.length) return;
+    root.appendChild(VA.el("div", "hovercard__cropkey muted", "Read for a band"));
+    var list = VA.el("ul", "hovercard__alerts");
+    card.drawings.forEach(function (drawing) {
+      var item = VA.el("li", "hovercard__alert hovercard__gapdrawing" +
+        (drawing.onFile ? " hovercard__gapdrawing--onfile" : ""));
+      item.appendChild(VA.el("div", "hovercard__alertwhat", drawing.label));
+      item.appendChild(VA.el("div", "hovercard__alertwhy", drawing.state));
       list.appendChild(item);
     });
     root.appendChild(list);

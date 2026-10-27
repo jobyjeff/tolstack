@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] ...and leaving it takes the light down",
+  "mutations": [
+    {
+      "contract": "Leaving a mirrored row takes its light down in the scene.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "The rail's own hover is two halves; the leave half is the one nobody notices missing until the scene stays lit.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    line.onmouseleave = function () { send(row.key, \"leave\"); };",
+      "replace": "    line.onmouseleave = function () { };"
+    }
+  ]
+}

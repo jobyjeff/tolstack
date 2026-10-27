@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic study lights its contributors and the edges they borrow a band from, with every node either end of one stands on",
+  "mutations": [
+    {
+      "contract": "A kinematic study's lit set includes the edge each contributor borrows its band from.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Lights the contributor edges only.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      if (source.kind === \"dimension_ref\") add(source.edge);",
+      "replace": ""
+    }
+  ]
+}

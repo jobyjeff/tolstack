@@ -137,6 +137,15 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    badges were the biggest-feeling thing in a 300px rail and the names a reader
    navigates by were the quietest. */
 .navtree__row--study { font-size: var(--t-dense); }
+/* The tag chips: quiet until pressed, one line per axis, under the topology. */
+.navtree__tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  padding: 2px 8px; font-size: var(--t-dense); }
+.navtree__tagaxis { color: var(--muted); margin-right: 2px; }
+.navtree__tag { font: inherit; color: var(--muted); background: none;
+  border: 1px solid var(--line); border-radius: 10px; padding: 0 8px;
+  cursor: pointer; }
+.navtree__tag:hover { color: inherit; }
+.navtree__tag--on { color: inherit; border-color: var(--accent); }
 .navtree__row--warn { color: var(--inferred); }
 .navtree__row--stack { font-size: var(--t-dense); }
 /* ...and these two rows do NOT wrap, which the row above does. A study's or a
@@ -159,6 +168,59 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    which put the selection colour on every topology row at rest -- the one
    colour this page uses to mean "this, and not the others". */
 .navtree__id { color: var(--muted); font-size: var(--t-micro); }
+
+/* --- the scene's tree, under the row it is showing (the_shell_seats_the_
+   scene_beside_the_model) -----------------------------------------------
+   The annotator's rail, drawn here while the 3D scene is open
+   (views/nav.js's renderSceneTree). Indented under its row like a study under
+   its topology, at the dense size; one clipped line per row with the whole
+   of it on hover; the second fact (a bound face, a part's position note)
+   muted under the name; a value right-aligned. The selected row wears the
+   nav's own `--on` treatment; the row the scene's pointer rests on, a wash. */
+.navtree__scene { padding: 2px 0 6px 12px; font-size: var(--t-dense); }
+.navtree__scenechips { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 6px; }
+.navtree__scenechip { font: inherit; font-size: var(--t-micro); color: var(--muted);
+  background: none; border: 1px solid var(--line); border-radius: 10px;
+  padding: 0 8px; cursor: pointer; }
+.navtree__scenechip[aria-pressed="true"] { color: var(--ink); border-color: var(--muted); }
+.navtree__scenelist { list-style: none; margin: 0; padding: 0; }
+.navtree__scenelist .navtree__scenelist { padding-left: 14px; }
+.navtree__scenehead { display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px 2px; color: var(--muted); font-size: var(--t-micro);
+  text-transform: uppercase; letter-spacing: .04em; }
+.navtree__scenehead .navtree__scenetext { flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navtree__scenesummary { list-style: none; cursor: pointer; }
+.navtree__scenesummary::-webkit-details-marker { display: none; }
+.navtree__scenesummary > .navtree__scenerow::before {
+  content: "▸"; flex: none; color: var(--muted); width: 10px; }
+details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "▾"; }
+.navtree__scenerow { display: flex; align-items: center; gap: 6px;
+  padding: 2px 8px; border-radius: 6px; min-width: 0; }
+.navtree__scenerow:hover, .navtree__scenerow--hot { background: #20242c; }
+.navtree__scenerow--act { cursor: pointer; }
+.navtree__scenerow--on { background: #202634; outline: 1px solid var(--accent); }
+.navtree__scenerow:focus, .navtree__scenesummary:focus { outline: none; }
+.navtree__scenerow:focus-visible,
+.navtree__scenesummary:focus-visible > .navtree__scenerow { outline: 1px solid var(--accent); }
+/* A row the annotator says is not settled (an element or a surface whose
+   face is not bound, or needs confirming) reads amber -- the one state
+   colour, as the rail colours it. Which states those are is the
+   annotator's call (`attention` on the row), not a list kept here. */
+.navtree__scenerow[data-attention="true"] { color: var(--inferred); }
+.navtree__scenetext { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.navtree__scenename, .navtree__scenesub {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navtree__scenesub { color: var(--muted); font-size: var(--t-micro); }
+.navtree__scenevalue { flex: none; color: var(--muted); font-size: var(--t-micro);
+  font-variant-numeric: tabular-nums; }
+.navtree__scenecheck { flex: none; margin: 0; }
+.navtree__scenebtn { flex: none; font: inherit; font-size: var(--t-micro);
+  color: var(--muted); background: none; border: 1px solid transparent;
+  border-radius: 4px; padding: 0 4px; cursor: pointer; }
+.navtree__scenerow:hover .navtree__scenebtn, .navtree__scenebtn:focus,
+.navtree__scenebtn[aria-pressed="true"] { color: var(--ink); border-color: var(--line); }
+.navtree__scenealert { flex: none; color: var(--inferred); display: inline-flex; }
 
 /* --- the one status icon a row may wear ------------------------------------
    (viewer_nav_verdict_into_alert_and_icon, 2026-09-22. Jeff, on the rail as
@@ -379,6 +441,53 @@ body { display: flex; flex-direction: column; }
 .rail__bar--gap { stroke-dasharray: 4 3; }
 .rail__bar--derived { stroke: var(--zero); stroke-dasharray: 2 4; stroke-width: 3; }
 
+/* The joint glyphs (interface_glyphs.js): a stroke in the colour of the bar
+   it sits on -- the same conf-- classes -- over a disc of the page's own
+   background so the dashed bar does not run through the drawing. The disc is
+   no target; the glyph carries the edge's card and click. */
+.rail__glyph { fill: none; stroke: var(--muted); stroke-width: 1.4;
+  stroke-linecap: round; pointer-events: all; cursor: pointer; overflow: visible; }
+.rail__glyph .glyph__solid { stroke-width: 2.4; }
+.rail__glyph.conf--traced { stroke: var(--traced); }
+.rail__glyph.conf--inferred { stroke: var(--inferred); }
+.rail__glyph.conf--untraced { stroke: var(--untraced); }
+.rail__glyph.conf--no_source_ref { stroke: var(--nocite); }
+.rail__glyph--derived { stroke: var(--zero); }
+.rail__glyph--form { stroke: var(--muted); }
+.rail__glyph--off, .rail__glyph--other-variant { opacity: .28; }
+.rail__glyphbg { fill: var(--bg); stroke: none; pointer-events: none; }
+
+/* A body's container (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a region
+   tint like the leader bands, not a mark, so it claims nothing the fill rule
+   reserves (docs/DESIGN_TYPE_AND_COLOUR.md). Six very low-alpha tints of low
+   chroma, a body's place in the document's own list picking one, so two
+   neighbouring bodies are told apart and none can be read as a provenance
+   hue or as the accent. A body the current study does not reach is a flat
+   outline. pointer-events off: the field is wayfinding; its NAME is the one
+   control (it folds the body). */
+.tv__bodyfield { stroke: rgba(255, 255, 255, .07); stroke-width: 1; pointer-events: none; }
+.tv__bodyfield--t0 { fill: rgba(140, 160, 200, .075); }
+.tv__bodyfield--t1 { fill: rgba(150, 190, 170, .065); }
+.tv__bodyfield--t2 { fill: rgba(190, 170, 140, .065); }
+.tv__bodyfield--t3 { fill: rgba(170, 150, 200, .07); }
+.tv__bodyfield--t4 { fill: rgba(140, 185, 195, .065); }
+.tv__bodyfield--t5 { fill: rgba(190, 150, 165, .065); }
+.tv__bodyfield--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
+.tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }
+.tv__pill__shape { pointer-events: none; }
+
+/* A sub-stack inside its bodies: a dashed field round each of its bars, the
+   study's title and folded interval once. Closed, its bars are one muted fold
+   the label stands for. */
+.tv__substack { fill: none; stroke: var(--muted); stroke-width: 1;
+  stroke-dasharray: 3 2; pointer-events: none; }
+.tv__substackname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.tv__substackname:hover, .tv__substackname:focus { fill: var(--ink); outline: none; }
+.rail__bar.rail__bar--folded { stroke: var(--muted); stroke-width: 3; }
+
 /* The floor mark (viewer_edge_length_scaling): a drafting-style break — two
    short panel-coloured slashes cutting the bar — on any bar drawn at the
    minimum render length instead of its measured proportion under a scaled
@@ -409,6 +518,30 @@ body { display: flex; flex-direction: column; }
 }
 .rail__leader--on { stroke: var(--rail-odd); }
 .rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
+/* Something else is selected: this leader steps back (VA.selectedLeaderNodes,
+   the rule the leaders across the seam share). */
+.rail__leader--dim { opacity: .28; }
+
+/* --- the leaders across the seam (leaders_follow_the_active_study_across_
+   the_seam, 2026-10-27) -----------------------------------------------------
+   One page-level overlay over the DAG and the scene (topology_app.js's
+   drawSeamLeaders), lit set only. It takes no pointer and sits under the
+   topbar and the hover cards; above the scene column and the pane, so a
+   leader crossing the dimmed rest of the DAG is drawn over it. Neutral like
+   the DAG↔grid leaders; the accent only for the selection. */
+.seamleaders {
+  position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 4; overflow: hidden;
+}
+.seam__leader {
+  fill: none; stroke: var(--rail-odd); stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+/* Its end on the scene is outlined, like the DAG's own dots. */
+.seam__end { fill: var(--panel); stroke: var(--rail-odd); stroke-width: 1.5; }
+.seam__leader--hot, .seam__end--hot { stroke: var(--rail-hot); stroke-width: 2.5; }
+.seam__leader--selected, .seam__end--selected { stroke: var(--accent); stroke-width: 2; }
+.seam__leader--dim, .seam__end--dim { opacity: .28; }
 
 /* --- the alternating bands (viewer_leader_grid_legibility, 2026-09-14) ----
    One filled polygon per band, bounded above and below by two adjacent
@@ -494,6 +627,10 @@ body { display: flex; flex-direction: column; }
 
 /* Study highlighting. Binary, so no palette: on the path or off it. */
 .rail__bar--off, .rail__dot--off { opacity: .28; }
+/* The second reason a mark is dimmed: it belongs to a variant the reader did not
+   select. Same weight as "off the path" -- one dimming, two reasons. */
+.rail__bar--other-variant, .rail__dot--other-variant { opacity: .28; }
+.tvrow--other-variant { opacity: .5; }
 .rail__bar--on { stroke-width: 7; }
 .rail__dot--on { stroke: var(--accent); fill: var(--on); }
 
@@ -948,40 +1085,36 @@ body { display: flex; flex-direction: column; }
 }
 .detail__annotate-btn:hover { text-decoration: underline; }
 
-/* --- the annotator flyout (study_3d_flyout) --------------------------------
-   It opens NON-modally (dialog.show(), no top layer needed) and position:
-   fixed pins it to a viewport edge, so the page beside it stays fully
-   clickable -- "attach to 3D" on another row re-drives the open panel.
+/* --- the 3D scene column (study_3d_flyout) --------------------------------
+   A non-modal <dialog> (dialog.show(), no top layer), laid out IN `.tv`'s
+   row since 2026-10-26: nav | scene | DAG + grid (handoff the_shell_seats_
+   the_scene_beside_the_model; Jeff: "a single canvas that contains the 3d
+   viewer and the DAG view, with the dag on the right side of the canvas.
+   This could potentially be faked by using two separate canvases with the
+   same background color and no border between them").
 
-   LEFT-docked since 2026-09-16, and the reason is adjacency (Jeff: "I
-   actually want the 3d flyout on the left side, adjacent to the DAG. It would
-   be ok if it covered up the left side select menu since you shouldn't need
-   both at the same time"). It was pinned to the RIGHT edge until then, which
-   put the 3D panel and the graph at opposite ends of the window with the whole
-   grid between them -- the two things a reader is comparing.
+   So: the page's own background, no border and no shadow at either seam,
+   and the column sticks under the topbar the way the nav does, a window
+   tall while the document scrolls past it. It was a `position: fixed` panel
+   docked at the window's left edge from 2026-09-16 -- adjacent to the DAG,
+   with the page shifted out from under it by a margin and, after 2026-10-20,
+   the nav between the two (pane | nav | DAG). On a chain study at 1600 wide
+   that left the DAG and grid about 170px
+   (ISSUE_20261020_with_the_3d_pane_open_a_chain_study_page_leaves_the_dag_a_
+   narrow_strip). Here the preview pane stands down instead (below), so the
+   scene takes the room the preview had and the DAG keeps its own.
 
-   AND THE PAGE YIELDS THE ROOM RATHER THAN BEING COVERED (`body.flyout-open`
-   below). That reverses, deliberately, what this comment argued until the
-   review of 2026-09-16: "position: fixed takes it out of flow entirely:
-   opening it cannot shrink or reflow the DAG pane by construction". That
-   invariant was right for a RIGHT-docked panel, where the thing underneath was
-   the preview pane and nothing was lost -- and it is exactly what made a
-   left-docked one useless. Measured across all 21 live studies: the DAG
-   drawing (`svg.tv__rails`) is only 90-262px wide and sits at the pane's LEFT
-   edge, so its right edge never passes x=562, while this panel's own floor is
-   560px. At every width a reader can reach, the graph was entirely underneath
-   the panel. Nor could a reader scroll it out: `.tv__rails` is `position:
-   sticky; left: 0` inside `.tv__hscroll` (by design, see above), so at
-   scrollLeft 0 and at scrollLeft 742 its box is the same 300..562.
-   "Adjacent to the DAG" and "cannot reflow the DAG pane" cannot both hold on
-   one edge of one window; adjacency is what Jeff asked for. */
+   The width it asks for is the preview pane's own (560px, `.tv .detail`):
+   opening the scene on a page whose preview it replaces leaves the DAG and
+   grid the width they had. topology_app.js clamps it per page
+   (VA.clampFlyoutWidth) and applies the reader's chosen width. */
 dialog#annotate-flyout {
-  position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0;
-  width: min(760px, 55vw); height: 100vh; max-height: 100vh;
-  background: var(--panel); color: var(--ink);
-  border: none; border-right: 1px solid var(--line);
-  box-shadow: 12px 0 32px rgba(0, 0, 0, .45);
-  z-index: 40; /* over the crop popover's plane, under nothing */
+  position: sticky; top: 47px; inset: 47px auto auto auto; margin: 0; padding: 0;
+  flex: none; width: min(560px, 40vw);
+  height: calc(100vh - 47px); max-height: calc(100vh - 47px);
+  background: var(--bg); color: var(--ink);
+  border: none; box-shadow: none;
+  z-index: 3; /* its divider's hit area overhangs the DAG's first pixels */
 }
 dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
 .flyout__head {
@@ -1017,14 +1150,16 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
   cursor: col-resize; z-index: 1;
   background: none; border: none; padding: 0;
 }
+/* No hairline at rest: the scene and the DAG are one surface with no seam
+   (the grip mark below is the control's whole resting look). */
 .flyout__divider::before {
   content: ""; position: absolute; top: 0; bottom: 0; left: 3px;
-  width: 1px; background: var(--line);
+  width: 1px; background: transparent;
 }
 .flyout__divider:hover::before, .flyout__divider:focus::before { background: var(--accent); }
 /* Centred, not sticky -- unlike `.tv__divider`'s mark. This divider's box is
-   the flyout's own height (100vh, never the document's), so 50% IS the middle
-   of the reader's window. */
+   the column's own height (a window tall, never the document's), so 50% IS
+   the middle of the reader's window. */
 .flyout__divider::after {
   content: ""; display: block; position: absolute; top: 50%;
   transform: translateY(-50%);
@@ -1038,28 +1173,27 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
     var(--accent) 1.3px, transparent 1.5px);
 }
 .flyout__divider:focus { outline: none; }
-.flyout__frame { flex: 1; width: 100%; border: none; background: #1b1e22; }
+.flyout__frame { flex: 1; width: 100%; border: none; background: var(--bg); }
 
-/* --- what the page does while the panel is open ---------------------------
-   `--flyout-width` is written by topology_app.js's applyFlyoutWidth, on every
-   frame of a drag, so these two rules follow the seam live. The class is
-   added on launch and removed by the dialog's own `close` event, which is the
-   ONE seam every close path goes through (the ✕, a `.close()` from anywhere)
-   -- not the button's handler, which would leave the page shifted if anything
-   else ever closed the panel.
+/* --- what the page does while the scene is open ---------------------------
+   `body.flyout-open` is added on launch and removed by the dialog's own
+   `close` event, which is the ONE seam every close path goes through (the
+   Close button, a `.close()` from anywhere).
 
-   The nav rail STAYS, between the panel and the graph, since 2026-10-20
-   (the_3d_pane_opens_in_the_mode_the_study_wants). It stood down until then,
-   on Jeff's "you shouldn't need both at the same time" -- and the pane now
-   follows what the rail selects, so both are needed at once.
+   No border at either seam: the nav's right rule goes, and the main column's
+   (which only ever separated it from the preview pane).
 
-   Everything above `.tv` shifts too, so the panel reads as the page's left
-   column rather than as a sheet lying across it. Nothing is latched and
-   nothing is destroyed -- a margin reverses exactly, which is what makes "closing restores whatever it covered" true by
-   construction rather than by a restore path that can rot. */
-body.flyout-open .topbar,
-body.flyout-open #banner,
-body.flyout-open .tv { margin-left: var(--flyout-width, 0); }
+   The preview pane STANDS DOWN on a topology or kinematic page
+   (`body.flyout-replaces-detail`, topology_app.js's syncSceneColumn): the
+   scene's own detail line and the hover card answer for an edge while the
+   scene is open, and the room is the scene's. A stack page has no DAG to
+   make room for and keeps its preview. Nothing is latched and nothing is
+   destroyed -- `display: none` reverses exactly, which is what makes
+   "closing restores whatever it covered" true by construction. */
+body.flyout-open .navtree { border-right: none; }
+body.flyout-replaces-detail .tv__main { border-right: none; }
+body.flyout-replaces-detail #detail,
+body.flyout-replaces-detail #detail-divider { display: none; }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):
@@ -1298,8 +1432,20 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    document. Type, colour and spacing are the :root tokens and nothing else
    (docs/DESIGN_TYPE_AND_COLOUR.md); the one accent is the verdict chip. */
 .tv__main > .kmview { flex: 1 1 auto; min-height: 0; }
-.kmview { padding: 14px 18px 24px; min-width: 0; overflow-x: auto; }
+.kmview { padding: 10px 18px 24px; min-width: 0; overflow-x: auto; }
+/* The head sits ABOVE the model (2026-10-26): the study's name and its
+   verdicts are the first thing on screen, the DAG under them. */
+.tv__main > .kmhead { flex: 0 0 auto; padding: 12px 18px 4px; }
 .kmhead__title { font-size: var(--t-title); margin: 0 0 8px; }
+/* On the kinematic page the model is context for the numbers under it, so
+   it gets a bounded box with its own scroll instead of its whole height:
+   at 1600x1000 the verdicts, the model and the top of the chart are all on
+   the first screen. The cap is read back by views/topology.js's paneBudget,
+   so a scaled length mode fits the box and not the window. */
+.tv__scroll.tv__scroll--bounded {
+  flex: 0 0 auto; max-height: 50vh; overflow-y: auto;
+  border-bottom: 1px solid var(--line);
+}
 /* One grid for every stop's verdict, so the stop names, the margins and the
    limits line up in columns whatever width each verdict word's chip is. */
 .kmhead__verdicts {
@@ -1341,16 +1487,11 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .kmchart__tiprow { display: flex; justify-content: space-between; gap: 14px; }
 .kmchart__tiplabel { color: var(--muted); }
 
-/* One table per stop, stacked: the two stops' rankings read against each
-   other down the page, and neither hides behind a control. */
-.kmstop { margin: 0 0 18px; }
-/* A stop's name is a title a reader stops at, not the uppercase section
-   label a bare h3 is app-wide (style.css). */
-.kmstop__title {
-  font-size: var(--t-body); margin: 0 0 2px; text-transform: none;
-  letter-spacing: normal; color: var(--ink);
-}
-.kmstop__where { margin: 0 0 6px; font-size: var(--t-meta); }
+/* One table, a row per contributor and a column group per stop
+   (2026-10-26): the group header carries the stop's name and its summary
+   line, and the first column of every group -- and the band -- opens with a
+   rule, so the groups read as groups without a box around each. */
+.kmcontrib { margin: 0 0 18px; overflow-x: auto; }
 .kmtable { border-collapse: collapse; font-size: var(--t-dense); }
 .kmtable th {
   text-align: left; color: var(--muted); font-size: var(--t-micro);
@@ -1358,10 +1499,60 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 }
 .kmtable th.num { text-align: right; }
 .kmtable td { padding: 3px 10px 3px 0; vertical-align: baseline; }
+.kmtable .kmtable__first { padding-left: 14px; border-left: 1px solid var(--line); }
+/* A stop's name and its summary line are a title and a sentence, not the
+   uppercase micro label a bare th is app-wide (style.css). */
+.kmtable__groups th {
+  border-bottom: none; padding-bottom: 0; vertical-align: bottom;
+  text-transform: none; letter-spacing: normal;
+}
+.kmtable__groups .kmtable__stop { padding-left: 14px; border-left: 1px solid var(--line); }
+.kmtable__stoplabel { color: var(--ink); font-size: var(--t-dense); font-weight: 600; }
+.kmtable__stopsum { font-weight: 400; font-size: var(--t-micro); white-space: normal;
+  font-variant-numeric: tabular-nums; max-width: 22em; }
+/* Column labels wrap under their numbers rather than widen the table. */
+.kmtable__cols th { vertical-align: bottom; white-space: normal; }
+/* A contributor's name wraps at a readable measure, never a word a line, and
+   stays pinned at the left when the table scrolls sideways -- at 1600 wide
+   beside the preview pane the band, confidence and 3D columns are a scroll
+   away, and the row they belong to must not be. */
+.kmrow__name, .kmtable th.kmtable__lead {
+  min-width: 14em; max-width: 22em; position: sticky; left: 0; z-index: 1;
+  background: var(--bg);
+}
+.kmrow__zone { margin-left: 6px; color: var(--muted); font-size: var(--t-micro); }
+/* A contributor that is a study: its row, and its terms indented under it. */
+.kmgroup__toggle { padding: 0 6px 0 0; border: 0; background: none; color: var(--muted); font: inherit; }
+.kmchild .kmrow__name { padding-left: 22px; }
 .kmtable tbody tr:hover { background: #20242c; }
+.kmtable tbody tr { cursor: pointer; }
+.kmrow--selected td { background: #252b36; }
+.kmrow--selected .kmrow__edge { color: var(--accent); }
+.kmcell--muted { color: var(--muted); }
+/* The preview pane's "band in this study" line on a kinematic page: a
+   contributor with no value of its own, and the edge whose band it reads. */
+.detail__band { margin: 4px 0 8px; font-size: var(--t-meta); }
+.detail__bandlink {
+  background: none; border: 0; padding: 0; font: inherit; color: var(--ink);
+  text-decoration: underline; cursor: pointer;
+}
+
+/* A coefficient's curve across the sweep: the hover card's body (the
+   page's one popover, views/cards.js), or drawn in the cell where there is
+   no card host. */
+.kmcell--coef { cursor: help; }
+.kmcurve { text-align: left; white-space: nowrap; font-family: inherit; }
+.kmcurve__title { font-size: var(--t-meta); color: var(--ink); margin-bottom: 2px; }
+.kmcurve__svg { display: block; }
+.kmcurve__frame { fill: none; stroke: var(--line); }
+.kmcurve__zero { stroke: var(--muted); stroke-width: 1; }
+.kmcurve__stop { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.kmcurve__stop--on { stroke: var(--accent); stroke-dasharray: none; }
+.kmcurve__line { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.kmcurve__tick { fill: var(--muted); font-size: var(--t-micro); }
+.kmcurve__axis { font-size: var(--t-micro); }
 .kmrow__edge { color: var(--ink); text-decoration: none; }
 .kmrow__edge:hover, .kmrow__edge:focus { text-decoration: underline; }
-.kmrow__zone { color: var(--muted); }
 .kmrow--muted td { color: var(--muted); }
 /* One line: the link's arrow is part of its label, and a wrapped "3D ↗"
    doubles the row's height at a narrow viewport. */

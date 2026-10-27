@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a lit node folded into a collapsed body leads from its own column on the pill's rim, mirrored with it",
+  "mutations": [
+    {
+      "contract": "A folded node's rim column is mirrored with the walk.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Leaves the folded columns unmirrored, so the leader lands on the wrong end of the pill.",
+      "file": "apps/viewer/topology.js",
+      "find": "          { column: flip(layout.folded[id].column) });",
+      "replace": "          { column: layout.folded[id].column });"
+    }
+  ]
+}

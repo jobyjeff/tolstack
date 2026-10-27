@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] a joint selected in the scene is selected in the nav",
+  "mutations": [
+    {
+      "contract": "A selection made in the scene marks the mirrored row: the mirror reads the rail's own selected class.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "Dropping the disclosure's selected flag keeps every row and every count, and loses only the scene-to-nav half.",
+      "file": "apps/annotate/app.js",
+      "find": "    const row = { key, text: words, title: summary ? summary.title : \"\", open: node.open };\n    if (node.classList.contains(\"selected\")) row.selected = true;",
+      "replace": "    const row = { key, text: words, title: summary ? summary.title : \"\", open: node.open };"
+    }
+  ]
+}

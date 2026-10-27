@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_export_runs_match_the_run_log.py",
+  "expect_red": "test_every_established_export_lists_exactly_the_runs_the_log_records_for_its_sha",
+  "mutations": [
+    {
+      "contract": "An export citation's `runs` is every drawing-checker run whose recorded input sha256 equals the export's, no more and no fewer. A hand-copied list that drops a consuming run (one of five listed, or `[]` for an export five runs read) was green until this pairing.",
+      "issue": "docs/issues/ISSUE_20261022_two_213668_export_citations_list_one_of_five_runs_that_consumed_the_export.md",
+      "note": "Drops the first of five listed runs from the 76.86 +/-0.10 citation on `gas_spring_mount_datum_a_to_end_stop` -- the defect the issue named (a hand-copied list one short of what the log records). It mutates the DATA, not the test, because the checker's synthetic unit test also reddens on a mutated checker; the declared check is the one that reads the committed JSON against the log. That check skips where drawing-checker's log is unreadable, so this is NOT WITNESSED without it: run with --repo naming a checkout that has the venv and the log.",
+      "file": "docs/topologies/topology_vpa_pitch_linkage.json",
+      "find": "          \"cell\": null,\n          \"callout\": \"76.86 ±0.10\",\n          \"export\": {\n            \"status\": \"established\",\n            \"pdf\": \"C:/workspace/drawing-checker/data/inbox/drawings/213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf\",\n            \"sha256\": \"dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76\",\n            \"runs\": [\n              {\n                \"run_id\": \"20260714_111124_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER\",\n                \"ts\": \"2026-07-14T11:11:24+00:00\"\n              },",
+      "replace": "          \"cell\": null,\n          \"callout\": \"76.86 ±0.10\",\n          \"export\": {\n            \"status\": \"established\",\n            \"pdf\": \"C:/workspace/drawing-checker/data/inbox/drawings/213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf\",\n            \"sha256\": \"dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76\",\n            \"runs\": ["
+    }
+  ]
+}

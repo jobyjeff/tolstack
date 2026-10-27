@@ -51,3 +51,13 @@ The check now reports the counted figure. What is still true:
 measurement of `?sweep=<a P1 run>` with the linkage opened is written down.
 
 > **Moved to the strategy backlog 2026-10-16.** This was escalated as a task on Jeff's list (`20261015T015550_cp6rqz`). That was wrong: a todo has no reply box, and its answer would have to be hand-carried into a strategy session. The strategy session that takes this up asks Jeff directly and acts on the answer.
+
+## Addendum 2026-10-27 (the_model_is_drawn_in_the_scene)
+
+The new `model` layer (47 dots, 59 lines, all drawn over the parts) measured
+headless (SwiftShader) on P2 embedded in the shell at 1600x1000, playing, by
+the TRUTH suite `annotate model in the scene (...)`, which prints and does not
+assert: **58.1 drawn fps with the layer, 60.3 without, 56.9 with it again.**
+The cost is inside the run-to-run noise of a shared box. Both figures sit far
+above the 4 fps floor this issue is about, so the floor is still unread; and
+still nothing has been timed on a GPU.

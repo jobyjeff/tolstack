@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "a node whose anchor is null, or lies off the scene, gets no leader and no stub",
+  "mutations": [
+    {
+      "contract": "A null anchor draws nothing.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Reads a null anchor as a point inside the scene, so it gets a leader. (A stub at the dot itself would be clipped as off the scene, which is why the mutation lives here and not in the geometry.)",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      anchors[id] = a ? [fx + a[0], fy + a[1]] : null;",
+      "replace": "      anchors[id] = a ? [fx + a[0], fy + a[1]] : [fx + 10, fy + 10];"
+    }
+  ]
+}

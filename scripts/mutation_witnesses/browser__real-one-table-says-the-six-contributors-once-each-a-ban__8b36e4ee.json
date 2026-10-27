@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] one table says the six contributors once, each a banded term, with a column group per stop",
+  "mutations": [
+    {
+      "contract": "A row wears its own kind.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Writes every row as a gap. Carried over from the -7 deg stop's table guard.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    var tr = VA.el(\"tr\", (row.child ? \"kmchild\" : \"kmrow\") + \" kmrow--\" + row.kind +",
+      "replace": "    var tr = VA.el(\"tr\", (row.child ? \"kmchild\" : \"kmrow\") + \" kmrow--gap\" +"
+    }
+  ]
+}

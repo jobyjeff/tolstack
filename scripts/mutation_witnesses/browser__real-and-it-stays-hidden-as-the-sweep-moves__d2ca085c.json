@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "expect_red": "[real] ...and it stays hidden as the sweep moves",
+  "mutations": [
+    {
+      "contract": "Every frame hands the scene each placement's key, so a hidden occurrence stays hidden.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Without the keys a frame redraws every node unkeyed, and so shown.",
+      "file": "apps/annotate/app.js",
+      "find": "      sweep.layers.bodies ? entries.map((e) => e.key) : null);",
+      "replace": "      null);"
+    }
+  ]
+}

@@ -184,10 +184,118 @@ EDGE_KINDS = ("structural", "gap")
 #: constant: the schema break is pre-paid.
 TRANSFORM_KINDS = ("identity", "ratio", "linear_to_rotary")
 
+#: What a rigid body is, added 2026-10-26 (handoff
+#: ``pitch_system_folds_into_the_pitch_linkage_model``) so the topology can say
+#: which parts move as one -- the grouping the linkage solver's sweeps already
+#: name and the DAG has had no way to draw:
+#:
+#: * ``body`` -- a set of parts that move together: ground, the blade, the
+#:   pitch plate. A part the mechanism does not place is a body of its own.
+#: * ``link`` -- a two-force member between two bodies, its pose fixed by its
+#:   two joint centres: the pitch link, the tangential link.
+#:
+#: A word, not a solver input: nothing here poses a body or reads ``kind``
+#: to compute anything. Paired against ``docs/DAG_TOPOLOGY.md``, "Bodies".
+BODY_KINDS = ("body", "link")
+
+#: What kind of contact a ``gap`` edge is, added 2026-10-26 (handoff
+#: ``the_dag_draws_bodies_as_containers_and_joints_as_symbols``) so the DAG can
+#: draw a joint as the contact it is rather than as one more dashed bar. Each
+#: word is one glyph, one SVG ``<symbol>`` in ``apps/viewer/interface_glyphs.js``:
+#:
+#: * ``planar`` -- two flat faces across a clearance (two parallel bars).
+#: * ``pin_in_bore`` -- a cylinder seated in a bore: a pin, a pressed race
+#:   (a dot in a ring).
+#: * ``spherical`` -- a ball joint: a rod end, a spherical bearing (ball in cup).
+#: * ``cylindrical_slide`` -- a cylinder that slides along and turns in a bore
+#:   (a dot in a ring, with a double-headed arrow).
+#: * ``thread`` -- a threaded engagement (a short helix).
+#: * ``clearance`` -- a distance across free space that no contact closes: an
+#:   end-stop gap, a shank sticking out past a nut (two bars with a gap).
+#:
+#: Optional on a ``gap`` edge in v0 -- an edge that states none is drawn with
+#: the plain dash and listed by the gap list as "contact kind not stated" --
+#: and refused on a ``structural`` one, which is a dimension of one part and
+#: touches nothing. A word, never an input: nothing folds it. Paired against
+#: ``docs/DAG_TOPOLOGY.md``, "Joint glyphs"; the linkage solver's joint types
+#: map onto it in ``tolerance_stack/kinematic.py``'s ``LINKAGE_JOINT_INTERFACES``.
+INTERFACE_KINDS = ("planar", "pin_in_bore", "spherical", "cylindrical_slide",
+                   "thread", "clearance")
+
+#: What a form callout (flatness, straightness, circularity, cylindricity) on
+#: an edge's dimension IS in the chain -- the rule Jeff gave 2026-10-26, stated
+#: once in ``docs/SOP_TOLERANCE_STACK.md``, "A form callout":
+#:
+#: * ``element`` -- the callout is on a surface two components are attached to
+#:   and nothing else in the chain bands it, so it is a linear element in its
+#:   own right: a ``structural`` edge whose dimension is nominal 0, ``min`` and
+#:   ``max`` at minus and plus half the callout's zone. It folds like any other
+#:   dimension, because it is one.
+#: * ``modifier`` -- the feature already carries a size band and the callout
+#:   sits on one of its faces (``node``). Form within size can only TIGHTEN
+#:   what the size band allows, so a zone wider than the band is refused. v0
+#:   folds the size band unchanged: a modifier is display and gap list only.
+FORM_KINDS = ("element", "modifier")
+
 
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------
+
+
+#: Where forge declares the identity axes a tag may name. Read, never imported
+#: and never copied: forge imports no sibling and no sibling imports forge, and a
+#: second list of axis names is exactly the drift ``docs/DAG_TOPOLOGY.md``,
+#: "Tags", refuses. A tree with no forge beside it validates nothing and says so.
+FORGE_IDENTITY_PATH = Path(r"C:\workspace\forge\identity.toml")
+
+#: The axis the lit-set rule's second dimming reason reads (``docs/DAG_TOPOLOGY.md``,
+#: "Tags"). forge's file declares no such axis (``component``, ``purpose``,
+#: ``phase`` at 2026-10-26): it is accepted here as **provisional** -- the only
+#: axis the check lets through that forge does not declare -- until
+#: ``docs/issues/ISSUE_20261026_forge_has_no_variant_axis.md`` is answered, at
+#: which point this tuple empties or the word changes, here and nowhere else.
+VARIANT_AXIS = "variant"
+PROVISIONAL_AXES = (VARIANT_AXIS,)
+
+
+def forge_axes(identity_path: str | Path | None = FORGE_IDENTITY_PATH
+               ) -> Optional[Tuple[str, ...]]:
+    """The axis names forge's ``identity.toml`` declares, or ``None`` if absent.
+
+    ``None`` -- not an empty tuple -- is "forge is not here, nothing was
+    checked", which callers must be able to tell from "forge declares no axes".
+    """
+    if identity_path is None or not Path(identity_path).is_file():
+        return None
+    import tomllib
+    raw = tomllib.loads(Path(identity_path).read_text(encoding="utf-8"))
+    return tuple(a["name"] for a in raw.get("axis", []))
+
+
+def check_tags(tags: Dict[str, str], axes: Optional[Iterable[str]], owner: str,
+               source: str | Path) -> None:
+    """Refuse a tag on an axis forge does not declare; ``axes=None`` checks none."""
+    if axes is None:
+        return
+    allowed = set(axes) | set(PROVISIONAL_AXES)
+    for axis in tags:
+        if axis not in allowed:
+            raise TopologyError(
+                f"{source}: {owner}: tag axis {axis!r} is not declared in forge's "
+                f"identity.toml (declared: {sorted(set(axes))})")
+
+
+def _clean_tags(owner: str, tags: Any) -> Dict[str, str]:
+    """``{axis: value}`` with both halves non-empty strings, or a TopologyError."""
+    if not isinstance(tags, dict):
+        raise TopologyError(f"{owner}: tags must be an object {{axis: value}}")
+    for axis, value in tags.items():
+        if not axis or not isinstance(value, str) or not value:
+            raise TopologyError(
+                f"{owner}: tag {axis!r}: {value!r} -- one non-empty string value "
+                f"per axis")
+    return dict(tags)
 
 
 class TopologyError(ValueError):
@@ -297,9 +405,84 @@ class Node:
         return cls(source_ref=SourceRef.from_dict(src) if src else None, **known)
 
 
+@dataclass(frozen=True)
+class Body:
+    """A rigid set of parts -- what moves as one when the mechanism moves.
+
+    Optional on a topology; when a document declares any, :class:`Topology`
+    holds it to declaring them all: every part in exactly one body, every
+    body's parts declared. ``docs/DAG_TOPOLOGY.md``, "Bodies".
+    """
+
+    id: str
+    name: str
+    parts: Tuple[str, ...] = ()
+    kind: str = "body"               # one of BODY_KINDS, above -- and checked
+    note: Optional[str] = None
+    tags: Dict[str, str] = field(default_factory=dict)  # {forge axis: value}
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "tags", _clean_tags(f"body {self.id!r}", self.tags))
+        if self.kind not in BODY_KINDS:
+            raise TopologyError(
+                f"body {self.id!r}: kind must be one of {BODY_KINDS}, got "
+                f"{self.kind!r}")
+        object.__setattr__(self, "parts", tuple(self.parts))
+        if not self.parts:
+            raise TopologyError(f"body {self.id!r}: a body is at least one part")
+        if len(set(self.parts)) != len(self.parts):
+            raise TopologyError(
+                f"body {self.id!r}: parts {list(self.parts)} lists a part twice")
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "Body":
+        missing = [k for k in ("id", "name") if not d.get(k)]
+        if missing:
+            raise TopologyError(
+                f"body {d.get('id')!r} (parts {d.get('parts')!r}) has no "
+                f"{' or '.join(missing)}; a body is named so a reader can tell "
+                f"which one it is")
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**known)
+
+
 # ---------------------------------------------------------------------------
 # The value an edge carries
 # ---------------------------------------------------------------------------
+
+
+@dataclass
+class Form:
+    """A form callout on a dimension: its zone as drawn, and what it is in the
+    chain (:data:`FORM_KINDS`). ``zone`` is the number in the feature control
+    frame (a flatness of 0.05 is ``zone`` 0.05). ``node`` is the face it is on,
+    required on a ``modifier`` and one of the edge's two ends. Checked against
+    its dimension and its edge by :func:`check_form`, from :class:`Edge`, the
+    first place all three are in hand.
+    """
+
+    kind: str
+    zone: float
+    node: Optional[str] = None
+    source_ref: Optional[SourceRef] = None
+    note: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in FORM_KINDS:
+            raise TopologyError(
+                f"form: kind must be one of {FORM_KINDS}, got {self.kind!r}")
+        if not (isinstance(self.zone, (int, float)) and math.isfinite(self.zone)
+                and self.zone > 0):
+            raise TopologyError(
+                f"form: zone must be a finite number > 0 -- the callout's own "
+                f"tolerance zone -- got {self.zone!r}")
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "Form":
+        d = dict(d)
+        src = d.pop("source_ref", None)
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(source_ref=SourceRef.from_dict(src) if src else None, **known)
 
 
 @dataclass
@@ -327,6 +510,7 @@ class Dimension:
     hardware_ref: Optional[str] = None
     source_ref: Optional[SourceRef] = None
     note: Optional[str] = None
+    form: Optional[Form] = None      # a form callout on it -- FORM_KINDS
 
     def __post_init__(self) -> None:
         if self.role is not None and self.role not in ELEMENT_ROLES:
@@ -348,12 +532,28 @@ class Dimension:
     def half_range(self) -> float:
         return (self.max - self.min) / 2.0
 
+    def about_nominal(self) -> "Dimension":
+        """This band as a variation: ``nominal`` 0.0, ``min``/``max`` the
+        deviations from the old nominal. The citation, hardware and note ride
+        along unchanged -- it is the same band, read about zero.
+
+        What a kinematic study's ``study_ref`` needs of a sub-study's edge: the
+        sweep's own solved value is the nominal, so only the band enters.
+        """
+        return Dimension(
+            id=self.id, name=self.name, nominal=0.0,
+            min=self.min - self.nominal, max=self.max - self.nominal,
+            hardware_ref=self.hardware_ref, source_ref=self.source_ref,
+            note=self.note, form=self.form)
+
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Dimension":
         d = dict(d)
         src = d.pop("source_ref", None)
+        form = d.pop("form", None)
         known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
-        return cls(source_ref=SourceRef.from_dict(src) if src else None, **known)
+        return cls(source_ref=SourceRef.from_dict(src) if src else None,
+                   form=Form.from_dict(form) if form else None, **known)
 
     @classmethod
     def from_element(cls, element: StackElement) -> "Dimension":
@@ -495,6 +695,7 @@ class Edge:
     transform: Optional[str] = None  # a Transform id declared by the topology
     properties: Dict[str, Any] = field(default_factory=dict)
     note: Optional[str] = None
+    interface: Optional[str] = None  # one of INTERFACE_KINDS; gap edges only
 
     def __post_init__(self) -> None:
         if self.kind not in EDGE_KINDS:
@@ -517,6 +718,19 @@ class Edge:
             raise TopologyError(
                 f"edge {self.id!r}: has both an inline dimension and a "
                 f"dimension_ref. One value, one place it comes from.")
+        if self.interface is not None:
+            if self.interface not in INTERFACE_KINDS:
+                raise TopologyError(
+                    f"edge {self.id!r}: interface must be one of "
+                    f"{INTERFACE_KINDS}, got {self.interface!r}")
+            if self.kind != "gap":
+                raise TopologyError(
+                    f"edge {self.id!r}: interface {self.interface!r} on a "
+                    f"{self.kind!r} edge. An interface is the kind of contact a "
+                    f"gap edge crosses; a structural edge is a dimension of one "
+                    f"part and touches nothing")
+        if self.dimension is not None and self.dimension.form is not None:
+            check_form(self)
 
     @property
     def derived(self) -> bool:
@@ -550,6 +764,54 @@ class Edge:
         return cls(dimension=Dimension.from_dict(dim) if dim else None, **known)
 
 
+#: How close an ``element`` form edge's ``min``/``max`` must sit to minus and
+#: plus half its zone, so a zone of 0.05 transcribed as -0.025/0.025 is not
+#: refused over its last bit.
+FORM_BAND_SLACK = 1e-9
+
+
+def check_form(edge: "Edge") -> None:
+    """The form rule (:data:`FORM_KINDS`) for one edge whose dimension carries
+    a ``form``: refuses, with the reason, what the SOP's "A form callout" says a
+    form callout cannot be."""
+    dimension = edge.dimension
+    assert dimension is not None and dimension.form is not None
+    form = dimension.form
+    if form.kind == "element":
+        if edge.kind != "structural":
+            raise TopologyError(
+                f"edge {edge.id!r}: a form element is a structural edge -- the "
+                f"form of a surface two components are attached to is a "
+                f"dimension of the part that surface is on -- got a "
+                f"{edge.kind!r} edge")
+        half = form.zone / 2.0
+        if (abs(dimension.nominal) > FORM_BAND_SLACK
+                or abs(dimension.min + half) > FORM_BAND_SLACK
+                or abs(dimension.max - half) > FORM_BAND_SLACK):
+            raise TopologyError(
+                f"edge {edge.id!r}: a form element is nominal 0 and plus or "
+                f"minus half its zone ({-half:g} / {half:g} for zone "
+                f"{form.zone:g}); got nominal {dimension.nominal:g}, min "
+                f"{dimension.min:g}, max {dimension.max:g}")
+        if form.node is not None:
+            raise TopologyError(
+                f"edge {edge.id!r}: a form element IS the edge, so it names no "
+                f"node -- got {form.node!r}")
+        return
+    if form.node not in (edge.from_node, edge.to_node):
+        raise TopologyError(
+            f"edge {edge.id!r}: a form modifier names the face it is on as "
+            f"`node`, one of the edge's two ends ({edge.from_node!r}, "
+            f"{edge.to_node!r}) -- got {form.node!r}")
+    size = dimension.max - dimension.min
+    if form.zone > size + FORM_BAND_SLACK:
+        raise TopologyError(
+            f"edge {edge.id!r}: a form modifier can only tighten the size band "
+            f"it sits on -- zone {form.zone:g} is wider than the band {size:g} "
+            f"({dimension.min:g} to {dimension.max:g}). If nothing else bands "
+            f"this surface, the callout is a form element instead")
+
+
 # ---------------------------------------------------------------------------
 # The topology
 # ---------------------------------------------------------------------------
@@ -571,7 +833,7 @@ class Topology:
     (or documents) a single physical joint, exactly as ``topology_vpa_output_to_
     pitch_plate.json`` does for the L1 proof. It is optional and unvalidated,
     like a stack's: a topology spanning a whole mechanism rather than one joint
-    (``topology_pitch_system.json``) carries no ``joint`` at all rather than a
+    (``topology_vpa_pitch_linkage.json``) carries no ``joint`` at all rather than a
     misleading one. Carried into the projection verbatim, never read by
     ``fold``/``traverse``/``summarize``.
 
@@ -580,6 +842,13 @@ class Topology:
     see ``docs/SOP_TOLERANCE_STACK.md``'s "Titling an artifact", which
     ``docs/DAG_TOPOLOGY.md`` points at rather than restating. Additive,
     optional, read by nothing that folds, so the schema stays ``/v0``.
+
+    ``bodies``, added 2026-10-26 (handoff
+    ``pitch_system_folds_into_the_pitch_linkage_model``), is the rigid-body
+    grouping of :attr:`parts` -- :class:`Body`. Optional and additive, so the
+    schema stays ``/v0``; but all-or-nothing: a document that declares one
+    body declares a body for every part. Read by the projections, never by
+    ``fold``/``traverse``/``summarize``.
     """
 
     id: str
@@ -590,6 +859,7 @@ class Topology:
     nodes: List[Node] = field(default_factory=list)
     edges: List[Edge] = field(default_factory=list)
     transforms: List[Transform] = field(default_factory=list)
+    bodies: List[Body] = field(default_factory=list)
     joint: Dict[str, Any] = field(default_factory=dict)
     provenance: Dict[str, Any] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
@@ -599,6 +869,26 @@ class Topology:
         self._nodes = _unique("node", self.nodes)
         self._edges = _unique("edge", self.edges)
         self._transforms = _unique("transform", self.transforms)
+        self._bodies = _unique("body", self.bodies)
+        self._body_of: Dict[str, Body] = {}
+        for body in self.bodies:
+            for part_id in body.parts:
+                if part_id not in self._parts:
+                    raise TopologyError(
+                        f"topology {self.id!r}: body {body.id!r} names part "
+                        f"{part_id!r}, which the document does not declare")
+                if part_id in self._body_of:
+                    raise TopologyError(
+                        f"topology {self.id!r}: part {part_id!r} is in body "
+                        f"{self._body_of[part_id].id!r} and in body "
+                        f"{body.id!r}. A part moves with one body.")
+                self._body_of[part_id] = body
+        unplaced = [p.id for p in self.parts if p.id not in self._body_of]
+        if self.bodies and unplaced:
+            raise TopologyError(
+                f"topology {self.id!r} declares bodies but puts no body round "
+                f"part(s) {unplaced}. Every part is in exactly one body; a part "
+                f"the mechanism does not place is a body of its own.")
         if "identity" in self._transforms:
             raise TopologyError(
                 f"topology {self.id!r}: 'identity' is the reserved id of the "
@@ -690,6 +980,63 @@ class Topology:
 
     def edge(self, edge_id: str) -> Edge:
         return _get("edge", self._edges, edge_id, self.id)
+
+    def body(self, body_id: str) -> Body:
+        return _get("body", self._bodies, body_id, self.id)
+
+    def body_of(self, part_id: str) -> Optional[Body]:
+        """The body ``part_id`` moves with; ``None`` when no body is declared."""
+        self.part(part_id)
+        return self._body_of.get(part_id)
+
+    def node_bodies(self, node_id: str) -> Tuple[str, ...]:
+        """The ids of the bodies a node's parts move with, in the node's part
+        order and without repeats: one for a node inside a body, two for a
+        **joint node** -- a mating surface between two bodies. Empty when the
+        document declares no bodies."""
+        out: List[str] = []
+        for part_id in self.node(node_id).parts:
+            body = self.body_of(part_id)
+            if body is not None and body.id not in out:
+                out.append(body.id)
+        return tuple(out)
+
+    def edge_body(self, edge: Edge) -> Optional[str]:
+        """The body an edge lies inside, or ``None`` for a **joint**.
+
+        A structural edge is a dimension of one part, so it is inside that
+        part's body. A gap edge is inside a body when both of its ends are on
+        that one body alone (a bearing's ball centre and the link it is
+        pressed into); otherwise it crosses between bodies and is a joint.
+        ``None`` throughout when the document declares no bodies."""
+        if edge.kind == "structural":
+            body = self.body_of(edge.part) if edge.part else None
+            return body.id if body is not None else None
+        ends = {self.node_bodies(edge.from_node), self.node_bodies(edge.to_node)}
+        if len(ends) == 1:
+            (only,) = ends
+            if len(only) == 1:
+                return only[0]
+        return None
+
+    def joint_nodes(self, body_id: str) -> List[str]:
+        """The nodes where ``body_id`` meets another body, in document order:
+        a node shared with a second body, or the end of a joint gap edge
+        (:meth:`edge_body` ``None``) that is on this body. What a collapsed
+        body counts on its face."""
+        self.body(body_id)
+        ends = set()
+        for edge in self.edges:
+            if edge.kind == "gap" and self.edge_body(edge) is None:
+                ends.update((edge.from_node, edge.to_node))
+        out = []
+        for node in self.nodes:
+            bodies = self.node_bodies(node.id)
+            if body_id not in bodies:
+                continue
+            if len(bodies) > 1 or node.id in ends:
+                out.append(node.id)
+        return out
 
     def transform(self, transform_id: Optional[str]) -> Transform:
         """The resolved transform for ``transform_id``; ``None`` -> :data:`IDENTITY`."""
@@ -866,8 +1213,15 @@ class Study:
     configuration: Dict[str, Any] = field(default_factory=dict)
     provenance: Dict[str, Any] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
+    #: ``{forge axis: value}`` -- ``docs/DAG_TOPOLOGY.md``, "Tags". Read by the
+    #: nav filter only; nothing that folds looks at it.
+    tags: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        try:
+            self.tags = _clean_tags(f"study {self.id!r}", self.tags)
+        except TopologyError as exc:
+            raise StudyError(str(exc)) from None
         if not self.selection:
             raise StudyError(f"study {self.id!r}: the selection is empty")
         seen = set()
@@ -1271,12 +1625,17 @@ def check_study(topology: Topology, study: Study, check_id: str) -> CheckResult:
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topology:
+def load_topology(path: str | Path, repo_root: str | Path | None = None,
+                  identity_path: str | Path | None = FORGE_IDENTITY_PATH
+                  ) -> Topology:
     """Load a topology JSON, resolving every ``dimension_ref`` as it goes.
 
     A ref is ``{"stack": "<repo-relative path>", "element": "<element id>"}``,
     read through :func:`~tolerance_stack.stack.load_stack` so the referenced file
     gets its own schema check, and each stack file is read once per call.
+
+    A body's ``tags`` are checked against forge's axes at ``identity_path``
+    (:func:`forge_axes`); with that file absent nothing is checked.
     """
     root = Path(repo_root) if repo_root is not None else REPO_ROOT
     data = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -1313,6 +1672,11 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topo
                 f"{ref['element']!r}") from exc
         edge.dimension = Dimension.from_element(element)
 
+    bodies = [Body.from_dict(b) for b in data.get("bodies", [])]
+    axes = forge_axes(identity_path)
+    for body in bodies:
+        check_tags(body.tags, axes, f"body {body.id!r}", path)
+
     return Topology(
         id=data["id"],
         title=data["title"],
@@ -1322,19 +1686,27 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topo
         nodes=[Node.from_dict(n) for n in data.get("nodes", [])],
         edges=edges,
         transforms=[Transform.from_dict(t) for t in data.get("transforms", [])],
+        bodies=bodies,
         joint=data.get("joint", {}),
         provenance=data.get("provenance", {}),
         notes=data.get("notes", []),
     )
 
 
-def load_study(path: str | Path) -> Study:
-    """Load a study JSON file."""
+def load_study(path: str | Path,
+               identity_path: str | Path | None = FORGE_IDENTITY_PATH) -> Study:
+    """Load a study JSON file; its ``tags`` are checked as a topology's are."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if data.get("schema") != SCHEMA_STUDY:
         raise StudyError(
             f"{path}: expected schema {SCHEMA_STUDY!r}, got {data.get('schema')!r}")
-    return Study.from_dict(data)
+    study = Study.from_dict(data)
+    try:
+        check_tags(study.tags, forge_axes(identity_path), f"study {study.id!r}",
+                   path)
+    except TopologyError as exc:
+        raise StudyError(str(exc)) from None
+    return study
 
 
 # ---------------------------------------------------------------------------

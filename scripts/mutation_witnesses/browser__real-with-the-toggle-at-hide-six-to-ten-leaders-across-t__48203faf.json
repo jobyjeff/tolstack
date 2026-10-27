@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] with the toggle at hide, six to ten leaders across the seam, drawn from the lit part alone",
+  "mutations": [
+    {
+      "contract": "A dot below the bounded DAG box's view has no leader, so the hidden state draws what the box shows.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Re-aimed after the review's B2 pinned the check to the box at its top: there no anchor lies off the window, so the first mutation (no anchor clip) changed nothing here; the fixture's null-or-off-scene check still reddens on it. This one drops the box's bottom edge from the dot clip, so the rungs scrolled below the box get leaders.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "                 bottom: Math.min(p.bottom, bottom) },",
+      "replace": "                 bottom: p.bottom + 100000 },"
+    }
+  ]
+}

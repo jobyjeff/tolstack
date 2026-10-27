@@ -1,11 +1,14 @@
 // The kinematic study page (handoff the_viewer_shows_a_kinematic_study,
 // 2026-10-20): one page per study in data/projections/viewer/kinematic/
 // kinematic_studies.json -- its verdict per stop, the envelope over the sweep,
-// the ranked contributor table per stop, and where the numbers came from.
+// one contributor table with a column group per stop, and where the numbers
+// came from. Since 2026-10-26 (the_kinematic_page_keeps_the_dag_and_says_each_
+// contributor_once) the model is drawn between the head and the body, the
+// study's lit set (VA.kinematicLitSet) emphasized on it.
 //
 // The same shape as views/stack.js and views/topology.js: pure models first
-// (no DOM, so the fast tier pins them value by value), then one renderer that
-// topology_app.js calls with a ctx. Nothing here adds anything up. Every
+// (no DOM, so the fast tier pins them value by value), then two renderers
+// (the head and the body) that topology_app.js calls with a ctx. Nothing here adds anything up. Every
 // number on the page is a field of the projection, which
 // scripts/build_kinematic_projection.py folded through
 // tolerance_stack.kinematic -> fold(); the only thing done to a number here is
@@ -227,43 +230,396 @@
     return keys.length === 1 && study.units ? study.units + "/" + keys[0] : null;
   };
 
-  VA.kinematicRows = function (study, stop, topoProj, decimals) {
+  // Every stop's rows, one list: the same contributors at every stop, so the
+  // unit a coefficient is in is a fact about the study and not about a stop.
+  function allStopRows(study) {
+    var rows = [];
+    (study.stops || []).forEach(function (stop) { rows = rows.concat(stop.rows || []); });
+    return rows;
+  }
+
+  // --- the one contributor table -------------------------------------------------
+  //
+  // A contributor is the same feature at every blade angle; what changes across
+  // the sweep is its coefficient (Jeff, 2026-10-26: "Why would it be labeled
+  // [contributors at the 72° stop] if the same features are contributors at
+  // all blade angles?"). So the page says each contributor ONCE, with a column
+  // group per stop -- sign, coefficient, magnitude -- and its band, confidence
+  // and 3D control after them. Rows are ordered by the larger of a row's stop
+  // magnitudes, a gap row (no band, so no magnitude) last in the study's own
+  // order: the per-stop rankings the builder makes, read across both stops.
+  // The ranking is an ORDERING of numbers the projection carries, never a
+  // number of its own.
+  VA.kinematicTable = function (study, topoProj, decimals) {
     var index = VA.topologyIndex(topoProj);
-    var shared = VA.kinematicCoefficientUnit(study, stop);
-    return (stop.rows || []).map(function (row) {
-      var kind = VA.KINEMATIC_ROW_KINDS[row.kind];
-      var zone = VA.KINEMATIC_ZONE_KINDS[row.zone];
-      var source = VA.KINEMATIC_FEATURE_SOURCES[row.feature_source];
-      var edge = index.edges[row.edge] || null;
-      var band = row.band;
+    var shared = VA.kinematicCoefficientUnit(study, { rows: allStopRows(study) });
+    var curves = {};
+    (study.contributors || []).forEach(function (c) { curves[c.edge] = c.by_point || null; });
+    var order = [];
+    var byEdge = {};
+    (study.stops || []).forEach(function (stop, s) {
+      (stop.rows || []).forEach(function (row) {
+        if (!byEdge[row.edge]) {
+          byEdge[row.edge] = { first: row, cells: [] };
+          order.push(row.edge);
+        }
+        byEdge[row.edge].cells[s] = row;
+      });
+    });
+    // Document order for the tie-break and for the gap rows, which is the
+    // study's `contributors[]` order where the projection carries it.
+    var documentOrder = (study.contributors || []).map(function (c) { return c.edge; });
+    var position = function (edge) {
+      var i = documentOrder.indexOf(edge);
+      return i === -1 ? documentOrder.length + order.indexOf(edge) : i;
+    };
+    var reach = function (edge) {
+      var best = null;
+      byEdge[edge].cells.forEach(function (cell) {
+        if (cell && typeof cell.magnitude === "number" &&
+            (best === null || cell.magnitude > best)) best = cell.magnitude;
+      });
+      return best;
+    };
+    order.sort(function (a, b) {
+      var ra = reach(a);
+      var rb = reach(b);
+      if (ra === null || rb === null) {
+        if (ra !== rb) return ra === null ? 1 : -1;
+        return position(a) - position(b);
+      }
+      return rb - ra || position(a) - position(b);
+    });
+
+    var stops = (study.stops || []).map(function (stop) {
+      return { id: stop.id, label: stop.label, index: stop.index,
+               summary: VA.kinematicStopSummary(study, stop, decimals) };
+    });
+    var rows = order.map(function (edgeId) {
+      var first = byEdge[edgeId].first;
+      var gap = byEdge[edgeId].cells.some(function (c) { return c && c.kind === "gap"; });
+      var kindName = gap ? "gap" : first.kind;
+      var kind = VA.KINEMATIC_ROW_KINDS[kindName];
+      var zone = VA.KINEMATIC_ZONE_KINDS[first.zone];
+      var source = VA.KINEMATIC_FEATURE_SOURCES[first.feature_source];
+      var edge = index.edges[edgeId] || null;
+      var band = first.band;
       var perCellUnit = shared ? null
         : (band && band.units && study.units ? study.units + "/" + band.units : null);
       return {
-        edge: row.edge,
+        edge: edgeId,
         topology: study.topology,
-        name: edge ? edge.name : row.edge,
+        name: edge ? edge.name : edgeId,
         part: edge ? edge.part || null : null,
-        title: row.edge + " · " + (source ? source.words
-          : VA.unlabelledKinematicText("feature_source", row.feature_source)),
-        kind: row.kind,
-        flag: kind ? kind.flag
-          : VA.unlabelledKinematicText("row kind", row.kind),
-        flagTitle: kind ? kind.title : null,
-        muted: kind ? kind.muted : false,
-        zone: zone ? zone.label : VA.unlabelledKinematicText("zone", row.zone),
+        title: edgeId + " · " + (source ? source.words
+          : VA.unlabelledKinematicText("feature_source", first.feature_source)),
+        kind: kindName,
+        flag: gap ? kind.flag : null,
+        flagTitle: gap ? kind.title : null,
+        zone: zone ? zone.label : VA.unlabelledKinematicText("zone", first.zone),
         zoneTitle: zone ? zone.title : null,
-        sign: row.sign < 0 ? "−" : "+",
-        coefficient: withUnit(VA.kinematicNumber(row.coefficient, decimals), perCellUnit),
+        // One cell group per stop, in the stops' order. A zero-sensitivity
+        // cell is muted and says why on hover; a kind this page has no branch
+        // for says so, in the cell, loudly.
+        cells: stops.map(function (stop, s) {
+          return tableCell(byEdge[edgeId].cells[s], stop, perCellUnit, decimals);
+        }),
         band: band
           ? withUnit("±" + VA.kinematicNumber(band.half_range, decimals), shared ? null : band.units)
           : null,
-        bandTitle: band ? band.name : (row.gap || null),
-        magnitude: typeof row.magnitude === "number"
-          ? VA.kinematicNumber(row.magnitude, decimals) : null,
-        confidence: row.confidence || null,
-        note: row.note || null,
+        bandTitle: band ? band.name : (first.gap || null),
+        confidence: first.confidence || null,
+        note: first.note || null,
+        curve: curves[edgeId] || null,
+        reach: reach(edgeId),
       };
     });
+    return {
+      stops: stops,
+      coefficientUnit: shared,
+      bandUnits: shared ? shared.split("/")[1] : null,
+      rows: rows,
+      groups: (study.study_refs || []).map(function (ref) {
+        return kinematicGroup(study, ref, index, stops, shared, decimals);
+      }),
+    };
+  };
+
+  // One stop's cell of a row: the sign, the coefficient and the magnitude as
+  // the projection states them, printed at its precision. A zero-sensitivity
+  // cell is muted and says why on hover; a kind this page has no branch for
+  // says so, in the cell, loudly.
+  function tableCell(cell, stop, perCellUnit, decimals) {
+    if (!cell) return null;
+    var cellKind = VA.KINEMATIC_ROW_KINDS[cell.kind];
+    return {
+      stop: stop.id,
+      sign: cell.sign < 0 ? "−" : "+",
+      coefficient: withUnit(VA.kinematicNumber(cell.coefficient, decimals), perCellUnit),
+      magnitude: typeof cell.magnitude === "number"
+        ? VA.kinematicNumber(cell.magnitude, decimals) : null,
+      muted: cellKind ? cellKind.muted : false,
+      flag: cellKind ? (cell.kind === "zero_sensitivity" ? cellKind.flag : null)
+        : VA.unlabelledKinematicText("row kind", cell.kind),
+      flagTitle: cellKind && cell.kind === "zero_sensitivity" ? cellKind.title : null,
+    };
+  }
+
+  // A contributor that is itself a study (`study_refs[]`): ONE row, and under
+  // it the study's own terms, each a normal term row whose coefficient is the
+  // sweep's sensitivity to the study's parameter times the term's own (the
+  // chain rule, folded by the builder -- never here). The group row's own
+  // cells are that sensitivity and the group's worst-case reach; its band is
+  // the sub-study's own total, shown for reading and never added to anything.
+  function kinematicGroup(study, ref, index, stops, shared, decimals) {
+    var perCellUnit = shared ? null
+      : (study.units && ref.units ? study.units + "/" + ref.units : null);
+    var groupAt = function (stop) {
+      var hit = null;
+      (stop.groups || []).forEach(function (g) { if (g.study === ref.study) hit = g; });
+      return hit;
+    };
+    var reach = null;
+    var cells = (study.stops || []).map(function (stop, s) {
+      var g = groupAt(stop);
+      if (!g) return null;
+      if (reach === null || g.reach > reach) reach = g.reach;
+      return tableCell({ kind: "term", sign: g.sign, coefficient: Math.abs(g.entry),
+                         magnitude: g.reach }, stops[s], perCellUnit, decimals);
+    });
+    var sameTopology = ref.topology === study.topology;
+    var children = (ref.children || []).map(function (child, k) {
+      var edge = sameTopology ? index.edges[child.edge] || null : null;
+      var first = null;
+      var childCells = (study.stops || []).map(function (stop, s) {
+        var g = groupAt(stop);
+        var c = g && g.children[k];
+        if (!c) return null;
+        if (!first) first = c;
+        return tableCell(c, stops[s], perCellUnit, decimals);
+      });
+      var zone = VA.KINEMATIC_ZONE_KINDS[first && first.zone ? first.zone : "band"];
+      var band = first && first.band;
+      return {
+        child: true,
+        edge: child.edge,
+        topology: ref.topology,
+        name: edge ? edge.name : child.name,
+        part: edge ? edge.part || null : null,
+        title: child.edge + " · a term of " + ref.title,
+        kind: first ? first.kind : "term",
+        flag: null,
+        flagTitle: null,
+        zone: zone ? zone.label : "band",
+        zoneTitle: zone ? zone.title : null,
+        cells: childCells,
+        band: band ? withUnit("±" + VA.kinematicNumber(band.half_range, decimals),
+                              shared ? null : ref.units) : null,
+        bandTitle: band ? band.name : null,
+        confidence: first ? first.confidence || null : null,
+        note: null,
+        curve: child.by_point || null,
+      };
+    });
+    var total = ref.total || {};
+    return {
+      group: true,
+      id: ref.study,
+      name: ref.title,
+      title: "Its terms enter one by one, each scaled by " + measureWords(study) +
+        "'s sensitivity to " + (((study.sweep || {}).driver || {}).label || "its driver") + ".",
+      zone: "study",
+      cells: cells,
+      band: typeof total.worst_case_half === "number"
+        ? withUnit("±" + VA.kinematicNumber(total.worst_case_half, decimals),
+                   shared ? null : ref.units) : null,
+      bandTitle: "the study's own worst-case total, read beside the terms and not added to them",
+      reach: reach,
+      children: children,
+    };
+  }
+
+  // A stop's one summary line, for its column group's header: where on the
+  // sweep it is, what the measure is there, and both spreads.
+  VA.kinematicStopSummary = function (study, stop, decimals) {
+    return withUnit(VA.kinematicNumber(stop.nominal_measure, decimals), study.units) +
+      " · ±" + withUnit(VA.kinematicNumber(stop.worst_case_half, decimals), study.units) +
+      " worst case · ±" + withUnit(VA.kinematicNumber(stop.rss_half, decimals), study.units) +
+      " RSS";
+  };
+
+  // --- the study's lit set on the model ---------------------------------------
+  //
+  // What the DAG beside this page lights (VA.studyLitSet's kinematic twin): the
+  // contributor edges, and the edge each one borrows its band from where that
+  // is an edge of the same topology (`band_source.kind == "dimension_ref"` --
+  // pitch_arm_radius is banded by the arm's link-hole-to-clocking-hole edge,
+  // and both are the feature). A contributor whose band is a STUDY's result
+  // (`band_source.study`, the hook a_contributor_may_be_a_study fills) lights
+  // that study's chain the same way. Nodes: every end of a lit edge.
+  VA.kinematicLitSet = function (study, topoProj) {
+    if (!study || !topoProj) return null;
+    var edges = [];
+    var add = function (id) { if (id && edges.indexOf(id) === -1) edges.push(id); };
+    allStopRows(study).forEach(function (row) {
+      add(row.edge);
+      var source = row.band_source || {};
+      if (source.topology && source.topology !== study.topology) return;
+      if (source.kind === "dimension_ref") add(source.edge);
+      if (source.study) {
+        var chained = VA.findStudy(topoProj, source.study);
+        Object.keys(VA.chainIndex(chained)).forEach(add);
+      }
+    });
+    // A contributor that is a study (`stops[].groups[]`) lights its terms'
+    // edges, where they are edges of this topology.
+    (study.stops || []).forEach(function (stop) {
+      (stop.groups || []).forEach(function (group) {
+        if (group.topology && group.topology !== study.topology) return;
+        (group.children || []).forEach(function (child) { add(child.edge); });
+      });
+    });
+    if (!edges.length) return null;
+    return VA.litSetOfEdges(topoProj, edges);
+  };
+
+  // The page's sub-stacks (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): one per
+  // `study_ref` into this study's own topology, with the edges its terms are
+  // and its folded interval as the DAG's label prints it -- display only, the
+  // chain rule never reuses the fold. The DAG draws each as a dashed field
+  // around those edges; it and the table's group row open and close on one
+  // piece of state (`ctx.openSubStacks`, keyed by the sub-study's id).
+  VA.kinematicSubStacks = function (study, decimals) {
+    if (!study) return [];
+    return (study.study_refs || []).filter(function (ref) {
+      return !ref.topology || ref.topology === study.topology;
+    }).map(function (ref) {
+      var edges = [];
+      (ref.children || []).forEach(function (child) {
+        if (child.edge && edges.indexOf(child.edge) === -1) edges.push(child.edge);
+      });
+      var total = ref.total || {};
+      var interval = typeof total.worst_case_min === "number" &&
+        typeof total.worst_case_max === "number"
+        ? VA.kinematicNumber(total.worst_case_min, decimals) + " to " +
+          VA.kinematicNumber(total.worst_case_max, decimals) +
+          (ref.units ? " " + ref.units : "")
+        : null;
+      return { id: ref.study, title: ref.title || ref.study, edges: edges,
+               interval: interval };
+    });
+  };
+
+  // { contributor edge: band edge } for each contributor whose band is ANOTHER
+  // edge of the study's topology -- the preview pane names that edge beside a
+  // contributor that has no value of its own, so a reader looking for the
+  // citation is one click from it.
+  VA.kinematicBandEdges = function (study) {
+    var out = {};
+    if (!study) return out;
+    allStopRows(study).forEach(function (row) {
+      var source = row.band_source || {};
+      if (source.kind === "dimension_ref" && source.edge && source.edge !== row.edge &&
+          (!source.topology || source.topology === study.topology)) {
+        out[row.edge] = source.edge;
+      }
+    });
+    return out;
+  };
+
+  // --- a coefficient across the sweep ---------------------------------------------
+  //
+  // The small chart a coefficient cell's hover shows: the SIGNED coefficient
+  // (sign × coefficient -- placing a point above or below the axis, not adding
+  // anything) at every sweep point against the driver, ascending whatever
+  // order the sweep runs in, with zero drawn and the stops marked. Pure, in
+  // viewBox units. null where the projection carries no per-point field.
+  VA.KINEMATIC_CURVE = Object.freeze({
+    width: 240, height: 96, left: 40, right: 8, top: 8, bottom: 20,
+  });
+
+  VA.kinematicCurve = function (study, row, decimals, stopId) {
+    var points = row && row.curve;
+    var env = study.envelope || [];
+    if (!points || !points.length || !env.length) return null;
+    var C = VA.KINEMATIC_CURVE;
+    var pw = C.width - C.left - C.right;
+    var ph = C.height - C.top - C.bottom;
+    var driverAt = function (p) {
+      var at = env[p.index];
+      return at ? at.driver_value : null;
+    };
+    var placed = points.map(function (p) {
+      return { d: driverAt(p), v: p.sign < 0 ? -p.coefficient : p.coefficient };
+    }).filter(function (p) { return typeof p.d === "number"; });
+    if (!placed.length) return null;
+    placed.sort(function (a, b) { return a.d - b.d; });
+    var x0 = placed[0].d;
+    var x1 = placed[placed.length - 1].d;
+    var lo = Math.min(0, Math.min.apply(null, placed.map(function (p) { return p.v; })));
+    var hi = Math.max(0, Math.max.apply(null, placed.map(function (p) { return p.v; })));
+    if (hi === lo) hi = lo + 1;
+    var pad = (hi - lo) * 0.08;
+    lo -= pad;
+    hi += pad;
+    var X = function (v) { return C.left + (v - x0) / ((x1 - x0) || 1) * pw; };
+    var Y = function (v) { return C.top + (hi - v) / (hi - lo) * ph; };
+    var r2 = function (v) { return Math.round(v * 100) / 100; };
+    var stops = (study.stops || []).map(function (stop) {
+      return { id: stop.id, x: r2(X(stop.driver_value)), on: stop.id === stopId };
+    });
+    var driver = (study.sweep && study.sweep.driver) || {};
+    var vmin = Math.min.apply(null, placed.map(function (p) { return p.v; }));
+    var vmax = Math.max.apply(null, placed.map(function (p) { return p.v; }));
+    return {
+      width: C.width, height: C.height,
+      plot: { left: C.left, top: C.top, width: pw, height: ph },
+      path: placed.map(function (p, i) {
+        return (i ? "L " : "M ") + r2(X(p.d)) + " " + r2(Y(p.v));
+      }).join(" "),
+      zeroY: r2(Y(0)),
+      crossesZero: vmin < 0 && vmax > 0,
+      stops: stops,
+      yTop: VA.kinematicSigned(vmax, decimals),
+      yBottom: VA.kinematicSigned(vmin, decimals),
+      xLeft: VA.kinematicNumber(x0, decimals),
+      xRight: VA.kinematicNumber(x1, decimals),
+      xLabel: (driver.label || "driver") + (driver.unit ? ", " + driver.unit : ""),
+    };
+  };
+
+  // --- what resolves a gap row ------------------------------------------------------
+  //
+  // The `no band on file` chip's card: the drawing each of the edge's parts
+  // names, and whether a copy is on file to be read (the builder's
+  // `gap_rows[].drawings`, read off drawing-checker's drawing inbox). In
+  // everyday words; a drawing number is a document's name, never a file's.
+  VA.KINEMATIC_GAP_DRAWING_WORDS = Object.freeze({
+    onFile: "drawing on file, not yet read",
+    notOnFile: "no drawing on file",
+    noneNamed: "names no drawing",
+  });
+
+  VA.kinematicGapCard = function (study, row, topoProj) {
+    var gap = null;
+    (study.gap_rows || []).forEach(function (g) { if (g.edge === row.edge) gap = g; });
+    var index = VA.topologyIndex(topoProj);
+    var words = VA.KINEMATIC_GAP_DRAWING_WORDS;
+    var drawings = ((gap && gap.drawings) || []).map(function (d) {
+      var part = index.parts[d.part];
+      var name = (part && part.name) || d.part_name || d.part;
+      return {
+        label: d.drawing ? d.drawing + " · " + name : name,
+        state: !d.drawing ? words.noneNamed : d.on_file ? words.onFile : words.notOnFile,
+        onFile: !!(d.drawing && d.on_file),
+      };
+    });
+    return {
+      kind: "gap",
+      title: row.name,
+      why: (gap && gap.gap) || row.flagTitle || null,
+      drawings: drawings,
+    };
   };
 
   // --- the envelope chart's geometry ------------------------------------------------
@@ -414,23 +770,32 @@
 
   // --- rendering ----------------------------------------------------------------
 
-  VA.renderKinematic = function (root, ctx) {
+  // The page is two blocks with the model between them (2026-10-26): the
+  // HEAD -- the study's name and its verdict per stop, which have to be on
+  // screen before anything else -- above the DAG, and the BODY -- the sweep,
+  // the envelope chart, the one contributor table and the provenance fold --
+  // below it. topology_app.js renders the DAG between the two; a page with
+  // no DAG beside it renders both into one root, head first.
+  function studyFailed(study) {
+    var status = VA.KINEMATIC_STUDY_STATUSES[study.status];
+    return !status || status.failed;
+  }
+
+  VA.renderKinematicHead = function (root, ctx) {
     VA.clear(root);
-    root.className = "kmview";
+    root.className = "kmhead";
     var study = ctx.study;
     if (!study) {
       root.appendChild(VA.el("p", "muted", "Pick a kinematic study in the list."));
       return root;
     }
     var decimals = ctx.kinematic && ctx.kinematic.display_decimals;
-    var topoProj = VA.findTopology(ctx.topologies, study.topology);
-
     var head = VA.el("h2", "kmhead__title", study.title || study.id);
     head.setAttribute("title", study.id);
     root.appendChild(head);
 
-    var status = VA.KINEMATIC_STUDY_STATUSES[study.status];
-    if (!status || status.failed) {
+    if (studyFailed(study)) {
+      var status = VA.KINEMATIC_STUDY_STATUSES[study.status];
       var box = VA.el("div", "tverror");
       box.appendChild(VA.el("div", "tverror__head", status
         ? "This study could not be built from its sweep"
@@ -441,8 +806,18 @@
       root.appendChild(box);
       return root;
     }
-
     root.appendChild(verdictStrip(study, decimals, ctx));
+    return root;
+  };
+
+  VA.renderKinematic = function (root, ctx) {
+    VA.clear(root);
+    root.className = "kmview";
+    var study = ctx.study;
+    if (!study || studyFailed(study)) return root;
+    var decimals = ctx.kinematic && ctx.kinematic.display_decimals;
+    var topoProj = VA.findTopology(ctx.topologies, study.topology);
+
     var driver = (study.sweep && study.sweep.driver) || {};
     root.appendChild(VA.el("p", "muted kmhead__driver",
       "Swept over " + (driver.label || "the driver") +
@@ -453,9 +828,7 @@
     var chart = VA.kinematicChart(study, decimals);
     if (chart) root.appendChild(chartFigure(chart));
 
-    (study.stops || []).forEach(function (stop) {
-      root.appendChild(stopSection(study, stop, topoProj, decimals, ctx));
-    });
+    root.appendChild(contributorTable(study, topoProj, decimals, ctx));
 
     root.appendChild(provenance(study));
     return root;
@@ -629,47 +1002,160 @@
     return figure;
   }
 
-  function stopSection(study, stop, topoProj, decimals, ctx) {
-    var section = VA.el("section", "kmstop");
-    section.setAttribute("data-stop", stop.id);
-    section.appendChild(VA.el("h3", "kmstop__title", stop.label));
-    var driver = (study.sweep && study.sweep.driver) || {};
-    section.appendChild(VA.el("p", "muted kmstop__where",
-      (driver.label || "driver") + " " +
-      withUnit(VA.kinematicNumber(stop.driver_value, decimals), driver.unit) +
-      " · " + measureWords(study) + " " +
-      withUnit(VA.kinematicNumber(stop.nominal_measure, decimals), study.units) +
-      " · ±" + withUnit(VA.kinematicNumber(stop.worst_case_half, decimals), study.units) +
-      " worst case · ±" + withUnit(VA.kinematicNumber(stop.rss_half, decimals), study.units) +
-      " RSS"));
+  // The one table: a header row of stop groups (each stop's label, and its
+  // summary line under it), a header row of columns, then a row per
+  // contributor. Every stop group is the same three columns.
+  var STOP_COLUMNS = 3;
 
-    var unit = VA.kinematicCoefficientUnit(study, stop);
-    var bandUnits = unit ? unit.split("/")[1] : null;
+  function contributorTable(study, topoProj, decimals, ctx) {
+    var model = VA.kinematicTable(study, topoProj, decimals);
+    var wrap = VA.el("div", "kmcontrib");
     var table = VA.el("table", "kmtable");
-    var head = VA.el("tr");
-    [["Contributor", null], ["Zone", null], ["Sign", "num"],
-     [unit ? "Coefficient, " + unit : "Coefficient", "num"],
-     [bandUnits ? "Band, " + bandUnits : "Band", "num"],
-     [study.units ? "Magnitude, " + study.units : "Magnitude", "num"],
-     ["Confidence", null], ["", null]].forEach(function (col) {
-      head.appendChild(VA.el("th", col[1], col[0]));
+    var groups = VA.el("tr", "kmtable__groups");
+    // The group row's tail cell spans the three columns after the stops.
+    groups.appendChild(VA.el("th", "kmtable__lead"));
+    model.stops.forEach(function (stop) {
+      var th = VA.el("th", "kmtable__stop");
+      th.setAttribute("colspan", String(STOP_COLUMNS));
+      th.setAttribute("data-stop", stop.id);
+      th.appendChild(VA.el("div", "kmtable__stoplabel", stop.label));
+      th.appendChild(VA.el("div", "muted kmtable__stopsum", stop.summary));
+      groups.appendChild(th);
     });
-    table.appendChild(VA.el("thead", null, head));
+    var tail = VA.el("th", "kmtable__tail");
+    tail.setAttribute("colspan", "3");
+    groups.appendChild(tail);
+    var head = VA.el("tr", "kmtable__cols");
+    head.appendChild(VA.el("th", "kmtable__lead", "Contributor"));
+    model.stops.forEach(function (stop) {
+      [["Sign", "num kmtable__first"],
+       [model.coefficientUnit ? "Coefficient, " + model.coefficientUnit : "Coefficient", "num"],
+       [study.units ? "Magnitude, " + study.units : "Magnitude", "num"]]
+        .forEach(function (col) {
+          var th = VA.el("th", col[1], col[0]);
+          th.setAttribute("data-stop", stop.id);
+          head.appendChild(th);
+        });
+    });
+    head.appendChild(VA.el("th", "num kmtable__first",
+      model.bandUnits ? "Band, " + model.bandUnits : "Band"));
+    head.appendChild(VA.el("th", null, "Confidence"));
+    head.appendChild(VA.el("th", null, ""));
+    var thead = VA.el("thead");
+    thead.appendChild(groups);
+    thead.appendChild(head);
+    table.appendChild(thead);
     var body = VA.el("tbody");
-    VA.kinematicRows(study, stop, topoProj, decimals).forEach(function (row) {
-      body.appendChild(contributorRow(row, topoProj, ctx));
+    // A group ranks among the rows by its reach, as a row does by its own
+    // (a row with no magnitude -- a gap -- last).
+    var groups = (model.groups || []).slice().sort(function (x, y) {
+      return (y.reach === null ? -Infinity : y.reach) - (x.reach === null ? -Infinity : x.reach);
     });
+    var emitGroup = function (group) {
+      groupRows(study, group, model, topoProj, decimals, ctx)
+        .forEach(function (tr) { body.appendChild(tr); });
+    };
+    model.rows.forEach(function (row) {
+      while (groups.length && (row.reach === null || groups[0].reach > row.reach)) {
+        emitGroup(groups.shift());
+      }
+      body.appendChild(contributorRow(study, row, model, topoProj, decimals, ctx));
+    });
+    groups.forEach(emitGroup);
     table.appendChild(body);
-    section.appendChild(table);
-    return section;
+    wrap.appendChild(table);
+    return wrap;
   }
 
-  function contributorRow(row, topoProj, ctx) {
-    var tr = VA.el("tr", "kmrow kmrow--" + row.kind + (row.muted ? " kmrow--muted" : ""));
+  function isSelectedEdge(ctx, edgeId) {
+    return !!(ctx.selection && ctx.selection.kind === "edge" && ctx.selection.id === edgeId);
+  }
+
+  // A group's rows: its own, then one per term, collapsed until the reader
+  // opens it. A term is the same row a direct contributor is (its link, its
+  // curve, its 3D control), so it carries `kmchild` and not `kmrow`: the page
+  // still says each DIRECT contributor once.
+  function groupRows(study, group, model, topoProj, decimals, ctx) {
+    var tr = VA.el("tr", "kmgroup");
+    tr.setAttribute("data-study", group.id);
+    var nameCell = VA.el("td", "kmrow__name");
+    var toggle = VA.el("button", "ghost kmgroup__toggle", "▸");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("title", group.title);
+    nameCell.appendChild(toggle);
+    var label = VA.el("span", "kmgroup__name", group.name);
+    label.setAttribute("title", group.title);
+    nameCell.appendChild(label);
+    nameCell.appendChild(VA.el("span", "kmrow__zone", group.zone));
+    tr.appendChild(nameCell);
+    stopCells(tr, study, group, model, decimals, ctx);
+    var band = VA.el("td", "num kmtable__first");
+    if (group.band) {
+      band.textContent = group.band;
+      band.setAttribute("title", group.bandTitle);
+    }
+    tr.appendChild(band);
+    tr.appendChild(VA.el("td", "kmrow__conf"));
+    tr.appendChild(VA.el("td", "kmrow__3d"));
+
+    // Open or closed is the page's, not this row's: the DAG's sub-stack field
+    // opens and closes with it (VA.kinematicSubStacks). A ctx without the
+    // shared state (a bare test render) keeps the row's own.
+    var shared = !!ctx.onToggleSubStack;
+    var startOpen = !!(ctx.openSubStacks && ctx.openSubStacks[group.id]);
+    var kids = group.children.map(function (child) {
+      var kid = contributorRow(study, child, model, topoProj, decimals, ctx);
+      kid.hidden = !startOpen;
+      return kid;
+    });
+    toggle.setAttribute("aria-expanded", startOpen ? "true" : "false");
+    toggle.textContent = startOpen ? "▾" : "▸";
+    var toggleKids = function () {
+      if (shared) {
+        ctx.onToggleSubStack(group.id);
+        return;
+      }
+      var open = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.textContent = open ? "▾" : "▸";
+      kids.forEach(function (kid) { kid.hidden = !open; });
+    };
+    toggle.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      toggleKids();
+    };
+    tr.onclick = toggleKids;
+    return [tr].concat(kids);
+  }
+
+  // The three cells a stop contributes to a row, for every stop in the table.
+  function stopCells(tr, study, row, model, decimals, ctx) {
+    row.cells.forEach(function (cell, s) {
+      var stop = model.stops[s];
+      if (!cell) {
+        for (var k = 0; k < STOP_COLUMNS; k++) tr.appendChild(VA.el("td", k ? "num" : "num kmtable__first"));
+        return;
+      }
+      var muted = cell.muted ? " kmcell--muted" : "";
+      var sign = VA.el("td", "num kmtable__first" + muted, cell.sign);
+      sign.setAttribute("data-stop", stop.id);
+      tr.appendChild(sign);
+      tr.appendChild(coefficientCell(study, row, cell, stop, decimals, muted, ctx));
+      var magnitude = VA.el("td", "num" + muted, cell.magnitude === null ? "" : cell.magnitude);
+      magnitude.setAttribute("data-stop", stop.id);
+      if (cell.flagTitle) magnitude.setAttribute("title", cell.flagTitle);
+      tr.appendChild(magnitude);
+    });
+  }
+
+  function contributorRow(study, row, model, topoProj, decimals, ctx) {
+    var tr = VA.el("tr", (row.child ? "kmchild" : "kmrow") + " kmrow--" + row.kind +
+      (isSelectedEdge(ctx, row.edge) ? " kmrow--selected" : ""));
     tr.setAttribute("data-edge", row.edge);
 
     var nameCell = VA.el("td", "kmrow__name");
     var link = VA.el("a", "kmrow__edge", row.name);
+    // A new tab opens the edge on its rail; a click selects it HERE.
     link.setAttribute("href", VA.viewerLink({ topology: row.topology, edge: row.edge }));
     link.setAttribute("title", row.title);
     link.onclick = function (event) {
@@ -678,28 +1164,25 @@
       ctx.onEdge(row.topology, row.edge);
     };
     nameCell.appendChild(link);
+    // The zone's shape, a muted word after the name (its meaning on hover):
+    // a column of its own cost the table the width it needs beside the
+    // preview pane at 1600 wide.
+    var zone = VA.el("span", "kmrow__zone", row.zone);
+    if (row.zoneTitle) zone.setAttribute("title", row.zoneTitle);
+    nameCell.appendChild(zone);
     tr.appendChild(nameCell);
 
-    var zone = VA.el("td", "kmrow__zone", row.zone);
-    if (row.zoneTitle) zone.setAttribute("title", row.zoneTitle);
-    tr.appendChild(zone);
-    tr.appendChild(VA.el("td", "num", row.sign));
-    tr.appendChild(VA.el("td", "num", row.coefficient));
+    stopCells(tr, study, row, model, decimals, ctx);
 
-    var band = VA.el("td", "num");
+    var band = VA.el("td", "num kmtable__first");
     if (row.band) {
       band.textContent = row.band;
       if (row.bandTitle) band.setAttribute("title", row.bandTitle);
     } else if (row.flag) {
-      band.appendChild(VA.chip("chip--gap", row.flag, row.bandTitle || row.flagTitle));
+      var chip = VA.chip("chip--gap", row.flag, null);
+      band.appendChild(gapTrigger(chip, study, row, topoProj, ctx));
     }
     tr.appendChild(band);
-
-    var magnitude = VA.el("td", "num", row.magnitude === null ? "" : row.magnitude);
-    if (row.magnitude !== null && row.flag && row.flagTitle) {
-      magnitude.setAttribute("title", row.flagTitle);
-    }
-    tr.appendChild(magnitude);
 
     var confidence = VA.el("td", "kmrow__conf");
     if (row.confidence) {
@@ -710,6 +1193,88 @@
     tr.appendChild(threeDCell(row, topoProj, ctx));
     return tr;
   }
+
+  // A gap chip opens the card that says what would resolve it
+  // (VA.kinematicGapCard). With no card host, its first line is the tooltip.
+  function gapTrigger(chip, study, row, topoProj, ctx) {
+    var card = VA.kinematicGapCard(study, row, topoProj);
+    if (!ctx.onCardShow) {
+      chip.setAttribute("title", row.flagTitle || "");
+      return chip;
+    }
+    chip.className += " cardtrig";
+    chip.setAttribute("tabindex", "0");
+    var show = function () { ctx.onCardShow(card, chip); };
+    chip.onmouseenter = show;
+    chip.onfocus = show;
+    chip.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      show();
+    };
+    return chip;
+  }
+
+  // A coefficient, and on hover or focus its curve across the whole sweep
+  // (VA.kinematicCurve), as a hover card of kind `curve` in the page's one
+  // popover (views/cards.js) -- a fixed-position card, so the table's own
+  // horizontal scroll box cannot clip it. Computed the first time it is asked
+  // for, so a table nobody hovers draws no charts. With no card host (a page
+  // embedding this view without one) the chart is drawn inside the cell.
+  function coefficientCell(study, row, cell, stop, decimals, muted, ctx) {
+    var td = VA.el("td", "num kmcell--coef" + muted);
+    td.setAttribute("data-stop", stop.id);
+    td.appendChild(VA.el("span", "kmcell__value", cell.coefficient));
+    if (cell.flagTitle) td.setAttribute("title", cell.flagTitle);
+    if (!row.curve) return td;
+    td.setAttribute("tabindex", "0");
+    var card = null;
+    var show = function () {
+      if (!card) {
+        var curve = VA.kinematicCurve(study, row, decimals, stop.id);
+        if (!curve) return;
+        card = { kind: "curve", title: row.name, curve: curve };
+        if (!ctx.onCardShow) td.appendChild(VA.kinematicCurveFigure(curve, row.name));
+      }
+      if (ctx.onCardShow) ctx.onCardShow(card, td);
+    };
+    td.onmouseenter = show;
+    td.onfocus = show;
+    return td;
+  }
+
+  // The curve as a figure: the frame, zero, the stops (this cell's marked),
+  // the line, and its four end values. Read by the hover card too.
+  VA.kinematicCurveFigure = function (curve, name) {
+    var box = VA.el("div", "kmcurve");
+    box.appendChild(VA.el("div", "kmcurve__title", name));
+    var svg = VA.svg("svg", "kmcurve__svg", {
+      viewBox: "0 0 " + curve.width + " " + curve.height,
+      width: curve.width, height: curve.height, role: "img",
+    });
+    svg.setAttribute("aria-label", "coefficient of " + name + " against " + curve.xLabel);
+    var p = curve.plot;
+    svg.appendChild(VA.svg("rect", "kmcurve__frame",
+      { x: p.left, y: p.top, width: p.width, height: p.height }));
+    svg.appendChild(VA.svg("line", "kmcurve__zero",
+      { x1: p.left, x2: p.left + p.width, y1: curve.zeroY, y2: curve.zeroY }));
+    curve.stops.forEach(function (stop) {
+      svg.appendChild(VA.svg("line", "kmcurve__stop" + (stop.on ? " kmcurve__stop--on" : ""),
+        { x1: stop.x, x2: stop.x, y1: p.top, y2: p.top + p.height }));
+    });
+    svg.appendChild(VA.svg("path", "kmcurve__line", { d: curve.path }));
+    var text = function (cls, x, y, anchor, words) {
+      var t = VA.svg("text", cls, { x: x, y: y, "text-anchor": anchor });
+      t.textContent = words;
+      svg.appendChild(t);
+    };
+    text("kmcurve__tick", p.left - 4, p.top + 8, "end", curve.yTop);
+    text("kmcurve__tick", p.left - 4, p.top + p.height, "end", curve.yBottom);
+    text("kmcurve__tick", p.left, curve.height - 4, "start", curve.xLeft);
+    text("kmcurve__tick", p.left + p.width, curve.height - 4, "end", curve.xRight);
+    box.appendChild(svg);
+    box.appendChild(VA.el("div", "muted kmcurve__axis", curve.xLabel));
+    return box;
+  };
 
   // The row's way into the 3D scene: only where its part HAS a mesh to show
   // (the rule the rail's "attach to 3D" already follows) -- a launch onto an

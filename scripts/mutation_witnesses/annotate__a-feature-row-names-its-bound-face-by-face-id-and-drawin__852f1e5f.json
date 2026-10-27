@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a feature row names its bound face by face id and drawing number, or says none is bound",
+  "mutations": [
+    {
+      "contract": "A node feature names only the face bound at its own end of the edge.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Dropping the end filter lists the other end's face under it too.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (via.direction && (!b || b.direction !== via.direction)) return;",
+      "replace": "      if (false) return;"
+    }
+  ]
+}

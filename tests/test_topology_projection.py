@@ -75,10 +75,42 @@ _FAKE_PROVENANCE = {
 }
 
 
+#: The four fastener-stack topologies and their fourteen studies as they were
+#: the day before they folded into the product model (2026-10-27,
+#: `the_fastener_stacks_join_the_model`), frozen. The format and layout tests
+#: below were measured on those four stand-alone documents (a ring, a ten-wide
+#: fan, a bodiless graph) and keep their subject here; the model's own
+#: behaviour over the same stacks is pinned in the tests that read the
+#: committed documents.
+BEFORE_THE_FOLD_DIR = REPO_ROOT / "tests" / "fixtures" / "topologies_before_the_fold"
+
+
+@pytest.fixture(scope="module")
+def before_projection() -> dict:
+    return B.build(BEFORE_THE_FOLD_DIR, provenance=_FAKE_PROVENANCE)
+
+
 @pytest.fixture(scope="module")
 def topologies() -> dict:
-    return {path.stem.replace("topology_", ""): load_topology(path)
-            for path in sorted(TOPOLOGIES_DIR.glob("topology_*.json"))}
+    out = {path.stem.replace("topology_", ""): load_topology(path)
+           for path in sorted(TOPOLOGIES_DIR.glob("topology_*.json"))}
+    out.update({path.stem.replace("topology_", ""): load_topology(path)
+                for path in sorted(BEFORE_THE_FOLD_DIR.glob("topology_*.json"))})
+    return out
+
+
+#: ``topology_pitch_system.json`` as it was when it was folded into
+#: ``vpa_pitch_linkage`` (2026-10-26): the graph the column-order measurements
+#: below were taken on, frozen so the numbers keep a subject. Not a committed
+#: topology -- the projection never sees it.
+PITCH_SYSTEM_BEFORE_THE_FOLD = (REPO_ROOT / "tests" / "fixtures"
+                                / "topology_pitch_system_before_the_fold.json")
+
+
+def pitch_system_half(row: dict) -> list:
+    """A projected ``vpa_pitch_linkage`` row's edges that came from pitch_system."""
+    ids = set(row["topology"]["provenance"]["pitch_system_ids"]["edges"])
+    return [e for e in row["edges"] if e["id"] in ids]
 
 
 def projected(projection: dict, topology_id: str) -> dict:
@@ -115,7 +147,7 @@ def test_the_two_mvp_cases_are_both_there(projection):
     """The brief's L1 and L2, by id. Both must render, and the degenerate
     single-chain L1 is as much of the deliverable as the branching L2."""
     ids = {t["id"] for t in projection["topologies"]}
-    assert {"vpa_output_to_pitch_plate", "pitch_system"} <= ids
+    assert {"vpa_pitch_linkage"} <= ids
 
 
 def test_the_authored_document_rides_through_verbatim(projection):
@@ -323,7 +355,7 @@ def test_the_number_of_closing_edges_is_the_graphs_cycle_count(projection, topol
         )
 
 
-def test_the_l1_topology_is_a_ring_and_draws_as_two_rails(projection):
+def test_the_l1_topology_is_a_ring_and_draws_as_two_rails(before_projection):
     """The brief's degenerate case, and it is a ring rather than a chain.
 
     Every interface in the grip stack has exactly two edges: the five clamped
@@ -332,7 +364,7 @@ def test_the_l1_topology_is_a_ring_and_draws_as_two_rails(projection):
     rejoin, not one -- and the *study* over it is the single-rail case (see
     ``test_a_study_chain_serialises_to_one_rail``).
     """
-    row = projected(projection, "vpa_output_to_pitch_plate")
+    row = projected(before_projection, "vpa_output_to_pitch_plate")
     assert row["layout"]["columns"] == 2
     assert row["branch_nodes"] == []
     closing = [r for r in row["layout"]["rows"] if r.get("closes_row") is not None]
@@ -346,8 +378,8 @@ def test_the_pitch_system_marks_its_four_branch_points(projection, topologies):
     test that spelled the four ids would be a third copy of a thing the module
     already derives.
     """
-    row = projected(projection, "pitch_system")
-    expected = topologies["pitch_system"].branch_nodes()
+    row = projected(projection, "vpa_pitch_linkage")
+    expected = topologies["vpa_pitch_linkage"].branch_nodes()
     assert expected, "the pitch system must have forks or this asserts nothing"
     assert row["branch_nodes"] == expected
     marked = {r["id"] for r in row["layout"]["rows"] if r.get("branch")}
@@ -355,7 +387,7 @@ def test_the_pitch_system_marks_its_four_branch_points(projection, topologies):
 
 
 def test_every_fork_mark_is_one_of_the_topologys_own_branch_nodes(
-        projection, topologies):
+        projection, before_projection, topologies):
     """The generalisation of the test above, over every topology in the tree.
 
     The page states "this is a fork" twice from two projection fields -- the
@@ -367,8 +399,10 @@ def test_every_fork_mark_is_one_of_the_topologys_own_branch_nodes(
     degree-2 ring gets a ``branch`` LINK at its root, because the walk fans out
     there, and that is not the same claim as a branch NODE.
     """
+    live = {t["id"] for t in projection["topologies"]}
     for topology_id, topology in topologies.items():
-        row = projected(projection, topology.id)
+        row = projected(projection if topology.id in live else before_projection,
+                        topology.id)
         expected = set(topology.branch_nodes())
         assert set(row["branch_nodes"]) == expected, topology_id
         marked = {r["id"] for r in row["layout"]["rows"]
@@ -481,7 +515,7 @@ def test_the_pitch_systems_short_legs_now_sit_nearest_the_trunk(
     against the spine are now the outermost pair. The COUNT: what that shape is
     worth, pinned so a future allocation change has to restate it.
     """
-    topology = topologies["pitch_system"]
+    topology = load_topology(PITCH_SYSTEM_BEFORE_THE_FOLD)
     layout = B.serialize_topology(topology).as_dict()
     assert layout["column_order"] == "exact", (
         "pitch_system has nine non-trunk columns, inside "
@@ -557,7 +591,7 @@ def test_no_other_column_order_beats_the_one_the_search_chose(topologies):
     import itertools
     import random
 
-    topology = topologies["pitch_system"]
+    topology = load_topology(PITCH_SYSTEM_BEFORE_THE_FOLD)
     chosen = B.serialize_topology(topology).as_dict()
     best = sum(B.layout_crossings(chosen).values())
 
@@ -760,44 +794,44 @@ def test_the_pitch_system_worksheet_resolves_through_the_declared_field(projecti
     which shares no stem with `pitch_system` -- so only the declared-field rule
     finds it, not the `topology_X.json` -> `WORKSHEET_X.md` by-name fallback.
     """
-    row = projected(projection, "pitch_system")
+    row = projected(projection, "vpa_pitch_linkage")
     assert row["worksheet_source"] == "declared"
     assert row["worksheet_file"] == (
         "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md")
     assert (REPO_ROOT / row["worksheet_file"]).exists()
 
 
-def test_a_topology_with_no_declared_or_by_name_worksheet_projects_none(projection):
-    row = projected(projection, "vpa_output_to_pitch_plate")
+def test_a_topology_with_no_declared_or_by_name_worksheet_projects_none(before_projection):
+    row = projected(before_projection, "vpa_output_to_pitch_plate")
     assert row["worksheet_file"] is None
     assert row["worksheet_source"] is None
 
 
-def test_the_l1_topologys_joint_rides_into_the_projection(projection):
+def test_the_l1_topologys_joint_rides_into_the_projection(before_projection, projection):
     """Deliverable 2, through the projection: the joint block a reviewer reads
     beside the rail diagram is the same one `Topology.joint` carries."""
-    row = projected(projection, "vpa_output_to_pitch_plate")
+    row = projected(before_projection, "vpa_output_to_pitch_plate")
     assert row["joint"]["assembly_drawing"] == "217755"
     assert row["joint"]["scope"] == "grip length only"
 
-    pitch_system_row = projected(projection, "pitch_system")
+    pitch_system_row = projected(projection, "vpa_pitch_linkage")
     assert pitch_system_row["joint"] == {}
 
 
-def test_a_studys_configuration_rides_into_the_projection(projection):
+def test_a_studys_configuration_rides_into_the_projection(before_projection, projection):
     """Deliverable 5, gap 3, through the projection."""
-    row = projected(projection, "pitch_system")
+    row = projected(projection, "vpa_pitch_linkage")
     branch = next(s for s in row["studies"]
                   if s["id"] == "pitch_system_gas_spring_branch")
     assert branch["configuration"]["load_case"].startswith("collective")
 
-    l1_row = projected(projection, "vpa_output_to_pitch_plate")
+    l1_row = projected(before_projection, "vpa_output_to_pitch_plate")
     l1_study = next(s for s in l1_row["studies"]
                      if s["id"] == "vpa_output_shank_out")
     assert l1_study["configuration"] == {}
 
 
-def test_the_l1_study_totals_the_stacks_published_check(projection):
+def test_the_l1_study_totals_the_stacks_published_check(before_projection):
     """The proof, once more through the projection.
 
     ``tests/test_topology.py`` already pins the study against the stack's own
@@ -810,7 +844,7 @@ def test_the_l1_study_totals_the_stacks_published_check(projection):
         REPO_ROOT / "docs" / "tolerance_stacks"
         / "stack_vpa_output_to_pitch_plate.json")
     published = stack.check("worst_case_shank_out").interval.as_dict()
-    row = projected(projection, "vpa_output_to_pitch_plate")
+    row = projected(before_projection, "vpa_output_to_pitch_plate")
     study = [s for s in row["studies"] if s["id"] == "vpa_output_shank_out"][0]
     for field, value in B.rounded(published).items():
         assert study["result"][field] == value, (
@@ -820,7 +854,7 @@ def test_the_l1_study_totals_the_stacks_published_check(projection):
 
 
 def test_the_l1_studys_projected_check_matches_check_study_field_for_field(
-        projection, topologies):
+        before_projection, topologies):
     """Handoff ``topology_projection_emits_study_checks``: ``project_study()``
     now calls ``check_study()`` for every entry in ``study.checks`` and merges
     the result in -- previously the row had no ``checks`` key at all. This pins
@@ -831,8 +865,7 @@ def test_the_l1_studys_projected_check_matches_check_study_field_for_field(
     from tolerance_stack.topology import check_study
 
     topology = topologies["vpa_output_to_pitch_plate"]
-    study = load_study(REPO_ROOT / "docs" / "topologies"
-                        / "study_vpa_output_shank_out.json")
+    study = load_study(BEFORE_THE_FOLD_DIR / "study_vpa_output_shank_out.json")
     # `rounded_check` is the builder's OWN display rule, imported rather than
     # re-spelled (it rounds the interval and `margin` alike, since
     # viewer_study_verdicts_and_gaps): re-writing the rounding here is how "field
@@ -840,7 +873,7 @@ def test_the_l1_studys_projected_check_matches_check_study_field_for_field(
     # projection rounds something new.
     expected_row = B.rounded_check(check_study(topology, study, "worst_case_shank_out"))
 
-    row = projected(projection, "vpa_output_to_pitch_plate")
+    row = projected(before_projection, "vpa_output_to_pitch_plate")
     projected_study = next(s for s in row["studies"]
                             if s["id"] == "vpa_output_shank_out")
     checks = projected_study["checks"]
@@ -873,10 +906,10 @@ def test_a_study_that_refuses_to_sum_is_carried_as_a_result(topologies):
     author lassoing interactively hits this constantly; a builder that raised
     here would take the page down instead of answering the question.
     """
-    topology = topologies["pitch_system"]
+    topology = topologies["vpa_pitch_linkage"]
     ambiguous = Study(
         id="deliberately_ambiguous", title="two paths at once",
-        topology="pitch_system", from_node="hub_lower_bearing_flange",
+        topology="vpa_pitch_linkage", from_node="hub_lower_bearing_flange",
         to_node="blade_root_oml",
         selection=["hub_lower_to_top_bearing_flange", "hub_top_flange_to_top_deck",
                    "hub_top_deck_to_vpa_mount", "hub_top_deck_to_brake_mount"],
@@ -889,14 +922,14 @@ def test_a_study_that_refuses_to_sum_is_carried_as_a_result(topologies):
     assert row["result"] is None and row["layout"] is None
 
 
-def test_a_derived_gap_is_a_state_of_its_own(projection):
+def test_a_derived_gap_is_a_state_of_its_own(before_projection):
     """Three value sources, and the third is not "a dimension nobody filled in".
 
     A derived gap is the quantity a study computes. The projection words it as
     its own state so the page can too -- rendering it like a missing value would
     invert what it means.
     """
-    row = projected(projection, "vpa_output_to_pitch_plate")
+    row = projected(before_projection, "vpa_output_to_pitch_plate")
     by_id = {e["id"]: e for e in row["edges"]}
     assert by_id["shank_out"]["value_source"] == "derived"
     assert by_id["shank_out"]["dimension"] is None
@@ -905,12 +938,12 @@ def test_a_derived_gap_is_a_state_of_its_own(projection):
     assert {e["value_source"] for e in row["edges"]} <= set(B.VALUE_SOURCES)
 
 
-def test_a_stack_ref_edge_carries_the_crop_key_the_index_is_keyed_by(projection):
+def test_a_stack_ref_edge_carries_the_crop_key_the_index_is_keyed_by(before_projection):
     """The preview pane reuses the stack viewer's crop plumbing untouched, and
     this is the whole of what makes that possible: ``crops.json``'s ``by_stack``
     is keyed by the stack's own ``id``, and the key is derived from the file
     rather than from its filename."""
-    row = projected(projection, "vpa_output_to_pitch_plate")
+    row = projected(before_projection, "vpa_output_to_pitch_plate")
     keyed = [e for e in row["edges"] if e["crop_key"]]
     assert len(keyed) == 6, "every L1 edge but the derived gap re-expresses a stack"
     for edge in keyed:
@@ -924,6 +957,8 @@ def test_an_inline_dimension_with_a_croppable_citation_carries_a_topology_scoped
     projection,
 ):
     """The pitch system is authored topology-first, so no ``dimension_ref``
+    (since 2026-10-26 the pitch-system half of ``vpa_pitch_linkage``, which
+    ``pitch_system_half`` reads off the document's own provenance)
     edge covers it -- but seven of its inline edges carry a real drawing
     citation (six from handoff ``inline_edge_crops``, 2026-09-08;
     ``tan_link_mount_height`` added by ``policy_free_brief_residues``,
@@ -944,17 +979,18 @@ def test_an_inline_dimension_with_a_croppable_citation_carries_a_topology_scoped
     a real citation) -- which is why every edge here is ``inline`` -- the
     derived state lives in L1 and is asserted there.
     """
-    row = projected(projection, "pitch_system")
-    assert {e["value_source"] for e in row["edges"]} == {"inline"}
-    keyed = {e["id"]: e["crop_key"] for e in row["edges"] if e["crop_key"]}
+    row = projected(projection, "vpa_pitch_linkage")
+    half = pitch_system_half(row)
+    assert {e["value_source"] for e in half} == {"inline"}
+    keyed = {e["id"]: e["crop_key"] for e in half if e["crop_key"]}
     assert set(keyed) == {
         "hub_blade_root_seat_position", "end_stop_clearance", "piston_length",
         "pitch_plate_flange_to_link_hole", "gas_spring_body_height",
-        "gas_spring_mount_position", "tan_link_mount_height",
+        "gas_spring_mount_position", "tan_link_mount_overall_height",
     }
     for edge_id, key in keyed.items():
-        assert key == {"topology": "pitch_system", "edge": edge_id}
-    gaps = [e for e in row["edges"] if e["kind"] == "gap"]
+        assert key == {"topology": "vpa_pitch_linkage", "edge": edge_id}
+    gaps = [e for e in half if e["kind"] == "gap"]
     assert [e["id"] for e in gaps] == ["end_stop_clearance"]
     assert gaps[0]["dimension"] is not None
 
@@ -1029,8 +1065,8 @@ def test_a_workbook_or_assumed_inline_dimension_still_has_no_crop_key(projection
     ``policy_free_brief_residues``). The count is paired with the keyed set in
     the test above: one edge leaving this side lands on that one, and a drop
     here with no matching gain there is a citation lost rather than upgraded."""
-    row = projected(projection, "pitch_system")
-    uncroppable = [e for e in row["edges"] if e["crop_key"] is None]
+    row = projected(projection, "vpa_pitch_linkage")
+    uncroppable = [e for e in pitch_system_half(row) if e["crop_key"] is None]
     assert len(uncroppable) == 17
     assert {e["dimension"]["source_ref"]["kind"] for e in uncroppable} == {
         "workbook", "assumed"}
@@ -1256,3 +1292,124 @@ def test_both_projection_builders_gate_the_register_on_the_same_constant():
         assert SCHEMA_HARDWARE not in source, (
             f"{Path(module.__file__).name} spells the hardware schema inline -- "
             f"import SCHEMA_HARDWARE instead, or the two gates can drift")
+
+
+# --------------------------------------------------------------------------- #
+# bodies as containers, joints as glyphs (2026-10-26,                         #
+# the_dag_draws_bodies_as_containers_and_joints_as_symbols)                    #
+# --------------------------------------------------------------------------- #
+
+GLYPHS_JS = REPO_ROOT / "apps" / "viewer" / "interface_glyphs.js"
+
+
+def test_every_body_of_the_product_model_is_one_block_of_the_walk(projection):
+    """Body-major walking: a body's rows are contiguous, so its container is
+    one field, and no two containers share a row."""
+    row = projected(projection, "vpa_pitch_linkage")
+    layout = row["layout"]
+    assert layout["bodies"] == B.body_spans(layout["rows"])
+    per: dict = {}
+    for span in layout["bodies"]:
+        per[span["body"]] = per.get(span["body"], 0) + 1
+    # A body is one block per connected component it has parts in: the four
+    # fastener stacks (2026-10-27) are four components of their own, so the
+    # plate has its mechanism block and three grip-stack blocks, and the hub, the
+    # pitch link, the tangential link and the VPA piston one more each.
+    extra_blocks = {"pitch_plate": 3, "base": 1, "pitch_link": 1,
+                    "tan_link": 1, "vpa_piston": 1}
+    assert per == {b["id"]: 1 + extra_blocks.get(b["id"], 0)
+                   for b in row["bodies"]}, per
+    spans = layout["bodies"]
+    assert all(b["start"] > a["end"] for a, b in zip(spans, spans[1:]))
+    # Every row inside a span is that body's; a joint row is in none.
+    for span in spans:
+        for r in layout["rows"][span["start"]:span["end"] + 1]:
+            assert r["body"] == span["body"]
+
+
+def test_a_topology_with_no_bodies_walks_exactly_as_before(topologies):
+    """With no ``bodies[]`` nothing is deferred: every row's ``body`` is
+    ``None``, no container is emitted, and the four bodiless topologies keep the
+    crossing counts they had before body-major walking."""
+    before = {  # measured 2026-10-26 on the tree before the change
+        "pitch_link_to_pitch_plate": {"branch": 0, "close": 1, "leader": 0},
+        "rotor_fastener_length": {"branch": 0, "close": 36, "leader": 0},
+        "tan_link_to_pitch_plate_take2": {"branch": 0, "close": 0, "leader": 0},
+        "vpa_output_to_pitch_plate": {"branch": 0, "close": 0, "leader": 0},
+    }
+    for topology_id, counts in before.items():
+        layout = B.serialize_topology(topologies[topology_id])
+        assert layout.bodies == []
+        assert all(r["body"] is None for r in layout.rows)
+        assert B.layout_crossings(layout) == counts, topology_id
+
+
+def test_the_product_models_crossings_and_width_are_pinned():
+    """The merged model's layout: 122 crossings on 18 columns before the
+    2026-10-26 body-major walk, 109 (16/43/50) on 11 after it, and since the
+    four fastener stacks joined (2026-10-27) the numbers below: the stacks add
+    rail rows, not width. The README's ``layout_crossings`` claim declares the
+    same three and the claims registry re-derives them."""
+    topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json")
+    layout = B.serialize_topology(topology)
+    counts = B.layout_crossings(layout)
+    assert counts == {"branch": 16, "close": 81, "leader": 62}
+    assert layout.columns == 11
+    assert layout.column_order == "shortest_first"
+
+
+def test_a_deferred_joint_never_draws_its_rail_over_another_on_one_column(topologies):
+    """``allocate_clear``: a deferred edge forks from a row emitted earlier, so
+    its rail must take a column no rail has used below that row."""
+    layout = B.serialize_topology(topologies["vpa_pitch_linkage"]).as_dict()
+    by_column: dict = {}
+    for rail in layout["rails"]:
+        for other in by_column.get(rail["column"], []):
+            assert rail["end"] < other["start"] or other["end"] < rail["start"], (
+                rail, other)
+        by_column.setdefault(rail["column"], []).append(rail)
+
+
+def test_the_joint_glyph_file_draws_exactly_the_interface_words():
+    """One symbol per INTERFACE_KINDS word in ``interface_glyphs.js`` -- the
+    table is keyed through the generated vocabulary, and this reads the file's
+    own keys so a glyph for a word Python does not have is red here too."""
+    import re
+
+    from tolerance_stack.topology import INTERFACE_KINDS
+
+    text = GLYPHS_JS.read_text(encoding="utf-8")
+    start = text.index('VA.INTERFACE_GLYPHS = VOCAB.table("INTERFACE_KINDS", {')
+    end = text.index("\n  });", start)
+    keys = re.findall(r"^    ([a-z_]+): \{$", text[start:end], flags=re.M)
+    assert tuple(keys) == INTERFACE_KINDS
+
+
+def test_the_gap_list_names_an_unstated_contact_and_an_unfolded_form():
+    from tolerance_stack.stack import SourceRef
+    from tolerance_stack.topology import (
+        Dimension, Edge, Form, Node, Part, Topology)
+
+    src = SourceRef(kind="assumed")
+    topology = Topology(
+        id="t", title="t", units="mm",
+        parts=[Part(id="a", name="a"), Part(id="b", name="b")],
+        nodes=[Node(id="na", name="na", parts=("a",), kind="datum_feature"),
+               Node(id="na2", name="na2", parts=("a",), kind="datum_feature"),
+               Node(id="nb", name="nb", parts=("b",), kind="datum_feature")],
+        edges=[
+            Edge(id="size", name="size", from_node="na", to_node="na2", part="a",
+                 dimension=Dimension(id="size", name="size", nominal=6.0,
+                                     min=5.95, max=6.05, source_ref=src,
+                                     form=Form(kind="modifier", zone=0.02,
+                                               node="na", source_ref=src))),
+            Edge(id="g", name="the gap", from_node="na2", to_node="nb", kind="gap"),
+        ])
+    rows = B.topology_gaps(topology, [], {"entries": []})
+    kinds = [(r["kind"], r["edge"]) for r in rows]
+    assert ("contact_kind_not_stated", "g") in kinds
+    assert ("form_not_folded", "size") in kinds
+    # Stated, the contact row goes; the committed model states every one.
+    topology.edges[1].interface = "clearance"
+    assert all(r["kind"] != "contact_kind_not_stated"
+               for r in B.topology_gaps(topology, [], {"entries": []}))

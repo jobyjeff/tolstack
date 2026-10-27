@@ -40,48 +40,88 @@
       "parameters": ["pitch_link.length"],
       "feature": {"edge": "pitch_link_length"},
       "zone": "band",
-      "dimension_ref": {"topology": "pitch_system", "edge": "pitch_link_length"},
-      "note": "Same physical dimension in both topologies: the pitch link's centre-to-centre length. pitch_system names it plate-hole to arm-hole, vpa_pitch_linkage sphere centre to sphere centre; the two holes are where those sphere centres sit."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_link_length"},
+      "note": "The edge's own band: the pitch link's centre-to-centre length was one dimension stated in two topologies (plate hole to arm hole, and sphere centre to sphere centre -- the two holes are where those sphere centres sit), and since the 2026-10-26 fold it is one edge."
     },
     {
       "edge": "pitch_arm_radius",
       "parameters": ["pitch_link.point_b[0]", "pitch_link.point_b[1]", "pitch_link.point_b[2]"],
       "feature": {"node": "pitch_link_lower_sphere_centre", "body": "blade"},
       "zone": "sphere",
-      "dimension_ref": {"topology": "pitch_system", "edge": "pitch_arm_link_hole_to_clocking_hole"},
-      "note": "pitch_system's arm link-hole-to-clocking-hole position is where the pitch arm puts the link's blade-side joint centre relative to the blade root, which is what vpa_pitch_linkage's pitch_arm_radius edge spans. pitch_system carries it as a tangential tolerance with its own rotary transform; here the same band is read as a position zone of that radius about the joint centre, in every direction, which is the worst-azimuth reading of a positional tolerance. linkage's point_b is the blade body's end: it rotates about CAD X with blade pitch while point_a rides the plate (see provenance)."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_arm_link_hole_to_clocking_hole"},
+      "note": "The arm's link-hole-to-clocking-hole position (the pitch-system studies' edge) is where the pitch arm puts the link's blade-side joint centre relative to the blade root, which is what this topology's pitch_arm_radius edge spans. That edge carries it as a tangential tolerance with its own rotary transform; here the same band is read as a position zone of that radius about the joint centre, in every direction, which is the worst-azimuth reading of a positional tolerance. linkage's point_b is the blade body's end: it rotates about CAD X with blade pitch while point_a rides the plate (see provenance)."
     },
     {
       "edge": "pitch_plate_attach_height",
       "parameters": ["pitch_link.point_a[2]"],
       "feature": {"node": "pitch_link_upper_sphere_centre", "component": "z", "body": "pitch_plate"},
       "zone": "band",
-      "dimension_ref": {"topology": "pitch_system", "edge": "pitch_plate_flange_to_link_hole"},
-      "note": "pitch_system's plate flange-to-link-hole is the axial (spindle-axis, CAD Z) height of the link hole on the pitch plate, which is the height half of vpa_pitch_linkage's spindle-bore-to-link-attach-bore pair (its radius half is pitch_plate_attach_radius, not banded anywhere). So the band perturbs only the plate-side point's Z component. linkage's point_a is the plate body's end (see provenance). A position zone (215735-A ⌖Ø0.2 A B C) is a disk of radius 0.1 normal to the hole's axis, not a one-axis band (docs/SOP_TOLERANCE_STACK.md, 'What a term cites when its drawing does not band it'). It stays a band here because neither topology states that hole's axis (vpa_pitch_linkage's pitch_plate_link_attach_bore and pitch_system's pitch_plate_link_hole carry none), and the axis is not guessed: the second in-plane component is the gap named in both checks' excluded_terms (2026-10-22)."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_plate_flange_to_link_hole"},
+      "note": "The plate's flange-to-link-hole edge (the pitch-system studies') is the axial (spindle-axis, CAD Z) height of the link hole on the pitch plate, which is the height half of this topology's spindle-bore-to-link-attach-bore pair (its radius half is pitch_plate_attach_radius, not banded anywhere). So the band perturbs only the plate-side point's Z component. linkage's point_a is the plate body's end (see provenance). A position zone (215735-A ⌖Ø0.2 A B C) is a disk of radius 0.1 normal to the hole's axis, not a one-axis band (docs/SOP_TOLERANCE_STACK.md, 'What a term cites when its drawing does not band it'). It stays a band here because no node states that hole's axis (pitch_plate_link_attach_bore carries none, and since the 2026-10-26 fold both edges end there), and the axis is not guessed: the second in-plane component is the gap named in both checks' excluded_terms (2026-10-22)."
     },
     {
       "edge": "tan_link_length",
       "parameters": ["tan_link.length"],
       "feature": {"edge": "tan_link_length"},
       "zone": "band",
-      "gap": "No band for the tangential link's centre-to-centre length is cited anywhere in this repo: pitch_system does not model the tangential link at all, and vpa_pitch_linkage's own tan_link_length edge carries no dimension (212956-005's drawing has not been read for it).",
-      "note": "Its sensitivity is shown so the cost of a band here is visible before one is cited."
+      "units": "mm",
+      "dimension": {
+        "id": "tan_link_length",
+        "name": "tangential link length band about the sweep nominal",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "213863-004-A",
+          "revision": "A",
+          "sheet": 1,
+          "zone": null,
+          "view": "PART DETAIL (plan view)",
+          "callout": "61.40 (basic, boxed) with ⌖Ø0.1 B on Ø 14.288 +/-0.006",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213863-004-A.pdf",
+            "sha256": "4e1a130436bd257b47e12560ceee0efca0ff8783df7bcd64f7b2b5f5cbbfec75",
+            "runs": [
+              {
+                "run_id": "20260910_154233_213863-004-A",
+                "ts": "2026-09-10T22:42:43.204081+00:00"
+              }
+            ],
+            "note": "Read 2026-10-26 off the PDF text layer and the page_1.png render of the run. The part drawing of the bare link body (find 3 of 212956-005); the run recorded no dimensions, so the callouts were read by eye and by text layer."
+          },
+          "confidence": "traced",
+          "note": "213863-004 A sheet 1 of 1 (PART DETAIL, PITCH ANTI ROTATION LINK, PROPELLER), page 1190.56 x 841.89 pt. The length: boxed basic dimension 61.40 between the two bore centres, bbox [332.97, 139.52, 365.25, 155.67]. Its band: ⌖Ø0.1 B on the Ø 14.288 +/-0.006 bore, frame bbox [93.43, 186.58, 159.12, 202.73], callout bbox [86.72, 170.71, 187.38, 186.86]; datum B is the Ø 15.876 +/-0.006 bore (callout bbox [481.35, 329.45, 581.15, 345.6]). So one bore sits within a Ø0.1 zone of 61.40 from the other: a radius of 0.05 mm, taken along the centre line as the worst case, +/-0.05. The bore diameters' own tolerances (+/-0.006) do not move a bore's centre and are not added.\nWhat this is and is not: the distance between the link BODY's two bore axes. The solver's sphere centres are the bearings' ball centres in those bores; the ball-centre offset from the bore axis is the two `*_ball_centre_offset` edges, still uncited, and is not in this band. The 212956-005 A assembly sheet gives only reference lengths (overall (81.43), (11.10), (21.00)) and no centre distance.\nMesh agreement: run P2's two sphere centres sit 61.45 mm apart (tan_link.point_a_world / point_b_world), 0.05 mm over the drawing's 61.40 -- inside the band's full width and inside what a bearing fit can account for. A fit is a measurement of a mesh and is not what is cited."
+        },
+        "note": "The basic 61.40 with its ⌖Ø0.1 B zone as +/-0.05 along the centre line. The study reads the same band about zero (its contributors are variations about the sweep's own nominal), with this same citation inline; tests/test_kinematic.py pairs the two."
+      },
+      "note": "Cited 2026-10-26 from 213863-004 A (61.40 basic, ⌖Ø0.1 B). Authored about zero here, as a contributor requires; vpa_pitch_linkage's tan_link_length edge carries the same citation about 61.40."
     },
     {
       "edge": "tan_link_mount_height",
       "parameters": ["tan_link.point_a[2]"],
       "feature": {"node": "tan_link_lower_sphere_centre", "component": "z", "body": "base"},
       "zone": "band",
-      "dimension_ref": {"topology": "pitch_system", "edge": "tan_link_mount_height"},
-      "note": "Same name, same quantity: the height of the tangential-link mount's bore along the spindle axis (CAD Z). pitch_system measures it from the gas-spring seat to the hub seat, vpa_pitch_linkage from the mount's hub face to its bore; either way it moves the base-side joint centre axially, so the band perturbs only that point's Z component. linkage's tan_link point_a is the base end (see provenance)."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "tan_link_mount_overall_height"},
+      "note": "The mount's height along the spindle axis (CAD Z), banded by its overall seat-to-seat height (tan_link_mount_overall_height, 215198's 79.00) where this edge runs from the mount's hub face to its bore -- two features of one part, so two edges since the 2026-10-26 fold; either way it moves the base-side joint centre axially, so the band perturbs only that point's Z component. linkage's tan_link point_a is the base end (see provenance)."
     },
     {
       "edge": "pitch_plate_tan_link_attach_radius",
       "parameters": ["tan_link.point_b[0]", "tan_link.point_b[1]", "tan_link.point_b[2]"],
       "feature": {"node": "tan_link_upper_sphere_centre", "body": "pitch_plate"},
       "zone": "sphere",
-      "gap": "No positional tolerance for the pitch plate's tangential-link attach point is cited anywhere in this repo: vpa_pitch_linkage's pitch_plate_tan_link_attach_radius edge carries no dimension, and pitch_system does not model the tangential link.",
-      "note": "A sphere because the attach point's location error has no preferred direction until a drawing says which callout controls it."
+      "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_plate_tan_link_attach_radius"},
+      "note": "215735-A sheet 2 positions the 3X attach bores from the spindle bore by ⌖Ø0.2 A B; read as a ball of radius 0.10 mm about the attach point, which is conservative along the bore axis. The hole's axis is not stated, so no disk is authored (same gap as pitch_plate_attach_height)."
+    },
+    {
+      "study_ref": {
+        "topology": "vpa_pitch_linkage",
+        "study_id": "vpa_pitch_linkage_travel_between_end_stops",
+        "parameter": "actuator.value"
+      },
+      "note": "Where the end stops sit: the travel between them is a study of its own, and it moves the sweep's driver, actuator.value, whose Jacobian entry is the motion ratio in degrees of blade pitch per millimetre. Its terms enter here one by one, each scaled by that entry (the chain rule), and each keeps the citation it has in the travel study -- the travel study's folded total is never used as a band."
     }
   ],
   "checks": [
@@ -112,7 +152,6 @@
       },
       "complete": false,
       "excluded_terms": [
-        "the end-stop location itself -- where the driver's zero sits is the parallel study the_travel_between_the_end_stops_is_a_study; its total enters here later as a band on actuator.value, whose Jacobian entry is the motion ratio",
         "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
@@ -148,7 +187,6 @@
       },
       "complete": false,
       "excluded_terms": [
-        "the end-stop location itself -- where the driver's zero sits is the parallel study the_travel_between_the_end_stops_is_a_study; its total enters here later as a band on actuator.value, whose Jacobian entry is the motion ratio",
         "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
@@ -162,10 +200,10 @@
     "authored_by": "handoff a_kinematic_study_folds_the_sweeps_jacobian, 2026-10-16",
     "sweep": "linkage run P2 (tangential link turns the plate), run_id vpa-pitch-p2-20261016-235852, read from data/inbox/linkage-sweeps/: linkage's republish, the first P2 run to carry geometry.features[], so every contributor's authored feature join is checked against the artifact's own. Re-pointed 2026-10-21 from vpa-pitch-p2-20261015-013931, whose Jacobian, solved blade pitch and driver values are identical to this run's entry for entry. Its sensitivity block states its own analytic-vs-finite-difference agreement (sensitivity.max_finite_difference_disagreement); the projection carries that number beside every result built from it.",
     "which_end_is_which": "The artifact's `mechanism` block names no body per joint end, so the sides were read off the artifact's own motion: at every point pitch_link.point_a_world sits at geometry pitch_link.point_a[2] plus the driver value on CAD Z (it rides the pitch plate's slide) while point_b_world keeps x = 83 and turns about CAD X (the blade's pitch axis). So pitch_link point_a = pitch_plate, point_b = blade. For the tangential link, point_a_world never moves and equals provenance.tangential_link.ends.base.centre_world_mm, and point_b equals ends.plate.centre_world_mm at zero travel: tan_link point_a = base, point_b = pitch_plate. Each contributor's `feature.body` records its side, and the run's own geometry.features[] names the same body for every label a contributor perturbs.",
-    "band_pairings": "Each band is borrowed from topology_pitch_system.json by dimension_ref and carries that edge's own source_ref and confidence unchanged; why each pitch_system edge stands for each vpa_pitch_linkage edge is in that contributor's `note`."
+    "band_pairings": "Each band is borrowed from another edge of this topology by dimension_ref (an edge of topology_pitch_system.json until the 2026-10-26 fold folded that document into this one) and carries that edge's own source_ref and confidence unchanged; why each lending edge stands for the contributor's edge is in that contributor's `note`."
   },
   "notes": [
     "Variation only: every band is about a nominal of 0.0, so each point's fold is the deviation of blade pitch from the sweep's own nominal there. The nominal itself is the sweep's solved value, carried beside the fold, never added to it.",
-    "complete: false at both stops, so both verdicts render as budgets: two of six contributors are gap rows, and the end stop's own location, bushing tipping and temperature are not contributors yet."
+    "complete: false at both stops, so both verdicts render as budgets: bushing tipping and temperature are not contributors yet, and the travel study's own untraced terms are open here too (the checks name them)."
   ]
 }

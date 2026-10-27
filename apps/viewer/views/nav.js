@@ -115,7 +115,9 @@
         row.setAttribute("data-nav-kind", "kinematic");
         row.setAttribute("data-nav-id", s.id);
         row.onclick = function () { handlers.onKinematic(s.id); };
-        children.appendChild(VA.el("li", "navtree__item", row));
+        var item = VA.el("li", "navtree__item", row);
+        if (active) sceneSlot(item, handlers);
+        children.appendChild(item);
       });
       if (group.model) {
         var model = group.model;
@@ -150,9 +152,33 @@
     row.setAttribute("data-nav-id", t.id);
     row.onclick = function () { handlers.onTopology(t.id); };
     li.appendChild(row);
+    if (inThisTopology && !state.studyId) sceneSlot(li, handlers);
+
+    // One chip row per axis the tags use, over the study list: a value chip is
+    // on or off, any chip on in an axis keeps its studies (OR), every axis with
+    // a chip on must keep them (AND). Nothing when no study or body is tagged.
+    var selection = state.tagFilter || {};
+    (t.tagAxes || []).forEach(function (axis) {
+      var chips = VA.el("div", "navtree__tags");
+      chips.setAttribute("data-tag-axis", axis.axis);
+      chips.appendChild(VA.el("span", "navtree__tagaxis", axis.axis));
+      axis.values.forEach(function (value) {
+        var on = (selection[axis.axis] || []).indexOf(value) !== -1;
+        var chip = VA.el("button", "navtree__tag" + (on ? " navtree__tag--on" : ""),
+          value);
+        chip.setAttribute("type", "button");
+        chip.setAttribute("aria-pressed", on ? "true" : "false");
+        chip.setAttribute("data-tag-value", value);
+        chip.onclick = function () { handlers.onTag(axis.axis, value); };
+        chips.appendChild(chip);
+      });
+      li.appendChild(chips);
+    });
 
     var children = VA.el("ul", "navtree__children");
-    (t.studies || []).forEach(function (s) {
+    (t.studies || []).filter(function (s) {
+      return VA.studyMatchesTags(s, selection, t.variantAxis);
+    }).forEach(function (s) {
       var active = inThisTopology && state.studyId === s.id;
       var srow = VA.el("div", "navtree__row navtree__row--study" +
         (active ? " navtree__row--on" : "") +
@@ -172,7 +198,9 @@
       srow.setAttribute("data-nav-id", s.id);
       srow.setAttribute("data-topology-id", t.id);
       srow.onclick = function () { handlers.onStudy(t.id, s.id); };
-      children.appendChild(VA.el("li", "navtree__item", srow));
+      var item = VA.el("li", "navtree__item", srow);
+      if (active) sceneSlot(item, handlers);
+      children.appendChild(item);
     });
     if (children.childNodes.length) li.appendChild(children);
     return li;
@@ -228,5 +256,167 @@
     row.onclick = function () { handlers.onStack(stackProj.id); };
     li.appendChild(row);
     return li;
+  }
+
+  // --- the scene's tree, under the row it is showing ------------------------
+  //
+  // Handoff the_shell_seats_the_scene_beside_the_model: with the 3D scene
+  // open, the annotator's own rail -- bodies, joints and their surfaces and
+  // parts, the study's contributors in sweep mode; the study's elements and
+  // its parts in bind mode -- is drawn HERE, nested under the active row,
+  // rather than as a second left-hand menu inside the scene. Only the slot is
+  // made at nav-render time; topology_app.js fills it (renderSceneSlot) from
+  // the rows the annotator sends, and refills it whenever they change.
+  function sceneSlot(item, handlers) {
+    if (!handlers || !handlers.sceneSlot) return;
+    item.appendChild(VA.el("div", "navtree__scene"));
+  }
+
+  // `tree` is the annotator's {chips, rows} (apps/annotate/app.js's
+  // embedTree, which carries the row shape); `opts.send(key, act, index?)`
+  // hands a gesture back to it. Every word and every effect is the
+  // annotator's: this draws what it was sent, and a gesture is only ever
+  // "this row, this control".
+  //
+  // Keyboard: a disclosure is a <summary>, a row that does something on a
+  // click is a focusable button-role row (Enter or Space), and its checkbox
+  // and buttons are native controls -- so the whole tree is reachable by Tab
+  // (ISSUE_20261021_design_the_sweep_rails_repick_and_contributor_rows_
+  // cannot_be_reached_by_keyboard, for this copy). Focus lights the row in
+  // the scene the way a resting pointer does.
+  VA.renderSceneTree = function (slot, tree, opts) {
+    VA.clear(slot);
+    if (!tree || !tree.rows || !tree.rows.length) return slot;
+    var send = (opts && opts.send) || function () {};
+    if (tree.chips && tree.chips.length) {
+      var bar = VA.el("div", "navtree__scenechips");
+      bar.setAttribute("role", "group");
+      tree.chips.forEach(function (chip) {
+        var button = VA.el("button", "navtree__scenechip", chip.text);
+        button.setAttribute("aria-pressed", chip.pressed ? "true" : "false");
+        button.setAttribute("data-scene-chip", chip.key);
+        button.onclick = function () { send(chip.key, "button", 0); };
+        bar.appendChild(button);
+      });
+      slot.appendChild(bar);
+    }
+    slot.appendChild(sceneList(tree.rows, send));
+    return slot;
+  };
+
+  function sceneList(rows, send) {
+    var ul = VA.el("ul", "navtree__scenelist");
+    rows.forEach(function (row) { ul.appendChild(sceneItem(row, send)); });
+    return ul;
+  }
+
+  function sceneItem(row, send) {
+    var li = VA.el("li", "navtree__sceneitem");
+    if (typeof row.head === "string") {
+      var head = VA.el("div", "navtree__scenehead");
+      head.setAttribute("data-scene-key", row.key);
+      var words = VA.el("span", "navtree__scenetext", row.head);
+      words.setAttribute("title", row.head + (row.sub ? "\n" + row.sub : ""));
+      head.appendChild(words);
+      sceneControls(head, row, send);
+      li.appendChild(head);
+      return li;
+    }
+    var line = VA.el("div", "navtree__scenerow" +
+      (row.selected ? " navtree__scenerow--on" : "") +
+      (row.sceneHover ? " navtree__scenerow--hot" : ""));
+    line.setAttribute("data-scene-key", row.key);
+    if (row.attention) line.setAttribute("data-attention", "true");
+    if (row.title) line.setAttribute("title", row.title);
+    var text = VA.el("span", "navtree__scenetext");
+    text.appendChild(VA.el("span", "navtree__scenename", row.text));
+    if (row.sub) text.appendChild(VA.el("span", "navtree__scenesub", row.sub));
+    line.appendChild(text);
+    if (row.value) line.appendChild(VA.el("span", "navtree__scenevalue", row.value));
+    if (row.alert) {
+      var mark = VA.el("span", "navtree__scenealert");
+      mark.appendChild(VA.warningIcon("navtree__scenealert-mark"));
+      mark.setAttribute("title", row.alert);
+      mark.setAttribute("aria-label", row.alert);
+      mark.setAttribute("tabindex", "0");
+      line.appendChild(mark);
+    }
+    sceneControls(line, row, send);
+    // Resting on a row -- or tabbing to it -- lights its thing in the scene.
+    line.onmouseenter = function () { send(row.key, "enter"); };
+    line.onmouseleave = function () { send(row.key, "leave"); };
+
+    if (typeof row.open === "boolean") {
+      // A disclosure. Its open state is the annotator's (a joint opening is
+      // that joint selected), so a click asks for the toggle and the reply
+      // redraws it; the native toggle is not taken.
+      var box = VA.el("details", "navtree__scenenode");
+      box.open = row.open;
+      var summary = VA.el("summary", "navtree__scenesummary");
+      summary.appendChild(line);
+      summary.onclick = function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+        send(row.key, "toggle");
+      };
+      summary.onfocus = function () { send(row.key, "enter"); };
+      summary.onblur = function () { send(row.key, "leave"); };
+      box.appendChild(summary);
+      if (row.rows && row.rows.length) box.appendChild(sceneList(row.rows, send));
+      li.appendChild(box);
+      return li;
+    }
+    if (row.activate) {
+      line.setAttribute("tabindex", "0");
+      line.setAttribute("role", "button");
+      line.classList.add("navtree__scenerow--act");
+      line.onclick = function () { send(row.key, "activate"); };
+      line.onkeydown = function (event) {
+        if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+        if (event.target !== line) return;
+        if (event.preventDefault) event.preventDefault();
+        send(row.key, "activate");
+      };
+      line.onfocus = function () { send(row.key, "enter"); };
+      line.onblur = function () { send(row.key, "leave"); };
+    }
+    li.appendChild(line);
+    return li;
+  }
+
+  // A row's own checkbox and buttons, each a native control that hands its
+  // gesture back rather than acting here. The checkbox does not flip on its
+  // own: the annotator's answer redraws it.
+  function sceneControls(line, row, send) {
+    if (row.check) {
+      var box = VA.el("input", "navtree__scenecheck");
+      box.type = "checkbox";
+      box.checked = !!row.check.checked;
+      box.indeterminate = !!row.check.indeterminate;
+      box.disabled = !!row.check.disabled;
+      if (row.check.title) box.setAttribute("title", row.check.title);
+      box.setAttribute("data-scene-part", "check");
+      box.onclick = function (event) {
+        if (event) {
+          if (event.preventDefault) event.preventDefault();
+          if (event.stopPropagation) event.stopPropagation();
+        }
+        send(row.key, "check");
+      };
+      line.appendChild(box);
+    }
+    (row.buttons || []).forEach(function (spec, i) {
+      var button = VA.el("button", "navtree__scenebtn", spec.text);
+      if (spec.title) button.setAttribute("title", spec.title);
+      if (spec.pressed) button.setAttribute("aria-pressed", "true");
+      button.setAttribute("data-scene-part", "button-" + i);
+      button.onclick = function (event) {
+        if (event) {
+          if (event.preventDefault) event.preventDefault();
+          if (event.stopPropagation) event.stopPropagation();
+        }
+        send(row.key, "button", i);
+      };
+      line.appendChild(button);
+    });
   }
 })(window.ViewerApp = window.ViewerApp || {});

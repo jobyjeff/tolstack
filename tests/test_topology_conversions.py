@@ -78,11 +78,20 @@ CONVERTED_CHECKS = (
      "study_rotor_fastener_grip_u10h", "grip_budget__u10h"),
     ("tan_link_to_pitch_plate_take2", "tan_link_to_pitch_plate_take2",
      "study_tan_link_take2_worst_case_protrusion", "worst_case_protrusion"),
+    ("vpa_output_to_pitch_plate", "vpa_output_to_pitch_plate",
+     "study_vpa_output_shank_out", "worst_case_shank_out"),
 )
 
 
+#: Since 2026-10-27 (`the_fastener_stacks_join_the_model`) every conversion
+#: below is a subset of the one product model; the first column of
+#: ``CONVERTED_CHECKS`` still names the stack's own joint, which is now only a
+#: label for the grip stack inside the model.
+MODEL = TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json"
+
+
 def _topology(stem: str):
-    return load_topology(TOPOLOGIES_DIR / f"topology_{stem}.json")
+    return load_topology(MODEL)
 
 
 def _stack(stem: str):
@@ -154,6 +163,7 @@ CONVERTED_TOPOLOGIES = {
     "pitch_link_to_pitch_plate": "pitch_link_to_pitch_plate",
     "rotor_fastener_length": "rotor_fastener_length",
     "tan_link_to_pitch_plate_take2": "tan_link_to_pitch_plate_take2",
+    "vpa_output_to_pitch_plate": "vpa_output_to_pitch_plate",
 }
 
 
@@ -169,32 +179,43 @@ def test_a_converted_topology_copies_no_value(topology_stem, stack_stem):
     itself, exactly the failure `test_topology.py`'s own L1 no-copy test
     guards against.
     """
-    path = TOPOLOGIES_DIR / f"topology_{topology_stem}.json"
+    path = MODEL
     expected_stack_path = f"docs/tolerance_stacks/stack_{stack_stem}.json"
     raw = json.loads(path.read_text(encoding="utf-8"))
 
-    for edge in raw["edges"]:
+    mine = [e for e in raw["edges"]
+            if (e.get("dimension_ref") or {}).get("stack") == expected_stack_path]
+    assert mine, f"no edge of the model re-expresses {expected_stack_path}"
+    for edge in mine:
         assert "dimension" not in edge, (
             f"edge {edge['id']!r} in {path.name} carries an inline dimension. "
             f"Every value must be a `dimension_ref` into the stack it "
             f"re-expresses, or the value-level test compares a number "
             f"against itself.")
-        if "dimension_ref" not in edge:
-            continue      # a derived edge -- the quantity a study computes
-        assert edge["dimension_ref"]["stack"] == expected_stack_path
 
     # And the resolved dimensions really are the stack's own, citation
     # included -- not merely a `dimension_ref` pointing at the right file.
     topology = load_topology(path)
     stack = load_stack(REPO_ROOT / expected_stack_path)
     for edge in topology.edges:
-        if edge.derived:
+        ref = next((e for e in mine if e["id"] == edge.id), None)
+        if ref is None:
             continue
         element = stack.element(edge.dimension.id)
         assert edge.dimension.source_ref == element.source_ref
         assert edge.dimension.role == element.role
         assert (edge.dimension.min, edge.dimension.max, edge.dimension.nominal) == (
             element.min, element.max, element.nominal)
+
+
+def test_every_fastener_stack_edge_of_the_model_is_one_of_the_four():
+    """The four stacks' edges are the model's only `dimension_ref` edges, and
+    each is claimed once -- a fifth stack folding in is a decision, not drift."""
+    raw = json.loads(MODEL.read_text(encoding="utf-8"))
+    stacks = {(e["dimension_ref"]["stack"]) for e in raw["edges"]
+              if "dimension_ref" in e}
+    assert stacks == {f"docs/tolerance_stacks/stack_{v}.json"
+                      for v in CONVERTED_TOPOLOGIES.values()}
 
 
 # --------------------------------------------------------------------------- #
@@ -361,8 +382,13 @@ def test_every_missing_tolerance_a_covered_stack_flags_is_a_gap_row(projections)
     two bands against a topology listing one is a reader losing one.
     """
     for stack, topology in covered_pairs(projections):
+        # The model carries every stack's gaps; a stack answers for its own
+        # edges (the ones whose crop key names it).
+        mine = {e["id"] for e in topology.get("edges", [])
+                if (e.get("crop_key") or {}).get("stack") == stack["id"]}
         rows = [gap for gap in topology.get("gaps", [])
-                if gap["kind"] == "no_tolerance_recorded"]
+                if gap["kind"] == "no_tolerance_recorded"
+                and gap.get("edge") in mine]
         assert len(rows) == stack["zero_width_count"], (
             f"{stack['id']} flags {stack['zero_width_count']} element(s) with "
             f"no tolerance recorded; {topology['id']} lists {len(rows)} gap "
@@ -409,6 +435,10 @@ def test_every_superseded_stack_the_viewer_hides_is_real_and_so_is_its_successor
         assert (STACKS_DIR / f"stack_{successor}.json").exists(), (
             f"{hidden!r} is hidden in favour of {successor!r}, which is not a "
             f"committed stack")
-        assert (TOPOLOGIES_DIR / f"topology_{successor}.json").exists(), (
-            f"{hidden!r} is hidden in favour of {successor!r}, which has no "
-            f"topology -- the reader would be left with neither")
+        raw = json.loads(MODEL.read_text(encoding="utf-8"))
+        assert any((e.get("dimension_ref") or {}).get("stack")
+                   == f"docs/tolerance_stacks/stack_{successor}.json"
+                   for e in raw["edges"]), (
+            f"{hidden!r} is hidden in favour of {successor!r}, which no edge "
+            f"of the product model re-expresses -- the reader would be left "
+            f"with neither")

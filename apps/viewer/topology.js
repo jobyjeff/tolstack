@@ -46,6 +46,11 @@
   // difference is which Python file the generator reads them from
   // (tolerance_stack/topology.py, named beside each in vocab.gen.js).
   VA.NODE_KINDS = VOCAB.list("NODE_KINDS");
+  // The kind of contact a gap edge crosses, and what a form callout is in the
+  // chain (tolerance_stack/topology.py). The glyph per contact kind is
+  // interface_glyphs.js's VA.INTERFACE_GLYPHS.
+  VA.INTERFACE_KINDS = VOCAB.list("INTERFACE_KINDS");
+  VA.FORM_KINDS = VOCAB.list("FORM_KINDS");
   VA.EDGE_KINDS = VOCAB.list("EDGE_KINDS");
   VA.TRANSFORM_KINDS = VOCAB.list("TRANSFORM_KINDS");
 
@@ -148,6 +153,72 @@
     (topoProj.parts || []).forEach(function (p) { index.parts[p.id] = p; });
     return index;
   };
+
+  // --- tags (handoff bodies_and_studies_carry_forge_tags) -------------------
+  //
+  // A body or a study carries `tags: {axis: value}` on forge's identity axes
+  // (docs/DAG_TOPOLOGY.md, "Tags"). A selection is `{axis: [value, ...]}` and
+  // reads as drawing-checker's container tree does: OR within an axis, AND
+  // across. Nothing here names an axis: the one the dimming reads arrives in the
+  // projection as `variant_axis`, and the chips are whatever axes the tags use.
+
+  // The chips' content: `[{axis, values: [...]}]`, axes in first-seen order,
+  // values sorted, over the studies AND the bodies (a value that only a body
+  // carries is still one a reader can select to dim the other side).
+  VA.tagAxes = function (studies, bodies) {
+    var axes = [];
+    var seen = {};
+    (studies || []).concat(bodies || []).forEach(function (owner) {
+      var tags = (owner && owner.tags) || {};
+      Object.keys(tags).forEach(function (axis) {
+        if (!seen[axis]) { seen[axis] = {}; axes.push({ axis: axis, values: [] }); }
+        if (!seen[axis][tags[axis]]) {
+          seen[axis][tags[axis]] = true;
+          axes.filter(function (a) { return a.axis === axis; })[0]
+            .values.push(tags[axis]);
+        }
+      });
+    });
+    axes.forEach(function (a) { a.values.sort(); });
+    return axes;
+  };
+
+  function chosen(selection, axis) {
+    var values = selection && selection[axis];
+    return values && values.length ? values : null;
+  }
+
+  // Does this study stay in the list? Every axis the reader has selected on
+  // must be satisfied (AND) by one of its chosen values (OR). A study with no
+  // tag on the VARIANT axis is neutral -- it folds nothing either variant owns
+  // -- and stays; on any other axis an untagged study does not match.
+  VA.studyMatchesTags = function (study, selection, variantAxis) {
+    var tags = (study && study.tags) || {};
+    return Object.keys(selection || {}).every(function (axis) {
+      var values = chosen(selection, axis);
+      if (!values) return true;
+      if (tags[axis] === undefined) return axis === variantAxis;
+      return values.indexOf(tags[axis]) !== -1;
+    });
+  };
+
+  // The parts the second dimming reason covers: every part of a body whose
+  // variant tag is not among the selected variants. A body with no variant tag
+  // is shared and is never in the set.
+  VA.otherVariantParts = function (topoProj, selection, variantAxis) {
+    var out = {};
+    var values = variantAxis ? chosen(selection, variantAxis) : null;
+    if (!values) return out;
+    ((topoProj && topoProj.bodies) || []).forEach(function (body) {
+      var tag = body.tags && body.tags[variantAxis];
+      if (tag === undefined || values.indexOf(tag) !== -1) return;
+      (body.parts || []).forEach(function (id) { out[id] = true; });
+    });
+    return out;
+  };
+
+  // The words the surface says about a mark the rule dimmed.
+  VA.OTHER_VARIANT_NOTE = "other variant";
 
   // --- is there a 3D model of this part? ------------------------------------
   //
@@ -950,6 +1021,18 @@
       says: "no plus/minus recorded — the spread is a lower bound",
       closes: "Find the plus/minus on the drawing. Until then every spread " +
         "these feed is a lower bound.",
+    },
+    contact_kind_not_stated: {
+      heading: "Joints with no contact kind",
+      says: "contact kind not stated",
+      closes: "Say what kind of contact the joint is — flat faces, a pin, " +
+        "a ball, a slide, a thread or a clearance — and the model draws it.",
+    },
+    form_not_folded: {
+      heading: "Form callouts not in the total",
+      says: "a form callout that can only tighten this band, not folded",
+      closes: "The callout narrows what the size band allows; the total " +
+        "still uses the size band alone.",
     },
     hardware_entry: {
       heading: "Open questions about the hardware",
@@ -1817,9 +1900,29 @@
     var mirrored = {};
     Object.keys(layout).forEach(function (key) { mirrored[key] = layout[key]; });
     mirrored.rows = (layout.rows || []).map(function (row) {
-      return assign(row, { column: flip(row.column),
-                           closes_column: flip(row.closes_column) });
+      return assign(row, {
+        column: flip(row.column),
+        closes_column: flip(row.closes_column),
+        rim_column: flip(row.rim_column),
+        rim_left_column: flip(row.rim_left_column),
+        // A collapsed body's pill (VA.collapseBodies) spans lo..hi, which the
+        // mirror swaps; its row's own column is the drawn left edge.
+        collapsed: row.collapsed ? assign(row.collapsed, {
+          lo: flip(row.collapsed.hi), hi: flip(row.collapsed.lo) }) : undefined,
+      });
     });
+    if (mirrored.rows.some(function (row) { return row.collapsed; })) {
+      mirrored.rows.forEach(function (row) {
+        if (row.collapsed) row.column = row.collapsed.lo;
+      });
+    }
+    if (layout.folded) {
+      mirrored.folded = {};
+      Object.keys(layout.folded).forEach(function (id) {
+        mirrored.folded[id] = assign(layout.folded[id],
+          { column: flip(layout.folded[id].column) });
+      });
+    }
     mirrored.rails = (layout.rails || []).map(function (rail) {
       return assign(rail, { column: flip(rail.column) });
     });
@@ -1828,6 +1931,367 @@
                             to_column: flip(link.to_column) });
     });
     return mirrored;
+  };
+
+  // --- the lit set, and the walk with everything outside it hidden ----------
+  //
+  // A page that emphasizes part of the model -- a chain study, a kinematic
+  // study (the_kinematic_page_keeps_the_dag_and_says_each_contributor_once,
+  // 2026-10-26) -- names that part as its LIT SET: `{ edges: {id: true},
+  // nodes: {id: true} }`. The rails dim everything outside it, the grid holds
+  // only its edges and the leaders run only to its nodes. A chain study's is
+  // its chain and the nodes the chain stands on; a kinematic study's is
+  // VA.kinematicLitSet (views/kinematic.js). null is "nothing emphasized":
+  // the whole walk at full emphasis.
+  VA.studyLitSet = function (study) {
+    if (!study || study.status !== "ok") return null;
+    var edges = {};
+    Object.keys(VA.chainIndex(study)).forEach(function (id) { edges[id] = true; });
+    return { edges: edges, nodes: VA.chainNodes(study) };
+  };
+
+  // The lit set a list of edge ids makes: the edges, and every node either end
+  // of one stands on -- so a node an unlit edge shares with a lit one is lit.
+  VA.litSetOfEdges = function (topoProj, edgeIds) {
+    var index = VA.topologyIndex(topoProj);
+    var lit = { edges: {}, nodes: {} };
+    (edgeIds || []).forEach(function (id) {
+      var edge = index.edges[id];
+      if (!edge) return;
+      lit.edges[id] = true;
+      lit.nodes[edge.from] = true;
+      lit.nodes[edge.to] = true;
+    });
+    return lit;
+  };
+
+  // What the walk outside the lit set does (Jeff, 2026-10-26): stays drawn,
+  // dimmed -- the context for the lit part -- or is HIDDEN, because on a
+  // product-sized model the unlit part is most of the picture. A display
+  // preference like the leader style: one toggle on the topology toolbar,
+  // cycling through `next`, applying to chain and kinematic pages alike.
+  VA.UNLIT_STYLES = {
+    dim: {
+      label: "dimmed",
+      next: "hide",
+      title: "The parts of the model outside this study are drawn faintly " +
+        "behind it. Click to hide them.",
+    },
+    hide: {
+      label: "hidden",
+      next: "dim",
+      title: "Only this study's part of the model is drawn. Click to show " +
+        "the rest of the model faintly behind it.",
+    },
+  };
+
+  // Which a preference-less load draws, named once for the same reason
+  // VA.DEFAULT_LEADER_STYLE is.
+  VA.DEFAULT_UNLIT_STYLE = "dim";
+
+  // Every rail and every link a walk's rows imply, re-derived from the rows
+  // alone: an edge row is drawn down its column from the node it entered at
+  // (a fork, when that node is on another column -- a `branch` link), and on
+  // to the node it leaves at, or, for a loop-closing edge, a `close` link back
+  // up to it. Touching runs on one column are one rail. On every committed
+  // topology this reproduces the projection's own `rails` and `links`
+  // exactly (the fast tier pins that), which is what makes it safe to use on
+  // a walk the projection never laid out: the hidden one below.
+  VA.walkRailsAndLinks = function (rows) {
+    var nodeRow = {};
+    rows.forEach(function (row) { if (row.kind === "node") nodeRow[row.id] = row.row; });
+    var runs = [];
+    var links = [];
+    rows.forEach(function (row) {
+      if (row.kind !== "edge") return;
+      var entered = rows[nodeRow[row.entered_at]];
+      if (!entered) return;
+      runs.push({ column: row.column, start: entered.row, end: row.row });
+      // An edge that leaves a COLLAPSED body (VA.collapseBodies) leaves the
+      // pill's rim at the column its node was on, not at the pill's own.
+      var from = row.rim_column !== undefined ? row.rim_column : entered.column;
+      if (from !== row.column) {
+        links.push({ kind: "branch", row: entered.row, from_column: from,
+                     to_row: entered.row, to_column: row.column });
+      }
+      if (row.closes_row !== null && row.closes_row !== undefined) {
+        links.push({ kind: "close", row: row.row, from_column: row.column,
+                     to_row: row.closes_row, to_column: row.closes_column });
+      } else if (nodeRow[row.left_at] > row.row) {
+        runs.push({ column: row.column, start: row.row, end: nodeRow[row.left_at] });
+      }
+    });
+    runs.sort(function (a, b) {
+      return a.column - b.column || a.start - b.start || a.end - b.end;
+    });
+    var rails = [];
+    runs.forEach(function (run) {
+      var last = rails[rails.length - 1];
+      if (last && last.column === run.column && run.start <= last.end) {
+        last.end = Math.max(last.end, run.end);
+      } else {
+        rails.push({ column: run.column, start: run.start, end: run.end });
+      }
+    });
+    return { rails: rails, links: links };
+  };
+
+  // The walk with everything outside `lit` taken out and the rest re-laid:
+  // the lit rows keep their walk order and their columns' left-to-right
+  // order, an emptied column is dropped (no blank lane left behind), and the
+  // rails and links are re-derived from what is left (VA.walkRailsAndLinks)
+  // -- so a run of the walk that a hidden edge used to join is two runs, and
+  // nothing is drawn joining them. Applied to the PROJECTION's layout, before
+  // VA.spineRight mirrors it, so the walk's mainline stays the right-hand
+  // rail whenever any of it is lit. Pure: returns a new layout object.
+  VA.hideUnlit = function (layout, lit) {
+    if (!layout || !lit) return layout;
+    var kept = (layout.rows || []).filter(function (row) {
+      return row.kind === "edge" ? !!lit.edges[row.id] : !!lit.nodes[row.id];
+    });
+    var renumber = {};
+    kept.forEach(function (row, i) { renumber[row.row] = i; });
+    var used = {};
+    kept.forEach(function (row) { used[row.column] = true; });
+    var columns = Object.keys(used).map(Number).sort(function (a, b) { return a - b; });
+    var column = {};
+    columns.forEach(function (c, i) { column[c] = i; });
+    var rows = kept.map(function (row) {
+      var out = assign(row, { row: renumber[row.row], column: column[row.column] });
+      if (row.kind === "edge" && row.closes_row !== null && row.closes_row !== undefined) {
+        var lands = renumber[row.closes_row];
+        out.closes_row = lands === undefined ? null : lands;
+        out.closes_column = lands === undefined ? null : column[row.closes_column];
+      }
+      return out;
+    });
+    // A close whose landing node is hidden is no close any more; it has
+    // nowhere to draw to. (Cannot happen from a lit set built on edge
+    // endpoints, which always lights the landing node -- kept for a caller
+    // that hands in a set of its own.)
+    rows.forEach(function (row) {
+      if (row.kind === "edge" && row.closes_row === null) row.closes_column = null;
+    });
+    var structure = VA.walkRailsAndLinks(rows);
+    var out = {};
+    Object.keys(layout).forEach(function (key) { out[key] = layout[key]; });
+    out.columns = columns.length;
+    out.rows = rows;
+    out.rails = structure.rails;
+    out.links = structure.links;
+    return out;
+  };
+
+  // --- bodies as containers, joints as glyphs ------------------------------
+  //
+  // (the_dag_draws_bodies_as_containers_and_joints_as_symbols, 2026-10-26)
+  // The builder walks a topology body by body, so each body's rows are one
+  // block and every row carries the `body` it is drawn in
+  // (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"). These are the pure halves:
+  // where each container goes, what a collapsed body's walk is, and which
+  // tint a body wears. railsSvg (views/topology.js) draws them.
+
+  // Per body, every maximal run of consecutive rows tagged with it, as
+  // {body, start, end, lo, hi}: the same list the builder's `body_spans`
+  // writes into `layout.bodies` (the fast tier pins the two equal), re-derived
+  // here because a hidden, collapsed or mirrored walk has rows the builder
+  // never laid out.
+  VA.bodySpans = function (rows) {
+    var spans = [];
+    (rows || []).forEach(function (row) {
+      var body = row.body;
+      if (body === null || body === undefined) return;
+      // A collapsed body's pill is one row as wide as the block it folded.
+      var lo = row.collapsed ? row.collapsed.lo : row.column;
+      var hi = row.collapsed ? row.collapsed.hi : row.column;
+      var last = spans[spans.length - 1];
+      if (last && last.body === body && last.end === row.row - 1) {
+        last.end = row.row;
+        last.lo = Math.min(last.lo, lo);
+        last.hi = Math.max(last.hi, hi);
+      } else {
+        spans.push({ body: body, start: row.row, end: row.row, lo: lo, hi: hi });
+      }
+    });
+    return spans;
+  };
+
+  // How many muted fills the containers cycle through (topology.css's
+  // `--tv-body-0` ... ). A body's tint is its place in the document's own
+  // `bodies[]`, so it does not change when the walk is hidden or collapsed.
+  VA.BODY_TINTS = 6;
+
+  VA.bodyTint = function (topoProj, bodyId) {
+    var bodies = (topoProj && topoProj.bodies) || [];
+    for (var i = 0; i < bodies.length; i++) {
+      if (bodies[i].id === bodyId) return i % VA.BODY_TINTS;
+    }
+    return 0;
+  };
+
+  // True when some edge drawn inside `bodyId` is lit: a container with no lit
+  // edge is drawn as a flat outline. `lit` null (nothing emphasized) lights
+  // every body.
+  VA.bodyIsLit = function (rows, bodyId, lit) {
+    if (!lit) return true;
+    return (rows || []).some(function (row) {
+      return row.kind === "edge" && row.body === bodyId && !!lit.edges[row.id];
+    });
+  };
+
+  // The walk with each body in `collapsed` ({bodyId: true}) folded to ONE
+  // node row: the body's name and its joint-node count on a pill as wide as
+  // its block. Every edge outside the block that met one of its nodes now
+  // meets the pill, at the column that node was on -- its place on the rim --
+  // so a joint leaves the collapsed body where it left the open one. A node
+  // of the block that a LIT edge outside it stands on stays drawn (the
+  // dim/hide toggle's rule: an emphasized edge never loses an end). Rails and
+  // links are re-derived from the rows (VA.walkRailsAndLinks), as hiding does.
+  // Pure: returns a new layout.
+  VA.collapseBodies = function (layout, collapsed, topoProj, lit) {
+    if (!layout || !collapsed) return layout;
+    var spans = VA.bodySpans(layout.rows).filter(function (s) {
+      return collapsed[s.body];
+    });
+    if (!spans.length) return layout;
+    var index = VA.topologyIndex(topoProj);
+    var bodies = {};
+    ((topoProj && topoProj.bodies) || []).forEach(function (b) { bodies[b.id] = b; });
+    var rows = layout.rows || [];
+    var spanOf = {};
+    spans.forEach(function (span, i) {
+      for (var r = span.start; r <= span.end; r++) spanOf[r] = i;
+    });
+    // Which nodes stay: lit, and an end of a lit edge outside the block.
+    var keep = {};
+    if (lit) {
+      rows.forEach(function (row) {
+        if (row.kind !== "edge" || !lit.edges[row.id] || spanOf[row.row] !== undefined) return;
+        var edge = index.edges[row.id];
+        if (!edge) return;
+        keep[edge.from] = true;
+        keep[edge.to] = true;
+      });
+    }
+    var pillId = function (span) { return "body:" + span.body; };
+    var folded = {};      // node id -> {pill, column}
+    rows.forEach(function (row) {
+      var i = spanOf[row.row];
+      if (i === undefined || row.kind !== "node" || keep[row.id]) return;
+      folded[row.id] = { pill: pillId(spans[i]), column: row.column };
+    });
+    var out = [];
+    var pillAt = {};      // span index -> the pill's new row
+    var moved = {};       // old row -> new row
+    rows.forEach(function (row) {
+      var i = spanOf[row.row];
+      if (i !== undefined) {
+        var span = spans[i];
+        if (pillAt[i] === undefined) {
+          pillAt[i] = out.length;
+          var body = bodies[span.body] || { id: span.body, name: span.body };
+          out.push({ row: out.length, kind: "node", id: pillId(span),
+                     column: span.lo, branch: false, body: span.body,
+                     collapsed: { body: span.body, name: body.name, lo: span.lo,
+                                  hi: span.hi,
+                                  joints: (body.joint_nodes || []).length } });
+        }
+        if (!(row.kind === "node" && keep[row.id])) {
+          moved[row.row] = pillAt[i];
+          return;
+        }
+      }
+      moved[row.row] = out.length;
+      var copy = assign(row, { row: out.length });
+      if (row.kind === "edge") {
+        var entered = folded[row.entered_at];
+        var left = folded[row.left_at];
+        if (entered) {
+          copy.entered_at = entered.pill;
+          copy.rim_column = entered.column;
+        }
+        if (left) {
+          copy.left_at = left.pill;
+          copy.rim_left_column = left.column;
+        }
+      }
+      out.push(copy);
+    });
+    // A close lands where its node now is: on the pill, at that node's
+    // column, when the node folded into one.
+    out.forEach(function (row) {
+      if (row.kind === "edge" && row.closes_row !== null && row.closes_row !== undefined) {
+        var lands = rows[row.closes_row];
+        var into = lands && folded[lands.id];
+        row.closes_row = moved[row.closes_row];
+        if (into) row.closes_column = into.column;
+      }
+    });
+    var structure = VA.walkRailsAndLinks(out);
+    var result = {};
+    Object.keys(layout).forEach(function (key) { result[key] = layout[key]; });
+    result.rows = out;
+    result.rails = structure.rails;
+    result.links = structure.links;
+    // Where each folded node went -- its pill and its own column on the rim --
+    // for a leader that has to land on a node the walk no longer draws
+    // (VA.seamDots).
+    result.folded = folded;
+    return result;
+  };
+
+  // The form callouts the DAG marks (docs/SOP_TOLERANCE_STACK.md, "A form
+  // callout"): `edges` -- an `element` IS its edge, so the squiggle sits on
+  // the bar -- and `nodes` -- a `modifier` is on one face of a sized feature,
+  // so the squiggle sits beside that face's dot, naming the edges it
+  // tightens.
+  VA.formMarks = function (topoProj) {
+    var out = { edges: {}, nodes: {} };
+    ((topoProj && topoProj.edges) || []).forEach(function (edge) {
+      var form = edge.dimension && edge.dimension.form;
+      if (!form) return;
+      if (form.kind === "element") out.edges[edge.id] = form;
+      else if (form.node) (out.nodes[form.node] = out.nodes[form.node] || []).push(edge.id);
+    });
+    return out;
+  };
+
+  // Which bodies the reader has collapsed, remembered per topology per reader
+  // (the same discipline as the remembered pane widths, views/topology.js:
+  // `store` injected, every access wrapped, an unreadable value reads as
+  // nothing collapsed). One key holding {topologyId: [bodyId, ...]}.
+  VA.COLLAPSED_BODIES_KEY = "tolstack.viewer.collapsedBodies";
+
+  function readCollapsedAll(store) {
+    try {
+      var raw = store && store.getItem(VA.COLLAPSED_BODIES_KEY);
+      var all = raw ? JSON.parse(raw) : {};
+      return all && typeof all === "object" && !Array.isArray(all) ? all : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  VA.readCollapsedBodies = function (store, topologyId) {
+    var ids = readCollapsedAll(store)[topologyId];
+    var out = {};
+    (Array.isArray(ids) ? ids : []).forEach(function (id) {
+      if (typeof id === "string") out[id] = true;
+    });
+    return out;
+  };
+
+  VA.writeCollapsedBodies = function (store, topologyId, collapsed) {
+    try {
+      if (!store) return;
+      var all = readCollapsedAll(store);
+      var ids = Object.keys(collapsed || {}).filter(function (id) { return collapsed[id]; });
+      if (ids.length) all[topologyId] = ids.sort();
+      else delete all[topologyId];
+      store.setItem(VA.COLLAPSED_BODIES_KEY, JSON.stringify(all));
+    } catch (err) {
+      // A browser that refuses to store it still collapses for this session.
+    }
   };
 
   // A shallow copy of `base` with `over`'s own keys written over it. ES5 by
@@ -1909,12 +2373,40 @@
         x: columnX(row.column, metrics, x),
         y: slotY(row.row),
       };
+      if (row.collapsed) {
+        mark.collapsed = row.collapsed;
+        mark.x2 = columnX(row.collapsed.hi, metrics, x);
+      }
       if (row.kind === "edge" && slot) {
         mark.y1 = slot.top + 1;
         mark.y2 = slot.top + slot.height - 1;
         mark.floored = !!slot.floored;
       }
       out.marks.push(mark);
+    });
+
+    // A body's container (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): the
+    // rows it spans, top of the first slot to bottom of the last, and its
+    // columns padded by a little under half a gutter either side, so two
+    // containers on adjacent rows never touch and a dot on the edge column
+    // sits wholly inside. Off the same store the marks are, so it stretches
+    // with a length mode exactly as they do.
+    var pad = metrics.gutter * 0.45;
+    out.bodies = VA.bodySpans(rows).map(function (span) {
+      var top = Infinity;
+      var bottom = -Infinity;
+      for (var r = span.start; r <= span.end; r++) {
+        var slot = positions.byRow[r];
+        var t = slot ? slot.top : VA.railY(r, metrics) - metrics.rowHeight / 2;
+        var h = slot ? slot.height : metrics.rowHeight;
+        top = Math.min(top, t);
+        bottom = Math.max(bottom, t + h);
+      }
+      return { body: span.body, start: span.start, end: span.end,
+               lo: span.lo, hi: span.hi,
+               x1: columnX(span.lo, metrics, x) - pad,
+               x2: columnX(span.hi, metrics, x) + pad,
+               y1: top + 1, y2: bottom - 1 };
     });
 
     (layout && layout.links || []).forEach(function (link) {
@@ -2282,6 +2774,9 @@
     var pendingBoundaryNode = null;   // a non-internal node row since the last edge
 
     ((layout && layout.rows) || []).forEach(function (row) {
+      // A collapsed body's pill (VA.collapseBodies) is not an interface: it
+      // separates nothing in the grid and has no leader.
+      if (row.collapsed) return;
       if (row.kind === "node") {
         if (!internal[row.id] && (!focusNodes || focusNodes[row.id])) {
           pendingBoundaryNode = row.id;
@@ -2446,6 +2941,231 @@
       leaders: leaders,
       bands: bandGeometry(leaders, plan, width, positions.height || 0),
     };
+  };
+
+  // --- leaders across the seam (leaders_follow_the_active_study_across_the_
+  // seam, 2026-10-27) ---------------------------------------------------------
+  //
+  // From a DAG node to where the scene draws it. The scene posts each node's
+  // anchor in its own CSS pixels (`annotate:anchors`); the shell adds the
+  // iframe's rect, adds the rails SVG's rect to the points below, and draws
+  // one page-level overlay from the two (topology_app.js's drawSeamLeaders).
+  // Only the lit set gets one: "if every single element in the model were
+  // connected it would probably be way too busy to interpret" (Jeff,
+  // 2026-10-26).
+  //
+  // The DAG end of each, in the rails SVG's own pixels: the left side of a
+  // lit node's dot, or -- for a lit node folded into a collapsed body -- its
+  // own column on the pill's rim (VA.collapseBodies' `folded`). `bend` is the
+  // abscissa every leader turns at: half a gutter left of the leftmost thing
+  // the DAG draws, so a leader runs out of the rails level and turns once,
+  // outside them. `bars` are the lit edges' bars, for VA.seamBarCrossings.
+  VA.seamDots = function (layout, geometry, lit, metrics, x) {
+    metrics = metrics || VA.RAIL_METRICS;
+    var out = { dots: {}, bend: 0, bars: [] };
+    if (!lit || !geometry) return out;
+    var marks = {};
+    var minX = Infinity;
+    (geometry.marks || []).forEach(function (mark) {
+      if (mark.kind === "node") marks[mark.id] = mark;
+      else if (lit.edges && lit.edges[mark.id]) {
+        out.bars.push({ id: mark.id, x: mark.x, y1: mark.y1, y2: mark.y2 });
+      }
+      minX = Math.min(minX, mark.x);
+    });
+    (geometry.rails || []).forEach(function (rail) { minX = Math.min(minX, rail.x); });
+    out.bend = minX === Infinity ? 0 : Math.max(0, minX - metrics.gutter / 2);
+    var folded = (layout && layout.folded) || {};
+    Object.keys(lit.nodes || {}).sort().forEach(function (id) {
+      if (!lit.nodes[id]) return;
+      var mark = marks[id];
+      if (mark) {
+        var r = mark.branch ? metrics.branchDot : metrics.dot;
+        out.dots[id] = [mark.x - r - 1.5, mark.y];
+        return;
+      }
+      var into = folded[id];
+      var pill = into && marks[into.pill];
+      if (pill) out.dots[id] = [columnX(into.column, metrics, x), pill.y];
+    });
+    return out;
+  };
+
+  // The leaders themselves, in PAGE pixels: `dots` and `anchors` are
+  // {node id: [x, y]} with both rects already added, `bendX` the page
+  // abscissa of VA.seamDots' bend. Out of the DAG level with its dot, one
+  // bend, then straight to the anchor: the angled-leader rule's single
+  // segment, preceded by the run out of the rails. A node whose anchor is
+  // null -- off the scene's screen, or a part with no geometry -- gets no
+  // leader and no stub, and an end outside its clip (the DAG scrolled past
+  // the dot, a point outside the iframe) is the same absence.
+  VA.seamLeaderGeometry = function (spec) {
+    var leaders = [];
+    var skipped = { noAnchor: [], offDag: [], offScene: [] };
+    var inside = function (p, box) {
+      return !box || (p[0] >= box.left && p[0] <= box.right &&
+                      p[1] >= box.top && p[1] <= box.bottom);
+    };
+    var anchors = spec.anchors || {};
+    Object.keys(spec.dots || {}).sort().forEach(function (id) {
+      var from = spec.dots[id];
+      var to = anchors[id];
+      if (!to) { skipped.noAnchor.push(id); return; }
+      if (!inside(from, spec.dotClip)) { skipped.offDag.push(id); return; }
+      if (!inside(to, spec.anchorClip)) { skipped.offScene.push(id); return; }
+      var bend = [Math.min(spec.bendX, from[0]), from[1]];
+      leaders.push({
+        id: id, from: from, bend: bend, to: to,
+        d: "M " + from[0] + " " + from[1] + " H " + bend[0] +
+           " L " + to[0] + " " + to[1],
+      });
+    });
+    return { leaders: leaders, crossings: VA.seamCrossings(leaders), skipped: skipped };
+  };
+
+  // How many PAIRS of leaders cross: any segment of one properly crossing
+  // any segment of the other. Recorded, not minimised -- the order the dots
+  // run down the DAG and the order the anchors fall in the scene are two
+  // facts this page does not choose.
+  VA.seamCrossings = function (leaders) {
+    var count = 0;
+    var segs = function (l) { return [[l.from, l.bend], [l.bend, l.to]]; };
+    for (var i = 0; i < leaders.length; i++) {
+      for (var j = i + 1; j < leaders.length; j++) {
+        var a = segs(leaders[i]);
+        var b = segs(leaders[j]);
+        var hit = false;
+        for (var p = 0; p < 2 && !hit; p++) {
+          for (var q = 0; q < 2 && !hit; q++) {
+            hit = segmentsCross(a[p][0], a[p][1], b[q][0], b[q][1]);
+          }
+        }
+        if (hit) count++;
+      }
+    }
+    return count;
+  };
+
+  function segmentsCross(p1, p2, p3, p4) {
+    var side = function (a, b, c) {
+      var v = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+      return v > 1e-9 ? 1 : v < -1e-9 ? -1 : 0;
+    };
+    var d1 = side(p3, p4, p1);
+    var d2 = side(p3, p4, p2);
+    var d3 = side(p1, p2, p3);
+    var d4 = side(p1, p2, p4);
+    return d1 * d2 < 0 && d3 * d4 < 0;
+  }
+
+  // How many leaders run THROUGH a lit edge's bar on their way out of the
+  // DAG: a bar strictly between a leader's dot and its bend, spanning its
+  // ordinate. Zero by construction -- a leader leaves level with its own row,
+  // and no other row's bar reaches into that row -- which is why a test pins
+  // it rather than a router enforcing it. Same coordinates on both sides
+  // (VA.seamDots' own, or both in page pixels).
+  VA.seamBarCrossings = function (leaders, bars) {
+    var count = 0;
+    leaders.forEach(function (leader) {
+      var lo = Math.min(leader.bend[0], leader.from[0]);
+      var hi = Math.max(leader.bend[0], leader.from[0]);
+      var y = leader.from[1];
+      (bars || []).forEach(function (bar) {
+        if (bar.x > lo && bar.x < hi && bar.y1 < y && bar.y2 > y) count++;
+      });
+    });
+    return count;
+  };
+
+  // The nodes a selection lights the leaders OF: a node's own, an edge's two
+  // ends. One rule for both overlays -- the DAG↔grid leaders in the rails SVG
+  // and the DAG↔3D ones over the page -- so a selected element's 2D, 3D and
+  // grid representations light together (Jeff: "if you selected a single
+  // element in 2d or 3d, you could quickly trace its 2d and 3d
+  // representation, as well as the line of the tolerance rollup").
+  VA.selectedLeaderNodes = function (selection, index) {
+    var out = {};
+    if (!selection) return out;
+    if (selection.kind === "node") out[selection.id] = true;
+    else if (selection.kind === "edge") {
+      var edge = index && index.edges[selection.id];
+      if (edge) {
+        out[edge.from] = true;
+        out[edge.to] = true;
+      }
+    }
+    return out;
+  };
+
+  // What a leader is wearing, by node: selected (the accent), hot (the
+  // pointer's lighter emphasis), dim (another element is selected), or
+  // nothing. `hotKey` is the pane's own hover key (`node|<id>`,
+  // `edge|<id>`, or a rail's, which lights no leader).
+  VA.SEAM_LEADER_STATES = Object.freeze(["selected", "hot", "dim"]);
+  // The scene's message carrying them (apps/annotate's AA.ANCHORS_MESSAGE).
+  VA.SCENE_ANCHORS_MESSAGE = "annotate:anchors";
+  // The dot a leader ends in on the scene, in CSS pixels: a picture, like
+  // VA.INTERFACE_GLYPH_PX, not a type step.
+  VA.SEAM_END_RADIUS = 2.5;
+  VA.seamLeaderStates = function (ids, selection, hotKey, index) {
+    var selected = VA.selectedLeaderNodes(selection, index);
+    var hot = {};
+    if (hotKey) {
+      var cut = hotKey.indexOf("|");
+      hot = VA.selectedLeaderNodes({ kind: hotKey.slice(0, cut), id: hotKey.slice(cut + 1) },
+        index);
+    }
+    var out = {};
+    (ids || []).forEach(function (id) {
+      out[id] = selected[id] ? VA.SEAM_LEADER_STATES[0]
+        : hot[id] ? VA.SEAM_LEADER_STATES[1]
+        : selection ? VA.SEAM_LEADER_STATES[2] : "";
+    });
+    return out;
+  };
+
+  // The element a row of the scene's mirrored tree stands for, so a pick in
+  // the scene selects on this page (the rail's `select` coupling: a pick
+  // selects its row there, and the tree the scene sends here marks it). The
+  // row key is the annotator's own (`<parent>/<data k=v,...>`, apps/annotate's
+  // railKey), read as one set of fields: a deeper segment's field replaces a
+  // shallower one of the same name, and an `edge` field in any segment wins
+  // over a body's. A row naming an edge is that edge. A row naming a body (a part picked on it, or a link's
+  // own joint row -- a run names a link's joint after the link) is the one
+  // lit edge on that body's parts, when there is exactly one; several, or
+  // none, select nothing rather than guess.
+  VA.sceneRowElement = function (key, topoProj, lit) {
+    if (!key || !topoProj) return null;
+    var fields = {};
+    String(key).split("/").forEach(function (segment) {
+      segment.replace(/#\d+$/, "").split(",").forEach(function (pair) {
+        var at = pair.indexOf("=");
+        if (at > 0) fields[pair.slice(0, at)] = pair.slice(at + 1);
+      });
+    });
+    var index = VA.topologyIndex(topoProj);
+    if (fields.edge) return index.edges[fields.edge] ? { kind: "edge", id: fields.edge } : null;
+    var bodyId = fields.subject || fields.body || fields.joint;
+    var body = bodyId ? (topoProj.bodies || []).filter(function (b) {
+      return b.id === bodyId;
+    })[0] : null;
+    if (!body) return null;
+    var parts = {};
+    (body.parts || []).forEach(function (p) { parts[p] = true; });
+    var edges = (topoProj.edges || []).filter(function (e) {
+      return parts[e.part] && (!lit || lit.edges[e.id]);
+    });
+    return edges.length === 1 ? { kind: "edge", id: edges[0].id } : null;
+  };
+
+  // The lit set as the scene's own `model` verb spells it (apps/annotate's
+  // AA.parseModelVerb): the shell's reading wins over the scene's fallback,
+  // which does not know about a borrowed band.
+  VA.sceneLitCommand = function (lit) {
+    var ids = lit ? Object.keys(lit.edges || {}).filter(function (id) {
+      return lit.edges[id];
+    }).sort() : [];
+    return ["model", "lit"].concat(ids.length ? ids : ["all"]);
   };
 
   // The jog zone, and therefore the width the SVG hands the grid: ONE owner
@@ -2794,9 +3514,12 @@
         // (stack_title_style_pass, 2026-09-14). views/nav.js shows it on hover
         // and nothing else reads it; absent on artifacts that need none.
         description: t.description || null,
+        variantAxis: (topologies && topologies.variant_axis) || null,
+        tagAxes: VA.tagAxes(t.studies, t.bodies),
         studies: (t.studies || []).map(function (s) {
           return { id: s.id, title: s.title, status: s.status,
                    description: s.description || null,
+                   tags: s.tags || {},
                    // Does it pass, and is there anything about the answer a
                    // reader must not miss — on the rail itself, so the shape of
                    // the whole document is readable without clicking through
@@ -3167,11 +3890,24 @@
     var say = function (text) { out.notices.push(text); };
 
     if (link.kinematic) {
-      if (VA.findKinematicStudy && VA.findKinematicStudy(kinematic, link.kinematic)) {
+      var kinematicStudy = VA.findKinematicStudy &&
+        VA.findKinematicStudy(kinematic, link.kinematic);
+      if (kinematicStudy) {
         out.mode = "kinematic";
         out.kinematicId = link.kinematic;
-        if (link.topology || link.study || link.edge || link.node || link.stack ||
-            link.element) {
+        // An edge beside it is selected ON the study's page (2026-10-26), the
+        // way a row click selects one: an edge of the study's own topology.
+        if (link.edge) {
+          var under = VA.findTopology(topologies, kinematicStudy.topology);
+          if (under && VA.topologyIndex(under).edges[link.edge]) {
+            out.topologyId = under.id;
+            out.selection = { kind: "edge", id: link.edge };
+          } else {
+            say("This link asks for edge `" + link.edge + "`, which kinematic study `" +
+              link.kinematic + "`'s model does not carry — nothing was selected.");
+          }
+        }
+        if (link.topology || link.study || link.node || link.stack || link.element) {
           say("This link names a kinematic study and something else beside it; " +
             "the kinematic study won and the rest was ignored.");
         }

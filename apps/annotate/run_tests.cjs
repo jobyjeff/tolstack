@@ -65,7 +65,8 @@ vm.runInContext(fs.readFileSync(VOCAB_GEN, "utf8"), sandbox,
   { filename: "../viewer/vocab.gen.js" });
 
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js",
-  "commands.js", "face_geometry.js", "suggestions.js", "sweep.js", "exec_queue.js", "fixtures.js"];
+  "commands.js", "face_geometry.js", "suggestions.js", "sweep.js", "model_layer.js",
+  "exec_queue.js", "fixtures.js"];
 for (const f of files) {
   vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), sandbox, { filename: f });
 }
@@ -383,6 +384,56 @@ check("buildBoundEvent round-trips the required fields", () => {
   assertEqual(event.geometry_key.face_id, 3);
   assertEqual(event.direction, "to");
 });
+// --- correcting a binding: a later event names the one it corrects ---
+function boundFixture(id, seq, face, direction, extra) {
+  return AA.buildBoundEvent(Object.assign({
+    eventId: id, seq: seq, createdAt: "2026-10-21T10:00:00Z", recordedBy: "r",
+    stackKey: AA.topologyEdgeKey("p", "e"), direction: direction, ownerPart: "head",
+    geometryKey: { sourceStepSha256: "a".repeat(64), faceId: face, areaNative2: 1.5, centroidNative: [1, 2, 3] },
+  }, extra || {}));
+}
+check("buildBoundEvent writes supersedes only when given", () => {
+  assertEqual(boundFixture("a", 1, 110, "from").supersedes, undefined);
+  assertEqual(boundFixture("b", 2, 110, "to", { supersedes: "a" }).supersedes, "a");
+});
+check("a flip is the same face at the other end, naming the event it corrects, keeping what was recorded", () => {
+  const first = boundFixture("a", 1, 110, "from");
+  const flipped = AA.buildCorrectionEvent(first, {
+    eventId: "b", seq: 2, createdAt: "t2", recordedBy: "r", direction: AA.otherDirection("from"),
+  });
+  assertEqual(flipped.direction, "to");
+  assertEqual(flipped.geometry_key.face_id, 110);
+  assertEqual(flipped.supersedes, "a");
+  assertEqual(flipped.owner_part, "head");
+});
+check("a session correction leaves one standing binding, the corrected one, and one earlier", () => {
+  const row = { stack_key: AA.topologyEdgeKey("p", "e"), bindings: [], owner_not_in_set: [], history: [] };
+  AA.addEventToRecord(row, boundFixture("a", 1, 110, "from"));
+  AA.addEventToRecord(row, AA.buildCorrectionEvent(row.bindings[0], {
+    eventId: "b", seq: 2, createdAt: "2026-10-26T09:00:00Z", recordedBy: "r", direction: "to",
+  }));
+  assertEqual(row.bindings.length, 1);
+  assertEqual(row.bindings[0].direction, "to");
+  assertEqual(row.superseded.length, 1);
+  assertEqual(row.history.length, 2);
+  const shown = AA.describeBindings(row, { from: "Piston", to: "Step" });
+  assertEqual(shown.current[0].end, "Step");
+  assertEqual(shown.earlier[0].end, "Piston");
+  assertEqual(shown.earlier[0].date, "2026-10-21");
+});
+check("two independent bindings on one key both stand", () => {
+  const row = { stack_key: AA.topologyEdgeKey("p", "e"), bindings: [], owner_not_in_set: [], history: [] };
+  AA.addEventToRecord(row, boundFixture("a", 1, 110, "from"));
+  AA.addEventToRecord(row, boundFixture("b", 2, 111, "to"));
+  assertEqual(row.bindings.length, 2);
+  assertEqual(row.superseded.length, 0);
+});
+check("recordWithout opens the end the corrected binding held", () => {
+  const row = { bindings: [boundFixture("a", 1, 110, "from")] };
+  assertEqual(AA.bindingDirectionsNeeded(AA.recordWithout(row, "a")).length, 2);
+  assertEqual(row.bindings.length, 1);
+});
+
 check("buildOwnerNotInSetEvent carries no geometry_key or direction", () => {
   const event = AA.buildOwnerNotInSetEvent({
     eventId: "x", seq: 1, createdAt: "t", recordedBy: "r",
@@ -1268,6 +1319,131 @@ check("a sweep link carries its kinematic study onto the sweep verb, and inspect
   try { AA.parseInspect("body", "base"); } catch (_) { threw++; }
   try { AA.parseInspect("joint"); } catch (_) { threw++; }
   assertEqual(threw, 2, "an unknown target and a missing name both refuse");
+});
+
+// --- the rail and the scene point at each other (handoff the_rail_and_the_
+// scene_point_at_each_other) -------------------------------------------------
+
+// The anchoring rows' shape (app.js's anchorSweepBodies): the pitch arm is
+// placed at blade 1's occurrence only, and drawn at five.
+const ANCHOR_ROWS = [
+  { subject: "base", part: "hub", sha256: "h", state: "ground",
+    placements: [{ key: "A/hub.1" }] },
+  { subject: "blade", part: "pitch_arm", sha256: "arm", state: "matched",
+    placements: [{ key: "A/arm.2" }] },
+  { subject: "blade", part: "blade_root", sha256: "root", state: "matched",
+    placements: [{ key: "A/root.3" }, { key: "A/root.3" }] },
+  { subject: "pitch_plate", part: "bushing", sha256: "bush", state: "carried",
+    placements: [{ key: "A/plate.1/bush.1" }] },
+  { subject: "pitch_link", part: "bushing", sha256: "bush", state: "matched",
+    placements: [{ key: "A/plate.1/bush.1" }] },
+  { subject: "blade", part: "missing", state: "no-mesh" },
+];
+
+check("a body's drawn occurrences are the anchoring rows' placements, keyed, each once", () => {
+  const by = AA.sweepSubjectOccurrences(ANCHOR_ROWS);
+  assertEqual(by.blade, [{ sha256: "arm", key: "A/arm.2" }, { sha256: "root", key: "A/root.3" }]);
+  assertEqual(by.base, [{ sha256: "h", key: "A/hub.1" }]);
+  assertEqual(AA.sweepPartOccurrences(by, "blade", "arm"), [{ sha256: "arm", key: "A/arm.2" }]);
+  assertEqual(AA.sweepPartOccurrences(by, null, "arm"), null,
+    "outside any body a part row is every occurrence of its mesh");
+});
+
+check("a picked occurrence finds its body; a listed part beats one carried inside another; " +
+  "an occurrence no body was placed at finds none", () => {
+  assertEqual(AA.sweepOccurrenceSubject(ANCHOR_ROWS, "arm", "A/arm.2"), "blade");
+  assertEqual(AA.sweepOccurrenceSubject(ANCHOR_ROWS, "arm", "A/arm.4"), null);
+  assertEqual(AA.sweepOccurrenceSubject(ANCHOR_ROWS, "bush", "A/plate.1/bush.1"), "pitch_link");
+  assertEqual(AA.sweepOccurrenceSubject(ANCHOR_ROWS.filter((r) => r.subject !== "pitch_link"),
+    "bush", "A/plate.1/bush.1"), "pitch_plate");
+});
+
+const FACE_IDENTITY = { stack_keys: [
+  { stack_key: AA.topologyEdgeKey("t", "len"), bindings: [
+    { direction: "from", geometry_key: { source_step_sha256: "arm", face_id: 110 } },
+    { direction: "to", geometry_key: { source_step_sha256: "zzz9", face_id: 4 } }] },
+  { stack_key: AA.topologyEdgeKey("other", "len"), bindings: [
+    { direction: "from", geometry_key: { source_step_sha256: "arm", face_id: 110 } }] },
+] };
+
+check("a face finds the feature rows it is bound to, by edge and end, in its own topology only", () => {
+  const found = AA.bindingsOfFace(FACE_IDENTITY, "t", "arm", 110);
+  assertEqual(found, [{ edgeId: "len", direction: "from" }]);
+  assertEqual(AA.bindingsOfFace(FACE_IDENTITY, "t", "arm", 111), []);
+  assertEqual(AA.featureReadMatches({ edgeId: "len", direction: "from" }, found), true);
+  assertEqual(AA.featureReadMatches({ edgeId: "len", direction: "to" }, found), false);
+  assertEqual(AA.featureReadMatches({ edgeId: "len", direction: null }, found), true,
+    "an edge feature is either end");
+  assertEqual(AA.featureReadMatches({ edgeId: null }, found), false);
+});
+
+check("a feature row names its bound face by face id and drawing number, or says none is bound", () => {
+  const meshes = [{ sha256: "arm", label: "214698-002 (extracted from asm.stp)" }];
+  const rows = AA.boundFaceRows(FACE_IDENTITY, "t", { edgeId: "len", direction: null }, meshes);
+  assertEqual(rows.map((r) => r.text), ["face 110 of 214698-002", "face 4 of zzz9"]);
+  assertEqual(AA.boundFaceRows(FACE_IDENTITY, "t", { edgeId: "len", direction: "to" }, meshes)
+    .map((r) => r.text), ["face 4 of zzz9"], "a node feature reads only its own end");
+  assertEqual(AA.boundFaceRows(FACE_IDENTITY, "t", { edgeId: "nope", direction: null }, meshes), []);
+  assertEqual(AA.BOUND_FACE_WORDS.none, "no face bound");
+});
+
+const ALERT_TOPOLOGY = {
+  parts: [
+    { id: "tan", name: "212956-005 pitch anti-rotation link assembly", drawing: "212956-005" },
+    { id: "plate", name: "pitch plate", drawing: "215177-001" },
+    { id: "bearing", name: "tangential-link bearing", drawing: null },
+  ],
+  nodes: [{ id: "a", parts: ["bearing"] }, { id: "b", parts: ["plate", "tan"] }],
+  edges: [{ id: "tan_len", part: "tan", from: "a", to: "b" }],
+};
+
+check("a gap contributor's alert is the badge's {state, text} with its gap, the drawings to " +
+  "read and Pick", () => {
+  assertEqual(AA.edgePartIds(ALERT_TOPOLOGY, "tan_len"), ["tan", "bearing", "plate"]);
+  const alerts = AA.contributorAlerts({ edge: "tan_len", gap: "No band is cited." }, ALERT_TOPOLOGY);
+  assertEqual(alerts.length, 1);
+  assertEqual(alerts[0].state, AA.CONTRIBUTOR_ALERT_STATE);
+  assertEqual(alerts[0].text, "No band is cited. Drawings to read: " +
+    "212956-005 pitch anti-rotation link assembly; 215177-001 pitch plate. " +
+    AA.CONTRIBUTOR_ALERT_WORDS.pick);
+  assertEqual(AA.contributorAlerts({ edge: "tan_len", gap: null }, ALERT_TOPOLOGY), []);
+  assertNothingBanned(alerts[0].text, "a contributor alert");
+});
+
+check("the type chips: the tree's own row kinds, toggled one at a time, remembered, and " +
+  "anything unreadable is nothing hidden", () => {
+  assertEqual(AA.SWEEP_ROW_KINDS.filter((k) => !AA.SWEEP_ROW_KIND_WORDS[k]), []);
+  assertEqual(AA.toggleRowKind([], "features"), ["features"]);
+  assertEqual(AA.toggleRowKind(["contributors", "features"], "features"), ["contributors"]);
+  let threw = false;
+  try { AA.toggleRowKind([], "faces"); } catch (_) { threw = true; }
+  assertEqual(threw, true, "a kind the tree does not have refuses");
+  const store = { data: {}, getItem(k) { return this.data[k] === undefined ? null : this.data[k]; },
+    setItem(k, v) { this.data[k] = v; } };
+  assertEqual(AA.readHiddenRowKinds(store), []);
+  AA.writeHiddenRowKinds(store, ["joints", "bogus", "bodies"]);
+  assertEqual(AA.readHiddenRowKinds(store), ["bodies", "joints"]);
+  store.data[AA.PREF_KEYS.sweepRowKinds] = "{not json";
+  assertEqual(AA.readHiddenRowKinds(store), []);
+  AA.SWEEP_ROW_KINDS.forEach((k) => assertNothingBanned(AA.SWEEP_ROW_KIND_WORDS[k], "chip " + k));
+});
+
+check("hover's and inspect part's grammar take what the rail sends and refuse the rest", () => {
+  assertEqual(AA.parseHover("body", "blade"), { kind: "body", name: "blade" });
+  assertEqual(AA.parseHover("part", "arm", "blade"), { kind: "part", name: "arm", subject: "blade" });
+  assertEqual(AA.parseHover("part", "arm"), { kind: "part", name: "arm", subject: null });
+  assertEqual(AA.parseHover("feature", "len", "to"), { kind: "feature", name: "len", direction: "to" });
+  assertEqual(AA.parseHover("clear"), { kind: null });
+  assertEqual(AA.parseInspect("part", "arm", "110", "blade"),
+    { kind: "part", name: "arm", faceId: 110, subject: "blade" });
+  assertEqual(AA.parseInspect("part", "arm", "7"), { kind: "part", name: "arm", faceId: 7, subject: null });
+  let threw = 0;
+  try { AA.parseHover("surface", "x"); } catch (_) { threw++; }
+  try { AA.parseHover("body"); } catch (_) { threw++; }
+  try { AA.parseHover("feature", "len", "up"); } catch (_) { threw++; }
+  try { AA.parseInspect("part", "arm", "1.5"); } catch (_) { threw++; }
+  try { AA.parseInspect("part", "arm"); } catch (_) { threw++; }
+  assertEqual(threw, 5);
 });
 
 check("planStudyTrace over the mock fixture's own study matches its data end to end", () => {
@@ -4202,6 +4378,265 @@ check("a pick resolves to the part's own (sha256, face id) whichever occurrence 
     "the same face, picked on another occurrence");
 });
 
+// --- the model layer (handoff the_model_is_drawn_in_the_scene) -------------
+//
+// model_layer.js decides where every node's dot is and which frame every line
+// is drawn in; the scene only draws. So the rules are held here, on small
+// hand-built inputs whose answers can be worked by hand.
+
+// A tube about +Z: inner radius 40, outer 50, from z = 0 to z = 20, as quads
+// split into triangles -- the shape of the tangential-link mount, a hollow ring
+// round the spindle. Every wall is its own run of vertices (a mesh's vertices
+// are per face), so a cut is connected only by position.
+function modelRingMesh(segments) {
+  const n = segments || 32;
+  const positions = [];
+  const indices = [];
+  const wall = (r0, z0, r1, z1) => {
+    const base = positions.length / 3;
+    for (let i = 0; i <= n; i++) {
+      const t = (i / n) * 2 * Math.PI;
+      positions.push(r0 * Math.cos(t), r0 * Math.sin(t), z0, r1 * Math.cos(t), r1 * Math.sin(t), z1);
+    }
+    for (let i = 0; i < n; i++) {
+      const a = base + i * 2, b = a + 1, c = a + 2, d = a + 3;
+      indices.push(a, c, b, b, c, d);
+    }
+  };
+  wall(40, 0, 40, 20);  // inner wall
+  wall(50, 0, 50, 20);  // outer wall
+  wall(40, 0, 50, 0);   // bottom
+  wall(40, 20, 50, 20); // top
+  return { positions: new Float32Array(positions), indices: new Uint32Array(indices) };
+}
+
+const MODEL_TOPOLOGY = {
+  id: "model_demo",
+  parts: [{ id: "ring" }, { id: "boss" }, { id: "rod" }, { id: "ghostpart" }],
+  bodies: [
+    { id: "ground", parts: ["ring", "ghostpart"] },
+    { id: "carrier", parts: ["boss"] },
+    { id: "rodlink", kind: "link", parts: ["rod"] },
+  ],
+  nodes: [
+    { id: "ring_base", parts: ["ring"] },
+    { id: "ring_seat", parts: ["ring"] },
+    { id: "ring_top", parts: ["ring"] },
+    { id: "boss_bore", parts: ["boss"] },
+    { id: "rod_lower", parts: ["rod"] },
+    { id: "rod_upper", parts: ["rod"] },
+    { id: "unmeshed", parts: ["ghostpart"] },
+  ],
+  edges: [
+    // Authored out of stack order on purpose: the ladder follows the edges.
+    { id: "seat_to_top", kind: "structural", part: "ring", from: "ring_seat", to: "ring_top" },
+    { id: "base_to_seat", kind: "structural", part: "ring", from: "ring_base", to: "ring_seat" },
+    { id: "rod_length", kind: "structural", part: "rod", from: "rod_lower", to: "rod_upper" },
+    { id: "rod_to_ring", kind: "gap", from: "ring_top", to: "rod_lower" },
+    { id: "rod_to_boss", kind: "gap", from: "rod_upper", to: "boss_bore" },
+    { id: "ghost_to_base", kind: "structural", part: "ghostpart", from: "unmeshed", to: "ring_base" },
+  ],
+};
+
+function modelRingSection() {
+  const ring = modelRingMesh();
+  const bias = AA.readAnchorBias(MODEL_TOPOLOGY);
+  return { bias, section: AA.modelPartSection(ring.positions, ring.indices, null, bias) };
+}
+
+function modelDemoAnchors(extra) {
+  const { bias, section } = modelRingSection();
+  return AA.modelAnchors(Object.assign({
+    topology: MODEL_TOPOLOGY, bias,
+    linkEnds: { rod_lower: { joint: "rodlink", end: "point_a_world" },
+      rod_upper: { joint: "rodlink", end: "point_b_world" } },
+    parts: {
+      ring: { subject: "ground", section, origin: [0, 0, 0] },
+      boss: { subject: "carrier", section: null, origin: [5, 5, 5], why: AA.MODEL_ORIGIN_WHY.noCut },
+      rod: { subject: "rodlink", section: null, origin: [0, 0, 0] },
+      ghostpart: { subject: null, section: null, origin: [0, 0, 0], why: AA.MODEL_ORIGIN_WHY.noMesh },
+    },
+    bound: { boss_bore: [10, 0, 30] },
+  }, extra || {}));
+}
+
+check("model: a topology's anchor_bias is read, and an unreadable one is the default and says so", () => {
+  const d = AA.readAnchorBias({ id: "t" });
+  assertEqual([d.bias, d.stack, d.biasAxis, d.biasSign, d.stackAxis, d.normalAxis, d.problem],
+    ["+x", "z", 0, 1, 2, 1, null], "the default is Jeff's +X bias over a Z stack, cut by XZ");
+  const authored = AA.readAnchorBias({ topology: { anchor_bias: { bias: "-y", stack: "x" } } });
+  assertEqual([authored.biasAxis, authored.biasSign, authored.stackAxis, authored.normalAxis],
+    [1, -1, 0, 2], "an authored bias, read off the projection's verbatim document");
+  const bad = AA.readAnchorBias({ anchor_bias: { bias: "+z", stack: "z" } });
+  assertEqual([bad.bias, bad.stack], ["+x", "z"], "a bias along the stack axis falls back");
+  if (!bad.problem || bad.problem.indexOf("anchor_bias") === -1) {
+    throw new Error("an unreadable anchor_bias says nothing: " + bad.problem);
+  }
+});
+
+check("model: a ring cut through its axis gives two regions, and the +X anchor is on the +X wall, not the ring's centre", () => {
+  const { section } = modelRingSection();
+  assertEqual(section.regions, 2, "a tube cut by the XZ plane through its axis is two walls");
+  assertClose(section.at, 0, 1e-3, "the plane is through the box's centre along Y");
+  const c = section.region.centroid;
+  if (!(c[0] > 40 && c[0] < 50)) throw new Error("the anchor is not inside the +X wall: x = " + c[0]);
+  assertClose(c[1], section.at, 1e-9, "the anchor is on the plane");
+  assertClose(c[2], 10, 1e-6, "and half way up the wall");
+  assertEqual(section.stackRange, [0, 20], "the ladder's span is the cut's height");
+  // A bias toward -X takes the other wall: the choice is the authored bias.
+  const minus = AA.modelPartSection(modelRingMesh().positions, modelRingMesh().indices, null,
+    AA.readAnchorBias({ anchor_bias: { bias: "-x", stack: "z" } }));
+  if (!(minus.region.centroid[0] < -40)) throw new Error("a -X bias did not take the -X wall");
+  // ...and the placement moves the cut with the occurrence.
+  const moved = AA.modelPartSection(modelRingMesh().positions, modelRingMesh().indices,
+    [1, 0, 0, 100, 0, 1, 0, 7, 0, 0, 1, 0], AA.readAnchorBias({}));
+  assertClose(moved.at, 7, 1e-3, "the plane follows the occurrence");
+  if (!(moved.region.centroid[0] > 140)) throw new Error("the cut did not move with the placement");
+});
+
+check("model: a node anchors on its link's joint point, then its bound face, then its part's section, then its body's origin", () => {
+  const anchors = modelDemoAnchors();
+  const sources = {};
+  for (const id of Object.keys(anchors)) sources[id] = anchors[id].source;
+  assertEqual(sources, { ring_base: "section", ring_seat: "section", ring_top: "section",
+    boss_bore: "bound", rod_lower: "joint", rod_upper: "joint", unmeshed: "origin" }, "the sources");
+  assertEqual(anchors.boss_bore.point, [10, 0, 30], "a bound node sits on its fitted point");
+  assertEqual(anchors.boss_bore.subject, "carrier", "and rides its own part's subject");
+  assertEqual(anchors.unmeshed.why, AA.MODEL_ORIGIN_WHY.noMesh, "an origin anchor says why");
+  if (AA.modelAnchorWords(anchors.unmeshed).indexOf(AA.MODEL_ORIGIN_WHY.noMesh) === -1) {
+    throw new Error("the readout drops the reason: " + AA.modelAnchorWords(anchors.unmeshed));
+  }
+  // A binding beats the section: bind ring_top and it leaves the ladder.
+  const bound = modelDemoAnchors({ bound: { ring_top: [1, 2, 3] } });
+  assertEqual(bound.ring_top.source, "bound", "a bound node is not a section rung");
+  assertEqual(bound.ring_top.point, [1, 2, 3], "...and sits on its face");
+});
+
+check("model: a part's section anchors spread up the stack axis in stack order, across the whole cut's height", () => {
+  const anchors = modelDemoAnchors();
+  assertEqual(AA.modelStackOrder(MODEL_TOPOLOGY, "ring", ["ring_top", "ring_seat", "ring_base"]),
+    ["ring_base", "ring_seat", "ring_top"], "the order follows the part's own edges, from -> to");
+  assertEqual(["ring_base", "ring_seat", "ring_top"].map((id) => anchors[id].point[2]),
+    [5, 10, 15], "three rungs, evenly, inside the 0..20 cut");
+  assertEqual(["ring_base", "ring_seat", "ring_top"].map((id) => anchors[id].rung),
+    [[0, 3], [1, 3], [2, 3]], "each rung knows its place");
+  const x = anchors.ring_base.point[0];
+  if (!(x > 40) || anchors.ring_top.point[0] !== x) {
+    throw new Error("the ladder is not one upright on the +X wall: " +
+      JSON.stringify(["ring_base", "ring_top"].map((id) => anchors[id].point)));
+  }
+  if (AA.modelAnchorWords(anchors.ring_seat).indexOf("stack order") === -1) {
+    throw new Error("a rung's readout does not say its height is its place in the stack");
+  }
+});
+
+check("model: a joint anchor's world point is the frame's own joint end, bit for bit, and a body anchor rides its pose", () => {
+  const anchors = modelDemoAnchors();
+  const a = [83.00000000000001, -44.54964933003539, -22.699797236338412];
+  const b = [84.972, -17.139000000000014, 79.666];
+  const frame = {
+    joints: { rodlink: { point_a_world: a, point_b_world: b } },
+    // Carrier: turned 90 degrees about Z and lifted 2.
+    poses: { carrier: { quaternion: [0, 0, Math.SQRT1_2, Math.SQRT1_2], translation: [0, 0, 2] } },
+    links: {},
+  };
+  const world = AA.modelWorldPoints(anchors, frame);
+  if (world.rod_lower !== a || world.rod_upper !== b) {
+    throw new Error("a link end was copied or recomputed rather than read off the frame");
+  }
+  assertClose(world.boss_bore[0], 0, 1e-12, "x after the turn");
+  assertClose(world.boss_bore[1], 10, 1e-12, "y after the turn");
+  assertClose(world.boss_bore[2], 32, 1e-12, "z after the lift");
+  assertEqual(world.ring_base, anchors.ring_base.point, "a still body's anchor stays put");
+  // Bind mode: no frame, every body anchor at its as-modelled self, and a link
+  // end -- which only a run can place -- has none.
+  const still = AA.modelWorldPoints(anchors, null);
+  assertEqual([still.boss_bore, still.rod_lower], [[10, 0, 30], null], "the as-modelled pose");
+});
+
+check("model: a structural line between two anchors on one body is drawn in that body's frame; a joint line is not", () => {
+  const lines = AA.modelEdgeLines(MODEL_TOPOLOGY, modelDemoAnchors());
+  assertEqual(lines.base_to_seat.body, "ground", "a ring stack line rides the ring's body");
+  assertEqual(lines.rod_length.body, null, "the link's own length is between two solver points");
+  assertEqual(lines.rod_to_boss.body, null, "a joint between two bodies is drawn in world");
+  assertEqual(lines.ghost_to_base.body, null, "an edge whose ends ride two subjects is drawn in world");
+  assertEqual(Object.keys(lines).sort(), MODEL_TOPOLOGY.edges.map((e) => e.id).sort(),
+    "every edge has a line");
+  const turned = AA.modelSubjectPlacement({ poses: { carrier: { quaternion: [0, 0, 0, 1],
+    translation: [1, 2, 3] } } }, "carrier");
+  assertEqual([turned[3], turned[7], turned[11]], [1, 2, 3], "a body group carries its pose");
+  assertEqual(AA.modelSubjectPlacement(null, "carrier"), AA.IDENTITY_PLACEMENT.slice(),
+    "and identity with no frame");
+});
+
+check("model: an unlit line is dim or hidden by the shell's word, and nothing lit means every line full", () => {
+  const lit = { base_to_seat: true };
+  assertEqual(AA.modelLineStrength("base_to_seat", lit, "dim"), "full", "a lit line");
+  assertEqual(AA.modelLineStrength("rod_length", lit, "dim"), "dim", "an unlit line, dimmed");
+  assertEqual(AA.modelLineStrength("rod_length", lit, "hide"), "hidden", "an unlit line, hidden");
+  assertEqual(AA.modelLineStrength("rod_length", null, "hide"), "full", "nothing emphasised");
+  assertEqual(AA.modelLitNodes(MODEL_TOPOLOGY, lit), { ring_base: true, ring_seat: true },
+    "a lit edge lights both its nodes");
+  assertEqual(AA.modelLitNodes(MODEL_TOPOLOGY, null), null, "and with nothing lit, every node is");
+  assertEqual(AA.MODEL_DEFAULT_UNLIT, "dim", "dim is the default, as on the shell's toggle");
+});
+
+check("model: the anchors message rounds to a tenth of a pixel, drops a hidden line and a line with an end off screen", () => {
+  const lines = AA.modelEdgeLines(MODEL_TOPOLOGY, modelDemoAnchors());
+  const screen = { ring_base: [10.04, 20.06], ring_seat: [30, 40], ring_top: [50.55, 60],
+    boss_bore: null, rod_lower: [1, 2], rod_upper: [3, 4], unmeshed: null };
+  const msg = AA.modelAnchorsMessage(lines, screen,
+    { base_to_seat: "full", seat_to_top: "dim", rod_length: "hidden" });
+  assertEqual(msg.type, "annotate:anchors", "the message type the shell listens for");
+  assertEqual(msg.nodes.ring_base, [10, 20.1], "rounded to a tenth of a CSS pixel");
+  assertEqual(msg.nodes.boss_bore, null, "an off-screen node is null, not left out");
+  assertEqual(Object.keys(msg.nodes).length, 7, "every node is reported");
+  assertEqual(Object.keys(msg.edges).sort(), ["base_to_seat", "rod_to_ring", "seat_to_top"],
+    "a hidden line and lines with a null end are not reported");
+  assertEqual(msg.edges.base_to_seat, [[10, 20.1], [30, 40]], "an edge is its two node points");
+  assertEqual(JSON.stringify(AA.modelAnchorsMessage(lines, screen, {})),
+    JSON.stringify(AA.modelAnchorsMessage(lines, Object.assign({}, screen), {})),
+    "the same scene posts the same bytes, so a still scene posts once");
+});
+
+check("model: the model verb parses lit, unlit and select, and refuses anything else naming what it takes", () => {
+  assertEqual(AA.parseModelVerb(["lit", "a", "b"]), { action: "lit", lit: { a: true, b: true } }, "a lit set");
+  assertEqual(AA.parseModelVerb(["lit", "all"]), { action: "lit", lit: null }, "nothing emphasised");
+  assertEqual(AA.parseModelVerb(["unlit", "hide"]), { action: "unlit", unlit: "hide" }, "hide the rest");
+  assertEqual(AA.parseModelVerb(["select", "node", "n1"]),
+    { action: "select", select: { kind: "node", id: "n1" } }, "a node selected");
+  assertEqual(AA.parseModelVerb(["select", "clear"]), { action: "select", select: null }, "let go");
+  const refusals = [["paint"], ["unlit", "fade"], ["lit"], ["select", "edge", "e"], ["select", "body"]];
+  for (const args of refusals) {
+    let err = null;
+    try { AA.parseModelVerb(args); } catch (e) { err = e.message; }
+    if (!err) throw new Error("accepted " + JSON.stringify(args));
+  }
+  let first = null;
+  try { AA.parseModelVerb(["paint"]); } catch (e) { first = e.message; }
+  if (AA.MODEL_VERB_ACTIONS.some((a) => first.indexOf(a) === -1)) {
+    throw new Error("a bad action does not list the actions: " + first);
+  }
+});
+
+check("model: the link ends are read off the run's own geometry features, for links only", () => {
+  const artifact = {
+    links: [{ joint: "rodlink" }],
+    features: [
+      { label: "rodlink.point_a[0]", node: "rod_lower" },
+      { label: "rodlink.point_a[1]", node: "rod_lower" },
+      { label: "rodlink.point_b[2]", node: "rod_upper" },
+      { label: "hinge.point_a[0]", node: "ring_base" },
+      { label: "rodlink.length", edge: "rod_length" },
+    ],
+  };
+  assertEqual(AA.modelLinkEnds(artifact), {
+    rod_lower: { joint: "rodlink", end: "point_a_world" },
+    rod_upper: { joint: "rodlink", end: "point_b_world" },
+  }, "a link's two ends, and not a hinge's");
+  assertEqual(AA.modelLinkEnds(null), {}, "no run, no link ends");
+});
+
 // --- [real] the published sweep runs ---------------------------------------
 //
 // `data/inbox/linkage-sweeps/` is gitignored and lives only in the main
@@ -4954,8 +5389,8 @@ if (realMeshesDir) {
       "round faces, a thickness only flat ones, and one end bound narrows the other", () => {
       const projection = JSON.parse(fs.readFileSync(livePitchLinkPath, "utf8"));
       const topology = projection.topologies
-        .filter((t) => t.id === "pitch_link_to_pitch_plate")[0];
-      if (!topology) throw new Error("the real projection carries no pitch_link_to_pitch_plate");
+        .filter((t) => t.id === "vpa_pitch_linkage")[0];
+      if (!topology) throw new Error("the real projection carries no vpa_pitch_linkage");
       const meshes = realMeshList();
       const aliases = shippedAliases();
       const faceClasses = {};

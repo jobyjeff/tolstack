@@ -144,6 +144,25 @@ in order. A word must reach both.
 - `linear_to_rotary` — a constant sensitivity converting a length into an angle.
   Units must differ.
 
+`kind` on a body is one of `body | link`.
+
+- `body` — parts that move together: ground, the blade, the pitch plate. A part
+  the mechanism does not place is a body of its own.
+- `link` — a two-force member between two bodies, posed by its two joint
+  centres: the pitch link, the tangential link.
+
+`interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance`.
+
+Optional in v0 and refused on a structural edge. What each word draws is the
+table in "Joint glyphs" below; an edge that states none is a plain dash and a
+"contact kind not stated" row on the gap list.
+
+`kind` on a form callout is one of `element | modifier`.
+
+The rule is the SOP's ("A form callout", `docs/SOP_TOLERANCE_STACK.md`), stated
+there once: an `element` is a structural edge of nominal 0 and plus or minus half
+the callout's zone; a `modifier` sits on a size band it can only tighten.
+
 Both node kinds and both edge kinds are **derivable** from the part membership,
 and are therefore checked: a document whose label disagrees with its graph does
 not load. The label is carried anyway rather than derived silently, because the
@@ -156,6 +175,122 @@ later.
 A re-expressed stack element keeps its own word; a pitch link's length simply has
 none, because which part a topology dimension belongs to is structural (read off
 its edge's `part`) rather than a label.
+
+## Bodies
+
+Added 2026-10-26 (handoff `pitch_system_folds_into_the_pitch_linkage_model`).
+A topology may say which of its parts move as one rigid body, which the
+linkage solver's sweeps already name and the DAG had no way to know:
+
+```json
+"bodies": [
+  { "id": "pitch_link", "name": "pitch link", "kind": "link",
+    "parts": ["pitch_link", "spherical_bearing_pitch_link"] },
+  { "id": "ring_gear", "name": "ring gear", "kind": "body",
+    "parts": ["ring_gear"],
+    "note": "One part on its own: the linkage mechanism does not place it, ..." }
+]
+```
+
+- **All or nothing.** `bodies` is optional, and a document that declares one
+  declares them all: every part in exactly one body, every body's parts
+  declared, ids unique. `tolerance_stack/topology.py`'s `Body` and the
+  `Topology` constructor refuse anything else, naming the part.
+- **Honest grouping only.** A body groups parts the mechanism moves together.
+  A part whose motion is not recorded is a body of its own, named after the
+  part, rather than placed in a guessed one.
+- **The five mechanism bodies are linkage's.** `topology_vpa_pitch_linkage.json`'s
+  `base`, `blade`, `pitch_plate`, `pitch_link` and `tan_link` carry the part
+  lists `C:\workspace\linkage\linkage\vpa.py` names (`BODY_PARTS`,
+  `LINK_PARTS`), paired by `tests/test_topology.py` when that repo is on disk.
+  One difference is declared there rather than hidden: the tangential link's
+  two bearings are in its body here, because they are pressed into the
+  212956-005 assembly and move with it; linkage lists the assembly alone because
+  its mesh already draws them.
+- **Read by the projections, never by `fold()`.** The topology projection
+  carries `bodies[]` per topology — `{id, name, kind, parts, note}`, every key
+  present — and the kinematic projection carries each contributor row's `body`:
+  the body its edge's part moves with, `null` for a gap edge. The DAG draws
+  each body as a container (next section).
+- **Not a solver input.** Nothing here poses a body, and declaring two parts one
+  body asserts only that they move together.
+
+### Bodies on the DAG
+
+Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symbols`).
+
+- **Which body an element is in.** A structural edge is in its part's body. A
+  node is in its parts' bodies — one, or two for a **joint node**, a mating
+  surface between two bodies. A gap edge is in a body when both its ends are on
+  that body alone (a bearing's ball centre and the link it is pressed into);
+  otherwise it is a **joint** and in none. `Topology.edge_body`,
+  `Topology.node_bodies`, `Topology.joint_nodes`.
+- **The walk is body-major.** The layout walks one body to the end before it
+  crosses a joint, so every body's rows are one block. A joint, or another
+  body's edge at a joint node, is deferred and walked from its node once the
+  body is done (`scripts/build_topology_projection.py`, `serialize_topology`).
+  Each row carries `body`; `layout.bodies` lists each body's block as
+  `{body, start, end, lo, hi}`. Column order still minimises the crossing count
+  (`layout_crossings`), over a walk in which each body is contiguous.
+- **Drawn as a container.** A rounded field behind the body's block, the
+  body's name once at its top-left, in a muted fill that cycles per body. A
+  body none of whose edges the current study lights is a flat outline.
+- **Collapsible.** Clicking a body's name folds it to one wide node with its
+  name and its joint-node count; the edges that leave it attach to that node's
+  rim. A node a lit edge outside the body stands on stays drawn. The page
+  remembers each body's state per reader.
+- **A sub-stack is a container inside its body.** On a kinematic page, the
+  chain a `study_ref` names is a dashed field around its edges, folded to one
+  bar with the study's title and its folded interval (shown, never reused — the
+  chain rule enters the sub-study's terms one by one). It opens and closes with
+  the contributor table's group row.
+
+### Joint glyphs
+
+Each gap edge with an `interface` draws its glyph at the middle of its bar, in
+the bar's colour, and the glyph carries the edge's hover card. One SVG
+`<symbol>` per word in `apps/viewer/interface_glyphs.js`, enumerated against
+`INTERFACE_KINDS` by `tests/test_topology_projection.py`.
+
+| `interface` | glyph | one edge that wears it |
+| --- | --- | --- |
+| `planar` | two parallel bars, like a capacitor | none on a committed topology yet: a face-to-face seat is one node, not a gap edge (see "What a hard contact is *not*") |
+| `pin_in_bore` | a dot in a ring | `gas_spring_rod_to_pitch_plate` |
+| `spherical` | a ball in a cup | `pitch_arm_link_joint` |
+| `cylindrical_slide` | a dot in a ring with a double-headed arrow | `hub_to_pitch_plate_spindle_coaxiality` |
+| `thread` | a short helix | none on a committed topology yet |
+| `clearance` | two bars with a gap between them | `end_stop_clearance` |
+| form `element` | a rough-surface squiggle on the edge's bar | none on a committed topology yet (fixture: `tests/test_topology.py`'s form-rule cases) |
+| form `modifier` | the same squiggle beside the node the callout is on | none on a committed topology yet |
+
+linkage's joint types suggest the word: `tolerance_stack/kinematic.py`'s
+`LINKAGE_JOINT_INTERFACES` maps each one, and an authored edge at a swept joint
+that disagrees with it fails `tests/test_topology.py`.
+
+## Tags
+
+A body and a study may carry `tags`: `{axis: value}`, one value per axis, on the
+identity axes forge declares in its `identity.toml`. The point is one vocabulary
+for grouping and filtering across the workspace -- the nav's chips here read as
+drawing-checker's container tree does (OR within an axis, AND across).
+
+* **The axes come from forge, and are read, never copied.** A tag on an axis
+  that file does not declare is a load error naming the axis and the file. With
+  the file not on disk nothing is checked, and the projection build says so
+  once. Axis values are free strings, as forge has them.
+* **The variant rule.** Selecting a value on the variant axis dims every body
+  tagged with a *different* value of it -- the rails and rows of their parts,
+  stated on the surface as "other variant" -- and hides the studies tagged the
+  other way. A body or study with no variant tag is shared and stays lit.
+  This is the lit-set rule's second dimming reason; "off the study's path" is
+  the first.
+* **There is no schema slot for a variant.** A variant is still a tag and a
+  note, not a structure: the gas-spring and brake branches are parallel
+  branches of the one topology, and nothing swaps one for the other.
+* **The variant axis is provisional.** forge declares `component`, `purpose`
+  and `phase` and no variant axis; `VARIANT_AXIS` in `tolerance_stack/topology.py`
+  is accepted beside them until forge answers
+  `docs/issues/ISSUE_20261026_forge_has_no_variant_axis.md`.
 
 ### A `part`'s `drawing` names the design part, not the test article
 
@@ -185,7 +320,7 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
 
 | schema | you write it? | what it is |
 |---|---|---|
-| `joby.tolerance_stack/topology/v0` | **yes** — one per system | `parts`, `nodes`, `edges`, named `transforms`, plus an optional `description`, `joint`, `provenance` and `notes` |
+| `joby.tolerance_stack/topology/v0` | **yes** — one per product | `parts`, `nodes`, `edges`, named `transforms`, plus an optional `description`, `bodies`, `joint`, `provenance` and `notes` |
 | `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list (or a `no_checks_reason` saying why there is none), an optional `configuration` block, an optional `description` |
 
 ### Naming a topology or a study
@@ -229,7 +364,7 @@ reason: optional, defaulting to `null`, read by nothing `fold()`/`traverse()`/
 ```json
 {
   "schema": "joby.tolerance_stack/topology/v0",
-  "id": "pitch_system",
+  "id": "vpa_pitch_linkage",
   "title": "...",
   "description": "...",
   "units": "mm",
@@ -245,15 +380,17 @@ reason: optional, defaulting to `null`, read by nothing `fold()`/`traverse()`/
     "sheet": 5, "view": "DETAIL X", "zone": "C10",
     "description": "...", "scope": "grip length only"
   },
-  "parts": [ { "id": "pitch_arm", "name": "pitch arm", "drawing": null } ],
+  "bodies": [ { "id": "blade", "name": "...", "kind": "body",
+                "parts": ["blade_root", "pitch_arm"] } ],
+  "parts": [ { "id": "pitch_arm", "name": "pitch arm", "drawing": "215071-001" } ],
   "nodes": [
-    { "id": "pitch_link_arm_hole", "name": "...",
-      "parts": ["pitch_link", "pitch_arm"], "kind": "mating_surface" }
+    { "id": "pitch_arm_blade_root_clocking", "name": "...",
+      "parts": ["pitch_arm", "blade_root"], "kind": "mating_surface" }
   ],
   "edges": [
     { "id": "pitch_arm_link_hole_to_clocking_hole", "name": "...",
       "kind": "structural", "part": "pitch_arm",
-      "from": "pitch_link_arm_hole", "to": "pitch_arm_blade_root_clocking",
+      "from": "pitch_arm_link_bore", "to": "pitch_arm_blade_root_clocking",
       "transform": "blade_root_tangential_to_rotary",
       "properties": {},
       "dimension": {
@@ -271,10 +408,11 @@ them. What a *study's* output unit is depends on the transforms it crosses.
 own `joint` carries (`assembly_drawing`, `assembly_revision`, `sheet`, `view`,
 `zone`, `zone_note`, `description`, `scope`), added 2026-09-08 (handoff
 `topology_schema_v1`) for a topology that re-expresses, or documents, one
-physical joint. `topology_vpa_output_to_pitch_plate.json` carries one that
-mirrors its stack's field for field, since both documents describe the same
-joint; `topology_pitch_system.json` carries none, because it is not one joint
-— it is a whole mechanism. Prose, not a toleranced value: nothing here is
+physical joint. Before 2026-10-27 `topology_vpa_output_to_pitch_plate.json` carried one that
+mirrored its stack's field for field, since both documents described the same
+joint; `topology_vpa_pitch_linkage.json` carries none, because it is not one
+joint — it is a whole product (the four stacks' blocks are in its
+`provenance.grip_stack_joints`). Prose, not a toleranced value: nothing here is
 `fold()`'s to read, and there is no `dimension_ref`-style resolution for it —
 if the topology's and the stack's ever disagree, the stack's wins, the same
 rule `provenance.structure`'s reading of element order already follows.
@@ -284,11 +422,12 @@ rule `provenance.structure`'s reading of element order already follows.
 Three cases, and the difference matters:
 
 1. **`dimension`, inline** — topology-first authoring, for a system with no
-   stack behind it. This is what `topology_pitch_system.json` does.
+   stack behind it. This is what `topology_vpa_pitch_linkage.json` does.
 2. **`dimension_ref`** — `{"stack": "<repo-relative path>", "element": "<id>"}`,
    resolved out of the stack file at load time, citation and `role` included.
-   This is what `topology_vpa_output_to_pitch_plate.json` does, and it is what
-   makes the L1 proof mean something: that document contains **no numbers at
+   This is what the four fastener grip stacks do inside `topology_vpa_pitch_linkage.json`
+   (and what `topology_vpa_output_to_pitch_plate.json` did before they folded in),
+   and it is what makes the L1 proof mean something: those edges contain **no numbers at
    all**, so it cannot drift away from the stack it re-expresses.
 3. **neither** — a **derived gap**: the quantity a study computes. It is a real
    edge (two real interfaces) and it is refused inside a study's `selection`,
@@ -301,11 +440,11 @@ Three cases, and the difference matters:
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "vpa_output_shank_out",
-  "topology": "vpa_output_to_pitch_plate",
+  "topology": "vpa_pitch_linkage",
   "from": "bushing_far_face",
-  "to": "shank_full_dia_end",
-  "closes": "shank_out",
-  "selection": ["straight_bushing", "...", "fastener_grip"],
+  "to": "shank_full_dia_end_vpa_out",
+  "closes": "shank_out_vpa_out",
+  "selection": ["straight_bushing_vpa_out", "...", "fastener_grip_vpa_out"],
   "transforms": { "<edge id>": "<transform id>" },
   "configuration": { "load_case": "..." }
 }
@@ -440,9 +579,10 @@ name. A topology reuses the **same two rules**, read by
 `scripts/build_topology_projection.py`'s own `worksheet_for()` — declared
 first, then `topology_X.json` -> `WORKSHEET_X.md` by name — because a
 topology's worksheet is usually named for the *source workbook*, not the
-system: `topology_pitch_system.json` declares
+system: `topology_vpa_pitch_linkage.json` declares (its pitch-system half's, since
+the 2026-10-26 fold)
 `provenance.worksheet: "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md"`,
-which shares no stem with `pitch_system` at all, so only the declared rule
+which shares no stem with `vpa_pitch_linkage` at all, so only the declared rule
 finds it. Emitted into the projection as `worksheet_file`/`worksheet_source`,
 the same field names `results.json` already carries for a stack. The worksheet
 lives on the **topology**, not the study: a source workbook documents the
@@ -454,9 +594,9 @@ has everywhere else.
 
 ## The committed examples
 
-### L1 — `topology_vpa_output_to_pitch_plate.json` + `study_vpa_output_shank_out.json`
+### L1 — `study_vpa_output_shank_out.json` (its own topology until 2026-10-27)
 
-The proof. A reviewed, committed grip stack
+The proof. Its topology, `topology_vpa_output_to_pitch_plate.json`, folded into the product model on 2026-10-27; `tests/fixtures/topology_vpa_output_to_pitch_plate_before_the_fold.json` is the frozen copy the format tests read. A reviewed, committed grip stack
 (`docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json`) re-expressed as a
 graph: 6 parts, 7 interfaces, 7 edges, 0 branch points, 1 grounded loop and
 1 gap edge. Five clamped members run in series between six of those interfaces;
@@ -469,16 +609,23 @@ that stack's own `worst_case_shank_out` check publishes — every field, exactly
 no tolerance — and separately asserts that the topology copies no value, because
 without that second check the first would be comparing a number against itself.
 
-### L2 — `topology_pitch_system.json` + seven studies
+### L2 — the seven pitch-system studies
 
-The structure. 12 parts, 21 interfaces, 24 edges, 5 branch points, 4 grounded
-loops (pitch links, gas spring, ring gear, and the hydraulic-brake alternative to
-the gas spring), 1 gap edge (the end stop), and the linear↔rotary coupling at the
-pitch arm. Those counts are derived from the graph by `tests/test_topology.py`,
-not maintained by hand.
+The structure: the pitch system's branch points and grounded loops (pitch
+links, gas spring, ring gear, and the hydraulic-brake alternative to the gas
+spring), the end-stop gap, and the linear↔rotary coupling at the pitch arm.
+Authored 2026-08-31 as `topology_pitch_system.json`; since 2026-10-26 it is
+the pitch-system half of `topology_vpa_pitch_linkage.json` (below), whose
+`provenance.pitch_system_ids` names every id that came from it, and these
+seven studies are studies of that one graph. File names and study ids are
+unchanged; every total, band and check verdict is unchanged. The fold added
+one thing to the four studies that cross the pitch link: the link's two
+joints, which the old document drew as one interface each, are joint gaps
+in the linkage half, and they now carry an `assumed` zero so a chain crosses
+them and says it is incomplete there.
 
 - `study_pitch_system_vertical_hub_to_pitch_arm.json` — the millimetre baseline,
-  hub A datum to the pitch-arm link hole. Stops before the coupling on purpose.
+  hub A datum to the pitch-arm link bore. Stops before the coupling on purpose.
 - `study_pitch_system_blade_angle_worst.json` — crosses the coupling; totals in
   degrees at the worst-case sensitivity.
 - `study_pitch_system_blade_angle_average.json` — same graph, same selection,
@@ -511,113 +658,82 @@ not maintained by hand.
   assumes never happens); a millimetre study, one edge long.
 
 **Its values are placeholders and its structure is the deliverable.** At
-founding every one of its 23 dimensioned edges was a workbook cell that traces
-nothing (0 of 43, per `WORKSHEET_end_stop_graft.md`); handoff
-`endstop_location_stack` (2026-09-06) re-cited six of those edges against
-drawings instead (`provenance.retrace_update_20260906`), and handoff
-`mechanical_stroke_stack` (same day) added a 24th, `kind: "assumed"` for want of
-any source at all (`provenance.mechanical_stroke_extension_20260906`) — so the
-current split is 9 `workbook` / 6 `drawing` / 9 `kind: "assumed"`, of 24
-dimensioned edges. The `kind: "assumed"` group alone says
+founding every dimensioned edge was a workbook cell that traces nothing (0 of
+43, per `WORKSHEET_end_stop_graft.md`); handoff `endstop_location_stack`
+(2026-09-06) re-cited six of those edges against drawings instead
+(`provenance.retrace_update_20260906`), and handoff `mechanical_stroke_stack`
+(same day) added one more, `kind: "assumed"` for want of any source at all
+(`provenance.mechanical_stroke_extension_20260906`). The `kind: "assumed"` group alone says
 `PLACEHOLDER` in their notes, which a test enforces. Every dimension in it is
 **variation-only** — `nominal: 0.0`, band `±w/2` about an unstated nominal —
 because the source holds tolerance widths, not dimensions. Do not quote a number
 out of it without reading its own `source_ref.confidence` first.
 
-### `topology_pitch_link_to_pitch_plate.json` + three studies
+### The four fastener grip stacks, inside the model
 
-Handoff `linear_stack_conversions` (2026-09-08), re-expressing the reviewed,
-committed `docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json` (8
-elements, 3 paths, 2 checks) as a graph, the same L1 pattern:
-`dimension_ref`-only edges, no copied numbers. The graph: 6 parts, 9
-interfaces, 10 edges, 3 branch points, 2 grounded loops, 1 gap edge. Unlike L1,
-the bolt's own three fastener dimensions (grip, overall length, cotter-hole
-location) share additional interfaces of their own (the bolt's point, the
-cotter-hole centreline), which is what gives this graph two grounded loops
-rather than L1's one. The pitch-link eye / spherical bearing was the joint's
-own unsourced, missing member — not modelled as a node or edge, exactly as the
-stack's own checks recorded it in `excluded_terms` — until 2026-09-15, when
-handoff `stack_fable_audit` gave the stack a loudly-marked catalog placeholder
-for it (and the flanged bushing nobody had identified), and this topology
-gained both members with it.
+Handoff `linear_stack_conversions` (2026-09-08) re-expressed four reviewed
+linear stacks as four topologies of their own, each `dimension_ref`-only, no
+copied numbers. Handoff `the_fastener_stacks_join_the_model` (2026-10-27)
+folded all four into `topology_vpa_pitch_linkage.json` the way
+`pitch_system` was: parts, interfaces and edges kept their ids except where
+one id named a different thing in each stack (`head_bearing_face`,
+`shank_full_dia_end`, `washer_far_face`, `shank_out`, `fastener_grip` and a few
+more), which took a joint suffix (`_pitch_link`, `_rotor`, `_tan_link`,
+`_vpa_out`). Their fourteen studies are studies of the one graph; every total,
+band and check verdict is unchanged. Each stack is its own component of that
+graph, with no edge to the mechanism (an edge there would be a value nobody
+sourced), but its hardware is declared in a body, so a grip study draws inside
+the plate's container with the rest of the model dimmed, and the kinematic
+study draws the grip chains dimmed.
 
-- `study_pitch_link_shank_out.json` — reproduces stack path
-  `clamped_stack_sourced` extended with the fastener grip, and carries check
-  `shank_out__11_sourced_only` with no `limit` (the study's own total already
-  is the check's quantity).
-- `study_pitch_link_cotter_hole_clearance.json` — combines path
-  `head_to_cotter_hole` and path `clamped_stack_sourced` into ONE chain over
-  the shared graph rather than composing two separate `StudyResult`s, and
-  carries check `cotter_hole_clear_of_sourced_stack`.
-- `study_pitch_link_thread_region_t.json` — reproduces path `thread_region_T`,
-  the stack's own "provenance cross-check, not a design quantity" (it equals
-  NAS6403's T (Ref)). No `checks` entry: the referenced stack has none over
-  this path either.
+- Pitch link to plate: `study_pitch_link_shank_out.json`,
+  `study_pitch_link_cotter_hole_clearance.json`,
+  `study_pitch_link_thread_region_t.json` (the stack's own "provenance
+  cross-check", no `checks` entry).
+- Rotor balance-mass bolt: nine studies, `study_rotor_fastener_grip_u2h.json`, `study_rotor_fastener_grip_u3h.json`, `study_rotor_fastener_grip_u4h.json`, `study_rotor_fastener_grip_u5h.json`, `study_rotor_fastener_grip_u6h.json`, `study_rotor_fastener_grip_u7h.json`, `study_rotor_fastener_grip_u8h.json`, `study_rotor_fastener_grip_u9h.json`, `study_rotor_fastener_grip_u10h.json`, one per as-drawn NAS6403 grip
+  option, all naming one part (`fastener_family`); a study selecting two of
+  the nine is refused by `BranchAmbiguity`, which is the model's mechanical
+  form of "exactly one dash is ever installed". Nine studies, not one:
+  `check_study`'s `limit` shape folds an external budget as a zero-width point
+  value and would drop each fastener's own band.
+- Tangential link to plate, take 2: `study_tan_link_take2_worst_case_protrusion.json`.
+  The take-1 stack is not converted; its checks reference paths in a way "A
+  study, in outline" fences (`docs/sessions/lessons/LESSONS_20260908_linear_stack_conversions.md`).
+- VPA output to plate: `study_vpa_output_shank_out.json`, the L1 proof above.
 
-### `topology_rotor_fastener_length.json` + nine studies
+The four stacks' `joint` blocks (assembly drawing, sheet, view, zone) live in
+the model's `provenance.grip_stack_joints`, since the document is a whole
+product and carries no `joint` of its own.
 
-Handoff `linear_stack_conversions` (2026-09-08), re-expressing
-`docs/tolerance_stacks/stack_rotor_fastener_length.json` (11 elements, 1 path,
-9 checks — the repo's first genuine grip-**selection** joint, not one fixed
-as-drawn dash). The graph: 3 parts, 4 interfaces, 12 edges, 2 branch points, 9
-grounded loops, 1 gap edge. The nine as-drawn NAS6403 grip options are
-parallel edges between shared interfaces, all naming a single part
-(`fastener_family`, see its own note for why); a study selecting more than one
-at once is refused by `BranchAmbiguity` at both of those interfaces, which is
-this topology's own mechanical enforcement of "exactly one dash is ever
-installed."
+### `topology_vpa_pitch_linkage.json` + nine studies and a kinematic study
 
-- `study_rotor_fastener_grip_u2h.json`, `study_rotor_fastener_grip_u3h.json`,
-  `study_rotor_fastener_grip_u4h.json`, `study_rotor_fastener_grip_u5h.json`,
-  `study_rotor_fastener_grip_u6h.json`, `study_rotor_fastener_grip_u7h.json`,
-  `study_rotor_fastener_grip_u8h.json`, `study_rotor_fastener_grip_u9h.json`,
-  `study_rotor_fastener_grip_u10h.json` — one study per grip option (U2H, U3H,
-  U4H, U5H, U6H, U7H, U8H, U9H, U10H), each selecting its own
-  `fastener_grip_uXh` edge plus the two washer edges,
-  and each carrying its own `grip_budget__uXh` check with no `limit`. **Nine
-  studies, not one**, despite the referenced stack's own single `path` — see
-  this topology's own notes and the handoff's lesson: `check_study`'s `limit`
-  shape folds an external budget as a zero-width point value, which would
-  silently drop each fastener's own tolerance band, so only the no-`limit`
-  branch (a study's own chain) reproduces all nine checks exactly, and a
-  study's chain is fixed per selection.
+**One topology per product, and every study is a subset of it.** This is the
+propeller pitch system's (Jeff, 2026-10-26: "all of the studies are just
+subsets of a single global model representing the actual product"). The
+graph: 35 parts, 74 interfaces, 95 edges, 24 branch points, 26 grounded loops,
+17 gap edges. Its studies are the seven pitch-system chains above, the
+end-stop travel below, and the kinematic study ("A kinematic study reads its
+sensitivity from a published sweep"); it declares its rigid bodies ("Bodies",
+above).
 
-### `topology_tan_link_to_pitch_plate_take2.json` + one study
-
-Handoff `linear_stack_conversions` (2026-09-08), re-expressing
-`docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json` (9 elements,
-1 path, 1 check). The graph: 4 parts, 7 interfaces, 7 edges, 0 branch points,
-1 grounded loop, 1 gap edge. The closest structural cousin to L1: a clamped
-stack in series against a parallel fastener grip, with one genuine inverting
-element (`bushing_chamfer`, authored running the opposite way so a forward
-chain crossing subtracts it, matching the referenced stack's own `total` path
-sign). The stack's own three `nut_geometry` elements (nut minor diameter,
-counterbore diameter, chamfer depth) are diametral, unused by any path or
-check in the referenced stack, and are not modelled here — see this
-topology's own `provenance.structure`. `tan_link_to_pitch_plate` itself (the
-take-1 stack) is NOT converted: its six checks reference paths in a way this
-document's "A study, in outline" section fences — see
-`docs/sessions/lessons/LESSONS_20260908_linear_stack_conversions.md`.
-
-- `study_tan_link_take2_worst_case_protrusion.json` — reproduces check
-  `worst_case_protrusion` with no `limit`.
-
-### `topology_vpa_pitch_linkage.json` + no studies
-
-Handoff `vpa_pitch_linkage_topology_and_feature_fits` (2026-09-30), and the
-first committed topology with **no study at all** when it landed (the one study
-over it since 2026-10-16 is the end-stop travel, below). The graph: 16 parts, 29
-interfaces, 36 edges, 12 branch points, 8 grounded loops, 12 gap edges. It is the
-propeller pitch linkage's joints at 72 degrees blade pitch — the two pitch-link
+Handoff `vpa_pitch_linkage_topology_and_feature_fits` (2026-09-30) founded it
+as the first committed topology with **no study at all**: the propeller pitch
+linkage's joints at 72 degrees blade pitch — the two pitch-link
 spherical-bearing centres, the hub and plate spindle bores, the blade-1 root
 bearing bore, the gas spring, and the tangential link as a declared phase 2.
+Handoff `pitch_system_folds_into_the_pitch_linkage_model` (2026-10-26) folded
+`topology_pitch_system.json` into it, ids preserved except where one physical
+feature had two (the linkage half's id won) and where one id named two features
+(`tan_link_mount_overall_height` is the pitch-system half's mount height); the
+session lesson carries the collision table. The two halves still model some
+joints at two granularities — "What v0 cannot do", the sixth item.
 
-Two things about it are unlike every section above.
+Two things about the linkage half are unlike every section above.
 
-**It holds almost no numbers, and that is the deliverable.** Exactly one edge of the mechanism
-carries a value: `pitch_link_length`, derived from a 3DX sweep sheet's own two
-node columns and cited cell-for-cell. Every other edge carries **no dimension at
-all** and says, in its own `note`, what would close it — a named drawing, or a
+**Its joints hold almost no numbers, and that is the deliverable.** Of the
+mechanism's joint edges only the two link lengths and the plate's tangential-link
+radius carry a value, each cited; every other joint edge carries **no dimension
+at all** and says, in its own `note`, what would close it — a named drawing, or a
 fit of a named mesh. That is the repo's cite-or-gap rule applied to a document
 whose numbers have not been acquired: an `untraced` band of `0.000` would put a
 plausible number in front of a reader who cannot tell a placeholder zero from a
@@ -712,6 +828,23 @@ parameter. A derivative of the output with respect to one input is exactly a
 - **Which feature a label is** is authored per contributor (`feature`), and
   checked against the artifact's own `geometry.features[]` when a run carries
   one; a disagreement refuses to load, naming the label.
+- **A contributor may itself be a study** (2026-10-26, handoff
+  `a_contributor_may_be_a_study`). A contributor written
+  `{"study_ref": {"topology", "study_id", "parameter"}}` names a chain study
+  whose total moves one sweep parameter — the travel between the end stops
+  moves the driver — and **enters by the chain rule, as terms, never as its
+  folded interval**: at every sweep point each of the sub-study's signed terms
+  joins this study's fold with coefficient `|J| ×` the term's own ratio and
+  sign `sign(J) ×` the term's own, `J` being the sweep's Jacobian entry for
+  `parameter`. Worst case stays the sum over the leaf terms and RSS stays one
+  quadrature over them: nothing folds a fold, and a sub-study's folded total
+  would read its worst case as one RSS variate. Each leaf's band is the
+  sub-study edge's own, read about its own nominal (the sweep holds the
+  nominal), with its citation and confidence unchanged — so a term that is
+  untraced in the sub-study is untraced here, and the check says so. The
+  sub-study's output unit must be the parameter's (the same refusal a band
+  gets), and **v0 refuses a `study_ref` that names a kinematic study** — no
+  nesting yet. The page shows the group as one collapsed row over its terms.
 
 **The fence is unchanged.** Nothing here solves, perturbs or differentiates a
 mechanism, picks a load path, or calls `traverse()`/`summarize()`/`check_study()`.
@@ -731,15 +864,20 @@ untouched.
 The first document is
 `kinematic_study_vpa_pitch_linkage_blade_pitch_at_the_stops.json`: blade pitch
 over the P2 sweep from the linkage's cited tolerances, checked against
-S461-607 at both end stops, its bands borrowed from `topology_pitch_system.json`
-with each pairing argued in the contributor's own `note`.
+S461-607 at both end stops, four of its bands borrowed from other edges of the
+same topology (from `topology_pitch_system.json` until the 2026-10-26 fold) with
+each pairing argued in the contributor's own `note`.
 
 **What the viewer shows for one** (2026-10-20, handoff
 `the_viewer_shows_a_kinematic_study`): a page of its own, reached from a
 **Kinematic studies** section of the nav or `topology.html?kinematic=<study id>`
 — the verdict per stop, the envelope drawn live as deviation from nominal over
-the driver, one ranked contributor table per stop whose rows follow their edge
-to the rail, and the provenance behind one fold. It reads the projection the
+the driver, and the provenance behind one fold. Since 2026-10-26
+(`the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`) the page
+also draws the topology's model with the study's contributors and the edges
+they borrow a band from lit, the rest dimmed or hidden, and says each
+contributor once, with a column group per stop and its coefficient's curve
+across the sweep on hover; a row selects its edge in place. It reads the projection the
 builder above writes into the viewer's own projection directory, and adds
 nothing up. `apps/viewer/README.md`, "Kinematic studies — a section of their
 own", is where the page is described; `apps/viewer/views/kinematic.js` is the
@@ -803,3 +941,15 @@ whose terms combine several named term lists (a stack's `path`-referencing
 checks) has no topology equivalent — see "A study, in outline"'s
 path-referencing-checks paragraph, above, for the finding and why it is fenced
 rather than closed.
+
+**A sixth item, found by the 2026-10-26 fold**: one joint at two
+granularities. The pitch-system half drew a joint as one mating interface; the
+linkage half draws the same joint as an interface on each part and a `gap`
+between them. A chain crosses a gap only if the gap carries a value, so the fold
+gave the two pitch-link joints an `assumed` zero — the assumption the old
+document made silently, now a listed term — and left the other joints where both
+shapes stand side by side (the gas-spring joint at the plate, the blade root in
+the hub, the gas-spring mount on the hub or on the tangential-link mount)
+unreconciled: which shape is right for each is a modelling question, not an id
+merge.
+`ISSUE_20261026_the_pitch_system_half_and_the_linkage_half_model_joints_twice.md`.

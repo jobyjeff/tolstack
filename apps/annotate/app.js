@@ -17,6 +17,14 @@ const AA = window.AnnotateApp;
 
 const params = new URLSearchParams(location.search);
 const MOCK = params.get("mock") === "1";
+// ?embedded=1 -- set by the viewer's shell only, never by a link a reader
+// follows (handoff the_shell_seats_the_scene_beside_the_model). The shell
+// draws this app's rail in its own nav, so here the rail and the command box
+// are not shown (style.css, `body.an--embedded`) and the rail's rows are
+// mirrored out instead (postEmbedTree). Nothing else changes: the rail is
+// still built, by the same code, and every row still runs its own handler.
+const EMBEDDED = params.get("embedded") === "1";
+if (EMBEDDED) document.body.classList.add("an--embedded");
 
 const el = {
   banner: document.getElementById("banner"),
@@ -66,10 +74,16 @@ const state = {
   // event file; this app never re-implements that fold, it just doesn't want
   // a bound row to look unbound until the next rebuild.
   sessionEvents: [],
+  // Filenames this session has written, so the next number is one past them.
+  sessionFilenames: [],
   // The bind form's interface choice: {edgeId, sha256, faceId, direction}, or
   // null. Keyed to the element and the face it was made on (bindContext), so
   // it can never outlive either.
   bindChoice: null,
+  // The standing binding being corrected, {edgeId, eventId}, or null. While it
+  // is set the bind form plans against the record without that binding and its
+  // write carries `supersedes` (bindContext). Cleared by a write or Cancel.
+  correcting: null,
   currentTopology: null,
   currentStudy: null,
   selectedEdge: null,
@@ -109,6 +123,12 @@ const state = {
   // Whether selecting an element colours the faces that could be its feature
   // (handoff annotate_face_suggestions). Persists like the two above.
   faceSuggestions: AA.readStoredSuggestions(prefStore()),
+  // The model layer (buildModel): whether bind mode draws it, the shell's lit
+  // set (undefined until one is posted; null is "nothing emphasised"), what
+  // the unlit rest does, the edge `highlight` lit, what `model select` chose,
+  // and what was built from what. `sections` caches each part's cut.
+  model: { bindOn: false, lit: undefined, unlit: AA.MODEL_DEFAULT_UNLIT, emphasis: null,
+    selected: null, built: null, generation: 0, sections: {}, postedText: "", postCount: 0 },
   // sha256 -> AA.classifyPartFaces(...) output, computed ONCE per mesh per
   // session and kept here rather than on the scene's meshes: a reference face
   // for the narrowing can live on a part that is not open in the 3D view at
@@ -186,6 +206,24 @@ function resolveMeshOrThrow(identifier) {
   );
 }
 
+// show <part> <subject> / hide <part> <subject> -- the sweep rail's part row
+// inside a body: only the occurrence(s) that body is drawn at (handoff
+// the_rail_and_the_scene_point_at_each_other, deliverable 3). Without the
+// subject, every occurrence of the mesh -- the parts panel's rule.
+function scopedOccurrences(mesh, subject) {
+  const sweep = sweepState();
+  if (!subjectKnown(subject)) throw new Error("this run has no body or link \"" + subject + "\"");
+  return AA.sweepPartOccurrences(sweep.occurrences, subject, mesh.sha256);
+}
+
+async function cmdShow(identifier, subject) {
+  if (subject === undefined) return cmdOpenPart(identifier);
+  const mesh = resolveMeshOrThrow(identifier);
+  setOccurrences(scopedOccurrences(mesh, subject), true);
+  renderPartsPanel();
+  return mesh.sha256;
+}
+
 async function cmdOpenPart(identifier) {
   const mesh = resolveMeshOrThrow(identifier);
   await state.scene.loadPart(mesh.sha256);
@@ -201,8 +239,13 @@ async function cmdOpenPart(identifier) {
   return mesh.sha256;
 }
 
-function cmdHide(identifier) {
+function cmdHide(identifier, subject) {
   const mesh = resolveMeshOrThrow(identifier);
+  if (subject !== undefined) {
+    setOccurrences(scopedOccurrences(mesh, subject), false);
+    renderPartsPanel();
+    return mesh.sha256;
+  }
   state.scene.setVisible(mesh.sha256, false);
   renderPartsPanel();
   return mesh.sha256;
@@ -527,6 +570,8 @@ function cmdHighlight(topologyId, edgeId, direction) {
     else if (pick) state.scene.highlightFace(pick.sha256, pick.faceId);
     else state.scene.clearHighlight();
     window.__lastHighlight = null;
+    state.model.emphasis = null;
+    applyModelStyle();
     return null;
   }
   if (!topologyId || !edgeId) throw new Error("highlight needs <topology> <edge>, or clear");
@@ -534,6 +579,10 @@ function cmdHighlight(topologyId, edgeId, direction) {
     throw new Error("highlight's third word is one of " + AA.DIRECTIONS.join(", ") +
       ", got " + JSON.stringify(direction));
   }
+  // The model layer's line for the edge lights with it, bound or not: the
+  // line is drawn from anchors, which every edge has.
+  state.model.emphasis = state.currentTopology && state.currentTopology.id === topologyId ? edgeId : null;
+  applyModelStyle();
   const open = new Set(state.scene.listOpenParts());
   const plan = AA.planHighlight(mergedIdentityProjection(), topologyId, edgeId,
     (sha) => open.has(sha), direction);
@@ -1048,6 +1097,13 @@ async function cmdSweep(target, studyId) {
     tree: AA.sweepMechanismTree(artifact),
     treeOpen: {},
     inspect: null,
+    // Which drawn occurrences each body and link is ({subject: [{sha256,
+    // key}]}, AA.sweepSubjectOccurrences), written once the bodies resolve;
+    // the occurrences a rail checkbox has hidden, put back on the way out;
+    // and the part the scene's pointer rests on ({sha256, subject, bindings}).
+    occurrences: {},
+    hidden: [],
+    sceneHover: null,
     study,
     studyDecimals,
     stopId: null,
@@ -1073,7 +1129,9 @@ async function cmdSweep(target, studyId) {
   renderDetail();
   // Not awaited: the stick figure is on screen and usable the moment the run
   // is read, and resolving five occurrences against fitted geometry is the
-  // slow part. It repaints the bar when it lands.
+  // slow part. It repaints the bar when it lands -- and rebuilds the model,
+  // whose anchors sit on the occurrences it chose.
+  buildModel().catch((err) => setBanner(err.message, "error"));
   anchorSweepBodies().catch((err) => setBanner(err.message, "error"));
   if (paired.refusal) setBanner(paired.refusal, "warn");
   const loaded = { runId, points: artifact.points.length, source: artifact.source };
@@ -1086,6 +1144,11 @@ function leaveSweep() {
   if (!sweep) return null;
   state.sweep = null;
   showSweepTip(null, null);
+  state.scene.clearHover();
+  window.__lastHover = null;
+  // An occurrence a body's checkbox hid is the sweep rail's state, and the
+  // rail is going: every one comes back with it.
+  for (const o of sweep.hidden) state.scene.setOccurrencesVisible(o.sha256, [o.key], true);
   setRailSweepPosture(false);
   if (sweep.inspect && sweep.inspect.faces.length) {
     if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
@@ -1100,6 +1163,8 @@ function leaveSweep() {
   }
   resetContext(true); // the run's context ends with it; what is drawn was just restored
   renderDetail();
+  // Bind mode's own answer: down unless it was switched on there.
+  buildModel().catch((err) => setBanner(err.message, "error"));
   return { left: true };
 }
 
@@ -1327,6 +1392,7 @@ async function anchorSweepBodies() {
     } catch (err) { /* the row already says what happened */ }
   }
   sweep.bodies = rows;
+  sweep.occurrences = AA.sweepSubjectOccurrences(rows);
   renderPartsPanel();
   applySweepFrame();
   // The scene is only now what it is going to be, so this is where it gets
@@ -1334,6 +1400,7 @@ async function anchorSweepBodies() {
   // very different camera distances.
   state.scene.frameSweepScene();
   renderDetail();
+  buildModel().catch((err) => setBanner(err.message, "error"));
   return rows;
 }
 
@@ -1402,8 +1469,11 @@ function applySweepFrame() {
   for (const sha of sweep.anchored) {
     const entries = sweep.plan[sha];
     if (entries) {
+      // Keyed, index for index, so an occurrence a rail checkbox hid stays
+      // hidden whichever list is drawn.
       state.scene.setPartMatrix(sha, sweep.layers.bodies
-        ? AA.sweepMeshMatrices(entries, sweep.frame) : null);
+        ? AA.sweepMeshMatrices(entries, sweep.frame) : null,
+      sweep.layers.bodies ? entries.map((e) => e.key) : null);
     }
     state.scene.setVisible(sha, !!sweep.layers.bodies);
     // THE SAME "See-through parts" PREFERENCE the rest of this app honours,
@@ -1452,6 +1522,7 @@ function applySweepFrame() {
       mine.ghost = wantGhost;
     }
   }
+  applyModelFrame();
   return frame;
 }
 
@@ -1525,10 +1596,18 @@ function cmdStep(delta) {
 }
 
 function cmdLayer(name, value) {
-  const sweep = sweepState();
   const layer = AA.parseSweepLayer(name);
+  // The model is the one layer bind mode draws too, at the as-modelled pose.
+  if (layer === "model" && !state.sweep) {
+    state.model.bindOn = value === undefined ? !state.model.bindOn : AA.parseOnOff(value);
+    buildModel().catch((err) => setBanner(err.message, "error"));
+    renderDetail();
+    return state.model.bindOn;
+  }
+  const sweep = sweepState();
   sweep.layers[layer] = value === undefined ? !sweep.layers[layer] : AA.parseOnOff(value);
   state.scene.setSweepLayer(layer, sweep.layers[layer]);
+  if (layer === "model") buildModel().catch((err) => setBanner(err.message, "error"));
   applySweepFrame();
   renderDetail();
   return sweep.layers[layer];
@@ -1772,6 +1851,7 @@ const SWEEP_LAYER_LABELS = Object.freeze({
   bodies: "3D parts",
   trail: "Paths",
   ghost: "Where it started",
+  model: "The model",
 });
 const SWEEP_LAYER_HINTS = Object.freeze({
   stick: "a bead at every joint, a line along every two-force member, and a " +
@@ -1780,6 +1860,8 @@ const SWEEP_LAYER_HINTS = Object.freeze({
   trail: "the whole path each joint takes over the sweep, drawn faintly",
   ghost: "a translucent copy of each part where the model was built, to " +
     "compare against",
+  model: "every node of the topology as a dot on its part and every edge as " +
+    "a line between two of them",
 });
 
 function sweepButton(glyph, title, onClick) {
@@ -2020,7 +2102,9 @@ function treeOpen(key, fallback) {
 
 // A <details> node whose summary is one clipped line with its full text on
 // hover (the truncation rule), and whose open state survives a repaint.
-function treeNode(key, text, fallbackOpen, onToggle) {
+// `hover` is the `hover` command its summary runs while the pointer rests on
+// it (the rail lights its thing in the scene), or null.
+function treeNode(key, text, fallbackOpen, onToggle, hover) {
   const box = document.createElement("details");
   box.className = "an__tree-node";
   box.open = treeOpen(key, fallbackOpen);
@@ -2032,6 +2116,7 @@ function treeNode(key, text, fallbackOpen, onToggle) {
   words.textContent = text;
   head.appendChild(words);
   box.appendChild(head);
+  if (hover) hoverOn(head, hover);
   // A repaint sets `open` on a fresh node, which queues a toggle event of its
   // own; only a change from the remembered state is the reader's.
   box.ontoggle = () => {
@@ -2041,6 +2126,138 @@ function treeNode(key, text, fallbackOpen, onToggle) {
     if (box.open !== was && onToggle) onToggle(box.open);
   };
   return box;
+}
+
+// The pointer resting on a rail row lights its thing in the scene, and
+// leaving puts the scene back -- one verb both ways, quiet on failure (a
+// hover is not worth a banner).
+function hoverOn(node, command) {
+  node.addEventListener("mouseenter", () => { railExec(command, null); });
+  node.addEventListener("mouseleave", () => { railExec(["hover", "clear"], null); });
+}
+
+// The occurrences a body or a link is drawn at right now: its map entry,
+// less any mesh that is not open (the instrumented blade recorded at the
+// design blade's own path is the same occurrence, and is not drawn twice).
+function subjectOccurrences(name) {
+  const open = new Set(state.scene.listOpenParts());
+  return ((state.sweep && state.sweep.occurrences[name]) || []).filter((o) => open.has(o.sha256));
+}
+
+// Is `name` a body or a link this run's rail lists?
+function subjectKnown(name) {
+  const tree = state.sweep && state.sweep.tree;
+  if (!tree || !name) return false;
+  return tree.bodies.some((b) => b.name === name) ||
+    tree.joints.some((j) => j.name === name && j.parts.length);
+}
+
+// Show or hide a list of occurrences, remembering which the rail hid so
+// leaving sweep mode can put them back.
+function setOccurrences(list, visible) {
+  const sweep = state.sweep;
+  const bySha = new Map();
+  for (const o of list || []) {
+    if (!bySha.has(o.sha256)) bySha.set(o.sha256, []);
+    bySha.get(o.sha256).push(o.key);
+  }
+  for (const [sha, keys] of bySha) state.scene.setOccurrencesVisible(sha, keys, visible);
+  if (!sweep) return;
+  const same = (a, b) => a.sha256 === b.sha256 && a.key === b.key;
+  sweep.hidden = sweep.hidden.filter((h) => !(list || []).some((o) => same(o, h)));
+  if (!visible) for (const o of list || []) sweep.hidden.push({ sha256: o.sha256, key: o.key });
+}
+
+// How much of a list of occurrences is drawn: {checked, indeterminate} for a
+// checkbox over it (AA.planShowAllHeader's shape and rule).
+function occurrencesShown(list) {
+  return AA.planShowAllHeader((list || []).map((o) =>
+    state.scene.isOccurrenceVisible(o.sha256, o.key)));
+}
+
+// show-body <name> / hide-body <name>: every occurrence a body or a link is
+// drawn at, and no other (the body row's checkbox).
+function cmdSubjectView(visible, name) {
+  const sweep = sweepState();
+  if (!subjectKnown(name)) throw new Error("this run has no body or link \"" + name + "\"");
+  const list = subjectOccurrences(name);
+  setOccurrences(list, visible);
+  renderSweepRail();
+  return { subject: name, occurrences: list.length, visible };
+}
+
+// hover <kind> <name> ... | hover clear -- what a rail row lights in the
+// scene (AA.parseHover has the grammar). A viewing aid: it writes nothing,
+// tints nothing into a colour buffer, and an empty answer is ordinary (an
+// unbound feature, a part not opened).
+function cmdHover(what, name, extra) {
+  const sweep = sweepState();
+  const target = AA.parseHover(what, name, extra);
+  if (!target.kind) {
+    state.scene.clearHover();
+    window.__lastHover = null;
+    return null;
+  }
+  const topology = sweepTopology();
+  const open = new Set(state.scene.listOpenParts());
+  const isOpen = (sha) => open.has(sha);
+  const identity = mergedIdentityProjection();
+  const spec = { occurrences: [], faces: [], joint: null };
+  if (target.kind === "body") {
+    if (!subjectKnown(target.name)) throw new Error("this run has no body or link \"" + target.name + "\"");
+    spec.occurrences = subjectOccurrences(target.name);
+  } else if (target.kind === "part") {
+    const mesh = resolveMeshOrThrow(target.name);
+    const scoped = target.subject ? AA.sweepPartOccurrences(sweep.occurrences, target.subject, mesh.sha256) : null;
+    if (isOpen(mesh.sha256)) spec.occurrences = scoped || [{ sha256: mesh.sha256, key: null }];
+  } else if (target.kind === "joint") {
+    const joint = sweep.tree.joints.find((j) => j.name === target.name);
+    if (!joint) throw new Error("this run has no joint \"" + target.name + "\"");
+    spec.joint = joint.name;
+    if (topology) {
+      spec.faces = AA.planHighlightFaces(identity, topology.id, joint.features
+        .map((f) => AA.sweepFeatureEdge(topology, f, joint.features)).filter((v) => v.edgeId), isOpen);
+    }
+  } else if (target.kind === "feature") {
+    if (topology) {
+      spec.faces = AA.planHighlightFaces(identity, topology.id,
+        [{ edgeId: target.name, direction: target.direction }], isOpen);
+    }
+  } else {
+    const row = currentContributorRows().find((r) => r.edge === target.name);
+    if (!row) throw new Error("the open study lists no contributor \"" + target.name + "\" here");
+    // The faces bound at its edge's two ends; when none is bound, the parts
+    // at those ends, at the occurrences the mechanism draws them at.
+    spec.faces = AA.planHighlightFaces(identity, topology.id, [{ edgeId: row.edge, direction: null }], isOpen);
+    if (!spec.faces.length) spec.occurrences = edgeOccurrences(topology, row.edge).filter((o) => isOpen(o.sha256));
+  }
+  const shown = state.scene.setHover(spec);
+  window.__lastHover = Object.assign({ target }, shown);
+  return window.__lastHover;
+}
+
+// The drawn occurrences of an edge's parts: each part's occurrences on the
+// bodies and links that carry it, or every occurrence where none does.
+function edgeOccurrences(topology, edgeId) {
+  const sweep = state.sweep;
+  const out = [];
+  for (const id of AA.edgePartIds(topology, edgeId)) {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    if (!mesh) continue;
+    const placed = [];
+    for (const name of Object.keys(sweep.occurrences)) {
+      for (const o of sweep.occurrences[name]) if (o.sha256 === mesh.sha256) placed.push(o);
+    }
+    for (const o of placed.length ? placed : [{ sha256: mesh.sha256, key: null }]) out.push(o);
+  }
+  return out;
+}
+
+// The open study's contributor rows at the stop nearest the frame, or [].
+function currentContributorRows() {
+  const sweep = state.sweep;
+  const stop = sweep && sweep.study ? AA.kinematicStopAt(sweep.study, sweep.frame) : null;
+  return stop ? AA.kinematicContributorRows(sweep.study, stop, sweepTopology(), sweep.studyDecimals) : [];
 }
 
 function treeHead(text) {
@@ -2066,15 +2283,23 @@ function missingPartRow(partId) {
 
 // The parts a body or a link carries, as THE parts-panel rows (buildPartRow):
 // one implementation of a part row, wherever it is listed.
-function treePartRows(partIds) {
+//
+// Inside a body (or a link) a row stands for that subject's occurrence(s) of
+// the mesh, not every repeat of it: its checkbox hides only those, and its
+// hover lights only those. A part the subject has no occurrence of yet --
+// the bodies still resolving, or a part that could not be placed -- keeps the
+// whole-mesh row.
+function treePartRows(partIds, subject) {
   const list = document.createElement("ul");
   list.className = "parts-panel an__tree-parts";
   const inModel = new Set(currentContext().inModel.map((m) => m.sha256));
   const isolated = (state.isolation && state.isolation.targets) || [];
   for (const partId of partIds) {
     const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
-    list.appendChild(mesh ? buildPartRow(mesh, inModel.has(mesh.sha256), isolated)
-      : missingPartRow(partId));
+    if (!mesh) { list.appendChild(missingPartRow(partId)); continue; }
+    const scoped = AA.sweepPartOccurrences(state.sweep.occurrences, subject, mesh.sha256);
+    list.appendChild(buildPartRow(mesh, inModel.has(mesh.sha256), isolated,
+      scoped && scoped.length ? { subject, occurrences: scoped } : null));
   }
   return list;
 }
@@ -2091,17 +2316,31 @@ function featureRow(topology, joint, feature) {
   li.dataset.feature = feature.id;
   li.dataset.state = bindingState;
   const name = AA.sweepFeatureName(topology, feature);
-  li.title = name;
+  // The surface that defines it, in words a reader can check against the
+  // model -- `face 110 of 214698-002` -- with the mesh's sha on hover, or
+  // `no face bound`. Under the name, muted: it is the row's second fact.
+  const faces = AA.boundFaceRows(mergedIdentityProjection(), topology.id, via, state.meshList);
+  const faceWords = faces.length ? faces.map((f) => f.text).join(", ") : AA.BOUND_FACE_WORDS.none;
+  li.title = name + "\n" + faceWords +
+    (faces.length ? "\n" + faces.map((f) => f.sha256.slice(0, 12)).join(", ") : "");
+  if (via.edgeId) {
+    li.dataset.edge = via.edgeId;
+    if (via.direction) li.dataset.direction = via.direction;
+  }
+  const text = document.createElement("span");
+  text.className = "tree-row__text";
   const words = document.createElement("span");
   words.className = "tree-row__name";
   words.textContent = name;
-  li.appendChild(words);
+  text.appendChild(words);
+  const face = document.createElement("span");
+  face.className = "tree-row__face";
+  face.textContent = faceWords;
+  text.appendChild(face);
+  li.appendChild(text);
   if (via.edgeId) {
-    li.onmouseenter = () => {
-      railExec(via.direction ? ["highlight", topology.id, via.edgeId, via.direction]
-        : ["highlight", topology.id, via.edgeId], null);
-    };
-    li.onmouseleave = () => { railExec(["highlight", "clear"], null); };
+    hoverOn(li, via.direction ? ["hover", "feature", via.edgeId, via.direction]
+      : ["hover", "feature", via.edgeId]);
     const repick = document.createElement("button");
     repick.className = "tree-row__repick";
     repick.textContent = bindingState === AA.BINDING_STATES.BOUND
@@ -2135,6 +2374,7 @@ function contributorsGroup(topology) {
     const li = document.createElement("li");
     li.className = "tree-row tree-row--contributor";
     li.dataset.edge = row.edge;
+    hoverOn(li, ["hover", "contributor", row.edge]);
     li.title = row.name + (row.magnitude ? " · " + row.magnitude : "");
     const words = document.createElement("span");
     words.className = "tree-row__name";
@@ -2146,7 +2386,25 @@ function contributorsGroup(topology) {
       value.textContent = row.magnitude;
       li.appendChild(value);
     }
-    if (row.gap) li.appendChild(alertBadge([row.gap]));
+    // The badge's {state, text} shape, which every other badge is handed: the
+    // gap sentence, the drawing(s) to read, and what the row's Pick does.
+    const alerts = AA.contributorAlerts(row, topology);
+    if (alerts.length) li.appendChild(alertBadge(alerts));
+    // The same jump to bind mode a feature row's Pick makes: the edge, at the
+    // as-modelled frame, where a binding may be written. Nothing is written
+    // from here.
+    const bound = AA.elementBindingState(AA.findBindingRecord(mergedIdentityProjection(),
+      AA.topologyEdgeKey(topology.id, row.edge)), state.identityProjection &&
+      state.identityProjection.staleness) === AA.BINDING_STATES.BOUND;
+    const pick = document.createElement("button");
+    pick.className = "tree-row__repick";
+    pick.textContent = bound ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick;
+    pick.title = AA.SWEEP_RAIL_WORDS.repickTitle;
+    pick.onclick = (ev) => {
+      ev.stopPropagation();
+      railExec(["goto", topology.id, row.edge]);
+    };
+    li.appendChild(pick);
     if (selected === row.edge) li.classList.add("selected");
     li.onclick = () => {
       railExec(selected === row.edge ? ["inspect", "clear"]
@@ -2173,18 +2431,29 @@ function renderSweepRail() {
     // stays -- and above the parts panel's label.
     el.studySelect.insertAdjacentElement("afterend", root);
   }
+  // The rows are about to be replaced, and a replaced row under a still
+  // pointer never fires its mouseleave: the hover goes with the old rows.
+  state.scene.clearHover();
+  window.__lastHover = null;
   root.innerHTML = "";
   const tree = sweep.tree;
   const topology = sweepTopology();
+  root.appendChild(rowKindChips(root));
+  const selectedPart = sweep.inspect && sweep.inspect.kind === AA.INSPECT_TARGETS[3]
+    ? sweep.inspect : null;
 
   const bodies = document.createElement("section");
   bodies.className = "an__tree-group";
   bodies.dataset.group = "bodies";
   bodies.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.bodies + " (" + tree.bodies.length + ")"));
   for (const body of tree.bodies) {
-    const node = treeNode("body:" + body.name, AA.sweepBodyRowWords(body), body.open);
+    // A part picked in the scene opens the body it was picked on.
+    if (selectedPart && selectedPart.subject === body.name) sweep.treeOpen["body:" + body.name] = true;
+    const node = treeNode("body:" + body.name, AA.sweepBodyRowWords(body), body.open, null,
+      ["hover", "body", body.name]);
     node.dataset.body = body.name;
-    node.appendChild(treePartRows(body.parts));
+    subjectCheckbox(node, body.name);
+    node.appendChild(treePartRows(body.parts, body.name));
     bodies.appendChild(node);
   }
   root.appendChild(bodies);
@@ -2196,33 +2465,132 @@ function renderSweepRail() {
   const selectedJoint = sweep.inspect && sweep.inspect.kind === AA.INSPECT_TARGETS[0]
     ? sweep.inspect.name : null;
   for (const joint of tree.joints) {
+    // A face picked in the scene that is bound to one of this joint's
+    // features opens the joint, so its feature row is on screen selected.
+    const holds = selectedPart && topology && joint.features.some((f) =>
+      AA.featureReadMatches(AA.sweepFeatureEdge(topology, f, joint.features), selectedPart.bindings));
+    if (holds || (selectedPart && selectedPart.subject === joint.name)) {
+      sweep.treeOpen["joint:" + joint.name] = true;
+    }
     // Opening a joint is looking at it: it selects the joint (its bead is
     // drawn emphasised) and closing the selected one lets it go.
     const node = treeNode("joint:" + joint.name, AA.sweepJointRowWords(joint), false, (open) => {
       const isSelected = state.sweep.inspect && state.sweep.inspect.name === joint.name;
       if (open && !isSelected) railExec(["inspect", "joint", joint.name]);
       else if (!open && isSelected) railExec(["inspect", "clear"]);
-    });
+    }, ["hover", "joint", joint.name]);
     node.dataset.joint = joint.name;
-    if (selectedJoint === joint.name) node.classList.add("selected");
+    if (joint.parts.length) subjectCheckbox(node, joint.name);
+    if (selectedJoint === joint.name || holds) node.classList.add("selected");
     if (topology && joint.features.length) {
       const list = document.createElement("ul");
       list.className = "an__tree-list";
-      for (const feature of joint.features) list.appendChild(featureRow(topology, joint, feature));
+      for (const feature of joint.features) {
+        const row = featureRow(topology, joint, feature);
+        if (selectedPart && AA.featureReadMatches(AA.sweepFeatureEdge(topology, feature,
+          joint.features), selectedPart.bindings)) row.classList.add("selected");
+        list.appendChild(row);
+      }
       node.appendChild(list);
     }
-    if (joint.parts.length) node.appendChild(treePartRows(joint.parts));
+    if (joint.parts.length) node.appendChild(treePartRows(joint.parts, joint.name));
     joints.appendChild(node);
   }
   root.appendChild(joints);
 
   if (sweep.study) root.appendChild(contributorsGroup(topology));
+  if (selectedPart) {
+    const row = root.querySelector('.part-row[data-sha="' + selectedPart.name + '"]' +
+      (selectedPart.subject ? '[data-subject="' + CSS.escape(selectedPart.subject) + '"]' : ""));
+    if (row) row.classList.add("selected");
+  }
+  applySceneHover();
+}
+
+// A body's (or a link's) own checkbox, in its summary line: every occurrence
+// it is drawn at, and no other. Disabled until the bodies have resolved and
+// there is something to hide.
+function subjectCheckbox(node, subject) {
+  const list = subjectOccurrences(subject);
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.className = "an__tree-check";
+  cb.title = AA.SWEEP_RAIL_WORDS.showBody;
+  const shown = occurrencesShown(list);
+  cb.checked = list.length ? shown.checked : true;
+  cb.indeterminate = list.length ? shown.indeterminate : false;
+  cb.disabled = !list.length;
+  // A click on the box is the box's, never the <details>' toggle.
+  cb.onclick = (ev) => { ev.stopPropagation(); };
+  cb.onchange = () => { railExec([cb.checked ? "show-body" : "hide-body", subject]); };
+  node.querySelector("summary").appendChild(cb);
+}
+
+// The type filter: one chip per row kind (AA.SWEEP_ROW_KINDS), pressed =
+// listed. A VIEW filter -- what the rail lists, never what the scene draws or
+// what the run's context is -- remembered the way the rail's width is.
+function rowKindChips(root) {
+  const hidden = AA.readHiddenRowKinds(prefStore());
+  for (const kind of AA.SWEEP_ROW_KINDS) root.classList.toggle("an__tree--no-" + kind, hidden.indexOf(kind) !== -1);
+  const bar = document.createElement("div");
+  bar.className = "an__tree-chips";
+  bar.setAttribute("role", "group");
+  for (const kind of AA.SWEEP_ROW_KINDS) {
+    const chip = document.createElement("button");
+    chip.className = "an__tree-chip";
+    chip.dataset.kind = kind;
+    chip.textContent = AA.SWEEP_ROW_KIND_WORDS[kind];
+    chip.setAttribute("aria-pressed", hidden.indexOf(kind) === -1 ? "true" : "false");
+    chip.onclick = () => {
+      AA.writeHiddenRowKinds(prefStore(), AA.toggleRowKind(AA.readHiddenRowKinds(prefStore()), kind));
+      renderSweepRail();
+    };
+    bar.appendChild(chip);
+  }
+  return bar;
+}
+
+// The part the scene's pointer rests on, emphasised in the rail: its row
+// inside the subject it is drawn for, and the feature rows its face is bound
+// to. Applied to the rows as they are, so a pointer moving over the view
+// never rebuilds the tree.
+function applySceneHover() {
+  const root = document.getElementById("sweep-tree");
+  if (!root) return;
+  for (const n of root.querySelectorAll(".is-scene-hover")) n.classList.remove("is-scene-hover");
+  const hover = state.sweep && state.sweep.sceneHover;
+  if (!hover) return;
+  const scoped = root.querySelectorAll('.part-row[data-sha="' + hover.sha256 + '"]');
+  for (const row of scoped) {
+    // An occurrence no body carries is none of the tree's rows.
+    if ((row.dataset.subject || null) === hover.subject) row.classList.add("is-scene-hover");
+  }
+  for (const row of root.querySelectorAll(".tree-row[data-edge]")) {
+    const via = { edgeId: row.dataset.edge, direction: row.dataset.direction || null };
+    if (row.dataset.feature && AA.featureReadMatches(via, hover.bindings)) row.classList.add("is-scene-hover");
+  }
+}
+
+// What the scene says the pointer rests on (scene.onPartHover), into the
+// rail. Null is off every part.
+function sceneHoverPart(pick) {
+  const sweep = state.sweep;
+  if (!sweep) return;
+  const topology = sweepTopology();
+  sweep.sceneHover = pick ? {
+    sha256: pick.sha256,
+    subject: AA.sweepOccurrenceSubject(sweep.bodies, pick.sha256, pick.key),
+    bindings: topology ? AA.bindingsOfFace(mergedIdentityProjection(), topology.id,
+      pick.sha256, pick.faceId) : [],
+  } : null;
+  applySceneHover();
 }
 
 // inspect joint <name> | inspect contributor <edge> | inspect clear
-function cmdInspect(what, name) {
+function cmdInspect(what, name, face, subject) {
   const sweep = sweepState();
-  const target = AA.parseInspect(what, name);
+  const target = AA.parseInspect(what, name, face, subject);
+  if (target.kind === AA.INSPECT_TARGETS[3]) return inspectPart(target);
   if (target.kind === AA.INSPECT_TARGETS[0] &&
       !sweep.tree.joints.some((j) => j.name === target.name)) {
     throw new Error("this run has no joint \"" + target.name + "\"");
@@ -2245,7 +2613,355 @@ function cmdInspect(what, name) {
   else state.scene.clearHighlight();
   window.__lastInspect = sweep.inspect;
   renderSweepRail();
+  applyModelSelection();
   return sweep.inspect;
+}
+
+// inspect part <mesh> <face> [<subject>] -- a pick in the scene, selected in
+// the rail: the part's row inside the subject it was picked on (that body
+// opened), and the feature rows the face is bound to (their joint opened).
+// The face carries the pick tint while it is selected -- the same tint a
+// selected contributor's faces carry, given back by `highlight clear`.
+function inspectPart(target) {
+  const sweep = state.sweep;
+  const mesh = resolveMeshOrThrow(target.name);
+  if (!state.scene.faceRecord(mesh.sha256, target.faceId)) {
+    throw new Error("part \"" + target.name + "\" has no face " + target.faceId);
+  }
+  if (target.subject && !subjectKnown(target.subject)) {
+    throw new Error("this run has no body or link \"" + target.subject + "\"");
+  }
+  const topology = sweepTopology();
+  const faces = [{ sha256: mesh.sha256, faceId: target.faceId }];
+  sweep.inspect = {
+    kind: target.kind, name: mesh.sha256, faceId: target.faceId, subject: target.subject,
+    bindings: topology ? AA.bindingsOfFace(mergedIdentityProjection(), topology.id,
+      mesh.sha256, target.faceId) : [],
+    faces,
+  };
+  state.scene.setSweepEmphasis(null);
+  state.scene.highlightFaces(faces);
+  window.__lastInspect = sweep.inspect;
+  renderSweepRail();
+  applyModelSelection();
+  return sweep.inspect;
+}
+
+// --- the model layer (handoff the_model_is_drawn_in_the_scene) --------------
+//
+// Every node of the current topology as a dot at its anchor and every edge as
+// a line, in both modes: on by default in sweep mode (the `model` layer), off
+// by default in bind mode, where it draws the as-modelled pose. Which point
+// each anchor is comes out of model_layer.js (AA.modelAnchors); this reads
+// what it needs -- the meshes' buffers for the section, a bound face's fitted
+// point, which occurrence a run moved -- and hands the answers to the scene.
+//
+// It WRITES NOTHING. An anchor is a place to draw; it never reaches a
+// binding, a stack or a fitted nominal.
+
+function modelOn() {
+  return state.sweep ? !!state.sweep.layers.model : !!state.model.bindOn;
+}
+
+// The topology body that lists a part, or null.
+function modelBodyOfPart(topology, partId) {
+  return ((topology && topology.bodies) || []).find((b) => (b.parts || []).indexOf(partId) !== -1) || null;
+}
+
+// The subjects (bodies and links) the loaded run poses, by name.
+function modelRunSubjects(sweep) {
+  if (!sweep) return {};
+  const out = {};
+  for (const b of sweep.structure.bodies) out[b.name] = b;
+  for (const l of sweep.artifact.links || []) out[l.joint] = { name: l.joint, anchor: null };
+  return out;
+}
+
+// One part's section, cached per (mesh, occurrence, plane axis): the buffers
+// are read once, and a 363,681-triangle hub cuts in ~20 ms.
+async function modelSection(sha256, placement, key, bias) {
+  const id = sha256 + "|" + (key || "") + "|" + bias.normalAxis + "|" + bias.biasAxis +
+    bias.biasSign + "|" + bias.stackAxis;
+  if (Object.prototype.hasOwnProperty.call(state.model.sections, id)) return state.model.sections[id];
+  const manifest = await state.storage.readMeshManifest(sha256);
+  let answer = null;
+  if (manifest) {
+    const [posBuf, idxBuf] = await Promise.all([
+      state.storage.readMeshBuffer(sha256, manifest.positions_file),
+      state.storage.readMeshBuffer(sha256, manifest.indices_file),
+    ]);
+    if (posBuf && idxBuf) {
+      answer = AA.modelPartSection(new Float32Array(posBuf), new Uint32Array(idxBuf), placement, bias);
+    }
+  }
+  state.model.sections[id] = answer;
+  return answer;
+}
+
+// What model_layer.js needs to know about one topology part: which subject
+// carries the occurrence its anchor is taken at, the occurrence itself, its
+// section, the body's frame origin, and -- when there is no geometry -- why.
+//
+// THE OCCURRENCE: in sweep mode, the one the run's anchoring matched (or, for
+// a ground body, its first) -- so the anchor sits on the part the reader sees
+// move; otherwise the part's first recorded occurrence, where the assembly
+// puts it.
+async function modelPartInfo(topology, partId, bias, occurrences, sweep) {
+  const body = modelBodyOfPart(topology, partId);
+  const subjects = modelRunSubjects(sweep);
+  const row = sweep ? (sweep.bodies || []).find((r) => r.part === partId &&
+    r.state !== "carried" && r.placements && r.placements.length) : null;
+  let subject = row ? row.subject : null;
+  if (!subject && body && subjects[body.id]) subject = body.id;
+  const origin = (subject && subjects[subject] && subjects[subject].anchor) || [0, 0, 0];
+  const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
+  if (!mesh) return { subject, section: null, origin, why: AA.MODEL_ORIGIN_WHY.noMesh };
+  let placement = null, key = null;
+  if (row) {
+    placement = row.placements[0].placement;
+    key = row.placements[0].key;
+  } else {
+    const own = (occurrences.byMesh[mesh.sha256] || [])[0];
+    if (own) { placement = own.placement; key = own.key; }
+  }
+  let section = null;
+  try { section = await modelSection(mesh.sha256, placement, key, bias); }
+  catch (err) { section = null; }
+  return { subject, section, origin, sha256: mesh.sha256, placement, key,
+    why: section ? null : AA.MODEL_ORIGIN_WHY.noCut };
+}
+
+// {node id: [x, y, z]}: the fitted point of the face a committed binding
+// names at that node's end of an edge, in the as-modelled assembly frame. A
+// binding with no direction binds an edge, not a node, and anchors nothing.
+async function modelBoundPoints(topology, parts, occurrences) {
+  const identity = mergedIdentityProjection();
+  const homes = AA.modelNodeHomes(topology);
+  const out = {};
+  for (const node of topology.nodes || []) {
+    for (const edge of topology.edges || []) {
+      if (out[node.id]) break;
+      const direction = edge.from === node.id ? AA.DIRECTIONS[0]
+        : (edge.to === node.id ? AA.DIRECTIONS[1] : null);
+      if (!direction) continue;
+      const record = AA.findBindingRecord(identity, AA.topologyEdgeKey(topology.id, edge.id));
+      const binding = ((record && record.bindings) || []).find((b) => b && b.direction === direction &&
+        b.geometry_key && b.geometry_key.source_step_sha256);
+      if (!binding) continue;
+      const sha = binding.geometry_key.source_step_sha256;
+      let classes = null;
+      try { classes = await ensureFaceClasses(sha); } catch (err) { classes = null; }
+      const face = classes && classes[binding.geometry_key.face_id];
+      const local = face && (face.centre || face.axisPoint || face.point);
+      if (!local) continue;
+      const home = parts[homes[node.id].part] || {};
+      const placement = home.sha256 === sha ? home.placement
+        : (((occurrences.byMesh[sha] || [])[0] || {}).placement || null);
+      out[node.id] = AA.applyPlacement(placement || AA.IDENTITY_PLACEMENT, local);
+    }
+  }
+  return out;
+}
+
+// Builds (or takes down) the layer for the current topology and mode. Called
+// whenever what it is built from changes: the topology, the mode, the run's
+// bodies resolving, a binding written, the layer switched. Superseded builds
+// stop at their next await.
+async function buildModel() {
+  const model = state.model;
+  const generation = ++model.generation;
+  const topology = state.currentTopology;
+  if (!state.scene || !modelOn() || !topology || !(topology.nodes || []).length) {
+    model.built = null;
+    if (state.scene) state.scene.setModel(null);
+    postModelAnchors(true);
+    return null;
+  }
+  const sweep = state.sweep;
+  const bias = AA.readAnchorBias(topology);
+  const occurrences = await loadOccurrences();
+  if (generation !== model.generation) return null;
+  const parts = {};
+  for (const part of topology.parts || []) {
+    parts[part.id] = await modelPartInfo(topology, part.id, bias, occurrences, sweep);
+    if (generation !== model.generation) return null;
+  }
+  const bound = await modelBoundPoints(topology, parts, occurrences);
+  if (generation !== model.generation || state.sweep !== sweep) return null;
+  const anchors = AA.modelAnchors({ topology, bias, parts, bound,
+    linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {} });
+  const lines = AA.modelEdgeLines(topology, anchors);
+  // `bodies`: whether the run's anchoring had resolved when this was built --
+  // before it, a moving part's anchor sits on its first recorded occurrence.
+  model.built = { topologyId: topology.id, bias, parts, anchors, lines,
+    runId: sweep ? sweep.artifact.runId : null, bodies: !!(sweep && sweep.bodies.length) };
+  const nodes = {};
+  for (const [id, a] of Object.entries(anchors)) {
+    nodes[id] = { source: a.source, subject: a.subject, point: a.point,
+      exported: a.source !== AA.MODEL_ANCHOR_SOURCES[3] };
+  }
+  state.scene.setModel({ nodes, lines });
+  state.scene.setModelVisible(true);
+  applyModelFrame();
+  applyModelStyle();
+  applyModelSelection();
+  if (bias.problem) setBanner(bias.problem, "warn");
+  return model.built;
+}
+
+// The frame's world points and the subjects' poses -- every sweep frame,
+// and once at the as-modelled pose in bind mode.
+function applyModelFrame() {
+  const built = state.model.built;
+  if (!built) return null;
+  const frame = state.sweep ? state.sweep.frame : null;
+  const world = AA.modelWorldPoints(built.anchors, frame);
+  const subjects = {};
+  for (const a of Object.values(built.anchors)) {
+    const s = a.subject || "";
+    if (!(s in subjects)) subjects[s] = AA.modelSubjectPlacement(frame, a.subject);
+  }
+  state.scene.setModelFrame({ world, subjects });
+  return world;
+}
+
+// The lit set when the shell has posted none: the study this page is
+// showing -- a chain study's own selection in bind mode, the edges an open
+// kinematic study's stops name in sweep mode -- and with neither, nothing is
+// emphasised. A posted lit set (`model lit`) always wins: the shell's reading
+// of the lit set is VA.kinematicLitSet, which also lights the edges a
+// contributor borrows its band from, and the shell is the one surface that
+// draws both.
+function modelDefaultLit() {
+  const sweep = state.sweep;
+  const edges = [];
+  if (sweep && sweep.study) {
+    for (const stop of sweep.study.stops || []) {
+      for (const row of stop.rows || []) if (row.edge && edges.indexOf(row.edge) === -1) edges.push(row.edge);
+    }
+  } else if (!sweep && state.currentStudy) {
+    for (const id of state.currentStudy.selection || []) edges.push(id);
+  }
+  if (!edges.length) return null;
+  const lit = {};
+  for (const id of edges) lit[id] = true;
+  return lit;
+}
+
+function applyModelStyle() {
+  const model = state.model;
+  if (!model.built) return null;
+  const topology = state.currentTopology;
+  const lit = model.lit !== undefined ? model.lit : modelDefaultLit();
+  const strengths = {};
+  for (const id of Object.keys(model.built.lines)) {
+    strengths[id] = AA.modelLineStrength(id, lit, model.unlit);
+  }
+  model.strengths = strengths;
+  state.scene.setModelStyle({ strengths, nodes: AA.modelLitNodes(topology, lit),
+    hideUnlit: model.unlit === AA.MODEL_UNLIT_STYLES[1], emphasis: model.emphasis });
+  return strengths;
+}
+
+// The section a node's anchor was cut from, as the scene draws it.
+function modelSectionDrawing(anchor) {
+  if (!anchor || anchor.source !== AA.MODEL_ANCHOR_SOURCES[2]) return {};
+  const info = state.model.built.parts[anchor.part];
+  return {
+    plane: { normalAxis: anchor.section.normalAxis, at: anchor.section.at,
+      bounds: info.section.bounds },
+    region: anchor.section.region.segments,
+  };
+}
+
+// What is selected in the layer: a node (model select node), a body (model
+// select body, or -- in sweep mode -- the body a pick in the scene selected
+// in the rail). A node shows its section plane and region; a body shows its
+// name at its +X anchor, with the plane it was cut on.
+function applyModelSelection() {
+  const model = state.model;
+  if (!model.built) return null;
+  const anchors = model.built.anchors;
+  let sel = model.selected;
+  if (!sel && state.sweep && state.sweep.inspect && state.sweep.inspect.subject) {
+    sel = { kind: AA.MODEL_SELECT_KINDS[1], id: state.sweep.inspect.subject };
+  }
+  if (!sel) { state.scene.setModelSelection(null); return null; }
+  if (sel.kind === AA.MODEL_SELECT_KINDS[0]) {
+    const anchor = anchors[sel.id];
+    state.scene.setModelSelection(Object.assign({ node: sel.id, subject: anchor ? anchor.subject : null },
+      modelSectionDrawing(anchor)));
+    return sel;
+  }
+  const topology = state.currentTopology;
+  const body = ((topology && topology.bodies) || []).find((b) => b.id === sel.id);
+  if (!body) { state.scene.setModelSelection(null); return null; }
+  // The body's +X anchor: the first of its parts with a section.
+  const partId = (body.parts || []).find((p) => model.built.parts[p] && model.built.parts[p].section);
+  const info = partId ? model.built.parts[partId] : null;
+  const at = info ? info.section.region.centroid : null;
+  const drawing = info ? {
+    plane: { normalAxis: model.built.bias.normalAxis, at: info.section.at, bounds: info.section.bounds },
+    region: info.section.region.segments,
+  } : {};
+  state.scene.setModelSelection(Object.assign({ body: body.id, subject: info ? info.subject : null,
+    label: at ? { text: body.name || AA.measureLabel(body.id), at } : null }, drawing));
+  return sel;
+}
+
+// model lit <edge>... | model lit all | model unlit dim|hide |
+// model select node <id> | model select body <id> | model select clear
+function cmdModel(...args) {
+  const plan = AA.parseModelVerb(args);
+  const model = state.model;
+  if (plan.action === AA.MODEL_VERB_ACTIONS[0]) {
+    model.lit = plan.lit;
+    applyModelStyle();
+    return { lit: plan.lit ? Object.keys(plan.lit) : "all" };
+  }
+  if (plan.action === AA.MODEL_VERB_ACTIONS[1]) {
+    model.unlit = plan.unlit;
+    applyModelStyle();
+    return { unlit: plan.unlit };
+  }
+  const topology = state.currentTopology;
+  if (plan.select) {
+    const list = plan.select.kind === AA.MODEL_SELECT_KINDS[0] ? (topology && topology.nodes) : (topology && topology.bodies);
+    if (!(list || []).some((x) => x.id === plan.select.id)) {
+      throw new Error("this topology has no " + plan.select.kind + " \"" + plan.select.id + "\"");
+    }
+  }
+  model.selected = plan.select;
+  applyModelSelection();
+  const anchor = plan.select && plan.select.kind === AA.MODEL_SELECT_KINDS[0] && model.built
+    ? model.built.anchors[plan.select.id] : null;
+  window.__lastModelSelection = plan.select ? Object.assign({}, plan.select,
+    anchor ? { source: anchor.source, words: AA.modelAnchorWords(anchor) } : {}) : null;
+  return window.__lastModelSelection;
+}
+
+// The anchors, out to the shell (embedded) and to a harness (always), once
+// per drawn frame whose numbers changed. `cleared` posts the empty message a
+// shell needs to take its leaders down when the layer goes.
+function postModelAnchors(cleared) {
+  const model = state.model;
+  let message;
+  if (cleared) {
+    if (!model.postedText) return;
+    message = { type: AA.ANCHORS_MESSAGE, nodes: {}, edges: {} };
+  } else {
+    if (!model.built) return;
+    const screen = state.scene.modelScreenPoints();
+    if (!screen) return;
+    message = AA.modelAnchorsMessage(model.built.lines, screen, model.strengths);
+  }
+  const text = JSON.stringify(message);
+  if (text === model.postedText) return;
+  model.postedText = cleared ? "" : text;
+  model.postCount++;
+  window.__lastAnchors = message;
+  if (window.parent === window) return;
+  try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
 }
 
 // help [on|off] -- the top bar's collapsible half (deliverable 1). No
@@ -2269,7 +2985,7 @@ function announced(fn) {
 
 const commands = new AA.CommandLayer();
 commands.register("open-part", cmdOpenPart);
-commands.register("show", cmdOpenPart); // "show" on a part never opened is "open it and show it"
+commands.register("show", cmdShow); // "show" on a part never opened is "open it and show it"
 commands.register("hide", cmdHide);
 commands.register("show-all", cmdShowAll);
 commands.register("hide-all", cmdHideAll);
@@ -2304,6 +3020,10 @@ commands.register("step", cmdStep);
 commands.register("loop", cmdLoop);
 commands.register("layer", cmdLayer);
 commands.register("inspect", cmdInspect);
+commands.register("model", cmdModel);
+commands.register("hover", cmdHover);
+commands.register("show-body", (name) => cmdSubjectView(true, name));
+commands.register("hide-body", (name) => cmdSubjectView(false, name));
 AA.exec = (input) => commands.exec(input);
 
 // The last arrival, run again -- what ticking an auto-setup box back on does.
@@ -2341,12 +3061,10 @@ function mergedIdentityProjection() {
   for (const event of state.sessionEvents) {
     let row = base.stack_keys.find((r) => AA.stackKeyEquals(r.stack_key, event.stack_key));
     if (!row) {
-      row = { stack_key: event.stack_key, state: "owner_not_in_set", bindings: [], owner_not_in_set: [], history: [] };
+      row = { stack_key: event.stack_key, state: "owner_not_in_set", bindings: [], owner_not_in_set: [], history: [], superseded: [] };
       base.stack_keys.push(row);
     }
-    row.history.push(event.event_id);
-    if (event.verdict === "bound") row.bindings.push(event);
-    else row.owner_not_in_set.push(event);
+    AA.addEventToRecord(row, event);
   }
   return base;
 }
@@ -2441,6 +3159,9 @@ function selectTopology(topologyId) {
   syncSelectTitle(el.studySelect);
   if (studies.length) selectStudy(studies[0].id);
   else { renderElementList(); resetContext(false); }
+  state.model.emphasis = null;
+  state.model.selected = null;
+  buildModel().catch((err) => setBanner(err.message, "error"));
 }
 
 function selectStudy(studyId) {
@@ -2452,6 +3173,7 @@ function selectStudy(studyId) {
   syncSelectTitle(el.studySelect);
   renderElementList();
   resetContext(false);
+  applyModelStyle();
 }
 
 // The scope, dropped, with the bar that announces it -- and NOT the two panels,
@@ -2755,7 +3477,10 @@ function renderDetail() {
       p.textContent = "This transport cannot write -- binding controls are hidden. " +
         "Connect a read/write folder to bind.";
       work.appendChild(p);
-    } else {
+    }
+    const bound = bind && buildBindingsBlock(edge, bind, canWrite);
+    if (bound) work.appendChild(bound);
+    if (canWrite) {
       if (state.currentPick && bind) {
         work.appendChild(buildBindForm(edge, state.currentPick, bind, refreshBindStep));
       }
@@ -2842,6 +3567,8 @@ function renderHintPanel() {
   display.appendChild(settingCheckbox(AA.SUGGEST_SETTING_LABEL, state.faceSuggestions,
     AA.SUGGEST_SETTING_HINT,
     (on) => AA.exec(["auto-suggest", AA.onOff(on)])));
+  display.appendChild(settingCheckbox(SWEEP_LAYER_LABELS.model, state.model.bindOn,
+    SWEEP_LAYER_HINTS.model, (on) => AA.exec(["layer", "model", AA.onOff(on)])));
   el.hintPanel.appendChild(display);
 }
 
@@ -2925,6 +3652,16 @@ function slugify(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
+// The next "<NNNN>_<slug>.json", counting the files this session has already
+// written: `existingEventFilenames` carries event ids, which never match the
+// numbered-filename pattern, so a second write in one session (a bind, then a
+// correction of it) used to be handed 0001 again and refused as a collision.
+function nextFilename(known, slug) {
+  const name = AA.nextEventFilename(known.concat(state.sessionFilenames), slug);
+  state.sessionFilenames.push(name);
+  return name;
+}
+
 async function existingEventFilenames() {
   // The app cannot list an FSA directory's file entries as cheaply as it can
   // list data/meshes/ subdirectories (there is no manifest to key off), so
@@ -2976,7 +3713,9 @@ function buildBindForm(edge, pick, bind, onChoose) {
   const noteField = labeledInput("note (optional)", "bind-note-input");
   form.appendChild(noteField.box);
 
-  btn.textContent = "Bind selected face to " + (edge.name || edge.id);
+  btn.textContent = bind.target
+    ? "Replace the binding with the selected face"
+    : "Bind selected face to " + (edge.name || edge.id);
   btn.className = "bind-form__bind";
   btn.disabled = !selected;
   btn.onclick = async () => {
@@ -2997,13 +3736,11 @@ function buildBindForm(edge, pick, bind, onChoose) {
         gdtModifier: gdt.select.value || null,
         generalTolRegime: regime.input.value || null,
         note: noteField.input.value || null,
+        supersedes: bind.target ? bind.target.event_id : null,
       });
-      const filename = AA.nextEventFilename(filenames, slugify(edge.id));
-      await state.storage.writeFeatureIdentityEvent(filename, event);
-      state.sessionEvents.push(event);
-      setBanner("Wrote " + filename, "ok");
-      renderElementList();
-      renderDetail();
+      const filename = nextFilename(filenames, slugify(edge.id));
+      state.correcting = null;
+      await writeIdentityEvent(filename, event, "Wrote " + filename);
     } catch (err) {
       setBanner("Bind failed: " + err.message, "error");
     }
@@ -3025,13 +3762,114 @@ function bindContext(edge) {
   const names = AA.edgeEndNames(state.currentTopology, edge);
   const c = state.bindChoice;
   const pick = state.currentPick;
-  const chosen = c && pick && c.edgeId === edge.id && c.sha256 === pick.sha256 &&
+  let chosen = c && pick && c.edgeId === edge.id && c.sha256 === pick.sha256 &&
     c.faceId === pick.faceId ? c.direction : null;
+  // A correction plans against the record WITHOUT the binding it replaces, so
+  // the end that binding held is open again, and starts on that end: the
+  // reader is fixing a face, and the end it was written at is the aimed value.
+  const target = correctionTarget(record, edge);
+  const planned = target ? AA.recordWithout(record, target.event_id) : record;
+  if (target && !chosen) chosen = target.direction;
   return {
-    record, names,
-    needed: AA.bindingDirectionsNeeded(record),
-    plan: AA.planBindChoices({ record, names, chosen }),
+    record, names, target,
+    needed: AA.bindingDirectionsNeeded(planned),
+    plan: AA.planBindChoices({ record: planned, names, chosen }),
   };
+}
+
+// The standing binding a correction is armed on for this element, or null.
+function correctionTarget(record, edge) {
+  const c = state.correcting;
+  if (!c || c.edgeId !== edge.id || !record) return null;
+  return (record.bindings || []).find((b) => b.event_id === c.eventId) || null;
+}
+
+// Write one event and repaint -- the tail every correction write shares.
+async function writeIdentityEvent(filename, event, banner) {
+  await state.storage.writeFeatureIdentityEvent(filename, event);
+  state.sessionEvents.push(event);
+  buildModel().catch(() => { /* the layer keeps its last anchors */ });
+  setBanner(banner, "ok");
+  renderElementList();
+  renderDetail();
+}
+
+// What an element's bindings say about themselves, in the bar: one line per
+// standing binding (end and face) with the two ways to correct it, and the
+// bindings a correction replaced under one quiet disclosure. Nothing at all for
+// an element with no binding. Controls only where the transport can write.
+function buildBindingsBlock(edge, bind, canWrite) {
+  const shown = AA.describeBindings(bind.record, bind.names);
+  if (!shown.current.length && !shown.earlier.length) return null;
+  const box = document.createElement("div");
+  box.className = "an__bound";
+  for (const row of shown.current) {
+    const line = document.createElement("div");
+    line.className = "an__bound-row";
+    line.dataset.direction = row.direction;
+    const text = document.createElement("span");
+    text.className = "an__bound-text";
+    text.textContent = row.end + " · face " + row.face;
+    text.title = text.textContent;
+    line.appendChild(text);
+    if (canWrite) {
+      const armed = !!bind.target && bind.target.event_id === row.eventId;
+      const other = AA.otherDirection(row.direction);
+      // Flipping into an end that already has a face would stack two faces on
+      // one end -- legitimate, but never what a one-click flip should do.
+      if (!shown.current.some((o) => o.direction === other)) {
+        const flip = document.createElement("button");
+        flip.type = "button";
+        flip.className = "an__bound-act an__bound-flip";
+        flip.textContent = "Flip direction";
+        flip.title = "this face belongs at " + bind.names[other];
+        flip.onclick = async () => {
+          try {
+            const filenames = await existingEventFilenames();
+            const event = AA.buildCorrectionEvent(row.event, {
+              eventId: "annotate-" + Date.now() + "-" + slugify(edge.id),
+              seq: filenames.length + 1,
+              createdAt: nowIso(),
+              recordedBy: "annotate-app",
+              direction: other,
+            });
+            state.correcting = null;
+            await writeIdentityEvent(nextFilename(filenames, slugify(edge.id)), event,
+              "Moved the face to " + bind.names[other]);
+          } catch (err) {
+            setBanner("Correction failed: " + err.message, "error");
+          }
+        };
+        line.appendChild(flip);
+      }
+      const fix = document.createElement("button");
+      fix.type = "button";
+      fix.className = "an__bound-act an__bound-correct";
+      fix.textContent = armed ? "Cancel correction" : "Correct this binding";
+      fix.setAttribute("aria-pressed", armed ? "true" : "false");
+      fix.onclick = () => {
+        state.correcting = armed ? null : { edgeId: edge.id, eventId: row.eventId };
+        renderDetail();
+      };
+      line.appendChild(fix);
+    }
+    box.appendChild(line);
+  }
+  if (shown.earlier.length) {
+    const hist = document.createElement("details");
+    hist.className = "an__nis an__bound-history";
+    const summary = document.createElement("summary");
+    summary.textContent = "Earlier bindings (" + shown.earlier.length + ")";
+    hist.appendChild(summary);
+    for (const row of shown.earlier) {
+      const li = document.createElement("div");
+      li.className = "an__bound-earlier";
+      li.textContent = row.date + " · " + row.end + " · face " + row.face;
+      hist.appendChild(li);
+    }
+    box.appendChild(hist);
+  }
+  return box;
 }
 
 // The interface choice: one button per end that may be chosen, carrying the
@@ -3127,9 +3965,10 @@ function buildOwnerNotInSetFields(edge) {
         stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
         note: noteField.input.value || null,
       });
-      const filename = AA.nextEventFilename(filenames, slugify(edge.id) + "_owner_not_in_set");
+      const filename = nextFilename(filenames, slugify(edge.id) + "_owner_not_in_set");
       await state.storage.writeFeatureIdentityEvent(filename, event);
       state.sessionEvents.push(event);
+      buildModel().catch(() => { /* the layer keeps its last anchors */ });
       setBanner("Wrote " + filename, "ok");
       renderElementList();
       renderDetail();
@@ -3216,9 +4055,18 @@ function renderPartsPanel() {
   if (state.sweep) renderSweepRail();
 }
 
-function buildPartRow(mesh, inModel, isolated) {
+// `scope` ({subject, occurrences}) makes it a sweep-rail row inside a body:
+// its checkbox and its hover reach that body's occurrences only. Without it,
+// the row is the mesh -- every occurrence -- and says how many when that is
+// more than one.
+function buildPartRow(mesh, inModel, isolated, scope) {
   const li = document.createElement("li");
   li.className = "part-row";
+  if (state.sweep) {
+    li.dataset.sha = mesh.sha256;
+    if (scope) li.dataset.subject = scope.subject;
+    hoverOn(li, scope ? ["hover", "part", mesh.sha256, scope.subject] : ["hover", "part", mesh.sha256]);
+  }
 
   const label = document.createElement("span");
   label.className = "part-row__label";
@@ -3229,14 +4077,28 @@ function buildPartRow(mesh, inModel, isolated) {
   label.textContent = words.text;
   label.title = words.title;
   li.appendChild(label);
+  const drawn = state.scene.drawnOccurrenceKeys(mesh.sha256).length;
+  if (!scope && drawn > 1) {
+    const count = document.createElement("span");
+    count.className = "part-row__count";
+    count.textContent = AA.PARTS_COPY.occurrences.replace("{n}", String(drawn));
+    count.title = AA.PARTS_COPY.occurrencesTitle.replace("{n}", String(drawn));
+    li.appendChild(count);
+  }
 
   const cb = document.createElement("input");
   cb.type = "checkbox";
   cb.title = "show/hide in the 3D view";
-  cb.checked = state.scene.isVisible(mesh.sha256);
+  if (scope) {
+    const shown = occurrencesShown(scope.occurrences);
+    cb.checked = shown.checked;
+    cb.indeterminate = shown.indeterminate;
+  } else {
+    cb.checked = state.scene.isVisible(mesh.sha256);
+  }
   cb.onchange = async () => {
     try {
-      await AA.exec([cb.checked ? "show" : "hide", mesh.sha256]);
+      await AA.exec([cb.checked ? "show" : "hide", mesh.sha256].concat(scope ? [scope.subject] : []));
     } catch (err) {
       setBanner(err.message, "error");
       cb.checked = !cb.checked;
@@ -3365,11 +4227,248 @@ function postEmbedState() {
   const message = AA.embedState(state.sweep ? state.sweep.artifact : null,
     state.currentTopology, state.currentStudy);
   try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
+  postEmbedTree(true);
+}
+
+// --- the rail, mirrored into the shell's nav (embedded mode) ---------------
+//
+// Handoff the_shell_seats_the_scene_beside_the_model: embedded, this app's
+// rail is laid out but not shown, and the viewer draws the same rows under
+// the study the scene is showing. The rows go out as DATA read off the rail
+// this app has just rendered -- {type: "annotate:tree", mode, chips, rows} --
+// and every gesture on a mirrored row comes back as {type: "annotate:rail",
+// key, act, index?}, dispatched onto the very node it mirrors. So there is
+// one tree (what renderSweepRail / renderElementList / renderPartsPanel
+// built) and one set of handlers (theirs): the shell composes no command and
+// no words of its own, and a row the rail would not show is not sent, because
+// "shown" is read off the layout (a closed <details>, a chip-hidden group,
+// bind furniture in sweep mode all have no boxes).
+//
+// A row: {key, text, title?, sub?, value?, state?, attention?, selected?, sceneHover?,
+// open? (a disclosure), activate? (a click does something), check?
+// {checked, indeterminate, disabled, title}, buttons? [{text, title,
+// pressed}], alert? (the badge's words), rows? [...]}; a heading is {key,
+// head: text}.
+let embedNodes = new Map();
+let embedTreeSent = "";
+let embedTreeTimer = null;
+
+function railRoots() {
+  const roots = state.sweep
+    ? [document.getElementById("sweep-tree")]
+    : [el.railFilter, el.elementList, el.partsPanel];
+  return roots.filter(Boolean);
+}
+
+function railRendered(node) {
+  return node.getClientRects().length > 0;
+}
+
+function railText(node, selector) {
+  const hit = node.querySelector(":scope > " + selector);
+  return hit ? hit.textContent : null;
+}
+
+// A row's key: its parent's, then what the rail itself names it by (its
+// data- attributes, else its words), made unique among its siblings.
+function railKey(parentKey, node, words, seen) {
+  const data = Object.keys(node.dataset || {}).sort()
+    .map((k) => k + "=" + node.dataset[k]).join(",");
+  let key = parentKey + "/" + (data || words || node.tagName);
+  const n = seen.get(key) || 0;
+  seen.set(key, n + 1);
+  if (n) key += "#" + n;
+  return key;
+}
+
+function railControls(node, holder, row) {
+  const check = holder.querySelector(':scope > input[type="checkbox"]');
+  if (check) {
+    row.check = { checked: check.checked, indeterminate: check.indeterminate,
+      disabled: check.disabled, title: check.title || "" };
+  }
+  const buttons = Array.from(holder.querySelectorAll(":scope > button"));
+  if (buttons.length) {
+    row.buttons = buttons.map((b) => ({ text: b.textContent, title: b.title || "",
+      pressed: b.getAttribute("aria-pressed") === "true" }));
+  }
+  const badge = holder.querySelector(":scope > .alertbadge");
+  if (badge) row.alert = badge.getAttribute("aria-label") || "";
+  return { check, buttons };
+}
+
+function railRows(node, parentKey, seen) {
+  const out = [];
+  for (const child of node.children) {
+    if (!railRendered(child)) continue;
+    const row = railRow(child, parentKey, seen);
+    if (Array.isArray(row)) out.push(...row);
+    else if (row) out.push(row);
+  }
+  return out;
+}
+
+function railRow(node, parentKey, seen) {
+  if (node.matches(".an__tree-chips")) return null;
+  if (node.matches(".an__filter")) {
+    const words = Array.from(node.querySelectorAll(":scope > span, :scope > .an__filter-gap")).map((n) => n.textContent);
+    const key = railKey(parentKey, node, words[0] || "", seen);
+    const row = { key, head: words[0] || "" };
+    if (words.length > 1) row.sub = words.slice(1).join(" ");
+    const controls = railControls(node, node, row);
+    embedNodes.set(key, { node, ...controls });
+    return row;
+  }
+  if (node.matches(".an__tree-head, .el-head")) {
+    return { key: railKey(parentKey, node, node.textContent, seen), head: node.textContent };
+  }
+  if (node.matches("details")) {
+    const summary = node.querySelector(":scope > summary");
+    const words = summary ? (railText(summary, ".an__tree-text") || summary.textContent) : "";
+    const key = railKey(parentKey, node, words, seen);
+    const row = { key, text: words, title: summary ? summary.title : "", open: node.open };
+    if (node.classList.contains("selected")) row.selected = true;
+    const controls = summary ? railControls(node, summary, row) : {};
+    embedNodes.set(key, { node, hover: summary, toggle: node, ...controls });
+    const kids = [];
+    const kidSeen = new Map();
+    for (const child of node.children) {
+      if (child === summary || !railRendered(child)) continue;
+      const got = railRow(child, key, kidSeen);
+      if (Array.isArray(got)) kids.push(...got);
+      else if (got) kids.push(got);
+    }
+    if (kids.length) row.rows = kids;
+    return row;
+  }
+  if (node.matches("li") && !node.matches(".part-row--head")) {
+    const name = railText(node, ".tree-row__text > .tree-row__name") ||
+      railText(node, ".tree-row__name") || railText(node, ".el-row__name") ||
+      railText(node, ".part-row__label");
+    if (name === null) return railRows(node, parentKey, seen);
+    const key = railKey(parentKey, node, name, seen);
+    const row = { key, text: name, title: node.title ||
+      (node.querySelector(":scope > .part-row__label") || {}).title || "" };
+    const sub = railText(node, ".tree-row__text > .tree-row__face") || railText(node, ".part-row__note");
+    if (sub) row.sub = sub;
+    const value = railText(node, ".tree-row__value") || railText(node, ".part-row__count");
+    if (value) row.value = value;
+    if (node.dataset.state) row.state = node.dataset.state;
+    else {
+      const cls = Array.from(node.classList).find((c) => c.indexOf("el-row--") === 0);
+      if (cls) row.state = cls.slice("el-row--".length);
+    }
+    // A row whose binding is not settled is the one the rail colours; the
+    // shell is told THAT, so it keeps no copy of the state words.
+    if (row.state && row.state !== AA.BINDING_STATES.BOUND) row.attention = true;
+    if (node.classList.contains("selected")) row.selected = true;
+    if (node.classList.contains("is-scene-hover")) row.sceneHover = true;
+    if (node.onclick) row.activate = true;
+    const controls = railControls(node, node, row);
+    embedNodes.set(key, { node, hover: node, ...controls });
+    return row;
+  }
+  if (node.matches(".part-row--head")) {
+    const words = railText(node, ".part-row__label") || "";
+    const key = railKey(parentKey, node, words, seen);
+    const row = { key, head: words };
+    const controls = railControls(node, node, row);
+    embedNodes.set(key, { node, ...controls });
+    return row;
+  }
+  // A container (a group, a list): its rows, in place.
+  return railRows(node, parentKey, seen);
+}
+
+function railChips() {
+  const bar = document.querySelector("#sweep-tree > .an__tree-chips");
+  if (!bar) return [];
+  return Array.from(bar.querySelectorAll("button")).map((b) => {
+    const key = "chip:" + b.dataset.kind;
+    embedNodes.set(key, { node: b, buttons: [b] });
+    return { key, text: b.textContent, pressed: b.getAttribute("aria-pressed") === "true" };
+  });
+}
+
+// The rows as the rail shows them now. Also what a harness reads.
+function embedTree() {
+  embedNodes = new Map();
+  const seen = new Map();
+  const rows = [];
+  for (const root of railRoots()) {
+    if (!railRendered(root)) continue;
+    rows.push(...railRows(root, "#" + root.id, seen));
+  }
+  return { type: "annotate:tree", mode: state.sweep ? "sweep" : "bind",
+    chips: state.sweep ? railChips() : [], rows };
+}
+
+// Posted when what the rail shows changes (a MutationObserver on the rail,
+// coalesced to one post per task) and after every announced verb (`force`:
+// the shell clears its copy when it re-drives the scene, so it is sent again
+// even when nothing changed).
+function postEmbedTree(force) {
+  if (!EMBEDDED || window.parent === window) return;
+  const tree = embedTree();
+  const text = JSON.stringify(tree);
+  if (!force && text === embedTreeSent) return;
+  embedTreeSent = text;
+  window.__embedTree = tree;
+  try { window.parent.postMessage(tree, window.location.origin); } catch (_) { /* embedder gone */ }
+}
+
+function watchRailForEmbed() {
+  if (!EMBEDDED) return;
+  const rail = el.workspace.querySelector(".an__rail");
+  if (!rail || typeof MutationObserver !== "function") return;
+  new MutationObserver(() => {
+    if (embedTreeTimer !== null) return;
+    embedTreeTimer = setTimeout(() => { embedTreeTimer = null; postEmbedTree(false); }, 0);
+  }).observe(rail, { subtree: true, childList: true, attributes: true, characterData: true });
+}
+
+// A gesture on a mirrored row, onto the row it mirrors: the handler that
+// runs is the rail's own.
+function railGesture(msg) {
+  const hit = embedNodes.get(msg.key);
+  if (!hit) return false;
+  if (msg.act === "enter" || msg.act === "leave") {
+    if (hit.hover) hit.hover.dispatchEvent(new MouseEvent(msg.act === "enter" ? "mouseenter" : "mouseleave"));
+  } else if (msg.act === "toggle") {
+    if (hit.toggle) hit.toggle.open = !hit.toggle.open;
+  } else if (msg.act === "activate") {
+    hit.node.click();
+  } else if (msg.act === "check") {
+    if (hit.check && !hit.check.disabled) hit.check.click();
+  } else if (msg.act === "button") {
+    const button = (hit.buttons || [])[msg.index || 0];
+    if (button) button.click();
+  } else {
+    return false;
+  }
+  return true;
+}
+
+// The embedding page's own background, so the scene and the page beside it
+// are one surface with no seam (same origin, so its token can be read).
+function adoptEmbedderBackground() {
+  if (!EMBEDDED || window.parent === window) return;
+  let bg = "";
+  try {
+    bg = getComputedStyle(window.parent.document.documentElement).getPropertyValue("--bg").trim();
+  } catch (_) { bg = ""; }
+  if (!bg) return;
+  document.documentElement.style.setProperty("--embed-bg", bg);
+  if (state.scene) state.scene.setBackground(bg);
 }
 
 window.addEventListener("message", (ev) => {
   if (ev.origin !== window.location.origin) return;
   const msg = ev.data;
+  if (msg && msg.type === "annotate:rail" && EMBEDDED) {
+    try { railGesture(msg); } catch (err) { setBanner(err.message, "error"); }
+    return;
+  }
   if (!msg || msg.type !== "annotate:exec" || !msg.command) return;
   const source = ev.source;
   const origin = ev.origin;
@@ -3565,14 +4664,31 @@ async function main() {
   // highlightedFace()` is the only observable for "the orange came off", which
   // is the entire deliverable of the deselect work and was un-checkable before.
   window.__scene = state.scene;
+  adoptEmbedderBackground();
+  watchRailForEmbed();
   // Where a part is drawn: at every position the assembly records for it
   // (handoff parts_sit_where_the_assembly_puts_them). The scene asks once per
   // part, before the part joins the scene; null means "its own origin".
   state.scene.placementsFor = async (sha256) => {
     await loadOccurrences();
     const rest = restOf(sha256);
-    return rest.placements.length ? rest.placements : null;
+    // Keyed, so one occurrence can be hidden or hovered by the key the
+    // assembly recorded it under (setOccurrencesVisible, setHover).
+    return rest.placements.length ? { placements: rest.placements, keys: rest.keys } : null;
   };
+  // The part under a pointer that has come to rest, into the rail (sweep
+  // mode only; the scene asks nothing outside it).
+  state.scene.onPartHover = sceneHoverPart;
+  // The model layer: its anchors after every drawn frame, and a click on one
+  // of its dots selects that node (a second click lets it go).
+  state.scene.onModelRendered = () => postModelAnchors(false);
+  state.scene.onModelPick = (nodeId) => {
+    const was = state.model.selected;
+    const again = was && was.kind === AA.MODEL_SELECT_KINDS[0] && was.id === nodeId;
+    AA.exec(again ? ["model", "select", "clear"] : ["model", "select", "node", nodeId])
+      .catch((err) => setBanner(err.message, "error"));
+  };
+  Object.defineProperty(window, "__model", { get: () => state.model });
   // The same read-only convention, for sweep mode: a harness (and the
   // screenshot pass) can ask where the scrubber is and what frame rate the
   // playback is actually getting. Nothing in this app reads it, and it is
@@ -3616,7 +4732,26 @@ async function main() {
   // Before this, a miss set `state.currentPick = null` and left the orange
   // tint exactly where it was, and a re-click re-highlighted the same face --
   // so there were three ways to pick a face and none to unpick one.
-  state.scene.onPick = (pick) => {
+  state.scene.onPick = (pick, bead) => {
+    // IN SWEEP MODE A CLICK SELECTS IN THE RAIL, at any frame (handoff
+    // the_rail_and_the_scene_point_at_each_other): a bead selects its joint,
+    // a face selects its part inside the body it was picked on, and empty
+    // space lets the selection go. Selecting writes nothing, so it is not the
+    // frame rule's business; what follows is, unchanged.
+    if (state.sweep) {
+      const sweep = state.sweep;
+      const was = sweep.inspect;
+      // Quiet: a selection that cannot be made (a part this store no longer
+      // lists) is not worth a banner over the frame rule's own line below.
+      if (bead) railExec(["inspect", "joint", bead.name], null);
+      else if (!pick || (was && was.kind === AA.INSPECT_TARGETS[3] && was.name === pick.sha256 &&
+        was.faceId === pick.faceId)) railExec(["inspect", "clear"], null);
+      else {
+        const subject = AA.sweepOccurrenceSubject(sweep.bodies, pick.sha256, pick.key);
+        railExec(["inspect", "part", pick.sha256, String(pick.faceId)].concat(subject ? [subject] : []), null);
+      }
+      if (bead) return;
+    }
     // THE FRAME RULE. A face is still the right face while the linkage is
     // swept, but every reason a reader has to trust what they clicked is
     // about where it was: a binding is identity, recorded against geometry

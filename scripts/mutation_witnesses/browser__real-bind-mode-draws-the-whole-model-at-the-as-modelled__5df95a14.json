@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] bind mode draws the whole model at the as-modelled pose, with no solver joint points to read",
+  "mutations": [
+    {
+      "contract": "Bind mode draws the model when its Display box asks.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "The handoff's bind-mode availability.",
+      "file": "apps/annotate/app.js",
+      "find": "    state.model.bindOn = value === undefined ? !state.model.bindOn : AA.parseOnOff(value);",
+      "replace": "    state.model.bindOn = false;"
+    }
+  ]
+}

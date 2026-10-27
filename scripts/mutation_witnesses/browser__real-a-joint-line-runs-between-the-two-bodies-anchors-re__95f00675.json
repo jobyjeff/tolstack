@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] a joint line runs between the two bodies' anchors, recomputed at the frame",
+  "mutations": [
+    {
+      "contract": "A joint line's far end is re-placed every frame.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "A stale end leaves the line pointing at the body's old place.",
+      "file": "apps/annotate/scene.js",
+      "find": "      attr.array.set(b, 3);\n      attr.needsUpdate = true;\n    }\n    this._applyModelStyle();",
+      "replace": "      attr.needsUpdate = true;\n    }\n    this._applyModelStyle();"
+    }
+  ]
+}

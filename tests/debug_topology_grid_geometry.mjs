@@ -229,7 +229,7 @@ async function bootReal() {
     window.ViewerApp.bootTopology();
   }, { projection: topologies, cropIndex: crops });
   await page.waitForSelector("tr.tvrow", { timeout: 15000 });
-  await page.locator(navRow("topology", "pitch_system")).click();
+  await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
   await settled();
 }
 
@@ -322,7 +322,7 @@ try {
   // ---- 2. the reader's sideways scroll ------------------------------------
   console.log("\n== 2. the reader's sideways scroll across a rebuild ==");
   await bootReal();
-  const pitch = topologies.topologies.find((t) => t.id === "pitch_system");
+  const pitch = topologies.topologies.find((t) => t.id === "vpa_pitch_linkage");
   const study = pitch.studies.find((s) => s.status === "ok" && s.layout);
   const atEnd = await page.evaluate(() => {
     const live = Array.from(document.querySelectorAll(".tv__hscroll"))
@@ -368,7 +368,7 @@ try {
 
   // The same question for every OTHER render of this pane -- the respine is
   // only the conspicuous one.
-  await page.locator(navRow("topology", "pitch_system")).click();
+  await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
   await settled();
   for (const control of ["#density-toggle", "#edge-length-toggle", "#leader-style-toggle"]) {
     await page.evaluate(() => {

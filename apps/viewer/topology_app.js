@@ -39,6 +39,8 @@
     // walk's elements are emphasized, which leaders are drawn and which rows
     // the grid beside them holds. The retired `layoutMode` used to live here.
     studyId: null,
+    // {axis: [value, ...]}: the nav's tag chips (VA.studyMatchesTags).
+    tagFilter: {},
     // "comfortable" (26px rows) or "compact" (16px) — a display preference,
     // not a fact about a topology or a study, so selectTopology() never resets
     // it. See VA.ROW_DENSITIES (topology.js).
@@ -59,6 +61,17 @@
     // VA.DEFAULT_LEADER_STYLE, topology.js. A display preference like the
     // three above -- selectTopology() never resets it.
     leaderStyle: VA.DEFAULT_LEADER_STYLE,
+    // "dim" | "hide" -- what the DAG does with the model outside the page's
+    // lit set (VA.UNLIT_STYLES, VA.DEFAULT_UNLIT_STYLE, topology.js). A
+    // display preference like the leader style, in-session like it, and kept
+    // across every page that has a lit set: a chain study and a kinematic
+    // study alike.
+    unlitStyle: VA.DEFAULT_UNLIT_STYLE,
+    // Which of a kinematic page's sub-stacks are open ({sub-study id: true},
+    // VA.kinematicSubStacks): the DAG's dashed field and the contributor
+    // table's group row read and write this one map, so they open and close
+    // together. In-session, like the unlit style.
+    openSubStacks: {},
     // How far the jog zone has been dragged open, as a multiple of its own
     // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
     // a pixel width precisely BECAUSE it outlives the topology it was set on:
@@ -179,6 +192,7 @@
       pane: document.getElementById("topopane"),
       stackview: document.getElementById("stackview"),
       kinematicview: document.getElementById("kinematicview"),
+      kinematichead: document.getElementById("kinematichead"),
       totals: document.getElementById("totals"),
       legendToggle: document.getElementById("legend-toggle"),
       legendDialog: document.getElementById("legend-dialog"),
@@ -231,15 +245,24 @@
     // the whole of "closing restores whatever it covered".
     nodes.flyout.addEventListener("close", function () {
       document.body.classList.remove("flyout-open");
+      // The preview pane comes back, and the scene's tree leaves the nav.
+      syncSceneColumn();
+      sceneTree = null;
+      renderNav();
       // Closed is remembered as firmly as open: the pane stays where the
       // reader left it, either way, across a reload.
       VA.writeStoredFlyoutOpen(widthStore(), false);
       paneFollowed = null;
       clearPaneHover();
       syncPaneToggle();
+      // The leaders go with the scene; it is told everything again on reopen.
+      sceneModelPosted = null;
+      sceneSelectPosted = null;
+      scheduleSeamDraw();
     });
     wirePaneHover();
     wirePaneState();
+    wireSeam();
 
     // Probe for the sibling annotate mount (study_3d_flyout, feature 3) in
     // parallel with the transport probe below — measured, never assumed, and
@@ -470,6 +493,7 @@
         state.deepLinkNotices = linked.notices;
         if (linked.mode === "kinematic") {
           selectKinematic(linked.kinematicId);
+          state.selection = linked.selection;
         } else if (linked.mode === "topology") {
           selectTopology(linked.topologyId);
           state.studyId = linked.studyId;
@@ -528,9 +552,18 @@
 
   // --- selection: kinematic mode ---------------------------------------------
 
+  // A kinematic study is a lit subset of its topology's one model
+  // (2026-10-26), so its page has the topology open underneath it: the DAG
+  // draws `state.topologyId`, and a selection on the page is an element of
+  // that topology. No chain study is selected -- the lit set is the
+  // kinematic study's own (VA.kinematicLitSet).
   function selectKinematic(studyId) {
+    var study = VA.findKinematicStudy(state.kinematic, studyId);
     state.mode = "kinematic";
     state.kinematicId = studyId;
+    state.topologyId = study ? study.topology : null;
+    state.selection = null;
+    state.studyId = null;
     state.detailImage = null;
   }
 
@@ -620,7 +653,11 @@
   }
 
   function onNavStudy(topologyId, studyId) {
-    if (state.topologyId !== topologyId) selectTopology(topologyId);
+    // From another topology, or from a kinematic study's page -- which has
+    // the topology open under it, so the id alone would match.
+    if (state.mode !== "topology" || state.topologyId !== topologyId) {
+      selectTopology(topologyId);
+    }
     state.studyId = studyId || null;
     // Selecting a study RE-SPINES (viewer_study_respine_animation), and since
     // viewer_respine_whole_walk a respine is no longer a view switch: the
@@ -636,6 +673,18 @@
     navigate(respine);
   }
 
+  // A tag chip toggles one value on its axis; the nav and the DAG both read
+  // `state.tagFilter` (VA.studyMatchesTags, VA.otherVariantParts), so a repaint
+  // is the whole of the effect. Selecting a value never changes which study is
+  // open: a study the filter hides stays on screen until the reader leaves it.
+  function onNavTag(axis, value) {
+    var values = (state.tagFilter[axis] || []).slice();
+    var at = values.indexOf(value);
+    if (at === -1) values.push(value); else values.splice(at, 1);
+    if (values.length) state.tagFilter[axis] = values; else delete state.tagFilter[axis];
+    navigate(render);
+  }
+
   function onNavStack(stackId) {
     selectStack(stackId);
     hideCrop();
@@ -648,10 +697,13 @@
   // the annotator in a new tab where it did not (file://, a server without the
   // sibling mount). It does not change what this page shows: the 3D scene IS
   // the model, and there is no page of it here to switch to.
+  // A kinematic study's page draws its topology's model with the study's
+  // lit set emphasized, so arriving on it from the same topology is a
+  // respine like a chain study's (the walk stays; the emphasis moves).
   function onNavKinematic(studyId) {
     selectKinematic(studyId);
     hideCrop();
-    navigate(rewind);
+    navigate(respine);
   }
 
   function onNavKinematicModel(topologyId, runId) {
@@ -663,17 +715,16 @@
     }
   }
 
-  // A contributor row on the kinematic page follows its edge to that edge's
-  // rail -- the same place `?topology=<id>&edge=<id>` lands, which is what the
-  // row's own href says for a reader who opens it in a new tab instead.
+  // A contributor row on the kinematic page selects its edge IN PLACE
+  // (2026-10-26): the page stays the kinematic study, the DAG beside it
+  // marks the edge, and the preview pane shows its citation and crop. The
+  // row's own href is still the `?topology=<id>&edge=<id>` deep link, for a
+  // reader who opens it in a new tab. With the 3D pane open the scene stays
+  // in sweep mode and the edge is highlighted there (followSelection).
   function onKinematicEdge(topologyId, edgeId) {
-    if (!VA.findTopology(state.topologies, topologyId)) return;
-    selectTopology(topologyId);
-    state.selection = { kind: "edge", id: edgeId };
+    if (topologyId !== state.topologyId) return;
     hideCrop();
-    navigate(function () {
-      loadDetailImage().then(rewind, rewind);
-    });
+    selectElement("edge", edgeId);
   }
 
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
@@ -734,8 +785,8 @@
   function loadDetailImage() {
     state.detailImage = null;
     var entry;
-    if (state.mode === "kinematic") return Promise.resolve();
-    if (state.mode === "topology") {
+    // Both topology-shaped pages select topology elements; stack mode its rows.
+    if (state.mode !== "stack") {
       var selection = state.selection;
       if (!selection || selection.kind !== "edge") return Promise.resolve();
       var edge = VA.topologyIndex(currentTopology()).edges[selection.id];
@@ -1166,14 +1217,28 @@
     if (!nodes.flyout || !nodes.flyout.open || !state.annotateMount) return;
     var params = currentAnnotateParams();
     var key = paramsKey(params);
-    if (key === paneFollowed) return;
-    paneFollowed = key;
-    if (params) drivePane(params);
-    refitPane();
+    if (key !== paneFollowed) {
+      paneFollowed = key;
+      if (params) drivePane(params);
+      refitPane();
+    }
+    // On a kinematic page the scene stays in sweep mode whatever is selected
+    // (VA.annotateParamsFor keeps returning the sweep), and a selected edge
+    // is HIGHLIGHTED there instead: the same `highlight` a hover posts, never
+    // a `goto`, which would take the scene out of the sweep.
+    if (state.mode === "kinematic") schedulePaneHover(selectedPaneTarget());
   }
 
-  // The page under a pane that stays changes shape -- the kinematic page has
-  // no preview pane, a chain study has one and a drawing -- so the pane's
+  // The edge a kinematic page has selected, as a hover target: what the
+  // scene shows highlighted while the pointer rests on nothing in particular.
+  function selectedPaneTarget() {
+    if (state.mode !== "kinematic" || !state.selection ||
+        state.selection.kind !== "edge") return null;
+    return { topologyId: state.topologyId, edgeId: state.selection.id };
+  }
+
+  // The page under a pane that stays changes shape -- a stack page has no
+  // DAG, a chain or kinematic study has one and a drawing -- so the pane's
   // width is re-fitted to the new page from the width the reader CHOSE, not
   // from whatever the last page squeezed it to. Not remembered: a width the
   // layout imposed is not a preference (the same rule launchAnnotate keeps).
@@ -1201,13 +1266,16 @@
     // show(), not showModal(): the page beside the panel stays clickable, so
     // the nav and every row's 3D control keep driving the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
-    // The page yields the room (topology.css's `body.flyout-open`): the page
-    // starts at the panel's right edge, so the panel sits BESIDE the nav and
-    // the graph instead of on top of them. Removed again by the dialog's own
-    // `close` event, wired once at boot.
+    // The scene is a column of the page's own row, between the nav and the
+    // DAG (topology.css's `body.flyout-open`), and on a topology or kinematic
+    // page it takes the preview pane's place. Both come off again in the
+    // dialog's own `close` event, wired once at boot.
     document.body.classList.add("flyout-open");
+    syncSceneColumn();
     VA.writeStoredFlyoutOpen(widthStore(), true);
     syncPaneToggle();
+    // The nav grows the slot the scene's tree is drawn into.
+    renderNav();
 
     // The panel's width, clamped to the room the page can spare, EVERY time it
     // opens -- and AFTER show(), which is not a detail: a closed <dialog> is
@@ -1229,18 +1297,25 @@
   // still loading, or post them to a booted one.
   function drivePane(params) {
     var href = params ? VA.annotateLink(params) : VA.ANNOTATE_PAGE;
+    // The iframe boots embedded (the annotator's rail is drawn in this page's
+    // nav); the full-page link below keeps the plain url.
+    var embedHref = VA.annotateEmbedHref(href);
+    // The tree in the nav is the scene's answer about what it is showing,
+    // like the head line: gone until the re-driven scene sends its own.
+    sceneTree = null;
+    renderSceneSlot();
     if (!flyoutFrame) {
       flyoutFrame = document.createElement("iframe");
       flyoutFrame.className = "flyout__frame";
       flyoutFrame.setAttribute("title", "3D annotation panel");
       flyoutFrame.addEventListener("load", function () { flyoutLoaded = true; });
-      flyoutFrame.src = href;
+      flyoutFrame.src = embedHref;
       nodes.flyout.appendChild(flyoutFrame);
     } else if (!flyoutLoaded) {
       // The iframe exists but its document is still loading, so its message
       // listener may not be registered yet and a postMessage would be lost --
       // re-point the boot URL at the new params instead.
-      if (params) flyoutFrame.src = href;
+      if (params) flyoutFrame.src = embedHref;
     } else if (params) {
       VA.annotateExecCommands(params).forEach(postToPane);
     }
@@ -1300,9 +1375,97 @@
       if (!flyoutFrame || event.source !== flyoutFrame.contentWindow) return;
       if (event.origin !== window.location.origin) return;
       var msg = event.data;
+      if (msg && msg.type === "annotate:tree") {
+        sceneTree = msg;
+        renderSceneSlot();
+        followScenePick(msg);
+        return;
+      }
+      if (msg && msg.type === VA.SCENE_ANCHORS_MESSAGE) {
+        seamAnchors = msg.nodes || {};
+        scheduleSeamDraw();
+        return;
+      }
       if (!msg || msg.type !== "annotate:state") return;
       setPaneTitle(msg.title || null);
+      // The scene has just (re)loaded what it shows: it is told the page's
+      // lit set and dim-or-hide word again, whatever it was told before.
+      sceneModelPosted = null;
+      sceneSelectPosted = null;
+      syncSceneModel();
     });
+  }
+
+  // --- the scene's tree, under the study row (the_shell_seats_the_scene_
+  // beside_the_model, deliverable 3) -----------------------------------------
+  //
+  // The annotator, embedded, sends the rows its own rail has just rendered
+  // ({type: "annotate:tree"}, app.js's postEmbedTree) and this page draws them
+  // in the nav under the row the scene is showing (views/nav.js's
+  // renderSceneTree). A gesture on one goes back as {type: "annotate:rail",
+  // key, act, index?} and the annotator runs it on the row it mirrors -- so
+  // what a row says and what it does are both the annotator's, and this page
+  // keeps no copy of either. The type chips' state is the annotator's too.
+  var sceneTree = null;
+
+  function sceneRail(key, act, index) {
+    if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;
+    var msg = { type: "annotate:rail", key: key, act: act };
+    if (typeof index === "number") msg.index = index;
+    flyoutFrame.contentWindow.postMessage(msg, window.location.origin);
+  }
+
+  // Which mirrored row (and which control in it) has focus, so a rebuilt
+  // tree puts the keyboard back where it was.
+  function sceneFocus(slot) {
+    var active = typeof document !== "undefined" ? document.activeElement : null;
+    if (!active || !slot.contains || !slot.contains(active)) return null;
+    var row = active.closest && active.closest("[data-scene-key]");
+    return row ? { key: row.getAttribute("data-scene-key"),
+      part: active.getAttribute("data-scene-part") || "" } : null;
+  }
+
+  function renderSceneSlot() {
+    var slot = nodes.navtree && nodes.navtree.querySelector
+      ? nodes.navtree.querySelector(".navtree__scene") : null;
+    if (!slot) return;
+    var focus = sceneFocus(slot);
+    var wasEmpty = !slot.childNodes || !slot.childNodes.length;
+    VA.renderSceneTree(slot, sceneTree, { send: sceneRail });
+    if (wasEmpty && sceneTree) revealSceneRow(slot);
+    if (!focus) return;
+    var rows = slot.querySelectorAll("[data-scene-key]");
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].getAttribute("data-scene-key") !== focus.key) continue;
+      var target = focus.part
+        ? rows[i].querySelector('[data-scene-part="' + focus.part + '"]') : rows[i];
+      if (target && target.focus) target.focus();
+      break;
+    }
+  }
+
+  // The tree arriving under a row the nav has scrolled away from brings
+  // that row up to the top of the nav, once per arrival -- never on a
+  // refresh, which would yank the reader's own scrolling back.
+  function revealSceneRow(slot) {
+    var nav = nodes.navtree;
+    var row = slot.parentNode && slot.parentNode.firstChild;
+    if (!nav || !row || !row.getBoundingClientRect || !nav.getBoundingClientRect) return;
+    var n = nav.getBoundingClientRect();
+    var r = row.getBoundingClientRect();
+    if (r.top >= n.top && r.top <= n.top + n.height / 2) return;
+    nav.scrollTop += r.top - n.top - 8;
+  }
+
+  // The preview pane stands down while the scene is open on a page with a
+  // DAG -- every page but a stack's, which has none to make room for -- and
+  // comes back when it closes (topology.css's `body.flyout-replaces-detail`).
+  function syncSceneColumn() {
+    if (typeof document === "undefined" || !document.body ||
+        !document.body.classList || !document.body.classList.toggle) return;
+    var open = !!(nodes.flyout && nodes.flyout.open);
+    document.body.classList.toggle("flyout-replaces-detail",
+      open && state.mode !== "stack");
   }
 
   // --- hover crosses the seam (deliverable 3) --------------------------------
@@ -1355,8 +1518,224 @@
     if (typeof document === "undefined" || !document.addEventListener) return;
     document.addEventListener("mouseover", function (event) {
       if (!nodes.flyout || !nodes.flyout.open) return;
-      schedulePaneHover(paneHoverTarget(event.target));
+      // The scene's own tree in the nav lights its rows itself (sceneRail).
+      if (event.target && event.target.closest &&
+          event.target.closest(".navtree__scene")) return;
+      // Resting on nothing falls back to the page's selected edge, where it
+      // has one, rather than clearing the scene's highlight under it.
+      schedulePaneHover(paneHoverTarget(event.target) || selectedPaneTarget());
     });
+  }
+
+  // --- the leaders across the seam (leaders_follow_the_active_study_across_
+  // the_seam) -----------------------------------------------------------------
+  //
+  // One page-level SVG over the DAG and the scene draws a leader from each
+  // node of the active study's lit set to where the scene draws that node:
+  // the scene posts its anchors (`annotate:anchors`, in the iframe's own CSS
+  // pixels), the pane publishes its dots (VA.lastTopoRender.seam, in the rails
+  // SVG's), and this adds the two rects and draws (VA.seamLeaderGeometry).
+  // Re-drawn on every anchors message, every pane paint (a respine's frames
+  // included), every scroll and every resize -- one ResizeObserver, one
+  // measurement of the three rects per draw, at most one draw per frame.
+  //
+  // The DAG↔grid leaders stay in the rails SVG they are drawn in: they share
+  // that SVG's scroll exactly, and an overlay redrawn on a scroll event lags
+  // a compositor-scrolled pane by a frame. What makes the two one picture is
+  // the one selection rule (VA.selectedLeaderNodes) both read.
+  var seamAnchors = null;
+  var seamSvg = null;
+  var seamFrame = null;
+  var seamDraws = 0;
+  // The pane's hover key (`node|<id>`, `edge|<id>`), for the lighter emphasis.
+  var paneHot = null;
+  // What the scene was last told, so a paint that changed nothing posts nothing.
+  var sceneModelPosted = null;
+  var sceneSelectPosted = null;
+  // The selection the grid was last scrolled to, and the scene tree's last
+  // selected row: both act on a CHANGE only.
+  var seamScrolledTo = null;
+  var sceneTreeSelected = null;
+
+  function seamOverlay() {
+    if (seamSvg || typeof document === "undefined" || !document.body) return seamSvg;
+    seamSvg = VA.svg("svg", "seamleaders");
+    seamSvg.setAttribute("aria-hidden", "true");
+    document.body.appendChild(seamSvg);
+    return seamSvg;
+  }
+
+  function scheduleSeamDraw() {
+    if (seamFrame !== null) return;
+    var raf = (typeof window !== "undefined" && window.requestAnimationFrame)
+      ? window.requestAnimationFrame.bind(window)
+      : function (fn) { return setTimeout(fn, 16); };
+    seamFrame = raf(function () { seamFrame = null; drawSeamLeaders(); });
+  }
+
+  // The page's lit set, as the pane emphasizes it: a kinematic study's own,
+  // a chain study's chain, or null (the whole walk -- no leader at all).
+  function pageLitSet() {
+    var topoProj = currentTopology();
+    if (state.mode === "kinematic") {
+      return VA.kinematicLitSet(VA.findKinematicStudy(state.kinematic, state.kinematicId),
+        topoProj);
+    }
+    return state.mode === "topology" ? VA.studyLitSet(currentStudy()) : null;
+  }
+
+  function drawSeamLeaders() {
+    var svg = seamOverlay();
+    if (!svg) return null;
+    var clock = typeof performance !== "undefined" && performance.now
+      ? function () { return performance.now(); } : function () { return Date.now(); };
+    var started = clock();
+    var drawn = VA.lastTopoRender;
+    var topoProj = currentTopology();
+    var rails = nodes.pane && nodes.pane.querySelector
+      ? nodes.pane.querySelector(".tv__hscroll svg.tv__rails") : null;
+    if (!nodes.flyout || !nodes.flyout.open || !flyoutFrame || !seamAnchors ||
+        !rails || !drawn || !drawn.seam || !topoProj ||
+        drawn.topologyId !== topoProj.id || nodes.pane.style.display === "none") {
+      VA.clear(svg);
+      VA.lastSeamDraw = null;
+      return null;
+    }
+    var r = rails.getBoundingClientRect();
+    var f = flyoutFrame.getBoundingClientRect();
+    var p = nodes.pane.getBoundingClientRect();
+    var head = nodes.pane.querySelector(".tv__hscroll .tv__head");
+    var bottom = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : Infinity;
+    var dots = {};
+    Object.keys(drawn.seam.dots).forEach(function (id) {
+      var d = drawn.seam.dots[id];
+      dots[id] = [r.left + d[0], r.top + d[1]];
+    });
+    var fx = f.left + (flyoutFrame.clientLeft || 0);
+    var fy = f.top + (flyoutFrame.clientTop || 0);
+    var anchors = {};
+    Object.keys(seamAnchors).forEach(function (id) {
+      var a = seamAnchors[id];
+      anchors[id] = a ? [fx + a[0], fy + a[1]] : null;
+    });
+    var geo = VA.seamLeaderGeometry({
+      dots: dots, anchors: anchors, bendX: r.left + drawn.seam.bend,
+      // Under the pane's sticky head, inside the pane, inside the window.
+      dotClip: { left: p.left, right: p.right,
+                 top: Math.max(p.top, head ? head.getBoundingClientRect().bottom : p.top, 0),
+                 bottom: Math.min(p.bottom, bottom) },
+      anchorClip: { left: f.left, right: f.right, top: Math.max(f.top, 0),
+                    bottom: Math.min(f.bottom, bottom) },
+    });
+    var states = VA.seamLeaderStates(geo.leaders.map(function (l) { return l.id; }),
+      state.selection, paneHot, VA.topologyIndex(topoProj));
+    VA.renderSeamLeaders(svg, geo, states);
+    seamDraws++;
+    // For a harness: what was drawn, and what it cost.
+    VA.lastSeamDraw = { leaders: geo.leaders, crossings: geo.crossings,
+      skipped: geo.skipped, states: states, ms: clock() - started, draws: seamDraws };
+    return geo;
+  }
+
+  // The scene is told the page's lit set and dim-or-hide word (its `model`
+  // verb), and a selected node is selected in its layer too -- an edge is
+  // highlighted through the `highlight` a kinematic page already posts
+  // (followSelection). Each only when it changed, and only to a loaded scene.
+  function syncSceneModel() {
+    if (!nodes.flyout || !nodes.flyout.open || !flyoutLoaded) return;
+    var model = [VA.sceneLitCommand(pageLitSet()), ["model", "unlit", state.unlitStyle]];
+    var key = JSON.stringify(model);
+    if (key !== sceneModelPosted && model.every(postToPane)) sceneModelPosted = key;
+    var sel = state.selection && state.selection.kind === "node"
+      ? ["model", "select", "node", state.selection.id] : ["model", "select", "clear"];
+    var selKey = sel.join(" ");
+    if (selKey !== sceneSelectPosted && postToPane(sel)) sceneSelectPosted = selKey;
+  }
+
+  // A selection made anywhere brings its grid row into view -- an edge's own
+  // row, a node's the row its DAG↔grid leader lands above -- together with the
+  // element's own mark on the DAG when the two fit in the box at once, so all
+  // three ends of its leaders are on screen. Only the pane's OWN scroll moves
+  // (the kinematic page's bounded box), never the document's: `scrollIntoView`
+  // would scroll the page too, sliding another row under a pointer that has
+  // not moved, and that row's hover would take the scene's highlight off the
+  // selection.
+  function scrollSelectionIntoView() {
+    var sel = state.selection;
+    var key = sel ? sel.kind + "|" + sel.id : null;
+    if (key === seamScrolledTo) return;
+    seamScrolledTo = key;
+    var box = nodes.pane;
+    if (!sel || !box || !box.querySelector || !(box.scrollHeight > box.clientHeight)) return;
+    var edgeId = sel.id;
+    if (sel.kind === "node") {
+      var leader = box.querySelector('path.rail__leaderhit[data-leader-id="' + sel.id + '"]');
+      edgeId = leader ? leader.getAttribute("data-boundary-edge") : null;
+    }
+    var row = edgeId ? box.querySelector('tr.tvrow[data-id="' + edgeId + '"]') : null;
+    if (!row || !row.getBoundingClientRect) return;
+    var mark = box.querySelector('svg.tv__rails [data-row-kind="' + sel.kind + '"][data-id="' +
+      sel.id + '"]');
+    var b = box.getBoundingClientRect();
+    var head = box.querySelector(".tv__hscroll .tv__head");
+    var top = b.top + (head ? head.offsetHeight : 0);
+    var r = row.getBoundingClientRect();
+    var lo = r.top;
+    var hi = r.bottom;
+    if (mark && mark.getBoundingClientRect) {
+      var m = mark.getBoundingClientRect();
+      if (Math.max(hi, m.bottom) - Math.min(lo, m.top) <= b.bottom - top) {
+        lo = Math.min(lo, m.top);
+        hi = Math.max(hi, m.bottom);
+      }
+    }
+    if (lo < top) box.scrollTop -= top - lo;
+    else if (hi > b.bottom) box.scrollTop += hi - b.bottom;
+  }
+
+  // A pick in the scene selects its row in the scene's rail, and the tree it
+  // sends here marks that row: a newly selected row naming an element of this
+  // page's topology selects it here (VA.sceneRowElement), so the pick and a
+  // click on its contributor row arrive at the same state.
+  function followScenePick(tree) {
+    var found = null;
+    var walk = function (rows) {
+      (rows || []).forEach(function (row) {
+        if (row.selected) found = row.key;
+        walk(row.rows);
+      });
+    };
+    walk(tree && tree.rows);
+    if (found === sceneTreeSelected) return;
+    sceneTreeSelected = found;
+    var target = VA.sceneRowElement(found, currentTopology(), pageLitSet());
+    if (!target || (state.selection && state.selection.kind === target.kind &&
+        state.selection.id === target.id)) return;
+    hideCrop();
+    selectElement(target.kind, target.id);
+  }
+
+  // After every paint: the scene told, the grid row brought up, the leaders
+  // re-drawn.
+  function followSeam() {
+    syncSceneModel();
+    scrollSelectionIntoView();
+    scheduleSeamDraw();
+  }
+
+  function wireSeam() {
+    if (typeof window === "undefined" || !document.addEventListener) return;
+    // The pane's own scroll as well as the page's: captured, since a scroll
+    // does not bubble.
+    document.addEventListener("scroll", scheduleSeamDraw, true);
+    if (typeof ResizeObserver === "function") {
+      var observer = new ResizeObserver(scheduleSeamDraw);
+      [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {
+        if (n) observer.observe(n);
+      });
+    } else {
+      window.addEventListener("resize", scheduleSeamDraw);
+    }
   }
 
   // --- the two resize drags (viewer_leader_grid_legibility) ----------------
@@ -1460,11 +1839,10 @@
   // nothing to measure (the DOM shim), which the clamp reads as "no layout to
   // go on" and answers with its px max.
   // The width the panel and the page's own content are dividing: the window,
-  // less what sits to the RIGHT of the graph and less the nav rail. The rail
-  // stood down while the panel was open until 2026-10-20; the panel now
-  // follows what the rail selects (the_3d_pane_opens_in_the_mode_the_study_
-  // wants), so the rail stays, between the panel and the graph, and its width
-  // is not the panel's to take.
+  // less what sits to the RIGHT of the graph (the preview pane, where it has
+  // not stood down for the scene) and less the nav, which sits LEFT of the
+  // scene since 2026-10-26 (the_shell_seats_the_scene_beside_the_model) and
+  // whose width is not the scene's to take.
   //
   // Deliberately reads neither the panel nor the page shift, so there is no
   // circularity: every term it does read (the window, the preview pane, the
@@ -1506,12 +1884,6 @@
   function applyFlyoutWidth() {
     if (!nodes.flyout || state.flyoutWidth === null) return;
     nodes.flyout.style.width = state.flyoutWidth + "px";
-    // ...and to the stylesheet, which is what shifts the page out from under
-    // the panel (topology.css's `body.flyout-open`). Written here rather than
-    // on open only, so the page follows the seam on every frame of a drag.
-    if (document.body && document.body.style.setProperty) {
-      document.body.style.setProperty("--flyout-width", state.flyoutWidth + "px");
-    }
   }
 
   // What a drag on the flyout's divider measures FROM -- the same three-way
@@ -1693,22 +2065,26 @@
     var showTopology = state.mode === "topology";
     var showKinematic = state.mode === "kinematic";
     var showStack = !showTopology && !showKinematic;
+    var kinematicStudy = showKinematic
+      ? VA.findKinematicStudy(state.kinematic, state.kinematicId) : null;
+    // The kinematic page draws its topology's model between its head and its
+    // body (2026-10-26): the same DAG a chain study's page draws, with the
+    // kinematic study's lit set in place of a chain. A study whose topology
+    // the projection does not carry has no model to draw.
+    var showDag = showTopology || (showKinematic && !!topoProj);
 
-    nodes.toolbar.style.display = showTopology ? "" : "none";
+    nodes.toolbar.style.display = showDag ? "" : "none";
     nodes.topojoint.style.display = showTopology ? "" : "none";
-    nodes.pane.style.display = showTopology ? "" : "none";
+    nodes.pane.style.display = showDag ? "" : "none";
     nodes.totals.style.display = showTopology ? "" : "none";
     nodes.stackview.style.display = showStack ? "" : "none";
-    // The kinematic page is a whole page and has nothing for the preview pane
-    // to preview -- a contributor row follows its edge to the rail instead --
-    // so the pane and its divider stand down and give the chart the width.
     if (nodes.kinematicview) {
       nodes.kinematicview.style.display = showKinematic ? "" : "none";
     }
-    nodes.detail.style.display = showKinematic ? "none" : "";
-    if (nodes.detailDivider) {
-      nodes.detailDivider.style.display = showKinematic ? "none" : "";
+    if (nodes.kinematichead) {
+      nodes.kinematichead.style.display = showKinematic ? "" : "none";
     }
+
     // The legend ("how to read the rails") is a topology-mode concept, always
     // offered there. The worksheet is offered wherever the SELECTED node
     // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
@@ -1737,9 +2113,38 @@
     if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
     if (!hasWorksheet && nodes.worksheetDialog.open) nodes.worksheetDialog.close();
 
-    if (showTopology) {
+    // The pane is rebuilt below, so whatever it had under the pointer is gone.
+    paneHot = null;
+    if (showDag) {
       var ctx = {
-        topoProj: topoProj, study: study, crops: state.crops,
+        topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
+        // The kinematic page's lit set; a chain study's is read off `study`.
+        lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
+        // ...whose model is a bounded box, so the numbers under it are a
+        // scroll away rather than a model's height away (topology.css).
+        bounded: showKinematic,
+        scrollToGrid: showKinematic && (paneToGrid || serialisation() !== paintedSerialisation),
+        // Where a contributor borrows its band from another edge, the
+        // preview pane says so and links to it (VA.kinematicBandEdges).
+        bandEdges: showKinematic ? VA.kinematicBandEdges(kinematicStudy) : null,
+        unlitStyle: state.unlitStyle,
+        // The bodies the reader has folded, remembered per topology
+        // (VA.readCollapsedBodies), and the sub-stacks a kinematic page
+        // draws inside them with their shared open state.
+        // No projection published: the pane says so and draws no body.
+        collapsedBodies: topoProj ? VA.readCollapsedBodies(widthStore(), topoProj.id) : null,
+        onToggleBody: function (bodyId) {
+          if (!topoProj) return;
+          var collapsed = VA.readCollapsedBodies(widthStore(), topoProj.id);
+          if (collapsed[bodyId]) delete collapsed[bodyId];
+          else collapsed[bodyId] = true;
+          VA.writeCollapsedBodies(widthStore(), topoProj.id, collapsed);
+          render();
+        },
+        subStacks: showKinematic ? VA.kinematicSubStacks(kinematicStudy,
+          state.kinematic && state.kinematic.display_decimals) : null,
+        openSubStacks: state.openSubStacks,
+        onToggleSubStack: toggleSubStack,
         // The same config the stack pane and the popovers get: since the
         // preview pane started rendering the crop's links through the shared
         // VA.cropReference (viewer_component_names_and_reference_copy) it
@@ -1748,6 +2153,10 @@
         selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: state.edgeLengthMode,
+        // The lit-set rule's second reason: parts of a body tagged with a
+        // variant the reader did not select (VA.otherVariantParts).
+        otherVariantParts: VA.otherVariantParts(topoProj, state.tagFilter,
+          state.topologies && state.topologies.variant_axis),
         // The two leader-legibility preferences (viewer_leader_grid_
         // legibility): which style a leader is drawn in, and how far the jog
         // zone has been dragged open. The grips the pane renders for the
@@ -1761,6 +2170,10 @@
         // itself is ensureThumbImages below, fired after this paint.
         cropImages: imageCache,
         onSelect: selectElement, onCropShow: showCrop,
+        // The leaders across the seam light with the pane's hover, and are
+        // re-drawn after every paint of it (a respine's frames included).
+        onHot: function (key) { paneHot = key; scheduleSeamDraw(); },
+        onPainted: scheduleSeamDraw,
         // The hover reference cards (viewer_hover_cards_and_deep_links): the
         // crop trigger, the merged component cell and the confidence chip all
         // open one through this, into the same positioned popover node.
@@ -1806,8 +2219,15 @@
         // "View in 3D" (study_3d_flyout): the toolbar builds the params
         // (topology + study + trace), this just launches them.
         onStudy3d: launchAnnotate,
+        // Dim or hide the model outside the lit set: which rows are on
+        // screen changes, so the pane goes back to the top -- rewind().
+        onUnlitStyle: function () {
+          var style = VA.UNLIT_STYLES[state.unlitStyle];
+          state.unlitStyle = style ? style.next : VA.DEFAULT_UNLIT_STYLE;
+          rewind();
+        },
       });
-      VA.renderTopoJoint(nodes.topojoint, topoProj);
+      if (showTopology) VA.renderTopoJoint(nodes.topojoint, topoProj);
       if (respineStart && respineStart.topologyId === topoProj.id) {
         // `onError` puts an animation frame's throw on the SAME seam every
         // other render on this page uses: a frame runs off a rAF callback,
@@ -1818,20 +2238,29 @@
       } else {
         VA.renderTopoPane(nodes.pane, ctx);
       }
-      VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
+      if (showTopology) {
+        VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
+      }
       VA.renderTopoDetail(nodes.detail, ctx);
       ensureThumbImages(topoProj);
-    } else if (showKinematic) {
-      VA.renderKinematic(nodes.kinematicview, {
+    }
+    if (showKinematic && !showDag) VA.clear(nodes.detail);
+    if (showKinematic) {
+      var kinematicCtx = {
         kinematic: state.kinematic,
-        study: VA.findKinematicStudy(state.kinematic, state.kinematicId),
+        study: kinematicStudy,
         topologies: state.topologies,
+        selection: state.selection,
         onEdge: onKinematicEdge,
+        openSubStacks: state.openSubStacks,
+        onToggleSubStack: toggleSubStack,
         annotateMount: state.annotateMount,
         onAttach3d: launchAnnotate,
         onCardShow: showCard,
-      });
-    } else {
+      };
+      if (nodes.kinematichead) VA.renderKinematicHead(nodes.kinematichead, kinematicCtx);
+      VA.renderKinematic(nodes.kinematicview, kinematicCtx);
+    } else if (showStack) {
       VA.renderStack(nodes.stackview, stackProj, state.crops, {
         onCropShow: showCrop,
         onCardShow: showCard,
@@ -1844,6 +2273,8 @@
 
     VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
 
+    paneToGrid = false;
+
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays
     // the target's throughout one.
@@ -1852,7 +2283,9 @@
     // The head's 3D control, and an open pane following what was just
     // selected -- after the paint, so the views' own state is settled.
     syncPaneToggle();
+    syncSceneColumn();
     followSelection();
+    followSeam();
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its
@@ -1878,6 +2311,7 @@
     VA.renderNavTree(nodes.navtree, tree, state, {
       onTopology: onNavTopology,
       onStudy: onNavStudy,
+      onTag: onNavTag,
       onStack: onNavStack,
       onKinematic: onNavKinematic,
       onKinematicModel: onNavKinematicModel,
@@ -1888,7 +2322,11 @@
       // would be clipped -- and the shared node is `position: fixed`, which is
       // the reason it is not.
       onCardShow: showCard,
+      // The open scene's own tree goes under the row it is showing
+      // (renderSceneSlot, below); a closed scene has no slot at all.
+      sceneSlot: !!(nodes.flyout && nodes.flyout.open),
     });
+    renderSceneSlot();
   }
 
   // Re-render with the rows/rows-equivalent scrolled back to the top. Only the
@@ -1931,9 +2369,28 @@
     rewind();
   }
 
-  function rewind() {
+  // The kinematic page's model is a bounded box (topology.css), and its grid
+  // -- the lit rows, the ones the page is about -- is centred against the
+  // whole walk, so on a product-sized model it starts a long way down. On
+  // arriving at the page, and on a control that re-lays the walk, the box is
+  // scrolled to put that grid at its top; any other repaint keeps the box
+  // where the reader left it.
+  var paneToGrid = false;
+
+  // A kinematic page's sub-stack opened or closed, from the DAG's label or the
+  // table's group row: one map, one repaint, both surfaces follow.
+  function toggleSubStack(id) {
+    if (state.openSubStacks[id]) delete state.openSubStacks[id];
+    else state.openSubStacks[id] = true;
     render();
-    if (nodes.pane) nodes.pane.scrollTop = 0;
+  }
+
+  function rewind() {
+    paneToGrid = true;
+    render();
+    // The kinematic page's bounded model box is scrolled by its own paint
+    // (paneToGrid, below); every other page's pane goes back to the top.
+    if (nodes.pane && state.mode !== "kinematic") nodes.pane.scrollTop = 0;
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
     if (nodes.kinematicview) nodes.kinematicview.scrollTop = 0;
   }

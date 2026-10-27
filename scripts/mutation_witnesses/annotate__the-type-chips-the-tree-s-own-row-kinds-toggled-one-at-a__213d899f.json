@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the type chips: the tree's own row kinds, toggled one at a time, remembered, and anything unreadable is nothing hidden",
+  "mutations": [
+    {
+      "contract": "Pressing a chip again shows the kind it hid.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "A chip that only ever hides cannot be undone.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      return k === kind ? !on : (hidden || []).indexOf(k) !== -1;",
+      "replace": "      return k === kind ? true : (hidden || []).indexOf(k) !== -1;"
+    }
+  ]
+}

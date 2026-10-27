@@ -7,6 +7,7 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md
 strategy: docs/strategy/BRIEF_20260916_topology_page_number_reach.md
+handoff: docs/sessions/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md
 ---
 
 # With the 3D pane open, a chain study page leaves the DAG a narrow strip
@@ -47,3 +48,14 @@ same edge.
 The decision is a layout call for a strategy session. The handoff that
 introduced it kept the rail visible because its definition of done selects
 studies in the nav while the pane is open.
+
+## Addendum 2026-10-26 — fixed by the_shell_seats_the_scene_beside_the_model
+
+Option 1 (the preview pane stands down while the scene is open), plus the
+order nav | scene | DAG + grid and a scene floor under the preview pane's
+width. Measured by the browser tier on the live
+`vpa_pitch_linkage_travel_between_end_stops` page at 1600 wide: the DAG + grid
+get **900px** with the scene at its 400px floor, against **739px** with no
+scene open (preview pane at its 560px default). Pinned by
+`[real] on a chain study at 1600 wide, the DAG and grid get at least as much
+room with the scene at its floor as with no scene open`.

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the pane's iframe boots the annotator embedded -- the launch's own link plus embedded=1, never on the full-page link",
+  "mutations": [
+    {
+      "contract": "The pane's iframe carries embedded=1 so the annotator hides its rail and mirrors it into the nav.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "Without the flag the annotator boots as the full page inside the column: two left-hand menus again.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    return href + (href.indexOf(\"?\") === -1 ? \"?\" : \"&\") + \"embedded=1\";",
+      "replace": "    return href;"
+    }
+  ]
+}
