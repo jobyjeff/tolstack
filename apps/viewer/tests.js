@@ -16554,7 +16554,7 @@
           });
 
         await test("[real] every live body's container is the builder's own block, " +
-          "and every body of the product model is one per component it has parts in", function () {
+          "and every body of the product model is exactly one", function () {
             realKinTopologies.topologies.forEach(function (topo) {
               if (!topo.layout) return;
               eq(VA.bodySpans(topo.layout.rows), topo.layout.bodies || [],

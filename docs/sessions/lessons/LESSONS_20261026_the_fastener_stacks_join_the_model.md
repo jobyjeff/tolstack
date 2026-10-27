@@ -149,3 +149,35 @@ Heredocs through the Bash tool still eat backslashes (`\d`, `\n`); every script
 that needed a regex was written to a scratch file first. A temporary `eq` that
 logs instead of throwing gave every stale number in one run and replaced about
 twenty one-failure-at-a-time reruns; it was reverted before the commit.
+
+## Verification record (final)
+
+- **Default tier, worktree:** `venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`:
+  311 s, 1 failed (`test_viewer_js_suite`, the documented worktree red), 1573 passed,
+  1 skipped; recorded with `dispatch suite-time` (inside budget). A later full run
+  (22 min) overlapped a browser run and a witness run and is not a timing; it
+  showed 7 reds: the viewer-suite one; `test_annotate_js_suite` (its `[real]` joint
+  check reads the MAIN checkout's old projection by a hard-coded path, so it is red
+  in a worktree until the batch merge rebuilds it; green, 235/235, against the
+  rebuilt scratch projection); and five mutation-witness tests, fixed after it by
+  restoring one guard title (`...is exactly one`, which its spec names) and writing
+  the new census into `DECLARED_GUARDS` (fast names `ca39ac18b99c`, browser 640 /
+  607 / `e1ca18829a97`). Those two files re-run: 40 passed.
+- **Viewer `[real]`:** 580/580 plus the one named SKIP, on projections rebuilt from
+  the committed tree. **Annotate:** 235/235 likewise.
+- **Browser tier** (`--repo <scratch root>`, node_modules junctioned for the run):
+  29/32 on the full run; `crop lightbox` and `3D pane follows the selection` pass
+  alone (flakes under load: the box was shared); `annotate rail and scene` 20/22,
+  the two gap-badge checks already filed on integration
+  (`ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has.md`).
+- **Mutation witnesses:** NOT run for real. `--changed-since integration --repo
+  <main checkout>` selected 12 entries and skipped them all as "tier already red",
+  because the main checkout still has the pre-fold projections. They run at the batch
+  merge, after the rebuild. The three guards I retitled have no spec; the one with a
+  spec kept its title.
+- **Browser checks changed because the page got taller (4394px, 61 leaders):** the
+  rail-hover loop dismisses a lingering node card (it covered the last rails), and a
+  clear-point helper falls back to dispatching the event when a leader's 14px hit
+  stroke covers a whole cell.
+- I tried to stop my own witness run with `taskkill /IM chrome.exe`; the permission
+  check denied it, correctly (it would have killed other agents' browsers).
