@@ -2557,7 +2557,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
       const ids = realProjection.topologies.map((t) => t.id);
       push("[real] both MVP topologies are offered",
-        ids.includes("pitch_system") && ids.includes("vpa_output_to_pitch_plate"));
+        ids.includes("vpa_pitch_linkage") && ids.includes("vpa_output_to_pitch_plate"));
 
       for (const topology of realProjection.topologies) {
         await page.locator(navRow("topology", topology.id)).click();
@@ -2620,7 +2620,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           "worksheet_file is set",
           (await page.locator("#worksheet-toggle").isVisible()) ===
             !!topology.worksheet_file);
-        if (topology.id === "pitch_system" && topology.worksheet_file) {
+        if (topology.id === "vpa_pitch_linkage" && topology.worksheet_file) {
           // The real-projection swap above (`demoTopologyFixture`) wires
           // `topologies`/`crops`/`images` only, not `texts` — WORKSHEET_*.md's
           // own content, over this seam, is unreachable without a second
@@ -2940,7 +2940,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // hit path really makes a 2px line hoverable with a REAL pointer, and
       // whether the emphasis is actually PAINTED -- a class name would pass
       // through a stylesheet typo untouched.
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       await dismissCard(page);
       // Everything lit, with the one coordinate that says which column each
@@ -3166,10 +3166,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // length, at least one narrow one floored). Leaders re-measured at
       // every stop: the grid stays evenly spaced while the DAG stretches,
       // which is what the jogged leaders exist to absorb.
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const realBars = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
-        { topologyId: "pitch_system", mode });
+        { topologyId: "vpa_pitch_linkage", mode });
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
       const realTol = await realBars("tolerance");
@@ -3305,7 +3305,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // Back to angled, so everything below this sees the default it expects.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // ...and the three OLDER display preferences, whose precedent both docs
@@ -3348,7 +3348,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("#edge-length-toggle").click();
       await page.locator("#edge-value-toggle").click();
       await page.waitForTimeout(80);
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // The preview pane over a real citation, with a real crop behind it.
@@ -3418,7 +3418,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         return page.evaluate(() =>
           Math.round(document.getElementById("detail").getBoundingClientRect().width));
       };
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const paneAtStart = await page.evaluate(() =>
         Math.round(document.getElementById("detail").getBoundingClientRect().width));
@@ -3716,9 +3716,9 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       }, { projection: realProjection, crops: realCrops });
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
-      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-      const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+      const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
       const okStudy = pitch && pitch.studies.find((s) => s.status === "ok");
       if (okStudy) {
         await page.locator(navRow("study", okStudy.id)).click();
@@ -3727,7 +3727,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
         // Deselect, same reason as the mock block above: the height
         // contracts are about the whole serialisation's own table.
-        await page.locator(navRow("topology", "pitch_system")).click();
+        await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
         await page.waitForFunction(
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
       }
@@ -4566,7 +4566,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
 
       // A deep link opens the viewer with the named study selected.
       await page.goto(url + "/apps/viewer/topology.html" +
-        "?topology=pitch_system&study=pitch_system_gas_spring_branch",
+        "?topology=vpa_pitch_linkage&study=pitch_system_gas_spring_branch",
         { waitUntil: "load" });
       await page.waitForSelector("tfoot.tvfoot", { timeout: 15000 });
       push("[real] a deep link opens the named study selected, over the real " +
@@ -4631,7 +4631,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       // most interesting one to hover is the boundary with the most
       // crop-bearing parts around it.
       const boundary = realProjection && (() => {
-        const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+        const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
         if (!pitch) return null;
         const sides = {}, cropped = {};
         pitch.edges.forEach((e) => {
@@ -8325,10 +8325,10 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       window.ViewerApp.bootTopology();
     }, { projection: realProjection, crops: realCrops });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
-    await page.locator(navRow("topology", "pitch_system")).click();
+    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
     await settled();
 
-    const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+    const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
     const study = pitch.studies.find((s) => s.status === "ok" && s.layout);
     const walk = await geometry();
     push("[real] the walk is the default layout and it settled clean",
@@ -8345,7 +8345,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     await page.locator(navRow("study", study.id)).click();
     await settled();
     const chainSettled = await geometry();
-    await page.locator(navRow("topology", "pitch_system")).click();
+    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
     await settled();
 
     await page.locator(navRow("study", study.id)).click();
@@ -8423,7 +8423,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // in-session state and survives a selection, so the modes are cycled
     // once around the outside of the pair of routes.
     const modes = ["uniform", "tolerance", "absolute"];
-    const walkRow = navRow("topology", "pitch_system");
+    const walkRow = navRow("topology", "vpa_pitch_linkage");
     const studyRow = navRow("study", study.id);
     let chainUniform = null;
     for (let i = 0; i < modes.length; i++) {
