@@ -224,7 +224,7 @@ def test_check_row_matches_fold_and_stays_visibly_not_clean():
 
 def test_study_element_rows_match_the_chain_one_for_one():
     study = load_study(TOPOLOGIES_DIR / "study_vpa_output_shank_out.json")
-    topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_output_to_pitch_plate.json")
+    topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json")
     result = summarize(topology, study)
     rows = E.element_rows_for_study(study.id, result.chain)
     assert [r["element_id"] for r in rows] == [c.edge.dimension.id for c in result.chain]
@@ -234,7 +234,7 @@ def test_study_element_rows_match_the_chain_one_for_one():
 
 def test_study_fold_row_matches_summarize_exactly():
     study = load_study(TOPOLOGIES_DIR / "study_vpa_output_shank_out.json")
-    topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_output_to_pitch_plate.json")
+    topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json")
     result = summarize(topology, study)
     rows = E.fold_rows_for_study(study.id, study.title, result.units,
                                   result.interval.as_dict())
@@ -252,7 +252,7 @@ def test_l1_study_export_matches_its_equivalent_stack_check():
     field for field -- so an export of either must read the same numbers.
     """
     study = load_study(TOPOLOGIES_DIR / "study_vpa_output_shank_out.json")
-    topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_output_to_pitch_plate.json")
+    topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json")
     result = summarize(topology, study)
     stack = load_stack(STACKS_DIR / "stack_vpa_output_to_pitch_plate.json")
     check = stack.check("worst_case_shank_out")

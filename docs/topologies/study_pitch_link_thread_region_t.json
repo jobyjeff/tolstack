@@ -3,12 +3,12 @@
   "id": "pitch_link_thread_region_t",
   "title": "Thread region T",
   "description": "Bolt overall length against the grip -- a provenance cross-check that two independently-read NAS6403 table columns agree, not a design quantity.",
-  "topology": "pitch_link_to_pitch_plate",
-  "from": "shank_full_dia_end",
+  "topology": "vpa_pitch_linkage",
+  "from": "shank_full_dia_end_pitch_link",
   "to": "bolt_point",
   "closes": "thread_region",
   "selection": [
-    "fastener_grip",
+    "fastener_grip_pitch_link",
     "bolt_length_11"
   ],
   "no_checks_reason": "A provenance cross-check, not a design quantity: the referenced stack deliberately carries no check over its thread_region_T path either. T is a REFERENCE dimension (NAS6403 sheet 2 note (b): 'for design purposes only, not an inspection requirement'), so a criterion over it would dress a reference dimension as a requirement -- the same refusal the thermal stacks make for their uncited interference-fraction target. The quantity's value is pinned by tests (it must equal the sheet-1 T (Ref) = .323 in), which is the check it actually needs.",

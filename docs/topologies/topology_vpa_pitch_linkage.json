@@ -110,6 +110,119 @@
           "pitch_arm_link_bore"
         ],
         "tan_link_mount_height": "tan_link_mount_overall_height"
+      },
+      "folded_20261027": "Handoff the_fastener_stacks_join_the_model, 2026-10-27: the four linear-stack topologies (pitch_link_to_pitch_plate, rotor_fastener_length, tan_link_to_pitch_plate_take2, vpa_output_to_pitch_plate) were folded into this document and deleted, so their fourteen studies are studies of the one product graph. Every part, node and edge kept its id except where one id named a different thing in more than one stack; `grip_stack_ids` lists those. The four plate parts' ids pitch_plate_215197 and pitch_flange_215197 became this document's pitch_plate_215177_001 (same physical plate; the lug thickness edges still cite 215735 A). Values were not touched: every edge still carries a `dimension_ref` into its stack, and every study total, band and check verdict is identical before and after.",
+      "grip_stack_ids": {
+        "note": "Ids that named a different thing in more than one fastener stack, as spelled here. Every holder took its stack's suffix; no side kept the bare id.",
+        "nodes": {
+          "pitch_link_to_pitch_plate": {
+            "head_bearing_face": "head_bearing_face_pitch_link",
+            "washer_far_face": "washer_far_face_pitch_link",
+            "shank_full_dia_end": "shank_full_dia_end_pitch_link"
+          },
+          "rotor_fastener_length": {
+            "head_bearing_face": "head_bearing_face_rotor",
+            "washer_far_face": "washer_far_face_rotor",
+            "shank_full_dia_end": "shank_full_dia_end_rotor"
+          },
+          "tan_link_to_pitch_plate_take2": {
+            "head_bearing_face": "head_bearing_face_tan_link",
+            "shank_full_dia_end": "shank_full_dia_end_tan_link"
+          },
+          "vpa_output_to_pitch_plate": {
+            "head_bearing_face": "head_bearing_face_vpa_out",
+            "shank_full_dia_end": "shank_full_dia_end_vpa_out"
+          }
+        },
+        "edges": {
+          "pitch_link_to_pitch_plate": {
+            "flange_bushing_flange": "flange_bushing_flange_pitch_link",
+            "fastener_grip": "fastener_grip_pitch_link",
+            "shank_out": "shank_out_pitch_link"
+          },
+          "rotor_fastener_length": {
+            "shank_out": "shank_out_rotor"
+          },
+          "tan_link_to_pitch_plate_take2": {
+            "straight_bushing": "straight_bushing_tan_link",
+            "spherical_bearing": "spherical_bearing_tan_link",
+            "flange_bushing_flange": "flange_bushing_flange_tan_link"
+          },
+          "vpa_output_to_pitch_plate": {
+            "spherical_bearing": "spherical_bearing_vpa_out",
+            "straight_bushing": "straight_bushing_vpa_out",
+            "fastener_grip": "fastener_grip_vpa_out",
+            "shank_out": "shank_out_vpa_out"
+          }
+        },
+        "parts": {
+          "pitch_plate_215197": "pitch_plate_215177_001",
+          "pitch_flange_215197": "pitch_plate_215177_001"
+        }
+      },
+      "grip_stack_joints": {
+        "note": "The `joint` block and structure reading each fastener stack's own topology carried, kept as it was. This document is a whole product and declares no `joint` of its own.",
+        "pitch_link_to_pitch_plate": {
+          "joint": {
+            "assembly_drawing": "217755",
+            "assembly_revision": "A.1",
+            "sheet": 4,
+            "view": "DETAIL B",
+            "zone": "H3",
+            "description": "The 5-place joint in DETAIL B: NAS6403U11D bolt down through the pitch-link eye (spherical bearing) and a plain bushing, through a 4.06 mm pitch-plate lug, retained by a slotted nut + cotter pin over a flat washer.",
+            "scope": "Grip length only, and only along the bolt axis. Out of scope, deliberately: diameter and hole fits; bushing-to-bore interference; the pitch link's own internal stack; the joint at the other end of the pitch link; torque and preload."
+          },
+          "title": "Pitch link to pitch plate grip length",
+          "re_expresses": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+          "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+          "scope_note": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim, exactly as topology_vpa_output_to_pitch_plate.json's structure note describes for the L1 proof. The stack's axial order from the bolt head, complete since 2026-09-15 (handoff stack_fable_audit): bushing, pitch-link eye, flanged-bushing flange, pitch-plate lug, washer. Until that date the eye had no element to hang an interface on and the flange was not known to exist, so this topology omitted both and said so here; the stack modelling both (the eye as a loudly-marked placeholder) is what lets this graph carry them without inventing anything the stack does not claim. The bolt's own fastener dimensions (grip, overall length, cotter-hole-to-point) are read as edges sharing additional interfaces beyond the clamped stack's own (the bolt's point, and the cotter-hole centreline), which is what turns this graph into more than L1's single grounded loop: the clamped-stack/grip loop (closing at the derived `shank_out` gap) and the length/grip/thread-region loop (closing at the derived `thread_region` edge), which share the bolt-head interface."
+        },
+        "rotor_fastener_length": {
+          "joint": {
+            "assembly_drawing": "217755",
+            "assembly_revision": "A.1",
+            "sheet": 8,
+            "view": "SECTION T-T",
+            "zone": "H3",
+            "description": "The rotor (hub-and-blade) balance-mass retention bolt: a single fastener, selected at assembly from a nine-member NAS6403 grip family, clamping an optional countersunk washer, zero or more stacked balancing masses, and a flat washer against whatever structure carries the tapped hole at this section.",
+            "scope": "Grip length only, along the bolt axis. Deliberately out of scope: which of up to 10 balance-hole locations is used and how the 200 g total balance budget is allocated; torque; the safety-cable capture; diameter and hole fits; thread-engagement depth into the tapped member."
+          },
+          "title": "Rotor balance-mass bolt grip length",
+          "re_expresses": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+          "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+          "scope_note": "A reading of the stack's own element order and roles, not a sourced claim. The stack's own notes give the clamped order from the bolt head: MS21299C3 washer, [balancing mass(es) -- MISSING], NAS1149V0332H washer, [receiving-structure thickness -- MISSING], then whichever of the nine as-drawn NAS6403 grip options is installed. Neither missing member is modelled as a node or edge -- there is no element to hang one on. The nine grip options are modelled as parallel structural edges between shared interfaces (`head_bearing_face`/`shank_full_dia_end`), all naming a single part, `fastener_family` -- see that part's own note for why separate part ids per option were rejected. A study selecting more than one of the nine simultaneously is refused by `BranchAmbiguity` at both of those interfaces, which is the topology's own way of enforcing 'exactly one dash is ever installed', mechanically rather than only in prose."
+        },
+        "tan_link_to_pitch_plate_take2": {
+          "joint": {
+            "assembly_drawing": "217755",
+            "assembly_revision": "A.1",
+            "sheet": 4,
+            "view": "DETAIL B",
+            "zone": "I6",
+            "description": "Same joint as tan_link_to_pitch_plate (not converted -- its checks reference paths in a way docs/DAG_TOPOLOGY.md fences, see docs/sessions/lessons/LESSONS_20260908_linear_stack_conversions.md). Take 2 is the workbook's second pass: it folds the flanged bushing's flange and barrel into one running sub-total and evaluates only the -13 fastener.",
+            "scope": "grip length only"
+          },
+          "title": "Tangential link to pitch plate grip length, take 2",
+          "re_expresses": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+          "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+          "scope_note": "A reading of the stack's own element order, not a sourced claim, in the same spirit as topology_vpa_output_to_pitch_plate.json's own structure note. The stack's three `nut_geometry` elements (nut_minor_diameter, nut_cbore_diameter, nut_chamfer_depth) are NOT modelled here: the stack's own notes call them 'UNUSED by any path or check', a diametral castellation-engagement sketch the workbook itself never folded into a check, and they are not part of the axial grip chain this topology models. Leaving them out is documentation of an absence, not a loss -- they remain in the stack's own record for a reader who wants them."
+        },
+        "vpa_output_to_pitch_plate": {
+          "joint": {
+            "assembly_drawing": "217755",
+            "assembly_revision": "A.1",
+            "sheet": 5,
+            "view": "DETAIL X",
+            "zone": "C10",
+            "description": "0.250-28 bolt through the VPA output rod end into the mating flange, castellated nut + cotter pin retained, with a countersunk washer under the head.",
+            "scope": "grip length only",
+            "note": "Added 2026-09-08 (handoff topology_schema_v1), deliverable 2: this block MIRRORS docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json's own `joint` field for field -- both documents describe the same physical joint, and this is prose/context, not a toleranced value, so it carries no dimension_ref of its own the way an edge's value does. If the two ever disagree, the stack's is authoritative; this topology's `joint` is a reading of it, same as `provenance.structure` already is for the axial order."
+          },
+          "title": "VPA output to pitch plate grip length",
+          "re_expresses": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+          "authored_by": "handoff dag_topology_format, 2026-08-31",
+          "scope_note": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim. The stack transcribes workbook rows E63-E67 as an ordered clamped stack (bushing, spherical bearing, bushing flange, pitch flange, under-head washer) plus the fastener grip; laying those out head-side-first, as a chain of six clamped-stack faces, is this handoff's own arrangement. Two things make that safe to publish: a chain sum is invariant to the ordering (a signed term list does not care), and tests/test_topology.py pins the study's totals against the stack's own published check. What it is NOT is evidence that these specific faces mate in this order on the real part -- see notes."
+        }
       }
     }
   },
@@ -212,8 +325,12 @@
       "parts": [
         "hub",
         "tan_link_mount_215175_002",
-        "gas_spring_mount_213668_002"
-      ]
+        "gas_spring_mount_213668_002",
+        "fastener_family",
+        "washer_ms21299c3",
+        "washer_nas1149v0332_tt"
+      ],
+      "note": "The rotor balance-mass bolt hardware (the nine-grip bolt family and its two washers) is here because 217755 SECTION T-T retains it in a tapped hole in the hub and blade assembly (216231-002) -- the stack names no more exact receiving part, so the hub is the nearest body this model has, not a finding."
     },
     {
       "id": "blade",
@@ -232,8 +349,20 @@
       "tags": {"component": "propeller-system"},
       "parts": [
         "pitch_plate_215177_001",
-        "gas_spring_piston_214700_002"
-      ]
+        "gas_spring_piston_214700_002",
+        "bolt_nas6403u11d",
+        "bushing_214820_002",
+        "washer_nas1149v0332h",
+        "flanged_bushing_nas77a3_015a",
+        "bolt_nas6403u13h",
+        "straight_bushing_214820_002",
+        "flanged_bushing_tan_link",
+        "bolt_nas6404u13d",
+        "washer_ms21299c4k",
+        "flanged_bushing_unidentified",
+        "plain_bushing_214943_002"
+      ],
+      "note": "Also holds the grip-length hardware of the three joints that clamp to this plate -- the pitch link, the tangential link and the VPA output -- each bolt, washer and bushing stack with the body its bolt clamps to. Hardware is not a body of its own in v0."
     },
     {
       "id": "pitch_link",
@@ -313,9 +442,10 @@
       "kind": "body",
       "tags": {"component": "propeller-system"},
       "parts": [
-        "vpa_piston"
+        "vpa_piston",
+        "spherical_bearing_in_vpa"
       ],
-      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+      "note": "The piston and the spherical bearing swaged into its output rod end (the bearing is internal to the 208510-007 actuator assembly). The linkage mechanism does not place either, and which body they move with is not recorded."
     },
     {
       "id": "ring_gear",
@@ -372,7 +502,7 @@
       "id": "pitch_plate_215177_001",
       "name": "215177-001 pitch plate",
       "drawing": "215177-001",
-      "note": "PITCH PLATE ASSEMBLY, PROPELLER, CW, 217755-001 A.1 find 32. The same physical part topology_pitch_system.json names; the id is reused so the declared alias table keeps resolving it to the installed mesh. That mesh is the INSTALLATION (plate plus its nine NAS77 bushings, 10 solids); its one machined detail is installed separately as `asm217755_215735_001`."
+      "note": "Also the plate of the three plate-side fastener stacks (pitch link, tangential link, VPA output): their lug-thickness edges `pitch_plate_flange` (5X group) and `pitch_flange_thickness` cite 215735 A, the machined detail inside this 215177-001 installation. Their old part ids pitch_plate_215197 and pitch_flange_215197 folded into this one on 2026-10-27. PITCH PLATE ASSEMBLY, PROPELLER, CW, 217755-001 A.1 find 32. The same physical part topology_pitch_system.json names; the id is reused so the declared alias table keeps resolving it to the installed mesh. That mesh is the INSTALLATION (plate plus its nine NAS77 bushings, 10 solids); its one machined detail is installed separately as `asm217755_215735_001`."
     },
     {
       "id": "gas_spring",
@@ -452,6 +582,84 @@
       "id": "hydraulic_brake",
       "name": "hydraulic brake",
       "note": "NO part identity and NO values: the brief names it as an alternative to the gas spring 'per design concept'. It is in the graph so that branch 1 shows as a genuine choice between two designs rather than a single path, and every band on it is `assumed`."
+    },
+    {
+      "id": "bolt_nas6403u11d",
+      "name": "NAS6403U11D hex-head bolt",
+      "note": "A standard part: its dimensions come from NAS6403-NAS6420 Rev 4 sheet 3, not from a Joby part drawing. Hex head, 6Al-4V, .1900-32 thread, .688 in grip, per the 217755 parts-list nomenclature. Ballooned 5X in DETAIL B of 217755 sheet 4."
+    },
+    {
+      "id": "bushing_214820_002",
+      "name": "214820-002 plain bushing",
+      "drawing": "214820-002",
+      "note": "Plain bushing, aluminium bronze, .1900 in ID X .1875 in long, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4. Drawing 214820-002 itself is not in this repo, so nothing here can re-read the 4.76 +0.00/-0.13 length the operator read off it, and it stays on the gap list."
+    },
+    {
+      "id": "washer_nas1149v0332h",
+      "name": "NAS1149V0332H flat washer",
+      "note": "Flat washer, 6Al-4V, .203 x .438 x .032 in, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4 (find 32, qty 9 across the assembly)."
+    },
+    {
+      "id": "flanged_bushing_nas77a3_015a",
+      "name": "NAS77A3-015A flanged bushing",
+      "note": "Added 2026-09-15 (handoff stack_fable_audit); the name restyled to the reader-facing convention during review. Per the 215177-A parts-list nomenclature: BUSHING, FLANGED, PRESS FIT, ALUMINUM BRONZE, ALUMINUM COATED, .1900 in ID. Press-fit into the pitch plate assembly (215177-A parts list find 2, qty 8 = 3 tangential-link + 5 pitch-link lugs), which is why DETAIL B balloons no flanged bushing. Only its FLANGE is an edge here: the barrel sits inside the plate bore, parallel to the lug, and the referenced stack has no bore-depth path -- unlike the tan-link take-2 topology, which models the barrel and its chamfer for that stack's bore path."
+    },
+    {
+      "id": "washer_ms21299c3",
+      "name": "MS21299C3 countersunk washer",
+      "note": "The washer under the bolt head, .063 in thick. Balloon at SECTION T-T, find 60, qty AR (JPS00094 5.5.3.a allows 0-3); the element here models the ONE this section draws."
+    },
+    {
+      "id": "washer_nas1149v0332_tt",
+      "name": "NAS1149V0332H flat washer",
+      "note": "The flat washer under the rotor balance-mass bolt: 6Al-4V, .032 in thick. Same part number the pitch-link and tangential-link joints cite, a different balloon (find 32, zone K4, SECTION T-T) of the same 217755 sheet."
+    },
+    {
+      "id": "fastener_family",
+      "name": "NAS6403 grip-selection family",
+      "note": "The dash number is chosen at assembly: 217755 note 24 reads SELECT ONE FASTENER ... AS REQUIRED FOR CORRECT GRIP LENGTH. Modelled as ONE part rather than nine, because the nine dash options (U2H through U10H) are mutually-exclusive alternatives of a single designed feature -- 'whichever grip the assembler selects' -- not nine parts that could ever be present at once. Treating them as nine separate parts would force each of `head_bearing_face`/`shank_full_dia_end` to list up to nine part ids, which Node.parts refuses outright (an interface joins at most two parts); it would also misrepresent nine alternatives as nine simultaneous members. This is a repo-first pattern -- topology_vpa_output_to_pitch_plate.json and topology_pitch_link_to_pitch_plate.json each model one fixed as-drawn fastener -- and it exists because this is the repo's first genuine grip-SELECTION joint, exactly as the referenced stack's own joint.identification_note argues."
+    },
+    {
+      "id": "bolt_nas6403u13h",
+      "name": "NAS6403U13H hex-head bolt",
+      "note": "Hex head, 6Al-4V, .1900-32 thread, .812 in grip. A standard part: its grip comes from NAS6403-NAS6420 Rev 4 sheet 3, dash 13."
+    },
+    {
+      "id": "straight_bushing_214820_002",
+      "name": "214820-002 plain bushing",
+      "drawing": "214820-002",
+      "note": "Plain bushing, aluminium bronze, .1900 in ID X .1875 in long. Balloon find 34 in DETAIL B of 217755 sheet 4."
+    },
+    {
+      "id": "flanged_bushing_tan_link",
+      "name": "flanged bushing",
+      "note": "Candidate as-drawn part 214936-002 (BUSHING, PLAIN, COUNTERSUNK, .1900 in ID), balloned on 217755 sheet 5 DETAIL F, as the flange and barrel citations record -- NOT DETAIL B, so this is a candidate, not an established identity. Both the flange and the barrel dimensions (and the chamfer at the barrel's end) are modelled on this ONE part, since the stack's own elements name them together as one flanged bushing's two features."
+    },
+    {
+      "id": "bolt_nas6404u13d",
+      "name": "NAS6404U13D hex-head bolt",
+      "note": "A standard part: its dimensions come from NAS6403-NAS6420 Rev 4, not from a Joby part drawing. Hex head, 6Al-4V, .2500-28 thread, .812 in grip. Balloon 27 (find 27, qty 1) in DETAIL X of 217755 sheet 5."
+    },
+    {
+      "id": "washer_ms21299c4k",
+      "name": "MS21299C4K countersunk washer",
+      "note": "Countersunk washer, 17-4PH. Balloon 29 in DETAIL X of 217755 sheet 5. Its nominal comes from the parts-list nomenclature; its BAND does not, which is why the thickness here is `inferred` and on the gap list."
+    },
+    {
+      "id": "flanged_bushing_unidentified",
+      "name": "part not identified",
+      "note": "The referenced element `bushing_flange_thickness` cites workbook cell E65 and names no part at all. It is modelled as its own part because the flange is a separate 0.062 in feature from the straight bushing's length, and putting both dimensions on one part would be a structural claim (that they are one flanged bushing) with nothing behind it. Which part this is remains open -- see notes."
+    },
+    {
+      "id": "spherical_bearing_in_vpa",
+      "name": "spherical bearing",
+      "note": "Internal to 208510-007 VARIABLE PITCH ACTUATOR ASSEMBLY (balloon 1), so it has no balloon of its own in DETAIL X. Its part number is not established -- the workbook's comment column names MS21299C4K on this row, and that part is the countersunk washer, not a bearing (the referenced stack's `column_I_caveat`)."
+    },
+    {
+      "id": "plain_bushing_214943_002",
+      "name": "214943-002 plain bushing",
+      "drawing": "214943-002",
+      "note": "Plain bushing, aluminium bronze, .250 in ID. Balloon 28 in DETAIL X of 217755 sheet 5. Its modelled length is still `untraced` and still on the gap list: NAS77A4-015, the number the source workbook names, was RULED OUT on the merits in 2026-08-13 and 214943-002's own part drawing is not in the pile."
     }
   ],
   "nodes": [
@@ -876,6 +1084,188 @@
         "hub"
       ],
       "kind": "mating_surface"
+    },
+    {
+      "id": "head_bearing_face_pitch_link",
+      "name": "bolt-head bearing face against the plain bushing",
+      "parts": ["bolt_nas6403u11d", "bushing_214820_002"],
+      "kind": "mating_surface",
+      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, and that is the definition the grip dimensions here are cited to."
+    },
+    {
+      "id": "bushing_eye_face",
+      "name": "plain bushing face against the pitch-link eye (spherical bearing ball)",
+      "parts": ["bushing_214820_002", "spherical_bearing_pitch_link"],
+      "kind": "mating_surface",
+      "note": "Replaced `bushing_pitch_plate_face` on 2026-09-15 (handoff stack_fable_audit): that interface was a reading that reproduced the stack's then-incomplete arithmetic (the eye was omitted for want of any source) and its own note said it did not assert the bushing and the lug actually touch. They do not -- the eye and the flange sit between, same architecture as the tan-link joint."
+    },
+    {
+      "id": "eye_flange_face",
+      "name": "pitch-link eye face against the flanged bushing's flange",
+      "parts": ["spherical_bearing_pitch_link", "flanged_bushing_nas77a3_015a"],
+      "kind": "mating_surface",
+      "note": "Added 2026-09-15 (stack_fable_audit); mirrors the tan-link take-2 topology's bearing_flanged_bushing_face."
+    },
+    {
+      "id": "flange_lug_face",
+      "name": "flanged bushing flange face against the pitch-plate lug",
+      "parts": ["flanged_bushing_nas77a3_015a", "pitch_plate_215177_001"],
+      "kind": "mating_surface",
+      "note": "Added 2026-09-15 (stack_fable_audit). The flange bears on the lug face; the bushing's barrel passes into the lug's bore (not modelled -- no bore-depth path in the referenced stack)."
+    },
+    {
+      "id": "pitch_plate_washer_face",
+      "name": "pitch-plate lug face against the flat washer",
+      "parts": ["pitch_plate_215177_001", "washer_nas1149v0332h"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "washer_far_face_pitch_link",
+      "name": "flat washer far face -- the last modelled clamped surface",
+      "parts": ["washer_nas1149v0332h"],
+      "kind": "datum_feature",
+      "note": "A datum_feature and not a mate: beyond it sits the slotted nut (MS9363-09) and cotter pin (MS24665-153), deliberately outside this joint's scope, exactly as topology_vpa_output_to_pitch_plate.json's bushing_far_face is."
+    },
+    {
+      "id": "shank_full_dia_end_pitch_link",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["bolt_nas6403u11d"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a). Not a mate: it is where the thread run-out begins."
+    },
+    {
+      "id": "bolt_point",
+      "name": "bolt point (tip)",
+      "parts": ["bolt_nas6403u11d"],
+      "kind": "datum_feature",
+      "note": "The far end of `bolt_length_11` (head bearing face to point) and the near end of `cotter_hole_from_point` (cotter-hole centreline to bolt point)."
+    },
+    {
+      "id": "cotter_hole_centerline",
+      "name": "cotter-pin hole centreline",
+      "parts": ["bolt_nas6403u11d"],
+      "kind": "datum_feature",
+      "note": "Located by dimension M on NAS6403-NAS6420 Rev 4 sheet 1, read off the figure."
+    },
+    {
+      "id": "head_bearing_face_rotor",
+      "name": "bolt-head bearing face against the MS21299C3 countersunk washer",
+      "parts": ["fastener_family", "washer_ms21299c3"],
+      "kind": "mating_surface",
+      "note": "Where grip is measured from, NAS6403-NAS6420 Rev 4 sheet 2 note (a), same as every other 217755 joint in this repo."
+    },
+    {
+      "id": "washer_junction_face",
+      "name": "MS21299C3 washer far face against the NAS1149V0332H washer",
+      "parts": ["washer_ms21299c3", "washer_nas1149v0332_tt"],
+      "kind": "mating_surface",
+      "note": "A reading, not a claim of physical adjacency: the stack's own notes place zero or more stacked balancing masses between these two washers, and that member is UNSOURCED (only weight in grams is printed, no part drawing). This interface reproduces the stack's own arithmetic, which omits the missing mass from the sum -- see both washers' checks' `excluded_terms`."
+    },
+    {
+      "id": "washer_far_face_rotor",
+      "name": "NAS1149V0332H washer far face -- the last modelled clamped surface",
+      "parts": ["washer_nas1149v0332_tt"],
+      "kind": "datum_feature",
+      "note": "Beyond it sits the receiving structure's own engagement thickness (216231-002 HUB AND BLADE ASSEMBLY, or a neighbour), also UNSOURCED -- reference-only balloons carry no dimension. Retention here is a blind tapped hole, not a nut: no castellation/cotter-hole caveat applies at this joint."
+    },
+    {
+      "id": "shank_full_dia_end_rotor",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["fastener_family"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a), wherever the installed dash number places it."
+    },
+    {
+      "id": "head_bearing_face_tan_link",
+      "name": "bolt-head bearing face against the straight bushing",
+      "parts": ["bolt_nas6403u13h", "straight_bushing_214820_002"],
+      "kind": "mating_surface",
+      "note": "Where grip is measured from, NAS6403-NAS6420 Rev 4 sheet 2 note (a)."
+    },
+    {
+      "id": "bushing_bearing_face",
+      "name": "straight bushing face against the spherical bearing",
+      "parts": ["straight_bushing_214820_002", "spherical_bearing_tan_link"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bearing_flanged_bushing_face",
+      "name": "spherical bearing face against the flanged bushing's flange",
+      "parts": ["spherical_bearing_tan_link", "flanged_bushing_tan_link"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "flanged_bushing_internal_step",
+      "name": "flanged bushing -- internal step between the flange and the barrel",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "Not a mate: an internal reference feature separating the flange and barrel dimensions of the SAME part. A datum_feature because nothing else touches it."
+    },
+    {
+      "id": "flanged_bushing_barrel_end_raw",
+      "name": "flanged bushing barrel end, before the chamfer is subtracted",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "The raw end of the barrel dimension `flange_bushing_L`; `bushing_chamfer` subtracts back from here to the effective clamped face."
+    },
+    {
+      "id": "flanged_bushing_effective_far_face",
+      "name": "flanged bushing effective far face -- the last modelled clamped surface",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "A datum_feature and not a mate: beyond it sits the retention nut, deliberately outside this joint's scope, exactly as the other 217755 joints in this repo."
+    },
+    {
+      "id": "shank_full_dia_end_tan_link",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["bolt_nas6403u13h"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, NAS6403-NAS6420 Rev 4 sheet 2 note (a)."
+    },
+    {
+      "id": "head_bearing_face_vpa_out",
+      "name": "bolt-head bearing face against the countersunk washer",
+      "parts": ["bolt_nas6404u13d", "washer_ms21299c4k"],
+      "kind": "mating_surface",
+      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, and that is the definition the grip dimension here is cited to."
+    },
+    {
+      "id": "washer_flange_face",
+      "name": "washer face against the pitch flange",
+      "parts": ["washer_ms21299c4k", "pitch_plate_215177_001"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "flange_bushing_flange_face",
+      "name": "pitch flange face against the bushing flange",
+      "parts": ["pitch_plate_215177_001", "flanged_bushing_unidentified"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bushing_flange_bearing_face",
+      "name": "bushing flange face against the spherical bearing",
+      "parts": ["flanged_bushing_unidentified", "spherical_bearing_in_vpa"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bearing_bushing_face",
+      "name": "spherical bearing face against the plain bushing",
+      "parts": ["spherical_bearing_in_vpa", "plain_bushing_214943_002"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bushing_far_face",
+      "name": "plain bushing far face -- the last clamped surface",
+      "parts": ["plain_bushing_214943_002"],
+      "kind": "datum_feature",
+      "note": "A datum_feature and not a mating_surface: what is beyond it is the castellated nut's face, and the nut is deliberately outside this joint's scope (see notes)."
+    },
+    {
+      "id": "shank_full_dia_end_vpa_out",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["bolt_nas6404u13d"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a). Not a mate: it is where the thread run-out begins."
     }
   ],
   "edges": [
@@ -2227,6 +2617,430 @@
           "no_drawing_governs": "The hydraulic brake is a design concept with no geometry (Jeff, 2026-10-16), so no drawing places its hub mount; the pitch plate's brake attachment is exempt for the same reason. Exposed by the 2026-10-26 fold, which declared the hub's drawing 214373-002 on this part."
         }
       }
+    },
+    {
+      "id": "bushing_214820",
+      "name": "plain bushing length (214820-002)",
+      "kind": "structural",
+      "part": "bushing_214820_002",
+      "from": "head_bearing_face_pitch_link",
+      "to": "bushing_eye_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "bushing_214820"
+      }
+    },
+    {
+      "id": "pitch_link_eye",
+      "name": "pitch-link eye: spherical bearing ball width (bearing identity UNCONFIRMED)",
+      "kind": "structural",
+      "part": "spherical_bearing_pitch_link",
+      "from": "bushing_eye_face",
+      "to": "eye_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "pitch_link_eye"
+      },
+      "note": "Added 2026-09-15 (stack_fable_audit). The referenced element is the repo's loudest placeholder -- MS14101-3's catalog band, `untraced`, awaiting the 213862-002 drawing -- and this edge inherits every caveat on it."
+    },
+    {
+      "id": "flange_bushing_flange_pitch_link",
+      "name": "flanged bushing flange thickness (NAS77A3-015A)",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a",
+      "from": "eye_flange_face",
+      "to": "flange_lug_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "flange_bushing_flange"
+      },
+      "note": "Added 2026-09-15 (stack_fable_audit)."
+    },
+    {
+      "id": "pitch_plate_flange",
+      "name": "pitch plate lug thickness (5X group)",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "flange_lug_face",
+      "to": "pitch_plate_washer_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "pitch_plate_flange"
+      }
+    },
+    {
+      "id": "washer_nas1149v0332",
+      "name": "washer thickness, NAS1149V0332H (.032 in)",
+      "kind": "structural",
+      "part": "washer_nas1149v0332h",
+      "from": "pitch_plate_washer_face",
+      "to": "washer_far_face_pitch_link",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "washer_nas1149v0332"
+      }
+    },
+    {
+      "id": "fastener_grip_pitch_link",
+      "name": "fastener grip, NAS6403U11D (.688 in)",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "head_bearing_face_pitch_link",
+      "to": "shank_full_dia_end_pitch_link",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "bolt_grip_11"
+      },
+      "note": "Runs PARALLEL to the clamped stack rather than in series with it. Together with `shank_out` it closes the loop `study_pitch_link_shank_out.json` sums."
+    },
+    {
+      "id": "bolt_length_11",
+      "name": "NAS6403U11D overall length, head bearing face to point (1.011 in)",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "head_bearing_face_pitch_link",
+      "to": "bolt_point",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "bolt_length_11"
+      },
+      "note": "Runs PARALLEL to `fastener_grip` + `thread_region` (together they close the loop `study_pitch_link_thread_region_t.json` sums) and to `cotter_hole_from_point` reversed (together with the clamped stack, the loop `study_pitch_link_cotter_hole_clearance.json` sums)."
+    },
+    {
+      "id": "cotter_hole_from_point",
+      "name": "cotter-hole centreline to bolt point (dimension M)",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "cotter_hole_centerline",
+      "to": "bolt_point",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "cotter_hole_from_point"
+      }
+    },
+    {
+      "id": "shank_out_pitch_link",
+      "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "washer_far_face_pitch_link",
+      "to": "shank_full_dia_end_pitch_link",
+      "note": "A DERIVED gap: it carries no dimension because it is the quantity `study_pitch_link_shank_out.json` computes. Its endpoints share no part (the washer, the bolt), so it is kind `gap` rather than a structural dimension. This is check `shank_out__11_sourced_only`'s own residual, and per that check's own guidance the missing pitch-link eye is what would need to fill it."
+    },
+    {
+      "id": "thread_region",
+      "name": "thread run-out and point region beyond the full-diameter shank",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "shank_full_dia_end_pitch_link",
+      "to": "bolt_point",
+      "note": "A DERIVED edge -- carries no dimension. Both its interfaces are on the bolt, so it is `structural` (kind `gap` is only for interfaces sharing no part), but it is `derived` in the same sense `shank_out` is: nothing in this repo sources this sub-region directly. `study_pitch_link_thread_region_t.json` computes it as `bolt_length_11 - fastener_grip`, reproducing the referenced stack's `thread_region_T` path exactly -- the stack's own notes call that quantity 'a provenance cross-check, not a design quantity', since it happens to equal NAS6403's T (Ref)."
+    },
+    {
+      "id": "washer_ms21299c3",
+      "name": "washer thickness, MS21299C3 (.063 in)",
+      "kind": "structural",
+      "part": "washer_ms21299c3",
+      "from": "head_bearing_face_rotor",
+      "to": "washer_junction_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "washer_ms21299c3"
+      }
+    },
+    {
+      "id": "washer_nas1149v0332_tt",
+      "name": "washer thickness, NAS1149V0332H (.032 in), rotor balance-mass bolt",
+      "kind": "structural",
+      "part": "washer_nas1149v0332_tt",
+      "from": "washer_junction_face",
+      "to": "washer_far_face_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "washer_nas1149v0332_tt"
+      }
+    },
+    {
+      "id": "fastener_grip_u2h",
+      "name": "NAS6403U2H grip length (.125 in) -- shortest of nine options",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u2h"
+      }
+    },
+    {
+      "id": "fastener_grip_u3h",
+      "name": "NAS6403U3H grip length (.188 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u3h"
+      }
+    },
+    {
+      "id": "fastener_grip_u4h",
+      "name": "NAS6403U4H grip length (.250 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u4h"
+      }
+    },
+    {
+      "id": "fastener_grip_u5h",
+      "name": "NAS6403U5H grip length (.312 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u5h"
+      }
+    },
+    {
+      "id": "fastener_grip_u6h",
+      "name": "NAS6403U6H grip length (.375 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u6h"
+      }
+    },
+    {
+      "id": "fastener_grip_u7h",
+      "name": "NAS6403U7H grip length (.438 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u7h"
+      }
+    },
+    {
+      "id": "fastener_grip_u8h",
+      "name": "NAS6403U8H grip length (.500 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u8h"
+      }
+    },
+    {
+      "id": "fastener_grip_u9h",
+      "name": "NAS6403U9H grip length (.562 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u9h"
+      }
+    },
+    {
+      "id": "fastener_grip_u10h",
+      "name": "NAS6403U10H grip length (.625 in) -- longest of nine options",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u10h"
+      }
+    },
+    {
+      "id": "shank_out_rotor",
+      "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "washer_far_face_rotor",
+      "to": "shank_full_dia_end_rotor",
+      "note": "A DERIVED gap: no dimension, because it is the quantity each of the nine `study_rotor_fastener_grip_uXh.json` studies computes -- one per installed dash, never more than one at a time (selecting two of the nine `fastener_grip_uXh` edges in one study raises BranchAmbiguity at both `head_bearing_face` and `shank_full_dia_end`)."
+    },
+    {
+      "id": "straight_bushing_tan_link",
+      "name": "straight bushing length",
+      "kind": "structural",
+      "part": "straight_bushing_214820_002",
+      "from": "head_bearing_face_tan_link",
+      "to": "bushing_bearing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "straight_bushing"
+      }
+    },
+    {
+      "id": "spherical_bearing_tan_link",
+      "name": "spherical bearing width",
+      "kind": "structural",
+      "part": "spherical_bearing_tan_link",
+      "from": "bushing_bearing_face",
+      "to": "bearing_flanged_bushing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "spherical_bearing"
+      }
+    },
+    {
+      "id": "flange_bushing_flange_tan_link",
+      "name": "flange bushing flange thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "bearing_flanged_bushing_face",
+      "to": "flanged_bushing_internal_step",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "flange_bushing_flange"
+      }
+    },
+    {
+      "id": "flange_bushing_L",
+      "name": "flange bushing L (barrel) thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "flanged_bushing_internal_step",
+      "to": "flanged_bushing_barrel_end_raw",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "flange_bushing_L"
+      }
+    },
+    {
+      "id": "bushing_chamfer",
+      "name": "bushing chamfer size",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "flanged_bushing_effective_far_face",
+      "to": "flanged_bushing_barrel_end_raw",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "bushing_chamfer"
+      },
+      "note": "The inverting element: a BIGGER chamfer removes MORE material, so it is authored running FROM the effective far face TO the raw barrel end -- a chain walking from the raw end to the effective face crosses it against this orientation, giving it a negative sign, matching the referenced stack's own path (`bushing_chamfer` carries sign -1 in `total`)."
+    },
+    {
+      "id": "fastener_grip_13",
+      "name": "fastener grip, NAS6403U13H (.812 in)",
+      "kind": "structural",
+      "part": "bolt_nas6403u13h",
+      "from": "head_bearing_face_tan_link",
+      "to": "shank_full_dia_end_tan_link",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "fastener_grip_13"
+      },
+      "note": "Runs PARALLEL to the clamped stack. Together with `protrusion` it closes the loop `study_tan_link_take2_worst_case_protrusion.json` sums."
+    },
+    {
+      "id": "protrusion",
+      "name": "worst-case protrusion -- full-diameter shank beyond the modelled clamped stack",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "flanged_bushing_effective_far_face",
+      "to": "shank_full_dia_end_tan_link",
+      "note": "A DERIVED gap: no dimension, because it is the quantity check `worst_case_protrusion` computes. Positive means the shank protrudes past the effective clamped face; the referenced stack's own guidance says this is LESS conservative than take 1's equivalent check, because take 2 dropped the thread-transition allowance entirely."
+    },
+    {
+      "id": "under_head_chamfer_washer",
+      "name": "under head chamfer washer thickness",
+      "kind": "structural",
+      "part": "washer_ms21299c4k",
+      "from": "head_bearing_face_vpa_out",
+      "to": "washer_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "under_head_chamfer_washer"
+      }
+    },
+    {
+      "id": "pitch_flange_thickness",
+      "name": "pitch flange thickness",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "washer_flange_face",
+      "to": "flange_bushing_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "pitch_flange_thickness"
+      }
+    },
+    {
+      "id": "bushing_flange_thickness",
+      "name": "bushing flange thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_unidentified",
+      "from": "flange_bushing_flange_face",
+      "to": "bushing_flange_bearing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "bushing_flange_thickness"
+      }
+    },
+    {
+      "id": "spherical_bearing_vpa_out",
+      "name": "spherical bearing width",
+      "kind": "structural",
+      "part": "spherical_bearing_in_vpa",
+      "from": "bushing_flange_bearing_face",
+      "to": "bearing_bushing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "spherical_bearing"
+      }
+    },
+    {
+      "id": "straight_bushing_vpa_out",
+      "name": "straight bushing length",
+      "kind": "structural",
+      "part": "plain_bushing_214943_002",
+      "from": "bearing_bushing_face",
+      "to": "bushing_far_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "straight_bushing"
+      }
+    },
+    {
+      "id": "fastener_grip_vpa_out",
+      "name": "fastener grip (.812 in)",
+      "kind": "structural",
+      "part": "bolt_nas6404u13d",
+      "from": "head_bearing_face_vpa_out",
+      "to": "shank_full_dia_end_vpa_out",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "fastener_grip"
+      },
+      "note": "The one edge that runs PARALLEL to the clamped stack rather than in series with it. Together with `shank_out` it closes the loop, and that loop closure is what the stack's `worst_case_shank_out` check computes."
+    },
+    {
+      "id": "shank_out_vpa_out",
+      "name": "shank out -- full-diameter shank beyond the clamped stack",
+      "kind": "gap",
+      "interface": "clearance",
+      "from": "bushing_far_face",
+      "to": "shank_full_dia_end_vpa_out",
+      "note": "A DERIVED gap: it carries no dimension because it is the quantity a study computes, not one that is measured. Study `vpa_output_shank_out` names it in `closes`. Negative at the minimum means the thread run-out is pulled inside the joint; positive at the maximum means full-diameter shank protrudes past the nut face -- the referenced stack's own guidance."
     }
   ],
   "notes": [
@@ -2242,6 +3056,7 @@
     "(pitch_system) TRANSFORM COVERAGE, deliberately incomplete. The source sheet has THREE sensitivity columns and this document declares two of the three coupling pairs: the vertical one (its D10/F10) and the blade-root tangential one (D11/F11). Its third -- the pitch-plate tangential sensitivity (D12/F12 = D10 x K12) -- is NOT declared, because K12 is a finite-difference linearisation of the pitch link's own geometry evaluated once at the nominal 77 deg link angle, and copying the resulting constant here would present a derivation as a datum. The gas-spring and tangential rows therefore have no honest blade-angle sensitivity in this document, and `study_gas_spring_branch_to_hub` is a millimetre study for that reason. Adding the third pair means either recording the linearisation as a transform `properties` payload with a reader for it, or getting the sensitivity from Jeff.",
     "(pitch_system) LOAD CASES have no home in v0, and the ring-gear branch is where that bites: per the brief it participates cyclically and follows along for pure collective, so a collective study should exclude it and a cyclic study should not. Today that distinction lives in which edges a human puts in `selection`, which works and is unlabelled. If it needs a name, a study-level `configuration` block (the stack schema already has one on checks) is the cheap shape.",
     "(pitch_system) WHAT THIS TOPOLOGY CANNOT REPRODUCE, stated so nobody assumes it can. The source sheet applies a diameter-MMC weighting factor built from the two blade-root bearing radii to three of its rows (17, 19, 20), and derives its largest single contributor (row 68, gas-spring bushing tipping backlash, 0.72 deg) from a radial clearance and two lever arms. Neither is expressible with one ratio per edge. That is a schema finding, not an oversight: it says the next transform kind is a weight computed from `properties`, and it says the brief's 'the pitch-system L2 case should be able to represent that workbook's structure' is true of the structure and not yet true of the arithmetic.",
-    "(pitch_system) The full 43-row import of that workbook is deliberately NOT done. The brief calls it 'a sanity check of the schema, not a required import', and it has served as one: the four findings above all came out of trying. What is here is the brief's named structure carrying a representative band per edge."
+    "(pitch_system) The full 43-row import of that workbook is deliberately NOT done. The brief calls it 'a sanity check of the schema, not a required import', and it has served as one: the four findings above all came out of trying. What is here is the brief's named structure carrying a representative band per edge.",
+    "The graph: 35 parts, 74 interfaces, 95 edges, 24 branch points, 26 grounded loops, 17 gap edges. Five components: the mechanism, and the four fastener grip stacks folded in on 2026-10-27, each a bolt's own grip loop with no edge to the mechanism."
   ]
 }

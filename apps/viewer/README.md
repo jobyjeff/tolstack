@@ -700,8 +700,8 @@ re-derived from the committed document on every run:
 metric: layout_crossings
 topology: vpa_pitch_linkage
 branch: 16
-close: 43
-leader: 50
+close: 81
+leader: 62
 ```
 
 **The spine draws on the RIGHT**, hard against the jog zone, with branches
