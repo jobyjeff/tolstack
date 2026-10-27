@@ -116,6 +116,7 @@
   // Returns [{centroid, min, max, length, segments}] (segments as flat
   // [x0,y0,z0,x1,y1,z1,...] in the assembly frame), largest first.
   AA.MODEL_SECTION_QUANTUM = 1e-3; // mm
+  AA.MODEL_SECTION_NUDGE = 1e-6;    // of the part's span along the plane's normal
 
   AA.sectionRegions = function (positions, indices, placement, normalAxis, at) {
     var p = placement && placement.length === 12 ? placement : AA.IDENTITY_PLACEMENT;
@@ -230,7 +231,12 @@
       if (c < lo) lo = c;
       if (c > hi) hi = c;
     }
-    return lo <= hi ? (lo + hi) / 2 : null;
+    // Nudged off the exact middle by a millionth of the span: a mesh that is
+    // symmetric about its mid-plane has a row of vertices ON it, and a seam
+    // whose two copies of that row sit at +0 and -1e-16 is cut on neither
+    // side -- measured on the ring check in run_tests.cjs, which lost its +X
+    // wall that way.
+    return lo <= hi ? (lo + hi) / 2 + (hi - lo) * AA.MODEL_SECTION_NUDGE : null;
   };
 
   // One part occurrence's whole section answer, for app.js to cache per

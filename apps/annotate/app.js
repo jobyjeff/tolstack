@@ -2791,8 +2791,10 @@ async function buildModel() {
   const anchors = AA.modelAnchors({ topology, bias, parts, bound,
     linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {} });
   const lines = AA.modelEdgeLines(topology, anchors);
+  // `bodies`: whether the run's anchoring had resolved when this was built --
+  // before it, a moving part's anchor sits on its first recorded occurrence.
   model.built = { topologyId: topology.id, bias, parts, anchors, lines,
-    runId: sweep ? sweep.artifact.runId : null };
+    runId: sweep ? sweep.artifact.runId : null, bodies: !!(sweep && sweep.bodies.length) };
   const nodes = {};
   for (const [id, a] of Object.entries(anchors)) {
     nodes[id] = { source: a.source, subject: a.subject, point: a.point,
