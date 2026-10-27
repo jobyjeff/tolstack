@@ -636,7 +636,11 @@
   }
 
   function onNavStudy(topologyId, studyId) {
-    if (state.topologyId !== topologyId) selectTopology(topologyId);
+    // From another topology, or from a kinematic study's page -- which has
+    // the topology open under it, so the id alone would match.
+    if (state.mode !== "topology" || state.topologyId !== topologyId) {
+      selectTopology(topologyId);
+    }
     state.studyId = studyId || null;
     // Selecting a study RE-SPINES (viewer_study_respine_animation), and since
     // viewer_respine_whole_walk a respine is no longer a view switch: the
