@@ -1371,6 +1371,15 @@
     //    reachable gesture rather than a pixel hunt. Drawn immediately after
     //    its rail and therefore UNDER every bar, dot and leader, so it can
     //    never steal a hover from a mark that has a card to open.
+    // The links' hit paths sit UNDER every rail's (2026-10-26): a closing
+    // curve between two neighbouring columns is nearly vertical over a long
+    // loop, and its wide hit path lay over the rails beside it for hundreds of
+    // pixels, so on the body-major product model a dozen legs had no point a
+    // pointer could reach. Under them, a rail wins wherever the two overlap,
+    // and a link is still hoverable everywhere no rail is -- which is most of
+    // its length, and lights the same leg either way (2., below).
+    var linkHits = VA.svg("g", "rail__linkhits");
+    svg.appendChild(linkHits);
     geometry.rails.forEach(function (rail, i) {
       var railId = hot.rails[i];
       var base = "rail rail--" + (rail.column % 2 ? "odd" : "even");
@@ -1401,7 +1410,7 @@
         el: fadeLink(VA.svg("path", base, { d: link.d }), link.key),
         base: base, rail: railId, hot: "rail__link--hot",
       }));
-      svg.appendChild(hotHover(hot, hotRegister(hot, {
+      linkHits.appendChild(hotHover(hot, hotRegister(hot, {
         el: VA.svg("path", "rail__linkhit", { d: link.d }), base: "rail__linkhit",
         rail: railId, hot: "rail__linkhit--hot",
       }), railId));

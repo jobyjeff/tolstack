@@ -3010,7 +3010,19 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const railHits = await page.locator("svg.tv__rails line.rail__hit").count();
       const legs = [];
       const unreachable = [];
+      // A rail shorter than one row is no leg: it is the half-row stub a
+      // fork draws into a branch whose only edge closes at once -- common
+      // since the walk went body-major (2026-10-26), where a deferred joint
+      // between two drawn nodes is exactly that -- and on screen it IS that
+      // edge's bar, hovered as the edge (whose two ends are on other
+      // columns, so it lights more than one). Counted, so a layout that made
+      // every rail a stub would still fail the `railHits` floor below.
+      const stubs = await page.evaluate(() => Array.from(document.querySelectorAll(
+        "svg.tv__rails line.rail__hit")).map((n, i) =>
+          Number(n.getAttribute("y2")) - Number(n.getAttribute("y1")) < 26 ? i : -1)
+        .filter((i) => i >= 0));
       for (let i = 0; i < railHits; i++) {
+        if (stubs.indexOf(i) !== -1) continue;
         const point = await railPoint(i);
         if (!point) { unreachable.push(i); continue; }
         await page.mouse.move(point.x, point.y);
