@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: open
+status: resolved
 area: apps/viewer/topology_fixtures.js
 reporter: agent
 class: fixture_drift
@@ -41,3 +41,12 @@ selected 258 entries, and **all 106 fast-tier entries** reported "the tier was
 red before the mutation, so nothing was proved", because this one `[real]`
 check is red before any mutation is applied. Until the fixture is regenerated,
 no fast-tier witness can be proved on `integration` through `--repo`.
+
+## Resolved 2026-10-27 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symbols`)
+
+That handoff had to patch the same fixture for its own new fields
+(`interface`, `form`, row `body`, layout `bodies`), so it closed these two in
+the same pass: the top-level `variant_axis: "variant"` and each study's
+`tags: {}`. The `[real]` fixture pairing is green on that branch
+(`node apps/viewer/run_tests.cjs`, 578/578 plus the named per-document SKIP).
+The fixture header's seventh hand-patch paragraph names both.

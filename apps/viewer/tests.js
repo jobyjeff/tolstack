@@ -11808,14 +11808,15 @@
         eq(VA.bodySpans(layout.rows), layout.bodies, "the builder's own spans");
         // A joint row between two blocks belongs to neither.
         ok(VA.bodySpans(layout.rows).every(function (s) { return s.start > 3 || s.end < 3; }));
-        // A body whose rows are interrupted by another body's is two runs.
+        // A body whose rows are interrupted -- here by the joint -- is two
+        // runs, never one field drawn over the rows between them.
         var rows = layout.rows.map(function (r) {
-          return r.row === 3 ? { row: 3, kind: "edge", id: "j", column: 0, body: "B" } : r;
+          return r.body === "B" ? { row: r.row, kind: r.kind, id: r.id,
+                                    column: r.column, body: "A" } : r;
         });
-        rows[2] = { row: 2, kind: "node", id: "a2", column: 0, body: "B" };
         var spans = VA.bodySpans(rows);
         eq(spans.map(function (s) { return s.body + s.start + "-" + s.end; }),
-           ["A0-1", "B2-8"]);
+           ["A0-2", "A4-8"]);
         eq(VA.bodySpans([]), []);
         eq(VA.bodySpans([{ row: 0, kind: "node", id: "x", column: 0, body: null }]), [],
            "no bodies declared, no containers");

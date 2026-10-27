@@ -6,9 +6,9 @@
     {
       "contract": "A study_ref's terms are collapsed under their group row until the reader opens it.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_contributor_may_be_a_study (2026-10-26). Draws the terms open.",
+      "note": "Declared with the guard by handoff a_contributor_may_be_a_study (2026-10-26). Draws the terms open. Re-anchored 2026-10-26 by the_dag_draws_bodies_as_containers_and_joints_as_symbols: the row's open state is the page's now, shared with the DAG's sub-stack field, and starts closed.",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "      kid.hidden = true;\n      return kid;",
+      "find": "      kid.hidden = !startOpen;\n      return kid;",
       "replace": "      kid.hidden = false;\n      return kid;"
     }
   ]
