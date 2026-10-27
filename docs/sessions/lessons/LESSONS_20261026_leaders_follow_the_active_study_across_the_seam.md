@@ -147,3 +147,54 @@ scene's own render dominates.
   in the SVG and the grid row. Address the grid row as `tr.tvrow[data-id]`.
 - Bridging (`dispatch bridge-test-inputs`) leaves an untracked `venv-win`
   link. Stage by path, never `-A`.
+
+## Witnesses
+
+There are 25 new specs: 8 fast and 17 browser. The browser suite's skip line
+is always true, so it has no spec. The pins moved to fast 589/589 and browser
+657 declared / 624 enrollable. The first `--changed-since integration` run
+witnessed 36 of its 41 entries. The other five were all fixed in this branch:
+
+- **The null-anchor mutation drew a stub on the dot itself.** The anchor clip
+  then dropped that stub as "off the scene", so the mutation was invisible.
+  The mutation now reads a null anchor as a point inside the frame.
+- **The resize guard had three redundant routes.** A window resize re-renders
+  the page, and the paint re-draws through `onPainted` and `followSeam`. A
+  spec's mutations are witnessed one at a time, so each route masked the
+  others. The guard now narrows the scene column by hand. That moves the
+  DAG's rect with no repaint behind it, so it isolates the one
+  `ResizeObserver`. This renamed the guard and moved the name-set pin.
+- **The first lit-bar mutation (half a row lower) did not land on a lit bar.**
+  It now puts every leader at the first lit bar's height.
+- **`browser__real-selecting-a-chain-study-in-the-nav-leaves-sweep-mod…#2`**
+  is an existing spec. Its anchor named paint()'s last lines, and
+  `followSeam()` now follows them. It is re-anchored with the same mutation.
+
+Each repaired spec was re-run with `--only`, and every one was witnessed.
+
+## Verification, as recorded
+
+All runs were from this worktree. Test inputs were bridged with
+`dispatch bridge-test-inputs`, and the projections were rebuilt from this
+branch into the worktree's own `data/` (`scripts/rebuild_projections.ps1
+-RepoRoot <worktree>`, at `0717abfc`). `node_modules` is a junction to the
+main checkout's copy. Both are gitignored and not committed. The shared
+`data/projections/` was not touched.
+
+- `node apps/viewer/run_tests.cjs`: **588/588**, with `[real]` armed. The one
+  SKIP is the filed per-document qualifier
+  (`ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md`).
+- `node scripts/run_viewer_browser_tests.mjs --repo <worktree> --only "leaders across the seam"`:
+  **17/17**, with the screenshots taken by that run. The full browser tier was
+  not run: it is the merge's job.
+- `node scripts/run_mutation_witness_tests.mjs --repo <worktree> --changed-since integration`:
+  36/41, then the five above re-run `--only`: all witnessed.
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider -rfs`,
+  single process (no xdist in the venv): **1 failed, 1610 passed, 1 skipped,
+  5:42**. It was recorded with `suite-time record` and is inside the budget.
+  The failure is `test_viewer_js_suite`, which turns that same filed SKIP into
+  a failure. The skip is `test_fit_bound_features.py:424`. An earlier run took
+  37 min because it shared the box with the witness run, and that timing was
+  not recorded.
+- Not run: `node apps/annotate/run_tests.cjs`, because `apps/annotate/` is
+  untouched.
