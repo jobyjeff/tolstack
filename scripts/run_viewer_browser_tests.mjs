@@ -3210,8 +3210,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const realBands = await page.evaluate(BANDS_IN_PAGE);
       push("[real] pitch_system's rows and bands are tinted from one parity, " +
         "and its untraced rows keep their provenance tint as well",
-        realBands.bad.length === 0 && realBands.bands === 17 &&
-        realBands.drawn === 17 &&
+        // 39 bands off 38 leaders since the 2026-10-26 fold made this the
+        // one product graph (17 off 16 on the pitch_system document alone).
+        realBands.bad.length === 0 && realBands.bands === 39 &&
+        realBands.drawn === 39 &&
         realBands.tinted === realBands.rowHeights.length &&
         realBands.provenanceLayers > realBands.tinted / 2);
       if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
@@ -3224,7 +3226,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] pitch_system's jogged leaders still land on every dot and seam",
         (await correspondence()).drift.length === 0 &&
         realJogged.bad.length === 0 &&
-        realJogged.leaderPaths.length === 16 &&
+        realJogged.leaderPaths.length === 38 &&
         realJogged.leaderPaths.every((d) => / H .* V .* H /.test(d)));
       if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
       await page.locator("#leader-style-toggle").click();
@@ -3233,7 +3235,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] and back in angled style, one straight segment each",
         (await correspondence()).drift.length === 0 &&
         /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
-        realAngled.leaderPaths.length === 16 &&
+        realAngled.leaderPaths.length === 38 &&
         realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
 
       // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
@@ -3247,9 +3249,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // Not asserted to be 1: the mock block above dragged it, and the app's
       // state module survives the fixture swap and re-boot this tier does --
       // which is itself the preference behaving. What is asserted is that the
-      // scale is re-derived against THIS topology's own 16 leaders.
-      push("[real] the jog zone is measured against pitch_system's own 16 leaders",
-        before.leaders === 16 && before.scale >= 1);
+      // scale is re-derived against THIS topology's own leaders.
+      push("[real] the jog zone is measured against the product graph's own 38 leaders",
+        before.leaders === 38 && before.scale >= 1);
       const realGrip = await page.locator(".tvgrip--jog").boundingBox();
       await page.mouse.move(realGrip.x + realGrip.width / 2,
                             realGrip.y + realGrip.height / 2);
@@ -7993,8 +7995,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const verdicts = await page.locator("div.kmverdict").allTextContents();
       push("[real] the study page reads one verdict chip per stop",
         verdicts.length === 2 &&
-        /pass/.test(verdicts[0]) && /margin \+0\.256 deg/.test(verdicts[0]) &&
-        /pass/.test(verdicts[1]) && /margin \+0\.258 deg/.test(verdicts[1]) &&
+        /pass/.test(verdicts[0]) && /margin \+0\.210 deg/.test(verdicts[0]) &&
+        /pass/.test(verdicts[1]) && /margin \+0\.185 deg/.test(verdicts[1]) &&
         await page.locator("div.kmverdict span.tvverdict--pass").count() === 2);
 
       // The wiring, not the view: topology_app.js hands the kinematic view its
@@ -8020,19 +8022,18 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const tipText = (await tip.isVisible()) ? await tip.innerText() : "";
       push("[real] hovering an envelope point reads its driver, nominal and both spreads",
         /actuator travel/.test(tipText) && /64\.466 mm/.test(tipText) &&
-        /-6\.992 deg/.test(tipText) && /±0\.244 deg/.test(tipText) &&
-        /RSS/.test(tipText) && /±0\.165 deg/.test(tipText));
+        /-6\.992 deg/.test(tipText) && /±0\.290 deg/.test(tipText) &&
+        /RSS/.test(tipText) && /±0\.169 deg/.test(tipText));
 
       const rows = page.locator('section.kmstop[data-stop="minus7"] tr.kmrow');
       const classes = [];
       for (let i = 0; i < await rows.count(); i++) {
         classes.push(await rows.nth(i).getAttribute("class"));
       }
-      push("[real] the -7 deg stop ranks six contributors, the fifth and sixth gaps",
+      // No gap rows since the tangential link cited its drawing (2026-10-26).
+      push("[real] the -7 deg stop ranks six contributors, every one a banded term",
         classes.length === 6 &&
-        classes.map((c) => /kmrow--gap/.test(c)).join() ===
-          [false, false, false, false, true, true].join() &&
-        /no band on file/.test(await rows.nth(5).innerText()));
+        classes.every((c) => /kmrow--term/.test(c) && !/kmrow--gap/.test(c)));
 
       // Waits for the RAIL, not for the selection: a follow that lands on the
       // rail and selects nothing is the failure this check names, and waiting
