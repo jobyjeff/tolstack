@@ -10160,6 +10160,61 @@
            "no surface says \"classic\" anywhere (deliverable 4)");
       });
 
+    // Tags (handoff bodies_and_studies_carry_forge_tags): chips over the study
+    // list, OR within an axis and AND across, and a variant tag dimming the
+    // other variant's parts. Synthetic tags on a copy -- the demo projection
+    // authors none -- so the rule is pinned apart from any committed model.
+    var TAGGED = {
+      variant_axis: "variant",
+      topologies: [{
+        id: "t", title: "T", bodies: [
+          { id: "b1", parts: ["p1"], tags: { variant: "gas" } },
+          { id: "b2", parts: ["p2", "p3"], tags: { variant: "brake" } },
+          { id: "b3", parts: ["p4"], tags: {} }],
+        studies: [
+          { id: "s1", title: "S1", status: "ok", tags: { variant: "gas", phase: "a" } },
+          { id: "s2", title: "S2", status: "ok", tags: { variant: "brake", phase: "a" } },
+          { id: "s3", title: "S3", status: "ok", tags: { phase: "b" } },
+          { id: "s4", title: "S4", status: "ok", tags: {} }],
+      }],
+    };
+    function taggedStudyIds(selection) {
+      var tree = VA.navTree(TAGGED, null);
+      var root = render(function (r) {
+        VA.renderNavTree(r, tree, { mode: "topology", topologyId: "t",
+          tagFilter: selection }, { onTag: function () {} });
+      });
+      return all(root, ".navtree__row--study").map(function (row) {
+        return row.getAttribute("data-nav-id");
+      });
+    }
+
+    await test("the nav offers one chip row per tag axis, values sorted", function () {
+      var axes = VA.navTree(TAGGED, null).topologies[0].tagAxes;
+      eq(JSON.stringify(axes), JSON.stringify([
+        { axis: "variant", values: ["brake", "gas"] },
+        { axis: "phase", values: ["a", "b"] }]));
+    });
+
+    await test("tag chips are OR within an axis and AND across; an untagged " +
+      "study is neutral on the variant axis only", function () {
+        eq(taggedStudyIds({}).join(), "s1,s2,s3,s4");
+        eq(taggedStudyIds({ variant: ["brake"] }).join(), "s2,s3,s4");
+        eq(taggedStudyIds({ variant: ["brake", "gas"] }).join(), "s1,s2,s3,s4");
+        eq(taggedStudyIds({ phase: ["a"] }).join(), "s1,s2");
+        eq(taggedStudyIds({ phase: ["a"], variant: ["brake"] }).join(), "s2");
+      });
+
+    await test("a variant selection puts the other variant's parts in the " +
+      "dimmed set and leaves shared bodies lit", function () {
+        var set = VA.otherVariantParts(TAGGED.topologies[0], { variant: ["brake"] },
+          "variant");
+        eq(Object.keys(set).join(), "p1");
+        eq(Object.keys(VA.otherVariantParts(TAGGED.topologies[0], {}, "variant")).length, 0);
+        eq(Object.keys(VA.otherVariantParts(TAGGED.topologies[0],
+          { variant: ["gas", "brake"] }, "variant")).length, 0);
+      });
+
     // A superseded first pass keeps its JSON forever and loses its row: the
     // rail is live work, and two near-identical titles one above the other is
     // a reader's problem. The real entry is exercised rather than a synthetic

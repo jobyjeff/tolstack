@@ -204,6 +204,61 @@ BODY_KINDS = ("body", "link")
 # ---------------------------------------------------------------------------
 
 
+#: Where forge declares the identity axes a tag may name. Read, never imported
+#: and never copied: forge imports no sibling and no sibling imports forge, and a
+#: second list of axis names is exactly the drift ``docs/DAG_TOPOLOGY.md``,
+#: "Tags", refuses. A tree with no forge beside it validates nothing and says so.
+FORGE_IDENTITY_PATH = Path(r"C:\workspace\forge\identity.toml")
+
+#: The axis the lit-set rule's second dimming reason reads (``docs/DAG_TOPOLOGY.md``,
+#: "Tags"). forge's file declares no such axis (``component``, ``purpose``,
+#: ``phase`` at 2026-10-26): it is accepted here as **provisional** -- the only
+#: axis the check lets through that forge does not declare -- until
+#: ``docs/issues/ISSUE_20261026_forge_has_no_variant_axis.md`` is answered, at
+#: which point this tuple empties or the word changes, here and nowhere else.
+VARIANT_AXIS = "variant"
+PROVISIONAL_AXES = (VARIANT_AXIS,)
+
+
+def forge_axes(identity_path: str | Path | None = FORGE_IDENTITY_PATH
+               ) -> Optional[Tuple[str, ...]]:
+    """The axis names forge's ``identity.toml`` declares, or ``None`` if absent.
+
+    ``None`` -- not an empty tuple -- is "forge is not here, nothing was
+    checked", which callers must be able to tell from "forge declares no axes".
+    """
+    if identity_path is None or not Path(identity_path).is_file():
+        return None
+    import tomllib
+    raw = tomllib.loads(Path(identity_path).read_text(encoding="utf-8"))
+    return tuple(a["name"] for a in raw.get("axis", []))
+
+
+def check_tags(tags: Dict[str, str], axes: Optional[Iterable[str]], owner: str,
+               source: str | Path) -> None:
+    """Refuse a tag on an axis forge does not declare; ``axes=None`` checks none."""
+    if axes is None:
+        return
+    allowed = set(axes) | set(PROVISIONAL_AXES)
+    for axis in tags:
+        if axis not in allowed:
+            raise TopologyError(
+                f"{source}: {owner}: tag axis {axis!r} is not declared in forge's "
+                f"identity.toml (declared: {sorted(set(axes))})")
+
+
+def _clean_tags(owner: str, tags: Any) -> Dict[str, str]:
+    """``{axis: value}`` with both halves non-empty strings, or a TopologyError."""
+    if not isinstance(tags, dict):
+        raise TopologyError(f"{owner}: tags must be an object {{axis: value}}")
+    for axis, value in tags.items():
+        if not axis or not isinstance(value, str) or not value:
+            raise TopologyError(
+                f"{owner}: tag {axis!r}: {value!r} -- one non-empty string value "
+                f"per axis")
+    return dict(tags)
+
+
 class TopologyError(ValueError):
     """A topology document that does not describe a graph."""
 
@@ -325,8 +380,10 @@ class Body:
     parts: Tuple[str, ...] = ()
     kind: str = "body"               # one of BODY_KINDS, above -- and checked
     note: Optional[str] = None
+    tags: Dict[str, str] = field(default_factory=dict)  # {forge axis: value}
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "tags", _clean_tags(f"body {self.id!r}", self.tags))
         if self.kind not in BODY_KINDS:
             raise TopologyError(
                 f"body {self.id!r}: kind must be one of {BODY_KINDS}, got "
@@ -955,8 +1012,15 @@ class Study:
     configuration: Dict[str, Any] = field(default_factory=dict)
     provenance: Dict[str, Any] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
+    #: ``{forge axis: value}`` -- ``docs/DAG_TOPOLOGY.md``, "Tags". Read by the
+    #: nav filter only; nothing that folds looks at it.
+    tags: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        try:
+            self.tags = _clean_tags(f"study {self.id!r}", self.tags)
+        except TopologyError as exc:
+            raise StudyError(str(exc)) from None
         if not self.selection:
             raise StudyError(f"study {self.id!r}: the selection is empty")
         seen = set()
@@ -1360,12 +1424,17 @@ def check_study(topology: Topology, study: Study, check_id: str) -> CheckResult:
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topology:
+def load_topology(path: str | Path, repo_root: str | Path | None = None,
+                  identity_path: str | Path | None = FORGE_IDENTITY_PATH
+                  ) -> Topology:
     """Load a topology JSON, resolving every ``dimension_ref`` as it goes.
 
     A ref is ``{"stack": "<repo-relative path>", "element": "<element id>"}``,
     read through :func:`~tolerance_stack.stack.load_stack` so the referenced file
     gets its own schema check, and each stack file is read once per call.
+
+    A body's ``tags`` are checked against forge's axes at ``identity_path``
+    (:func:`forge_axes`); with that file absent nothing is checked.
     """
     root = Path(repo_root) if repo_root is not None else REPO_ROOT
     data = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -1402,6 +1471,11 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topo
                 f"{ref['element']!r}") from exc
         edge.dimension = Dimension.from_element(element)
 
+    bodies = [Body.from_dict(b) for b in data.get("bodies", [])]
+    axes = forge_axes(identity_path)
+    for body in bodies:
+        check_tags(body.tags, axes, f"body {body.id!r}", path)
+
     return Topology(
         id=data["id"],
         title=data["title"],
@@ -1411,20 +1485,27 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topo
         nodes=[Node.from_dict(n) for n in data.get("nodes", [])],
         edges=edges,
         transforms=[Transform.from_dict(t) for t in data.get("transforms", [])],
-        bodies=[Body.from_dict(b) for b in data.get("bodies", [])],
+        bodies=bodies,
         joint=data.get("joint", {}),
         provenance=data.get("provenance", {}),
         notes=data.get("notes", []),
     )
 
 
-def load_study(path: str | Path) -> Study:
-    """Load a study JSON file."""
+def load_study(path: str | Path,
+               identity_path: str | Path | None = FORGE_IDENTITY_PATH) -> Study:
+    """Load a study JSON file; its ``tags`` are checked as a topology's are."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if data.get("schema") != SCHEMA_STUDY:
         raise StudyError(
             f"{path}: expected schema {SCHEMA_STUDY!r}, got {data.get('schema')!r}")
-    return Study.from_dict(data)
+    study = Study.from_dict(data)
+    try:
+        check_tags(study.tags, forge_axes(identity_path), f"study {study.id!r}",
+                   path)
+    except TopologyError as exc:
+        raise StudyError(str(exc)) from None
+    return study
 
 
 # ---------------------------------------------------------------------------

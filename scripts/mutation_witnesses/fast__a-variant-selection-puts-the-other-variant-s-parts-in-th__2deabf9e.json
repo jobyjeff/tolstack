@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a variant selection puts the other variant's parts in the dimmed set and leaves shared bodies lit",
+  "mutations": [
+    {
+      "contract": "Only bodies tagged with a variant other than the selected one are dimmed.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (tag === undefined || values.indexOf(tag) !== -1) return;",
+      "replace": "      if (tag === undefined) return;",
+      "issue": null,
+      "note": null
+    }
+  ]
+}

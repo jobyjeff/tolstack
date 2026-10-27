@@ -149,6 +149,72 @@
     return index;
   };
 
+  // --- tags (handoff bodies_and_studies_carry_forge_tags) -------------------
+  //
+  // A body or a study carries `tags: {axis: value}` on forge's identity axes
+  // (docs/DAG_TOPOLOGY.md, "Tags"). A selection is `{axis: [value, ...]}` and
+  // reads as drawing-checker's container tree does: OR within an axis, AND
+  // across. Nothing here names an axis: the one the dimming reads arrives in the
+  // projection as `variant_axis`, and the chips are whatever axes the tags use.
+
+  // The chips' content: `[{axis, values: [...]}]`, axes in first-seen order,
+  // values sorted, over the studies AND the bodies (a value that only a body
+  // carries is still one a reader can select to dim the other side).
+  VA.tagAxes = function (studies, bodies) {
+    var axes = [];
+    var seen = {};
+    (studies || []).concat(bodies || []).forEach(function (owner) {
+      var tags = (owner && owner.tags) || {};
+      Object.keys(tags).forEach(function (axis) {
+        if (!seen[axis]) { seen[axis] = {}; axes.push({ axis: axis, values: [] }); }
+        if (!seen[axis][tags[axis]]) {
+          seen[axis][tags[axis]] = true;
+          axes.filter(function (a) { return a.axis === axis; })[0]
+            .values.push(tags[axis]);
+        }
+      });
+    });
+    axes.forEach(function (a) { a.values.sort(); });
+    return axes;
+  };
+
+  function chosen(selection, axis) {
+    var values = selection && selection[axis];
+    return values && values.length ? values : null;
+  }
+
+  // Does this study stay in the list? Every axis the reader has selected on
+  // must be satisfied (AND) by one of its chosen values (OR). A study with no
+  // tag on the VARIANT axis is neutral -- it folds nothing either variant owns
+  // -- and stays; on any other axis an untagged study does not match.
+  VA.studyMatchesTags = function (study, selection, variantAxis) {
+    var tags = (study && study.tags) || {};
+    return Object.keys(selection || {}).every(function (axis) {
+      var values = chosen(selection, axis);
+      if (!values) return true;
+      if (tags[axis] === undefined) return axis === variantAxis;
+      return values.indexOf(tags[axis]) !== -1;
+    });
+  };
+
+  // The parts the second dimming reason covers: every part of a body whose
+  // variant tag is not among the selected variants. A body with no variant tag
+  // is shared and is never in the set.
+  VA.otherVariantParts = function (topoProj, selection, variantAxis) {
+    var out = {};
+    var values = variantAxis ? chosen(selection, variantAxis) : null;
+    if (!values) return out;
+    ((topoProj && topoProj.bodies) || []).forEach(function (body) {
+      var tag = body.tags && body.tags[variantAxis];
+      if (tag === undefined || values.indexOf(tag) !== -1) return;
+      (body.parts || []).forEach(function (id) { out[id] = true; });
+    });
+    return out;
+  };
+
+  // The words the surface says about a mark the rule dimmed.
+  VA.OTHER_VARIANT_NOTE = "other variant";
+
   // --- is there a 3D model of this part? ------------------------------------
   //
   // (handoff annotate_affordances_flyout_and_mesh_gating.) The page CANNOT work
@@ -2794,9 +2860,12 @@
         // (stack_title_style_pass, 2026-09-14). views/nav.js shows it on hover
         // and nothing else reads it; absent on artifacts that need none.
         description: t.description || null,
+        variantAxis: (topologies && topologies.variant_axis) || null,
+        tagAxes: VA.tagAxes(t.studies, t.bodies),
         studies: (t.studies || []).map(function (s) {
           return { id: s.id, title: s.title, status: s.status,
                    description: s.description || null,
+                   tags: s.tags || {},
                    // Does it pass, and is there anything about the answer a
                    // reader must not miss — on the rail itself, so the shape of
                    // the whole document is readable without clicking through
