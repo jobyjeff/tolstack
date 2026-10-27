@@ -5704,15 +5704,18 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
       const s = w.__scene.modelState();
       const strengths = w.__model.strengths;
       const full = Object.keys(strengths).filter((k) => strengths[k] === "full");
-      return { full, dimOpacity: s.lines[Object.keys(strengths).find((k) => strengths[k] === "dim")].opacity,
-        fullOpacity: s.lines[full[0]].opacity };
+      // Read defensively: with nothing dimmed (or nothing full) this is a
+      // failed check, never a thrown one that aborts the suite unnamed.
+      const dim = Object.keys(strengths).find((k) => strengths[k] === "dim");
+      return { full, dimOpacity: dim ? s.lines[dim].opacity : null,
+        fullOpacity: full.length ? s.lines[full[0]].opacity : null };
     });
     const contributors = new Set();
     for (const stop of study.stops) for (const row of stop.rows) contributors.add(row.edge);
     push("[real] until the shell posts a lit set, the open study's contributors are drawn at full " +
       "strength and the rest dimmed",
       lit && lit.full.length === contributors.size && lit.full.every((id) => contributors.has(id)) &&
-      lit.fullOpacity === 1 && lit.dimOpacity < 1);
+      lit.fullOpacity === 1 && lit.dimOpacity !== null && lit.dimOpacity < 1);
     await exec(["model", "unlit", "hide"]);
     const hidden = await inPane((w) => {
       const s = w.__scene.modelState();
