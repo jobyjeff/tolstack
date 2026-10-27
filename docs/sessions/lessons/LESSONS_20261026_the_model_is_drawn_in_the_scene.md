@@ -167,3 +167,45 @@ There are 25 new specs: 10 annotate (fast tier) and 15 browser, all in the new
 suite's skip line, has no spec, because it is always true. The pins moved to
 annotate 235/235 and browser 639 declared / 606 enrollable. The mock checks
 added to `apps/annotate/run_browser_check.mjs` (seven) are not a guard source.
+
+## Verification, as recorded
+
+Every run was from this worktree. `node_modules` is a junction to the main
+checkout's copy; it is gitignored and not committed. "Scratch" means
+`C:\workspace\tolstack\data\scratch\model_in_scene\`. Its projections were
+rebuilt from this branch at `f773cf11` (clean), crops included, using
+drawing-checker's venv, and its `docs` is a junction into this worktree.
+
+- `node apps/annotate/run_tests.cjs`: **235/235** (225 + 10 new).
+- `node apps/annotate/run_browser_check.mjs`: **79/79** (72 + 7 new mock
+  checks), 31 s.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch> --only annotate`:
+  **9/10 suites**, 93 s. The new suite passed **15/15**. The failure is
+  `annotate rail and scene`, at 20/22: these are the two gap-badge checks
+  already filed on integration
+  (`ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has.md`),
+  and this diff does not touch them. `--only "3D pane"`: **27/27**. The full
+  browser tier was not run, because it is the merge's job.
+- `node apps/viewer/run_tests.cjs --repo <scratch>`: **570/571**. The one red is
+  the topology fixture drift filed on integration
+  (`ISSUE_20261026_topology_fixtures_lack_the_tags_fields_…`).
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration`:
+  39 entries selected, **37 witnessed**. The other two:
+  - `browser__real-leaving-sweep-mode-puts-back-every-occurrence-a-bod__3d012dc4`
+    was skipped as red-before, because its suite carries the same two filed
+    gap-badge reds.
+  - My lit-set spec aborted its suite rather than failing by name. The check
+    read `.opacity` of a line that the mutation left undefined. I hardened the
+    check, and it was then **witnessed with `--only`**. The anchors-message
+    check, changed after the run by the offset fix, was also **witnessed with
+    `--only`**.
+  - Result: all 25 of this branch's specs are witnessed.
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs`,
+  single process: **1 failed, 1592 passed, 1 skipped, 6:06**. Recorded with
+  `suite-time record`, inside budget. The failure is the documented
+  worktree-only `tests/test_viewer_js_suite.py`, which finds no projection in a
+  worktree. The skip is `test_fit_bound_features.py:424`, because the
+  pitch-link bearing re-extraction is not installed. An earlier run took 30
+  minutes because it shared the box with the witness run; that timing was not
+  used.
+- The browser tier's run on scratch was recorded as merge-tier, 93 s.
