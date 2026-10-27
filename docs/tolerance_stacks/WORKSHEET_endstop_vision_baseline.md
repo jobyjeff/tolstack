@@ -1,5 +1,12 @@
 # Worksheet — end-stop vision baseline (task B): can an agent derive the end-stop stack from the drawings alone?
 
+> **2026-10-26:** `docs/topologies/topology_pitch_system.json`, cited below by
+> path, was folded into `docs/topologies/topology_vpa_pitch_linkage.json` that
+> day and deleted; its edge and node ids are unchanged there except as
+> `provenance.pitch_system_ids.renamed` lists (handoff
+> `pitch_system_folds_into_the_pitch_linkage_model`). The text below is the
+> dated record and is not rewritten.
+
 Handoff `endstop_vision_baseline` (staged 2026-08-31, worked 2026-09-01).
 Source of the experiment:
 `C:\workspace\dispatch\docs\strategy\drafts\DRAFT_3d_annotation_surface.md`,
