@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
 reviewer: agent
 date: 2026-10-26
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — pitch_system_folds_into_the_pitch_linkage_model
@@ -178,3 +178,82 @@ Expect `annotate rail and scene` 20/22 until the filed issue is fixed. Do not
 treat that as yours. This review's scratch roots
 (`data/scratch/rv_fold/`) are deleted. The author's
 `data/scratch/pitch_merge/` is left for the rework.
+
+## Re-run 2026-10-26 — round 2: APPROVE
+
+Round 1 was REQUEST CHANGES with 1 blocker: `topology file:// respine` was
+reliably red on the folded graph. The rework, `b76462d` + `5e97ec9`, closes it.
+
+**What changed.** The respine suite sets the page's own duration knob,
+`VA.RESPINE.duration = 1200` (`RESPINE_SUITE_DURATION_MS`), right after boot.
+That is in `scripts/` only; nothing under `apps/` changed. No check asserts
+the duration. The "animates rather than repaints" checks still need a frame
+caught in flight, so a build that does not animate still fails them. The
+mutation tier agrees: `the-study-s-respine-transition-settles-before-any-of-its`
+is WITNESSED under the knob. Both nits are done. `Body.from_dict` refuses a
+missing id or name with a `TopologyError` that names the body, and a test
+covers it. The two dated documents carry a pointer to the folded file. The
+lesson's re-run section is accurate: its 28/28 suites and 213/213 annotate
+counts are for the branch tree, which has neither sibling. The flake issue
+is narrowed to the `[mock]` re-fit check, which no live projection can reach.
+
+**Merges.** `integration` moved to `ca27a9b` (`a_binding_may_be_superseded`).
+The handoff rework and then `integration` were merged into the review branch
+(`9735513`). `DECLARED_GUARDS` conflicted again and was re-derived from
+`node scripts/guard_enumeration.mjs --json`:
+
+- fast: 551 / `6a3b0abb5fff` (unchanged from round 1)
+- annotate: 225/225 / `c7f8fe3a3d7d` (integration's; the sibling added +5,
+  this handoff's delta is 0)
+- browser: 605/572 / `f0775be1d6ab` (unchanged)
+
+No conflict markers.
+
+**Runs, all on the merged tree `9735513`.** The five projections were built
+from it into a scratch root (`data/scratch/rv_fold2/root`), and meshes were
+confirmed installed.
+
+- respine `--only`: **40/40 in 5 of 5 runs** (round 1: red in 4 of 4).
+- `node apps/viewer/run_tests.cjs --repo <root>`: **550/550**, plus the named
+  per-document SKIP.
+- `node apps/annotate/run_tests.cjs`: **225/225**.
+- `node scripts/run_viewer_browser_tests.mjs --repo <root>`: **30/31**, 230s.
+  The one red is `annotate rail and scene` 20/22: the two gap-badge checks
+  filed in round 1. They are red on `integration` alone and are not this
+  handoff's.
+- Full `pytest -q -p no:cacheprovider -rs`, run in the review worktree after
+  the merge: **1 failed, 1558 passed, 1 skipped**, 406s, inside budget
+  (recorded with `dispatch suite-time`). The tool printed no contention header
+  lines in this repo's run. The failure is `test_viewer_js_suite_is_green`,
+  the documented worktree red ("no projection at …/data/projections/viewer").
+  The same tier is green through `--repo` above. The skip is
+  `test_fit_bound_features.py:424` (a re-extraction that is not installed).
+  The main checkout's `data/` was unchanged: a before/after manifest of
+  411 files outside `data/scratch/`, by size and mtime.
+
+**Mutation witnesses: the full registry ran AFTER the merge, not before it.**
+Strategy (2026-10-26) moved the post-merge `--full` run out of the review
+gate and into a scheduled sweep that files issues. A full registry is about
+two hours here. Holding the dependents behind it costs more than a decay the
+sweep would catch and file anyway. So this APPROVE rests on the following:
+
+- the `--only` evidence for the specs this branch touched (the author's 5/5
+  across 4 specs in round 1);
+- the renamed `browser__real-the-7-deg-stop-ranks-six-contributors-every-one-a-b__b7c5d4f7`,
+  which is **WITNESSED** in the in-flight full run;
+- the browser tier and pytest above.
+
+The full run was started on this merged tree before the strategy change and
+is left running. Its count is appended below when it finishes.
+
+**Found in that run so far, not this handoff's.** Five mutations are NOT
+WITNESSED, all in `3D pane follows the selection`. The suite needs a gap row
+in the kinematic study. `the_tangential_link_cites_its_drawing` removed the
+last ones, so the suite skips its whole `[real]` block and prints 2/2 PASS.
+This is filed as an addendum to
+`ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has.md`
+(same root cause as the gap-badge red). No branch under review touches those
+specs.
+
+Verdict: **APPROVE**. Landed on `integration` as a fast-forward from
+`review/pitch_system_folds_into_the_pitch_linkage_model`.
