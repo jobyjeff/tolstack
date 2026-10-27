@@ -169,6 +169,59 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    colour this page uses to mean "this, and not the others". */
 .navtree__id { color: var(--muted); font-size: var(--t-micro); }
 
+/* --- the scene's tree, under the row it is showing (the_shell_seats_the_
+   scene_beside_the_model) -----------------------------------------------
+   The annotator's rail, drawn here while the 3D scene is open
+   (views/nav.js's renderSceneTree). Indented under its row like a study under
+   its topology, at the dense size; one clipped line per row with the whole
+   of it on hover; the second fact (a bound face, a part's position note)
+   muted under the name; a value right-aligned. The selected row wears the
+   nav's own `--on` treatment; the row the scene's pointer rests on, a wash. */
+.navtree__scene { padding: 2px 0 6px 12px; font-size: var(--t-dense); }
+.navtree__scenechips { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 6px; }
+.navtree__scenechip { font: inherit; font-size: var(--t-micro); color: var(--muted);
+  background: none; border: 1px solid var(--line); border-radius: 10px;
+  padding: 0 8px; cursor: pointer; }
+.navtree__scenechip[aria-pressed="true"] { color: var(--ink); border-color: var(--muted); }
+.navtree__scenelist { list-style: none; margin: 0; padding: 0; }
+.navtree__scenelist .navtree__scenelist { padding-left: 14px; }
+.navtree__scenehead { display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px 2px; color: var(--muted); font-size: var(--t-micro);
+  text-transform: uppercase; letter-spacing: .04em; }
+.navtree__scenehead .navtree__scenetext { flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navtree__scenesummary { list-style: none; cursor: pointer; }
+.navtree__scenesummary::-webkit-details-marker { display: none; }
+.navtree__scenesummary > .navtree__scenerow::before {
+  content: "▸"; flex: none; color: var(--muted); width: 10px; }
+details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "▾"; }
+.navtree__scenerow { display: flex; align-items: center; gap: 6px;
+  padding: 2px 8px; border-radius: 6px; min-width: 0; }
+.navtree__scenerow:hover, .navtree__scenerow--hot { background: #20242c; }
+.navtree__scenerow--act { cursor: pointer; }
+.navtree__scenerow--on { background: #202634; outline: 1px solid var(--accent); }
+.navtree__scenerow:focus, .navtree__scenesummary:focus { outline: none; }
+.navtree__scenerow:focus-visible,
+.navtree__scenesummary:focus-visible > .navtree__scenerow { outline: 1px solid var(--accent); }
+/* A row the annotator says is not settled (an element or a surface whose
+   face is not bound, or needs confirming) reads amber -- the one state
+   colour, as the rail colours it. Which states those are is the
+   annotator's call (`attention` on the row), not a list kept here. */
+.navtree__scenerow[data-attention="true"] { color: var(--inferred); }
+.navtree__scenetext { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.navtree__scenename, .navtree__scenesub {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navtree__scenesub { color: var(--muted); font-size: var(--t-micro); }
+.navtree__scenevalue { flex: none; color: var(--muted); font-size: var(--t-micro);
+  font-variant-numeric: tabular-nums; }
+.navtree__scenecheck { flex: none; margin: 0; }
+.navtree__scenebtn { flex: none; font: inherit; font-size: var(--t-micro);
+  color: var(--muted); background: none; border: 1px solid transparent;
+  border-radius: 4px; padding: 0 4px; cursor: pointer; }
+.navtree__scenerow:hover .navtree__scenebtn, .navtree__scenebtn:focus,
+.navtree__scenebtn[aria-pressed="true"] { color: var(--ink); border-color: var(--line); }
+.navtree__scenealert { flex: none; color: var(--inferred); display: inline-flex; }
+
 /* --- the one status icon a row may wear ------------------------------------
    (viewer_nav_verdict_into_alert_and_icon, 2026-09-22. Jeff, on the rail as
    2026-09-21 left it: "get rid of the pass/fail in the left side menu (move
@@ -961,40 +1014,36 @@ body { display: flex; flex-direction: column; }
 }
 .detail__annotate-btn:hover { text-decoration: underline; }
 
-/* --- the annotator flyout (study_3d_flyout) --------------------------------
-   It opens NON-modally (dialog.show(), no top layer needed) and position:
-   fixed pins it to a viewport edge, so the page beside it stays fully
-   clickable -- "attach to 3D" on another row re-drives the open panel.
+/* --- the 3D scene column (study_3d_flyout) --------------------------------
+   A non-modal <dialog> (dialog.show(), no top layer), laid out IN `.tv`'s
+   row since 2026-10-26: nav | scene | DAG + grid (handoff the_shell_seats_
+   the_scene_beside_the_model; Jeff: "a single canvas that contains the 3d
+   viewer and the DAG view, with the dag on the right side of the canvas.
+   This could potentially be faked by using two separate canvases with the
+   same background color and no border between them").
 
-   LEFT-docked since 2026-09-16, and the reason is adjacency (Jeff: "I
-   actually want the 3d flyout on the left side, adjacent to the DAG. It would
-   be ok if it covered up the left side select menu since you shouldn't need
-   both at the same time"). It was pinned to the RIGHT edge until then, which
-   put the 3D panel and the graph at opposite ends of the window with the whole
-   grid between them -- the two things a reader is comparing.
+   So: the page's own background, no border and no shadow at either seam,
+   and the column sticks under the topbar the way the nav does, a window
+   tall while the document scrolls past it. It was a `position: fixed` panel
+   docked at the window's left edge from 2026-09-16 -- adjacent to the DAG,
+   with the page shifted out from under it by a margin and, after 2026-10-20,
+   the nav between the two (pane | nav | DAG). On a chain study at 1600 wide
+   that left the DAG and grid about 170px
+   (ISSUE_20261020_with_the_3d_pane_open_a_chain_study_page_leaves_the_dag_a_
+   narrow_strip). Here the preview pane stands down instead (below), so the
+   scene takes the room the preview had and the DAG keeps its own.
 
-   AND THE PAGE YIELDS THE ROOM RATHER THAN BEING COVERED (`body.flyout-open`
-   below). That reverses, deliberately, what this comment argued until the
-   review of 2026-09-16: "position: fixed takes it out of flow entirely:
-   opening it cannot shrink or reflow the DAG pane by construction". That
-   invariant was right for a RIGHT-docked panel, where the thing underneath was
-   the preview pane and nothing was lost -- and it is exactly what made a
-   left-docked one useless. Measured across all 21 live studies: the DAG
-   drawing (`svg.tv__rails`) is only 90-262px wide and sits at the pane's LEFT
-   edge, so its right edge never passes x=562, while this panel's own floor is
-   560px. At every width a reader can reach, the graph was entirely underneath
-   the panel. Nor could a reader scroll it out: `.tv__rails` is `position:
-   sticky; left: 0` inside `.tv__hscroll` (by design, see above), so at
-   scrollLeft 0 and at scrollLeft 742 its box is the same 300..562.
-   "Adjacent to the DAG" and "cannot reflow the DAG pane" cannot both hold on
-   one edge of one window; adjacency is what Jeff asked for. */
+   The width it asks for is the preview pane's own (560px, `.tv .detail`):
+   opening the scene on a page whose preview it replaces leaves the DAG and
+   grid the width they had. topology_app.js clamps it per page
+   (VA.clampFlyoutWidth) and applies the reader's chosen width. */
 dialog#annotate-flyout {
-  position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0;
-  width: min(760px, 55vw); height: 100vh; max-height: 100vh;
-  background: var(--panel); color: var(--ink);
-  border: none; border-right: 1px solid var(--line);
-  box-shadow: 12px 0 32px rgba(0, 0, 0, .45);
-  z-index: 40; /* over the crop popover's plane, under nothing */
+  position: sticky; top: 47px; inset: 47px auto auto auto; margin: 0; padding: 0;
+  flex: none; width: min(560px, 40vw);
+  height: calc(100vh - 47px); max-height: calc(100vh - 47px);
+  background: var(--bg); color: var(--ink);
+  border: none; box-shadow: none;
+  z-index: 3; /* its divider's hit area overhangs the DAG's first pixels */
 }
 dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
 .flyout__head {
@@ -1030,14 +1079,16 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
   cursor: col-resize; z-index: 1;
   background: none; border: none; padding: 0;
 }
+/* No hairline at rest: the scene and the DAG are one surface with no seam
+   (the grip mark below is the control's whole resting look). */
 .flyout__divider::before {
   content: ""; position: absolute; top: 0; bottom: 0; left: 3px;
-  width: 1px; background: var(--line);
+  width: 1px; background: transparent;
 }
 .flyout__divider:hover::before, .flyout__divider:focus::before { background: var(--accent); }
 /* Centred, not sticky -- unlike `.tv__divider`'s mark. This divider's box is
-   the flyout's own height (100vh, never the document's), so 50% IS the middle
-   of the reader's window. */
+   the column's own height (a window tall, never the document's), so 50% IS
+   the middle of the reader's window. */
 .flyout__divider::after {
   content: ""; display: block; position: absolute; top: 50%;
   transform: translateY(-50%);
@@ -1051,28 +1102,27 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
     var(--accent) 1.3px, transparent 1.5px);
 }
 .flyout__divider:focus { outline: none; }
-.flyout__frame { flex: 1; width: 100%; border: none; background: #1b1e22; }
+.flyout__frame { flex: 1; width: 100%; border: none; background: var(--bg); }
 
-/* --- what the page does while the panel is open ---------------------------
-   `--flyout-width` is written by topology_app.js's applyFlyoutWidth, on every
-   frame of a drag, so these two rules follow the seam live. The class is
-   added on launch and removed by the dialog's own `close` event, which is the
-   ONE seam every close path goes through (the ✕, a `.close()` from anywhere)
-   -- not the button's handler, which would leave the page shifted if anything
-   else ever closed the panel.
+/* --- what the page does while the scene is open ---------------------------
+   `body.flyout-open` is added on launch and removed by the dialog's own
+   `close` event, which is the ONE seam every close path goes through (the
+   Close button, a `.close()` from anywhere).
 
-   The nav rail STAYS, between the panel and the graph, since 2026-10-20
-   (the_3d_pane_opens_in_the_mode_the_study_wants). It stood down until then,
-   on Jeff's "you shouldn't need both at the same time" -- and the pane now
-   follows what the rail selects, so both are needed at once.
+   No border at either seam: the nav's right rule goes, and the main column's
+   (which only ever separated it from the preview pane).
 
-   Everything above `.tv` shifts too, so the panel reads as the page's left
-   column rather than as a sheet lying across it. Nothing is latched and
-   nothing is destroyed -- a margin reverses exactly, which is what makes "closing restores whatever it covered" true by
-   construction rather than by a restore path that can rot. */
-body.flyout-open .topbar,
-body.flyout-open #banner,
-body.flyout-open .tv { margin-left: var(--flyout-width, 0); }
+   The preview pane STANDS DOWN on a topology or kinematic page
+   (`body.flyout-replaces-detail`, topology_app.js's syncSceneColumn): the
+   scene's own detail line and the hover card answer for an edge while the
+   scene is open, and the room is the scene's. A stack page has no DAG to
+   make room for and keeps its preview. Nothing is latched and nothing is
+   destroyed -- `display: none` reverses exactly, which is what makes
+   "closing restores whatever it covered" true by construction. */
+body.flyout-open .navtree { border-right: none; }
+body.flyout-replaces-detail .tv__main { border-right: none; }
+body.flyout-replaces-detail #detail,
+body.flyout-replaces-detail #detail-divider { display: none; }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):

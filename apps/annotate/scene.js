@@ -322,6 +322,14 @@ export class AnnotateScene {
   // The single way in: something drawn has changed, draw the next frame.
   requestRender() { this.dirty = true; }
 
+  // The clear colour, as a CSS colour: embedded, the page beside the scene
+  // lends its own background so the two read as one surface (app.js's
+  // adoptEmbedderBackground).
+  setBackground(css) {
+    this.scene.background = new THREE.Color(css);
+    this.requestRender();
+  }
+
   // Re-sizes the drawing buffer and the projection to the host's current box.
   // A zero dimension (a hidden host) is ignored rather than clamped: three.js
   // would take an aspect ratio of 0/N and never recover it on the way back.

@@ -772,9 +772,13 @@
   // the preview pane's does not -- a strip of the page underneath must stay
   // uncovered whatever the window is.
   //
-  // `min` is the annotator's own three-column grid (260 + 320 of chrome either
-  // side of its canvas, apps/annotate/style.css) plus enough canvas to orbit in.
-  // `max` bounds a drag on a wide screen.
+  // `min` is enough canvas to orbit in, with the scene's one-line head and its
+  // sweep bar across the top. It was 560 while the annotator brought its own
+  // rail into the panel (260px of it); embedded, that rail is drawn in this
+  // page's nav instead (the_shell_seats_the_scene_beside_the_model), so the
+  // panel is all scene. Under the preview pane's own 560 on purpose: at the
+  // floor, the scene leaves the DAG and grid MORE room than the preview it
+  // stands in for. `max` bounds a drag on a wide screen.
   //
   // `reserve` is the FLOOR for what is left beside the panel, used when the
   // caller can measure nothing to keep (stack mode, which draws no graph; a
@@ -791,12 +795,12 @@
   // studies, it sits at the pane's left edge, and it is `position: sticky;
   // left: 0` so no scroll position can move it out from under anything. It is
   // the drawing that has to survive, so it is the drawing the caller measures.
-  VA.FLYOUT_WIDTH = { min: 560, max: 1200, reserve: 320 };
+  VA.FLYOUT_WIDTH = { min: 400, max: 1200, reserve: 320 };
 
   // `room` is the width the panel and the page's own content are dividing --
   // the viewport less what sits to the RIGHT of the graph (the preview pane and
-  // its divider) and less the nav rail, which stays beside the open panel
-  // because the panel follows what it selects.
+  // its divider, where they have not stood down for the scene) and less the
+  // nav, which sits to the scene's left.
   // `keep` is what must be left of that for the page: the drawing's own
   // measured width, floored at `reserve`. Both are the caller's measurements
   // (topology_app.js's roomBesideFlyout / graphNeed) because they are live

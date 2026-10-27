@@ -240,6 +240,10 @@
     // the whole of "closing restores whatever it covered".
     nodes.flyout.addEventListener("close", function () {
       document.body.classList.remove("flyout-open");
+      // The preview pane comes back, and the scene's tree leaves the nav.
+      syncSceneColumn();
+      sceneTree = null;
+      renderNav();
       // Closed is remembered as firmly as open: the pane stays where the
       // reader left it, either way, across a reload.
       VA.writeStoredFlyoutOpen(widthStore(), false);
@@ -1252,13 +1256,16 @@
     // show(), not showModal(): the page beside the panel stays clickable, so
     // the nav and every row's 3D control keep driving the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
-    // The page yields the room (topology.css's `body.flyout-open`): the page
-    // starts at the panel's right edge, so the panel sits BESIDE the nav and
-    // the graph instead of on top of them. Removed again by the dialog's own
-    // `close` event, wired once at boot.
+    // The scene is a column of the page's own row, between the nav and the
+    // DAG (topology.css's `body.flyout-open`), and on a topology or kinematic
+    // page it takes the preview pane's place. Both come off again in the
+    // dialog's own `close` event, wired once at boot.
     document.body.classList.add("flyout-open");
+    syncSceneColumn();
     VA.writeStoredFlyoutOpen(widthStore(), true);
     syncPaneToggle();
+    // The nav grows the slot the scene's tree is drawn into.
+    renderNav();
 
     // The panel's width, clamped to the room the page can spare, EVERY time it
     // opens -- and AFTER show(), which is not a detail: a closed <dialog> is
@@ -1280,18 +1287,25 @@
   // still loading, or post them to a booted one.
   function drivePane(params) {
     var href = params ? VA.annotateLink(params) : VA.ANNOTATE_PAGE;
+    // The iframe boots embedded (the annotator's rail is drawn in this page's
+    // nav); the full-page link below keeps the plain url.
+    var embedHref = VA.annotateEmbedHref(href);
+    // The tree in the nav is the scene's answer about what it is showing,
+    // like the head line: gone until the re-driven scene sends its own.
+    sceneTree = null;
+    renderSceneSlot();
     if (!flyoutFrame) {
       flyoutFrame = document.createElement("iframe");
       flyoutFrame.className = "flyout__frame";
       flyoutFrame.setAttribute("title", "3D annotation panel");
       flyoutFrame.addEventListener("load", function () { flyoutLoaded = true; });
-      flyoutFrame.src = href;
+      flyoutFrame.src = embedHref;
       nodes.flyout.appendChild(flyoutFrame);
     } else if (!flyoutLoaded) {
       // The iframe exists but its document is still loading, so its message
       // listener may not be registered yet and a postMessage would be lost --
       // re-point the boot URL at the new params instead.
-      if (params) flyoutFrame.src = href;
+      if (params) flyoutFrame.src = embedHref;
     } else if (params) {
       VA.annotateExecCommands(params).forEach(postToPane);
     }
@@ -1351,9 +1365,71 @@
       if (!flyoutFrame || event.source !== flyoutFrame.contentWindow) return;
       if (event.origin !== window.location.origin) return;
       var msg = event.data;
+      if (msg && msg.type === "annotate:tree") {
+        sceneTree = msg;
+        renderSceneSlot();
+        return;
+      }
       if (!msg || msg.type !== "annotate:state") return;
       setPaneTitle(msg.title || null);
     });
+  }
+
+  // --- the scene's tree, under the study row (the_shell_seats_the_scene_
+  // beside_the_model, deliverable 3) -----------------------------------------
+  //
+  // The annotator, embedded, sends the rows its own rail has just rendered
+  // ({type: "annotate:tree"}, app.js's postEmbedTree) and this page draws them
+  // in the nav under the row the scene is showing (views/nav.js's
+  // renderSceneTree). A gesture on one goes back as {type: "annotate:rail",
+  // key, act, index?} and the annotator runs it on the row it mirrors -- so
+  // what a row says and what it does are both the annotator's, and this page
+  // keeps no copy of either. The type chips' state is the annotator's too.
+  var sceneTree = null;
+
+  function sceneRail(key, act, index) {
+    if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;
+    var msg = { type: "annotate:rail", key: key, act: act };
+    if (typeof index === "number") msg.index = index;
+    flyoutFrame.contentWindow.postMessage(msg, window.location.origin);
+  }
+
+  // Which mirrored row (and which control in it) has focus, so a rebuilt
+  // tree puts the keyboard back where it was.
+  function sceneFocus(slot) {
+    var active = typeof document !== "undefined" ? document.activeElement : null;
+    if (!active || !slot.contains || !slot.contains(active)) return null;
+    var row = active.closest && active.closest("[data-scene-key]");
+    return row ? { key: row.getAttribute("data-scene-key"),
+      part: active.getAttribute("data-scene-part") || "" } : null;
+  }
+
+  function renderSceneSlot() {
+    var slot = nodes.navtree && nodes.navtree.querySelector
+      ? nodes.navtree.querySelector(".navtree__scene") : null;
+    if (!slot) return;
+    var focus = sceneFocus(slot);
+    VA.renderSceneTree(slot, sceneTree, { send: sceneRail });
+    if (!focus) return;
+    var rows = slot.querySelectorAll("[data-scene-key]");
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].getAttribute("data-scene-key") !== focus.key) continue;
+      var target = focus.part
+        ? rows[i].querySelector('[data-scene-part="' + focus.part + '"]') : rows[i];
+      if (target && target.focus) target.focus();
+      break;
+    }
+  }
+
+  // The preview pane stands down while the scene is open on a page with a
+  // DAG -- a topology or a kinematic study -- and comes back when it closes
+  // or the page is a stack's (topology.css's `body.flyout-replaces-detail`).
+  function syncSceneColumn() {
+    if (typeof document === "undefined" || !document.body ||
+        !document.body.classList || !document.body.classList.toggle) return;
+    var open = !!(nodes.flyout && nodes.flyout.open);
+    document.body.classList.toggle("flyout-replaces-detail",
+      open && (state.mode === "topology" || state.mode === "kinematic"));
   }
 
   // --- hover crosses the seam (deliverable 3) --------------------------------
@@ -1406,6 +1482,9 @@
     if (typeof document === "undefined" || !document.addEventListener) return;
     document.addEventListener("mouseover", function (event) {
       if (!nodes.flyout || !nodes.flyout.open) return;
+      // The scene's own tree in the nav lights its rows itself (sceneRail).
+      if (event.target && event.target.closest &&
+          event.target.closest(".navtree__scene")) return;
       // Resting on nothing falls back to the page's selected edge, where it
       // has one, rather than clearing the scene's highlight under it.
       schedulePaneHover(paneHoverTarget(event.target) || selectedPaneTarget());
@@ -1513,11 +1592,10 @@
   // nothing to measure (the DOM shim), which the clamp reads as "no layout to
   // go on" and answers with its px max.
   // The width the panel and the page's own content are dividing: the window,
-  // less what sits to the RIGHT of the graph and less the nav rail. The rail
-  // stood down while the panel was open until 2026-10-20; the panel now
-  // follows what the rail selects (the_3d_pane_opens_in_the_mode_the_study_
-  // wants), so the rail stays, between the panel and the graph, and its width
-  // is not the panel's to take.
+  // less what sits to the RIGHT of the graph (the preview pane, where it has
+  // not stood down for the scene) and less the nav, which sits LEFT of the
+  // scene since 2026-10-26 (the_shell_seats_the_scene_beside_the_model) and
+  // whose width is not the scene's to take.
   //
   // Deliberately reads neither the panel nor the page shift, so there is no
   // circularity: every term it does read (the window, the preview pane, the
@@ -1559,12 +1637,6 @@
   function applyFlyoutWidth() {
     if (!nodes.flyout || state.flyoutWidth === null) return;
     nodes.flyout.style.width = state.flyoutWidth + "px";
-    // ...and to the stylesheet, which is what shifts the page out from under
-    // the panel (topology.css's `body.flyout-open`). Written here rather than
-    // on open only, so the page follows the seam on every frame of a drag.
-    if (document.body && document.body.style.setProperty) {
-      document.body.style.setProperty("--flyout-width", state.flyoutWidth + "px");
-    }
   }
 
   // What a drag on the flyout's divider measures FROM -- the same three-way
@@ -1939,6 +2011,7 @@
     // The head's 3D control, and an open pane following what was just
     // selected -- after the paint, so the views' own state is settled.
     syncPaneToggle();
+    syncSceneColumn();
     followSelection();
   }
 
@@ -1976,7 +2049,11 @@
       // would be clipped -- and the shared node is `position: fixed`, which is
       // the reason it is not.
       onCardShow: showCard,
+      // The open scene's own tree goes under the row it is showing
+      // (renderSceneSlot, below); a closed scene has no slot at all.
+      sceneSlot: !!(nodes.flyout && nodes.flyout.open),
     });
+    renderSceneSlot();
   }
 
   // Re-render with the rows/rows-equivalent scrolled back to the top. Only the

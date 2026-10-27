@@ -17,6 +17,14 @@ const AA = window.AnnotateApp;
 
 const params = new URLSearchParams(location.search);
 const MOCK = params.get("mock") === "1";
+// ?embedded=1 -- set by the viewer's shell only, never by a link a reader
+// follows (handoff the_shell_seats_the_scene_beside_the_model). The shell
+// draws this app's rail in its own nav, so here the rail and the command box
+// are not shown (style.css, `body.an--embedded`) and the rail's rows are
+// mirrored out instead (postEmbedTree). Nothing else changes: the rail is
+// still built, by the same code, and every row still runs its own handler.
+const EMBEDDED = params.get("embedded") === "1";
+if (EMBEDDED) document.body.classList.add("an--embedded");
 
 const el = {
   banner: document.getElementById("banner"),
@@ -3862,11 +3870,248 @@ function postEmbedState() {
   const message = AA.embedState(state.sweep ? state.sweep.artifact : null,
     state.currentTopology, state.currentStudy);
   try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
+  postEmbedTree(true);
+}
+
+// --- the rail, mirrored into the shell's nav (embedded mode) ---------------
+//
+// Handoff the_shell_seats_the_scene_beside_the_model: embedded, this app's
+// rail is laid out but not shown, and the viewer draws the same rows under
+// the study the scene is showing. The rows go out as DATA read off the rail
+// this app has just rendered -- {type: "annotate:tree", mode, chips, rows} --
+// and every gesture on a mirrored row comes back as {type: "annotate:rail",
+// key, act, index?}, dispatched onto the very node it mirrors. So there is
+// one tree (what renderSweepRail / renderElementList / renderPartsPanel
+// built) and one set of handlers (theirs): the shell composes no command and
+// no words of its own, and a row the rail would not show is not sent, because
+// "shown" is read off the layout (a closed <details>, a chip-hidden group,
+// bind furniture in sweep mode all have no boxes).
+//
+// A row: {key, text, title?, sub?, value?, state?, attention?, selected?, sceneHover?,
+// open? (a disclosure), activate? (a click does something), check?
+// {checked, indeterminate, disabled, title}, buttons? [{text, title,
+// pressed}], alert? (the badge's words), rows? [...]}; a heading is {key,
+// head: text}.
+let embedNodes = new Map();
+let embedTreeSent = "";
+let embedTreeTimer = null;
+
+function railRoots() {
+  const roots = state.sweep
+    ? [document.getElementById("sweep-tree")]
+    : [el.railFilter, el.elementList, el.partsPanel];
+  return roots.filter(Boolean);
+}
+
+function railRendered(node) {
+  return node.getClientRects().length > 0;
+}
+
+function railText(node, selector) {
+  const hit = node.querySelector(":scope > " + selector);
+  return hit ? hit.textContent : null;
+}
+
+// A row's key: its parent's, then what the rail itself names it by (its
+// data- attributes, else its words), made unique among its siblings.
+function railKey(parentKey, node, words, seen) {
+  const data = Object.keys(node.dataset || {}).sort()
+    .map((k) => k + "=" + node.dataset[k]).join(",");
+  let key = parentKey + "/" + (data || words || node.tagName);
+  const n = seen.get(key) || 0;
+  seen.set(key, n + 1);
+  if (n) key += "#" + n;
+  return key;
+}
+
+function railControls(node, holder, row) {
+  const check = holder.querySelector(':scope > input[type="checkbox"]');
+  if (check) {
+    row.check = { checked: check.checked, indeterminate: check.indeterminate,
+      disabled: check.disabled, title: check.title || "" };
+  }
+  const buttons = Array.from(holder.querySelectorAll(":scope > button"));
+  if (buttons.length) {
+    row.buttons = buttons.map((b) => ({ text: b.textContent, title: b.title || "",
+      pressed: b.getAttribute("aria-pressed") === "true" }));
+  }
+  const badge = holder.querySelector(":scope > .alertbadge");
+  if (badge) row.alert = badge.getAttribute("aria-label") || "";
+  return { check, buttons };
+}
+
+function railRows(node, parentKey, seen) {
+  const out = [];
+  for (const child of node.children) {
+    if (!railRendered(child)) continue;
+    const row = railRow(child, parentKey, seen);
+    if (Array.isArray(row)) out.push(...row);
+    else if (row) out.push(row);
+  }
+  return out;
+}
+
+function railRow(node, parentKey, seen) {
+  if (node.matches(".an__tree-chips")) return null;
+  if (node.matches(".an__filter")) {
+    const words = Array.from(node.querySelectorAll(":scope > span, :scope > .an__filter-gap")).map((n) => n.textContent);
+    const key = railKey(parentKey, node, words[0] || "", seen);
+    const row = { key, head: words[0] || "" };
+    if (words.length > 1) row.sub = words.slice(1).join(" ");
+    const controls = railControls(node, node, row);
+    embedNodes.set(key, { node, ...controls });
+    return row;
+  }
+  if (node.matches(".an__tree-head, .el-head")) {
+    return { key: railKey(parentKey, node, node.textContent, seen), head: node.textContent };
+  }
+  if (node.matches("details")) {
+    const summary = node.querySelector(":scope > summary");
+    const words = summary ? (railText(summary, ".an__tree-text") || summary.textContent) : "";
+    const key = railKey(parentKey, node, words, seen);
+    const row = { key, text: words, title: summary ? summary.title : "", open: node.open };
+    if (node.classList.contains("selected")) row.selected = true;
+    const controls = summary ? railControls(node, summary, row) : {};
+    embedNodes.set(key, { node, hover: summary, toggle: node, ...controls });
+    const kids = [];
+    const kidSeen = new Map();
+    for (const child of node.children) {
+      if (child === summary || !railRendered(child)) continue;
+      const got = railRow(child, key, kidSeen);
+      if (Array.isArray(got)) kids.push(...got);
+      else if (got) kids.push(got);
+    }
+    if (kids.length) row.rows = kids;
+    return row;
+  }
+  if (node.matches("li") && !node.matches(".part-row--head")) {
+    const name = railText(node, ".tree-row__text > .tree-row__name") ||
+      railText(node, ".tree-row__name") || railText(node, ".el-row__name") ||
+      railText(node, ".part-row__label");
+    if (name === null) return railRows(node, parentKey, seen);
+    const key = railKey(parentKey, node, name, seen);
+    const row = { key, text: name, title: node.title ||
+      (node.querySelector(":scope > .part-row__label") || {}).title || "" };
+    const sub = railText(node, ".tree-row__text > .tree-row__face") || railText(node, ".part-row__note");
+    if (sub) row.sub = sub;
+    const value = railText(node, ".tree-row__value") || railText(node, ".part-row__count");
+    if (value) row.value = value;
+    if (node.dataset.state) row.state = node.dataset.state;
+    else {
+      const cls = Array.from(node.classList).find((c) => c.indexOf("el-row--") === 0);
+      if (cls) row.state = cls.slice("el-row--".length);
+    }
+    // A row whose binding is not settled is the one the rail colours; the
+    // shell is told THAT, so it keeps no copy of the state words.
+    if (row.state && row.state !== AA.BINDING_STATES.BOUND) row.attention = true;
+    if (node.classList.contains("selected")) row.selected = true;
+    if (node.classList.contains("is-scene-hover")) row.sceneHover = true;
+    if (node.onclick) row.activate = true;
+    const controls = railControls(node, node, row);
+    embedNodes.set(key, { node, hover: node, ...controls });
+    return row;
+  }
+  if (node.matches(".part-row--head")) {
+    const words = railText(node, ".part-row__label") || "";
+    const key = railKey(parentKey, node, words, seen);
+    const row = { key, head: words };
+    const controls = railControls(node, node, row);
+    embedNodes.set(key, { node, ...controls });
+    return row;
+  }
+  // A container (a group, a list): its rows, in place.
+  return railRows(node, parentKey, seen);
+}
+
+function railChips() {
+  const bar = document.querySelector("#sweep-tree > .an__tree-chips");
+  if (!bar) return [];
+  return Array.from(bar.querySelectorAll("button")).map((b) => {
+    const key = "chip:" + b.dataset.kind;
+    embedNodes.set(key, { node: b, buttons: [b] });
+    return { key, text: b.textContent, pressed: b.getAttribute("aria-pressed") === "true" };
+  });
+}
+
+// The rows as the rail shows them now. Also what a harness reads.
+function embedTree() {
+  embedNodes = new Map();
+  const seen = new Map();
+  const rows = [];
+  for (const root of railRoots()) {
+    if (!railRendered(root)) continue;
+    rows.push(...railRows(root, "#" + root.id, seen));
+  }
+  return { type: "annotate:tree", mode: state.sweep ? "sweep" : "bind",
+    chips: state.sweep ? railChips() : [], rows };
+}
+
+// Posted when what the rail shows changes (a MutationObserver on the rail,
+// coalesced to one post per task) and after every announced verb (`force`:
+// the shell clears its copy when it re-drives the scene, so it is sent again
+// even when nothing changed).
+function postEmbedTree(force) {
+  if (!EMBEDDED || window.parent === window) return;
+  const tree = embedTree();
+  const text = JSON.stringify(tree);
+  if (!force && text === embedTreeSent) return;
+  embedTreeSent = text;
+  window.__embedTree = tree;
+  try { window.parent.postMessage(tree, window.location.origin); } catch (_) { /* embedder gone */ }
+}
+
+function watchRailForEmbed() {
+  if (!EMBEDDED) return;
+  const rail = el.workspace.querySelector(".an__rail");
+  if (!rail || typeof MutationObserver !== "function") return;
+  new MutationObserver(() => {
+    if (embedTreeTimer !== null) return;
+    embedTreeTimer = setTimeout(() => { embedTreeTimer = null; postEmbedTree(false); }, 0);
+  }).observe(rail, { subtree: true, childList: true, attributes: true, characterData: true });
+}
+
+// A gesture on a mirrored row, onto the row it mirrors: the handler that
+// runs is the rail's own.
+function railGesture(msg) {
+  const hit = embedNodes.get(msg.key);
+  if (!hit) return false;
+  if (msg.act === "enter" || msg.act === "leave") {
+    if (hit.hover) hit.hover.dispatchEvent(new MouseEvent(msg.act === "enter" ? "mouseenter" : "mouseleave"));
+  } else if (msg.act === "toggle") {
+    if (hit.toggle) hit.toggle.open = !hit.toggle.open;
+  } else if (msg.act === "activate") {
+    hit.node.click();
+  } else if (msg.act === "check") {
+    if (hit.check && !hit.check.disabled) hit.check.click();
+  } else if (msg.act === "button") {
+    const button = (hit.buttons || [])[msg.index || 0];
+    if (button) button.click();
+  } else {
+    return false;
+  }
+  return true;
+}
+
+// The embedding page's own background, so the scene and the page beside it
+// are one surface with no seam (same origin, so its token can be read).
+function adoptEmbedderBackground() {
+  if (!EMBEDDED || window.parent === window) return;
+  let bg = "";
+  try {
+    bg = getComputedStyle(window.parent.document.documentElement).getPropertyValue("--bg").trim();
+  } catch (_) { bg = ""; }
+  if (!bg) return;
+  document.documentElement.style.setProperty("--embed-bg", bg);
+  if (state.scene) state.scene.setBackground(bg);
 }
 
 window.addEventListener("message", (ev) => {
   if (ev.origin !== window.location.origin) return;
   const msg = ev.data;
+  if (msg && msg.type === "annotate:rail" && EMBEDDED) {
+    try { railGesture(msg); } catch (err) { setBanner(err.message, "error"); }
+    return;
+  }
   if (!msg || msg.type !== "annotate:exec" || !msg.command) return;
   const source = ev.source;
   const origin = ev.origin;
@@ -4062,6 +4307,8 @@ async function main() {
   // highlightedFace()` is the only observable for "the orange came off", which
   // is the entire deliverable of the deselect work and was un-checkable before.
   window.__scene = state.scene;
+  adoptEmbedderBackground();
+  watchRailForEmbed();
   // Where a part is drawn: at every position the assembly records for it
   // (handoff parts_sit_where_the_assembly_puts_them). The scene asks once per
   // part, before the part joins the scene; null means "its own origin".

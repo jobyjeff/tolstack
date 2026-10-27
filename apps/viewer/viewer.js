@@ -233,6 +233,14 @@
   // (a stack page): the annotator alone, no params.
   VA.ANNOTATE_PAGE = "../annotate/index.html";
 
+  // The pane's own boot url: the launch's link plus `embedded=1`, which tells
+  // the annotator that this page draws its rail (handoff the_shell_seats_the_
+  // scene_beside_the_model). Only the pane's iframe gets it -- the "Open full
+  // page" link is the plain one, menus and all.
+  VA.annotateEmbedHref = function (href) {
+    return href + (href.indexOf("?") === -1 ? "?" : "&") + "embedded=1";
+  };
+
   // Which launch the CURRENT selection asks of the 3D pane (handoff
   // the_3d_pane_opens_in_the_mode_the_study_wants, deliverable 2) -- the one
   // rule, and its result is the params annotateLink / annotateExecCommands

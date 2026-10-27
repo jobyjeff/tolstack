@@ -256,6 +256,66 @@
         "&study=pitch_system_gas_spring_branch&trace=1");
     });
 
+    // --- the scene column (the_shell_seats_the_scene_beside_the_model) ------
+
+    await test("the pane's iframe boots the annotator embedded -- the launch's " +
+      "own link plus embedded=1, never on the full-page link", function () {
+        eq(VA.annotateEmbedHref(VA.annotateLink({ topologyId: "pitch_system",
+          studyId: "s" })), "../annotate/index.html?topology=pitch_system&study=s&embedded=1");
+        eq(VA.annotateEmbedHref(VA.ANNOTATE_PAGE), "../annotate/index.html?embedded=1");
+      });
+
+    await test("the scene's tree under the study row draws the rows the annotator " +
+      "sent, and every gesture goes back as (row, act) -- nothing acts here",
+      function () {
+        var sent = [];
+        var send = function (key, act, index) {
+          sent.push(index === undefined ? key + " " + act : key + " " + act + " " + index);
+        };
+        var slot = document.createElement("div");
+        VA.renderSceneTree(slot, null, { send: send });
+        eq(slot.childNodes.length, 0, "no tree yet draws nothing");
+        VA.renderSceneTree(slot, {
+          chips: [{ key: "chip:bodies", text: "bodies", pressed: true }],
+          rows: [
+            { key: "h", head: "bodies (1)" },
+            { key: "b", text: "blade · 2 parts", title: "blade · 2 parts", open: true,
+              check: { checked: true, indeterminate: false, disabled: false, title: "show" },
+              rows: [{ key: "b/p", text: "211587-001 blade", sub: "moved to its body",
+                buttons: [{ text: "Isolate", title: "", pressed: false }] }] },
+            { key: "c", text: "pitch link length", value: "0.12", activate: true,
+              selected: true, attention: true, alert: "No face bound" },
+          ],
+        }, { send: send });
+        var chip = slot.querySelector("button.navtree__scenechip");
+        eq(chip.getAttribute("aria-pressed"), "true");
+        chip.click();
+        var summary = slot.querySelector("summary.navtree__scenesummary");
+        ok(summary, "a row with children is a disclosure");
+        eq(slot.querySelector("details.navtree__scenenode").open, true);
+        summary.click();
+        var check = slot.querySelector("input.navtree__scenecheck");
+        eq(check.checked, true);
+        check.onclick({ preventDefault: function () {}, stopPropagation: function () {} });
+        slot.querySelector("button.navtree__scenebtn").onclick({
+          preventDefault: function () {}, stopPropagation: function () {} });
+        var rows = slot.querySelectorAll("div.navtree__scenerow");
+        var contributor = rows[rows.length - 1];
+        eq(contributor.getAttribute("tabindex"), "0", "a row that does something is reachable by Tab");
+        eq(contributor.getAttribute("role"), "button");
+        ok(contributor.classList.contains("navtree__scenerow--on"));
+        eq(contributor.getAttribute("data-attention"), "true");
+        contributor.click();
+        contributor.onkeydown({ key: "Enter", target: contributor, preventDefault: function () {} });
+        contributor.onmouseenter();
+        contributor.onfocus();
+        contributor.onblur();
+        eq(sent.join(" | "), ["chip:bodies button 0", "b toggle", "b check",
+          "b/p button 0", "c activate", "c activate", "c enter", "c enter", "c leave"].join(" | "));
+        eq(slot.querySelector("span.navtree__scenealert").getAttribute("title"), "No face bound");
+        eq(slot.querySelector("span.navtree__scenesub").textContent, "moved to its body");
+      });
+
     await test("annotateExecCommands mirrors annotateLink param for param -- " +
       "the already-open flyout runs the same vocabulary the boot URL does",
       function () {
@@ -5743,7 +5803,9 @@
         //
         // So `keep` is a measurement the caller passes in (topology_app.js's
         // graphNeed), and this is the arithmetic over it.
-        var ROOM = 1033;           // 1600px window, less the pane's 560 and its seam
+        // A 1600px window less the 300px nav: the preview pane stands down
+        // while the scene is open (the_shell_seats_the_scene_beside_the_model).
+        var ROOM = 1300;
         var RAILS = 262;           // the widest live drawing
         eq(VA.clampFlyoutWidth(99999, ROOM, RAILS),
            ROOM - VA.FLYOUT_WIDTH.reserve,
@@ -5753,18 +5815,18 @@
         // topology with a wider diagram gets more room, with no constant to
         // edit.
         //
-        // 400 rather than something larger on purpose: above 473 the CAP drops
+        // 600 rather than something larger on purpose: above 900 the CAP drops
         // under VA.FLYOUT_WIDTH.min and the floor takes over, so a bigger
         // number here would assert the floor and look like it was asserting
         // the measurement.
-        eq(VA.clampFlyoutWidth(99999, ROOM, 400), ROOM - 400);
-        ok(VA.clampFlyoutWidth(99999, ROOM, 400) <
+        eq(VA.clampFlyoutWidth(99999, ROOM, 600), ROOM - 600);
+        ok(VA.clampFlyoutWidth(99999, ROOM, 600) <
            VA.clampFlyoutWidth(99999, ROOM, RAILS),
            "a wider drawing narrows the panel, never the other way round");
         // ...and past that point the panel's own floor wins, stated rather
-        // than left to be discovered: at a 500px drawing there is no width
+        // than left to be discovered: at a 950px drawing there is no width
         // that satisfies both, and an unusable panel is the worse answer.
-        eq(VA.clampFlyoutWidth(99999, ROOM, 500), VA.FLYOUT_WIDTH.min);
+        eq(VA.clampFlyoutWidth(99999, ROOM, 950), VA.FLYOUT_WIDTH.min);
 
         // Nothing measured (stack mode draws no rails; a pre-layout call) falls
         // back to the floor rather than to zero -- a clamp that read "no
@@ -5774,7 +5836,7 @@
         eq(VA.clampFlyoutWidth(99999, ROOM),
            ROOM - VA.FLYOUT_WIDTH.reserve);
         ok(VA.clampFlyoutWidth(99999, ROOM, RAILS) < VA.FLYOUT_WIDTH.max,
-           "with 1033px to divide, the reserve binds before the px max does");
+           "with 1300px to divide, the reserve binds before the px max does");
 
         // The degenerate window, and the one case where the reserve loses: so
         // little room that honouring it would leave a panel too small to
