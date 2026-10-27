@@ -205,6 +205,7 @@
       "id": "shank_out",
       "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
       "kind": "gap",
+      "interface": "clearance",
       "from": "washer_far_face",
       "to": "shank_full_dia_end",
       "note": "A DERIVED gap: no dimension, because it is the quantity each of the nine `study_rotor_fastener_grip_uXh.json` studies computes -- one per installed dash, never more than one at a time (selecting two of the nine `fastener_grip_uXh` edges in one study raises BranchAmbiguity at both `head_bearing_face` and `shank_full_dia_end`)."

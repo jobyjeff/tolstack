@@ -172,6 +172,7 @@
       "id": "protrusion",
       "name": "worst-case protrusion -- full-diameter shank beyond the modelled clamped stack",
       "kind": "gap",
+      "interface": "clearance",
       "from": "flanged_bushing_effective_far_face",
       "to": "shank_full_dia_end",
       "note": "A DERIVED gap: no dimension, because it is the quantity check `worst_case_protrusion` computes. Positive means the shank protrudes past the effective clamped face; the referenced stack's own guidance says this is LESS conservative than take 1's equivalent check, because take 2 dropped the thread-transition allowance entirely."

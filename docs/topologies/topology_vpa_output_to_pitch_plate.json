@@ -182,6 +182,7 @@
       "id": "shank_out",
       "name": "shank out -- full-diameter shank beyond the clamped stack",
       "kind": "gap",
+      "interface": "clearance",
       "from": "bushing_far_face",
       "to": "shank_full_dia_end",
       "note": "A DERIVED gap: it carries no dimension because it is the quantity a study computes, not one that is measured. Study `vpa_output_shank_out` names it in `closes`. Negative at the minimum means the thread run-out is pulled inside the joint; positive at the maximum means full-diameter shank protrudes past the nut face -- the referenced stack's own guidance."

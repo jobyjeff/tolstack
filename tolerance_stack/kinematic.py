@@ -249,6 +249,27 @@ LINKAGE_JOINT_TYPES: Tuple[str, ...] = tuple(LINKAGE_JOINT_ROW_NAMES)
 LINKAGE_JOINT_ROW_SIGNATURES: Tuple[str, ...] = tuple(
     " ".join(rows) for rows in LINKAGE_JOINT_ROW_NAMES.values())
 
+#: Each linkage joint type, as the kind of contact a topology gap edge at that
+#: joint is (:data:`~tolerance_stack.topology.INTERFACE_KINDS`), where the two
+#: coincide -- so a sweep's joint type can suggest an edge's ``interface`` and
+#: an authored value that disagrees is a test failure
+#: (``tests/test_topology.py``), never two sets of words. ``None`` where no gap
+#: edge stands for the joint: ``fixed`` is no contact at all, and
+#: ``axial_position`` is the driver's coordinate, not a joint between parts.
+#: ``distance`` is a two-force link between two ball joints, so each END is
+#: ``spherical``; ``prismatic`` slides without turning and still draws as a
+#: slide. Keys exactly :data:`LINKAGE_JOINT_TYPES`, in its order.
+LINKAGE_JOINT_INTERFACES: Dict[str, Optional[str]] = {
+    "spherical": "spherical",
+    "distance": "spherical",
+    "revolute": "pin_in_bore",
+    "cylindrical": "cylindrical_slide",
+    "prismatic": "cylindrical_slide",
+    "screw": "thread",
+    "fixed": None,
+    "axial_position": None,
+}
+
 #: The keys a ``study_ref`` names. **This tuple is the definition.**
 STUDY_REF_FIELDS = ("topology", "study_id", "parameter")
 

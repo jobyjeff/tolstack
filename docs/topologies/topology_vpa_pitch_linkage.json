@@ -1047,6 +1047,7 @@
       "id": "pitch_arm_link_joint",
       "name": "pitch arm link bore to pitch link lower bearing centre",
       "kind": "gap",
+      "interface": "spherical",
       "from": "pitch_arm_link_bore",
       "to": "pitch_link_lower_sphere_centre",
       "dimension": {
@@ -1068,6 +1069,7 @@
       "id": "pitch_plate_link_joint",
       "name": "pitch plate link bore to pitch link upper bearing centre",
       "kind": "gap",
+      "interface": "spherical",
       "from": "pitch_plate_link_attach_bore",
       "to": "pitch_link_upper_sphere_centre",
       "dimension": {
@@ -1089,6 +1091,7 @@
       "id": "hub_to_pitch_plate_spindle_coaxiality",
       "name": "hub spindle bore axis to pitch plate spindle bore axis",
       "kind": "gap",
+      "interface": "cylindrical_slide",
       "from": "hub_spindle_bore_axis",
       "to": "pitch_plate_spindle_bore_axis",
       "note": "No value recorded. The plate rides on the spindle, so these two axes are expected coaxial; how far from coaxial they are allowed to be is a drawing question nobody has answered here."
@@ -1097,17 +1100,19 @@
       "id": "gas_spring_bushing_coaxiality",
       "name": "hub spindle bore axis to gas-spring mount bushing bore",
       "kind": "gap",
+      "interface": "cylindrical_slide",
       "from": "hub_spindle_bore_axis",
       "to": "gas_spring_mount_bushing_bore",
-      "note": "No value recorded. The hub's spindle bore IS the gas-spring bushing bore in Jeff's statement of the mechanism; this edge is where the two are compared once both are bound, and it is the reason the hub node is named for both."
+      "note": "No value recorded. The hub's spindle bore IS the gas-spring bushing bore in Jeff's statement of the mechanism; this edge is where the two are compared once both are bound, and it is the reason the hub node is named for both. Interface cylindrical_slide: the gas-spring piston rides in this bushing bore along the spindle axis, so the contact the coaxiality is measured across is a slide, not a seat."
     },
     {
       "id": "gas_spring_rod_to_pitch_plate",
       "name": "gas-spring rod-end bore to pitch plate gas-spring bore",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "gas_spring_rod_end",
       "to": "pitch_plate_gas_spring_bore",
-      "note": "No value recorded."
+      "note": "No value recorded. Interface pin_in_bore: two bores joined by the pin through both; read as a pin in a bore until a drawing says the rod end carries a spherical bearing, which would make it spherical."
     },
     {
       "id": "tan_link_length",
@@ -1171,6 +1176,7 @@
       "id": "tan_link_mount_joint",
       "name": "tangential link mount bore to link mount-end bearing centre",
       "kind": "gap",
+      "interface": "spherical",
       "from": "tan_link_mount_bore",
       "to": "tan_link_lower_sphere_centre",
       "note": "No value recorded. Phase 2."
@@ -1179,6 +1185,7 @@
       "id": "tan_link_plate_joint",
       "name": "tangential link plate-end bearing centre to pitch plate bore",
       "kind": "gap",
+      "interface": "spherical",
       "from": "tan_link_upper_sphere_centre",
       "to": "pitch_plate_tan_link_attach_bore",
       "note": "No value recorded. Phase 2."
@@ -1223,33 +1230,37 @@
       "id": "pitch_link_lower_centre_is_this_bearing",
       "name": "MS14101-3 ball centre to the pitch link's lower joint centre",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "pitch_link_bearing_ball_centre",
       "to": "pitch_link_lower_sphere_centre",
-      "note": "No value recorded, and nominally zero: the link's lower joint centre IS this bearing's ball centre, at instance 213862-002.1/MS14101-3.1. The edge exists because the two are different KINDS of thing -- one is a piece part's own feature, the other is a location in the mechanism -- and because it is the only thing in this document that says which geometry a reader should click to bind that centre. What would close it: the press-fit clearance off 213861-002's housing bore and the bearing's own OD."
+      "note": "No value recorded, and nominally zero: the link's lower joint centre IS this bearing's ball centre, at instance 213862-002.1/MS14101-3.1. The edge exists because the two are different KINDS of thing -- one is a piece part's own feature, the other is a location in the mechanism -- and because it is the only thing in this document that says which geometry a reader should click to bind that centre. What would close it: the press-fit clearance off 213861-002's housing bore and the bearing's own OD. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "pitch_link_upper_centre_is_this_bearing",
       "name": "MS14101-3 ball centre to the pitch link's upper joint centre",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "pitch_link_bearing_ball_centre",
       "to": "pitch_link_upper_sphere_centre",
-      "note": "The same statement for instance .2, and the reason the bearing's own centre is one node with two edges rather than two nodes: a topology part id names a part, and these are two instances of one."
+      "note": "The same statement for instance .2, and the reason the bearing's own centre is one node with two edges rather than two nodes: a topology part id names a part, and these are two instances of one. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "tan_link_mount_end_centre_is_this_bearing",
       "name": "MS14101-3 ball centre to the tangential link's mount-end joint centre",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "tan_link_ms14101_ball_centre",
       "to": "tan_link_lower_sphere_centre",
-      "note": "No value recorded. Phase 2. The tangential link's analogue of the pitch link's lower joint."
+      "note": "No value recorded. Phase 2. The tangential link's analogue of the pitch link's lower joint. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "tan_link_plate_end_centre_is_this_bearing",
       "name": "MS14103-3 ball centre to the tangential link's plate-end joint centre",
       "kind": "gap",
+      "interface": "pin_in_bore",
       "from": "tan_link_ms14103_ball_centre",
       "to": "tan_link_upper_sphere_centre",
-      "note": "No value recorded. Phase 2."
+      "note": "No value recorded. Phase 2. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "piston_head_lower_thickness",
@@ -1441,9 +1452,10 @@
       "id": "travel_between_end_stops",
       "name": "travel between the two end stops",
       "kind": "gap",
+      "interface": "clearance",
       "from": "piston_head_upper_step_face",
       "to": "piston_cover_end_stop_shoulder",
-      "note": "The quantity the end-stop travel study computes; no value of its own. With the heads resting on the mount's end-stop surface (the feather stop), the clearance between the upper head's step face and the cover's internal shoulder is the distance the piston can travel to the other stop."
+      "note": "The quantity the end-stop travel study computes; no value of its own. With the heads resting on the mount's end-stop surface (the feather stop), the clearance between the upper head's step face and the cover's internal shoulder is the distance the piston can travel to the other stop. Interface clearance: free space between the upper head's step face and the cover's shoulder, closed only at the far stop; no contact holds it."
     },
     {
       "id": "gas_spring_mount_hub_face_to_cover_seat",
@@ -1702,6 +1714,7 @@
       "id": "end_stop_clearance",
       "name": "piston end to end-stop feature -- the end stop",
       "kind": "gap",
+      "interface": "clearance",
       "from": "vpa_end_stop_feature",
       "to": "piston_end_stop_face",
       "properties": {
