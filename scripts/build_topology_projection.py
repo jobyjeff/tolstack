@@ -339,7 +339,7 @@ class _Serializer:
 
     # -- columns ----------------------------------------------------------
 
-    def allocate(self, start_row: int) -> int:
+    def allocate(self, start_row: int, avoid: Optional[int] = None) -> int:
         """Open a rail in the lowest free column, starting at ``start_row``.
 
         ``start_row`` is the row of the node the branch fans out of, **not** the
@@ -347,9 +347,15 @@ class _Serializer:
         the reader cannot see where the branch left from. That is also why the
         allocation happens before the walk recurses -- see
         :func:`serialize_topology`.
+
+        ``avoid`` is never handed out: the column of the node an edge on this
+        rail closes back onto (:meth:`allocate_clear` says why).
         """
-        if self._free:
-            column = heapq.heappop(self._free)
+        usable = [c for c in self._free if c != avoid]
+        if usable:
+            column = min(usable)
+            self._free.remove(column)
+            heapq.heapify(self._free)
         else:
             column = self.layout.columns
             self.layout.columns += 1
@@ -358,7 +364,7 @@ class _Serializer:
         self._open[column] = rail
         return column
 
-    def allocate_clear(self, start_row: int) -> int:
+    def allocate_clear(self, start_row: int, avoid: Optional[int] = None) -> int:
         """Open a rail from an EARLIER row: the lowest free column no rail has
         used at or below ``start_row``, else a fresh one.
 
@@ -367,11 +373,17 @@ class _Serializer:
         edge (:func:`serialize_topology`, bodies) forks from a node emitted
         rows ago, and a column released in between may hold a rail across
         exactly those rows -- reusing it would draw two rails on one line.
+
+        ``avoid`` is a column the edge must not take: the column of the node
+        a deferred edge CLOSES on. A close on its own column is a straight
+        vertical curve laid over every rail in that column between its two
+        rows, which on the merged model hid a whole leg from the pointer.
         """
         last: Dict[int, int] = {}
         for rail in self.layout.rails:
             last[rail["column"]] = max(last.get(rail["column"], -1), rail["end"])
-        clear = [c for c in self._free if last.get(c, -1) < start_row]
+        clear = [c for c in self._free
+                 if last.get(c, -1) < start_row and c != avoid]
         if not clear:
             column = self.layout.columns
             self.layout.columns += 1
@@ -853,9 +865,23 @@ def serialize_topology(topology: Topology) -> Layout:
         for edge in pending:
             used.add(edge.id)
         fork_row = visited[node.id]
+
+        def lands_on(edge: Edge) -> Optional[int]:
+            """The column of the already-drawn node ``edge`` closes onto."""
+            far_id = edge.other_end(node.id)
+            return (ser.layout.rows[visited[far_id]]["column"]
+                    if far_id in visited else None)
+
+        # An edge that would close back onto a node in THIS column goes last,
+        # and onto a column of its own: on its node's column it is a straight
+        # vertical curve laid over every rail there between its two rows. A
+        # stable sort, so a walk with no such edge is the walk it always was.
+        pending.sort(key=lambda e: lands_on(e) == column)
         columns = [column]
-        for _ in pending[1:]:
-            branch_column = ser.allocate(fork_row)
+        if pending and lands_on(pending[0]) == column:
+            columns = []
+        for edge in pending[len(columns):]:
+            branch_column = ser.allocate(fork_row, avoid=lands_on(edge))
             ser.layout.links.append({
                 "kind": "branch",
                 "row": fork_row,
@@ -907,7 +933,10 @@ def serialize_topology(topology: Topology) -> Layout:
             used.add(edge.id)
             fork_row = visited[node_id]
             fork_column = ser.layout.rows[fork_row]["column"]
-            edge_column = ser.allocate_clear(fork_row)
+            far_id = edge.other_end(node_id)
+            lands = (ser.layout.rows[visited[far_id]]["column"]
+                     if far_id in visited else None)
+            edge_column = ser.allocate_clear(fork_row, avoid=lands)
             ser.layout.links.append({
                 "kind": "branch",
                 "row": fork_row,

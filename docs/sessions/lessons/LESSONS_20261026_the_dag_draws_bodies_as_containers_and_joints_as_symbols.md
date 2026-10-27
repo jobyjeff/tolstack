@@ -145,6 +145,16 @@ the SVG's own pixel space:
 
 ## Things that cost time
 
+- **A class name I picked was already the pane's own.** I named the
+  container rect `tv__body`. `renderTopoPane` already wraps the rails and the
+  grid in `<div class="tv__body">`, so my `.tv__body { pointer-events: none }`
+  switched off every click and hover on the DAG and the grid. Every fast and
+  `[real]` check stayed green, because the DOM shim has no CSS. The browser
+  tier caught it in ten suites at once ("`line.rail__hit` intercepts pointer
+  events", and that the dot's computed `pointer-events` was `none`). The
+  class is now `tv__bodyfield`. Before naming a class, grep the stylesheet
+  *and* the views for it.
+
 - **The Bash tool's heredocs broke three times.** Two failed with
   `unexpected EOF while looking for matching '` on content full of
   apostrophes and quotes. One ate a `\n` inside a Python string. Earlier
