@@ -101,6 +101,24 @@ const SWEEP_GHOST_OPACITY = 0.12;
 // that degenerate case.
 const SWEEP_VIEW_AXIS = new THREE.Vector3(0.62, -0.72, 0.31).normalize();
 
+// The model layer (handoff the_model_is_drawn_in_the_scene). Neutral lines,
+// so the accent stays selection's (docs/DESIGN_TYPE_AND_COLOUR.md); a dot's
+// colour says where its anchor came from (AA.MODEL_ANCHOR_SOURCES), and an
+// anchor with no geometry behind it is the warn colour, because it is a gap.
+const MODEL_COLORS = {
+  line: 0xaab3bf,
+  joint: 0xffc14d,
+  bound: 0x35c26e,
+  section: 0xdfe4ea,
+  origin: 0xff6b5b,
+  plane: 0x6ea8fe,
+  region: 0x6ea8fe,
+};
+const MODEL_NODE_RADIUS = 2;     // mm, half a joint bead
+const MODEL_RENDER_ORDER = 20;   // over the parts, the leader and the hover
+const MODEL_DIM_OPACITY = 0.22;
+const MODEL_PLANE_OPACITY = 0.08;
+
 // A 3x4 row-major placement (sweep.js's one layout) onto an object's local
 // matrix, in the ONE place that conversion happens in this app.
 // THREE.Matrix4.set takes ROW-major arguments, which is the layout sweep.js
@@ -222,6 +240,10 @@ export class AnnotateScene {
       if (!at) return;
       const ndcX = ((at.x - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((at.y - rect.top) / rect.height) * 2 + 1;
+      // A model dot under the pointer is a node selected, and nothing else:
+      // the dots are drawn over the parts, so the click is the dot's.
+      const node = this.modelHit(ndcX, ndcY);
+      if (node) { this.onModelPick(node); return; }
       // In sweep mode a bead under the pointer is handed over too: a click
       // on a joint selects the joint (the rail's side of it is app.js's).
       this.onPick(this.pick(ndcX, ndcY), this._sweep ? this.sweepHover(ndcX, ndcY) : null);
@@ -260,6 +282,10 @@ export class AnnotateScene {
     // note above keeps off the pointer rate, so it runs once per settle --
     // PART_HOVER_SETTLE_MS after the last move -- and never during a drag.
     this.onPartHover = function () {};
+    // ...and after every frame drawn with the model layer up (see animate),
+    // and with the node id of a model dot that was clicked.
+    this.onModelRendered = function () {};
+    this.onModelPick = function () {};
     this._partHoverTimer = null;
     this.renderer.domElement.addEventListener("pointermove", (ev) => {
       if (!this._sweep) return;
@@ -313,8 +339,16 @@ export class AnnotateScene {
       if (!this.dirty) return;
       this.dirty = false;
       this._layoutLeader();
+      if (this._model && this._model.selection && this._model.selection.labelSprite) {
+        this._sizeLabel(this._model.selection.labelSprite);
+      }
       this.renderer.render(this.scene, this.camera);
       this.renderCount++;
+      // After every drawn frame -- so a camera move or a sweep frame -- the
+      // app may read where the model's anchors landed (the embedded scene
+      // posts them to the shell). Once per animation frame at most, which is
+      // the debounce the shell's leaders want.
+      if (this._model) this.onModelRendered();
     };
     animate();
   }
@@ -1147,6 +1181,320 @@ export class AnnotateScene {
     sprite.renderOrder = LEADER_RENDER_ORDER + 1;
     sprite.userData.label = text;
     return sprite;
+  }
+
+  // --- the model layer -----------------------------------------------------
+  //
+  // The topology drawn on its parts (handoff the_model_is_drawn_in_the_scene):
+  // a dot at every node's anchor and a line along every edge. Which point each
+  // anchor is, and which body it rides, is model_layer.js's; this draws it.
+  //
+  // A structural line whose two ends ride one body is drawn IN that body's
+  // group, at its as-modelled points, and the group carries the body's pose
+  // -- so it rides the sweep with the body the way the body's mesh does. A
+  // joint line (between two bodies) and every dot that is the solver's own
+  // joint point live in world and are re-placed every frame.
+  //
+  // Lines and dots draw over the parts (depthTest off): the parts are what
+  // the graph is read against, and a line hidden inside the hub it describes
+  // is a line nobody reads.
+
+  // `model` is {nodes: {id: {source, subject, point, exported}}, lines: {id:
+  // {from, to, body}}}, or null to take the layer down.
+  setModel(model) {
+    this._disposeModel();
+    this.requestRender();
+    if (!model) return false;
+    const root = new THREE.Group();
+    root.visible = this._modelVisible !== false;
+    const groups = new Map();
+    const groupOf = (body) => {
+      if (body === null) return root;
+      if (!groups.has(body)) {
+        const g = new THREE.Group();
+        g.matrixAutoUpdate = false;
+        root.add(g);
+        groups.set(body, g);
+      }
+      return groups.get(body);
+    };
+    const dotGeometry = new THREE.SphereGeometry(MODEL_NODE_RADIUS, 12, 8);
+    const dots = new Map();
+    for (const [id, node] of Object.entries(model.nodes)) {
+      const material = new THREE.MeshBasicMaterial({
+        color: MODEL_COLORS[node.source] || MODEL_COLORS.line,
+        depthTest: false, transparent: true,
+      });
+      const dot = new THREE.Mesh(dotGeometry, material);
+      dot.renderOrder = MODEL_RENDER_ORDER + 1;
+      // A world dot is re-placed per frame; a body dot sits at its
+      // as-modelled point inside its body's group.
+      const inBody = node.source !== "joint";
+      dot.userData = { modelNode: id, inBody, exported: !!node.exported, source: node.source };
+      if (inBody) dot.position.fromArray(node.point);
+      groupOf(inBody ? (node.subject || "") : null).add(dot);
+      dots.set(id, dot);
+    }
+    const lines = new Map();
+    for (const [id, line] of Object.entries(model.lines)) {
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(6);
+      if (line.body !== null) {
+        positions.set(model.nodes[line.from].point, 0);
+        positions.set(model.nodes[line.to].point, 3);
+      }
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const object = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+        color: MODEL_COLORS.line, depthTest: false, transparent: true,
+      }));
+      object.renderOrder = MODEL_RENDER_ORDER;
+      // Its ends move every frame, so the bounding sphere three.js computed
+      // once would cull it against where it used to be.
+      object.frustumCulled = false;
+      object.userData = { modelEdge: id, from: line.from, to: line.to, inBody: line.body !== null };
+      groupOf(line.body).add(object);
+      lines.set(id, object);
+    }
+    this.scene.add(root);
+    this._model = { root, groups, dots, lines, dotGeometry, selection: null, strengths: {} };
+    return true;
+  }
+
+  // One frame: {world: {node id: [x,y,z] | null}, subjects: {body: 3x4}}.
+  setModelFrame(frame) {
+    const model = this._model;
+    if (!model) return false;
+    this.requestRender();
+    for (const [body, group] of model.groups) {
+      const placement = frame.subjects && frame.subjects[body];
+      applyPlacement4(group, placement || OWN_ORIGIN);
+    }
+    for (const [id, dot] of model.dots) {
+      if (dot.userData.inBody) continue;
+      const p = frame.world[id];
+      dot.userData.live = !!p;
+      if (p) dot.position.fromArray(p);
+    }
+    for (const [, line] of model.lines) {
+      if (line.userData.inBody) continue;
+      const a = frame.world[line.userData.from], b = frame.world[line.userData.to];
+      line.userData.live = !!(a && b);
+      if (!line.userData.live) continue;
+      const attr = line.geometry.attributes.position;
+      attr.array.set(a, 0);
+      attr.array.set(b, 3);
+      attr.needsUpdate = true;
+    }
+    this._applyModelStyle();
+    return true;
+  }
+
+  // {strengths: {edge id: "full"|"dim"|"hidden"}, nodes: {id: true} | null
+  // (the lit nodes; null is every node), hideUnlit, emphasis: edge id | null}.
+  setModelStyle(style) {
+    const model = this._model;
+    if (!model) return false;
+    model.strengths = style.strengths || {};
+    model.litNodes = style.nodes || null;
+    model.emphasis = style.emphasis || null;
+    model.hideUnlit = !!style.hideUnlit;
+    this._applyModelStyle();
+    this.requestRender();
+    return true;
+  }
+
+  _applyModelStyle() {
+    const model = this._model;
+    if (!model) return;
+    const emphasisNodes = new Set();
+    for (const [id, line] of model.lines) {
+      const strength = model.strengths[id] || "full";
+      const live = line.userData.inBody || line.userData.live;
+      line.visible = !!live && strength !== "hidden";
+      const on = id === model.emphasis;
+      if (on) { emphasisNodes.add(line.userData.from); emphasisNodes.add(line.userData.to); }
+      if (on) line.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
+      else line.material.color.setHex(MODEL_COLORS.line);
+      line.material.opacity = strength === "dim" && !on ? MODEL_DIM_OPACITY : 1;
+    }
+    const selected = model.selection && model.selection.node;
+    for (const [id, dot] of model.dots) {
+      const live = dot.userData.inBody || dot.userData.live;
+      const lit = !model.litNodes || model.litNodes[id];
+      // An unlit node goes with its lines when the rest of the model is hidden.
+      const hidden = !lit && model.hideUnlit && !emphasisNodes.has(id);
+      dot.visible = !!live && !hidden;
+      dot.material.opacity = lit || emphasisNodes.has(id) ? 1 : MODEL_DIM_OPACITY;
+      const on = id === selected || emphasisNodes.has(id);
+      dot.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);
+      if (id === selected) dot.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
+      else dot.material.color.setHex(MODEL_COLORS[dot.userData.source] || MODEL_COLORS.line);
+    }
+  }
+
+  setModelVisible(on) {
+    this._modelVisible = !!on;
+    if (this._model) this._model.root.visible = !!on;
+    this.requestRender();
+    return true;
+  }
+
+  // What a selection shows, faintly: the section plane and the cut region a
+  // section anchor was taken from, in the body's frame (so they ride with
+  // it), and -- for a selected body -- its name at its anchor.
+  // {node?, body?, subject, plane?: {normalAxis, at, bounds: [[lo, hi] per
+  // axis]}, region?: flat segment list, label?: {text, at}} or null.
+  setModelSelection(selection) {
+    const model = this._model;
+    if (!model) return false;
+    this.requestRender();
+    if (model.selection && model.selection.group) {
+      const old = model.selection.group;
+      old.parent.remove(old);
+      old.traverse((n) => {
+        if (n.geometry) n.geometry.dispose();
+        if (n.material) { if (n.material.map) n.material.map.dispose(); n.material.dispose(); }
+      });
+    }
+    model.selection = selection ? { node: selection.node || null, body: selection.body || null } : null;
+    if (selection && (selection.plane || selection.region || selection.label)) {
+      const group = new THREE.Group();
+      const parent = model.groups.get(selection.subject || "") || model.root;
+      if (selection.plane) {
+        const { normalAxis, at, bounds } = selection.plane;
+        const axes = [0, 1, 2].filter((a) => a !== normalAxis);
+        const corners = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([i, j]) => {
+          const p = [0, 0, 0];
+          p[normalAxis] = at;
+          p[axes[0]] = bounds[axes[0]][i];
+          p[axes[1]] = bounds[axes[1]][j];
+          return p;
+        });
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(
+          [0, 1, 2, 0, 2, 3].flatMap((k) => corners[k])), 3));
+        const quad = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+          color: MODEL_COLORS.plane, transparent: true, opacity: MODEL_PLANE_OPACITY,
+          side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+        }));
+        quad.renderOrder = MODEL_RENDER_ORDER - 1;
+        quad.userData.modelPlane = true;
+        group.add(quad);
+      }
+      if (selection.region && selection.region.length) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position",
+          new THREE.BufferAttribute(new Float32Array(selection.region), 3));
+        const outline = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
+          color: MODEL_COLORS.region, depthTest: false, transparent: true, opacity: 0.8,
+        }));
+        outline.renderOrder = MODEL_RENDER_ORDER;
+        outline.frustumCulled = false;
+        outline.userData.modelRegion = true;
+        group.add(outline);
+      }
+      if (selection.label) {
+        const sprite = this._leaderLabel(selection.label.text,
+          new THREE.Vector3().fromArray(selection.label.at));
+        if (sprite) {
+          sprite.center.set(0, 0);
+          sprite.userData.modelLabel = selection.label.text;
+          group.add(sprite);
+          model.selection.labelSprite = sprite;
+          this._sizeLabel(sprite);
+        }
+      }
+      parent.add(group);
+      model.selection.group = group;
+    }
+    this._applyModelStyle();
+    return true;
+  }
+
+  // The read side, for a test: what is drawn, where, and how strongly.
+  modelState() {
+    const model = this._model;
+    if (!model) return null;
+    this.scene.updateMatrixWorld();
+    const world = (o) => o.getWorldPosition(new THREE.Vector3()).toArray();
+    const nodes = {};
+    for (const [id, dot] of model.dots) {
+      nodes[id] = { at: world(dot), visible: dot.visible, opacity: dot.material.opacity,
+        source: dot.userData.source };
+    }
+    const lines = {};
+    for (const [id, line] of model.lines) {
+      const attr = line.geometry.attributes.position.array;
+      const a = new THREE.Vector3(attr[0], attr[1], attr[2]).applyMatrix4(line.matrixWorld);
+      const b = new THREE.Vector3(attr[3], attr[4], attr[5]).applyMatrix4(line.matrixWorld);
+      lines[id] = { ends: [a.toArray(), b.toArray()], raw: Array.from(attr),
+        inBody: line.userData.inBody, visible: line.visible, opacity: line.material.opacity,
+        color: line.material.color.getHexString() };
+    }
+    const sel = model.selection;
+    return {
+      visible: model.root.visible, nodes, lines,
+      selection: sel ? {
+        node: sel.node, body: sel.body,
+        plane: !!(sel.group && sel.group.children.some((c) => c.userData.modelPlane)),
+        region: !!(sel.group && sel.group.children.some((c) => c.userData.modelRegion)),
+        label: sel.labelSprite ? sel.labelSprite.userData.modelLabel : null,
+      } : null,
+    };
+  }
+
+  // The model node whose dot is under the pointer, or null. The dots only --
+  // a few dozen spheres, cheap at click rate.
+  modelHit(ndcX, ndcY) {
+    const model = this._model;
+    if (!model || !model.root.visible) return null;
+    const dots = Array.from(model.dots.values()).filter((d) => d.visible);
+    if (!dots.length) return null;
+    this.scene.updateMatrixWorld();
+    this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+    const hits = this.raycaster.intersectObjects(dots, false);
+    return hits.length ? hits[0].object.userData.modelNode : null;
+  }
+
+  // Every exported node's dot in CSS pixels of the canvas, or null when it is
+  // behind the camera, outside the view, hidden, or has no anchor geometry.
+  modelScreenPoints() {
+    const model = this._model;
+    if (!model || !model.root.visible) return null;
+    this.scene.updateMatrixWorld();
+    this.camera.updateMatrixWorld();
+    const canvas = this.renderer.domElement;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const out = {};
+    const v = new THREE.Vector3();
+    for (const [id, dot] of model.dots) {
+      if (!dot.userData.exported || !dot.visible) { out[id] = null; continue; }
+      dot.getWorldPosition(v).project(this.camera);
+      if (v.z < -1 || v.z > 1 || v.x < -1 || v.x > 1 || v.y < -1 || v.y > 1) { out[id] = null; continue; }
+      out[id] = [(v.x + 1) / 2 * w, (1 - v.y) / 2 * h];
+    }
+    return out;
+  }
+
+  // A screen-sized label's scale for the canvas as it is now -- the same
+  // arithmetic _layoutLeader applies to the bind leader's two labels.
+  _sizeLabel(sprite) {
+    const viewPx = this.renderer.domElement.clientHeight || LEADER_FALLBACK_VIEW_PX;
+    const full = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+    const height = full * sprite.userData.px / viewPx;
+    sprite.scale.set(height * sprite.userData.aspect, height, 1);
+  }
+
+  _disposeModel() {
+    const model = this._model;
+    if (!model) return;
+    this.scene.remove(model.root);
+    model.root.traverse((node) => {
+      if (node.geometry && node.geometry !== model.dotGeometry) node.geometry.dispose();
+      if (node.material) { if (node.material.map) node.material.map.dispose(); node.material.dispose(); }
+    });
+    model.dotGeometry.dispose();
+    this._model = null;
   }
 
   // --- sweep mode ----------------------------------------------------------

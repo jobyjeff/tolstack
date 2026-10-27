@@ -65,7 +65,8 @@ vm.runInContext(fs.readFileSync(VOCAB_GEN, "utf8"), sandbox,
   { filename: "../viewer/vocab.gen.js" });
 
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js",
-  "commands.js", "face_geometry.js", "suggestions.js", "sweep.js", "exec_queue.js", "fixtures.js"];
+  "commands.js", "face_geometry.js", "suggestions.js", "sweep.js", "model_layer.js",
+  "exec_queue.js", "fixtures.js"];
 for (const f of files) {
   vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), sandbox, { filename: f });
 }
