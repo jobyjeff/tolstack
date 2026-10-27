@@ -189,3 +189,27 @@ built from committed trees into
 meshes copied; `linkage-sweeps` junctioned read-only). The shared
 `data/projections/` was not rebuilt; the batch merge does that. Delete the
 scratch root after review.
+
+### The runs, as recorded
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider -rs`,
+  run in the worktree: 1 failed, 1551 passed, 1 skipped, 558s, inside budget
+  (recorded with `dispatch suite-time`). The failure is the documented worktree
+  red (`test_viewer_js_suite`: no projection in a worktree). The skip is
+  `test_fit_bound_features.py:424`, a re-extraction that is not installed.
+- `node apps/viewer/run_tests.cjs --repo <scratch root>`: 550/550, plus one
+  named SKIP (the per-document qualifier, filed).
+- `node apps/annotate/run_tests.cjs --repo <scratch root>`: 213/213.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch root>`: every
+  suite green except `topology file:// respine` and `topology height budget`.
+  Those two flake on frame timing under load: an `--only` re-run on the same
+  tree gave 40/40 and 21/21
+  (`ISSUE_20261026_respine_and_refit_browser_checks_miss_their_frame_under_load.md`).
+  The annotate sweep rail on P2 is 15/15, so the joint feature ids linkage
+  names did not move.
+- Mutation witnesses, `--only` for each spec this branch touched: 5/5
+  mutations witnessed across 4 specs, plus the renamed
+  `browser__real-the-7-deg-stop-ranks-six-contributors-every-one-a-b__b7c5d4f7`.
+  It was not run `--only` on its own; it runs at the merge's `--full`.
+- Not run: `scripts/rebuild_projections.ps1` and the main-checkout pytest. The
+  main checkout is on `master`, without this change.
