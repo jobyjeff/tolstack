@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261026_leaders_follow_the_active_study_across_the_seam.md
 reviewer: agent
 date: 2026-10-27
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review: leaders follow the active study across the seam
@@ -174,3 +174,78 @@ tree. **Not merged into `integration`**: two browser-tier reds, below.
 - **Run the full browser tier before handing back.** Of a ~4 minute tier,
   only the seam suite ran on this branch, and both blockers were in the
   part that did not.
+
+## Re-run 2026-10-27 (round 2) — APPROVE
+
+Round 1 was REQUEST CHANGES with 2 blockers. Both are closed below. The
+rework is `69aff3e1` (tests and one comment) and `20ad823a` (lesson and
+issues).
+
+**B1 closed.** The shell's side stays as it was: the page's lit set rules
+the scene, which is the handoff's point. The `annotate model in the
+scene` suite now does two things:
+- It records every `model` word the shell posts into the scene's window
+  and checks, with a new guard, that the scene draws that lit set at full
+  strength. The spec mutates `pageLitSet()` to `null`, so the shell posts
+  `model lit all`.
+- It reads the scene's own fallback by taking the shell's word back
+  (`delete __model.lit`) and re-applying the style.
+
+That second step reaches into the scene's internal state, which is weaker
+than reading a page the shell never spoke to. The author's reason for not
+doing that holds: a second P2 sweep build, to reach one branch. I'm
+recording it here, not raising it as a finding. That suite is now 15/15
+(the shell's lit set is 13 edges).
+
+**B2 closed.** The hidden-state count is read with the page and the
+bounded box both at their top, after a waited re-draw. I measured 9
+leaders, 15 crossing pairs and 0 through a lit bar. That matches the
+lesson's correction exactly. Its witness was re-aimed (the dot clip's
+bottom edge), and it is witnessed. **S1 closed** by the same correction
+blockquote. The comment nit on `VA.sceneRowElement` is fixed too.
+
+**The merge with `integration` (`449d8609`, fastener stacks folded into
+the product model) conflicted in `scripts/guard_enumeration.mjs`.**
+- Both sides had moved `DECLARED_GUARDS`. This side had fast 589 and
+  browser 658/625; `integration` had fast 581 (renamed fast guards, new
+  digest) and browser 640/607.
+- Neither side is right alone, because the pins are derived from the
+  merged tree. I took the values `node scripts/guard_enumeration.mjs`
+  computes: fast 589/589 (names `37920bb8a616`) and browser 659/626
+  (names `be09fd3e4f4f`). That is 639 + 18 + 1 from this branch + 1 from
+  `integration`.
+- After that the census reports no moved pin, and no conflict markers are
+  left.
+
+**Runs on the merged tree** (`6d2a9c9c`, projections rebuilt from it into
+the review worktree, inputs bridged):
+
+| tier | result | note |
+|---|---|---|
+| `node apps/viewer/run_tests.cjs` | 588/588, 1 SKIP | the filed per-document qualifier |
+| browser tier, full, `--repo <worktree>` | **32/33**, 4m38s | the one red is the gap badges, filed and equally red on `integration` (round 1's baseline) |
+| `run_mutation_witness_tests.mjs --changed-since integration` | **43/43 witnessed**, 35m03s | over budget; filed `ISSUE_20261027_a_changed_since_witness_gate_on_a_viewer_handoff_runs_35_minutes.md` |
+| `pytest -q -rfs`, full | **3 failed / 1571 passed / 1 skipped**, 8m20s | see below |
+
+This repo's conftest prints no `concurrent pytest processes` or
+`full-suite lock` header lines. All three pytest failures are outside this
+branch:
+- `test_viewer_js_suite` turns the filed qualifier SKIP into a failure.
+  The tactical record has the same red.
+- `test_claims_registry::test_every_declared_claim_agrees_with_its_source`
+  and `test_viewer_readme_doc_facts::test_thread_region_t_is_the_smallest_chain_not_the_largest`
+  are **`integration`'s**, and visible only against a freshly rebuilt
+  projection. The fold deleted `topology_pitch_link_to_pitch_plate.json`,
+  which `apps/viewer/README.md`'s `smallest_chain` claim and
+  `SUBJECT_TOPOLOGY` still name. The tests, the registry and
+  `docs/topologies/` are byte-identical to `integration`, and this
+  branch's README diff is only its own section.
+- I filed that as
+  `ISSUE_20261027_the_fastener_fold_deleted_the_topology_the_readmes_smallest_chain_claim_names.md`
+  (`high`) and did not fix it, since it is outside this handoff.
+
+**Test pollution:** none. The main checkout's `git status` is clean, and
+every projection this review built went to the review worktree's own
+`data/`. The untracked `venv-win` link is the bridge's, already filed.
+
+Verdict: **APPROVE**. Landing as a fast-forward of `integration`.
