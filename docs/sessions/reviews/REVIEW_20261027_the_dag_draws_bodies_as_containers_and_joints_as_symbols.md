@@ -197,3 +197,23 @@ overage measured my contention and not the suite. I did not file a
 `suite_over_budget` issue. The slowest test is
 `test_feature_geometry.py::test_real_both_readers_classify_every_installed_face_the_same`
 at 99 s; the next is the witness census setup at 30 s.
+
+## Landing 2026-10-27: integration moved during the review
+
+`the_model_is_drawn_in_the_scene` landed on `integration` while this review
+was running, so I merged `integration` into the review branch again
+(`f2da6b48`). There were two conflicts:
+
+- `scripts/guard_enumeration.mjs`: I kept integration's annotate pin
+  (235 / `aef0164987eb`) and browser pin (639 / 606 / `0ebdedd80a83`), and
+  recomputed fast for the merged tree at 581 / `a1a26831aa84`.
+  `census()` reports no moved pin and no orphan.
+- `docs/prompts/REVIEW_AGENT.md`: I kept both sides' new Recurring-bugs
+  entries.
+
+After a rebuild at `f2da6b482e42`, the risky subset was green:
+
+- viewer fast tier: 580/580, plus the named SKIP;
+- `node apps/annotate/run_tests.cjs`: 235/235;
+- the Python subset: 478 passed;
+- `--only "topology"` browser suites: 4/4.
