@@ -5182,6 +5182,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `apps/viewer/views/topology.js`, and the first witness run was measuring
       a superseded tree. Stopping an `xargs` loop of `--only` runs leaves its
       current child holding the browser slot until that spec ends.
+- [ ] **A message between the viewer and the embedded annotator whose verb
+      set is exercised only in part.** New 2026-10-27
+      (`the_shell_seats_the_scene_beside_the_model`). `annotate:rail`'s
+      `act` is six inline words in `views/nav.js` and six in `app.js`'s
+      `railGesture`; the fast tier pins the sender only, and the browser
+      tier reaches four. Renaming the receiver's `toggle` and `check` left
+      every tier green. For any new cross-frame message, list its verbs and
+      grep the browser tier for one real-iframe check per verb; then rename
+      one receiver branch and run that suite `--only`
+      (`ISSUE_20261027_the_nav_scene_trees_toggle_and_check_gestures_can_be_broken_green_in_every_tier.md`).
 
 ## Architectural errors to check
 

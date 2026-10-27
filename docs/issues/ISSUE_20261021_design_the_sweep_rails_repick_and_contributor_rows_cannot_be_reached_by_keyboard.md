@@ -39,4 +39,4 @@ the viewer's nav when the annotator is embedded: a disclosure is a
 are native buttons, so the whole tree is reachable by Tab there (pinned by
 `[real] a contributor row is reached by the keyboard, and Enter selects it`).
 The **standalone** annotator's rail is unchanged and still has the defect this
-issue describes, so it stays open for that copy.
+issue describes, so it stays deferred for that copy.
