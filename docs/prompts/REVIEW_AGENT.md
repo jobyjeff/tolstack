@@ -2797,6 +2797,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       purely proves the function, never that the page calls it — the overlay's
       "`[real]` test that asks the view-model instead of the page" entry above,
       one seam further out.
+- [ ] **A shell→scene message the diff starts sending reddens the ANNOTATE
+      suites, which a tactical `--only "<its own suite>"` run never reaches.**
+      New 2026-10-27 (`leaders_follow_the_active_study_across_the_seam`,
+      REQUEST CHANGES): `topology_app.js` began posting `model lit/unlit` on
+      every `annotate:state`. The branch's own suite was 17/17, but `annotate
+      model in the scene` went 15/15 → 13/15, because its checks read the
+      scene's state "until the shell posts". When a diff adds a `postToPane`
+      call or a new scene verb, run the full browser tier, and baseline any
+      red against `git archive integration` under `data/scratch/` with the
+      same `--repo` before blaming the diff. That same run separated a flake
+      (`3D pane follows the selection`) and a pre-existing red (gap badges)
+      from the real one.
+- [ ] **A `[real]` count window over what a bounded, scrolled box shows.**
+      Same handoff: "six to ten leaders at hide" read 9 on the branch and 11
+      here, with the expected set matching both times. A count of what is *in
+      view* depends on where earlier clicks left the scroll. Require a pinned
+      scroll state or a rule-shaped assertion.
 - [ ] **A measured deviation from the handoff, shipped with nothing pinning the
       rule that replaced it.** Same handoff, and the reason the `centreOffsets`
       mutation above is not just a coverage nit. Good tactical agents here
