@@ -5158,6 +5158,30 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       that handoff. When a red `[real]` check names data your diff did not
       touch, run it on a fresh `integration` build before charging it to the
       branch (`ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has.md`).
+- [ ] **A builder field added with the `[real]` fast tier skipped lands the
+      fixture-shape red on `integration`.** New 2026-10-26
+      (`the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`):
+      `bodies_and_studies_carry_forge_tags` added `variant_axis` and study
+      `tags` to the topology builder; its review ran `run_tests.cjs` with no
+      `--repo` (454/454, `[real]` skipped), so `[real] the topology fixture's
+      shapes still match the builder's` went red for the next merge instead.
+      Any diff to a `build_*_projection.py` output shape: run the fast tier
+      through `--repo` on a projection that diff built, and expect
+      `topology_fixtures.js` / `fixtures.js` in the same diff
+      (`ISSUE_20261026_topology_fixtures_lack_the_tags_fields_so_the_real_fixture_pairing_is_red_on_integration.md`).
+- [ ] **A projection field read off another repo's directory listing sits
+      outside the provenance stamp.** Same review: the kinematic builder's
+      `gap_rows[].drawings[].on_file` lists drawing-checker's
+      `data/inbox/drawings/`, and `projection_provenance` stamps only this
+      repo's tree, so a drawing arriving there leaves the projection "fresh"
+      and wrong until an unrelated rebuild. Ask of every new cross-repo input
+      which gate would notice it moving.
+- [ ] **Integration moves while a long tier is running — check
+      `git log HEAD..integration` before you start the slow tiers, not after.**
+      Same review: two handoffs landed mid-review, both touching
+      `apps/viewer/views/topology.js`, and the first witness run was measuring
+      a superseded tree. Stopping an `xargs` loop of `--only` runs leaves its
+      current child holding the browser slot until that spec ends.
 
 ## Architectural errors to check
 
