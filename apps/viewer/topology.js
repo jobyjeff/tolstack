@@ -1830,6 +1830,152 @@
     return mirrored;
   };
 
+  // --- the lit set, and the walk with everything outside it hidden ----------
+  //
+  // A page that emphasizes part of the model -- a chain study, a kinematic
+  // study (the_kinematic_page_keeps_the_dag_and_says_each_contributor_once,
+  // 2026-10-26) -- names that part as its LIT SET: `{ edges: {id: true},
+  // nodes: {id: true} }`. The rails dim everything outside it, the grid holds
+  // only its edges and the leaders run only to its nodes. A chain study's is
+  // its chain and the nodes the chain stands on; a kinematic study's is
+  // VA.kinematicLitSet (views/kinematic.js). null is "nothing emphasized":
+  // the whole walk at full emphasis.
+  VA.studyLitSet = function (study) {
+    if (!study || study.status !== "ok") return null;
+    var edges = {};
+    Object.keys(VA.chainIndex(study)).forEach(function (id) { edges[id] = true; });
+    return { edges: edges, nodes: VA.chainNodes(study) };
+  };
+
+  // The lit set a list of edge ids makes: the edges, and every node either end
+  // of one stands on -- so a node an unlit edge shares with a lit one is lit.
+  VA.litSetOfEdges = function (topoProj, edgeIds) {
+    var index = VA.topologyIndex(topoProj);
+    var lit = { edges: {}, nodes: {} };
+    (edgeIds || []).forEach(function (id) {
+      var edge = index.edges[id];
+      if (!edge) return;
+      lit.edges[id] = true;
+      lit.nodes[edge.from] = true;
+      lit.nodes[edge.to] = true;
+    });
+    return lit;
+  };
+
+  // What the walk outside the lit set does (Jeff, 2026-10-26): stays drawn,
+  // dimmed -- the context for the lit part -- or is HIDDEN, because on a
+  // product-sized model the unlit part is most of the picture. A display
+  // preference like the leader style: one toggle on the topology toolbar,
+  // cycling through `next`, applying to chain and kinematic pages alike.
+  VA.UNLIT_STYLES = {
+    dim: {
+      label: "dimmed",
+      next: "hide",
+      title: "The parts of the model outside this study are drawn faintly " +
+        "behind it. Click to hide them.",
+    },
+    hide: {
+      label: "hidden",
+      next: "dim",
+      title: "Only this study's part of the model is drawn. Click to show " +
+        "the rest of the model faintly behind it.",
+    },
+  };
+
+  // Which a preference-less load draws, named once for the same reason
+  // VA.DEFAULT_LEADER_STYLE is.
+  VA.DEFAULT_UNLIT_STYLE = "dim";
+
+  // Every rail and every link a walk's rows imply, re-derived from the rows
+  // alone: an edge row is drawn down its column from the node it entered at
+  // (a fork, when that node is on another column -- a `branch` link), and on
+  // to the node it leaves at, or, for a loop-closing edge, a `close` link back
+  // up to it. Touching runs on one column are one rail. On every committed
+  // topology this reproduces the projection's own `rails` and `links`
+  // exactly (the fast tier pins that), which is what makes it safe to use on
+  // a walk the projection never laid out: the hidden one below.
+  VA.walkRailsAndLinks = function (rows) {
+    var nodeRow = {};
+    rows.forEach(function (row) { if (row.kind === "node") nodeRow[row.id] = row.row; });
+    var runs = [];
+    var links = [];
+    rows.forEach(function (row) {
+      if (row.kind !== "edge") return;
+      var entered = rows[nodeRow[row.entered_at]];
+      if (!entered) return;
+      runs.push({ column: row.column, start: entered.row, end: row.row });
+      if (entered.column !== row.column) {
+        links.push({ kind: "branch", row: entered.row, from_column: entered.column,
+                     to_row: entered.row, to_column: row.column });
+      }
+      if (row.closes_row !== null && row.closes_row !== undefined) {
+        links.push({ kind: "close", row: row.row, from_column: row.column,
+                     to_row: row.closes_row, to_column: row.closes_column });
+      } else if (nodeRow[row.left_at] > row.row) {
+        runs.push({ column: row.column, start: row.row, end: nodeRow[row.left_at] });
+      }
+    });
+    runs.sort(function (a, b) {
+      return a.column - b.column || a.start - b.start || a.end - b.end;
+    });
+    var rails = [];
+    runs.forEach(function (run) {
+      var last = rails[rails.length - 1];
+      if (last && last.column === run.column && run.start <= last.end) {
+        last.end = Math.max(last.end, run.end);
+      } else {
+        rails.push({ column: run.column, start: run.start, end: run.end });
+      }
+    });
+    return { rails: rails, links: links };
+  };
+
+  // The walk with everything outside `lit` taken out and the rest re-laid:
+  // the lit rows keep their walk order and their columns' left-to-right
+  // order, an emptied column is dropped (no blank lane left behind), and the
+  // rails and links are re-derived from what is left (VA.walkRailsAndLinks)
+  // -- so a run of the walk that a hidden edge used to join is two runs, and
+  // nothing is drawn joining them. Applied to the PROJECTION's layout, before
+  // VA.spineRight mirrors it, so the walk's mainline stays the right-hand
+  // rail whenever any of it is lit. Pure: returns a new layout object.
+  VA.hideUnlit = function (layout, lit) {
+    if (!layout || !lit) return layout;
+    var kept = (layout.rows || []).filter(function (row) {
+      return row.kind === "edge" ? !!lit.edges[row.id] : !!lit.nodes[row.id];
+    });
+    var renumber = {};
+    kept.forEach(function (row, i) { renumber[row.row] = i; });
+    var used = {};
+    kept.forEach(function (row) { used[row.column] = true; });
+    var columns = Object.keys(used).map(Number).sort(function (a, b) { return a - b; });
+    var column = {};
+    columns.forEach(function (c, i) { column[c] = i; });
+    var rows = kept.map(function (row) {
+      var out = assign(row, { row: renumber[row.row], column: column[row.column] });
+      if (row.kind === "edge" && row.closes_row !== null && row.closes_row !== undefined) {
+        var lands = renumber[row.closes_row];
+        out.closes_row = lands === undefined ? null : lands;
+        out.closes_column = lands === undefined ? null : column[row.closes_column];
+      }
+      return out;
+    });
+    // A close whose landing node is hidden is no close any more; it has
+    // nowhere to draw to. (Cannot happen from a lit set built on edge
+    // endpoints, which always lights the landing node -- kept for a caller
+    // that hands in a set of its own.)
+    rows.forEach(function (row) {
+      if (row.kind === "edge" && row.closes_row === null) row.closes_column = null;
+    });
+    var structure = VA.walkRailsAndLinks(rows);
+    var out = {};
+    Object.keys(layout).forEach(function (key) { out[key] = layout[key]; });
+    out.columns = columns.length;
+    out.rows = rows;
+    out.rails = structure.rails;
+    out.links = structure.links;
+    return out;
+  };
+
   // A shallow copy of `base` with `over`'s own keys written over it. ES5 by
   // house style (this page loads as a classic script, no build step), and
   // Object.assign is what it would be otherwise.
@@ -3167,11 +3313,24 @@
     var say = function (text) { out.notices.push(text); };
 
     if (link.kinematic) {
-      if (VA.findKinematicStudy && VA.findKinematicStudy(kinematic, link.kinematic)) {
+      var kinematicStudy = VA.findKinematicStudy &&
+        VA.findKinematicStudy(kinematic, link.kinematic);
+      if (kinematicStudy) {
         out.mode = "kinematic";
         out.kinematicId = link.kinematic;
-        if (link.topology || link.study || link.edge || link.node || link.stack ||
-            link.element) {
+        // An edge beside it is selected ON the study's page (2026-10-26), the
+        // way a row click selects one: an edge of the study's own topology.
+        if (link.edge) {
+          var under = VA.findTopology(topologies, kinematicStudy.topology);
+          if (under && VA.topologyIndex(under).edges[link.edge]) {
+            out.topologyId = under.id;
+            out.selection = { kind: "edge", id: link.edge };
+          } else {
+            say("This link asks for edge `" + link.edge + "`, which kinematic study `" +
+              link.kinematic + "`'s model does not carry — nothing was selected.");
+          }
+        }
+        if (link.topology || link.study || link.node || link.stack || link.element) {
           say("This link names a kinematic study and something else beside it; " +
             "the kinematic study won and the rest was ignored.");
         }

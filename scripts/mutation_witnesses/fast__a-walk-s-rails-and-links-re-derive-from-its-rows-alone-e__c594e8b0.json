@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a walk's rails and links re-derive from its rows alone, exactly as the projection laid them out",
+  "mutations": [
+    {
+      "contract": "Touching runs on one column are one rail.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Never merges runs: every edge gets rails of its own.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (last && last.column === run.column && run.start <= last.end) {",
+      "replace": "      if (false) {"
+    }
+  ]
+}

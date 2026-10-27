@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the toolbar offers dim or hide only where something is lit, in two words, and hands the click to the page",
+  "mutations": [
+    {
+      "contract": "The dim/hide toggle shows only where something is lit.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Offers the toggle on the whole walk too, where there is nothing outside a lit set.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (handlers.onUnlitStyle && (state.mode === \"kinematic\" || state.studyId)) {",
+      "replace": "    if (handlers.onUnlitStyle) {"
+    }
+  ]
+}

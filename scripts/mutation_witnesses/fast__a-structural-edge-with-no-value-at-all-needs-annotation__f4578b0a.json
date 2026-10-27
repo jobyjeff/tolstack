@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a structural edge with no value at all needs annotation, so its pane offers the annotator; a clearance does not",
+  "mutations": [
+    {
+      "contract": "A structural edge with no value needs annotation.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Reads the confidence alone again, so a valueless edge gets no annotator link.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    return !!(edge && !edge.dimension && edge.kind !== \"gap\");",
+      "replace": "    return false;"
+    }
+  ]
+}

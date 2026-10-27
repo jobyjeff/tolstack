@@ -6,10 +6,10 @@
     {
       "contract": "Selecting a study never changes what is ON SCREEN: the rails are always VA.spineRight(topoProj.layout), so every node, edge, rail and link of the document survives the selection. The old behaviour swapped in study.layout, which is what Jeff read as a defect.",
       "issue": null,
-      "note": "Declared in review of viewer_respine_whole_walk (2026-09-15). The handoff's headline deliverable, and its single undo is this one expression -- the same shape as viewer_dag_spine_layout's `VA.spineRight` call, which shipped green in all three tiers when its CALL was deleted. Measured by hand here: the mutation reddens three fast-tier checks. Entered because the tactical lesson carried no mutation list for the three emphasis contracts.",
+      "note": "Declared in review of viewer_respine_whole_walk (2026-09-15). The handoff's headline deliverable, and its single undo is this one expression -- the same shape as viewer_dag_spine_layout's `VA.spineRight` call, which shipped green in all three tiers when its CALL was deleted. Measured by hand here: the mutation reddens three fast-tier checks. Entered because the tactical lesson carried no mutation list for the three emphasis contracts. Re-anchored 2026-10-26: the walk is replaced only when the reader asks for the unlit part HIDDEN (VA.UNLIT_STYLES), so the way a study selection could now hide the walk is a page that hides by default.",
       "file": "apps/viewer/views/topology.js",
-      "find": "    var layout = VA.spineRight(topoProj.layout);",
-      "replace": "    var layout = VA.spineRight(study && study.layout ? study.layout : topoProj.layout);"
+      "find": "    var hiding = marking && ctx.unlitStyle === \"hide\";",
+      "replace": "    var hiding = marking;"
     }
   ]
 }

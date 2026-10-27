@@ -79,3 +79,19 @@ and how its emptiness reads to a reviewer is the thing being designed.
 3. The gap list shows one row — `pitch_link_length`, "no tolerance recorded",
    which is correct and is the *only* edge in the document carrying a value.
    The twenty-eight edges with no value at all are not on it.
+
+## Addendum 2026-10-26 (the_kinematic_page_keeps_the_dag_and_says_each_contributor_once)
+
+Two more surfaces of the same conflation, met on the kinematic study page:
+
+- `value_source` is `"derived"` on **every** edge with no dimension
+  (`build_topology_projection.py::value_source`), so the viewer cannot tell a
+  "quantity a study computes" gap from a structural edge nobody has banded.
+  The preview pane's chip reads "DERIVED — the quantity a study computes" on
+  `pitch_plate_attach_height`, `pitch_arm_radius` and `tan_link_mount_height`
+  — three kinematic contributors whose bands are borrowed from other edges.
+- Partly addressed on that branch: `VA.needsAnnotation(confidence, edge)` now
+  counts a valueless structural edge (no dimension, kind not `gap`), so the
+  detail pane offers the annotator for it, and on a kinematic page the pane
+  names the edge the band is borrowed from. The gap list and the row badges
+  still read the confidence alone; that half is still this issue's.

@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] resting on a contributor row with no binding tints nothing, and the annotator says so in its console line rather than its banner",
+  "mutations": [
+    {
+      "contract": "An unbound edge is the ordinary case: a console line, never the banner.",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "The banner is the loud surface; a hover that wrote there would flash a warning every time the pointer crossed a row with no binding. Carried over 2026-10-26 when the guard stopped needing a gap row (the live study has none).",
+      "file": "apps/annotate/app.js",
+      "find": "    el.consoleOutput.textContent = \"> highlight \" + topologyId + \" \" + edgeId + \"\\n\" + plan.note;",
+      "replace": "    setBanner(plan.note, \"warn\");"
+    },
+    {
+      "contract": "A contributor row's hover posts its own edge's highlight.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Every kinematic row posts the bound edge's highlight, so an unbound row tints a face.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      return { topologyId: study && study.topology, edgeId: edge };",
+      "replace": "      return { topologyId: study && study.topology, edgeId: \"pitch_plate_attach_height\" };"
+    }
+  ]
+}

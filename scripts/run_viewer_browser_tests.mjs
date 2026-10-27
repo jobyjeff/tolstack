@@ -5442,7 +5442,12 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     .find((t) => study && t.id === study.topology);
   const rows = study ? study.stops[0].rows : [];
   const bound = rows.find((r) => r.kind !== "gap");
-  const gap = rows.find((r) => r.kind === "gap");
+  // A row with no binding: any contributor but the bound one (the seeded
+  // binding is the only one). It was "a gap row" until the live study's last
+  // gap was banded (the_tangential_link_cites_its_drawing), after which this
+  // suite skipped itself -- as "the projections are not built" -- on every
+  // real run, unnoticed.
+  const unbound = rows.find((r) => bound && r.edge !== bound.edge);
 
   // file://, first: no annotator can be embedded there, so the 3D control is
   // not on the page at all -- the absent-feature rule, not a disabled button.
@@ -5460,7 +5465,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     await filePage.close();
   }
 
-  if (!study || !topology || !bound || !gap ||
+  if (!study || !topology || !bound || !unbound ||
       !(topology.studies || []).some((s) => s.id === CHAIN)) {
     push("[real] the 3D pane on a live kinematic study (skipped: the kinematic " +
       "and topology projections are not built -- build them, or pass --repo " +
@@ -5611,14 +5616,29 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] resting on a bound contributor row tints its face in the " +
       "annotator, in the colour buffer and not just the bookkeeping",
       face && face.sha256 === face.first && face.faceId === 0 && face.painted);
-    await page.locator(`tr.kmrow--gap[data-edge="${gap.edge}"]`).first().hover();
+    await page.locator(`tr.kmrow[data-edge="${unbound.edge}"]`).first().hover();
     const cleared = await until((w) => w.__lastHighlight === null, null, 10000);
     const said = cleared
       ? await inPane((w) => w.document.querySelector("#console-output").textContent) : "";
     const banner = await inPane((w) => w.document.querySelector("#banner").textContent);
-    push("[real] resting on a gap row tints nothing, and the annotator says so in " +
-      "its console line rather than its banner",
+    push("[real] resting on a contributor row with no binding tints nothing, and the " +
+      "annotator says so in its console line rather than its banner",
       cleared && /no binding/.test(said) && !/no binding/.test(banner || ""));
+
+    // --- 5. a row CLICK selects in place: the scene stays in the sweep -------
+    // (2026-10-26.) The page keeps the study, the pane is not sent a goto,
+    // and the selected edge is what the scene highlights once the pointer
+    // rests on nothing in particular.
+    await page.locator(`tr.kmrow[data-edge="${bound.edge}"] a.kmrow__edge`).first()
+      .click({ timeout: 5000 }).catch(() => {});
+    await page.mouse.move(5, 5);
+    const stillSwept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
+      w.__sweep.artifact.runId === run && !!w.__lastHighlight, study.sweep.run_id, 15000);
+    push("[real] clicking a contributor row with the pane open keeps the page on the " +
+      "study and the annotator in sweep mode, the edge highlighted",
+      stillSwept && /^Sweep — /.test(await headLine()) &&
+      await page.locator("div.kmverdict").count() === 2 &&
+      await page.locator(`tr.kmrow--selected[data-edge="${bound.edge}"]`).count() === 1);
 
     push("[real] nothing above produced an uncaught error", errors.length === 0);
     const keys = await storedKeys();
@@ -8220,10 +8240,14 @@ async function testDeepLinks(browser, url, label) {
 // --- the kinematic study page (the_viewer_shows_a_kinematic_study) ---------
 //
 // The DoD, in a real browser: a `?kinematic=` deep link opens the study page
-// with one verdict chip per stop; a hover on the chart reads a sweep point; the
-// -7 deg stop's table holds six ranked rows, the last two gaps; the first row
-// follows to its edge's rail; and with the projection absent the nav has no
-// section and the page raises nothing. The real half boots the live
+// with one verdict chip per stop above the fold, the model under them with
+// the study's lit set on and the rest dimmed (or hidden, by the toolbar's
+// toggle); a hover on the chart reads a sweep point; one table says each
+// contributor once with a column group per stop, and a coefficient's hover
+// draws its curve; a row click selects its edge IN PLACE; and with the
+// projection absent the nav has no section and the page raises nothing
+// (the_kinematic_page_keeps_the_dag_and_says_each_contributor_once,
+// 2026-10-26). The real half boots the live
 // projections through a MemoryAdapter on file:// (the "real render path"
 // suite's seam), then once more over a repo-root static server, so the HTTP
 // transport's own read of kinematic/kinematic_studies.json is the one proved.
@@ -8265,16 +8289,28 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await page.locator("div.kmverdict").count() === 2 &&
       await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops") +
         ".navtree__row--on").count() === 1);
-    push("the kinematic page stands the preview pane down and draws its chart",
-      !(await page.locator("#detail").isVisible()) &&
-      await page.locator("figure.kmchart svg").isVisible());
+    // The head above the model, the model above the chart, the preview pane
+    // beside them all.
+    const order = await page.evaluate(() => {
+      const top = (sel) => document.querySelector(sel).getBoundingClientRect().top;
+      return [top("#kinematichead"), top("#topopane"), top("figure.kmchart")];
+    });
+    push("the kinematic page draws the model between its verdicts and its chart, " +
+      "with the preview pane beside it",
+      await page.locator("#topopane svg.tv__rails").isVisible() &&
+      await page.locator("#detail").isVisible() &&
+      await page.locator("figure.kmchart svg").isVisible() &&
+      order[0] < order[1] && order[1] < order[2]);
     await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops")).click();
     await page.waitForSelector("div.kmverdict", { timeout: 5000 });
+    await page.waitForTimeout(600);
     push("the nav's kinematic row brings the page back after a topology",
-      await page.locator("#detail").isVisible() === false &&
-      await page.locator("#topopane").isVisible() === false);
+      await page.locator("div.kmverdict").count() === 2 &&
+      await page.locator("#topopane").isVisible() &&
+      await page.locator("#topopane .rail__bar--on").count() > 0 &&
+      await page.locator("#topopane .rail__bar--off").count() > 0);
 
     if (!realProjection || !realResults || !realKinematic) {
       push("[real] kinematic study page (skipped: the projections are not built " +
@@ -8282,12 +8318,48 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
     } else {
       await boot("?kinematic=" + STUDY, realKinematic);
       await page.waitForSelector("div.kmverdict", { timeout: 15000 });
+      // The real-data seam boots twice (the page's own boot, then this
+      // one), so the model is read after the second paint has settled.
+      await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(600);
       const verdicts = await page.locator("div.kmverdict").allTextContents();
       push("[real] the study page reads one verdict chip per stop",
         verdicts.length === 2 &&
         /pass/.test(verdicts[0]) && /margin \+0\.210 deg/.test(verdicts[0]) &&
         /pass/.test(verdicts[1]) && /margin \+0\.185 deg/.test(verdicts[1]) &&
         await page.locator("div.kmverdict span.tvverdict--pass").count() === 2);
+
+      // The model: the study's nine lit edges on (six contributors and the
+      // three edges three of them borrow a band from), the other fifty
+      // dimmed, the grid beside them the nine, all under verdicts that are
+      // on the first screen.
+      const fold = await page.evaluate(() => {
+        const bottoms = [...document.querySelectorAll("div.kmverdict > *")]
+          .map((n) => n.getBoundingClientRect().bottom);
+        const pane = document.querySelector("#topopane").getBoundingClientRect();
+        return { verdicts: Math.max(...bottoms), paneTop: pane.top,
+                 viewport: window.innerHeight };
+      });
+      const litCounts = async () => [
+        await page.locator("#topopane .rail__bar--on").count(),
+        await page.locator("#topopane .rail__bar--off").count(),
+        await page.locator("#topopane tr.tvrow--edge").count()];
+      const dimmed = await litCounts();
+      push("[real] above the fold, the verdicts; under them the model, the study's " +
+        "nine edges lit and the other fifty dimmed",
+        fold.verdicts < fold.viewport && fold.paneTop < fold.viewport &&
+        dimmed[0] === 9 && dimmed[1] === 50 && dimmed[2] === 9);
+      await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const hidden = await litCounts();
+      const hiddenLabel = await page.locator("#unlit-style-toggle").textContent().catch(() => "");
+      await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const restored = await litCounts();
+      push("[real] the toolbar's Unused toggle hides the unlit model and brings it back",
+        hiddenLabel === "Unused: hidden" &&
+        hidden[0] === 9 && hidden[1] === 0 && hidden[2] === 9 &&
+        restored[0] === 9 && restored[1] === 50);
 
       // The wiring, not the view: topology_app.js hands the kinematic view its
       // `onCardShow: showCard`. Without it citationTrigger falls back to a
@@ -8315,27 +8387,51 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         /-6\.992 deg/.test(tipText) && /±0\.290 deg/.test(tipText) &&
         /RSS/.test(tipText) && /±0\.169 deg/.test(tipText));
 
-      const rows = page.locator('section.kmstop[data-stop="minus7"] tr.kmrow');
+      const rows = page.locator("table.kmtable tr.kmrow");
       const classes = [];
       for (let i = 0; i < await rows.count(); i++) {
         classes.push(await rows.nth(i).getAttribute("class"));
       }
       // No gap rows since the tangential link cited its drawing (2026-10-26).
-      push("[real] the -7 deg stop ranks six contributors, every one a banded term",
+      push("[real] one table says the six contributors once, each a banded term, " +
+        "with a column group per stop",
+        await page.locator("table.kmtable").count() === 1 &&
+        await page.locator("th.kmtable__stop").count() === 2 &&
         classes.length === 6 &&
-        classes.every((c) => /kmrow--term/.test(c) && !/kmrow--gap/.test(c)));
+        classes.every((c) => /kmrow--term/.test(c) && !/kmrow--gap/.test(c)) &&
+        !/contributors at/.test(await page.locator("#kinematicview").innerText()));
 
-      // Waits for the RAIL, not for the selection: a follow that lands on the
-      // rail and selects nothing is the failure this check names, and waiting
-      // on the selection itself would turn it into an unattributed timeout.
+      // A coefficient's hover: its curve across P2, in the page's one popover.
+      // The tangential-link mount height's coefficient changes sign between
+      // the stops, so both signs are on the card's axis.
+      await page.locator('tr.kmrow[data-edge="tan_link_mount_height"] ' +
+        'td.kmcell--coef[data-stop="plus72"]').hover();
+      const curveCard = await page.waitForFunction(() => {
+        const pop = document.querySelector("#croppop");
+        return pop && pop.style.display === "block" &&
+          pop.className.indexOf("hovercard--curve") !== -1 &&
+          pop.querySelector("path.kmcurve__line") ? pop.innerText : null;
+      }, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => "");
+      push("[real] hovering a coefficient shows its curve across the sweep, both signs " +
+        "of the mount height's on its axis",
+        /tangential link mount/.test(curveCard) && /\+0\.172/.test(curveCard) &&
+        /-0\.241/.test(curveCard));
+      await dismissCard(page);
+
+      // In place: the page stays the study, the model marks the edge, the
+      // preview pane shows it. Waits for the SELECTION in the grid, which a
+      // click that left the page would also produce -- so the check reads the
+      // page's own head too.
       await rows.nth(0).locator("a.kmrow__edge").click();
-      await page.waitForSelector("#topopane tr.tvrow", { timeout: 15000 });
-      push("[real] the first contributor follows to pitch_plate_attach_height's rail",
-        await page.locator(navRow("topology", "vpa_pitch_linkage") +
-          ".navtree__row--on").count() === 1 &&
+      await page.waitForSelector("#topopane tr.tvrow--selected", { timeout: 15000 }).catch(() => {});
+      push("[real] clicking the first contributor selects pitch_plate_attach_height in " +
+        "place: the page stays the study, the model marks it, the preview pane shows it",
+        await page.locator("div.kmverdict").count() === 2 &&
+        await page.locator(navRow("kinematic", STUDY) + ".navtree__row--on").count() === 1 &&
         /pitch-link attachment bore, height/.test(
           await page.locator("#detail").innerText()) &&
-        await page.locator("tr.tvrow--selected").count() === 1);
+        await page.locator("#topopane tr.tvrow--selected").count() === 1 &&
+        await page.locator('tr.kmrow--selected[data-edge="pitch_plate_attach_height"]').count() === 1);
 
       await boot("", null);
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -8362,7 +8458,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await page.waitForSelector("div.kmverdict, .banner__notice", { timeout: 15000 });
       push("[real] served over HTTP, the page reads the projection through the same transport",
         await page.locator("div.kmverdict").count() === 2 &&
-        await page.locator('section.kmstop[data-stop="minus7"] tr.kmrow').count() === 6);
+        await page.locator("table.kmtable tr.kmrow").count() === 6);
     }
     return reportSuite(label, checks, errors);
   } catch (err) {

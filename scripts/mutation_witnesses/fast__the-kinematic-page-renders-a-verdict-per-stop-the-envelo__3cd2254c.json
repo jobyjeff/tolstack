@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the kinematic page renders a verdict per stop, the envelope chart and ONE contributor table with a column group per stop",
+  "mutations": [
+    {
+      "contract": "The page draws its envelope chart.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Drops the chart. Carried over from the per-stop page's guard.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (chart) root.appendChild(chartFigure(chart));\n",
+      "replace": ""
+    }
+  ]
+}

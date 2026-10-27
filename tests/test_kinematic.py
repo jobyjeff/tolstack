@@ -496,6 +496,29 @@ def test_real_the_first_study_pins_both_stops_against_p2(stop):
 
 
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_the_projection_carries_every_coefficient_across_p2():
+    """The by-point field, value-level on P2: 80 points per contributor, the
+    stop values the table pins at its ends, and the sign change of the
+    tangential-link mount height between points 44 and 45 (actuator travel
+    30.505 -> 29.613 mm) that the per-stop tables could only state."""
+    row = builder.project_study(REAL_STUDY, REAL_DATA, REAL_STUDY.parent)
+    assert row["status"] == "ok", row["error"]
+    by_edge = {c["edge"]: c["by_point"] for c in row["contributors"]}
+    assert sorted(by_edge) == sorted(edge for edge, *_ in REAL["minus7"][5])
+    assert {len(points) for points in by_edge.values()} == {80}
+    for stop in REAL:
+        index, table = REAL[stop][0], REAL[stop][5]
+        assert [(edge, by_edge[edge][index]["sign"],
+                 round(by_edge[edge][index]["coefficient"], 3))
+                for edge, _, _, _ in table] == [(e, s, c) for e, _, s, c in table]
+    mount = by_edge["tan_link_mount_height"]
+    assert [p["sign"] for p in mount] == [1] * 45 + [-1] * 35
+    assert (round(mount[44]["coefficient"], 4), round(mount[45]["coefficient"], 4)) == (
+        0.0006, 0.0033)
+    assert round(max(p["magnitude"] for p in by_edge["pitch_plate_attach_height"]), 3) == 0.156
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
 def test_real_every_authored_feature_join_reconciles_against_the_runs_own_features():
     """The study folds the run that names its features (2026-10-21): every
     label every contributor perturbs has a ``geometry.features[]`` entry, and
@@ -597,6 +620,67 @@ def test_the_projection_states_its_display_precision():
                                provenance={"built_at": "fixture"})
     assert projection["display_decimals"] == builder.DISPLAY_DECIMALS == 3
     assert projection["models"] == []      # the fixture sweep names no topology
+
+
+def test_every_contributor_carries_its_row_at_every_point_in_study_order():
+    """`contributors[].by_point[]` (2026-10-26): the stops' coefficient field at
+    every sweep point, so the page can draw a coefficient's curve. The stop
+    tables are two of its points, and they must agree with it."""
+    projection = builder.build(FIXTURE_TOPOLOGIES, FIXTURE_DATA,
+                               provenance={"built_at": "fixture"})
+    (row,) = projection["studies"]
+    assert [c["edge"] for c in row["contributors"]] == [
+        "link_length", "plate_attach_position"]
+    link = row["contributors"][0]["by_point"]
+    assert [p["index"] for p in link] == [0, 1, 2]
+    # J_len = 2, -1, 0.5 (HAND above): the sign follows the Jacobian.
+    assert [(p["sign"], p["coefficient"]) for p in link] == [(1, 2.0), (-1, 1.0), (1, 0.5)]
+    assert [p["magnitude"] for p in link] == pytest.approx([0.4, 0.2, 0.1])
+    sphere = row["contributors"][1]["by_point"]
+    assert [p["coefficient"] for p in sphere] == pytest.approx([5.0, 2.0, 6.0])
+    for stop in row["stops"]:
+        for stop_row in stop["rows"]:
+            point = next(c for c in row["contributors"]
+                         if c["edge"] == stop_row["edge"])["by_point"][stop["index"]]
+            assert (point["sign"], point["coefficient"], point["magnitude"]) == (
+                stop_row["sign"], stop_row["coefficient"], stop_row["magnitude"])
+
+
+@pytest.mark.parametrize("drawing, names, on_file", [
+    ("213863-004", ["213863-004-A.pdf"], True),
+    ("215177-001", ["215177-A.pdf"], True),          # exported under the base number
+    ("215177-001", ["215177-002-A.pdf"], False),     # a different dash number
+    ("215177-001", ["2151770-A.pdf"], False),        # a different drawing
+    ("216332-001", [], False),
+])
+def test_a_drawing_is_on_file_when_a_pdf_is_named_for_it(drawing, names, on_file):
+    assert builder.drawing_on_file(drawing, names) is on_file
+
+
+def test_a_gap_row_names_the_drawing_that_would_resolve_it_and_whether_it_is_on_file(tmp_path):
+    def point_the_sphere_at_an_unbanded_edge(data):
+        data["contributors"][1]["dimension_ref"]["edge"] = "plate_attach_unbanded"
+    _, data_root, topologies = copy_fixture(
+        tmp_path, study_edit=point_the_sphere_at_an_unbanded_edge)
+    topology_path = topologies / "topology_kin_fixture.json"
+    topology = json.loads(topology_path.read_text(encoding="utf-8"))
+    topology["parts"][1]["drawing"] = "900100-001"
+    topology_path.write_text(json.dumps(topology), encoding="utf-8")
+    dc_root = tmp_path / "drawing-checker"
+
+    def gap_drawings():
+        (row,) = builder.build(topologies, data_root, provenance={"built_at": "fixture"},
+                               drawing_checker_root=dc_root)["studies"]
+        (gap,) = row["gap_rows"]
+        assert gap["edge"] == "plate_attach_position"
+        return gap["drawings"]
+
+    assert gap_drawings() == [{"part": "plate", "part_name": "Plate",
+                               "drawing": "900100-001", "on_file": False}]
+    inbox = dc_root / "data" / "inbox" / "drawings"
+    inbox.mkdir(parents=True)
+    (inbox / "900100-B.pdf").write_bytes(b"%PDF-")
+    assert gap_drawings()[0]["on_file"] is True
 
 
 # --------------------------------------------------------------------------- #

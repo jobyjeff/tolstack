@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "the kinematic page draws the model between its verdicts and its chart, with the preview pane beside it",
+  "mutations": [
+    {
+      "contract": "The kinematic page draws its topology's model.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Draws the model on topology pages only, as before 2026-10-26.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    var showDag = showTopology || (showKinematic && !!topoProj);",
+      "replace": "    var showDag = showTopology;"
+    }
+  ]
+}
