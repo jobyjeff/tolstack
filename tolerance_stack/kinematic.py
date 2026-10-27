@@ -97,8 +97,8 @@ declares no exception to the one-fold rule. Each leaf's band is the sub-study
 edge's own cited band about its own nominal (variation only, as every
 contributor here), carried with its ``source_ref`` and confidence unchanged, so a
 term that is untraced there is untraced here. v0 refuses a ``study_ref`` that
-names a kinematic study (no nesting). ``docs/DAG_TOPOLOGY.md``, "A contributor
-that is itself a study".
+names a kinematic study (no nesting). ``docs/DAG_TOPOLOGY.md``, "A kinematic
+study reads its sensitivity from a published sweep".
 
 Which feature a label is
 ------------------------

@@ -16133,7 +16133,24 @@
             eq(realKinStudy.status, "ok");
             eq(realKinStudy.checks.map(function (c) {
               return [c.stop, c.verdict, VA.kinematicNumber(c.margin, 3)];
-            }), [["minus7", "pass", "0.210"], ["plus72", "pass", "0.185"]]);
+            }), [["minus7", "marginal", "-1.207"], ["plus72", "marginal", "-0.839"]]);
+            // The travel between the end stops enters as a study_ref on the
+            // driver (a_contributor_may_be_a_study): one group per stop, its
+            // four terms scaled by the motion ratio there.
+            eq(realKinStudy.study_ref_count, 1);
+            eq(realKinStudy.study_refs[0].study, "vpa_pitch_linkage_travel_between_end_stops");
+            eq(realKinStudy.stops.map(function (s) {
+              return [s.id, s.groups.length, s.groups[0].children.map(function (c) {
+                return [c.edge, c.sign, VA.kinematicNumber(c.coefficient, 3)];
+              })];
+            }), [["minus7", 1, [["piston_head_upper_thickness", 1, "1.728"],
+                                ["piston_head_lower_thickness", 1, "1.728"],
+                                ["gas_spring_mount_flange_to_end_stop", 1, "1.728"],
+                                ["piston_cover_flange_to_end_stop", -1, "1.728"]]],
+                 ["plus72", 1, [["piston_head_upper_thickness", 1, "1.249"],
+                                ["piston_head_lower_thickness", 1, "1.249"],
+                                ["gas_spring_mount_flange_to_end_stop", 1, "1.249"],
+                                ["piston_cover_flange_to_end_stop", -1, "1.249"]]]]);
             // Both former gap rows carry a drawing's band since handoff
             // the_tangential_link_cites_its_drawing (2026-10-26).
             var minus7 = realKinStudy.stops.filter(function (s) {
@@ -16169,14 +16186,23 @@
             eq(rows[0].getAttribute("data-edge"), "pitch_plate_attach_height");
             has(rows[0].textContent, "0.156");
             has(rows[0].textContent, "0.149");
+            // The travel study is ONE group row, collapsed, over its four terms.
+            eq(all(root, "tr.kmgroup").length, 1);
+            has(all(root, "tr.kmgroup")[0].textContent, "Travel between end stops");
+            var travel = all(root, "tr.kmchild");
+            eq(travel.length, 4);
+            ok(travel.every(function (t) { return t.hidden === true; }), "collapsed by default");
             bannedIn(viewerAuthoredText(root), "[real] kinematic page");
           });
 
-        await test("[real] the live study lights its six contributors and the three " +
-          "edges they borrow a band from, and every one has a coefficient curve", function () {
+        await test("[real] the live study lights its six contributors, the three " +
+          "edges they borrow a band from and the travel study's four, and every direct " +
+          "one has a coefficient curve", function () {
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var lit = VA.kinematicLitSet(realKinStudy, topo);
             eq(Object.keys(lit.edges).sort(), [
+              "gas_spring_mount_flange_to_end_stop", "piston_cover_flange_to_end_stop",
+              "piston_head_lower_thickness", "piston_head_upper_thickness",
               "pitch_arm_link_hole_to_clocking_hole", "pitch_arm_radius",
               "pitch_link_length", "pitch_plate_attach_height",
               "pitch_plate_flange_to_link_hole", "pitch_plate_tan_link_attach_radius",
@@ -16214,7 +16240,7 @@
           });
 
         await test("[real] every live walk's rails and links re-derive from its rows, " +
-          "and hiding the blade-pitch study's unlit model leaves 23 rows on 8 columns", function () {
+          "and hiding the blade-pitch study's unlit model leaves 32 rows on 9 columns", function () {
             realKinTopologies.topologies.forEach(function (topo) {
               if (!topo.layout) return;
               var derived = VA.walkRailsAndLinks(topo.layout.rows);
@@ -16223,11 +16249,11 @@
             });
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var lit = VA.kinematicLitSet(realKinStudy, topo);
-            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [9, 14]);
+            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [13, 19]);
             var hidden = VA.hideUnlit(topo.layout, lit);
             eq([topo.layout.rows.length, topo.layout.columns], [106, 18]);
-            eq([hidden.rows.length, hidden.columns], [23, 8]);
-            eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 9,
+            eq([hidden.rows.length, hidden.columns], [32, 9]);
+            eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 13,
                "every lit edge is a grid row in the hidden walk too");
           });
 
