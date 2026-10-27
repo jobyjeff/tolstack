@@ -83,8 +83,16 @@ TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
 STACKS_DIR = REPO_ROOT / "docs" / "tolerance_stacks"
 DOC = REPO_ROOT / "docs" / "DAG_TOPOLOGY.md"
 
-L1_TOPOLOGY = TOPOLOGIES_DIR / "topology_vpa_output_to_pitch_plate.json"
-L1_STUDY = TOPOLOGIES_DIR / "study_vpa_output_shank_out.json"
+#: The L1 proof reads the document as it stood before 2026-10-27, when the four
+#: linear-stack topologies folded into the product model
+#: (`the_fastener_stacks_join_the_model`): a frozen copy, because the proof is of
+#: the FORMAT (one stand-alone document, every edge a `dimension_ref`, a
+#: seven-interface ring) and the model is none of those. The same study's
+#: numbers are pinned through the model in `test_topology_conversions.py`.
+L1_TOPOLOGY = (REPO_ROOT / "tests" / "fixtures" / "topologies_before_the_fold"
+               / "topology_vpa_output_to_pitch_plate.json")
+L1_STUDY = (REPO_ROOT / "tests" / "fixtures" / "topologies_before_the_fold"
+            / "study_vpa_output_shank_out.json")
 L1_STACK = STACKS_DIR / "stack_vpa_output_to_pitch_plate.json"
 L2_TOPOLOGY = TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json"
 #: ``topology_pitch_system.json`` as it was the day it was folded into
@@ -115,7 +123,7 @@ def test_the_corpus_is_what_this_module_thinks_it_is():
     by name must be there.
     """
     names = {p.name for p in topology_files()}
-    assert {L1_TOPOLOGY.name, L2_TOPOLOGY.name} <= names, (
+    assert {L2_TOPOLOGY.name} <= names, (
         f"docs/topologies/ holds {sorted(names)} -- this module's L1 proof and L2 "
         f"traversal tests read two specific documents and cannot find them")
     assert study_files(), "docs/topologies/ holds no study_*.json at all"
@@ -946,6 +954,17 @@ BODY_PARTS_LINKAGE_DOES_NOT_LIST = {
     # lists the assembly alone because its mesh already draws both bearings.
     "tan_link": {"spherical_bearing_tan_link",
                  "spherical_bearing_tan_link_ms14103_3"},
+    # The grip-length hardware of the four fastener stacks, folded in on
+    # 2026-10-27 (`the_fastener_stacks_join_the_model`): linkage poses no
+    # fasteners. Each goes with the body its bolt clamps to -- the pitch plate
+    # for the three plate joints, the hub for the rotor balance-mass bolt.
+    "base": {"fastener_family", "washer_ms21299c3", "washer_nas1149v0332_tt"},
+    "pitch_plate": {
+        "bolt_nas6403u11d", "bushing_214820_002", "washer_nas1149v0332h",
+        "flanged_bushing_nas77a3_015a", "bolt_nas6403u13h",
+        "straight_bushing_214820_002", "flanged_bushing_tan_link",
+        "bolt_nas6404u13d", "washer_ms21299c4k",
+        "flanged_bushing_unidentified", "plain_bushing_214943_002"},
 }
 
 
@@ -1505,7 +1524,9 @@ def test_every_prose_field_the_count_pairing_claims_is_really_scanned():
     # for. A field listed here but invisible there has an UNMEASURED reach, not
     # a clean one.
     reachable = set()
-    for path in topology_files():
+    # The frozen L1 document is part of the corpus this arm measures: it is the
+    # one remaining carrier of a flat-string `provenance`.
+    for path in [*topology_files(), L1_TOPOLOGY]:
         raw = json.loads(path.read_text(encoding="utf-8"))
         reachable |= set(prose_candidates(raw))
     assert set(PROSE_FIELDS) <= reachable, (
@@ -1920,9 +1941,12 @@ def test_the_gas_spring_stroke_edge_reuses_an_existing_node_and_stays_connected(
     for e in topology.edges:
         parent[find(e.from_node)] = find(e.to_node)
     components = len({find(n.id) for n in topology.nodes})
-    assert components == 1, (
-        "the pitch-system topology must stay a single connected component -- "
-        "see test_topology_projection.py's identical assertion")
+    # The mechanism is one component; the four fastener stacks folded in on
+    # 2026-10-27 are four more, each a bolt's own grip loop with no edge to the
+    # mechanism (a gap there would be a value nobody sourced).
+    assert components == 1 + 4, (
+        "the product model is the mechanism plus the four fastener grip "
+        "stacks -- see test_topology_projection.py's identical assertion")
 
 
 def test_mechanical_stroke_checks_requirement_citations_quote_the_pulled_artifact_verbatim():
@@ -2061,10 +2085,6 @@ def test_check_study_expresses_a_check_with_no_external_limit():
 #: subject: ``revision`` is optional on a part and most parts omit it, so a
 #: derived-only check would go green the moment the last one was dropped.
 TOPOLOGY_PART_REVISIONS = {
-    ("topology_pitch_link_to_pitch_plate.json", "pitch_plate_215197"):
-        ("215735", "A"),
-    ("topology_vpa_output_to_pitch_plate.json", "pitch_flange_215197"):
-        ("215735", "A"),
     ("topology_vpa_pitch_linkage.json", "gas_spring_mount_213668_002"):
         ("213668-002", "A.1"),
 }
@@ -2303,7 +2323,11 @@ def test_which_body_an_element_is_in_on_the_product_model():
     assert topology.edge_body(
         topology.edge("pitch_link_lower_centre_is_this_bearing")) == "pitch_link"
     assert set(topology.node_bodies("blade_root_hub_seat")) == {"blade", "base"}
-    assert topology.joint_nodes("pitch_link") == [
+    assert topology.joint_nodes("pitch_link")[:2] == [
         "pitch_link_lower_sphere_centre", "pitch_link_upper_sphere_centre"]
+    # ... and since the grip stacks joined, the faces where the link's bearing
+    # meets the plate's clamped hardware are joints of the link too.
+    assert {"bushing_eye_face", "eye_flange_face"} <= set(
+        topology.joint_nodes("pitch_link"))
     # Every body meets another somewhere: the model is one component.
     assert all(topology.joint_nodes(b.id) for b in topology.bodies)

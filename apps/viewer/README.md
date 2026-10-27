@@ -700,8 +700,8 @@ re-derived from the committed document on every run:
 metric: layout_crossings
 topology: vpa_pitch_linkage
 branch: 16
-close: 43
-leader: 50
+close: 81
+leader: 62
 ```
 
 **The spine draws on the RIGHT**, hard against the jog zone, with branches
@@ -711,10 +711,12 @@ called once in `renderTopoPane`). Which column an edge lands on is the graph's
 business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
-between a spine node and its row is now on the far side of it. Over the six
-committed topologies, leader-vs-rail crossings went **174 → 25**, four of the
-five to zero; on `vpa_pitch_linkage`, the product graph since the 2026-10-26
-fold, that one topology's total moves 125 → 25. Both
+between a spine node and its row is now on the far side of it. Over the one
+committed topology, leader-vs-rail crossings went **162 → 30**, zero of the
+one to zero; on `vpa_pitch_linkage`, the product graph since the 2026-10-26
+fold (and with the four fastener stacks in it since 2026-10-27, when the
+before-and-after were 125 → 25 over its mechanism alone), that one
+topology's total moves 162 → 30. Both
 sides of those are measured at the column order above, so the before-side is a
 counterfactual — and where it is zero it is the two mechanisms together, not the
 mirror alone: `order_columns` minimises leader crossings counted *towards column 0*,
@@ -731,11 +733,10 @@ Three shapes come out of it, and all three are in the projection:
 * **column reuse** — a column is freed when its branch ends and the next
   allocation may take it, so a column holds a *list* of disjoint rail spans
   rather than one extent. Re-measured live, 2026-09-30: reuse **fires**, on
-  one topology. Rail allocations over columns, per committed topology: 3 over 3
-  for `pitch_link_to_pitch_plate`, 10 over 10
-  for `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, 2
-  over 2 for `vpa_output_to_pitch_plate`, and 37 over 11 for
-  `vpa_pitch_linkage`, where some columns carry more than one disjoint span (23
+  one topology. Rail allocations over columns, per committed topology: 58 over 11 for
+  `vpa_pitch_linkage`, where some columns carry more than one disjoint span (37
+  over 11 before the four fastener stacks folded in on 2026-10-27, when they were
+  3 over 3, 10 over 10, 2 over 2 and 2 over 2 as topologies of their own; 23
   over 18 until the 2026-10-26 body-major walk, whose deferred joints reuse a
   column once the rows below a fork are clear; 14 over 11 until the 2026-10-26
   fold brought `pitch_system`'s ten in, 13 over 11 until 2026-10-22's datum-A
@@ -1406,7 +1407,7 @@ The **floor is never given up**, so the fit has an honest failure: where one
 row per edge is already past the budget, every bar sits on the floor wearing
 its break mark, the DAG is exactly as tall as its own row count demands and
 the page scrolls. (`vpa_pitch_linkage` at comfortable density is exactly
-this: 106 rows × 26px = 2756px, past any ordinary window. Compact density is the control
+this: 169 rows × 26px = 4394px, past any ordinary window. Compact density is the control
 that actually makes it fit; under the fit its tolerance-width and uniform
 renderings are the same height, and every bar says it is not to scale.) A
 collapsed scale marks **every** bar, including the widest ones that landed on
@@ -1426,7 +1427,7 @@ its length wherever the big dimensions are, so on
 `pitch_link_to_pitch_plate` under tolerance width all five leaders live in the
 top 236px of a 691px DAG and centring the heights would make every one of them
 jog *further*. Centring the leader span is what minimises the largest jog,
-which is the thing the change is for: `vpa_pitch_linkage`'s max jog 1209px → 598px,
+which is the thing the change is for: `vpa_pitch_linkage`'s max jog 1911px → 949px,
 and every topology × mode pair on the shelf improves.
 
 A leader can therefore now **descend** left-to-right, where before it always
@@ -1471,9 +1472,9 @@ shift. What is left is real, and measured per study on the live corpus. Taking
 `pitch_system_gas_spring_branch`, over the product graph:
 
 * the **jog zone narrows** as leaders drop, and the pane width with it — the
-  pane goes **468 → 270px**;
+  pane goes **606 → 270px**;
 * the **grid block travels**, because a shorter table re-centres against a DAG
-  of unchanged height — `gridOffset` goes **611 → 624px**;
+  of unchanged height — `gridOffset` goes **962 → 624px**;
 * the grid **cross-fades** between two different row sets, as it always did.
 
 Every committed study moves at least one of those, which the `[real]` tier
