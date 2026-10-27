@@ -3128,8 +3128,9 @@
   // the scene selects on this page (the rail's `select` coupling: a pick
   // selects its row there, and the tree the scene sends here marks it). The
   // row key is the annotator's own (`<parent>/<data k=v,...>`, apps/annotate's
-  // railKey); the deepest segment that names a thing wins. A row naming an
-  // edge is that edge. A row naming a body (a part picked on it, or a link's
+  // railKey), read as one set of fields: a deeper segment's field replaces a
+  // shallower one of the same name, and an `edge` field in any segment wins
+  // over a body's. A row naming an edge is that edge. A row naming a body (a part picked on it, or a link's
   // own joint row -- a run names a link's joint after the link) is the one
   // lit edge on that body's parts, when there is exactly one; several, or
   // none, select nothing rather than guess.
