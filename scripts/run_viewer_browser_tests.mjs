@@ -5191,14 +5191,12 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
           const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
           return { w: Math.round(r.width), left: Math.round(r.left) };
         });
-        // The number the whole blocker turned on: the drawing is a couple of
-        // hundred pixels wide and the panel's own FLOOR is 560, so an
-        // overlaying panel covers it whole at every width a reader can reach.
-        push("[real] the live drawing is narrower than the panel's own floor -- " +
-          "which is why an overlay could never leave any of it showing",
-          liveRailsBefore.w > 0 &&
-          liveRailsBefore.w < await page.evaluate(
-            () => window.ViewerApp.FLYOUT_WIDTH.min));
+        // A premise check stood here until 2026-10-26 -- "the live drawing
+        // is narrower than the panel's own floor", the reason an OVERLAYING
+        // panel covered it whole. The panel is a column of the page's row now
+        // (the_shell_seats_the_scene_beside_the_model) and overlays nothing,
+        // and its floor dropped to 400, under the widest live drawing; the
+        // argument it carried is retired with the layout it was about.
         await page.locator("#study-3d").click();
         await page.waitForSelector("#annotate-flyout[open]", { timeout: 10000 });
         const livePanel = await page.locator("#annotate-flyout").boundingBox();
@@ -5210,7 +5208,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         push("[real] the whole live drawing is clear of the panel, at its own " +
           "measured width",
           liveRails.w === liveRailsBefore.w && liveRails.clear &&
-          liveRails.left >= livePanel.width);
+          liveRails.left >= livePanel.x + livePanel.width);
         // ...and dragged as wide as it will go, still clear. This is the leg
         // the mock cannot run: at 262px the drawing is under the floor, so
         // what bounds the panel here is the same arithmetic either way -- but
