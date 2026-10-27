@@ -5389,8 +5389,8 @@ if (realMeshesDir) {
       "round faces, a thickness only flat ones, and one end bound narrows the other", () => {
       const projection = JSON.parse(fs.readFileSync(livePitchLinkPath, "utf8"));
       const topology = projection.topologies
-        .filter((t) => t.id === "pitch_link_to_pitch_plate")[0];
-      if (!topology) throw new Error("the real projection carries no pitch_link_to_pitch_plate");
+        .filter((t) => t.id === "vpa_pitch_linkage")[0];
+      if (!topology) throw new Error("the real projection carries no vpa_pitch_linkage");
       const meshes = realMeshList();
       const aliases = shippedAliases();
       const faceClasses = {};

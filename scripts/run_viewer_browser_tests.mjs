@@ -2556,8 +2556,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
       const ids = realProjection.topologies.map((t) => t.id);
-      push("[real] both MVP topologies are offered",
-        ids.includes("vpa_pitch_linkage") && ids.includes("vpa_output_to_pitch_plate"));
+      // One topology since 2026-10-27: the L1 grip stack is a subset of the
+      // product model, and its study is how a reader reaches it.
+      push("[real] the product model is offered, with the L1 grip study under it",
+        ids.includes("vpa_pitch_linkage") &&
+        realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage")
+          .studies.some((st) => st.id === "vpa_output_shank_out"));
 
       for (const topology of realProjection.topologies) {
         await page.locator(navRow("topology", topology.id)).click();
@@ -3308,16 +3312,25 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         "before the switch",
         /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
 
-      await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
+      // A switch needs a second real topology to switch to, and the product
+      // model is the only one since 2026-10-27 (the four fastener stacks were
+      // the others): the fixture-side switch checks are what cover it now.
+      const otherReal = realProjection.topologies.find((t) => t.id !== "vpa_pitch_linkage");
+      if (otherReal) {
+      await page.locator(navRow("topology", otherReal.id)).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const switched = await zone();
       push("[real] switching topology keeps the SCALE, not the pixel width",
-        switched.topologyId === "pitch_link_to_pitch_plate" &&
+        switched.topologyId === otherReal.id &&
         switched.natural !== dragged.natural &&
         Math.abs(switched.scale - dragged.scale) < 0.01 &&
         (await correspondence()).drift.length === 0);
       push("[real] switching topology keeps the leader STYLE too",
         /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
+      } else {
+        push("[real] SKIPPED -- the live projection has one topology, so there is " +
+          "nothing to switch to (ISSUE_20261027_no_real_topology_switch_since_the_fold.md)", true);
+      }
       // Back to angled, so everything below this sees the default it expects.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
@@ -3350,7 +3363,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         /Rows: Compact/.test(beforeSwitch.density) &&
         /Lengths: tolerance/.test(beforeSwitch.length) &&
         /Rows: values only/.test(beforeSwitch.valueOnly));
-      await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
+      if (otherReal) {
+      await page.locator(navRow("topology", otherReal.id)).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const afterSwitch = await offDefaults();
       push("[real] switching topology keeps the density, the length mode and " +
@@ -3358,6 +3372,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         afterSwitch.density === beforeSwitch.density &&
         afterSwitch.length === beforeSwitch.length &&
         afterSwitch.valueOnly === beforeSwitch.valueOnly);
+      } else {
+        push("[real] SKIPPED -- no second live topology to switch to " +
+          "(ISSUE_20261027_no_real_topology_switch_since_the_fold.md)", true);
+      }
       // Back to the defaults, and back to pitch_system, for the checks below.
       await page.locator("#density-toggle").click();
       await page.locator("#edge-length-toggle").click();
@@ -3368,8 +3386,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // The preview pane over a real citation, with a real crop behind it.
-      await page.locator(navRow("topology", "vpa_output_to_pitch_plate")).click();
-      await page.locator("tr.tvrow[data-id='fastener_grip'] .tvcell--name").click();
+      await page.locator("tr.tvrow[data-id='fastener_grip_vpa_out'] .tvcell--name").click();
       const detail = await page.locator("#detail").textContent();
       push("[real] an L1 edge shows the stack element's own citation",
         /NAS6403-NAS6420 Rev 4\.pdf/.test(detail) && /NAS6404U13D/.test(detail));
@@ -4698,9 +4715,9 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       // A citation card from a REAL spec citation: the L1 fastener grip's
       // NAS6403 spec, hover on its row's confidence chip.
       await page.locator(
-        "[data-nav-kind='topology'][data-nav-id='vpa_output_to_pitch_plate']").click();
-      await page.waitForSelector("tr.tvrow[data-id='fastener_grip']", { timeout: 15000 });
-      await page.locator("tr.tvrow[data-id='fastener_grip'] span.cardtrig").hover();
+        "[data-nav-kind='topology'][data-nav-id='vpa_pitch_linkage']").click();
+      await page.waitForSelector("tr.tvrow[data-id='fastener_grip_vpa_out']", { timeout: 15000 });
+      await page.locator("tr.tvrow[data-id='fastener_grip_vpa_out'] span.cardtrig").hover();
       await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 15000 });
       const specCard = await page.locator(".croppop").textContent();
       push("[real] a citation card renders from a real spec citation",

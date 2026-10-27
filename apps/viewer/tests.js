@@ -13932,19 +13932,20 @@
             // again the same day when the walk went body-major
             // (the_dag_draws_bodies_as_containers_and_joints_as_symbols).
             var plan = VA.gridPlan(livePitch.layout, livePitch);
-            eq(plan.leaders.length, 38);
-            eq(plan.groups.length, 47);
+            eq(plan.leaders.length, 61);
+            eq(plan.groups.length, 71);
             // The walk opens at the hub spindle bore, a boundary, so its first
             // hub run is one row. The label is the part's NAME
             // (VA.componentLabel); `part` is still the id it is keyed by.
             eq(plan.groups[0].part, "hub");
             eq(plan.groups[0].label, "propeller hub");
             eq(plan.groups[0].count, 1);
-            // The walk's tail is the last body it reaches, the piston cover,
-            // across the travel clearance: a gap, in gap words.
+            // The walk's tail is the last fastener stack it reaches (the four
+            // folded in on 2026-10-27 walk after the mechanism): the VPA
+            // output's spherical bearing, a part on its own row.
             var last = plan.groups[plan.groups.length - 1];
-            eq(last.part, null);
-            eq(last.label, VA.GAP_COMPONENT_LABEL);
+            eq(last.part, "spherical_bearing_in_vpa");
+            eq(last.label, "spherical bearing");
             eq(last.count, 1);
             // The DEPTH-FIRST walk revisits parts on later branches, so "one
             // merged row per part" is per contiguous RUN — reordering the grid
@@ -13955,14 +13956,14 @@
               if (g.part) runsPerPart[g.part] = (runsPerPart[g.part] || 0) + 1;
             });
             eq(runsPerPart.hub, 7);
-            eq(runsPerPart.pitch_plate_215177_001, 6);
+            eq(runsPerPart.pitch_plate_215177_001, 8);
             eq(runsPerPart.gas_spring, 2);
             eq(runsPerPart.blade_root, 2);
             // Every gap is its own group, in gap words -- and two gaps walked
             // one after the other (a bearing's centre and the joint it is) are
             // one run.
             var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
-            eq(gapGroups.length, 9);
+            eq(gapGroups.length, 13);
             gapGroups.forEach(function (g) { eq(g.label, VA.GAP_COMPONENT_LABEL); });
           });
 
@@ -13977,7 +13978,7 @@
             var layout = VA.spineRight(livePitch.layout);
             var plan = VA.gridPlan(layout, livePitch);
             var bands = VA.leaderBands(plan);
-            eq(bands.length, 39, "38 leaders cut the grid into 39 bands");
+            eq(bands.length, 62, "61 leaders cut the grid into 62 bands");
             // The product graph's own band boundaries, as grid row indices
             // (re-measured 2026-10-26 for the fold and again for the
             // body-major walk). 59 edge rows; the first leader points at row
@@ -13987,7 +13988,9 @@
                "0-0 0-1 1-2 2-3 3-4 4-5 5-7 7-8 8-12 12-13 13-14 14-15 15-16 " +
                "16-17 17-19 19-20 20-21 21-22 22-23 23-24 24-25 25-27 27-29 " +
                "29-30 30-31 31-33 33-38 38-39 39-40 40-44 44-45 45-47 47-50 " +
-               "50-52 52-53 53-55 55-56 56-57 57-59");
+               "50-52 52-53 53-55 55-56 56-57 57-59 59-60 60-61 61-62 62-63 " +
+               "63-64 64-65 65-69 69-70 70-71 71-72 72-81 81-82 82-83 83-84 " +
+               "84-87 87-88 88-89 89-90 90-91 91-92 92-93 93-94 94-95");
 
             var root = render(function (r) {
               VA.renderTopoPane(r, {
@@ -14449,37 +14452,45 @@
             };
             var before = crossings(livePitch.layout);
             var after = crossings(VA.spineRight(livePitch.layout));
-            // 35 on the product graph since its walk went body-major
+            // 68 on the product graph with the four fastener stacks in it
+            // (2026-10-27); 35 before them, since its walk went body-major
             // (2026-10-26; 138 after the fold and before it, 43 on the
             // pitch_system document alone).
-            eq(before.spine, 35, "spine leaders crossed 35 rails as projected");
+            eq(before.spine, 68, "spine leaders crossed 68 rails as projected");
             eq(after.spine, 0, "right-justified, they cross none");
             ok(after.total < before.total,
                "total crossings " + after.total + " vs " + before.total);
           });
 
-        await test("[real] the L1 grip stack draws as a ring: two rails, one " +
-          "closing edge, no forks", function () {
-            eq(liveL1.layout.columns, 2);
-            eq(liveL1.branch_nodes, []);
+        await test("[real] the L1 grip stack draws as a ring inside the model: " +
+          "its seven interfaces are no fork, and its closing edge is a row", function () {
+            var L1_NODES = ["head_bearing_face_vpa_out", "washer_flange_face",
+              "flange_bushing_flange_face", "bushing_flange_bearing_face",
+              "bearing_bushing_face", "bushing_far_face",
+              "shank_full_dia_end_vpa_out"];
+            L1_NODES.forEach(function (id) {
+              eq(liveL1.branch_nodes.indexOf(id), -1, id + " is not a fork");
+            });
             var closing = liveL1.layout.rows.filter(function (r) {
               return r.closes_row !== null && r.closes_row !== undefined;
-            });
-            eq(closing.map(function (r) { return r.id; }), ["fastener_grip"]);
+            }).map(function (r) { return r.id; });
+            ok(closing.indexOf("spherical_bearing_vpa_out") !== -1,
+               "the ring's closing edge is a row of the walk: " + closing.join(","));
           });
 
         await test("[real] the pitch system's five forks are marked", function () {
           // Nineteen since the 2026-10-26 fold put the pitch system's five and
           // the linkage's twelve in one graph (two more where they meet).
-          ok(livePitch.branch_nodes.length === 19,
-             "expected 19 branch points, got " + livePitch.branch_nodes.length);
+          // 24 since the four fastener stacks joined (2026-10-27).
+          ok(livePitch.branch_nodes.length === 24,
+             "expected 24 branch points, got " + livePitch.branch_nodes.length);
           var root = render(function (r) {
             VA.renderTopoPane(r, {
               topoProj: livePitch, study: null, crops: realCrops,
               selection: null, onSelect: function () {},
             });
           });
-          eq(all(root, "circle.rail__dot--branch").length, 19);
+          eq(all(root, "circle.rail__dot--branch").length, 24);
         });
 
         await test("[real] the ring gear's cyclic-only branch is visibly a branch",
@@ -15262,7 +15273,7 @@
             // "Reuse the existing thumbnail plumbing" — asserted against the
             // real crops.json rather than assumed: the grip edge's crop_key must
             // address an entry that is actually in it.
-            var edge = VA.topologyIndex(liveL1).edges.fastener_grip;
+            var edge = VA.topologyIndex(liveL1).edges.fastener_grip_vpa_out;
             ok(edge.crop_key, "a dimension_ref edge carries a crop key");
             var entry = VA.cropFor(realCrops, edge.crop_key.stack,
                                    edge.crop_key.element);
@@ -15304,7 +15315,7 @@
 
         await test("[real] a citation card renders from a real spec citation, " +
           "spec-pile identity and all", function () {
-            var edge = VA.topologyIndex(liveL1).edges.fastener_grip;
+            var edge = VA.topologyIndex(liveL1).edges.fastener_grip_vpa_out;
             var ref = edge.dimension.source_ref;
             eq(ref.kind, "spec");
             var entry = VA.cropForKey(realCrops, edge.crop_key);
@@ -16536,14 +16547,14 @@
             var lit = VA.kinematicLitSet(realKinStudy, topo);
             eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [13, 19]);
             var hidden = VA.hideUnlit(topo.layout, lit);
-            eq([topo.layout.rows.length, topo.layout.columns], [106, 11]);
+            eq([topo.layout.rows.length, topo.layout.columns], [169, 11]);
             eq([hidden.rows.length, hidden.columns], [32, 7]);
             eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 13,
                "every lit edge is a grid row in the hidden walk too");
           });
 
         await test("[real] every live body's container is the builder's own block, " +
-          "and every body of the product model is exactly one", function () {
+          "and every body of the product model is one per component it has parts in", function () {
             realKinTopologies.topologies.forEach(function (topo) {
               if (!topo.layout) return;
               eq(VA.bodySpans(topo.layout.rows), topo.layout.bodies || [],
@@ -16553,9 +16564,16 @@
             var spans = VA.bodySpans(topo.layout.rows);
             var per = {};
             spans.forEach(function (s) { per[s.body] = (per[s.body] || 0) + 1; });
+            // One block per connected run of the walk: the four fastener
+            // stacks folded in on 2026-10-27 are components of their own, so
+            // the plate has its mechanism block and three grip-stack blocks,
+            // and the hub, both links and the VPA piston one more each
+            // (ISSUE_20261027_a_body_with_parts_in_two_components_is_two_containers.md).
+            var EXTRA_BLOCKS = { pitch_plate: 3, base: 1, pitch_link: 1,
+                                 tan_link: 1, vpa_piston: 1 };
             eq(topo.bodies.map(function (b) { return per[b.id] || 0; }),
-               topo.bodies.map(function () { return 1; }),
-               "one block per body: " + JSON.stringify(per));
+               topo.bodies.map(function (b) { return 1 + (EXTRA_BLOCKS[b.id] || 0); }),
+               "blocks per body: " + JSON.stringify(per));
             // Blocks never share a row, so no two containers overlap.
             for (var i = 1; i < spans.length; i++) ok(spans[i].start > spans[i - 1].end);
           });
@@ -16567,10 +16585,13 @@
             ok(base && base.joint_nodes.length > 0, "the base meets other bodies");
             var folded = VA.collapseBodies(topo.layout, { base: true }, topo, null);
             var pills = folded.rows.filter(function (r) { return r.collapsed; });
-            eq(pills.map(function (r) { return r.id; }), ["body:base"]);
-            var span = topo.layout.bodies.filter(function (s) { return s.body === "base"; })[0];
-            eq(folded.rows.length, topo.layout.rows.length - (span.end - span.start),
-               "the block's rows are one");
+            // Two blocks since 2026-10-27 (the mechanism's and the rotor
+            // bolt's): two pills, one per block.
+            eq(pills.map(function (r) { return r.id; }), ["body:base", "body:base"]);
+            var spans = topo.layout.bodies.filter(function (s) { return s.body === "base"; });
+            eq(folded.rows.length, topo.layout.rows.length -
+               spans.reduce(function (n, s) { return n + (s.end - s.start); }, 0),
+               "each block's rows are one");
             var meets = folded.rows.filter(function (r) {
               return r.kind === "edge" &&
                 (r.entered_at === "body:base" || r.left_at === "body:base");
@@ -16583,7 +16604,7 @@
                 collapsedBodies: { base: true }, onToggleBody: function () {} });
             });
             var pill = all(root, "g.tv__pill");
-            eq(pill.length, 1);
+            eq(pill.length, 2);
             eq(pill[0].getAttribute("data-collapsed-body"), "base");
             has(pill[0].textContent, base.joint_nodes.length + " joints");
             eq(all(root, "rect.tv__bodyfield").filter(function (n) {
@@ -16602,14 +16623,17 @@
                 onToggleBody: function (id) { toggled.push(id); } });
             });
             var fields = all(root, "rect.tv__bodyfield");
-            eq(fields.length, topo.bodies.length);
+            eq(fields.length, topo.layout.bodies.length);
             var names = all(root, "text.tv__bodyname");
+            // Named once per block: a body with parts in two components of the
+            // walk is two containers (2026-10-27).
             eq(names.map(function (n) { return n.getAttribute("data-body-toggle"); }).sort(),
-               topo.bodies.map(function (b) { return b.id; }).sort(), "each named once");
+               topo.layout.bodies.map(function (b) { return b.body; }).sort(),
+               "each block named once");
             names[0].onclick();
             eq(toggled, [names[0].getAttribute("data-body-toggle")], "the name folds it");
             var stated = topo.edges.filter(function (e) { return e.interface; });
-            ok(stated.length >= 13, "the product model's gap edges state their contacts");
+            ok(stated.length >= 17, "the product model's gap edges state their contacts");
             var glyphs = all(root, "use").filter(function (u) {
               return u.getAttribute("data-glyph") !== VA.FORM_GLYPH_ID;
             });
