@@ -44,9 +44,11 @@
   // What can be drawn, as a vocabulary rather than four booleans spelled in
   // four places: the `layer` verb, the toggles in the bar and the renderer all
   // read this list.
-  AA.SWEEP_LAYERS = Object.freeze(["stick", "bodies", "trail", "ghost"]);
+  // `model` is the topology drawn on its parts (model_layer.js), and the one
+  // layer bind mode can draw as well.
+  AA.SWEEP_LAYERS = Object.freeze(["stick", "bodies", "trail", "ghost", "model"]);
   AA.SWEEP_DEFAULT_LAYERS = Object.freeze(
-    { stick: true, bodies: true, trail: false, ghost: false });
+    { stick: true, bodies: true, trail: false, ghost: false, model: true });
 
   // Playback. `loop` is a three-valued word, not a boolean, because
   // ping-pong is the one a reader actually wants on a sweep that runs out and

@@ -5206,6 +5206,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       symlink `dispatch bridge-test-inputs` leaves. Read the diff's `A`
       entries for a bare `venv-win`
       (`ISSUE_20261027_gitignore_venv_win_slash_pattern_misses_the_bridge_symlink.md`).
+- [ ] **"The body's frame origin" is one point for every body here.** New
+      2026-10-27 (`the_model_is_drawn_in_the_scene`). A sweep pose maps the
+      as-modelled assembly frame onto itself, so every solver body's frame is
+      the assembly frame. A handoff rule anchored "at the body's frame origin"
+      (a fallback, a section plane) therefore collapses every body onto the
+      hub's centre: seven no-mesh nodes made one star there on P2. When a 3D
+      rule names a body's frame, ask what it does on two bodies at once. Read
+      the branch's screenshots for a fan of lines meeting at one point
+      (`ISSUE_20261027_design_the_model_layer_draws_a_star_at_the_assembly_origin_…`).
 
 ## Architectural errors to check
 

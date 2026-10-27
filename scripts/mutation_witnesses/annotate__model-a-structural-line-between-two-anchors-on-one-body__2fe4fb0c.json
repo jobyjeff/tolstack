@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: a structural line between two anchors on one body is drawn in that body's frame; a joint line is not",
+  "mutations": [
+    {
+      "contract": "A line between two solver points is drawn in world, never in a body group.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "A link line put in the link's group would be posed twice.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "        body: a.subject === b.subject && a.source !== \"joint\" && b.source !== \"joint\"",
+      "replace": "        body: a.subject === b.subject"
+    }
+  ]
+}

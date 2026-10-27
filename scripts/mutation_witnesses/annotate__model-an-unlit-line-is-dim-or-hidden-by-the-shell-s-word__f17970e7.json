@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: an unlit line is dim or hidden by the shell's word, and nothing lit means every line full",
+  "mutations": [
+    {
+      "contract": "The shell's hide word hides the unlit lines.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "Without it the dim-or-hide toggle does nothing in the scene.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "    return unlit === AA.MODEL_UNLIT_STYLES[1] ? AA.MODEL_LINE_STRENGTHS[2] : AA.MODEL_LINE_STRENGTHS[1];",
+      "replace": "    return AA.MODEL_LINE_STRENGTHS[1];"
+    }
+  ]
+}

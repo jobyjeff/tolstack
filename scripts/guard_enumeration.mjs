@@ -160,8 +160,8 @@ export const GUARD_SOURCES = {
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
   fast: { declared: 581, enrollable: 581, names: "a1a26831aa84" },
-  annotate: { declared: 225, enrollable: 225, names: "c7f8fe3a3d7d" },
-  browser: { declared: 623, enrollable: 590, names: "13ca33e01eca" },
+  annotate: { declared: 235, enrollable: 235, names: "aef0164987eb" },
+  browser: { declared: 639, enrollable: 606, names: "0ebdedd80a83" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

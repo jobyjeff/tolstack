@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] the pitch link and tan link lines are the stick figure's own two points, bit for bit",
+  "mutations": [
+    {
+      "contract": "The link lines are drawn from the frame's own joint points.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "A recomputed point drifts from the stick figure the lines must match.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "        out[id] = j && j[a.end] ? j[a.end] : null;",
+      "replace": "        out[id] = j && j[a.end] ? [j[a.end][0] + 1e-3, j[a.end][1], j[a.end][2]] : null;"
+    }
+  ]
+}

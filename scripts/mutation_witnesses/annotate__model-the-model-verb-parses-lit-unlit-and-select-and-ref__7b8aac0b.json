@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: the model verb parses lit, unlit and select, and refuses anything else naming what it takes",
+  "mutations": [
+    {
+      "contract": "A bare `model lit` is refused rather than read as an empty lit set.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "An empty lit set would dim the whole model on a malformed post.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "    if (list.length < 2) throw new Error(\"model lit takes edge ids, or all\");",
+      "replace": "    if (list.length < 1) throw new Error(\"model lit takes edge ids, or all\");"
+    }
+  ]
+}

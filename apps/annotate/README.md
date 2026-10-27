@@ -237,7 +237,8 @@ a scope decision this handoff did not have, and it is filed.
 | `inspect <joint\|contributor> <name>` / `inspect part <mesh> <face> [<body>]` / `inspect clear` | the sweep rail's selection, in sweep mode only: a joint's bead is drawn larger in the pick tint; a contributor tints its feature's bound face — both ends, for a length. `part` is a face picked in the scene, at any frame: its row is selected inside the body it was picked on (that body opened), and so is every feature row the face is bound to (their joint opened). Writes nothing; `clear` lets it go |
 | `hover <body\|joint\|contributor> <name>` / `hover part <mesh> [<body>]` / `hover feature <edge> [from\|to]` / `hover clear` | what a sweep-rail row lights while the pointer rests on it, in one pale hover tint drawn over the part (never into its colours, so a picked face keeps its tint): a body's parts at the occurrences the mechanism draws them at; a part at its body's occurrence (every occurrence with no body); a joint's bead and its bound faces; a feature's bound face; a contributor's bound faces at both ends of its edge, or its edge's parts when none is bound. Sweep mode only; writes nothing |
 | `show-body <body>` / `hide-body <body>` | a sweep-rail body's (or link's) checkbox: shows or hides every occurrence that body is drawn at and no other — hiding `blade` hides blade 1 and its pitch arm, never the other four. Put back on leaving sweep mode |
-| `layer <stick\|bodies\|trail\|ghost> [on\|off]` | what is drawn; no argument toggles. The same four as the **Display** boxes in sweep mode, written from one vocabulary |
+| `layer <stick\|bodies\|trail\|ghost\|model> [on\|off]` | what is drawn; no argument toggles. The same five as the **Display** boxes in sweep mode, written from one vocabulary. `model` is the one bind mode takes too (its own **Display** box, off by default there, on in sweep mode) |
+| `model lit <edge>...` / `model lit all` / `model unlit <dim\|hide>` / `model select <node\|body> <id>` / `model select clear` | the model layer: which edges are the active study's lit set (posted by the shell; until it posts, the study this page shows), what the rest does, and which node or body shows why its anchor is where it is — the section plane and the cut region, faintly, and a body's name at its +X anchor. A click on a node's dot selects it. Writes nothing |
 
 `resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and
 isolate state-transition helpers) and the tokenizer/dispatch registry itself
@@ -638,6 +639,14 @@ apps/annotate/
                        cap, the occurrence subtree a body carries) and the
                        newest-first run ordering. No DOM, no fetch, no
                        three.js.
+  model_layer.js       PURE model-layer logic: where every topology node's
+                       dot is (the run's joint point, a bound face's fitted
+                       point, the part's +X-bias section, or nothing), the
+                       section cut itself, the stack-order ladder, which
+                       frame each edge's line rides, the lit/dim/hide rule,
+                       the `model` verb's grammar and the anchors message
+                       the shell draws leaders from. No DOM, no fetch, no
+                       three.js.
   scene.js             the 3D surface: three.js mesh loading (through the
                        storage adapter, never fetch() directly), every part
                        drawn at each of its placements, raycast, highlight,
@@ -659,7 +668,7 @@ apps/annotate/
                        rotorkit's spike (see vendor/README.md)
   run_tests.cjs        fast-tier runner for binding_state.js + commands.js +
                        face_geometry.js + suggestions.js + sweep.js +
-                       storage/memory.js, plus a [real] tier over the
+                       model_layer.js + storage/memory.js, plus a [real] tier over the
                        installed meshes and the published sweep runs
   run_browser_check.mjs  real-browser check for SWEEP MODE and the pass that
                        writes its screenshot evidence -- playwright-core,

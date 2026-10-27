@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] the tan-link mount's bore anchors on its +X intersection, not at the ring's centre",
+  "mutations": [
+    {
+      "contract": "The anchor region is the bias-most one, not the most central.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "The most central region of the ring is the line through the hole Jeff asked to avoid.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      var score = r.centroid[bias.biasAxis] * bias.biasSign;",
+      "replace": "      var score = -Math.abs(r.centroid[bias.biasAxis]);"
+    }
+  ]
+}

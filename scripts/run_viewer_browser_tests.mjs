@@ -5448,6 +5448,14 @@ async function installRealAnnotatorReads(page, seed) {
       // The synthetic binding, resolved when it is read: faces of the first
       // part the sweep opened, so it is a part that is in the scene.
       const b = seed.binding;
+      // `binding: "window"`: whatever the check has put on the frame's own
+      // `__truthStackKeys`, read when the projection is read.
+      if (b === "window") {
+        P.readFeatureIdentityProjection = async () => ({
+          get stack_keys() { return window.__truthStackKeys || []; },
+        });
+        return true;
+      }
       P.readFeatureIdentityProjection = async () => ({
         get stack_keys() {
           const sweep = window.__sweep;
@@ -5465,6 +5473,367 @@ async function installRealAnnotatorReads(page, seed) {
     const timer = setInterval(() => { if (install()) clearInterval(timer); }, 1);
     document.addEventListener("DOMContentLoaded", () => { install(); clearInterval(timer); });
   }, seed);
+}
+
+// The model drawn in the scene (handoff the_model_is_drawn_in_the_scene), on
+// run P2, embedded in the shell exactly as a reader opens it: the kinematic
+// study's page, its 3D control, the annotator in the scene column. Every node
+// of the merged model anchored, every edge a line, the link lines the stick
+// figure's own, the lines riding the sweep, a synthetic binding moving one
+// node onto its face -- and the anchors message the shell's leaders will be
+// drawn from, observed arriving in the shell's own window.
+//
+// The frame rate with the layer on and off is PRINTED, never asserted: it is a
+// figure about a shared box, and the 4 fps floor it is read against
+// (ISSUE_20261014_sweep_modes_frame_rate_figure…) is a headless SwiftShader
+// one. Screenshots of two sweep frames and one bind-mode frame are written when
+// MODEL_SCENE_SHOTS names a directory.
+const MODEL_SCENE_SHOTS = process.env.MODEL_SCENE_SHOTS || null;
+
+async function testAnnotateModelInTheScene(browser, fileBase, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const index = await realDataIndexForTheAnnotator();
+  if (!study || !topology || !(topology.bodies || []).length ||
+      index.runs.indexOf(study.sweep.run_id) === -1) {
+    push("[real] the model in the scene on P2 (skipped: the run, the kinematic projection or " +
+      "a topology projection with bodies is not on disk -- build them, or pass --repo " +
+      "<a root built from this tree>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  // The binding is read off the frame's own window when the projection is
+  // read, so the check below can name a face it has just classified.
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "window" });
+  // The shell's own window collects every anchors message, the way the
+  // leaders will receive them.
+  await page.addInitScript(() => {
+    if (location.pathname.indexOf("/apps/viewer/") === -1) return;
+    window.__anchorMessages = [];
+    window.addEventListener("message", (ev) => {
+      if (ev.data && ev.data.type === "annotate:anchors") window.__anchorMessages.push(ev.data);
+    });
+  });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const exec = (command) => inPane((w, c) => Promise.resolve(w.AnnotateApp.exec(c)).then(() => true,
+    (e) => String(e && e.message || e)), command);
+  // The model rebuilt against the current state: built, for this run (or for
+  // none), and its anchors drawn.
+  const rebuilt = (run) => until((w, r) => w.__model && w.__model.built &&
+    w.__model.built.runId === r && (r === null || w.__model.built.bodies) &&
+    w.__scene.modelState(), run, 120000);
+  const shot = async (name) => {
+    if (!MODEL_SCENE_SHOTS) return;
+    await page.waitForTimeout(400);
+    // The scene's own canvas, out of the pane's frame: the page around it is
+    // the shell's, and other suites photograph that.
+    await page.frameLocator("#annotate-flyout iframe").locator("#canvas-host")
+      .screenshot({ path: join(MODEL_SCENE_SHOTS, name), timeout: 240000 });
+  };
+  const runId = study.sweep.run_id;
+
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
+    await page.waitForSelector("div.kmverdict", { timeout: 30000 });
+    await page.waitForSelector("#pane-toggle:visible", { timeout: 15000 }).catch(() => {});
+    await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+    // The bodies resolve first, and the model is rebuilt on the occurrences
+    // they chose; only then is it the model this suite is about.
+    const swept = await until((w, r) => w.__sweep && w.__sweep.artifact.runId === r &&
+      w.__sweep.bodies && w.__sweep.bodies.length > 0, runId, 180000);
+    const built = swept && await rebuilt(runId);
+    push("[real] embedded on P2, the scene builds the model layer by default in sweep mode",
+      swept && built);
+
+    // --- 1. every node an anchor, every edge a line -------------------------
+    const facts = await inPane((w) => {
+      const m = w.__model.built;
+      const drawn = w.__scene.modelState();
+      const stick = {};
+      for (const [name, line] of w.__scene._sweep.links) {
+        stick[name] = Array.from(line.geometry.attributes.position.array);
+      }
+      const anchors = {};
+      for (const [id, a] of Object.entries(m.anchors)) {
+        anchors[id] = { source: a.source, part: a.part, subject: a.subject, point: a.point,
+          rung: a.rung || null, regions: a.section ? m.parts[a.part].section.regions : null,
+          boundsX: a.section ? m.parts[a.part].section.bounds[0] : null, why: a.why || null };
+      }
+      return { anchors, lines: Object.keys(drawn.lines), drawnLines: drawn.lines, stick,
+        sources: w.AnnotateApp.MODEL_ANCHOR_SOURCES };
+    }) || { anchors: {}, lines: [], drawnLines: {}, stick: {}, sources: [] };
+    const nodeIds = topology.nodes.map((n) => n.id);
+    const edgeIds = topology.edges.map((e) => e.id);
+    push("[real] every node of the merged model has an anchor and every edge a line",
+      nodeIds.every((id) => facts.anchors[id]) && Object.keys(facts.anchors).length === nodeIds.length &&
+      edgeIds.every((id) => facts.lines.indexOf(id) !== -1) && facts.lines.length === edgeIds.length);
+    const bySource = {};
+    for (const [id, a] of Object.entries(facts.anchors)) (bySource[a.source] = bySource[a.source] || []).push(id);
+    console.log(`      [${label}] anchors by source: ` + Object.keys(bySource).map((s) =>
+      `${s} ${bySource[s].length}`).join(", ") + "; no geometry: " +
+      (bySource.origin || []).map((id) => `${id} (${facts.anchors[id].why})`).join(", "));
+    push("[real] with no binding in the inbox, no anchor is a bound face's: every one is a " +
+      "joint point, a section or a body origin",
+      !bySource.bound && Object.keys(bySource).every((s) => facts.sources.indexOf(s) !== -1) &&
+      (bySource.section || []).length > 0);
+
+    // The hub's internals: one upright on its +X side, rungs in stack order.
+    const hub = Object.entries(facts.anchors).filter(([, a]) => a.part === "hub" &&
+      a.source === "section").map(([id, a]) => ({ id, ...a }))
+      .sort((a, b) => (a.rung ? a.rung[0] : 0) - (b.rung ? b.rung[0] : 0));
+    console.log(`      [${label}] hub ladder at x=${hub.length ? hub[0].point[0].toFixed(1) : "-"}: ` +
+      hub.map((h) => `${h.id}@z${h.point[2].toFixed(1)}`).join(", "));
+    push("[real] the hub's internals sit on the hub's +X side as a ladder, rung over rung in " +
+      "stack order",
+      hub.length >= 3 && hub.every((h) => h.point[0] === hub[0].point[0] &&
+        h.point[1] === hub[0].point[1] && h.rung && h.rung[1] === hub.length) &&
+      hub[0].point[0] > (hub[0].boundsX[0] + hub[0].boundsX[1]) / 2 &&
+      hub.every((h, i) => i === 0 || h.point[2] > hub[i - 1].point[2]));
+
+    // The tangential-link mount is a ring round the spindle: its cut is two
+    // walls, and the bore's anchor is on the +X one.
+    const mount = facts.anchors.tan_link_mount_bore;
+    const ringCentre = mount && mount.boundsX ? (mount.boundsX[0] + mount.boundsX[1]) / 2 : null;
+    console.log(`      [${label}] tan-link mount: ${mount && mount.regions} regions across ` +
+      `x ${mount && mount.boundsX ? mount.boundsX.map((v) => v.toFixed(1)).join("..") : "-"}; ` +
+      `bore anchored at x=${mount && mount.point ? mount.point[0].toFixed(1) : "-"}`);
+    push("[real] the tan-link mount's bore anchors on its +X intersection, not at the ring's centre",
+      mount && mount.source === "section" && mount.regions >= 2 &&
+      mount.point[0] > ringCentre + 10);
+
+    // The two links: the model's lines ARE the stick figure's, the same two
+    // float32 points (a line's end order is from -> to, the stick's a -> b).
+    const sameTwo = (line, stick) => {
+      if (!line || !stick) return false;
+      const a = line.raw.slice(0, 3), b = line.raw.slice(3, 6);
+      const s0 = stick.slice(0, 3), s1 = stick.slice(3, 6);
+      const eq = (p, q) => p.every((v, i) => Object.is(v, q[i]));
+      return (eq(a, s0) && eq(b, s1)) || (eq(a, s1) && eq(b, s0));
+    };
+    push("[real] the pitch link and tan link lines are the stick figure's own two points, bit for bit",
+      sameTwo(facts.drawnLines.pitch_link_length, facts.stick.pitch_link) &&
+      sameTwo(facts.drawnLines.tan_link_length, facts.stick.tan_link));
+
+    // --- 2. the anchors message, in the shell's own window ------------------
+    const shellSide = await page.evaluate(() => {
+      const list = window.__anchorMessages || [];
+      const last = list[list.length - 1] || null;
+      const frame = document.querySelector("#annotate-flyout iframe").getBoundingClientRect();
+      return { count: list.length, last, w: frame.width, h: frame.height };
+    });
+    // The same node projected here, independently: its dot's world point
+    // through the camera, plus the canvas's offset inside the frame -- the
+    // canvas sits under the annotator's bars, so a message in canvas pixels
+    // would be off by exactly that offset.
+    const projected = await inPane((w) => {
+      const s = w.__scene;
+      const dot = s._model.dots.get("tan_link_mount_bore");
+      const v = dot.getWorldPosition(new s.camera.position.constructor()).project(s.camera);
+      const r = s.renderer.domElement.getBoundingClientRect();
+      return { at: [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height], top: r.top,
+        sent: w.__lastAnchors.nodes.tan_link_mount_bore };
+    });
+    const onScreen = shellSide.last ? Object.values(shellSide.last.nodes).filter(Boolean) : [];
+    console.log(`      [${label}] anchors messages seen by the shell: ${shellSide.count}; the last ` +
+      `places ${onScreen.length} of ${shellSide.last ? Object.keys(shellSide.last.nodes).length : 0} ` +
+      `nodes and ${shellSide.last ? Object.keys(shellSide.last.edges).length : 0} edges`);
+    push("[real] the shell receives annotate:anchors with every node, the on-screen ones in the " +
+      "iframe's own CSS pixels",
+      shellSide.last && Object.keys(shellSide.last.nodes).length === nodeIds.length &&
+      onScreen.length > 0 && onScreen.every(([x, y]) => x >= 0 && y >= 0 &&
+        x <= shellSide.w + 1 && y <= shellSide.h + 1) &&
+      (bySource.origin || []).every((id) => shellSide.last.nodes[id] === null) &&
+      projected && projected.top > 0 && projected.sent &&
+      Math.abs(projected.sent[0] - projected.at[0]) <= 0.1 &&
+      Math.abs(projected.sent[1] - projected.at[1]) <= 0.1);
+    const before = shellSide.count;
+    await inPane((w) => { w.__scene.camera.position.multiplyScalar(1.15); w.__scene.controls.update(); });
+    const moved = await page.waitForFunction((n) => (window.__anchorMessages || []).length > n,
+      before, { timeout: 15000 }).then(() => true, () => false);
+    push("[real] a camera move posts the anchors again", moved);
+
+    // --- 3. the lines ride the sweep ----------------------------------------
+    await exec(["seek", "#0"]);
+    const ride = await inPane((w) => {
+      const AA = w.AnnotateApp;
+      const m = w.__model.built;
+      const frame = w.__sweep.frame;
+      const drawn = w.__scene.modelState();
+      const edge = (id) => {
+        const line = drawn.lines[id];
+        const e = (m.lines[id]);
+        const a = m.anchors[e.from], b = m.anchors[e.to];
+        const pose = AA.modelSubjectPlacement(frame, a.subject);
+        return { inBody: line.inBody, subject: a.subject, ends: line.ends,
+          want: [AA.applyPlacement(pose, a.point), AA.applyPlacement(pose, b.point)],
+          home: [a.point, b.point] };
+      };
+      const gap = drawn.lines.pitch_arm_link_joint;
+      return { plate: edge("pitch_plate_attach_height"), arm: edge("pitch_arm_radius"),
+        gap: { ends: gap.ends, from: drawn.nodes.pitch_arm_link_bore.at,
+          to: drawn.nodes.pitch_link_lower_sphere_centre.at } };
+    });
+    const near = (p, q, tol) => p && q && p.every((v, i) => Math.abs(v - q[i]) <= tol);
+    const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+    push("[real] a structural line rides its body: drawn in the body's frame, carried by its pose " +
+      "away from where it was modelled",
+      ride && ["plate", "arm"].every((k) => ride[k].inBody &&
+        near(ride[k].ends[0], ride[k].want[0], 1e-3) && near(ride[k].ends[1], ride[k].want[1], 1e-3) &&
+        dist(ride[k].ends[0], ride[k].home[0]) > 0.5));
+    push("[real] a joint line runs between the two bodies' anchors, recomputed at the frame",
+      ride && near(ride.gap.ends[0], ride.gap.from, 1e-3) && near(ride.gap.ends[1], ride.gap.to, 1e-3));
+    await shot("1_sweep_frame_1.png");
+    await exec(["seek", "#40"]);
+    await shot("2_sweep_frame_41.png");
+
+    // --- 4. the lit set, and the shell's dim-or-hide word -------------------
+    const lit = await inPane((w) => {
+      const s = w.__scene.modelState();
+      const strengths = w.__model.strengths;
+      const full = Object.keys(strengths).filter((k) => strengths[k] === "full");
+      // Read defensively: with nothing dimmed (or nothing full) this is a
+      // failed check, never a thrown one that aborts the suite unnamed.
+      const dim = Object.keys(strengths).find((k) => strengths[k] === "dim");
+      return { full, dimOpacity: dim ? s.lines[dim].opacity : null,
+        fullOpacity: full.length ? s.lines[full[0]].opacity : null };
+    });
+    const contributors = new Set();
+    for (const stop of study.stops) for (const row of stop.rows) contributors.add(row.edge);
+    push("[real] until the shell posts a lit set, the open study's contributors are drawn at full " +
+      "strength and the rest dimmed",
+      lit && lit.full.length === contributors.size && lit.full.every((id) => contributors.has(id)) &&
+      lit.fullOpacity === 1 && lit.dimOpacity !== null && lit.dimOpacity < 1);
+    await exec(["model", "unlit", "hide"]);
+    const hidden = await inPane((w) => {
+      const s = w.__scene.modelState();
+      return Object.keys(s.lines).filter((k) => s.lines[k].visible).sort();
+    });
+    await exec(["model", "lit", "pitch_link_length"]);
+    const posted = await inPane((w) => {
+      const s = w.__scene.modelState();
+      return Object.keys(s.lines).filter((k) => s.lines[k].visible);
+    });
+    push("[real] the shell's word rules the rest: hide leaves only the lit lines, and a posted lit " +
+      "set replaces the study's",
+      hidden && hidden.join() === Array.from(contributors).sort().join() &&
+      posted && posted.join() === "pitch_link_length");
+    await exec(["model", "unlit", "dim"]);
+    await exec(["model", "lit", "all"]);
+
+    // --- 5. selection shows why -----------------------------------------------
+    await exec(["model", "select", "node", "tan_link_mount_bore"]);
+    await shot("4_selected_tan_link_mount_bore.png");
+    const nodeSel = await inPane((w) => ({ sel: w.__scene.modelState().selection,
+      said: w.__lastModelSelection }));
+    await exec(["model", "select", "body", "base"]);
+    const bodySel = await inPane((w) => w.__scene.modelState().selection);
+    push("[real] a selected node shows the plane and the cut its anchor came from; a selected body " +
+      "names itself at its +X anchor",
+      nodeSel && nodeSel.sel && nodeSel.sel.plane && nodeSel.sel.region &&
+      /section/.test(nodeSel.said.words) &&
+      bodySel && bodySel.plane && bodySel.label === (topology.bodies.find((b) => b.id === "base").name));
+    await exec(["model", "select", "clear"]);
+
+    // --- 6. a binding moves its node onto its face ----------------------------
+    // The pitch plate's first round face, classified here the way the app
+    // classifies it, bound at the link-attach bore end of the attach radius.
+    const expected = await inPane(async (w) => {
+      const AA = w.AnnotateApp;
+      const part = w.__model.built.parts.pitch_plate_215177_001;
+      const base = "/data/meshes/" + part.sha256 + "/";
+      const manifest = await (await fetch(base + "manifest.json")).json();
+      const buf = async (name) => (await fetch(base + name)).arrayBuffer();
+      const classes = AA.classifyPartFaces(manifest.faces, new Float32Array(await buf(manifest.positions_file)),
+        new Uint32Array(await buf(manifest.indices_file)), new Uint32Array(await buf(manifest.face_ids_file)));
+      const face = classes.find((c) => c && c.surface === "cylindrical");
+      w.__truthStackKeys = [{
+        stack_key: { kind: "topology_edge", topology_id: "vpa_pitch_linkage", edge_id: "pitch_plate_attach_radius" },
+        bindings: [{ event_id: "truth-model-1", direction: "to",
+          geometry_key: { source_step_sha256: part.sha256, face_id: face.faceId } }],
+      }];
+      return { point: AA.applyPlacement(part.placement, face.axisPoint),
+        was: w.__model.built.anchors.pitch_plate_link_attach_bore.point };
+    });
+    await exec(["layer", "model", "off"]);
+    await exec(["layer", "model", "on"]);
+    await rebuilt(runId);
+    const bound = await inPane((w) => {
+      const a = w.__model.built.anchors.pitch_plate_link_attach_bore;
+      return { source: a.source, point: a.point,
+        others: Object.values(w.__model.built.anchors).filter((x) => x.source === "bound").length };
+    });
+    push("[real] a synthetic binding moves exactly one node to its bound face's fitted point",
+      expected && bound && bound.source === "bound" && bound.others === 1 &&
+      near(bound.point, expected.point, 1e-9) && dist(bound.point, expected.was) > 0.1);
+    await inPane((w) => { w.__truthStackKeys = []; });
+
+    // --- 7. the frame rate, printed ------------------------------------------
+    const fps = async (on) => {
+      await exec(["layer", "model", on ? "on" : "off"]);
+      if (on) await rebuilt(runId);
+      await exec(["play"]);
+      await page.waitForTimeout(4000);
+      const f = await inPane((w) => ({ fps: w.__sweep.fps, renders: w.__scene.renderCount }));
+      await exec(["pause"]);
+      return f ? f.fps : null;
+    };
+    const withModel = await fps(true);
+    const without = await fps(false);
+    const again = await fps(true);
+    console.log(`      [${label}] playing P2 headless: ${withModel && withModel.toFixed(1)} drawn fps with ` +
+      `the model, ${without && without.toFixed(1)} without, ${again && again.toFixed(1)} with it again`);
+
+    // --- 8. bind mode, at the as-modelled pose --------------------------------
+    await exec(["sweep", "off"]);
+    await exec(["layer", "model", "on"]);
+    const bindBuilt = await rebuilt(null);
+    const bind = bindBuilt ? await inPane((w) => {
+      const anchors = Object.values(w.__model.built.anchors);
+      return { n: anchors.length, joint: anchors.filter((a) => a.source === "joint").length,
+        lines: Object.keys(w.__scene.modelState().lines).length };
+    }) : null;
+    push("[real] bind mode draws the whole model at the as-modelled pose, with no solver joint " +
+      "points to read",
+      bind && bind.n === nodeIds.length && bind.joint === 0 && bind.lines === edgeIds.length);
+    // The picture wants the parts the model is drawn on: bind mode opens none
+    // by itself, so the study's own are shown and framed first.
+    if (MODEL_SCENE_SHOTS) {
+      await exec(["show-all"]);
+      await exec(["camera", "frame", "hub"]);
+    }
+    await shot("3_bind_mode.png");
+  } catch (err) {
+    errors.push(String(err && err.stack || err));
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
 }
 
 // Screenshots of the scene column (the_shell_seats_the_scene_beside_the_
@@ -9784,6 +10153,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateBindForm(browser, label)],
       ["annotate renders on demand (a still scene draws nothing, an orbit draws)", (label) =>
         testAnnotateRenderOnDemand(browser, label)],
+      ["annotate model in the scene (anchors, lines, the sweep, the anchors message)", (label) =>
+        testAnnotateModelInTheScene(browser, fileBase, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));

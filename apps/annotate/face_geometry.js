@@ -574,6 +574,10 @@
           // The plane as (normal, offset): offset is normal . point, so two
           // planes in ONE mesh's frame are coplanar when their offsets agree.
           offset: dot(meanNormal, centroid),
+          // The face's vertex centroid, ON the plane: the plane's located
+          // point, as tolerance_stack/feature_geometry.py's fit_plane names it
+          // (`point`) -- where the model layer anchors a bound flat face.
+          point: centroid,
           normalSpreadDeg: worst.normalDeg,
           flatness: extent > 0 ? flat / extent : 0,
         };

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: a joint anchor's world point is the frame's own joint end, bit for bit, and a body anchor rides its pose",
+  "mutations": [
+    {
+      "contract": "A joint anchor's world point is the frame's own array, never a recomputed copy.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "The identity is what makes the link lines byte-identical to the stick figure.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "        out[id] = j && j[a.end] ? j[a.end] : null;",
+      "replace": "        out[id] = j && j[a.end] ? j[a.end].slice() : null;"
+    }
+  ]
+}

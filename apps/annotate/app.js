@@ -123,6 +123,12 @@ const state = {
   // Whether selecting an element colours the faces that could be its feature
   // (handoff annotate_face_suggestions). Persists like the two above.
   faceSuggestions: AA.readStoredSuggestions(prefStore()),
+  // The model layer (buildModel): whether bind mode draws it, the shell's lit
+  // set (undefined until one is posted; null is "nothing emphasised"), what
+  // the unlit rest does, the edge `highlight` lit, what `model select` chose,
+  // and what was built from what. `sections` caches each part's cut.
+  model: { bindOn: false, lit: undefined, unlit: AA.MODEL_DEFAULT_UNLIT, emphasis: null,
+    selected: null, built: null, generation: 0, sections: {}, postedText: "", postCount: 0 },
   // sha256 -> AA.classifyPartFaces(...) output, computed ONCE per mesh per
   // session and kept here rather than on the scene's meshes: a reference face
   // for the narrowing can live on a part that is not open in the 3D view at
@@ -564,6 +570,8 @@ function cmdHighlight(topologyId, edgeId, direction) {
     else if (pick) state.scene.highlightFace(pick.sha256, pick.faceId);
     else state.scene.clearHighlight();
     window.__lastHighlight = null;
+    state.model.emphasis = null;
+    applyModelStyle();
     return null;
   }
   if (!topologyId || !edgeId) throw new Error("highlight needs <topology> <edge>, or clear");
@@ -571,6 +579,10 @@ function cmdHighlight(topologyId, edgeId, direction) {
     throw new Error("highlight's third word is one of " + AA.DIRECTIONS.join(", ") +
       ", got " + JSON.stringify(direction));
   }
+  // The model layer's line for the edge lights with it, bound or not: the
+  // line is drawn from anchors, which every edge has.
+  state.model.emphasis = state.currentTopology && state.currentTopology.id === topologyId ? edgeId : null;
+  applyModelStyle();
   const open = new Set(state.scene.listOpenParts());
   const plan = AA.planHighlight(mergedIdentityProjection(), topologyId, edgeId,
     (sha) => open.has(sha), direction);
@@ -1117,7 +1129,9 @@ async function cmdSweep(target, studyId) {
   renderDetail();
   // Not awaited: the stick figure is on screen and usable the moment the run
   // is read, and resolving five occurrences against fitted geometry is the
-  // slow part. It repaints the bar when it lands.
+  // slow part. It repaints the bar when it lands -- and rebuilds the model,
+  // whose anchors sit on the occurrences it chose.
+  buildModel().catch((err) => setBanner(err.message, "error"));
   anchorSweepBodies().catch((err) => setBanner(err.message, "error"));
   if (paired.refusal) setBanner(paired.refusal, "warn");
   const loaded = { runId, points: artifact.points.length, source: artifact.source };
@@ -1149,6 +1163,8 @@ function leaveSweep() {
   }
   resetContext(true); // the run's context ends with it; what is drawn was just restored
   renderDetail();
+  // Bind mode's own answer: down unless it was switched on there.
+  buildModel().catch((err) => setBanner(err.message, "error"));
   return { left: true };
 }
 
@@ -1384,6 +1400,7 @@ async function anchorSweepBodies() {
   // very different camera distances.
   state.scene.frameSweepScene();
   renderDetail();
+  buildModel().catch((err) => setBanner(err.message, "error"));
   return rows;
 }
 
@@ -1505,6 +1522,7 @@ function applySweepFrame() {
       mine.ghost = wantGhost;
     }
   }
+  applyModelFrame();
   return frame;
 }
 
@@ -1578,10 +1596,18 @@ function cmdStep(delta) {
 }
 
 function cmdLayer(name, value) {
-  const sweep = sweepState();
   const layer = AA.parseSweepLayer(name);
+  // The model is the one layer bind mode draws too, at the as-modelled pose.
+  if (layer === "model" && !state.sweep) {
+    state.model.bindOn = value === undefined ? !state.model.bindOn : AA.parseOnOff(value);
+    buildModel().catch((err) => setBanner(err.message, "error"));
+    renderDetail();
+    return state.model.bindOn;
+  }
+  const sweep = sweepState();
   sweep.layers[layer] = value === undefined ? !sweep.layers[layer] : AA.parseOnOff(value);
   state.scene.setSweepLayer(layer, sweep.layers[layer]);
+  if (layer === "model") buildModel().catch((err) => setBanner(err.message, "error"));
   applySweepFrame();
   renderDetail();
   return sweep.layers[layer];
@@ -1825,6 +1851,7 @@ const SWEEP_LAYER_LABELS = Object.freeze({
   bodies: "3D parts",
   trail: "Paths",
   ghost: "Where it started",
+  model: "The model",
 });
 const SWEEP_LAYER_HINTS = Object.freeze({
   stick: "a bead at every joint, a line along every two-force member, and a " +
@@ -1833,6 +1860,8 @@ const SWEEP_LAYER_HINTS = Object.freeze({
   trail: "the whole path each joint takes over the sweep, drawn faintly",
   ghost: "a translucent copy of each part where the model was built, to " +
     "compare against",
+  model: "every node of the topology as a dot on its part and every edge as " +
+    "a line between two of them",
 });
 
 function sweepButton(glyph, title, onClick) {
@@ -2584,6 +2613,7 @@ function cmdInspect(what, name, face, subject) {
   else state.scene.clearHighlight();
   window.__lastInspect = sweep.inspect;
   renderSweepRail();
+  applyModelSelection();
   return sweep.inspect;
 }
 
@@ -2613,7 +2643,325 @@ function inspectPart(target) {
   state.scene.highlightFaces(faces);
   window.__lastInspect = sweep.inspect;
   renderSweepRail();
+  applyModelSelection();
   return sweep.inspect;
+}
+
+// --- the model layer (handoff the_model_is_drawn_in_the_scene) --------------
+//
+// Every node of the current topology as a dot at its anchor and every edge as
+// a line, in both modes: on by default in sweep mode (the `model` layer), off
+// by default in bind mode, where it draws the as-modelled pose. Which point
+// each anchor is comes out of model_layer.js (AA.modelAnchors); this reads
+// what it needs -- the meshes' buffers for the section, a bound face's fitted
+// point, which occurrence a run moved -- and hands the answers to the scene.
+//
+// It WRITES NOTHING. An anchor is a place to draw; it never reaches a
+// binding, a stack or a fitted nominal.
+
+function modelOn() {
+  return state.sweep ? !!state.sweep.layers.model : !!state.model.bindOn;
+}
+
+// The topology body that lists a part, or null.
+function modelBodyOfPart(topology, partId) {
+  return ((topology && topology.bodies) || []).find((b) => (b.parts || []).indexOf(partId) !== -1) || null;
+}
+
+// The subjects (bodies and links) the loaded run poses, by name.
+function modelRunSubjects(sweep) {
+  if (!sweep) return {};
+  const out = {};
+  for (const b of sweep.structure.bodies) out[b.name] = b;
+  for (const l of sweep.artifact.links || []) out[l.joint] = { name: l.joint, anchor: null };
+  return out;
+}
+
+// One part's section, cached per (mesh, occurrence, plane axis): the buffers
+// are read once, and a 363,681-triangle hub cuts in ~20 ms.
+async function modelSection(sha256, placement, key, bias) {
+  const id = sha256 + "|" + (key || "") + "|" + bias.normalAxis + "|" + bias.biasAxis +
+    bias.biasSign + "|" + bias.stackAxis;
+  if (Object.prototype.hasOwnProperty.call(state.model.sections, id)) return state.model.sections[id];
+  const manifest = await state.storage.readMeshManifest(sha256);
+  let answer = null;
+  if (manifest) {
+    const [posBuf, idxBuf] = await Promise.all([
+      state.storage.readMeshBuffer(sha256, manifest.positions_file),
+      state.storage.readMeshBuffer(sha256, manifest.indices_file),
+    ]);
+    if (posBuf && idxBuf) {
+      answer = AA.modelPartSection(new Float32Array(posBuf), new Uint32Array(idxBuf), placement, bias);
+    }
+  }
+  state.model.sections[id] = answer;
+  return answer;
+}
+
+// What model_layer.js needs to know about one topology part: which subject
+// carries the occurrence its anchor is taken at, the occurrence itself, its
+// section, the body's frame origin, and -- when there is no geometry -- why.
+//
+// THE OCCURRENCE: in sweep mode, the one the run's anchoring matched (or, for
+// a ground body, its first) -- so the anchor sits on the part the reader sees
+// move; otherwise the part's first recorded occurrence, where the assembly
+// puts it.
+async function modelPartInfo(topology, partId, bias, occurrences, sweep) {
+  const body = modelBodyOfPart(topology, partId);
+  const subjects = modelRunSubjects(sweep);
+  const row = sweep ? (sweep.bodies || []).find((r) => r.part === partId &&
+    r.state !== "carried" && r.placements && r.placements.length) : null;
+  let subject = row ? row.subject : null;
+  if (!subject && body && subjects[body.id]) subject = body.id;
+  const origin = (subject && subjects[subject] && subjects[subject].anchor) || [0, 0, 0];
+  const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
+  if (!mesh) return { subject, section: null, origin, why: AA.MODEL_ORIGIN_WHY.noMesh };
+  let placement = null, key = null;
+  if (row) {
+    placement = row.placements[0].placement;
+    key = row.placements[0].key;
+  } else {
+    const own = (occurrences.byMesh[mesh.sha256] || [])[0];
+    if (own) { placement = own.placement; key = own.key; }
+  }
+  let section = null;
+  try { section = await modelSection(mesh.sha256, placement, key, bias); }
+  catch (err) { section = null; }
+  return { subject, section, origin, sha256: mesh.sha256, placement, key,
+    why: section ? null : AA.MODEL_ORIGIN_WHY.noCut };
+}
+
+// {node id: [x, y, z]}: the fitted point of the face a committed binding
+// names at that node's end of an edge, in the as-modelled assembly frame. A
+// binding with no direction binds an edge, not a node, and anchors nothing.
+async function modelBoundPoints(topology, parts, occurrences) {
+  const identity = mergedIdentityProjection();
+  const homes = AA.modelNodeHomes(topology);
+  const out = {};
+  for (const node of topology.nodes || []) {
+    for (const edge of topology.edges || []) {
+      if (out[node.id]) break;
+      const direction = edge.from === node.id ? AA.DIRECTIONS[0]
+        : (edge.to === node.id ? AA.DIRECTIONS[1] : null);
+      if (!direction) continue;
+      const record = AA.findBindingRecord(identity, AA.topologyEdgeKey(topology.id, edge.id));
+      const binding = ((record && record.bindings) || []).find((b) => b && b.direction === direction &&
+        b.geometry_key && b.geometry_key.source_step_sha256);
+      if (!binding) continue;
+      const sha = binding.geometry_key.source_step_sha256;
+      let classes = null;
+      try { classes = await ensureFaceClasses(sha); } catch (err) { classes = null; }
+      const face = classes && classes[binding.geometry_key.face_id];
+      const local = face && (face.centre || face.axisPoint || face.point);
+      if (!local) continue;
+      const home = parts[homes[node.id].part] || {};
+      const placement = home.sha256 === sha ? home.placement
+        : (((occurrences.byMesh[sha] || [])[0] || {}).placement || null);
+      out[node.id] = AA.applyPlacement(placement || AA.IDENTITY_PLACEMENT, local);
+    }
+  }
+  return out;
+}
+
+// Builds (or takes down) the layer for the current topology and mode. Called
+// whenever what it is built from changes: the topology, the mode, the run's
+// bodies resolving, a binding written, the layer switched. Superseded builds
+// stop at their next await.
+async function buildModel() {
+  const model = state.model;
+  const generation = ++model.generation;
+  const topology = state.currentTopology;
+  if (!state.scene || !modelOn() || !topology || !(topology.nodes || []).length) {
+    model.built = null;
+    if (state.scene) state.scene.setModel(null);
+    postModelAnchors(true);
+    return null;
+  }
+  const sweep = state.sweep;
+  const bias = AA.readAnchorBias(topology);
+  const occurrences = await loadOccurrences();
+  if (generation !== model.generation) return null;
+  const parts = {};
+  for (const part of topology.parts || []) {
+    parts[part.id] = await modelPartInfo(topology, part.id, bias, occurrences, sweep);
+    if (generation !== model.generation) return null;
+  }
+  const bound = await modelBoundPoints(topology, parts, occurrences);
+  if (generation !== model.generation || state.sweep !== sweep) return null;
+  const anchors = AA.modelAnchors({ topology, bias, parts, bound,
+    linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {} });
+  const lines = AA.modelEdgeLines(topology, anchors);
+  // `bodies`: whether the run's anchoring had resolved when this was built --
+  // before it, a moving part's anchor sits on its first recorded occurrence.
+  model.built = { topologyId: topology.id, bias, parts, anchors, lines,
+    runId: sweep ? sweep.artifact.runId : null, bodies: !!(sweep && sweep.bodies.length) };
+  const nodes = {};
+  for (const [id, a] of Object.entries(anchors)) {
+    nodes[id] = { source: a.source, subject: a.subject, point: a.point,
+      exported: a.source !== AA.MODEL_ANCHOR_SOURCES[3] };
+  }
+  state.scene.setModel({ nodes, lines });
+  state.scene.setModelVisible(true);
+  applyModelFrame();
+  applyModelStyle();
+  applyModelSelection();
+  if (bias.problem) setBanner(bias.problem, "warn");
+  return model.built;
+}
+
+// The frame's world points and the subjects' poses -- every sweep frame,
+// and once at the as-modelled pose in bind mode.
+function applyModelFrame() {
+  const built = state.model.built;
+  if (!built) return null;
+  const frame = state.sweep ? state.sweep.frame : null;
+  const world = AA.modelWorldPoints(built.anchors, frame);
+  const subjects = {};
+  for (const a of Object.values(built.anchors)) {
+    const s = a.subject || "";
+    if (!(s in subjects)) subjects[s] = AA.modelSubjectPlacement(frame, a.subject);
+  }
+  state.scene.setModelFrame({ world, subjects });
+  return world;
+}
+
+// The lit set when the shell has posted none: the study this page is
+// showing -- a chain study's own selection in bind mode, the edges an open
+// kinematic study's stops name in sweep mode -- and with neither, nothing is
+// emphasised. A posted lit set (`model lit`) always wins: the shell's reading
+// of the lit set is VA.kinematicLitSet, which also lights the edges a
+// contributor borrows its band from, and the shell is the one surface that
+// draws both.
+function modelDefaultLit() {
+  const sweep = state.sweep;
+  const edges = [];
+  if (sweep && sweep.study) {
+    for (const stop of sweep.study.stops || []) {
+      for (const row of stop.rows || []) if (row.edge && edges.indexOf(row.edge) === -1) edges.push(row.edge);
+    }
+  } else if (!sweep && state.currentStudy) {
+    for (const id of state.currentStudy.selection || []) edges.push(id);
+  }
+  if (!edges.length) return null;
+  const lit = {};
+  for (const id of edges) lit[id] = true;
+  return lit;
+}
+
+function applyModelStyle() {
+  const model = state.model;
+  if (!model.built) return null;
+  const topology = state.currentTopology;
+  const lit = model.lit !== undefined ? model.lit : modelDefaultLit();
+  const strengths = {};
+  for (const id of Object.keys(model.built.lines)) {
+    strengths[id] = AA.modelLineStrength(id, lit, model.unlit);
+  }
+  model.strengths = strengths;
+  state.scene.setModelStyle({ strengths, nodes: AA.modelLitNodes(topology, lit),
+    hideUnlit: model.unlit === AA.MODEL_UNLIT_STYLES[1], emphasis: model.emphasis });
+  return strengths;
+}
+
+// The section a node's anchor was cut from, as the scene draws it.
+function modelSectionDrawing(anchor) {
+  if (!anchor || anchor.source !== AA.MODEL_ANCHOR_SOURCES[2]) return {};
+  const info = state.model.built.parts[anchor.part];
+  return {
+    plane: { normalAxis: anchor.section.normalAxis, at: anchor.section.at,
+      bounds: info.section.bounds },
+    region: anchor.section.region.segments,
+  };
+}
+
+// What is selected in the layer: a node (model select node), a body (model
+// select body, or -- in sweep mode -- the body a pick in the scene selected
+// in the rail). A node shows its section plane and region; a body shows its
+// name at its +X anchor, with the plane it was cut on.
+function applyModelSelection() {
+  const model = state.model;
+  if (!model.built) return null;
+  const anchors = model.built.anchors;
+  let sel = model.selected;
+  if (!sel && state.sweep && state.sweep.inspect && state.sweep.inspect.subject) {
+    sel = { kind: AA.MODEL_SELECT_KINDS[1], id: state.sweep.inspect.subject };
+  }
+  if (!sel) { state.scene.setModelSelection(null); return null; }
+  if (sel.kind === AA.MODEL_SELECT_KINDS[0]) {
+    const anchor = anchors[sel.id];
+    state.scene.setModelSelection(Object.assign({ node: sel.id, subject: anchor ? anchor.subject : null },
+      modelSectionDrawing(anchor)));
+    return sel;
+  }
+  const topology = state.currentTopology;
+  const body = ((topology && topology.bodies) || []).find((b) => b.id === sel.id);
+  if (!body) { state.scene.setModelSelection(null); return null; }
+  // The body's +X anchor: the first of its parts with a section.
+  const partId = (body.parts || []).find((p) => model.built.parts[p] && model.built.parts[p].section);
+  const info = partId ? model.built.parts[partId] : null;
+  const at = info ? info.section.region.centroid : null;
+  const drawing = info ? {
+    plane: { normalAxis: model.built.bias.normalAxis, at: info.section.at, bounds: info.section.bounds },
+    region: info.section.region.segments,
+  } : {};
+  state.scene.setModelSelection(Object.assign({ body: body.id, subject: info ? info.subject : null,
+    label: at ? { text: body.name || AA.measureLabel(body.id), at } : null }, drawing));
+  return sel;
+}
+
+// model lit <edge>... | model lit all | model unlit dim|hide |
+// model select node <id> | model select body <id> | model select clear
+function cmdModel(...args) {
+  const plan = AA.parseModelVerb(args);
+  const model = state.model;
+  if (plan.action === AA.MODEL_VERB_ACTIONS[0]) {
+    model.lit = plan.lit;
+    applyModelStyle();
+    return { lit: plan.lit ? Object.keys(plan.lit) : "all" };
+  }
+  if (plan.action === AA.MODEL_VERB_ACTIONS[1]) {
+    model.unlit = plan.unlit;
+    applyModelStyle();
+    return { unlit: plan.unlit };
+  }
+  const topology = state.currentTopology;
+  if (plan.select) {
+    const list = plan.select.kind === AA.MODEL_SELECT_KINDS[0] ? (topology && topology.nodes) : (topology && topology.bodies);
+    if (!(list || []).some((x) => x.id === plan.select.id)) {
+      throw new Error("this topology has no " + plan.select.kind + " \"" + plan.select.id + "\"");
+    }
+  }
+  model.selected = plan.select;
+  applyModelSelection();
+  const anchor = plan.select && plan.select.kind === AA.MODEL_SELECT_KINDS[0] && model.built
+    ? model.built.anchors[plan.select.id] : null;
+  window.__lastModelSelection = plan.select ? Object.assign({}, plan.select,
+    anchor ? { source: anchor.source, words: AA.modelAnchorWords(anchor) } : {}) : null;
+  return window.__lastModelSelection;
+}
+
+// The anchors, out to the shell (embedded) and to a harness (always), once
+// per drawn frame whose numbers changed. `cleared` posts the empty message a
+// shell needs to take its leaders down when the layer goes.
+function postModelAnchors(cleared) {
+  const model = state.model;
+  let message;
+  if (cleared) {
+    if (!model.postedText) return;
+    message = { type: AA.ANCHORS_MESSAGE, nodes: {}, edges: {} };
+  } else {
+    if (!model.built) return;
+    const screen = state.scene.modelScreenPoints();
+    if (!screen) return;
+    message = AA.modelAnchorsMessage(model.built.lines, screen, model.strengths);
+  }
+  const text = JSON.stringify(message);
+  if (text === model.postedText) return;
+  model.postedText = cleared ? "" : text;
+  model.postCount++;
+  window.__lastAnchors = message;
+  if (window.parent === window) return;
+  try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
 }
 
 // help [on|off] -- the top bar's collapsible half (deliverable 1). No
@@ -2672,6 +3020,7 @@ commands.register("step", cmdStep);
 commands.register("loop", cmdLoop);
 commands.register("layer", cmdLayer);
 commands.register("inspect", cmdInspect);
+commands.register("model", cmdModel);
 commands.register("hover", cmdHover);
 commands.register("show-body", (name) => cmdSubjectView(true, name));
 commands.register("hide-body", (name) => cmdSubjectView(false, name));
@@ -2810,6 +3159,9 @@ function selectTopology(topologyId) {
   syncSelectTitle(el.studySelect);
   if (studies.length) selectStudy(studies[0].id);
   else { renderElementList(); resetContext(false); }
+  state.model.emphasis = null;
+  state.model.selected = null;
+  buildModel().catch((err) => setBanner(err.message, "error"));
 }
 
 function selectStudy(studyId) {
@@ -2821,6 +3173,7 @@ function selectStudy(studyId) {
   syncSelectTitle(el.studySelect);
   renderElementList();
   resetContext(false);
+  applyModelStyle();
 }
 
 // The scope, dropped, with the bar that announces it -- and NOT the two panels,
@@ -3214,6 +3567,8 @@ function renderHintPanel() {
   display.appendChild(settingCheckbox(AA.SUGGEST_SETTING_LABEL, state.faceSuggestions,
     AA.SUGGEST_SETTING_HINT,
     (on) => AA.exec(["auto-suggest", AA.onOff(on)])));
+  display.appendChild(settingCheckbox(SWEEP_LAYER_LABELS.model, state.model.bindOn,
+    SWEEP_LAYER_HINTS.model, (on) => AA.exec(["layer", "model", AA.onOff(on)])));
   el.hintPanel.appendChild(display);
 }
 
@@ -3433,6 +3788,7 @@ function correctionTarget(record, edge) {
 async function writeIdentityEvent(filename, event, banner) {
   await state.storage.writeFeatureIdentityEvent(filename, event);
   state.sessionEvents.push(event);
+  buildModel().catch(() => { /* the layer keeps its last anchors */ });
   setBanner(banner, "ok");
   renderElementList();
   renderDetail();
@@ -3612,6 +3968,7 @@ function buildOwnerNotInSetFields(edge) {
       const filename = nextFilename(filenames, slugify(edge.id) + "_owner_not_in_set");
       await state.storage.writeFeatureIdentityEvent(filename, event);
       state.sessionEvents.push(event);
+      buildModel().catch(() => { /* the layer keeps its last anchors */ });
       setBanner("Wrote " + filename, "ok");
       renderElementList();
       renderDetail();
@@ -4322,6 +4679,16 @@ async function main() {
   // The part under a pointer that has come to rest, into the rail (sweep
   // mode only; the scene asks nothing outside it).
   state.scene.onPartHover = sceneHoverPart;
+  // The model layer: its anchors after every drawn frame, and a click on one
+  // of its dots selects that node (a second click lets it go).
+  state.scene.onModelRendered = () => postModelAnchors(false);
+  state.scene.onModelPick = (nodeId) => {
+    const was = state.model.selected;
+    const again = was && was.kind === AA.MODEL_SELECT_KINDS[0] && was.id === nodeId;
+    AA.exec(again ? ["model", "select", "clear"] : ["model", "select", "node", nodeId])
+      .catch((err) => setBanner(err.message, "error"));
+  };
+  Object.defineProperty(window, "__model", { get: () => state.model });
   // The same read-only convention, for sweep mode: a harness (and the
   // screenshot pass) can ask where the scrubber is and what frame rate the
   // playback is actually getting. Nothing in this app reads it, and it is
