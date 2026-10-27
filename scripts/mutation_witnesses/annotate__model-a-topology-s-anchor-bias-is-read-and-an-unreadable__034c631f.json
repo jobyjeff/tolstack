@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: a topology's anchor_bias is read, and an unreadable one is the default and says so",
+  "mutations": [
+    {
+      "contract": "A bias along the stack axis is refused for the default, with a problem said.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "Bias and stack on one axis leave the section plane's normal undefined (3 - a - a).",
+      "file": "apps/annotate/model_layer.js",
+      "find": "    if (!m || AA.MODEL_AXES.indexOf(stack) === -1 || m[2] === stack) {",
+      "replace": "    if (!m || AA.MODEL_AXES.indexOf(stack) === -1) {"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] a selected node shows the plane and the cut its anchor came from; a selected body names itself at its +X anchor",
+  "mutations": [
+    {
+      "contract": "A selected body's name is drawn at its +X anchor.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "The handoff's one label in 3D.",
+      "file": "apps/annotate/app.js",
+      "find": "    label: at ? { text: body.name || AA.measureLabel(body.id), at } : null }, drawing));",
+      "replace": "    label: null }, drawing));"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] embedded on P2, the scene builds the model layer by default in sweep mode",
+  "mutations": [
+    {
+      "contract": "The model layer is on by default in sweep mode.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "The handoff's default; off, the shell would get no anchors until a reader asked.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    { stick: true, bodies: true, trail: false, ghost: false, model: true });",
+      "replace": "    { stick: true, bodies: true, trail: false, ghost: false, model: false });"
+    }
+  ]
+}

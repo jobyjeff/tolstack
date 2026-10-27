@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] every node of the merged model has an anchor and every edge a line",
+  "mutations": [
+    {
+      "contract": "Every edge, structural or gap, gets a line.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "A joint between two bodies is exactly the line the stick figure could not draw before.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (!a || !b) return;",
+      "replace": "      if (!a || !b || e.kind === \"gap\") return;"
+    }
+  ]
+}

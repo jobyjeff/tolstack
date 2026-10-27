@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] the hub's internals sit on the hub's +X side as a ladder, rung over rung in stack order",
+  "mutations": [
+    {
+      "contract": "Rungs climb the stack axis in stack order.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "Reversed, the hub's ladder reads its stack upside down.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "        out[id].point[bias.stackAxis] = lo + (hi - lo) * (i + 1) / (ordered.length + 1);",
+      "replace": "        out[id].point[bias.stackAxis] = lo + (hi - lo) * (ordered.length - i) / (ordered.length + 1);"
+    }
+  ]
+}

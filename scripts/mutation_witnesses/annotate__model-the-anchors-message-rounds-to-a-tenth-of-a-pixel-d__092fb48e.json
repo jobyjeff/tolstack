@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: the anchors message rounds to a tenth of a pixel, drops a hidden line and a line with an end off screen",
+  "mutations": [
+    {
+      "contract": "A hidden line is not reported to the shell.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "The shell would draw a leader to a line the scene does not show.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (strengths && strengths[id] === AA.MODEL_LINE_STRENGTHS[2]) return;",
+      "replace": "      if (false) return;"
+    }
+  ]
+}

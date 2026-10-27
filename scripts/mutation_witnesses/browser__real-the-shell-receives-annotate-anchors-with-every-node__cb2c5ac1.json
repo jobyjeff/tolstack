@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] the shell receives annotate:anchors with every node, the on-screen ones in the iframe's own CSS pixels",
+  "mutations": [
+    {
+      "contract": "Embedded, the anchors are posted to the shell.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "The leaders handoff draws from this message and nothing else.",
+      "file": "apps/annotate/app.js",
+      "find": "  try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }\n}\n\n// help [on|off]",
+      "replace": "  try { /* not posted */ } catch (_) { /* embedder gone */ }\n}\n\n// help [on|off]"
+    }
+  ]
+}

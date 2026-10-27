@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: a ring cut through its axis gives two regions, and the +X anchor is on the +X wall, not the ring's centre",
+  "mutations": [
+    {
+      "contract": "The anchor region is the one furthest along the authored bias direction.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_model_is_drawn_in_the_scene.md",
+      "note": "Flipping the sign anchors a ring on its far wall, which is the failure Jeff described.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      var score = r.centroid[bias.biasAxis] * bias.biasSign;",
+      "replace": "      var score = r.centroid[bias.biasAxis] * -bias.biasSign;"
+    }
+  ]
+}
