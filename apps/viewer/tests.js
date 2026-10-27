@@ -11754,6 +11754,188 @@
         eq(whole.columns, topo.layout.columns);
       });
 
+    // --- bodies as containers, joints as glyphs (2026-10-26) ----------------
+    //
+    // A two-body walk by hand: body A's block (rows 0-2), a joint `j`, then
+    // body B's block (rows 4-8), which forks at b1 into a second column.
+    function twoBodyLayout() {
+      var rows = [
+        { row: 0, kind: "node", id: "a1", column: 0, branch: false, body: "A" },
+        { row: 1, kind: "edge", id: "eA", column: 0, entered_at: "a1", left_at: "a2",
+          closes_row: null, closes_column: null, body: "A" },
+        { row: 2, kind: "node", id: "a2", column: 0, branch: false, body: "A" },
+        { row: 3, kind: "edge", id: "j", column: 0, entered_at: "a2", left_at: "b1",
+          closes_row: null, closes_column: null, body: null },
+        { row: 4, kind: "node", id: "b1", column: 0, branch: true, body: "B" },
+        { row: 5, kind: "edge", id: "eB", column: 0, entered_at: "b1", left_at: "b2",
+          closes_row: null, closes_column: null, body: "B" },
+        { row: 6, kind: "node", id: "b2", column: 0, branch: false, body: "B" },
+        { row: 7, kind: "edge", id: "eB2", column: 1, entered_at: "b1", left_at: "b3",
+          closes_row: null, closes_column: null, body: "B" },
+        { row: 8, kind: "node", id: "b3", column: 1, branch: false, body: "B" },
+      ];
+      var structure = VA.walkRailsAndLinks(rows);
+      return { columns: 2, column_order: "exact", rows: rows,
+               rails: structure.rails, links: structure.links,
+               bodies: [{ body: "A", start: 0, end: 2, lo: 0, hi: 0 },
+                        { body: "B", start: 4, end: 8, lo: 0, hi: 1 }] };
+    }
+    function twoBodyProjection() {
+      var node = function (id, part) {
+        return { id: id, name: id, kind: "datum_feature", parts: [part] };
+      };
+      var edge = function (id, from, to, part, kind) {
+        return { id: id, name: id, from: from, to: to, part: part || null,
+                 kind: kind || "structural", interface: null, dimension: null };
+      };
+      return {
+        id: "two", parts: [{ id: "pa", name: "part a" }, { id: "pb", name: "part b" }],
+        nodes: [node("a1", "pa"), node("a2", "pa"), node("b1", "pb"),
+                node("b2", "pb"), node("b3", "pb")],
+        edges: [edge("eA", "a1", "a2", "pa"), edge("j", "a2", "b1", null, "gap"),
+                edge("eB", "b1", "b2", "pb"), edge("eB2", "b1", "b3", "pb")],
+        bodies: [{ id: "A", name: "body a", kind: "body", parts: ["pa"],
+                   joint_nodes: ["a2"] },
+                 { id: "B", name: "body b", kind: "body", parts: ["pb"],
+                   joint_nodes: ["b1"] }],
+        layout: twoBodyLayout(), studies: [],
+      };
+    }
+
+    await test("a body's container is every run of rows tagged with it, as wide " +
+      "as the columns those rows use", function () {
+        var layout = twoBodyLayout();
+        eq(VA.bodySpans(layout.rows), layout.bodies, "the builder's own spans");
+        // A joint row between two blocks belongs to neither.
+        ok(VA.bodySpans(layout.rows).every(function (s) { return s.start > 3 || s.end < 3; }));
+        // A body whose rows are interrupted by another body's is two runs.
+        var rows = layout.rows.map(function (r) {
+          return r.row === 3 ? { row: 3, kind: "edge", id: "j", column: 0, body: "B" } : r;
+        });
+        rows[2] = { row: 2, kind: "node", id: "a2", column: 0, body: "B" };
+        var spans = VA.bodySpans(rows);
+        eq(spans.map(function (s) { return s.body + s.start + "-" + s.end; }),
+           ["A0-1", "B2-8"]);
+        eq(VA.bodySpans([]), []);
+        eq(VA.bodySpans([{ row: 0, kind: "node", id: "x", column: 0, body: null }]), [],
+           "no bodies declared, no containers");
+      });
+
+    await test("collapsing a body folds its block to one pill, and the edges " +
+      "that leave it meet the pill at the columns their nodes were on", function () {
+        var proj = twoBodyProjection();
+        var folded = VA.collapseBodies(proj.layout, { B: true }, proj, null);
+        eq(folded.rows.map(function (r) { return r.id; }),
+           ["a1", "eA", "a2", "j", "body:B"], "B's five rows are one");
+        var pill = folded.rows[4];
+        eq(pill.collapsed, { body: "B", name: "body b", lo: 0, hi: 1, joints: 1 });
+        eq(folded.rows[3].left_at, "body:B", "the joint lands on the pill");
+        eq(folded.rows[3].rim_left_column, 0, "at its own node's column");
+        // Rails re-derive: the joint's rail runs on down to the pill.
+        eq(setOf(folded.rails), setOf(VA.walkRailsAndLinks(folded.rows).rails));
+        ok(folded.rails.some(function (r) {
+          return r.column === 0 && r.start <= 3 && r.end >= 4;
+        }), "a rail runs down through the joint into the pill");
+        // Nothing to collapse, the walk as laid.
+        eq(VA.collapseBodies(proj.layout, {}, proj, null), proj.layout);
+        eq(VA.collapseBodies(proj.layout, null, proj, null), proj.layout);
+        // Collapsing A instead: the joint now LEAVES the pill at a2's column.
+        var a = VA.collapseBodies(proj.layout, { A: true }, proj, null);
+        eq(a.rows[0].id, "body:A");
+        eq(a.rows[1].entered_at, "body:A");
+        eq(a.rows[1].rim_column, 0);
+        // A node a lit edge outside the body stands on stays drawn.
+        var lit = VA.litSetOfEdges(proj, ["j"]);
+        var keep = VA.collapseBodies(proj.layout, { B: true }, proj, lit);
+        eq(keep.rows.map(function (r) { return r.id; }),
+           ["a1", "eA", "a2", "j", "body:B", "b1"]);
+        eq(keep.rows[3].left_at, "b1", "the lit joint keeps its own end");
+        // Mirrored, the pill's span is mirrored with it.
+        var mirrored = VA.spineRight(folded);
+        eq([mirrored.rows[4].collapsed.lo, mirrored.rows[4].collapsed.hi], [0, 1]);
+      });
+
+    await test("a collapsed body is remembered per topology per reader, and an " +
+      "unreadable store reads as nothing collapsed", function () {
+        var data = {};
+        var store = { getItem: function (k) { return k in data ? data[k] : null; },
+                      setItem: function (k, v) { data[k] = String(v); } };
+        eq(VA.readCollapsedBodies(store, "t"), {});
+        VA.writeCollapsedBodies(store, "t", { base: true, blade: false });
+        VA.writeCollapsedBodies(store, "u", { other: true });
+        eq(VA.readCollapsedBodies(store, "t"), { base: true });
+        eq(VA.readCollapsedBodies(store, "u"), { other: true });
+        VA.writeCollapsedBodies(store, "t", {});
+        eq(VA.readCollapsedBodies(store, "t"), {});
+        eq(VA.readCollapsedBodies(store, "u"), { other: true }, "another topology's kept");
+        data[VA.COLLAPSED_BODIES_KEY] = "{not json";
+        eq(VA.readCollapsedBodies(store, "u"), {});
+        var throwing = { getItem: function () { throw new Error("denied"); },
+                         setItem: function () { throw new Error("denied"); } };
+        eq(VA.readCollapsedBodies(throwing, "t"), {});
+        VA.writeCollapsedBodies(throwing, "t", { base: true });
+        eq(VA.readCollapsedBodies(null, "t"), {});
+      });
+
+    await test("every contact kind has one glyph symbol, and the pane draws a " +
+      "gap edge's glyph on its bar in the bar's own colour", function () {
+        eq(Object.keys(VA.INTERFACE_GLYPHS), VA.INTERFACE_KINDS);
+        var defs = VA.interfaceGlyphDefs();
+        var ids = defs.childNodes.map(function (n) { return n.getAttribute("id"); });
+        eq(ids, VA.INTERFACE_KINDS.map(VA.interfaceGlyphId).concat([VA.FORM_GLYPH_ID]));
+        var topo = JSON.parse(JSON.stringify(KIN_TOPOLOGIES.topologies[0]));
+        var gap = topo.edges.filter(function (e) { return e.kind === "gap"; })[0];
+        gap.interface = "spherical";
+        var root = render(function (r) {
+          VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
+                                 selection: null, onSelect: function () {} });
+        });
+        var uses = all(root, "use").filter(function (u) {
+          return u.getAttribute("data-glyph") === VA.interfaceGlyphId("spherical");
+        });
+        eq(uses.length, 1, "one glyph, on the one gap edge that states a contact kind");
+        ok(hasClass(uses[0], VA.confidenceClass(gap.confidence)), "in the bar's colour");
+        var picked = [];
+        var clicked = render(function (r) {
+          VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
+            selection: null, onSelect: function (k, id) { picked.push(k + ":" + id); } });
+        });
+        all(clicked, "use").filter(function (u) {
+          return u.getAttribute("data-glyph") === VA.interfaceGlyphId("spherical");
+        })[0].onclick();
+        eq(picked, ["edge:" + gap.id], "the glyph selects its edge");
+        gap.interface = null;
+        var none = render(function (r) {
+          VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
+                                 selection: null, onSelect: function () {} });
+        });
+        eq(all(none, "use").length, 0, "no contact kind, no glyph -- the plain dash");
+      });
+
+    await test("a form element wears its squiggle on the bar and a form modifier " +
+      "beside the face it is on", function () {
+        var topo = JSON.parse(JSON.stringify(KIN_TOPOLOGIES.topologies[0]));
+        var sized = topo.edges.filter(function (e) {
+          return e.kind === "structural" && e.dimension;
+        });
+        sized[0].dimension.form = { kind: "element", zone: 0.05, node: null };
+        sized[1].dimension.form = { kind: "modifier", zone: 0.01, node: sized[1].from };
+        var marks = VA.formMarks(topo);
+        eq(Object.keys(marks.edges), [sized[0].id]);
+        eq(marks.nodes[sized[1].from], [sized[1].id]);
+        var root = render(function (r) {
+          VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
+                                 selection: null, onSelect: function () {} });
+        });
+        var forms = all(root, "use").filter(function (u) {
+          return u.getAttribute("data-glyph") === VA.FORM_GLYPH_ID;
+        });
+        eq(forms.length, 2, "one on the bar, one beside the node");
+        eq(forms.filter(function (u) { return hasClass(u, "rail__glyph--form"); }).length, 1,
+           "the modifier's is the node adornment");
+        eq(VA.formMarks({ edges: [] }), { edges: {}, nodes: {} });
+      });
+
     await test("a kinematic page's lit set dims the rest of the walk, and hidden " +
       "draws only the lit part", function () {
         var topo = KIN_TOPOLOGIES.topologies[0];
@@ -16271,6 +16453,125 @@
             eq([hidden.rows.length, hidden.columns], [32, 7]);
             eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 13,
                "every lit edge is a grid row in the hidden walk too");
+          });
+
+        await test("[real] every live body's container is the builder's own block, " +
+          "and every body of the product model is exactly one", function () {
+            realKinTopologies.topologies.forEach(function (topo) {
+              if (!topo.layout) return;
+              eq(VA.bodySpans(topo.layout.rows), topo.layout.bodies || [],
+                 topo.id + ": the page's spans are the builder's");
+            });
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var spans = VA.bodySpans(topo.layout.rows);
+            var per = {};
+            spans.forEach(function (s) { per[s.body] = (per[s.body] || 0) + 1; });
+            eq(topo.bodies.map(function (b) { return per[b.id] || 0; }),
+               topo.bodies.map(function () { return 1; }),
+               "one block per body: " + JSON.stringify(per));
+            // Blocks never share a row, so no two containers overlap.
+            for (var i = 1; i < spans.length; i++) ok(spans[i].start > spans[i - 1].end);
+          });
+
+        await test("[real] collapsing the product model's base folds it to one node " +
+          "carrying its joint count, and its joints meet that node", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var base = topo.bodies.filter(function (b) { return b.id === "base"; })[0];
+            ok(base && base.joint_nodes.length > 0, "the base meets other bodies");
+            var folded = VA.collapseBodies(topo.layout, { base: true }, topo, null);
+            var pills = folded.rows.filter(function (r) { return r.collapsed; });
+            eq(pills.map(function (r) { return r.id; }), ["body:base"]);
+            var span = topo.layout.bodies.filter(function (s) { return s.body === "base"; })[0];
+            eq(folded.rows.length, topo.layout.rows.length - (span.end - span.start),
+               "the block's rows are one");
+            var meets = folded.rows.filter(function (r) {
+              return r.kind === "edge" &&
+                (r.entered_at === "body:base" || r.left_at === "body:base");
+            });
+            ok(meets.length > 0, "edges that left the base now leave its node");
+            eq(setOf(folded.rails), setOf(VA.walkRailsAndLinks(folded.rows).rails));
+            var root = render(function (r) {
+              VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
+                selection: null, onSelect: function () {},
+                collapsedBodies: { base: true }, onToggleBody: function () {} });
+            });
+            var pill = all(root, "g.tv__pill");
+            eq(pill.length, 1);
+            eq(pill[0].getAttribute("data-collapsed-body"), "base");
+            has(pill[0].textContent, base.joint_nodes.length + " joints");
+            eq(all(root, "rect.tv__body").filter(function (n) {
+              return n.getAttribute("data-body") === "base";
+            }).length, 0, "a collapsed body has no field of its own");
+          });
+
+        await test("[real] the live product model draws a container per body, " +
+          "named once, and a glyph on every gap edge that states its contact",
+          function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var toggled = [];
+            var root = render(function (r) {
+              VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
+                selection: null, onSelect: function () {},
+                onToggleBody: function (id) { toggled.push(id); } });
+            });
+            var fields = all(root, "rect.tv__body");
+            eq(fields.length, topo.bodies.length);
+            var names = all(root, "text.tv__bodyname");
+            eq(names.map(function (n) { return n.getAttribute("data-body-toggle"); }).sort(),
+               topo.bodies.map(function (b) { return b.id; }).sort(), "each named once");
+            names[0].onclick();
+            eq(toggled, [names[0].getAttribute("data-body-toggle")], "the name folds it");
+            var stated = topo.edges.filter(function (e) { return e.interface; });
+            ok(stated.length >= 13, "the product model's gap edges state their contacts");
+            var glyphs = all(root, "use").filter(function (u) {
+              return u.getAttribute("data-glyph") !== VA.FORM_GLYPH_ID;
+            });
+            eq(glyphs.map(function (u) { return u.getAttribute("data-glyph"); }).sort(),
+               stated.map(function (e) { return VA.interfaceGlyphId(e.interface); }).sort());
+          });
+
+        await test("[real] the travel sub-stack is a dashed field inside its bodies " +
+          "that folds and opens with the contributor table's group row", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var subs = VA.kinematicSubStacks(realKinStudy, realKinematic.display_decimals);
+            eq(subs.length, 1);
+            var sub = subs[0];
+            eq(sub.edges.length, 4);
+            ok(/ to /.test(sub.interval), "its folded interval, shown");
+            var opened = [];
+            var paint = function (open) {
+              var o = {};
+              if (open) o[sub.id] = true;
+              return render(function (r) {
+                VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
+                  selection: null, onSelect: function () {},
+                  lit: VA.kinematicLitSet(realKinStudy, topo),
+                  subStacks: subs, openSubStacks: o,
+                  onToggleSubStack: function (id) { opened.push(id); } });
+              });
+            };
+            var closed = paint(false);
+            eq(all(closed, "rect.tv__substack").length, 4, "a field round each of its bars");
+            var label = all(closed, "text.tv__substackname");
+            eq(label.length, 1, "named once");
+            has(label[0].textContent, sub.title);
+            has(label[0].textContent, sub.interval);
+            eq(all(closed, ".rail__bar--folded").length, 4, "closed, its bars are one fold");
+            label[0].onclick();
+            eq(opened, [sub.id]);
+            eq(all(paint(true), ".rail__bar--folded").length, 0, "open, they are its edges");
+            // The table's group row reads and writes the same state.
+            var o = {};
+            o[sub.id] = true;
+            var table = render(function (r) {
+              VA.renderKinematic(r, { kinematic: realKinematic, study: realKinStudy,
+                topologies: realKinTopologies, selection: null,
+                openSubStacks: o, onToggleSubStack: function (id) { opened.push(id); } });
+            });
+            var toggle = all(table, "button.kmgroup__toggle")[0];
+            eq(toggle.getAttribute("aria-expanded"), "true", "open in both places");
+            toggle.onclick({ stopPropagation: function () {} });
+            eq(opened, [sub.id, sub.id], "and the row closes it through the same state");
           });
 
         await test("[real] every contributor names an edge the topology projection " +
