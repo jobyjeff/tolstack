@@ -12847,7 +12847,7 @@
              "/data/projections/viewer/ — run scripts/build_topology_projection.py");
       } else {
         var liveTopos = realTopologies.topologies || [];
-        var livePitch = VA.findTopology(realTopologies, "pitch_system");
+        var livePitch = VA.findTopology(realTopologies, "vpa_pitch_linkage");  // pitch_system, folded in 2026-10-26
         var liveL1 = VA.findTopology(realTopologies, "vpa_output_to_pitch_plate");
         // The only live topology with a zero-width edge on it, which is why the
         // "no tolerance recorded" badge needs its own handle rather than
@@ -13177,45 +13177,43 @@
             eq(internal.hub_top_bearing_flange, true);
             // A mate between two parts is a boundary; so is a part against a
             // clearance (the end-stop gap's two sides).
-            eq(internal.hub_tan_link_mount_seat, false);
+            eq(internal.tan_link_mount_hub_face, false);
             eq(internal.piston_end_stop_face, false);
             eq(internal.vpa_end_stop_feature, false);
 
+            // Re-measured 2026-10-26, when pitch_system was folded into
+            // vpa_pitch_linkage and this became the one product graph.
             var plan = VA.gridPlan(livePitch.layout, livePitch);
-            eq(plan.leaders.length, 16);
-            eq(plan.groups.length, 18);
-            // The walk's first run: three hub dimensions merged across their
-            // two internal interfaces. The label is the part's NAME
+            eq(plan.leaders.length, 38);
+            eq(plan.groups.length, 49);
+            // The walk opens at the hub spindle bore, a boundary, so its first
+            // hub run is one row. The label is the part's NAME
             // (VA.componentLabel); `part` is still the id it is keyed by.
             eq(plan.groups[0].part, "hub");
             eq(plan.groups[0].label, "propeller hub");
-            eq(plan.groups[0].count, 3);
-            // The loop-closing hub edges at the walk's tail merge too — four
+            eq(plan.groups[0].count, 1);
+            // The loop-closing hub edges at the walk's tail merge — two
             // consecutive hub rows with no boundary node between them.
             var last = plan.groups[plan.groups.length - 1];
             eq(last.part, "hub");
             eq(last.label, "propeller hub");
-            eq(last.count, 4);
+            eq(last.count, 2);
             // The DEPTH-FIRST walk revisits parts on later branches, so "one
-            // merged row per part" is per contiguous RUN: hub appears as 2
-            // groups, pitch_plate as 3 — reordering the grid to force one row
-            // per part would cross the leaders and break walk correspondence.
+            // merged row per part" is per contiguous RUN — reordering the grid
+            // to force one row per part would cross the leaders and break walk
+            // correspondence.
             var runsPerPart = {};
             plan.groups.forEach(function (g) {
               if (g.part) runsPerPart[g.part] = (runsPerPart[g.part] || 0) + 1;
             });
-            eq(runsPerPart.hub, 2);
-            eq(runsPerPart.pitch_plate_215177_001, 3);
-            // The other two splits (README quotes all four): gas_spring is
-            // revisited on a later branch; blade_root's two runs are
-            // CONSECUTIVE — a boundary node between two same-part edges, the
-            // mini fixture's fork case occurring live.
-            eq(runsPerPart.gas_spring, 2);
-            eq(runsPerPart.blade_root, 2);
-            // The end-stop clearance is its own group, in gap words.
+            eq(runsPerPart.hub, 5);
+            eq(runsPerPart.pitch_plate_215177_001, 6);
+            eq(runsPerPart.gas_spring, 3);
+            eq(runsPerPart.blade_root, 3);
+            // Every gap is its own group, in gap words.
             var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
-            eq(gapGroups.length, 1);
-            eq(gapGroups[0].label, VA.GAP_COMPONENT_LABEL);
+            eq(gapGroups.length, 12);
+            gapGroups.forEach(function (g) { eq(g.label, VA.GAP_COMPONENT_LABEL); });
           });
 
         await test("[real] on pitch_system, a rendered row's band tint is its " +
@@ -13229,15 +13227,16 @@
             var layout = VA.spineRight(livePitch.layout);
             var plan = VA.gridPlan(layout, livePitch);
             var bands = VA.leaderBands(plan);
-            eq(bands.length, 17, "16 leaders cut the grid into 17 bands");
-            // The real pitch_system's own band boundaries, as grid row
-            // indices. 24 edge rows, and two bands carry more than one row
-            // (the walk's opening three hub dimensions and its closing four).
+            eq(bands.length, 39, "38 leaders cut the grid into 39 bands");
+            // The product graph's own band boundaries, as grid row indices
+            // (re-measured 2026-10-26, the fold). 59 edge rows; the first
+            // leader points at row 0, so the first band is empty, and several
+            // bands carry more than one row.
             eq(bands.map(function (b) { return b.startRow + "-" + b.endRow; }).join(" "),
-               "0-3 3-4 4-5 5-6 6-7 7-8 8-9 9-10 10-11 11-12 12-13 13-15 " +
-               "15-16 16-17 17-18 18-19 19-24");
-            eq(bands[0].endRow, plan.groups[0].count,
-               "the first band is the first merged component group");
+               "0-0 0-1 1-2 2-3 3-4 4-5 5-6 6-7 7-8 8-9 9-10 10-11 11-12 " +
+               "12-13 13-14 14-15 15-16 16-19 19-20 20-21 21-22 22-23 23-27 " +
+               "27-28 28-30 30-31 31-33 33-34 34-35 35-36 36-37 37-38 38-40 " +
+               "40-41 41-42 42-45 45-47 47-51 51-59");
 
             var root = render(function (r) {
               VA.renderTopoPane(r, {
@@ -13268,11 +13267,13 @@
             });
             // Non-vacuous: a run of rows in one band, and neighbours that
             // differ -- a page that tinted every row the same would pass a
-            // parity check written any less carefully.
-            eq(bandClass(rows[0]), bandClass(rows[1]));
-            eq(bandClass(rows[0]), bandClass(rows[2]));
-            ok(bandClass(rows[2]) !== bandClass(rows[3]),
-               "the band changes where the first leader points");
+            // parity check written any less carefully. Rows 16-18 are one
+            // band; rows 19 and 20 are the next two.
+            eq(bandClass(rows[16]), bandClass(rows[17]));
+            eq(bandClass(rows[16]), bandClass(rows[18]));
+            ok(bandClass(rows[18]) !== bandClass(rows[19]),
+               "the band changes where a leader points");
+            ok(bandClass(rows[19]) !== bandClass(rows[20]));
           });
 
         await test("[real] pitch_system's leaders really do cross, and the " +
@@ -13344,7 +13345,9 @@
                 bladeRoot.push(cells[group.start + i]);
               }
             });
-            eq(bladeRoot.length, 3, "blade_root carries three rows");
+            // Four since the 2026-10-26 fold: the linkage half adds the root
+            // bearing bore to the pitch-arm seat.
+            eq(bladeRoot.length, 4, "blade_root carries four rows");
             bladeRoot.forEach(function (cell, i) {
               ok(cell.textContent.toLowerCase().indexOf("blade") !== 0,
                  "blade_root row " + i + " still opens with its component: " +
@@ -13382,25 +13385,37 @@
             var floor = M.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
 
             // The projection's real shape, asserted rather than assumed:
-            // every pitch_system edge that carries a dimension carries
-            // nominal 0.0 with a real ± band (the workbook states variation
-            // only; the provenance notes say the nominal is unstated).
-            livePitch.edges.forEach(function (e) {
+            // every edge of the pitch-system half (folded into this graph on
+            // 2026-10-26, and named by its provenance) that carries a
+            // dimension carries nominal 0.0 with a real ± band (the workbook
+            // states variation only; the nominal is unstated).
+            var half = {};
+            livePitch.topology.provenance.pitch_system_ids.edges
+              .forEach(function (id) { half[id] = true; });
+            var halfEdges = livePitch.edges.filter(function (e) { return half[e.id]; });
+            eq(halfEdges.length, 24);
+            halfEdges.forEach(function (e) {
               if (!e.dimension) return;
               eq(e.dimension.nominal, 0.0, e.id);
               ok(e.dimension.max > e.dimension.min, e.id + " has a real band");
             });
 
-            // Feature size: nothing to scale by anywhere, so every edge sits
-            // at the floor, floored — the page is uniform-height and every
-            // bar wears the break mark, never a fake proportion.
+            // Feature size: a variation-only edge has nothing to scale by, so
+            // it sits at the floor, floored -- it wears the break mark, never
+            // a fake proportion. The linkage half's absolute nominals do scale.
             var abs = VA.rowPositions(livePitch.layout, livePitch, "absolute", M);
+            var nominalOf = {};
+            livePitch.edges.forEach(function (e) {
+              nominalOf[e.id] = e.dimension ? e.dimension.nominal : 0;
+            });
+            var scaled = 0;
             livePitch.layout.rows.forEach(function (row) {
               if (row.kind !== "edge") return;
+              if (nominalOf[row.id] !== 0) { scaled++; return; }
               eq(abs.edges[row.id].floored, true, "absolute " + row.id);
               eq(abs.edges[row.id].length, floor, "absolute " + row.id);
             });
-            eq(abs.height, livePitch.layout.rows.length * M.rowHeight);
+            ok(scaled > 0, "the linkage half has absolute nominals to scale by");
 
             // Tolerance width: the bands are real and spread (0.03 … 0.2 at
             // lock time), so the widest edge renders at maxLen, at least one
@@ -13683,7 +13698,9 @@
             };
             var before = crossings(livePitch.layout);
             var after = crossings(VA.spineRight(livePitch.layout));
-            eq(before.spine, 43, "spine leaders crossed 43 rails as projected");
+            // 138 on the product graph since the 2026-10-26 fold (43 on the
+            // pitch_system document alone).
+            eq(before.spine, 138, "spine leaders crossed 138 rails as projected");
             eq(after.spine, 0, "right-justified, they cross none");
             ok(after.total < before.total,
                "total crossings " + after.total + " vs " + before.total);
@@ -13700,15 +13717,17 @@
           });
 
         await test("[real] the pitch system's five forks are marked", function () {
-          ok(livePitch.branch_nodes.length === 5,
-             "expected 5 branch points, got " + livePitch.branch_nodes.length);
+          // Nineteen since the 2026-10-26 fold put the pitch system's five and
+          // the linkage's twelve in one graph (two more where they meet).
+          ok(livePitch.branch_nodes.length === 19,
+             "expected 19 branch points, got " + livePitch.branch_nodes.length);
           var root = render(function (r) {
             VA.renderTopoPane(r, {
               topoProj: livePitch, study: null, crops: realCrops,
               selection: null, onSelect: function () {},
             });
           });
-          eq(all(root, "circle.rail__dot--branch").length, 5);
+          eq(all(root, "circle.rail__dot--branch").length, 19);
         });
 
         await test("[real] the ring gear's cyclic-only branch is visibly a branch",
@@ -15224,38 +15243,42 @@
 
         // ITEM 2's live case, and the one the PER-DOCUMENT design exists for.
         //
-        // `pitch_system | hub` is the only live part citing a traced drawing
+        // `pitch_system | hub` was the only live part citing a traced drawing
         // AND an untraced workbook. One qualifier on the whole line is wrong
         // about one of the two whichever way it falls -- which is why the flag
         // is collected per document and not per part. Nothing but this
         // assertion stands on that: at the fixture tier no part is mixed, and
         // the walk above passes under either design (the handoff says so).
-        await test("[real] a part sourced to both a drawing and a workbook " +
-          "qualifies the workbook and leaves the drawing alone", function () {
-            var mixed = [];
-            liveTopos.forEach(function (topoProj) {
-              (topoProj.parts || []).forEach(function (part) {
-                var references = VA.partReferences(topoProj, part.id);
-                if (part.drawing || references.length < 2) return;
-                var unverified = references.filter(function (reference) {
-                  return reference.unverified;
-                });
-                if (!unverified.length || unverified.length === references.length) {
-                  return;
-                }
-                mixed.push([topoProj.id + " | " + part.id, part.id, topoProj]);
-              });
+        //
+        // Since 2026-10-26 (pitch_system folded into vpa_pitch_linkage) the
+        // hub declares its own drawing, 214373-002, and a part with a drawing
+        // is not this case -- so no live part is mixed and the design has no
+        // live witness. That is a finding, so it is a SKIP that names itself,
+        // never a pass: ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md.
+        var mixedParts = [];
+        liveTopos.forEach(function (topoProj) {
+          (topoProj.parts || []).forEach(function (part) {
+            var references = VA.partReferences(topoProj, part.id);
+            if (part.drawing || references.length < 2) return;
+            var unverified = references.filter(function (reference) {
+              return reference.unverified;
             });
-            // Derived, not hard-coded -- but named, because a projection that
-            // stops carrying a mixed part has lost the only live witness this
-            // design has, and that is a finding rather than a silent pass.
-            ok(mixed.length > 0, "no live part cites both a verified and an " +
-              "unverified document, so the per-document qualifier is unwitnessed " +
-              "on real data -- check whether a re-citation removed the case " +
-              "before relaxing this");
-            has(mixed.map(function (row) { return row[0]; }).join(", "),
-                "pitch_system | hub");
-
+            if (!unverified.length || unverified.length === references.length) {
+              return;
+            }
+            mixedParts.push([topoProj.id + " | " + part.id, part.id, topoProj]);
+          });
+        });
+        if (!mixedParts.length) {
+          skip("[real] a part sourced to both a drawing and a workbook " +
+            "qualifies the workbook and leaves the drawing alone",
+            "no live part without a drawing cites both a verified and an " +
+            "unverified document since the 2026-10-26 fold gave the hub its " +
+            "drawing -- the per-document qualifier is unwitnessed on real data " +
+            "(ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md)");
+        } else await test("[real] a part sourced to both a drawing and a workbook " +
+          "qualifies the workbook and leaves the drawing alone", function () {
+            var mixed = mixedParts;
             mixed.forEach(function (row) {
               var root = render(function (r) {
                 VA.renderHoverCard(r, VA.componentCard(row[2], row[1], realCrops),
@@ -15633,14 +15656,15 @@
             eq(realKinStudy.status, "ok");
             eq(realKinStudy.checks.map(function (c) {
               return [c.stop, c.verdict, VA.kinematicNumber(c.margin, 3)];
-            }), [["minus7", "pass", "0.256"], ["plus72", "pass", "0.258"]]);
+            }), [["minus7", "pass", "0.210"], ["plus72", "pass", "0.185"]]);
+            // Both former gap rows carry a drawing's band since handoff
+            // the_tangential_link_cites_its_drawing (2026-10-26).
             var minus7 = realKinStudy.stops.filter(function (s) {
               return s.id === "minus7";
             })[0];
             eq(minus7.rows.length, 6);
-            eq(minus7.rows.slice(4).map(function (r) { return [r.edge, r.kind]; }),
-               [["tan_link_length", "gap"],
-                ["pitch_plate_tan_link_attach_radius", "gap"]]);
+            eq(minus7.rows.map(function (r) { return r.kind; }),
+               ["term", "term", "term", "term", "term", "term"]);
             eq(minus7.rows[0].edge, "pitch_plate_attach_height");
           });
 
@@ -15657,7 +15681,7 @@
             var rows = all(minus7, "tr.kmrow");
             eq(rows.length, 6);
             eq(rows.map(function (r) { return hasClass(r, "kmrow--gap"); }),
-               [false, false, false, false, true, true]);
+               [false, false, false, false, false, false]);
             has(rows[0].textContent, "0.156");
             bannedIn(viewerAuthoredText(root), "[real] kinematic page");
           });

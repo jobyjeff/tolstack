@@ -1887,7 +1887,7 @@
     },
     {
       "id": "blade_root_clocking_to_oml",
-      "name": "blade-root clocking holes to the blade outer mould line",
+      "name": "clocking holes to the blade outer mould line",
       "kind": "structural",
       "part": "blade_root",
       "from": "pitch_arm_blade_root_clocking",
@@ -1909,7 +1909,7 @@
     },
     {
       "id": "blade_root_clocking_to_hub_seat",
-      "name": "blade-root clocking holes to the hub bearing seat",
+      "name": "clocking holes to the hub bearing seat",
       "kind": "structural",
       "part": "blade_root",
       "from": "pitch_arm_blade_root_clocking",
@@ -1933,7 +1933,7 @@
     },
     {
       "id": "blade_root_clocking_to_ring_gear_mesh",
-      "name": "blade-root clocking holes to the ring gear",
+      "name": "clocking holes to the ring gear",
       "kind": "structural",
       "part": "blade_root",
       "from": "pitch_arm_blade_root_clocking",
