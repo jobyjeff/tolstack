@@ -392,3 +392,68 @@ def test_cli_explicit_events_dir_still_overrides_data_root(tmp_path):
     out_path = data_root / "projections" / "feature-identity" / "bindings.json"
     written = json.loads(out_path.read_text(encoding="utf-8"))
     assert written["built_from_events"] == ["e1"]
+
+
+# ---------------------------------------------------------------------------
+# supersedes: a later event names the earlier one it corrects
+# ---------------------------------------------------------------------------
+
+_SHA = "ab" * 32
+
+
+def _bound(event_id, seq, face_id, direction, *, edge="piston_head_upper_thickness", supersedes=None):
+    return FeatureIdentityEvent(
+        event_id=event_id, seq=seq, created_at="2026-10-26T00:00:00Z", recorded_by="tests",
+        stack_key=StackKey(kind="topology_edge", topology_id="vpa_pitch_linkage", edge_id=edge),
+        verdict="bound",
+        geometry_key=GeometryKey(_SHA, face_id, 1.0, (0.0, 0.0, 0.0)),
+        direction=direction, supersedes=supersedes,
+    )
+
+
+def _record(projection, edge="piston_head_upper_thickness"):
+    return projection.for_stack_key(
+        StackKey(kind="topology_edge", topology_id="vpa_pitch_linkage", edge_id=edge))
+
+
+def test_a_superseding_event_hides_the_one_it_corrects_and_keeps_it():
+    a = _bound("a", 1, 110, "from")
+    b = _bound("b", 2, 110, "to", supersedes="a")
+    record = _record(build_projection([a, b]))
+    assert [e.event_id for e in record.bindings] == ["b"]
+    assert [e.event_id for e in record.superseded] == ["a"]
+    assert [e.event_id for e in record.history] == ["a", "b"]
+    assert record.bindings[0].direction == "to"
+    assert [e["event_id"] for e in record.as_dict()["superseded"]] == ["a"]
+
+
+def test_two_independent_bindings_on_one_key_both_stand():
+    record = _record(build_projection([_bound("a", 1, 110, "from"), _bound("b", 2, 111, "to")]))
+    assert [e.event_id for e in record.bindings] == ["a", "b"]
+    assert record.superseded == []
+
+
+def test_a_dangling_supersedes_fails_naming_both_ids():
+    with pytest.raises(ValueError, match=r"'b'.*'ghost'"):
+        build_projection([_bound("b", 2, 110, "to", supersedes="ghost")])
+
+
+def test_a_supersedes_across_keys_fails_naming_both_ids():
+    a = _bound("a", 1, 110, "from", edge="other_edge")
+    b = _bound("b", 2, 110, "to", supersedes="a")
+    with pytest.raises(ValueError, match=r"'b'.*'a'.*different stack key"):
+        build_projection([a, b])
+
+
+def test_supersedes_round_trips_and_is_absent_when_unset():
+    b = _bound("b", 2, 110, "to", supersedes="a")
+    assert FeatureIdentityEvent.from_dict(b.as_dict()).supersedes == "a"
+    assert "supersedes" not in _bound("a", 1, 110, "from").as_dict()
+
+
+def test_only_a_bound_event_may_supersede():
+    with pytest.raises(ValueError):
+        FeatureIdentityEvent(
+            event_id="n", seq=3, created_at="x", recorded_by="t",
+            stack_key=StackKey(kind="topology_edge", topology_id="t", edge_id="e"),
+            verdict="owner_not_in_set", supersedes="a")

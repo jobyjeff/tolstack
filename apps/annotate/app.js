@@ -66,10 +66,16 @@ const state = {
   // event file; this app never re-implements that fold, it just doesn't want
   // a bound row to look unbound until the next rebuild.
   sessionEvents: [],
+  // Filenames this session has written, so the next number is one past them.
+  sessionFilenames: [],
   // The bind form's interface choice: {edgeId, sha256, faceId, direction}, or
   // null. Keyed to the element and the face it was made on (bindContext), so
   // it can never outlive either.
   bindChoice: null,
+  // The standing binding being corrected, {edgeId, eventId}, or null. While it
+  // is set the bind form plans against the record without that binding and its
+  // write carries `supersedes` (bindContext). Cleared by a write or Cancel.
+  correcting: null,
   currentTopology: null,
   currentStudy: null,
   selectedEdge: null,
@@ -2698,12 +2704,10 @@ function mergedIdentityProjection() {
   for (const event of state.sessionEvents) {
     let row = base.stack_keys.find((r) => AA.stackKeyEquals(r.stack_key, event.stack_key));
     if (!row) {
-      row = { stack_key: event.stack_key, state: "owner_not_in_set", bindings: [], owner_not_in_set: [], history: [] };
+      row = { stack_key: event.stack_key, state: "owner_not_in_set", bindings: [], owner_not_in_set: [], history: [], superseded: [] };
       base.stack_keys.push(row);
     }
-    row.history.push(event.event_id);
-    if (event.verdict === "bound") row.bindings.push(event);
-    else row.owner_not_in_set.push(event);
+    AA.addEventToRecord(row, event);
   }
   return base;
 }
@@ -3112,7 +3116,10 @@ function renderDetail() {
       p.textContent = "This transport cannot write -- binding controls are hidden. " +
         "Connect a read/write folder to bind.";
       work.appendChild(p);
-    } else {
+    }
+    const bound = bind && buildBindingsBlock(edge, bind, canWrite);
+    if (bound) work.appendChild(bound);
+    if (canWrite) {
       if (state.currentPick && bind) {
         work.appendChild(buildBindForm(edge, state.currentPick, bind, refreshBindStep));
       }
@@ -3282,6 +3289,16 @@ function slugify(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
+// The next "<NNNN>_<slug>.json", counting the files this session has already
+// written: `existingEventFilenames` carries event ids, which never match the
+// numbered-filename pattern, so a second write in one session (a bind, then a
+// correction of it) used to be handed 0001 again and refused as a collision.
+function nextFilename(known, slug) {
+  const name = AA.nextEventFilename(known.concat(state.sessionFilenames), slug);
+  state.sessionFilenames.push(name);
+  return name;
+}
+
 async function existingEventFilenames() {
   // The app cannot list an FSA directory's file entries as cheaply as it can
   // list data/meshes/ subdirectories (there is no manifest to key off), so
@@ -3333,7 +3350,9 @@ function buildBindForm(edge, pick, bind, onChoose) {
   const noteField = labeledInput("note (optional)", "bind-note-input");
   form.appendChild(noteField.box);
 
-  btn.textContent = "Bind selected face to " + (edge.name || edge.id);
+  btn.textContent = bind.target
+    ? "Replace the binding with the selected face"
+    : "Bind selected face to " + (edge.name || edge.id);
   btn.className = "bind-form__bind";
   btn.disabled = !selected;
   btn.onclick = async () => {
@@ -3354,13 +3373,11 @@ function buildBindForm(edge, pick, bind, onChoose) {
         gdtModifier: gdt.select.value || null,
         generalTolRegime: regime.input.value || null,
         note: noteField.input.value || null,
+        supersedes: bind.target ? bind.target.event_id : null,
       });
-      const filename = AA.nextEventFilename(filenames, slugify(edge.id));
-      await state.storage.writeFeatureIdentityEvent(filename, event);
-      state.sessionEvents.push(event);
-      setBanner("Wrote " + filename, "ok");
-      renderElementList();
-      renderDetail();
+      const filename = nextFilename(filenames, slugify(edge.id));
+      state.correcting = null;
+      await writeIdentityEvent(filename, event, "Wrote " + filename);
     } catch (err) {
       setBanner("Bind failed: " + err.message, "error");
     }
@@ -3382,13 +3399,113 @@ function bindContext(edge) {
   const names = AA.edgeEndNames(state.currentTopology, edge);
   const c = state.bindChoice;
   const pick = state.currentPick;
-  const chosen = c && pick && c.edgeId === edge.id && c.sha256 === pick.sha256 &&
+  let chosen = c && pick && c.edgeId === edge.id && c.sha256 === pick.sha256 &&
     c.faceId === pick.faceId ? c.direction : null;
+  // A correction plans against the record WITHOUT the binding it replaces, so
+  // the end that binding held is open again, and starts on that end: the
+  // reader is fixing a face, and the end it was written at is the aimed value.
+  const target = correctionTarget(record, edge);
+  const planned = target ? AA.recordWithout(record, target.event_id) : record;
+  if (target && !chosen) chosen = target.direction;
   return {
-    record, names,
-    needed: AA.bindingDirectionsNeeded(record),
-    plan: AA.planBindChoices({ record, names, chosen }),
+    record, names, target,
+    needed: AA.bindingDirectionsNeeded(planned),
+    plan: AA.planBindChoices({ record: planned, names, chosen }),
   };
+}
+
+// The standing binding a correction is armed on for this element, or null.
+function correctionTarget(record, edge) {
+  const c = state.correcting;
+  if (!c || c.edgeId !== edge.id || !record) return null;
+  return (record.bindings || []).find((b) => b.event_id === c.eventId) || null;
+}
+
+// Write one event and repaint -- the tail every correction write shares.
+async function writeIdentityEvent(filename, event, banner) {
+  await state.storage.writeFeatureIdentityEvent(filename, event);
+  state.sessionEvents.push(event);
+  setBanner(banner, "ok");
+  renderElementList();
+  renderDetail();
+}
+
+// What an element's bindings say about themselves, in the bar: one line per
+// standing binding (end and face) with the two ways to correct it, and the
+// bindings a correction replaced under one quiet disclosure. Nothing at all for
+// an element with no binding. Controls only where the transport can write.
+function buildBindingsBlock(edge, bind, canWrite) {
+  const shown = AA.describeBindings(bind.record, bind.names);
+  if (!shown.current.length && !shown.earlier.length) return null;
+  const box = document.createElement("div");
+  box.className = "an__bound";
+  for (const row of shown.current) {
+    const line = document.createElement("div");
+    line.className = "an__bound-row";
+    line.dataset.direction = row.direction;
+    const text = document.createElement("span");
+    text.className = "an__bound-text";
+    text.textContent = row.end + " · face " + row.face;
+    text.title = text.textContent;
+    line.appendChild(text);
+    if (canWrite) {
+      const armed = !!bind.target && bind.target.event_id === row.eventId;
+      const other = AA.otherDirection(row.direction);
+      // Flipping into an end that already has a face would stack two faces on
+      // one end -- legitimate, but never what a one-click flip should do.
+      if (!shown.current.some((o) => o.direction === other)) {
+        const flip = document.createElement("button");
+        flip.type = "button";
+        flip.className = "an__bound-act an__bound-flip";
+        flip.textContent = "Flip direction";
+        flip.title = "this face belongs at " + bind.names[other];
+        flip.onclick = async () => {
+          try {
+            const filenames = await existingEventFilenames();
+            const event = AA.buildCorrectionEvent(row.event, {
+              eventId: "annotate-" + Date.now() + "-" + slugify(edge.id),
+              seq: filenames.length + 1,
+              createdAt: nowIso(),
+              recordedBy: "annotate-app",
+              direction: other,
+            });
+            state.correcting = null;
+            await writeIdentityEvent(nextFilename(filenames, slugify(edge.id)), event,
+              "Moved the face to " + bind.names[other]);
+          } catch (err) {
+            setBanner("Correction failed: " + err.message, "error");
+          }
+        };
+        line.appendChild(flip);
+      }
+      const fix = document.createElement("button");
+      fix.type = "button";
+      fix.className = "an__bound-act an__bound-correct";
+      fix.textContent = armed ? "Cancel correction" : "Correct this binding";
+      fix.setAttribute("aria-pressed", armed ? "true" : "false");
+      fix.onclick = () => {
+        state.correcting = armed ? null : { edgeId: edge.id, eventId: row.eventId };
+        renderDetail();
+      };
+      line.appendChild(fix);
+    }
+    box.appendChild(line);
+  }
+  if (shown.earlier.length) {
+    const hist = document.createElement("details");
+    hist.className = "an__nis an__bound-history";
+    const summary = document.createElement("summary");
+    summary.textContent = "Earlier bindings (" + shown.earlier.length + ")";
+    hist.appendChild(summary);
+    for (const row of shown.earlier) {
+      const li = document.createElement("div");
+      li.className = "an__bound-earlier";
+      li.textContent = row.date + " · " + row.end + " · face " + row.face;
+      hist.appendChild(li);
+    }
+    box.appendChild(hist);
+  }
+  return box;
 }
 
 // The interface choice: one button per end that may be chosen, carrying the
@@ -3484,7 +3601,7 @@ function buildOwnerNotInSetFields(edge) {
         stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
         note: noteField.input.value || null,
       });
-      const filename = AA.nextEventFilename(filenames, slugify(edge.id) + "_owner_not_in_set");
+      const filename = nextFilename(filenames, slugify(edge.id) + "_owner_not_in_set");
       await state.storage.writeFeatureIdentityEvent(filename, event);
       state.sessionEvents.push(event);
       setBanner("Wrote " + filename, "ok");

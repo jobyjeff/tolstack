@@ -383,6 +383,56 @@ check("buildBoundEvent round-trips the required fields", () => {
   assertEqual(event.geometry_key.face_id, 3);
   assertEqual(event.direction, "to");
 });
+// --- correcting a binding: a later event names the one it corrects ---
+function boundFixture(id, seq, face, direction, extra) {
+  return AA.buildBoundEvent(Object.assign({
+    eventId: id, seq: seq, createdAt: "2026-10-21T10:00:00Z", recordedBy: "r",
+    stackKey: AA.topologyEdgeKey("p", "e"), direction: direction, ownerPart: "head",
+    geometryKey: { sourceStepSha256: "a".repeat(64), faceId: face, areaNative2: 1.5, centroidNative: [1, 2, 3] },
+  }, extra || {}));
+}
+check("buildBoundEvent writes supersedes only when given", () => {
+  assertEqual(boundFixture("a", 1, 110, "from").supersedes, undefined);
+  assertEqual(boundFixture("b", 2, 110, "to", { supersedes: "a" }).supersedes, "a");
+});
+check("a flip is the same face at the other end, naming the event it corrects, keeping what was recorded", () => {
+  const first = boundFixture("a", 1, 110, "from");
+  const flipped = AA.buildCorrectionEvent(first, {
+    eventId: "b", seq: 2, createdAt: "t2", recordedBy: "r", direction: AA.otherDirection("from"),
+  });
+  assertEqual(flipped.direction, "to");
+  assertEqual(flipped.geometry_key.face_id, 110);
+  assertEqual(flipped.supersedes, "a");
+  assertEqual(flipped.owner_part, "head");
+});
+check("a session correction leaves one standing binding, the corrected one, and one earlier", () => {
+  const row = { stack_key: AA.topologyEdgeKey("p", "e"), bindings: [], owner_not_in_set: [], history: [] };
+  AA.addEventToRecord(row, boundFixture("a", 1, 110, "from"));
+  AA.addEventToRecord(row, AA.buildCorrectionEvent(row.bindings[0], {
+    eventId: "b", seq: 2, createdAt: "2026-10-26T09:00:00Z", recordedBy: "r", direction: "to",
+  }));
+  assertEqual(row.bindings.length, 1);
+  assertEqual(row.bindings[0].direction, "to");
+  assertEqual(row.superseded.length, 1);
+  assertEqual(row.history.length, 2);
+  const shown = AA.describeBindings(row, { from: "Piston", to: "Step" });
+  assertEqual(shown.current[0].end, "Step");
+  assertEqual(shown.earlier[0].end, "Piston");
+  assertEqual(shown.earlier[0].date, "2026-10-21");
+});
+check("two independent bindings on one key both stand", () => {
+  const row = { stack_key: AA.topologyEdgeKey("p", "e"), bindings: [], owner_not_in_set: [], history: [] };
+  AA.addEventToRecord(row, boundFixture("a", 1, 110, "from"));
+  AA.addEventToRecord(row, boundFixture("b", 2, 111, "to"));
+  assertEqual(row.bindings.length, 2);
+  assertEqual(row.superseded.length, 0);
+});
+check("recordWithout opens the end the corrected binding held", () => {
+  const row = { bindings: [boundFixture("a", 1, 110, "from")] };
+  assertEqual(AA.bindingDirectionsNeeded(AA.recordWithout(row, "a")).length, 2);
+  assertEqual(row.bindings.length, 1);
+});
+
 check("buildOwnerNotInSetEvent carries no geometry_key or direction", () => {
   const event = AA.buildOwnerNotInSetEvent({
     eventId: "x", seq: 1, createdAt: "t", recordedBy: "r",

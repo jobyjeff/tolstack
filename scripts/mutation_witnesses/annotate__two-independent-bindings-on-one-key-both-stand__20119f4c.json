@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "two independent bindings on one key both stand",
+  "mutations": [
+    {
+      "contract": "Two faces at one end with no supersedes between them stay two bindings.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_a_binding_may_be_superseded.md",
+      "note": "A fold that replaces on every later event would erase a legitimate second face.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    row.bindings.push(event);\n    return row;",
+      "replace": "    row.bindings = [event];\n    return row;"
+    }
+  ]
+}

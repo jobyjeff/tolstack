@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "buildBoundEvent writes supersedes only when given",
+  "mutations": [
+    {
+      "contract": "A bound event names the earlier event it corrects, in the event itself.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_a_binding_may_be_superseded.md",
+      "note": "Without the field the fold cannot hide the earlier binding and the correction reads as a second face.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    if (fields.supersedes) event.supersedes = fields.supersedes;",
+      "replace": "    /* supersedes dropped */"
+    }
+  ]
+}

@@ -470,3 +470,21 @@ def test_a_placement_always_comes_from_the_mesh_that_owns_it(tmp_path):
     topology = load_topology(TOPOLOGY_FILE)
     assert math.dist(centres[0], centres[1]) == pytest.approx(
         topology.edge("pitch_link_length").dimension.nominal, abs=0.001)
+
+
+@needs_meshes
+def test_a_superseded_binding_produces_no_fit(tmp_path):
+    """The fit follows the fold: the corrected binding fits, the hidden one does not."""
+    events = tmp_path / "inbox" / "feature-identity"
+    events.mkdir(parents=True)
+    bearing = sha_for(BEARING_PART_ID)
+    edge = "pitch_link_bearing_bore_to_ball_centre"
+    write_event(events, 1, edge, "from", bearing, BEARING_BORE_FACE, "spherical_bearing_pitch_link")
+    write_event(events, 2, edge, "to", bearing, BEARING_BORE_FACE, "spherical_bearing_pitch_link")
+    second = json.loads((events / "0002.json").read_text(encoding="utf-8"))
+    second["supersedes"] = "synthetic-0001"
+    (events / "0002.json").write_text(json.dumps(second, indent=2), encoding="utf-8")
+
+    _out, data = fbf.build(events, meshes_dir(), tmp_path / "projections")
+    assert [r["direction"] for r in rows_for(data, edge)] == ["to"]
+    assert data["summary"]["bindings"] == 1

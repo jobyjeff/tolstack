@@ -574,6 +574,31 @@ rail is node for node what it was before the tree existed.
   contributors — hide row kinds from the list. A view filter: what is listed,
   never what is drawn or what the run's context is; remembered per browser.
 
+### Correcting a binding (2026-10-26)
+
+A binding written at the wrong end or on the wrong face is corrected by a new
+event, never by deleting a file. A `bound` event may carry `supersedes: <event
+id>`, naming an earlier event on the same `(topology, edge)` key; the fold
+(`tolerance_stack/feature_identity.py`) hides that event from the key's
+`bindings` and lists it under `superseded`, and history keeps it. A `supersedes`
+that names a missing event, an event on another key, a later event or a
+non-`bound` event fails the projection build naming both ids. Two `bound` events
+on one key with no `supersedes` between them are still two faces — the state
+the surface has always allowed.
+
+- **The bar lists each standing binding** of the selected element — the
+  interface it is at and the face — and, where the transport can write, two
+  quiet controls: **Flip direction** (same face, the other interface; offered
+  only while that interface has no face) and **Correct this binding** (arms the
+  bind form: pick the right face and/or interface, and the write replaces the
+  armed binding). Both write one event carrying `supersedes`; fields recorded on
+  the earlier binding (owner, modifier, regime, note) carry over.
+- **History is one disclosure**, "Earlier bindings (n)": date, interface and
+  face. No event ids on the surface.
+- **Consumers fold the same way.** `scripts/fit_bound_features.py` reads the
+  projection's standing bindings, so a superseded binding produces no fit;
+  `fits.json` never carries a feature for an event another event supersedes.
+
 ## What this MVP does not build
 
 - **Measurement from geometry.** Explicitly out of scope by the brief's

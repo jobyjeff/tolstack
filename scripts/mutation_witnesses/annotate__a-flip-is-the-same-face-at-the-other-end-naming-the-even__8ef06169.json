@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a flip is the same face at the other end, naming the event it corrects, keeping what was recorded",
+  "mutations": [
+    {
+      "contract": "A correction names the event it replaces.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_a_binding_may_be_superseded.md",
+      "note": "A flip that forgets `supersedes` leaves the wrong-end binding standing beside the right one.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    merged.supersedes = earlier.event_id;",
+      "replace": "    /* merged.supersedes not set */"
+    }
+  ]
+}
