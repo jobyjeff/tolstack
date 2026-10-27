@@ -1815,8 +1815,10 @@
         // The bodies the reader has folded, remembered per topology
         // (VA.readCollapsedBodies), and the sub-stacks a kinematic page
         // draws inside them with their shared open state.
-        collapsedBodies: VA.readCollapsedBodies(widthStore(), topoProj.id),
+        // No projection published: the pane says so and draws no body.
+        collapsedBodies: topoProj ? VA.readCollapsedBodies(widthStore(), topoProj.id) : null,
         onToggleBody: function (bodyId) {
+          if (!topoProj) return;
           var collapsed = VA.readCollapsedBodies(widthStore(), topoProj.id);
           if (collapsed[bodyId]) delete collapsed[bodyId];
           else collapsed[bodyId] = true;

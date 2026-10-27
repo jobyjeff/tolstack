@@ -145,6 +145,25 @@ the SVG's own pixel space:
 
 ## Things that cost time
 
+- **The absent-projection branch crashed.** The pane's ctx read
+  `topoProj.id` for the collapsed-body store. With nothing published, the
+  page still builds that ctx (the pane prints its missing-projection line),
+  so a hosted origin with no data got "This page failed to render" instead
+  of its banner. Only the browser tier's stub-origin suites reach that
+  branch. It is guarded now. Any new ctx field that reads the projection
+  needs the same guard.
+- **The body-major walk made two layout shapes the old pitch-system graph
+  never had.** (1) An edge continuing down its node's column could close
+  back onto a node in that same column, which draws a straight vertical
+  curve over every rail there. The fix is in the layout: such an edge takes
+  a fresh column, and both allocators take an `avoid` column. (2) Long,
+  nearly vertical close curves between adjacent columns. Their 10 px hit
+  path lay over the neighbouring rails, so 14 of 37 legs had no point a
+  pointer could reach. The fix is z-order: link hit paths now sit under the
+  rails'. A third shape is a half-row stub (a deferred joint that closes at
+  once), which is only its edge's bar. The rail-hover browser check leaves
+  stubs out of its reachability claim and says why.
+
 - **A class name I picked was already the pane's own.** I named the
   container rect `tv__body`. `renderTopoPane` already wraps the rails and the
   grid in `<div class="tv__body">`, so my `.tv__body { pointer-events: none }`
