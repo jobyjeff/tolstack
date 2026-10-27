@@ -13571,7 +13571,7 @@
       } else {
         var liveTopos = realTopologies.topologies || [];
         var livePitch = VA.findTopology(realTopologies, "vpa_pitch_linkage");  // pitch_system, folded in 2026-10-26
-        var liveL1 = VA.findTopology(realTopologies, "vpa_output_to_pitch_plate");
+        var liveL1 = livePitch;  // the L1 grip stack is a subset of the model since 2026-10-27
         // The only live topology with a zero-width edge on it, which is why the
         // "no tolerance recorded" badge needs its own handle rather than
         // extending the unverified test: `pitch_system` has none, and the two
@@ -13581,7 +13581,7 @@
         // including `pitch_link_to_pitch_plate`, which
         // ISSUE_20260915_the_grids_no_tolerance_badge_is_unguarded_in_every_tier
         // credits with 2.
-        var liveRotor = VA.findTopology(realTopologies, "rotor_fastener_length");
+        var liveRotor = VA.findTopology(realTopologies, "vpa_pitch_linkage");
 
         await test("[real] both MVP topologies are in the projection", function () {
           ok(liveL1, "the L1 grip stack must be there");
@@ -13590,16 +13590,18 @@
         });
 
         await test("[real] a topology's own joint block renders its assembly " +
-          "drawing, and pitch_system's empty one stays silent " +
+          "drawing, and the product model's empty one stays silent " +
           "(deliverable 4)", function () {
-            var l1Root = render(function (r) { VA.renderTopoJoint(r, liveL1); });
-            ok(liveL1.joint && liveL1.joint.assembly_drawing,
-              "fixture precondition: vpa_output_to_pitch_plate has a real joint");
-            has(l1Root.textContent, String(liveL1.joint.assembly_drawing));
+            // The one live document with a joint block left is none: the four
+            // fastener stacks that carried one folded into the product model
+            // on 2026-10-27, whose blocks are in provenance.grip_stack_joints.
             var pitchRoot = render(function (r) { VA.renderTopoJoint(r, livePitch); });
             eq(livePitch.joint, {},
-              "fixture precondition: pitch_system spans more than one joint");
+              "fixture precondition: the product model spans more than one joint");
             has(pitchRoot.textContent, "no joint block");
+            ok(livePitch.topology.provenance.grip_stack_joints
+               .vpa_output_to_pitch_plate.joint.assembly_drawing,
+               "the folded stacks keep their joint blocks in provenance");
           });
 
         await test("[real] pitch_system's own worksheet loads and renders " +
@@ -13644,9 +13646,14 @@
               has(root.textContent, subject.worksheet_file);
               reached.push(subject.id);
             }
-            eq(reached.length, 3,
-               "expected the three converted stacks with an authored sheet, " +
-               "got " + reached.join(", "));
+            // Since 2026-10-27 the four converted stacks are inside the one
+            // product model, whose own sheet wins (above), so none of their
+            // authored sheets is offered from a page any more: a regression
+            // of the fold, filed as
+            // ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md.
+            eq(reached.length, 0,
+               "the product model declares its own sheet, so no covered " +
+               "stack's is offered; got " + reached.join(", "));
           });
 
         await test("[real] a respine of every summing study of every topology " +
@@ -14538,7 +14545,7 @@
         await test("[real] the pitch-link studies render their verdicts and " +
           "their margins, including the study that has no criterion at all",
           function () {
-            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var topo = VA.findTopology(realTopologies, "vpa_pitch_linkage");
             ok(topo, "the pitch-link topology must be in the projection");
             var index = VA.topologyIndex(topo);
             var shown = function (studyId) {
@@ -14584,7 +14591,7 @@
             // study, whose check completed when the eye and flange members went
             // in; the cotter budget is the live incomplete specimen now, and
             // what it excludes is the MS9363-09 nut side.
-            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var topo = VA.findTopology(realTopologies, "vpa_pitch_linkage");
             var study = VA.findStudy(topo, "pitch_link_cotter_hole_clearance");
             eq(study.checks[0].complete, false,
                "this claim rests on the live check really being incomplete");
@@ -14632,7 +14639,7 @@
         await test("[real] a study fed by a zero-width row warns that its " +
           "spread is a lower bound, and names the rows that make it one",
           function () {
-            var topo = VA.findTopology(realTopologies, "rotor_fastener_length");
+            var topo = VA.findTopology(realTopologies, "vpa_pitch_linkage");
             ok(topo, "the rotor-fastener topology must be in the projection");
             var study = VA.findStudy(topo, "rotor_fastener_grip_u2h");
             var root = studySummary(topo, study);
@@ -14685,7 +14692,7 @@
         await test("[real] the pitch-link shank-out study no longer claims a " +
           "lower bound, because nothing in its chain is zero-width now",
           function () {
-            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var topo = VA.findTopology(realTopologies, "vpa_pitch_linkage");
             var study = VA.findStudy(topo, "pitch_link_shank_out");
             var root = studySummary(topo, study);
             eq(all(root, "tr.tvfind__row--no_tolerance_recorded").length, 0);
@@ -14701,7 +14708,7 @@
             // Was "the missing spherical bearing ..." until 2026-09-15: the eye
             // is modelled now (a loudly-marked placeholder), so the surviving
             // excluded-from-model row is the cotter budget's MS9363-09 side.
-            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var topo = VA.findTopology(realTopologies, "vpa_pitch_linkage");
             // With NO study selected -- the state a reader arrives in.
             var root = render(function (r) {
               VA.renderTopoTotals(r, topo, null, VA.topologyIndex(topo));
