@@ -103,3 +103,10 @@ reviewer who meets a decay does not put `--full` back on the gate.
   (`found_by` resolving), the JSONL row writes with the repo interpreter, and the
   preamble's two git commands print this worktree's branch/dirt correctly. The
   `--full` run itself, and the dispatch `sweep` tier, are the sibling handoff's.
+
+## Review post-merge run (2026-10-26)
+
+Merged tree (review branch) in a worktree: `--changed-since integration` selected the
+same one entry (`...shadow-covers-every-input...fecc0838`, `mutation file changed`),
+`1/1 declared mutations witnessed`. Default-tier `pytest -q` (viewer JS suite
+deselected, red in a worktree by design): 1561 passed, 1 skipped, 313 s.
