@@ -13659,22 +13659,24 @@
             eq(internal.vpa_end_stop_feature, false);
 
             // Re-measured 2026-10-26, when pitch_system was folded into
-            // vpa_pitch_linkage and this became the one product graph.
+            // vpa_pitch_linkage and this became the one product graph, and
+            // again the same day when the walk went body-major
+            // (the_dag_draws_bodies_as_containers_and_joints_as_symbols).
             var plan = VA.gridPlan(livePitch.layout, livePitch);
             eq(plan.leaders.length, 38);
-            eq(plan.groups.length, 49);
+            eq(plan.groups.length, 47);
             // The walk opens at the hub spindle bore, a boundary, so its first
             // hub run is one row. The label is the part's NAME
             // (VA.componentLabel); `part` is still the id it is keyed by.
             eq(plan.groups[0].part, "hub");
             eq(plan.groups[0].label, "propeller hub");
             eq(plan.groups[0].count, 1);
-            // The loop-closing hub edges at the walk's tail merge — two
-            // consecutive hub rows with no boundary node between them.
+            // The walk's tail is the last body it reaches, the piston cover,
+            // across the travel clearance: a gap, in gap words.
             var last = plan.groups[plan.groups.length - 1];
-            eq(last.part, "hub");
-            eq(last.label, "propeller hub");
-            eq(last.count, 2);
+            eq(last.part, null);
+            eq(last.label, VA.GAP_COMPONENT_LABEL);
+            eq(last.count, 1);
             // The DEPTH-FIRST walk revisits parts on later branches, so "one
             // merged row per part" is per contiguous RUN — reordering the grid
             // to force one row per part would cross the leaders and break walk
@@ -13683,13 +13685,15 @@
             plan.groups.forEach(function (g) {
               if (g.part) runsPerPart[g.part] = (runsPerPart[g.part] || 0) + 1;
             });
-            eq(runsPerPart.hub, 5);
+            eq(runsPerPart.hub, 7);
             eq(runsPerPart.pitch_plate_215177_001, 6);
-            eq(runsPerPart.gas_spring, 3);
-            eq(runsPerPart.blade_root, 3);
-            // Every gap is its own group, in gap words.
+            eq(runsPerPart.gas_spring, 2);
+            eq(runsPerPart.blade_root, 2);
+            // Every gap is its own group, in gap words -- and two gaps walked
+            // one after the other (a bearing's centre and the joint it is) are
+            // one run.
             var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
-            eq(gapGroups.length, 12);
+            eq(gapGroups.length, 9);
             gapGroups.forEach(function (g) { eq(g.label, VA.GAP_COMPONENT_LABEL); });
           });
 
@@ -13706,14 +13710,15 @@
             var bands = VA.leaderBands(plan);
             eq(bands.length, 39, "38 leaders cut the grid into 39 bands");
             // The product graph's own band boundaries, as grid row indices
-            // (re-measured 2026-10-26, the fold). 59 edge rows; the first
-            // leader points at row 0, so the first band is empty, and several
-            // bands carry more than one row.
+            // (re-measured 2026-10-26 for the fold and again for the
+            // body-major walk). 59 edge rows; the first leader points at row
+            // 0, so the first band is empty, and several bands carry more
+            // than one row.
             eq(bands.map(function (b) { return b.startRow + "-" + b.endRow; }).join(" "),
-               "0-0 0-1 1-2 2-3 3-4 4-5 5-6 6-7 7-8 8-9 9-10 10-11 11-12 " +
-               "12-13 13-14 14-15 15-16 16-19 19-20 20-21 21-22 22-23 23-27 " +
-               "27-28 28-30 30-31 31-33 33-34 34-35 35-36 36-37 37-38 38-40 " +
-               "40-41 41-42 42-45 45-47 47-51 51-59");
+               "0-0 0-1 1-2 2-3 3-4 4-5 5-7 7-8 8-12 12-13 13-14 14-15 15-16 " +
+               "16-17 17-19 19-20 20-21 21-22 22-23 23-24 24-25 25-27 27-29 " +
+               "29-30 30-31 31-33 33-38 38-39 39-40 40-44 44-45 45-47 47-50 " +
+               "50-52 52-53 53-55 55-56 56-57 57-59");
 
             var root = render(function (r) {
               VA.renderTopoPane(r, {
@@ -13744,13 +13749,13 @@
             });
             // Non-vacuous: a run of rows in one band, and neighbours that
             // differ -- a page that tinted every row the same would pass a
-            // parity check written any less carefully. Rows 16-18 are one
-            // band; rows 19 and 20 are the next two.
-            eq(bandClass(rows[16]), bandClass(rows[17]));
-            eq(bandClass(rows[16]), bandClass(rows[18]));
-            ok(bandClass(rows[18]) !== bandClass(rows[19]),
+            // parity check written any less carefully. Rows 8-11 are one
+            // band; rows 12 and 13 are the next two.
+            eq(bandClass(rows[8]), bandClass(rows[9]));
+            eq(bandClass(rows[8]), bandClass(rows[11]));
+            ok(bandClass(rows[11]) !== bandClass(rows[12]),
                "the band changes where a leader points");
-            ok(bandClass(rows[19]) !== bandClass(rows[20]));
+            ok(bandClass(rows[12]) !== bandClass(rows[13]));
           });
 
         await test("[real] pitch_system's leaders really do cross, and the " +
@@ -14175,9 +14180,10 @@
             };
             var before = crossings(livePitch.layout);
             var after = crossings(VA.spineRight(livePitch.layout));
-            // 138 on the product graph since the 2026-10-26 fold (43 on the
+            // 35 on the product graph since its walk went body-major
+            // (2026-10-26; 138 after the fold and before it, 43 on the
             // pitch_system document alone).
-            eq(before.spine, 138, "spine leaders crossed 138 rails as projected");
+            eq(before.spine, 35, "spine leaders crossed 35 rails as projected");
             eq(after.spine, 0, "right-justified, they cross none");
             ok(after.total < before.total,
                "total crossings " + after.total + " vs " + before.total);
@@ -14537,9 +14543,19 @@
               });
             });
             // Anti-vacuity: the loop above passes trivially over an empty
-            // projection, and all four kinds have live rows today.
-            eq(Object.keys(VA.GAP_KINDS).filter(function (k) { return !kinds[k]; }),
-               [], "a kind with no live row -- the loop above stops checking it");
+            // projection, and every kind has live rows today but two, named
+            // here with why: the day either gets a live row this list is
+            // wrong and says so. Both render on the fixture (the demo's
+            // derived gap states no contact kind) and in the fast tier.
+            var noLiveRowYet = {
+              contact_kind_not_stated: "every committed gap edge states its contact kind",
+              form_not_folded: "no committed edge carries a form modifier yet",
+            };
+            eq(Object.keys(VA.GAP_KINDS).filter(function (k) {
+              return !kinds[k] && !noLiveRowYet[k];
+            }), [], "a kind with no live row -- the loop above stops checking it");
+            eq(Object.keys(noLiveRowYet).filter(function (k) { return kinds[k]; }), [],
+               "a kind listed as having no live row has one now -- drop it from the list");
           });
 
         // The rail, as a reader finds it at rest
@@ -16240,7 +16256,7 @@
           });
 
         await test("[real] every live walk's rails and links re-derive from its rows, " +
-          "and hiding the blade-pitch study's unlit model leaves 32 rows on 9 columns", function () {
+          "and hiding the blade-pitch study's unlit model keeps only its rows and their columns", function () {
             realKinTopologies.topologies.forEach(function (topo) {
               if (!topo.layout) return;
               var derived = VA.walkRailsAndLinks(topo.layout.rows);
@@ -16251,8 +16267,8 @@
             var lit = VA.kinematicLitSet(realKinStudy, topo);
             eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [13, 19]);
             var hidden = VA.hideUnlit(topo.layout, lit);
-            eq([topo.layout.rows.length, topo.layout.columns], [106, 18]);
-            eq([hidden.rows.length, hidden.columns], [32, 9]);
+            eq([topo.layout.rows.length, topo.layout.columns], [106, 11]);
+            eq([hidden.rows.length, hidden.columns], [32, 7]);
             eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 13,
                "every lit edge is a grid row in the hidden walk too");
           });
