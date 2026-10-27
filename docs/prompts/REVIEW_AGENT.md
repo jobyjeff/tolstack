@@ -5112,6 +5112,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `runs: []`. No test reads `runs` against the run log. For each sha a
       diff cites, grep `runs.jsonl` for it and count
       (`ISSUE_20261022_two_213668_export_citations_list_one_of_five_runs_that_consumed_the_export.md`).
+- [ ] **A second state fact added beside an old one, and the old one's readers
+      left reading half the truth.** New 2026-10-26
+      (`the_rail_and_the_scene_point_at_each_other`): `scene.js` split visibility
+      into `userData.shown` + `hiddenKeys`, but the parts panel's checkbox and its
+      "shows or hides all of them" tooltip still read `isVisible` (= `shown`), so
+      the row reads ticked with an occurrence hidden and its `show` cannot bring it
+      back (`ISSUE_20261026_the_parts_panel_checkbox_cannot_show_an_occurrence_a_body_checkbox_hid.md`).
+      Grep every reader of the old accessor and ask which fact each one meant.
+- [ ] **Read the branch's own screenshots for layout, not only for the DoD
+      claim.** Same handoff: the shot taken to prove a hide also showed the new
+      link-joint checkbox wrapping to its own line (a right `float` appended after
+      an inline-block that fills its line). No tier measures it; the PNG did.
 
 ## Architectural errors to check
 
