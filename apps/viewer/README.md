@@ -1755,9 +1755,19 @@ static server — every annotate affordance upgrades in place:
   closes the card behind it. Before that, a card's link opened a second tab
   even with the flyout live — two annotators, two folder grants, two cameras.
 
-The panel is a non-modal, `position: fixed` `<dialog>` pinned to the
-viewport's LEFT edge (`#annotate-flyout`, Jeff 2026-09-16: adjacent to the
-DAG), and the page yields it the room rather than lying under it. It holds ONE
+The panel is a non-modal `<dialog>` (`#annotate-flyout`) laid out as a
+**column of the page's own row**: nav | scene | DAG + grid, left to right
+(handoff `the_shell_seats_the_scene_beside_the_model`, 2026-10-26; Jeff: "a
+single canvas that contains the 3d viewer and the DAG view, with the dag on
+the right side"). It wears the page's background with no border at either
+seam, and while it is open on a topology or kinematic page the preview pane
+stands down — the scene's own detail line and the hover card answer for an
+edge — and comes back when it closes (a stack page keeps its preview). Its
+floor (`VA.FLYOUT_WIDTH.min`) sits under the preview pane's own width, so at
+the floor the DAG and grid have more room than with no scene open; the browser
+tier measures that on a live chain study at 1600 wide. Until then it was
+pinned to the viewport's left edge with the page shifted out from under it
+(pane | nav | DAG). It holds ONE
 iframe of the real annotate app, created on the first launch and kept: the
 folder grant, loaded meshes and camera survive across launches, because a
 later launch drives the open panel over `postMessage` → `AA.exec` (the
@@ -1772,7 +1782,7 @@ annotator's sweep mode on the run it folds, a chain study or an edge the goto
 its row would post (which leaves sweep mode), all through one rule,
 `VA.annotateParamsFor`, whose result `VA.annotateLink` boots a cold panel with
 and `VA.annotateExecCommands` re-drives a warm one with. Open/closed and the
-width are remembered per browser. The nav rail stays beside it (it used to
+width are remembered per browser. The nav stays at the far left (it used to
 stand down). Resting the pointer on an edge's row, rail mark or kinematic
 contributor posts `highlight` (debounced, `VA.PANE_HOVER_DEBOUNCE_MS`), and
 the panel's head line is the annotator's own `annotate:state` answer. On a
@@ -1780,6 +1790,20 @@ kinematic study's page a selection never moves the panel out of sweep mode:
 `VA.annotateParamsFor` keeps answering the study's sweep whatever is selected,
 and the selected edge is posted as a `highlight` instead — the one the panel
 shows whenever the pointer is resting on nothing in particular.
+
+**The annotator's rail is drawn in the nav** (2026-10-26). The iframe boots
+with `embedded=1` (`VA.annotateEmbedHref`; the "Open full page" link keeps
+the plain url): the annotator then lays its rail out but does not show it,
+hides its command box, takes the page's background, and sends the rows its
+rail has just rendered as `{type: "annotate:tree", mode, chips, rows}`. The
+page draws them under the nav row the scene is showing — a kinematic study's
+bodies, joints with their surfaces and parts, and contributors, with the type
+chips; a chain study's elements and parts (`VA.renderSceneTree`). A gesture
+on a row goes back as `{type: "annotate:rail", key, act, index?}` and runs
+on the very rail row it mirrors, so the words and the effects stay the
+annotator's: hover lights the thing in the scene, a click selects it, a
+disclosure opens, a checkbox shows or hides, and a selection made in the
+scene comes back marked. Every row that does something is reachable by Tab.
 
 **Probed, never assumed** (`VA.probeAnnotateMount`): at boot the page HEADs
 `../annotate/index.html` and requires an ok `text/html` answer — the same

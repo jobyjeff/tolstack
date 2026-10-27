@@ -29,3 +29,14 @@ with a pointer:
 
 Joints and bodies are `<details>`/`<summary>` and are keyboard-reachable
 already. Non-blocking, filed per the review checklist's design rule.
+
+## Addendum 2026-10-26 — the viewer's copy of the rail is keyboard-reachable
+
+`the_shell_seats_the_scene_beside_the_model` draws the sweep rail's rows in
+the viewer's nav when the annotator is embedded: a disclosure is a
+`<summary>`, a row with a click (a contributor) is a `tabindex="0"`
+`role="button"` row answering Enter and Space, and Pick / Re-pick / Isolate
+are native buttons, so the whole tree is reachable by Tab there (pinned by
+`[real] a contributor row is reached by the keyboard, and Enter selects it`).
+The **standalone** annotator's rail is unchanged and still has the defect this
+issue describes, so it stays open for that copy.

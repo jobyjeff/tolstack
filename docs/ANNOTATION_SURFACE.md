@@ -261,8 +261,12 @@ about reading the rail rather than about binding:
 - **The width is the reader's.** A drag handle on the rail's right edge sets one
   CSS custom property the grid reads, clamped to a minimum and to half the
   window, remembered per browser (`AA.PREF_KEYS.railWidth`; absent or blocked
-  storage means the default). The handle lives in the annotator, so inside the
-  viewer's flyout it comes with the iframe and the same remembered width.
+  storage means the default). The handle lives in the annotator. Embedded in
+  the viewer (`embedded=1`, since 2026-10-26) the rail is not shown at all:
+  the viewer draws its rows in its own nav, under the study row, and every
+  gesture there runs on the rail row it mirrors
+  (`the_shell_seats_the_scene_beside_the_model`; apps/viewer/README.md, "The
+  3D flyout").
 - **Clipped text is always reachable.** Every line the rail clips carries its
   full text on hover (`title`): part rows, element rows, the group header, and
   the two selects, which carry the *selected* option's text because a native
