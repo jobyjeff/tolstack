@@ -25,6 +25,13 @@ Measured on P2's kinematic study at 1600×1000 (`VA.seamCrossings`, pairs):
 | dimmed, at rest | 3 | 0 |
 | hidden | 9 | 5 |
 
+> **Correction, 2026-10-27.** The hidden row was one scroll state's reading.
+> Read with the page and the DAG box both at their top (the browser check's
+> pinned state, the same on two runs), the hidden state draws **9 leaders
+> with 15 crossing pairs**. The pitch plate's and the tangential link's
+> rungs are in view together there, and their anchors interleave in the
+> scene.
+
 Two smaller things in the same picture (`docs/sessions/shots_20261026_leaders_across_the_seam/`):
 
 - The angled leg runs over the annotator's own readout and bars above its

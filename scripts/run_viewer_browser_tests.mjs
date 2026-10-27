@@ -5523,6 +5523,16 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
       if (ev.data && ev.data.type === "annotate:anchors") window.__anchorMessages.push(ev.data);
     });
   });
+  // ...and the scene's window collects every model word the shell posts it
+  // (this suite's own `exec` calls the app directly, so it adds nothing here).
+  await page.addInitScript(() => {
+    if (location.pathname.indexOf("/apps/annotate/") === -1) return;
+    window.__shellModelWords = [];
+    window.addEventListener("message", (ev) => {
+      const c = ev.data && ev.data.type === "annotate:exec" ? ev.data.command : null;
+      if (Array.isArray(c) && c[0] === "model") window.__shellModelWords.push(c);
+    });
+  });
   const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
     const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
     if (!w || !w.document) return null;
@@ -5712,6 +5722,32 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
     await shot("2_sweep_frame_41.png");
 
     // --- 4. the lit set, and the shell's dim-or-hide word -------------------
+    // Embedded, the shell speaks first: it posts its own lit set when the
+    // scene loads (leaders_follow_the_active_study_across_the_seam), and the
+    // scene draws exactly that set at full strength.
+    const shellLit = await until((w) => {
+      const words = w.__shellModelWords || [];
+      const said = words.filter((c) => c[1] === "lit").pop();
+      const strengths = w.__model && w.__model.strengths;
+      if (!said || said[2] === "all" || !strengths) return false;
+      const want = said.slice(2).filter((id) => strengths[id] !== undefined).sort();
+      const full = Object.keys(strengths).filter((k) => strengths[k] === "full").sort();
+      return want.length > 0 && full.join() === want.join() &&
+        Object.keys(strengths).some((k) => strengths[k] !== "full");
+    }, null, 30000);
+    const saidLit = await inPane((w) => {
+      const said = (w.__shellModelWords || []).filter((c) => c[1] === "lit").pop();
+      return said ? said.slice(2) : null;
+    });
+    console.log(`      [${label}] the shell's lit set: ${saidLit ? saidLit.length : "-"} edges`);
+    push("[real] embedded on the kinematic page, the scene draws the shell's posted lit set at full " +
+      "strength and the rest stepped back", shellLit);
+    // What the scene does where no shell has spoken is the scene's own
+    // fallback: the shell's word is taken back (the scene forgets it, as a
+    // standalone annotator never had one) and the style re-applied by the
+    // verb that re-reads it, so the fallback is read in this same embedded pane.
+    await inPane((w) => { delete w.__model.lit; return true; });
+    await exec(["model", "unlit", "dim"]);
     const lit = await inPane((w) => {
       const s = w.__scene.modelState();
       const strengths = w.__model.strengths;
@@ -10475,8 +10511,23 @@ async function testSeamLeaders(browser, label, topologies) {
         !window.ViewerApp.lastTopoRender.tweening;
     }, null, 15000);
     await live.waitForTimeout(600);
+    // Which dots are in the bounded box's view depends on where the clicks
+    // above left it scrolled, so the count is read in one pinned state: the
+    // page at its top, the pointer off the page's rows, the box at its top.
+    await backUp();
+    const drawsBefore = await live.evaluate(() => {
+      const box = document.querySelector("#topopane");
+      const n = box.scrollTop > 0 ? (window.ViewerApp.lastSeamDraw || {}).draws || 0 : -1;
+      box.scrollTop = 0;
+      return n;
+    });
+    await liveUntil((n) => {
+      const d = window.ViewerApp.lastSeamDraw;
+      return d && d.draws > n && document.querySelector("#topopane").scrollTop === 0;
+    }, drawsBefore, 5000);
+    await live.waitForTimeout(300);
     const after = await liveMeasure();
-    console.log(`      [${label}] hidden: leaders ${after.ids.length} (${after.ids.join(", ")}); ` +
+    console.log(`      [${label}] hidden, the box at its top: leaders ${after.ids.length} (${after.ids.join(", ")}); ` +
       `off the DAG's view: ${(after.skipped && after.skipped.offDag || []).join(", ") || "-"}; ` +
       `crossings among them ${after.crossings}; through a lit bar ${after.barCrossings}`);
     push("[real] with the toggle at hide, six to ten leaders across the seam, drawn from the lit " +

@@ -81,6 +81,21 @@ pairs):
 | dimmed, at rest | 19 | 3 | 13 | 0 | 3 | 0 | 0 |
 | hidden | 19 | 3 | 5 | 2 | 9 | 5 | 0 |
 
+> **Correction, 2026-10-27 (the review's S1).** The hidden row above is one
+> scroll state's reading, not a fact about the page: which dots are in the
+> bounded box's view depends on where the clicks before it left the box, and
+> the review read 11 drawn and 6 crossings in the same state. The check now
+> reads the hidden state with the page and the box both at their top. Two
+> runs in that pinned state read the same ids each time:
+>
+> | state | lit nodes | anchor `null` | dot out of the DAG box | anchor below the window | drawn | crossing pairs | through a lit bar |
+> |---|---:|---:|---:|---:|---:|---:|---:|
+> | hidden, box at its top | 19 | 3 | 7 | 0 | 9 | 15 | 0 |
+>
+> 15 crossings, not 5: at the top the box shows the pitch plate's and the
+> tangential link's rungs together, and their anchors interleave in the
+> scene. That strengthens the crossing issue's case and changes nothing else.
+
 The three `null` anchors are `piston_cover_*` and `piston_rod_end_bore`, parts
 with no installed mesh (the model-in-scene lesson's origin nodes).
 
@@ -198,3 +213,51 @@ main checkout's copy. Both are gitignored and not committed. The shared
   not recorded.
 - Not run: `node apps/annotate/run_tests.cjs`, because `apps/annotate/` is
   untouched.
+
+## Rework after the review (REQUEST CHANGES, 2026-10-27)
+
+- **B1: the shell's new posts reddened `annotate model in the scene`.** Two
+  of its checks read the scene "until the shell posts a lit set". Since this
+  change, an embedded scene is never in that state: the shell posts its lit
+  set (13 edges on P2's kinematic page, not the study's contributor set) as
+  soon as the scene loads. I kept the shell's side as it is. The point of
+  the handoff is that the page's lit set rules the scene. The checks moved
+  instead:
+  - A new guard reads the shell's word where it now lands: "embedded on the
+    kinematic page, the scene draws the shell's posted lit set at full
+    strength and the rest stepped back". The suite records every model word
+    the shell posts in the scene's own window, so the check compares the
+    drawn strengths with what was actually said. It has one spec (the shell
+    posts `model lit all`), and the browser pin moved to 658/625.
+  - The two existing checks keep their names and specs, and still certify
+    the scene's own fallback. Once the shell's word has landed, the suite
+    takes it back (`delete __model.lit`, a scene that was never told) and
+    re-applies the style with `model unlit dim`, the verb that re-reads it.
+    That makes the fallback a state the suite sets up, not a race against
+    the shell's next post. The shell re-posts only on `annotate:state`, and
+    nothing in between sends one.
+  - I did not open a second, standalone annotator page for the fallback.
+    That would mean a second P2 sweep build in a suite that already takes
+    minutes, to read a branch (`model.lit === undefined`) that this pane
+    reaches directly.
+- **B2: the hidden-state count was a count of what a scrolled box shows.**
+  The check now scrolls the page and the box to their top, moves the
+  pointer off the rows, and waits for the re-draw before measuring. The
+  6–10 window stays, now over that one pinned state. The pinned numbers are
+  in the correction under the crossing table.
+- **Process: the full browser tier was run before handing back.** It was
+  32/33. The one red is the already filed gap-badge suite
+  (`ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has.md`),
+  which the review measured equally red on `integration`. My first round
+  ran only this handoff's own suite, and both blockers were in suites it
+  did not reach. A diff that adds a `postToPane` call can redden any suite
+  that drives an embedded scene.
+- **Pinning the state broke the hidden check's own witness.** Its mutation
+  dropped the anchor clip, and in the old state two anchors lay below the
+  window, so it showed. With the box at its top, no anchor lies off the
+  window, and the `--changed-since integration` re-run went 42/43 on exactly
+  that spec. The mutation now drops the DAG box's bottom edge from the dot
+  clip instead, and it is witnessed with `--only`. The anchor clip is still
+  witnessed by the fixture's null-or-off-scene check, which reddened on the
+  old mutation. A change to the state a check reads can unwitness its spec
+  without touching the spec's anchor.

@@ -20,6 +20,11 @@ browser tier's `leaders across the seam (…)` suite on run
 | dimmed, at rest | 19 | 3 | 13 | 0 | **3** |
 | hidden | 19 | 3 | 5 | 2 | **9** |
 
+> **Correction, 2026-10-27.** The hidden row depends on where the box was
+> left scrolled: the review read 11. Read with the page and the box both at
+> their top (the browser check's pinned state), it is 3 `null`, 7 out of the
+> box's view, 0 below the window, **9 drawn**.
+
 Both causes are layout, not the leaders:
 
 1. **The DAG box is bounded and opens on the grid.** The kinematic page's DAG
