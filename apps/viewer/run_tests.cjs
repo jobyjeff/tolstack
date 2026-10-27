@@ -379,6 +379,7 @@ const files = [
   "storage/node_fs.js",
   "storage/http.js",
   "warning_icon.js",
+  "interface_glyphs.js",
   "views/dom.js",
   "views/banner.js",
   "views/nav.js",

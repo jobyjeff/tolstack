@@ -229,8 +229,12 @@
     var lit = ctx.lit || VA.studyLitSet(study);
     var marking = !!lit;
     var hiding = marking && ctx.unlitStyle === "hide";
-    var layout = VA.spineRight(hiding ? VA.hideUnlit(topoProj.layout, lit)
-                                      : topoProj.layout);
+    // Collapsed bodies (VA.collapseBodies) fold AFTER hiding, so a body the
+    // study does not reach is simply gone and a pill stands only for what is
+    // drawn; the mirror runs last, as it always has.
+    var layout = VA.spineRight(VA.collapseBodies(
+      hiding ? VA.hideUnlit(topoProj.layout, lit) : topoProj.layout,
+      ctx.collapsedBodies || null, topoProj, lit));
     // The chain's ordinals and contributions, for the grid's # and
     // contribution columns: a chain study's own, empty on a kinematic page,
     // whose contributions are its own table's business.
@@ -362,7 +366,7 @@
     var body = VA.el("div", "tv__body");
     body.appendChild(railsSvg(geometry, leaderGeo, index,
       marking ? lit.edges : {}, marking ? lit.nodes : {}, marking, ctx, fade,
-      fadeLink, hot));
+      fadeLink, hot, layout, lit));
     var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset,
       fade, hot);
     // The grid is the one block a respine CROSS-FADES rather than moves. Its
@@ -1248,7 +1252,7 @@
   // --- the SVG -------------------------------------------------------------
 
   function railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx,
-                    fade, fadeLink, hot) {
+                    fade, fadeLink, hot, layout, lit) {
     // The SVG spans the rails AND the leader jog zone: its right edge is the
     // grid table's left edge, so a leader's final horizontal segment hands off
     // to its row's boundary with no seam to keep aligned.
@@ -1272,6 +1276,82 @@
         { d: band.d });
       path.setAttribute("data-band", String(band.index));
       svg.appendChild(path);
+    });
+
+    // 0b. the joint glyphs' symbols, once per SVG (interface_glyphs.js).
+    svg.appendChild(VA.interfaceGlyphDefs());
+
+    // 0c. the bodies (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a rounded
+    //     field behind each body's block, its name once at the top-left, in
+    //     the body's own muted tint -- or a flat outline when nothing the
+    //     current study lights is inside it. The name is the collapse
+    //     control; a collapsed body is its pill (drawn with the marks, 3.)
+    //     and gets no field of its own.
+    var bodiesById = {};
+    ((ctx.topoProj && ctx.topoProj.bodies) || []).forEach(function (b) {
+      bodiesById[b.id] = b;
+    });
+    var pillRows = {};
+    geometry.marks.forEach(function (mark) {
+      if (mark.collapsed) pillRows[mark.row] = true;
+    });
+    (geometry.bodies || []).forEach(function (field) {
+      if (pillRows[field.start]) return;
+      var body = bodiesById[field.body] || { id: field.body, name: field.body };
+      var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
+      var cls = "tv__body tv__body--t" + VA.bodyTint(ctx.topoProj, field.body) +
+        (flat ? " tv__body--flat" : "");
+      var rect = VA.svg("rect", cls, {
+        x: field.x1, y: field.y1, width: Math.max(0, field.x2 - field.x1),
+        height: Math.max(0, field.y2 - field.y1), rx: 6, ry: 6,
+      });
+      rect.setAttribute("data-body", field.body);
+      svg.appendChild(rect);
+      svg.appendChild(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
+    });
+
+    // 0d. the sub-stacks (a kinematic page's `study_ref`s,
+    //     VA.kinematicSubStacks): a dashed field around each of the chain's
+    //     bars -- inside whichever body each bar is in -- and the study's
+    //     title and folded interval once, at the topmost. CLOSED, the bars
+    //     inside are drawn as one muted fold (`rail__bar--folded`) and the
+    //     label stands for them; OPEN, they wear their own colours. The label
+    //     opens and closes it, and the contributor table's group row with it.
+    var folded = {};
+    (ctx.subStacks || []).forEach(function (sub) {
+      var open = !!(ctx.openSubStacks && ctx.openSubStacks[sub.id]);
+      var marks = geometry.marks.filter(function (mark) {
+        return mark.kind === "edge" && sub.edges.indexOf(mark.id) !== -1;
+      });
+      if (!marks.length) return;
+      marks.forEach(function (mark) {
+        if (!open) folded[mark.id] = true;
+        var field = VA.svg("rect", "tv__substack", {
+          x: mark.x - 7, y: mark.y1 - 1, width: 14,
+          height: Math.max(0, mark.y2 - mark.y1 + 2), rx: 4, ry: 4,
+        });
+        field.setAttribute("data-substack", sub.id);
+        svg.appendChild(field);
+      });
+      var top = marks.reduce(function (a, b) { return b.y1 < a.y1 ? b : a; });
+      var label = VA.svg("text", "tv__substackname", { x: top.x + 10, y: top.y1 + 9 });
+      label.textContent = (open ? "▾ " : "▸ ") + sub.title +
+        (sub.interval ? " · " + sub.interval : "");
+      label.appendChild(svgTitle(sub.title + (sub.interval ? ", " + sub.interval : "") +
+        " — its terms enter one by one; this total is shown, never added"));
+      label.setAttribute("data-substack-toggle", sub.id);
+      label.setAttribute("tabindex", "0");
+      label.setAttribute("role", "button");
+      label.setAttribute("aria-expanded", open ? "true" : "false");
+      var toggle = function () { if (ctx.onToggleSubStack) ctx.onToggleSubStack(sub.id); };
+      label.onclick = toggle;
+      label.onkeydown = function (event) {
+        if (event && (event.key === "Enter" || event.key === " ")) {
+          if (event.preventDefault) event.preventDefault();
+          toggle();
+        }
+      };
+      svg.appendChild(label);
     });
 
     // 1. the rails themselves: continuous, neutral, alternating shade by column
@@ -1379,6 +1459,7 @@
 
     // 3. one mark per row: a bar for an edge (the dimension IS the segment), a
     //    dot for a node (the interface IS the point).
+    var formMarks = VA.formMarks(ctx.topoProj);
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
@@ -1389,6 +1470,7 @@
         if (edge && edge.value_source === "derived") classes.push("rail__bar--derived");
         if (mark.floored) classes.push("rail__bar--floored");
         if (marking) classes.push(inChain ? "rail__bar--on" : "rail__bar--off");
+        if (folded[mark.id]) classes.push("rail__bar--folded");
         var otherVariant = !!(edge && edge.part && ctx.otherVariantParts &&
           ctx.otherVariantParts[edge.part]);
         if (otherVariant) classes.push("rail__bar--other-variant");
@@ -1458,6 +1540,46 @@
         wire(hit, ctx, "edge", mark.id);
         hotHover(hot, hit, hotKey("edge", mark.id));
         svg.appendChild(hit);
+
+        // The joint glyph (interface_glyphs.js) at the bar's midpoint, in the
+        // bar's colour, and the form mark for a form element on the bar
+        // itself. Each carries the edge's own hover card and click.
+        var glyphY = (y1 + y2) / 2;
+        var glyphClass = "rail__glyph " +
+          (edge ? VA.confidenceClass(edge.confidence) : "") +
+          (edge && edge.value_source === "derived" ? " rail__glyph--derived" : "") +
+          (marking ? (inChain ? " rail__glyph--on" : " rail__glyph--off") : "") +
+          (otherVariant ? " rail__glyph--other-variant" : "");
+        var glyphs = [];
+        if (edge && edge.interface && VA.INTERFACE_GLYPHS[edge.interface]) {
+          glyphs.push(VA.glyphUse(VA.interfaceGlyphId(edge.interface), mark.x,
+            glyphY, glyphClass));
+        }
+        if (formMarks.edges[mark.id]) {
+          glyphs.push(VA.glyphUse(VA.FORM_GLYPH_ID, mark.x,
+            glyphs.length ? glyphY + VA.INTERFACE_GLYPH_PX : glyphY, glyphClass));
+        }
+        glyphs.forEach(function (use) {
+          svg.appendChild(fade(VA.svg("circle", "rail__glyphbg", {
+            cx: mark.x,
+            cy: Number(use.getAttribute("y")) + VA.INTERFACE_GLYPH_PX / 2,
+            r: VA.INTERFACE_GLYPH_PX / 2 + 1,
+          }), "edge", mark.id));
+          fade(use, "edge", mark.id);
+          if (ctx.onCardShow) {
+            cardOnHover(use, function () {
+              return VA.edgeCard(ctx.topoProj, edge, ctx.crops, null);
+            }, ctx);
+          } else {
+            use.appendChild(svgTitle(VA.edgeHoverTitle(edge, mark.id)));
+          }
+          wire(use, ctx, "edge", mark.id);
+          svg.appendChild(use);
+        });
+        return;
+      }
+      if (mark.collapsed) {
+        svg.appendChild(collapsedPill(mark, bodiesById, ctx, marking, layout, lit));
         return;
       }
       var node = index.nodes[mark.id];
@@ -1501,8 +1623,69 @@
       wire(dot, ctx, "node", mark.id);
       hotHover(hot, dot, hotKey("node", mark.id));
       svg.appendChild(dot);
+      // A form modifier's squiggle, beside the face it is on: to the left of
+      // the dot, the side away from the grid once the spine is mirrored right.
+      if (formMarks.nodes[mark.id]) {
+        var adorn = VA.glyphUse(VA.FORM_GLYPH_ID,
+          mark.x - M.dot - VA.INTERFACE_GLYPH_PX / 2 - 1, mark.y,
+          "rail__glyph rail__glyph--form" + (marking && !chainNodes[mark.id]
+            ? " rail__glyph--off" : ""));
+        adorn.appendChild(svgTitle(VA.FORM_GLYPH.label + ": " +
+          formMarks.nodes[mark.id].map(function (id) {
+            var e = index.edges[id];
+            return e ? e.name : id;
+          }).join(", ")));
+        svg.appendChild(fade(adorn, "node", mark.id));
+      }
     });
     return svg;
+  }
+
+  // A body's name, the control that collapses or opens it: muted, the micro
+  // step, its full name on hover however much of it the field shows (a
+  // one-column body's field is narrow and the name runs past it).
+  function bodyName(body, x, y, collapsed, ctx, text) {
+    var label = VA.svg("text", "tv__bodyname", { x: x, y: y });
+    label.textContent = text || body.name;
+    label.appendChild(svgTitle(body.name + (collapsed ? " — click to open"
+      : " — click to fold into one node")));
+    label.setAttribute("data-body-toggle", body.id);
+    label.setAttribute("tabindex", "0");
+    label.setAttribute("role", "button");
+    label.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    var toggle = function () { if (ctx.onToggleBody) ctx.onToggleBody(body.id); };
+    label.onclick = toggle;
+    label.onkeydown = function (event) {
+      if (event && (event.key === "Enter" || event.key === " ")) {
+        if (event.preventDefault) event.preventDefault();
+        toggle();
+      }
+    };
+    return label;
+  }
+
+  // A collapsed body (VA.collapseBodies): one wide node from the leftmost to
+  // the rightmost column its block held, the edges that leave it meeting its
+  // rim, and its name and joint count on it -- the count of the places it
+  // meets another body.
+  function collapsedPill(mark, bodiesById, ctx, marking, layout, lit) {
+    var info = mark.collapsed;
+    var body = bodiesById[info.body] || { id: info.body, name: info.name };
+    var g = VA.svg("g", "tv__pill");
+    g.setAttribute("data-collapsed-body", info.body);
+    var flat = marking && !VA.bodyIsLit(layout && layout.rows, info.body, lit);
+    var r = M.branchDot;
+    var x1 = Math.min(mark.x, mark.x2) - r;
+    var x2 = Math.max(mark.x, mark.x2) + r;
+    g.appendChild(VA.svg("rect", "tv__body tv__body--t" +
+      VA.bodyTint(ctx.topoProj, info.body) + " tv__pill__shape" +
+      (flat ? " tv__body--flat" : ""), {
+        x: x1, y: mark.y - r - 1, width: x2 - x1, height: 2 * r + 2,
+        rx: r + 1, ry: r + 1,
+      }));
+    g.appendChild(bodyName(body, x1 + 4, mark.y + 3.5, true, ctx,
+      body.name + " · " + info.joints + (info.joints === 1 ? " joint" : " joints")));
+    return g;
   }
 
   // A native SVG tooltip: the element's own name, so hovering the graph reads
