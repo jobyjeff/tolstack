@@ -257,3 +257,23 @@ specs.
 
 Verdict: **APPROVE**. Landed on `integration` as a fast-forward from
 `review/pitch_system_folds_into_the_pitch_linkage_model`.
+
+### Post-merge `--full` result (appended when the run finished)
+
+`node scripts/run_mutation_witness_tests.mjs --repo <scratch root> --full`
+on `9735513`, with projections built from that tree: 76 min, exit 1,
+**296/332 declared mutations witnessed**. No ANCHOR ROTTED and no UNENROLLED
+entries. The handoff's touched specs are all witnessed. None of the 36
+misses is this branch's:
+
+- 21 in `annotate rail and scene`: its clean run is red on the gap badges.
+- 14 in `3D pane follows the selection`: the suite skips when it finds no
+  gap row, so it cannot see a mutation.
+- 1 in `tests/test_browser_runner.py`: the exit-handler mutation, which
+  depends on timing.
+
+The respine suite, the one this rework changed, has no misses. Filed as
+`ISSUE_20261026_a_full_witness_run_on_integration_left_36_mutations_unwitnessed.md`
+(`class: decayed_witness`), with the run's lines quoted. As stated above, this
+run finished after the merge rather than gating it, per the 2026-10-26
+strategy change.
