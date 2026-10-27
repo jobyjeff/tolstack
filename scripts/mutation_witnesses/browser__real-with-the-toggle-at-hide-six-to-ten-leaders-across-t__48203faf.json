@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] with the toggle at hide, six to ten leaders across the seam, drawn from the lit part alone",
+  "mutations": [
+    {
+      "contract": "An anchor off the scene's visible frame has no leader.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Draws to anchors outside the window too.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      anchorClip: { left: f.left, right: f.right, top: Math.max(f.top, 0),\n                    bottom: Math.min(f.bottom, bottom) },",
+      "replace": "      anchorClip: null,"
+    }
+  ]
+}

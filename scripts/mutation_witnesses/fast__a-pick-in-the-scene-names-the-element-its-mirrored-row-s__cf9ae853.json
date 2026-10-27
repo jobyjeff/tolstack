@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a pick in the scene names the element its mirrored row stands for: an edge's row, or a body's one lit edge",
+  "mutations": [
+    {
+      "contract": "A body carrying several lit edges selects none of them rather than guess.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Guesses the first.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return edges.length === 1 ? { kind: \"edge\", id: edges[0].id } : null;",
+      "replace": "    return edges.length ? { kind: \"edge\", id: edges[0].id } : null;"
+    }
+  ]
+}

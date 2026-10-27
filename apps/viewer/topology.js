@@ -1916,6 +1916,13 @@
         if (row.collapsed) row.column = row.collapsed.lo;
       });
     }
+    if (layout.folded) {
+      mirrored.folded = {};
+      Object.keys(layout.folded).forEach(function (id) {
+        mirrored.folded[id] = assign(layout.folded[id],
+          { column: flip(layout.folded[id].column) });
+      });
+    }
     mirrored.rails = (layout.rails || []).map(function (rail) {
       return assign(rail, { column: flip(rail.column) });
     });
@@ -2226,6 +2233,10 @@
     result.rows = out;
     result.rails = structure.rails;
     result.links = structure.links;
+    // Where each folded node went -- its pill and its own column on the rim --
+    // for a leader that has to land on a node the walk no longer draws
+    // (VA.seamDots).
+    result.folded = folded;
     return result;
   };
 
@@ -2930,6 +2941,230 @@
       leaders: leaders,
       bands: bandGeometry(leaders, plan, width, positions.height || 0),
     };
+  };
+
+  // --- leaders across the seam (leaders_follow_the_active_study_across_the_
+  // seam, 2026-10-27) ---------------------------------------------------------
+  //
+  // From a DAG node to where the scene draws it. The scene posts each node's
+  // anchor in its own CSS pixels (`annotate:anchors`); the shell adds the
+  // iframe's rect, adds the rails SVG's rect to the points below, and draws
+  // one page-level overlay from the two (topology_app.js's drawSeamLeaders).
+  // Only the lit set gets one: "if every single element in the model were
+  // connected it would probably be way too busy to interpret" (Jeff,
+  // 2026-10-26).
+  //
+  // The DAG end of each, in the rails SVG's own pixels: the left side of a
+  // lit node's dot, or -- for a lit node folded into a collapsed body -- its
+  // own column on the pill's rim (VA.collapseBodies' `folded`). `bend` is the
+  // abscissa every leader turns at: half a gutter left of the leftmost thing
+  // the DAG draws, so a leader runs out of the rails level and turns once,
+  // outside them. `bars` are the lit edges' bars, for VA.seamBarCrossings.
+  VA.seamDots = function (layout, geometry, lit, metrics, x) {
+    metrics = metrics || VA.RAIL_METRICS;
+    var out = { dots: {}, bend: 0, bars: [] };
+    if (!lit || !geometry) return out;
+    var marks = {};
+    var minX = Infinity;
+    (geometry.marks || []).forEach(function (mark) {
+      if (mark.kind === "node") marks[mark.id] = mark;
+      else if (lit.edges && lit.edges[mark.id]) {
+        out.bars.push({ id: mark.id, x: mark.x, y1: mark.y1, y2: mark.y2 });
+      }
+      minX = Math.min(minX, mark.x);
+    });
+    (geometry.rails || []).forEach(function (rail) { minX = Math.min(minX, rail.x); });
+    out.bend = minX === Infinity ? 0 : Math.max(0, minX - metrics.gutter / 2);
+    var folded = (layout && layout.folded) || {};
+    Object.keys(lit.nodes || {}).sort().forEach(function (id) {
+      if (!lit.nodes[id]) return;
+      var mark = marks[id];
+      if (mark) {
+        var r = mark.branch ? metrics.branchDot : metrics.dot;
+        out.dots[id] = [mark.x - r - 1.5, mark.y];
+        return;
+      }
+      var into = folded[id];
+      var pill = into && marks[into.pill];
+      if (pill) out.dots[id] = [columnX(into.column, metrics, x), pill.y];
+    });
+    return out;
+  };
+
+  // The leaders themselves, in PAGE pixels: `dots` and `anchors` are
+  // {node id: [x, y]} with both rects already added, `bendX` the page
+  // abscissa of VA.seamDots' bend. Out of the DAG level with its dot, one
+  // bend, then straight to the anchor: the angled-leader rule's single
+  // segment, preceded by the run out of the rails. A node whose anchor is
+  // null -- off the scene's screen, or a part with no geometry -- gets no
+  // leader and no stub, and an end outside its clip (the DAG scrolled past
+  // the dot, a point outside the iframe) is the same absence.
+  VA.seamLeaderGeometry = function (spec) {
+    var leaders = [];
+    var skipped = { noAnchor: [], offDag: [], offScene: [] };
+    var inside = function (p, box) {
+      return !box || (p[0] >= box.left && p[0] <= box.right &&
+                      p[1] >= box.top && p[1] <= box.bottom);
+    };
+    var anchors = spec.anchors || {};
+    Object.keys(spec.dots || {}).sort().forEach(function (id) {
+      var from = spec.dots[id];
+      var to = anchors[id];
+      if (!to) { skipped.noAnchor.push(id); return; }
+      if (!inside(from, spec.dotClip)) { skipped.offDag.push(id); return; }
+      if (!inside(to, spec.anchorClip)) { skipped.offScene.push(id); return; }
+      var bend = [Math.min(spec.bendX, from[0]), from[1]];
+      leaders.push({
+        id: id, from: from, bend: bend, to: to,
+        d: "M " + from[0] + " " + from[1] + " H " + bend[0] +
+           " L " + to[0] + " " + to[1],
+      });
+    });
+    return { leaders: leaders, crossings: VA.seamCrossings(leaders), skipped: skipped };
+  };
+
+  // How many PAIRS of leaders cross: any segment of one properly crossing
+  // any segment of the other. Recorded, not minimised -- the order the dots
+  // run down the DAG and the order the anchors fall in the scene are two
+  // facts this page does not choose.
+  VA.seamCrossings = function (leaders) {
+    var count = 0;
+    var segs = function (l) { return [[l.from, l.bend], [l.bend, l.to]]; };
+    for (var i = 0; i < leaders.length; i++) {
+      for (var j = i + 1; j < leaders.length; j++) {
+        var a = segs(leaders[i]);
+        var b = segs(leaders[j]);
+        var hit = false;
+        for (var p = 0; p < 2 && !hit; p++) {
+          for (var q = 0; q < 2 && !hit; q++) {
+            hit = segmentsCross(a[p][0], a[p][1], b[q][0], b[q][1]);
+          }
+        }
+        if (hit) count++;
+      }
+    }
+    return count;
+  };
+
+  function segmentsCross(p1, p2, p3, p4) {
+    var side = function (a, b, c) {
+      var v = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+      return v > 1e-9 ? 1 : v < -1e-9 ? -1 : 0;
+    };
+    var d1 = side(p3, p4, p1);
+    var d2 = side(p3, p4, p2);
+    var d3 = side(p1, p2, p3);
+    var d4 = side(p1, p2, p4);
+    return d1 * d2 < 0 && d3 * d4 < 0;
+  }
+
+  // How many leaders run THROUGH a lit edge's bar on their way out of the
+  // DAG: a bar strictly between a leader's dot and its bend, spanning its
+  // ordinate. Zero by construction -- a leader leaves level with its own row,
+  // and no other row's bar reaches into that row -- which is why a test pins
+  // it rather than a router enforcing it. Same coordinates on both sides
+  // (VA.seamDots' own, or both in page pixels).
+  VA.seamBarCrossings = function (leaders, bars) {
+    var count = 0;
+    leaders.forEach(function (leader) {
+      var lo = Math.min(leader.bend[0], leader.from[0]);
+      var hi = Math.max(leader.bend[0], leader.from[0]);
+      var y = leader.from[1];
+      (bars || []).forEach(function (bar) {
+        if (bar.x > lo && bar.x < hi && bar.y1 < y && bar.y2 > y) count++;
+      });
+    });
+    return count;
+  };
+
+  // The nodes a selection lights the leaders OF: a node's own, an edge's two
+  // ends. One rule for both overlays -- the DAG↔grid leaders in the rails SVG
+  // and the DAG↔3D ones over the page -- so a selected element's 2D, 3D and
+  // grid representations light together (Jeff: "if you selected a single
+  // element in 2d or 3d, you could quickly trace its 2d and 3d
+  // representation, as well as the line of the tolerance rollup").
+  VA.selectedLeaderNodes = function (selection, index) {
+    var out = {};
+    if (!selection) return out;
+    if (selection.kind === "node") out[selection.id] = true;
+    else if (selection.kind === "edge") {
+      var edge = index && index.edges[selection.id];
+      if (edge) {
+        out[edge.from] = true;
+        out[edge.to] = true;
+      }
+    }
+    return out;
+  };
+
+  // What a leader is wearing, by node: selected (the accent), hot (the
+  // pointer's lighter emphasis), dim (another element is selected), or
+  // nothing. `hotKey` is the pane's own hover key (`node|<id>`,
+  // `edge|<id>`, or a rail's, which lights no leader).
+  VA.SEAM_LEADER_STATES = Object.freeze(["selected", "hot", "dim"]);
+  // The scene's message carrying them (apps/annotate's AA.ANCHORS_MESSAGE).
+  VA.SCENE_ANCHORS_MESSAGE = "annotate:anchors";
+  // The dot a leader ends in on the scene, in CSS pixels: a picture, like
+  // VA.INTERFACE_GLYPH_PX, not a type step.
+  VA.SEAM_END_RADIUS = 2.5;
+  VA.seamLeaderStates = function (ids, selection, hotKey, index) {
+    var selected = VA.selectedLeaderNodes(selection, index);
+    var hot = {};
+    if (hotKey) {
+      var cut = hotKey.indexOf("|");
+      hot = VA.selectedLeaderNodes({ kind: hotKey.slice(0, cut), id: hotKey.slice(cut + 1) },
+        index);
+    }
+    var out = {};
+    (ids || []).forEach(function (id) {
+      out[id] = selected[id] ? VA.SEAM_LEADER_STATES[0]
+        : hot[id] ? VA.SEAM_LEADER_STATES[1]
+        : selection ? VA.SEAM_LEADER_STATES[2] : "";
+    });
+    return out;
+  };
+
+  // The element a row of the scene's mirrored tree stands for, so a pick in
+  // the scene selects on this page (the rail's `select` coupling: a pick
+  // selects its row there, and the tree the scene sends here marks it). The
+  // row key is the annotator's own (`<parent>/<data k=v,...>`, apps/annotate's
+  // railKey); the deepest segment that names a thing wins. A row naming an
+  // edge is that edge. A row naming a body (a part picked on it, or a link's
+  // own joint row -- a run names a link's joint after the link) is the one
+  // lit edge on that body's parts, when there is exactly one; several, or
+  // none, select nothing rather than guess.
+  VA.sceneRowElement = function (key, topoProj, lit) {
+    if (!key || !topoProj) return null;
+    var fields = {};
+    String(key).split("/").forEach(function (segment) {
+      segment.replace(/#\d+$/, "").split(",").forEach(function (pair) {
+        var at = pair.indexOf("=");
+        if (at > 0) fields[pair.slice(0, at)] = pair.slice(at + 1);
+      });
+    });
+    var index = VA.topologyIndex(topoProj);
+    if (fields.edge) return index.edges[fields.edge] ? { kind: "edge", id: fields.edge } : null;
+    var bodyId = fields.subject || fields.body || fields.joint;
+    var body = bodyId ? (topoProj.bodies || []).filter(function (b) {
+      return b.id === bodyId;
+    })[0] : null;
+    if (!body) return null;
+    var parts = {};
+    (body.parts || []).forEach(function (p) { parts[p] = true; });
+    var edges = (topoProj.edges || []).filter(function (e) {
+      return parts[e.part] && (!lit || lit.edges[e.id]);
+    });
+    return edges.length === 1 ? { kind: "edge", id: edges[0].id } : null;
+  };
+
+  // The lit set as the scene's own `model` verb spells it (apps/annotate's
+  // AA.parseModelVerb): the shell's reading wins over the scene's fallback,
+  // which does not know about a borrowed band.
+  VA.sceneLitCommand = function (lit) {
+    var ids = lit ? Object.keys(lit.edges || {}).filter(function (id) {
+      return lit.edges[id];
+    }).sort() : [];
+    return ["model", "lit"].concat(ids.length ? ids : ["all"]);
   };
 
   // The jog zone, and therefore the width the SVG hands the grid: ONE owner

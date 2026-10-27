@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] on P2 every lit node with an anchor and a dot in the DAG's view has its leader across the seam, and nothing else has one",
+  "mutations": [
+    {
+      "contract": "A dot scrolled out of the DAG's view has no leader.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Draws one to every dot, in view or not.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      dotClip: { left: p.left, right: p.right,\n                 top: Math.max(p.top, head ? head.getBoundingClientRect().bottom : p.top, 0),\n                 bottom: Math.min(p.bottom, bottom) },",
+      "replace": "      dotClip: null,"
+    }
+  ]
+}

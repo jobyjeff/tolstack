@@ -295,6 +295,9 @@
     // per render with the nodes it points at, so there is nothing to unwire
     // and nothing that can outlive the elements it marks.
     var hot = hotState(layout);
+    // The page's own listener for the leaders across the seam, which light
+    // with whatever the pointer lights here (topology_app.js).
+    hot.onChange = ctx.onHot || null;
     var geometry = VA.railGeometry(layout, M, positions, { x: xTween });
     // The links' opacity, which is neither the store's business nor the
     // unfold's (VA.linkOpacity says why): a link on a column BOTH
@@ -341,7 +344,12 @@
                           columns: VA.drawnColumn(layout.columns - 1, xTween) + 1,
                           floor: VA.drawnColumn(0, xTween),
                           links: linkAlpha,
-                          width: leaderGeo.width, tweening: !!tween };
+                          width: leaderGeo.width, tweening: !!tween,
+                          // The DAG ends of the leaders across the seam, in
+                          // this SVG's pixels: the page adds the SVG's rect
+                          // (VA.seamDots, topology_app.js's drawSeamLeaders).
+                          seam: VA.seamDots(layout, geometry, marking ? lit : null,
+                                            M, xTween) };
     var index = VA.topologyIndex(topoProj);
 
     // The header and the body share ONE horizontal scrollport
@@ -431,6 +439,8 @@
           ? hscroll.scrollLeft : carried;
       }
     }
+    // The page's overlay reads VA.lastTopoRender.seam and this pane's rect.
+    if (ctx.onPainted) ctx.onPainted();
     return root;
   };
 
@@ -1204,6 +1214,7 @@
   function setHot(hot, key) {
     if (!hot || hot.on === key) return;
     hot.on = key;
+    if (hot.onChange) hot.onChange(key);
     while (hot.marked.length) {
       var was = hot.marked.pop();
       was.el.setAttribute("class", was.base);
@@ -1434,11 +1445,17 @@
     //     (viewer_respine_whole_walk), which is the "it should be fairly
     //     obvious that there are no leader lines pointing to certain
     //     elements" half of the emphasis — absence, not a faded line.
+    //
+    //     Selected by the one rule the leaders across the seam use too
+    //     (VA.selectedLeaderNodes): a node's own, an edge's two ends -- and
+    //     with anything selected, every other leader steps back.
+    var leaderLit = VA.selectedLeaderNodes(ctx.selection, index);
     leaderGeo.leaders.forEach(function (leader) {
       var node = index.nodes[leader.id];
       var classes = ["rail__leader"];
       if (marking) classes.push("rail__leader--on");
-      if (isSelected(ctx, "node", leader.id)) classes.push("rail__leader--selected");
+      if (leaderLit[leader.id]) classes.push("rail__leader--selected");
+      else if (ctx.selection) classes.push("rail__leader--dim");
       var leaderBase = classes.join(" ");
       // A leader is `--lead` only, never part of the leg's own glow: it leaves
       // the rail rather than running along it, and lighting every leader off a
@@ -2842,4 +2859,33 @@
     VA.cropReference(box, entry, ctx.config, "detail__crop-", VA.PANE_CROP);
     return box;
   }
+
+  // --- the leaders across the seam (leaders_follow_the_active_study_across_
+  // the_seam) -----------------------------------------------------------------
+  //
+  // The page-level overlay's contents: one path per leader (VA.seamLeaderGeometry)
+  // and a small dot where it meets the scene, in the state the selection and
+  // the pointer give it (VA.seamLeaderStates). A selected leader is drawn
+  // last, so it is on top of the ones it crosses. The overlay takes no
+  // pointer: every gesture stays the DAG's, the grid's or the scene's.
+  VA.renderSeamLeaders = function (svg, geo, states) {
+    VA.clear(svg);
+    var order = (geo && geo.leaders || []).slice().sort(function (a, b) {
+      var sa = states[a.id] === VA.SEAM_LEADER_STATES[0] ? 1 : 0;
+      var sb = states[b.id] === VA.SEAM_LEADER_STATES[0] ? 1 : 0;
+      return sa - sb;
+    });
+    order.forEach(function (leader) {
+      var state = states[leader.id];
+      var suffix = state ? " seam__leader--" + state : "";
+      var path = VA.svg("path", "seam__leader" + suffix, { d: leader.d });
+      path.setAttribute("data-node-id", leader.id);
+      svg.appendChild(path);
+      var end = VA.svg("circle", "seam__end" + (state ? " seam__end--" + state : ""),
+        { cx: leader.to[0], cy: leader.to[1], r: VA.SEAM_END_RADIUS });
+      end.setAttribute("data-node-id", leader.id);
+      svg.appendChild(end);
+    });
+    return svg;
+  };
 })(window.ViewerApp = window.ViewerApp || {});

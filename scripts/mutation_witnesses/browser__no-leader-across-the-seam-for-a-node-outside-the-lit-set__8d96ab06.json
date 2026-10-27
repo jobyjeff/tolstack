@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "no leader across the seam for a node outside the lit set, whatever the scene posts",
+  "mutations": [
+    {
+      "contract": "Only the lit set's nodes have a DAG end.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Gives every drawn node one, lit or not.",
+      "file": "apps/viewer/topology.js",
+      "find": "    Object.keys(lit.nodes || {}).sort().forEach(function (id) {\n      if (!lit.nodes[id]) return;",
+      "replace": "    Object.keys(marks).sort().forEach(function (id) {\n      if (!marks[id]) return;"
+    }
+  ]
+}

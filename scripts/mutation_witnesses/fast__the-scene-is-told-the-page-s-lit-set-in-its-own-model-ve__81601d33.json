@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the scene is told the page's lit set in its own model verb",
+  "mutations": [
+    {
+      "contract": "No lit set is `model lit all`, never a bare `model lit`.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Posts a bare `model lit`, which the scene's verb refuses.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return [\"model\", \"lit\"].concat(ids.length ? ids : [\"all\"]);",
+      "replace": "    return [\"model\", \"lit\"].concat(ids);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the leaders across the seam start at each lit node's dot, turn once left of the rails and end at its anchor; the whole walk has none",
+  "mutations": [
+    {
+      "contract": "A leader leaves its node from the dot's own left side.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Starts every leader on the dot's right side instead.",
+      "file": "apps/viewer/topology.js",
+      "find": "        out.dots[id] = [mark.x - r - 1.5, mark.y];",
+      "replace": "        out.dots[id] = [mark.x + r + 1.5, mark.y];"
+    }
+  ]
+}

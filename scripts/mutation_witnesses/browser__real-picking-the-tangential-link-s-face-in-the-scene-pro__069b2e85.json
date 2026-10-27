@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] picking the tangential link's face in the scene produces the state its contributor row does",
+  "mutations": [
+    {
+      "contract": "A picked body's one lit edge is the selection.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Finds no edge on any body.",
+      "file": "apps/viewer/topology.js",
+      "find": "      return parts[e.part] && (!lit || lit.edges[e.id]);",
+      "replace": "      return false;"
+    }
+  ]
+}

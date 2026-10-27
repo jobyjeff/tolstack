@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "a synthetic annotate:anchors message draws one leader per lit node, from its DAG dot to the iframe's rect plus its anchor",
+  "mutations": [
+    {
+      "contract": "A DAG end is the pane's point plus the rails SVG's rect.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Forgets the rect, so every leader starts at the window's corner.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      dots[id] = [r.left + d[0], r.top + d[1]];",
+      "replace": "      dots[id] = [d[0], d[1]];"
+    }
+  ]
+}

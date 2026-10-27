@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "a column resized with no repaint re-draws the leaders onto the moved rects, with no new anchors message",
+  "mutations": [
+    {
+      "contract": "A rect that moves without a repaint re-draws the leaders: the one ResizeObserver.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Observes nothing. A window resize would still re-draw through the repaint it causes, which is why the guard narrows a column instead.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {",
+      "replace": "      [].forEach(function (n) {"
+    }
+  ]
+}
