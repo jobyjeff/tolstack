@@ -1388,6 +1388,26 @@
           confidence: "traced", source_kind: "drawing", gap: null, note: null },
       ];
     };
+    // Every contributor's row at every point (`contributors[].by_point[]`,
+    // 2026-10-26), agreeing with the stops' rows at points 0 and 4. The gap
+    // row's coefficient changes sign mid-sweep, so the hover curve has a zero
+    // crossing to show.
+    var byPoint = function (signs, coefficients, half) {
+      return coefficients.map(function (c, i) {
+        return { index: i, sign: signs[i], coefficient: c,
+                 magnitude: half === null ? null : c * half };
+      });
+    };
+    var contributors = [
+      { edge: "arm_pin_to_tip",
+        by_point: byPoint([-1, -1, -1, -1, -1], [2.5, 2.6, 2.75, 2.9, 3.0], 0.1) },
+      { edge: "base_thickness",
+        by_point: byPoint([1, 1, 1, 1, 1], [1.2, 1.1, 1.0, 1.1, 1.2], 0.05) },
+      { edge: "post_height",
+        by_point: byPoint([1, 1, -1, -1, 1], [0.8, 0.4, 0.1, 0.5, 0.8], null) },
+      { edge: "strut_length",
+        by_point: byPoint([1, 1, 1, 1, 1], [0.0, 0.3, 0.5, 0.3, 0.0], 0.2) },
+    ];
     var stop = function (id, label, target, at, scale) {
       return Object.assign({ id: id, label: label, target: target,
         context_ref: null, gap_count: 1, rows: rows(scale) }, envelope[at]);
@@ -1435,8 +1455,10 @@
                  n_points: envelope.length, features_in_artifact: false },
         contributor_count: 4, gap_count: 1,
         gap_rows: [{ edge: "post_height", gap: "No band for the post height is " +
-          "cited anywhere yet.", band_source: { kind: "gap" } }],
+          "cited anywhere yet.", band_source: { kind: "gap" },
+          drawings: [{ part: "post", part_name: "post", drawing: null, on_file: false }] }],
         envelope: envelope,
+        contributors: contributors,
         stops: [stop("low", "low stop", -7.0, 0, 1.0),
                 stop("high", "high stop", 72.0, 4, 1.2)],
         checks: [check("low", "pass", 0.19, 0.31),

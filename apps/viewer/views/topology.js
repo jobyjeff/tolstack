@@ -102,6 +102,19 @@
     leaderStyle.onclick = handlers.onLeaderStyle;
     root.appendChild(leaderStyle);
 
+    // The model outside the page's lit set, dimmed or hidden
+    // (VA.UNLIT_STYLES). Only where something IS lit -- a study, or a
+    // kinematic page -- since on the whole walk there is nothing outside it.
+    if (handlers.onUnlitStyle && (state.mode === "kinematic" || state.studyId)) {
+      var unlitPreset = VA.UNLIT_STYLES[state.unlitStyle] ||
+        VA.UNLIT_STYLES[VA.DEFAULT_UNLIT_STYLE];
+      var unlit = VA.el("button", "ghost tvpick__mode", "Unused: " + unlitPreset.label);
+      unlit.setAttribute("id", "unlit-style-toggle");
+      unlit.setAttribute("title", unlitPreset.title);
+      unlit.onclick = handlers.onUnlitStyle;
+      root.appendChild(unlit);
+    }
+
     // The study's own 3D affordance, only once a real study is selected --
     // "trace this in 3D" means nothing about the whole topology, only about
     // one human-lassoed chain. Two forms of the same capability (handoff
@@ -199,13 +212,22 @@
     // entire dag/model should still be visible." So the rails never change
     // shape; what a study selection changes is emphasis, leaders and the
     // table beside them.
-    var layout = VA.spineRight(topoProj.layout);
+    //
+    // What is EMPHASIZED is the page's lit set (VA.studyLitSet, topology.js):
+    // a kinematic page hands its own in as `ctx.lit`, a chain study's is its
+    // chain. A study that refused to sum has no chain to emphasize (the error
+    // is the result), so it leaves the walk at full emphasis exactly as no
+    // selection does. With the unlit part HIDDEN (VA.UNLIT_STYLES) the walk
+    // drawn is the lit part re-laid (VA.hideUnlit) rather than the whole of it.
+    var lit = ctx.lit || VA.studyLitSet(study);
+    var marking = !!lit;
+    var hiding = marking && ctx.unlitStyle === "hide";
+    var layout = VA.spineRight(hiding ? VA.hideUnlit(topoProj.layout, lit)
+                                      : topoProj.layout);
+    // The chain's ordinals and contributions, for the grid's # and
+    // contribution columns: a chain study's own, empty on a kinematic page,
+    // whose contributions are its own table's business.
     var chain = VA.chainIndex(study);
-    var chainNodes = VA.chainNodes(study);
-    // Whether a study is EMPHASIZED here: a study that refused to sum has no
-    // chain to emphasize (the error is the result), so it leaves the walk at
-    // full emphasis exactly as no selection does.
-    var marking = !!(study && study.status === "ok");
     // The merged-row grid and the leaders come off ONE plan of the same walk
     // the rails were drawn from (viewer_leader_line_grid, 2026-09-10): the
     // grid holds only the edge rows, grouped into components, and each
@@ -217,8 +239,7 @@
     // the chain's rows and the leaders run only to chain nodes, while the
     // rails above keep every node and edge of the walk. The DAG holds the
     // context; the table holds the sum.
-    var plan = VA.gridPlan(layout, topoProj,
-      marking ? { edges: chain, nodes: chainNodes } : null);
+    var plan = VA.gridPlan(layout, topoProj, lit);
     // The keyed position store (viewer_edge_length_scaling): every dot and
     // bar's y, computed ONCE per render and addressed by id, under whichever
     // length mode is on. Both geometry passes below read this same store, so
@@ -332,8 +353,9 @@
     var head = header(leaderGeo, ctx, paneWidth);
     hscroll.appendChild(head);
     var body = VA.el("div", "tv__body");
-    body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes,
-      marking, ctx, fade, fadeLink, hot));
+    body.appendChild(railsSvg(geometry, leaderGeo, index,
+      marking ? lit.edges : {}, marking ? lit.nodes : {}, marking, ctx, fade,
+      fadeLink, hot));
     var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset,
       fade, hot);
     // The grid is the one block a respine CROSS-FADES rather than moves. Its
@@ -580,6 +602,15 @@
   function paneBudget(root, metrics) {
     if (!root || typeof root.getBoundingClientRect !== "function") return 0;
     if (typeof window === "undefined" || !window.innerHeight) return 0;
+    // A bounded pane (the kinematic page's, topology.css) fits its own cap,
+    // not the window: the rows past it are a scroll of the box away.
+    var cap = root.classList && root.classList.contains("tv__scroll--bounded") &&
+      typeof window.getComputedStyle === "function"
+      ? parseFloat(window.getComputedStyle(root).maxHeight) : NaN;
+    if (cap > 0) {
+      return Math.max(cap - VA.DAG_FIT.headHeight - VA.DAG_FIT.slack,
+                      metrics.rowHeight * VA.DAG_FIT.minRows);
+    }
     var rect = root.getBoundingClientRect();
     return VA.dagHeightBudget(rect.top + (window.scrollY || 0),
       window.innerHeight, metrics);
@@ -2358,7 +2389,8 @@
       " → " + VA.nodeLabel(ctx.topoProj, edge.to)));
 
     // Deep link OUT to apps/annotate/ (deliverable 4): only for the two loud
-    // gap confidences -- a traced/inferred edge already has a citation, and a
+    // gap confidences and, since 2026-10-26, a structural edge with no value
+    // at all (VA.needsAnnotation's `edge`) -- a traced/inferred edge already has a citation, and a
     // binding is identity, never a value source (docs/ANNOTATION_SURFACE.md),
     // so sending a click there for an already-sourced row would offer nothing.
     //
@@ -2368,7 +2400,7 @@
     // a face -- the click would land on its empty state. Nothing is shown in
     // that case, not a disabled control: the honest fix is installing the
     // mesh, and the row stays on the gap list either way.
-    if (VA.needsAnnotation(edge.confidence) &&
+    if (VA.needsAnnotation(edge.confidence, edge) &&
         VA.partHasMesh(ctx.topoProj, edge.part)) {
       var annotateParams = {
         topologyId: ctx.topoProj.id,

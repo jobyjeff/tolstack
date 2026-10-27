@@ -59,6 +59,12 @@
     // VA.DEFAULT_LEADER_STYLE, topology.js. A display preference like the
     // three above -- selectTopology() never resets it.
     leaderStyle: VA.DEFAULT_LEADER_STYLE,
+    // "dim" | "hide" -- what the DAG does with the model outside the page's
+    // lit set (VA.UNLIT_STYLES, VA.DEFAULT_UNLIT_STYLE, topology.js). A
+    // display preference like the leader style, in-session like it, and kept
+    // across every page that has a lit set: a chain study and a kinematic
+    // study alike.
+    unlitStyle: VA.DEFAULT_UNLIT_STYLE,
     // How far the jog zone has been dragged open, as a multiple of its own
     // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
     // a pixel width precisely BECAUSE it outlives the topology it was set on:
@@ -179,6 +185,7 @@
       pane: document.getElementById("topopane"),
       stackview: document.getElementById("stackview"),
       kinematicview: document.getElementById("kinematicview"),
+      kinematichead: document.getElementById("kinematichead"),
       totals: document.getElementById("totals"),
       legendToggle: document.getElementById("legend-toggle"),
       legendDialog: document.getElementById("legend-dialog"),
@@ -528,9 +535,18 @@
 
   // --- selection: kinematic mode ---------------------------------------------
 
+  // A kinematic study is a lit subset of its topology's one model
+  // (2026-10-26), so its page has the topology open underneath it: the DAG
+  // draws `state.topologyId`, and a selection on the page is an element of
+  // that topology. No chain study is selected -- the lit set is the
+  // kinematic study's own (VA.kinematicLitSet).
   function selectKinematic(studyId) {
+    var study = VA.findKinematicStudy(state.kinematic, studyId);
     state.mode = "kinematic";
     state.kinematicId = studyId;
+    state.topologyId = study ? study.topology : null;
+    state.studyId = null;
+    state.selection = null;
     state.detailImage = null;
   }
 
@@ -648,10 +664,13 @@
   // the annotator in a new tab where it did not (file://, a server without the
   // sibling mount). It does not change what this page shows: the 3D scene IS
   // the model, and there is no page of it here to switch to.
+  // A kinematic study's page draws its topology's model with the study's
+  // lit set emphasized, so arriving on it from the same topology is a
+  // respine like a chain study's (the walk stays; the emphasis moves).
   function onNavKinematic(studyId) {
     selectKinematic(studyId);
     hideCrop();
-    navigate(rewind);
+    navigate(respine);
   }
 
   function onNavKinematicModel(topologyId, runId) {
@@ -663,17 +682,16 @@
     }
   }
 
-  // A contributor row on the kinematic page follows its edge to that edge's
-  // rail -- the same place `?topology=<id>&edge=<id>` lands, which is what the
-  // row's own href says for a reader who opens it in a new tab instead.
+  // A contributor row on the kinematic page selects its edge IN PLACE
+  // (2026-10-26): the page stays the kinematic study, the DAG beside it
+  // marks the edge, and the preview pane shows its citation and crop. The
+  // row's own href is still the `?topology=<id>&edge=<id>` deep link, for a
+  // reader who opens it in a new tab. With the 3D pane open the scene stays
+  // in sweep mode and the edge is highlighted there (followSelection).
   function onKinematicEdge(topologyId, edgeId) {
-    if (!VA.findTopology(state.topologies, topologyId)) return;
-    selectTopology(topologyId);
-    state.selection = { kind: "edge", id: edgeId };
+    if (topologyId !== state.topologyId) return;
     hideCrop();
-    navigate(function () {
-      loadDetailImage().then(rewind, rewind);
-    });
+    selectElement("edge", edgeId);
   }
 
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
@@ -734,8 +752,7 @@
   function loadDetailImage() {
     state.detailImage = null;
     var entry;
-    if (state.mode === "kinematic") return Promise.resolve();
-    if (state.mode === "topology") {
+    if (state.mode === "topology" || state.mode === "kinematic") {
       var selection = state.selection;
       if (!selection || selection.kind !== "edge") return Promise.resolve();
       var edge = VA.topologyIndex(currentTopology()).edges[selection.id];
@@ -1166,14 +1183,28 @@
     if (!nodes.flyout || !nodes.flyout.open || !state.annotateMount) return;
     var params = currentAnnotateParams();
     var key = paramsKey(params);
-    if (key === paneFollowed) return;
-    paneFollowed = key;
-    if (params) drivePane(params);
-    refitPane();
+    if (key !== paneFollowed) {
+      paneFollowed = key;
+      if (params) drivePane(params);
+      refitPane();
+    }
+    // On a kinematic page the scene stays in sweep mode whatever is selected
+    // (VA.annotateParamsFor keeps returning the sweep), and a selected edge
+    // is HIGHLIGHTED there instead: the same `highlight` a hover posts, never
+    // a `goto`, which would take the scene out of the sweep.
+    if (state.mode === "kinematic") schedulePaneHover(selectedPaneTarget());
   }
 
-  // The page under a pane that stays changes shape -- the kinematic page has
-  // no preview pane, a chain study has one and a drawing -- so the pane's
+  // The edge a kinematic page has selected, as a hover target: what the
+  // scene shows highlighted while the pointer rests on nothing in particular.
+  function selectedPaneTarget() {
+    if (state.mode !== "kinematic" || !state.selection ||
+        state.selection.kind !== "edge") return null;
+    return { topologyId: state.topologyId, edgeId: state.selection.id };
+  }
+
+  // The page under a pane that stays changes shape -- a stack page has no
+  // DAG, a chain or kinematic study has one and a drawing -- so the pane's
   // width is re-fitted to the new page from the width the reader CHOSE, not
   // from whatever the last page squeezed it to. Not remembered: a width the
   // layout imposed is not a preference (the same rule launchAnnotate keeps).
@@ -1355,7 +1386,9 @@
     if (typeof document === "undefined" || !document.addEventListener) return;
     document.addEventListener("mouseover", function (event) {
       if (!nodes.flyout || !nodes.flyout.open) return;
-      schedulePaneHover(paneHoverTarget(event.target));
+      // Resting on nothing falls back to the page's selected edge, where it
+      // has one, rather than clearing the scene's highlight under it.
+      schedulePaneHover(paneHoverTarget(event.target) || selectedPaneTarget());
     });
   }
 
@@ -1693,21 +1726,30 @@
     var showTopology = state.mode === "topology";
     var showKinematic = state.mode === "kinematic";
     var showStack = !showTopology && !showKinematic;
+    var kinematicStudy = showKinematic
+      ? VA.findKinematicStudy(state.kinematic, state.kinematicId) : null;
+    // The kinematic page draws its topology's model between its head and its
+    // body (2026-10-26): the same DAG a chain study's page draws, with the
+    // kinematic study's lit set in place of a chain. A study whose topology
+    // the projection does not carry has no model to draw.
+    var showDag = showTopology || (showKinematic && !!topoProj);
 
-    nodes.toolbar.style.display = showTopology ? "" : "none";
+    nodes.toolbar.style.display = showDag ? "" : "none";
     nodes.topojoint.style.display = showTopology ? "" : "none";
-    nodes.pane.style.display = showTopology ? "" : "none";
+    nodes.pane.style.display = showDag ? "" : "none";
     nodes.totals.style.display = showTopology ? "" : "none";
     nodes.stackview.style.display = showStack ? "" : "none";
-    // The kinematic page is a whole page and has nothing for the preview pane
-    // to preview -- a contributor row follows its edge to the rail instead --
-    // so the pane and its divider stand down and give the chart the width.
     if (nodes.kinematicview) {
       nodes.kinematicview.style.display = showKinematic ? "" : "none";
     }
-    nodes.detail.style.display = showKinematic ? "none" : "";
-    if (nodes.detailDivider) {
-      nodes.detailDivider.style.display = showKinematic ? "none" : "";
+    if (nodes.kinematichead) {
+      nodes.kinematichead.style.display = showKinematic ? "" : "none";
+    }
+    // `.tv--kinematic` bounds the DAG's height on the kinematic page so the
+    // numbers under it are a scroll away rather than a model's height away
+    // (topology.css).
+    if (nodes.pane && nodes.pane.classList) {
+      nodes.pane.classList.toggle("tv__scroll--bounded", showKinematic);
     }
     // The legend ("how to read the rails") is a topology-mode concept, always
     // offered there. The worksheet is offered wherever the SELECTED node
@@ -1737,9 +1779,12 @@
     if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
     if (!hasWorksheet && nodes.worksheetDialog.open) nodes.worksheetDialog.close();
 
-    if (showTopology) {
+    if (showDag) {
       var ctx = {
-        topoProj: topoProj, study: study, crops: state.crops,
+        topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
+        // The kinematic page's lit set; a chain study's is read off `study`.
+        lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
+        unlitStyle: state.unlitStyle,
         // The same config the stack pane and the popovers get: since the
         // preview pane started rendering the crop's links through the shared
         // VA.cropReference (viewer_component_names_and_reference_copy) it
@@ -1806,8 +1851,15 @@
         // "View in 3D" (study_3d_flyout): the toolbar builds the params
         // (topology + study + trace), this just launches them.
         onStudy3d: launchAnnotate,
+        // Dim or hide the model outside the lit set: which rows are on
+        // screen changes, so the pane goes back to the top -- rewind().
+        onUnlitStyle: function () {
+          var style = VA.UNLIT_STYLES[state.unlitStyle];
+          state.unlitStyle = style ? style.next : VA.DEFAULT_UNLIT_STYLE;
+          rewind();
+        },
       });
-      VA.renderTopoJoint(nodes.topojoint, topoProj);
+      if (showTopology) VA.renderTopoJoint(nodes.topojoint, topoProj);
       if (respineStart && respineStart.topologyId === topoProj.id) {
         // `onError` puts an animation frame's throw on the SAME seam every
         // other render on this page uses: a frame runs off a rAF callback,
@@ -1818,20 +1870,27 @@
       } else {
         VA.renderTopoPane(nodes.pane, ctx);
       }
-      VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
+      if (showTopology) {
+        VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
+      }
       VA.renderTopoDetail(nodes.detail, ctx);
       ensureThumbImages(topoProj);
-    } else if (showKinematic) {
-      VA.renderKinematic(nodes.kinematicview, {
+    }
+    if (showKinematic && !showDag) VA.clear(nodes.detail);
+    if (showKinematic) {
+      var kinematicCtx = {
         kinematic: state.kinematic,
-        study: VA.findKinematicStudy(state.kinematic, state.kinematicId),
+        study: kinematicStudy,
         topologies: state.topologies,
+        selection: state.selection,
         onEdge: onKinematicEdge,
         annotateMount: state.annotateMount,
         onAttach3d: launchAnnotate,
         onCardShow: showCard,
-      });
-    } else {
+      };
+      if (nodes.kinematichead) VA.renderKinematicHead(nodes.kinematichead, kinematicCtx);
+      VA.renderKinematic(nodes.kinematicview, kinematicCtx);
+    } else if (showStack) {
       VA.renderStack(nodes.stackview, stackProj, state.crops, {
         onCropShow: showCrop,
         onCardShow: showCard,
@@ -1933,7 +1992,14 @@
 
   function rewind() {
     render();
-    if (nodes.pane) nodes.pane.scrollTop = 0;
+    // The kinematic page's model is a bounded box (topology.css), and its
+    // grid -- the lit rows, the ones the page is about -- is centred against
+    // the whole walk, so on a product-sized model it starts a long way down.
+    // The box opens with that grid at its top instead of at the walk's first
+    // row.
+    var offset = state.mode === "kinematic" && VA.lastTopoRender &&
+      VA.lastTopoRender.positions ? VA.lastTopoRender.positions.gridOffset || 0 : 0;
+    if (nodes.pane) nodes.pane.scrollTop = Math.max(0, offset - 24);
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
     if (nodes.kinematicview) nodes.kinematicview.scrollTop = 0;
   }

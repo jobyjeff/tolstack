@@ -39,6 +39,10 @@
          element. -->
     <nav id="navtree" class="navtree"></nav>
     <div class="tv__main">
+      <!-- A kinematic study's head (views/kinematic.js): its name and its
+           verdict per stop, ABOVE the model, so the verdicts are on screen
+           first; the rest of the page is #kinematicview, below the model. -->
+      <section id="kinematichead" class="kmhead" style="display: none"></section>
       <div id="toolbar" class="tv__toolbar"></div>
       <!-- The topology's own joint block (deliverable 4, viewer_v2_single_nav):
            the same free-form assembly/context prose a stack's carries,
@@ -48,8 +52,8 @@
       <div id="topojoint" class="tv__jointwrap"></div>
       <section id="topopane" class="tv__scroll"></section>
       <section id="stackview" class="stackview"></section>
-      <!-- A kinematic study's own page (views/kinematic.js): its verdict per
-           stop, the envelope chart and the ranked contributors per stop. -->
+      <!-- A kinematic study's body (views/kinematic.js), under the model: the
+           envelope chart and the one contributor table. -->
       <section id="kinematicview" class="kmview" style="display: none"></section>
       <section id="totals" class="tvtotals"></section>
     </div>

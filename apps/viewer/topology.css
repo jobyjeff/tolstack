@@ -1298,8 +1298,20 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    document. Type, colour and spacing are the :root tokens and nothing else
    (docs/DESIGN_TYPE_AND_COLOUR.md); the one accent is the verdict chip. */
 .tv__main > .kmview { flex: 1 1 auto; min-height: 0; }
-.kmview { padding: 14px 18px 24px; min-width: 0; overflow-x: auto; }
+.kmview { padding: 10px 18px 24px; min-width: 0; overflow-x: auto; }
+/* The head sits ABOVE the model (2026-10-26): the study's name and its
+   verdicts are the first thing on screen, the DAG under them. */
+.tv__main > .kmhead { flex: 0 0 auto; padding: 12px 18px 4px; }
 .kmhead__title { font-size: var(--t-title); margin: 0 0 8px; }
+/* On the kinematic page the model is context for the numbers under it, so
+   it gets a bounded box with its own scroll instead of its whole height:
+   at 1600x1000 the verdicts, the model and the top of the chart are all on
+   the first screen. The cap is read back by views/topology.js's paneBudget,
+   so a scaled length mode fits the box and not the window. */
+.tv__scroll.tv__scroll--bounded {
+  flex: 0 0 auto; max-height: 50vh; overflow-y: auto;
+  border-bottom: 1px solid var(--line);
+}
 /* One grid for every stop's verdict, so the stop names, the margins and the
    limits line up in columns whatever width each verdict word's chip is. */
 .kmhead__verdicts {
@@ -1341,16 +1353,11 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .kmchart__tiprow { display: flex; justify-content: space-between; gap: 14px; }
 .kmchart__tiplabel { color: var(--muted); }
 
-/* One table per stop, stacked: the two stops' rankings read against each
-   other down the page, and neither hides behind a control. */
-.kmstop { margin: 0 0 18px; }
-/* A stop's name is a title a reader stops at, not the uppercase section
-   label a bare h3 is app-wide (style.css). */
-.kmstop__title {
-  font-size: var(--t-body); margin: 0 0 2px; text-transform: none;
-  letter-spacing: normal; color: var(--ink);
-}
-.kmstop__where { margin: 0 0 6px; font-size: var(--t-meta); }
+/* One table, a row per contributor and a column group per stop
+   (2026-10-26): the group header carries the stop's name and its summary
+   line, and the first column of every group -- and the band -- opens with a
+   rule, so the groups read as groups without a box around each. */
+.kmcontrib { margin: 0 0 18px; overflow-x: auto; }
 .kmtable { border-collapse: collapse; font-size: var(--t-dense); }
 .kmtable th {
   text-align: left; color: var(--muted); font-size: var(--t-micro);
@@ -1358,7 +1365,36 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 }
 .kmtable th.num { text-align: right; }
 .kmtable td { padding: 3px 10px 3px 0; vertical-align: baseline; }
+.kmtable .kmtable__first { padding-left: 14px; border-left: 1px solid var(--line); }
+.kmtable__groups th { border-bottom: none; padding-bottom: 0; vertical-align: bottom; }
+.kmtable__groups .kmtable__stop { padding-left: 14px; border-left: 1px solid var(--line); }
+.kmtable__stoplabel { color: var(--ink); font-size: var(--t-dense); font-weight: 600; }
+.kmtable__stopsum { font-weight: 400; font-size: var(--t-micro); white-space: nowrap; }
 .kmtable tbody tr:hover { background: #20242c; }
+.kmtable tbody tr { cursor: pointer; }
+.kmrow--selected td { background: #252b36; }
+.kmrow--selected .kmrow__edge { color: var(--accent); }
+.kmcell--muted { color: var(--muted); }
+
+/* A coefficient's curve across the sweep, on hover or focus of its cell:
+   drawn on first hover (views/kinematic.js), shown only while the cell is. */
+.kmcell--coef { position: relative; }
+.kmcurve {
+  display: none; position: absolute; z-index: 5; right: 0; top: 100%;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+  padding: 6px 8px 4px; text-align: left; white-space: nowrap;
+}
+.kmcell--coef:hover .kmcurve, .kmcell--coef:focus .kmcurve,
+.kmcell--coef:focus-within .kmcurve { display: block; }
+.kmcurve__title { font-size: var(--t-meta); color: var(--ink); margin-bottom: 2px; }
+.kmcurve__svg { display: block; }
+.kmcurve__frame { fill: none; stroke: var(--line); }
+.kmcurve__zero { stroke: var(--muted); stroke-width: 1; }
+.kmcurve__stop { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.kmcurve__stop--on { stroke: var(--accent); stroke-dasharray: none; }
+.kmcurve__line { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.kmcurve__tick { fill: var(--muted); font-size: var(--t-micro); }
+.kmcurve__axis { font-size: var(--t-micro); }
 .kmrow__edge { color: var(--ink); text-decoration: none; }
 .kmrow__edge:hover, .kmrow__edge:focus { text-decoration: underline; }
 .kmrow__zone { color: var(--muted); }
