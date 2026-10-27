@@ -5124,6 +5124,25 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       claim.** Same handoff: the shot taken to prove a hide also showed the new
       link-joint checkbox wrapping to its own line (a right `float` appended after
       an inline-block that fills its line). No tier measures it; the PNG did.
+- [ ] **A browser suite labelled "flakes under load" on a diff that grew the
+      graph it paints — A/B it against `integration` before accepting the
+      label.** New 2026-10-26 (`pitch_system_folds_into_the_pitch_linkage_model`).
+      The fold made the live DAG ~106 rows and `topology file:// respine`'s
+      `catchFrame()` checks went red in 4 of 4 runs at 16% CPU. The same suite
+      against a projection built from `integration` passed 2 of 2. The lesson
+      and an issue called it a load race with an `--only` 40/40 as proof. Build
+      a scratch root per tree (`git archive integration` into
+      `data/scratch/…`, then the five builders) and run the suite `--only` on
+      each, several times. A red that follows the tree is a regression, even when
+      its mechanism is a timing race. `VA.RESPINE.duration` is a mutable test
+      knob for this suite.
+- [ ] **A sibling's `[real]` browser pin that only passes on the main
+      checkout's STALE projection.** Same review: the rail's gap-badge checks
+      expect two kinematic rows that `the_tangential_link_cites_its_drawing` had
+      already banded. They were green only because `data/projections/` predated
+      that handoff. When a red `[real]` check names data your diff did not
+      touch, run it on a fresh `integration` build before charging it to the
+      branch (`ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has.md`).
 
 ## Architectural errors to check
 
