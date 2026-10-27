@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] the mechanism tree is nested under the study's own nav row: its bodies, its joints, the study's contributors and the type chips",
+  "mutations": [
+    {
+      "contract": "The active kinematic study's nav row carries the slot the scene's tree is drawn into.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "Without the slot the annotator still sends its tree and nothing draws it.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        if (active) sceneSlot(item, handlers);",
+      "replace": "        if (false) sceneSlot(item, handlers);"
+    }
+  ]
+}

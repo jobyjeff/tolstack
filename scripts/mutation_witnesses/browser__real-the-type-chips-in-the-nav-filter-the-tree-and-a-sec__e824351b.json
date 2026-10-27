@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] the type chips in the nav filter the tree, and a second press puts the rows back",
+  "mutations": [
+    {
+      "contract": "The type chips move with the tree: a chip in the nav presses the annotator's own chip.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "A chip that renders pressed and does nothing is the shape this mutation takes.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        button.onclick = function () { send(chip.key, \"button\", 0); };",
+      "replace": "        button.onclick = function () { };"
+    }
+  ]
+}

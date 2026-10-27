@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the preview pane stands down while the scene is open on a topology page",
+  "mutations": [
+    {
+      "contract": "On a topology or kinematic page the preview pane gives its room to the scene while the scene is open.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "Narrowing the rule to stack pages keeps the class machinery and every name, and leaves the preview standing.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      open && (state.mode === \"topology\" || state.mode === \"kinematic\"));",
+      "replace": "      open && state.mode === \"stack\");"
+    }
+  ]
+}

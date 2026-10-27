@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] clicking a contributor row in the nav selects it in the scene, and the row shows it selected",
+  "mutations": [
+    {
+      "contract": "A click on a mirrored row runs the rail row's own click in the annotator.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "The gesture arrives and is dropped: the shell looks fine and nothing is selected.",
+      "file": "apps/annotate/app.js",
+      "find": "    hit.node.click();",
+      "replace": "    void hit.node;"
+    }
+  ]
+}

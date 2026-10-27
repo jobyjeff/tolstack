@@ -1409,7 +1409,9 @@
       ? nodes.navtree.querySelector(".navtree__scene") : null;
     if (!slot) return;
     var focus = sceneFocus(slot);
+    var wasEmpty = !slot.childNodes || !slot.childNodes.length;
     VA.renderSceneTree(slot, sceneTree, { send: sceneRail });
+    if (wasEmpty && sceneTree) revealSceneRow(slot);
     if (!focus) return;
     var rows = slot.querySelectorAll("[data-scene-key]");
     for (var i = 0; i < rows.length; i++) {
@@ -1419,6 +1421,19 @@
       if (target && target.focus) target.focus();
       break;
     }
+  }
+
+  // The tree arriving under a row the nav has scrolled away from brings
+  // that row up to the top of the nav, once per arrival -- never on a
+  // refresh, which would yank the reader's own scrolling back.
+  function revealSceneRow(slot) {
+    var nav = nodes.navtree;
+    var row = slot.parentNode && slot.parentNode.firstChild;
+    if (!nav || !row || !row.getBoundingClientRect || !nav.getBoundingClientRect) return;
+    var n = nav.getBoundingClientRect();
+    var r = row.getBoundingClientRect();
+    if (r.top >= n.top && r.top <= n.top + n.height / 2) return;
+    nav.scrollTop += r.top - n.top - 8;
   }
 
   // The preview pane stands down while the scene is open on a page with a

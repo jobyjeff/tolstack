@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] the kinematic page reads nav | scene | DAG, left to right, with no preview pane",
+  "mutations": [
+    {
+      "contract": "On a live kinematic study with the scene open the order is nav | scene | DAG and the preview pane is gone.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "A selector typo in the stand-down rule leaves the preview pane at the right edge; only the live layout shows it.",
+      "file": "apps/viewer/topology.css",
+      "find": "body.flyout-replaces-detail #detail,",
+      "replace": "body.flyout-replaces-detail #detail-gone,"
+    }
+  ]
+}

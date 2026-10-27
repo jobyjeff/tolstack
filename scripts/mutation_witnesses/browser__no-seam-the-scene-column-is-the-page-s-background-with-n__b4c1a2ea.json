@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "no seam: the scene column is the page's background, with no border at either side and no hairline on its divider at rest",
+  "mutations": [
+    {
+      "contract": "The scene and the DAG read as one surface: no border on the scene column.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "The mutation is the old panel's right rule, the seam Jeff asked to remove.",
+      "file": "apps/viewer/topology.css",
+      "find": "  border: none; box-shadow: none;",
+      "replace": "  border: none; border-right: 1px solid var(--line); box-shadow: none;"
+    }
+  ]
+}

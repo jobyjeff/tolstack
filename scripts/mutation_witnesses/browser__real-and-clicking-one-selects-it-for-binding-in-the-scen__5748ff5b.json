@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] ...and clicking one selects it for binding in the scene",
+  "mutations": [
+    {
+      "contract": "A click on an element row in the nav selects that element for binding.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "The row's own click, emptied: it still renders focusable and pressable.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      line.onclick = function () { send(row.key, \"activate\"); };",
+      "replace": "      line.onclick = function () { };"
+    }
+  ]
+}

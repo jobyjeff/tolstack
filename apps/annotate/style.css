@@ -592,7 +592,8 @@ body {
    out of the grid, invisible and untouchable -- and app.js mirrors the rows
    it renders (postEmbedTree reads "is this row shown?" off the layout, which
    is why the rail keeps its boxes rather than going `display: none`). The
-   command box goes, its strip of canvas comes back, and the page takes the
+   command box goes, its strip of canvas comes back, the app's own title goes
+   (the column's head line names what the scene shows), and the page takes the
    shell's background (--embed-bg, read off the embedding page) so the scene
    and the DAG beside it are one surface. */
 body.an--embedded { background: var(--embed-bg, #1b1e22); }
@@ -602,6 +603,7 @@ body.an--embedded .an__rail {
   visibility: hidden; pointer-events: none;
 }
 body.an--embedded #rail-handle,
-body.an--embedded .an__console { display: none; }
+body.an--embedded .an__console,
+body.an--embedded .topbar h1 { display: none; }
 body.an--embedded .an__canvas-host,
 body.an--embedded .an__scene-empty { inset: 0; }

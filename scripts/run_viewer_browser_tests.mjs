@@ -4859,16 +4859,23 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         clear: r.width > 0 && r.left >= p.right,
       };
     });
+    // Since 2026-10-26 (the_shell_seats_the_scene_beside_the_model) the
+    // scene is a COLUMN of the page's row, between the nav and the DAG: nav |
+    // scene | DAG + grid. It was docked at the window's left edge, with the
+    // page shifted out from under it (pane | nav | DAG).
     const docked = await flyoutBox();
-    push("the flyout is pinned to the LEFT edge, not the right",
-      docked && docked.x === 0 && docked.width < win.w);
+    const navOpen = await page.locator("#navtree").boundingBox();
+    push("the scene sits between the nav and the DAG -- the nav at the far " +
+      "left, the scene against its right edge",
+      docked && navOpen && navOpen.x <= 1 && navOpen.width > 0 &&
+      Math.abs(docked.x - (navOpen.x + navOpen.width)) <= 1 && docked.width < win.w);
     const railsOpen = await rails();
     push("the DAG DRAWING is drawn, and entirely clear of the panel -- " +
       "adjacency is the deliverable and the drawing is the thing that has to " +
       "survive, not its scrollport",
       railsOpen.visible > 0 && railsOpen.clear);
     push("...and it sits to the panel's RIGHT, which is what 'beside' means",
-      railsOpen.left >= docked.width);
+      railsOpen.left >= docked.x + docked.width);
 
     // The page YIELDS the room rather than being covered, which is the
     // mechanism that makes the above possible at all: `.tv` starts at the
@@ -4880,22 +4887,42 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     const paneAfter = await page.locator("#topopane").boundingBox();
     push("opening the flyout moves the DAG pane out from under it, rather " +
       "than leaving it underneath",
-      paneBefore && paneAfter && paneAfter.x >= docked.width &&
+      paneBefore && paneAfter && paneAfter.x >= docked.x + docked.width &&
       paneAfter.x > paneBefore.x);
-    // The nav rail STAYS since 2026-10-20 (the_3d_pane_opens_in_the_mode_the_
-    // study_wants): the pane follows what the rail selects, so the rail sits
-    // between the panel and the graph and is shifted with the page.
-    const navBox = await page.locator("#navtree").boundingBox();
-    push("the nav rail stays beside the open panel, to its right, so a " +
-      "selection made in it can follow into the pane",
-      navBox && navBox.width > 0 && navBox.x >= docked.width - 1);
+    // The nav STAYS since 2026-10-20 (the_3d_pane_opens_in_the_mode_the_
+    // study_wants) -- the pane follows what it selects -- and since 2026-10-26
+    // it stays where it is with the scene open: at the far left, the scene
+    // to its right.
+    push("the nav stays at the far left with the scene open, so a selection " +
+      "made in it can follow into the scene",
+      navOpen && navOpen.width > 0 && navOpen.x <= 1 &&
+      navOpen.x + navOpen.width <= docked.x + 1);
+    // One surface: the scene's column wears the page's own background and no
+    // border, and the seams either side of it draw no rule at rest.
+    const seams = await page.evaluate(() => {
+      const css = (sel, pseudo) => getComputedStyle(document.querySelector(sel), pseudo || null);
+      return {
+        page: getComputedStyle(document.body).backgroundColor,
+        scene: css("#annotate-flyout").backgroundColor,
+        sceneBorders: ["Left", "Right"].map((s) => css("#annotate-flyout")["border" + s + "Width"]),
+        navRule: css("#navtree").borderRightWidth,
+        dividerRule: css("#flyout-divider", "::before").backgroundColor,
+        detailShown: css("#detail").display !== "none",
+      };
+    });
+    push("no seam: the scene column is the page's background, with no border " +
+      "at either side and no hairline on its divider at rest",
+      seams.scene === seams.page && seams.sceneBorders.every((w) => w === "0px") &&
+      seams.navRule === "0px" && seams.dividerRule === "rgba(0, 0, 0, 0)");
+    push("the preview pane stands down while the scene is open on a topology page",
+      !seams.detailShown);
     const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
 
     // The drag seam, on the edge AWAY from the dock -- so the panel grows into
     // the page rather than off the screen.
     const grip = await page.locator("#flyout-divider").boundingBox();
     push("its drag divider sits on the flyout's RIGHT edge",
-      grip && Math.abs((grip.x + grip.width / 2) - docked.width) <= 4);
+      grip && Math.abs((grip.x + grip.width / 2) - (docked.x + docked.width)) <= 4);
     const gripMark = await page.locator("#flyout-divider")
       .evaluate((n) => getComputedStyle(n, "::after").backgroundImage);
     push("the divider shows a grip mark at rest, so nothing has to be " +
@@ -4923,8 +4950,6 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     push("dragging the divider RIGHT widens the flyout (the pane's divider " +
       "runs the other way)",
       widened > narrowed + 100);
-    push("...and the flyout is still pinned to the left edge while it grows",
-      (await flyoutBox()).x === 0);
     const railsWide = await rails();
     push("the drawing is STILL entirely clear of the panel at the widened " +
       "width -- the drag cannot buy panel width with diagram",
@@ -4944,7 +4969,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
 
     // A drag cannot cover the graph whatever the reader does. Dragged clean off
     // the right edge of the window, the whole drawing still has to be clear.
-    await dragBy(win.w + 2000);
+    const maxed = await dragBy(win.w + 2000);
     const railsMaxed = await rails();
     push("dragged past the window edge, the whole drawing is still clear of " +
       "the panel",
@@ -4959,7 +4984,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // nothing were stored at all, which is a check that cannot fail.
     const remembered = await dragBy(-180);
     push("the remembered width is well inside the clamp, so the round-trip " +
-      "below is a real one", remembered < coarse - 100);
+      "below is a real one", remembered < maxed - 100 && remembered > coarse);
     const storedKey = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY);
     push("the width is written to localStorage under the flyout's own key",
       String(await page.evaluate((k) => window.localStorage.getItem(k), storedKey))
@@ -5021,8 +5046,10 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       await fullpage.getAttribute("target") === "_blank" &&
       await fullpage.getAttribute("rel") === "noopener" &&
       /Open full page/.test((await fullpage.textContent()) || ""));
-    push("...pointed at the same url the panel booted with",
-      studyHref === frameSrc);
+    // The panel boots EMBEDDED (its rail is drawn in this page's nav); the
+    // full page is the plain url, menus and all.
+    push("...pointed at the same url the panel booted with, less the embedded flag",
+      studyHref + "&embedded=1" === frameSrc && !/embedded/.test(studyHref));
     // House rule: no internal file or module name in user-facing copy.
     push("its label names no file, module or param",
       !/index\.html|annotate\.js|topology=|\?/.test(
@@ -5430,6 +5457,10 @@ async function installRealAnnotatorReads(page, seed) {
   }, seed);
 }
 
+// Screenshots of the scene column (the_shell_seats_the_scene_beside_the_
+// model), taken by the suite below when SHELL_SCENE_SHOTS names a directory.
+const SHELL_SCENE_SHOTS = process.env.SHELL_SCENE_SHOTS || null;
+
 async function testThreeDPane(browser, fileBase, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -5524,7 +5555,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       "the same link the kinematic study's selection asks for",
       await page.locator("#annotate-flyout").evaluate((n) => n.open) &&
       src === "../annotate/index.html?sweep=" + encodeURIComponent(study.sweep.run_id) +
-        "&kinematic=" + encodeURIComponent(STUDY));
+        "&kinematic=" + encodeURIComponent(STUDY) + "&embedded=1");
     const swept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
       w.__sweep.artifact.runId === run && w.document.querySelector("#sweep-tip") &&
       w.document.querySelector(".an__sweep-summary"), study.sweep.run_id);
@@ -5554,6 +5585,122 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] the pane's head line is the annotator's own answer: the mode " +
       "and the run's mechanism, one line",
       (await headLine()) === "Sweep — " + mechanism);
+
+    // --- the shell seats the scene beside the model (2026-10-26) -----------
+    // nav | scene | DAG + grid, left to right, the preview pane stood down,
+    // and the annotator's own rail drawn in the nav under the study row.
+    const layout = await page.evaluate(() => {
+      const box = (sel) => {
+        const n = document.querySelector(sel);
+        if (!n) return null;
+        const r = n.getBoundingClientRect();
+        return { x: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width) };
+      };
+      return { nav: box("#navtree"), scene: box("#annotate-flyout"),
+        dag: box("#topopane svg.tv__rails"), grid: box(".tv__main"),
+        detail: getComputedStyle(document.querySelector("#detail")).display };
+    });
+    push("[real] the kinematic page reads nav | scene | DAG, left to right, with " +
+      "no preview pane",
+      layout.nav && layout.scene && layout.dag && layout.nav.x <= 1 &&
+      Math.abs(layout.scene.x - layout.nav.right) <= 1 &&
+      layout.dag.x >= layout.scene.right - 1 && layout.detail === "none");
+    const embedded = await inPane((w) => {
+      const rail = w.document.querySelector(".an__rail");
+      const host = w.document.querySelector("#canvas-host").getBoundingClientRect();
+      return {
+        rail: w.getComputedStyle(rail).visibility,
+        console: w.getComputedStyle(w.document.querySelector(".an__console")).display,
+        canvas: Math.round(host.width), page: w.innerWidth,
+      };
+    });
+    push("[real] embedded, the annotator shows neither its rail nor its command " +
+      "box, and its canvas takes the whole column",
+      embedded && embedded.rail === "hidden" && embedded.console === "none" &&
+      embedded.canvas >= embedded.page - 2);
+
+    const studyItem = `li.navtree__item:has(> ${navRow("kinematic", STUDY)})`;
+    const sceneRow = (key) => `${studyItem} .navtree__scene [data-scene-key="${key}"]`;
+    await page.waitForFunction((n) => document.querySelectorAll(
+      '.navtree__scene [data-scene-key^="#sweep-tree/edge="]').length === n,
+    rows.length, { timeout: 15000 }).catch(() => {});
+    const treeCounts = await page.evaluate((item) => {
+      const slot = document.querySelector(item + " .navtree__scene");
+      if (!slot) return null;
+      // A row's own key, not its children's (`<row>/<child>`).
+      const count = (prefix) => Array.from(slot.querySelectorAll(`[data-scene-key^="${prefix}"]`))
+        .filter((n) => n.getAttribute("data-scene-key").slice(prefix.length).indexOf("/") === -1).length;
+      return { bodies: count("#sweep-tree/body="), joints: count("#sweep-tree/joint="),
+        contributors: count("#sweep-tree/edge="),
+        chips: slot.querySelectorAll(".navtree__scenechip").length };
+    }, studyItem);
+    const railCounts = await inPane((w) => ({
+      bodies: w.__sweep.tree.bodies.length, joints: w.__sweep.tree.joints.length }));
+    push("[real] the mechanism tree is nested under the study's own nav row: " +
+      "its bodies, its joints, the study's contributors and the type chips",
+      treeCounts && railCounts && treeCounts.bodies === railCounts.bodies &&
+      treeCounts.joints === railCounts.joints && treeCounts.contributors === rows.length &&
+      treeCounts.chips > 0);
+    if (SHELL_SCENE_SHOTS) {
+      await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1600_kinematic.png") });
+    }
+
+    // Hover from the nav lights the body in the scene; leaving lets it go.
+    const bodyName = await inPane((w) => w.__sweep.tree.bodies[0].name);
+    await page.locator(sceneRow("#sweep-tree/body=" + bodyName))
+      .first().hover({ timeout: 5000 }).catch(() => {});
+    push("[real] resting on a body row in the nav lights that body in the scene",
+      await until((w, name) => w.__lastHover && w.__lastHover.target &&
+        w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name,
+      bodyName, 10000));
+    await page.mouse.move(5, 5);
+    push("[real] ...and leaving it takes the light down",
+      await until((w) => w.__lastHover === null, null, 10000));
+
+    // A click on a contributor row in the nav selects it in the scene, and the
+    // scene's answer marks the row.
+    await page.locator(sceneRow("#sweep-tree/edge=" + unbound.edge))
+      .click({ timeout: 5000 }).catch(() => {});
+    const picked = await until((w, edge) => w.__lastInspect && w.__lastInspect.kind === "contributor" &&
+      w.__lastInspect.name === edge, unbound.edge, 10000);
+    await page.waitForSelector(sceneRow("#sweep-tree/edge=" + unbound.edge) +
+      ".navtree__scenerow--on", { timeout: 5000 }).catch(() => {});
+    push("[real] clicking a contributor row in the nav selects it in the scene, " +
+      "and the row shows it selected",
+      picked && await page.locator(sceneRow("#sweep-tree/edge=" + unbound.edge) +
+        ".navtree__scenerow--on").count() === 1);
+
+    // The keyboard reaches the same rows: focus one, Enter selects it.
+    await page.locator(sceneRow("#sweep-tree/edge=" + bound.edge)).focus().catch(() => {});
+    await page.keyboard.press("Enter");
+    push("[real] a contributor row is reached by the keyboard, and Enter selects it",
+      await until((w, edge) => w.__lastInspect && w.__lastInspect.name === edge,
+        bound.edge, 10000));
+
+    // The other way: a selection made in the scene marks its row (a bead
+    // click is `inspect joint`; the rail selects the joint and leaves its
+    // disclosure as the reader had it).
+    const jointName = await inPane((w) => w.__sweep.tree.joints[0].name);
+    await inPane((w, name) => { w.AnnotateApp.exec(["inspect", "joint", name]); }, jointName);
+    await page.waitForSelector(sceneRow("#sweep-tree/joint=" + jointName) +
+      ".navtree__scenerow--on", { timeout: 5000 }).catch(() => {});
+    push("[real] a joint selected in the scene is selected in the nav",
+      await page.locator(sceneRow("#sweep-tree/joint=" + jointName) +
+        ".navtree__scenerow--on").count() === 1);
+
+    // The type chips move with the tree: one press hides that kind of row.
+    const jointsChip = `${studyItem} [data-scene-chip="chip:joints"]`;
+    await page.locator(jointsChip).click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !document.querySelector(
+      '.navtree__scene [data-scene-key^="#sweep-tree/joint="]'), null, { timeout: 5000 }).catch(() => {});
+    const hiddenJoints = await page.locator('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').count();
+    await page.locator(jointsChip).click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !!document.querySelector(
+      '.navtree__scene [data-scene-key^="#sweep-tree/joint="]'), null, { timeout: 5000 }).catch(() => {});
+    push("[real] the type chips in the nav filter the tree, and a second press " +
+      "puts the rows back",
+      hiddenJoints === 0 &&
+      await page.locator('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').count() > 0);
 
     // The width the reader chooses, on this page -- remembered for step 3.
     const seam = await page.locator("#flyout-divider").boundingBox();
@@ -5585,6 +5732,26 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       (await headLine()) === "Binding — " + chainTitle);
     push("[real] the nav stays beside the open pane -- it is what drives it",
       await page.locator("#navtree").isVisible());
+    // A chain study's tree is its elements and its parts -- bind mode's rail.
+    const chainItem = `li.navtree__item:has(> ${navRow("study", CHAIN)})`;
+    await page.waitForFunction((item) => !!document.querySelector(
+      item + ' .navtree__scene [data-scene-key^="#element-list/"]'), chainItem,
+    { timeout: 15000 }).catch(() => {});
+    const elementRows = await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"]`).count();
+    const railElements = bindMode ? await inPane((w) => w.document.querySelectorAll(".an__rail .el-row").length) : -1;
+    push("[real] on a chain study the nav nests that study's elements under its row, " +
+      "one for each the annotator lists",
+      elementRows > 0 && elementRows === railElements);
+    await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"]`).first()
+      .click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`,
+      { timeout: 5000 }).catch(() => {});
+    push("[real] ...and clicking one selects it for binding in the scene",
+      await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`).count() === 1 &&
+      await inPane((w) => w.document.querySelectorAll(".an__rail .el-row.selected").length) === 1);
+    if (SHELL_SCENE_SHOTS) {
+      await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1600_chain.png") });
+    }
 
     // --- 3. reload -> the pane reopens at its width (on the page the URL
     // names, the kinematic study) ---------------------------------------------
@@ -5639,6 +5806,59 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       stillSwept && /^Sweep — /.test(await headLine()) &&
       await page.locator("div.kmverdict").count() === 2 &&
       await page.locator(`tr.kmrow--selected[data-edge="${bound.edge}"]`).count() === 1);
+
+    // --- 6. the room the DAG and grid get on a chain study ------------------
+    // With the scene at its floor it is at least the room they had with no
+    // scene open at all (the preview pane in its place, at its own default).
+    await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector("svg.tv__rails", { timeout: 15000 }).catch(() => {});
+    const floorSeam = await page.locator("#flyout-divider").boundingBox();
+    if (floorSeam) {
+      await page.mouse.move(floorSeam.x + floorSeam.width / 2, floorSeam.y + 300);
+      await page.mouse.down();
+      await page.mouse.move(floorSeam.x - 2000, floorSeam.y + 300, { steps: 6 });
+      await page.mouse.up();
+    }
+    const atFloor = await page.evaluate(() => ({
+      scene: Math.round(document.querySelector("#annotate-flyout").getBoundingClientRect().width),
+      main: Math.round(document.querySelector(".tv__main").getBoundingClientRect().width),
+      floor: window.ViewerApp.FLYOUT_WIDTH.min,
+    }));
+    await page.locator("#flyout-close").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !document.body.classList.contains("flyout-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    const noPane = await page.evaluate(() => ({
+      main: Math.round(document.querySelector(".tv__main").getBoundingClientRect().width),
+      detail: getComputedStyle(document.querySelector("#detail")).display,
+    }));
+    console.log(`    [chain study at 1600] DAG + grid: ${atFloor.main}px with the scene at ` +
+      `its ${atFloor.scene}px floor, ${noPane.main}px with no scene open`);
+    push("[real] on a chain study at 1600 wide, the DAG and grid get at least as " +
+      "much room with the scene at its floor as with no scene open",
+      atFloor.scene === atFloor.floor && atFloor.main >= noPane.main && noPane.main > 0);
+    push("[real] ...and closing the scene brings the preview pane back",
+      noPane.detail !== "none");
+
+    if (SHELL_SCENE_SHOTS) {
+      // The same two pages at 1920, the scene at its default width.
+      const keys0 = await storedKeys();
+      await page.evaluate((ks) => window.localStorage.removeItem(ks[0]), keys0);
+      await page.setViewportSize({ width: 1920, height: 1000 });
+      await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
+      await page.waitForSelector("div.kmverdict", { timeout: 30000 });
+      await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+      await until((w) => w.__sweep && w.__sweep.openedBySweep && w.__sweep.openedBySweep.length > 0,
+        null, 120000);
+      await page.waitForSelector('.navtree__scene [data-scene-key^="#sweep-tree/edge="]',
+        { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+      await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1920_kinematic.png") });
+      await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
+      await page.waitForSelector('.navtree__scene [data-scene-key^="#element-list/"]',
+        { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+      await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1920_chain.png") });
+    }
 
     push("[real] nothing above produced an uncaught error", errors.length === 0);
     const keys = await storedKeys();

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] a contributor row is reached by the keyboard, and Enter selects it",
+  "mutations": [
+    {
+      "contract": "A mirrored row that does something on a click is reachable by Tab (ISSUE_20261021 sweep-rail keyboard issue, for the shell's copy).",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "Without tabindex the row is a div a keyboard never reaches.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      line.setAttribute(\"tabindex\", \"0\");",
+      "replace": "      line.setAttribute(\"data-tabindex\", \"0\");"
+    }
+  ]
+}

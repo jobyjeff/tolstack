@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the scene sits between the nav and the DAG -- the nav at the far left, the scene against its right edge",
+  "mutations": [
+    {
+      "contract": "The scene is a column of the page's row between the nav and the DAG, not a panel docked at the window edge.",
+      "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
+      "note": "The mutation is the previous build's own declaration: the panel fixed at the window's left edge (pane | nav | DAG).",
+      "file": "apps/viewer/topology.css",
+      "find": "  position: sticky; top: 47px; inset: 47px auto auto auto; margin: 0; padding: 0;",
+      "replace": "  position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0;"
+    }
+  ]
+}
