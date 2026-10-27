@@ -1028,3 +1028,14 @@ def test_real_the_travel_study_enters_the_blade_pitch_study_by_its_terms(
     assert round(group.reach, 3) == round(abs(entry) * ref.total.worst_case_half, 3)
     assert not any("end-stop location" in term
                    for spec in study.checks for term in spec.get("excluded_terms", ()))
+
+
+def test_a_band_about_nominal_keeps_its_asymmetry_and_its_citation(tmp_path):
+    """``Dimension.about_nominal``: the sub-study term's band as a variation."""
+    study, _ = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
+    source = study.study_refs[0].terms[1].source          # 2.8 .. 3.4 about 3.0
+    shifted = source.about_nominal()
+    assert (shifted.nominal, shifted.min, shifted.max) == (
+        0.0, pytest.approx(-0.2), pytest.approx(0.4))
+    assert shifted.half_range == pytest.approx(source.half_range)
+    assert shifted.source_ref is source.source_ref
