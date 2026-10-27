@@ -13700,11 +13700,27 @@
               eq(all(root, "div.tv__ghost").length, 0);
             };
             var cycles = 0;
+            // One study per kind of chain: the first the topology lists, and
+            // one per fastener grip stack that folded into the product model
+            // on 2026-10-27 (each is its own component of the walk). They
+            // were four topologies, each cycled; cycling every one of the
+            // model's studies in three modes is what the old loop could not
+            // afford on a 169-row walk.
+            var cycled = [];
             liveTopos.forEach(function (topoProj) {
-              var study = (topoProj.studies || []).filter(function (s) {
+              var studies = (topoProj.studies || []).filter(function (s) {
                 return s.status === "ok" && s.layout;
-              })[0];
-              if (!study) return;
+              });
+              var picks = studies.slice(0, 1).concat(
+                ["pitch_link_shank_out", "rotor_fastener_grip_u2h",
+                 "tan_link_take2_worst_case_protrusion",
+                 "vpa_output_shank_out"].map(function (id) {
+                  return studies.filter(function (s) { return s.id === id; })[0];
+                }).filter(Boolean));
+              picks.forEach(function (study) { cycled.push([topoProj, study]); });
+            });
+            cycled.forEach(function (pair) {
+              var topoProj = pair[0], study = pair[1];
               ["uniform", "tolerance", "absolute"].forEach(function (mode) {
                 var walkCtx = ctxFor(topoProj, null, mode);
                 var studyCtx = ctxFor(topoProj, study, mode);
@@ -13725,8 +13741,8 @@
                 cycles++;
               });
             });
-            ok(cycles >= 12,
-               "every committed topology with a summing study, in three " +
+            ok(cycles >= 15,
+               "the model's first study and each fastener stack's, in three " +
                "modes, must actually have been cycled: " + cycles);
           });
 

@@ -110,119 +110,119 @@
           "pitch_arm_link_bore"
         ],
         "tan_link_mount_height": "tan_link_mount_overall_height"
-      },
-      "folded_20261027": "Handoff the_fastener_stacks_join_the_model, 2026-10-27: the four linear-stack topologies (pitch_link_to_pitch_plate, rotor_fastener_length, tan_link_to_pitch_plate_take2, vpa_output_to_pitch_plate) were folded into this document and deleted, so their fourteen studies are studies of the one product graph. Every part, node and edge kept its id except where one id named a different thing in more than one stack; `grip_stack_ids` lists those. The four plate parts' ids pitch_plate_215197 and pitch_flange_215197 became this document's pitch_plate_215177_001 (same physical plate; the lug thickness edges still cite 215735 A). Values were not touched: every edge still carries a `dimension_ref` into its stack, and every study total, band and check verdict is identical before and after.",
-      "grip_stack_ids": {
-        "note": "Ids that named a different thing in more than one fastener stack, as spelled here. Every holder took its stack's suffix; no side kept the bare id.",
-        "nodes": {
-          "pitch_link_to_pitch_plate": {
-            "head_bearing_face": "head_bearing_face_pitch_link",
-            "washer_far_face": "washer_far_face_pitch_link",
-            "shank_full_dia_end": "shank_full_dia_end_pitch_link"
-          },
-          "rotor_fastener_length": {
-            "head_bearing_face": "head_bearing_face_rotor",
-            "washer_far_face": "washer_far_face_rotor",
-            "shank_full_dia_end": "shank_full_dia_end_rotor"
-          },
-          "tan_link_to_pitch_plate_take2": {
-            "head_bearing_face": "head_bearing_face_tan_link",
-            "shank_full_dia_end": "shank_full_dia_end_tan_link"
-          },
-          "vpa_output_to_pitch_plate": {
-            "head_bearing_face": "head_bearing_face_vpa_out",
-            "shank_full_dia_end": "shank_full_dia_end_vpa_out"
-          }
-        },
-        "edges": {
-          "pitch_link_to_pitch_plate": {
-            "flange_bushing_flange": "flange_bushing_flange_pitch_link",
-            "fastener_grip": "fastener_grip_pitch_link",
-            "shank_out": "shank_out_pitch_link"
-          },
-          "rotor_fastener_length": {
-            "shank_out": "shank_out_rotor"
-          },
-          "tan_link_to_pitch_plate_take2": {
-            "straight_bushing": "straight_bushing_tan_link",
-            "spherical_bearing": "spherical_bearing_tan_link",
-            "flange_bushing_flange": "flange_bushing_flange_tan_link"
-          },
-          "vpa_output_to_pitch_plate": {
-            "spherical_bearing": "spherical_bearing_vpa_out",
-            "straight_bushing": "straight_bushing_vpa_out",
-            "fastener_grip": "fastener_grip_vpa_out",
-            "shank_out": "shank_out_vpa_out"
-          }
-        },
-        "parts": {
-          "pitch_plate_215197": "pitch_plate_215177_001",
-          "pitch_flange_215197": "pitch_plate_215177_001"
-        }
-      },
-      "grip_stack_joints": {
-        "note": "The `joint` block and structure reading each fastener stack's own topology carried, kept as it was. This document is a whole product and declares no `joint` of its own.",
+      }
+    },
+    "folded_20261027": "Handoff the_fastener_stacks_join_the_model, 2026-10-27: the four linear-stack topologies (pitch_link_to_pitch_plate, rotor_fastener_length, tan_link_to_pitch_plate_take2, vpa_output_to_pitch_plate) were folded into this document and deleted, so their fourteen studies are studies of the one product graph. Every part, node and edge kept its id except where one id named a different thing in more than one stack; `grip_stack_ids` lists those. The four plate parts' ids pitch_plate_215197 and pitch_flange_215197 became this document's pitch_plate_215177_001 (same physical plate; the lug thickness edges still cite 215735 A). Values were not touched: every edge still carries a `dimension_ref` into its stack, and every study total, band and check verdict is identical before and after.",
+    "grip_stack_ids": {
+      "note": "Ids that named a different thing in more than one fastener stack, as spelled here. Every holder took its stack's suffix; no side kept the bare id.",
+      "nodes": {
         "pitch_link_to_pitch_plate": {
-          "joint": {
-            "assembly_drawing": "217755",
-            "assembly_revision": "A.1",
-            "sheet": 4,
-            "view": "DETAIL B",
-            "zone": "H3",
-            "description": "The 5-place joint in DETAIL B: NAS6403U11D bolt down through the pitch-link eye (spherical bearing) and a plain bushing, through a 4.06 mm pitch-plate lug, retained by a slotted nut + cotter pin over a flat washer.",
-            "scope": "Grip length only, and only along the bolt axis. Out of scope, deliberately: diameter and hole fits; bushing-to-bore interference; the pitch link's own internal stack; the joint at the other end of the pitch link; torque and preload."
-          },
-          "title": "Pitch link to pitch plate grip length",
-          "re_expresses": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
-          "authored_by": "handoff linear_stack_conversions, 2026-09-08",
-          "scope_note": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim, exactly as topology_vpa_output_to_pitch_plate.json's structure note describes for the L1 proof. The stack's axial order from the bolt head, complete since 2026-09-15 (handoff stack_fable_audit): bushing, pitch-link eye, flanged-bushing flange, pitch-plate lug, washer. Until that date the eye had no element to hang an interface on and the flange was not known to exist, so this topology omitted both and said so here; the stack modelling both (the eye as a loudly-marked placeholder) is what lets this graph carry them without inventing anything the stack does not claim. The bolt's own fastener dimensions (grip, overall length, cotter-hole-to-point) are read as edges sharing additional interfaces beyond the clamped stack's own (the bolt's point, and the cotter-hole centreline), which is what turns this graph into more than L1's single grounded loop: the clamped-stack/grip loop (closing at the derived `shank_out` gap) and the length/grip/thread-region loop (closing at the derived `thread_region` edge), which share the bolt-head interface."
+          "head_bearing_face": "head_bearing_face_pitch_link",
+          "washer_far_face": "washer_far_face_pitch_link",
+          "shank_full_dia_end": "shank_full_dia_end_pitch_link"
         },
         "rotor_fastener_length": {
-          "joint": {
-            "assembly_drawing": "217755",
-            "assembly_revision": "A.1",
-            "sheet": 8,
-            "view": "SECTION T-T",
-            "zone": "H3",
-            "description": "The rotor (hub-and-blade) balance-mass retention bolt: a single fastener, selected at assembly from a nine-member NAS6403 grip family, clamping an optional countersunk washer, zero or more stacked balancing masses, and a flat washer against whatever structure carries the tapped hole at this section.",
-            "scope": "Grip length only, along the bolt axis. Deliberately out of scope: which of up to 10 balance-hole locations is used and how the 200 g total balance budget is allocated; torque; the safety-cable capture; diameter and hole fits; thread-engagement depth into the tapped member."
-          },
-          "title": "Rotor balance-mass bolt grip length",
-          "re_expresses": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
-          "authored_by": "handoff linear_stack_conversions, 2026-09-08",
-          "scope_note": "A reading of the stack's own element order and roles, not a sourced claim. The stack's own notes give the clamped order from the bolt head: MS21299C3 washer, [balancing mass(es) -- MISSING], NAS1149V0332H washer, [receiving-structure thickness -- MISSING], then whichever of the nine as-drawn NAS6403 grip options is installed. Neither missing member is modelled as a node or edge -- there is no element to hang one on. The nine grip options are modelled as parallel structural edges between shared interfaces (`head_bearing_face`/`shank_full_dia_end`), all naming a single part, `fastener_family` -- see that part's own note for why separate part ids per option were rejected. A study selecting more than one of the nine simultaneously is refused by `BranchAmbiguity` at both of those interfaces, which is the topology's own way of enforcing 'exactly one dash is ever installed', mechanically rather than only in prose."
+          "head_bearing_face": "head_bearing_face_rotor",
+          "washer_far_face": "washer_far_face_rotor",
+          "shank_full_dia_end": "shank_full_dia_end_rotor"
         },
         "tan_link_to_pitch_plate_take2": {
-          "joint": {
-            "assembly_drawing": "217755",
-            "assembly_revision": "A.1",
-            "sheet": 4,
-            "view": "DETAIL B",
-            "zone": "I6",
-            "description": "Same joint as tan_link_to_pitch_plate (not converted -- its checks reference paths in a way docs/DAG_TOPOLOGY.md fences, see docs/sessions/lessons/LESSONS_20260908_linear_stack_conversions.md). Take 2 is the workbook's second pass: it folds the flanged bushing's flange and barrel into one running sub-total and evaluates only the -13 fastener.",
-            "scope": "grip length only"
-          },
-          "title": "Tangential link to pitch plate grip length, take 2",
-          "re_expresses": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
-          "authored_by": "handoff linear_stack_conversions, 2026-09-08",
-          "scope_note": "A reading of the stack's own element order, not a sourced claim, in the same spirit as topology_vpa_output_to_pitch_plate.json's own structure note. The stack's three `nut_geometry` elements (nut_minor_diameter, nut_cbore_diameter, nut_chamfer_depth) are NOT modelled here: the stack's own notes call them 'UNUSED by any path or check', a diametral castellation-engagement sketch the workbook itself never folded into a check, and they are not part of the axial grip chain this topology models. Leaving them out is documentation of an absence, not a loss -- they remain in the stack's own record for a reader who wants them."
+          "head_bearing_face": "head_bearing_face_tan_link",
+          "shank_full_dia_end": "shank_full_dia_end_tan_link"
         },
         "vpa_output_to_pitch_plate": {
-          "joint": {
-            "assembly_drawing": "217755",
-            "assembly_revision": "A.1",
-            "sheet": 5,
-            "view": "DETAIL X",
-            "zone": "C10",
-            "description": "0.250-28 bolt through the VPA output rod end into the mating flange, castellated nut + cotter pin retained, with a countersunk washer under the head.",
-            "scope": "grip length only",
-            "note": "Added 2026-09-08 (handoff topology_schema_v1), deliverable 2: this block MIRRORS docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json's own `joint` field for field -- both documents describe the same physical joint, and this is prose/context, not a toleranced value, so it carries no dimension_ref of its own the way an edge's value does. If the two ever disagree, the stack's is authoritative; this topology's `joint` is a reading of it, same as `provenance.structure` already is for the axial order."
-          },
-          "title": "VPA output to pitch plate grip length",
-          "re_expresses": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
-          "authored_by": "handoff dag_topology_format, 2026-08-31",
-          "scope_note": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim. The stack transcribes workbook rows E63-E67 as an ordered clamped stack (bushing, spherical bearing, bushing flange, pitch flange, under-head washer) plus the fastener grip; laying those out head-side-first, as a chain of six clamped-stack faces, is this handoff's own arrangement. Two things make that safe to publish: a chain sum is invariant to the ordering (a signed term list does not care), and tests/test_topology.py pins the study's totals against the stack's own published check. What it is NOT is evidence that these specific faces mate in this order on the real part -- see notes."
+          "head_bearing_face": "head_bearing_face_vpa_out",
+          "shank_full_dia_end": "shank_full_dia_end_vpa_out"
         }
+      },
+      "edges": {
+        "pitch_link_to_pitch_plate": {
+          "flange_bushing_flange": "flange_bushing_flange_pitch_link",
+          "fastener_grip": "fastener_grip_pitch_link",
+          "shank_out": "shank_out_pitch_link"
+        },
+        "rotor_fastener_length": {
+          "shank_out": "shank_out_rotor"
+        },
+        "tan_link_to_pitch_plate_take2": {
+          "straight_bushing": "straight_bushing_tan_link",
+          "spherical_bearing": "spherical_bearing_tan_link",
+          "flange_bushing_flange": "flange_bushing_flange_tan_link"
+        },
+        "vpa_output_to_pitch_plate": {
+          "spherical_bearing": "spherical_bearing_vpa_out",
+          "straight_bushing": "straight_bushing_vpa_out",
+          "fastener_grip": "fastener_grip_vpa_out",
+          "shank_out": "shank_out_vpa_out"
+        }
+      },
+      "parts": {
+        "pitch_plate_215197": "pitch_plate_215177_001",
+        "pitch_flange_215197": "pitch_plate_215177_001"
+      }
+    },
+    "grip_stack_joints": {
+      "note": "The `joint` block and structure reading each fastener stack's own topology carried, kept as it was. This document is a whole product and declares no `joint` of its own.",
+      "pitch_link_to_pitch_plate": {
+        "joint": {
+          "assembly_drawing": "217755",
+          "assembly_revision": "A.1",
+          "sheet": 4,
+          "view": "DETAIL B",
+          "zone": "H3",
+          "description": "The 5-place joint in DETAIL B: NAS6403U11D bolt down through the pitch-link eye (spherical bearing) and a plain bushing, through a 4.06 mm pitch-plate lug, retained by a slotted nut + cotter pin over a flat washer.",
+          "scope": "Grip length only, and only along the bolt axis. Out of scope, deliberately: diameter and hole fits; bushing-to-bore interference; the pitch link's own internal stack; the joint at the other end of the pitch link; torque and preload."
+        },
+        "title": "Pitch link to pitch plate grip length",
+        "re_expresses": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+        "scope_note": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim, exactly as topology_vpa_output_to_pitch_plate.json's structure note describes for the L1 proof. The stack's axial order from the bolt head, complete since 2026-09-15 (handoff stack_fable_audit): bushing, pitch-link eye, flanged-bushing flange, pitch-plate lug, washer. Until that date the eye had no element to hang an interface on and the flange was not known to exist, so this topology omitted both and said so here; the stack modelling both (the eye as a loudly-marked placeholder) is what lets this graph carry them without inventing anything the stack does not claim. The bolt's own fastener dimensions (grip, overall length, cotter-hole-to-point) are read as edges sharing additional interfaces beyond the clamped stack's own (the bolt's point, and the cotter-hole centreline), which is what turns this graph into more than L1's single grounded loop: the clamped-stack/grip loop (closing at the derived `shank_out` gap) and the length/grip/thread-region loop (closing at the derived `thread_region` edge), which share the bolt-head interface."
+      },
+      "rotor_fastener_length": {
+        "joint": {
+          "assembly_drawing": "217755",
+          "assembly_revision": "A.1",
+          "sheet": 8,
+          "view": "SECTION T-T",
+          "zone": "H3",
+          "description": "The rotor (hub-and-blade) balance-mass retention bolt: a single fastener, selected at assembly from a nine-member NAS6403 grip family, clamping an optional countersunk washer, zero or more stacked balancing masses, and a flat washer against whatever structure carries the tapped hole at this section.",
+          "scope": "Grip length only, along the bolt axis. Deliberately out of scope: which of up to 10 balance-hole locations is used and how the 200 g total balance budget is allocated; torque; the safety-cable capture; diameter and hole fits; thread-engagement depth into the tapped member."
+        },
+        "title": "Rotor balance-mass bolt grip length",
+        "re_expresses": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+        "scope_note": "A reading of the stack's own element order and roles, not a sourced claim. The stack's own notes give the clamped order from the bolt head: MS21299C3 washer, [balancing mass(es) -- MISSING], NAS1149V0332H washer, [receiving-structure thickness -- MISSING], then whichever of the nine as-drawn NAS6403 grip options is installed. Neither missing member is modelled as a node or edge -- there is no element to hang one on. The nine grip options are modelled as parallel structural edges between shared interfaces (`head_bearing_face`/`shank_full_dia_end`), all naming a single part, `fastener_family` -- see that part's own note for why separate part ids per option were rejected. A study selecting more than one of the nine simultaneously is refused by `BranchAmbiguity` at both of those interfaces, which is the topology's own way of enforcing 'exactly one dash is ever installed', mechanically rather than only in prose."
+      },
+      "tan_link_to_pitch_plate_take2": {
+        "joint": {
+          "assembly_drawing": "217755",
+          "assembly_revision": "A.1",
+          "sheet": 4,
+          "view": "DETAIL B",
+          "zone": "I6",
+          "description": "Same joint as tan_link_to_pitch_plate (not converted -- its checks reference paths in a way docs/DAG_TOPOLOGY.md fences, see docs/sessions/lessons/LESSONS_20260908_linear_stack_conversions.md). Take 2 is the workbook's second pass: it folds the flanged bushing's flange and barrel into one running sub-total and evaluates only the -13 fastener.",
+          "scope": "grip length only"
+        },
+        "title": "Tangential link to pitch plate grip length, take 2",
+        "re_expresses": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+        "scope_note": "A reading of the stack's own element order, not a sourced claim, in the same spirit as topology_vpa_output_to_pitch_plate.json's own structure note. The stack's three `nut_geometry` elements (nut_minor_diameter, nut_cbore_diameter, nut_chamfer_depth) are NOT modelled here: the stack's own notes call them 'UNUSED by any path or check', a diametral castellation-engagement sketch the workbook itself never folded into a check, and they are not part of the axial grip chain this topology models. Leaving them out is documentation of an absence, not a loss -- they remain in the stack's own record for a reader who wants them."
+      },
+      "vpa_output_to_pitch_plate": {
+        "joint": {
+          "assembly_drawing": "217755",
+          "assembly_revision": "A.1",
+          "sheet": 5,
+          "view": "DETAIL X",
+          "zone": "C10",
+          "description": "0.250-28 bolt through the VPA output rod end into the mating flange, castellated nut + cotter pin retained, with a countersunk washer under the head.",
+          "scope": "grip length only",
+          "note": "Added 2026-09-08 (handoff topology_schema_v1), deliverable 2: this block MIRRORS docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json's own `joint` field for field -- both documents describe the same physical joint, and this is prose/context, not a toleranced value, so it carries no dimension_ref of its own the way an edge's value does. If the two ever disagree, the stack's is authoritative; this topology's `joint` is a reading of it, same as `provenance.structure` already is for the axial order."
+        },
+        "title": "VPA output to pitch plate grip length",
+        "re_expresses": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "authored_by": "handoff dag_topology_format, 2026-08-31",
+        "scope_note": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim. The stack transcribes workbook rows E63-E67 as an ordered clamped stack (bushing, spherical bearing, bushing flange, pitch flange, under-head washer) plus the fastener grip; laying those out head-side-first, as a chain of six clamped-stack faces, is this handoff's own arrangement. Two things make that safe to publish: a chain sum is invariant to the ordering (a signed term list does not care), and tests/test_topology.py pins the study's totals against the stack's own published check. What it is NOT is evidence that these specific faces mate in this order on the real part -- see notes."
       }
     }
   },
