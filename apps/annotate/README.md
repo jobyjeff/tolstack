@@ -639,6 +639,14 @@ apps/annotate/
                        cap, the occurrence subtree a body carries) and the
                        newest-first run ordering. No DOM, no fetch, no
                        three.js.
+  model_layer.js       PURE model-layer logic: where every topology node's
+                       dot is (the run's joint point, a bound face's fitted
+                       point, the part's +X-bias section, or nothing), the
+                       section cut itself, the stack-order ladder, which
+                       frame each edge's line rides, the lit/dim/hide rule,
+                       the `model` verb's grammar and the anchors message
+                       the shell draws leaders from. No DOM, no fetch, no
+                       three.js.
   scene.js             the 3D surface: three.js mesh loading (through the
                        storage adapter, never fetch() directly), every part
                        drawn at each of its placements, raycast, highlight,
@@ -660,7 +668,7 @@ apps/annotate/
                        rotorkit's spike (see vendor/README.md)
   run_tests.cjs        fast-tier runner for binding_state.js + commands.js +
                        face_geometry.js + suggestions.js + sweep.js +
-                       storage/memory.js, plus a [real] tier over the
+                       model_layer.js + storage/memory.js, plus a [real] tier over the
                        installed meshes and the published sweep runs
   run_browser_check.mjs  real-browser check for SWEEP MODE and the pass that
                        writes its screenshot evidence -- playwright-core,
