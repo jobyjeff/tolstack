@@ -255,9 +255,14 @@
       paneFollowed = null;
       clearPaneHover();
       syncPaneToggle();
+      // The leaders go with the scene; it is told everything again on reopen.
+      sceneModelPosted = null;
+      sceneSelectPosted = null;
+      scheduleSeamDraw();
     });
     wirePaneHover();
     wirePaneState();
+    wireSeam();
 
     // Probe for the sibling annotate mount (study_3d_flyout, feature 3) in
     // parallel with the transport probe below — measured, never assumed, and
@@ -1373,10 +1378,21 @@
       if (msg && msg.type === "annotate:tree") {
         sceneTree = msg;
         renderSceneSlot();
+        followScenePick(msg);
+        return;
+      }
+      if (msg && msg.type === VA.SCENE_ANCHORS_MESSAGE) {
+        seamAnchors = msg.nodes || {};
+        scheduleSeamDraw();
         return;
       }
       if (!msg || msg.type !== "annotate:state") return;
       setPaneTitle(msg.title || null);
+      // The scene has just (re)loaded what it shows: it is told the page's
+      // lit set and dim-or-hide word again, whatever it was told before.
+      sceneModelPosted = null;
+      sceneSelectPosted = null;
+      syncSceneModel();
     });
   }
 
@@ -1509,6 +1525,192 @@
       // has one, rather than clearing the scene's highlight under it.
       schedulePaneHover(paneHoverTarget(event.target) || selectedPaneTarget());
     });
+  }
+
+  // --- the leaders across the seam (leaders_follow_the_active_study_across_
+  // the_seam) -----------------------------------------------------------------
+  //
+  // One page-level SVG over the DAG and the scene draws a leader from each
+  // node of the active study's lit set to where the scene draws that node:
+  // the scene posts its anchors (`annotate:anchors`, in the iframe's own CSS
+  // pixels), the pane publishes its dots (VA.lastTopoRender.seam, in the rails
+  // SVG's), and this adds the two rects and draws (VA.seamLeaderGeometry).
+  // Re-drawn on every anchors message, every pane paint (a respine's frames
+  // included), every scroll and every resize -- one ResizeObserver, one
+  // measurement of the three rects per draw, at most one draw per frame.
+  //
+  // The DAG↔grid leaders stay in the rails SVG they are drawn in: they share
+  // that SVG's scroll exactly, and an overlay redrawn on a scroll event lags
+  // a compositor-scrolled pane by a frame. What makes the two one picture is
+  // the one selection rule (VA.selectedLeaderNodes) both read.
+  var seamAnchors = null;
+  var seamSvg = null;
+  var seamFrame = null;
+  var seamDraws = 0;
+  // The pane's hover key (`node|<id>`, `edge|<id>`), for the lighter emphasis.
+  var paneHot = null;
+  // What the scene was last told, so a paint that changed nothing posts nothing.
+  var sceneModelPosted = null;
+  var sceneSelectPosted = null;
+  // The selection the grid was last scrolled to, and the scene tree's last
+  // selected row: both act on a CHANGE only.
+  var seamScrolledTo = null;
+  var sceneTreeSelected = null;
+
+  function seamOverlay() {
+    if (seamSvg || typeof document === "undefined" || !document.body) return seamSvg;
+    seamSvg = VA.svg("svg", "seamleaders");
+    seamSvg.setAttribute("aria-hidden", "true");
+    document.body.appendChild(seamSvg);
+    return seamSvg;
+  }
+
+  function scheduleSeamDraw() {
+    if (seamFrame !== null) return;
+    var raf = (typeof window !== "undefined" && window.requestAnimationFrame)
+      ? window.requestAnimationFrame.bind(window)
+      : function (fn) { return setTimeout(fn, 16); };
+    seamFrame = raf(function () { seamFrame = null; drawSeamLeaders(); });
+  }
+
+  // The page's lit set, as the pane emphasizes it: a kinematic study's own,
+  // a chain study's chain, or null (the whole walk -- no leader at all).
+  function pageLitSet() {
+    var topoProj = currentTopology();
+    if (state.mode === "kinematic") {
+      return VA.kinematicLitSet(VA.findKinematicStudy(state.kinematic, state.kinematicId),
+        topoProj);
+    }
+    return state.mode === "topology" ? VA.studyLitSet(currentStudy()) : null;
+  }
+
+  function drawSeamLeaders() {
+    var svg = seamOverlay();
+    if (!svg) return null;
+    var started = Date.now();
+    var drawn = VA.lastTopoRender;
+    var topoProj = currentTopology();
+    var rails = nodes.pane && nodes.pane.querySelector
+      ? nodes.pane.querySelector(".tv__hscroll svg.tv__rails") : null;
+    if (!nodes.flyout || !nodes.flyout.open || !flyoutFrame || !seamAnchors ||
+        !rails || !drawn || !drawn.seam || !topoProj ||
+        drawn.topologyId !== topoProj.id || nodes.pane.style.display === "none") {
+      VA.clear(svg);
+      VA.lastSeamDraw = null;
+      return null;
+    }
+    var r = rails.getBoundingClientRect();
+    var f = flyoutFrame.getBoundingClientRect();
+    var p = nodes.pane.getBoundingClientRect();
+    var head = nodes.pane.querySelector(".tv__hscroll .tv__head");
+    var bottom = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : Infinity;
+    var dots = {};
+    Object.keys(drawn.seam.dots).forEach(function (id) {
+      var d = drawn.seam.dots[id];
+      dots[id] = [r.left + d[0], r.top + d[1]];
+    });
+    var fx = f.left + (flyoutFrame.clientLeft || 0);
+    var fy = f.top + (flyoutFrame.clientTop || 0);
+    var anchors = {};
+    Object.keys(seamAnchors).forEach(function (id) {
+      var a = seamAnchors[id];
+      anchors[id] = a ? [fx + a[0], fy + a[1]] : null;
+    });
+    var geo = VA.seamLeaderGeometry({
+      dots: dots, anchors: anchors, bendX: r.left + drawn.seam.bend,
+      // Under the pane's sticky head, inside the pane, inside the window.
+      dotClip: { left: p.left, right: p.right,
+                 top: Math.max(p.top, head ? head.getBoundingClientRect().bottom : p.top, 0),
+                 bottom: Math.min(p.bottom, bottom) },
+      anchorClip: { left: f.left, right: f.right, top: Math.max(f.top, 0),
+                    bottom: Math.min(f.bottom, bottom) },
+    });
+    var states = VA.seamLeaderStates(geo.leaders.map(function (l) { return l.id; }),
+      state.selection, paneHot, VA.topologyIndex(topoProj));
+    VA.renderSeamLeaders(svg, geo, states);
+    seamDraws++;
+    // For a harness: what was drawn, and what it cost.
+    VA.lastSeamDraw = { leaders: geo.leaders, crossings: geo.crossings,
+      skipped: geo.skipped, states: states, ms: Date.now() - started, draws: seamDraws };
+    return geo;
+  }
+
+  // The scene is told the page's lit set and dim-or-hide word (its `model`
+  // verb), and a selected node is selected in its layer too -- an edge is
+  // highlighted through the `highlight` a kinematic page already posts
+  // (followSelection). Each only when it changed, and only to a loaded scene.
+  function syncSceneModel() {
+    if (!nodes.flyout || !nodes.flyout.open || !flyoutLoaded) return;
+    var model = [VA.sceneLitCommand(pageLitSet()), ["model", "unlit", state.unlitStyle]];
+    var key = JSON.stringify(model);
+    if (key !== sceneModelPosted && model.every(postToPane)) sceneModelPosted = key;
+    var sel = state.selection && state.selection.kind === "node"
+      ? ["model", "select", "node", state.selection.id] : ["model", "select", "clear"];
+    var selKey = sel.join(" ");
+    if (selKey !== sceneSelectPosted && postToPane(sel)) sceneSelectPosted = selKey;
+  }
+
+  // A selection made anywhere brings its grid row into view: an edge's own
+  // row, a node's the row its DAG↔grid leader lands above.
+  function scrollSelectionIntoView() {
+    var sel = state.selection;
+    var key = sel ? sel.kind + "|" + sel.id : null;
+    if (key === seamScrolledTo) return;
+    seamScrolledTo = key;
+    if (!sel || !nodes.pane || !nodes.pane.querySelector) return;
+    var edgeId = sel.id;
+    if (sel.kind === "node") {
+      var leader = nodes.pane.querySelector('path.rail__leaderhit[data-leader-id="' + sel.id + '"]');
+      edgeId = leader ? leader.getAttribute("data-boundary-edge") : null;
+    }
+    var row = edgeId
+      ? nodes.pane.querySelector('[data-row-kind="edge"][data-id="' + edgeId + '"]') : null;
+    if (row && row.scrollIntoView) row.scrollIntoView({ block: "nearest" });
+  }
+
+  // A pick in the scene selects its row in the scene's rail, and the tree it
+  // sends here marks that row: a newly selected row naming an element of this
+  // page's topology selects it here (VA.sceneRowElement), so the pick and a
+  // click on its contributor row arrive at the same state.
+  function followScenePick(tree) {
+    var found = null;
+    var walk = function (rows) {
+      (rows || []).forEach(function (row) {
+        if (row.selected) found = row.key;
+        walk(row.rows);
+      });
+    };
+    walk(tree && tree.rows);
+    if (found === sceneTreeSelected) return;
+    sceneTreeSelected = found;
+    var target = VA.sceneRowElement(found, currentTopology(), pageLitSet());
+    if (!target || (state.selection && state.selection.kind === target.kind &&
+        state.selection.id === target.id)) return;
+    hideCrop();
+    selectElement(target.kind, target.id);
+  }
+
+  // After every paint: the scene told, the grid row brought up, the leaders
+  // re-drawn.
+  function followSeam() {
+    syncSceneModel();
+    scrollSelectionIntoView();
+    scheduleSeamDraw();
+  }
+
+  function wireSeam() {
+    if (typeof window === "undefined" || !document.addEventListener) return;
+    // The pane's own scroll as well as the page's: captured, since a scroll
+    // does not bubble.
+    document.addEventListener("scroll", scheduleSeamDraw, true);
+    if (typeof ResizeObserver === "function") {
+      var observer = new ResizeObserver(scheduleSeamDraw);
+      [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {
+        if (n) observer.observe(n);
+      });
+    } else {
+      window.addEventListener("resize", scheduleSeamDraw);
+    }
   }
 
   // --- the two resize drags (viewer_leader_grid_legibility) ----------------
@@ -1886,6 +2088,8 @@
     if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
     if (!hasWorksheet && nodes.worksheetDialog.open) nodes.worksheetDialog.close();
 
+    // The pane is rebuilt below, so whatever it had under the pointer is gone.
+    paneHot = null;
     if (showDag) {
       var ctx = {
         topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
@@ -1941,6 +2145,10 @@
         // itself is ensureThumbImages below, fired after this paint.
         cropImages: imageCache,
         onSelect: selectElement, onCropShow: showCrop,
+        // The leaders across the seam light with the pane's hover, and are
+        // re-drawn after every paint of it (a respine's frames included).
+        onHot: function (key) { paneHot = key; scheduleSeamDraw(); },
+        onPainted: scheduleSeamDraw,
         // The hover reference cards (viewer_hover_cards_and_deep_links): the
         // crop trigger, the merged component cell and the confidence chip all
         // open one through this, into the same positioned popover node.
@@ -2052,6 +2260,7 @@
     syncPaneToggle();
     syncSceneColumn();
     followSelection();
+    followSeam();
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its

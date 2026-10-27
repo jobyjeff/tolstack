@@ -11918,6 +11918,194 @@
         eq([mirrored.rows[4].collapsed.lo, mirrored.rows[4].collapsed.hi], [0, 1]);
       });
 
+    // --- the leaders across the seam (leaders_follow_the_active_study_
+    // across_the_seam, 2026-10-27) ----------------------------------------
+    //
+    // A leader from each lit node's DAG dot to where the scene draws it. The
+    // pane publishes the dots (VA.lastTopoRender.seam); the page adds the two
+    // rects and draws VA.seamLeaderGeometry. These pin the geometry the
+    // browser tier then checks in pixels.
+    var SEAM_M = VA.RAIL_METRICS;
+    function seamOf(study) {
+      render(function (r) {
+        VA.renderTopoPane(r, topoCtx({ study: study }));
+      });
+      return VA.lastTopoRender.seam;
+    }
+
+    await test("the leaders across the seam start at each lit node's dot, turn " +
+      "once left of the rails and end at its anchor; the whole walk has none", function () {
+        var study = topoStudy("demo_base_to_tip");
+        var lit = VA.studyLitSet(study);
+        var seam = seamOf(study);
+        eq(Object.keys(seam.dots).sort(), Object.keys(lit.nodes).sort(),
+          "one DAG end per lit node, and only those");
+        var geometry = VA.railGeometry(VA.spineRight(TOPO.layout), SEAM_M,
+          VA.lastTopoRender.positions);
+        geometry.marks.filter(function (m) { return m.kind === "node" && lit.nodes[m.id]; })
+          .forEach(function (mark) {
+            var r = mark.branch ? SEAM_M.branchDot : SEAM_M.dot;
+            eq(seam.dots[mark.id], [mark.x - r - 1.5, mark.y], mark.id + "'s dot, left side");
+          });
+        ok(geometry.rails.every(function (rail) { return rail.x > seam.bend; }) &&
+           geometry.marks.every(function (m) { return m.x > seam.bend; }),
+          "the bend is left of everything the DAG draws");
+        // Page pixels: the rails at (500, 100), the scene's anchors far left.
+        var ids = Object.keys(seam.dots).sort();
+        var dots = {};
+        var anchors = {};
+        ids.forEach(function (id, i) {
+          dots[id] = [500 + seam.dots[id][0], 100 + seam.dots[id][1]];
+          anchors[id] = [80 + i, 200 + 10 * i];
+        });
+        anchors[ids[0]] = null;
+        anchors[ids[1]] = [80, 5000];
+        var geo = VA.seamLeaderGeometry({ dots: dots, anchors: anchors, bendX: 500 + seam.bend,
+          anchorClip: { left: 0, right: 400, top: 0, bottom: 1000 } });
+        eq(geo.skipped.noAnchor, [ids[0]], "a null anchor: no leader, no stub");
+        eq(geo.skipped.offscreen, [ids[1]], "an anchor outside the scene: none either");
+        eq(geo.leaders.map(function (l) { return l.id; }), ids.slice(2));
+        geo.leaders.forEach(function (l) {
+          eq(l.from, dots[l.id]);
+          eq(l.bend, [500 + seam.bend, dots[l.id][1]], "level with its dot");
+          eq(l.to, anchors[l.id]);
+          eq(l.d, "M " + l.from[0] + " " + l.from[1] + " H " + l.bend[0] +
+            " L " + l.to[0] + " " + l.to[1], "one bend");
+        });
+        var walk = seamOf(null);
+        eq(walk.dots, {}, "nothing lit, nothing to lead from");
+      });
+
+    await test("a leader across the seam leaves level with its own row, so it runs " +
+      "through no lit bar -- and the counter that says so can count one", function () {
+        var study = topoStudy("demo_base_to_tip");
+        var seam = seamOf(study);
+        var anchors = {};
+        Object.keys(seam.dots).forEach(function (id) { anchors[id] = [-200, 0]; });
+        var geo = VA.seamLeaderGeometry({ dots: seam.dots, anchors: anchors, bendX: seam.bend });
+        ok(geo.leaders.length > 0 && seam.bars.length > 0);
+        eq(VA.seamBarCrossings(geo.leaders, seam.bars), 0);
+        var leader = geo.leaders[0];
+        var across = { id: "x", x: (leader.from[0] + leader.bend[0]) / 2,
+                       y1: leader.from[1] - 5, y2: leader.from[1] + 5 };
+        eq(VA.seamBarCrossings([leader], [across]), 1, "a bar it did run through");
+      });
+
+    await test("crossings among the leaders across the seam are counted by pairs", function () {
+      var leader = function (id, y, to) {
+        return { id: id, from: [300, y], bend: [200, y], to: to };
+      };
+      eq(VA.seamCrossings([leader("a", 10, [0, 10]), leader("b", 20, [0, 20])]), 0,
+        "in order: parallel");
+      eq(VA.seamCrossings([leader("a", 10, [0, 20]), leader("b", 20, [0, 10])]), 1,
+        "swapped: one crossing");
+      eq(VA.seamCrossings([leader("a", 10, [0, 30]), leader("b", 20, [0, 20]),
+        leader("c", 30, [0, 10])]), 3, "reversed: every pair");
+    });
+
+    await test("a lit node folded into a collapsed body leads from its own column " +
+      "on the pill's rim, mirrored with it", function () {
+        var proj = twoBodyProjection();
+        // eB lit: inside B, so b1 and b2 fold (only an end of a lit edge
+        // OUTSIDE the block stays drawn).
+        var lit = VA.litSetOfEdges(proj, ["eB"]);
+        var layout = VA.spineRight(VA.collapseBodies(proj.layout, { B: true }, proj, lit));
+        eq(layout.folded.b2, { pill: "body:B", column: 1 }, "b2 was on column 0, mirrored");
+        var positions = VA.rowPositions(layout, proj, "uniform", SEAM_M);
+        var geometry = VA.railGeometry(layout, SEAM_M, positions);
+        var pill = geometry.marks.filter(function (m) { return m.id === "body:B"; })[0];
+        var seam = VA.seamDots(layout, geometry, lit, SEAM_M, null);
+        eq(seam.dots.b1, [VA.railX(1, SEAM_M), pill.y]);
+        eq(seam.dots.b2, [VA.railX(1, SEAM_M), pill.y]);
+      });
+
+    await test("one selection lights its leaders on both overlays -- a node's own, " +
+      "an edge's two ends -- and the rest step back", function () {
+        var index = VA.topologyIndex(TOPO);
+        var edge = TOPO.edges[0];
+        var want = {};
+        want[edge.from] = true;
+        want[edge.to] = true;
+        eq(VA.selectedLeaderNodes({ kind: "edge", id: edge.id }, index), want);
+        eq(VA.selectedLeaderNodes({ kind: "node", id: edge.from }, index),
+          (function () { var o = {}; o[edge.from] = true; return o; })());
+        eq(VA.selectedLeaderNodes(null, index), {});
+        var S = VA.SEAM_LEADER_STATES;
+        var other = TOPO.nodes.filter(function (n) { return !want[n.id]; })[0].id;
+        var ids = [edge.from, edge.to, other];
+        var states = VA.seamLeaderStates(ids, { kind: "edge", id: edge.id }, null, index);
+        eq([states[edge.from], states[edge.to], states[other]], [S[0], S[0], S[2]]);
+        states = VA.seamLeaderStates(ids, null, "node|" + other, index);
+        eq([states[edge.from], states[other]], ["", S[1]], "hover is the lighter emphasis");
+        states = VA.seamLeaderStates(ids, null, "edge|" + edge.id, index);
+        eq([states[edge.from], states[edge.to], states[other]], [S[1], S[1], ""]);
+        // The DAG↔grid leaders read the same rule.
+        var study = topoStudy("demo_base_to_tip");
+        var picked = study.selection.map(function (id) { return index.edges[id]; })
+          .filter(Boolean)[0];
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ study: study,
+            selection: { kind: "edge", id: picked.id } }));
+        });
+        var lead = VA.selectedLeaderNodes({ kind: "edge", id: picked.id }, index);
+        var lines = all(root, "path.rail__leader");
+        all(root, "path.rail__leaderhit").forEach(function (hit, i) {
+          var id = hit.getAttribute("data-leader-id");
+          var cls = lines[i].getAttribute("class");
+          ok(lead[id] ? /rail__leader--selected/.test(cls) : /rail__leader--dim/.test(cls),
+            id + ": " + cls);
+        });
+        ok(all(root, "path.rail__leader--selected").length > 0, "the edge has a leader to light");
+        var calm = render(function (r) { VA.renderTopoPane(r, topoCtx({ study: study })); });
+        eq(all(calm, "path.rail__leader--dim").length, 0, "nothing selected, nothing dimmed");
+      });
+
+    await test("the overlay draws each leader in its state, the selected one on top, " +
+      "with an outlined end on the scene", function () {
+        var S = VA.SEAM_LEADER_STATES;
+        var leaders = [
+          { id: "a", from: [300, 10], bend: [200, 10], to: [50, 40], d: "M 300 10 H 200 L 50 40" },
+          { id: "b", from: [300, 20], bend: [200, 20], to: [50, 50], d: "M 300 20 H 200 L 50 50" },
+        ];
+        var states = { a: S[0], b: S[2] };
+        var svg = render(function (r) { VA.renderSeamLeaders(r, { leaders: leaders }, states); });
+        var paths = all(svg, "path.seam__leader");
+        eq(paths.map(function (p) { return p.getAttribute("data-node-id"); }), ["b", "a"],
+          "the selected leader last, over the others");
+        eq(paths[1].getAttribute("class"), "seam__leader seam__leader--" + S[0]);
+        eq(paths[0].getAttribute("class"), "seam__leader seam__leader--" + S[2]);
+        eq(paths[1].getAttribute("d"), leaders[0].d);
+        var ends = all(svg, "circle.seam__end");
+        eq(ends.length, 2);
+        eq([ends[1].getAttribute("cx"), ends[1].getAttribute("cy")].map(Number), [50, 40]);
+        var plain = render(function (r) { VA.renderSeamLeaders(r, { leaders: leaders }, {}); });
+        eq(all(plain, "path.seam__leader")[0].getAttribute("class"), "seam__leader");
+      });
+
+    await test("a pick in the scene names the element its mirrored row stands for: " +
+      "an edge's row, or a body's one lit edge", function () {
+        var proj = twoBodyProjection();
+        eq(VA.sceneRowElement("#sweep-tree/group=contributors/edge=eB", proj, null),
+          { kind: "edge", id: "eB" });
+        eq(VA.sceneRowElement("#sweep-tree/group=contributors/edge=nope", proj, null), null);
+        eq(VA.sceneRowElement("#sweep-tree/group=bodies/body=A/sha=ab12,subject=A", proj, null),
+          { kind: "edge", id: "eA" }, "body A carries one edge");
+        eq(VA.sceneRowElement("#sweep-tree/group=bodies/body=B/sha=cd34,subject=B", proj, null),
+          null, "body B carries two: no guess");
+        eq(VA.sceneRowElement("#sweep-tree/group=bodies/body=B/sha=cd34,subject=B#1", proj,
+          VA.litSetOfEdges(proj, ["eB"])), { kind: "edge", id: "eB" },
+          "...but only one of them is lit");
+        eq(VA.sceneRowElement("#sweep-tree/group=bodies/body=Z", proj, null), null);
+        eq(VA.sceneRowElement(null, proj, null), null);
+      });
+
+    await test("the scene is told the page's lit set in its own model verb", function () {
+      eq(VA.sceneLitCommand({ edges: { b: true, a: true, c: false }, nodes: {} }),
+        ["model", "lit", "a", "b"]);
+      eq(VA.sceneLitCommand(null), ["model", "lit", "all"]);
+      eq(VA.SCENE_ANCHORS_MESSAGE, "annotate:anchors");
+    });
+
     await test("a collapsed body is remembered per topology per reader, and an " +
       "unreadable store reads as nothing collapsed", function () {
         var data = {};

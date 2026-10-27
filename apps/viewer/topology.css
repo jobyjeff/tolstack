@@ -518,6 +518,30 @@ body { display: flex; flex-direction: column; }
 }
 .rail__leader--on { stroke: var(--rail-odd); }
 .rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
+/* Something else is selected: this leader steps back (VA.selectedLeaderNodes,
+   the rule the leaders across the seam share). */
+.rail__leader--dim { opacity: .28; }
+
+/* --- the leaders across the seam (leaders_follow_the_active_study_across_
+   the_seam, 2026-10-27) -----------------------------------------------------
+   One page-level overlay over the DAG and the scene (topology_app.js's
+   drawSeamLeaders), lit set only. It takes no pointer and sits under the
+   topbar and the hover cards; above the scene column and the pane, so a
+   leader crossing the dimmed rest of the DAG is drawn over it. Neutral like
+   the DAG↔grid leaders; the accent only for the selection. */
+.seamleaders {
+  position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 4; overflow: hidden;
+}
+.seam__leader {
+  fill: none; stroke: var(--rail-odd); stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+/* Its end on the scene is outlined, like the DAG's own dots. */
+.seam__end { fill: var(--panel); stroke: var(--rail-odd); stroke-width: 1.5; }
+.seam__leader--hot, .seam__end--hot { stroke: var(--rail-hot); stroke-width: 2.5; }
+.seam__leader--selected, .seam__end--selected { stroke: var(--accent); stroke-width: 2; }
+.seam__leader--dim, .seam__end--dim { opacity: .28; }
 
 /* --- the alternating bands (viewer_leader_grid_legibility, 2026-09-14) ----
    One filled polygon per band, bounded above and below by two adjacent
