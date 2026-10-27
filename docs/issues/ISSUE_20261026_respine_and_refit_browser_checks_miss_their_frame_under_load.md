@@ -34,3 +34,18 @@ Fix shape: wait on an event the animator emits (a frame counter or a
 frame. Or make the transition duration a test knob so the window can be wide.
 The standing rule rules out generating load to reproduce this; the knob is the
 way.
+
+## Addendum 2026-10-26 (rework after review) -- the respine half was this branch's, and is fixed
+
+The review corrected the reading above. On the folded graph the respine suite was red in 4 of
+4 runs, and on `integration` it was 40/40 twice, at 16% CPU. So the respine half was a regression
+the fold caused, not a load race: a 106-row paint leaves the 260 ms transition too little
+room. The suite now widens the page's own knob for itself (`VA.RESPINE.duration = 1200`,
+`RESPINE_SUITE_DURATION_MS` in `scripts/run_viewer_browser_tests.mjs`). Re-measured on the
+rework tree (`b76462d`): 5 of 5 `--only` runs at 40/40, then the full tier with 28 of 28
+suites green.
+
+**What is left open:** the `[mock]` re-fit check ("shrinking the window re-fits the DAG
+into it", `topology height budget`). It failed once in this session (20/21) and passed on its
+next run and in the full run above. It reads no live projection, so the fold cannot reach it.
+The event-or-knob fix shape above still applies to it.
