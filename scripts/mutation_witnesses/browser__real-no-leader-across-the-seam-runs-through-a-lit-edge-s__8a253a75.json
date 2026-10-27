@@ -6,10 +6,10 @@
     {
       "contract": "A leader leaves level with its own node's row.",
       "issue": null,
-      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Leaves half a row lower, through the edge rows under it.",
-      "file": "apps/viewer/topology_app.js",
-      "find": "      dots[id] = [r.left + d[0], r.top + d[1]];",
-      "replace": "      dots[id] = [r.left + d[0] + 400, r.top + d[1] + 13];"
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Leaves every leader at a lit bar's height instead of its own row's, so its level leg runs through that bar.",
+      "file": "apps/viewer/topology.js",
+      "find": "        out.dots[id] = [mark.x - r - 1.5, mark.y];",
+      "replace": "        out.dots[id] = [mark.x + 400, out.bars.length ? (out.bars[0].y1 + out.bars[0].y2) / 2 : mark.y];"
     }
   ]
 }

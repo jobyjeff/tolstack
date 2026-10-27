@@ -10149,16 +10149,21 @@ async function testSeamLeaders(browser, label, topologies) {
           Math.abs(Number(p.d.split(" ")[4]) - bend) <= 0.5 && bend < p.from[0];
       }));
 
-    // A resize moves both rects; the leaders follow without a new message.
+    // A column resized with no repaint behind it -- the scene narrowed by
+    // hand, which moves the DAG's rect and nothing else: only the one
+    // ResizeObserver can bring the leaders along, with no new anchors message.
     const beforeResize = await draws();
-    await page.setViewportSize({ width: 1500, height: 940 });
+    await page.evaluate(() => {
+      const f = document.querySelector("#annotate-flyout");
+      f.style.width = (f.getBoundingClientRect().width - 80) + "px";
+    });
     const resized = await drawnAfter(beforeResize);
-    await settled();
     await page.waitForTimeout(150);
     m = await measure();
-    push("a resize re-draws the leaders onto the moved rects, with no new anchors message",
+    push("a column resized with no repaint re-draws the leaders onto the moved rects, with no new " +
+      "anchors message",
       resized && endsHold(m, anchors));
-    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.evaluate(() => { document.querySelector("#annotate-flyout").style.width = ""; });
     await settled();
     await page.waitForTimeout(150);
 
