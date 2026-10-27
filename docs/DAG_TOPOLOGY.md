@@ -332,7 +332,7 @@ rule `provenance.structure`'s reading of element order already follows.
 Three cases, and the difference matters:
 
 1. **`dimension`, inline** — topology-first authoring, for a system with no
-   stack behind it. This is what `topology_pitch_system.json` does.
+   stack behind it. This is what `topology_vpa_pitch_linkage.json` does.
 2. **`dimension_ref`** — `{"stack": "<repo-relative path>", "element": "<id>"}`,
    resolved out of the stack file at load time, citation and `role` included.
    This is what `topology_vpa_output_to_pitch_plate.json` does, and it is what
@@ -488,9 +488,10 @@ name. A topology reuses the **same two rules**, read by
 `scripts/build_topology_projection.py`'s own `worksheet_for()` — declared
 first, then `topology_X.json` -> `WORKSHEET_X.md` by name — because a
 topology's worksheet is usually named for the *source workbook*, not the
-system: `topology_pitch_system.json` declares
+system: `topology_vpa_pitch_linkage.json` declares (its pitch-system half's, since
+the 2026-10-26 fold)
 `provenance.worksheet: "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md"`,
-which shares no stem with `pitch_system` at all, so only the declared rule
+which shares no stem with `vpa_pitch_linkage` at all, so only the declared rule
 finds it. Emitted into the projection as `worksheet_file`/`worksheet_source`,
 the same field names `results.json` already carries for a stack. The worksheet
 lives on the **topology**, not the study: a source workbook documents the
