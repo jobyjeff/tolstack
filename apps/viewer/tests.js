@@ -15650,7 +15650,7 @@
         var realKinTopologies = await real.readTopologies();
 
         await test("[real] the kinematic projection carries the blade-pitch study, " +
-          "both stop margins and both gap rows", function () {
+          "both stop margins and six banded rows", function () {
             eq(realKinematic.studies.length, 1);
             ok(realKinStudy, "the blade-pitch study is in the live projection");
             eq(realKinStudy.status, "ok");
@@ -15669,7 +15669,7 @@
           });
 
         await test("[real] the kinematic page renders the live study: two verdicts, " +
-          "six ranked rows under the -7 deg stop, the last two gaps", function () {
+          "six ranked rows under the -7 deg stop, none of them a gap", function () {
             var root = render(function (r) {
               VA.renderKinematic(r, { kinematic: realKinematic, study: realKinStudy,
                 topologies: realKinTopologies });

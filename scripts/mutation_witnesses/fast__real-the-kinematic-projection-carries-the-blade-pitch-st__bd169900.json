@@ -1,7 +1,7 @@
 {
   "tier": "fast",
   "suite": null,
-  "expect_red": "[real] the kinematic projection carries the blade-pitch study, both stop margins and both gap rows",
+  "expect_red": "[real] the kinematic projection carries the blade-pitch study, both stop margins and six banded rows",
   "mutations": [
     {
       "contract": "The page finds a study in the live projection by its id.",
