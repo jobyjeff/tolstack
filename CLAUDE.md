@@ -177,8 +177,14 @@ Know these before you write code; each has a test standing on it.
   decay nothing cheaper could — a witness defect with no product exposure. So
   **a branch, a review's post-merge run and the batch merge run
   `--changed-since <ref>`** (`--repo C:/workspace/tolstack` from a worktree):
-  every entry whose mutation file, spec file or tier harness the diff touched.
-  **`--only <guard>` re-checks one.** The whole registry, `--full`, is the
+  every entry the diff's *hunks* reach — a hunk within a few dozen lines of
+  the mutation's anchor (or the anchor gone), the spec file changed, or a
+  hunk inside the guard's own body in its harness file. Hunks, not files,
+  since the evening of 2026-10-26: this repo's harness files *are* its check
+  files and its viewer is a few large files, so the file-level first cut
+  selected 258 of 332 entries for one viewer handoff — the whole registry by
+  another name. What a hunk leaves unselected (the note the selection prints
+  says how many, and why) is the sweep's. **`--only <guard>` re-checks one.** The whole registry, `--full`, is the
   scheduled sweep's (`docs/prompts/WITNESS_SWEEP.md`), and a decay it finds
   arrives as a `class: decayed_witness` issue the next morning. The one case
   the gate cannot see is the one the sweep exists for: `--changed-since` would

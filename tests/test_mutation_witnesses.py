@@ -1058,26 +1058,44 @@ RUNNER = REPO_ROOT / "scripts" / "run_mutation_witness_tests.mjs"
 SELECTED_LINE = re.compile(r"^  (\S+)  \[(.+)\]$")
 
 
-def _selection_for(tmp_path: Path, *changed: str) -> tuple[dict[str, str], str]:
+#: The arm the runner prints for a mutation whose own file changed near its anchor.
+NEAR_ARM = re.compile(r"^mutation file changed within \d+ lines of the anchor$")
+
+
+def _selection_for(tmp_path: Path, *changed: str | tuple[str, str],
+                   ) -> tuple[dict[str, str], str]:
     """The runner's selection for a throwaway repo whose second commit touches ``changed``.
 
     ``--diff-root`` points git at the throwaway repo, so the entries are the
     real registry's and the diff is whatever this test says it is -- no browser,
     no tier run (``--selection-only`` stops after the selection is printed).
+
+    A bare path is created in the second commit with throwaway contents. A
+    ``(path, contents)`` pair starts from the REAL file's text in the first
+    commit and writes ``contents`` in the second, so a test can put a hunk
+    exactly where it means to -- inside one guard, next to one anchor, far from
+    both -- since 2026-10-26 every arm is a hunk, not a file.
     """
     def git(*args: str) -> None:
         subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t",
                         "-c", "user.email=t@t", *args],
                        check=True, capture_output=True)
 
-    git("init", "-q")
-    (tmp_path / "seed.txt").write_text("seed", encoding="utf-8")
-    git("add", "-A")
-    git("commit", "-q", "-m", "one")
-    for relative in changed:
+    def write(relative: str, text: str) -> None:
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("changed", encoding="utf-8")
+        target.write_text(text, encoding="utf-8", newline="\n")
+
+    git("init", "-q")
+    (tmp_path / "seed.txt").write_text("seed", encoding="utf-8")
+    for item in changed:
+        if isinstance(item, tuple):
+            write(item[0], _lf((REPO_ROOT / item[0]).read_text(encoding="utf-8")))
+    git("add", "-A")
+    git("commit", "-q", "-m", "one")
+    for item in changed:
+        relative, text = item if isinstance(item, tuple) else (item, "changed")
+        write(relative, text)
     git("add", "-A")
     git("commit", "-q", "-m", "two")
     proc = subprocess.run(
@@ -1094,13 +1112,57 @@ def _selection_for(tmp_path: Path, *changed: str) -> tuple[dict[str, str], str]:
     return picked, proc.stdout
 
 
-def test_changed_since_selects_an_entry_whose_mutation_file_changed(tmp_path, mutations):
+def _lf(text: str) -> str:
+    return text.replace("\r\n", "\n")
+
+
+def _with_line_inserted(relative: str, before_line: int, inserted: str) -> tuple[str, str]:
+    """The real file with one line inserted before 1-based ``before_line``."""
+    lines = _lf((REPO_ROOT / relative).read_text(encoding="utf-8")).split("\n")
+    lines.insert(before_line - 1, inserted)
+    return relative, "\n".join(lines)
+
+
+def _anchor_line(mutation: dict) -> int:
+    """1-based line where ``mutation["find"]`` starts in the real file."""
+    text = _lf((REPO_ROOT / mutation["file"]).read_text(encoding="utf-8"))
+    at = text.find(_lf(mutation["find"]))
+    assert at != -1, f"anchor not in {mutation['file']}: {mutation['find']!r}"
+    return text.count("\n", 0, at) + 1
+
+
+def _stems(picked: dict[str, str]) -> set[str]:
+    return {k.split("#")[0] for k in picked}
+
+
+def test_changed_since_selects_an_entry_whose_file_changed_next_to_its_anchor(tmp_path, mutations):
+    name, _spec, mutation = next(
+        m for m in mutations if m[2]["file"].startswith("apps/annotate/") and "\n" not in m[2]["find"])
+    picked, _out = _selection_for(
+        tmp_path, _with_line_inserted(mutation["file"], _anchor_line(mutation), "// a hunk at the anchor"))
+    assert name.removesuffix(".json") in _stems(picked), picked
+    assert all(NEAR_ARM.match(arm) for arm in picked.values()), picked
+
+
+def test_changed_since_leaves_an_entry_whose_file_changed_far_from_its_anchor(tmp_path, mutations):
+    # A hunk at line 1 of a file whose anchor sits hundreds of lines down. On
+    # the first review that ran this mode (2026-10-26) a file-level arm picked
+    # 111 entries for one viewer handoff, 77 of them anchored more than 30 lines
+    # from any hunk; the selection now says so in a note and leaves them to the
+    # sweep.
+    name, _spec, mutation = next(
+        m for m in mutations if m[2]["file"].startswith("apps/") and _anchor_line(m[2]) > 400)
+    picked, out = _selection_for(tmp_path, _with_line_inserted(mutation["file"], 1, "// a hunk far away"))
+    assert name.removesuffix(".json") not in _stems(picked), picked
+    assert re.search(rf"^note: {re.escape(mutation['file'])} changed, but \d+ of its entries anchor "
+                     r"more than \d+ lines from every hunk", out, re.M), out
+
+
+def test_changed_since_selects_an_entry_whose_anchor_the_diff_removed(tmp_path, mutations):
     name, _spec, mutation = next(m for m in mutations if m[2]["file"].startswith("apps/annotate/"))
-    picked, _out = _selection_for(tmp_path, mutation["file"])
-    assert picked.get(name.removesuffix(".json")) == "mutation file changed" or any(
-        key.startswith(name.removesuffix(".json")) and arm == "mutation file changed"
-        for key, arm in picked.items()), picked
-    assert set(picked.values()) == {"mutation file changed"}
+    picked, _out = _selection_for(tmp_path, mutation["file"])   # the whole file replaced
+    assert any(k.split("#")[0] == name.removesuffix(".json") and arm == "mutation anchor gone"
+               for k, arm in picked.items()), picked
 
 
 def test_changed_since_selects_an_entry_whose_spec_changed(tmp_path, specs):
@@ -1113,18 +1175,47 @@ def test_changed_since_selects_an_entry_whose_spec_changed(tmp_path, specs):
     assert set(picked.values()) == {"spec added or changed"}
 
 
-def test_changed_since_selects_every_entry_of_a_tier_whose_harness_changed(tmp_path, specs):
-    picked, _out = _selection_for(tmp_path, "apps/annotate/run_tests.cjs")
-    annotate = {name.removesuffix(".json") for name, spec in specs if spec["tier"] == "annotate"}
+def _guard_opener_line(path: str, opener: str) -> int:
+    lines = _lf((REPO_ROOT / path).read_text(encoding="utf-8")).split("\n")
+    hits = [i + 1 for i, line in enumerate(lines) if opener in line]
+    assert len(hits) == 1, (opener, hits)
+    return hits[0]
+
+
+def test_changed_since_selects_only_the_guard_a_harness_hunk_falls_inside(tmp_path, specs):
+    # In this repo the harness files ARE the check files -- every annotate guard
+    # is written into run_tests.cjs -- so "the harness changed" was true of
+    # every annotate handoff and selected the whole tier. A hunk inside one
+    # guard's body selects that guard.
+    annotate = [(n, s) for n, s in specs if s["tier"] == "annotate"]
     assert annotate, "no annotate specs: the arm this test pins has nothing to select"
-    assert {k.split("#")[0] for k in picked} >= annotate
-    assert "tier harness changed" in set(picked.values())
+    name, spec = next((n, s) for n, s in annotate
+                      if len([line for line in _lf((REPO_ROOT / "apps/annotate/run_tests.cjs")
+                                                   .read_text(encoding="utf-8")).split("\n")
+                              if f'check("{s["expect_red"][:40]}' in line]) == 1)
+    opener = _guard_opener_line("apps/annotate/run_tests.cjs", f'check("{spec["expect_red"][:40]}')
+    picked, _out = _selection_for(
+        tmp_path, _with_line_inserted("apps/annotate/run_tests.cjs", opener + 1, "  // a hunk in this guard"))
+    assert _stems(picked) == {name.removesuffix(".json")}, picked
+    assert set(picked.values()) == {"guard changed in its harness"}
 
 
-def test_changed_since_selects_a_python_entry_whose_pytest_file_changed(tmp_path, specs):
-    name, spec = next((n, s) for n, s in specs if s["tier"] == "python")
-    picked, _out = _selection_for(tmp_path, spec["suite"])
-    assert name.removesuffix(".json") in {k.split("#")[0] for k in picked}
+def test_changed_since_a_harness_hunk_outside_every_guard_selects_nothing_and_says_so(tmp_path, specs):
+    picked, out = _selection_for(
+        tmp_path, _with_line_inserted("apps/annotate/run_tests.cjs", 1, "// scaffolding, before any check"))
+    assert not {k for k, arm in picked.items() if arm == "guard changed in its harness"}, picked
+    assert re.search(r"^note: apps/annotate/run_tests\.cjs changed outside every guard", out, re.M), out
+
+
+def test_changed_since_selects_a_python_entry_whose_test_body_changed(tmp_path, specs):
+    name, spec = next((n, s) for n, s in specs if s["tier"] == "python"
+                      and len(re.findall(rf"^\s*def {re.escape(s['expect_red'])}\(",
+                                         _lf((REPO_ROOT / s["suite"]).read_text(encoding="utf-8")), re.M)) == 1)
+    opener = _guard_opener_line(spec["suite"], f"def {spec['expect_red']}(")
+    picked, _out = _selection_for(tmp_path, _with_line_inserted(spec["suite"], opener + 1, "    # a hunk in this test"))
+    assert name.removesuffix(".json") in _stems(picked), picked
+    assert picked[next(k for k in picked if k.split("#")[0] == name.removesuffix(".json"))] \
+        == "guard changed in its harness"
 
 
 def test_changed_since_an_unreachable_diff_is_a_result_not_a_refusal(tmp_path, specs):

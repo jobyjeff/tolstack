@@ -469,10 +469,28 @@ if (process.argv.includes("--check-shadow-covers-projection-inputs")) {
 // two hours on every landing (the whole registry, one browser slot, twice per
 // landing) is not. An entry can have decayed only if the diff touched what it
 // stands on:
-//   mutation -- the entry's own `file` is in the diff;
+//   mutation -- the entry's own `file` changed WITHIN REACH OF ITS ANCHOR: a
+//               hunk within NEAR lines of the `find` text, the anchor gone,
+//               or the file gone (a change far from the anchor is the sweep's
+//               -- the note printed with the selection says how many);
 //   spec     -- the entry's spec file was added or changed;
-//   harness  -- the entry's tier harness changed (HARNESS_FILES below; a
-//               python entry's harness is the pytest file its `suite` names).
+//   guard    -- the GUARD ITSELF changed: a hunk in its tier's harness file
+//               (HARNESS_FILES below; a python entry's harness is the pytest
+//               file its `suite` names) falls inside the check that carries
+//               the entry's name.
+//
+// EVERY ARM IS A HUNK, NOT A FILE, SINCE 2026-10-26 (strategy, the same evening
+// the mode landed). The first review to run it selected 258 of 332 entries --
+// the whole fast and browser tiers, two hours, the thing this mode exists to
+// stop -- for two reasons that are both this repo's shape. The harness files
+// ARE the check files: every viewer guard is written into apps/viewer/tests.js
+// or scripts/run_viewer_browser_tests.mjs, so "the harness changed" was true of
+// every viewer handoff. And the viewer is a few large files: with the arm at
+// file level, touching apps/viewer/viewer.js selected 111 entries, 77 of them
+// anchored more than 30 lines from any hunk. A hunk outside every guard (the
+// runner's scaffolding, a shared helper) or far from an anchor could in
+// principle decay entries this does not select; that is the sweep's case, and
+// the selection says so in a note rather than running the tier.
 //
 // THE COUNTER-CASE, WRITTEN HERE SO THE NEXT REVIEWER WHO MEETS A DECAY DOES NOT
 // PUT `--full` BACK ON THE GATE: on 2026-10-20 the one decay the whole registry
@@ -514,18 +532,151 @@ function changedSince(ref) {
   return { files: names };
 }
 
+// A line that opens a guard in a harness file, with the start of its name. The
+// JS harnesses write `test("name", ...)`, `check("name", ...)` or
+// `push("name", ...)`; a long name is often split across concatenated string
+// literals, so what this captures may be only the name's first fragment, and
+// the match below is a prefix match for that reason. pytest guards are
+// `def test_<name>(`.
+const GUARD_OPENERS = [
+  /\b(?:test|check|push|it)\(\s*(["'`])((?:(?!\1).)+)/,
+  /^\s*(?:async\s+)?def\s+(test_\w+)\s*\(/,
+];
+function guardOpenedOn(line) {
+  for (const re of GUARD_OPENERS) {
+    const found = re.exec(line);
+    if (found) return (found[2] === undefined ? found[1] : found[2]).trim();
+  }
+  return null;
+}
+
+// How far (in lines of the working-tree file) a diff hunk may sit from a
+// mutation's anchor and still count as having reached it. A function-sized
+// neighbourhood: the decays this tier has actually recorded were a renamed or
+// moved anchor and a check whose own body changed, both of which land inside
+// it. `--near <lines>` widens or narrows it for one run.
+const NEAR = argFlag("--near") === null ? 30 : Number(argFlag("--near"));
+
+/**
+ * The hunks `ref`'s diff puts in one working-tree file, as new-side
+ * `[first, last]` line spans, with the file's lines (LF-normalised) -- or
+ * `null` when the file is not there. An untracked file is one hunk, the whole
+ * file. The diff is taken from `ref`'s merge-base with HEAD straight to the
+ * working tree, so committed and uncommitted changes count alike.
+ */
+const HUNKS = new Map();
+function hunksIn(file, ref) {
+  if (HUNKS.has(file)) return HUNKS.get(file);
+  const git = (...args) => spawnSync("git", ["-C", DIFF_ROOT, ...args],
+    { encoding: "utf-8", windowsHide: true });
+  const path = join(DIFF_ROOT, ...file.split("/"));
+  let found = null;
+  if (existsSync(path)) {
+    const text = readFileSync(path, "utf-8").replace(/\r\n/g, "\n");
+    const lines = text.split("\n");
+    const tracked = git("ls-files", "--error-unmatch", "--", file).status === 0;
+    let spans = [[1, lines.length]];
+    if (tracked) {
+      const base = git("merge-base", ref, "HEAD");
+      const diff = git("diff", "-U0", (base.stdout || ref).trim(), "--", file);
+      spans = [];
+      for (const h of (diff.stdout || "").matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
+        const first = Math.max(1, Number(h[1]));
+        const count = h[2] === undefined ? 1 : Number(h[2]);
+        spans.push([first, first + Math.max(count, 1) - 1]);
+      }
+    }
+    found = { text, lines, spans };
+  }
+  HUNKS.set(file, found);
+  return found;
+}
+
+/** Lines from `line` to the nearest hunk span; 0 inside one, Infinity with none. */
+function distanceToAHunk(line, spans) {
+  let best = Infinity;
+  for (const [a, b] of spans) {
+    best = Math.min(best, line < a ? a - line : line > b ? line - b : 0);
+  }
+  return best;
+}
+
+/**
+ * The guard names (or name fragments) whose bodies the diff touches in one
+ * harness file, plus the new-side lines of hunks that fall inside no guard.
+ * Each hunk is attributed to the nearest guard opened above its first line.
+ */
+function guardsTouchedIn(file, ref) {
+  const hunks = hunksIn(file, ref);
+  if (!hunks) return { names: [], outside: [] };
+  const names = new Set();
+  const outside = [];
+  for (const [start] of hunks.spans) {
+    let opened = null;
+    for (let i = Math.min(start, hunks.lines.length); i >= 1 && opened === null; i--) {
+      opened = guardOpenedOn(hunks.lines[i - 1]);
+    }
+    if (opened === null) outside.push(start); else names.add(opened);
+  }
+  return { names: [...names], outside };
+}
+
+/**
+ * How `ref`'s diff reached one mutation's own file: the anchor is gone, a hunk
+ * sits within NEAR lines of it, or (`null`) the file changed somewhere far
+ * from it. The arm reads the WORKING-TREE file, so a `find` the diff deleted
+ * is "anchor gone" here and ANCHOR ROTTED when the tier runs.
+ */
+function mutationReached(m, ref) {
+  const hunks = hunksIn(m.file, ref);
+  if (!hunks) return "mutation file removed";
+  const find = m.find.replace(/\r\n/g, "\n");
+  const at = hunks.text.indexOf(find);
+  if (at === -1) return "mutation anchor gone";
+  const line = hunks.text.slice(0, at).split("\n").length;
+  const last = line + find.split("\n").length - 1;
+  const d = Math.min(distanceToAHunk(line, hunks.spans), distanceToAHunk(last, hunks.spans));
+  return d <= NEAR ? `mutation file changed within ${NEAR} lines of the anchor` : null;
+}
+
 /** The entries `files` could have decayed, each with the arm that selected it. */
-function reachedBy(files) {
+function reachedBy(files, ref) {
   const specDir = SPEC_DIR.join("/");
-  const picked = [];
-  for (const m of all) {
+  const harnessFiles = new Set(Object.values(HARNESS_FILES).flat());
+  for (const m of all) if (m.tier === "python" && m.suite) harnessFiles.add(m.suite);
+  const touched = new Map();   // harness file -> { names, outside }
+  for (const f of harnessFiles) if (files.has(f)) touched.set(f, guardsTouchedIn(f, ref));
+  const guardChanged = (m) => {
     const harness = m.tier === "python" ? [m.suite] : (HARNESS_FILES[m.tier] || []);
-    const arm = files.has(m.file) ? "mutation file changed"
-      : files.has(`${specDir}/${m.specFile}`) ? "spec added or changed"
-      : harness.some((f) => files.has(f)) ? "tier harness changed" : null;
+    return harness.some((f) => (touched.get(f) || { names: [] }).names.some((frag) =>
+      frag.length >= 8 && (m.expect_red.startsWith(frag) || frag.startsWith(m.expect_red))));
+  };
+  const picked = [];
+  const far = new Map();   // mutation file -> entries changed far from their anchor
+  for (const m of all) {
+    let arm = null;
+    if (files.has(m.file)) {
+      arm = mutationReached(m, ref);
+      if (arm === null) far.set(m.file, (far.get(m.file) || 0) + 1);
+    }
+    arm = arm
+      || (files.has(`${specDir}/${m.specFile}`) ? "spec added or changed" : null)
+      || (guardChanged(m) ? "guard changed in its harness" : null);
     if (arm) picked.push({ m, arm });
   }
-  return picked;
+  const notes = [];
+  for (const [f, n] of far) {
+    notes.push(`note: ${f} changed, but ${n} of its entries anchor more than ${NEAR} lines from ` +
+      "every hunk and are left to the scheduled sweep (docs/prompts/WITNESS_SWEEP.md; --near widens this).");
+  }
+  for (const [f, { outside }] of touched) {
+    if (outside.length) {
+      notes.push(`note: ${f} changed outside every guard (new-side line${outside.length > 1 ? "s" : ""} ` +
+        `${outside.slice(0, 6).join(", ")}${outside.length > 6 ? ", ..." : ""}); a harness change ` +
+        "selects nothing here -- the scheduled sweep runs the whole tier.");
+    }
+  }
+  return { picked, notes };
 }
 
 if (CHANGED_SINCE !== null) {
@@ -534,9 +685,11 @@ if (CHANGED_SINCE !== null) {
     console.log(`REFUSED: could not read the diff against ${CHANGED_SINCE}: ${diff.why}`);
     process.exit(2);
   }
-  const picked = reachedBy(diff.files)
+  const reached = reachedBy(diff.files, CHANGED_SINCE);
+  const picked = reached.picked
     .filter(({ m }) => ONLY === null || m.id.includes(ONLY) || m.expect_red.includes(ONLY));
   for (const { m, arm } of picked) console.log(`  ${m.id}  [${arm}]`);
+  for (const note of reached.notes) console.log(note);
   chosen = picked.map(({ m }) => m);
   const verdict = `${chosen.length} of ${all.length} entries can be reached by this diff against ${CHANGED_SINCE}`;
   if (!chosen.length) {
