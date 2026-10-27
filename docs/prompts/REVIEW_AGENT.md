@@ -5192,6 +5192,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       grep the browser tier for one real-iframe check per verb; then rename
       one receiver branch and run that suite `--only`
       (`ISSUE_20261027_the_nav_scene_trees_toggle_and_check_gestures_can_be_broken_green_in_every_tier.md`).
+- [ ] **A new CSS class whose name the views already use for structure.**
+      New 2026-10-27 (`the_dag_draws_bodies_as_containers_and_joints_as_symbols`).
+      The container rect was named `tv__body`, which is also `renderTopoPane`'s
+      wrapper `<div>`, so `.tv__body { pointer-events: none }` switched off
+      every click on the DAG and grid. The fast and `[real]` tiers stayed
+      green because the DOM shim has no CSS, and only the browser tier caught
+      it. For every class a diff adds to `topology.css`/`style.css`, run
+      `git grep -n '"<class>"\|<class>' -- apps/` against the pre-diff tree.
+      Any hit outside the new code is a collision.
+- [ ] **A bridged worktree's untracked `venv-win` link rides in on
+      `git add -A`.** `.gitignore`'s `venv-win/` is slash-only and misses the
+      symlink `dispatch bridge-test-inputs` leaves. Read the diff's `A`
+      entries for a bare `venv-win`
+      (`ISSUE_20261027_gitignore_venv_win_slash_pattern_misses_the_bridge_symlink.md`).
 
 ## Architectural errors to check
 
