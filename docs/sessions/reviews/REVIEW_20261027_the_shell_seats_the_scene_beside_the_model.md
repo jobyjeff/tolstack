@@ -186,3 +186,50 @@ above covered. The full mutation-witness selection was not re-run (see
 The tactical scratch root `C:\workspace\tolstack\data\scratch\shell_scene\`
 is still in place; I reused it and did not delete it (another session's
 artifact). It is gitignored; whoever cleans `data/scratch/` next can remove it.
+
+## Integration moved before the landing — merged in, re-verified
+
+The first `git fetch . review/…:integration` was refused: `integration` had
+gained `a_contributor_may_be_a_study` (kinematic contributor groups:
+`views/kinematic.js`, `tolerance_stack/kinematic.py`, the blade-pitch study
+JSON, `build_kinematic_projection.py`, `tests.js`, the browser harness).
+Merged `integration` into the review branch (`b489480b`).
+
+**Conflict, and its resolution:** `scripts/guard_enumeration.mjs`
+`DECLARED_GUARDS`. Ours: fast 569, browser 622/589. Theirs: fast 570,
+browser 610/577. Neither is right — each was measured without the other's
+guards. Took the census of the merged tree
+(`node scripts/guard_enumeration.mjs --json`): **fast 572, browser 623/590**,
+annotate unchanged at 225 — exactly the base (567, 609/576) plus both deltas
+(+3/+1 theirs, +2/+13 ours). No marker lines left.
+
+**Re-verified on the merged tree**, with every projection rebuilt into a new
+scratch root built from it (`C:\workspace\tolstack\data\scratch\review_shell_scene\`,
+the four Python builders plus `build_viewer_crops.py` under drawing-checker's
+interpreter; the freshness check refused the first attempt until crops were
+rebuilt too, as it should):
+
+- fast tier `--repo <new scratch>` — **570/571**, the same filed fixture red;
+  annotate fast tier 225/225; pytest risky subset 332 passed.
+- browser tier, full — **30/31**, the same filed gap-badge red; `3D pane
+  follows` 27/27, `annotate flyout` 46/46, `kinematic study page` 15/15;
+  widths unchanged (900 / 739).
+- full `pytest -q -rfs` — **1 failed, 1592 passed, 1 skipped, 2 deselected
+  in 328 s**; the failure is the same worktree-only
+  `test_viewer_js_suite.py`. Recorded: inside budget.
+- **Witnesses the merge could reach.** `--changed-since fa610075` (the
+  sibling's diff seen from this branch's tip) selects 24 entries, all the
+  sibling's; none of this handoff's 51 are near its hunks. With `--repo`:
+  14/24 — all 6 browser and all 8 python entries witnessed; the 10 fast ones
+  read "red before the mutation" because of the filed fixture red. Re-run
+  from the worktree without `--repo`: 6 of those 10 witnessed; the other 4
+  are `[real]` fast checks (`b2129351`, `85b16621`, `bd169900`, `69c1e172`)
+  which skip without `--repo` and cannot be witnessed with it while that
+  fixture red stands. That is the environment, not a drop the merge
+  caused; it clears when
+  `ISSUE_20261026_topology_fixtures_lack_the_tags_fields_so_the_real_fixture_pairing_is_red_on_integration.md`
+  is fixed. **20/24 witnessed, 4 unwitnessable here, 0 not witnessed.**
+
+The `--changed-since master` selection the overlay names is 184 entries on
+this tree (108 commits of integration not yet on trunk); I ran the merge's
+own reach instead and say so here.
