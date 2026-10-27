@@ -114,6 +114,14 @@
       "zone": "sphere",
       "dimension_ref": {"topology": "vpa_pitch_linkage", "edge": "pitch_plate_tan_link_attach_radius"},
       "note": "215735-A sheet 2 positions the 3X attach bores from the spindle bore by ⌖Ø0.2 A B; read as a ball of radius 0.10 mm about the attach point, which is conservative along the bore axis. The hole's axis is not stated, so no disk is authored (same gap as pitch_plate_attach_height)."
+    },
+    {
+      "study_ref": {
+        "topology": "vpa_pitch_linkage",
+        "study_id": "vpa_pitch_linkage_travel_between_end_stops",
+        "parameter": "actuator.value"
+      },
+      "note": "Where the end stops sit: the travel between them is a study of its own, and it moves the sweep's driver, actuator.value, whose Jacobian entry is the motion ratio in degrees of blade pitch per millimetre. Its terms enter here one by one, each scaled by that entry (the chain rule), and each keeps the citation it has in the travel study -- the travel study's folded total is never used as a band."
     }
   ],
   "checks": [
@@ -144,7 +152,6 @@
       },
       "complete": false,
       "excluded_terms": [
-        "the end-stop location itself -- where the driver's zero sits is the parallel study the_travel_between_the_end_stops_is_a_study; its total enters here later as a band on actuator.value, whose Jacobian entry is the motion ratio",
         "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
@@ -180,7 +187,6 @@
       },
       "complete": false,
       "excluded_terms": [
-        "the end-stop location itself -- where the driver's zero sits is the parallel study the_travel_between_the_end_stops_is_a_study; its total enters here later as a band on actuator.value, whose Jacobian entry is the motion ratio",
         "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
@@ -198,6 +204,6 @@
   },
   "notes": [
     "Variation only: every band is about a nominal of 0.0, so each point's fold is the deviation of blade pitch from the sweep's own nominal there. The nominal itself is the sweep's solved value, carried beside the fold, never added to it.",
-    "complete: false at both stops, so both verdicts render as budgets: two of six contributors are gap rows, and the end stop's own location, bushing tipping and temperature are not contributors yet."
+    "complete: false at both stops, so both verdicts render as budgets: bushing tipping and temperature are not contributors yet, and the travel study's own untraced terms are open here too (the checks name them)."
   ]
 }
