@@ -81,6 +81,25 @@ A contributor with neither, or whose referenced edge carries no dimension, is a
 **gap row**: it shows its sensitivity (the Jacobian is real) and contributes no
 term, and the result says how many rows are gaps. Nothing is invented.
 
+A contributor may itself be a study (``study_ref``)
+---------------------------------------------------
+
+A contributor written ``{"study_ref": {"topology", "study_id", "parameter"}}``
+names a **chain study** (``study/v0``) whose total moves one sweep parameter --
+the travel between the end stops moves the driver, ``actuator.value``. It does
+not contribute that study's folded interval. It contributes **its terms**: at
+every sweep point each of the sub-study's signed terms enters this fold with
+coefficient ``|J| x (the term's own ratio)`` and sign ``sign(J) x (the term's
+own sign)``, ``J`` being the sweep's Jacobian entry for ``parameter`` (the chain
+rule, written as terms). Worst case stays ``sum |c h|`` over the leaf terms and
+RSS stays one quadrature over them -- nothing folds a fold, and this module still
+declares no exception to the one-fold rule. Each leaf's band is the sub-study
+edge's own cited band about its own nominal (variation only, as every
+contributor here), carried with its ``source_ref`` and confidence unchanged, so a
+term that is untraced there is untraced here. v0 refuses a ``study_ref`` that
+names a kinematic study (no nesting). ``docs/DAG_TOPOLOGY.md``, "A kinematic
+study reads its sensitivity from a published sweep".
+
 Which feature a label is
 ------------------------
 
@@ -117,7 +136,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from tolerance_stack.stack import CheckResult, Interval, SourceRef, Term, fold
-from tolerance_stack.topology import Dimension, Topology, load_topology
+from tolerance_stack.topology import (
+    Dimension, StudyError, Topology, load_study, load_topology, summarize)
 
 SCHEMA_KINEMATIC_STUDY = "joby.tolerance_stack/kinematic_study/v0"
 
@@ -228,6 +248,15 @@ LINKAGE_JOINT_TYPES: Tuple[str, ...] = tuple(LINKAGE_JOINT_ROW_NAMES)
 #: words, never a mapping). Index ``i`` here is type ``i`` there.
 LINKAGE_JOINT_ROW_SIGNATURES: Tuple[str, ...] = tuple(
     " ".join(rows) for rows in LINKAGE_JOINT_ROW_NAMES.values())
+
+#: The keys a ``study_ref`` names. **This tuple is the definition.**
+STUDY_REF_FIELDS = ("topology", "study_id", "parameter")
+
+#: The file patterns a ``study_ref``'s ``study_id`` is looked for under, in the
+#: topologies directory: a chain study (what a ref may name) and a kinematic
+#: study (found only to be refused by name -- v0 has no nesting).
+CHAIN_STUDY_GLOB = "study_*.json"
+KINEMATIC_STUDY_GLOB = "kinematic_study_*.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
@@ -425,6 +454,48 @@ class Contributor:
 
 
 @dataclass(frozen=True)
+class SubTerm:
+    """One signed term of a referenced chain study, as this study's fold reads it.
+
+    ``dimension`` is the sub-study edge's band re-expressed as a variation about
+    its own nominal (``nominal`` 0.0, ``min``/``max`` the deviations): this
+    study's fold is variation only, and a sub-study's nominal is its own
+    quantity's, not the sweep's. The citation and confidence ride along
+    unchanged. ``source`` is the edge's band exactly as the sub-study carries it.
+    """
+
+    edge: str
+    name: str
+    sign: int
+    ratio: float
+    dimension: Dimension
+    source: Dimension
+
+
+@dataclass
+class StudyRef:
+    """A contributor that is itself a chain study, resolved against its topology.
+
+    ``terms`` is the sub-study's chain in walk order. ``units`` is its output
+    quantity's unit (checked against ``parameter``'s at load); ``completeness``
+    is the sub-study's own derived completeness -- a term open there is open
+    here. ``total`` is the sub-study's own published interval, kept to be shown
+    beside the result and never read by an arithmetic step.
+    """
+
+    topology: str
+    study_id: str
+    parameter: str
+    title: str
+    units: str
+    terms: Tuple[SubTerm, ...]
+    completeness: Dict[str, Any]
+    total: Interval
+    note: Optional[str] = None
+    source_file: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class Stop:
     """A named sweep point, found **by measure value**, never by index.
 
@@ -449,6 +520,7 @@ class KinematicStudy:
     sweep_ref: Dict[str, str]
     contributors: List[Contributor]
     stops: List[Stop]
+    study_refs: List[StudyRef] = field(default_factory=list)
     description: Optional[str] = None
     checks: List[Dict[str, Any]] = field(default_factory=list)
     no_checks_reason: Optional[str] = None
@@ -636,27 +708,39 @@ def _check_band_units(study_id: str, contributor: Contributor, sweep: Sweep) -> 
             f"parameter, so its unit is part of the number: give the inline "
             f"dimension a `units`.")
     for label in contributor.parameters:
-        kind, expected = parameter_unit(sweep, label)
-        if kind is None:
-            raise KinematicStudyError(
-                f"kinematic study {study_id!r}: contributor {contributor.edge!r} "
-                f"puts a {units!r} band on label {label!r}, and this module knows "
-                f"no unit for that label (a length is one of {LENGTH_ATTRIBUTES}, "
-                f"a direction component one of {DIRECTION_ATTRIBUTES}, or the "
-                f"sweep's driver). Refusing rather than assuming the band fits.")
-        if units == expected:
-            continue
-        advice = ""
-        if kind == "direction":
-            advice = (f" A clearance in {units} becomes a tilt only over a cited "
-                      f"length (a bushing's, a guide's); cite both and author the "
-                      f"band as the tilt, in {DIRECTION_UNITS}.")
+        _require_unit_fit(study_id, f"contributor {contributor.edge!r}",
+                          units, label, sweep, "band")
+
+
+def _require_unit_fit(study_id: str, subject: str, units: str, label: str,
+                      sweep: Sweep, what: str) -> None:
+    """Refuse ``units`` on ``label`` unless it is the unit the label is in.
+
+    Shared by a contributor's band and a ``study_ref``'s output quantity: both
+    scale a Jacobian column that is (measure unit) per (label unit).
+    ``subject`` is who is being refused, ``what`` the thing in ``units``.
+    """
+    kind, expected = parameter_unit(sweep, label)
+    if kind is None:
         raise KinematicStudyError(
-            f"kinematic study {study_id!r}: contributor {contributor.edge!r}'s band "
-            f"is in {units!r}, but label {label!r} is a {kind} parameter in "
-            f"{expected!r} (sweep {sweep.run_id!r}), so the sensitivity it scales "
-            f"is per {expected} and the fold would be dimensionally wrong."
-            + advice)
+            f"kinematic study {study_id!r}: {subject} puts a {units!r} {what} on "
+            f"label {label!r}, and this module knows "
+            f"no unit for that label (a length is one of {LENGTH_ATTRIBUTES}, "
+            f"a direction component one of {DIRECTION_ATTRIBUTES}, or the "
+            f"sweep's driver). Refusing rather than assuming the {what} fits.")
+    if units == expected:
+        return
+    advice = ""
+    if kind == "direction":
+        advice = (f" A clearance in {units} becomes a tilt only over a cited "
+                  f"length (a bushing's, a guide's); cite both and author the "
+                  f"band as the tilt, in {DIRECTION_UNITS}.")
+    raise KinematicStudyError(
+        f"kinematic study {study_id!r}: {subject}'s {what} is in {units!r}, but "
+        f"label {label!r} is a {kind} parameter in "
+        f"{expected!r} (sweep {sweep.run_id!r}), so the sensitivity it scales "
+        f"is per {expected} and the fold would be dimensionally wrong."
+        + advice)
 
 
 def _topology(topology_id: str, topologies_dir: Path,
@@ -668,6 +752,73 @@ def _topology(topology_id: str, topologies_dir: Path,
                 f"no topology {topology_id!r} at {path}")
         cache[topology_id] = load_topology(path)
     return cache[topology_id]
+
+
+def _study_file(study_id: str, topologies_dir: Path) -> Tuple[Path, Dict[str, Any]]:
+    """The one document under ``topologies_dir`` whose ``id`` is ``study_id``."""
+    found = []
+    for pattern in (CHAIN_STUDY_GLOB, KINEMATIC_STUDY_GLOB):
+        for path in sorted(topologies_dir.glob(pattern)):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if data.get("id") == study_id:
+                found.append((path, data))
+    if len(found) != 1:
+        raise KinematicStudyError(
+            f"study_ref names study {study_id!r}, which is "
+            + ("declared by no document" if not found
+               else f"declared by {len(found)} documents")
+            + f" under {topologies_dir}")
+    return found[0]
+
+
+def _load_study_ref(study_id: str, raw: Dict[str, Any], sweep: Sweep,
+                    topologies_dir: Path, cache: Dict[str, Topology]) -> StudyRef:
+    """Resolve one ``study_ref`` contributor to the sub-study's signed terms."""
+    ref = raw["study_ref"]
+    if not isinstance(ref, dict) or any(not ref.get(k) for k in STUDY_REF_FIELDS):
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: a study_ref needs {STUDY_REF_FIELDS}, "
+            f"got {ref!r}")
+    if raw.get("edge") or raw.get("parameters") or raw.get("dimension") \
+            or raw.get("dimension_ref"):
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is a "
+            f"contributor by itself -- it carries no edge, parameters or band of "
+            f"its own; its terms are the sub-study's")
+    path, data = _study_file(ref["study_id"], topologies_dir)
+    if data.get("schema") == SCHEMA_KINEMATIC_STUDY:
+        nested = any("study_ref" in c for c in data.get("contributors") or ())
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} names a "
+            f"kinematic study"
+            + (", which itself holds a study_ref: nested study_refs are not "
+               "supported in v0 (no nesting yet)" if nested else
+               "; a study_ref names a chain study (study/v0), and v0 has no "
+               "nesting of kinematic studies")
+            + ".")
+    if data.get("topology") != ref["topology"]:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} says "
+            f"topology {ref['topology']!r}; the study is of {data.get('topology')!r}")
+    sweep.parameter_index(ref["parameter"])
+    try:
+        sub = load_study(path)
+        result = summarize(_topology(ref["topology"], topologies_dir, cache), sub)
+    except StudyError as failure:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} does not "
+            f"resolve: {failure}") from None
+    _require_unit_fit(study_id, f"contributor {sub.id!r}", result.units, ref["parameter"],
+                      sweep, "output unit")
+    terms = tuple(
+        SubTerm(edge=c.edge.id, name=c.edge.name, sign=c.sign, ratio=c.transform.ratio,
+                dimension=c.dimension.about_nominal(), source=c.dimension)
+        for c in result.chain)
+    return StudyRef(
+        topology=ref["topology"], study_id=sub.id, parameter=ref["parameter"],
+        title=sub.title, units=result.units, terms=terms,
+        completeness=result.completeness(), total=result.interval,
+        note=raw.get("note"), source_file=path.name)
 
 
 def load_kinematic_study(path: str | Path, data_root: str | Path,
@@ -711,8 +862,17 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
     cache: Dict[str, Topology] = {}
     topology = _topology(data["topology"], tdir, cache)
     contributors: List[Contributor] = []
+    study_refs: List[StudyRef] = []
     seen = set()
     for raw in data.get("contributors") or []:
+        if "study_ref" in raw:
+            study_ref = _load_study_ref(study_id, raw, sweep, tdir, cache)
+            if study_ref.study_id in {r.study_id for r in study_refs}:
+                raise KinematicStudyError(
+                    f"kinematic study {study_id!r}: study_ref {study_ref.study_id!r} "
+                    f"is a contributor twice")
+            study_refs.append(study_ref)
+            continue
         contributor = Contributor(
             edge=raw["edge"], parameters=tuple(raw.get("parameters") or ()),
             zone=raw.get("zone"), feature=dict(raw.get("feature") or {}),
@@ -738,7 +898,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
         _resolve_band(study_id, contributor, raw, tdir, cache)
         _check_band_units(study_id, contributor, sweep)
         contributors.append(contributor)
-    if not contributors:
+    if not contributors and not study_refs:
         raise KinematicStudyError(f"kinematic study {study_id!r} names no contributors")
 
     stops = [Stop(id=s["id"], label=s.get("label", s["id"]), target=float(s["target"]),
@@ -747,6 +907,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
     study = KinematicStudy(
         id=study_id, title=data["title"], topology=topology.id, measure=measure,
         sweep_ref=sweep_ref, contributors=contributors, stops=stops,
+        study_refs=study_refs,
         description=data.get("description"), checks=list(data.get("checks") or []),
         no_checks_reason=data.get("no_checks_reason"),
         provenance=dict(data.get("provenance") or {}), notes=list(data.get("notes") or []))
@@ -849,6 +1010,79 @@ class ContributorRow:
         }
 
 
+@dataclass(frozen=True)
+class ChildRow:
+    """One leaf term of a ``study_ref`` at one point: the chain rule, as a term.
+
+    ``sign`` is ``sign(J) x`` the sub-study term's own sign and ``coefficient``
+    is ``|J| x`` its own ratio -- composed here, handed to ``fold()`` as one
+    :class:`~tolerance_stack.stack.Term`. ``None`` term for a zero-sensitivity
+    parameter (``Term`` refuses a zero coefficient).
+    """
+
+    sub: SubTerm
+    sign: int
+    coefficient: float
+    term: Optional[Term]
+
+    @property
+    def magnitude(self) -> float:
+        return self.coefficient * self.sub.dimension.half_range
+
+    def as_dict(self) -> Dict[str, Any]:
+        dim, src = self.sub.dimension, self.sub.dimension.source_ref
+        return {
+            "edge": self.sub.edge, "name": self.sub.name,
+            "kind": "term" if self.term is not None else "zero_sensitivity",
+            "sign": self.sign, "coefficient": self.coefficient,
+            "magnitude": self.magnitude, "own_sign": self.sub.sign,
+            "own_ratio": self.sub.ratio,
+            "band": {"id": dim.id, "name": dim.name, "nominal": dim.nominal,
+                     "min": dim.min, "max": dim.max, "half_range": dim.half_range,
+                     "units": None},
+            "confidence": src.confidence if src is not None else None,
+            "source_kind": src.kind if src is not None else None,
+        }
+
+
+@dataclass(frozen=True)
+class GroupRow:
+    """A ``study_ref``'s line in a point's table: its Jacobian entry and its leaves.
+
+    ``reach`` is the group's worst-case reach, the sum of its leaves'
+    magnitudes -- a ranking figure for the table, never an input to the fold.
+    """
+
+    ref: StudyRef
+    entry: float
+    sign: int
+    children: Tuple[ChildRow, ...]
+
+    @property
+    def reach(self) -> float:
+        return math.fsum(c.magnitude for c in self.children)
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "study": self.ref.study_id, "topology": self.ref.topology,
+            "title": self.ref.title, "parameter": self.ref.parameter,
+            "entry": self.entry, "sign": self.sign, "reach": self.reach,
+            "units": self.ref.units,
+            "children": [c.as_dict() for c in self.children],
+        }
+
+
+def study_ref_group(ref: StudyRef, entry: float) -> GroupRow:
+    """The leaf terms of ``ref`` at one point, where its parameter's Jacobian is ``entry``."""
+    sign, coefficient = zone_coefficient("band", (entry,))
+    children = tuple(
+        ChildRow(sub, sign * sub.sign, coefficient * sub.ratio,
+                 Term(sub.dimension, sign * sub.sign, coefficient * sub.ratio)
+                 if coefficient > 0 else None)
+        for sub in ref.terms)
+    return GroupRow(ref, entry, sign, children)
+
+
 def rank(rows: Sequence[ContributorRow]) -> List[ContributorRow]:
     """Rows by ``magnitude`` descending; gap rows last, in document order."""
     banded = [r for r in rows if r.magnitude is not None]
@@ -865,6 +1099,7 @@ class PointResult:
     nominal: float
     interval: Interval
     rows: Tuple[ContributorRow, ...]
+    groups: Tuple[GroupRow, ...] = ()
 
     @property
     def gap_count(self) -> int:
@@ -879,12 +1114,17 @@ def fold_at(study: KinematicStudy, sweep: Sweep, point: int) -> PointResult:
         sign, coefficient = zone_coefficient(contributor.zone, entries)
         rows.append(ContributorRow(contributor, entries, sign, coefficient,
                                    contributor_term(contributor, entries)))
+    groups = [study_ref_group(ref, sweep.entries(study.measure, (ref.parameter,), point)[0])
+              for ref in study.study_refs]
+    terms = [r.term for r in rows if r.term is not None]
+    terms += [c.term for g in groups for c in g.children if c.term is not None]
     return PointResult(
         index=point,
         driver_value=sweep.driver_values[point],
         nominal=sweep.measure_values[study.measure][point],
-        interval=fold(r.term for r in rows if r.term is not None),
+        interval=fold(terms),
         rows=tuple(rank(rows)),
+        groups=tuple(groups),
     )
 
 
@@ -914,6 +1154,7 @@ def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckRe
         raise KinematicStudyError(f"kinematic study {study.id!r} has no check {check_id!r}")
     point = fold_at(study, sweep, stop_index(study, sweep, spec["configuration"]["stop"]))
     units = sweep.units.get(study.measure)
+    open_refs = [r for r in study.study_refs if not r.completeness["complete"]]
     limit = spec.get("limit")
     if limit is None:
         interval = point.interval
@@ -937,6 +1178,8 @@ def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckRe
         criterion=spec.get("criterion", ">= 0"),
         units=units,
         guidance=spec.get("guidance"),
-        complete=bool(spec.get("complete", True)),
-        excluded_terms=tuple(spec.get("excluded_terms") or ()),
+        complete=bool(spec.get("complete", True)) and not open_refs,
+        excluded_terms=tuple(spec.get("excluded_terms") or ()) + tuple(
+            f"{r.study_id} (a study_ref on {r.parameter}): {r.completeness['reason']}"
+            for r in open_refs),
     )

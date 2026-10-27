@@ -8325,14 +8325,18 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const verdicts = await page.locator("div.kmverdict").allTextContents();
       push("[real] the study page reads one verdict chip per stop",
         verdicts.length === 2 &&
-        /pass/.test(verdicts[0]) && /margin \+0\.210 deg/.test(verdicts[0]) &&
-        /pass/.test(verdicts[1]) && /margin \+0\.185 deg/.test(verdicts[1]) &&
-        await page.locator("div.kmverdict span.tvverdict--pass").count() === 2);
+        // Both read `marginal` since the travel between the end stops entered
+        // by its terms (a_contributor_may_be_a_study; they read `pass` at
+        // +0.210 and +0.185 before it).
+        /marginal/.test(verdicts[0]) && /margin -1\.207 deg/.test(verdicts[0]) &&
+        /marginal/.test(verdicts[1]) && /margin -0\.839 deg/.test(verdicts[1]) &&
+        await page.locator("div.kmverdict span.tvverdict--marginal").count() === 2);
 
-      // The model: the study's nine lit edges on (six contributors and the
-      // three edges three of them borrow a band from), the other fifty
-      // dimmed, the grid beside them the nine, all under verdicts that are
-      // on the first screen.
+      // The model: the study's thirteen lit edges on (six contributors, the
+      // three edges three of them borrow a band from, and the four edges the
+      // travel study's terms stand on), the other forty-six dimmed, the grid
+      // beside them the thirteen, all under verdicts that are on the first
+      // screen.
       const fold = await page.evaluate(() => {
         const bottoms = [...document.querySelectorAll("div.kmverdict > *")]
           .map((n) => n.getBoundingClientRect().bottom);
@@ -8346,9 +8350,9 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         await page.locator("#topopane tr.tvrow--edge").count()];
       const dimmed = await litCounts();
       push("[real] above the fold, the verdicts; under them the model, the study's " +
-        "nine edges lit and the other fifty dimmed",
+        "contributors and the edges they stand on lit and the rest dimmed",
         fold.verdicts < fold.viewport && fold.paneTop < fold.viewport &&
-        dimmed[0] === 9 && dimmed[1] === 50 && dimmed[2] === 9);
+        dimmed[0] === 13 && dimmed[1] === 46 && dimmed[2] === 13);
       await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(400);
       const hidden = await litCounts();
@@ -8358,8 +8362,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const restored = await litCounts();
       push("[real] the toolbar's Unused toggle hides the unlit model and brings it back",
         hiddenLabel === "Unused: hidden" &&
-        hidden[0] === 9 && hidden[1] === 0 && hidden[2] === 9 &&
-        restored[0] === 9 && restored[1] === 50);
+        hidden[0] === 13 && hidden[1] === 0 && hidden[2] === 13 &&
+        restored[0] === 13 && restored[1] === 46);
 
       // The wiring, not the view: topology_app.js hands the kinematic view its
       // `onCardShow: showCard`. Without it citationTrigger falls back to a
@@ -8384,8 +8388,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const tipText = (await tip.isVisible()) ? await tip.innerText() : "";
       push("[real] hovering an envelope point reads its driver, nominal and both spreads",
         /actuator travel/.test(tipText) && /64\.466 mm/.test(tipText) &&
-        /-6\.992 deg/.test(tipText) && /±0\.290 deg/.test(tipText) &&
-        /RSS/.test(tipText) && /±0\.169 deg/.test(tipText));
+        /-6\.992 deg/.test(tipText) && /±1\.707 deg/.test(tipText) &&
+        /RSS/.test(tipText) && /±0\.985 deg/.test(tipText));
 
       const rows = page.locator("table.kmtable tr.kmrow");
       const classes = [];
@@ -8400,6 +8404,24 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         classes.length === 6 &&
         classes.every((c) => /kmrow--term/.test(c) && !/kmrow--gap/.test(c)) &&
         !/contributors at/.test(await page.locator("#kinematicview").innerText()));
+
+      // The travel between the end stops is a contributor that is a study: one
+      // group row, collapsed, that opens onto its four terms with the motion
+      // ratio's magnitude at each stop as their coefficient (the first stop's
+      // 1.728 deg/mm, the second's 1.249).
+      const kids = page.locator("table.kmtable tr.kmchild");
+      const closedKids = await kids.count() === 4 && !(await kids.first().isVisible());
+      await page.locator("tr.kmgroup button.kmgroup__toggle").click();
+      const openKids = await kids.first().isVisible() && await kids.last().isVisible();
+      const kidTexts = await kids.allInnerTexts();
+      await page.locator("tr.kmgroup button.kmgroup__toggle").click();
+      push("[real] the travel study is one group row, collapsed, that opens onto its " +
+        "four terms with the composed coefficients",
+        await page.locator("table.kmtable tr.kmgroup").count() === 1 &&
+        /Travel between end stops/.test(await page.locator("tr.kmgroup").innerText()) &&
+        closedKids && openKids && kidTexts.length === 4 &&
+        kidTexts.every((t) => /1\.728/.test(t) && /1\.249/.test(t)) &&
+        !(await kids.first().isVisible()));
 
       // A coefficient's hover: its curve across P2, in the page's one popover.
       // The tangential-link mount height's coefficient changes sign between

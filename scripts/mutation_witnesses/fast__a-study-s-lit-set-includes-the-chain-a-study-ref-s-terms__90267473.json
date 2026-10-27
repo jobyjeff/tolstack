@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a study's lit set includes the chain a study_ref's terms stand on",
+  "mutations": [
+    {
+      "contract": "A kinematic study's lit set includes the edges of a study_ref's terms.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_contributor_may_be_a_study (2026-10-26). Lights the direct contributors only.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        (group.children || []).forEach(function (child) { add(child.edge); });",
+      "replace": ""
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "tier": "fast",
   "suite": null,
-  "expect_red": "[real] every live walk's rails and links re-derive from its rows, and hiding the blade-pitch study's unlit model leaves 23 rows on 8 columns",
+  "expect_red": "[real] every live walk's rails and links re-derive from its rows, and hiding the blade-pitch study's unlit model leaves 32 rows on 9 columns",
   "mutations": [
     {
       "contract": "Hiding keeps only the lit rows.",

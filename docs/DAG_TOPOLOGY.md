@@ -804,6 +804,23 @@ parameter. A derivative of the output with respect to one input is exactly a
 - **Which feature a label is** is authored per contributor (`feature`), and
   checked against the artifact's own `geometry.features[]` when a run carries
   one; a disagreement refuses to load, naming the label.
+- **A contributor may itself be a study** (2026-10-26, handoff
+  `a_contributor_may_be_a_study`). A contributor written
+  `{"study_ref": {"topology", "study_id", "parameter"}}` names a chain study
+  whose total moves one sweep parameter — the travel between the end stops
+  moves the driver — and **enters by the chain rule, as terms, never as its
+  folded interval**: at every sweep point each of the sub-study's signed terms
+  joins this study's fold with coefficient `|J| ×` the term's own ratio and
+  sign `sign(J) ×` the term's own, `J` being the sweep's Jacobian entry for
+  `parameter`. Worst case stays the sum over the leaf terms and RSS stays one
+  quadrature over them: nothing folds a fold, and a sub-study's folded total
+  would read its worst case as one RSS variate. Each leaf's band is the
+  sub-study edge's own, read about its own nominal (the sweep holds the
+  nominal), with its citation and confidence unchanged — so a term that is
+  untraced in the sub-study is untraced here, and the check says so. The
+  sub-study's output unit must be the parameter's (the same refusal a band
+  gets), and **v0 refuses a `study_ref` that names a kinematic study** — no
+  nesting yet. The page shows the group as one collapsed row over its terms.
 
 **The fence is unchanged.** Nothing here solves, perturbs or differentiates a
 mechanism, picks a load path, or calls `traverse()`/`summarize()`/`check_study()`.

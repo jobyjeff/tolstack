@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Plants a second combiner at the end of the module, the shape the walker exists to find.",
       "file": "tolerance_stack/kinematic.py",
-      "find": "        excluded_terms=tuple(spec.get(\"excluded_terms\") or ()),\n    )\n",
-      "replace": "        excluded_terms=tuple(spec.get(\"excluded_terms\") or ()),\n    )\n\n\ndef _second_combiner(a, b):\n    return a.min + b.max\n"
+      "find": "        excluded_terms=tuple(spec.get(\"excluded_terms\") or ()) + tuple(\n            f\"{r.study_id} (a study_ref on {r.parameter}): {r.completeness['reason']}\"\n            for r in open_refs),\n    )\n",
+      "replace": "        excluded_terms=tuple(spec.get(\"excluded_terms\") or ()) + tuple(\n            f\"{r.study_id} (a study_ref on {r.parameter}): {r.completeness['reason']}\"\n            for r in open_refs),\n    )\n\n\ndef _second_combiner(a, b):\n    return a.min + b.max\n"
     }
   ]
 }
