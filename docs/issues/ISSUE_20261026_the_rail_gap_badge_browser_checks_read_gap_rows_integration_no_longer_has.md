@@ -43,3 +43,30 @@ committed study, or derive the subject from the projection: pick the rows
 whose `kind` is `gap`. If there are none, record a named SKIP that cites
 this issue. Do not assert a hard-coded edge. Its mutation specs (enrolled in
 `426a85a`) need re-checking against whichever subject replaces it.
+
+## Addendum 2026-10-26 (same review, round 2) -- the 3D pane suite goes vacuous for the same reason
+
+`testThreeDPane` (`scripts/run_viewer_browser_tests.mjs`, around line 5463)
+looks up `rows.find((r) => r.kind === "gap")` on the kinematic study and, when
+there is none, pushes a single `true` check whose name says *"skipped: the
+kinematic and topology projections are not built"* and returns. On any
+projection built from `integration` since the tangential-link banding there is
+no gap row, so `[3D pane follows the selection (sweep, bind, reload, hover)]`
+prints **2/2 PASS** having run none of its `[real]` checks, and the skip
+message names the wrong cause.
+
+Measured by `node scripts/run_mutation_witness_tests.mjs --full` against a
+projection built from the review merge `9735513`: these specs were NOT
+WITNESSED (the tier stayed green with the mutation applied). No branch under
+review touched them:
+
+- `browser__real-a-reload-reopens-the-pane-the-reader-left-open-at-t__09a1cf0a` (#1, #2)
+- `browser__real-and-the-head-line-follows-it-into-bind-mode-named-b__0260157c`
+- `browser__real-and-the-pane-s-rail-lists-the-kinematic-study-s-con__5aa0c4a8`
+- `browser__real-nothing-above-produced-an-uncaught-error__62500dca`
+
+This is the priority half of this issue: the gap-badge checks are loudly red,
+and this suite is silently green. Fix it the same way, by choosing the subject
+from what the projection has. Split the skip in two: "projection not built"
+stays a skip, and "built, but no gap row" becomes either a named SKIP or a
+re-aimed subject. Then re-run these five mutations `--only`.
