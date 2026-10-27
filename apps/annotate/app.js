@@ -3968,7 +3968,7 @@ function buildOwnerNotInSetFields(edge) {
       const filename = nextFilename(filenames, slugify(edge.id) + "_owner_not_in_set");
       await state.storage.writeFeatureIdentityEvent(filename, event);
       state.sessionEvents.push(event);
-  buildModel().catch(() => { /* the layer keeps its last anchors */ });
+      buildModel().catch(() => { /* the layer keeps its last anchors */ });
       setBanner("Wrote " + filename, "ok");
       renderElementList();
       renderDetail();

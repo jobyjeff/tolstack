@@ -28,8 +28,8 @@
 //            AA.modelPartSection). Several such nodes on one part are spread
 //            up the stack axis across the cut's height in stack order, so a
 //            part's linear stack reads as a ladder on its +X side.
-//   origin   no geometry at all (no mesh installed, or, in bind mode, the
-//            part is not open): the body's own frame origin, and the surface
+//   origin   no geometry at all (no mesh installed, or the section plane
+//            cuts nothing): the body's own frame origin, and the surface
 //            says so.
 (function (AA) {
   "use strict";
