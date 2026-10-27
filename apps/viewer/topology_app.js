@@ -1437,14 +1437,14 @@
   }
 
   // The preview pane stands down while the scene is open on a page with a
-  // DAG -- a topology or a kinematic study -- and comes back when it closes
-  // or the page is a stack's (topology.css's `body.flyout-replaces-detail`).
+  // DAG -- every page but a stack's, which has none to make room for -- and
+  // comes back when it closes (topology.css's `body.flyout-replaces-detail`).
   function syncSceneColumn() {
     if (typeof document === "undefined" || !document.body ||
         !document.body.classList || !document.body.classList.toggle) return;
     var open = !!(nodes.flyout && nodes.flyout.open);
     document.body.classList.toggle("flyout-replaces-detail",
-      open && (state.mode === "topology" || state.mode === "kinematic"));
+      open && state.mode !== "stack");
   }
 
   // --- hover crosses the seam (deliverable 3) --------------------------------

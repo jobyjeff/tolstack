@@ -6,9 +6,9 @@
     {
       "contract": "On a topology or kinematic page the preview pane gives its room to the scene while the scene is open.",
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
-      "note": "Narrowing the rule to stack pages keeps the class machinery and every name, and leaves the preview standing.",
+      "note": "Inverting the one comparison keeps the class machinery and every name, and leaves the preview standing on every page with a DAG.",
       "file": "apps/viewer/topology_app.js",
-      "find": "      open && (state.mode === \"topology\" || state.mode === \"kinematic\"));",
+      "find": "      open && state.mode !== \"stack\");",
       "replace": "      open && state.mode === \"stack\");"
     }
   ]
