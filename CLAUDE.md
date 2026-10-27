@@ -107,6 +107,9 @@ Know these before you write code; each has a test standing on it.
    Three outcomes, not two: a value, an **absence** (read for, demonstrably not
    there) and an **unreadable** (on the page, the photocopy will not give it up —
    an acquisition gap, never a licence to infer). `docs/spec_library/README.md`.
+   A later event may name the earlier one it corrects (`supersedes`): folds
+   hide it, history keeps it — implemented for feature identity, adopted by the
+   spec library when a parse event first needs correcting.
 
 ## Environment
 

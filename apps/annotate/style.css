@@ -394,6 +394,15 @@ body {
 }
 .an__end-note { display: block; font-size: var(--t-meta); }
 
+/* An element's standing bindings and the quiet ways to correct one. The
+   controls stay muted until hover/focus; the history is one disclosure. */
+.an__bound { width: 100%; font-size: var(--t-meta); display: flex; flex-direction: column; gap: 2px; }
+.an__bound-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+.an__bound-text { color: #cfd3d8; }
+.an__bound-act { background: none; border: none; padding: 0; color: #9aa1ab; cursor: pointer; font: inherit; }
+.an__bound-act:hover, .an__bound-act:focus, .an__bound-act[aria-pressed="true"] { color: #e8e8e8; text-decoration: underline; }
+.an__bound-earlier { color: #9aa1ab; padding-left: 12px; }
+
 /* The escape hatch for an element whose part is not in the loaded set: rare,
    and it needs a note field, so it is a disclosure rather than a permanent
    control on the bar. */

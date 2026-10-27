@@ -440,6 +440,7 @@ async function checkEverything(browser, base) {
   await railResizePass(browser, base);
   await railRealPass(browser, base);
   await contextViewPass(browser, base);
+  await correctionPass(browser, base);
   await reducedMotionTimingPass(browser, base);
 
   if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=synthetic-demo-sweep`, "mock");
@@ -816,6 +817,43 @@ async function contextViewPass(browser, base) {
   const banner = (await page.locator("#banner").innerText()).trim();
   check("a face clicked with no element selected says what to do, in the banner",
     banner.includes("Pick an element"), banner);
+  await page.close();
+}
+
+// A binding written at the wrong end is corrected, not deleted: one click on
+// Flip direction writes a second event that supersedes the first, the row reads
+// the corrected end, and the first is one entry under a disclosure.
+async function correctionPass(browser, base) {
+  console.log("\n--- correcting a binding (mock)");
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  await page.goto(`${base}?mock=1&topology=demo_system&edge=demo_edge_traced&isolate=demo_triangle`);
+  await page.waitForFunction(() => window.__scene && window.AnnotateApp && window.AnnotateApp.exec, null,
+    { timeout: 20000 });
+  await page.evaluate(() => window.AnnotateApp.exec(["select-edge", "demo_edge_traced"]));
+  await page.waitForFunction(() => window.__scene.listOpenParts().length > 0, null, { timeout: 20000 });
+  await page.evaluate(() => window.AnnotateApp.exec(["select-face", "demo_triangle", "0"]));
+  await page.locator(".an__end[data-direction=from]").click();
+  await page.locator(".bind-form__bind").click();
+  const bound = page.locator(".an__bound-row");
+  await bound.first().waitFor({ timeout: 5000 });
+  const first = await bound.first().innerText();
+  check("a bound end is listed with its interface name and face, and offers both corrections",
+    first.includes("demo bolt-head bearing face") && first.includes("face 0") &&
+    first.includes("Flip direction") && first.includes("Correct this binding"), first);
+  check("an element with no earlier binding shows no history",
+    (await page.locator(".an__bound-history").count()) === 0);
+
+  await page.locator(".an__bound-flip").click();
+  await page.waitForFunction(() => document.querySelector(".an__bound-history"), null, { timeout: 5000 });
+  const rows = await page.locator(".an__bound-row .an__bound-text").allInnerTexts();
+  check("Flip direction leaves one standing binding, at the other end, same face",
+    rows.length === 1 && rows[0].includes("demo bushing face against the plate") &&
+    rows[0].includes("face 0"), JSON.stringify(rows));
+  const earlier = await page.locator(".an__bound-earlier").allTextContents();
+  check("...and one history entry: the end it was first written at",
+    earlier.length === 1 && earlier[0].includes("demo bolt-head bearing face"), JSON.stringify(earlier));
+  const surface = await page.locator("#detail").innerText();
+  check("no event id reaches the surface", !/annotate-\d+/.test(surface), surface);
   await page.close();
 }
 

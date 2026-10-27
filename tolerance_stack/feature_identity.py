@@ -259,6 +259,9 @@ class FeatureIdentityEvent:
     gdt_modifier: Optional[str] = None
     general_tol_regime: Optional[str] = None
     note: Optional[str] = None
+    # The id of an earlier event on the SAME stack key that this one corrects.
+    # Optional and additive; the fold hides the named event and keeps it.
+    supersedes: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.verdict not in VERDICTS:
@@ -276,6 +279,11 @@ class FeatureIdentityEvent:
                 raise ValueError(f"event {self.event_id!r}: verdict=owner_not_in_set must carry no geometry_key")
             if self.direction is not None:
                 raise ValueError(f"event {self.event_id!r}: verdict=owner_not_in_set must carry no direction")
+        if self.supersedes is not None:
+            if self.verdict != "bound":
+                raise ValueError(f"event {self.event_id!r}: only a bound event may carry supersedes")
+            if self.supersedes == self.event_id:
+                raise ValueError(f"event {self.event_id!r}: supersedes names itself")
         if self.gdt_modifier is not None and self.gdt_modifier not in GDT_MODIFIERS:
             raise ValueError(
                 f"event {self.event_id!r}: gdt_modifier must be one of {GDT_MODIFIERS} or absent, "
@@ -303,6 +311,7 @@ class FeatureIdentityEvent:
             gdt_modifier=d.get("gdt_modifier"),
             general_tol_regime=d.get("general_tol_regime"),
             note=d.get("note"),
+            supersedes=d.get("supersedes"),
         )
 
     def as_dict(self) -> Dict[str, Any]:
@@ -319,7 +328,7 @@ class FeatureIdentityEvent:
             out["geometry_key"] = self.geometry_key.as_dict()
         if self.direction is not None:
             out["direction"] = self.direction
-        for key in ("composition_note", "owner_part", "gdt_modifier", "general_tol_regime", "note"):
+        for key in ("composition_note", "owner_part", "gdt_modifier", "general_tol_regime", "note", "supersedes"):
             value = getattr(self, key)
             if value is not None:
                 out[key] = value
@@ -367,6 +376,8 @@ class StackKeyBindings:
     bindings: List[FeatureIdentityEvent] = field(default_factory=list)
     owner_not_in_set: List[FeatureIdentityEvent] = field(default_factory=list)
     history: List[FeatureIdentityEvent] = field(default_factory=list)
+    # `bound` events another event supersedes: hidden from `bindings`, kept here.
+    superseded: List[FeatureIdentityEvent] = field(default_factory=list)
 
     @property
     def state(self) -> str:
@@ -390,6 +401,7 @@ class StackKeyBindings:
             "bindings": [e.as_dict() for e in self.bindings],
             "owner_not_in_set": [e.as_dict() for e in self.owner_not_in_set],
             "history": [e.event_id for e in self.history],
+            "superseded": [e.as_dict() for e in self.superseded],
         }
 
 
@@ -412,17 +424,36 @@ class FeatureIdentityProjection:
 def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityProjection:
     """Fold the event log: per stack-side key, current bindings + full history.
 
-    Every event is additive -- there is no correction mode in v0 (see the
-    module docstring) -- so the fold is a straightforward group-by on
-    ``stack_key.as_key()``, in ``seq`` order.
+    A group-by on ``stack_key.as_key()`` in ``seq`` order. An event another
+    event names in ``supersedes`` leaves ``bindings`` and goes to ``superseded``
+    (still in ``history``): folds hide, history keeps. A ``supersedes`` naming
+    an id that does not exist, or one on a different key, is a load error
+    naming both ids.
     """
     events = sorted(events, key=lambda e: e.seq)
-    seen_ids = set()
+    seen_ids: Dict[str, FeatureIdentityEvent] = {}
     projection = FeatureIdentityProjection(events=[e.event_id for e in events])
     for event in events:
         if event.event_id in seen_ids:
             raise ValueError(f"duplicate event_id {event.event_id!r}")
-        seen_ids.add(event.event_id)
+        seen_ids[event.event_id] = event
+    hidden: Dict[str, str] = {}
+    for event in events:
+        if event.supersedes is None:
+            continue
+        target = seen_ids.get(event.supersedes)
+        if target is None:
+            raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not in the log")
+        if target.stack_key.as_key() != event.stack_key.as_key():
+            raise ValueError(
+                f"event {event.event_id!r} supersedes {event.supersedes!r}, which is on a different stack key"
+            )
+        if target.verdict != "bound":
+            raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not a bound event")
+        if target.seq >= event.seq:
+            raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not earlier")
+        hidden[target.event_id] = event.event_id
+    for event in events:
         key = event.stack_key.as_key()
         record = projection.by_stack_key.get(key)
         if record is None:
@@ -430,7 +461,7 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
             projection.by_stack_key[key] = record
         record.history.append(event)
         if event.verdict == "bound":
-            record.bindings.append(event)
+            (record.superseded if event.event_id in hidden else record.bindings).append(event)
         else:
             record.owner_not_in_set.append(event)
     return projection

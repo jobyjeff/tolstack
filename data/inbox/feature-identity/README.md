@@ -14,11 +14,17 @@ element means.
 
 1. **Append-only, like every other inbox stream.** A file here is never
    edited or deleted. A changed mind (an owner found after all, a binding
-   made in error) is a new event, not an edit — v0 does not model
-   supersession the way `docs/spec_library/`'s `correction` mode does; every
+   made in error) is a new event, not an edit. A `bound` event may carry
+   `supersedes: <event id>` naming an earlier event on the **same key**; the
+   fold hides that event from the key's current `bindings`, lists it under
+   `superseded`, and history keeps it. A dangling or cross-key `supersedes`
+   fails the projection build naming both ids. Without `supersedes`, every
    `bound` event is a fact that stands, and the projection's "current
-   bindings" for a key is every `bound` event that names it (many-to-many by
-   design, decision 4).
+   bindings" for a key is every unsuperseded one (many-to-many by design,
+   decision 4). The field is optional and additive: schema stays `v0`, no new
+   verdict. The same rule is meant for every append-only stream here; the spec
+   library adopts the field the first time a parse event needs correcting, not
+   before.
 2. **Contents are gitignored** (forge data convention). This README is the
    tracked skeleton. **Unlike** `docs/spec_library/events/`, these events are
    *not* additionally committed under `docs/` — they are generated

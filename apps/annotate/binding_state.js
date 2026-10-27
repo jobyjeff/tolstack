@@ -217,7 +217,104 @@
     if (fields.gdtModifier) event.gdt_modifier = fields.gdtModifier;
     if (fields.generalTolRegime) event.general_tol_regime = fields.generalTolRegime;
     if (fields.note) event.note = fields.note;
+    // The earlier event on this same key that this one corrects. The fold
+    // (tolerance_stack.feature_identity.build_projection) hides that event and
+    // keeps it; nothing else about the schema changes.
+    if (fields.supersedes) event.supersedes = fields.supersedes;
     return event;
+  };
+
+  // --- correcting a binding ---------------------------------------------------
+  // A later event names the earlier one it corrects; the fold hides it and
+  // history keeps it. These are the browser's copy of that fold for the events
+  // written THIS session (the projection on disk is rebuilt by Python).
+
+  // Add one session event to a projection row, as build_projection would.
+  AA.addEventToRecord = function (row, event) {
+    row.history.push(event.event_id);
+    if (event.verdict !== "bound") {
+      row.owner_not_in_set.push(event);
+      return row;
+    }
+    row.superseded = row.superseded || [];
+    if (event.supersedes) {
+      var kept = [];
+      row.bindings.forEach(function (b) {
+        (b.event_id === event.supersedes ? row.superseded : kept).push(b);
+      });
+      row.bindings = kept;
+    }
+    row.bindings.push(event);
+    return row;
+  };
+
+  // The event a correction writes: the binding it corrects, with the face
+  // and/or the end changed. Everything else the earlier event said about the
+  // feature (owner, modifier, regime, note) carries over -- a correction of
+  // WHICH face must not silently drop what was recorded about it.
+  AA.buildCorrectionEvent = function (earlier, fields) {
+    var geometryKey = fields.geometryKey || {
+      sourceStepSha256: earlier.geometry_key.source_step_sha256,
+      faceId: earlier.geometry_key.face_id,
+      areaNative2: earlier.geometry_key.area_native2,
+      centroidNative: earlier.geometry_key.centroid_native,
+    };
+    var carried = {
+      compositionNote: earlier.composition_note,
+      ownerPart: earlier.owner_part,
+      ownerPath: earlier.owner_path,
+      gdtModifier: earlier.gdt_modifier,
+      generalTolRegime: earlier.general_tol_regime,
+      note: earlier.note,
+    };
+    var merged = {};
+    Object.keys(carried).forEach(function (k) { merged[k] = carried[k]; });
+    Object.keys(fields).forEach(function (k) {
+      if (fields[k] != null) merged[k] = fields[k];
+    });
+    merged.geometryKey = geometryKey;
+    merged.direction = fields.direction || earlier.direction;
+    merged.stackKey = earlier.stack_key;
+    merged.supersedes = earlier.event_id;
+    return AA.buildBoundEvent(merged);
+  };
+
+  // The other end of an edge's dimension.
+  AA.otherDirection = function (direction) {
+    return AA.DIRECTIONS.filter(function (d) { return d !== direction; })[0];
+  };
+
+  // The record with one binding taken out -- what the bind form plans against
+  // while that binding is being corrected, so the end it held is open again.
+  AA.recordWithout = function (record, eventId) {
+    if (!record) return record;
+    var copy = {};
+    Object.keys(record).forEach(function (k) { copy[k] = record[k]; });
+    copy.bindings = (record.bindings || []).filter(function (b) { return b.event_id !== eventId; });
+    return copy;
+  };
+
+  // What the row shows of a record's bindings, in everyday words: one line per
+  // standing binding (its end's name and face) and, under a disclosure, one per
+  // binding a later event corrected (date, end, face). No event ids -- they
+  // stay on the event and in `eventId` for the controls to act on.
+  AA.describeBindings = function (record, names) {
+    var nm = names || {};
+    var line = function (b) {
+      var key = b.geometry_key || {};
+      return {
+        eventId: b.event_id,
+        direction: b.direction,
+        end: nm[b.direction] || b.direction,
+        face: key.face_id,
+        date: String(b.created_at || "").slice(0, 10),
+        event: b,
+      };
+    };
+    return {
+      current: ((record && record.bindings) || []).map(line),
+      earlier: ((record && record.superseded) || []).map(line),
+    };
   };
 
   AA.buildOwnerNotInSetEvent = function (fields) {
