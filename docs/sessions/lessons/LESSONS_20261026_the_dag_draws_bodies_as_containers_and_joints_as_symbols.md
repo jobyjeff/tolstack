@@ -199,3 +199,32 @@ rebuilt from this branch's committed tree into the worktree's own `data/`
 (`dispatch bridge-test-inputs`, then the main checkout's projections copied
 in, then `scripts/rebuild_projections.ps1`). The shared `data/projections/`
 was not touched.
+
+### The runs, as recorded (final tree; projections rebuilt from `73f5c87e`)
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider -rs`,
+  in the worktree: 1610 passed, 1 failed, 1 skipped, 344 s (inside budget,
+  recorded with `dispatch suite-time`). The failure is `test_viewer_js_suite`,
+  which reds the fast tier's one documented SKIP (the per-document qualifier,
+  `ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md`),
+  the same red the two previous lessons recorded. The skip is
+  `test_fit_bound_features.py:424`.
+- `node apps/viewer/run_tests.cjs`: 578/578, plus that named SKIP, with the
+  `[real]` tier paired with this tree.
+- `node scripts/run_viewer_browser_tests.mjs --repo <worktree>`: every suite
+  green except `annotate rail and scene`, 20/22. That one is already filed on
+  integration (`ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has.md`)
+  and is not on this branch. The two stub-origin suites and both topology
+  suites were re-run `--only` after their fixes: 7/7, 10/10, 230/230 and
+  40/40 (respine).
+- `node scripts/run_mutation_witness_tests.mjs --repo <worktree> --changed-since integration`:
+  31/31 witnessed, exit 0. That includes the 10 specs this branch added and
+  the 2 it re-anchored.
+- Not run: `node apps/annotate/run_tests.cjs` (`apps/annotate/` is untouched),
+  and the main-checkout tiers (the main checkout is on master, without this
+  change).
+- **`git add -A` committed the bridge's `venv-win` symlink** (in `7c10349d`).
+  `dispatch bridge-test-inputs` leaves an untracked `venv-win` link, and
+  `.gitignore` does not cover that name at the root of a worktree. It was
+  removed from the branch in the final commit. Stage paths by name in a
+  bridged worktree, or check `git status` before `-A`.
