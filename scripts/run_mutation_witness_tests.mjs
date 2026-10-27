@@ -16,7 +16,8 @@
 //   node scripts/run_mutation_witness_tests.mjs                     # main checkout only (npm run test:mutations adds --full)
 //   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --only card-layout  # ...from a worktree
 //   node scripts/run_mutation_witness_tests.mjs --only card-layout   # one guard
-//   node scripts/run_mutation_witness_tests.mjs --full               # every entry (the batch merge)
+//   node scripts/run_mutation_witness_tests.mjs --changed-since integration   # the entries this diff could have decayed (the merge gate)
+//   node scripts/run_mutation_witness_tests.mjs --full               # every entry (the scheduled sweep, docs/prompts/WITNESS_SWEEP.md)
 //   node scripts/run_mutation_witness_tests.mjs --verbose            # show the red
 //   node scripts/run_mutation_witness_tests.mjs --list
 //   node scripts/run_mutation_witness_tests.mjs --unenrolled         # the gap, and what to write
@@ -246,7 +247,7 @@ const all = STATE.specs.flatMap((spec) =>
   })));
 // `--only` matches the derived id OR the guard's own name, because the name is
 // the half a reader has in front of them: it is what the tier printed.
-const chosen = ONLY === null
+let chosen = ONLY === null
   ? all : all.filter((m) => m.id.includes(ONLY) || m.expect_red.includes(ONLY));
 
 if (process.argv.includes("--list")) {
@@ -460,6 +461,93 @@ if (process.argv.includes("--check-shadow-covers-projection-inputs")) {
   process.exit(reportShadowGaps());
 }
 
+// --- --changed-since <ref>: the entries this diff could have decayed -------
+//
+// THE GATE RUNS WHAT THE MERGE COULD HAVE REACHED; THE SWEEP RUNS THE REST
+// (docs/prompts/WITNESS_SWEEP.md). A witness that decays is a test-quality
+// defect with no product exposure, so a day's latency on finding one is fine and
+// two hours on every landing (the whole registry, one browser slot, twice per
+// landing) is not. An entry can have decayed only if the diff touched what it
+// stands on:
+//   mutation -- the entry's own `file` is in the diff;
+//   spec     -- the entry's spec file was added or changed;
+//   harness  -- the entry's tier harness changed (HARNESS_FILES below; a
+//               python entry's harness is the pytest file its `suite` names).
+//
+// THE COUNTER-CASE, WRITTEN HERE SO THE NEXT REVIEWER WHO MEETS A DECAY DOES NOT
+// PUT `--full` BACK ON THE GATE: on 2026-10-20 the one decay the whole registry
+// caught that nothing cheaper did was `browser__and-it-sits-to-the-panel-s-
+// right...237dba65`. A layout change shifted the page 300 px, the rail kept in
+// the layout absorbed the shift, and the check stayed green; the spec's own
+// file was untouched, so neither --only nor this mode would have selected it.
+// That is exactly the case the scheduled sweep catches, the next morning, as a
+// `class: decayed_witness` issue -- a witness defect, the guard still guarded
+// the product. It is not a reason to run the registry at a merge.
+const CHANGED_SINCE = argFlag("--changed-since");
+// Where git is asked for the diff. Defaults to this script's own tree; the
+// pairing tests point it at a throwaway repo with two commits.
+const DIFF_ROOT = argFlag("--diff-root") === null ? REPO : normalize(argFlag("--diff-root"));
+// The tier -> harness-files map, written once. `fast` is the viewer's runner and
+// the tests.js it loads; `annotate`'s run_tests.cjs is both harness and check
+// source; `browser` is its one runner script.
+const HARNESS_FILES = {
+  fast: ["apps/viewer/tests.js", "apps/viewer/run_tests.cjs"],
+  annotate: ["apps/annotate/run_tests.cjs"],
+  browser: ["scripts/run_viewer_browser_tests.mjs"],
+  python: [],
+};
+
+/** Every path the tree differs from `ref` by, committed or not -- or why not. */
+function changedSince(ref) {
+  const git = (...args) => spawnSync("git", ["-C", DIFF_ROOT, ...args],
+    { encoding: "utf-8", windowsHide: true });
+  const committed = git("diff", "--name-only", `${ref}...HEAD`);
+  if (committed.status !== 0) {
+    return { why: (committed.stderr || String(committed.error || "")).trim() ||
+      `git diff against ${ref} failed` };
+  }
+  const names = new Set(committed.stdout.split(/\r?\n/).filter(Boolean));
+  const dirty = git("status", "--porcelain", "--untracked-files=all");
+  for (const line of (dirty.stdout || "").split(/\r?\n/)) {
+    if (line) names.add(line.slice(3).trim().replace(/^.* -> /, ""));
+  }
+  return { files: names };
+}
+
+/** The entries `files` could have decayed, each with the arm that selected it. */
+function reachedBy(files) {
+  const specDir = SPEC_DIR.join("/");
+  const picked = [];
+  for (const m of all) {
+    const harness = m.tier === "python" ? [m.suite] : (HARNESS_FILES[m.tier] || []);
+    const arm = files.has(m.file) ? "mutation file changed"
+      : files.has(`${specDir}/${m.specFile}`) ? "spec added or changed"
+      : harness.some((f) => files.has(f)) ? "tier harness changed" : null;
+    if (arm) picked.push({ m, arm });
+  }
+  return picked;
+}
+
+if (CHANGED_SINCE !== null) {
+  const diff = changedSince(CHANGED_SINCE);
+  if (diff.why) {
+    console.log(`REFUSED: could not read the diff against ${CHANGED_SINCE}: ${diff.why}`);
+    process.exit(2);
+  }
+  const picked = reachedBy(diff.files)
+    .filter(({ m }) => ONLY === null || m.id.includes(ONLY) || m.expect_red.includes(ONLY));
+  for (const { m, arm } of picked) console.log(`  ${m.id}  [${arm}]`);
+  chosen = picked.map(({ m }) => m);
+  const verdict = `${chosen.length} of ${all.length} entries can be reached by this diff against ${CHANGED_SINCE}`;
+  if (!chosen.length) {
+    console.log(verdict);
+    process.exit(0);
+  }
+  console.log(verdict);
+  // Print the selection and stop: what the pairing tests read.
+  if (process.argv.includes("--selection-only")) process.exit(0);
+}
+
 // --- a branch runs its own witnesses, the batch merge runs them all --------
 //
 // The whole registry is a browser per entry for about an hour. On 2026-10-20 two
@@ -470,6 +558,10 @@ if (process.argv.includes("--check-shadow-covers-projection-inputs")) {
 // batch merge's run belongs -- a run with no `--only` is refused unless it says
 // `--full`, and the refusal names the entries this branch added or changed.
 const FULL = process.argv.includes("--full");
+if (FULL && isMainCheckout(REPO)) {
+  console.log("note: the whole registry is the scheduled sweep's (docs/prompts/WITNESS_SWEEP.md); " +
+    "a landing runs --changed-since <ref>.");
+}
 // A worktree's `.git` is a file pointing at the main checkout's; only the main
 // checkout's is a directory. No `.git` at all (an archive) is not a main
 // checkout either.
@@ -500,9 +592,10 @@ function specsThisBranchTouched() {
     .map((name) => name.slice(name.lastIndexOf("/") + 1).replace(/\.json$/, "")) };
 }
 
-if (ONLY === null && !FULL && !isMainCheckout(REPO)) {
-  console.log(`REFUSED: a run of all ${all.length} declared mutations belongs to the ` +
-    "batch merge, in the main checkout. A branch runs the witnesses it touched.");
+if (ONLY === null && !FULL && CHANGED_SINCE === null && !isMainCheckout(REPO)) {
+  console.log(`REFUSED: a run of all ${all.length} declared mutations is the scheduled ` +
+    "sweep's, in the main checkout. A branch runs the witnesses it could have reached:\n" +
+    "    node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --changed-since integration");
   const touched = specsThisBranchTouched();
   if (touched.why) {
     console.log(`  (could not tell which: ${touched.why}) -- name each guard you ` +
@@ -516,7 +609,7 @@ if (ONLY === null && !FULL && !isMainCheckout(REPO)) {
       console.log(`    node scripts/run_mutation_witness_tests.mjs --only ${id}`);
     }
   }
-  console.log("  Pass --full to run every entry anyway.");
+  console.log("  Pass --full to run every entry anyway (the scheduled sweep does).");
   process.exit(2);
 }
 

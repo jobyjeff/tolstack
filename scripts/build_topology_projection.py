@@ -101,7 +101,9 @@ from tolerance_stack.topology import (  # noqa: E402
     StudyError,
     Topology,
     TopologyError,
+    VARIANT_AXIS,
     check_study,
+    forge_axes,
     load_study,
     load_topology,
     summarize,
@@ -1131,6 +1133,7 @@ def project_study(topology: Topology, study: Study, path: Path,
         "configuration": dict(study.configuration),
         "source_file": as_posix_rel(path),
         "notes": list(study.notes),
+        "tags": dict(study.tags),
         "provenance": raw.get("provenance") or {},
         "status": "ok",
         "error": None,
@@ -1204,7 +1207,7 @@ def project_part(part: Any, meshes: Sequence[Dict[str, str]],
 def project_body(body: Any) -> Dict[str, Any]:
     """One authored body, every key present (``note`` ``None`` when unwritten)."""
     return {"id": body.id, "name": body.name, "kind": body.kind,
-            "parts": list(body.parts), "note": body.note}
+            "parts": list(body.parts), "note": body.note, "tags": dict(body.tags)}
 
 
 def gap_row(kind: str, text: str, hardware_id: Optional[str] = None,
@@ -1412,6 +1415,9 @@ def build(topologies_dir: Path,
         "link_kinds": list(LINK_KINDS),
         "value_sources": list(VALUE_SOURCES),
         "study_statuses": list(STUDY_STATUSES),
+        # The one axis the page's second dimming reason reads; the page holds no
+        # copy of the word (`docs/DAG_TOPOLOGY.md`, "Tags").
+        "variant_axis": VARIANT_AXIS,
         "topologies": [
             project_topology(path, raw, topology, studies.get(topology.id, []),
                              meshes, aliases, hardware)
@@ -1467,6 +1473,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"note: {line}", file=sys.stderr)
     for line in prov.note_lines(provenance):
         print(line, file=sys.stderr)
+
+    if forge_axes() is None:
+        print("note: forge's identity.toml is not on disk -- tag axes were not "
+              "validated", file=sys.stderr)
 
     meshes_dir = Path(args.data_root) / MESHES_SUBDIR
     if not meshes_dir.is_dir():

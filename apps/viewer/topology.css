@@ -137,6 +137,15 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    badges were the biggest-feeling thing in a 300px rail and the names a reader
    navigates by were the quietest. */
 .navtree__row--study { font-size: var(--t-dense); }
+/* The tag chips: quiet until pressed, one line per axis, under the topology. */
+.navtree__tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  padding: 2px 8px; font-size: var(--t-dense); }
+.navtree__tagaxis { color: var(--muted); margin-right: 2px; }
+.navtree__tag { font: inherit; color: var(--muted); background: none;
+  border: 1px solid var(--line); border-radius: 10px; padding: 0 8px;
+  cursor: pointer; }
+.navtree__tag:hover { color: inherit; }
+.navtree__tag--on { color: inherit; border-color: var(--accent); }
 .navtree__row--warn { color: var(--inferred); }
 .navtree__row--stack { font-size: var(--t-dense); }
 /* ...and these two rows do NOT wrap, which the row above does. A study's or a
@@ -494,6 +503,10 @@ body { display: flex; flex-direction: column; }
 
 /* Study highlighting. Binary, so no palette: on the path or off it. */
 .rail__bar--off, .rail__dot--off { opacity: .28; }
+/* The second reason a mark is dimmed: it belongs to a variant the reader did not
+   select. Same weight as "off the path" -- one dimming, two reasons. */
+.rail__bar--other-variant, .rail__dot--other-variant { opacity: .28; }
+.tvrow--other-variant { opacity: .5; }
 .rail__bar--on { stroke-width: 7; }
 .rail__dot--on { stroke: var(--accent); fill: var(--on); }
 

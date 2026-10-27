@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the nav offers one chip row per tag axis, values sorted",
+  "mutations": [
+    {
+      "contract": "A tag axis's values are offered sorted, not in whatever order the studies happened to list them.",
+      "file": "apps/viewer/topology.js",
+      "find": "    axes.forEach(function (a) { a.values.sort(); });",
+      "replace": "    axes.forEach(function (a) { a.values.slice(); });",
+      "issue": null,
+      "note": null
+    }
+  ]
+}

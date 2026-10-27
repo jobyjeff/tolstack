@@ -208,6 +208,7 @@
       "id": "base",
       "name": "ground: the hub and the two mounts",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "hub",
         "tan_link_mount_215175_002",
@@ -218,6 +219,7 @@
       "id": "blade",
       "name": "blade and pitch arm",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "blade_root",
         "pitch_arm"
@@ -227,6 +229,7 @@
       "id": "pitch_plate",
       "name": "pitch plate and gas-spring piston",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "pitch_plate_215177_001",
         "gas_spring_piston_214700_002"
@@ -236,6 +239,7 @@
       "id": "pitch_link",
       "name": "pitch link",
       "kind": "link",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "pitch_link",
         "spherical_bearing_pitch_link"
@@ -245,6 +249,7 @@
       "id": "tan_link",
       "name": "tangential link",
       "kind": "link",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "tan_link_212956_005",
         "spherical_bearing_tan_link",
@@ -256,6 +261,7 @@
       "id": "gas_spring",
       "name": "gas spring",
       "kind": "body",
+      "tags": {"component": "propeller-system", "variant": "gas-spring"},
       "parts": [
         "gas_spring"
       ],
@@ -265,6 +271,7 @@
       "id": "piston_head_lower_214699_002",
       "name": "214699-002 lower piston head",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "piston_head_lower_214699_002"
       ],
@@ -274,6 +281,7 @@
       "id": "piston_head_upper_214698_002",
       "name": "214698-002 upper piston head",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "piston_head_upper_214698_002"
       ],
@@ -283,6 +291,7 @@
       "id": "piston_cover_214958_002",
       "name": "214958-002 piston cover",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "piston_cover_214958_002"
       ],
@@ -292,6 +301,7 @@
       "id": "vpa_208510_007",
       "name": "208510-007 variable pitch actuator",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "vpa_208510_007"
       ],
@@ -301,6 +311,7 @@
       "id": "vpa_piston",
       "name": "actuator piston (output rod end)",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "vpa_piston"
       ],
@@ -310,6 +321,7 @@
       "id": "ring_gear",
       "name": "ring gear",
       "kind": "body",
+      "tags": {"component": "propeller-system"},
       "parts": [
         "ring_gear"
       ],
@@ -319,6 +331,7 @@
       "id": "hydraulic_brake",
       "name": "hydraulic brake",
       "kind": "body",
+      "tags": {"component": "propeller-system", "variant": "hydraulic-brake"},
       "parts": [
         "hydraulic_brake"
       ],

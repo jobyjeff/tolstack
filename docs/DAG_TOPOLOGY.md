@@ -203,6 +203,31 @@ linkage solver's sweeps already name and the DAG had no way to know:
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
 
+## Tags
+
+A body and a study may carry `tags`: `{axis: value}`, one value per axis, on the
+identity axes forge declares in its `identity.toml`. The point is one vocabulary
+for grouping and filtering across the workspace -- the nav's chips here read as
+drawing-checker's container tree does (OR within an axis, AND across).
+
+* **The axes come from forge, and are read, never copied.** A tag on an axis
+  that file does not declare is a load error naming the axis and the file. With
+  the file not on disk nothing is checked, and the projection build says so
+  once. Axis values are free strings, as forge has them.
+* **The variant rule.** Selecting a value on the variant axis dims every body
+  tagged with a *different* value of it -- the rails and rows of their parts,
+  stated on the surface as "other variant" -- and hides the studies tagged the
+  other way. A body or study with no variant tag is shared and stays lit.
+  This is the lit-set rule's second dimming reason; "off the study's path" is
+  the first.
+* **There is no schema slot for a variant.** A variant is still a tag and a
+  note, not a structure: the gas-spring and brake branches are parallel
+  branches of the one topology, and nothing swaps one for the other.
+* **The variant axis is provisional.** forge declares `component`, `purpose`
+  and `phase` and no variant axis; `VARIANT_AXIS` in `tolerance_stack/topology.py`
+  is accepted beside them until forge answers
+  `docs/issues/ISSUE_20261026_forge_has_no_variant_axis.md`.
+
 ### A `part`'s `drawing` names the design part, not the test article
 
 **Ruled 2026-10-01 (Jeff), and it applies to every topology.** When a build

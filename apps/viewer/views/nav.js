@@ -151,8 +151,31 @@
     row.onclick = function () { handlers.onTopology(t.id); };
     li.appendChild(row);
 
+    // One chip row per axis the tags use, over the study list: a value chip is
+    // on or off, any chip on in an axis keeps its studies (OR), every axis with
+    // a chip on must keep them (AND). Nothing when no study or body is tagged.
+    var selection = state.tagFilter || {};
+    (t.tagAxes || []).forEach(function (axis) {
+      var chips = VA.el("div", "navtree__tags");
+      chips.setAttribute("data-tag-axis", axis.axis);
+      chips.appendChild(VA.el("span", "navtree__tagaxis", axis.axis));
+      axis.values.forEach(function (value) {
+        var on = (selection[axis.axis] || []).indexOf(value) !== -1;
+        var chip = VA.el("button", "navtree__tag" + (on ? " navtree__tag--on" : ""),
+          value);
+        chip.setAttribute("type", "button");
+        chip.setAttribute("aria-pressed", on ? "true" : "false");
+        chip.setAttribute("data-tag-value", value);
+        chip.onclick = function () { handlers.onTag(axis.axis, value); };
+        chips.appendChild(chip);
+      });
+      li.appendChild(chips);
+    });
+
     var children = VA.el("ul", "navtree__children");
-    (t.studies || []).forEach(function (s) {
+    (t.studies || []).filter(function (s) {
+      return VA.studyMatchesTags(s, selection, t.variantAxis);
+    }).forEach(function (s) {
       var active = inThisTopology && state.studyId === s.id;
       var srow = VA.el("div", "navtree__row navtree__row--study" +
         (active ? " navtree__row--on" : "") +

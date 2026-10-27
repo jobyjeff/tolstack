@@ -135,6 +135,7 @@ def _clean_lock():
 CONCURRENT_ROUNDS = 10
 
 
+@pytest.mark.sweep
 def test_two_concurrent_runs_against_one_repo_produce_a_named_refusal() -> None:
     """The collision the issue reported, reproduced and now refused cleanly,
     every round rather than just the lucky ones."""
@@ -201,6 +202,7 @@ def test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale() -
     assert not LOCK_PATH.exists(), "the lock this run took should be released on exit"
 
 
+@pytest.mark.sweep
 def test_two_different_repo_roots_both_still_succeed(tmp_path: Path) -> None:
     """The case the merge gate depends on: unrelated repos never contend.
 

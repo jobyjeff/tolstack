@@ -39,6 +39,8 @@
     // walk's elements are emphasized, which leaders are drawn and which rows
     // the grid beside them holds. The retired `layoutMode` used to live here.
     studyId: null,
+    // {axis: [value, ...]}: the nav's tag chips (VA.studyMatchesTags).
+    tagFilter: {},
     // "comfortable" (26px rows) or "compact" (16px) — a display preference,
     // not a fact about a topology or a study, so selectTopology() never resets
     // it. See VA.ROW_DENSITIES (topology.js).
@@ -655,6 +657,18 @@
     state.selection = null;
     state.detailImage = null;
     navigate(respine);
+  }
+
+  // A tag chip toggles one value on its axis; the nav and the DAG both read
+  // `state.tagFilter` (VA.studyMatchesTags, VA.otherVariantParts), so a repaint
+  // is the whole of the effect. Selecting a value never changes which study is
+  // open: a study the filter hides stays on screen until the reader leaves it.
+  function onNavTag(axis, value) {
+    var values = (state.tagFilter[axis] || []).slice();
+    var at = values.indexOf(value);
+    if (at === -1) values.push(value); else values.splice(at, 1);
+    if (values.length) state.tagFilter[axis] = values; else delete state.tagFilter[axis];
+    navigate(render);
   }
 
   function onNavStack(stackId) {
@@ -1801,6 +1815,10 @@
         selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: state.edgeLengthMode,
+        // The lit-set rule's second reason: parts of a body tagged with a
+        // variant the reader did not select (VA.otherVariantParts).
+        otherVariantParts: VA.otherVariantParts(topoProj, state.tagFilter,
+          state.topologies && state.topologies.variant_axis),
         // The two leader-legibility preferences (viewer_leader_grid_
         // legibility): which style a leader is drawn in, and how far the jog
         // zone has been dragged open. The grips the pane renders for the
@@ -1947,6 +1965,7 @@
     VA.renderNavTree(nodes.navtree, tree, state, {
       onTopology: onNavTopology,
       onStudy: onNavStudy,
+      onTag: onNavTag,
       onStack: onNavStack,
       onKinematic: onNavKinematic,
       onKinematicModel: onNavKinematicModel,
