@@ -11372,12 +11372,13 @@
         eq(rows.length, 4, "each contributor once");
         eq(rows.map(function (r) { return r.getAttribute("data-edge"); }),
            ["arm_pin_to_tip", "base_thickness", "strut_length", "post_height"]);
-        // 2 + 3 per stop + band, confidence, 3D.
-        eq(rows[0].childNodes.length, 2 + 3 * 2 + 3);
+        // The name (with its zone), 3 per stop, then band, confidence, 3D.
+        eq(rows[0].childNodes.length, 1 + 3 * 2 + 3);
+        has(rows[1].querySelector("span.kmrow__zone").textContent, "sphere");
         ok(hasClass(rows[3], "kmrow--gap"));
         has(rows[3].textContent, "no band on file");
         eq(all(rows[2], "td.kmcell--muted").length, 6, "a zero-sensitivity row's cells are muted");
-        has(all(all(root, "tr.kmtable__cols")[0], "th")[3].textContent, "Coefficient, deg/mm");
+        has(all(all(root, "tr.kmtable__cols")[0], "th")[2].textContent, "Coefficient, deg/mm");
         eq(root.textContent.indexOf("zero_sensitivity"), -1);
         // The per-stop heading words are gone from the page.
         eq(root.textContent.indexOf("contributors at"), -1);
@@ -11446,16 +11447,33 @@
         eq(VA.kinematicCurve(KIN_STUDY, Object.assign({}, post, { curve: null }), 3), null);
       });
 
-    await test("hovering a coefficient draws its curve once, beside the cell", function () {
-        var root = kinematicPage();
-        var cell = all(kinematicRowsOf(root)[3], "td.kmcell--coef")[1];
-        eq(all(cell, "div.kmcurve").length, 0, "nothing drawn before a hover");
+    await test("hovering a coefficient opens its curve as the page's hover card, " +
+      "and draws it in the cell where there is no card host", function () {
+        var shown = [];
+        var hosted = kinematicPage({ onCardShow: function (c, t) { shown.push([c, t]); } });
+        var cell = all(kinematicRowsOf(hosted)[3], "td.kmcell--coef")[1];
         cell.onmouseenter();
-        cell.onmouseenter();
-        eq(all(cell, "div.kmcurve").length, 1);
-        eq(all(cell, "path.kmcurve__line").length, 1);
-        eq(all(cell, "line.kmcurve__stop--on").length, 1, "this cell's stop is marked");
-        has(all(cell, "div.kmcurve__title")[0].textContent, "post height");
+        cell.onfocus();
+        eq(shown.length, 2);
+        ok(shown[0][0] === shown[1][0], "computed once, shown on every hover");
+        eq(shown[0][0].kind, "curve");
+        eq(shown[0][0].title, "post height");
+        ok(shown[0][1] === cell, "placed against its cell");
+        eq(all(cell, "div.kmcurve").length, 0, "nothing drawn into the table");
+        var card = render(function (r) {
+          VA.renderHoverCard(r, shown[0][0], {}, VA.CONFIG, null, null);
+        });
+        eq(all(card, "path.kmcurve__line").length, 1);
+        eq(all(card, "line.kmcurve__stop--on").length, 1, "this cell's stop is marked");
+        eq(card.textContent.indexOf("has no branch for"), -1);
+
+        var bare = kinematicPage();
+        var inCell = all(kinematicRowsOf(bare)[3], "td.kmcell--coef")[1];
+        eq(all(inCell, "div.kmcurve").length, 0, "nothing drawn before a hover");
+        inCell.onmouseenter();
+        inCell.onmouseenter();
+        eq(all(inCell, "div.kmcurve").length, 1);
+        has(all(inCell, "div.kmcurve__title")[0].textContent, "post height");
       });
 
     await test("a gap row's chip opens a card naming what to read for its band, " +
@@ -11637,11 +11655,12 @@
       });
 
     await test("a structural edge with no value at all needs annotation, so its " +
-      "pane offers the annotator; a derived edge and a clearance do not", function () {
-        var valueless = { id: "x", kind: "structural", part: "arm", dimension: null };
+      "pane offers the annotator; a clearance does not", function () {
+        // `derived` is what the projection writes on every valueless edge.
+        var valueless = { id: "x", kind: "structural", part: "arm", dimension: null,
+                          value_source: "derived" };
         ok(VA.needsAnnotation(null, valueless));
         eq(VA.needsAnnotation(null), false, "a confidence alone still reads as before");
-        eq(VA.needsAnnotation(null, Object.assign({}, valueless, { value_source: "derived" })), false);
         eq(VA.needsAnnotation(null, Object.assign({}, valueless, { kind: "gap" })), false);
         eq(VA.needsAnnotation("traced", Object.assign({}, valueless,
           { dimension: { nominal: 1 } })), false);
@@ -11656,6 +11675,30 @@
         var link = root.querySelector("a.detail__annotate-link");
         ok(link, "a valueless edge on a meshed part offers the annotator");
         has(link.getAttribute("href"), "edge=arm_pin_to_tip");
+      });
+
+    await test("a contributor that borrows its band from another edge names that " +
+      "edge in the preview pane, one click from its citation", function () {
+        var topo = KIN_TOPOLOGIES.topologies[0];
+        var borrowed = JSON.parse(JSON.stringify(KIN_STUDY));
+        borrowed.stops.forEach(function (stop) {
+          stop.rows[0].band_source = { kind: "dimension_ref", topology: "demo_mechanism",
+                                       edge: "post_bushing_offset" };
+        });
+        eq(VA.kinematicBandEdges(borrowed), { arm_pin_to_tip: "post_bushing_offset" });
+        eq(VA.kinematicBandEdges(KIN_STUDY), {}, "a band on the edge itself names nothing");
+        var selected = [];
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, { topoProj: topo, study: null, crops: TOPOCROPS,
+            selection: { kind: "edge", id: "arm_pin_to_tip" }, detailImage: null,
+            bandEdges: VA.kinematicBandEdges(borrowed),
+            onSelect: function (kind, id) { selected.push([kind, id]); } });
+        });
+        var link = root.querySelector("button.detail__bandlink");
+        ok(link, "the band edge is offered");
+        eq(link.textContent, VA.topologyIndex(topo).edges.post_bushing_offset.name);
+        link.click();
+        eq(selected, [["edge", "post_bushing_offset"]]);
       });
 
     await test("an edge selected on a kinematic page keeps the 3D pane on the " +
@@ -16008,13 +16051,31 @@
             });
             var shown = [];
             var root = render(function (r) {
-              VA.renderKinematic(r, { kinematic: realKinematic, study: realKinStudy,
+              VA.renderKinematicHead(r, { kinematic: realKinematic, study: realKinStudy,
                 topologies: realKinTopologies,
                 onCardShow: function (card) { shown.push(card.title); } });
             });
             all(root, "span.kmverdict__limit").forEach(function (s) { s.onmouseenter(); });
             eq(shown.length, 2);
             shown.forEach(function (title) { has(title, "S461-607"); });
+          });
+
+        await test("[real] every live walk's rails and links re-derive from its rows, " +
+          "and hiding the blade-pitch study's unlit model leaves 23 rows on 8 columns", function () {
+            realKinTopologies.topologies.forEach(function (topo) {
+              if (!topo.layout) return;
+              var derived = VA.walkRailsAndLinks(topo.layout.rows);
+              eq(setOf(derived.rails), setOf(topo.layout.rails), topo.id + " rails");
+              eq(setOf(derived.links), setOf(topo.layout.links), topo.id + " links");
+            });
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var lit = VA.kinematicLitSet(realKinStudy, topo);
+            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [9, 14]);
+            var hidden = VA.hideUnlit(topo.layout, lit);
+            eq([topo.layout.rows.length, topo.layout.columns], [106, 18]);
+            eq([hidden.rows.length, hidden.columns], [23, 8]);
+            eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 9,
+               "every lit edge is a grid row in the hidden walk too");
           });
 
         await test("[real] every contributor names an edge the topology projection " +

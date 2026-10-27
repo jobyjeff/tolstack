@@ -1366,26 +1366,45 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .kmtable th.num { text-align: right; }
 .kmtable td { padding: 3px 10px 3px 0; vertical-align: baseline; }
 .kmtable .kmtable__first { padding-left: 14px; border-left: 1px solid var(--line); }
-.kmtable__groups th { border-bottom: none; padding-bottom: 0; vertical-align: bottom; }
+/* A stop's name and its summary line are a title and a sentence, not the
+   uppercase micro label a bare th is app-wide (style.css). */
+.kmtable__groups th {
+  border-bottom: none; padding-bottom: 0; vertical-align: bottom;
+  text-transform: none; letter-spacing: normal;
+}
 .kmtable__groups .kmtable__stop { padding-left: 14px; border-left: 1px solid var(--line); }
 .kmtable__stoplabel { color: var(--ink); font-size: var(--t-dense); font-weight: 600; }
-.kmtable__stopsum { font-weight: 400; font-size: var(--t-micro); white-space: nowrap; }
+.kmtable__stopsum { font-weight: 400; font-size: var(--t-micro); white-space: normal;
+  font-variant-numeric: tabular-nums; max-width: 22em; }
+/* Column labels wrap under their numbers rather than widen the table. */
+.kmtable__cols th { vertical-align: bottom; white-space: normal; }
+/* A contributor's name wraps at a readable measure, never a word a line, and
+   stays pinned at the left when the table scrolls sideways -- at 1600 wide
+   beside the preview pane the band, confidence and 3D columns are a scroll
+   away, and the row they belong to must not be. */
+.kmrow__name, .kmtable th.kmtable__lead {
+  min-width: 14em; max-width: 22em; position: sticky; left: 0; z-index: 1;
+  background: var(--bg);
+}
+.kmrow__zone { margin-left: 6px; color: var(--muted); font-size: var(--t-micro); }
 .kmtable tbody tr:hover { background: #20242c; }
 .kmtable tbody tr { cursor: pointer; }
 .kmrow--selected td { background: #252b36; }
 .kmrow--selected .kmrow__edge { color: var(--accent); }
 .kmcell--muted { color: var(--muted); }
-
-/* A coefficient's curve across the sweep, on hover or focus of its cell:
-   drawn on first hover (views/kinematic.js), shown only while the cell is. */
-.kmcell--coef { position: relative; }
-.kmcurve {
-  display: none; position: absolute; z-index: 5; right: 0; top: 100%;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
-  padding: 6px 8px 4px; text-align: left; white-space: nowrap;
+/* The preview pane's "band in this study" line on a kinematic page: a
+   contributor with no value of its own, and the edge whose band it reads. */
+.detail__band { margin: 4px 0 8px; font-size: var(--t-meta); }
+.detail__bandlink {
+  background: none; border: 0; padding: 0; font: inherit; color: var(--ink);
+  text-decoration: underline; cursor: pointer;
 }
-.kmcell--coef:hover .kmcurve, .kmcell--coef:focus .kmcurve,
-.kmcell--coef:focus-within .kmcurve { display: block; }
+
+/* A coefficient's curve across the sweep: the hover card's body (the
+   page's one popover, views/cards.js), or drawn in the cell where there is
+   no card host. */
+.kmcell--coef { cursor: help; }
+.kmcurve { text-align: left; white-space: nowrap; font-family: inherit; }
 .kmcurve__title { font-size: var(--t-meta); color: var(--ink); margin-bottom: 2px; }
 .kmcurve__svg { display: block; }
 .kmcurve__frame { fill: none; stroke: var(--line); }
@@ -1397,7 +1416,6 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .kmcurve__axis { font-size: var(--t-micro); }
 .kmrow__edge { color: var(--ink); text-decoration: none; }
 .kmrow__edge:hover, .kmrow__edge:focus { text-decoration: underline; }
-.kmrow__zone { color: var(--muted); }
 .kmrow--muted td { color: var(--muted); }
 /* One line: the link's arrow is part of its label, and a wrapped "3D ↗"
    doubles the row's height at a narrow viewport. */

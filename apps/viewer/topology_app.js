@@ -1745,12 +1745,7 @@
     if (nodes.kinematichead) {
       nodes.kinematichead.style.display = showKinematic ? "" : "none";
     }
-    // `.tv--kinematic` bounds the DAG's height on the kinematic page so the
-    // numbers under it are a scroll away rather than a model's height away
-    // (topology.css).
-    if (nodes.pane && nodes.pane.classList) {
-      nodes.pane.classList.toggle("tv__scroll--bounded", showKinematic);
-    }
+
     // The legend ("how to read the rails") is a topology-mode concept, always
     // offered there. The worksheet is offered wherever the SELECTED node
     // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
@@ -1784,6 +1779,13 @@
         topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
         // The kinematic page's lit set; a chain study's is read off `study`.
         lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
+        // ...whose model is a bounded box, so the numbers under it are a
+        // scroll away rather than a model's height away (topology.css).
+        bounded: showKinematic,
+        scrollToGrid: showKinematic && (paneToGrid || serialisation() !== paintedSerialisation),
+        // Where a contributor borrows its band from another edge, the
+        // preview pane says so and links to it (VA.kinematicBandEdges).
+        bandEdges: showKinematic ? VA.kinematicBandEdges(kinematicStudy) : null,
         unlitStyle: state.unlitStyle,
         // The same config the stack pane and the popovers get: since the
         // preview pane started rendering the crop's links through the shared
@@ -1903,6 +1905,8 @@
 
     VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
 
+    paneToGrid = false;
+
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays
     // the target's throughout one.
@@ -1990,16 +1994,20 @@
     rewind();
   }
 
+  // The kinematic page's model is a bounded box (topology.css), and its grid
+  // -- the lit rows, the ones the page is about -- is centred against the
+  // whole walk, so on a product-sized model it starts a long way down. On
+  // arriving at the page, and on a control that re-lays the walk, the box is
+  // scrolled to put that grid at its top; any other repaint keeps the box
+  // where the reader left it.
+  var paneToGrid = false;
+
   function rewind() {
+    paneToGrid = true;
     render();
-    // The kinematic page's model is a bounded box (topology.css), and its
-    // grid -- the lit rows, the ones the page is about -- is centred against
-    // the whole walk, so on a product-sized model it starts a long way down.
-    // The box opens with that grid at its top instead of at the walk's first
-    // row.
-    var offset = state.mode === "kinematic" && VA.lastTopoRender &&
-      VA.lastTopoRender.positions ? VA.lastTopoRender.positions.gridOffset || 0 : 0;
-    if (nodes.pane) nodes.pane.scrollTop = Math.max(0, offset - 24);
+    // The kinematic page's bounded model box is scrolled by its own paint
+    // (paneToGrid, below); every other page's pane goes back to the top.
+    if (nodes.pane && state.mode !== "kinematic") nodes.pane.scrollTop = 0;
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
     if (nodes.kinematicview) nodes.kinematicview.scrollTop = 0;
   }

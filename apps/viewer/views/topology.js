@@ -184,8 +184,15 @@
     // readers_sideways_scroll). See carriedScroll for why this is the first
     // line of the function and not a detail of the append below.
     var carried = carriedScroll(root, ctx.topoProj, ctx.tween);
+    // A BOUNDED pane scrolls vertically itself (the kinematic page's), and
+    // emptying it below clamps that scroll to 0 -- so it is read here and put
+    // back after the paint, or every repaint (a row click, a hover card)
+    // would throw the reader back to the walk's first row.
+    var carriedTop = ctx.bounded && typeof root.scrollTop === "number" ? root.scrollTop : 0;
     VA.clear(root);
-    root.className = "tv__scroll";
+    // `bounded`: the kinematic page's capped box (topology.css), which
+    // paneBudget below fits to instead of the window.
+    root.className = "tv__scroll" + (ctx.bounded ? " tv__scroll--bounded" : "");
     var topoProj = ctx.topoProj;
     if (!topoProj) {
       // The SAME two sentences the banner's own missing-projection box shows,
@@ -378,6 +385,14 @@
     // reader parked at the right-hand end of a grid that just got narrower
     // wants, and the reason this is a restore rather than a stored preference.
     if (carried) hscroll.scrollLeft = carried;
+    // ...and the bounded pane's vertical scroll: where the page asks for it,
+    // the grid of lit rows at the box's top (`scrollToGrid`, an arrival or a
+    // re-lay), otherwise wherever the reader left it.
+    if (ctx.bounded) {
+      root.scrollTop = ctx.scrollToGrid
+        ? Math.max(0, (positions.gridOffset || 0) - VA.DAG_FIT.headHeight)
+        : carriedTop;
+    }
     // The one grip whose boundary scrolls, kept over that boundary as the
     // reader scrolls (VA.columnGripLeft). The listener is on the node this
     // render just built, so the next render drops it with the node -- there is
@@ -2387,6 +2402,20 @@
       (partLabel ? "a dimension of " + partLabel : "across a clearance") +
       "  ·  " + VA.nodeLabel(ctx.topoProj, edge.from) +
       " → " + VA.nodeLabel(ctx.topoProj, edge.to)));
+
+    // On a kinematic page, a contributor whose band is another edge's
+    // (VA.kinematicBandEdges): that edge, one click away, since this one may
+    // carry no value of its own.
+    var bandEdgeId = ctx.bandEdges && ctx.bandEdges[edge.id];
+    var bandEdge = bandEdgeId ? VA.topologyIndex(ctx.topoProj).edges[bandEdgeId] : null;
+    if (bandEdge) {
+      var band = VA.el("div", "detail__band");
+      band.appendChild(VA.el("span", "muted", "band in this study: "));
+      var follow = VA.el("button", "detail__bandlink", bandEdge.name);
+      follow.onclick = function () { if (ctx.onSelect) ctx.onSelect("edge", bandEdge.id); };
+      band.appendChild(follow);
+      root.appendChild(band);
+    }
 
     // Deep link OUT to apps/annotate/ (deliverable 4): only for the two loud
     // gap confidences and, since 2026-10-26, a structural edge with no value

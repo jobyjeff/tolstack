@@ -119,14 +119,15 @@
   // confidence is null because there is no citation to grade. Annotating it
   // does not give it a value -- a binding is identity, never a value source --
   // but it pins down which feature a reader has to go and read a band for.
-  // A derived edge is valueless by design (it is what a study computes) and is
-  // not one of these. The gap list and the row badges still read the
+  // (The projection writes `value_source: "derived"` on EVERY edge with no
+  // dimension, so that field cannot tell these apart and is not read.) A
+  // clearance has no part to annotate and is not one. The gap list and the
+  // row badges still read the
   // confidence alone: ISSUE_20260930_a_valueless_structural_edge_is_invisible_
   // to_the_gap_list.md owns widening those.
   VA.needsAnnotation = function (confidence, edge) {
     if (VA.UNVERIFIED_CONFIDENCES.indexOf(confidence) !== -1) return true;
-    return !!(edge && !edge.dimension && edge.kind !== "gap" &&
-              edge.value_source !== "derived");
+    return !!(edge && !edge.dimension && edge.kind !== "gap");
   };
 
   // --- which worksheet a stack or a topology is showing, and HOW it was found

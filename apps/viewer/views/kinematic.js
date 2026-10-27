@@ -390,6 +390,23 @@
     return VA.litSetOfEdges(topoProj, edges);
   };
 
+  // { contributor edge: band edge } for each contributor whose band is ANOTHER
+  // edge of the study's topology -- the preview pane names that edge beside a
+  // contributor that has no value of its own, so a reader looking for the
+  // citation is one click from it.
+  VA.kinematicBandEdges = function (study) {
+    var out = {};
+    if (!study) return out;
+    allStopRows(study).forEach(function (row) {
+      var source = row.band_source || {};
+      if (source.kind === "dimension_ref" && source.edge && source.edge !== row.edge &&
+          (!source.topology || source.topology === study.topology)) {
+        out[row.edge] = source.edge;
+      }
+    });
+    return out;
+  };
+
   // --- a coefficient across the sweep ---------------------------------------------
   //
   // The small chart a coefficient cell's hover shows: the SIGNED coefficient
@@ -875,17 +892,14 @@
     var wrap = VA.el("div", "kmcontrib");
     var table = VA.el("table", "kmtable");
     var groups = VA.el("tr", "kmtable__groups");
-    // The group row's lead cell spans the two columns before the stops, its
-    // tail the three after them.
-    var lead = VA.el("th", "kmtable__lead");
-    lead.setAttribute("colspan", "2");
-    groups.appendChild(lead);
+    // The group row's tail cell spans the three columns after the stops.
+    groups.appendChild(VA.el("th", "kmtable__lead"));
     model.stops.forEach(function (stop) {
       var th = VA.el("th", "kmtable__stop");
       th.setAttribute("colspan", String(STOP_COLUMNS));
       th.setAttribute("data-stop", stop.id);
       th.appendChild(VA.el("div", "kmtable__stoplabel", stop.label));
-      th.appendChild(VA.el("div", "muted kmtable__stopsum num", stop.summary));
+      th.appendChild(VA.el("div", "muted kmtable__stopsum", stop.summary));
       groups.appendChild(th);
     });
     var tail = VA.el("th", "kmtable__tail");
@@ -893,7 +907,6 @@
     groups.appendChild(tail);
     var head = VA.el("tr", "kmtable__cols");
     head.appendChild(VA.el("th", "kmtable__lead", "Contributor"));
-    head.appendChild(VA.el("th", null, "Zone"));
     model.stops.forEach(function (stop) {
       [["Sign", "num kmtable__first"],
        [model.coefficientUnit ? "Coefficient, " + model.coefficientUnit : "Coefficient", "num"],
@@ -941,11 +954,13 @@
       ctx.onEdge(row.topology, row.edge);
     };
     nameCell.appendChild(link);
-    tr.appendChild(nameCell);
-
-    var zone = VA.el("td", "kmrow__zone", row.zone);
+    // The zone's shape, a muted word after the name (its meaning on hover):
+    // a column of its own cost the table the width it needs beside the
+    // preview pane at 1600 wide.
+    var zone = VA.el("span", "kmrow__zone", row.zone);
     if (row.zoneTitle) zone.setAttribute("title", row.zoneTitle);
-    tr.appendChild(zone);
+    nameCell.appendChild(zone);
+    tr.appendChild(nameCell);
 
     row.cells.forEach(function (cell, s) {
       var stop = model.stops[s];
@@ -957,7 +972,7 @@
       var sign = VA.el("td", "num kmtable__first" + muted, cell.sign);
       sign.setAttribute("data-stop", stop.id);
       tr.appendChild(sign);
-      tr.appendChild(coefficientCell(study, row, cell, stop, decimals, muted));
+      tr.appendChild(coefficientCell(study, row, cell, stop, decimals, muted, ctx));
       var magnitude = VA.el("td", "num" + muted, cell.magnitude === null ? "" : cell.magnitude);
       magnitude.setAttribute("data-stop", stop.id);
       if (cell.flagTitle) magnitude.setAttribute("title", cell.flagTitle);
@@ -1005,28 +1020,36 @@
   }
 
   // A coefficient, and on hover or focus its curve across the whole sweep
-  // (VA.kinematicCurve) -- drawn the first time it is asked for, so a table
-  // nobody hovers draws no charts.
-  function coefficientCell(study, row, cell, stop, decimals, muted) {
+  // (VA.kinematicCurve), as a hover card of kind `curve` in the page's one
+  // popover (views/cards.js) -- a fixed-position card, so the table's own
+  // horizontal scroll box cannot clip it. Computed the first time it is asked
+  // for, so a table nobody hovers draws no charts. With no card host (a page
+  // embedding this view without one) the chart is drawn inside the cell.
+  function coefficientCell(study, row, cell, stop, decimals, muted, ctx) {
     var td = VA.el("td", "num kmcell--coef" + muted);
     td.setAttribute("data-stop", stop.id);
     td.appendChild(VA.el("span", "kmcell__value", cell.coefficient));
     if (cell.flagTitle) td.setAttribute("title", cell.flagTitle);
     if (!row.curve) return td;
     td.setAttribute("tabindex", "0");
-    var drawn = false;
+    var card = null;
     var show = function () {
-      if (drawn) return;
-      drawn = true;
-      var curve = VA.kinematicCurve(study, row, decimals, stop.id);
-      if (curve) td.appendChild(curveFigure(curve, row.name));
+      if (!card) {
+        var curve = VA.kinematicCurve(study, row, decimals, stop.id);
+        if (!curve) return;
+        card = { kind: "curve", title: row.name, curve: curve };
+        if (!ctx.onCardShow) td.appendChild(VA.kinematicCurveFigure(curve, row.name));
+      }
+      if (ctx.onCardShow) ctx.onCardShow(card, td);
     };
     td.onmouseenter = show;
     td.onfocus = show;
     return td;
   }
 
-  function curveFigure(curve, name) {
+  // The curve as a figure: the frame, zero, the stops (this cell's marked),
+  // the line, and its four end values. Read by the hover card too.
+  VA.kinematicCurveFigure = function (curve, name) {
     var box = VA.el("div", "kmcurve");
     box.appendChild(VA.el("div", "kmcurve__title", name));
     var svg = VA.svg("svg", "kmcurve__svg", {
@@ -1056,7 +1079,7 @@
     box.appendChild(svg);
     box.appendChild(VA.el("div", "muted kmcurve__axis", curve.xLabel));
     return box;
-  }
+  };
 
   // The row's way into the 3D scene: only where its part HAS a mesh to show
   // (the rule the rail's "attach to 3D" already follows) -- a launch onto an

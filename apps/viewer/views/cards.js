@@ -67,6 +67,8 @@
     else if (card.kind === "citation") citationCard(root, card, images, config, source);
     else if (card.kind === "alerts") alertsCard(root, card);
     else if (card.kind === "gap") gapCard(root, card);
+    // A kinematic coefficient across the sweep (views/kinematic.js draws it).
+    else if (card.kind === "curve") root.appendChild(VA.kinematicCurveFigure(card.curve, card.title));
     else {
       // A card kind this renderer has no branch for is said out loud, the
       // same posture every enumerated field on this surface takes.
