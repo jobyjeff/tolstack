@@ -201,11 +201,23 @@ VALUE_SOURCES = ("inline", "stack_ref", "derived")
 #: check: the DAG page's reader is looking at a topology, and a gap that is only
 #: reachable by selecting the one study whose check happens to name it is a gap
 #: nobody finds (the 2026-09-15 review's finding, one level up).
+#: Two more since 2026-10-26 (``the_dag_draws_bodies_as_containers_and_joints_as_symbols``),
+#: both facts about an edge's authoring rather than its value:
+#:
+#: * ``contact_kind_not_stated`` -- a gap edge with no ``interface``
+#:   (``tolerance_stack.topology.INTERFACE_KINDS``): the DAG draws it as a
+#:   plain dash because nobody has said what kind of contact it is.
+#: * ``form_not_folded`` -- a form callout carried as a ``modifier`` on a size
+#:   band. It can only tighten that band, and v0 folds the band as it is, so
+#:   every interval the edge feeds may be wider than the callout allows
+#:   (``docs/SOP_TOLERANCE_STACK.md``, "A form callout").
 TOPOLOGY_GAP_KINDS = (
     "excluded_from_model",
     "hardware_entry",
     "unverified_value",
     "no_tolerance_recorded",
+    "contact_kind_not_stated",
+    "form_not_folded",
 )
 
 #: The hardware register, beside the stack documents whose elements cite it
@@ -294,6 +306,10 @@ class Layout:
         #: the order they are in. Written by :func:`order_columns`, which every
         #: serialisation ends with, so it is never absent.
         self.column_order = COLUMN_ORDERS[0]
+        #: :func:`body_spans` over the finished rows: where each body's
+        #: container is drawn. Empty when the topology declares no bodies (and
+        #: always, for a chain's one-rail layout).
+        self.bodies: List[Dict[str, Any]] = []
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -302,6 +318,7 @@ class Layout:
             "rows": self.rows,
             "rails": self.rails,
             "links": self.links,
+            "bodies": self.bodies,
         }
 
 
@@ -322,7 +339,7 @@ class _Serializer:
 
     # -- columns ----------------------------------------------------------
 
-    def allocate(self, start_row: int) -> int:
+    def allocate(self, start_row: int, avoid: Optional[int] = None) -> int:
         """Open a rail in the lowest free column, starting at ``start_row``.
 
         ``start_row`` is the row of the node the branch fans out of, **not** the
@@ -330,12 +347,50 @@ class _Serializer:
         the reader cannot see where the branch left from. That is also why the
         allocation happens before the walk recurses -- see
         :func:`serialize_topology`.
+
+        ``avoid`` is never handed out: the column of the node an edge on this
+        rail closes back onto (:meth:`allocate_clear` says why).
         """
-        if self._free:
-            column = heapq.heappop(self._free)
+        usable = [c for c in self._free if c != avoid]
+        if usable:
+            column = min(usable)
+            self._free.remove(column)
+            heapq.heapify(self._free)
         else:
             column = self.layout.columns
             self.layout.columns += 1
+        rail = {"column": column, "start": start_row, "end": start_row}
+        self.layout.rails.append(rail)
+        self._open[column] = rail
+        return column
+
+    def allocate_clear(self, start_row: int, avoid: Optional[int] = None) -> int:
+        """Open a rail from an EARLIER row: the lowest free column no rail has
+        used at or below ``start_row``, else a fresh one.
+
+        :meth:`allocate` may hand back any free column because its fork is the
+        row just emitted, so nothing below it has been drawn yet. A deferred
+        edge (:func:`serialize_topology`, bodies) forks from a node emitted
+        rows ago, and a column released in between may hold a rail across
+        exactly those rows -- reusing it would draw two rails on one line.
+
+        ``avoid`` is a column the edge must not take: the column of the node
+        a deferred edge CLOSES on. A close on its own column is a straight
+        vertical curve laid over every rail in that column between its two
+        rows, which on the merged model hid a whole leg from the pointer.
+        """
+        last: Dict[int, int] = {}
+        for rail in self.layout.rails:
+            last[rail["column"]] = max(last.get(rail["column"], -1), rail["end"])
+        clear = [c for c in self._free
+                 if last.get(c, -1) < start_row and c != avoid]
+        if not clear:
+            column = self.layout.columns
+            self.layout.columns += 1
+        else:
+            column = min(clear)
+            self._free.remove(column)
+            heapq.heapify(self._free)
         rail = {"column": column, "start": start_row, "end": start_row}
         self.layout.rails.append(rail)
         self._open[column] = rail
@@ -356,7 +411,8 @@ class _Serializer:
 
     # -- rows -------------------------------------------------------------
 
-    def node_row(self, node: Node, column: int, branch: bool) -> int:
+    def node_row(self, node: Node, column: int, branch: bool,
+                 body: Optional[str] = None) -> int:
         row = len(self.layout.rows)
         self.layout.rows.append({
             "row": row,
@@ -364,13 +420,17 @@ class _Serializer:
             "id": node.id,
             "column": column,
             "branch": branch,
+            # The body whose block this row is drawn in (`body_spans`): a node's
+            # own body, or for a joint node -- on two bodies -- the one the walk
+            # was in when it got there. `null` with no bodies declared.
+            "body": body,
         })
         self._extend(column)
         return row
 
     def edge_row(self, edge: Edge, column: int, entered_at: str,
                  left_at: str, closes_row: Optional[int],
-                 closes_column: Optional[int]) -> int:
+                 closes_column: Optional[int], body: Optional[str] = None) -> int:
         row = len(self.layout.rows)
         self.layout.rows.append({
             "row": row,
@@ -387,6 +447,9 @@ class _Serializer:
             # when it closes a loop. `null` for every edge that extends the walk.
             "closes_row": closes_row,
             "closes_column": closes_column,
+            # `Topology.edge_body`: the body this edge lies inside, `null` for a
+            # joint between two bodies (and for every edge with none declared).
+            "body": body,
         })
         self._extend(column)
         return row
@@ -572,7 +635,7 @@ def _best_order(layout: Layout, candidates: Sequence[int]) -> Tuple[List[int], s
     best_order = heuristic
     best = score(heuristic)
     if n > EXACT_ORDER_MAX_COLUMNS:
-        return best_order, COLUMN_ORDERS[1]
+        return _improved(heuristic, score), COLUMN_ORDERS[1]
 
     placed = [TRUNK_COLUMN]
     position = {TRUNK_COLUMN: 0}
@@ -613,6 +676,39 @@ def _best_order(layout: Layout, candidates: Sequence[int]) -> Tuple[List[int], s
 
     descend(0)
     return best_order, COLUMN_ORDERS[0]
+
+
+def _improved(order: Sequence[int], score: Any) -> List[int]:
+    """Past the exact search, the shortest-first order improved by moving ONE
+    column at a time: take the first column, nearest the trunk first, whose
+    move to some other position lowers the count, make the first such move,
+    and start again; stop when no single move helps. Deterministic, never
+    worse than where it started, and still a heuristic -- a local minimum,
+    which is why ``column_order`` keeps saying ``shortest_first``.
+
+    Added with body-major walking (2026-10-26): the merged product model is
+    the one topology past the exact width, and its deferred joint rails cross
+    170 times in shortest-first order and 109 after this pass, in well under a
+    second.
+    """
+    current = list(order)
+    best = score(current)
+    moved = True
+    while moved:
+        moved = False
+        for i, column in enumerate(current):
+            rest = current[:i] + current[i + 1:]
+            for j in range(len(rest) + 1):
+                if j == i:
+                    continue
+                candidate = rest[:j] + [column] + rest[j:]
+                value = score(candidate)
+                if value < best:
+                    best, current, moved = value, candidate, True
+                    break
+            if moved:
+                break
+    return current
 
 
 def order_columns(layout: Layout) -> Layout:
@@ -714,17 +810,78 @@ def serialize_topology(topology: Topology) -> Layout:
     # `test_every_fork_mark_is_one_of_the_topologys_own_branch_nodes`.
     branch_nodes = set(topology.branch_nodes())
 
-    def walk(node: Node, column: int) -> None:
+    # Bodies (the_dag_draws_bodies_as_containers_and_joints_as_symbols,
+    # 2026-10-26): with `bodies[]` declared the walk is BODY-MAJOR, so every
+    # body's rows are one block the page can draw a container behind. At a node
+    # the walk takes only the edges inside the body it is in; every other edge
+    # there -- a joint, or an edge of the other body a joint node is on -- is
+    # DEFERRED, and walked from that node once the body is finished: the edges
+    # of the body just started first, so it closes up, and otherwise the most
+    # recently deferred, whose fork is nearest and whose rail is therefore
+    # shortest (`next_deferred`; first-in-first-out measured 364 crossings on
+    # the merged model against 170 for this, before ordering). A deferred edge forks from
+    # a row emitted earlier, so its rail takes a column that is clear below that
+    # row (`allocate_clear`). With no bodies declared nothing is deferred and
+    # the walk is the one this function always did.
+    has_bodies = bool(topology.bodies)
+    deferred: List[Tuple[str, Edge]] = []
+    started: List[str] = []
+
+    def edge_block(edge: Edge) -> Optional[str]:
+        return topology.edge_body(edge) if has_bodies else None
+
+    def enter_body(node_id: str, inside: Optional[str]) -> Optional[str]:
+        """The body a walk arriving at ``node_id`` continues in: the edge's own
+        when it lies inside one, else the node's first body not yet drawn."""
+        if not has_bodies:
+            return None
+        if inside is not None:
+            return inside
+        bodies = topology.node_bodies(node_id)
+        fresh = [b for b in bodies if b not in started]
+        return (fresh or list(bodies) or [None])[0]
+
+    def start(body: Optional[str]) -> None:
+        if body is not None and body not in started:
+            started.append(body)
+
+    def next_deferred() -> int:
+        focus = started[-1] if started else None
+        for i, (_, edge) in enumerate(deferred):
+            if edge.id not in used and edge_block(edge) == focus:
+                return i
+        return len(deferred) - 1
+
+    def walk(node: Node, column: int, body: Optional[str] = None) -> None:
         pending = [e for e in topology.incident(node.id) if e.id not in used]
+        if has_bodies:
+            deferred.extend((node.id, e) for e in pending
+                            if edge_block(e) is None or edge_block(e) != body)
+            pending = [e for e in pending
+                       if edge_block(e) is not None and edge_block(e) == body]
         # Claimed up front, all of them: a deeper walk that reaches one of these
         # edges from its far end must NOT consume it, or the branch this node
         # already allocated a column for would silently vanish from the page.
         for edge in pending:
             used.add(edge.id)
         fork_row = visited[node.id]
+
+        def lands_on(edge: Edge) -> Optional[int]:
+            """The column of the already-drawn node ``edge`` closes onto."""
+            far_id = edge.other_end(node.id)
+            return (ser.layout.rows[visited[far_id]]["column"]
+                    if far_id in visited else None)
+
+        # An edge that would close back onto a node in THIS column goes last,
+        # and onto a column of its own: on its node's column it is a straight
+        # vertical curve laid over every rail there between its two rows. A
+        # stable sort, so a walk with no such edge is the walk it always was.
+        pending.sort(key=lambda e: lands_on(e) == column)
         columns = [column]
-        for _ in pending[1:]:
-            branch_column = ser.allocate(fork_row)
+        if pending and lands_on(pending[0]) == column:
+            columns = []
+        for edge in pending[len(columns):]:
+            branch_column = ser.allocate(fork_row, avoid=lands_on(edge))
             ser.layout.links.append({
                 "kind": "branch",
                 "row": fork_row,
@@ -735,40 +892,105 @@ def serialize_topology(topology: Topology) -> Layout:
             columns.append(branch_column)
 
         for edge, edge_column in zip(pending, columns):
-            far_id = edge.other_end(node.id)
-            closing = far_id in visited
-            row = ser.edge_row(
-                edge, edge_column, entered_at=node.id, left_at=far_id,
-                closes_row=visited.get(far_id) if closing else None,
-                closes_column=(ser.layout.rows[visited[far_id]]["column"]
-                               if closing else None),
-            )
-            if closing:
-                ser.layout.links.append({
-                    "kind": "close",
-                    "row": row,
-                    "from_column": edge_column,
-                    "to_row": visited[far_id],
-                    "to_column": ser.layout.rows[visited[far_id]]["column"],
-                })
-            else:
-                far = topology.node(far_id)
-                visited[far_id] = ser.node_row(
-                    far, edge_column, branch=far_id in branch_nodes)
-                walk(far, edge_column)
+            step(node, edge, edge_column, body)
             if edge_column != column:
                 ser.release(edge_column)
+
+    def step(node: Node, edge: Edge, edge_column: int,
+             body: Optional[str]) -> None:
+        """One edge out of ``node`` on ``edge_column``: its row, then the far
+        node's row and the walk on from it -- or a ``close`` back up to it."""
+        far_id = edge.other_end(node.id)
+        closing = far_id in visited
+        row = ser.edge_row(
+            edge, edge_column, entered_at=node.id, left_at=far_id,
+            closes_row=visited.get(far_id) if closing else None,
+            closes_column=(ser.layout.rows[visited[far_id]]["column"]
+                           if closing else None),
+            body=edge_block(edge),
+        )
+        if closing:
+            ser.layout.links.append({
+                "kind": "close",
+                "row": row,
+                "from_column": edge_column,
+                "to_row": visited[far_id],
+                "to_column": ser.layout.rows[visited[far_id]]["column"],
+            })
+            return
+        far = topology.node(far_id)
+        far_body = enter_body(far_id, edge_block(edge)) if has_bodies else body
+        start(far_body)
+        visited[far_id] = ser.node_row(
+            far, edge_column, branch=far_id in branch_nodes, body=far_body)
+        walk(far, edge_column, far_body)
+
+    def drain() -> None:
+        while deferred:
+            node_id, edge = deferred.pop(next_deferred())
+            if edge.id in used:
+                continue
+            used.add(edge.id)
+            fork_row = visited[node_id]
+            fork_column = ser.layout.rows[fork_row]["column"]
+            far_id = edge.other_end(node_id)
+            lands = (ser.layout.rows[visited[far_id]]["column"]
+                     if far_id in visited else None)
+            edge_column = ser.allocate_clear(fork_row, avoid=lands)
+            ser.layout.links.append({
+                "kind": "branch",
+                "row": fork_row,
+                "from_column": fork_column,
+                "to_row": fork_row,
+                "to_column": edge_column,
+            })
+            start(edge_block(edge))
+            step(topology.node(node_id), edge, edge_column, edge_block(edge))
+            ser.release(edge_column)
 
     for node in topology.nodes:
         if node.id in visited:
             continue
         column = ser.allocate(len(ser.layout.rows))
+        body = enter_body(node.id, None)
+        start(body)
         visited[node.id] = ser.node_row(
-            node, column, branch=node.id in branch_nodes)
-        walk(node, column)
+            node, column, branch=node.id in branch_nodes, body=body)
+        walk(node, column, body)
         ser.release(column)
+        drain()
 
-    return order_columns(ser.layout)
+    layout = order_columns(ser.layout)
+    layout.bodies = body_spans(layout.rows)
+    return layout
+
+
+def body_spans(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Per body, the blocks of the walk it is drawn as: every maximal run of
+    consecutive rows tagged with that body, as ``{body, start, end, lo, hi}``
+    -- first and last row, leftmost and rightmost column (as serialised, before
+    the page mirrors them). Body-major walking makes that one span per body on
+    every committed topology (pinned); a list, because a body whose rows only
+    meet through another body's nodes can be reopened, and a container drawn
+    over the gap would claim rows it does not hold.
+
+    ``apps/viewer/topology.js``'s ``VA.bodySpans`` re-derives the same list
+    from a layout's rows (the fast tier pins the two equal), because a hidden
+    or collapsed walk has rows this function never saw."""
+    spans: List[Dict[str, Any]] = []
+    for row in rows:
+        body = row.get("body")
+        last = spans[-1] if spans else None
+        if body is None:
+            continue
+        if last is not None and last["body"] == body and last["end"] == row["row"] - 1:
+            last["end"] = row["row"]
+            last["lo"] = min(last["lo"], row["column"])
+            last["hi"] = max(last["hi"], row["column"])
+        else:
+            spans.append({"body": body, "start": row["row"], "end": row["row"],
+                          "lo": row["column"], "hi": row["column"]})
+    return spans
 
 
 def serialize_chain(chain: Sequence[Contribution]) -> Layout:
@@ -1057,6 +1279,9 @@ def project_edge(topology: Topology, edge: Edge) -> Dict[str, Any]:
             "units_out": transform.units_out,
         },
         "transform_declared": edge.transform,
+        # The kind of contact a gap edge crosses (INTERFACE_KINDS), `null`
+        # when unstated and on every structural edge. The DAG's glyph.
+        "interface": edge.interface,
     }
 
 
@@ -1204,10 +1429,13 @@ def project_part(part: Any, meshes: Sequence[Dict[str, str]],
     return row
 
 
-def project_body(body: Any) -> Dict[str, Any]:
+def project_body(topology: Topology, body: Any) -> Dict[str, Any]:
     """One authored body, every key present (``note`` ``None`` when unwritten)."""
     return {"id": body.id, "name": body.name, "kind": body.kind,
-            "parts": list(body.parts), "note": body.note, "tags": dict(body.tags)}
+            "parts": list(body.parts), "note": body.note, "tags": dict(body.tags),
+            # Where this body meets another (`Topology.joint_nodes`): the count
+            # a collapsed body carries on its face.
+            "joint_nodes": topology.joint_nodes(body.id)}
 
 
 def gap_row(kind: str, text: str, hardware_id: Optional[str] = None,
@@ -1228,9 +1456,11 @@ def topology_gaps(topology: Topology, studies: Sequence[Dict[str, Any]],
                   hardware: Dict[str, Any]) -> List[Dict[str, Any]]:
     """*What is missing* for one topology -- the DAG page's gap list.
 
-    Four kinds (:data:`TOPOLOGY_GAP_KINDS`), in the order a reader needs them:
+    Six kinds (:data:`TOPOLOGY_GAP_KINDS`), in the order a reader needs them:
     a term the model excludes outright is the most consequential and comes
-    first, exactly as ``stack_gaps`` orders its own two.
+    first, exactly as ``stack_gaps`` orders its own two; the two authoring
+    gaps (an unstated contact kind, an unfolded form modifier) come after the
+    value gaps and before the hardware rows.
 
     **The excluded terms and the hardware rows are `stack_gaps`' output**, from
     the studies' own projected checks. Two lookups find the hardware entries,
@@ -1294,7 +1524,18 @@ def topology_gaps(topology: Topology, studies: Sequence[Dict[str, Any]],
         if dimension.min == dimension.max:
             no_band.append(gap_row("no_tolerance_recorded", edge.name,
                                    edge=edge.id, edge_name=edge.name))
-    return excluded + unverified + no_band + hardware_rows
+    # Every gap edge, valued or not: what kind of contact it crosses is a
+    # question about the joint, not about its number.
+    no_contact = [gap_row("contact_kind_not_stated", edge.name,
+                          edge=edge.id, edge_name=edge.name)
+                  for edge in topology.edges
+                  if edge.kind == "gap" and edge.interface is None]
+    unfolded = [gap_row("form_not_folded", edge.name,
+                        edge=edge.id, edge_name=edge.name)
+                for edge in topology.edges
+                if edge.dimension is not None and edge.dimension.form is not None
+                and edge.dimension.form.kind == "modifier"]
+    return excluded + unverified + no_band + no_contact + unfolded + hardware_rows
 
 
 def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
@@ -1334,8 +1575,9 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         "transforms": [dataclasses.asdict(topology.transform(t.id))
                        for t in topology.transforms],
         # The rigid bodies, as authored (docs/DAG_TOPOLOGY.md, "Bodies"); `[]`
-        # for a topology that declares none. Nothing on the page draws them yet.
-        "bodies": [project_body(b) for b in topology.bodies],
+        # for a topology that declares none. Drawn as the DAG's containers,
+        # where `layout.bodies` says.
+        "bodies": [project_body(topology, b) for b in topology.bodies],
         "branch_nodes": branch_nodes,
         "layout": serialize_topology(topology).as_dict(),
         "confidence_counts": counts,

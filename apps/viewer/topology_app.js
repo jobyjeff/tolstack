@@ -67,6 +67,11 @@
     // across every page that has a lit set: a chain study and a kinematic
     // study alike.
     unlitStyle: VA.DEFAULT_UNLIT_STYLE,
+    // Which of a kinematic page's sub-stacks are open ({sub-study id: true},
+    // VA.kinematicSubStacks): the DAG's dashed field and the contributor
+    // table's group row read and write this one map, so they open and close
+    // together. In-session, like the unlit style.
+    openSubStacks: {},
     // How far the jog zone has been dragged open, as a multiple of its own
     // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
     // a pixel width precisely BECAUSE it outlives the topology it was set on:
@@ -1894,6 +1899,23 @@
         // preview pane says so and links to it (VA.kinematicBandEdges).
         bandEdges: showKinematic ? VA.kinematicBandEdges(kinematicStudy) : null,
         unlitStyle: state.unlitStyle,
+        // The bodies the reader has folded, remembered per topology
+        // (VA.readCollapsedBodies), and the sub-stacks a kinematic page
+        // draws inside them with their shared open state.
+        // No projection published: the pane says so and draws no body.
+        collapsedBodies: topoProj ? VA.readCollapsedBodies(widthStore(), topoProj.id) : null,
+        onToggleBody: function (bodyId) {
+          if (!topoProj) return;
+          var collapsed = VA.readCollapsedBodies(widthStore(), topoProj.id);
+          if (collapsed[bodyId]) delete collapsed[bodyId];
+          else collapsed[bodyId] = true;
+          VA.writeCollapsedBodies(widthStore(), topoProj.id, collapsed);
+          render();
+        },
+        subStacks: showKinematic ? VA.kinematicSubStacks(kinematicStudy,
+          state.kinematic && state.kinematic.display_decimals) : null,
+        openSubStacks: state.openSubStacks,
+        onToggleSubStack: toggleSubStack,
         // The same config the stack pane and the popovers get: since the
         // preview pane started rendering the crop's links through the shared
         // VA.cropReference (viewer_component_names_and_reference_copy) it
@@ -1997,6 +2019,8 @@
         topologies: state.topologies,
         selection: state.selection,
         onEdge: onKinematicEdge,
+        openSubStacks: state.openSubStacks,
+        onToggleSubStack: toggleSubStack,
         annotateMount: state.annotateMount,
         onAttach3d: launchAnnotate,
         onCardShow: showCard,
@@ -2118,6 +2142,14 @@
   // scrolled to put that grid at its top; any other repaint keeps the box
   // where the reader left it.
   var paneToGrid = false;
+
+  // A kinematic page's sub-stack opened or closed, from the DAG's label or the
+  // table's group row: one map, one repaint, both surfaces follow.
+  function toggleSubStack(id) {
+    if (state.openSubStacks[id]) delete state.openSubStacks[id];
+    else state.openSubStacks[id] = true;
+    render();
+  }
 
   function rewind() {
     paneToGrid = true;

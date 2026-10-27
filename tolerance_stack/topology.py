@@ -198,6 +198,45 @@ TRANSFORM_KINDS = ("identity", "ratio", "linear_to_rotary")
 #: to compute anything. Paired against ``docs/DAG_TOPOLOGY.md``, "Bodies".
 BODY_KINDS = ("body", "link")
 
+#: What kind of contact a ``gap`` edge is, added 2026-10-26 (handoff
+#: ``the_dag_draws_bodies_as_containers_and_joints_as_symbols``) so the DAG can
+#: draw a joint as the contact it is rather than as one more dashed bar. Each
+#: word is one glyph, one SVG ``<symbol>`` in ``apps/viewer/interface_glyphs.js``:
+#:
+#: * ``planar`` -- two flat faces across a clearance (two parallel bars).
+#: * ``pin_in_bore`` -- a cylinder seated in a bore: a pin, a pressed race
+#:   (a dot in a ring).
+#: * ``spherical`` -- a ball joint: a rod end, a spherical bearing (ball in cup).
+#: * ``cylindrical_slide`` -- a cylinder that slides along and turns in a bore
+#:   (a dot in a ring, with a double-headed arrow).
+#: * ``thread`` -- a threaded engagement (a short helix).
+#: * ``clearance`` -- a distance across free space that no contact closes: an
+#:   end-stop gap, a shank sticking out past a nut (two bars with a gap).
+#:
+#: Optional on a ``gap`` edge in v0 -- an edge that states none is drawn with
+#: the plain dash and listed by the gap list as "contact kind not stated" --
+#: and refused on a ``structural`` one, which is a dimension of one part and
+#: touches nothing. A word, never an input: nothing folds it. Paired against
+#: ``docs/DAG_TOPOLOGY.md``, "Joint glyphs"; the linkage solver's joint types
+#: map onto it in ``tolerance_stack/kinematic.py``'s ``LINKAGE_JOINT_INTERFACES``.
+INTERFACE_KINDS = ("planar", "pin_in_bore", "spherical", "cylindrical_slide",
+                   "thread", "clearance")
+
+#: What a form callout (flatness, straightness, circularity, cylindricity) on
+#: an edge's dimension IS in the chain -- the rule Jeff gave 2026-10-26, stated
+#: once in ``docs/SOP_TOLERANCE_STACK.md``, "A form callout":
+#:
+#: * ``element`` -- the callout is on a surface two components are attached to
+#:   and nothing else in the chain bands it, so it is a linear element in its
+#:   own right: a ``structural`` edge whose dimension is nominal 0, ``min`` and
+#:   ``max`` at minus and plus half the callout's zone. It folds like any other
+#:   dimension, because it is one.
+#: * ``modifier`` -- the feature already carries a size band and the callout
+#:   sits on one of its faces (``node``). Form within size can only TIGHTEN
+#:   what the size band allows, so a zone wider than the band is refused. v0
+#:   folds the size band unchanged: a modifier is display and gap list only.
+FORM_KINDS = ("element", "modifier")
+
 
 # ---------------------------------------------------------------------------
 # Errors
@@ -413,6 +452,40 @@ class Body:
 
 
 @dataclass
+class Form:
+    """A form callout on a dimension: its zone as drawn, and what it is in the
+    chain (:data:`FORM_KINDS`). ``zone`` is the number in the feature control
+    frame (a flatness of 0.05 is ``zone`` 0.05). ``node`` is the face it is on,
+    required on a ``modifier`` and one of the edge's two ends. Checked against
+    its dimension and its edge by :func:`check_form`, from :class:`Edge`, the
+    first place all three are in hand.
+    """
+
+    kind: str
+    zone: float
+    node: Optional[str] = None
+    source_ref: Optional[SourceRef] = None
+    note: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in FORM_KINDS:
+            raise TopologyError(
+                f"form: kind must be one of {FORM_KINDS}, got {self.kind!r}")
+        if not (isinstance(self.zone, (int, float)) and math.isfinite(self.zone)
+                and self.zone > 0):
+            raise TopologyError(
+                f"form: zone must be a finite number > 0 -- the callout's own "
+                f"tolerance zone -- got {self.zone!r}")
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "Form":
+        d = dict(d)
+        src = d.pop("source_ref", None)
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(source_ref=SourceRef.from_dict(src) if src else None, **known)
+
+
+@dataclass
 class Dimension:
     """The dimension an edge carries: a ``StackElement`` with ``role`` freed.
 
@@ -437,6 +510,7 @@ class Dimension:
     hardware_ref: Optional[str] = None
     source_ref: Optional[SourceRef] = None
     note: Optional[str] = None
+    form: Optional[Form] = None      # a form callout on it -- FORM_KINDS
 
     def __post_init__(self) -> None:
         if self.role is not None and self.role not in ELEMENT_ROLES:
@@ -470,14 +544,16 @@ class Dimension:
             id=self.id, name=self.name, nominal=0.0,
             min=self.min - self.nominal, max=self.max - self.nominal,
             hardware_ref=self.hardware_ref, source_ref=self.source_ref,
-            note=self.note)
+            note=self.note, form=self.form)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Dimension":
         d = dict(d)
         src = d.pop("source_ref", None)
+        form = d.pop("form", None)
         known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
-        return cls(source_ref=SourceRef.from_dict(src) if src else None, **known)
+        return cls(source_ref=SourceRef.from_dict(src) if src else None,
+                   form=Form.from_dict(form) if form else None, **known)
 
     @classmethod
     def from_element(cls, element: StackElement) -> "Dimension":
@@ -619,6 +695,7 @@ class Edge:
     transform: Optional[str] = None  # a Transform id declared by the topology
     properties: Dict[str, Any] = field(default_factory=dict)
     note: Optional[str] = None
+    interface: Optional[str] = None  # one of INTERFACE_KINDS; gap edges only
 
     def __post_init__(self) -> None:
         if self.kind not in EDGE_KINDS:
@@ -641,6 +718,19 @@ class Edge:
             raise TopologyError(
                 f"edge {self.id!r}: has both an inline dimension and a "
                 f"dimension_ref. One value, one place it comes from.")
+        if self.interface is not None:
+            if self.interface not in INTERFACE_KINDS:
+                raise TopologyError(
+                    f"edge {self.id!r}: interface must be one of "
+                    f"{INTERFACE_KINDS}, got {self.interface!r}")
+            if self.kind != "gap":
+                raise TopologyError(
+                    f"edge {self.id!r}: interface {self.interface!r} on a "
+                    f"{self.kind!r} edge. An interface is the kind of contact a "
+                    f"gap edge crosses; a structural edge is a dimension of one "
+                    f"part and touches nothing")
+        if self.dimension is not None and self.dimension.form is not None:
+            check_form(self)
 
     @property
     def derived(self) -> bool:
@@ -672,6 +762,54 @@ class Edge:
         dim = d.pop("dimension", None)
         known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
         return cls(dimension=Dimension.from_dict(dim) if dim else None, **known)
+
+
+#: How close an ``element`` form edge's ``min``/``max`` must sit to minus and
+#: plus half its zone, so a zone of 0.05 transcribed as -0.025/0.025 is not
+#: refused over its last bit.
+FORM_BAND_SLACK = 1e-9
+
+
+def check_form(edge: "Edge") -> None:
+    """The form rule (:data:`FORM_KINDS`) for one edge whose dimension carries
+    a ``form``: refuses, with the reason, what the SOP's "A form callout" says a
+    form callout cannot be."""
+    dimension = edge.dimension
+    assert dimension is not None and dimension.form is not None
+    form = dimension.form
+    if form.kind == "element":
+        if edge.kind != "structural":
+            raise TopologyError(
+                f"edge {edge.id!r}: a form element is a structural edge -- the "
+                f"form of a surface two components are attached to is a "
+                f"dimension of the part that surface is on -- got a "
+                f"{edge.kind!r} edge")
+        half = form.zone / 2.0
+        if (abs(dimension.nominal) > FORM_BAND_SLACK
+                or abs(dimension.min + half) > FORM_BAND_SLACK
+                or abs(dimension.max - half) > FORM_BAND_SLACK):
+            raise TopologyError(
+                f"edge {edge.id!r}: a form element is nominal 0 and plus or "
+                f"minus half its zone ({-half:g} / {half:g} for zone "
+                f"{form.zone:g}); got nominal {dimension.nominal:g}, min "
+                f"{dimension.min:g}, max {dimension.max:g}")
+        if form.node is not None:
+            raise TopologyError(
+                f"edge {edge.id!r}: a form element IS the edge, so it names no "
+                f"node -- got {form.node!r}")
+        return
+    if form.node not in (edge.from_node, edge.to_node):
+        raise TopologyError(
+            f"edge {edge.id!r}: a form modifier names the face it is on as "
+            f"`node`, one of the edge's two ends ({edge.from_node!r}, "
+            f"{edge.to_node!r}) -- got {form.node!r}")
+    size = dimension.max - dimension.min
+    if form.zone > size + FORM_BAND_SLACK:
+        raise TopologyError(
+            f"edge {edge.id!r}: a form modifier can only tighten the size band "
+            f"it sits on -- zone {form.zone:g} is wider than the band {size:g} "
+            f"({dimension.min:g} to {dimension.max:g}). If nothing else bands "
+            f"this surface, the callout is a form element instead")
 
 
 # ---------------------------------------------------------------------------
@@ -850,6 +988,55 @@ class Topology:
         """The body ``part_id`` moves with; ``None`` when no body is declared."""
         self.part(part_id)
         return self._body_of.get(part_id)
+
+    def node_bodies(self, node_id: str) -> Tuple[str, ...]:
+        """The ids of the bodies a node's parts move with, in the node's part
+        order and without repeats: one for a node inside a body, two for a
+        **joint node** -- a mating surface between two bodies. Empty when the
+        document declares no bodies."""
+        out: List[str] = []
+        for part_id in self.node(node_id).parts:
+            body = self.body_of(part_id)
+            if body is not None and body.id not in out:
+                out.append(body.id)
+        return tuple(out)
+
+    def edge_body(self, edge: Edge) -> Optional[str]:
+        """The body an edge lies inside, or ``None`` for a **joint**.
+
+        A structural edge is a dimension of one part, so it is inside that
+        part's body. A gap edge is inside a body when both of its ends are on
+        that one body alone (a bearing's ball centre and the link it is
+        pressed into); otherwise it crosses between bodies and is a joint.
+        ``None`` throughout when the document declares no bodies."""
+        if edge.kind == "structural":
+            body = self.body_of(edge.part) if edge.part else None
+            return body.id if body is not None else None
+        ends = {self.node_bodies(edge.from_node), self.node_bodies(edge.to_node)}
+        if len(ends) == 1:
+            (only,) = ends
+            if len(only) == 1:
+                return only[0]
+        return None
+
+    def joint_nodes(self, body_id: str) -> List[str]:
+        """The nodes where ``body_id`` meets another body, in document order:
+        a node shared with a second body, or the end of a joint gap edge
+        (:meth:`edge_body` ``None``) that is on this body. What a collapsed
+        body counts on its face."""
+        self.body(body_id)
+        ends = set()
+        for edge in self.edges:
+            if edge.kind == "gap" and self.edge_body(edge) is None:
+                ends.update((edge.from_node, edge.to_node))
+        out = []
+        for node in self.nodes:
+            bodies = self.node_bodies(node.id)
+            if body_id not in bodies:
+                continue
+            if len(bodies) > 1 or node.id in ends:
+                out.append(node.id)
+        return out
 
     def transform(self, transform_id: Optional[str]) -> Transform:
         """The resolved transform for ``transform_id``; ``None`` -> :data:`IDENTITY`."""

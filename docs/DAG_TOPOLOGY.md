@@ -151,6 +151,18 @@ in order. A word must reach both.
 - `link` — a two-force member between two bodies, posed by its two joint
   centres: the pitch link, the tangential link.
 
+`interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance`.
+
+Optional in v0 and refused on a structural edge. What each word draws is the
+table in "Joint glyphs" below; an edge that states none is a plain dash and a
+"contact kind not stated" row on the gap list.
+
+`kind` on a form callout is one of `element | modifier`.
+
+The rule is the SOP's ("A form callout", `docs/SOP_TOLERANCE_STACK.md`), stated
+there once: an `element` is a structural edge of nominal 0 and plus or minus half
+the callout's zone; a `modifier` sits on a size band it can only tighten.
+
 Both node kinds and both edge kinds are **derivable** from the part membership,
 and are therefore checked: a document whose label disagrees with its graph does
 not load. The label is carried anyway rather than derived silently, because the
@@ -198,10 +210,62 @@ linkage solver's sweeps already name and the DAG had no way to know:
 - **Read by the projections, never by `fold()`.** The topology projection
   carries `bodies[]` per topology — `{id, name, kind, parts, note}`, every key
   present — and the kinematic projection carries each contributor row's `body`:
-  the body its edge's part moves with, `null` for a gap edge. Nothing draws a
-  body yet; a body container on the DAG is its own design handoff.
+  the body its edge's part moves with, `null` for a gap edge. The DAG draws
+  each body as a container (next section).
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
+
+### Bodies on the DAG
+
+Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symbols`).
+
+- **Which body an element is in.** A structural edge is in its part's body. A
+  node is in its parts' bodies — one, or two for a **joint node**, a mating
+  surface between two bodies. A gap edge is in a body when both its ends are on
+  that body alone (a bearing's ball centre and the link it is pressed into);
+  otherwise it is a **joint** and in none. `Topology.edge_body`,
+  `Topology.node_bodies`, `Topology.joint_nodes`.
+- **The walk is body-major.** The layout walks one body to the end before it
+  crosses a joint, so every body's rows are one block. A joint, or another
+  body's edge at a joint node, is deferred and walked from its node once the
+  body is done (`scripts/build_topology_projection.py`, `serialize_topology`).
+  Each row carries `body`; `layout.bodies` lists each body's block as
+  `{body, start, end, lo, hi}`. Column order still minimises the crossing count
+  (`layout_crossings`), over a walk in which each body is contiguous.
+- **Drawn as a container.** A rounded field behind the body's block, the
+  body's name once at its top-left, in a muted fill that cycles per body. A
+  body none of whose edges the current study lights is a flat outline.
+- **Collapsible.** Clicking a body's name folds it to one wide node with its
+  name and its joint-node count; the edges that leave it attach to that node's
+  rim. A node a lit edge outside the body stands on stays drawn. The page
+  remembers each body's state per reader.
+- **A sub-stack is a container inside its body.** On a kinematic page, the
+  chain a `study_ref` names is a dashed field around its edges, folded to one
+  bar with the study's title and its folded interval (shown, never reused — the
+  chain rule enters the sub-study's terms one by one). It opens and closes with
+  the contributor table's group row.
+
+### Joint glyphs
+
+Each gap edge with an `interface` draws its glyph at the middle of its bar, in
+the bar's colour, and the glyph carries the edge's hover card. One SVG
+`<symbol>` per word in `apps/viewer/interface_glyphs.js`, enumerated against
+`INTERFACE_KINDS` by `tests/test_topology_projection.py`.
+
+| `interface` | glyph | one edge that wears it |
+| --- | --- | --- |
+| `planar` | two parallel bars, like a capacitor | none on a committed topology yet: a face-to-face seat is one node, not a gap edge (see "What a hard contact is *not*") |
+| `pin_in_bore` | a dot in a ring | `gas_spring_rod_to_pitch_plate` |
+| `spherical` | a ball in a cup | `pitch_arm_link_joint` |
+| `cylindrical_slide` | a dot in a ring with a double-headed arrow | `hub_to_pitch_plate_spindle_coaxiality` |
+| `thread` | a short helix | none on a committed topology yet |
+| `clearance` | two bars with a gap between them | `end_stop_clearance` |
+| form `element` | a rough-surface squiggle on the edge's bar | none on a committed topology yet (fixture: `tests/test_topology.py`'s form-rule cases) |
+| form `modifier` | the same squiggle beside the node the callout is on | none on a committed topology yet |
+
+linkage's joint types suggest the word: `tolerance_stack/kinematic.py`'s
+`LINKAGE_JOINT_INTERFACES` maps each one, and an authored edge at a swept joint
+that disagrees with it fails `tests/test_topology.py`.
 
 ## Tags
 

@@ -74,6 +74,18 @@
 // pitch_linkage_model, 2026-10-26): project_topology() carries a topology's
 // rigid bodies since then, and the demo mechanism declares none -- `[]` is
 // what the builder writes for such a document, a shape fix and no number.
+//
+// The seventh (the_dag_draws_bodies_as_containers_and_joints_as_symbols,
+// 2026-10-26), all shape and no number: every projected edge's `interface`
+// (`null` -- the demo states no contact kind) and every dimension's `form`
+// (`null`), every topology layout row's `body` and each layout's `bodies: []`
+// (the demo declares no bodies, so the builder tags nothing), and the
+// derivable gap row the first of those implies: `topology_gaps()` lists a gap
+// edge with no `interface` as `contact_kind_not_stated`, and the demo has one,
+// `tip_to_strut_end`. The same pass closed two fields that had drifted before
+// it (ISSUE_20261026_topology_fixtures_lack_the_tags_fields_so_the_real_
+// fixture_pairing_is_red_on_integration.md): the top-level `variant_axis` the
+// builder writes, and each study's `tags: {}`.
 
 (function (VA) {
   "use strict";
@@ -93,6 +105,7 @@
       link_kinds: ["branch", "close"],
       value_sources: ["inline", "stack_ref", "derived"],
       study_statuses: ["ok", "error"],
+      variant_axis: "variant",
       topologies: [
       {
         "id": "demo_mechanism",
@@ -500,7 +513,8 @@
                 "confidence": "traced",
                 "note": null
               },
-              "note": null
+              "note": null,
+              "form": null
             },
             "confidence": "traced",
             "zero_width": false,
@@ -515,7 +529,8 @@
               "units_in": "mm",
               "units_out": "mm"
             },
-            "transform_declared": null
+            "transform_declared": null,
+            "interface": null
           },
           {
             "id": "post_height",
@@ -564,7 +579,8 @@
                 "confidence": "inferred",
                 "note": "read off the parts list, not a dimensioned view."
               },
-              "note": null
+              "note": null,
+              "form": null
             },
             "confidence": "inferred",
             "zero_width": false,
@@ -579,7 +595,8 @@
               "units_in": "mm",
               "units_out": "mm"
             },
-            "transform_declared": null
+            "transform_declared": null,
+            "interface": null
           },
           {
             "id": "arm_pin_to_tip",
@@ -618,7 +635,8 @@
                 "confidence": "untraced",
                 "note": "PLACEHOLDER - a workbook cell that traces nothing, with a zero-width band on top."
               },
-              "note": null
+              "note": null,
+              "form": null
             },
             "confidence": "untraced",
             "zero_width": true,
@@ -630,7 +648,8 @@
               "units_in": "mm",
               "units_out": "deg"
             },
-            "transform_declared": "arm_linear_to_rotary"
+            "transform_declared": "arm_linear_to_rotary",
+            "interface": null
           },
           {
             "id": "post_bushing_offset",
@@ -655,7 +674,8 @@
               "plus_minus": null,
               "hardware_ref": null,
               "source_ref": null,
-              "note": null
+              "note": null,
+              "form": null
             },
             "confidence": "no_source_ref",
             "zero_width": false,
@@ -667,7 +687,8 @@
               "units_in": "mm",
               "units_out": "mm"
             },
-            "transform_declared": null
+            "transform_declared": null,
+            "interface": null
           },
           {
             "id": "strut_length",
@@ -709,7 +730,8 @@
                 "confidence": "traced",
                 "note": null
               },
-              "note": null
+              "note": null,
+              "form": null
             },
             "confidence": "traced",
             "zero_width": false,
@@ -724,7 +746,8 @@
               "units_in": "mm",
               "units_out": "mm"
             },
-            "transform_declared": null
+            "transform_declared": null,
+            "interface": null
           },
           {
             "id": "tip_to_strut_end",
@@ -748,7 +771,8 @@
               "units_in": "mm",
               "units_out": "mm"
             },
-            "transform_declared": null
+            "transform_declared": null,
+            "interface": null
           }
         ],
         "transforms": [
@@ -790,7 +814,8 @@
               "kind": "node",
               "id": "base_datum",
               "column": 0,
-              "branch": false
+              "branch": false,
+              "body": null
             },
             {
               "row": 1,
@@ -800,14 +825,16 @@
               "entered_at": "base_datum",
               "left_at": "base_post_seat",
               "closes_row": null,
-              "closes_column": null
+              "closes_column": null,
+              "body": null
             },
             {
               "row": 2,
               "kind": "node",
               "id": "base_post_seat",
               "column": 0,
-              "branch": true
+              "branch": true,
+              "body": null
             },
             {
               "row": 3,
@@ -817,14 +844,16 @@
               "entered_at": "base_post_seat",
               "left_at": "post_arm_pin",
               "closes_row": null,
-              "closes_column": null
+              "closes_column": null,
+              "body": null
             },
             {
               "row": 4,
               "kind": "node",
               "id": "post_arm_pin",
               "column": 0,
-              "branch": false
+              "branch": false,
+              "body": null
             },
             {
               "row": 5,
@@ -834,14 +863,16 @@
               "entered_at": "post_arm_pin",
               "left_at": "arm_tip",
               "closes_row": null,
-              "closes_column": null
+              "closes_column": null,
+              "body": null
             },
             {
               "row": 6,
               "kind": "node",
               "id": "arm_tip",
               "column": 0,
-              "branch": false
+              "branch": false,
+              "body": null
             },
             {
               "row": 7,
@@ -851,14 +882,16 @@
               "entered_at": "arm_tip",
               "left_at": "strut_end",
               "closes_row": null,
-              "closes_column": null
+              "closes_column": null,
+              "body": null
             },
             {
               "row": 8,
               "kind": "node",
               "id": "strut_end",
               "column": 0,
-              "branch": false
+              "branch": false,
+              "body": null
             },
             {
               "row": 9,
@@ -868,14 +901,16 @@
               "entered_at": "strut_end",
               "left_at": "post_strut_bushing",
               "closes_row": null,
-              "closes_column": null
+              "closes_column": null,
+              "body": null
             },
             {
               "row": 10,
               "kind": "node",
               "id": "post_strut_bushing",
               "column": 0,
-              "branch": false
+              "branch": false,
+              "body": null
             },
             {
               "row": 11,
@@ -885,7 +920,8 @@
               "entered_at": "base_post_seat",
               "left_at": "post_strut_bushing",
               "closes_row": 10,
-              "closes_column": 0
+              "closes_column": 0,
+              "body": null
             }
           ],
           "rails": [
@@ -915,7 +951,8 @@
               "to_row": 10,
               "to_column": 0
             }
-          ]
+          ],
+          "bodies": []
         },
         "confidence_counts": {
           "traced": 2,
@@ -945,6 +982,7 @@
               "post_height": "arm_linear_to_rotary"
             },
             "configuration": {},
+            "tags": {},
             "checks": [],
             "source_file": "docs/topologies/study_demo_base_to_tip.json",
             "notes": [
@@ -1099,7 +1137,8 @@
                   "end": 6
                 }
               ],
-              "links": []
+              "links": [],
+              "bodies": []
             }
           },
           {
@@ -1117,6 +1156,7 @@
             ],
             "transforms": {},
             "configuration": {},
+            "tags": {},
             "checks": [],
             "source_file": "docs/topologies/study_demo_strut_branch.json",
             "notes": [],
@@ -1269,7 +1309,8 @@
                   "end": 6
                 }
               ],
-              "links": []
+              "links": [],
+              "bodies": []
             }
           },
           {
@@ -1289,6 +1330,7 @@
             ],
             "transforms": {},
             "configuration": {},
+            "tags": {},
             "checks": [],
             "source_file": "docs/topologies/study_demo_ambiguous.json",
             "notes": [],
@@ -1305,7 +1347,8 @@
         "gaps": [
           {"kind": "unverified_value", "text": "arm pin to tip", "hardware_id": null, "edge": "arm_pin_to_tip", "edge_name": "arm pin to tip"},
           {"kind": "unverified_value", "text": "post bushing offset", "hardware_id": null, "edge": "post_bushing_offset", "edge_name": "post bushing offset"},
-          {"kind": "no_tolerance_recorded", "text": "arm pin to tip", "hardware_id": null, "edge": "arm_pin_to_tip", "edge_name": "arm pin to tip"}
+          {"kind": "no_tolerance_recorded", "text": "arm pin to tip", "hardware_id": null, "edge": "arm_pin_to_tip", "edge_name": "arm pin to tip"},
+          {"kind": "contact_kind_not_stated", "text": "arm tip to strut end", "hardware_id": null, "edge": "tip_to_strut_end", "edge_name": "arm tip to strut end"}
         ]
       }
       ],

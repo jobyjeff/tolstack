@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every live body's container is the builder's own block, and every body of the product model is exactly one",
+  "mutations": [
+    {
+      "contract": "A body's span grows sideways to every column its rows use.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Keeps a span as wide as its first row only.",
+      "file": "apps/viewer/topology.js",
+      "find": "        last.hi = Math.max(last.hi, hi);",
+      "replace": "        last.hi = last.hi;"
+    }
+  ]
+}

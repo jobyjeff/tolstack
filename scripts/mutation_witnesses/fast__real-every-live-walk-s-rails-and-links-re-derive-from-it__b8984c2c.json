@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every live walk's rails and links re-derive from its rows, and hiding the blade-pitch study's unlit model keeps only its rows and their columns",
+  "mutations": [
+    {
+      "contract": "Hiding keeps only the lit rows.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Keeps every row of the walk. (Renamed 2026-10-26 from the guard that named its counts; its spec moved with it.)",
+      "file": "apps/viewer/topology.js",
+      "find": "      return row.kind === \"edge\" ? !!lit.edges[row.id] : !!lit.nodes[row.id];",
+      "replace": "      return true;"
+    }
+  ]
+}

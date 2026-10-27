@@ -225,6 +225,7 @@
       "id": "shank_out",
       "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
       "kind": "gap",
+      "interface": "clearance",
       "from": "washer_far_face",
       "to": "shank_full_dia_end",
       "note": "A DERIVED gap: it carries no dimension because it is the quantity `study_pitch_link_shank_out.json` computes. Its endpoints share no part (the washer, the bolt), so it is kind `gap` rather than a structural dimension. This is check `shank_out__11_sourced_only`'s own residual, and per that check's own guidance the missing pitch-link eye is what would need to fill it."

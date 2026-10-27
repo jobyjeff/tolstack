@@ -483,6 +483,33 @@
     return VA.litSetOfEdges(topoProj, edges);
   };
 
+  // The page's sub-stacks (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): one per
+  // `study_ref` into this study's own topology, with the edges its terms are
+  // and its folded interval as the DAG's label prints it -- display only, the
+  // chain rule never reuses the fold. The DAG draws each as a dashed field
+  // around those edges; it and the table's group row open and close on one
+  // piece of state (`ctx.openSubStacks`, keyed by the sub-study's id).
+  VA.kinematicSubStacks = function (study, decimals) {
+    if (!study) return [];
+    return (study.study_refs || []).filter(function (ref) {
+      return !ref.topology || ref.topology === study.topology;
+    }).map(function (ref) {
+      var edges = [];
+      (ref.children || []).forEach(function (child) {
+        if (child.edge && edges.indexOf(child.edge) === -1) edges.push(child.edge);
+      });
+      var total = ref.total || {};
+      var interval = typeof total.worst_case_min === "number" &&
+        typeof total.worst_case_max === "number"
+        ? VA.kinematicNumber(total.worst_case_min, decimals) + " to " +
+          VA.kinematicNumber(total.worst_case_max, decimals) +
+          (ref.units ? " " + ref.units : "")
+        : null;
+      return { id: ref.study, title: ref.title || ref.study, edges: edges,
+               interval: interval };
+    });
+  };
+
   // { contributor edge: band edge } for each contributor whose band is ANOTHER
   // edge of the study's topology -- the preview pane names that edge beside a
   // contributor that has no value of its own, so a reader looking for the
@@ -1071,12 +1098,23 @@
     tr.appendChild(VA.el("td", "kmrow__conf"));
     tr.appendChild(VA.el("td", "kmrow__3d"));
 
+    // Open or closed is the page's, not this row's: the DAG's sub-stack field
+    // opens and closes with it (VA.kinematicSubStacks). A ctx without the
+    // shared state (a bare test render) keeps the row's own.
+    var shared = !!ctx.onToggleSubStack;
+    var startOpen = !!(ctx.openSubStacks && ctx.openSubStacks[group.id]);
     var kids = group.children.map(function (child) {
       var kid = contributorRow(study, child, model, topoProj, decimals, ctx);
-      kid.hidden = true;
+      kid.hidden = !startOpen;
       return kid;
     });
+    toggle.setAttribute("aria-expanded", startOpen ? "true" : "false");
+    toggle.textContent = startOpen ? "▾" : "▸";
     var toggleKids = function () {
+      if (shared) {
+        ctx.onToggleSubStack(group.id);
+        return;
+      }
       var open = toggle.getAttribute("aria-expanded") !== "true";
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
       toggle.textContent = open ? "▾" : "▸";

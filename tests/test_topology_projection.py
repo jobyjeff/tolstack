@@ -1273,3 +1273,118 @@ def test_both_projection_builders_gate_the_register_on_the_same_constant():
         assert SCHEMA_HARDWARE not in source, (
             f"{Path(module.__file__).name} spells the hardware schema inline -- "
             f"import SCHEMA_HARDWARE instead, or the two gates can drift")
+
+
+# --------------------------------------------------------------------------- #
+# bodies as containers, joints as glyphs (2026-10-26,                         #
+# the_dag_draws_bodies_as_containers_and_joints_as_symbols)                    #
+# --------------------------------------------------------------------------- #
+
+GLYPHS_JS = REPO_ROOT / "apps" / "viewer" / "interface_glyphs.js"
+
+
+def test_every_body_of_the_product_model_is_one_block_of_the_walk(projection):
+    """Body-major walking: a body's rows are contiguous, so its container is
+    one field, and no two containers share a row."""
+    row = projected(projection, "vpa_pitch_linkage")
+    layout = row["layout"]
+    assert layout["bodies"] == B.body_spans(layout["rows"])
+    per: dict = {}
+    for span in layout["bodies"]:
+        per[span["body"]] = per.get(span["body"], 0) + 1
+    assert per == {b["id"]: 1 for b in row["bodies"]}, per
+    spans = layout["bodies"]
+    assert all(b["start"] > a["end"] for a, b in zip(spans, spans[1:]))
+    # Every row inside a span is that body's; a joint row is in none.
+    for span in spans:
+        for r in layout["rows"][span["start"]:span["end"] + 1]:
+            assert r["body"] == span["body"]
+
+
+def test_a_topology_with_no_bodies_walks_exactly_as_before(topologies):
+    """With no ``bodies[]`` nothing is deferred: every row's ``body`` is
+    ``None``, no container is emitted, and the four bodiless topologies keep the
+    crossing counts they had before body-major walking."""
+    before = {  # measured 2026-10-26 on the tree before the change
+        "pitch_link_to_pitch_plate": {"branch": 0, "close": 1, "leader": 0},
+        "rotor_fastener_length": {"branch": 0, "close": 36, "leader": 0},
+        "tan_link_to_pitch_plate_take2": {"branch": 0, "close": 0, "leader": 0},
+        "vpa_output_to_pitch_plate": {"branch": 0, "close": 0, "leader": 0},
+    }
+    for topology_id, counts in before.items():
+        layout = B.serialize_topology(topologies[topology_id])
+        assert layout.bodies == []
+        assert all(r["body"] is None for r in layout.rows)
+        assert B.layout_crossings(layout) == counts, topology_id
+
+
+def test_the_product_models_crossings_and_width_are_pinned():
+    """The merged model's layout, as the handoff asked it measured: 122
+    crossings on 18 columns before (branch 5, close 115, leader 2), the
+    numbers below after. The README's ``layout_crossings`` claim declares the
+    same three and the claims registry re-derives them; this pins the width
+    and that the total went down."""
+    topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json")
+    layout = B.serialize_topology(topology)
+    counts = B.layout_crossings(layout)
+    assert counts == {"branch": 16, "close": 43, "leader": 50}
+    assert sum(counts.values()) < 122
+    assert layout.columns == 11
+    assert layout.column_order == "shortest_first"
+
+
+def test_a_deferred_joint_never_draws_its_rail_over_another_on_one_column(topologies):
+    """``allocate_clear``: a deferred edge forks from a row emitted earlier, so
+    its rail must take a column no rail has used below that row."""
+    layout = B.serialize_topology(topologies["vpa_pitch_linkage"]).as_dict()
+    by_column: dict = {}
+    for rail in layout["rails"]:
+        for other in by_column.get(rail["column"], []):
+            assert rail["end"] < other["start"] or other["end"] < rail["start"], (
+                rail, other)
+        by_column.setdefault(rail["column"], []).append(rail)
+
+
+def test_the_joint_glyph_file_draws_exactly_the_interface_words():
+    """One symbol per INTERFACE_KINDS word in ``interface_glyphs.js`` -- the
+    table is keyed through the generated vocabulary, and this reads the file's
+    own keys so a glyph for a word Python does not have is red here too."""
+    import re
+
+    from tolerance_stack.topology import INTERFACE_KINDS
+
+    text = GLYPHS_JS.read_text(encoding="utf-8")
+    start = text.index('VA.INTERFACE_GLYPHS = VOCAB.table("INTERFACE_KINDS", {')
+    end = text.index("\n  });", start)
+    keys = re.findall(r"^    ([a-z_]+): \{$", text[start:end], flags=re.M)
+    assert tuple(keys) == INTERFACE_KINDS
+
+
+def test_the_gap_list_names_an_unstated_contact_and_an_unfolded_form():
+    from tolerance_stack.stack import SourceRef
+    from tolerance_stack.topology import (
+        Dimension, Edge, Form, Node, Part, Topology)
+
+    src = SourceRef(kind="assumed")
+    topology = Topology(
+        id="t", title="t", units="mm",
+        parts=[Part(id="a", name="a"), Part(id="b", name="b")],
+        nodes=[Node(id="na", name="na", parts=("a",), kind="datum_feature"),
+               Node(id="na2", name="na2", parts=("a",), kind="datum_feature"),
+               Node(id="nb", name="nb", parts=("b",), kind="datum_feature")],
+        edges=[
+            Edge(id="size", name="size", from_node="na", to_node="na2", part="a",
+                 dimension=Dimension(id="size", name="size", nominal=6.0,
+                                     min=5.95, max=6.05, source_ref=src,
+                                     form=Form(kind="modifier", zone=0.02,
+                                               node="na", source_ref=src))),
+            Edge(id="g", name="the gap", from_node="na2", to_node="nb", kind="gap"),
+        ])
+    rows = B.topology_gaps(topology, [], {"entries": []})
+    kinds = [(r["kind"], r["edge"]) for r in rows]
+    assert ("contact_kind_not_stated", "g") in kinds
+    assert ("form_not_folded", "size") in kinds
+    # Stated, the contact row goes; the committed model states every one.
+    topology.edges[1].interface = "clearance"
+    assert all(r["kind"] != "contact_kind_not_stated"
+               for r in B.topology_gaps(topology, [], {"entries": []}))

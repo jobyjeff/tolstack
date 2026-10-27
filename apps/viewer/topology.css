@@ -441,6 +441,53 @@ body { display: flex; flex-direction: column; }
 .rail__bar--gap { stroke-dasharray: 4 3; }
 .rail__bar--derived { stroke: var(--zero); stroke-dasharray: 2 4; stroke-width: 3; }
 
+/* The joint glyphs (interface_glyphs.js): a stroke in the colour of the bar
+   it sits on -- the same conf-- classes -- over a disc of the page's own
+   background so the dashed bar does not run through the drawing. The disc is
+   no target; the glyph carries the edge's card and click. */
+.rail__glyph { fill: none; stroke: var(--muted); stroke-width: 1.4;
+  stroke-linecap: round; pointer-events: all; cursor: pointer; overflow: visible; }
+.rail__glyph .glyph__solid { stroke-width: 2.4; }
+.rail__glyph.conf--traced { stroke: var(--traced); }
+.rail__glyph.conf--inferred { stroke: var(--inferred); }
+.rail__glyph.conf--untraced { stroke: var(--untraced); }
+.rail__glyph.conf--no_source_ref { stroke: var(--nocite); }
+.rail__glyph--derived { stroke: var(--zero); }
+.rail__glyph--form { stroke: var(--muted); }
+.rail__glyph--off, .rail__glyph--other-variant { opacity: .28; }
+.rail__glyphbg { fill: var(--bg); stroke: none; pointer-events: none; }
+
+/* A body's container (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a region
+   tint like the leader bands, not a mark, so it claims nothing the fill rule
+   reserves (docs/DESIGN_TYPE_AND_COLOUR.md). Six very low-alpha tints of low
+   chroma, a body's place in the document's own list picking one, so two
+   neighbouring bodies are told apart and none can be read as a provenance
+   hue or as the accent. A body the current study does not reach is a flat
+   outline. pointer-events off: the field is wayfinding; its NAME is the one
+   control (it folds the body). */
+.tv__bodyfield { stroke: rgba(255, 255, 255, .07); stroke-width: 1; pointer-events: none; }
+.tv__bodyfield--t0 { fill: rgba(140, 160, 200, .075); }
+.tv__bodyfield--t1 { fill: rgba(150, 190, 170, .065); }
+.tv__bodyfield--t2 { fill: rgba(190, 170, 140, .065); }
+.tv__bodyfield--t3 { fill: rgba(170, 150, 200, .07); }
+.tv__bodyfield--t4 { fill: rgba(140, 185, 195, .065); }
+.tv__bodyfield--t5 { fill: rgba(190, 150, 165, .065); }
+.tv__bodyfield--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
+.tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }
+.tv__pill__shape { pointer-events: none; }
+
+/* A sub-stack inside its bodies: a dashed field round each of its bars, the
+   study's title and folded interval once. Closed, its bars are one muted fold
+   the label stands for. */
+.tv__substack { fill: none; stroke: var(--muted); stroke-width: 1;
+  stroke-dasharray: 3 2; pointer-events: none; }
+.tv__substackname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.tv__substackname:hover, .tv__substackname:focus { fill: var(--ink); outline: none; }
+.rail__bar.rail__bar--folded { stroke: var(--muted); stroke-width: 3; }
+
 /* The floor mark (viewer_edge_length_scaling): a drafting-style break — two
    short panel-coloured slashes cutting the bar — on any bar drawn at the
    minimum render length instead of its measured proportion under a scaled
