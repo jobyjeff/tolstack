@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] collapsing the product model's base folds it to one node carrying its joint count, and its joints meet that node",
+  "mutations": [
+    {
+      "contract": "A collapsed body's pill counts the places it meets another body.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Counts its parts instead.",
+      "file": "apps/viewer/topology.js",
+      "find": "                                  joints: (body.joint_nodes || []).length } });",
+      "replace": "                                  joints: (body.parts || []).length } });"
+    }
+  ]
+}

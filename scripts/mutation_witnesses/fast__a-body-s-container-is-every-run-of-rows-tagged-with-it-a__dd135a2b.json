@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a body's container is every run of rows tagged with it, as wide as the columns those rows use",
+  "mutations": [
+    {
+      "contract": "A run of a body's rows ends where another row interrupts it.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Joins every row of a body into one span, however far apart.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (last && last.body === body && last.end === row.row - 1) {",
+      "replace": "      if (last && last.body === body) {"
+    }
+  ]
+}

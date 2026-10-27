@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "collapsing a body folds its block to one pill, and the edges that leave it meet the pill at the columns their nodes were on",
+  "mutations": [
+    {
+      "contract": "An edge into a collapsed body lands on its pill.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Leaves the joint pointing at the node that folded away.",
+      "file": "apps/viewer/topology.js",
+      "find": "          copy.left_at = left.pill;",
+      "replace": "          copy.left_at = row.left_at;"
+    },
+    {
+      "contract": "A node a lit edge outside the body stands on stays drawn.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Folds every node of the block, lit or not.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (i === undefined || row.kind !== \"node\" || keep[row.id]) return;",
+      "replace": "      if (i === undefined || row.kind !== \"node\") return;"
+    }
+  ]
+}

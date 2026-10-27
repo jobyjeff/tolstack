@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a collapsed body is remembered per topology per reader, and an unreadable store reads as nothing collapsed",
+  "mutations": [
+    {
+      "contract": "Each topology keeps its own collapsed bodies.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Writes one list over every topology's.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (ids.length) all[topologyId] = ids.sort();",
+      "replace": "      if (ids.length) all = { x: 1 }, all[topologyId] = ids.sort();"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the travel sub-stack is a dashed field inside its bodies that folds and opens with the contributor table's group row",
+  "mutations": [
+    {
+      "contract": "The table's group row starts in the page's shared open state.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Starts every group closed whatever the DAG says.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    var startOpen = !!(ctx.openSubStacks && ctx.openSubStacks[group.id]);",
+      "replace": "    var startOpen = false;"
+    },
+    {
+      "contract": "A closed sub-stack's bars are drawn as its one fold.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Never folds them.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        if (!open) folded[mark.id] = true;",
+      "replace": "        if (false) folded[mark.id] = true;"
+    }
+  ]
+}
