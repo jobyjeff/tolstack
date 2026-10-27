@@ -206,7 +206,7 @@ try {
 
   // ---- 2. the component card's sourcing statement --------------------------
   console.log("\n== 2. `dimensions from` over untraced values ==");
-  await boot("&topology=pitch_system");
+  await boot("&topology=vpa_pitch_linkage");
   await page.evaluate(() => {
     const cell = Array.from(document.querySelectorAll("td.tvcell--component"))
       .filter((n) => n.textContent.trim() === "propeller hub")[0];

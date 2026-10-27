@@ -3215,7 +3215,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         realBands.bad.length === 0 && realBands.bands === 39 &&
         realBands.drawn === 39 &&
         realBands.tinted === realBands.rowHeights.length &&
-        realBands.provenanceLayers > realBands.tinted / 2);
+        // A floor, not a share: 21 of the product graph's 59 rows are
+        // untraced since the 2026-10-26 fold (20 of pitch_system's 24 were).
+        realBands.provenanceLayers >= 20);
       if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
       // Both styles against the real mechanism. The page arrives in ANGLED
       // (VA.DEFAULT_LEADER_STYLE since 2026-09-21), so the click reaches
