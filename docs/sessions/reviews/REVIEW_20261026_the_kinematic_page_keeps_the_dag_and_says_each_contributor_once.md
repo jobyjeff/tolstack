@@ -119,14 +119,40 @@ match the lesson.
     tier ran above through `--repo`.
   - The skip is `test_fit_bound_features.py:424`.
   - `tests/test_browser_runner.py` was `--ignore`d because it takes the browser
-    slot, which the witness run held. It ran separately (see the re-run note
-    at the end).
+    slot, which the witness run held. It ran separately after the witness run (below).
   - This suite prints no `concurrent pytest processes` / `full-suite lock`
     header lines.
-- **Mutation witnesses:** `--changed-since integration` on the merged tree
-  (see the appended result below). My first `--only` pass over the 118 specs
-  whose `file` this diff touches was stopped part-way, after its first few entries,
-  because `integration` moved. That pass measured a superseded tree.
+- **Mutation witnesses** (`--changed-since integration`, `--repo <scratch>`,
+  merged tree): 258 of 353 entries selected. Results:
+  - **130 witnessed.**
+  - **1 not witnessed**: `browser__real-a-reload-reopens-the-pane…__09a1cf0a#2`.
+    This is already on integration's
+    `ISSUE_20261026_a_full_witness_run_on_integration_left_36_mutations_unwitnessed.md`
+    (#1 and #2 were both listed there, while the suite skipped itself). This
+    branch revived the suite, so #1 is now witnessed. #2 stays blind because
+    the kinematic page's room now equals the boot layout's. Addendum appended.
+  - **127 "tier red before the mutation"**, none attributable to this diff:
+    - all 106 fast entries, because of the integration fixture red above
+      (noted on that issue);
+    - 21 browser entries, all in `annotate rail and scene`, the pre-filed
+      gap-badge red.
+  - Witnessing went up, not down, against integration: the 3D pane suite had
+    been skipping itself there.
+  - **This branch's own 34 mutation entries:**
+    - browser 12/12 and python 1/1 witnessed in that run.
+    - The 16 non-`[real]` fast entries are 16/16 witnessed in a separate
+      `--only` run without `--repo`, where the fixture check does not run.
+    - The 5 `[real]` fast entries cannot be proved on this tree either way.
+      The author recorded them witnessed at the branch tip.
+  - An `xargs` loop from my first, superseded `--only` pass outlived its
+    `TaskStop`. It kept launching single `--only` runs alongside the main run
+    (separate shadows, read-only scratch data) until I killed its process tree
+    at 23:4x. I deleted its stale `tmp/` lock and shadow.
+- **Third merge** (`integration` → `review/…`): `0f411c11`, `--changed-since`
+  by hunk, plus board moves. It was clean and touched only the witness runner
+  and its tests. `pytest tests/test_browser_runner.py
+  tests/test_mutation_witnesses.py` gave **53 passed**, which also covers the
+  `test_browser_runner.py` file deferred from the full run.
 
 ## Findings
 

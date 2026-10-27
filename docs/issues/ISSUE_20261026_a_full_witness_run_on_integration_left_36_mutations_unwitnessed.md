@@ -80,3 +80,17 @@ NOT WITNESSED — an enrolled guard that no longer reddens:
   browser__real-unticking-blade-hides-blade-1-and-its-pitch-arm-the__2d296708 — the tier was red before the mutation, so nothing was proved
   python__test-a-runner-that-ends-leaves-no-chrome__b36c164d#1 — the witness cannot see the difference
 ```
+
+## Addendum 2026-10-26 (review of the_kinematic_page_keeps_the_dag_and_says_each_contributor_once)
+
+`browser__real-a-reload-reopens-the-pane-the-reader-left-open-at-t__09a1cf0a`:
+on that branch's merged tree (`--changed-since integration`, projections built
+from the merge) **#1 is now witnessed** and **#2 is still NOT WITNESSED** ("the
+witness cannot see the difference"). The suite ran for real again because that
+branch stopped it skipping itself on a missing gap row. #2's mutation clamps
+the stored width at boot against `roomBesideFlyout()`. Now that the kinematic
+page has its preview pane back, its room at 1600 wide is the same as the boot
+layout's, so clamping at boot and fitting per page give the same width. The
+check needs a page whose room differs from the boot layout's (for example,
+reload onto a page with no preview pane, or with a narrower window) before it
+can tell the two apart again.

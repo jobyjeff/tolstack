@@ -34,3 +34,10 @@ Fix: regenerate the fixture the way its header says (paste
 demo carries `variant_axis` and `tags: {}` per study. It will turn
 `tests/test_viewer_js_suite.py` red in the main checkout at the next batch
 merge's projection rebuild if it is not done first.
+
+**It also blinds the mutation gate.** The same review's
+`run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration`
+selected 258 entries, and **all 106 fast-tier entries** reported "the tier was
+red before the mutation, so nothing was proved", because this one `[real]`
+check is red before any mutation is applied. Until the fixture is regenerated,
+no fast-tier witness can be proved on `integration` through `--repo`.
