@@ -41,3 +41,7 @@ candidates for a merge-only tier.
 ## Measurement 2026-10-23 (an_export_lists_every_run_that_consumed_it)
 
 941 s (15m41s) serial, `venv-win/Scripts/python.exe -m pytest -q` in a worktree (no xdist in the venv; the box was loaded). Top of `--durations`: test_browser_runner[throw-True] 231 s, test_mutation_witness_shadow_concurrency two-concurrent-runs 118 s, test_browser_runner[exit-False] 111 s, test_feature_geometry real-readers 107 s, test_annotate_js_suite 57 s, test_mutation_witnesses setup 39 s, test_browser_runner[signal-True] 37 s, shadow_concurrency two-roots 28 s.
+
+## Measurement 2026-10-27 (the_model_is_drawn_in_the_scene, review)
+
+968 s (16m08s) serial, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs` in the review worktree, post-merge: `1 failed, 1592 passed, 1 skipped, 2 deselected` (the failure is the documented worktree-only `test_viewer_js_suite`). Over by 6m08s. The same command on the same tree took 366 s in the tactical's run that morning, so most of the spread is box load (a mutation-witness run had just released the browser slot). Neither run had xdist (still absent from the venv), so neither is at the `-n 16` the budget is defined against. `--durations` was not captured.
