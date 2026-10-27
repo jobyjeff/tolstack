@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "a node whose anchor is null, or lies off the scene, gets no leader and no stub",
+  "mutations": [
+    {
+      "contract": "A null anchor draws nothing.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Draws a stub ending on the node's own dot.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (!to) { skipped.noAnchor.push(id); return; }",
+      "replace": "      if (!to) to = from;"
+    }
+  ]
+}

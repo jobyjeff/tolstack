@@ -1587,7 +1587,9 @@
   function drawSeamLeaders() {
     var svg = seamOverlay();
     if (!svg) return null;
-    var started = Date.now();
+    var clock = typeof performance !== "undefined" && performance.now
+      ? function () { return performance.now(); } : function () { return Date.now(); };
+    var started = clock();
     var drawn = VA.lastTopoRender;
     var topoProj = currentTopology();
     var rails = nodes.pane && nodes.pane.querySelector
@@ -1631,7 +1633,7 @@
     seamDraws++;
     // For a harness: what was drawn, and what it cost.
     VA.lastSeamDraw = { leaders: geo.leaders, crossings: geo.crossings,
-      skipped: geo.skipped, states: states, ms: Date.now() - started, draws: seamDraws };
+      skipped: geo.skipped, states: states, ms: clock() - started, draws: seamDraws };
     return geo;
   }
 
@@ -1650,22 +1652,45 @@
     if (selKey !== sceneSelectPosted && postToPane(sel)) sceneSelectPosted = selKey;
   }
 
-  // A selection made anywhere brings its grid row into view: an edge's own
-  // row, a node's the row its DAG↔grid leader lands above.
+  // A selection made anywhere brings its grid row into view -- an edge's own
+  // row, a node's the row its DAG↔grid leader lands above -- together with the
+  // element's own mark on the DAG when the two fit in the box at once, so all
+  // three ends of its leaders are on screen. Only the pane's OWN scroll moves
+  // (the kinematic page's bounded box), never the document's: `scrollIntoView`
+  // would scroll the page too, sliding another row under a pointer that has
+  // not moved, and that row's hover would take the scene's highlight off the
+  // selection.
   function scrollSelectionIntoView() {
     var sel = state.selection;
     var key = sel ? sel.kind + "|" + sel.id : null;
     if (key === seamScrolledTo) return;
     seamScrolledTo = key;
-    if (!sel || !nodes.pane || !nodes.pane.querySelector) return;
+    var box = nodes.pane;
+    if (!sel || !box || !box.querySelector || !(box.scrollHeight > box.clientHeight)) return;
     var edgeId = sel.id;
     if (sel.kind === "node") {
-      var leader = nodes.pane.querySelector('path.rail__leaderhit[data-leader-id="' + sel.id + '"]');
+      var leader = box.querySelector('path.rail__leaderhit[data-leader-id="' + sel.id + '"]');
       edgeId = leader ? leader.getAttribute("data-boundary-edge") : null;
     }
-    var row = edgeId
-      ? nodes.pane.querySelector('[data-row-kind="edge"][data-id="' + edgeId + '"]') : null;
-    if (row && row.scrollIntoView) row.scrollIntoView({ block: "nearest" });
+    var row = edgeId ? box.querySelector('tr.tvrow[data-id="' + edgeId + '"]') : null;
+    if (!row || !row.getBoundingClientRect) return;
+    var mark = box.querySelector('svg.tv__rails [data-row-kind="' + sel.kind + '"][data-id="' +
+      sel.id + '"]');
+    var b = box.getBoundingClientRect();
+    var head = box.querySelector(".tv__hscroll .tv__head");
+    var top = b.top + (head ? head.offsetHeight : 0);
+    var r = row.getBoundingClientRect();
+    var lo = r.top;
+    var hi = r.bottom;
+    if (mark && mark.getBoundingClientRect) {
+      var m = mark.getBoundingClientRect();
+      if (Math.max(hi, m.bottom) - Math.min(lo, m.top) <= b.bottom - top) {
+        lo = Math.min(lo, m.top);
+        hi = Math.max(hi, m.bottom);
+      }
+    }
+    if (lo < top) box.scrollTop -= top - lo;
+    else if (hi > b.bottom) box.scrollTop += hi - b.bottom;
   }
 
   // A pick in the scene selects its row in the scene's rail, and the tree it

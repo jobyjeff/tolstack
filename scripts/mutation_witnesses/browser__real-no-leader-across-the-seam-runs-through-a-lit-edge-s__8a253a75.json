@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] no leader across the seam runs through a lit edge's bar",
+  "mutations": [
+    {
+      "contract": "A leader leaves level with its own node's row.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Leaves half a row lower, through the edge rows under it.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      dots[id] = [r.left + d[0], r.top + d[1]];",
+      "replace": "      dots[id] = [r.left + d[0] + 400, r.top + d[1] + 13];"
+    }
+  ]
+}

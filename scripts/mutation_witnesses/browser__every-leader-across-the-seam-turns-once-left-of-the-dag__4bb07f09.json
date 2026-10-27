@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "every leader across the seam turns once, left of the DAG's rails, level with its dot",
+  "mutations": [
+    {
+      "contract": "The bend is half a gutter left of the leftmost thing the DAG draws.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Puts it a gutter right of it, inside the rails.",
+      "file": "apps/viewer/topology.js",
+      "find": "    out.bend = minX === Infinity ? 0 : Math.max(0, minX - metrics.gutter / 2);",
+      "replace": "    out.bend = minX === Infinity ? 0 : minX + metrics.gutter;"
+    }
+  ]
+}

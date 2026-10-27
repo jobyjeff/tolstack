@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "one selection lights its leaders on both overlays -- a node's own, an edge's two ends -- and the rest step back",
+  "mutations": [
+    {
+      "contract": "A selected edge lights both its ends' leaders.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Lights only the edge's first end.",
+      "file": "apps/viewer/topology.js",
+      "find": "        out[edge.from] = true;\n        out[edge.to] = true;",
+      "replace": "        out[edge.from] = true;"
+    }
+  ]
+}

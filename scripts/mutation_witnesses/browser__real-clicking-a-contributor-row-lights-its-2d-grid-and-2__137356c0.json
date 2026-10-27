@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] clicking a contributor row lights its 2D-grid and 2D-3D leaders and the scene's line",
+  "mutations": [
+    {
+      "contract": "A selection lights its element's leaders across the seam.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Lights none.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var selected = VA.selectedLeaderNodes(selection, index);\n    var hot = {};",
+      "replace": "    var selected = {};\n    var hot = {};"
+    }
+  ]
+}

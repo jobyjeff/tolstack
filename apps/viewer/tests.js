@@ -11963,7 +11963,8 @@
         var geo = VA.seamLeaderGeometry({ dots: dots, anchors: anchors, bendX: 500 + seam.bend,
           anchorClip: { left: 0, right: 400, top: 0, bottom: 1000 } });
         eq(geo.skipped.noAnchor, [ids[0]], "a null anchor: no leader, no stub");
-        eq(geo.skipped.offscreen, [ids[1]], "an anchor outside the scene: none either");
+        eq(geo.skipped.offScene, [ids[1]], "an anchor outside the scene: none either");
+        eq(geo.skipped.offDag, []);
         eq(geo.leaders.map(function (l) { return l.id; }), ids.slice(2));
         geo.leaders.forEach(function (l) {
           eq(l.from, dots[l.id]);
@@ -12095,6 +12096,8 @@
         eq(VA.sceneRowElement("#sweep-tree/group=bodies/body=B/sha=cd34,subject=B#1", proj,
           VA.litSetOfEdges(proj, ["eB"])), { kind: "edge", id: "eB" },
           "...but only one of them is lit");
+        eq(VA.sceneRowElement("#sweep-tree/group=joints/joint=A", proj, null),
+          { kind: "edge", id: "eA" }, "a link's joint row is named after the link");
         eq(VA.sceneRowElement("#sweep-tree/group=bodies/body=Z", proj, null), null);
         eq(VA.sceneRowElement(null, proj, null), null);
       });

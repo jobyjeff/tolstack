@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "a resize re-draws the leaders onto the moved rects, with no new anchors message",
+  "mutations": [
+    {
+      "contract": "A resize re-draws: the one ResizeObserver, and the pane's own paint.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Observes nothing and drops the paint hook, so only a new anchors message re-draws.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {",
+      "replace": "      [].forEach(function (n) {"
+    },
+    {
+      "contract": "A resize re-draws: the one ResizeObserver, and the pane's own paint.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Observes nothing and drops the paint hook, so only a new anchors message re-draws.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        onPainted: scheduleSeamDraw,",
+      "replace": "        onPainted: null,"
+    }
+  ]
+}

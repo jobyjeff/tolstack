@@ -10008,6 +10008,487 @@ async function testAnnotateBindForm(browser, label) {
   }
 }
 
+// The leaders across the seam (handoff leaders_follow_the_active_study_
+// across_the_seam, 2026-10-27): one page-level overlay from the active
+// study's lit nodes on the DAG to where the scene draws them.
+//
+// The first half is the TRUTH check the handoff asks for: the annotator is
+// booted in its mock, where no model layer posts anything, and a SYNTHETIC
+// `annotate:anchors` message is posted from the pane's own window -- so the
+// leader endpoints asserted below are the iframe's rect plus numbers this
+// suite chose, not whatever a camera happened to show. The second half is the
+// live P2 kinematic study with the real scene posting its own anchors, and
+// photographs it when SEAM_LEADER_SHOTS names a directory.
+const SEAM_LEADER_SHOTS = process.env.SEAM_LEADER_SHOTS || null;
+
+async function testSeamLeaders(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  // The annotator on its own mock too, so the commands the page posts run
+  // instead of queueing behind a folder grant nobody is there to give.
+  await page.addInitScript(() => {
+    if (location.pathname.indexOf("/apps/annotate/") === -1) return;
+    if (!/[?&]mock=1(&|$)/.test(location.search)) {
+      history.replaceState(null, "", location.pathname +
+        (location.search ? location.search + "&" : "?") + "mock=1" + location.hash);
+    }
+  });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 30000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => !!new Function("arg",
+        "return (" + src + ")(arg);")(arg), { src: fn.toString(), arg }, { timeout, polling: 50 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const settled = () => until(() => window.ViewerApp && window.ViewerApp.lastTopoRender &&
+    !window.ViewerApp.lastTopoRender.tweening, null, 10000);
+  // The anchors as the scene would post them: from the pane's own window, so
+  // the shell's source check passes exactly as it does for the real one.
+  // `w.Function`, not this realm's: a postMessage's source is the window of
+  // the script that CALLED it, and a call made from the shell's realm would
+  // arrive from the shell.
+  const fromPane = (msg) => inPane((w, msg) => {
+    new w.Function("msg", "window.parent.postMessage(msg, window.location.origin);")(msg);
+    return true;
+  }, msg);
+  const postAnchors = (nodes) => fromPane({ type: "annotate:anchors", nodes, edges: {} });
+  const draws = () => page.evaluate(() =>
+    (window.ViewerApp.lastSeamDraw && window.ViewerApp.lastSeamDraw.draws) || 0);
+  const drawnAfter = (n) => until((n) => window.ViewerApp.lastSeamDraw &&
+    window.ViewerApp.lastSeamDraw.draws > n, n, 10000);
+  // Every leader on the overlay, its two ends read off the drawn path, beside
+  // the two rects and the DAG ends the pane published.
+  const measure = () => page.evaluate(() => {
+    const VA = window.ViewerApp;
+    const svg = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
+    const frame = document.querySelector("#annotate-flyout iframe");
+    const r = svg ? svg.getBoundingClientRect() : null;
+    const f = frame ? frame.getBoundingClientRect() : null;
+    const paths = [...document.querySelectorAll("svg.seamleaders path.seam__leader")].map((p) => {
+      const n = p.getTotalLength();
+      const a = p.getPointAtLength(0);
+      const b = p.getPointAtLength(n);
+      return { id: p.getAttribute("data-node-id"), cls: p.getAttribute("class"),
+        d: p.getAttribute("d"), from: [a.x, a.y], to: [b.x, b.y] };
+    });
+    const grid = {};
+    const lines = [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leader")];
+    [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leaderhit")].forEach((h, i) => {
+      grid[h.getAttribute("data-leader-id")] = lines[i] ? lines[i].getAttribute("class") : null;
+    });
+    const draw = VA.lastSeamDraw;
+    return { paths, grid, seam: VA.lastTopoRender && VA.lastTopoRender.seam,
+      rails: r && { left: r.left, top: r.top },
+      frame: f && { left: f.left + frame.clientLeft, top: f.top + frame.clientTop },
+      draw: draw && { crossings: draw.crossings, ms: draw.ms, draws: draw.draws,
+        skipped: draw.skipped, states: draw.states } };
+  });
+  const near = (p, q) => p && q && Math.abs(p[0] - q[0]) <= 0.5 && Math.abs(p[1] - q[1]) <= 0.5;
+  // Every drawn leader starts at its DAG dot (the rails SVG's rect + the
+  // pane's own point) and ends at its anchor (the iframe's rect + `anchors`).
+  const endsHold = (m, anchors) => m.paths.length > 0 && m.paths.every((p) =>
+    near(p.from, [m.rails.left + m.seam.dots[p.id][0], m.rails.top + m.seam.dots[p.id][1]]) &&
+    near(p.to, [m.frame.left + anchors[p.id][0], m.frame.top + anchors[p.id][1]]));
+
+  try {
+    // --- the TRUTH half: the fixture model, a synthetic anchors message ----
+    await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForSelector("#study-3d", { timeout: 15000 });
+    await settled();
+    await page.locator("#study-3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    const loaded = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.AnnotateApp && w.__model && w.document.readyState === "complete";
+    }, null, 30000);
+    await settled();
+    const lit = await page.evaluate(() => Object.keys(window.ViewerApp.lastTopoRender.seam.dots).sort());
+    // One lit node with no anchor, one off the scene's screen, one node the
+    // study does not light that the scene placed anyway, and every other lit
+    // node somewhere inside the frame.
+    const unlit = (await page.evaluate(() => window.ViewerApp.demoTopologyProjection()
+      .topologies[0].nodes.map((n) => n.id))).find((id) => lit.indexOf(id) === -1);
+    const anchors = {};
+    lit.forEach((id, i) => { anchors[id] = [40 + 9 * i, 140 + 45 * i]; });
+    anchors[lit[0]] = null;
+    anchors[lit[1]] = [40, 99999];
+    if (unlit) anchors[unlit] = [60, 60];
+    const before = await draws();
+    await postAnchors(anchors);
+    const drew = loaded && await drawnAfter(before);
+    let m = await measure();
+    const drawnIds = m.paths.map((p) => p.id).sort();
+    console.log(`      [${label}] lit nodes ${lit.length}; leaders drawn ${drawnIds.length}; ` +
+      `skipped ${JSON.stringify(m.draw && m.draw.skipped)}; draw ${m.draw && m.draw.ms.toFixed(2)} ms`);
+    push("a synthetic annotate:anchors message draws one leader per lit node, from its DAG dot " +
+      "to the iframe's rect plus its anchor",
+      drew && JSON.stringify(drawnIds) === JSON.stringify(lit.slice(2)) && endsHold(m, anchors));
+    push("a node whose anchor is null, or lies off the scene, gets no leader and no stub",
+      drew && m.paths.every((p) => p.id !== lit[0] && p.id !== lit[1]) &&
+      await page.locator(`svg.seamleaders [data-node-id="${lit[0]}"]`).count() === 0);
+    push("no leader across the seam for a node outside the lit set, whatever the scene posts",
+      drew && !!unlit && m.paths.every((p) => p.id !== unlit));
+    push("every leader across the seam turns once, left of the DAG's rails, level with its dot",
+      drew && m.paths.every((p) => {
+        const bend = m.rails.left + m.seam.bend;
+        return /^M [-\d.e]+ [-\d.e]+ H [-\d.e]+ L [-\d.e]+ [-\d.e]+$/.test(p.d) &&
+          Math.abs(Number(p.d.split(" ")[4]) - bend) <= 0.5 && bend < p.from[0];
+      }));
+
+    // A resize moves both rects; the leaders follow without a new message.
+    const beforeResize = await draws();
+    await page.setViewportSize({ width: 1500, height: 940 });
+    const resized = await drawnAfter(beforeResize);
+    await settled();
+    await page.waitForTimeout(150);
+    m = await measure();
+    push("a resize re-draws the leaders onto the moved rects, with no new anchors message",
+      resized && endsHold(m, anchors));
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await settled();
+    await page.waitForTimeout(150);
+
+    // From here on every lit node is placed, so each edge has both its ends.
+    const full = {};
+    lit.forEach((id, i) => { full[id] = [40 + 9 * i, 140 + 45 * i]; });
+    const beforeFull = await draws();
+    await postAnchors(full);
+    await drawnAfter(beforeFull);
+    m = await measure();
+    // Hover: the pointer on a grid row lights its two ends, lighter than a click.
+    const edges = await page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const topo = VA.demoTopologyProjection().topologies[0];
+      const study = VA.findStudy(topo, "demo_base_to_tip");
+      const index = VA.topologyIndex(topo);
+      return study.selection.map((id) => index.edges[id]).filter(Boolean)
+        .map((e) => ({ id: e.id, from: e.from, to: e.to }));
+    });
+    const drawnNow = new Set(m.paths.map((p) => p.id));
+    const both = edges.filter((e) => drawnNow.has(e.from) && drawnNow.has(e.to));
+    const first = both[0];
+    const second = both.find((e) => e !== first && (e.from !== first.from || e.to !== first.to));
+    const S = await page.evaluate(() => window.ViewerApp.SEAM_LEADER_STATES);
+    const stateOf = (m, id) => (m.paths.find((p) => p.id === id) || {}).cls || "";
+    let hovered = false;
+    if (first) {
+      const beforeHover = await draws();
+      await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().hover();
+      hovered = await drawnAfter(beforeHover);
+      m = await measure();
+    }
+    push("hovering a grid row lights its two ends' leaders across the seam, lighter than a selection",
+      hovered && first && [first.from, first.to].every((id) =>
+        stateOf(m, id).indexOf("seam__leader--" + S[1]) !== -1) &&
+      m.paths.every((p) => p.cls.indexOf("--" + S[2]) === -1 && p.cls.indexOf("--" + S[0]) === -1));
+    await page.mouse.move(5, 995);
+
+    // Selection: a grid row click lights the triple and dims the rest.
+    let clicked = false;
+    if (first) {
+      const beforeClick = await draws();
+      await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().click();
+      await settled();
+      clicked = await drawnAfter(beforeClick);
+      m = await measure();
+    }
+    const ends = first ? [first.from, first.to] : [];
+    push("clicking a grid row lights its ends' leaders on both overlays in the accent and dims the rest",
+      clicked && ends.every((id) => stateOf(m, id).indexOf("seam__leader--" + S[0]) !== -1) &&
+      m.paths.filter((p) => ends.indexOf(p.id) === -1)
+        .every((p) => p.cls.indexOf("seam__leader--" + S[2]) !== -1) &&
+      Object.keys(m.grid).length > 0 && Object.entries(m.grid).every(([id, cls]) =>
+        ends.indexOf(id) !== -1 ? /rail__leader--selected/.test(cls) : /rail__leader--dim/.test(cls)));
+
+    // The scene's tree marks a row selected (a pick in the scene does that):
+    // the page selects the element the row names -- the same state a click makes.
+    let picked = false;
+    if (second) {
+      const beforePick = await draws();
+      await fromPane({ type: "annotate:tree", mode: "bind", chips: [],
+        rows: [{ key: "#sweep-tree/group=contributors/edge=" + second.id, text: second.id,
+          selected: true }] });
+      picked = await until((id) => !!document.querySelector(
+        `#topopane .tv__hscroll tr.tvrow--selected[data-id="${id}"]`), second.id, 10000);
+      await drawnAfter(beforePick);
+      m = await measure();
+    }
+    push("a row the scene marks selected (a pick there) selects its element here, lighting the " +
+      "same leaders a click on its grid row does",
+      picked && [second.from, second.to].every((id) =>
+        stateOf(m, id).indexOf("seam__leader--" + S[0]) !== -1));
+
+    // The scene is told the page's lit set and the dim-or-hide word.
+    const told = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.lit && w.__model.unlit === "dim";
+    }, null, 10000);
+    const sceneLit = await inPane((w) => Object.keys(w.__model.lit || {}).sort());
+    push("the scene is told the page's lit set and its dim-or-hide word, in its own model verb",
+      told && JSON.stringify(sceneLit) === JSON.stringify(edges.map((e) => e.id).sort()));
+    const beforeHide = await draws();
+    await page.locator("#unlit-style-toggle").click();
+    await settled();
+    const hid = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.unlit === "hide";
+    }, null, 10000);
+    await drawnAfter(beforeHide);
+    await page.waitForTimeout(150);
+    m = await measure();
+    push("switching the toggle to hide tells the scene and re-draws every leader from the re-laid DAG",
+      hid && endsHold(m, full) && m.paths.length === lit.length);
+    await page.locator("#unlit-style-toggle").click();
+    await settled();
+
+    // The re-draw cost per anchors message, printed: forty messages, each
+    // moving every anchor by a pixel.
+    const costs = [];
+    for (let k = 0; k < 40; k++) {
+      const moved = {};
+      Object.keys(full).forEach((id) => { moved[id] = [full[id][0] + (k % 2), full[id][1]]; });
+      const n = await draws();
+      await postAnchors(moved);
+      if (await drawnAfter(n)) costs.push(await page.evaluate(() => window.ViewerApp.lastSeamDraw.ms));
+    }
+    costs.sort((a, b) => a - b);
+    console.log(`      [${label}] re-draw per anchors message (fixture, ${lit.length} leaders, ` +
+      `${costs.length} draws): median ${costs.length ? costs[costs.length >> 1].toFixed(3) : "-"} ms, ` +
+      `max ${costs.length ? costs[costs.length - 1].toFixed(3) : "-"} ms`);
+
+    // Closing the scene takes them all down.
+    await page.locator("#flyout-close").click();
+    const gone = await until(() =>
+      document.querySelectorAll("svg.seamleaders path").length === 0, null, 5000);
+    push("closing the scene takes every leader across the seam down", gone);
+  } catch (err) {
+    errors.push(String(err && err.stack || err));
+  } finally {
+    await page.close();
+  }
+
+  // --- the live half: P2's kinematic study, the real scene's anchors ------
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const index = await realDataIndexForTheAnnotator();
+  if (!study || !topology || !(topology.bodies || []).length ||
+      index.runs.indexOf(study.sweep.run_id) === -1) {
+    push("[real] the leaders across the seam on P2 (skipped: the run, the kinematic projection or " +
+      "a topology projection with bodies is not on disk -- build them, or pass --repo " +
+      "<a root built from this tree>)", true);
+    server.closeAllConnections();
+    server.close();
+    return reportSuite(label, checks, errors);
+  }
+  const live = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  live.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(live, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "window" });
+  const livePane = (fn, arg) => live.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const liveUntil = async (fn, arg, timeout = 60000) => {
+    try {
+      await live.waitForFunction(({ src, arg }) => !!new Function("arg",
+        "return (" + src + ")(arg);")(arg), { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const shot = async (name) => {
+    if (!SEAM_LEADER_SHOTS) return;
+    await live.waitForTimeout(400);
+    await live.screenshot({ path: join(SEAM_LEADER_SHOTS, name), timeout: 240000 });
+  };
+  const liveMeasure = () => live.evaluate(() => {
+    const VA = window.ViewerApp;
+    const draw = VA.lastSeamDraw;
+    const svg = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
+    const r = svg ? svg.getBoundingClientRect() : null;
+    const leaders = draw ? draw.leaders : [];
+    const bars = (VA.lastTopoRender.seam.bars || []).map((b) => ({ id: b.id,
+      x: r.left + b.x, y1: r.top + b.y1, y2: r.top + b.y2 }));
+    const grid = {};
+    const lines = [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leader")];
+    [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leaderhit")].forEach((h, i) => {
+      grid[h.getAttribute("data-leader-id")] = lines[i] ? lines[i].getAttribute("class") : null;
+    });
+    // What should be drawn, from the two sources directly: a lit node with an
+    // anchor in the scene's last message and a dot inside the DAG's view.
+    const frame = document.querySelector("#annotate-flyout iframe");
+    const sent = (frame.contentWindow.__lastAnchors || {}).nodes || {};
+    const fr = frame.getBoundingClientRect();
+    const onScene = (a) => a && a[0] >= 0 && a[0] <= fr.width && fr.top + a[1] >= Math.max(fr.top, 0) &&
+      fr.top + a[1] <= Math.min(fr.bottom, innerHeight);
+    const pane = document.querySelector("#topopane").getBoundingClientRect();
+    const head = document.querySelector("#topopane .tv__hscroll .tv__head").getBoundingClientRect();
+    const dots = VA.lastTopoRender.seam.dots;
+    const expected = Object.keys(dots).filter((id) => {
+      const y = r.top + dots[id][1];
+      return onScene(sent[id]) && y >= Math.max(pane.top, head.bottom) &&
+        y <= Math.min(pane.bottom, innerHeight);
+    }).sort();
+    return { ids: leaders.map((l) => l.id), expected, states: draw ? draw.states : {},
+      crossings: draw ? draw.crossings : null, ms: draw ? draw.ms : null,
+      skipped: draw ? draw.skipped : null, barCrossings: VA.seamBarCrossings(leaders, bars),
+      lit: Object.keys(VA.lastTopoRender.seam.dots).sort(), grid,
+      paths: document.querySelectorAll("svg.seamleaders path.seam__leader").length };
+  });
+  const S = ["selected", "hot", "dim"];
+  try {
+    await live.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
+    await live.waitForSelector("div.kmverdict", { timeout: 30000 });
+    await live.waitForSelector("#pane-toggle:visible", { timeout: 15000 }).catch(() => {});
+    await live.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+    const runId = study.sweep.run_id;
+    const built = await liveUntil((r) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__sweep && w.__sweep.artifact && w.__sweep.artifact.runId === r &&
+        w.__sweep.bodies && w.__sweep.bodies.length > 0 && w.__model && w.__model.built &&
+        w.__model.built.runId === r && window.ViewerApp.lastSeamDraw &&
+        window.ViewerApp.lastSeamDraw.leaders.length > 0;
+    }, runId, 240000);
+    await livePane((w) => w.AnnotateApp.exec(["pause"]));
+    await live.waitForTimeout(600);
+    let lm = await liveMeasure();
+    console.log(`      [${label}] P2: lit nodes ${lm.lit.length}, leaders ${lm.ids.length} ` +
+      `(${lm.ids.join(", ")}); no anchor: ${(lm.skipped && lm.skipped.noAnchor || []).join(", ") || "-"}; ` +
+      `off the DAG's view: ${(lm.skipped && lm.skipped.offDag || []).join(", ") || "-"}; ` +
+      `off the scene: ${(lm.skipped && lm.skipped.offScene || []).join(", ") || "-"}; ` +
+      `crossings among them ${lm.crossings}; through a lit bar ${lm.barCrossings}; draw ${lm.ms && lm.ms.toFixed(2)} ms`);
+    push("[real] on P2 every lit node with an anchor and a dot in the DAG's view has its leader " +
+      "across the seam, and nothing else has one",
+      built && lm.ids.length > 0 && lm.paths === lm.ids.length &&
+      JSON.stringify(lm.ids.slice().sort()) === JSON.stringify(lm.expected));
+    push("[real] no leader across the seam runs through a lit edge's bar", built && lm.barCrossings === 0);
+    await shot("1_kinematic_study_leaders.png");
+
+    // A contributor row: its two ends light on both overlays, and the scene's line.
+    const CONTRIBUTOR = "tan_link_length";
+    const edge = topology.edges.find((e) => e.id === CONTRIBUTOR);
+    // The contributor table is below the fold, so the click scrolls the page
+    // down to it; the reader scrolls back up to the model to trace the leaders.
+    const backUp = async () => {
+      await live.mouse.move(800, 20);
+      await live.evaluate(() => window.scrollTo(0, 0));
+    };
+    await live.locator(`tr.kmrow[data-edge="${CONTRIBUTOR}"] td.kmrow__name a`).first().click();
+    await backUp();
+    const lit1 = await liveUntil((ends) => {
+      const d = window.ViewerApp.lastSeamDraw;
+      return d && ends.every((id) => !d.states[id] || d.states[id] === "selected") &&
+        Object.values(d.states).some((s) => s === "selected");
+    }, [edge.from, edge.to], 15000);
+    const emphasis = await liveUntil((id) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.emphasis === id;
+    }, CONTRIBUTOR, 15000);
+    lm = await liveMeasure();
+    const selectedIds = Object.keys(lm.states).filter((id) => lm.states[id] === S[0]).sort();
+    console.log(`      [${label}] contributor ${CONTRIBUTOR}: selected leaders ${selectedIds.join(", ")}`);
+    push("[real] clicking a contributor row lights its 2D-grid and 2D-3D leaders and the scene's line",
+      lit1 && emphasis && selectedIds.length > 0 &&
+      selectedIds.every((id) => id === edge.from || id === edge.to) &&
+      Object.keys(lm.states).filter((id) => selectedIds.indexOf(id) === -1)
+        .every((id) => lm.states[id] === S[2]) &&
+      Object.entries(lm.grid).every(([id, cls]) => (id === edge.from || id === edge.to)
+        ? /rail__leader--selected/.test(cls) : /rail__leader--dim/.test(cls)));
+    await shot("2_contributor_selected.png");
+    // What the click made: which leaders wear the accent, and that every other
+    // drawn one stepped back. (WHICH others are drawn depends on where the box
+    // is scrolled, which the clicks in between move.)
+    const selectedBy = (states) => JSON.stringify({
+      selected: Object.keys(states).filter((id) => states[id] === "selected").sort(),
+      rest: Object.keys(states).every((id) => states[id] === "selected" || states[id] === "dim") });
+    const stateAfterClick = selectedBy(lm.states);
+
+    // Another contributor, then the pitch link's face picked in the scene --
+    // `inspect part`, what a click on the mesh runs -- back to the same state.
+    await live.locator('tr.kmrow[data-edge="pitch_link_length"] td.kmrow__name a').first().click();
+    await backUp();
+    await liveUntil((ends) => {
+      const d = window.ViewerApp.lastSeamDraw;
+      return d && ends.every((id) => d.states[id] !== "selected");
+    }, [edge.from, edge.to], 10000);
+    const pickedFace = await livePane((w) => {
+      const row = (w.__sweep.bodies || []).find((b) => b.subject === "tan_link" && b.sha256);
+      if (!row) return "no tan link occurrence";
+      return Promise.resolve(w.AnnotateApp.exec(["inspect", "part", row.sha256, "0", "tan_link"]))
+        .then(() => true, (e) => String(e && e.message || e));
+    });
+    const samePick = await liveUntil(({ want, edge }) => {
+      const d = window.ViewerApp.lastSeamDraw;
+      if (!d || !document.querySelector(`#topopane .tv__hscroll tr.tvrow--selected[data-id="${edge}"]`)) {
+        return false;
+      }
+      const states = d.states;
+      return JSON.stringify({
+        selected: Object.keys(states).filter((id) => states[id] === "selected").sort(),
+        rest: Object.keys(states).every((id) => states[id] === "selected" || states[id] === "dim") }) === want;
+    }, { want: stateAfterClick, edge: CONTRIBUTOR }, 15000);
+    push("[real] picking the tangential link's face in the scene produces the state its contributor row does",
+      pickedFace === true && samePick);
+    await shot("3_picked_in_the_scene.png");
+
+    // A node selected on the DAG is selected in the scene's own layer.
+    lm = await liveMeasure();
+    const node = Object.keys(lm.grid).find((id) => lm.ids.indexOf(id) !== -1) || null;
+    if (node) {
+      await live.locator(`#topopane .tv__hscroll path.rail__leaderhit[data-leader-id="${node}"]`)
+        .first().dispatchEvent("click");
+    }
+    const sceneSelected = !!node && await liveUntil((id) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.selected && w.__model.selected.id === id;
+    }, node, 15000);
+    push("[real] a node selected on the DAG is selected in the scene's model layer", sceneSelected);
+
+    // Hide: the unlit DAG goes, the leaders stay, re-drawn from the re-laid walk.
+    await live.locator("#unlit-style-toggle").click();
+    const hidden = await liveUntil(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__model && w.__model.unlit === "hide" && window.ViewerApp.lastTopoRender &&
+        !window.ViewerApp.lastTopoRender.tweening;
+    }, null, 15000);
+    await live.waitForTimeout(600);
+    const after = await liveMeasure();
+    console.log(`      [${label}] hidden: leaders ${after.ids.length} (${after.ids.join(", ")}); ` +
+      `off the DAG's view: ${(after.skipped && after.skipped.offDag || []).join(", ") || "-"}; ` +
+      `crossings among them ${after.crossings}; through a lit bar ${after.barCrossings}`);
+    push("[real] with the toggle at hide, six to ten leaders across the seam, drawn from the lit " +
+      "part alone",
+      hidden && after.ids.length >= 6 && after.ids.length <= 10 && after.paths === after.ids.length &&
+      JSON.stringify(after.ids.slice().sort()) === JSON.stringify(after.expected));
+    await shot("4_unlit_hidden.png");
+  } catch (err) {
+    errors.push(String(err && err.stack || err));
+  } finally {
+    await live.close();
+    server.closeAllConnections();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 // The annotator draws a frame only when something changed (handoff the_
 // annotate_scene_renders_only_when_something_changed). `scene.renderCount` is
 // the count of frames actually drawn; the rAF loop itself keeps ticking.
@@ -10155,6 +10636,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateRenderOnDemand(browser, label)],
       ["annotate model in the scene (anchors, lines, the sweep, the anchors message)", (label) =>
         testAnnotateModelInTheScene(browser, fileBase, label, topologies)],
+      ["leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)", (label) =>
+        testSeamLeaders(browser, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));

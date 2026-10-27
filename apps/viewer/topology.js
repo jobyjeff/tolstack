@@ -3001,7 +3001,7 @@
   // the dot, a point outside the iframe) is the same absence.
   VA.seamLeaderGeometry = function (spec) {
     var leaders = [];
-    var skipped = { noAnchor: [], offscreen: [] };
+    var skipped = { noAnchor: [], offDag: [], offScene: [] };
     var inside = function (p, box) {
       return !box || (p[0] >= box.left && p[0] <= box.right &&
                       p[1] >= box.top && p[1] <= box.bottom);
@@ -3011,10 +3011,8 @@
       var from = spec.dots[id];
       var to = anchors[id];
       if (!to) { skipped.noAnchor.push(id); return; }
-      if (!inside(from, spec.dotClip) || !inside(to, spec.anchorClip)) {
-        skipped.offscreen.push(id);
-        return;
-      }
+      if (!inside(from, spec.dotClip)) { skipped.offDag.push(id); return; }
+      if (!inside(to, spec.anchorClip)) { skipped.offScene.push(id); return; }
       var bend = [Math.min(spec.bendX, from[0]), from[1]];
       leaders.push({
         id: id, from: from, bend: bend, to: to,
@@ -3131,7 +3129,8 @@
   // selects its row there, and the tree the scene sends here marks it). The
   // row key is the annotator's own (`<parent>/<data k=v,...>`, apps/annotate's
   // railKey); the deepest segment that names a thing wins. A row naming an
-  // edge is that edge. A row naming a body (a part picked on it) is the one
+  // edge is that edge. A row naming a body (a part picked on it, or a link's
+  // own joint row -- a run names a link's joint after the link) is the one
   // lit edge on that body's parts, when there is exactly one; several, or
   // none, select nothing rather than guess.
   VA.sceneRowElement = function (key, topoProj, lit) {
@@ -3145,7 +3144,7 @@
     });
     var index = VA.topologyIndex(topoProj);
     if (fields.edge) return index.edges[fields.edge] ? { kind: "edge", id: fields.edge } : null;
-    var bodyId = fields.subject || fields.body;
+    var bodyId = fields.subject || fields.body || fields.joint;
     var body = bodyId ? (topoProj.bodies || []).filter(function (b) {
       return b.id === bodyId;
     })[0] : null;
