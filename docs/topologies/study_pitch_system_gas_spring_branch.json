@@ -4,6 +4,7 @@
   "title": "Gas-spring branch",
   "description": "Pitch plate connection back to the hub A datum, in millimetres -- a millimetre study deliberately, because the tangential sensitivity this branch would need is not declared.",
   "topology": "vpa_pitch_linkage",
+  "tags": {"component": "propeller-system", "variant": "gas-spring"},
   "from": "piston_rod_end_bore",
   "to": "hub_lower_bearing_flange",
   "selection": [

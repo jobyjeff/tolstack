@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "tag chips are OR within an axis and AND across; an untagged study is neutral on the variant axis only",
+  "mutations": [
+    {
+      "contract": "Every selected axis must be satisfied for a study to stay in the nav list.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return Object.keys(selection || {}).every(function (axis) {",
+      "replace": "    return Object.keys(selection || {}).some(function (axis) {",
+      "issue": null,
+      "note": null
+    }
+  ]
+}

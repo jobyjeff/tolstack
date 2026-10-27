@@ -4,6 +4,7 @@
   "title": "Gas-spring mechanical stroke",
   "description": "Full extension to full retraction, in millimetres. The gas spring's own mechanical stop, distinct from the actuator body's end-stop feature in the piston chain.",
   "topology": "vpa_pitch_linkage",
+  "tags": {"component": "propeller-system", "variant": "gas-spring"},
   "from": "gas_spring_full_extension_stop",
   "to": "gas_spring_mount_flange",
   "selection": ["gas_spring_mechanical_stroke"],

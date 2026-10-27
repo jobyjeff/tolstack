@@ -1343,6 +1343,9 @@
         if (edge && edge.value_source === "derived") classes.push("rail__bar--derived");
         if (mark.floored) classes.push("rail__bar--floored");
         if (marking) classes.push(inChain ? "rail__bar--on" : "rail__bar--off");
+        var otherVariant = !!(edge && edge.part && ctx.otherVariantParts &&
+          ctx.otherVariantParts[edge.part]);
+        if (otherVariant) classes.push("rail__bar--other-variant");
         // The bar's extent comes off the keyed position store (via
         // railGeometry's mark), not re-derived from rowHeight here — under a
         // scaled length mode a bar's slot is its own height.
@@ -1396,13 +1399,15 @@
         // (the fast tier's bare ctx) keeps the plain title.
         if (ctx.onCardShow) {
           cardOnHover(hit, function () {
-            return VA.edgeCard(ctx.topoProj, edge, ctx.crops, mark.floored
-              ? { renderNote: VA.FLOORED_RENDER_NOTE } : null);
+            return VA.edgeCard(ctx.topoProj, edge, ctx.crops,
+              otherVariant ? { renderNote: VA.OTHER_VARIANT_NOTE }
+                : mark.floored ? { renderNote: VA.FLOORED_RENDER_NOTE } : null);
           }, ctx);
         } else {
-          hit.appendChild(svgTitle(mark.floored
-            ? VA.flooredEdgeTitle(edge, mark.id)
-            : VA.edgeHoverTitle(edge, mark.id)));
+          hit.appendChild(svgTitle((otherVariant ? VA.OTHER_VARIANT_NOTE + ": " : "") +
+            (mark.floored
+              ? VA.flooredEdgeTitle(edge, mark.id)
+              : VA.edgeHoverTitle(edge, mark.id))));
         }
         wire(hit, ctx, "edge", mark.id);
         hotHover(hot, hit, hotKey("edge", mark.id));
@@ -1414,6 +1419,11 @@
       if (mark.branch) dotClasses.push("rail__dot--branch");
       if (node && node.kind === "datum_feature") dotClasses.push("rail__dot--datum");
       if (marking) dotClasses.push(chainNodes[mark.id] ? "rail__dot--on" : "rail__dot--off");
+      // Dimmed only when every part meeting here belongs to the other variant.
+      if (node && node.parts && node.parts.length && ctx.otherVariantParts &&
+          node.parts.every(function (id) { return ctx.otherVariantParts[id]; })) {
+        dotClasses.push("rail__dot--other-variant");
+      }
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
@@ -1741,6 +1751,10 @@
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
     if (edge && edge.zero_width) el.className += " tvrow--zero-width";
+    if (edge && edge.part && ctx.otherVariantParts && ctx.otherVariantParts[edge.part]) {
+      el.className += " tvrow--other-variant";
+      el.setAttribute("title", VA.OTHER_VARIANT_NOTE);
+    }
     // No on/off marking on a grid row any more (viewer_respine_whole_walk):
     // with a study selected the table IS the chain, so every row in it is a
     // member and a faded non-member row is not a thing this grid can hold.
