@@ -110,9 +110,14 @@ the rule applied honestly, so I left it alone.
 >  edges: {<edge id>: [[x, y], [x, y]], ...drawn edges with both ends on screen}}
 > ```
 
-- The coordinates are CSS pixels of the iframe's own viewport, with the origin
-  at the canvas's top-left (the canvas fills the embedded page), rounded to
-  0.1 px. The shell adds the iframe's rect.
+- The coordinates are CSS pixels of the iframe's own viewport, rounded to
+  0.1 px. They are **not** canvas pixels: embedded, the canvas sits under the
+  annotator's own bars, so `modelScreenPoints` adds the canvas's
+  `getBoundingClientRect()` offset. The first build forgot that offset, and
+  its TRUTH check only tested that points fell inside the frame, so it passed
+  anyway. I found the bug by reading the code. The check now compares one node
+  against an independent projection to 0.1 px. The shell adds the iframe's
+  rect.
 - The message is posted after a drawn frame (`scene.onModelRendered`), at most
   once per animation frame. A message identical to the last one is dropped, so
   a still scene posts nothing.

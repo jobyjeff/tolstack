@@ -1456,22 +1456,26 @@ export class AnnotateScene {
     return hits.length ? hits[0].object.userData.modelNode : null;
   }
 
-  // Every exported node's dot in CSS pixels of the canvas, or null when it is
-  // behind the camera, outside the view, hidden, or has no anchor geometry.
+  // Every exported node's dot in CSS pixels of THIS PAGE's viewport -- the
+  // canvas's own offset added, because embedded the canvas sits under the
+  // bars, and the shell measures the iframe, not the canvas -- or null when
+  // it is behind the camera, outside the view, hidden, or has no anchor
+  // geometry.
   modelScreenPoints() {
     const model = this._model;
     if (!model || !model.root.visible) return null;
     this.scene.updateMatrixWorld();
     this.camera.updateMatrixWorld();
     const canvas = this.renderer.domElement;
-    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
     const out = {};
     const v = new THREE.Vector3();
     for (const [id, dot] of model.dots) {
       if (!dot.userData.exported || !dot.visible) { out[id] = null; continue; }
       dot.getWorldPosition(v).project(this.camera);
       if (v.z < -1 || v.z > 1 || v.x < -1 || v.x > 1 || v.y < -1 || v.y > 1) { out[id] = null; continue; }
-      out[id] = [(v.x + 1) / 2 * w, (1 - v.y) / 2 * h];
+      out[id] = [rect.left + (v.x + 1) / 2 * w, rect.top + (1 - v.y) / 2 * h];
     }
     return out;
   }

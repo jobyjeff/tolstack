@@ -5634,6 +5634,18 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
       const frame = document.querySelector("#annotate-flyout iframe").getBoundingClientRect();
       return { count: list.length, last, w: frame.width, h: frame.height };
     });
+    // The same node projected here, independently: its dot's world point
+    // through the camera, plus the canvas's offset inside the frame -- the
+    // canvas sits under the annotator's bars, so a message in canvas pixels
+    // would be off by exactly that offset.
+    const projected = await inPane((w) => {
+      const s = w.__scene;
+      const dot = s._model.dots.get("tan_link_mount_bore");
+      const v = dot.getWorldPosition(new s.camera.position.constructor()).project(s.camera);
+      const r = s.renderer.domElement.getBoundingClientRect();
+      return { at: [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height], top: r.top,
+        sent: w.__lastAnchors.nodes.tan_link_mount_bore };
+    });
     const onScreen = shellSide.last ? Object.values(shellSide.last.nodes).filter(Boolean) : [];
     console.log(`      [${label}] anchors messages seen by the shell: ${shellSide.count}; the last ` +
       `places ${onScreen.length} of ${shellSide.last ? Object.keys(shellSide.last.nodes).length : 0} ` +
@@ -5643,7 +5655,10 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
       shellSide.last && Object.keys(shellSide.last.nodes).length === nodeIds.length &&
       onScreen.length > 0 && onScreen.every(([x, y]) => x >= 0 && y >= 0 &&
         x <= shellSide.w + 1 && y <= shellSide.h + 1) &&
-      (bySource.origin || []).every((id) => shellSide.last.nodes[id] === null));
+      (bySource.origin || []).every((id) => shellSide.last.nodes[id] === null) &&
+      projected && projected.top > 0 && projected.sent &&
+      Math.abs(projected.sent[0] - projected.at[0]) <= 0.1 &&
+      Math.abs(projected.sent[1] - projected.at[1]) <= 0.1);
     const before = shellSide.count;
     await inPane((w) => { w.__scene.camera.position.multiplyScalar(1.15); w.__scene.controls.update(); });
     const moved = await page.waitForFunction((n) => (window.__anchorMessages || []).length > n,
