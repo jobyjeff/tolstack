@@ -757,7 +757,8 @@
   function loadDetailImage() {
     state.detailImage = null;
     var entry;
-    if (state.mode === "topology" || state.mode === "kinematic") {
+    // Both topology-shaped pages select topology elements; stack mode its rows.
+    if (state.mode !== "stack") {
       var selection = state.selection;
       if (!selection || selection.kind !== "edge") return Promise.resolve();
       var edge = VA.topologyIndex(currentTopology()).edges[selection.id];
