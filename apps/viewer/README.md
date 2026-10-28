@@ -420,8 +420,10 @@ has not been built.
   draws that model's DAG between the verdicts and the chart, exactly as a chain
   study's page does: the study's **lit set** (`VA.kinematicLitSet` — every
   contributor's edge, the edge each one borrows its band from, and every node
-  either end of one stands on) is on, the rest of the walk dimmed, the grid
-  beside it holds the lit edges and the leaders run only to lit nodes. The DAG
+  either end of one stands on, every joint between two lit nodes, and the
+  shortest path joining the lit set's pieces — `VA.litSetOfEdges`,
+  `VA.bridgeLitSet`) is on, the rest of the walk dimmed, the grid beside it
+  holds the contributors only and the leaders run only to lit nodes. The DAG
   sits in a box of bounded height with its own scroll, so the verdicts, the
   model and the top of the chart share the first screen; the box opens on the
   grid of lit rows and keeps its scroll across repaints. The toolbar's
@@ -1002,8 +1004,11 @@ re-lays them (`VA.hideUnlit`): a column left with nothing on it is dropped, the
 rails and links are re-derived from what is left (`VA.walkRailsAndLinks`, which
 on every committed topology reproduces the projection's own rails and links
 exactly — the fast tier pins that), and a run of the walk that a hidden edge
-used to join becomes two runs with nothing drawn between them. A node a hidden
-edge shares with a lit one stays: it is lit. The leaders still land on their
+used to join becomes two runs with nothing drawn between them — which is why
+the lit set is *closed* first (2026-10-28, `the_lit_set_closes_over_its_joints`):
+a joint whose two ends are lit is lit (`VA.closeLitSet`), so the bodies' joint
+symbols draw at full strength on the active study and the hidden drawing stays
+one piece. A node a hidden edge shares with a lit one stays: it is lit. The leaders still land on their
 grid rows. The choice is kept for the session, like the leader style.
 
 **A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the joints on the lit path wear their symbols at full opacity on the active study, and no lit symbol is dimmed",
+  "mutations": [
+    {
+      "contract": "On the active kinematic study the joints between lit nodes draw their symbols lit, not dimmed.",
+      "issue": null,
+      "note": "the_lit_set_closes_over_its_joints (2026-10-28). The closure is switched off, so every joint symbol is dimmed and none is lit.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (edge.kind === \"gap\" && !lit.edges[edge.id] &&",
+      "replace": "      if (false && !lit.edges[edge.id] &&"
+    }
+  ]
+}

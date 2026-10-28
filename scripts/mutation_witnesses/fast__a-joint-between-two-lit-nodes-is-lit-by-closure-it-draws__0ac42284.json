@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a joint between two lit nodes is lit by closure: it draws at full emphasis, survives hiding, and is no row of the grid",
+  "mutations": [
+    {
+      "contract": "A lit joint draws at full emphasis, survives hiding and carries no grid row.",
+      "issue": null,
+      "note": "the_lit_set_closes_over_its_joints (2026-10-28). The closure is switched off, so the joint is dimmed and absent from the hidden walk.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (edge.kind === \"gap\" && !lit.edges[edge.id] &&",
+      "replace": "      if (false && !lit.edges[edge.id] &&"
+    },
+    {
+      "contract": "Two lit pieces with nothing lit between them are joined: the hidden walk is one drawing.",
+      "issue": null,
+      "note": "the_lit_set_closes_over_its_joints (2026-10-28). The bridge returns at once.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (groups.length < 2) return lit;",
+      "replace": "      if (true) return lit;"
+    }
+  ]
+}

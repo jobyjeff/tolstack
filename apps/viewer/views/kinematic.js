@@ -456,7 +456,9 @@
   // pitch_arm_radius is banded by the arm's link-hole-to-clocking-hole edge,
   // and both are the feature). A contributor whose band is a STUDY's result
   // (`band_source.study`, the hook a_contributor_may_be_a_study fills) lights
-  // that study's chain the same way. Nodes: every end of a lit edge.
+  // that study's chain the same way. Nodes: every end of a lit edge; joints
+  // between lit nodes and the path joining its pieces are lit too (VA.litSetOfEdges,
+  // VA.bridgeLitSet).
   VA.kinematicLitSet = function (study, topoProj) {
     if (!study || !topoProj) return null;
     var edges = [];
@@ -480,7 +482,7 @@
       });
     });
     if (!edges.length) return null;
-    return VA.litSetOfEdges(topoProj, edges);
+    return VA.bridgeLitSet(topoProj, VA.litSetOfEdges(topoProj, edges));
   };
 
   // The page's sub-stacks (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): one per
