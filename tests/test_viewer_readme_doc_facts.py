@@ -63,7 +63,12 @@ TOPOLOGIES_PROJECTION_CANDIDATES = (
 #: study it named as the largest when it is the smallest. Named here so the
 #: presence check below cannot go vacuous on a README that declares *some*
 #: ``smallest_chain`` claim about something else entirely.
-SUBJECT_TOPOLOGY = "pitch_link_to_pitch_plate"
+SUBJECT_TOPOLOGY = "vpa_pitch_linkage"
+
+#: The family of studies the README compares: ``vpa_pitch_linkage`` holds every
+#: study of the product since the 2026-10-26 fold, so the topology alone is no
+#: longer "the three".
+SUBJECT_STUDIES = "pitch_link_"
 
 
 def test_the_readme_declares_the_per_study_fact_it_once_got_backwards():
@@ -82,7 +87,8 @@ def test_the_readme_declares_the_per_study_fact_it_once_got_backwards():
     declared = [c for c in declarations_in_file(VIEWER_README,
                                                 "apps/viewer/README.md")
                 if c.metric == "smallest_chain"
-                and c.fields["topology"] == SUBJECT_TOPOLOGY]
+                and c.fields["topology"] == SUBJECT_TOPOLOGY
+                and c.fields["studies"] == SUBJECT_STUDIES]
     assert len(declared) == 1, (
         f"apps/viewer/README.md carries {len(declared)} `smallest_chain` "
         f"declarations about {SUBJECT_TOPOLOGY!r}, expected exactly one. The "
@@ -121,6 +127,7 @@ def test_thread_region_t_is_the_smallest_chain_not_the_largest():
     )
     chain_lengths = {
         study["id"]: len(study["selection"]) for study in topology["studies"]
+        if study["id"].startswith(SUBJECT_STUDIES)
     }
     assert chain_lengths, (
         f"{SUBJECT_TOPOLOGY} has no studies -- the topology changed shape")
