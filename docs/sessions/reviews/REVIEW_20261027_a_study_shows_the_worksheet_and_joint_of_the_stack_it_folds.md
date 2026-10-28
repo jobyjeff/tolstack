@@ -149,3 +149,15 @@ Re-run on the re-merged tree (`f48d6694`):
 - The viewer node tier through `--repo`: 591/591, still paired.
 - Browser `--only "topology file://"`: 2/2 suites passed.
 - Browser `--only "no nav click"`: 16/16 checks passed.
+
+## Blocked actions
+
+- `Remove-Item -Recurse -Force C:\workspace\tolstack\data\scratch\review_study_worksheets, C:\workspace\tolstack\data\scratch\study_worksheets`
+  was denied by the auto-mode classifier, with no reason given.
+  - Purpose: remove the two scratch projection roots, mine and the tactical
+    agent's. The tactical lesson asks the review to delete its root.
+  - Their junctions (`data/inbox`, `data/meshes`, `docs`, `venv-win`,
+    `node_modules`) were already removed with `rmdir`, and their targets were
+    checked intact. What is left is only copied or built projection JSON under
+    the gitignored `data/scratch/`.
+  - Safe to delete any time; nothing reads those folders.
