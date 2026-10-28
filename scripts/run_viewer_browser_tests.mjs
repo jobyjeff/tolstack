@@ -6225,6 +6225,118 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       hiddenJoints === 0 &&
       await page.locator('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').count() > 0);
 
+    // The three gestures the checks above never send (the_nav_scene_trees_six_
+    // gestures_are_named_once_and_each_witnessed): a disclosure's `toggle`, a
+    // row checkbox's `check` and a row button above index 0. Each is read back
+    // from the annotator, which owns the answer, not from the nav's own copy.
+    const bodyRow = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll(
+        '.navtree__scene [data-scene-key^="#sweep-tree/body="]'))
+        .filter((n) => n.getAttribute("data-scene-key").indexOf("/", "#sweep-tree/body=".length) === -1)
+        .filter((n) => n.closest("details") && n.querySelector('[data-scene-part="check"]:not(:disabled)'));
+      return rows.length ? rows[0].getAttribute("data-scene-key") : null;
+    });
+    const bodyName2 = bodyRow ? bodyRow.slice("#sweep-tree/body=".length) : null;
+    const navOpen = () => page.locator(sceneRow(bodyRow)).evaluate((n) => n.closest("details").open);
+    const railOpen = () => inPane((w, name) => {
+      const d = Array.from(w.document.querySelectorAll("#sweep-tree details"))
+        .find((n) => n.dataset.body === name);
+      return d ? d.open : null;
+    }, bodyName2);
+    const wasOpen = bodyRow ? await railOpen() : null;
+    if (bodyRow) await page.locator(sceneRow(bodyRow) + " .navtree__scenetext").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(([sel, was]) => {
+      const n = document.querySelector(sel);
+      return !!n && n.closest("details").open === !was;
+    }, [sceneRow(bodyRow), wasOpen], { timeout: 5000 }).catch(() => {});
+    push("[real] a click on a body's disclosure in the nav flips it, in the nav and in the annotator's own tree",
+      !!bodyRow && wasOpen !== null && await navOpen() === !wasOpen && await railOpen() === !wasOpen);
+    if (bodyRow && wasOpen) {
+      // Left open for the part rows below, whichever way it started.
+      await page.locator(sceneRow(bodyRow) + " .navtree__scenetext").click({ timeout: 5000 }).catch(() => {});
+    }
+
+    const hiddenNodes = () => inPane((w) => {
+      let n = 0;
+      for (const sha of w.__scene.parts.keys()) {
+        n += w.__scene._occurrenceNodes(sha).filter((o) => !o.visible).length;
+      }
+      return n;
+    });
+    const checkBox = sceneRow(bodyRow) + ' [data-scene-part="check"]';
+    const shownBefore = bodyRow ? await hiddenNodes() : -1;
+    if (bodyRow) await page.locator(checkBox).click({ timeout: 5000 }).catch(() => {});
+    const hidden = bodyRow ? await until((w, was) => {
+      let n = 0;
+      for (const sha of w.__scene.parts.keys()) {
+        n += w.__scene._occurrenceNodes(sha).filter((o) => !o.visible).length;
+      }
+      return n > was;
+    }, shownBefore, 10000) : false;
+    await page.waitForFunction((sel) => {
+      const box = document.querySelector(sel);
+      return !!box && !box.checked && !box.indeterminate;
+    }, checkBox, { timeout: 5000 }).catch(() => {});
+    push("[real] a body's checkbox in the nav hides that body in the scene, and the box reads unticked after the redraw",
+      hidden && await page.locator(checkBox).evaluate((b) => !b.checked && !b.indeterminate));
+    if (bodyRow) await page.locator(checkBox).click({ timeout: 5000 }).catch(() => {});
+    push("[real] ...and ticking it again shows the body",
+      bodyRow && await until((w, was) => {
+        let n = 0;
+        for (const sha of w.__scene.parts.keys()) {
+          n += w.__scene._occurrenceNodes(sha).filter((o) => !o.visible).length;
+        }
+        return n === was;
+      }, shownBefore, 10000));
+
+    // A part row's buttons are Isolate (0) and Remove / Add (1): the second is
+    // the one only an index above 0 reaches.
+    const partRow = bodyRow ? await page.evaluate((key) => {
+      const row = document.querySelector('.navtree__scene [data-scene-key^="' + key + '/"]' +
+        ':has([data-scene-part="button-1"])');
+      return row ? row.getAttribute("data-scene-key") : null;
+    }, bodyRow) : null;
+    const partWord = () => page.locator(sceneRow(partRow) + ' [data-scene-part="button-1"]').textContent();
+    const memberWord = () => inPane((w, key) => {
+      const sha = (key.match(/sha=([^,]+)/) || [])[1];
+      const b = w.document.querySelector('#sweep-tree .part-row[data-sha="' + sha + '"] .part-row__member');
+      return b ? b.textContent : null;
+    }, partRow);
+    const wordBefore = partRow ? await partWord() : null;
+    if (partRow) await page.locator(sceneRow(partRow) + ' [data-scene-part="button-1"]').click({ timeout: 5000 }).catch(() => {});
+    const flipped = partRow ? await until((w, args) => {
+      const sha = (args.key.match(/sha=([^,]+)/) || [])[1];
+      const b = w.document.querySelector('#sweep-tree .part-row[data-sha="' + sha + '"] .part-row__member');
+      return !!b && b.textContent !== args.word;
+    }, { key: partRow, word: wordBefore }, 10000) : false;
+    push("[real] a part row's second button in the nav acts on that part, not on the row's first button",
+      flipped && await partWord() !== wordBefore &&
+      await page.locator(sceneRow(partRow) + ' [data-scene-part="button-0"]').getAttribute("aria-pressed") !== "true");
+    if (partRow) {
+      await page.locator(sceneRow(partRow) + ' [data-scene-part="button-1"]').click({ timeout: 5000 }).catch(() => {});
+      await until((w, args) => {
+        const sha = (args.key.match(/sha=([^,]+)/) || [])[1];
+        const b = w.document.querySelector('#sweep-tree .part-row[data-sha="' + sha + '"] .part-row__member');
+        return !!b && b.textContent === args.word;
+      }, { key: partRow, word: wordBefore }, 10000);
+    }
+
+    // A word the annotator has no branch for says so; a key that is gone (a
+    // rebuild racing the gesture) does not.
+    const warnings = [];
+    const onConsole = (m) => { if (m.type() === "warning") warnings.push(m.text()); };
+    page.on("console", onConsole);
+    const sendRail = (msg) => page.evaluate((m) => {
+      document.querySelector("#annotate-flyout iframe").contentWindow
+        .postMessage(Object.assign({ type: "annotate:rail" }, m), window.location.origin);
+    }, msg);
+    await sendRail({ key: "#sweep-tree/gone", act: "check" });
+    await sendRail({ key: bodyRow || "#sweep-tree/none", act: "wobble" });
+    await page.waitForTimeout(500);
+    page.off("console", onConsole);
+    push("[real] an unknown gesture word is warned about by name, and an unknown row is not",
+      warnings.some((t) => t.indexOf("wobble") !== -1) && !warnings.some((t) => t.indexOf("#sweep-tree/gone") !== -1));
+
     // The width the reader chooses, on this page -- remembered for step 3.
     const seam = await page.locator("#flyout-divider").boundingBox();
     if (seam) {

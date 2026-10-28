@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] a click on a body's disclosure in the nav flips it, in the nav and in the annotator's own tree",
+  "mutations": [
+    {
+      "contract": "A nav disclosure click is a `toggle` the annotator answers by flipping its own <details>.",
+      "issue": "docs/issues/ISSUE_20261027_the_nav_scene_trees_toggle_and_check_gestures_can_be_broken_green_in_every_tier.md",
+      "note": "Renaming the receiver's toggle branch leaves every other gesture working and loses only the disclosure.",
+      "file": "apps/annotate/app.js",
+      "find": "  } else if (msg.act === acts.toggle) {",
+      "replace": "  } else if (msg.act === acts.toggleX) {"
+    }
+  ]
+}

@@ -4430,21 +4430,28 @@ function watchRailForEmbed() {
 // A gesture on a mirrored row, onto the row it mirrors: the handler that
 // runs is the rail's own.
 function railGesture(msg) {
+  const acts = AA.RAIL_ACTS;
+  // A word nobody here answers is a defect on one side of the seam, so it
+  // says so; an unknown key below stays quiet -- that is a rebuild racing the
+  // gesture, and the next tree replaces the row anyway.
+  if (!Object.prototype.hasOwnProperty.call(acts, msg.act) || acts[msg.act] !== msg.act) {
+    console.warn("annotate:rail: unknown act " + JSON.stringify(msg.act) +
+      " (known: " + Object.keys(acts).join(", ") + ")");
+    return false;
+  }
   const hit = embedNodes.get(msg.key);
   if (!hit) return false;
-  if (msg.act === "enter" || msg.act === "leave") {
-    if (hit.hover) hit.hover.dispatchEvent(new MouseEvent(msg.act === "enter" ? "mouseenter" : "mouseleave"));
-  } else if (msg.act === "toggle") {
+  if (msg.act === acts.enter || msg.act === acts.leave) {
+    if (hit.hover) hit.hover.dispatchEvent(new MouseEvent(msg.act === acts.enter ? "mouseenter" : "mouseleave"));
+  } else if (msg.act === acts.toggle) {
     if (hit.toggle) hit.toggle.open = !hit.toggle.open;
-  } else if (msg.act === "activate") {
+  } else if (msg.act === acts.activate) {
     hit.node.click();
-  } else if (msg.act === "check") {
+  } else if (msg.act === acts.check) {
     if (hit.check && !hit.check.disabled) hit.check.click();
-  } else if (msg.act === "button") {
+  } else if (msg.act === acts.button) {
     const button = (hit.buttons || [])[msg.index || 0];
     if (button) button.click();
-  } else {
-    return false;
   }
   return true;
 }

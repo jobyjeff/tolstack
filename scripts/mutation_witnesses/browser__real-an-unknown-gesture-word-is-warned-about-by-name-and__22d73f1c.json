@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] an unknown gesture word is warned about by name, and an unknown row is not",
+  "mutations": [
+    {
+      "contract": "A word the receiver has no branch for is a defect on one side of the seam and says so; a vanished row is only a race.",
+      "issue": "docs/issues/ISSUE_20261027_the_nav_scene_trees_toggle_and_check_gestures_can_be_broken_green_in_every_tier.md",
+      "note": "Dropping the warning returns to the silent `false` the issue measured.",
+      "file": "apps/annotate/app.js",
+      "find": "    console.warn(\"annotate:rail: unknown act \" + JSON.stringify(msg.act) +\n      \" (known: \" + Object.keys(acts).join(\", \") + \")\");\n",
+      "replace": ""
+    }
+  ]
+}

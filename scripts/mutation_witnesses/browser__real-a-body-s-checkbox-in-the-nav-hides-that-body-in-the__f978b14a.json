@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] a body's checkbox in the nav hides that body in the scene, and the box reads unticked after the redraw",
+  "mutations": [
+    {
+      "contract": "A nav checkbox is a `check` the annotator answers by clicking the rail's own box (show-body / hide-body).",
+      "issue": "docs/issues/ISSUE_20261027_the_nav_scene_trees_toggle_and_check_gestures_can_be_broken_green_in_every_tier.md",
+      "note": "Renaming the receiver's check branch leaves the scene as it was and the box ticked.",
+      "file": "apps/annotate/app.js",
+      "find": "  } else if (msg.act === acts.check) {",
+      "replace": "  } else if (msg.act === acts.checkX) {"
+    }
+  ]
+}

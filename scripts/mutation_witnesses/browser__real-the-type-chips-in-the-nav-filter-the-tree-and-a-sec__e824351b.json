@@ -8,7 +8,7 @@
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
       "note": "A chip that renders pressed and does nothing is the shape this mutation takes.",
       "file": "apps/viewer/views/nav.js",
-      "find": "        button.onclick = function () { send(chip.key, \"button\", 0); };",
+      "find": "        button.onclick = function () { send(chip.key, VA.SCENE_ACTS.button, 0); };",
       "replace": "        button.onclick = function () { };"
     }
   ]
