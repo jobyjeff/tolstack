@@ -156,7 +156,6 @@
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
         "pitch_plate_attach_height's second in-plane component -- 215735-A's \u2316\u00d80.2 A B C on the plate's link hole is a disk of radius 0.1 normal to the hole's axis, and only the axial (CAD Z) component is folded, as a band, because neither topology states the hole's axis; closed by a bore-axis fit of the plate's link hole bound in the annotator, or by 215735-A's own views naming the hole's direction",
-        "tan_link_length and pitch_plate_tan_link_attach_radius -- contributors with a sensitivity and no cited band (the gap rows)",
         "S461-805 (Blade Pitch Position Accuracy) states its own threshold as literally 'TBD deg' in Polarion -- draft, no usable numeric criterion, so it supplies no check of its own and is not folded into this one either"
       ]
     },
@@ -191,7 +190,6 @@
         "temperature",
         "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
         "pitch_plate_attach_height's second in-plane component -- 215735-A's \u2316\u00d80.2 A B C on the plate's link hole is a disk of radius 0.1 normal to the hole's axis, and only the axial (CAD Z) component is folded, as a band, because neither topology states the hole's axis; closed by a bore-axis fit of the plate's link hole bound in the annotator, or by 215735-A's own views naming the hole's direction",
-        "tan_link_length and pitch_plate_tan_link_attach_radius -- contributors with a sensitivity and no cited band (the gap rows)",
         "S461-805 (Blade Pitch Position Accuracy) states its own threshold as literally 'TBD deg' in Polarion -- draft, no usable numeric criterion, so it supplies no check of its own and is not folded into this one either"
       ]
     }

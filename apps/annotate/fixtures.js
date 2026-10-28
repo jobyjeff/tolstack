@@ -299,6 +299,11 @@
         { name: "plate", ground: false, parts: ["demo_plate_part"] },
       ],
       links: [{ joint: "pitch_link", parts: ["demo_link_part"] }],
+      // One join, so the run names the demo topology and the rail can list a
+      // study's contributors against it (kinematicProjection below).
+      geometry: { features: [
+        { label: "pitch_link.point_a[2]", body: "arm", topology: "demo_system", node: "a" },
+      ] },
       reference: { measure: "blade_pitch", values: referenceValues,
         note: "synthetic: a whole-degree sheet table, read at this run's own " +
           "driver values -- the difference against the solved angle is that " +
@@ -310,6 +315,28 @@
   AA.FIXTURES = {
     demoSha: DEMO_SHA,
     sweepRuns: { "synthetic-demo-sweep": demoSweepRun() },
+    // A kinematic study folded on the demo run: one banded contributor and one
+    // GAP row, so the rail's gap badge has a witness that does not wait on the
+    // live study having an unbanded contributor (it has had none since
+    // the_tangential_link_cites_its_drawing).
+    kinematicProjection: {
+      schema: "joby.tolerance_stack/kinematic_projection/v0",
+      display_decimals: 3,
+      studies: [{
+        id: "demo_kinematic", title: "Demo kinematic study", topology: "demo_system",
+        measure: "blade_pitch", units: "deg", status: "ok",
+        sweep: { run_id: "synthetic-demo-sweep" },
+        stops: [{
+          id: "demo_stop", label: "demo stop", target: 0, index: 0,
+          rows: [
+            { edge: "demo_edge_traced", kind: "term", magnitude: 0.5, gap: null,
+              feature: { node: "a" } },
+            { edge: "demo_edge_untraced", kind: "gap", magnitude: null,
+              gap: "No band is cited for this contributor.", feature: { node: "b" } },
+          ],
+        }],
+      }],
+    },
     topologyProjection: {
       schema: "joby.tolerance_stack/topology_projection/v0",
       topologies: [
@@ -327,6 +354,8 @@
             { id: "c", name: "demo plate far face", kind: "mating_surface" },
             { id: "d", name: "demo washer far face", kind: "datum_feature" },
           ],
+          // The drawing the rail's gap alert tells a reader to read.
+          parts: [{ id: "demo_triangle", drawing: "DEMO-001", name: "demo triangle" }],
           edges: [
             { id: "demo_edge_traced", name: "Demo traced edge", confidence: "traced", from: "a", to: "b" },
             // `part: "demo_triangle"` matches meshProvenance's part_id below, so

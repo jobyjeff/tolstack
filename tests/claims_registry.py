@@ -800,7 +800,10 @@ def _derive_mesh_routes(claim: Claim, repo_root: Path) -> Outcome:
 # --- the smallest chain in a topology --------------------------------------- #
 
 def _derive_smallest_chain(claim: Claim, repo_root: Path) -> Outcome:
-    """Which study of a topology lassoes the fewest edges.
+    """Which study of a topology, among those named ``<studies>*``, lassoes the
+    fewest edges. A topology holds every study of its product, so the claim
+    names the family it compares (the 2026-10-26 fold made
+    ``vpa_pitch_linkage`` hold twenty-odd).
 
     ``apps/viewer/README.md`` reconstructed this backwards once -- it read
     ``pitch_link_thread_region_t`` as the study whose chain "covered nearly
@@ -822,9 +825,12 @@ def _derive_smallest_chain(claim: Claim, repo_root: Path) -> Outcome:
     topology = next((t for t in projection["topologies"] if t["id"] == wanted), None)
     if topology is None:
         return Outcome(DISAGREES, f"the projection holds no topology {wanted!r}")
-    lengths = {study["id"]: len(study["selection"]) for study in topology["studies"]}
+    prefix = claim.fields["studies"]
+    lengths = {study["id"]: len(study["selection"]) for study in topology["studies"]
+               if study["id"].startswith(prefix)}
     if not lengths:
-        return Outcome(DISAGREES, f"{wanted} has no studies -- it changed shape")
+        return Outcome(DISAGREES, f"{wanted} has no studies named {prefix}* -- it "
+                                  f"changed shape")
     smallest = min(lengths, key=lengths.get)
     if smallest == claim.fields["value"]:
         return Outcome(AGREES, f"{smallest} ({lengths[smallest]} edges)")
@@ -935,7 +941,7 @@ METRICS: dict[str, Metric] = {
         ),
         Metric(
             name="smallest_chain",
-            fields=("topology", "value"),
+            fields=("topology", "studies", "value"),
             source="data/projections/viewer/topologies.json",
             source_paths=(),
             derive=_derive_smallest_chain,

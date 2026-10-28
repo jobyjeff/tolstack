@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: viewer/README claims
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_leaders_follow_the_active_study_across_the_seam.md
@@ -49,3 +49,11 @@ The fix is either of these:
 Do not delete the declaration silently; `tests/claims_registry.py`'s
 message says why. Priority is `high` because the next batch merge's
 rebuilt-projection run is red on it.
+
+## Resolved 2026-10-27 (handoff the_checks_and_claims_the_folds_left_naming_what_they_removed)
+
+Re-pointed, not retired: the claim reads `topology: vpa_pitch_linkage`,
+`studies: pitch_link_`, `value: pitch_link_thread_region_t`, and the metric
+gained the `studies` field because the topology now holds twenty-odd studies.
+The smallest chain of the three `pitch_link_*` studies is still
+`pitch_link_thread_region_t` (2 edges; the others 6 and 7).

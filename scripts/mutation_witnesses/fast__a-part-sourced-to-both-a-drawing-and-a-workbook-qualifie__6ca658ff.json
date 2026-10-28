@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part sourced to both a drawing and a workbook qualifies the workbook and leaves the drawing alone",
+  "mutations": [
+    {
+      "contract": "The unverified qualifier is per document: a traced drawing on the same part is not qualified.",
+      "issue": "docs/issues/ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md",
+      "note": "Qualifies every reference, so the qualifier leaks onto the drawing as well as the workbook.",
+      "file": "apps/viewer/topology.js",
+      "find": "      (reference.unverified ? \" (\" + VA.ATTENTION.unverified.text + \")\" : \"\");",
+      "replace": "      (true ? \" (\" + VA.ATTENTION.unverified.text + \")\" : \"\");"
+    }
+  ]
+}

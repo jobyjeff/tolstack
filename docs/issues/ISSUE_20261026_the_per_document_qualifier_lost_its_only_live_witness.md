@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
@@ -26,3 +26,12 @@ Fix shape: give `apps/viewer/topology_fixtures.js`'s demo mechanism one part
 with no drawing whose two edges cite a traced drawing and an untraced workbook,
 and move the assertion to the fixture tier. The `[real]` check can then stay as
 an opportunistic second witness.
+
+## Resolved 2026-10-27 (handoff the_checks_and_claims_the_folds_left_naming_what_they_removed)
+
+`VA.demoMixedSourceTopology()` (`apps/viewer/topology_fixtures.js`) is the demo
+mechanism plus a drawingless `bracket` whose two edges cite a traced drawing and
+an untraced workbook; the card assertion now runs at the fixture tier. A copy,
+not a fifth part in the shared fixture, whose edge count, gap list and layout
+are pinned in many places. The `[real]` check stays as an opportunistic second
+witness and is still a named SKIP on today's data.

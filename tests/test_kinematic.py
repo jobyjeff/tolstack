@@ -498,6 +498,36 @@ def test_real_the_first_study_pins_both_stops_against_p2(stop):
     assert (check.verdict, check.verdict_scope) == ("marginal", "budget")
 
 
+def gap_claims_naming_a_banded_contributor(excluded_terms, term_edges):
+    """The excluded rows that call a contributor a gap (no cited band) while
+    naming one whose projected row is a ``term`` -- a list that outlived its
+    gap (the 2026-10-26 banding of the tangential link left two)."""
+    return [text for text in excluded_terms
+            if ("no cited band" in text or "gap row" in text)
+            and any(edge in text for edge in term_edges)]
+
+
+def test_an_excluded_row_that_claims_a_gap_names_no_banded_contributor():
+    assert gap_claims_naming_a_banded_contributor(
+        ["tan_link_length -- contributors with a sensitivity and no cited band (the gap rows)",
+         "temperature"], {"tan_link_length"}) == [
+        "tan_link_length -- contributors with a sensitivity and no cited band (the gap rows)"]
+    assert gap_claims_naming_a_banded_contributor(
+        ["tan_link_length -- no cited band"], {"pitch_link_length"}) == []
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+@pytest.mark.parametrize("stop", sorted(REAL))
+def test_real_no_excluded_row_calls_a_banded_contributor_a_gap(stop):
+    study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    term_edges = {r.contributor.edge for r in fold_at(study, sweep, REAL[stop][0]).rows
+                  if r.kind == "term"}
+    assert term_edges, "no term rows -- the check below would be vacuous"
+    for spec in study.checks:
+        assert gap_claims_naming_a_banded_contributor(
+            spec.get("excluded_terms", ()), term_edges) == [], spec["check_id"]
+
+
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
 def test_real_the_projection_carries_every_coefficient_across_p2():
     """The by-point field, value-level on P2: 80 points per contributor, the

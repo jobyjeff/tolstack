@@ -969,8 +969,9 @@ from the walk: every study dropped its non-chain rows and none of them dimmed
 anything, so there was nothing on screen to notice was missing. One layout,
 varying emphasis, is the fix.
 
-That paragraph used to reconstruct which of `pitch_link_to_pitch_plate`'s three
-studies dropped what, and it had the sizes backwards
+That paragraph used to reconstruct which of the three `pitch_link_*` studies
+(on `vpa_pitch_linkage`, since the 2026-10-26 fold — `pitch_link_to_pitch_plate`
+was its own topology until then) dropped what, and it had the sizes backwards
 (`ISSUE_20260915_the_readmes_inconsistency_premise_for_the_whole_walk_change_does_not_reproduce.md`).
 The reconstruction is gone; the one fact it got wrong is declared instead, so it
 is re-derived from the live topology projection on every run rather than argued
@@ -978,7 +979,8 @@ from memory — the smallest chain of the three is `pitch_link_thread_region_t`:
 
 ```claim
 metric: smallest_chain
-topology: pitch_link_to_pitch_plate
+topology: vpa_pitch_linkage
+studies: pitch_link_
 value: pitch_link_thread_region_t
 ```
 
@@ -1424,7 +1426,8 @@ top-aligning both put the whole difference into the leaders. `VA.centreOffsets`
 pushes the shorter one down — and centres them across the **leaders' own span**
 rather than across the two heights, which is not a subtlety: a scaled DAG puts
 its length wherever the big dimensions are, so on
-`pitch_link_to_pitch_plate` under tolerance width all five leaders live in the
+`pitch_link_to_pitch_plate` (then its own topology; folded into
+`vpa_pitch_linkage` 2026-10-26) under tolerance width all five leaders live in the
 top 236px of a 691px DAG and centring the heights would make every one of them
 jog *further*. Centring the leader span is what minimises the largest jog,
 which is the thing the change is for: `vpa_pitch_linkage`'s max jog 1911px → 949px,

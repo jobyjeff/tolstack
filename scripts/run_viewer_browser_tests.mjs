@@ -6426,6 +6426,30 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     }));
     push("leaving sweep mode takes the whole tree away and puts the bind furniture back",
       !left.tree && !left.posture && !left.locked && left.list);
+
+    // A gap row's badge, on the fixture's own gap row: the witness that does
+    // not wait on the live study having an unbanded contributor (it has had
+    // none since the_tangential_link_cites_its_drawing).
+    await mock.evaluate(() => window.AnnotateApp.exec(["sweep", "synthetic-demo-sweep", "demo_kinematic"]));
+    await mock.waitForSelector('#sweep-tree [data-group="contributors"] .tree-row[data-edge="demo_edge_untraced"]',
+      { timeout: 15000 }).catch(() => {});
+    const demoGap = async (edge) => {
+      await mock.locator(`#sweep-tree .tree-row[data-edge="${edge}"] .alertbadge`)
+        .hover({ timeout: 3000 }).catch(() => {});
+      return mock.evaluate(() => {
+        const pop = document.getElementById("alert-pop");
+        return pop && pop.style.display !== "none" ? pop.textContent : "";
+      });
+    };
+    const demoPop = await demoGap("demo_edge_untraced");
+    const demoBanded = await mock.evaluate(() =>
+      !!document.querySelector('#sweep-tree .tree-row[data-edge="demo_edge_traced"]') &&
+      !document.querySelector('#sweep-tree .tree-row[data-edge="demo_edge_traced"] .alertbadge'));
+    push("a gap contributor's badge opens a popup naming the gap and Pick, and a banded one has no badge",
+      demoPop.indexOf("No band is cited") !== -1 && demoPop.indexOf("Pick") !== -1 && demoBanded);
+    push("a gap contributor's badge popup names the drawing of its edge's part",
+      demoPop.indexOf("DEMO-001") !== -1);
+    await mock.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));
   } catch (err) {
     errors.push(String(err));
   } finally {
@@ -6853,6 +6877,11 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
       back.bodies && back.joints && back.features && back.contributors);
 
     // --- 6. a gap contributor's alert says what resolves it -------------------
+    // The subject is read from the projection, never named: the rows whose
+    // kind is `gap`. None since the_tangential_link_cites_its_drawing -- then
+    // the badge's witness is the fixture's (section 1), and these say so.
+    const gapEdges = [...new Set(study.stops.flatMap((s) => s.rows)
+      .filter((r) => r.kind === "gap").map((r) => r.edge))];
     const popFor = async (edge) => {
       await page.locator(`#sweep-tree .tree-row[data-edge="${edge}"] .alertbadge`).hover({ timeout: 5000 }).catch(() => {});
       return page.evaluate(() => {
@@ -6860,12 +6889,19 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
         return pop && pop.style.display !== "none" ? pop.textContent : "";
       });
     };
-    const tan = await popFor("tan_link_length");
-    const attach = await popFor("pitch_plate_tan_link_attach_radius");
-    push("[real] the tangential link's gap badge opens a popup naming 212956-005 and Pick",
-      tan.indexOf("212956-005") !== -1 && tan.indexOf("Pick") !== -1 && tan.indexOf("No band") !== -1);
-    push("[real] the attach radius's gap badge opens a popup naming 215177-001 and Pick",
-      attach.indexOf("215177-001") !== -1 && attach.indexOf("Pick") !== -1);
+    if (!gapEdges.length) {
+      // A skip is named on the console and is not a check: nothing was shown.
+      console.log(`[${label}] SKIP: the live kinematic study has no gap row, so there is no live ` +
+        "badge to open (the fixture's own gap row is checked in section 1; " +
+        "ISSUE_20261026_the_rail_gap_badge_browser_checks_read_gap_rows_integration_no_longer_has)");
+    } else {
+      const edge = gapEdges[0];
+      const pop = await popFor(edge);
+      const drawings = (topology.parts || []).filter((p) => p.drawing &&
+        (topology.edges.find((e) => e.id === edge) || {}).part === p.id).map((p) => p.drawing);
+      push("[real] a live gap row's badge opens a popup naming what resolves it, its drawing and Pick",
+        pop.indexOf("Pick") !== -1 && drawings.every((d) => pop.indexOf(d) !== -1));
+    }
 
     // --- the frame-rate cost of a hover, measured, never checked --------------
     // Drawn frames per second while the sweep plays, with nothing hovered and

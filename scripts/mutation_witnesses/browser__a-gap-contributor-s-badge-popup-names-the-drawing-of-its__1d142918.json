@@ -1,7 +1,7 @@
 {
   "tier": "browser",
-  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
-  "expect_red": "[real] the attach radius's gap badge opens a popup naming 215177-001 and Pick",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "a gap contributor's badge popup names the drawing of its edge's part",
   "mutations": [
     {
       "contract": "A contributor's alert names the drawings of its edge's parts.",

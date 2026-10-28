@@ -1,7 +1,7 @@
 {
   "tier": "browser",
-  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
-  "expect_red": "[real] the tangential link's gap badge opens a popup naming 212956-005 and Pick",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "a gap contributor's badge opens a popup naming the gap and Pick, and a banded one has no badge",
   "mutations": [
     {
       "contract": "The contributor row hands its badge the {state, text} alerts.",

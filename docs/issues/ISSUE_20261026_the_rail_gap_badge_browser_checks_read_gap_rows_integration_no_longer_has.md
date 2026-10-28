@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
@@ -72,3 +72,13 @@ and this suite is silently green. Fix it the same way, by choosing the subject
 from what the projection has. Split the skip in two: "projection not built"
 stays a skip, and "built, but no gap row" becomes either a named SKIP or a
 re-aimed subject. Then re-run these five mutations `--only`.
+
+## Resolved 2026-10-27 (handoff the_checks_and_claims_the_folds_left_naming_what_they_removed)
+
+Section 6 now picks its subject from the projection's `kind: "gap"` rows and
+prints a named SKIP when there are none (it is not a `push`: nothing was shown).
+The badge's witness is the fixture's: `apps/annotate/fixtures.js` carries a
+`demo_kinematic` study with one gap row, and two `[mock]` checks in section 1
+own the two mutation specs (renamed from the hard-coded edges). The round-2 half
+(the 3D-pane suite skipping on a missing gap row) was already fixed on master:
+`testThreeDPane` picks `bound`/`unbound` rows.
