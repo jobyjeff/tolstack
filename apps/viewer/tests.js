@@ -9499,43 +9499,66 @@
         has(root.querySelector("div.worksheet__body").innerHTML, "<h1>");
       });
 
-    // Which worksheet a topology's page offers, now that a covered stack has no
-    // row to reach its own from (viewer_nav_wedge_and_classic_retirement).
-    await test("a topology declares its own worksheet and that is what its " +
-      "page offers", function () {
+    // Which worksheet a topology's page offers, and whose joint block it shows:
+    // the selected study's stack when its chain re-expresses one, otherwise the
+    // topology's own (a_study_shows_the_worksheet_and_joint_of_the_stack_it_
+    // folds, 2026-10-27).
+    await test("with no study selected a topology offers its own worksheet " +
+      "and its own joint", function () {
         var topology = { id: "t", worksheet_file: "docs/topologies/WORKSHEET_t.md",
-          edges: [{ crop_key: { stack: "k" } }] };
-        var results = { stacks: [{ id: "k",
-          worksheet_file: "docs/tolerance_stacks/WORKSHEET_k.md" }] };
-        eq(VA.worksheetSubject(topology, results).worksheet_file,
+          joint: {} };
+        eq(VA.worksheetSubject(topology, null).worksheet_file,
            "docs/topologies/WORKSHEET_t.md");
+        eq(VA.jointSubject(topology, null), {});
       });
 
-    await test("a topology with no worksheet of its own offers the sheet of a " +
-      "stack it re-expresses — the only route left to one", function () {
-        var topology = { id: "t", edges: [
-          { crop_key: { stack: "sheetless" } },
-          { crop_key: { stack: "k" } },
-        ] };
-        var results = { stacks: [
-          { id: "sheetless", worksheet_file: null },
-          { id: "k", worksheet_file: "docs/tolerance_stacks/WORKSHEET_k.md",
-            worksheet_source: "matched" },
-        ] };
-        var subject = VA.worksheetSubject(topology, results);
+    await test("a selected study whose chain is a folded stack offers that " +
+      "stack's sheet and joint, over the topology's own", function () {
+        var topology = { id: "t", worksheet_file: "docs/topologies/WORKSHEET_t.md",
+          joint: {} };
+        var study = { id: "s", stack: { id: "k", joint: { view: "DETAIL B" },
+          worksheet_file: "docs/tolerance_stacks/WORKSHEET_k.md",
+          worksheet_source: "by_name" } };
+        var subject = VA.worksheetSubject(topology, study);
         eq(subject.id, "k");
         eq(subject.worksheet_file, "docs/tolerance_stacks/WORKSHEET_k.md");
+        eq(VA.jointSubject(topology, study), { view: "DETAIL B" });
+        var root = render(function (r) { VA.renderTopoJoint(r, topology, study); });
+        has(root.textContent, "DETAIL B");
       });
 
-    await test("a topology with no worksheet anywhere comes back as itself, " +
-      "so the pane still says there is none", function () {
-        var topology = { id: "t", edges: [] };
-        eq(VA.worksheetSubject(topology, { stacks: [] }).id, "t");
+    await test("a study whose stack has no sheet offers none, rather than the " +
+      "topology's sheet under a chain it does not document", function () {
+        var topology = { id: "t", worksheet_file: "docs/topologies/WORKSHEET_t.md",
+          joint: {} };
+        var study = { id: "s", stack: { id: "sheetless",
+          joint: { assembly_drawing: "217755" }, worksheet_file: null } };
+        eq(VA.worksheetSubject(topology, study).worksheet_file, null);
+        eq(VA.jointSubject(topology, study).assembly_drawing, "217755");
+      });
+
+    await test("a study with no stack is the topology's, and no topology is " +
+      "nothing, so the pane still says there is none", function () {
+        var topology = { id: "t", edges: [], joint: {} };
+        eq(VA.worksheetSubject(topology, { id: "s", stack: null }).id, "t");
         eq(VA.worksheetSubject(null, null), null);
+        eq(VA.jointSubject(null, null), null);
         var root = render(function (r) {
           VA.renderWorksheet(r, VA.worksheetSubject(topology, null), null);
         });
         has(root.textContent, "No worksheet for this stack");
+      });
+
+    // The fixture's own state, so ?mock=1 and the browser tier reach both
+    // branches: one demo study carries a stack, the other two none.
+    await test("the demo fixture has one study with a stack and its sheet, " +
+      "and studies with none", function () {
+        var withStack = TOPO.studies.filter(function (s) { return s.stack; });
+        eq(withStack.map(function (s) { return s.id; }), ["demo_strut_branch"]);
+        eq(withStack[0].stack.worksheet_file,
+           "docs/tolerance_stacks/WORKSHEET_demo_joint.md");
+        ok(TOPO.studies.every(function (s) { return "stack" in s; }),
+           "every study row carries the field, null or not");
       });
 
     await test("the totals are the projection's numbers, printed verbatim, " +
@@ -13807,44 +13830,54 @@
             has(root.textContent, "declared by this file itself");
           });
 
-        // The authored sheets the retired stack row was the only route to
-        // (deliverable 2, viewer_nav_wedge_and_classic_retirement). Three of
-        // the four converted stacks carry a WORKSHEET_*.md and none of their
-        // topologies declares one, so without the fallback this page would
-        // have offered no worksheet at all for any of them.
-        await test("[real] every converted stack's own worksheet is still " +
-          "reachable from its topology's page", async function () {
-            var covered = VA.stacksCoveredByTopology(realTopologies);
-            var reached = [];
+        // The authored sheets of the folded grip stacks, reached through the
+        // study that carries each stack (a_study_shows_the_worksheet_and_
+        // joint_of_the_stack_it_folds, 2026-10-27; their page was the topology
+        // until the fold, ISSUE_20261027_the_fastener_stacks_worksheets_have_
+        // no_page_since_the_fold.md).
+        await test("[real] the three converted stacks' sheets are reachable, " +
+          "each from a study whose chain re-expresses it", async function () {
+            var reached = {};
+            var joints = {};
             for (var i = 0; i < liveTopos.length; i++) {
               var topology = liveTopos[i];
-              var subject = VA.worksheetSubject(topology, realResults);
-              if (topology.worksheet_file) {
-                eq(subject.id, topology.id,
-                   "a topology's own sheet must win over a covered stack's");
-                continue;
+              eq(VA.worksheetSubject(topology, null).id, topology.id,
+                 "with no study selected the topology's own sheet stands");
+              var studies = topology.studies || [];
+              for (var j = 0; j < studies.length; j++) {
+                var study = studies[j];
+                var subject = VA.worksheetSubject(topology, study);
+                if (!study.stack) {
+                  eq(subject.id, topology.id,
+                     study.id + " re-expresses no stack, so its page is the topology's");
+                  continue;
+                }
+                eq(subject.id, study.stack.id);
+                ok(VA.topologyCoveredStackIds(topology).indexOf(subject.id) !== -1,
+                   "the stack offered must be one this topology re-expresses: " +
+                   subject.id);
+                var jointRoot = render(function (r) {
+                  VA.renderTopoJoint(r, topology, study);
+                });
+                has(jointRoot.textContent, String(study.stack.joint.assembly_drawing));
+                joints[subject.id] = true;
+                if (!subject.worksheet_file || reached[subject.id]) continue;
+                var md = await real.readText(VA.worksheetSegments(subject));
+                ok(md, subject.id + "'s worksheet must be readable");
+                var root = render(function (r) {
+                  VA.renderWorksheet(r, subject, md);
+                });
+                has(root.querySelector("div.worksheet__body").innerHTML, "<h1>");
+                has(root.textContent, subject.worksheet_file);
+                reached[subject.id] = true;
               }
-              if (!subject.worksheet_file) continue;
-              ok(covered[subject.id],
-                 "the sheet offered must belong to a stack this topology " +
-                 "re-expresses, never a neighbour's: " + subject.id);
-              var md = await real.readText(VA.worksheetSegments(subject));
-              ok(md, subject.id + "'s worksheet must be readable");
-              var root = render(function (r) {
-                VA.renderWorksheet(r, subject, md);
-              });
-              has(root.querySelector("div.worksheet__body").innerHTML, "<h1>");
-              has(root.textContent, subject.worksheet_file);
-              reached.push(subject.id);
             }
-            // Since 2026-10-27 the four converted stacks are inside the one
-            // product model, whose own sheet wins (above), so none of their
-            // authored sheets is offered from a page any more: a regression
-            // of the fold, filed as
-            // ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md.
-            eq(reached.length, 0,
-               "the product model declares its own sheet, so no covered " +
-               "stack's is offered; got " + reached.join(", "));
+            eq(Object.keys(reached).sort(),
+               ["pitch_link_to_pitch_plate", "rotor_fastener_length",
+                "vpa_output_to_pitch_plate"],
+               "the three converted stacks with an authored sheet");
+            eq(Object.keys(joints).length, 4,
+               "all four folded stacks' joint blocks, the sheetless tan link's too");
           });
 
         await test("[real] a respine of every summing study of every topology " +

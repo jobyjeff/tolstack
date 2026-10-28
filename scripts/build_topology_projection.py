@@ -86,6 +86,8 @@ from build_viewer_projection import (  # noqa: E402
     stack_gaps,
     worst_confidence,
 )
+# A folded stack's worksheet is found by the stack's own rule, not a copy of it.
+from build_viewer_projection import worksheet_for as _stack_worksheet_for  # noqa: E402
 # The rule 1/2 "would this ever crop" predicate lives in build_viewer_crops.py
 # so the two scripts share one copy of it (`_croppable` below is a thin local
 # name for it) -- see that module's own `croppable` docstring. Importing it
@@ -1421,6 +1423,57 @@ def worksheet_for(path: Path, raw: Dict[str, Any]) -> Tuple[Optional[Path], Opti
     return (by_name, "by_name") if by_name.exists() else (None, None)
 
 
+#: Where a whole-product topology keeps the ``joint`` block of each grip stack
+#: folded into it (handoff ``the_fastener_stacks_join_the_model``): a map from
+#: the stack's id to ``{joint, title, re_expresses, ...}``. The document's own
+#: ``joint`` is ``{}`` -- a product is no one physical joint -- so this is the
+#: only place those four blocks live.
+GRIP_STACK_JOINTS_KEY = "grip_stack_joints"
+
+
+def study_stack(topology: Topology, raw: Dict[str, Any],
+                study: Study) -> Optional[Dict[str, Any]]:
+    """The folded stack a study's chain re-expresses, or ``None``.
+
+    Since the four fastener topologies were folded into the product model a
+    worksheet's subject is the **selected study**, not the page (handoff
+    ``a_study_shows_the_worksheet_and_joint_of_the_stack_it_folds``): a study
+    whose chain is a folded grip stack carries that stack's ``joint`` block and
+    its authored worksheet, so the page reads one field.
+
+    Resolved from what the documents already say, nothing new authored: the
+    stack is the one file every ``dimension_ref`` edge of the study's selection
+    names, and its block is the ``provenance.grip_stack_joints`` row whose
+    ``re_expresses`` is that file. A study naming no stack (the mechanism's
+    inline-valued chains), more than one, or one the topology carries no block
+    for resolves ``None`` rather than a guess. The worksheet is the stack's own,
+    by ``build_viewer_projection.worksheet_for`` -- the rule ``results.json``
+    already applies to that file -- and ``None`` when it has none.
+    """
+    edges = {e.id: e for e in topology.edges}
+    refs = {edges[eid].dimension_ref["stack"] for eid in study.selection
+            if eid in edges and edges[eid].dimension_ref}
+    if len(refs) != 1:
+        return None
+    (ref,) = refs
+    joints = (raw.get("provenance") or {}).get(GRIP_STACK_JOINTS_KEY) or {}
+    for stack_id, block in joints.items():
+        if not isinstance(block, dict) or block.get("re_expresses") != ref:
+            continue
+        stack_path = REPO_ROOT / ref
+        stack_raw = json.loads(stack_path.read_text(encoding="utf-8"))
+        worksheet, worksheet_source = _stack_worksheet_for(stack_path, stack_raw)
+        return {
+            "id": stack_raw["id"],
+            "title": block.get("title") or stack_raw.get("title"),
+            "re_expresses": ref,
+            "joint": dict(block.get("joint") or {}),
+            "worksheet_file": as_posix_rel(worksheet) if worksheet else None,
+            "worksheet_source": worksheet_source,
+        }
+    return None
+
+
 def project_part(part: Any, meshes: Sequence[Dict[str, str]],
                  aliases: Sequence[Dict[str, str]]) -> Dict[str, Any]:
     """The authored part, plus the one derived fact the viewer cannot compute."""
@@ -1551,7 +1604,13 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         if confidence is not None:
             counts[confidence] = counts.get(confidence, 0) + 1
     worksheet, worksheet_source = worksheet_for(path, raw)
-    study_rows = [project_study(topology, s, p, r) for p, r, s in studies]
+    study_rows = []
+    for p, r, s in studies:
+        row = project_study(topology, s, p, r)
+        # The stack this study's chain re-expresses: its joint block and its
+        # worksheet are the selected study's, not the page's (`study_stack`).
+        row["stack"] = study_stack(topology, raw, s)
+        study_rows.append(row)
     return {
         "id": topology.id,
         "title": topology.title,

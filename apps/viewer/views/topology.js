@@ -160,15 +160,18 @@
   // Deliverable 4 (viewer_v2_single_nav, 2026-09-08): `topoProj.joint` is the
   // same free-form assembly/context shape a stack's own joint block is
   // (build_topology_projection.py's project_topology, topology_schema_v1) --
-  // `{}` when the topology spans more than one physical joint, as
-  // `pitch_system` does. One renderer for both (views/stack.js's
-  // VA.jointBlock), so a field added there is never a second place to teach
-  // this one. A property of the WHOLE topology, not of whichever study is
-  // selected, so it renders whenever a topology is open, study or no study.
-  VA.renderTopoJoint = function (root, topoProj) {
+  // `{}` when the topology spans more than one physical joint, as the product
+  // model does. One renderer for both (views/stack.js's VA.jointBlock), so a
+  // field added there is never a second place to teach this one.
+  //
+  // Since 2026-10-27 (a_study_shows_the_worksheet_and_joint_of_the_stack_it_
+  // folds) the block is detail of the SELECTION: a study whose chain is a
+  // folded grip stack shows that stack's joint (VA.jointSubject), and with no
+  // such study the topology's own stands.
+  VA.renderTopoJoint = function (root, topoProj, study) {
     VA.clear(root);
     if (!topoProj) return root;
-    root.appendChild(VA.jointBlock(topoProj.joint));
+    root.appendChild(VA.jointBlock(VA.jointSubject(topoProj, study)));
     return root;
   };
 

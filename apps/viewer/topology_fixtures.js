@@ -67,6 +67,15 @@
 // -- and `exact` is the word the real builder writes when the search is
 // exhaustive, which at one column it trivially is.
 //
+// The eighth (a_study_shows_the_worksheet_and_joint_of_the_stack_it_folds,
+// 2026-10-27), a state and no number: each study's `stack`, the folded stack
+// its chain re-expresses (`study_stack`). The builder resolves it through
+// `provenance.grip_stack_joints`, which the demo mechanism has none of, so it
+// would write `null` on all three; `demo_strut_branch` instead carries the
+// `demo_joint` stack's block (fixtures.js's sheet, a short joint), so the
+// fixture tier reaches the page's "a study shows its stack's sheet and joint"
+// branch, and the other two keep `null`, the "no stack" branch.
+//
 // The numbers are arbitrary and internally consistent with a fold; nothing here
 // is a claim about any Joby part.
 //
@@ -983,6 +992,7 @@
             },
             "configuration": {},
             "tags": {},
+            "stack": null,
             "checks": [],
             "source_file": "docs/topologies/study_demo_base_to_tip.json",
             "notes": [
@@ -1157,6 +1167,19 @@
             "transforms": {},
             "configuration": {},
             "tags": {},
+            "stack": {
+              "id": "demo_joint",
+              "title": "Demo joint",
+              "re_expresses": "docs/tolerance_stacks/stack_demo_joint.json",
+              "joint": {
+                "assembly_drawing": "217755",
+                "sheet": 4,
+                "view": "DETAIL B",
+                "description": "The demo joint this study's chain re-expresses."
+              },
+              "worksheet_file": "docs/tolerance_stacks/WORKSHEET_demo_joint.md",
+              "worksheet_source": "by_name"
+            },
             "checks": [],
             "source_file": "docs/topologies/study_demo_strut_branch.json",
             "notes": [],
@@ -1331,6 +1354,7 @@
             "transforms": {},
             "configuration": {},
             "tags": {},
+            "stack": null,
             "checks": [],
             "source_file": "docs/topologies/study_demo_ambiguous.json",
             "notes": [],
