@@ -68,3 +68,38 @@ Census: fast 590 → 592, browser 660/627 → 664/631. Every new guard has a spe
 (6 fast, 7 browser), plus a `python` spec for the projection's joint pin. The
 three browser checks that used to cite the issue (a SKIP row and two guarded
 pushes) are replaced by three study-by-study `[real]` checks.
+
+## Verification record
+
+Projections built from this tree (commit `a3d0f98b`, all five builders) into
+`C:\workspace\tolstack\data\scratch\study_worksheets\root\data` (`inbox`,
+`meshes` junctioned to the main checkout's; `docs`, `venv-win`, `node_modules`
+junctioned in so the tiers could use it as `--repo`). The shared
+`data/projections/` was not touched. Delete that scratch root (junctions first)
+once the review is done with it.
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`,
+  worktree: 1587 passed, 1 skipped, 1 failed in 321 s. The one failure is the
+  documented worktree red `test_viewer_js_suite` (no projection here); its tier
+  is the next line. Recorded with `dispatch suite-time`: inside budget.
+- `node apps/viewer/run_tests.cjs --repo <scratch root>`: 591/591, projection
+  paired with this tree, plus the one named `[real]` SKIP already filed
+  (`ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md`).
+- `node apps/annotate/run_tests.cjs --repo <scratch root>`: 235/235.
+- Browser, `--repo <scratch root>`: `--only "topology file://"` 2/2 suites
+  (topology file:// and its respine), `--only "no nav click"` 16/16 sub-checks.
+  The full browser TRUTH tier was not run (merge-only).
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch root>
+  --changed-since integration`: 21/21 witnessed, 0 left to the sweep, 12m17s.
+- An earlier partial run of `tests/test_mutation_witness*.py` showed 4 reds in
+  `test_mutation_witness_shadow_concurrency.py`. They did not come back in the
+  full run, where the same file passed.
+
+## Surprises
+
+- The screenshots still show "Data is older than the latest code", on a
+  projection stamped at this branch's HEAD. The stamp is measured against
+  trunk, not against this tree, so a handoff branch's own build shows it. It is
+  not a defect in this change.
+- The witness runner resolves the python tier's interpreter under `--repo`, so
+  a scratch root needs `venv-win` junctioned in as well as `data/`.
