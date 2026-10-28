@@ -167,7 +167,7 @@ scripts/
   witness_budget.mjs           the mutation-witness run's wall-clock budget: the
                                fast-then-python-then-browser order, the cap
                                decision (elapsed plus the tier's running mean
-                               per entry), the one-line summary. Pure -- clock
+                               per entry), the summary line. Pure -- clock
                                and entry runner are handed in -- so the tests
                                drive it with a fake clock. Imported by the
                                runner above. Added 2026-10-27.

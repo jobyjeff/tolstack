@@ -46,6 +46,7 @@ different messages, and only the latter is reported as *stale*.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import time
@@ -55,6 +56,8 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WITNESS_RUNNER = REPO_ROOT / "scripts" / "run_mutation_witness_tests.mjs"
+#: The runner's last line: the capped grammar, or `--full`'s `N/M declared mutations witnessed`.
+_RUN_SUMMARY = re.compile(r"\d+/\d+ (?:witnessed, \d+/\d+ reached in|declared mutations witnessed)")
 LOCK_PATH = REPO_ROOT / "tmp" / "mutation-witness.lock"
 
 #: A ``fast``-tier entry (apps/viewer's own fast runner, not a browser) --
@@ -175,7 +178,7 @@ def test_two_concurrent_runs_against_one_repo_produce_a_named_refusal() -> None:
         assert clean_code == 0, (
             f"{context}: the run that was NOT refused must still succeed cleanly:\n{clean_out}"
         )
-        assert "declared mutations witnessed" in clean_out, f"{context}:\n{clean_out}"
+        assert _RUN_SUMMARY.search(clean_out), f"{context}:\n{clean_out}"
 
 
 def test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale() -> None:
@@ -198,7 +201,7 @@ def test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale() -
         "stale one -- that conflation is exactly the bug this fix closes:\n" + out
     )
     assert code == 0, out
-    assert "declared mutations witnessed" in out, out
+    assert _RUN_SUMMARY.search(out), out
     assert not LOCK_PATH.exists(), "the lock this run took should be released on exit"
 
 
@@ -243,7 +246,7 @@ def test_two_different_repo_roots_both_still_succeed(tmp_path: Path) -> None:
         )
         _assert_no_crash(combined)
         assert code == 0, f"{label}'s run did not succeed:\n" + out
-        assert "declared mutations witnessed" in out, out
+        assert _RUN_SUMMARY.search(out), out
 
 
 def test_a_stale_lock_pid_dead_is_cleared_with_a_message() -> None:
@@ -274,7 +277,7 @@ def test_a_stale_lock_pid_dead_is_cleared_with_a_message() -> None:
     )
     assert f"clearing a stale lock (pid {dead_pid}" in out, out
     assert code == 0, "the run must proceed normally once the stale lock is cleared:\n" + out
-    assert "declared mutations witnessed" in out, out
+    assert _RUN_SUMMARY.search(out), out
     # Released on the way out, same as any other successful run -- a stale
     # lock being cleared is not a reason to leave the NEW one behind either.
     assert not LOCK_PATH.exists(), "the lock this run took should be released on exit"

@@ -37,3 +37,13 @@ because the runner re-runs itself under the browser slot — pre-existing, harml
 
 ## Gotchas
 - The runner file is CRLF in the working tree, LF in the index; scripted edits must preserve that.
+
+## Test record
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`, this worktree, serial (no xdist here):
+**6 failed, 1576 passed, 1 skipped in 442 s** (inside the 10-min budget). Two of the six were mine and
+fixed afterwards (ARCHITECTURE row said "one-line"; `test_mutation_witness_shadow_concurrency.py` matched
+the old summary grammar for a non-`--full` run) — re-run: 14 passed. The other four are the worktree's
+known gaps, not caused by this change: `test_viewer_js_suite` (by design in a worktree),
+`test_claims_registry` / `test_viewer_readme_doc_facts` (projection absent in the worktree), and — before the
+grammar fix — nothing else. Not run: the browser TRUTH tier and `[real]` viewer checks in the main checkout;
+the merge-tier witnesses for this diff (it touches no guard, so `--changed-since` selects none).
