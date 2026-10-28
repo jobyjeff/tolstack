@@ -8,7 +8,7 @@
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
       "note": "The rail's own hover is two halves; the leave half is the one nobody notices missing until the scene stays lit.",
       "file": "apps/viewer/views/nav.js",
-      "find": "    line.onmouseleave = function () { send(row.key, \"leave\"); };",
+      "find": "    line.onmouseleave = function () { send(row.key, VA.SCENE_ACTS.leave); };",
       "replace": "    line.onmouseleave = function () { };"
     }
   ]

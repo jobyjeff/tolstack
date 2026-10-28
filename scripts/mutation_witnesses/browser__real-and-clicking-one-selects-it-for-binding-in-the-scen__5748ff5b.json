@@ -8,7 +8,7 @@
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
       "note": "The row's own click, emptied: it still renders focusable and pressable.",
       "file": "apps/viewer/views/nav.js",
-      "find": "      line.onclick = function () { send(row.key, \"activate\"); };",
+      "find": "      line.onclick = function () { send(row.key, VA.SCENE_ACTS.activate); };",
       "replace": "      line.onclick = function () { };"
     }
   ]

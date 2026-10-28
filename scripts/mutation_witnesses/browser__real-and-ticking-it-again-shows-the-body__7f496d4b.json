@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] ...and ticking it again shows the body",
+  "mutations": [
+    {
+      "contract": "The second `check` puts the body back (the gesture is a toggle of the rail's own box, not a one-way hide).",
+      "issue": "docs/issues/ISSUE_20261027_the_nav_scene_trees_toggle_and_check_gestures_can_be_broken_green_in_every_tier.md",
+      "note": "A receiver that only ever hides leaves the body hidden on the second click.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (hit.check && !hit.check.disabled) hit.check.click();",
+      "replace": "    if (hit.check && !hit.check.disabled && hit.check.checked) hit.check.click();"
+    }
+  ]
+}

@@ -436,6 +436,20 @@
   // Everything here is pure -- plain arrays in, plain arrays out -- so the
   // transitions are checkable with no scene.
 
+  // The gestures the viewer's nav can hand back on a mirrored rail row
+  // ({type: "annotate:rail", key, act, index?}), named once on this side; the
+  // viewer's VA.SCENE_ACTS (apps/viewer/views/nav.js) names them once on the
+  // other, and tests/test_rail_act_vocabulary_is_paired.py fails when the two
+  // lists differ. Each value is the word on the wire.
+  AA.RAIL_ACTS = Object.freeze({
+    enter: "enter",
+    leave: "leave",
+    toggle: "toggle",
+    activate: "activate",
+    check: "check",
+    button: "button",
+  });
+
   // The words the panel wears. A table, not inline strings, so the shared
   // ban-list scan reaches them.
   AA.PARTS_COPY = Object.freeze({

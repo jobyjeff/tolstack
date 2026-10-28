@@ -8,8 +8,8 @@
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
       "note": "A copy-paste of the row's own activate line is the likeliest slip: it would select a joint instead of opening it.",
       "file": "apps/viewer/views/nav.js",
-      "find": "        send(row.key, \"toggle\");",
-      "replace": "        send(row.key, \"activate\");"
+      "find": "        send(row.key, VA.SCENE_ACTS.toggle);",
+      "replace": "        send(row.key, VA.SCENE_ACTS.activate);"
     }
   ]
 }

@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: viewer/annotate embedded tree
 reporter: agent
 class: guard_cannot_fail
@@ -56,3 +56,12 @@ re-renders the rail, and the `MutationObserver` re-posts the tree).
 3. `railGesture`'s unknown-`act` arm should say so (a console warning naming
    the act), separately from the unknown-`key` arm, which is a legitimate
    race with a rebuild.
+
+## Resolved 2026-10-27
+
+By `the_nav_scene_trees_six_gestures_are_named_once_and_each_witnessed`
+(`docs/sessions/HANDOFF_20261027_the_nav_scene_trees_six_gestures_are_named_once_and_each_witnessed.md`):
+`VA.SCENE_ACTS` / `AA.RAIL_ACTS` paired by
+`tests/test_rail_act_vocabulary_is_paired.py`, an unknown `act` warns, and five
+`[real]` checks (toggle, check hide, check show, button index 1, the warning),
+each with a mutation spec.

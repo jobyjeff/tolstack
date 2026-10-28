@@ -272,6 +272,19 @@
     item.appendChild(VA.el("div", "navtree__scene"));
   }
 
+  // The six gestures a mirrored row can hand back, named once on this side;
+  // the annotator's receiver (AA.RAIL_ACTS, apps/annotate/commands.js) names
+  // them once on the other, and tests/test_rail_act_vocabulary_is_paired.py
+  // fails when the two lists differ. Each value is the word on the wire.
+  VA.SCENE_ACTS = Object.freeze({
+    enter: "enter",
+    leave: "leave",
+    toggle: "toggle",
+    activate: "activate",
+    check: "check",
+    button: "button",
+  });
+
   // `tree` is the annotator's {chips, rows} (apps/annotate/app.js's
   // embedTree, which carries the row shape); `opts.send(key, act, index?)`
   // hands a gesture back to it. Every word and every effect is the
@@ -295,7 +308,7 @@
         var button = VA.el("button", "navtree__scenechip", chip.text);
         button.setAttribute("aria-pressed", chip.pressed ? "true" : "false");
         button.setAttribute("data-scene-chip", chip.key);
-        button.onclick = function () { send(chip.key, "button", 0); };
+        button.onclick = function () { send(chip.key, VA.SCENE_ACTS.button, 0); };
         bar.appendChild(button);
       });
       slot.appendChild(bar);
@@ -343,8 +356,8 @@
     }
     sceneControls(line, row, send);
     // Resting on a row -- or tabbing to it -- lights its thing in the scene.
-    line.onmouseenter = function () { send(row.key, "enter"); };
-    line.onmouseleave = function () { send(row.key, "leave"); };
+    line.onmouseenter = function () { send(row.key, VA.SCENE_ACTS.enter); };
+    line.onmouseleave = function () { send(row.key, VA.SCENE_ACTS.leave); };
 
     if (typeof row.open === "boolean") {
       // A disclosure. Its open state is the annotator's (a joint opening is
@@ -356,10 +369,10 @@
       summary.appendChild(line);
       summary.onclick = function (event) {
         if (event && event.preventDefault) event.preventDefault();
-        send(row.key, "toggle");
+        send(row.key, VA.SCENE_ACTS.toggle);
       };
-      summary.onfocus = function () { send(row.key, "enter"); };
-      summary.onblur = function () { send(row.key, "leave"); };
+      summary.onfocus = function () { send(row.key, VA.SCENE_ACTS.enter); };
+      summary.onblur = function () { send(row.key, VA.SCENE_ACTS.leave); };
       box.appendChild(summary);
       if (row.rows && row.rows.length) box.appendChild(sceneList(row.rows, send));
       li.appendChild(box);
@@ -369,15 +382,15 @@
       line.setAttribute("tabindex", "0");
       line.setAttribute("role", "button");
       line.classList.add("navtree__scenerow--act");
-      line.onclick = function () { send(row.key, "activate"); };
+      line.onclick = function () { send(row.key, VA.SCENE_ACTS.activate); };
       line.onkeydown = function (event) {
         if (!event || (event.key !== "Enter" && event.key !== " ")) return;
         if (event.target !== line) return;
         if (event.preventDefault) event.preventDefault();
-        send(row.key, "activate");
+        send(row.key, VA.SCENE_ACTS.activate);
       };
-      line.onfocus = function () { send(row.key, "enter"); };
-      line.onblur = function () { send(row.key, "leave"); };
+      line.onfocus = function () { send(row.key, VA.SCENE_ACTS.enter); };
+      line.onblur = function () { send(row.key, VA.SCENE_ACTS.leave); };
     }
     li.appendChild(line);
     return li;
@@ -400,7 +413,7 @@
           if (event.preventDefault) event.preventDefault();
           if (event.stopPropagation) event.stopPropagation();
         }
-        send(row.key, "check");
+        send(row.key, VA.SCENE_ACTS.check);
       };
       line.appendChild(box);
     }
@@ -414,7 +427,7 @@
           if (event.preventDefault) event.preventDefault();
           if (event.stopPropagation) event.stopPropagation();
         }
-        send(row.key, "button", i);
+        send(row.key, VA.SCENE_ACTS.button, i);
       };
       line.appendChild(button);
     });
