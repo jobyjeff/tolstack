@@ -204,6 +204,27 @@ def _left_reported(stderr: str) -> list[int]:
                    for p in m.group(1).split(",") if p.strip()})
 
 
+def _trace_events(stderr: str) -> list[dict]:
+    """The runner's own ``BROWSER RUNNER TRACE {json}`` lines, in order."""
+    marker = "BROWSER RUNNER TRACE "
+    return [json.loads(line.split(marker, 1)[1]) for line in stderr.splitlines()
+            if marker in line]
+
+
+def the_exit_handler_ran(stderr: str) -> bool:
+    """Did the runner's ``process.on("exit")`` handler run and look for Chrome?
+
+    The Chrome-side verdict alone cannot say: with the handler deleted Chrome
+    still dies on its own, and Playwright's exit hook taskkills it, a few
+    milliseconds either side of the instant the witness samples -- so the
+    guard's verdict followed that race (``b36c164d#1``, 2026-10-26: green with
+    the handler gone). The handler's own trace line is not a race: it is
+    written by the handler, synchronously, before it kills anything."""
+    events = _trace_events(stderr)
+    return any(e["event"] == "exit" for e in events) and any(
+        e["event"] == "kill-start" and e.get("path") == "exit" for e in events)
+
+
 def unexplained_survivors(seen: dict) -> list[int]:
     """Chrome pids the runner left running that it did not account for.
 
@@ -306,6 +327,12 @@ needs_windows = pytest.mark.skipif(sys.platform != "win32",
 def test_a_runner_that_ends_leaves_no_chrome(browser_slot, how, graceful):
     seen = _end_a_runner(how)
     _assert_gone_or_named(how, seen)
+    if how == "exit":
+        # process.exit() with the browser open: the exit handler is the only
+        # thing that can have closed it, so it must have run.
+        assert the_exit_handler_ran(seen["stderr"]), (
+            f"ended by {how}: the runner's exit handler left no trace line, so "
+            f"whatever happened to Chrome was not the handler's doing\n{seen['stderr']}")
     if graceful:
         assert seen["top_code"] == 0, (
             f"ended by {how}: Chrome {seen['top']} exited {seen['top_code']}, so it was "
@@ -340,6 +367,17 @@ def test_a_named_survivor_passes_with_a_warning_and_an_unnamed_one_fails():
         _assert_gone_or_named("signal", _ended([2], [2], [2]))
     with pytest.raises(AssertionError):
         _assert_gone_or_named("signal", _ended([2], [2], []))
+
+
+def test_the_exit_handler_is_read_from_its_trace_not_from_chrome():
+    marker = "BROWSER RUNNER TRACE "
+    exited = marker + '{"event":"exit","t":1,"code":3}\n'
+    killed = marker + '{"event":"kill-start","t":2,"path":"exit","open":1,"roots":[7]}\n'
+    assert the_exit_handler_ran(exited + killed)
+    assert not the_exit_handler_ran("")
+    # a kill from another path (the signal close) is not the exit handler's
+    assert not the_exit_handler_ran(exited + killed.replace('"exit","open"', '"signal","open"'))
+    assert not the_exit_handler_ran(exited)
 
 
 def test_the_left_running_line_is_the_one_the_witness_reads():
