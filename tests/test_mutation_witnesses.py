@@ -1222,3 +1222,110 @@ def test_changed_since_an_unreachable_diff_is_a_result_not_a_refusal(tmp_path, s
     picked, out = _selection_for(tmp_path, "README.md")
     assert picked == {}
     assert re.search(r"^0 of \d+ entries can be reached by this diff against HEAD~1$", out, re.M), out
+
+
+# --- the budget: ordering, the cap, both exit codes, both summary grammars ------
+#
+# ``scripts/witness_budget.mjs`` is pure -- the clock and the entry runner are
+# handed in -- so these drive the REAL loop under node with a fake clock; no
+# browser, no tier.
+
+BUDGET_MODULE = REPO_ROOT / "scripts" / "witness_budget.mjs"
+
+
+def _budget_node(body: str):
+    """Run ``body`` (an async JS function body) with the module imported as ``b``."""
+    script = (f'import * as b from {json.dumps(BUDGET_MODULE.as_uri())};\n'
+              f'const out = await (async () => {{ {body} }})();\n'
+              'console.log(JSON.stringify(out));')
+    proc = subprocess.run([shutil.which("node"), "--input-type=module", "-e", script],
+                          capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+_BROWSER_ONLY = "const sb = (t) => t === 'browser';"
+
+
+def test_the_budget_orders_fast_then_python_then_browser_grouped_by_suite():
+    got = _budget_node(_BROWSER_ONLY + """
+      const e = (id, tier, suite) => ({ id, tier, suite });
+      return b.orderForBudget([
+        e('b1', 'browser', 'zeta'), e('p1', 'python', 'tests/a.py'), e('b2', 'browser', 'alpha'),
+        e('f1', 'fast', undefined), e('b3', 'browser', 'zeta'), e('a1', 'annotate', undefined),
+        e('b4', 'browser', 'alpha'),
+      ], sb).map((x) => x.id);""")
+    assert got == ["f1", "a1", "p1", "b2", "b4", "b1", "b3"]
+
+
+def test_the_budget_stops_launching_when_elapsed_plus_the_tier_mean_would_cross():
+    # Fake clock: every browser entry costs 100 s. Budget 5 min = 300 s: entries
+    # launch at t=0, 100, 200 (200 + mean 100 <= 300); at t=300 the next would end
+    # at 400 > 300, so the fourth is left. The entry in flight always finishes.
+    got = _budget_node("""
+      let t = 0;
+      const entries = Array.from({ length: 6 }, (_, i) => ({ id: 'b' + i, tier: 'browser', suite: 's' }));
+      const r = await b.runWithBudget(entries, {
+        budgetMin: 5, now: () => t,
+        runEntry: async () => { t += 100; return { witnessed: true }; } });
+      return { ran: r.results.map((x) => x.entry.id), left: r.left.map((x) => x.id),
+               secs: r.results.map((x) => x.seconds), wall: r.wallSec };""")
+    assert got["ran"] == ["b0", "b1", "b2"] and got["left"] == ["b3", "b4", "b5"], got
+    assert got["secs"] == [100, 100, 100] and got["wall"] == 300
+
+
+def test_the_budget_mean_is_per_tier_so_cheap_entries_are_never_blocked_by_browser_cost():
+    got = _budget_node("""
+      let t = 0;
+      const cost = { fast: 1, browser: 100 };
+      const entries = [...Array.from({ length: 50 }, (_, i) => ({ id: 'f' + i, tier: 'fast' })),
+                       ...Array.from({ length: 5 }, (_, i) => ({ id: 'b' + i, tier: 'browser', suite: 's' }))];
+      const r = await b.runWithBudget(entries, { budgetMin: 3, now: () => t,
+        runEntry: async (e) => { t += cost[e.tier]; return { witnessed: true }; } });
+      return { ran: r.results.length, left: r.left.map((x) => x.id) };""")
+    # 50 fast entries take 50 s; browser at t=50 (mean 0, unmeasured) runs -> t=150;
+    # 150 + 100 <= 180? No: 250 > 180, so the second browser entry is left.
+    assert got["ran"] == 51 and got["left"] == ["b1", "b2", "b3", "b4"], got
+
+
+def test_a_zero_budget_is_no_cap():
+    got = _budget_node("""
+      let t = 0;
+      const entries = Array.from({ length: 4 }, (_, i) => ({ id: 'b' + i, tier: 'browser', suite: 's' }));
+      const r = await b.runWithBudget(entries, { budgetMin: 0, now: () => t,
+        runEntry: async () => { t += 10000; return { witnessed: true }; } });
+      return { ran: r.results.length, left: r.left.length };""")
+    assert got == {"ran": 4, "left": 0}
+
+
+def test_a_miss_among_the_reached_is_exit_1_and_what_was_left_never_is():
+    got = _budget_node("return [b.exitCodeFor({ misses: 0 }), b.exitCodeFor({ misses: 2 })];")
+    assert got == [0, 1]
+    # ...and the runner takes its witnessing exit code from it, not from `left`.
+    runner = (REPO_ROOT / "scripts" / "run_mutation_witness_tests.mjs").read_text(encoding="utf-8")
+    assert "exitCodeFor({ misses: misses.length })" in runner
+    assert "exitCodeFor({ misses: misses.length + left.length" not in runner
+
+
+def test_the_capped_summary_says_all_four_numbers_and_the_left_note_names_tier_and_suite():
+    got = _budget_node("""
+      return [b.summaryLine({ witnessed: 14, reached: 14, selected: 43, wallSec: 1745, left: 29 }),
+              b.leftLine({ id: 'browser__x', tier: 'browser', suite: 'topology' }),
+              b.formatWall(2103), b.formatWall(41)];""")
+    assert got[0] == "14/14 witnessed, 14/43 reached in 29m05s; 29 left to the sweep"
+    assert got[1] == "left to the sweep (budget): browser__x [browser, topology]"
+    assert got[2:] == ["35m03s", "41s"]
+
+
+def test_full_keeps_the_sweeps_summary_grammar_and_no_cap():
+    runner = (REPO_ROOT / "scripts" / "run_mutation_witness_tests.mjs").read_text(encoding="utf-8")
+    assert "declared mutations witnessed" in runner   # WITNESS_SWEEP.md and the JSONL row parse it
+    assert "const BUDGET_MIN = FULL ? 0 :" in runner
+    assert "const ordered = FULL ? chosen : orderForBudget(" in runner
+
+
+def test_the_slowest_list_is_slowest_first_and_capped():
+    got = _budget_node("""
+      const rs = Array.from({ length: 20 }, (_, i) => ({ entry: { id: 'e' + i }, seconds: i }));
+      return b.slowest(rs, 15).map((r) => r.entry.id);""")
+    assert got[0] == "e19" and len(got) == 15 and got[-1] == "e5"

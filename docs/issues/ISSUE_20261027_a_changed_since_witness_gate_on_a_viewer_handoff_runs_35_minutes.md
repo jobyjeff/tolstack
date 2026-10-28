@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: tests
 reporter: agent
 class: suite_over_budget

@@ -1586,7 +1586,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       cheaper could (10-20, a witness defect with no product exposure, in a spec
       whose own file the branch never touched). That case is the sweep's job
       and the reason a decay found there is not a reason to put `--full` back on
-      the gate. `--only <guard>` re-checks one entry. This is an instruction,
+      the gate. `--only <guard>` re-checks one entry. **The run is capped at 30
+      minutes** (`--budget-min`, 2026-10-27): it runs fast, python, then browser
+      entries, stops *launching* when the elapsed time plus that tier's mean per
+      entry would cross the cap, and prints each unreached entry as `left to the
+      sweep (budget)`. Your review table's witness row carries
+      `reached/selected`, `witnessed/reached`, the wall time and the
+      left-to-sweep count (all four are in the runner's last line); **a capped
+      run with every reached entry witnessed is a pass** — never re-run to reach
+      the remainder, and never wait for the sweep. This is an instruction,
       not a
       ritual, and the reason is that **your merge is the only point in the
       lifecycle where nothing re-runs this tier**. The other three tiers answer

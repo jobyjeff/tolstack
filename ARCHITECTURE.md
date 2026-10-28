@@ -164,6 +164,13 @@ scripts/
                                this directory under `tmp/`, runs the tier that
                                owns the guard, and fails if it stays green or
                                reddens somewhere else. Added 2026-09-15.
+  witness_budget.mjs           the mutation-witness run's wall-clock budget: the
+                               fast-then-python-then-browser order, the cap
+                               decision (elapsed plus the tier's running mean
+                               per entry), the one-line summary. Pure -- clock
+                               and entry runner are handed in -- so the tests
+                               drive it with a fake clock. Imported by the
+                               runner above. Added 2026-10-27.
   guard_enumeration.mjs        the enumeration of guards: reads guard
                                declarations out of the JS check sources, joins
                                them to the specs beside them, and derives the

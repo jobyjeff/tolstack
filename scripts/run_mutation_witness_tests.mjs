@@ -17,7 +17,8 @@
 //   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --only card-layout  # ...from a worktree
 //   node scripts/run_mutation_witness_tests.mjs --only card-layout   # one guard
 //   node scripts/run_mutation_witness_tests.mjs --changed-since integration   # the entries this diff could have decayed (the merge gate)
-//   node scripts/run_mutation_witness_tests.mjs --full               # every entry (the scheduled sweep, docs/prompts/WITNESS_SWEEP.md)
+//   node scripts/run_mutation_witness_tests.mjs --changed-since integration --budget-min 20   # ...with a tighter wall-clock cap (default 30; 0 = none)
+//   node scripts/run_mutation_witness_tests.mjs --full               # every entry, no cap (the scheduled sweep, docs/prompts/WITNESS_SWEEP.md)
 //   node scripts/run_mutation_witness_tests.mjs --verbose            # show the red
 //   node scripts/run_mutation_witness_tests.mjs --list
 //   node scripts/run_mutation_witness_tests.mjs --unenrolled         # the gap, and what to write
@@ -107,6 +108,8 @@ import { dirname, join, normalize } from "node:path";
 import { census, censusReport, pinsMoved, specFileName, SPEC_DIR }
   from "./guard_enumeration.mjs";
 import { takeTheBrowserSlot } from "./browser_runner.mjs";
+import { DEFAULT_BUDGET_MIN, orderForBudget, runWithBudget, summaryLine, leftLine,
+         formatWall, slowest, exitCodeFor } from "./witness_budget.mjs";
 
 const { projectionInputs } = createRequire(import.meta.url)("./projection_freshness.cjs");
 
@@ -711,6 +714,15 @@ if (CHANGED_SINCE !== null) {
 // batch merge's run belongs -- a run with no `--only` is refused unless it says
 // `--full`, and the refusal names the entries this branch added or changed.
 const FULL = process.argv.includes("--full");
+// The wall-clock cap (scripts/witness_budget.mjs). `--full` is the sweep and runs
+// to the end -- its budget is dispatch's `sweep` tier -- and `--budget-min 0` is
+// the same shape for any other selection.
+const BUDGET_ARG = argFlag("--budget-min");
+const BUDGET_MIN = FULL ? 0 : BUDGET_ARG === null ? DEFAULT_BUDGET_MIN : Number(BUDGET_ARG);
+if (!Number.isFinite(BUDGET_MIN) || BUDGET_MIN < 0) {
+  console.log(`REFUSED: --budget-min takes a number of minutes (0 = no cap), not ${JSON.stringify(BUDGET_ARG)}.`);
+  process.exit(2);
+}
 if (FULL && isMainCheckout(REPO)) {
   console.log("note: the whole registry is the scheduled sweep's (docs/prompts/WITNESS_SWEEP.md); " +
     "a landing runs --changed-since <ref>.");
@@ -1152,7 +1164,8 @@ function anchorHits(mutation) {
   // run per entry because three of the declared witnesses share one suite.
   const baselines = new Map();
 
-  for (const mutation of chosen) {
+  // One entry, start to verdict; a miss is also pushed onto `misses` with its reason.
+  async function runEntry(mutation) {
     console.log(`\n--- ${mutation.id}`);
 
     const hits = anchorHits(mutation);
@@ -1161,7 +1174,7 @@ function anchorHits(mutation) {
         `${hits} places in ${mutation.file} (expected exactly 1). This entry is ` +
         `checking nothing until its \`find\` is re-pointed at the code it means.`);
       misses.push({ id: mutation.id, why: MISS.ROTTED });
-      continue;
+      return { witnessed: false };
     }
 
     const key = `${mutation.tier}|${mutation.suite || ""}`;
@@ -1181,7 +1194,7 @@ function anchorHits(mutation) {
       console.log(indent(baseline.out));
       misses.push({ id: mutation.id, why: baseline.spawnError
         ? MISS.UNSPAWNABLE : MISS.TIER_ALREADY_RED });
-      continue;
+      return { witnessed: false };
     }
 
     const undo = applyToShadow(mutation);
@@ -1198,7 +1211,7 @@ function anchorHits(mutation) {
       console.log(`  ${mutation.file}: ${oneLine(mutation.find)}`);
       console.log(`  reddens: ${mutation.expect_red}`);
       if (VERBOSE) console.log(indent(result.out));
-      continue;
+      return { witnessed: true };
     }
 
     if (result.code === 0 && result.failures.length === 0) {
@@ -1227,10 +1240,38 @@ function anchorHits(mutation) {
         console.log(indent(result.out));
       }
     }
+    return { witnessed: false };
   }
 
-  const witnessed = chosen.length - misses.length;
-  console.log(`\n${witnessed}/${chosen.length} declared mutations witnessed`);
+  const startsBrowser = (tier) => Boolean((TIER_HARNESS[tier] || {}).startsBrowser);
+  const ordered = FULL ? chosen : orderForBudget(chosen, startsBrowser);
+  const { results, left, wallSec } = await runWithBudget(ordered, {
+    budgetMin: BUDGET_MIN,
+    now: () => performance.now() / 1000,
+    runEntry: async (mutation) => {
+      const before = misses.length;
+      const entryStart = performance.now();
+      const outcome = await runEntry(mutation);
+      const why = misses.length > before ? misses[misses.length - 1].why : null;
+      console.log(`  => ${outcome.witnessed ? "WITNESSED" : `NOT WITNESSED (${why})`}` +
+        ` in ${formatWall((performance.now() - entryStart) / 1000)}`);
+      return outcome;
+    },
+  });
+  for (const entry of left) console.log(leftLine(entry));
+
+  const witnessed = results.length - misses.length;
+  console.log("\nslowest entries:");
+  for (const { entry, seconds } of slowest(results)) {
+    console.log(`  ${formatWall(seconds).padStart(7)}  ${entry.id}`);
+  }
+  // `--full` keeps the sweep's grammar -- WITNESS_SWEEP.md and its JSONL row parse
+  // it. Any other run says all four numbers: a capped run is a complete run of
+  // what it reached, and what it did not reach is the sweep's.
+  console.log("\n" + (FULL
+    ? `${witnessed}/${chosen.length} declared mutations witnessed`
+    : summaryLine({ witnessed, reached: results.length, selected: chosen.length,
+                    wallSec, left: left.length })));
   if (misses.length) {
     // DECAY. The spec exists and the guard no longer bites -- which is the
     // failure this whole tier was built to find, and a different job from the
@@ -1240,7 +1281,7 @@ function anchorHits(mutation) {
     console.log("A guard that no longer reddens on its own declared mutation is " +
       "not a guard. Repair the guard, or -- if the app changed so the mutation " +
       "no longer describes a defect -- retire the spec and say why.");
-    process.exitCode = 1;
+    process.exitCode = exitCodeFor({ misses: misses.length });
   }
 
   // ...and the second failure class, which is not about any spec that exists.

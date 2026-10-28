@@ -191,7 +191,11 @@ Know these before you write code; each has a test standing on it.
   not have selected `237dba65` on 2026-10-20, a layout shift the spec's own file
   never recorded. Do not put `--full` back on the gate over a decay like that.
   Outside the main checkout the runner refuses a bare run and prints the
-  `--changed-since integration` line.
+  `--changed-since integration` line. **That run is capped at 30 minutes**
+  (`--budget-min`, 2026-10-27): fast and python entries first, browser entries
+  after, and what the cap did not reach prints as `left to the sweep (budget)` —
+  a capped run whose reached entries are all witnessed is a pass (exit 0), and
+  the reviewer neither re-runs nor waits for the remainder.
 - **Every browser run takes the machine's one browser slot, and the runners do
   it themselves** (2026-10-21, `scripts/browser_runner.mjs`): the viewer and
   annotate runners, the mutation-witness runner when it selects a browser

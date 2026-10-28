@@ -2321,6 +2321,13 @@ when a layout shift left a spec whose own file was untouched blind. It arrives
 as a `class: decayed_witness` issue, not as a reason to put `--full` back on a
 merge.
 
+A landing's run is also capped: `--budget-min` (default 30; 0 and `--full` mean no
+cap) runs fast, python, then browser entries, prints each entry's wall time and a
+top-15, and stops launching once the elapsed time plus the tier's mean per entry
+would cross the cap. What it did not reach prints as `left to the sweep (budget)`
+and the last line says all four numbers; a capped run whose reached entries are all
+witnessed exits 0.
+
 Its cheap half runs on every `pytest -q`: `tests/test_mutation_witnesses.py`
 requires every declared `find` to still resolve to exactly one place in the
 file it names, every `expect_red` to *be* a guard the tree declares, and the
