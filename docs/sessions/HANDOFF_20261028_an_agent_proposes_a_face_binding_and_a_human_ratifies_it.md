@@ -1,6 +1,6 @@
 ---
 priority: med
-depends_on: [the_scene_pane_is_one_flyout_that_reads_over_http]
+depends_on: [an_interface_suggests_the_faces_that_touch]
 model: opus
 hitl: false
 ---
@@ -9,6 +9,10 @@ hitl: false
 
 **Decided by Jeff, 2026-10-28 ("Yes, propose"): agents propose face
 bindings and he ratifies them in the annotator.** Fully autopilot.
+**Sequenced after `an_interface_suggests_the_faces_that_touch` (Jeff, same
+day): the contact-suggestion engine is built first, and the first proposal
+pass is its trial — the agent proposes from the engine's ranked candidates
+and reports where the engine was wrong or undecided.**
 
 Source: Jeff's 2026-10-28 review ("The 3d dag node placement needs some work
 … Part of this may be because the 3d surfaces haven't been bound yet.
@@ -87,15 +91,24 @@ pick/goto flow (landed by the pick handoff).
    Proposals never move an anchor: the scene stays on the fallback until
    ratified, so the human sees what accepting would change (draw the
    proposed anchor as a hollow marker beside the current one).
-4. **The first pass, by this agent.** Over `topology_vpa_pitch_linkage.json`,
-   for every node with a mesh and no binding (the 36 section + 7 origin
-   anchors), propose a face: use the suggestion engine's class for the
-   feature kind, the occurrence geometry (the stack axis, the +X bias), and
-   the drawing crops under `data/projections/viewer/` for the edge's cited
-   callout. Where two faces tie or the drawing is ambiguous, propose nothing
-   and write the node to the lesson's gap list with the candidates. Report
-   per node: key, face, confidence, basis. **Nothing is bound by this
-   handoff** — Jeff ratifies in the annotator afterwards.
+4. **The first pass, by this agent — the contact engine's trial.** Read
+   `data/projections/feature-identity/contact_suggestions.json` (the
+   previous handoff's output). For every gap edge with one clear top pair,
+   propose both faces (`from` and `to`) at `high` with the engine's evidence
+   as the basis. For an edge where the engine lists several close
+   candidates, decide with the drawing crops under
+   `data/projections/viewer/` for the edge's cited callout and the stack
+   axis; propose at `medium` with the discriminating fact in the basis, or
+   propose nothing and write the edge to the gap list with the candidates.
+   For structural (same-part) features with no gap edge — the section-
+   anchored nodes — use the shape-class suggestion plus the drawing crop,
+   as before. **Debug the engine while you use it:** every edge where the
+   engine's top pair is visibly wrong (the crop or the geometry says another
+   face), or where contact exists but the engine found none, is filed as an
+   issue against the engine's constants or pairing rule, with the two face
+   ids and the numbers — that list is the deliverable Jeff asked for. Report
+   per node: key, face, confidence, basis, engine rank. **Nothing is bound by
+   this handoff** — Jeff ratifies in the annotator afterwards.
 5. **Docs.** `docs/ANNOTATION_SURFACE.md` gains the proposal state and the
    actor field; `CLAUDE.md`'s annotator bullet gains one sentence; the
    feature-identity README in the inbox lists the new file kind.

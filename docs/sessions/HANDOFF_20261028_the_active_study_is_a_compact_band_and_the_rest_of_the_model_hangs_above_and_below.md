@@ -48,11 +48,14 @@ touch `apps/annotate/`, `views/kinematic.js`'s chart, or the lit-set code.
   169 rows / 11 columns; `order_columns` (~:716) and `_improved` reduce
   crossings over the whole walk.
 
-So the thing Jeff remembers is the 09-14 swap, and the rule that retired it
-still stands. **This handoff builds the third shape: nothing is replaced,
-nothing is hidden, the rows are re-ordered so the active study is one
-compact contiguous band and the rest of the model stays drawn above and
-below it.**
+**Jeff's correction (2026-10-28): he never asked for the rearrange to go.**
+His 09-15 words were about *visibility* — the whole model stays drawn when
+a study is selected — and the 09-15 session read that as "no re-layout",
+which conflated two orthogonal things. Both hold now: the model stays
+visible **and** it re-arranges around the study. **This handoff builds that:
+nothing is replaced, nothing is hidden, the rows are re-ordered so the
+active study is one compact contiguous band and the rest of the model stays
+drawn above and below it.**
 
 ## The shape (the strategy session's recommendation; prototype, then commit)
 
