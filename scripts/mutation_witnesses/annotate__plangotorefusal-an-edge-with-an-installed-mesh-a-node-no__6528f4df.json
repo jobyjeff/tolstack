@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "planGotoRefusal: an edge with an installed mesh, a node, no edge and an unknown edge are never refused",
+  "mutations": [
+    {
+      "contract": "An edge id the topology does not carry is never refused.",
+      "issue": null,
+      "note": "Without it a stale link in sweep mode is told it names no part.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (!edge) return null;\n    var plan = AA.planPanelFilter(topology, edgeId, meshes, aliases);",
+      "replace": "    var plan = AA.planPanelFilter(topology, edgeId, meshes, aliases);"
+    }
+  ]
+}

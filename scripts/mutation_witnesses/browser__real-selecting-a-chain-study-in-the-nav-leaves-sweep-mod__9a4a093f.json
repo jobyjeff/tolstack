@@ -8,8 +8,8 @@
       "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "Without it the goto still selects the study in the rail, so the rail half passes while the sweep keeps playing over the binding surface.",
       "file": "apps/annotate/app.js",
-      "find": "  // as-modelled pose sweep mode moves away from). leaveSweep restores the\n  // scene exactly and is a no-op outside sweep mode.\n  leaveSweep();\n",
-      "replace": "  // as-modelled pose sweep mode moves away from). leaveSweep restores the\n  // scene exactly and is a no-op outside sweep mode.\n"
+      "find": "    }\n  }\n  leaveSweepForBind();\n",
+      "replace": "    }\n  }\n"
     },
     {
       "contract": "An open pane follows the selection after every paint.",

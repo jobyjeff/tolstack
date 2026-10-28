@@ -670,7 +670,16 @@
     // views/topology.js's `marking` tests, not a second rule here.
     state.selection = null;
     state.detailImage = null;
-    navigate(respine);
+    redrivePaneAfter(respine);
+  }
+
+  // A navigation click, then the pane re-driven whether or not the paint ran
+  // (a respine to the same view paints nothing, and followSelection consumes
+  // the flag only when it does).
+  function redrivePaneAfter(paint) {
+    forcePaneFollow = true;
+    navigate(paint);
+    if (forcePaneFollow) followSelection();
   }
 
   // A tag chip toggles one value on its axis; the nav and the DAG both read
@@ -703,7 +712,7 @@
   function onNavKinematic(studyId) {
     selectKinematic(studyId);
     hideCrop();
-    navigate(respine);
+    redrivePaneAfter(respine);
   }
 
   function onNavKinematicModel(topologyId, runId) {
@@ -1213,11 +1222,19 @@
   }
 
   // After every paint: an open pane follows a selection that moved.
+  //
+  // A study row the reader clicks re-drives the pane even when its params did
+  // not change (`forcePaneFollow`): the pane may have left the selection by a
+  // gesture of its own, and the page beside it is always a way back.
+  var forcePaneFollow = false;
+
   function followSelection() {
+    var forced = forcePaneFollow;
+    forcePaneFollow = false;
     if (!nodes.flyout || !nodes.flyout.open || !state.annotateMount) return;
     var params = currentAnnotateParams();
     var key = paramsKey(params);
-    if (key !== paneFollowed) {
+    if (key !== paneFollowed || forced) {
       paneFollowed = key;
       if (params) drivePane(params);
       refitPane();

@@ -6743,6 +6743,32 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     push("[real] at the rail's narrowest every clipped tree row carries its whole text " +
       "on hover", clipped.clipped > 0 && clipped.unreadable.length === 0);
 
+    // --- a pick that can show nothing changes nothing ---------------------------
+    // A gap edge names no part: Pick on it must leave sweep mode, the loaded
+    // parts and the tree exactly as they were, and say why on the row itself.
+    const GAP_EDGE = "hub_to_pitch_plate_spindle_coaxiality";
+    const beforeGap = await page.evaluate(() => ({
+      sweep: !!window.__sweep, parts: window.__scene.listOpenParts().length,
+      rows: document.querySelectorAll("#sweep-tree .tree-row").length,
+    }));
+    const gapRow = page.locator(`#sweep-tree .tree-row[data-edge="${GAP_EDGE}"]`).first();
+    await gapRow.locator(".tree-row__repick").first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((edge) => document.querySelector(
+      `#sweep-tree .tree-row[data-edge="${edge}"] .tree-row__note`), GAP_EDGE,
+    { timeout: 15000 }).catch(() => {});
+    const afterGap = await page.evaluate((edge) => ({
+      sweep: !!window.__sweep, inSweep: window.__scene.inSweep(),
+      parts: window.__scene.listOpenParts().length,
+      rows: document.querySelectorAll("#sweep-tree .tree-row").length,
+      note: (document.querySelector(`#sweep-tree .tree-row[data-edge="${edge}"] .tree-row__note`) ||
+        {}).textContent || "",
+    }), GAP_EDGE);
+    push("[real] Pick on a gap edge that names no part leaves sweep mode, every loaded " +
+      "part and the tree's rows as they were, and the row carries the reason",
+      beforeGap.sweep && afterGap.sweep && afterGap.inSweep &&
+      afterGap.parts === beforeGap.parts && afterGap.rows === beforeGap.rows &&
+      afterGap.note.indexOf("names no part") !== -1);
+
     // --- re-pick is the jump to bind mode ---------------------------------------
     const row = page.locator('#sweep-tree [data-joint="pitch_link"] .tree-row[data-feature="pitch_link_length"]');
     await row.hover({ timeout: 5000 }).catch(() => {});
@@ -6759,6 +6785,28 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     push("[real] re-pick on a bound feature leaves sweep mode, every part back at its " +
       "as-modelled placement, and lands in bind mode with that edge selected",
       !landed.sweep && !landed.inSweep && !landed.tree && landed.list && landed.selected === edgeName);
+
+    // --- ...and the pane is the way back ----------------------------------------
+    const openedBefore = beforeGap.parts;
+    const hasReturn = await page.evaluate(() => {
+      const b = document.querySelector("#sweep-return button");
+      return !!b && b.getClientRects().length > 0 && b.textContent.indexOf("back to the sweep") !== -1;
+    });
+    await page.locator("#sweep-return button").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree"),
+      null, { timeout: 60000 }).catch(() => {});
+    await page.waitForFunction((n) => window.__scene.listOpenParts().length >= n, openedBefore,
+      { timeout: 60000 }).catch(() => {});
+    const restored = await page.evaluate(() => ({
+      sweep: !!window.__sweep, inSweep: window.__scene.inSweep(),
+      parts: window.__scene.listOpenParts().length,
+      filter: getComputedStyle(document.getElementById("rail-filter")).display,
+      back: getComputedStyle(document.getElementById("sweep-return")).display,
+    }));
+    push("[real] the return control shows after a re-pick and restores sweep mode with " +
+      "its parts, no filter, and the control gone",
+      hasReturn && restored.sweep && restored.inSweep && restored.parts >= openedBefore &&
+      restored.back === "none");
 
     // --- a run the study did not fold: no contributors, and why ----------------
     // (the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.) The

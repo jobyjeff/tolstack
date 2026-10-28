@@ -1495,6 +1495,52 @@ check("planPanelFilter on a gap edge that names no part at all filters the " +
   assertEqual(plan.missingParts, []);
 });
 
+// --- a pick that can show nothing changes nothing (handoff a_pick_on_an_element_
+// that_names_no_part_leaves_the_scene_standing). app.js cannot boot in this
+// sandbox, so the verb's decision is the pure planner it asks first; the
+// state-level half (mode, loaded parts, filter untouched) is the browser spec.
+check("planGotoRefusal: a gap edge with part null is refused, with the row's words " +
+  "and both end nodes to link", () => {
+  const refusal = AA.planGotoRefusal(FILTER_TOPO, "demo_edge_traced", FILTER_MESHES, []);
+  assertEqual(refusal.kind, "no-part");
+  assertEqual(refusal.text, AA.GOTO_REFUSAL_WORDS.noPart);
+  const edge = FILTER_TOPO.edges.find((e) => e.id === "demo_edge_traced");
+  assertEqual(refusal.nodeIds, [edge.from, edge.to].filter(Boolean));
+  assertEqual(refusal.edgeId, "demo_edge_traced");
+});
+
+check("planGotoRefusal: a part with no installed mesh is refused, naming the part", () => {
+  const refusal = AA.planGotoRefusal(FILTER_TOPO, "demo_edge_no_owner", FILTER_MESHES, []);
+  assertEqual(refusal.kind, "no-mesh");
+  assertEqual(refusal.missingParts, ["no_such_part"]);
+  if (refusal.text.indexOf("no_such_part") === -1) {
+    throw new Error("the refusal does not name the part: " + refusal.text);
+  }
+});
+
+check("planGotoRefusal: an edge with an installed mesh, a node, no edge and an " +
+  "unknown edge are never refused", () => {
+  assertEqual(AA.planGotoRefusal(FILTER_TOPO, "demo_edge_untraced", FILTER_MESHES, []), null);
+  assertEqual(AA.planGotoRefusal(FILTER_TOPO, null, FILTER_MESHES, []), null);
+  assertEqual(AA.planGotoRefusal(FILTER_TOPO, "no_such_edge", FILTER_MESHES, []), null);
+  const withNodes = JSON.parse(JSON.stringify(FILTER_TOPO));
+  withNodes.nodes = [{ id: "b", name: "interface b", parts: ["demo_triangle"] }];
+  assertEqual(AA.planGotoRefusal(withNodes, "b", FILTER_MESHES, []), null);
+});
+
+check("planSweepReturn keeps the run, the study and the SAME opened-by-sweep set, " +
+  "as a copy", () => {
+  const sweep = { artifact: { runId: "run-1" }, study: { id: "study-1" },
+    openedBySweep: ["aaaa", "bbbb"] };
+  const back = AA.planSweepReturn(sweep);
+  assertEqual(back, { runId: "run-1", studyId: "study-1", parts: ["aaaa", "bbbb"] });
+  sweep.openedBySweep.push("cccc");
+  assertEqual(back.parts, ["aaaa", "bbbb"]);
+  assertEqual(AA.planSweepReturn(null), null);
+  assertEqual(AA.planSweepReturn({ artifact: { runId: "r" }, openedBySweep: [] }),
+    { runId: "r", studyId: null, parts: [] });
+});
+
 check("planPanelFilter on a NODE keeps every element touching it -- a node is " +
   "an element of a topology too", () => {
   const withNodes = JSON.parse(JSON.stringify(FILTER_TOPO));
