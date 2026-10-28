@@ -1,3 +1,12 @@
+---
+type: review
+handoff: docs/sessions/completed/HANDOFF_20261022_the_annotate_scene_renders_only_when_something_changed.md
+reviewer: agent
+date: 2026-10-22
+verdict: APPROVE
+blockers: 0
+---
+
 # Review — the annotate scene renders only when something changed (2026-10-22)
 
 **Verdict: APPROVE.** No inline fixes; no merge conflict (clean merge into `integration`-based review branch).

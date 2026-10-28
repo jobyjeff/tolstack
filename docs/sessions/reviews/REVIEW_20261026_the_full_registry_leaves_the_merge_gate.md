@@ -1,3 +1,12 @@
+---
+type: review
+handoff: docs/sessions/completed/HANDOFF_20261026_the_full_registry_leaves_the_merge_gate.md
+reviewer: agent
+date: 2026-10-26
+verdict: APPROVE
+blockers: 0
+---
+
 # Review — the_full_registry_leaves_the_merge_gate (2026-10-26)
 
 **Verdict: APPROVE.** Merged into `integration`; no conflicts, nothing fixed inline.
