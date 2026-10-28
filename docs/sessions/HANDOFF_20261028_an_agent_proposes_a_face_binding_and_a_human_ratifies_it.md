@@ -2,16 +2,13 @@
 priority: med
 depends_on: [the_scene_pane_is_one_flyout_that_reads_over_http]
 model: opus
-hitl: true   # launch gate only: Jeff's yes to agent-proposed bindings; the session itself is autopilot
+hitl: false
 ---
 
 # HANDOFF 2026-10-28 — an_agent_proposes_a_face_binding_and_a_human_ratifies_it: zero faces are bound after seven weeks of surface; agents propose, the annotator shows proposals apart, Jeff accepts or rejects
 
-> **Jeff has not yet said yes to agent-proposed bindings.** The 2026-10-28
-> strategy session recommends it (his note asked whether agents should "take
-> a pass at binding these 3d surfaces"); he reads the recommendation in the
-> continuation handoff. Launch only after his word. Everything below is
-> otherwise autopilot.
+**Decided by Jeff, 2026-10-28 ("Yes, propose"): agents propose face
+bindings and he ratifies them in the annotator.** Fully autopilot.
 
 Source: Jeff's 2026-10-28 review ("The 3d dag node placement needs some work
 … Part of this may be because the 3d surfaces haven't been bound yet.
