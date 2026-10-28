@@ -16295,12 +16295,15 @@
           });
 
         if (!mixedParts.length) {
-          skip("[real] a part sourced to both a drawing and a workbook " +
-            "qualifies the workbook and leaves the drawing alone",
-            "no live part without a drawing cites both a verified and an " +
-            "unverified document since the 2026-10-26 fold gave the hub its " +
-            "drawing -- the per-document qualifier is unwitnessed on real data " +
-            "(ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md)");
+          // Named, not skipped: a SKIP line means "this tier could not run" and
+          // reddens the default tier (tests/test_viewer_js_suite.py), which is
+          // wrong for a live set that is simply empty. The fixture witness above
+          // carries the design; this PASS says the live set is empty, by name,
+          // and the branch below re-arms the moment a live mixed part appears.
+          await test("[real] 0 live parts cite both a drawing and a workbook " +
+            "-- the per-document qualifier is witnessed by the fixture only " +
+            "(ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md)",
+            function () { eq(mixedParts.length, 0); });
         } else await test("[real] a part sourced to both a drawing and a workbook " +
           "qualifies the workbook and leaves the drawing alone", function () {
             var mixed = mixedParts;

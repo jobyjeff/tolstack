@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 class: guard_reads_a_finding_as_a_provisioning_gap
@@ -62,3 +62,7 @@ now that the fixture tier carries the witness, or the runner gives a named
 finding its own line kind that the wrapper reports without failing while still
 failing on a tier skip. Staged as
 `HANDOFF_20261028_a_named_finding_skip_does_not_redden_the_default_tier`.
+
+## Resolved 2026-10-28
+
+Fixed by `a_named_finding_skip_does_not_redden_the_default_tier`: the empty live set is a named PASS, not a SKIP.
