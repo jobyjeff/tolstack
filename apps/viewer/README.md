@@ -2217,7 +2217,7 @@ sheet and joint stand. The page reads one field, each projected study's
 with no sheet of its own (tan link take 2) shows its joint and no toggle,
 never the model's sheet under a chain it does not document. The fast tier's
 "[real] the three converted stacks' sheets are reachable" counts them off the
-projection, study by study. counts them off the projection). The button hides when there is nothing to show
+projection, study by study. The button hides when there is nothing to show
 either way, in either mode — it used to be stack-mode-only, before a topology
 had a `worksheet_file` field to read. The
 worksheet used to live in the right-hand pane; that pane now shows an

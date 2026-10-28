@@ -5240,6 +5240,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       rule names a body's frame, ask what it does on two bodies at once. Read
       the branch's screenshots for a fan of lines meeting at one point
       (`ISSUE_20261027_design_the_model_layer_draws_a_star_at_the_assembly_origin_…`).
+- [ ] **A rewritten README paragraph keeps the tail of the old one.** New
+      2026-10-27 (`a_study_shows_the_worksheet_and_joint_of_the_stack_it_folds`):
+      `apps/viewer/README.md` read "…study by study. counts them off the
+      projection). The button hides…". `test_viewer_readme_doc_facts` reads
+      declared facts, not sentences, so it stays green. Read every rewritten
+      paragraph's last line against the next unchanged one.
 
 ## Architectural errors to check
 
