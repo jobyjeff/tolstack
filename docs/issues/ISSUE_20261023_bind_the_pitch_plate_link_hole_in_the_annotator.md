@@ -7,6 +7,7 @@ reporter: agent
 needs: jeff
 ask: Bind the pitch plate's link hole in the annotator on the machined plate (215735-001, asm217755_215735_001)
 found_by: docs/sessions/HANDOFF_20261022_the_pitch_plate_link_hole_states_its_axis.md
+todo: 20261027T170625_swz3mn
 ---
 
 # Bind the pitch plate's link hole in the annotator so its bore axis can be fitted
