@@ -6752,7 +6752,15 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       rows: document.querySelectorAll("#sweep-tree .tree-row").length,
     }));
     const gapRow = page.locator(`#sweep-tree .tree-row[data-edge="${GAP_EDGE}"]`).first();
-    await gapRow.locator(".tree-row__repick").first().click({ timeout: 5000 }).catch(() => {});
+    // The row sits under a collapsed joint: open every ancestor <details> first,
+    // as a reader would, so the press below is a press and not a silent no-op.
+    await page.evaluate((edge) => {
+      const r = document.querySelector(`#sweep-tree .tree-row[data-edge="${edge}"]`);
+      for (let d = r && r.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+    }, GAP_EDGE);
+    let gapPressed = true;
+    await gapRow.locator(".tree-row__repick").first().click({ timeout: 5000 })
+      .catch(() => { gapPressed = false; });
     await page.waitForFunction((edge) => document.querySelector(
       `#sweep-tree .tree-row[data-edge="${edge}"] .tree-row__note`), GAP_EDGE,
     { timeout: 15000 }).catch(() => {});
@@ -6765,7 +6773,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     }), GAP_EDGE);
     push("[real] Pick on a gap edge that names no part leaves sweep mode, every loaded " +
       "part and the tree's rows as they were, and the row carries the reason",
-      beforeGap.sweep && afterGap.sweep && afterGap.inSweep &&
+      gapPressed && beforeGap.sweep && afterGap.sweep && afterGap.inSweep &&
       afterGap.parts === beforeGap.parts && afterGap.rows === beforeGap.rows &&
       afterGap.note.indexOf("names no part") !== -1);
 
