@@ -1,12 +1,12 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: open
 area: tests
 reporter: agent
 class: timing_assertion_under_load
 defer_until: class:timing_assertion_under_load
-resolution: triage 2026-10-28 -- low, deferred by default onto the class program (forge browser_runner_close_paths_survive_a_loaded_box); same shape as the forge/wiki/atp-post load reds
+resolution: triage 2026-10-28 -- low, deferred by default onto the class program (forge browser_runner_close_paths_survive_a_loaded_box); same shape as the forge/wiki/atp-post load reds -- woke 2026-10-28 -- browser_runner_close_paths_survive_a_loaded_box completed; re-triage
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261028_triage_sweep.md
 ---
 
