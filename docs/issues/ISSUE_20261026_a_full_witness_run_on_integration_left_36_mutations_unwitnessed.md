@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/mutation-witness
 reporter: agent
 class: decayed_witness
@@ -95,3 +95,13 @@ layout's, so clamping at boot and fitting per page give the same width. The
 check needs a page whose room differs from the boot layout's (for example,
 reload onto a page with no preview pane, or with a narrower window) before it
 can tell the two apart again.
+
+## Resolved 2026-10-27 (handoff the_checks_and_claims_the_folds_left_naming_what_they_removed)
+
+Projections rebuilt from the handoff's tree, then every browser id re-run in one
+invocation per clean run: **all 35 witnessed** -- 33 against the original specs
+(including `09a1cf0a` #1 and #2, which now both see the difference) and the
+2 gap-badge specs, re-homed onto `[mock]` checks in the `annotate sweep rail`
+suite after their `[real]` subjects stopped existing. The python guard
+(`b36c164d#1`) now reads the exit handler's own `BROWSER RUNNER TRACE` line
+instead of racing Chrome's death; both its mutations are witnessed.
