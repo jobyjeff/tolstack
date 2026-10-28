@@ -755,15 +755,15 @@
   // viewer_v2_single_nav).
   //
   // In topology mode that is VA.worksheetSubject rather than the topology
-  // itself: since the nested stack row went away there is nowhere else to
-  // reach a converted stack's own authored sheet from, and three of the four
-  // have one (viewer_nav_wedge_and_classic_retirement). One function, read by
-  // both the fetch below and the toggle in paint(), so the button and the
-  // dialog can never disagree about which sheet the page is offering.
+  // itself: the selected study's stack when its chain re-expresses one (its
+  // authored sheet lives nowhere else since the fold), otherwise the topology.
+  // One function, read by both the fetch below and the toggle in paint(), so
+  // the button and the dialog can never disagree about which sheet the page is
+  // offering.
   function worksheetSubject() {
     if (state.mode === "kinematic") return null;
     return state.mode === "topology"
-      ? VA.worksheetSubject(currentTopology(), state.stacksResults)
+      ? VA.worksheetSubject(currentTopology(), currentStudy())
       : currentStack();
   }
 
@@ -2089,9 +2089,8 @@
     // offered there. The worksheet is offered wherever the SELECTED node
     // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
     // through the identical field a stack's does, so the same toggle serves
-    // both -- and a topology that declares none falls back to the sheet of a
-    // stack it re-expresses (VA.worksheetSubject), which is the only route to
-    // three authored worksheets since the nested stack row was retired. A
+    // both -- and a selected study whose chain re-expresses a folded stack
+    // offers that stack's sheet instead (VA.worksheetSubject). A
     // subject with none either way hides the toggle exactly as a
     // worksheet-less stack always did. Close whichever
     // dialog no longer has anything to show: switching modes or nodes with one
@@ -2227,7 +2226,7 @@
           rewind();
         },
       });
-      if (showTopology) VA.renderTopoJoint(nodes.topojoint, topoProj);
+      if (showTopology) VA.renderTopoJoint(nodes.topojoint, topoProj, study);
       if (respineStart && respineStart.topologyId === topoProj.id) {
         // `onError` puts an animation frame's throw on the SAME seam every
         // other render on this page uses: a frame runs off a rAF callback,

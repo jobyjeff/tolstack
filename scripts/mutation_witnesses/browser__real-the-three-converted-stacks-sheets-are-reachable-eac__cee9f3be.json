@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "no nav click wedges the page",
+  "expect_red": "[real] the three converted stacks' sheets are reachable, each from a study whose chain re-expresses it, and the dialog names that sheet",
+  "mutations": [
+    {
+      "contract": "On the live page each converted stack's sheet is one click away from a study whose chain re-expresses it.",
+      "issue": "docs/issues/ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (study && study.stack) return study.stack;\n",
+      "replace": "    /* mutated: the selected study's stack is never the subject */\n",
+      "note": "The regression the issue filed, restored: the page is the subject again, so the model's own sheet wins and the folded stacks' sheets and joints have no route to a reader."
+    }
+  ]
+}

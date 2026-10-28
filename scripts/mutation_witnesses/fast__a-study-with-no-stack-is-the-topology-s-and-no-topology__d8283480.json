@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a study with no stack is the topology's, and no topology is nothing, so the pane still says there is none",
+  "mutations": [
+    {
+      "contract": "A study with no stack falls through to the topology's sheet and joint.",
+      "issue": "docs/issues/ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (study && study.stack) return study.stack;\n",
+      "replace": "    if (study) return study.stack || study;  /* mutated: any selected study is the subject */\n",
+      "note": "A study with no stack becomes the subject itself instead of falling through to the topology, so the mechanism's own chains would offer no sheet."
+    }
+  ]
+}

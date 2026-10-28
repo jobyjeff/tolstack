@@ -3464,31 +3464,41 @@
     });
   };
 
-  // Which projection's worksheet a topology's page offers: the topology's own
-  // if it declares one, otherwise the worksheet of a stack it re-expresses
-  // (deliverable 2, viewer_nav_wedge_and_classic_retirement).
+  // Which projection's worksheet a topology's page offers, and whose joint
+  // block it shows: the SELECTED STUDY's stack when its chain re-expresses one,
+  // otherwise the topology's own (handoff a_study_shows_the_worksheet_and_
+  // joint_of_the_stack_it_folds, 2026-10-27).
   //
-  // This exists BECAUSE the nested stack row is gone. Three of the four
-  // converted stacks carry an authored WORKSHEET_*.md and their topologies
-  // declare none -- the naming convention pairs `stack_X.json` with
-  // `WORKSHEET_X.md`, and a topology is a different file name -- so the only
-  // way to those three sheets was the row that has just been removed. Dropping
-  // it without this would have made authored prose silently unreachable, which
-  // is the one thing the row was genuinely still good for.
+  // Since the four fastener topologies folded into the one product model, the
+  // page is the model, and the model's own sheet (the end-stop graft) would
+  // always win -- three authored grip-stack sheets had no route to a reader.
+  // So the subject is the study: build_topology_projection.py's `study_stack`
+  // resolves, at projection time, the stack a study's chain re-expresses and
+  // carries its `joint` block and `worksheet_file`/`worksheet_source` on the
+  // study row as `stack`. Nothing is derived here; the page reads that one
+  // field.
   //
-  // Nothing is derived and nothing is copied: it returns a projection, and
-  // views/worksheet.js reads `worksheet_file`/`worksheet_source` off whichever
-  // one it is handed. A topology with neither comes back as itself, so the
-  // pane's "no worksheet for this" branch is reached exactly as before.
-  VA.worksheetSubject = function (topology, results) {
+  // A study with a stack but no sheet of its own (tan link take 2) comes back
+  // as that stack, so the toggle hides rather than offering the model's sheet
+  // under a chain it does not document. No study, or a study with no stack,
+  // is the topology itself -- the pane's "no worksheet for this" branch is
+  // reached exactly as before.
+  //
+  // REJECTED: listing every folded stack's sheet on the model page at once. It
+  // loses which chain a sheet belongs to, which is what the joint block exists
+  // to say.
+  VA.worksheetSubject = function (topology, study) {
     if (!topology) return null;
-    if (topology.worksheet_file) return topology;
-    var ids = VA.topologyCoveredStackIds(topology);
-    for (var i = 0; i < ids.length; i++) {
-      var stackProj = VA.findStack(results, ids[i]);
-      if (stackProj && stackProj.worksheet_file) return stackProj;
-    }
+    if (study && study.stack) return study.stack;
     return topology;
+  };
+
+  // The joint block the topology page renders: the same subject, read for its
+  // `joint`. A study's stack carries the joint the fold kept in
+  // `provenance.grip_stack_joints`; the model's own is `{}`.
+  VA.jointSubject = function (topology, study) {
+    var subject = VA.worksheetSubject(topology, study);
+    return subject ? subject.joint : null;
   };
 
   // --- the single nav tree: one topology -> its studies, and every stack no

@@ -2204,14 +2204,20 @@ from the **Show worksheet** button in the topbar — offered in EITHER mode,
 exactly when the page has a sheet to show. A topology can carry one itself,
 since `topology_schema_v1` (2026-09-08): `pitch_system`'s own is
 `WORKSHEET_end_stop_graft.md`, `provenance.worksheet`-declared on the topology
-file the same way a stack's is. A topology that declares none falls back to the
-sheet of a stack it re-expresses (`VA.worksheetSubject`, `topology.js`) — not a
-neighbour's, the same joint's, and since 2026-09-15 the only route to one:
-three of the four converted stacks have an authored sheet, their topologies
-have none, and the nested stack row that used to reach them is gone
-(`viewer_nav_wedge_and_classic_retirement`; the fast tier's "[real] every
-converted stack's own worksheet is still reachable from its topology's page"
-counts them off the projection). The button hides when there is nothing to show
+file the same way a stack's is. Since 2026-10-27 the subject is the **selected
+study** (`VA.worksheetSubject`, `topology.js`;
+`a_study_shows_the_worksheet_and_joint_of_the_stack_it_folds`): a study whose
+chain is one of the grip stacks folded into the product model offers that
+stack's own sheet and renders its joint block in `#topojoint`, and with no
+study selected, or a study over the mechanism's own chains, the topology's
+sheet and joint stand. The page reads one field, each projected study's
+`stack` (`id`, `title`, `joint`, `worksheet_file`, `worksheet_source`), which
+`build_topology_projection.py`'s `study_stack` resolves from the study's
+`dimension_ref` edges and the model's `provenance.grip_stack_joints`. A stack
+with no sheet of its own (tan link take 2) shows its joint and no toggle,
+never the model's sheet under a chain it does not document. The fast tier's
+"[real] the three converted stacks' sheets are reachable" counts them off the
+projection, study by study. counts them off the projection). The button hides when there is nothing to show
 either way, in either mode — it used to be stack-mode-only, before a topology
 had a `worksheet_file` field to read. The
 worksheet used to live in the right-hand pane; that pane now shows an

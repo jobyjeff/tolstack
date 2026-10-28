@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/worksheets
 reporter: agent
 audience: strategy
@@ -27,3 +27,13 @@ The `[real]` check that pinned "the three converted stacks' sheets are
 reachable" now asserts zero reached and names this issue. Fix shape (app work,
 outside the fold's scope): a study carries or resolves its stack's worksheet
 and joint block, and the page shows them when that study is selected.
+
+## Resolved 2026-10-27
+
+By `docs/sessions/HANDOFF_20261027_a_study_shows_the_worksheet_and_joint_of_the_stack_it_folds.md`:
+the subject of a worksheet is now the selected study. Each projected study
+carries `stack` (resolved by `build_topology_projection.py`'s `study_stack`
+from its `dimension_ref` edges and `provenance.grip_stack_joints`), and the
+page shows that stack's joint block and sheet while the study is selected.
+All three sheets and all four joint blocks are reachable again; the `[real]`
+node and browser checks assert it, study by study.

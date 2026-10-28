@@ -589,6 +589,12 @@ lives on the **topology**, not the study: a source workbook documents the
 whole system's rows, and several studies over one topology share one
 worksheet, the same many-studies-one-topology relationship the format already
 has everywhere else.
+The one exception is a study whose chain is a grip stack folded into the
+model: the projection carries that stack's own sheet and `joint` block on the
+study row (`stack`, resolved by `build_topology_projection.py`'s
+`study_stack` from the study's `dimension_ref` edges and
+`provenance.grip_stack_joints`), and the viewer offers them while that study
+is selected (2026-10-27).
 
 ---
 
@@ -703,7 +709,9 @@ study draws the grip chains dimmed.
 
 The four stacks' `joint` blocks (assembly drawing, sheet, view, zone) live in
 the model's `provenance.grip_stack_joints`, since the document is a whole
-product and carries no `joint` of its own.
+product and carries no `joint` of its own. Each study over one of them carries
+its stack's block in the projection (`stack`), so the page shows it with
+the study.
 
 ### `topology_vpa_pitch_linkage.json` + nine studies and a kinematic study
 

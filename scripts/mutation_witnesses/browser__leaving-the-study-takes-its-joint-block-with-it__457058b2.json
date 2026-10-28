@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "leaving the study takes its joint block with it",
+  "mutations": [
+    {
+      "contract": "Deselecting the study takes its stack's joint block off the page.",
+      "issue": "docs/issues/ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (!topology) return null;\n    if (study && study.stack) return study.stack;\n",
+      "replace": "    if (!topology) return null;\n    /* mutated: with no study selected, the first folded stack is the page's */\n    if (!study) study = (topology.studies || []).filter(function (s) { return s.stack; })[0];\n    if (study && study.stack) return study.stack;\n",
+      "note": "The rejected page-level alternative, one stack wide: with nothing selected the page offers a folded stack's sheet and joint, so which chain they belong to is lost."
+    }
+  ]
+}

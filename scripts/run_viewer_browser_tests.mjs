@@ -2384,21 +2384,40 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // loaded.
     push("a topology with no joint block says so rather than fabricating one",
       /no joint block/.test(await page.locator("#topojoint").textContent()));
-    // It declares no worksheet either, and until
-    // viewer_nav_wedge_and_classic_retirement that hid the toggle. It now
-    // offers the sheet of the stack it re-expresses (`demo_joint`,
-    // VA.worksheetSubject): retiring that stack's own nav row left this page as
-    // the only route to an authored sheet, which is true of three of the four
-    // real conversions too. The dialog names the file it is showing, so a
-    // reader is never left wondering whose sheet they are reading.
-    await page.locator("#worksheet-toggle").click();
-    await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
-    const sheet = await page.locator("#worksheet-dialog").textContent();
-    push("a topology with no worksheet of its own offers the one its covered " +
-      "stack authored, and names it", /WORKSHEET_demo_joint\.md/.test(sheet));
+    // It declares no worksheet either, so with no study selected there is no
+    // toggle. The worksheet and the joint are detail of the SELECTED STUDY
+    // (a_study_shows_the_worksheet_and_joint_of_the_stack_it_folds): the
+    // fixture's `demo_strut_branch` carries the `demo_joint` stack, so
+    // selecting it offers that stack's sheet and renders its joint block. The
+    // dialog names the file it is showing, so a reader is never left
+    // wondering whose sheet they are reading.
+    push("with no study selected, a topology with no sheet of its own offers none",
+      !(await page.locator("#worksheet-toggle").isVisible()));
+    await page.locator(navRow("study", "demo_strut_branch")).click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    push("a study whose chain re-expresses a stack shows that stack's joint block",
+      /DETAIL B/.test(await page.locator("#topojoint").textContent()));
+    // Guarded rather than clicked blind: a page that offers no toggle here is
+    // a red check, not a suite that times out on the click.
+    const studySheetOffered = await page.locator("#worksheet-toggle").isVisible();
+    let sheet = "";
+    if (studySheetOffered) {
+      await page.locator("#worksheet-toggle").click();
+      await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+      sheet = await page.locator("#worksheet-dialog").textContent();
+    }
+    push("...and offers the sheet that stack authored, and names it",
+      studySheetOffered && /WORKSHEET_demo_joint\.md/.test(sheet));
     push("and renders that sheet's own body, not an empty pane",
       /Demo worksheet/.test(sheet));
-    await page.locator("#worksheet-close").click();
+    if (studySheetOffered) await page.locator("#worksheet-close").click();
+    // Back to the deselected walk, which the blocks below measure.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    push("leaving the study takes its joint block with it",
+      /no joint block/.test(await page.locator("#topojoint").textContent()));
 
     // Edge-length scaling (viewer_edge_length_scaling): cycle the toolbar's
     // mode button through all three stops. At each: the bars measure what the
@@ -4319,23 +4338,18 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     // requiring a banner on the others would be requiring the page to invent an
     // error.
     //
-    // The subject is `VA.worksheetSubject`'s, replayed here off the same two
-    // projections: a topology's own sheet, or failing that the sheet of a stack
-    // it re-expresses (a study row inherits its topology's either way). A
-    // deliberate second implementation of a five-line rule -- the point is to
-    // discover which rows really hit the adapter, and asking the page under
-    // test would agree with whatever it does.
-    const sheetless = new Set();
-    for (const stack of realResults.stacks) {
-      if (!stack.worksheet_file) sheetless.add(stack.id);
-    }
+    // The subject is `VA.worksheetSubject`'s, replayed here off the same
+    // projections: a study row reads its stack's sheet when its chain
+    // re-expresses one (`study.stack`), otherwise its topology's; a topology
+    // row its own. A deliberate second implementation of a three-line rule --
+    // the point is to discover which rows really hit the adapter, and asking
+    // the page under test would agree with whatever it does.
     const withWorksheet = new Set();
     for (const topology of realProjection.topologies) {
-      const covered = (topology.edges || [])
-        .map((edge) => edge.crop_key && edge.crop_key.stack)
-        .filter((id) => id && !sheetless.has(id));
-      if (topology.worksheet_file || covered.length) {
-        withWorksheet.add("topology:" + topology.id);
+      if (topology.worksheet_file) withWorksheet.add("topology:" + topology.id);
+      for (const study of topology.studies || []) {
+        const sheet = study.stack ? study.stack.worksheet_file : topology.worksheet_file;
+        if (sheet) withWorksheet.add("study:" + topology.id + "/" + study.id);
       }
     }
     for (const stack of realResults.stacks) {
@@ -4349,7 +4363,8 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
                     topologyId: row.getAttribute("data-topology-id") }))
     )).map((row) => Object.assign(row, {
       reads: withWorksheet.has(
-        row.kind === "study" ? "topology:" + row.topologyId : row.kind + ":" + row.id),
+        row.kind === "study" ? "study:" + row.topologyId + "/" + row.id
+          : row.kind + ":" + row.id),
     }));
     push("the rail offers rows to click at all", rows.length >= 20);
     push("some of those rows really do read a worksheet, so the failing " +
@@ -4508,41 +4523,57 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
       noisy.length === 0 && wedged.length === 0);
     if (noisy.length) console.log(`    banner raised on: ${noisy.join(", ")}`);
 
-    // The other half of deliverable 2, end to end: the sheet a converted
-    // stack authored is still ONE CLICK away, on its topology's page, now that
-    // the stack's own row is gone. Over this seam `texts` is empty, so the
-    // dialog cannot show the markdown -- what it must show is that it is
-    // offering the STACK's sheet, by name, and it must offer the button at all.
-    let fallback = null;
+    // The three converted stacks' sheets are reachable, each from a study
+    // whose chain re-expresses it (a_study_shows_the_worksheet_and_joint_of_
+    // the_stack_it_folds, 2026-10-27; filed as
+    // ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md
+    // while they had no page). Over this seam `texts` is empty, so the dialog
+    // cannot show the markdown -- what it must show is that it is offering the
+    // STACK's sheet, by name, and it must offer the button at all; and the
+    // joint block must be that stack's. One study per stack: the first met.
+    const byStack = new Map();
     for (const topology of realProjection.topologies) {
-      if (topology.worksheet_file) continue;
-      const covered = (topology.edges || [])
-        .map((edge) => edge.crop_key && edge.crop_key.stack).filter(Boolean);
-      const stack = realResults.stacks.find(
-        (s) => covered.includes(s.id) && s.worksheet_file);
-      if (stack) { fallback = { topology, stack }; break; }
+      for (const study of topology.studies || []) {
+        if (study.stack && !byStack.has(study.stack.id)) {
+          byStack.set(study.stack.id, { topology, study });
+        }
+      }
     }
-    // None since 2026-10-27: the product model declares its own sheet, which
-    // always wins, so no stack's authored sheet is reachable from a page
-    // (ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md).
-    push(fallback !== null
-      ? "the live projection has a converted stack whose sheet only its topology's page can reach"
-      : "SKIPPED -- no live topology lacks its own worksheet, so no stack's is the fallback " +
-        "(ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md)", true);
-    if (fallback) {
-      await page.locator(`#navtree ${navRow("topology", fallback.topology.id)}`).click();
+    const sheetsReached = [];
+    const jointsShown = [];
+    const sheetlessHidden = [];
+    for (const [stackId, { study }] of byStack) {
+      await page.locator(`#navtree ${navRow("study", study.id)}`).click();
       await page.waitForSelector(
-        `#navtree ${navRow("topology", fallback.topology.id)}.navtree__row--on`,
-        { timeout: 4000 });
-      push("a topology that declares no worksheet still offers the one its " +
-        "stack authored", await page.locator("#worksheet-toggle").isVisible());
+        `#navtree ${navRow("study", study.id)}.navtree__row--on`, { timeout: 4000 });
+      const jointText = await page.locator("#topojoint").textContent();
+      if (jointText.includes(String(study.stack.joint.assembly_drawing)) &&
+          jointText.includes(String(study.stack.joint.view))) {
+        jointsShown.push(stackId);
+      }
+      const toggle = await page.locator("#worksheet-toggle").isVisible();
+      if (!study.stack.worksheet_file) {
+        if (!toggle) sheetlessHidden.push(stackId);
+        continue;
+      }
+      if (!toggle) continue;
       await page.locator("#worksheet-toggle").click();
       await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
-      push("and the dialog names that stack's own sheet, not a neighbour's",
-        (await page.locator("#worksheet-dialog").textContent())
-          .includes(fallback.stack.worksheet_file));
+      if ((await page.locator("#worksheet-dialog").textContent())
+        .includes(study.stack.worksheet_file)) sheetsReached.push(stackId);
       await page.locator("#worksheet-close").click();
     }
+    push("[real] the three converted stacks' sheets are reachable, each from " +
+      "a study whose chain re-expresses it, and the dialog names that sheet",
+      JSON.stringify(sheetsReached.sort()) === JSON.stringify(
+        ["pitch_link_to_pitch_plate", "rotor_fastener_length",
+         "vpa_output_to_pitch_plate"]));
+    if (sheetsReached.length !== 3) console.log(`    reached: ${sheetsReached.join(", ")}`);
+    push("[real] each of the four folded stacks' studies shows that stack's " +
+      "joint block", jointsShown.length === 4);
+    if (jointsShown.length !== 4) console.log(`    joints: ${jointsShown.join(", ")}`);
+    push("[real] the stack with no sheet of its own offers none, rather than " +
+      "the model's", sheetlessHidden.length === 1);
 
     // The retirement, on the live rail (deliverable 2 and 4): a stack a
     // topology re-expresses has no row, and the word is gone from the page.

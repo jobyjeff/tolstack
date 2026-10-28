@@ -807,6 +807,72 @@ def test_a_topology_with_no_declared_or_by_name_worksheet_projects_none(before_p
     assert row["worksheet_source"] is None
 
 
+#: The four grip stacks folded into the product model, and the authored sheet
+#: each has (``None``: tan link take 2 has none, by the by-name rule).
+FOLDED_STACK_SHEETS = {
+    "pitch_link_to_pitch_plate":
+        "docs/tolerance_stacks/WORKSHEET_pitch_link_to_pitch_plate.md",
+    "rotor_fastener_length":
+        "docs/tolerance_stacks/WORKSHEET_rotor_fastener_length.md",
+    "tan_link_to_pitch_plate_take2": None,
+    "vpa_output_to_pitch_plate":
+        "docs/tolerance_stacks/WORKSHEET_vpa_output_to_pitch_plate.md",
+}
+
+
+def test_each_study_carries_the_folded_stack_its_chain_re_expresses(projection):
+    """Handoff ``a_study_shows_the_worksheet_and_joint_of_the_stack_it_folds``:
+    a worksheet's subject is the selected study. Every study whose chain is a
+    folded grip stack carries that stack's joint block (exactly the one
+    ``provenance.grip_stack_joints`` kept) and its authored sheet; all three
+    sheets and all four joint blocks resolve, and every study naming no stack
+    resolves none.
+    """
+    row = projected(projection, "vpa_pitch_linkage")
+    kept = row["topology"]["provenance"][B.GRIP_STACK_JOINTS_KEY]
+    sheets, joints, none = {}, {}, []
+    for study in row["studies"]:
+        stack = study["stack"]
+        if stack is None:
+            none.append(study["id"])
+            continue
+        assert stack["re_expresses"] == kept[stack["id"]]["re_expresses"]
+        assert stack["joint"] == kept[stack["id"]]["joint"], study["id"]
+        assert stack["joint"]["assembly_drawing"]
+        joints[stack["id"]] = True
+        sheets.setdefault(stack["id"], set()).add(stack["worksheet_file"])
+        # The study's own edges name that stack -- no neighbour's sheet.
+        edges = {e["id"]: e for e in row["edges"]}
+        assert {(edges[e]["crop_key"] or {}).get("stack")
+                for e in study["selection"]} - {None} == {stack["id"]}
+    assert sorted(joints) == sorted(FOLDED_STACK_SHEETS)
+    assert sheets == {k: {v} for k, v in FOLDED_STACK_SHEETS.items()}
+    for sheet in filter(None, FOLDED_STACK_SHEETS.values()):
+        assert (REPO_ROOT / sheet).exists()
+    # The mechanism's own chains are inline-valued: no stack behind them.
+    assert none and all(not s.startswith(("pitch_link_", "rotor_fastener_",
+                                          "tan_link_", "vpa_output_"))
+                        for s in none)
+
+
+def test_a_study_naming_no_stack_or_two_or_an_unkept_one_resolves_none(
+        projection, before_projection):
+    """``study_stack`` never guesses: a topology that kept no joint blocks (the
+    four stand-alone documents before the fold) resolves none, and a selection
+    across two stacks resolves none rather than the first."""
+    for topology in before_projection["topologies"]:
+        assert all(s["stack"] is None for s in topology["studies"]), topology["id"]
+    path = TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    topology = load_topology(path)
+    two = load_study(TOPOLOGIES_DIR / "study_pitch_link_shank_out.json")
+    vpa = load_study(TOPOLOGIES_DIR / "study_vpa_output_shank_out.json")
+    mixed = Study(**{**two.__dict__,
+                     "selection": tuple(two.selection) + tuple(vpa.selection)})
+    assert B.study_stack(topology, raw, two)["id"] == "pitch_link_to_pitch_plate"
+    assert B.study_stack(topology, raw, mixed) is None
+
+
 def test_the_l1_topologys_joint_rides_into_the_projection(before_projection, projection):
     """Deliverable 2, through the projection: the joint block a reviewer reads
     beside the rail diagram is the same one `Topology.joint` carries."""
