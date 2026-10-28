@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
   "expect_red": "a gap contributor's badge opens a popup naming the gap and Pick, and a banded one has no badge",
   "mutations": [
     {
