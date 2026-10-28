@@ -1383,6 +1383,42 @@
   // study, so its `models` row is suppressed in the nav -- exactly the rule a
   // real topology with a study follows; the fast tier builds the model-row
   // case inline.
+  // The demo mechanism's topology with ONE more part, `bracket`: no drawing, and
+  // two edges that cite a traced drawing and an untraced workbook -- the
+  // per-document qualifier's only shape (`pitch_system | hub` was its one live
+  // witness until the 2026-10-26 fold gave the hub a drawing,
+  // ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness). A
+  // COPY rather than a second part in the shared fixture, because that
+  // fixture's edge count, gap list and layout are pinned by name in many places
+  // and a part that exists to be mixed is not part of any of them. The edges
+  // join nodes the demo already has, and no study selects them.
+  VA.demoMixedSourceTopology = function () {
+    var topo = JSON.parse(JSON.stringify(VA.demoTopologyProjection().topologies[0]));
+    var edge = function (id, confidence, ref) {
+      return { id: id, name: id.replace(/_/g, " "), kind: "structural", part: "bracket",
+        from: "base_datum", to: "base_post_seat", note: null, properties: {},
+        value_source: "inline", dimension_ref: null,
+        dimension: { id: id, name: id.replace(/_/g, " "), nominal: 5.0, min: 4.9, max: 5.1,
+          role: null, lmc: null, mmc: null, plus_minus: null, hardware_ref: null,
+          source_ref: ref, note: null, form: null },
+        confidence: confidence, zero_width: false, crop_key: null,
+        transform: { id: "identity", kind: "identity", ratio: 1.0, units_in: "mm",
+          units_out: "mm" },
+        transform_declared: null, interface: null };
+    };
+    var cite = function (kind, document, confidence) {
+      return { kind: kind, document: document, revision: null, sheet: null, zone: null,
+        view: null, cell: null, callout: null, export: null, element_id: null,
+        run_id: null, confidence: confidence, note: null };
+    };
+    topo.parts.push({ id: "bracket", name: "bracket", drawing: null, revision: null,
+      note: null, mesh: { installed: false, part_id: null } });
+    topo.edges.push(
+      edge("bracket_width", "traced", cite("drawing", "219999-001", "traced")),
+      edge("bracket_height", "untraced", cite("workbook", "demo-bracket.xlsx", "untraced")));
+    return topo;
+  };
+
   VA.demoKinematicFixture = function () {
     var point = function (index, driver, nominal, worst, rss) {
       return { index: index, driver_value: driver, nominal_measure: nominal,

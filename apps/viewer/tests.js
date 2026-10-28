@@ -16233,6 +16233,31 @@
             mixedParts.push([topoProj.id + " | " + part.id, part.id, topoProj]);
           });
         });
+        // The fixture witness: the demo mechanism plus a drawingless bracket
+        // whose two edges cite a traced drawing and an untraced workbook, so
+        // the design keeps a witness however the live data moves.
+        await test("a part sourced to both a drawing and a workbook qualifies " +
+          "the workbook and leaves the drawing alone", function () {
+            var mixedTopo = VA.demoMixedSourceTopology();
+            var references = VA.partReferences(mixedTopo, "bracket");
+            eq(references.map(function (r) { return r.document + ":" + r.unverified; }),
+               ["219999-001:false", "demo-bracket.xlsx:true"]);
+            var root = render(function (r) {
+              VA.renderHoverCard(r, VA.componentCard(mixedTopo, "bracket", TOPOCROPS),
+                {}, VA.CONFIG, null);
+            });
+            var where = all(root, "div.hovercard__where")[0];
+            references.forEach(function (reference) {
+              has(where.textContent, VA.referenceText(reference), "bracket");
+            });
+            eq(VA.referenceText(references[0]).indexOf(VA.ATTENTION.unverified.text), -1);
+            var qualifier = "(" + VA.ATTENTION.unverified.text + ")";
+            eq(where.textContent.split(qualifier).length - 1, 1,
+               "one qualifier, on the workbook only");
+            eq(where.getAttribute("title"), VA.ATTENTION.unverified.title,
+               "a line carrying the qualifier explains it");
+          });
+
         if (!mixedParts.length) {
           skip("[real] a part sourced to both a drawing and a workbook " +
             "qualifies the workbook and leaves the drawing alone",
