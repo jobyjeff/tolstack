@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "with no study selected a topology offers its own worksheet and its own joint",
+  "mutations": [
+    {
+      "contract": "With no study selected the topology's own sheet and joint stand, even when one of its studies carries a stack.",
+      "issue": "docs/issues/ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (!topology) return null;\n    if (study && study.stack) return study.stack;\n",
+      "replace": "    if (!topology) return null;\n    /* mutated: with no study selected, the first folded stack is the page's */\n    if (!study) study = (topology.studies || []).filter(function (s) { return s.stack; })[0];\n    if (study && study.stack) return study.stack;\n",
+      "note": "The rejected page-level alternative, one stack wide: with nothing selected the page offers a folded stack's sheet and joint, so which chain they belong to is lost."
+    }
+  ]
+}

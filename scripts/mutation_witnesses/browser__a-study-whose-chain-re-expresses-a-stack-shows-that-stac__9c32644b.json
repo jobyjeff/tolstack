@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "a study whose chain re-expresses a stack shows that stack's joint block",
+  "mutations": [
+    {
+      "contract": "Selecting a study whose chain re-expresses a stack puts that stack's joint block on the page.",
+      "issue": "docs/issues/ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    root.appendChild(VA.jointBlock(VA.jointSubject(topoProj, study)));",
+      "replace": "    root.appendChild(VA.jointBlock(topoProj.joint));  /* mutated: the joint block ignores the study */",
+      "note": "The joint block alone goes back to the page's: the worksheet still follows the study, so only a check that reads the joint can see it."
+    }
+  ]
+}

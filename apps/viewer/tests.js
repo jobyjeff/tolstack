@@ -9505,8 +9505,11 @@
     // folds, 2026-10-27).
     await test("with no study selected a topology offers its own worksheet " +
       "and its own joint", function () {
+        // One of its studies carries a stack: with none selected, that stack
+        // is still not the page's (the rejected page-level alternative).
         var topology = { id: "t", worksheet_file: "docs/topologies/WORKSHEET_t.md",
-          joint: {} };
+          joint: {}, studies: [{ id: "s", stack: { id: "k", joint: { view: "X" },
+            worksheet_file: "docs/tolerance_stacks/WORKSHEET_k.md" } }] };
         eq(VA.worksheetSubject(topology, null).worksheet_file,
            "docs/topologies/WORKSHEET_t.md");
         eq(VA.jointSubject(topology, null), {});

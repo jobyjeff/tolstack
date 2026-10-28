@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the demo fixture has one study with a stack and its sheet, and studies with none",
+  "mutations": [
+    {
+      "contract": "The fixture carries both branches: one study with a stack and its sheet, the rest with none.",
+      "issue": "docs/issues/ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md",
+      "file": "apps/viewer/topology_fixtures.js",
+      "find": "              \"worksheet_file\": \"docs/tolerance_stacks/WORKSHEET_demo_joint.md\",\n              \"worksheet_source\": \"by_name\"",
+      "replace": "              \"worksheet_file\": null,\n              \"worksheet_source\": \"by_name\"",
+      "note": "The fixture's one stack-carrying study loses its sheet, so the fixture tier no longer reaches the 'study offers its stack's sheet' branch; the pin on the fixture's state is what says so."
+    }
+  ]
+}

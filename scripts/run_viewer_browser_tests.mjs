@@ -2398,14 +2398,20 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       null, { timeout: 5000 });
     push("a study whose chain re-expresses a stack shows that stack's joint block",
       /DETAIL B/.test(await page.locator("#topojoint").textContent()));
-    await page.locator("#worksheet-toggle").click();
-    await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
-    const sheet = await page.locator("#worksheet-dialog").textContent();
+    // Guarded rather than clicked blind: a page that offers no toggle here is
+    // a red check, not a suite that times out on the click.
+    const studySheetOffered = await page.locator("#worksheet-toggle").isVisible();
+    let sheet = "";
+    if (studySheetOffered) {
+      await page.locator("#worksheet-toggle").click();
+      await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+      sheet = await page.locator("#worksheet-dialog").textContent();
+    }
     push("...and offers the sheet that stack authored, and names it",
-      /WORKSHEET_demo_joint\.md/.test(sheet));
+      studySheetOffered && /WORKSHEET_demo_joint\.md/.test(sheet));
     push("and renders that sheet's own body, not an empty pane",
       /Demo worksheet/.test(sheet));
-    await page.locator("#worksheet-close").click();
+    if (studySheetOffered) await page.locator("#worksheet-close").click();
     // Back to the deselected walk, which the blocks below measure.
     await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,

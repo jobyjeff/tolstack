@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "no nav click wedges the page",
+  "expect_red": "[real] the stack with no sheet of its own offers none, rather than the model's",
+  "mutations": [
+    {
+      "contract": "The tan link study, whose stack has no sheet, offers none rather than the model's.",
+      "issue": "docs/issues/ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (study && study.stack) return study.stack;\n",
+      "replace": "    /* mutated: the selected study's stack is never the subject */\n",
+      "note": "The regression the issue filed, restored: the page is the subject again, so the model's own sheet wins and the folded stacks' sheets and joints have no route to a reader."
+    }
+  ]
+}

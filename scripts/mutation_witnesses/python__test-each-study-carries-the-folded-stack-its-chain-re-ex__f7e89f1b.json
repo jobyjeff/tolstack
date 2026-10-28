@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_topology_projection.py",
+  "expect_red": "test_each_study_carries_the_folded_stack_its_chain_re_expresses",
+  "mutations": [
+    {
+      "contract": "Each grip-stack study's projected `stack` carries exactly the joint block the model kept in provenance.grip_stack_joints.",
+      "issue": "docs/issues/ISSUE_20261027_the_fastener_stacks_worksheets_have_no_page_since_the_fold.md",
+      "note": "The projection resolves the stack but carries an empty joint, which the page would render as 'no joint block' under every grip-stack study.",
+      "file": "scripts/build_topology_projection.py",
+      "find": "            \"joint\": dict(block.get(\"joint\") or {}),",
+      "replace": "            \"joint\": {},  # mutated: the kept joint block is dropped"
+    }
+  ]
+}
