@@ -123,3 +123,29 @@ Post-merge:
 Overlay: I added one Recurring-bugs entry, "A rewritten README paragraph keeps
 the tail of the old one", because `test_viewer_readme_doc_facts` reads
 declared facts and cannot see a broken sentence.
+
+## Landing: conflict resolution
+
+`integration` moved during the review. It took in
+`the_nav_scene_trees_six_gestures_are_named_once_and_each_witnessed`
+(`243830b0` and `3111364d`). Merging it into the review branch conflicted in
+one place, `scripts/guard_enumeration.mjs`'s `DECLARED_GUARDS.browser` pin:
+
+- The pin started at 660/627.
+- This handoff's side set it to 664/631 (+4).
+- `integration`'s side set it to 665/632 (+5, the nav handoff's new browser
+  checks).
+
+The two sides added different guards, so the resolution is the union,
+**669/636**. The names digest is `57e00eb68a7c`, recomputed with
+`enumerateGuards` and `guardNameDigest` over the merged tree; it is not
+either side's digest. No conflict markers remain (grepped).
+
+Re-run on the re-merged tree (`f48d6694`):
+
+- `pytest -q tests/test_mutation_witnesses.py tests/test_topology_projection.py
+  tests/test_viewer_readme_doc_facts.py tests/test_js_python_vocabulary.py`:
+  117 passed. This includes the census pin.
+- The viewer node tier through `--repo`: 591/591, still paired.
+- Browser `--only "topology file://"`: 2/2 suites passed.
+- Browser `--only "no nav click"`: 16/16 checks passed.
