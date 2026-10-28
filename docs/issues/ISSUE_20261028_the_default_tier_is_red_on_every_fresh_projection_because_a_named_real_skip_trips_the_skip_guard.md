@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/tests
 reporter: agent
 class: guard_reads_a_finding_as_a_provisioning_gap

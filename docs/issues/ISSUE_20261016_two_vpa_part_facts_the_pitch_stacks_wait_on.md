@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: tolerance_stacks
 reporter: agent
 audience: strategy
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261016_user_tasks_are_only_what_jeff_alone_can_finish.md
+strategy: rotorkit/docs/strategy/BRIEF_20260916_addressing_parts_without_a_drawing_number.md
 resolution: reopened 2026-10-22 triage: its brief BRIEF_20261021_what_a_term_cites_when_its_drawing_does_not_band_it is closed and routed instance 3 (these two facts) to Jeff through the needs-Jeff list of dispatch/docs/strategy/HANDOFF_20261022_strategy.md; that session says this issue stays open until he answers
 ---
 # Two VPA part facts the pitch stacks wait on
