@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: annotate/feature-identity
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md
 strategy: docs/strategy/BRIEF_20261022_how_a_feature_binding_is_corrected.md
+resolution: fixed by HANDOFF_20261026_a_binding_may_be_superseded (brief consumed 2026-10-26; triage 2026-10-27)
 ---
 
 # A binding written at the wrong end has no correction

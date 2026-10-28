@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: repo/.gitignore
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_dag_draws_bodies_as_containers_and_joints_as_symbols.md
+class: ignore_pattern_misses_a_symlink
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # `.gitignore`'s `venv-win/` misses the symlink `dispatch bridge-test-inputs` leaves

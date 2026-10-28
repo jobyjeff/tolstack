@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_rail_and_the_scene_point_at_each_other.md
+class: unreviewed_design_debt
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # Design: the sweep rail's link-joint checkbox wraps onto a line of its own

@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: linkage/bodies
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
+class: one_fact_written_twice
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # linkage keeps its own body lists beside the topology's

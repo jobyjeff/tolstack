@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_rail_and_the_scene_point_at_each_other.md
+class: two_visibility_facts_one_control
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # The parts panel's checkbox cannot show an occurrence a body checkbox hid, and reads ticked while it is hidden

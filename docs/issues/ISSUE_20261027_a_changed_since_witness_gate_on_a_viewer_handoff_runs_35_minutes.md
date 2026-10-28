@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: tests
 reporter: agent
 class: suite_over_budget
 found_by: docs/sessions/HANDOFF_20261026_leaders_follow_the_active_study_across_the_seam.md
+handoff: docs/sessions/HANDOFF_20261027_a_witness_run_stops_at_its_budget_and_leaves_the_rest_to_the_sweep.md
 ---
 
 # A `--changed-since` witness gate on a viewer handoff runs 35 minutes against a 30-minute budget

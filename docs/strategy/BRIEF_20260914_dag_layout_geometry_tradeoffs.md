@@ -248,3 +248,37 @@ woke from its 2026-10-15 date trigger. It carries forge todo
 `20261007T161822_5nv2iw` (shared with the stack-page width issue now in
 `BRIEF_20260916_topology_page_number_reach.md`), which should be withdrawn
 now that both are strategy work.
+
+## 2026-10-27 triage sweep — the folds made the DAG one product graph, and four layout questions follow from it
+
+Since 2026-10-26/27 (`pitch_system` and the four fastener grip stacks folded
+into `vpa_pitch_linkage`) the page draws one product graph, and the same
+design conversation this brief holds — what the layout may give up to read —
+now has four new source issues, all `audience: strategy`, each with options
+and measurements in its own text:
+
+- `docs/issues/ISSUE_20261026_the_product_graph_is_past_the_exact_column_search_and_crosses_itself.md`
+  (med) — 47 interfaces / 59 edges / 18 columns is past
+  `EXACT_ORDER_MAX_COLUMNS`; 115 close crossings, 2 leader-vs-rail that the
+  mirror no longer removes; its 10-27 addendum re-measures after body-major
+  walking. Options seen: one swim-lane per body with internal edges folded,
+  a wider exact search for one document, or draw only the studied subgraph.
+- `docs/issues/ISSUE_20261027_a_body_with_parts_in_two_components_is_two_containers.md`
+  (med) — the model is five connected components, so a body clamped by a grip
+  stack draws as two to four containers; options (a) leave it, (b) one
+  container per body across components, (c) connect each stack to the
+  mechanism.
+- `docs/issues/ISSUE_20261027_the_travel_sub_stack_crosses_four_bodies_so_it_cannot_fold_into_one_bar_inside_one.md`
+  (med) — the only live `study_ref` spans four bodies (walk rows 9, 98, 100,
+  104), so "a dashed field inside its body, collapsed to one bar" has no body
+  to sit in.
+- `docs/issues/ISSUE_20261027_on_the_kinematic_page_most_of_the_lit_sets_leaders_across_the_seam_are_out_of_view_at_rest.md`
+  (med) — 3 of 19 lit nodes get a DAG↔3D leader at rest (13 dots out of the
+  DAG box's view); the handoff expected 6–10. Its sibling
+  `ISSUE_20261027_leaders_across_the_seam_cross_each_other_where_dot_order_and_anchor_order_disagree.md`
+  (low) is deferred to 2026-11-26 and is item 1's shape again, across the seam.
+
+Why here rather than a new brief: all four are the item-2/item-4 trade-off
+(which order, which rows, what is in view) on a graph this brief's numbers
+predate. Re-measure item 1's and item 3's figures on the product graph before
+deciding them — every number above was taken on the folded model.

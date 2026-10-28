@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: viewer/annotate embedded tree
 reporter: agent
 class: guard_cannot_fail
 found_by: docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md
+handoff: docs/sessions/HANDOFF_20261027_the_nav_scene_trees_six_gestures_are_named_once_and_each_witnessed.md
 ---
 
 # The nav's scene tree: collapsing a row and its show/hide checkbox can be broken green in every tier

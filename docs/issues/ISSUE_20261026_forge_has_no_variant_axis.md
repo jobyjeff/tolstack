@@ -1,13 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: topology/tags
 reporter: agent
 audience: strategy
-needs: jeff
-ask: Tell forge which identity axis a gas-spring vs hydraulic-brake variant belongs on
 found_by: docs/sessions/HANDOFF_20261026_bodies_and_studies_carry_forge_tags.md
+defer_until: 2026-11-10
+resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3; needs: jeff demoted (a decide question, fails the two-part test) -> audience: strategy
+class: forge_identity_axis_missing
 ---
 
 # forge's identity.toml has no axis for "variant"

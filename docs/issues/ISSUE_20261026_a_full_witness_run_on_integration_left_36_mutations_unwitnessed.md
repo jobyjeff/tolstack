@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/mutation-witness
 reporter: agent
 class: decayed_witness
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
+handoff: docs/sessions/HANDOFF_20261027_the_checks_and_claims_the_folds_left_naming_what_they_removed.md
 ---
 
 # A full witness run on integration left 36 of 332 mutations unwitnessed

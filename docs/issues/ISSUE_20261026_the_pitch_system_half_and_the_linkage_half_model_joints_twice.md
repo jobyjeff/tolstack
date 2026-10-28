@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: topologies/vpa-pitch-linkage
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
+defer_until: 2026-11-10
+resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3
+class: one_joint_modelled_at_two_granularities
 ---
 
 # The pitch-system half and the linkage half still model some joints twice

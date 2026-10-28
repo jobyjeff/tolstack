@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: viewer/tests
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
+handoff: docs/sessions/HANDOFF_20261027_the_checks_and_claims_the_folds_left_naming_what_they_removed.md
+class: fold_left_stale_reference
 ---
 
 # The component card's per-document "unverified" qualifier lost its only live witness

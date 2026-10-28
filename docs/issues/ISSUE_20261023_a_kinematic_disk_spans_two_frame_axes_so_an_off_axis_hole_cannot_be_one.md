@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: tolerance_stack/kinematic
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261022_the_pitch_plate_link_hole_states_its_axis.md
+class: zone_kind_cannot_express_the_callout
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # A kinematic `disk` spans two frame axes, so a hole whose axis is not a CAD axis cannot be one

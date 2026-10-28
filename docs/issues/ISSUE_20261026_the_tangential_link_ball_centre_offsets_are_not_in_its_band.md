@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: topologies/vpa_pitch_linkage
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_tangential_link_cites_its_drawing.md
+class: a_value_with_no_place_to_cite
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # The tangential link's cited length is bore-to-bore; the solver's points are ball centres

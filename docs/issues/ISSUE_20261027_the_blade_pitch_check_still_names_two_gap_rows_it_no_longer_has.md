@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: docs/topologies/kinematic study
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261026_a_contributor_may_be_a_study.md
+handoff: docs/sessions/HANDOFF_20261027_the_checks_and_claims_the_folds_left_naming_what_they_removed.md
+class: fold_left_stale_reference
 ---
 
 # The blade-pitch study's two checks still list "the gap rows" it has none of

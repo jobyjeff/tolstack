@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: kinematic study / S461-607
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_a_contributor_may_be_a_study.md
+defer_until: 2026-11-10
+resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3
+class: acceptance_limit_borrowed_from_another_chain
 ---
 
 # The travel term dominates the blade-pitch budget, and both stops now read `marginal`

@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: topology/containers
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_the_fastener_stacks_join_the_model.md
+strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 ---
 
 # A body whose parts sit in two components of the walk draws as two containers

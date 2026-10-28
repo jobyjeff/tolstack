@@ -1,10 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_rail_and_the_scene_point_at_each_other.md
+class: unbuilt_cheap_deliverable
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # The sweep rail's contributors could show the coefficient at the current frame, not only at the nearest stop

@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tolerance_stacks/citations
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261022_an_export_lists_every_run_that_consumed_it.md
+class: citation_matched_by_prefix
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # The 2026-08 stacks cite runs by a short `YYYYMMDD_HHMMSS` id the run log does not spell

@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/worksheets
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_the_fastener_stacks_join_the_model.md
+handoff: docs/sessions/HANDOFF_20261027_a_study_shows_the_worksheet_and_joint_of_the_stack_it_folds.md
+class: fold_left_stale_reference
 ---
 
 # The fastener stacks' worksheets and joint blocks have no page since the fold

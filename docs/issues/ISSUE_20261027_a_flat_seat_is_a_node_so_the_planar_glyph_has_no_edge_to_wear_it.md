@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: tolerance_stack/topology
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_the_dag_draws_bodies_as_containers_and_joints_as_symbols.md
+class: glyph_with_no_live_subject
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # A flat seat is a node, so the planar glyph has no edge to wear it

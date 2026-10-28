@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: low
-status: open
+status: resolved
 area: viewer/layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_the_kinematic_page_keeps_the_dag_and_says_each_contributor_once.md
+resolution: superseded by HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model -- the preview pane stands down when the scene opens on topology and kinematic pages (option 1); its lesson measures the DAG column at 739/900px at 1600 (triage 2026-10-27)
 ---
 
 # With the 3D pane open at 1600 wide, the page column between the nav and the preview pane is ~180 px

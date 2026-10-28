@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: viewer/README claims
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_leaders_follow_the_active_study_across_the_seam.md
+handoff: docs/sessions/HANDOFF_20261027_the_checks_and_claims_the_folds_left_naming_what_they_removed.md
+class: fold_left_stale_reference
 ---
 
 # The fastener fold deleted the topology the README's `smallest_chain` claim names

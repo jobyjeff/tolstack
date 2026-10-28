@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md
+class: unreviewed_design_debt
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # Design: the nav's scene tree clips part names to a few characters, and lands below the fold

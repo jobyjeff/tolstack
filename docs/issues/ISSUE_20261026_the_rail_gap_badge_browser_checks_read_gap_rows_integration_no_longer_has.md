@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
+handoff: docs/sessions/HANDOFF_20261027_the_checks_and_claims_the_folds_left_naming_what_they_removed.md
+class: fold_left_stale_reference
 ---
 
 # Two rail gap-badge browser checks read gap rows that integration no longer has

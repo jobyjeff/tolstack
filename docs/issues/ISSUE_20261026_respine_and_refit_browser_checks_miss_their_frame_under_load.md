@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tests/browser
 reporter: agent
-class: timing_flake
+class: wall_clock_dependence
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
+defer_until: class:wall_clock_dependence
+resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3; respine half fixed 10-26, the [mock] re-fit check remains; re-classed timing_flake -> wall_clock_dependence (R5)
 ---
 
 # Respine and re-fit browser checks miss their frame when the box is loaded

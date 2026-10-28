@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests/browser
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_the_fastener_stacks_join_the_model.md
+class: fold_left_stale_reference
+defer_until: 2026-11-26
+resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # No real topology to switch to: three browser checks lost their live subject
