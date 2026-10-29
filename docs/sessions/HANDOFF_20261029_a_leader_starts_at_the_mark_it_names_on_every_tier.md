@@ -1,6 +1,6 @@
 ---
 priority: high
-depends_on: [the_plus72_stop_is_the_travel_datum]
+depends_on: [the_annotator_has_no_front_door]
 model: opus
 hitl: false
 ---
