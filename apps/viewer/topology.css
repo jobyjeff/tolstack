@@ -1056,19 +1056,19 @@ body { display: flex; flex-direction: column; }
    against, and a higher cap buys a reader nothing they cannot reach by
    dragging on a wider screen. */
 .tv .detail {
-  width: 560px; flex: none; overflow: visible; align-self: stretch;
-  /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:
-     calc(100vh - 47px); overflow: auto` (style.css:365-368) assumes the pane
-     starts 47px below the viewport top and owns its own scrollport — true for
-     the STACK VIEWER, whose only chrome above it is the topbar. Here the pane
-     sits below a banner too, AND (full-page-scroll, viewer_error_surface_and_
-     layout, 2026-09-09) this whole page no longer clips anything but the left
-     nav to the viewport — every pane, this one included, contributes its full
-     height to the document and lets IT scroll. `overflow: visible` is the
-     override that matters now; `position: static; max-height: none` keep the
-     pane from being pinned or capped by the shared rule. Never edit the
-     shared rule — the stack viewer's own layout depends on it. */
-  position: static; max-height: none;
+  width: 560px; flex: none;
+  /* Pinned under the topbar like the nav (2026-10-28): the pane holds every
+     study page's RESULTS now -- a kinematic study's verdicts and chart, a
+     chain study's verdict chips -- and they stay on screen while the page
+     scrolls the model and its grid. From 2026-09-09 to then it was
+     `position: static; overflow: visible`, scrolling away with the
+     document (full-page-scroll, viewer_error_surface_and_layout), which
+     was right while it held only a preview. `align-self: flex-start` is
+     what lets a flex item stick: stretched to the row's height it has
+     nowhere to stick within. The shared `.detail` rule (style.css) is the
+     stack viewer's and is never edited from here. */
+  align-self: flex-start;
+  position: sticky; top: 47px; max-height: calc(100vh - 47px); overflow-y: auto;
 }
 .detail__values { margin: 8px 0; }
 .detail__valrow { display: flex; gap: 10px; font-size: var(--t-dense); }
@@ -1248,20 +1248,12 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    `close` event, which is the ONE seam every close path goes through (the
    Close button, a `.close()` from anywhere).
 
-   No border at either seam: the nav's right rule goes, and the main column's
-   (which only ever separated it from the preview pane).
+   No border at the nav's seam: its right rule goes.
 
-   The preview pane STANDS DOWN on a topology or kinematic page
-   (`body.flyout-replaces-detail`, topology_app.js's syncSceneColumn): the
-   scene's own detail line and the hover card answer for an edge while the
-   scene is open, and the room is the scene's. A stack page has no DAG to
-   make room for and keeps its preview. Nothing is latched and nothing is
-   destroyed -- `display: none` reverses exactly, which is what makes
-   "closing restores whatever it covered" true by construction. */
+   The right-hand pane stays where it is with the scene open (2026-10-28):
+   it holds every study page's results, so the row is nav | scene | model +
+   grid | results, the detail divider setting the last one's width. */
 body.flyout-open .navtree { border-right: none; }
-body.flyout-replaces-detail .tv__main { border-right: none; }
-body.flyout-replaces-detail #detail,
-body.flyout-replaces-detail #detail-divider { display: none; }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):
@@ -1495,42 +1487,49 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvgaps__where { color: var(--accent); margin-right: 6px; }
 
 /* --- the kinematic study page (views/kinematic.js) ----------------------
-   the_viewer_shows_a_kinematic_study, 2026-10-20. A page in the main column,
-   the same flex-item shape `.stackview` is: grow to fill, scroll with the
-   document. Type, colour and spacing are the :root tokens and nothing else
-   (docs/DESIGN_TYPE_AND_COLOUR.md); the one accent is the verdict chip. */
+   the_viewer_shows_a_kinematic_study, 2026-10-20. Since 2026-10-28 the page
+   has every study page's shape: the model and the contributor table in the
+   main column (`.kmview`, the same flex-item shape `.stackview` is), and the
+   results -- name, verdicts, chart, readouts, provenance -- at the top of the
+   right-hand pane (`.kmresults`). Type, colour and spacing are the :root
+   tokens and nothing else (docs/DESIGN_TYPE_AND_COLOUR.md); the one accent
+   is the verdict chip. */
 .tv__main > .kmview { flex: 1 1 auto; min-height: 0; }
 .kmview { padding: 10px 18px 24px; min-width: 0; overflow-x: auto; }
-/* The head sits ABOVE the model (2026-10-26): the study's name and its
-   verdicts are the first thing on screen, the DAG under them. */
-.tv__main > .kmhead { flex: 0 0 auto; padding: 12px 18px 4px; }
 .kmhead__title { font-size: var(--t-title); margin: 0 0 8px; }
-/* On the kinematic page the model is context for the numbers under it, so
-   it gets a bounded box with its own scroll instead of its whole height:
-   at 1600x1000 the verdicts, the model and the top of the chart are all on
-   the first screen. A scaled
-   length mode is not fitted to this box: it takes the height it needs and
-   the reader zooms (Fit). */
-.tv__scroll.tv__scroll--bounded {
-  flex: 0 0 auto; max-height: 50vh; overflow-y: auto;
-  border-bottom: 1px solid var(--line);
+/* The pane's results, then the selection's preview under them: separated
+   by space and one rule, never a box. */
+.kmresults, .detail__results { margin-bottom: 14px; }
+.detail__results + .detail__preview, .kmresults + .detail__preview {
+  border-top: 1px solid var(--line); padding-top: 12px;
 }
-/* One grid for every stop's verdict, so the stop names, the margins and the
-   limits line up in columns whatever width each verdict word's chip is. */
+/* One grid for every verdict, so the subjects, the margins and the limits
+   line up in columns whatever width each verdict word's chip is. Its
+   columns shrink and wrap inside the pane rather than widen it. */
 .kmhead__verdicts {
-  display: grid; grid-template-columns: repeat(5, max-content);
-  column-gap: 12px; row-gap: 4px; align-items: baseline; margin-bottom: 6px;
+  display: grid; grid-template-columns: max-content minmax(0, auto) max-content
+    minmax(0, auto) max-content;
+  column-gap: 10px; row-gap: 4px; align-items: baseline; margin-bottom: 6px;
   font-size: var(--t-dense);
 }
 .kmverdict { display: contents; }
 .kmverdict > .tvverdict { justify-self: start; }
 .kmverdict__limit { font-size: var(--t-meta); }
 .kmhead__driver { margin: 4px 0 10px; font-size: var(--t-meta); }
+/* Each stop's readout: the builder's numbers, a data row each. */
+.kmreadouts { border-collapse: collapse; font-size: var(--t-dense); margin: 0 0 12px; }
+.kmreadouts th {
+  text-align: left; color: var(--muted); font-size: var(--t-micro); font-weight: 600;
+  padding: 2px 10px 4px 0; border-bottom: 1px solid var(--line);
+  text-transform: none; letter-spacing: normal; vertical-align: bottom;
+}
+.kmreadouts td { padding: 3px 10px 3px 0; vertical-align: baseline; }
+.kmreadouts .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* The envelope chart. The SVG keeps its own pixel size up to the column's
    width and scales DOWN only, so its text lands at the token sizes below
    wherever there is room for it. */
-.kmchart { position: relative; margin: 0 0 18px; max-width: 760px; }
+.kmchart { position: relative; margin: 0 0 4px; max-width: 760px; }
 .kmchart__svg { display: block; width: 100%; height: auto; }
 .kmchart__grid { stroke: var(--line); stroke-width: 1; }
 .kmchart__frame { fill: none; stroke: var(--line); }
@@ -1540,6 +1539,15 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    (docs/DESIGN_TYPE_AND_COLOUR.md), and a band is data at rest. */
 .kmchart__worst { fill: var(--ink); fill-opacity: 0.1; }
 .kmchart__rss { fill: var(--ink); fill-opacity: 0.22; }
+/* A stop's travel band: on x, the same two fills at a lower alpha; across
+   it, the envelope carried on the stop's slope at the envelope's own. */
+.kmchart__band--worst { fill: var(--ink); fill-opacity: 0.05; }
+.kmchart__band--rss { fill: var(--ink); fill-opacity: 0.08; }
+.kmchart__region--worst { fill: var(--ink); fill-opacity: 0.1; }
+.kmchart__region--rss { fill: var(--ink); fill-opacity: 0.22; }
+.kmchart__bandlabel { fill: var(--muted); font-size: var(--t-micro); }
+.kmchart__note { margin: 0 0 12px; font-size: var(--t-meta); }
+.kmchart__notelink { color: inherit; }
 .kmchart__zero { stroke: var(--ink); stroke-width: 1.5; }
 .kmchart__limit { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 6 4; opacity: 0.7; }
 .kmchart__limitlabel { fill: var(--muted); font-size: var(--t-micro); }

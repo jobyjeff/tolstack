@@ -47,12 +47,11 @@
     </div>
     <!-- The 3D scene column (study_3d_flyout; a pane since 2026-10-20; a
          column since 2026-10-26, the_shell_seats_the_scene_beside_the_model):
-         nav | scene | DAG + grid, left to right. A NON-modal <dialog> kept
+         nav | scene | DAG + grid | results, left to right (the right-hand
+         pane stays open beside it since 2026-10-28). A NON-modal <dialog> kept
          for its open/close/`close`-event contract, laid out IN the page's
-         row like the nav beside it -- same background, no border at either
-         seam -- and while it is open on a topology or kinematic page the
-         preview pane stands down (body.flyout-replaces-detail), the scene's
-         own detail and the hover card answering for the edge. Its iframe is
+         row like the nav beside it -- same background, no border at its
+         seams. Its iframe is
          created lazily by topology_app.js on the first launch and kept
          across launches (the annotator's folder grant, loaded meshes and
          camera survive); it only ever renders where the same-origin probe
@@ -85,10 +84,6 @@
       </div>
     </dialog>
     <div class="tv__main">
-      <!-- A kinematic study's head (views/kinematic.js): its name and its
-           verdict per stop, ABOVE the model, so the verdicts are on screen
-           first; the rest of the page is #kinematicview, below the model. -->
-      <section id="kinematichead" class="kmhead" style="display: none"></section>
       <div id="toolbar" class="tv__toolbar"></div>
       <!-- The topology's own joint block (deliverable 4, viewer_v2_single_nav):
            the same free-form assembly/context prose a stack's carries,
@@ -98,8 +93,8 @@
       <div id="topojoint" class="tv__jointwrap"></div>
       <section id="topopane" class="tv__scroll"></section>
       <section id="stackview" class="stackview"></section>
-      <!-- A kinematic study's body (views/kinematic.js), under the model: the
-           envelope chart and the one contributor table. -->
+      <!-- A kinematic study's contributor table (views/kinematic.js), under
+           the model; its results are in #detail, the right-hand pane. -->
       <section id="kinematicview" class="kmview" style="display: none"></section>
       <section id="totals" class="tvtotals"></section>
     </div>
