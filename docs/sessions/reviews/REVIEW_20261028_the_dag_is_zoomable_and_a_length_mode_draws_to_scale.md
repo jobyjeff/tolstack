@@ -28,3 +28,11 @@ inline fixes.
 ## Notes
 - The lesson's "Verified" paths have a stray tab where `\t` met `C:\workspace\tolstack`
   (cosmetic; left as is).
+
+## Landing
+`integration` moved (other handoffs) before the landing; merging it conflicted in
+`scripts/guard_enumeration.mjs` only (`DECLARED_GUARDS`). Sides: HEAD = this handoff's pins
+(fast 599, browser 697/664, annotate 235); integration = others' pins (595 / 673/640 / 239).
+Resolution: the sum, re-derived from the census test's own output — fast 599, annotate 239,
+browser 699/666; `tests/test_mutation_witnesses.py` 44 passed. Post-merge: viewer fast tier
+598/598; `pytest -q` (deselecting the worktree-red viewer suite) 1590 passed, 1 skipped, 5m11s.
