@@ -7442,6 +7442,17 @@ async function testAnnotateRail(browser, label) {
       "real ones on real geometry", hit !== null);
     if (hit) {
       await page.mouse.click(hit.x, hit.y);
+      // Waited for on the effect, not sampled: the pick runs on the pointer's
+      // release and the tint lands after it, so a read straight after the
+      // click raced it -- red 2 runs in 3 on 2026-10-28 with nothing on the
+      // pick path changed (the_scene_pane_is_one_flyout_that_reads_over_http).
+      await page.waitForFunction((s) => {
+        const mesh = window.__scene.parts.get(s);
+        const live = mesh.geometry.attributes.color.array;
+        const base = mesh.userData.baseColors;
+        for (let i = 0; i < base.length; i++) if (live[i] !== base[i]) return true;
+        return false;
+      }, sha, { timeout: 2000 }).catch(() => {});
       push("a real click on the face tints it",
         await tinted() &&
         (await page.evaluate(() => window.__scene.highlightedFace())) !== null);
