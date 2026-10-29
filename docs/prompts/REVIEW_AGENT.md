@@ -5266,6 +5266,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261028_the_seam_dot_clip_lost_both_its_witnesses_…`). When a diff
       modifies or deletes a spec, check that the old `find` line is still some
       spec's target, and look for two specs with an identical `find`/`replace`.
+- [ ] **A RANKING projection whose `[real]` test asks only "≥ 1 candidate of
+      kind X".** New 2026-10-28 (`an_interface_suggests_the_faces_that_touch`).
+      The fixtures pinned each shape, and the live test checked that every ball
+      joint had *a* spherical candidate. Dropping the ball-convexity gate, the
+      coaxial-fallback filter, the interference bound or the own-occurrence
+      tie-break each stayed green. The first changed the **top pair on 3 of 4**
+      live ball joints. The cheap check: plant each gate's one-line mutation,
+      rebuild the projection into a tmp `--data-root`, and diff the top pairs
+      against the unmutated build
+      (`ISSUE_20261028_contact_suggestion_rules_that_pick_the_live_top_pair_are_unpinned.md`).
 
 ## Architectural errors to check
 
