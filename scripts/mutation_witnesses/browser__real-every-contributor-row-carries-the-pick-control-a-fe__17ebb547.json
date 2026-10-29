@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
       "note": "Without it nothing on the row resolves its alert.",
       "file": "apps/annotate/app.js",
-      "find": "    li.appendChild(pick);\n    if (selected === row.edge) li.classList.add(\"selected\");",
-      "replace": "    if (selected === row.edge) li.classList.add(\"selected\");"
+      "find": "    li.appendChild(pick);\n    appendPickNote(li, row.edge, topology);",
+      "replace": "    appendPickNote(li, row.edge, topology);"
     }
   ]
 }

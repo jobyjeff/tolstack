@@ -8,16 +8,16 @@
       "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
       "note": "Without it the goto still selects the study in the rail, so the rail half passes while the sweep keeps playing over the binding surface.",
       "file": "apps/annotate/app.js",
-      "find": "  // as-modelled pose sweep mode moves away from). leaveSweep restores the\n  // scene exactly and is a no-op outside sweep mode.\n  leaveSweep();\n",
-      "replace": "  // as-modelled pose sweep mode moves away from). leaveSweep restores the\n  // scene exactly and is a no-op outside sweep mode.\n"
+      "find": "    }\n  }\n  leaveSweepForBind();\n",
+      "replace": "    }\n  }\n"
     },
     {
       "contract": "An open pane follows the selection after every paint.",
       "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
-      "note": "The viewer-side half: a pane that never re-drives stays in sweep mode on the page the reader left. Re-pointed 2026-10-26: paint() now syncs the scene column between the toggle and the follow; the mutation is unchanged. Re-pointed 2026-10-27: paint() now ends with followSeam (the leaders across the seam); the mutation is unchanged.",
+      "note": "The viewer-side half: a pane that never re-drives stays in sweep mode on the page the reader left. Re-pointed 2026-10-26: paint() now syncs the scene column between the toggle and the follow; the mutation is unchanged. Re-pointed 2026-10-27: paint() now ends with followSeam (the leaders across the seam); the mutation is unchanged. Re-pointed 2026-10-28: a clicked study row now also re-drives through redrivePaneAfter, which masked the removed paint call; the mutation now stops followSelection driving at all, which is the same defect.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    syncSceneColumn();\n    followSelection();\n    followSeam();\n  }",
-      "replace": "    syncSceneColumn();\n    followSeam();\n  }"
+      "find": "    if (key !== paneFollowed || forced) {",
+      "replace": "    if (false) {"
     }
   ]
 }

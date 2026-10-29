@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "planSweepReturn keeps the run, the study and the SAME opened-by-sweep set, as a copy",
+  "mutations": [
+    {
+      "contract": "The return plan holds a copy of the opened-by-sweep set, not the live array.",
+      "issue": null,
+      "note": "Without it a later change to the sweep rewrites what the way back reloads.",
+      "file": "apps/annotate/commands.js",
+      "find": "      parts: (sweep.openedBySweep || []).slice(),",
+      "replace": "      parts: (sweep.openedBySweep || []),"
+    }
+  ]
+}

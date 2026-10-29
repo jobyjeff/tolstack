@@ -8,8 +8,8 @@
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
       "note": "The element list is the half of bind mode a binding needs; dropping it from the mirror leaves the parts and no way to pick an element.",
       "file": "apps/annotate/app.js",
-      "find": "    : [el.railFilter, el.elementList, el.partsPanel];",
-      "replace": "    : [el.railFilter, el.partsPanel];"
+      "find": "el.railFilter, el.elementList, el.partsPanel];",
+      "replace": "el.railFilter, el.partsPanel];"
     }
   ]
 }

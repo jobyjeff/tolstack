@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "planGotoRefusal: a part with no installed mesh is refused, naming the part",
+  "mutations": [
+    {
+      "contract": "A refusal for a part with no installed mesh names the part.",
+      "issue": null,
+      "note": "Without it the row says the joint names no part, which is false.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (plan.missingParts.length) {\n      return {\n        edgeId: edgeId, kind: \"no-mesh\"",
+      "replace": "    if (false) {\n      return {\n        edgeId: edgeId, kind: \"no-mesh\""
+    }
+  ]
+}

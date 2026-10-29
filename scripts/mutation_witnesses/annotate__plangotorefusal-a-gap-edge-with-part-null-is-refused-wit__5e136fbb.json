@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "planGotoRefusal: a gap edge with part null is refused, with the row's words and both end nodes to link",
+  "mutations": [
+    {
+      "contract": "A goto onto an edge that names no part is refused before it leaves sweep mode.",
+      "issue": null,
+      "note": "Without it the pick blanks the scene and strands the pane.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (shown.length) return null;",
+      "replace": "    if (shown.length || true) return null;"
+    }
+  ]
+}
