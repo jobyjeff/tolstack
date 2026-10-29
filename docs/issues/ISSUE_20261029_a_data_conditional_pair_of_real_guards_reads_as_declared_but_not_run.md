@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/mutation-witness
 reporter: agent
 class: data_conditional_guard_name_unpairable
