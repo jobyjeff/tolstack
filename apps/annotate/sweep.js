@@ -664,6 +664,30 @@
     return value.toFixed(dp);
   };
 
+  // The two figures a reader scrubs for, at the handle: the driver's value
+  // and the measure the run has a reference for (blade pitch, on the pitch
+  // linkage). One composition for both places they are shown -- the chip that
+  // rides the scrubber, and the folded bar's summary line (handoff the_scene_
+  // pane_is_one_flyout_that_reads_over_http, deliverable 5) -- so the two can
+  // never read differently. `measure` is null where the run names no
+  // reference measure, or the nearer point does not carry it.
+  AA.sweepHeadlineFigures = function (artifact, driverValues, index, frame) {
+    var driver = AA.indexToDriver(driverValues, index);
+    var referenced = artifact.reference && artifact.reference.measure;
+    var value = referenced && frame.nearer.measures[referenced];
+    return {
+      driver: {
+        label: artifact.driverLabel || "",
+        text: AA.formatSweepNumber(driver, artifact.driverUnit) + " " + (artifact.driverUnit || ""),
+      },
+      measure: value != null ? {
+        label: AA.measureLabel(referenced),
+        text: AA.formatSweepNumber(value, artifact.measureUnits[referenced]) + " " +
+          (artifact.measureUnits[referenced] || ""),
+      } : null,
+    };
+  };
+
   // The rows the bar renders at the current frame: {key, label, value, unit}.
   // `frame` is AA.sweepFrameAt's result; the numbers come from its NEARER
   // point, never from the interpolation (see sweepFrameAt's note).

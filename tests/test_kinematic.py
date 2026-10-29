@@ -1069,3 +1069,91 @@ def test_a_band_about_nominal_keeps_its_asymmetry_and_its_citation(tmp_path):
         0.0, pytest.approx(-0.2), pytest.approx(0.4))
     assert shifted.half_range == pytest.approx(source.half_range)
     assert shifted.source_ref is source.source_ref
+
+
+# --------------------------------------------------------------------------- #
+# 10. the annotator's served read set (handoff                                #
+#     the_scene_pane_is_one_flyout_that_reads_over_http)                      #
+# --------------------------------------------------------------------------- #
+
+def _read_set_tree(tmp_path: Path):
+    data = tmp_path / "data"
+    sweeps = data / "inbox" / "linkage-sweeps"
+    sweeps.mkdir(parents=True)
+    _sweep(sweeps / "run-old.json", "run-old", "2026-10-01T00:00:00Z", ["topo_a"])
+    _sweep(sweeps / "run-new.json", "run-new", "2026-10-02T00:00:00Z", None,
+           schema="linkage-sweep/v9")
+    (sweeps / "broken.json").write_text("{not json", encoding="utf-8")
+    meshes = data / "meshes"
+    (meshes / "bb").mkdir(parents=True)
+    (meshes / "bb" / "provenance.json").write_text(
+        json.dumps({"label": "Bolt", "part_id": "bolt_1"}), encoding="utf-8")
+    (meshes / "aa").mkdir()               # no sidecar: listed as itself
+    names = data / builder.PART_NAMES_PROJECTION
+    names.parent.mkdir(parents=True)
+    names.write_text(json.dumps({"parts": {"123": "bolt"}}), encoding="utf-8")
+    topologies = tmp_path / "topologies"
+    topologies.mkdir()
+    (topologies / builder.MESH_ALIASES_NAME).write_text(
+        json.dumps({"aliases": [{"part": "x", "part_id": "bolt_1"}]}), encoding="utf-8")
+    return data, topologies
+
+
+def test_the_read_set_lists_what_a_folder_walk_finds_and_copies_each_run_byte_for_byte(tmp_path):
+    """A static mount lists no directory, so the annotator reading over HTTP
+    gets the mesh list and the run list from this index -- answered the way
+    apps/annotate/storage/fsa.js's walk answers (every mesh directory, its
+    sidecar's label or its own name; every run file that parses, by its stem,
+    whatever its schema) -- and each run's bytes from the copy beside it."""
+    data, topologies = _read_set_tree(tmp_path)
+    out_dir = data / builder.PROJECTION_SUBDIR
+    stale = out_dir / builder.ANNOTATE_SWEEPS_SUBDIR / "gone.json"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("{}", encoding="utf-8")
+    written = builder.write_annotate_read_set(out_dir, topologies, data,
+                                              {"built_at": "fixture"})
+    index = json.loads((out_dir / builder.ANNOTATE_READ_SET_NAME).read_text(encoding="utf-8"))
+    assert written[0] == out_dir / builder.ANNOTATE_READ_SET_NAME
+    assert index["schema"] == builder.SCHEMA_ANNOTATE_READ_SET
+    assert index["meshes"] == [{"sha256": "aa", "label": "aa", "part_id": None},
+                               {"sha256": "bb", "label": "Bolt", "part_id": "bolt_1"}]
+    assert index["mesh_aliases"] == {"aliases": [{"part": "x", "part_id": "bolt_1"}]}
+    assert index["part_names"] == {"parts": {"123": "bolt"}}
+    assert index["sweep_runs"] == [
+        {"run_id": "run-new", "ts": "2026-10-02T00:00:00Z", "mechanism": "mech_run-new"},
+        {"run_id": "run-old", "ts": "2026-10-01T00:00:00Z", "mechanism": "mech_run-old"},
+    ]
+    copies = sorted(p.name for p in (out_dir / builder.ANNOTATE_SWEEPS_SUBDIR).glob("*.json"))
+    assert copies == ["run-new.json", "run-old.json"]      # the stale copy is wiped
+    src = data / "inbox" / "linkage-sweeps" / "run-old.json"
+    assert (out_dir / builder.ANNOTATE_SWEEPS_SUBDIR / "run-old.json").read_bytes() == src.read_bytes()
+
+
+def test_an_empty_data_root_publishes_an_empty_read_set(tmp_path):
+    """No meshes, no runs, no names: the ordinary first-run state, written as
+    such rather than refused -- the annotator then reads no parts and no runs."""
+    out_dir = tmp_path / "data" / builder.PROJECTION_SUBDIR
+    builder.write_annotate_read_set(out_dir, tmp_path / "none", tmp_path / "data",
+                                    {"built_at": "fixture"})
+    index = json.loads((out_dir / builder.ANNOTATE_READ_SET_NAME).read_text(encoding="utf-8"))
+    assert (index["meshes"], index["sweep_runs"], index["mesh_aliases"],
+            index["part_names"]) == ([], [], None, None)
+
+
+def test_the_annotators_config_names_the_read_set_the_builder_writes():
+    """apps/annotate/storage/http.js reads the read set at the paths its config
+    names, relative to the directory the served mount publishes -- which is the
+    builder's projection dir's parent, the one drawing-checker serves."""
+    annotate = (REPO_ROOT / "apps" / "annotate" / "config.js").read_text(encoding="utf-8")
+
+    def line(key, parts):
+        return f"{key}: [" + ", ".join(f'"{x}"' for x in parts) + "]"
+
+    served = ("data",) + builder.PROJECTION_SUBDIR.parent.parts
+    assert line("servedDataDir", served) in annotate
+    kin = ("data",) + builder.PROJECTION_SUBDIR.parts
+    assert line("annotateReadSet", kin + (builder.ANNOTATE_READ_SET_NAME,)) in annotate
+    assert line("annotateSweepsDir", kin + (builder.ANNOTATE_SWEEPS_SUBDIR,)) in annotate
+    # The names the index copies are the files the folder walk reads.
+    assert line("partNamesProjection", ("data",) + builder.PART_NAMES_PROJECTION.parts) in annotate
+    assert f'"{builder.MESH_ALIASES_NAME}"]' in annotate

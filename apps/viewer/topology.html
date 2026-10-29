@@ -20,11 +20,6 @@
          projection and does no arithmetic. -->
     <span class="sub">read-only · renders the built projections · computes nothing</span>
     <span class="topbar__spacer"></span>
-    <!-- Opens the 3D pane on whatever is selected, and closes it. Hidden until
-         the mount probe finds the annotator served beside this page
-         (topology_app.js's syncPaneToggle): absent, it shows nothing. -->
-    <button id="pane-toggle" class="ghost" aria-pressed="false" style="display: none"
-            title="show the selection in 3D beside the page">3D</button>
     <button id="legend-toggle" class="ghost">How to read this</button>
     <button id="worksheet-toggle" class="ghost">Show worksheet</button>
   </div>
@@ -38,6 +33,18 @@
          pickers and the separate stack rail both retired into this one
          element. -->
     <nav id="navtree" class="navtree"></nav>
+    <!-- THE ONE HANDLE (handoff the_scene_pane_is_one_flyout_that_reads_over_
+         http, deliverable 4): a slim tab on the seam between the nav and the
+         model that opens the 3D pane on whatever is selected. Hidden while the
+         pane is open (its divider's chevron closes it) and wherever the mount
+         probe did not find the annotator served beside this page
+         (topology_app.js's syncPaneHandle): absent, it shows nothing. It
+         replaced the head's "3D" button and the pane's own Close button. -->
+    <div class="panehandle">
+      <button id="pane-handle" class="panehandle__tab" style="display: none"
+              title="show the selection in 3D beside the page"
+              aria-label="show the selection in 3D beside the page">3D</button>
+    </div>
     <!-- The 3D scene column (study_3d_flyout; a pane since 2026-10-20; a
          column since 2026-10-26, the_shell_seats_the_scene_beside_the_model):
          nav | scene | DAG + grid, left to right. A NON-modal <dialog> kept
@@ -62,13 +69,20 @@
         <!-- The annotator's own one-line answer to what it is showing
              (annotate:state); these resting words until it answers. -->
         <h2 id="flyout-title">3D</h2>
+        <!-- What the annotator can read and write here, as a dot and one word
+             (annotate:status; the sentence on hover). Hidden until it says. -->
+        <span id="flyout-status" class="flyout__status" style="display: none"></span>
         <a id="flyout-fullpage" class="flyout__fullpage" target="_blank" rel="noopener"
-           title="open the whole annotator, with its own menus, in a new tab">Open full page ↗</a>
-        <button id="flyout-close" class="ghost">Close</button>
+           title="open the whole annotator, with its own menus, in a new tab"
+           aria-label="open the whole annotator in a new tab">↗</a>
       </div>
       <div id="flyout-divider" class="flyout__divider" role="separator"
            aria-orientation="vertical" tabindex="0"
-           title="drag to resize the 3D panel (or use the arrow keys)"></div>
+           title="drag to resize the 3D panel (or use the arrow keys)">
+        <!-- The pane's one close control, on the seam it opened from. -->
+        <button id="flyout-collapse" class="flyout__collapse"
+                title="close the 3D panel" aria-label="close the 3D panel">‹</button>
+      </div>
     </dialog>
     <div class="tv__main">
       <!-- A kinematic study's head (views/kinematic.js): its name and its

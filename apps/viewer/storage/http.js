@@ -45,9 +45,19 @@
 (function (VA) {
   "use strict";
 
+  // `meshesDir` and `identityFile` are read by apps/annotate only (its
+  // storage/http.js wraps this adapter, handoff the_scene_pane_is_one_flyout_
+  // that_reads_over_http): where the tessellated meshes are served -- drawing-
+  // checker mounts `data/meshes/` INSIDE its data mount's URL space, a repo-
+  // root server reaches it two levels up -- and where the feature-identity
+  // projection is, which no drawing-checker mount serves (null: absent, the
+  // ordinary "nothing bound" reading).
   var CANDIDATES = [
-    { name: "sibling-data-mount", dataDir: "../data", textDir: null, rebuildDir: "../rebuild" },
-    { name: "repo-root-static", dataDir: "../../data/projections/viewer", textDir: "../..", rebuildDir: null },
+    { name: "sibling-data-mount", dataDir: "../data", textDir: null, rebuildDir: "../rebuild",
+      meshesDir: "../data/meshes", identityFile: null },
+    { name: "repo-root-static", dataDir: "../../data/projections/viewer", textDir: "../..", rebuildDir: null,
+      meshesDir: "../../data/meshes",
+      identityFile: "../../data/projections/feature-identity/bindings.json" },
   ];
 
   // Resolve a `../`-relative path against the PAGE's own directory, exactly
@@ -194,6 +204,52 @@
     if (res.status === 404) return null;
     if (!res.ok) throw new Error("GET " + name + " failed: " + res.status);
     return VA.parseJson(await res.text());
+  };
+
+  // Generic reads for a sibling app on the same served roots (apps/annotate's
+  // storage/http.js; the viewer's own views never call them). Same contract as
+  // _readProjection: 404 is absence (null), any other failure rejects.
+  //
+  //   readDataJson(rel)    -- a JSON file under the candidate's data dir.
+  //   readMeshJson(rel)    -- a JSON file under its meshes dir.
+  //   readMeshBytes(rel)   -- raw bytes under its meshes dir. A response that
+  //                           calls itself HTML is ABSENT, not bytes: a
+  //                           catch-all route answers 200 + the site index for
+  //                           any path, and those bytes read as a mesh would
+  //                           draw garbage rather than nothing.
+  //   readIdentityProjection() -- the feature-identity projection where this
+  //                           candidate serves one, else null.
+  HttpAdapter.prototype.readDataJson = function (rel) {
+    return this._readProjection(String(rel));
+  };
+
+  HttpAdapter.prototype._readUnder = async function (relative) {
+    VA.requireReady(this);
+    var res = await this._fetch(this._url(relative), { cache: "no-store" });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error("GET " + relative + " failed: " + res.status);
+    return res;
+  };
+
+  HttpAdapter.prototype.readMeshJson = async function (rel) {
+    var res = await this._readUnder(this._candidate.meshesDir + "/" + String(rel));
+    return res ? VA.parseJson(await res.text()) : null;
+  };
+
+  HttpAdapter.prototype.readMeshBytes = async function (rel) {
+    var res = await this._readUnder(this._candidate.meshesDir + "/" + String(rel));
+    if (!res) return null;
+    var ct = (res.headers && typeof res.headers.get === "function"
+      && res.headers.get("content-type")) || "";
+    if (ct.toLowerCase().indexOf("html") !== -1) return null;
+    return res.arrayBuffer();
+  };
+
+  HttpAdapter.prototype.readIdentityProjection = async function () {
+    VA.requireReady(this);
+    if (!this._candidate.identityFile) return null;
+    var res = await this._readUnder(this._candidate.identityFile);
+    return res ? VA.parseJson(await res.text()) : null;
   };
 
   // A HEAD is enough proof of presence — this adapter never decodes pixels,

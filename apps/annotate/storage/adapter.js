@@ -94,15 +94,17 @@
   // surfaces_that_state_something_false, applying viewer_transport_honest_
   // hosted's posture here).
   //
-  // Annotate hands it `http: null` -- it has no HTTP read transport at all
-  // (ISSUE_20260910_annotate_has_no_http_read_transport), so the whole of the
-  // decision here is *is this page local to the reader?*: a loopback server
-  // gets the picker, a hosted origin gets AA.HOSTED_NOTICE and no control.
-  // The hostname IS passed, unlike the viewer's page: this app has no file://
-  // story at all (File System Access and a mesh-binary fetch both need a real
-  // origin -- see storage/fsa.js and the README's "Run it"), so a loopback
-  // server is its ONLY legitimate local page, and the protocol alone would
-  // leave it with no way in on any origin.
+  // Annotate hands it its HTTP read adapter (storage/http.js, since handoff
+  // the_scene_pane_is_one_flyout_that_reads_over_http) as the `http`
+  // candidate, tried first: a served origin that publishes the projections is
+  // read with no grant at all, local or hosted. Only when that probe finds
+  // nothing does the old question decide -- *is this page local to the
+  // reader?*: a loopback server gets the picker, a hosted origin gets
+  // AA.HOSTED_NOTICE and no control. The hostname IS passed, unlike the
+  // viewer's page: this app has no file:// story at all (File System Access
+  // and a mesh-binary fetch both need a real origin -- see storage/fsa.js and
+  // the README's "Run it"), so a loopback server is its ONLY legitimate local
+  // page, and the protocol alone would leave it with no way in on any origin.
   AA.chooseTransport = function (opts) {
     opts = opts || {};
     var viewer = window.ViewerApp;
@@ -116,7 +118,7 @@
     return viewer.chooseTransport({
       protocol: opts.protocol,
       hostname: opts.hostname,
-      http: null,
+      http: opts.http || null,
       fsa: opts.fsa,
     });
   };
@@ -162,8 +164,50 @@
   // loaded by the fast tier (ES module, document, WebGL) -- a constant is
   // what lets run_tests.cjs assert on the copy at all.
   AA.NO_PROJECTION_NOTICE =
-    "No topology projection in the connected folder. It is built in the " +
+    "No topology projection to read yet. It is built in the " +
     "tolerance-stack repository, not from this page.";
+
+  // What a bind says on a page that reads over HTTP and has no folder to
+  // write to -- a hosted origin, or a browser with no File System Access API
+  // (storage/http.js throws it). One line, said when the reader presses the
+  // control, never standing on the surface beforehand.
+  AA.READ_ONLY_WRITE =
+    "Binding is not available here — it writes into a copy of the " +
+    "tolerance-stack repository on your own machine.";
+
+  // The pane's status: a dot and one word in the viewer's pane header, the
+  // sentence on hover (handoff the_scene_pane_is_one_flyout_that_reads_over_
+  // http, deliverable 2). The shell prints `word` and `sentence` verbatim and
+  // colours the dot by `tone` -- one of AA.PANE_STATUS_TONES, each of which
+  // apps/viewer/topology.css styles (run_tests.cjs pairs the two) -- so it
+  // keeps no copy of any of them. Chosen by AA.paneStatus below.
+  AA.PANE_STATUS_TONES = Object.freeze(["ok", "warn", "quiet"]);
+  AA.PANE_STATUS = Object.freeze({
+    live: Object.freeze({ word: "live", tone: "ok",
+      sentence: "Reading the published data; binds are written to the folder you connected." }),
+    folderNeeded: Object.freeze({ word: "folder needed", tone: "warn",
+      sentence: "Reading the published data; the first bind asks for the tolerance-stack folder." }),
+    readOnly: Object.freeze({ word: "read-only", tone: "quiet",
+      sentence: "Reading the published data; binding needs the repository on your own machine." }),
+    folder: Object.freeze({ word: "live", tone: "ok",
+      sentence: "Reading and writing the tolerance-stack folder you connected." }),
+    unread: Object.freeze({ word: "folder needed", tone: "warn",
+      sentence: "Nothing is read until the tolerance-stack folder is connected." }),
+  });
+
+  // Which of those a page is in: `served` -- it reads over HTTP; `canWrite`
+  // -- a folder could be granted here; `granted` -- one has been.
+  AA.paneStatus = function (served, canWrite, granted) {
+    if (granted) return served ? AA.PANE_STATUS.live : AA.PANE_STATUS.folder;
+    if (!served) return AA.PANE_STATUS.unread;
+    return canWrite ? AA.PANE_STATUS.folderNeeded : AA.PANE_STATUS.readOnly;
+  };
+
+  // Did the decision come back "read over HTTP"? Read off the shared
+  // vocabulary in one place, like AA.isHosted.
+  AA.isServed = function (picked) {
+    return !!picked && picked.kind === window.ViewerApp.TRANSPORT.HTTP;
+  };
 
   AA.requireReady = function (adapter) {
     if (adapter.getState() !== AA.STATE.READY) {

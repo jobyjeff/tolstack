@@ -17,7 +17,13 @@ tolerance sensitivities; this script runs it over every
 * ``<data-root>/projections/viewer/kinematic/<study id>.svg`` -- the evidence
   plot: deviation from nominal versus driver value, worst-case band shaded, RSS
   band inside it, the stops marked with their worst-case numbers, the limit
-  drawn where a check has one.
+  drawn where a check has one;
+* ``<data-root>/projections/viewer/kinematic/annotate.json`` and
+  ``.../kinematic/sweeps/<run>.json`` -- the annotator's served read set
+  (schema ``joby.tolerance_stack/annotate_read_set/v0``): the installed meshes,
+  the part-mesh alias table, the part names and the published runs as an
+  index, and each run byte for byte -- what a page reading over HTTP cannot
+  find by walking a folder (see ``SCHEMA_ANNOTATE_READ_SET``).
 
 Where it lands, and who reads it
 --------------------------------
@@ -77,6 +83,7 @@ import argparse
 import json
 import math
 import re
+import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
@@ -113,6 +120,27 @@ STYLESHEET = REPO_ROOT / "apps" / "viewer" / "style.css"
 BUILT_BY = "scripts/build_kinematic_projection.py"
 DEFAULT_DRAWING_CHECKER_ROOT = Path(r"C:\workspace\drawing-checker")
 DRAWINGS_SUBDIR = Path("data") / "inbox" / "drawings"
+
+#: The annotator's served read set (handoff
+#: ``the_scene_pane_is_one_flyout_that_reads_over_http``), written beside the
+#: projection because this directory is the one drawing-checker serves (and
+#: its hosted bake copies) as ``/tolstack/data/kinematic/``. A static mount
+#: lists no directory, so what the annotator finds by WALKING a folder grant
+#: -- the installed meshes, the published sweep runs -- has to be written down
+#: for a page reading over HTTP; and what it reads from outside
+#: ``projections/viewer/`` -- the alias table, the part names -- is carried in
+#: the same index, since no mount reaches it. ``apps/annotate/storage/http.js``
+#: is the one reader; ``apps/annotate/config.js`` names both paths, paired by
+#: ``tests/test_kinematic.py``. Built here rather than by a builder of its own:
+#: this is the one leg that already reads the sweep inbox, and it runs last on
+#: the rebuild rail, after the part names it copies.
+SCHEMA_ANNOTATE_READ_SET = "joby.tolerance_stack/annotate_read_set/v0"
+ANNOTATE_READ_SET_NAME = "annotate.json"
+ANNOTATE_SWEEPS_SUBDIR = "sweeps"
+MESHES_SUBDIR = Path("meshes")
+MESH_PROVENANCE_NAME = "provenance.json"
+MESH_ALIASES_NAME = "part_mesh_aliases.json"
+PART_NAMES_PROJECTION = Path("projections") / "parts" / "names.json"
 
 #: A study row's outcome. An error is a **result**, exactly as in the topology
 #: projection: a study that refuses to load (a missing run, a label the sweep
@@ -394,6 +422,92 @@ def build(topologies_dir: Path, data_root: Path,
     }
 
 
+def _read_json_or_none(path: Path) -> Optional[Any]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def served_meshes(data_root: Path) -> List[Dict[str, Any]]:
+    """Every ``data/meshes/<sha256>/`` directory, as the annotator's folder
+    walk lists it (``apps/annotate/storage/fsa.js``'s ``listMeshes``): the
+    directory name, and the provenance sidecar's ``label`` and ``part_id``
+    where it has one -- the name and ``None`` where it does not, exactly as
+    that walk answers, so the two transports list the same parts."""
+    meshes_dir = data_root / MESHES_SUBDIR
+    if not meshes_dir.is_dir():
+        return []
+    out = []
+    for entry in sorted(meshes_dir.iterdir()):
+        if not entry.is_dir():
+            continue
+        provenance = _read_json_or_none(entry / MESH_PROVENANCE_NAME)
+        provenance = provenance if isinstance(provenance, dict) else None
+        out.append({"sha256": entry.name,
+                    "label": provenance.get("label") if provenance else entry.name,
+                    "part_id": provenance.get("part_id") if provenance else None})
+    return out
+
+
+def served_sweep_runs(data_root: Path) -> List[Dict[str, Any]]:
+    """Every ``data/inbox/linkage-sweeps/*.json`` that parses, as the
+    annotator's run listing names it (``AA.sweepRunEntry``): the file's stem,
+    and the run's own ``ts`` and mechanism name. Every schema, not only the
+    ones this repo folds -- the annotator refuses a run it cannot read in its
+    own words, and a folder grant lists them all."""
+    runs = []
+    for path in sorted((data_root / LINKAGE_SWEEPS_SUBDIR).glob("*.json")):
+        raw = _read_json_or_none(path)
+        if not isinstance(raw, dict):
+            continue
+        mechanism = raw.get("mechanism") if isinstance(raw.get("mechanism"), dict) else {}
+        runs.append({"run_id": path.stem,
+                     "ts": raw.get("ts") if isinstance(raw.get("ts"), str) else None,
+                     "mechanism": mechanism.get("name") or None,
+                     "source": path})
+    return runs
+
+
+def annotate_read_set(topologies_dir: Path, data_root: Path,
+                      provenance: Dict[str, Any],
+                      runs: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    """The index the annotator reads over HTTP. Copies, never derivations:
+    each field is what the folder grant would have read from its own file."""
+    return {
+        "schema": SCHEMA_ANNOTATE_READ_SET,
+        "built_at": provenance["built_at"],
+        "built_by": BUILT_BY,
+        prov.PROVENANCE_KEY: provenance,
+        "meshes": served_meshes(data_root),
+        "mesh_aliases": _read_json_or_none(topologies_dir / MESH_ALIASES_NAME),
+        "part_names": _read_json_or_none(data_root / PART_NAMES_PROJECTION),
+        "sweep_runs": [{k: run[k] for k in ("run_id", "ts", "mechanism")} for run in runs],
+    }
+
+
+def write_annotate_read_set(out_dir: Path, topologies_dir: Path, data_root: Path,
+                            provenance: Dict[str, Any]) -> List[Path]:
+    """Wipe-and-write the read set: the index, and each run byte for byte
+    under ``sweeps/`` (the annotator's schema reader checks it, as it does a
+    run read through a folder grant). Returns what it wrote."""
+    runs = served_sweep_runs(data_root)
+    sweeps_dir = out_dir / ANNOTATE_SWEEPS_SUBDIR
+    sweeps_dir.mkdir(parents=True, exist_ok=True)
+    for old in sweeps_dir.glob("*.json"):
+        old.unlink()
+    written = []
+    for run in runs:
+        target = sweeps_dir / f"{run['run_id']}.json"
+        shutil.copyfile(run["source"], target)
+        written.append(target)
+    index = out_dir / ANNOTATE_READ_SET_NAME
+    index.write_text(json.dumps(annotate_read_set(topologies_dir, data_root, provenance, runs),
+                                indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    written.insert(0, index)
+    return written
+
+
 def unbuilt_report(projection: Dict[str, Any]) -> List[str]:
     """The lines that END a build's output: how many studies built, and each
     one that did not, with its reason.
@@ -603,7 +717,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                        Path(args.drawing_checker_root))
     tokens = viewer_tokens()
 
-    # Wipe-and-rebuild this script's own files only: the JSON and its SVGs.
+    # Wipe-and-rebuild this script's own files only: the JSON and its SVGs
+    # (and, below, the annotator's read set).
     out_dir.mkdir(parents=True, exist_ok=True)
     for old in out_dir.glob("*.svg"):
         old.unlink()
@@ -612,6 +727,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_path.write_text(json.dumps(projection, indent=2, ensure_ascii=False) + "\n",
                         encoding="utf-8")
     print(f"wrote {out_path}")
+    written = write_annotate_read_set(out_dir, topologies_dir, data_root, provenance)
+    print(f"wrote {written[0]} (+{len(written) - 1} sweep run(s) under "
+          f"{out_dir / ANNOTATE_SWEEPS_SUBDIR})")
     for row in projection["studies"]:
         if row["status"] != "ok":
             print(f"  {row['id']}: {row['error']['type']}: {row['error']['message']}")

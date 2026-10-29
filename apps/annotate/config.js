@@ -33,6 +33,15 @@
     // that study. Absent is fine: the rail's contributor group is then absent.
     // tests/test_kinematic.py pairs this line with the builder's constants.
     kinematicProjection: ["data", "projections", "viewer", "kinematic", "kinematic_studies.json"],
+    // What a page reading over HTTP reads instead of walking a folder (handoff
+    // the_scene_pane_is_one_flyout_that_reads_over_http): the directory a
+    // served mount publishes, and under it the read set the kinematic builder
+    // writes -- an index (meshes, aliases, part names, runs) and each run byte
+    // for byte. storage/http.js reads them relative to `servedDataDir`.
+    // tests/test_kinematic.py pairs these lines with the builder's constants.
+    servedDataDir: ["data", "projections", "viewer"],
+    annotateReadSet: ["data", "projections", "viewer", "kinematic", "annotate.json"],
+    annotateSweepsDir: ["data", "projections", "viewer", "kinematic", "sweeps"],
     featureIdentityEventsDir: ["data", "inbox", "feature-identity"],
     featureIdentityProjection: ["data", "projections", "feature-identity", "bindings.json"],
 
