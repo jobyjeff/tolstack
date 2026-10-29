@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: contact-suggestions
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_an_agent_proposes_a_face_binding_and_a_human_ratifies_it.md
+class: contact_engine_ignores_end_geometry
+handoff: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
 ---
 
 # The contact engine ranks a ball's cylindrical seat without the seat's radius, and the drawing refutes its top two pitch-plate bores

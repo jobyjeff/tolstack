@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: scripts/build_kinematic_projection.py (annotator read set)
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
+class: silent_empty_result
+defer_until: 2026-11-12
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
 ---
 
 # The annotator's served read set turns an unreadable file into an absent one, where the folder walk it copies refuses

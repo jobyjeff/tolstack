@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: apps/annotate (binding state), feature-identity inbox
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_an_agent_proposes_a_face_binding_and_a_human_ratifies_it.md
+class: stale_artifact
+defer_until: 2026-11-12
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
 ---
 
 # Until the batch merge, trunk's annotator labels the 33 proposed rows "owner not in set"

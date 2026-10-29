@@ -1,11 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/mutation-witness
 reporter: agent
 class: data_conditional_guard_name_unpairable
-found_by: dispatch triage sweep 2026-10-29 batch merge (tolstack 798774eb -> 8a2ae880)
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261029_triage_sweep.md
 handoff: docs/sessions/HANDOFF_20261029_a_guard_whose_name_depends_on_live_data_pairs_with_the_scan.md
 ---
 

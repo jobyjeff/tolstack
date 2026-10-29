@@ -1,9 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer
 reporter: agent
+class: gated_tier_not_run_by_the_handoff_that_changed_its_subject
+defer_until: 2026-11-28
+resolution: triage 2026-10-29: low, deferred by default (30 days)
 ---
 
 # The two new study-group browser witnesses were never proven NOT-red-before-mutation

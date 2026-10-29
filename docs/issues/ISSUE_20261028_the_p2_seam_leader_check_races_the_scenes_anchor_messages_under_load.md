@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261028_the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below.md
+class: timing_assertion_under_load
+handoff: docs/sessions/HANDOFF_20261029_viewer_browser_checks_wait_on_settled_state.md
 ---
 
 # The P2 seam-leader check races the scene's anchor messages under load

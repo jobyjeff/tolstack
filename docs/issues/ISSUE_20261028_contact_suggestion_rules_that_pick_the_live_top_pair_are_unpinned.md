@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: contact-suggestions
 reporter: agent
 class: geometric_deliverable_pinned_only_where_a_pure_function
 found_by: docs/sessions/HANDOFF_20261028_an_interface_suggests_the_faces_that_touch.md
+defer_until: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
+resolution: triage 2026-10-29: med beyond the budget; deferred onto the_contact_engine_asks_the_ends_what_shape_they_are, whose engine changes this issue's premise
 ---
 
 # Four contact-suggestion rules change the live linkage's answer and no test sees them

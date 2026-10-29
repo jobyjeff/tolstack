@@ -6,8 +6,8 @@ area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
 class: unowned_followup
-defer_until: 2026-10-29
-resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap. | woke 2026-10-15 -- date trigger passed; re-triage; re-deferred 2026-10-15 (triage) -- med beyond BUDGET=3; row 4's measured placement instance is taken by HANDOFF_20261015_annotate_gated_browser_suites_follow_the_three_part_mock, the general gate gap is not
+defer_until: 2026-11-12
+resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap. | woke 2026-10-15 -- date trigger passed; re-triage; re-deferred 2026-10-15 (triage) -- med beyond BUDGET=3; row 4's measured placement instance is taken by HANDOFF_20261015_annotate_gated_browser_suites_follow_the_three_part_mock, the general gate gap is not -- woke 2026-10-29 -- date trigger passed; re-triage -- triage 2026-10-29: med beyond the budget (3 staged), deferred again 14 days to 2026-11-12
 ---
 
 # Four things sweep mode leaves behind, each with the site it reaches

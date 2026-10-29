@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: kinematic study / travel between end stops
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md
+class: band_attributed_to_the_wrong_member
+defer_until: 2026-11-12
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
 ---
 
 # Both end stops carry the full travel band, and the travel study's nominal is not the sweep's stop

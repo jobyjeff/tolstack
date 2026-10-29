@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: apps/annotate (HTTP transport) / drawing-checker mounts
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
+class: pulled_and_unwired
+defer_until: 2026-11-28
+resolution: triage 2026-10-29: low, deferred by default (30 days)
 ---
 
 # The served annotator reads no bindings: no mount serves the feature-identity projection

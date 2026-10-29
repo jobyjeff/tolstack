@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: scripts/run_viewer_browser_tests.mjs (annotate flyout suite)
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
+class: timing_assertion_under_load
+handoff: docs/sessions/HANDOFF_20261029_viewer_browser_checks_wait_on_settled_state.md
 ---
 
 # "[real] the whole live drawing is clear of the panel" measures before the column settles, and its red takes nine witnesses with it

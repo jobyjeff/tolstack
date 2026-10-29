@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: contact-suggestions
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261028_an_interface_suggests_the_faces_that_touch.md
+class: contact_engine_ignores_end_geometry
+defer_until: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
+resolution: triage 2026-10-29: med beyond the budget; deferred onto the_contact_engine_asks_the_ends_what_shape_they_are, whose engine changes this issue's premise
 ---
 
 # Contact suggestions cannot say which blade a topology edge means, and on a part shared by every blade the faces differ per blade

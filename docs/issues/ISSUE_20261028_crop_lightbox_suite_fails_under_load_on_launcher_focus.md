@@ -1,9 +1,11 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: viewer/browser-tier
 reporter: agent
+class: timing_assertion_under_load
+handoff: docs/sessions/HANDOFF_20261029_viewer_browser_checks_wait_on_settled_state.md
 ---
 
 # The crop-lightbox browser suite fails under load: "the launcher takes keyboard focus"

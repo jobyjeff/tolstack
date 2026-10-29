@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/topology pane
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md
+class: dead_code_after_refactor
+defer_until: 2026-11-28
+resolution: triage 2026-10-29: low, deferred by default (30 days)
 ---
 
 # The bounded DAG pane is dead code since the kinematic results moved to the right-hand pane

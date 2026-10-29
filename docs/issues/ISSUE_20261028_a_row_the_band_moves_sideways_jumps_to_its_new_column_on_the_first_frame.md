@@ -1,10 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261028_the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below.md
+class: unreviewed_design_debt
+defer_until: 2026-11-28
+resolution: triage 2026-10-29: low, deferred by default (30 days)
 ---
 
 # A row the band moves sideways jumps to its new column on the first frame

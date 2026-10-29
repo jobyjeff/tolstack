@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests
 reporter: agent
 class: suite_over_budget
 found_by: docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md
+defer_until: 2026-11-28
+resolution: triage 2026-10-29: low, deferred by default (30 days)
 ---
 
 # A witness gate recorded over budget counts the time it waited for the browser slot

@@ -1,13 +1,14 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tests
 reporter: agent
 class: timing_assertion_under_load
 defer_until: class:timing_assertion_under_load
 resolution: triage 2026-10-28 -- low, deferred by default onto the class program (forge browser_runner_close_paths_survive_a_loaded_box); same shape as the forge/wiki/atp-post load reds -- woke 2026-10-28 -- browser_runner_close_paths_survive_a_loaded_box completed; re-triage
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261028_triage_sweep.md
+handoff: docs/sessions/HANDOFF_20261029_viewer_browser_checks_wait_on_settled_state.md
 ---
 
 # Two browser suites failed in the full run under load and passed when re-run alone

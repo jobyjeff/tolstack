@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tests/mutation-witnesses (browser, 3D pane suite)
 class: decayed_witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
+defer_until: 2026-11-12
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
 ---
 
 # The contributor-row highlight witness aborts its suite before reaching its check

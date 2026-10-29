@@ -1,9 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer
 reporter: agent
+class: unreviewed_design_debt
+defer_until: 2026-11-28
+resolution: triage 2026-10-29: low, deferred by default (30 days)
 ---
 
 # Lit joint glyph vs `rail__glyphbg` disc contrast was reasoned, not measured

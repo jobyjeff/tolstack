@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/kinematic chart
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md
+class: unreviewed_design_debt
+defer_until: 2026-11-28
+resolution: triage 2026-10-29: low, deferred by default (30 days)
 ---
 
 # A stop's travel band is a few pixels wide on the whole sweep's axis

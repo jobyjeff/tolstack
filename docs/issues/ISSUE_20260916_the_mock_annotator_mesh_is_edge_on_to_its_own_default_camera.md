@@ -6,7 +6,8 @@ area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_flyout_resize_annotator_filter_and_deselect.md
 class: fixture_never_checked_against_the_view_that_renders_it
-defer_until: 2026-10-29
+defer_until: 2026-11-28
+resolution: woke 2026-10-29 -- date trigger passed; re-triage -- triage 2026-10-29: still low, deferred again by default to 2026-11-28
 ---
 
 # The annotator's `?mock=1` demo mesh renders as a hairline — it is edge-on to the camera that frames it

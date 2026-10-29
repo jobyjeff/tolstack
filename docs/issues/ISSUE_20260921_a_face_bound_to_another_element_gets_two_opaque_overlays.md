@@ -6,7 +6,8 @@ area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260921_annotate_face_suggestions.md
 class: dedup_key_omits_a_relational_dimension
-defer_until: 2026-10-29
+defer_until: 2026-11-28
+resolution: woke 2026-10-29 -- date trigger passed; re-triage -- triage 2026-10-29: still low, deferred again by default to 2026-11-28
 ---
 
 # design: a face bound to a DIFFERENT element gets both a bound mark and a suggestion overlay, on the same face

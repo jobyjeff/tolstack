@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: apps/annotate (model layer anchors, browser check)
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
+class: decayed_witness
+defer_until: 2026-11-12
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
 ---
 
 # Two mock-scene anchor checks in `apps/annotate/run_browser_check.mjs` are red on integration
