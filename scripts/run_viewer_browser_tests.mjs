@@ -4215,7 +4215,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       }).length;
       return {
         bounded: pane.classList.contains("tv__scroll--bounded") ||
-          pane.scrollHeight > pane.clientHeight + 1,
+          /auto|scroll/.test(getComputedStyle(pane).overflowY),
         paneTop: pr.top, paneBottom: pr.bottom,
         litTop: Math.min(...lit.map((b) => b.top)),
         litBottom: Math.max(...lit.map((b) => b.bottom)),

@@ -406,28 +406,33 @@ has not been built.
   hosted bundle with no change on drawing-checker's side. Its `models` list is
   what the model rows come from: per topology, the runs whose
   `geometry.features[]` name it, newest first by timestamp.
-- **A study row** opens the study's page (`views/kinematic.js`), in the main
-  column, with the preview pane beside it as on every topology page: the
-  verdict per stop (the chain studies' own verdict chip and words, its margin
-  and the limit it is judged against, and `BUDGET` where the check is a
-  budget), then **the model**, then the envelope chart, one contributor table,
-  and one **Where these numbers come from** fold — the sweep run, the solver
-  commit, the sweep's own analytic-against-finite-difference agreement, how
-  the features were identified, the study's authored provenance, and the
-  check's excluded terms as **Not in these numbers**.
+- **A study row** opens the study's page (`views/kinematic.js`), the shape
+  every study page has (2026-10-28, `the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances`):
+  **the model** and one contributor table in the main column, and the
+  **results** at the top of the right-hand pane, above the selection's preview
+  — the study's name, the verdict per stop (the chain studies' own verdict
+  chip and words, its margin and the limit it is judged against, and `BUDGET`
+  where the check is a budget), the envelope chart, one readout row per stop
+  (where it is on the sweep, the measure there, ± worst case, ± RSS) and one
+  **Where these numbers come from** fold — the sweep run, the solver commit,
+  the sweep's own analytic-against-finite-difference agreement, how the
+  features were identified, the study's authored provenance, and the check's
+  excluded terms as **Not in these numbers**. A chain study's page shows its
+  verdicts at the top of the same pane, as the same strip (its totals stay at
+  the grid's foot). The pane is pinned under the topbar like the nav, so the
+  results stay on screen while the page scrolls the model.
 - **The model** (2026-10-26, `the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`).
   A kinematic study is a lit subset of its topology's one model, so its page
-  draws that model's DAG between the verdicts and the chart, exactly as a chain
-  study's page does: the study's **lit set** (`VA.kinematicLitSet` — every
+  draws that model's DAG, exactly as a chain study's page does: the study's **lit set** (`VA.kinematicLitSet` — every
   contributor's edge, the edge each one borrows its band from, and every node
   either end of one stands on, every joint between two lit nodes, and the
   shortest path joining the lit set's pieces — `VA.litSetOfEdges`,
   `VA.bridgeLitSet`) is on, the rest of the walk dimmed, the grid beside it
-  holds the contributors only and the leaders run only to lit nodes. The DAG
-  sits in a box of bounded height with its own scroll, so the verdicts, the
-  model and the top of the chart share the first screen; the box opens on the
-  grid of lit rows and keeps its scroll across repaints. The toolbar's
-  **Unused** toggle hides the unlit part instead (see "Studies" below).
+  holds the contributors only and the leaders run only to lit nodes. The
+  page scrolls the DAG as on every other page (its 50vh box went with the
+  results' move, 2026-10-28), and **Fit** brings the lit set into the window.
+  The toolbar's **Unused** toggle hides the unlit part instead (see "Studies"
+  below).
 - **A contributor that is a study** (2026-10-26, `a_contributor_may_be_a_study`) is
   one **group row** in the same table, collapsed until opened, and under it the
   study's own terms as ordinary rows: each term's coefficient is the sweep's
@@ -447,7 +452,19 @@ has not been built.
   **deviation from nominal**, on an axis symmetric about zero that always
   reaches the limit (a ±0.24 deg band on an 80 deg axis would be a hairline).
   Worst case is the outer band, RSS the inner, the limit a dashed pair, and
-  each stop a vertical line at its own driver value. Hovering anywhere in the
+  each stop a vertical line at its own driver value. **A stop whose position is
+  itself a tolerance** — it carries a contributor study that moves the sweep's
+  own driver, the travel between the end stops — is also a band on x
+  (`VA.kinematicTravelBands`): the study's worst-case and RSS halves about the
+  stop's driver, and across it the envelope carried on the stop's local slope
+  (the Jacobian entry at the stop's own sweep point). The worst case is a
+  parallelogram whose far corners are the stop's folded worst case — the
+  number its chip's margin is taken from — and the RSS a sheared ellipse whose
+  top is the stop's RSS half. The band is labelled once, at the stop nearest
+  the study's nominal; where one study's band is drawn at more than one stop,
+  one line under the chart says so and links the open question (where the
+  page can reach the repo's documents). The x axis says what it spans when the
+  travel study's nominal is not the sweep's. Hovering anywhere in the
   plot reads the nearest sweep point: the driver, the measure there, ± worst
   case, ± RSS, each with its unit. The SVG the builder writes beside the JSON
   is its evidence file and is not embedded.
@@ -1800,11 +1817,10 @@ The panel is a non-modal `<dialog>` (`#annotate-flyout`) laid out as a
 (handoff `the_shell_seats_the_scene_beside_the_model`, 2026-10-26; Jeff: "a
 single canvas that contains the 3d viewer and the DAG view, with the dag on
 the right side"). It wears the page's background with no border at either
-seam, and while it is open on a topology or kinematic page the preview pane
-stands down — the scene's own detail line and the hover card answer for an
-edge — and comes back when it closes (a stack page keeps its preview). Its
-floor (`VA.FLYOUT_WIDTH.min`) sits under the preview pane's own width, so at
-the floor the DAG and grid have more room than with no scene open; the browser
+seam, and the right-hand pane stays where it is beside the grid — it holds
+the page's results (2026-10-28; from 2026-10-26 until then it stood down
+while the scene was open). At its floor (`VA.FLYOUT_WIDTH.min`) the DAG and
+grid keep at least the scene's reserve beside the results pane; the browser
 tier measures that on a live chain study at 1600 wide. Until then it was
 pinned to the viewport's left edge with the page shifted out from under it
 (pane | nav | DAG). It holds ONE
@@ -1881,9 +1897,9 @@ and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
   in the scene selects its row in the scene's rail, and the tree it sends back
   marks that row: a row naming an edge, or a body carrying exactly one lit
   edge, selects it here (`VA.sceneRowElement`), so a pick and a click on its
-  contributor row arrive at the same state. A selection brings its grid row
-  into view in the kinematic page's bounded box — never by scrolling the
-  document, which slides another row under a pointer that has not moved.
+  contributor row arrive at the same state. A selection never scrolls the
+  document to its grid row, which would slide another row under a pointer that
+  has not moved.
 - **The scene is told the page's lit set and its dim-or-hide word** in its
   own verb (`model lit …` / `model lit all`, `model unlit dim|hide`), each
   only when it changed.
