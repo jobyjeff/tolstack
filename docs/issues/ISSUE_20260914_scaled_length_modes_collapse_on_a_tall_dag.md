@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: viewer/edge-length-scaling
 audience: strategy
 reporter: agent
@@ -62,3 +62,5 @@ the tolerance-width bar check in the topology suite), so whichever way this
 goes, those two are where it lands.
 
 > **Moved to the strategy backlog 2026-10-16.** This was escalated as a task on Jeff's list (`20261007T161823_qzofuw`). That was wrong: a todo has no reply box, and its answer would have to be hand-carried into a strategy session. The strategy session that takes this up asks Jeff directly and acts on the answer.
+
+> **Resolved 2026-10-28** by `the_dag_is_zoomable_and_a_length_mode_draws_to_scale`: the window is no longer a budget — a scaled length mode draws to scale at its own height and the reader zooms (Fit); only a bar clamped to the one-row legibility floor says it is not to scale.

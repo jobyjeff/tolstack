@@ -374,12 +374,37 @@ body { display: flex; flex-direction: column; }
    still fill it, or the header band stops short of the pane's right edge in
    the other direction. */
 .tv__head {
-  display: flex; position: sticky; top: 0; z-index: 2;
+  display: flex; position: absolute; left: 0; z-index: 2;
   width: max-content; min-width: 100%;
-  background: var(--panel); border-bottom: 1px solid var(--line);
   color: var(--muted); font-size: var(--t-micro); text-transform: uppercase;
   letter-spacing: .04em; height: 26px; line-height: 25px;
+  /* Transparent and inert over the rails' own width (the head's left padding):
+     only the table is the header band, so a header that has been pinned over
+     the DAG's part of the pane does not cover the rails or swallow a click. */
+  pointer-events: none;
 }
+/* Absolute, not sticky (the_dag_is_zoomable_and_a_length_mode_draws_to_scale):
+   `.tv__head` sits at the first grid row inside `.tv__zoom`, and
+   VA.pinTopoHead holds it at the top of the visible pane with a transform. A
+   `position: sticky` here was inert -- its nearest scrollport, `.tv__hscroll`,
+   never scrolls vertically -- which is the defect this replaced. */
+.tvheadtable {
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  pointer-events: auto;
+}
+/* The zoom: one transform on the box holding the head, the rails and the grid
+   (views/topology.js). The sizer carries the scroll extents the transform does
+   not change layout for; the scale's origin is the top-left so a scroll offset
+   and a content coordinate differ by the scale alone. */
+.tv__zoomsizer { position: relative; }
+.tv__zoom { position: relative; transform-origin: 0 0; width: max-content; }
+/* At a scale other than 1 the rails and the jog grip are not sticky -- a scale on
+   an ancestor makes Chrome offset a sticky box by the scroll in the box's own
+   pixels, so they drift (k - 1) of it -- and ride `--tv-shift`, the sideways
+   scroll in the box's pixels, written by VA.syncTopoScroll. */
+.tv__zoom--scaled .tv__rails { position: relative; transform: translateX(var(--tv-shift, 0px)); }
+.tv__zoom--scaled .tvgrip--jog { position: relative; transform: translateX(var(--tv-shift, 0px)); }
+.tv__scroll--zoomgrab, .tv__scroll--zoomgrab * { cursor: grabbing; }
 .tv__body { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
 /* The rails stay put when the grid is scrolled sideways: a six-column grid is
    wider than the pane, and rails that scrolled off the left would leave the
@@ -1440,8 +1465,9 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 /* On the kinematic page the model is context for the numbers under it, so
    it gets a bounded box with its own scroll instead of its whole height:
    at 1600x1000 the verdicts, the model and the top of the chart are all on
-   the first screen. The cap is read back by views/topology.js's paneBudget,
-   so a scaled length mode fits the box and not the window. */
+   the first screen. A scaled
+   length mode is not fitted to this box: it takes the height it needs and
+   the reader zooms (Fit). */
 .tv__scroll.tv__scroll--bounded {
   flex: 0 0 auto; max-height: 50vh; overflow-y: auto;
   border-bottom: 1px solid var(--line);

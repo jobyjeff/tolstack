@@ -56,6 +56,9 @@
     // like rowDensity, not a fact about a topology, so selectTopology() never
     // resets it either.
     edgeLengthMode: "uniform",
+    // The DAG's zoom (VA.DAG_ZOOM, topology.js): per page state, never stored.
+    // 1 is the drawing at its own size; the wheel, Fit and `0` move it.
+    dagZoom: 1,
     // "jogged" (right-angle jogs, what shipped first) or "angled" (one
     // straight segment, the default since 2026-09-21). VA.LEADER_STYLES and
     // VA.DEFAULT_LEADER_STYLE, topology.js. A display preference like the
@@ -263,6 +266,7 @@
     wirePaneHover();
     wirePaneState();
     wireSeam();
+    wireZoom();
 
     // Probe for the sibling annotate mount (study_3d_flyout, feature 3) in
     // parallel with the transport probe below — measured, never assumed, and
@@ -1602,14 +1606,17 @@
       return null;
     }
     var r = rails.getBoundingClientRect();
+    // The drawing's scale, read off what the browser painted: the dots are in
+    // the SVG's own pixels and the rect is the scaled box (VA.applyTopoZoom).
+    var k = drawn.width > 0 && r.width > 0 ? r.width / drawn.width : 1;
     var f = flyoutFrame.getBoundingClientRect();
     var p = nodes.pane.getBoundingClientRect();
-    var head = nodes.pane.querySelector(".tv__hscroll .tv__head");
+    var head = nodes.pane.querySelector(".tv__zoom .tv__head");
     var bottom = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : Infinity;
     var dots = {};
     Object.keys(drawn.seam.dots).forEach(function (id) {
       var d = drawn.seam.dots[id];
-      dots[id] = [r.left + d[0], r.top + d[1]];
+      dots[id] = [r.left + d[0] * k, r.top + d[1] * k];
     });
     var fx = f.left + (flyoutFrame.clientLeft || 0);
     var fy = f.top + (flyoutFrame.clientTop || 0);
@@ -1619,10 +1626,11 @@
       anchors[id] = a ? [fx + a[0], fy + a[1]] : null;
     });
     var geo = VA.seamLeaderGeometry({
-      dots: dots, anchors: anchors, bendX: r.left + drawn.seam.bend,
+      dots: dots, anchors: anchors, bendX: r.left + drawn.seam.bend * k,
       // Under the pane's sticky head, inside the pane, inside the window.
       dotClip: { left: p.left, right: p.right,
-                 top: Math.max(p.top, head ? head.getBoundingClientRect().bottom : p.top, 0),
+                 top: Math.max(p.top, head && head.getAttribute("data-pinned")
+                   ? head.getBoundingClientRect().bottom : p.top, 0),
                  bottom: Math.min(p.bottom, bottom) },
       anchorClip: { left: f.left, right: f.right, top: Math.max(f.top, 0),
                     bottom: Math.min(f.bottom, bottom) },
@@ -1677,7 +1685,7 @@
     var mark = box.querySelector('svg.tv__rails [data-row-kind="' + sel.kind + '"][data-id="' +
       sel.id + '"]');
     var b = box.getBoundingClientRect();
-    var head = box.querySelector(".tv__hscroll .tv__head");
+    var head = box.querySelector(".tv__zoom .tv__head");
     var top = b.top + (head ? head.offsetHeight : 0);
     var r = row.getBoundingClientRect();
     var lo = r.top;
@@ -1723,11 +1731,155 @@
     scheduleSeamDraw();
   }
 
+  // --- the DAG's zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale) --
+  //
+  // One scale, VA.applyTopoZoom, with the page scrolling it into place: the
+  // wheel over the DRAWING zooms about the pointer (a plain wheel over the grid
+  // still scrolls the page -- the document is the scroller, and a pane that
+  // swallowed every wheel would trap the reader), Ctrl/Cmd+wheel and a trackpad
+  // pinch zoom from anywhere over the pane, a drag on the drawing's empty
+  // space pans, Fit shows what is lit, and `0` is Fit. The scale lives in
+  // `state.dagZoom` and nowhere else.
+  function paneScroller() {
+    return nodes.pane && nodes.pane.classList &&
+      nodes.pane.classList.contains("tv__scroll--bounded") ? nodes.pane : null;
+  }
+
+  function paneHscroll() {
+    return nodes.pane && nodes.pane.querySelector
+      ? nodes.pane.querySelector(".tv__hscroll") : null;
+  }
+
+  // Scroll the page (or the bounded pane) by `dy`, and the drawing sideways by
+  // `dx`. The one place a pan or a zoom's compensation moves anything.
+  function scrollDag(dx, dy) {
+    var hscroll = paneHscroll();
+    if (hscroll && dx) hscroll.scrollLeft += dx;
+    var bounded = paneScroller();
+    if (bounded) bounded.scrollTop += dy;
+    else if (dy && typeof window !== "undefined" && window.scrollBy) window.scrollBy(0, dy);
+  }
+
+  function zoomBox() {
+    return nodes.pane && nodes.pane.querySelector
+      ? nodes.pane.querySelector(".tv__zoom") : null;
+  }
+
+  // Zoom to `to`, keeping the content point under (clientX, clientY) where it
+  // is. The content coordinate under the pointer is read BEFORE the scale
+  // changes and put back after, on both axes.
+  function zoomDagAt(to, clientX, clientY) {
+    var box = zoomBox();
+    var hscroll = paneHscroll();
+    if (!box || !hscroll) return;
+    var from = state.dagZoom;
+    to = VA.clampDagZoom(to);
+    if (to === from) return;
+    var before = box.getBoundingClientRect();
+    var hbox = hscroll.getBoundingClientRect();
+    var cy = (clientY - before.top) / from;
+    var left = hscroll.scrollLeft;
+    state.dagZoom = to;
+    VA.applyTopoZoom(nodes.pane, to, true);
+    var after = box.getBoundingClientRect();
+    scrollDag(VA.dagScrollAfterZoom(left, clientX - hbox.left, from, to) - left,
+      after.top + cy * to - clientY);
+    VA.pinTopoHead(nodes.pane);
+    scheduleSeamDraw();
+  }
+
+  // Fit: the scale at which the lit set (the whole walk where nothing is lit)
+  // fills the visible pane, never past 1, and the page scrolled so it starts
+  // at the visible top. One step, from wherever the reader is.
+  function fitDag() {
+    var box = zoomBox();
+    var hscroll = paneHscroll();
+    var drawn = VA.lastTopoRender;
+    if (!box || !hscroll || !drawn || !drawn.span) return;
+    var bounded = paneScroller();
+    var bar = typeof document !== "undefined" ? document.querySelector(".topbar") : null;
+    var topEdge = bounded ? nodes.pane.getBoundingClientRect().top
+      : (bar ? bar.getBoundingClientRect().bottom : 0);
+    var visible = bounded ? nodes.pane.clientHeight
+      : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
+    var pad = 12;
+    var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
+    state.dagZoom = to;
+    VA.applyTopoZoom(nodes.pane, to, true);
+    var rect = box.getBoundingClientRect();
+    scrollDag(-hscroll.scrollLeft, rect.top + (drawn.span.top - pad) * to - topEdge);
+    VA.pinTopoHead(nodes.pane);
+    scheduleSeamDraw();
+  }
+
+  // Wired once per pane element and once per document: a harness that boots
+  // the page a second time (every real-data probe does, to install fixtures)
+  // would otherwise stack a second copy of each listener on the same node, and
+  // one wheel notch would zoom two steps and one drag pan twice as far.
+  var zoomWiredOn = null;
+  var zoomKeyWired = false;
+
+  function wireZoom() {
+    if (typeof window === "undefined" || !nodes.pane || !nodes.pane.addEventListener) return;
+    if (zoomWiredOn === nodes.pane) return;
+    zoomWiredOn = nodes.pane;
+    nodes.pane.addEventListener("wheel", function (event) {
+      var onDrawing = event.target && event.target.closest &&
+        event.target.closest("svg.tv__rails");
+      if (!onDrawing && !(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      zoomDagAt(VA.dagZoomAfterWheel(state.dagZoom, event.deltaY),
+        event.clientX, event.clientY);
+    }, { passive: false });
+    // Pan: a drag that starts on the drawing's own empty space -- the SVG, its
+    // alternating bands and its body fields, never a bar, dot or leader, which
+    // are the controls.
+    var drag = null;
+    nodes.pane.addEventListener("pointerdown", function (event) {
+      if (event.button !== 0 || !event.target || !event.target.closest) return;
+      var t = event.target;
+      var empty = t.tagName === "svg" || (t.classList && (
+        t.classList.contains("rail__band") || t.classList.contains("tv__bodyfield")));
+      if (!empty || !t.closest("svg.tv__rails")) return;
+      drag = { x: event.clientX, y: event.clientY };
+      nodes.pane.classList.add("tv__scroll--zoomgrab");
+      if (nodes.pane.setPointerCapture) {
+        try { nodes.pane.setPointerCapture(event.pointerId); } catch (err) { /* synthetic */ }
+      }
+    });
+    nodes.pane.addEventListener("pointermove", function (event) {
+      if (!drag) return;
+      scrollDag(drag.x - event.clientX, drag.y - event.clientY);
+      drag = { x: event.clientX, y: event.clientY };
+    });
+    var release = function () {
+      drag = null;
+      if (nodes.pane.classList) nodes.pane.classList.remove("tv__scroll--zoomgrab");
+    };
+    nodes.pane.addEventListener("pointerup", release);
+    nodes.pane.addEventListener("pointercancel", release);
+    if (zoomKeyWired) return;
+    zoomKeyWired = true;
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "0" || event.ctrlKey || event.metaKey || event.altKey) return;
+      var t = event.target;
+      var tag = t && t.tagName ? t.tagName.toLowerCase() : "";
+      if (tag === "input" || tag === "textarea" || tag === "select" ||
+          (t && t.isContentEditable)) return;
+      fitDag();
+    });
+  }
+
   function wireSeam() {
     if (typeof window === "undefined" || !document.addEventListener) return;
     // The pane's own scroll as well as the page's: captured, since a scroll
     // does not bubble.
-    document.addEventListener("scroll", scheduleSeamDraw, true);
+    // The grid header's pin is written in the same event, before the frame
+    // paints (VA.pinTopoHead), so it never trails the rows it labels.
+    document.addEventListener("scroll", function () {
+      if (nodes.pane) VA.pinTopoHead(nodes.pane);
+      scheduleSeamDraw();
+    }, true);
     if (typeof ResizeObserver === "function") {
       var observer = new ResizeObserver(scheduleSeamDraw);
       [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {
@@ -2122,6 +2274,7 @@
         // ...whose model is a bounded box, so the numbers under it are a
         // scroll away rather than a model's height away (topology.css).
         bounded: showKinematic,
+        zoom: state.dagZoom,
         scrollToGrid: showKinematic && (paneToGrid || serialisation() !== paintedSerialisation),
         // Where a contributor borrows its band from another edge, the
         // preview pane says so and links to it (VA.kinematicBandEdges).
@@ -2202,6 +2355,7 @@
         // reasoning as density again — WHICH rows are on screen never
         // changes, only how tall the DAG's slots are — so render(), not
         // rewind().
+        onFit: fitDag,
         onEdgeLength: function () {
           var mode = VA.EDGE_LENGTH_MODES[state.edgeLengthMode];
           state.edgeLengthMode = mode ? mode.next : "uniform";

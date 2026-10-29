@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the lit span is the lit dots and bars (and the grid beside them), the whole walk when nothing is lit",
+  "mutations": [
+    {
+      "contract": "Fit's span covers every lit bar, from its top to its bottom.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "A span that ends at a bar's top edge clips the last lit bar off Fit's view.",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (e) take(e.y1, e.y2);",
+      "replace": "        if (e) take(e.y1, e.y1);"
+    }
+  ]
+}

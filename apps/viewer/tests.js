@@ -6949,82 +6949,140 @@
         eq(plain.getAttribute("title"), null);
       });
 
-    await test("fitEdgeLength lands the DAG on its budget, and gives up the " +
-      "proportion before it gives up the floor", function () {
-        var floor = 26;
-        // Three edges and 104px of node rows: 182px is the shortest this DAG
-        // can be drawn. A budget at or under that cannot be met — the floor
-        // wins, the page scrolls, and no bar is ever unclickable.
-        eq(VA.fitEdgeLength([1, 0.5, 0.25], 104, floor, 182), floor);
-        eq(VA.fitEdgeLength([1, 0.5, 0.25], 104, floor, 100), floor);
-        // Room for everything: the three lengths are L, L/2 and L/4, and they
-        // add up with the nodes to exactly the budget.
-        var big = VA.fitEdgeLength([1, 0.5, 0.25], 104, floor, 504);
-        eq(104 + big + big / 2 + big / 4, 504);
-        ok(big / 4 >= floor, "nothing needed the floor at this budget");
-        // The mixed case the solver exists for: the narrow edge cannot have
-        // its proportion without going under the floor, so it sits ON the
-        // floor and the other two share what is left — still exactly the
-        // budget, which a single global scale factor would not manage.
-        var mid = VA.fitEdgeLength([1, 0.5, 0.05], 104, floor, 400);
-        ok(mid * 0.05 < floor, "the narrow edge is floored");
-        eq(104 + mid + mid / 2 + floor, 400);
-        // Nothing to scale by at all (every ratio 0) is not a scale of zero:
-        // it is the floor.
-        eq(VA.fitEdgeLength([0, 0, 0], 104, floor, 900), floor);
-        eq(VA.fitEdgeLength([], 104, floor, 900), floor);
-      });
-
-    await test("with a viewport the DAG is fitted into it, and a DAG whose " +
-      "own floor overruns the budget overruns it honestly", function () {
+    await test("a scaled length mode takes the height it needs: the window is " +
+      "no budget, and only a bar clamped to the legibility floor says so", function () {
         var M = VA.RAIL_METRICS;
         var plan = VA.gridPlan(TOPO.layout, TOPO);
         var floor = M.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
         var rows = TOPO.layout.rows;
-        var edges = rows.filter(function (r) { return r.kind === "edge"; }).length;
-        var floorMin = rows.length * M.rowHeight;   // nodes + edges, one row each
-
-        // Roomy: the DAG fits, and the cap still applies — the fit only ever
-        // scales DOWN. A short topology is not inflated to fill a window;
-        // measured on the real documents, inflating one makes the leaders' jog
-        // worse rather than better.
-        var roomy = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M,
-          { budget: 5000, plan: plan });
-        eq(roomy.edges.post_height.length,
-           M.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows);
-
-        // Tight: the DAG lands on the budget rather than over it.
-        var tight = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M,
-          { budget: 400, plan: plan });
-        ok(tight.dagHeight <= 400 + 1e-9,
-           "fitted to " + tight.dagHeight + ", budget 400");
-        ok(tight.dagHeight > floorMin, "and it used the room it had");
-
-        // Impossible: floor times edges alone is past the budget. Every bar
-        // sits on the floor, every bar says so, and the DAG is exactly as tall
-        // as its own row count demands — the page scrolls.
-        var over = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M,
-          { budget: 100, plan: plan });
-        eq(over.dagHeight, floorMin);
-        var flooredCount = 0;
-        rows.forEach(function (row) {
-          if (row.kind !== "edge") return;
-          eq(over.edges[row.id].length, floor, row.id);
-          eq(over.edges[row.id].floored, true,
-             row.id + " must say it is not to scale");
-          flooredCount++;
-        });
-        eq(flooredCount, edges);
-
-        // Uniform mode is the floor everywhere by construction, so a budget
-        // changes nothing about it — there is no proportion to give up, and it
-        // claims none.
-        var uniform = VA.rowPositions(TOPO.layout, TOPO, "uniform", M,
-          { budget: 100, plan: plan });
-        eq(uniform.dagHeight, floorMin);
+        var edges = rows.filter(function (r) { return r.kind === "edge"; });
+        // A budget a caller still passes (the old viewport fit) is ignored:
+        // the largest bar is always the scale's own `maxRows`, however small
+        // the window.
+        [{ plan: plan }, { budget: 100, plan: plan }, { budget: 5000, plan: plan }]
+          .forEach(function (fit) {
+            var pos = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M, fit);
+            eq(pos.edges.post_height.length,
+               M.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows);
+            var drawn = {};
+            edges.forEach(function (row) { drawn[Math.round(pos.edges[row.id].length)] = true; });
+            ok(Object.keys(drawn).length >= 3,
+               "a scaled mode draws at least three distinct bar lengths");
+            edges.forEach(function (row) {
+              var slot = pos.edges[row.id];
+              eq(slot.floored, slot.length === floor,
+                 row.id + ": floored exactly where the bar sits at the floor");
+            });
+          });
+        var uniform = VA.rowPositions(TOPO.layout, TOPO, "uniform", M, { plan: plan });
+        eq(uniform.dagHeight, rows.length * M.rowHeight);
         rows.forEach(function (row) {
           eq(uniform.byRow[row.row].floored, false, row.id);
         });
+        eq(VA.fitEdgeLength, undefined, "the viewport fit is gone, not dormant");
+        eq(VA.dagHeightBudget, undefined);
+      });
+
+    await test("the zoom's bounds, wheel and anchor arithmetic: clamped, " +
+      "proportional, and the point under the pointer stays put", function () {
+        var Z = VA.DAG_ZOOM;
+        var near = function (a, b, t) { ok(Math.abs(a - b) < t, a + " vs " + b); };
+        ok(Z.min > 0 && Z.min < 1 && Z.max > 1 && Z.step > 1, "a usable range");
+        eq(VA.clampDagZoom(Z.max * 10), Z.max);
+        eq(VA.clampDagZoom(Z.min / 10), Z.min);
+        eq(VA.clampDagZoom("nonsense"), 1);
+        eq(VA.clampDagZoom(0), 1);
+        // One mouse notch (deltaY 100, away) is one step out; one the other
+        // way is one step in; no delta is no change.
+        near(VA.dagZoomAfterWheel(1, 100), 1 / Z.step, 1e-9);
+        near(VA.dagZoomAfterWheel(1, -100), Z.step, 1e-9);
+        eq(VA.dagZoomAfterWheel(1, 0), 1);
+        eq(VA.dagZoomAfterWheel(Z.max, -100), Z.max);
+        eq(VA.dagZoomAfterWheel(Z.min, 100), Z.min);
+        // The content point under the pointer stays under it: at scroll 300,
+        // pointer 100 into the box, scale 1 -> 2, content 400 is at 800 - 100.
+        eq(VA.dagScrollAfterZoom(300, 100, 1, 2), 700);
+        eq(VA.dagScrollAfterZoom(300, 100, 2, 1), 100);
+        // ...and never scrolls to a negative offset.
+        eq(VA.dagScrollAfterZoom(0, 100, 1, 0.5), 0);
+        // Fit: never past 1, and a span too tall for the box shrinks to it.
+        eq(VA.dagFitScale(0, 400, 900, 12), 1);
+        near(VA.dagFitScale(0, 1788, 900, 6), 900 / 1800, 1e-9);
+        eq(VA.dagFitScale(0, 1e7, 900, 0), Z.min);
+        eq(VA.dagFitScale(0, 0, 900, 0), 1);
+        eq(VA.dagFitScale(0, 400, 0, 0), 1);
+      });
+
+    await test("the lit span is the lit dots and bars (and the grid beside " +
+      "them), the whole walk when nothing is lit", function () {
+        var M = VA.RAIL_METRICS;
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var pos = VA.rowPositions(TOPO.layout, TOPO, "uniform", M, { plan: plan });
+        var whole = VA.litSpan(pos, null, plan, M);
+        eq(whole.top, 0);
+        eq(whole.bottom, pos.height);
+        var edge = TOPO.layout.rows.filter(function (r) { return r.kind === "edge"; })[1];
+        var lit = { nodes: {}, edges: {} };
+        lit.edges[edge.id] = true;
+        // Without a grid beside it the span is the bar's own extent, exactly.
+        var bare = VA.litSpan(pos, lit, null, M);
+        eq(bare.top, pos.edges[edge.id].y1);
+        eq(bare.bottom, pos.edges[edge.id].y2);
+        // With the grid it also reaches the grid block, which sits beside it.
+        var span = VA.litSpan(pos, lit, plan, M);
+        eq(span.top <= bare.top, true);
+        eq(span.bottom >= bare.bottom, true);
+        eq(span.bottom >= pos.gridOffset + pos.gridHeight, true,
+           "the grid block is part of what Fit shows");
+        ok(span.bottom - span.top < whole.bottom - whole.top, "a part of the walk");
+        // A lit set that names nothing drawn falls back to the whole walk.
+        var none = VA.litSpan(pos, { nodes: { nope: true }, edges: {} }, plan, M);
+        eq(none.bottom, pos.height);
+      });
+
+    await test("the grid header is held at the top of the visible pane while " +
+      "any of its rows is, and let go at the grid's last row", function () {
+        // Natural top 500, grid ends at 900, head 26 high.
+        eq(VA.headPinOffset(500, 100, 900, 26), 0, "not reached yet");
+        eq(VA.headPinOffset(500, 500, 900, 26), 0, "exactly at its place");
+        eq(VA.headPinOffset(500, 650, 900, 26), 150, "follows the visible top");
+        eq(VA.headPinOffset(500, 5000, 900, 26), 374, "stops at the grid's end");
+      });
+
+    await test("the DAG's header height is the stylesheet's own", function () {
+        var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+        if (!src) return;
+        // `.tv__head` sits INSIDE the pane and is not DAG: its height lives in
+        // the stylesheet and the pin and the body's top padding read it from
+        // here. One number in two files is this repo's most-repeated defect.
+        var css = src.readText("topology.css");
+        ok(css, "topology.css must be readable");
+        var head = /\.tv__head\s*\{[^}]*[;{\s]height:\s*(\d+)px/.exec(css);
+        ok(head, "expected an explicit height on .tv__head in topology.css");
+        eq(Number(head[1]), VA.DAG_FIT.headHeight,
+           "VA.DAG_FIT.headHeight must be .tv__head's own CSS height");
+      });
+
+    await test("the render puts the header above the first grid row, pushes the " +
+      "body down by what it lacks, and carries the zoom as one transform", function () {
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance", zoom: 0.5 }));
+        });
+        var positions = VA.lastTopoRender.positions;
+        var zoomed = root.querySelector("div.tv__zoom");
+        ok(zoomed, "one zoom box");
+        eq(zoomed.style.transform, "scale(0.5)");
+        eq(zoomed.getAttribute("data-zoom"), "0.5");
+        var head = zoomed.querySelector(".tv__head");
+        ok(head, "the header lives in the zoom box with the rails and the rows");
+        eq(root.querySelector(".tv__hscroll > .tv__head"), null,
+           "...and no longer ahead of the whole DAG");
+        var pad = Math.max(0, VA.DAG_FIT.headHeight - positions.gridOffset);
+        var top = pad + positions.gridOffset - VA.DAG_FIT.headHeight;
+        ok(Math.abs(parseFloat(head.style.top) - top) < 0.05, "the header sits just above the first grid row");
+        ok(zoomed.querySelector("svg.tv__rails") && zoomed.querySelector("div.tv__rows"));
+        var span = VA.lastTopoRender.span;
+        ok(span && span.bottom > span.top, "Fit has something to bring into view");
       });
 
     await test("the grid is centred against the DAG across the leaders' own " +
@@ -7147,28 +7205,6 @@
            "the SVG is the taller of the two blocks");
         ok(positions.height >= positions.gridOffset + positions.gridHeight);
         ok(positions.height >= positions.offset + positions.dagHeight);
-      });
-
-    await test("the DAG's height budget is the window less the chrome above " +
-      "it, and the header it hands back is the stylesheet's own", function () {
-        var M = VA.RAIL_METRICS;
-        eq(VA.dagHeightBudget(200, 1000, M),
-           1000 - 200 - VA.DAG_FIT.headHeight - VA.DAG_FIT.slack);
-        // A page whose chrome has eaten the whole window still gets a usable
-        // DAG (and scrolls) rather than a budget of zero.
-        eq(VA.dagHeightBudget(980, 1000, M), M.rowHeight * VA.DAG_FIT.minRows);
-        var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
-        if (!src) return;
-        // `.tv__head` sits INSIDE the pane and is not DAG, so the budget has
-        // to hand its height back — and that height lives in the stylesheet.
-        // One number in two files is this repo's most-repeated defect: pair
-        // them rather than hope.
-        var css = src.readText("topology.css");
-        ok(css, "topology.css must be readable");
-        var head = /\.tv__head\s*\{[^}]*[;{\s]height:\s*(\d+)px/.exec(css);
-        ok(head, "expected an explicit height on .tv__head in topology.css");
-        eq(Number(head[1]), VA.DAG_FIT.headHeight,
-           "VA.DAG_FIT.headHeight must be .tv__head's own CSS height");
       });
 
     // --- the respine animation (viewer_study_respine_animation) -------------
@@ -13867,6 +13903,42 @@
           eq(realTopologies.orphan_studies, []);
         });
 
+        await test("[real] on the product model a scaled length mode draws to " +
+          "scale, and the zoom's minimum shows the whole walk in a 900px pane", function () {
+            var M = VA.RAIL_METRICS;
+            var floor = M.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
+            var layout = VA.spineRight(livePitch.layout);
+            var plan = VA.gridPlan(layout, livePitch);
+            var edges = layout.rows.filter(function (r) { return r.kind === "edge"; });
+            var tallest = 0;
+            ["uniform", "tolerance", "absolute"].forEach(function (mode) {
+              var pos = VA.rowPositions(layout, livePitch, mode, M, { plan: plan });
+              tallest = Math.max(tallest, pos.height);
+              var lengths = {};
+              var floored = 0;
+              edges.forEach(function (row) {
+                lengths[Math.round(pos.edges[row.id].length)] = true;
+                if (pos.edges[row.id].floored) floored++;
+              });
+              if (mode === "uniform") {
+                eq(Object.keys(lengths).length, 1, "uniform draws one length");
+                eq(floored, 0);
+                return;
+              }
+              // The defect this replaced: on this 169-row model every scaled
+              // bar was floored, so the modes drew the same picture as uniform.
+              ok(Object.keys(lengths).length >= 3,
+                 mode + ": at least three distinct bar lengths, saw " +
+                 Object.keys(lengths).join(","));
+              ok(floored < edges.length, mode + ": not every bar is floored");
+              ok(Math.max.apply(null, Object.keys(lengths).map(Number)) >
+                 floor, mode + ": something is drawn above the floor");
+            });
+            ok(VA.DAG_ZOOM.min * tallest <= 900,
+               "the zoom minimum " + VA.DAG_ZOOM.min + " must show the tallest " +
+               "walk (" + tallest + "px) in 900px");
+          });
+
         await test("[real] a topology's own joint block renders its assembly " +
           "drawing, and the product model's empty one stays silent " +
           "(deliverable 4)", function () {
@@ -14617,14 +14689,10 @@
                  { budget: 0, plan: plan })),
                "README's centred max jog");
 
-            // "45 rows × 26px = 1170px" — the floor minimum that makes the
-            // honest overflow honest.
-            var floor = /(\d+)\s+rows × (\d+)px = (\d+)px/.exec(readme);
-            ok(floor, "expected the README's floor-minimum sentence");
-            eq(Number(floor[1]), livePitch.layout.rows.length, "README's row count");
-            eq(Number(floor[2]), M.rowHeight, "README's row height");
-            eq(Number(floor[3]), livePitch.layout.rows.length * M.rowHeight,
-               "README's floor minimum");
+            // (The "N rows × 26px = Npx" floor-minimum sentence that stood here
+            // paired the README's honest-overflow section, retired with the
+            // viewport fit: the window is no budget, so there is no overflow to
+            // be honest about and no number left to pair.)
 
             // "`pitch_system`'s walk needs **10 columns**, while every one of
             // its study chains is linear and needs **1**" — the respine

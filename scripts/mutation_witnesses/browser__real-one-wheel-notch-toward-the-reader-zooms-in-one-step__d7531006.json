@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] one wheel notch toward the reader zooms in one step",
+  "mutations": [
+    {
+      "contract": "A wheel notch toward the reader zooms in.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "A sign flip zooms out where it should zoom in.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var notches = -deltaY / 100;",
+      "replace": "    var notches = deltaY / 100;"
+    }
+  ]
+}

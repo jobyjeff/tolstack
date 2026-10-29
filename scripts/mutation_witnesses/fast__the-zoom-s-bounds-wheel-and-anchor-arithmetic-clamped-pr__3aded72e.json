@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the zoom's bounds, wheel and anchor arithmetic: clamped, proportional, and the point under the pointer stays put",
+  "mutations": [
+    {
+      "contract": "The zoom scale is clamped into VA.DAG_ZOOM.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "An unclamped scale lets a long wheel run the drawing to nothing or to a screenful of one row.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return Math.min(VA.DAG_ZOOM.max, Math.max(VA.DAG_ZOOM.min, n));",
+      "replace": "    return n;"
+    }
+  ]
+}

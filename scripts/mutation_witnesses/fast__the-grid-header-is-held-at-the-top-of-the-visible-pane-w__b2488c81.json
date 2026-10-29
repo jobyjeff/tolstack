@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the grid header is held at the top of the visible pane while any of its rows is, and let go at the grid's last row",
+  "mutations": [
+    {
+      "contract": "The header stops following the page where the grid it labels ends.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "Without the room bound the header rides on over the chart under the grid.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return Math.max(0, Math.min(visibleTop - naturalTop, room));",
+      "replace": "    return Math.max(0, visibleTop - naturalTop);"
+    }
+  ]
+}

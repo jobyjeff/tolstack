@@ -85,6 +85,20 @@
     lengths.onclick = handlers.onEdgeLength;
     root.appendChild(lengths);
 
+    // Fit (the_dag_is_zoomable_and_a_length_mode_draws_to_scale): the wheel
+    // zooms the drawing and a drag pans it; this one click brings the lit set
+    // (a study's chain, a kinematic study's) into view, or the whole walk where
+    // nothing is selected. `0` is its key. Always present -- the drawing is
+    // zoomable on every page that has one.
+    if (handlers.onFit) {
+      var fit = VA.el("button", "ghost tvpick__mode", "Fit");
+      fit.setAttribute("id", "dag-fit");
+      fit.setAttribute("title", "Zoom the drawing to show everything lit " +
+        "(the whole walk when nothing is). Scroll wheel zooms, drag pans.");
+      fit.onclick = handlers.onFit;
+      root.appendChild(fit);
+    }
+
     // How a leader is DRAWN (viewer_leader_grid_legibility): one straight
     // angled segment (VA.DEFAULT_LEADER_STYLE since 2026-09-21) or right-angle
     // jogs (what shipped first). Jeff asked for both so he could try them
@@ -194,7 +208,7 @@
     var carriedTop = ctx.bounded && typeof root.scrollTop === "number" ? root.scrollTop : 0;
     VA.clear(root);
     // `bounded`: the kinematic page's capped box (topology.css), which
-    // paneBudget below fits to instead of the window.
+    // the scroll handler pins the grid's header against.
     root.className = "tv__scroll" + (ctx.bounded ? " tv__scroll--bounded" : "");
     var topoProj = ctx.topoProj;
     if (!topoProj) {
@@ -261,7 +275,7 @@
     // went when the mode stretched it. `fit` is the viewport it normalizes
     // into (viewer_dag_spine_layout) — measured here because this is the one
     // place that holds both the pane and the plan.
-    var fit = { budget: paneBudget(root, M), plan: plan };
+    var fit = { plan: plan };
     var positions = VA.rowPositions(layout, topoProj,
       ctx.edgeLengthMode || "uniform", M, fit);
     // Mid-respine (viewer_study_respine_animation): the frame is drawn from
@@ -367,14 +381,51 @@
     var hscroll = VA.el("div", "tv__hscroll");
     // How much of the pane the reader can actually see -- the window the two
     // drag grips are clamped into (VA.jogGripInset). Measured off the emptied
-    // pane, the same box and the same moment `paneBudget` above reads for the
-    // vertical axis; 0 in the DOM shim, which reports no widths and needs no
-    // clamp.
+    // pane, the same box and the same moment the zoom's minimum width is read;
+    // 0 in the DOM shim, which reports no widths and needs no clamp.
     var paneWidth = (root && typeof root.clientWidth === "number")
       ? root.clientWidth : 0;
-    var head = header(leaderGeo, ctx, paneWidth);
-    hscroll.appendChild(head);
+    // The zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale): ONE
+    // transform on `.tv__zoom`, which holds the header, the rails SVG and the
+    // grid rows together, so nothing shears. `.tv__zoomsizer` is the box the
+    // scroll extents come from -- a transform does not change layout, so
+    // without it a zoomed-out drawing would keep scrolling the full-size
+    // content's length. The sizer is sized to the content's measured layout
+    // size times the scale, after the append below.
+    var zoom = VA.clampDagZoom(ctx.zoom || 1);
+    var sizer = VA.el("div", "tv__zoomsizer");
+    var zoomed = VA.el("div", "tv__zoom");
+    // The column header rides with the GRID (it used to be the first thing in
+    // the pane, above the whole DAG, where its `position: sticky` was inert:
+    // the nearest scrollport above it is `.tv__hscroll`, which never scrolls
+    // vertically). It sits directly above the first grid row, and
+    // VA.pinTopoHead holds it at the top of the visible pane while any row is
+    // on screen. The body is pushed down by whatever the head needs above the
+    // grid when the centring left less than a head's height there -- both the
+    // rails and the grid move together, so every leader's two ends keep their
+    // relation.
+    // The pane's width in the zoom box's OWN pixels: the grips are clamped into
+    // the visible window, and that window is `paneWidth / zoom` of content.
+    var head = header(leaderGeo, ctx, paneWidth / zoom);
+    var gridTop = positions.gridOffset || 0;
+    var bodyPad = Math.max(0, VA.DAG_FIT.headHeight - gridTop);
+    var headTop = bodyPad + gridTop - VA.DAG_FIT.headHeight;
+    head.style.top = headTop + "px";
+    head.setAttribute("data-natural-top", String(headTop));
+    head.setAttribute("data-block-bottom",
+      String(bodyPad + gridTop + (positions.gridHeight || 0)));
+    // What Fit brings into view, in `.tv__zoom`'s own (unscaled) pixels: the
+    // lit set's span in the store, moved down by the body's own padding, and
+    // reaching up to the header when the grid is part of it.
+    var litSpan = VA.litSpan(positions, marking ? lit : null, plan, M);
+    VA.lastTopoRender.span = {
+      top: Math.min(litSpan.top + bodyPad,
+        plan.rows.length && marking ? headTop : Infinity),
+      bottom: litSpan.bottom + bodyPad,
+    };
+    zoomed.appendChild(head);
     var body = VA.el("div", "tv__body");
+    if (bodyPad) body.style.paddingTop = bodyPad + "px";
     body.appendChild(railsSvg(geometry, leaderGeo, index,
       marking ? lit.edges : {}, marking ? lit.nodes : {}, marking, ctx, fade,
       fadeLink, hot, layout, lit));
@@ -392,8 +443,11 @@
     // separate from there, which is the movement this is all for.
     if (tween) rows.style.opacity = String(tween.e);
     body.appendChild(rows);
-    hscroll.appendChild(body);
+    zoomed.appendChild(body);
+    sizer.appendChild(zoomed);
+    hscroll.appendChild(sizer);
     root.appendChild(hscroll);
+    VA.applyTopoZoom(root, zoom, true);
     // ...and the reader's sideways scroll back onto the pane that replaced the
     // one they scrolled. Written after the append, so the browser has a laid-
     // out content width to CLAMP it against -- which is the whole behaviour a
@@ -405,17 +459,16 @@
     // re-lay), otherwise wherever the reader left it.
     if (ctx.bounded) {
       root.scrollTop = ctx.scrollToGrid
-        ? Math.max(0, (positions.gridOffset || 0) - VA.DAG_FIT.headHeight)
+        ? Math.max(0, headTop * zoom)
         : carriedTop;
     }
+    VA.pinTopoHead(root);
     // The one grip whose boundary scrolls, kept over that boundary as the
     // reader scrolls (VA.columnGripLeft). The listener is on the node this
     // render just built, so the next render drops it with the node -- there is
     // nothing to unwire and nothing to leak.
     if (head.placeColumnGrips) {
-      var place = function () {
-        head.placeColumnGrips(hscroll.scrollLeft, hscroll.clientWidth);
-      };
+      var place = function () { VA.syncTopoScroll(root); };
       hscroll.onscroll = place;
       if (carried) place();
     }
@@ -617,36 +670,98 @@
     }
   };
 
-  // How much vertical room the DAG has to normalize itself into
-  // (viewer_dag_spine_layout): the window's height, less everything the page
-  // puts above this pane and the pane's own sticky column header.
-  //
-  // Read in DOCUMENT coordinates — the pane's top does not move with the
-  // page's own scroll, so the budget is a property of the page's chrome and
-  // not of how far the reader happened to have scrolled when the mode
-  // changed. Measured once per paint, on the emptied pane, before anything is
-  // appended to it.
-  //
-  // 0 where there is nothing to measure against (the DOM shim the fast tier
-  // renders into), which is the same "no viewport" case a pure call is:
-  // VA.rowPositions falls back to EDGE_LENGTH_SCALE.maxRows alone and nothing
-  // is normalized.
-  function paneBudget(root, metrics) {
-    if (!root || typeof root.getBoundingClientRect !== "function") return 0;
-    if (typeof window === "undefined" || !window.innerHeight) return 0;
-    // A bounded pane (the kinematic page's, topology.css) fits its own cap,
-    // not the window: the rows past it are a scroll of the box away.
-    var cap = root.classList && root.classList.contains("tv__scroll--bounded") &&
-      typeof window.getComputedStyle === "function"
-      ? parseFloat(window.getComputedStyle(root).maxHeight) : NaN;
-    if (cap > 0) {
-      return Math.max(cap - VA.DAG_FIT.headHeight - VA.DAG_FIT.slack,
-                      metrics.rowHeight * VA.DAG_FIT.minRows);
+  // One scale onto a painted pane, without repainting it: the transform, the
+  // minimum width that keeps a narrow drawing filling the pane, and the sizer
+  // that carries the scroll extents (a transform does not change layout).
+  // The wheel calls this per event; renderTopoPane calls it once per paint.
+  // Returns the clamped scale applied, or 0 where there is no zoom box.
+  VA.applyTopoZoom = function (root, zoom, skipPin) {
+    var zoomed = root && root.querySelector ? root.querySelector(".tv__zoom") : null;
+    if (!zoomed) return 0;
+    var k = VA.clampDagZoom(zoom);
+    var sizer = zoomed.parentNode;
+    zoomed.setAttribute("data-zoom", String(k));
+    zoomed.style.transform = "scale(" + k + ")";
+    var paneWidth = typeof root.clientWidth === "number" ? root.clientWidth : 0;
+    zoomed.style.minWidth = paneWidth > 0 ? (paneWidth / k) + "px" : "100%";
+    if (typeof zoomed.offsetWidth === "number" && zoomed.offsetWidth > 0) {
+      sizer.style.width = (zoomed.offsetWidth * k) + "px";
+      sizer.style.height = (zoomed.offsetHeight * k) + "px";
     }
-    var rect = root.getBoundingClientRect();
-    return VA.dagHeightBudget(rect.top + (window.scrollY || 0),
-      window.innerHeight, metrics);
+    // `position: sticky` does not survive a scale on an ancestor: Chrome
+    // applies the sticky offset in the box's own pixels, so at a scale of k the
+    // rails drift (k - 1) of the scroll away from the pane's edge, measured. At
+    // a scale other than 1 the rails and the jog grip are held by hand instead
+    // (VA.syncTopoScroll, topology.css `.tv__zoom--scaled`).
+    if (k !== 1) zoomed.classList.add("tv__zoom--scaled");
+    else zoomed.classList.remove("tv__zoom--scaled");
+    VA.syncTopoScroll(root);
+    if (!skipPin) VA.pinTopoHead(root);
+    return k;
+  };
+
+  // The sideways scroll, in the zoom box's own pixels, for the three things
+  // that follow it: the rails and the jog grip at a scale other than 1 (the
+  // `--tv-shift` variable the stylesheet reads), and the column grips' pin to
+  // the pane's right edge. At a scale of 1 this is the old per-scroll call.
+  VA.syncTopoScroll = function (root) {
+    var hscroll = root && root.querySelector ? root.querySelector(".tv__hscroll") : null;
+    var zoomed = hscroll ? hscroll.querySelector(".tv__zoom") : null;
+    if (!zoomed) return;
+    var k = Number(zoomed.getAttribute("data-zoom")) || 1;
+    var left = typeof hscroll.scrollLeft === "number" ? hscroll.scrollLeft : 0;
+    zoomed.style.setProperty("--tv-shift", (left / k) + "px");
+    var head = zoomed.querySelector(".tv__head");
+    if (head && head.placeColumnGrips) {
+      head.placeColumnGrips(left / k, (hscroll.clientWidth || 0) / k);
+    }
+  };
+
+  // Holding the column header at the top of what the reader can see
+  // (the_dag_is_zoomable_and_a_length_mode_draws_to_scale). A CSS `position:
+  // sticky` cannot do it: the head lives inside `.tv__hscroll`, which is the
+  // nearest scrollport and never scrolls vertically, so the browser pins it
+  // against a box that does not move. The page scrolls (or, on the kinematic
+  // page, the bounded pane does), so the pin is written from the scroll
+  // events themselves -- synchronously, before the frame paints, so it does
+  // not lag the rows it labels.
+  //
+  // How far the head must move DOWN from its natural place, on screen: it
+  // follows the top of the visible window once that has passed it, and stops
+  // when it would leave the grid block it labels.
+  VA.headPinOffset = function (naturalTop, visibleTop, blockBottom, headHeight) {
+    var room = blockBottom - headHeight - naturalTop;
+    return Math.max(0, Math.min(visibleTop - naturalTop, room));
+  };
+
+  // The top of what the reader can see of the drawing, in viewport pixels: the
+  // bounded pane's own top, otherwise the sticky page bar's bottom.
+  function visibleTop(root) {
+    if (root.classList && root.classList.contains("tv__scroll--bounded")) {
+      return root.getBoundingClientRect().top;
+    }
+    var bar = typeof document !== "undefined" && document.querySelector
+      ? document.querySelector(".topbar") : null;
+    return bar && bar.getBoundingClientRect ? bar.getBoundingClientRect().bottom : 0;
   }
+
+  VA.pinTopoHead = function (root) {
+    if (!root || !root.querySelector) return 0;
+    var head = root.querySelector(".tv__head");
+    var zoomed = head && head.parentNode;
+    if (!head || !zoomed || typeof zoomed.getBoundingClientRect !== "function") return 0;
+    var k = Number(zoomed.getAttribute("data-zoom")) || 1;
+    var natural = parseFloat(head.getAttribute("data-natural-top")) || 0;
+    var bottom = parseFloat(head.getAttribute("data-block-bottom")) || 0;
+    var top = zoomed.getBoundingClientRect().top;
+    var dy = VA.headPinOffset(top + natural * k, visibleTop(root), top + bottom * k,
+      VA.DAG_FIT.headHeight * k);
+    // `top`, not a transform: a transform on the head is what the respine's
+    // settled-frame check reads as an unfinished transition.
+    head.style.top = (natural + dy / k) + "px";
+    head.setAttribute("data-pinned", dy > 0 ? "1" : "");
+    return dy;
+  };
 
   // The grid is a REAL <table> (deliverable 2): a rectangular selection has to
   // paste into Excel as columns, which only a genuine table body does — a

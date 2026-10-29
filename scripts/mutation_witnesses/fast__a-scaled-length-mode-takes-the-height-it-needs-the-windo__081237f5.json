@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a scaled length mode takes the height it needs: the window is no budget, and only a bar clamped to the legibility floor says so",
+  "mutations": [
+    {
+      "contract": "A scaled mode draws its largest bar at EDGE_LENGTH_SCALE.maxRows rows and the rest in proportion, whatever the window.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "Every bar at one row is exactly the collapse this handoff removed: uniform and both scaled modes draw the same picture.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var maxLen = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;\n",
+      "replace": "    var maxLen = metrics.rowHeight * 1;\n"
+    }
+  ]
+}

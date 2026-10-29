@@ -1381,8 +1381,8 @@ dimension bar gets:
 * **feature size** — a bar's length ∝ its dimension's nominal.
 
 The scale is relative to the serialisation on screen: the largest value renders
-at `EDGE_LENGTH_SCALE.maxRows` row heights **or at whatever the viewport allows,
-whichever is shorter**, everything else in proportion — and **nothing renders
+at `EDGE_LENGTH_SCALE.maxRows` row heights, everything else in proportion — the
+window is not a budget — and **nothing renders
 shorter than one row height** (`floorRows`). The floor keeps
 a zero/tiny/unstated edge clickable (whole-edge hover is a landed contract) and
 keeps every node at-or-below its uniform y, so a scaled mode only ever
@@ -1395,34 +1395,50 @@ where the bar cards, `VA.flooredEdgeTitle` where it falls back to a title, both
 reading `VA.FLOORED_RENDER_NOTE`; the legend states outright that lengths are
 indicative. The variation-only edges
 the real workbooks produce (`nominal: 0.0`, the provenance note saying the
-nominal is unstated) are exactly this case — under feature size the whole real
-`pitch_system` floors, honestly marked, rather than inventing a scale.
+nominal is unstated) are exactly this case: they floor, honestly marked, rather
+than inventing a scale.
 
-### The whole DAG fits the window, or overflows honestly
+### A scaled mode takes the height it needs; the reader zooms
 
-`EDGE_LENGTH_SCALE.maxRows` used to be the only constraint on how tall a
-scaled DAG got, and 6 row heights over `pitch_system`'s 24 edges came out
-3325px — "multiple times the page height hence impossible to make sense of"
-(Jeff, reviewing the real thing). So the page also **fits**
-(`viewer_dag_spine_layout`): `VA.dagHeightBudget` measures what the window
-leaves below the page's chrome, `VA.fitEdgeLength` solves the largest edge's
-length so the whole DAG lands on that budget, and the shorter of the two
-answers is drawn. Downward only — a short topology is never inflated to fill a
-window, which was measured to make the leaders' jog worse rather than better.
+Until 2026-10-28 the page also *fitted* the DAG to the window
+(`viewer_dag_spine_layout`), and on the product model `vpa_pitch_linkage` — whose
+floor alone is taller than any window — the fit collapsed onto the floor at
+every window size: **uniform and both scaled modes drew the same picture**
+("Lengths select appears to be broken", Jeff). The window is no longer a budget
+(`the_dag_is_zoomable_and_a_length_mode_draws_to_scale`): a scaled mode draws
+the largest bar at `maxRows` and the rest in proportion, the walk takes the
+height that needs (taller than uniform in both scaled modes on that model — a
+real-model test pins it), and the reader sees it all with **Fit**. The floor stays as a
+legibility rule — a bar must stay clickable — and a bar clamped up to it says so
+(break mark, "not to scale" hover); a bar with nothing to scale by says so too.
 
-The **floor is never given up**, so the fit has an honest failure: where one
-row per edge is already past the budget, every bar sits on the floor wearing
-its break mark, the DAG is exactly as tall as its own row count demands and
-the page scrolls. (`vpa_pitch_linkage` at comfortable density is exactly
-this: 169 rows × 26px = 4394px, past any ordinary window. Compact density is the control
-that actually makes it fit; under the fit its tolerance-width and uniform
-renderings are the same height, and every bar says it is not to scale.) A
-collapsed scale marks **every** bar, including the widest ones that landed on
-the floor by arithmetic rather than by clamping — 24 identical bars of which
-13 claimed to be a measured proportion would be a lie by omission.
+### Zoom, Fit and the grid header
 
-The budget is re-measured on every paint, and the page re-paints (debounced)
-on window resize, so the fit is never stale against the window it is in.
+One scale (`VA.DAG_ZOOM`, `{min, max, step}` — the lightbox's shape) on the
+drawing's container, `.tv__zoom`, which holds the header, the rails SVG and the
+grid rows together so nothing shears; `.tv__zoomsizer` carries the scroll
+extents a transform does not change layout for. The scale is per page state
+(`state.dagZoom`), never stored. The minimum is chosen so the whole walk, in its
+tallest mode, shows in a 900px pane (a test re-derives that off the real model).
+
+* **Wheel** over the drawing zooms about the pointer; Ctrl/Cmd+wheel (and a
+  trackpad pinch) zooms from anywhere over the pane. A plain wheel over the
+  grid still scrolls the page — the document is the scroller. A drag on the
+  drawing's empty space pans.
+* **Fit** (toolbar, key `0`) zooms to the lit set — a study's chain, a
+  kinematic study's — or the whole walk where nothing is lit, never past a
+  scale of 1, and scrolls it to the top of what is visible, in one step.
+* **The leaders across the seam** read the drawing's scale off the rails SVG's
+  painted box (`r.width / drawn.width`), so a zoom changes nothing about where
+  a dot is in the SVG's own pixels (`VA.lastTopoRender.seam`).
+* **The grid header** (`.tv__head`) sits directly above the first grid row and
+  is held at the top of the visible pane while any grid row is on screen
+  (`VA.pinTopoHead`). `position: sticky` cannot do it — its nearest scrollport,
+  `.tv__hscroll`, never scrolls vertically — so the pin is written from the
+  scroll events. The same reason, one scale in, makes `.tv__rails` and the jog
+  grip ride `--tv-shift` instead of `position: sticky` at a scale other than 1
+  (`VA.syncTopoScroll`): Chrome offsets a sticky box by the scroll in the box's
+  own pixels, so under a scale the rails drift (k − 1) of it.
 
 ### The DAG and the grid are centred against each other
 
@@ -2437,9 +2453,9 @@ apps/viewer/
                       rail GEOMETRY (row index -> pixels; the columns are the
                       projection's, mirrored right-justified by VA.spineRight),
                       the keyed position store + edge-length modes + the
-                      viewport fit and the DAG/grid centring (VA.rowPositions /
-                      VA.edgeLengthValue / VA.fitEdgeLength / VA.centreOffsets /
-                      VA.dagHeightBudget — the one declared arithmetic on
+                      zoom bounds and the DAG/grid centring (VA.rowPositions /
+                      VA.edgeLengthValue / VA.centreOffsets /
+                      VA.DAG_ZOOM / VA.litSpan — the one declared arithmetic on
                       dimension fields: it feeds bar LENGTHS only, pixels,
                       never a printed number or a verdict), the grid PLAN +
                       leader geometry

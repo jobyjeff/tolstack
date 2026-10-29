@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] on the product model a scaled length mode draws to scale, and the zoom's minimum shows the whole walk in a 900px pane",
+  "mutations": [
+    {
+      "contract": "On the real 169-row model a scaled mode draws bars of at least three lengths, not all floored.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "The window-fit floored every bar here; one row per bar brings the collapse back.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var maxLen = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;\n",
+      "replace": "    var maxLen = metrics.rowHeight * 1;\n"
+    }
+  ]
+}

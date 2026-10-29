@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] the column header sits directly above the first grid row, not above the whole DAG",
+  "mutations": [
+    {
+      "contract": "The header sits above the first grid row, measured.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "A header at the pane top is the inert-sticky defect.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    head.style.top = headTop + \"px\";",
+      "replace": "    head.style.top = \"0px\";"
+    }
+  ]
+}

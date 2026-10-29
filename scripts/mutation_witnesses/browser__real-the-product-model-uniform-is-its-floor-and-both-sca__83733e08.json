@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology height budget",
+  "expect_red": "[real] the product model: uniform is its floor, and both scaled modes are TALLER than it -- the bars really are drawn to scale",
+  "mutations": [
+    {
+      "contract": "On the real product model both scaled modes draw taller than uniform.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "Every bar at one row is the window-fit collapse.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var maxLen = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;\n",
+      "replace": "    var maxLen = metrics.rowHeight * 1;\n"
+    }
+  ]
+}

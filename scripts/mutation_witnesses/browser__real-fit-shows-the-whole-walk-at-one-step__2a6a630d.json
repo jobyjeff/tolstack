@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] Fit shows the whole walk at one step",
+  "mutations": [
+    {
+      "contract": "Fit zooms the lit set (the whole walk where nothing is lit) into the visible pane.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "A Fit that never leaves 1 shows nothing new on a walk taller than the window.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return Math.min(1, VA.clampDagZoom(visible / span));",
+      "replace": "    return 1;"
+    }
+  ]
+}

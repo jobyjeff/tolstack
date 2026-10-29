@@ -1223,79 +1223,100 @@
   };
 
   // The scale's two shape constants, in ROW HEIGHTS so both densities scale
-  // together. Nothing renders shorter than one row — the floor that keeps a
-  // zero/tiny/unstated edge clickable (whole-edge hover is a landed contract)
-  // and keeps every node y at-or-below its uniform position, which is what
-  // lets the leaders keep rising left-to-right in every mode.
+  // together. Nothing renders shorter than one row -- the legibility floor
+  // that keeps a zero/tiny/unstated edge clickable (whole-edge hover is a
+  // landed contract) and keeps every node y at-or-below its uniform position,
+  // which is what lets the leaders keep rising left-to-right in every mode.
   //
-  // `maxRows` is what the largest value in the serialisation renders at when
-  // nothing else constrains it. It stopped being the ONLY constraint in
-  // viewer_dag_spine_layout (2026-09-14): 6 row heights over pitch_system's
-  // 24 edges drew a DAG 3325px tall, "multiple times the page height hence
-  // impossible to make sense of" (Jeff), so the page now also fits the whole
-  // DAG into the viewport (VA.fitEdgeLength) and draws the SHORTER of the two.
-  //
-  // Downward only, and that is a measured decision rather than a reading of
-  // the handoff: fitting a small topology UP to the viewport as well (a
-  // 5-edge chain stretched over 780px) makes the leaders' jog worse, not
-  // better — pitch_link_to_pitch_plate's own max jog went 132px → 274px when
-  // it was tried. The complaint the fit answers is a DAG taller than the
-  // page; nothing asked for a short one to be inflated.
+  // `maxRows` is what the largest value in the serialisation renders at. It is
+  // the whole of the scale: the window is NOT a budget (the_dag_is_zoomable_
+  // and_a_length_mode_draws_to_scale, 2026-10-28). Until then the page fitted
+  // the DAG into the viewport and, on the 169-row product model whose floor
+  // alone is taller than any window, floored every bar -- uniform and both
+  // scaled modes drew the same picture. A scaled mode now takes the height
+  // it needs and the reader zooms (VA.DAG_ZOOM) to see it; the floor stays
+  // because a bar must stay clickable, and a bar clamped up to it says so.
   VA.EDGE_LENGTH_SCALE = { maxRows: 6, floorRows: 1 };
 
-  // --- the viewport fit (viewer_dag_spine_layout, 2026-09-14) --------------
-  //
-  //: The fit's own shape constants. `headHeight` is `.tv__head`'s own CSS
-  //: height (topology.css) — the column header sits INSIDE the pane and is
-  //: not part of the DAG, so the budget has to give it back; a test pairs the
-  //: two so the stylesheet cannot drift from this number. `slack` keeps the
-  //: longest bar off the window's own bottom edge. `minRows` floors the
-  //: budget itself: a page whose chrome has eaten the whole viewport still
-  //: gets a usable DAG (and scrolls) rather than a budget of zero.
-  VA.DAG_FIT = { headHeight: 26, slack: 12, minRows: 8 };
+  //: `headHeight` is `.tv__head`'s own CSS height (topology.css): the column
+  //: header sits INSIDE the pane and is not part of the DAG. A test pairs the
+  //: two so the stylesheet cannot drift from this number.
+  VA.DAG_FIT = { headHeight: 26 };
 
-  // How much vertical room the DAG has, from the pane's own top in DOCUMENT
-  // coordinates and the window's height. Pure, so the browser tier can
-  // re-derive the same number the render used from the same two measurements.
-  VA.dagHeightBudget = function (paneTop, viewportHeight, metrics) {
-    metrics = metrics || VA.RAIL_METRICS;
-    var budget = viewportHeight - paneTop - VA.DAG_FIT.headHeight - VA.DAG_FIT.slack;
-    return Math.max(budget, metrics.rowHeight * VA.DAG_FIT.minRows);
+  // --- zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale) -----------
+  //
+  // One scale on the DAG's drawing container (rails, body fields and grid rows
+  // together, so nothing shears). The same `{min, max, step}` shape as the
+  // crop lightbox's VA.LIGHTBOX_ZOOM. `min` is chosen so the WHOLE product
+  // walk fits a 900px-high pane in its tallest mode (tolerance width, 5510px
+  // at the comfortable density: 0.15 x 5510 = 826); a test re-derives that off
+  // the real model so a taller walk fails here instead of being unreachable.
+  // `max` 2 is where the 26px rows are 52px and the text is large enough for
+  // anything a reader zooms in for. `step` is one wheel notch's factor.
+  VA.DAG_ZOOM = { min: 0.15, max: 2, step: 1.15 };
+
+  VA.clampDagZoom = function (scale) {
+    var n = Number(scale);
+    if (!isFinite(n) || n <= 0) return 1;
+    return Math.min(VA.DAG_ZOOM.max, Math.max(VA.DAG_ZOOM.min, n));
   };
 
-  // The length the LARGEST edge is drawn at so the whole DAG lands on
-  // `budget` — the fit that replaced the absolute cap.
-  //
-  // `ratios` is every edge row's value as a fraction of the serialisation's
-  // largest (0 where there is nothing to scale by), `fixedHeight` is the node
-  // rows' total (a node is a point; its slot never scales), `floor` is the
-  // one-row minimum. Total height is
-  //     fixedHeight + Σ max(floor, ratio × length)
-  // which is non-decreasing in `length` and bottoms out at the UNIFORM height
-  // (every ratio ≤ 1, so at length = floor every edge is at the floor). So:
-  //
-  //   - a budget at or below that bottom cannot be met — the floor wins, every
-  //     edge floors, and the page scrolls. Honest overflow, never an
-  //     unclickable bar;
-  //   - otherwise the answer is exact, not searched: sort the ratios, and for
-  //     each k assume the top k are above the floor and the rest sit on it.
-  //     That fixes a linear equation in `length`; the consistent k (its own
-  //     ratio at-or-above the floor, the next one at-or-below) is the answer.
-  VA.fitEdgeLength = function (ratios, fixedHeight, floor, budget) {
-    var n = ratios.length;
-    if (!n) return floor;
-    if (!(budget > fixedHeight + n * floor)) return floor;
-    var sorted = ratios.slice().sort(function (a, b) { return b - a; });
-    var sum = 0;
-    var length = floor;
-    for (var k = 0; k < n; k++) {
-      if (!(sorted[k] > 0)) break;
-      sum += sorted[k];
-      length = (budget - fixedHeight - (n - 1 - k) * floor) / sum;
-      var next = k + 1 < n ? sorted[k + 1] : 0;
-      if (sorted[k] * length >= floor && next * length <= floor) return length;
+  // The scale after one wheel event: `deltaY` > 0 is away from the reader.
+  // Proportional to the delta (a trackpad's small deltas zoom smoothly, a
+  // mouse notch of 100 is one `step`), clamped to the bounds.
+  VA.dagZoomAfterWheel = function (scale, deltaY) {
+    if (!deltaY) return VA.clampDagZoom(scale);
+    var notches = -deltaY / 100;
+    return VA.clampDagZoom(scale * Math.pow(VA.DAG_ZOOM.step, notches));
+  };
+
+  // The scroll offset that keeps the content point under the pointer where it
+  // is when the scale changes. `scroll` is the container's offset on one axis
+  // at `from`; `pointer` is the pointer's offset in the VISIBLE box on that
+  // axis. The content coordinate under it is (scroll + pointer) / from, and it
+  // has to be at the same place after: scroll' = content * to - pointer.
+  VA.dagScrollAfterZoom = function (scroll, pointer, from, to) {
+    var content = (scroll + pointer) / from;
+    return Math.max(0, content * to - pointer);
+  };
+
+  // The scale that brings a vertical span (`top`..`bottom`, in unscaled
+  // content pixels) into a visible box `visible` pixels high, never past 1:
+  // a span that already fits is not blown up, because Fit is "show me all of
+  // it", not "magnify it". `pad` is the breathing room kept at each end.
+  VA.dagFitScale = function (top, bottom, visible, pad) {
+    var span = bottom - top + 2 * (pad || 0);
+    if (!(span > 0) || !(visible > 0)) return 1;
+    return Math.min(1, VA.clampDagZoom(visible / span));
+  };
+
+  // The vertical extent of what is lit, in the position store's own pixels:
+  // the DAG's lit dots and bars, and the grid block beside them (the chain's
+  // rows are what the grid holds under a study). With nothing lit it is the
+  // whole walk. Returns {top, bottom}.
+  VA.litSpan = function (positions, lit, plan, metrics) {
+    metrics = metrics || VA.RAIL_METRICS;
+    var top = Infinity;
+    var bottom = -Infinity;
+    var take = function (a, b) {
+      if (a < top) top = a;
+      if (b > bottom) bottom = b;
+    };
+    if (lit) {
+      Object.keys(lit.nodes || {}).forEach(function (id) {
+        var y = positions.nodes[id];
+        if (typeof y === "number") take(y - metrics.rowHeight / 2, y + metrics.rowHeight / 2);
+      });
+      Object.keys(lit.edges || {}).forEach(function (id) {
+        var e = positions.edges[id];
+        if (e) take(e.y1, e.y2);
+      });
+      if (plan && plan.rows && plan.rows.length && isFinite(top)) {
+        take(positions.gridOffset, positions.gridOffset + positions.gridHeight);
+      }
     }
-    return length;
+    if (!isFinite(top)) return { top: 0, bottom: positions.height };
+    return { top: top, bottom: bottom };
   };
 
   // The value an edge's rendered length is proportional to under `mode`, or
@@ -1403,26 +1424,15 @@
   // to the floor, or no value to scale by at all), so a view can mark it and
   // a reader is never handed a fake proportion.
   //
-  // `fit` is the viewport (viewer_dag_spine_layout, 2026-09-14), and it is
-  // what the page passes and a pure caller does not:
-  //
-  //   { budget: px, plan: <VA.gridPlan's output> }
-  //
-  //   - `budget` is the room the DAG has (VA.dagHeightBudget). With one, the
-  //     largest edge's length is SOLVED so the whole DAG lands on it, and the
-  //     shorter of that and EDGE_LENGTH_SCALE.maxRows is drawn; without one
-  //     the cap alone applies, which is what every pure caller and test still
-  //     sees. The floor is never given up, so a DAG whose own edge count
-  //     already overruns the budget overruns it honestly and the page
-  //     scrolls.
-  //   - `plan` is the grid beside it (VA.gridPlan), and it is the whole of
-  //     deliverable 3: the two blocks are CENTRED against each other rather
-  //     than both top-aligned, which is what drops the jog the leaders have to
-  //     absorb. The grid's own row pitch never moves — it is offset as a
-  //     block, by `gridOffset`, and the view applies that offset to the table
-  //     it renders. See VA.centreOffsets for what "centred" means here and
-  //     why it is measured across the leaders rather than across the two
-  //     blocks' heights.
+  // `fit` is `{ plan: <VA.gridPlan's output> }`, what a pure caller omits:
+  // `plan` is the grid beside the DAG, and the two blocks are CENTRED against
+  // each other rather than both top-aligned, which is what drops the jog the
+  // leaders have to absorb. The grid's own row pitch never moves -- it is
+  // offset as a block, by `gridOffset`, and the view applies that offset to
+  // the table it renders. See VA.centreOffsets for what "centred" means here
+  // and why it is measured across the leaders rather than across the two
+  // blocks' heights. There is no viewport in it: the window is not a budget
+  // (VA.EDGE_LENGTH_SCALE).
   VA.rowPositions = function (layout, topoProj, mode, metrics, fit) {
     metrics = metrics || VA.RAIL_METRICS;
     var rows = (layout && layout.rows) || [];
@@ -1441,32 +1451,16 @@
       });
     }
 
-    // Every edge row's share of that yardstick, in row order, and the node
-    // rows' fixed total — the two inputs the fit is solved from.
+    // Every edge row's share of that yardstick, in row order.
     var ratios = [];
-    var fixedHeight = 0;
     rows.forEach(function (row) {
-      if (row.kind !== "edge") { fixedHeight += metrics.rowHeight; return; }
+      if (row.kind !== "edge") return;
       if (!scaled) { ratios.push(0); return; }
       var v = VA.edgeLengthValue(index.edges[row.id], mode);
       ratios.push(v !== null && vmax > 0 ? v / vmax : 0);
     });
 
-    var budget = (fit && fit.budget) || 0;
     var maxLen = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;
-    if (budget > 0) {
-      maxLen = Math.min(maxLen,
-        VA.fitEdgeLength(ratios, fixedHeight, floor, budget));
-    }
-    // The fit collapsed onto the floor: this serialisation's own edge count
-    // fills the viewport before any proportion can be drawn at all, so every
-    // bar comes out one row tall whatever its value. The widest edges land on
-    // the floor by arithmetic rather than by clamping, and marking only the
-    // OTHERS not-to-scale would hand a reader 24 identical bars of which 13
-    // claim to be a measured proportion. Nothing on such a page is to scale,
-    // and all of it says so. (pitch_system under tolerance width in a 1000px
-    // window is exactly this, 13 edges tied at the widest band.)
-    var collapsed = maxLen <= floor;
 
     // Pass one: every slot's height, and therefore the DAG's own extent.
     var heights = [];
@@ -1479,7 +1473,7 @@
       if (row.kind === "edge") {
         if (scaled) {
           var proportional = ratios[ei] * maxLen;
-          if (proportional < floor || collapsed) {
+          if (proportional < floor) {
             h = floor;
             floored = true;
           } else {

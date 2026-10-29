@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the DAG's header height is the stylesheet's own",
+  "mutations": [
+    {
+      "contract": "VA.DAG_FIT.headHeight is .tv__head's own CSS height.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "The pin and the body padding both read the JS number; a stylesheet that moved on would put the header over the first row.",
+      "file": "apps/viewer/topology.css",
+      "find": "  letter-spacing: .04em; height: 26px; line-height: 25px;",
+      "replace": "  letter-spacing: .04em; height: 28px; line-height: 25px;"
+    }
+  ]
+}

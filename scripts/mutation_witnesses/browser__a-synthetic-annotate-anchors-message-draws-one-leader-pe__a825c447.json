@@ -8,7 +8,7 @@
       "issue": null,
       "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Forgets the rect, so every leader starts at the window's corner.",
       "file": "apps/viewer/topology_app.js",
-      "find": "      dots[id] = [r.left + d[0], r.top + d[1]];",
+      "find": "      dots[id] = [r.left + d[0] * k, r.top + d[1] * k];",
       "replace": "      dots[id] = [d[0], d[1]];"
     }
   ]

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] scrolled down the grid, the header is on screen whenever a grid row is",
+  "mutations": [
+    {
+      "contract": "The header is on screen whenever any grid row is.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "Dropping the scroll pin leaves the header where it started, a screen above the rows.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    head.style.top = (natural + dy / k) + \"px\";",
+      "replace": "    head.style.top = natural + \"px\";"
+    }
+  ]
+}
