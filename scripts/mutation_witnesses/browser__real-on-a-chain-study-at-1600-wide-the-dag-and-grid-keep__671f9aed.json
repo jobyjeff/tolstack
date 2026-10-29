@@ -6,10 +6,10 @@
     {
       "contract": "At 1600 wide with the scene at its floor and the results pane open, the DAG and grid keep the scene's reserve.",
       "issue": "docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md",
-      "note": "A floor that leaves the DAG and grid less than the reserve beside a 560px results pane: 1000 at 1600 wide.",
+      "note": "A floor that leaves the DAG and grid under the reserve beside the 560px results pane: 480 at 1600 wide leaves ~250px. (1000 covered the contributor table with the pane and aborted the suite.)",
       "file": "apps/viewer/views/topology.js",
       "find": "  VA.FLYOUT_WIDTH = { min: 400, max: 1200, reserve: 320 };",
-      "replace": "  VA.FLYOUT_WIDTH = { min: 1000, max: 1200, reserve: 320 };"
+      "replace": "  VA.FLYOUT_WIDTH = { min: 480, max: 1200, reserve: 320 };"
     }
   ]
 }

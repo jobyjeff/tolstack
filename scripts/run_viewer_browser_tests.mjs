@@ -4241,14 +4241,20 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       "one step",
       kinFit.lit > 0 && kinFit.litTop >= kinFit.paneTop - 2 &&
       kinFit.litBottom <= kinFit.paneBottom + 2);
-    // Scroll the page down the grid: the header is held under the topbar
-    // while any grid row is in view.
-    await page.evaluate(() => window.scrollBy(0, 700));
+    // Scroll the page into the grid, past its header, so grid rows are in
+    // view (the lit grid starts well down the whole walk): the header is held
+    // under the topbar.
+    await page.evaluate(() => {
+      const bar = document.querySelector(".topbar").getBoundingClientRect().bottom;
+      const rows = document.querySelectorAll("#topopane tr.tvrow");
+      const row = rows[Math.min(rows.length - 1, 3)];
+      if (row) window.scrollBy(0, row.getBoundingClientRect().top - bar - 40);
+    });
     await settle(150);
     const kinScrolled = await kin();
     push("[real] scrolled down the kinematic page's grid, the header is held " +
       "under the topbar whenever a grid row is in view",
-      kinScrolled.rows === 0 || Math.abs(kinScrolled.headTop - kinScrolled.paneTop) < 3);
+      kinScrolled.rows > 0 && Math.abs(kinScrolled.headTop - kinScrolled.paneTop) < 3);
     await page.evaluate(() => window.scrollTo(0, 0));
     await settle(150);
     await page.locator("#edge-length-toggle").click();

@@ -6,10 +6,10 @@
     {
       "contract": "On a live kinematic study with the scene open the order is nav | scene | DAG | results, the chart in the results pane.",
       "issue": "docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md",
-      "note": "Since 2026-10-28 the results pane stays beside the grid with the scene open. Renders the results without appending them to the pane, so the pane is there and the chart is not.",
-      "file": "apps/viewer/topology_app.js",
-      "find": "        nodes.detail.appendChild(VA.renderKinematicResults(VA.el(\"section\"), kinematicCtx));",
-      "replace": "        VA.renderKinematicResults(VA.el(\"section\"), kinematicCtx);"
+      "note": "Since 2026-10-28 the results pane stays beside the grid with the scene open. Drops the chart from the results; the verdicts stay, so the suite runs on to this check (dropping the whole results block aborted it at its wait for the verdicts).",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (chart) root.appendChild(chartFigure(chart));\n",
+      "replace": ""
     }
   ]
 }
