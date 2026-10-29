@@ -592,6 +592,9 @@
     });
     var own = rows.filter(function (r) { return r.edge === edgeId; })[0];
     if (own) return [{ row: own, via: null }];
+    // A gap edge with nothing touching lists nothing -- never its neighbours'
+    // pairs, which would read as this joint's.
+    if ((entry.edges || []).some(function (r) { return r.edge === edgeId; })) return [];
     var edge = ((topology.edges || []).filter(function (e) { return e.id === edgeId; }))[0];
     if (!edge) return [];
     return rows.filter(function (r) {

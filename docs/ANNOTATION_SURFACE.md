@@ -413,7 +413,10 @@ then key order. The same joint on every blade is one answer five times over.
 A second pair that shares an occurrence with the winner and touches *different*
 faces — a link with a bearing at each end — is not: the row lists it under
 `ambiguous_with` and the bar says the parts touch in more than one place. Only
-the edge's own words can settle which end it means.
+the edge's own words can settle which end it means. A part every blade shares
+(the pitch plate, the tangential link mount) touches at a different face per
+blade and is reported the same way: nothing declares which blade a topology is
+about (`docs/issues/ISSUE_20261028_contact_suggestions_cannot_say_which_blade_a_topology_edge_means.md`).
 
 **An edge with no candidate says why**, one of
 `interface_contact.EMPTY_REASONS`: no installed mesh for an end, no recorded

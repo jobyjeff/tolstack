@@ -3568,8 +3568,14 @@ check("contact rows: a gap edge gets its own row, an element beside it gets " +
   assertEqual(beside.map((r) => r.row.edge), ["joint"],
     "a length ending at a joint did not find that joint's touching faces");
   if (beside[0].via === null) throw new Error("a neighbour's row was not marked as one");
-  // n3-n4's joint has no candidate: an element ending there lists nothing.
+  // n3-n4's joint has no candidate: an element ending there lists nothing,
+  // and neither does that joint itself, though `length` touches it AND the
+  // joint that does have a pair.
   assertEqual(AA.contactRowsFor(CONTACT_DOC, CONTACT_TOPOLOGY, "elsewhere"), []);
+  const emptyJoint = { id: "t", nodes: CONTACT_TOPOLOGY.nodes,
+    edges: CONTACT_TOPOLOGY.edges.concat([{ id: "empty_joint", from: "n2", to: "n4" }]) };
+  assertEqual(AA.contactRowsFor(CONTACT_DOC, emptyJoint, "empty_joint"), [],
+    "a gap edge with nothing touching listed a neighbour's pair as its own");
   assertEqual(AA.contactRowsFor(null, CONTACT_TOPOLOGY, "joint"), []);
   assertEqual(AA.contactRowsFor(CONTACT_DOC, { id: "other", edges: [] }, "joint"), []);
   // Both features' faces are what gets coloured, each on its own part.
