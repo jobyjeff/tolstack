@@ -4,12 +4,12 @@
   "expect_red": "[real] on P2 every lit node with an anchor and a dot in the DAG's view has its leader across the seam, and nothing else has one",
   "mutations": [
     {
-      "contract": "A dot scrolled out of the DAG's view has no leader.",
+      "contract": "A leader leaves its dot where the browser painted it, so the leaders drawn are exactly the lit nodes with an anchor and a dot in the DAG's view at the drawing's own zoom.",
       "issue": null,
-      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Draws one to every dot, in view or not.",
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27); re-aimed 2026-10-28 by the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below. The first mutation (no dot clip at all) stopped reddening when the study arrival began framing the whole band in the bounded box: no lit dot is out of view any more, so clipping nothing and clipping to the box agree. This one drops the zoom from the dots, so at the framed scale the seam clips and joins the wrong points.",
       "file": "apps/viewer/topology_app.js",
-      "find": "      dotClip: { left: p.left, right: p.right,\n                 top: Math.max(p.top, head && head.getAttribute(\"data-pinned\")\n                   ? head.getBoundingClientRect().bottom : p.top, 0),\n                 bottom: Math.min(p.bottom, bottom) },",
-      "replace": "      dotClip: null,"
+      "find": "      dots[id] = [r.left + d[0] * k, r.top + d[1] * k];",
+      "replace": "      dots[id] = [r.left + d[0], r.top + d[1]];"
     }
   ]
 }

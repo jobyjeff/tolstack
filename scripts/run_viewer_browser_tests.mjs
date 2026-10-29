@@ -4263,13 +4263,13 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       };
     });
     const kinStart = await kin();
-    // Since 2026-10-28 the arrival frames the study's band (Fit), which puts
-    // the header Fit's own breathing room below the box's top.
+    // Since 2026-10-28 the arrival frames the study's band (Fit): the box
+    // opens on the whole lit set, so the header sits over the grid wherever
+    // the band puts it rather than at the box's top.
     push("[real] the kinematic page's model is a bounded box that arrives " +
-      "with the study framed in it, the grid's header at its top",
+      "with the study framed in it and the grid's header in view",
       kinStart.bounded && kinStart.rows > 0 &&
-      kinStart.headTop >= kinStart.paneTop - 3 &&
-      kinStart.headTop - kinStart.paneTop <= 12 * kinStart.k + 3 &&
+      kinStart.headTop >= kinStart.paneTop - 3 && kinStart.headBottom <= kinStart.paneBottom + 3 &&
       kinStart.litTop >= kinStart.paneTop - 2 && kinStart.litBottom <= kinStart.paneBottom + 2);
     await page.locator("#dag-fit").click();
     await settle(300);
