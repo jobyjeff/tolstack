@@ -16926,18 +16926,18 @@
                "a line carrying the qualifier explains it");
           });
 
-        if (!mixedParts.length) {
-          // Named, not skipped: a SKIP line means "this tier could not run" and
-          // reddens the default tier (tests/test_viewer_js_suite.py), which is
-          // wrong for a live set that is simply empty. The fixture witness above
-          // carries the design; this PASS says the live set is empty, by name,
-          // and the branch below re-arms the moment a live mixed part appears.
-          await test("[real] 0 live parts cite both a drawing and a workbook " +
-            "-- the per-document qualifier is witnessed by the fixture only " +
-            "(ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md)",
-            function () { eq(mixedParts.length, 0); });
-        } else await test("[real] a part sourced to both a drawing and a workbook " +
-          "qualifies the workbook and leaves the drawing alone", function () {
+        // ONE name for both live states. A guard whose name is chosen at run
+        // time by live data is declared twice and runnable once, which
+        // scripts/guard_enumeration.mjs `pairExecuted` reads as a declared guard
+        // that never ran. So the name is fixed and says what an empty live set
+        // means: with no mixed part the loop below has nothing to assert (and
+        // the fixture guard above carries the design), and the moment a live
+        // part is mixed it asserts on it with no edit here. Named, not skipped:
+        // a SKIP line reddens the default tier (tests/test_viewer_js_suite.py).
+        // ISSUE_20261026_the_per_document_qualifier_lost_its_only_live_witness.md
+        await test("[real] each live part sourced to both a drawing and a " +
+          "workbook qualifies the workbook and leaves the drawing alone " +
+          "(vacuous while no live part is mixed)", function () {
             var mixed = mixedParts;
             mixed.forEach(function (row) {
               var root = render(function (r) {

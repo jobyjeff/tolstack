@@ -165,7 +165,7 @@ export const DECLARED_GUARDS = {
   // top of the_active_study_is_a_compact_band_...'s +8.
   // Re-measured again at the same review's second merge, on top of
   // a_study_is_a_translucent_group_on_the_dag.
-  fast: { declared: 622, enrollable: 622, names: "ed4b94d0cb97" },
+  fast: { declared: 621, enrollable: 621, names: "fd7b363db255" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
