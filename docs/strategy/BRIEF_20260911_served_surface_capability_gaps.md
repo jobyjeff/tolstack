@@ -1,5 +1,7 @@
 # BRIEF 2026-09-11 — served-surface capability gaps: what the drawing-checker mount can reach, read, and drive
 
+> **CONSUMED 2026-10-29 — the served surface reads over HTTP since `the_scene_pane_is_one_flyout_that_reads_over_http` (landed 2026-10-29): HTTP reads, folder grant on write only, status dot instead of the banner. The four source issues resolve against that handoff; any remaining facet is re-filed from the live surface, not carried here. (The 2026-10-22 partial marker below stands as history.)**
+
 > **PARTIALLY CONSUMED 2026-10-22 — one facet only: drawing-checker's `ISSUE_20260911_mounted_tolstack_viewer_entry_point_double_redirects` is closed by dropping the `<meta http-equiv=refresh>` from `apps/viewer/index.html` (the `location.replace` line carries the query string; the meta cannot), folded as a deliverable into `docs/sessions/HANDOFF_20261022_a_study_says_it_is_incomplete_without_inventing_a_check.md`. The four tolstack issues and the served-surface capability contract remain open for a tolstack session.**
 
 Filed by triage 2026-09-11, consolidating four open issues that are all

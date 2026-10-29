@@ -1,14 +1,15 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: triaged
 area: kinematic study / travel between end stops
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md
 class: band_attributed_to_the_wrong_member
 defer_until: 2026-11-12
-resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | burndown 2026-10-29 (strategy): Jeff ruled: the +72 feather stop is the datum; the travel study is an x-uncertainty of the -7 stop only (never a y-term of the envelope, which is what draws the kinks); neither stop is anchored to the blade-root bores -- declared as a gap
+handoff: docs/sessions/HANDOFF_20261029_the_plus72_stop_is_the_travel_datum.md
 ---
 
 # Both end stops carry the full travel band, and the travel study's nominal is not the sweep's stop

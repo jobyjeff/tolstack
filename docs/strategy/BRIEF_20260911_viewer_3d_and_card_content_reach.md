@@ -1,5 +1,7 @@
 # BRIEF 2026-09-11 — 3D/annotator reach and hover-card content: four design gaps left open by the study_3d_flyout / hover-cards track
 
+> **CONSUMED 2026-10-29 — the data-model half (one record per element behind 3D, DAG and grid) is Jeff's 2026-10-29 ruling, staged as `docs/sessions/HANDOFF_20261029_a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark.md`; the 3D reach half landed with the one-shell work (10-20 → 10-29).**
+
 Filed by triage 2026-09-11, consolidating four open `audience: strategy`
 issues from the same feature track (the study-3D flyout and the hover-card
 work, 2026-09-10). They share data-model decisions — what the schema

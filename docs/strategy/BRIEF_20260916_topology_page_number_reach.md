@@ -1,5 +1,7 @@
 # BRIEF 2026-09-16 — the topology page publishes numbers a reader cannot see, and every way to fix it spends something recorded
 
+> **CONSUMED 2026-10-29 — overtaken by the one-shell redesign (10-20 → 10-29: zoomable DAG, Fit, right-hand results pane, compact band); the horizontal-scroll blocks no longer exist. Jeff's 2026-10-29 note on the same page is staged separately (zoom scope, component column, Fit).**
+
 > Routed here by the triage sweep of 2026-09-16 from one issue that asks for a
 > layout decision rather than a fix, and says so in its own `audience: strategy`
 > line. Triage deliberately did not design the answer: the three options trade
