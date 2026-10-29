@@ -4229,9 +4229,10 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       };
     });
     const kinStart = await kin();
+    console.log(`      kinematic page: bounded ${kinStart.bounded}, rows in view ${kinStart.rows}`);
     push("[real] the kinematic page's model has no box of its own: the page " +
       "scrolls it, as on every other page",
-      !kinStart.bounded && kinStart.rows > 0);
+      !kinStart.bounded && kinStart.lit > 0);
     await page.locator("#dag-fit").click();
     await settle(300);
     const kinFit = await kin();
@@ -11543,6 +11544,11 @@ async function testSeamLeaders(browser, label, topologies) {
       return Promise.resolve(w.AnnotateApp.exec(["inspect", "part", row.sha256, "0", "tan_link"]))
         .then(() => true, (e) => String(e && e.message || e));
     });
+    // The pick selects the row without scrolling the page to it; the reader
+    // scrolls there to compare, as after the click.
+    await liveUntil((edge) => !!document.querySelector(
+      `#topopane .tv__hscroll tr.tvrow--selected[data-id="${edge}"]`), CONTRIBUTOR, 15000);
+    await backToSelection();
     const samePick = await liveUntil(({ want, edge }) => {
       const d = window.ViewerApp.lastSeamDraw;
       if (!d || !document.querySelector(`#topopane .tv__hscroll tr.tvrow--selected[data-id="${edge}"]`)) {
