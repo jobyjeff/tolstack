@@ -407,6 +407,41 @@
         },
       ],
     },
+    // Which faces touch (handoff an_interface_suggests_the_faces_that_touch),
+    // in scripts/build_contact_suggestions.py's shape: one row, on the
+    // studyless topology's one edge so the face-suggestion suite's colours on
+    // demo_system stay exactly as they were. Two candidates, each pairing the
+    // demo triangle with another part, so a click on the second one has
+    // something different to colour and somewhere different to frame. The
+    // evidence is made up and labelled so by the edge's own name.
+    contactSuggestions: {
+      schema: "joby.tolerance_stack/contact-suggestions/v0",
+      topologies: [{
+        id: "demo_studyless", title: "Demo topology without studies",
+        edges: [{
+          edge: "demo_studyless_edge", name: "Demo edge (synthetic contact)",
+          interface: "pin_in_bore", pairing: "cylinder_in_cylinder", status: "ok",
+          from: { node: "a", part: "demo_triangle", mesh: { sha256: DEMO_SHA } },
+          to: { node: "b", part: "demo_bracket", mesh: { sha256: BRACKET_SHA } },
+          occurrences: { from: "demo_system/demo-triangle.1", to: "demo_bracket" },
+          ambiguous_with: [],
+          candidates: [
+            { rank: 1, relation: "contact", score: -0.5,
+              from: { sha256: DEMO_SHA, surface: "cylindrical", faces: [0] },
+              to: { sha256: BRACKET_SHA, surface: "cylindrical", faces: [1] },
+              evidence: { angle_deg: 0, axis_offset_mm: 0, axial_overlap_mm: 2.2,
+                bore: "to", pin_radius_mm: 7.141, bore_radius_mm: 7.144, clearance_mm: 0.003 },
+              box: { min: [0, 0, -1], max: [1, 1, 1] } },
+            { rank: 2, relation: "contact", score: 0.1,
+              from: { sha256: DEMO_SHA, surface: "cylindrical", faces: [1] },
+              to: { sha256: PLATE_SHA, surface: "cylindrical", faces: [0] },
+              evidence: { angle_deg: 0, axis_offset_mm: 0.01, axial_overlap_mm: 0.8,
+                bore: "from", pin_radius_mm: 2.4, bore_radius_mm: 2.58, clearance_mm: 0.17 },
+              box: { min: [40, 0, -1], max: [44, 4, 1] } },
+          ],
+        }],
+      }],
+    },
     meshManifests: meshManifests,
     meshProvenance: meshProvenance,
     meshBuffers: meshBuffers,

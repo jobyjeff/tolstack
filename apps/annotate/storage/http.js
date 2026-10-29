@@ -100,6 +100,12 @@
     var index = await this._readSet();
     return (index && index.part_names) || null;
   };
+  // No mount serves projections/feature-identity/, so the read set carries a
+  // copy, exactly as it does the part names.
+  HttpAdapter.prototype.readContactSuggestions = async function () {
+    var index = await this._readSet();
+    return (index && index.contact_suggestions) || null;
+  };
 
   HttpAdapter.prototype.listMeshes = async function () {
     var index = await this._readSet();

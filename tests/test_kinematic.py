@@ -1092,6 +1092,9 @@ def _read_set_tree(tmp_path: Path):
     names = data / builder.PART_NAMES_PROJECTION
     names.parent.mkdir(parents=True)
     names.write_text(json.dumps({"parts": {"123": "bolt"}}), encoding="utf-8")
+    contacts = data / builder.CONTACT_SUGGESTIONS_PROJECTION
+    contacts.parent.mkdir(parents=True)
+    contacts.write_text(json.dumps({"topologies": []}), encoding="utf-8")
     topologies = tmp_path / "topologies"
     topologies.mkdir()
     (topologies / builder.MESH_ALIASES_NAME).write_text(
@@ -1119,6 +1122,7 @@ def test_the_read_set_lists_what_a_folder_walk_finds_and_copies_each_run_byte_fo
                                {"sha256": "bb", "label": "Bolt", "part_id": "bolt_1"}]
     assert index["mesh_aliases"] == {"aliases": [{"part": "x", "part_id": "bolt_1"}]}
     assert index["part_names"] == {"parts": {"123": "bolt"}}
+    assert index["contact_suggestions"] == {"topologies": []}
     assert index["sweep_runs"] == [
         {"run_id": "run-new", "ts": "2026-10-02T00:00:00Z", "mechanism": "mech_run-new"},
         {"run_id": "run-old", "ts": "2026-10-01T00:00:00Z", "mechanism": "mech_run-old"},
@@ -1137,7 +1141,7 @@ def test_an_empty_data_root_publishes_an_empty_read_set(tmp_path):
                                     {"built_at": "fixture"})
     index = json.loads((out_dir / builder.ANNOTATE_READ_SET_NAME).read_text(encoding="utf-8"))
     assert (index["meshes"], index["sweep_runs"], index["mesh_aliases"],
-            index["part_names"]) == ([], [], None, None)
+            index["part_names"], index["contact_suggestions"]) == ([], [], None, None, None)
 
 
 def test_the_annotators_config_names_the_read_set_the_builder_writes():
@@ -1156,4 +1160,6 @@ def test_the_annotators_config_names_the_read_set_the_builder_writes():
     assert line("annotateSweepsDir", kin + (builder.ANNOTATE_SWEEPS_SUBDIR,)) in annotate
     # The names the index copies are the files the folder walk reads.
     assert line("partNamesProjection", ("data",) + builder.PART_NAMES_PROJECTION.parts) in annotate
+    assert line("contactSuggestions",
+                ("data",) + builder.CONTACT_SUGGESTIONS_PROJECTION.parts) in annotate
     assert f'"{builder.MESH_ALIASES_NAME}"]' in annotate

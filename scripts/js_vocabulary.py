@@ -152,6 +152,12 @@ def _feature_geometry_module():
     return feature_geometry
 
 
+def _interface_contact_module():
+    from tolerance_stack import interface_contact  # noqa: PLC0415
+
+    return interface_contact
+
+
 # --------------------------------------------------------------------------- #
 # readers: each one reads a vocabulary out of its definition                   #
 # --------------------------------------------------------------------------- #
@@ -584,6 +590,16 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("annotate", "SURFACE_CLASSES",
                "tolerance_stack/feature_geometry.py: SURFACE_CLASSES",
                _const(_feature_geometry_module, "SURFACE_CLASSES")),
+    # --- apps/annotate/suggestions.js: contact suggestions ----------------- #
+    Vocabulary("annotate", "CONTACT_PAIRING_KINDS",
+               "tolerance_stack/interface_contact.py: PAIRING_KINDS",
+               _const(_interface_contact_module, "PAIRING_KINDS")),
+    Vocabulary("annotate", "CONTACT_RELATIONS",
+               "tolerance_stack/interface_contact.py: RELATIONS",
+               _const(_interface_contact_module, "RELATIONS")),
+    Vocabulary("annotate", "CONTACT_SEAT_SURFACES",
+               "tolerance_stack/interface_contact.py: SEAT_SURFACES",
+               _const(_interface_contact_module, "SEAT_SURFACES")),
     # --- apps/annotate/sweep.js -------------------------------------------- #
     Vocabulary("annotate", "LINKAGE_JOINT_TYPES",
                "tolerance_stack/kinematic.py: LINKAGE_JOINT_TYPES",

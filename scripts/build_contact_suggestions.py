@@ -99,7 +99,7 @@ def occurrence_rows(provenance_by_sha: Dict[str, Dict[str, Any]]
         own[sha] = []
         for occurrence in fbf.occurrences_for(provenance):
             path = occurrence["instance_path"] or [occurrence["instance_name"]]
-            row = dict(occurrence, key="/".join(path), mesh=sha)
+            row = dict(occurrence, key="/".join(path), mesh=sha, own=True)
             own[sha].append(row)
             every.append(row)
     return own, every
@@ -122,7 +122,7 @@ def candidate_occurrences(sha: str, own: Dict[str, List[Dict[str, Any]]],
         if not same_slot_name and not same_product_slot:
             continue
         seen.add(o["key"])
-        out.append(o)
+        out.append(dict(o, own=False))   # another mesh's slot: not drawn there
     return out
 
 

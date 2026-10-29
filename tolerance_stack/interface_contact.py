@@ -130,6 +130,11 @@ CONTACT_TOLERANCES: Dict[str, float] = {
     "seat_gap_mm": 0.05,
 }
 
+#: Scores equal to this many decimals are a tie. The same joint on five
+#: blades scores five times with float noise in the twelfth place, and a tie
+#: broken by noise is a choice nobody made.
+TIE_DECIMALS = 6
+
 #: How many candidates an edge carries. The annotator shows three; the rest are
 #: the proposal handoff's to argue with.
 MAX_CANDIDATES = 10
@@ -758,9 +763,11 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
                     limit: int = MAX_CANDIDATES) -> Dict[str, Any]:
     """The ranked candidates for one edge, over every occurrence pair in reach.
 
-    An occurrence is ``{"key", "placement", ...}``. Every pair of occurrences
-    whose placed bounding boxes come within ``reach_mm`` is paired; the pair
-    whose best candidate ranks best wins, and ties go to the first in key
+    An occurrence is ``{"key", "placement", "own"?, ...}``. Every pair of
+    occurrences whose placed bounding boxes come within ``reach_mm`` is paired;
+    the pair whose best candidate ranks best wins (scores compared to
+    :data:`TIE_DECIMALS`), then the pair more of whose occurrences are the
+    mesh's ``own`` (the ones the annotator draws it at), then the first in key
     order -- on a five-bladed rotor the same joint is in reach five times over,
     with the same faces. What is *not* a tie is a second pair sharing one of
     the winner's occurrences and touching different faces: a link with a
@@ -814,7 +821,8 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
 
     def best_of(row):
         top = row[2][0]
-        return (RELATIONS.index(top["relation"]), top["score"])
+        own = int(bool(row[0].get("own"))) + int(bool(row[1].get("own")))
+        return (RELATIONS.index(top["relation"]), round(top["score"], TIE_DECIMALS), -own)
 
     oa, ob, candidates, placed = min(scored, key=best_of)   # min keeps the first of a tie
     # Coaxial is the fallback: offered only when the winning pair has no contact.

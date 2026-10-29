@@ -356,6 +356,24 @@ body {
 .an__suggestion-note {
   margin: 0; width: 100%; color: #9aa1ab; font-size: var(--t-meta);
 }
+/* The faces that touch (handoff an_interface_suggests_the_faces_that_touch):
+   a muted heading over a short numbered list of quiet buttons, each one line
+   of evidence. The pressed one is the pair coloured on the body, and it says
+   so with the contact hue (scene.js MARK_COLORS.contact) as a thin left rule
+   -- no box, no fill. A long heading ellipsizes and keeps its whole text one
+   hover away. */
+.an__contacts { width: 100%; }
+.an__contacts-head {
+  margin: 0; color: #9aa1ab; font-size: var(--t-meta);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.an__contacts-list { margin: 2px 0 0; padding-left: 20px; font-size: var(--t-meta); }
+.an__contact {
+  background: none; border: 0; border-left: 2px solid transparent; padding: 1px 6px;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.an__contact:hover, .an__contact:focus-visible { text-decoration: underline; }
+.an__contact[aria-pressed="true"] { border-left-color: #b48cf2; }
 
 /* HORIZONTAL since 2026-09-21: these two forms used to be the bottom of a
    320px column and stacked their fields; in a bar across the top they lay out
