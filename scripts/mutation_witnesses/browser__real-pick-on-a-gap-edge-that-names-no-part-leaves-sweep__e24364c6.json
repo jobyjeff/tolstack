@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
   "expect_red": "[real] Pick on a gap edge that names no part leaves sweep mode, every loaded part and the tree's rows as they were, and the row carries the reason",
   "mutations": [
     {

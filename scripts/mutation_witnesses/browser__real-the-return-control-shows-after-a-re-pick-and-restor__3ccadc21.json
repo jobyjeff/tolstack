@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
   "expect_red": "[real] the return control shows after a re-pick and restores sweep mode with its parts, no filter, and the control gone",
   "mutations": [
     {

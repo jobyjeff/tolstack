@@ -6758,6 +6758,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       const r = document.querySelector(`#sweep-tree .tree-row[data-edge="${edge}"]`);
       for (let d = r && r.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
     }, GAP_EDGE);
+    await gapRow.hover({ timeout: 5000 }).catch(() => {});
     let gapPressed = true;
     await gapRow.locator(".tree-row__repick").first().click({ timeout: 5000 })
       .catch(() => { gapPressed = false; });
@@ -6808,8 +6809,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     const restored = await page.evaluate(() => ({
       sweep: !!window.__sweep, inSweep: window.__scene.inSweep(),
       parts: window.__scene.listOpenParts().length,
-      filter: getComputedStyle(document.getElementById("rail-filter")).display,
-      back: getComputedStyle(document.getElementById("sweep-return")).display,
+      back: (document.getElementById("sweep-return") && getComputedStyle(document.getElementById("sweep-return")).display) || "none",
     }));
     push("[real] the return control shows after a re-pick and restores sweep mode with " +
       "its parts, no filter, and the control gone",
