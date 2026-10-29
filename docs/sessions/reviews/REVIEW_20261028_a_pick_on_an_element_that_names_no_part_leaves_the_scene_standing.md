@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261028_a_pick_on_an_element_that_names_no_part_leaves_the_scene_standing.md
 reviewer: agent
 date: 2026-10-28
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: REQUEST CHANGES (round 2)
+blockers: 3
 ---
 
 # Review — a pick that names no part leaves the scene standing
@@ -48,3 +48,31 @@ launcher-focus as FAIL. Neither touches code this diff changed; the tactical age
 - Mutation-witness specs for the two new browser guards were added but unmeasured; run
   `node scripts/run_mutation_witness_tests.mjs --changed-since integration` once the spec is green.
 - The tactical agent's lesson file is present and lists the stranding gestures as asked.
+
+## Re-run 2026-10-28 — round 2: REQUEST CHANGES
+
+Merged `d8cc0e07`, ran the real tier from the worktree with a `node_modules` junction and `--repo C:/workspace/tolstack`
+(that is how the tier runs outside the main checkout — the author's "could not run it" was avoidable, and the
+`--repo` flag is the documented escape hatch). The merge was reset out again; nothing reached `integration`.
+
+**Round-1 blocker, still red.** `d8cc0e07` opens the joint but the Pick button is also **hover-only**: it needs
+`await gapRow.hover({ timeout: 5000 }).catch(() => {});` before the press (I confirmed with it: sweep rail 19/19,
+and `3D pane` 32/32 twice — the one 3D-pane failure in the full run was load flake). Please add that line.
+(I did not fix it inline: I had already used the inline allowance for a test edit this review, and the witness
+failures below need your hand anyway.)
+
+**Blocker 2 — two new witness specs enrolled against the wrong suite.** `browser__real-pick-on-a-gap-edge…e24364c6`
+and `browser__real-the-return-control…3ccadc21` both declare `"suite": "annotate rail and scene (…)"`; both checks live
+in `annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)`. The mutated run executed the wrong
+suite, so the tier stayed green: "NOT WITNESSED — the witness cannot see the difference". Correct the suite, then
+re-run `node scripts/run_mutation_witness_tests.mjs --only <guard>` for each.
+
+**Blocker 3 — a decayed existing witness.** `browser__real-selecting-a-chain-study-in-the-nav-leaves-sweep-mod__9a4a093f#2`
+("An open pane follows the selection after every paint") is NOT WITNESSED: with its mutation applied the tier
+reddens *other* checks (`resting on a bound contributor row tints its face…`, `clicking a contributor row with the
+pane open keeps the page on the study…`) and not the declared one. That mutation is in the code this branch changed
+(`followSelection`, the forced re-drive), so the new `forcePaneFollow` path most likely now masks it. Re-point or
+re-anchor the mutation so it reddens its declared check, or say why it no longer describes a defect.
+
+Other results: 15/18 witnesses WITNESSED (the three above are the rest); annotate 239/239; viewer 485/485; `pytest -q`
+(excluding the worktree-only viewer-suite file) 1590 passed, 1 skipped.
