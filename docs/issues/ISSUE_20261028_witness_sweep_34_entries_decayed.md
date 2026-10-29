@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: open
 area: tests/mutation-witness
 class: decayed_witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_full_registry_leaves_the_merge_gate.md
 defer_until: docs/sessions/HANDOFF_20261029_the_grid_header_rides_its_rows_on_merged_trunk.md
-resolution: triage 2026-10-29: 30 of the 34 are 'tier red before the mutation', so the unmutated browser tier is the shared cause; the merged trunk's browser red is staged as the_grid_header_rides_its_rows_on_merged_trunk (plus viewer_browser_checks_wait_on_settled_state for the load races); deferred onto that slug so the next sweep re-reads the 34 against a green tier
+resolution: triage 2026-10-29: 30 of the 34 are 'tier red before the mutation', so the unmutated browser tier is the shared cause; the merged trunk's browser red is staged as the_grid_header_rides_its_rows_on_merged_trunk (plus viewer_browser_checks_wait_on_settled_state for the load races); deferred onto that slug so the next sweep re-reads the 34 against a green tier -- woke 2026-10-29 -- the_grid_header_rides_its_rows_on_merged_trunk completed; re-triage
 ---
 
 # Witness sweep 2026-10-28: 34 of 460 declared mutations no longer witnessed
