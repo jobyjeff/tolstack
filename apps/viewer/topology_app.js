@@ -1598,7 +1598,7 @@
       return VA.kinematicLitSet(VA.findKinematicStudy(state.kinematic, state.kinematicId),
         topoProj);
     }
-    return state.mode === "topology" ? VA.studyLitSet(currentStudy()) : null;
+    return state.mode === "topology" ? VA.studyLitSet(currentStudy(), topoProj) : null;
   }
 
   function drawSeamLeaders() {

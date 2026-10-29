@@ -11760,7 +11760,11 @@
         var topo = KIN_TOPOLOGIES.topologies[0];
         var lit = VA.kinematicLitSet(KIN_STUDY, topo);
         eq(Object.keys(lit.edges).sort(),
-           ["arm_pin_to_tip", "base_thickness", "post_height", "strut_length"]);
+           ["arm_pin_to_tip", "base_thickness", "post_height", "strut_length",
+            "tip_to_strut_end"],
+           "the four contributors, and the gap edge between two of their nodes");
+        eq(Object.keys(lit.closed), ["tip_to_strut_end"],
+           "the joint is named as the closure's, so the grid leaves it out");
         var index = VA.topologyIndex(topo);
         Object.keys(lit.edges).forEach(function (id) {
           ok(lit.nodes[index.edges[id].from] && lit.nodes[index.edges[id].to],
@@ -11792,6 +11796,32 @@
       });
 
     // --- the lit set on the model, dimmed or hidden (2026-10-26) ------------
+
+    // The connected components of a walk's rows, nodes and edges together: an
+    // edge row joins the node it entered at to the node it left at (a
+    // loop-closing edge's `left_at` is the node it closes on). One component
+    // is one connected drawing.
+    function walkComponents(rows) {
+      var parent = {};
+      var find = function (x) {
+        if (parent[x] === undefined) parent[x] = x;
+        while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+        return x;
+      };
+      var join = function (a, b) { parent[find(a)] = find(b); };
+      rows.forEach(function (row) {
+        find(row.id);
+        if (row.kind !== "edge") return;
+        [row.entered_at, row.left_at].forEach(function (n) {
+          if (n !== null && n !== undefined) join(row.id, n);
+        });
+      });
+      var groups = {};
+      rows.forEach(function (row) {
+        (groups[find(row.id)] = groups[find(row.id)] || []).push(row.id);
+      });
+      return Object.keys(groups).map(function (k) { return groups[k]; });
+    }
 
     function setOf(list) {
       return list.map(function (x) { return JSON.stringify(x, Object.keys(x).sort()); }).sort();
@@ -12243,6 +12273,37 @@
         });
         eq(all(whole, ".rail__bar--off").length, 0);
         eq(all(whole, "tr.tvrow--edge").length, topo.edges.length);
+      });
+
+    await test("a joint between two lit nodes is lit by closure: it draws at full " +
+      "emphasis, survives hiding, and is no row of the grid", function () {
+        var topo = KIN_TOPOLOGIES.topologies[0];
+        // The closure alone (no bridge): the four contributors' own edges.
+        var lit = VA.litSetOfEdges(topo, ["arm_pin_to_tip", "base_thickness",
+          "post_height", "strut_length"]);
+        var joint = "tip_to_strut_end";
+        ok(lit.edges[joint] && lit.closed[joint], "the gap edge is lit by closure");
+        var base = { topoProj: topo, study: null, crops: TOPOCROPS, selection: null,
+                     detailImage: null, onSelect: function () {}, lit: lit };
+        var dim = render(function (r) { VA.renderTopoPane(r, base); });
+        eq(all(dim, ".rail__bar--on").length, Object.keys(lit.edges).length,
+           "contributors and the joint, all at full emphasis");
+        eq(all(dim, "tr.tvrow--edge").length, Object.keys(lit.edges).length - 1,
+           "the grid lists contributors only: the joint is none");
+        eq(all(dim, "use.rail__glyph--off").length,
+           all(dim, "use.rail__glyph").length - all(dim, "use.rail__glyph--on").length,
+           "a glyph is on or off, by whether its edge is lit");
+        var hidden = render(function (r) {
+          VA.renderTopoPane(r, Object.assign({}, base, { unlitStyle: "hide" }));
+        });
+        eq(all(hidden, ".rail__bar--on").length, Object.keys(lit.edges).length);
+        eq(all(hidden, ".rail__glyph--off").length, 0, "no dimmed glyph is drawn hidden");
+        // Two lit pieces with nothing between them are joined through the model.
+        var apart = VA.litSetOfEdges(topo, ["base_thickness", "strut_length"]);
+        ok(walkComponents(VA.hideUnlit(topo.layout, apart).rows).length > 1,
+           "two lit edges with nothing lit between them are two pieces");
+        var joined = VA.bridgeLitSet(topo, apart);
+        eq(walkComponents(VA.hideUnlit(topo.layout, joined).rows).length, 1);
       });
 
     await test("the toolbar offers dim or hide only where something is lit, in " +
@@ -16746,6 +16807,42 @@
             bannedIn(viewerAuthoredText(root), "[real] kinematic page");
           });
 
+        // The joints the closure lights on the real study: the gap edges whose
+        // two nodes are both lit by the contributors alone (the_lit_set_closes_
+        // over_its_joints). Derived from the projection here, then pinned.
+        var HIDDEN_ROWS = 42, HIDDEN_COLUMNS = 8;  // was 32 x 7 with no joint lit
+        var LIVE_JOINTS = ["pitch_arm_link_joint", "pitch_plate_link_joint",
+          "tan_link_mount_joint", "tan_link_plate_joint", "travel_between_end_stops"];
+
+        var LIVE_BRIDGE = ["gas_spring_mount_datum_a_to_end_stop",
+          "hub_spindle_to_gas_spring_mount_face", "hub_to_pitch_plate_spindle_coaxiality"];
+
+        await test("[real] the closure lights exactly the gap edges between two lit nodes " +
+          "on the real study -- five, derived from the projection -- the bridge joins its " +
+          "two pieces through the hub, and no row of the grid is either", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var lit = VA.kinematicLitSet(realKinStudy, topo);
+            var index = VA.topologyIndex(topo);
+            // The joints, derived from the contributors' own nodes alone.
+            var base = VA.litSetOfEdges(topo, Object.keys(lit.edges).filter(function (id) {
+              return !lit.closed[id];
+            }));
+            var derived = topo.edges.filter(function (e) {
+              return e.kind === "gap" && base.nodes[e.from] && base.nodes[e.to];
+            }).map(function (e) { return e.id; }).sort();
+            eq(derived.length, 5);
+            eq(derived, LIVE_JOINTS.slice().sort());
+            derived.forEach(function (id) {
+              ok(lit.edges[id] && index.edges[id].kind === "gap", id + " is a lit joint");
+            });
+            eq(Object.keys(lit.closed).sort(), derived.concat(LIVE_BRIDGE).sort(),
+               "closed = the five joints and the three-edge bridge");
+            var gridIds = VA.gridPlan(topo.layout, topo, lit).rows.map(function (r) { return r.id; });
+            eq(gridIds.filter(function (id) { return lit.closed[id]; }), [],
+               "neither a joint nor a bridge edge carries a grid row");
+            eq(gridIds.length, 13, "the grid is the thirteen contributors and borrowed bands");
+          });
+
         await test("[real] the live study lights its six contributors, the three " +
           "edges they borrow a band from and the travel study's four, and every direct " +
           "one has a coefficient curve", function () {
@@ -16757,7 +16854,8 @@
               "pitch_arm_link_hole_to_clocking_hole", "pitch_arm_radius",
               "pitch_link_length", "pitch_plate_attach_height",
               "pitch_plate_flange_to_link_hole", "pitch_plate_tan_link_attach_radius",
-              "tan_link_length", "tan_link_mount_height", "tan_link_mount_overall_height"]);
+              "tan_link_length", "tan_link_mount_height", "tan_link_mount_overall_height"]
+              .concat(LIVE_JOINTS, LIVE_BRIDGE).sort());
             var model = VA.kinematicTable(realKinStudy, topo, realKinematic.display_decimals);
             var mount = model.rows.filter(function (r) {
               return r.edge === "tan_link_mount_height";
@@ -16800,12 +16898,26 @@
             });
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var lit = VA.kinematicLitSet(realKinStudy, topo);
-            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [13, 19]);
+            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [21, 21]);
             var hidden = VA.hideUnlit(topo.layout, lit);
             eq([topo.layout.rows.length, topo.layout.columns], [169, 11]);
-            eq([hidden.rows.length, hidden.columns], [32, 7]);
+            eq([hidden.rows.length, hidden.columns], [HIDDEN_ROWS, HIDDEN_COLUMNS]);
             eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 13,
-               "every lit edge is a grid row in the hidden walk too");
+               "every lit contributor is a grid row in the hidden walk too; a joint is none");
+            var parts = walkComponents(hidden.rows);
+            eq(parts.length, 1, "the hidden walk is one connected drawing: " +
+               JSON.stringify(parts.map(function (c) { return c.length; })));
+            var blocks = function (rows) {
+              var n = {};
+              VA.bodySpans(rows).forEach(function (s) { n[s.body] = (n[s.body] || 0) + 1; });
+              return n;
+            };
+            var before = blocks(topo.layout.rows);
+            var after = blocks(hidden.rows);
+            Object.keys(after).forEach(function (body) {
+              ok(after[body] <= before[body], body + " is " + after[body] +
+                 " fields hidden, " + before[body] + " drawn whole: hiding split it");
+            });
           });
 
         await test("[real] every live body's container is the builder's own block, " +

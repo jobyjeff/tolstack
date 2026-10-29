@@ -1943,15 +1943,105 @@
   // its chain and the nodes the chain stands on; a kinematic study's is
   // VA.kinematicLitSet (views/kinematic.js). null is "nothing emphasized":
   // the whole walk at full emphasis.
-  VA.studyLitSet = function (study) {
+  VA.studyLitSet = function (study, topoProj) {
     if (!study || study.status !== "ok") return null;
     var edges = {};
     Object.keys(VA.chainIndex(study)).forEach(function (id) { edges[id] = true; });
-    return { edges: edges, nodes: VA.chainNodes(study) };
+    return VA.bridgeLitSet(topoProj, VA.closeLitSet(topoProj,
+      { edges: edges, nodes: VA.chainNodes(study) }));
+  };
+
+  // The closure (the_lit_set_closes_over_its_joints, 2026-10-28): a gap edge --
+  // a joint -- whose two ends are both lit is lit. A joint is what connects
+  // the lit bodies, so leaving it out drew every body's lit edges as an
+  // island when the unlit part was hidden, and left its glyph dimmed on the
+  // active study. Lighting a joint adds no node, so one pass is the closure.
+  // A joint carries no grid row: the grid lists contributors only, so the
+  // edges the closure added are named in `lit.closed` and VA.gridPlan skips
+  // them. Mutates and returns `lit`; a null topology leaves it as it is.
+  VA.closeLitSet = function (topoProj, lit) {
+    if (!topoProj || !lit) return lit;
+    (topoProj.edges || []).forEach(function (edge) {
+      if (edge.kind === "gap" && !lit.edges[edge.id] &&
+          lit.nodes[edge.from] && lit.nodes[edge.to]) {
+        lit.edges[edge.id] = true;
+        (lit.closed = lit.closed || {})[edge.id] = true;
+      }
+    });
+    return lit;
+  };
+
+  // The bridge: a lit set that stands in more than one piece is joined by the
+  // shortest path through the model (fewest edges, ties broken by the
+  // projection's own edge order) -- the edges and nodes on it are lit and, like
+  // a closed joint, listed in `lit.closed` so the grid keeps listing only
+  // contributors. Measured 2026-10-28: every chain study of the committed
+  // topology is one piece already; the kinematic study is two (the end-stop
+  // travel stack and the linkage), joined through the hub by two structural
+  // edges, two nodes and the spindle coaxiality gap. Hiding the unlit model
+  // drew that as two islands. Mutates and returns `lit`.
+  VA.bridgeLitSet = function (topoProj, lit) {
+    if (!topoProj || !lit) return lit;
+    var edges = topoProj.edges || [];
+    var adj = {};
+    edges.forEach(function (edge) {
+      (adj[edge.from] = adj[edge.from] || []).push({ to: edge.to, edge: edge.id });
+      (adj[edge.to] = adj[edge.to] || []).push({ to: edge.from, edge: edge.id });
+    });
+    var pieces = function () {
+      var parent = {};
+      var find = function (x) {
+        if (parent[x] === undefined) parent[x] = x;
+        while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+        return x;
+      };
+      Object.keys(lit.nodes).forEach(function (n) { if (lit.nodes[n]) find(n); });
+      edges.forEach(function (edge) {
+        if (lit.edges[edge.id] && lit.nodes[edge.from] && lit.nodes[edge.to]) {
+          parent[find(edge.from)] = find(edge.to);
+        }
+      });
+      var groups = {};
+      Object.keys(parent).forEach(function (n) { (groups[find(n)] = groups[find(n)] || []).push(n); });
+      return Object.keys(groups).map(function (k) { return groups[k].sort(); })
+        .sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+    };
+    for (var guard = 0; guard < 64; guard++) {
+      var groups = pieces();
+      if (groups.length < 2) return lit;
+      var home = {};
+      groups.slice(1).forEach(function (g) { g.forEach(function (n) { home[n] = true; }); });
+      var prev = {};
+      groups[0].forEach(function (n) { prev[n] = null; });
+      var queue = groups[0].slice();
+      var hit = null;
+      while (queue.length && hit === null) {
+        var at = queue.shift();
+        if (home[at]) { hit = at; break; }
+        (adj[at] || []).forEach(function (step) {
+          if (Object.prototype.hasOwnProperty.call(prev, step.to)) return;
+          prev[step.to] = { from: at, edge: step.edge };
+          queue.push(step.to);
+        });
+      }
+      if (hit === null) return lit;      // no path in the model: leave the pieces
+      lit.closed = lit.closed || {};
+      for (var n = hit; prev[n]; n = prev[n].from) {
+        lit.nodes[n] = true;
+        lit.nodes[prev[n].from] = true;
+        if (!lit.edges[prev[n].edge]) {
+          lit.edges[prev[n].edge] = true;
+          lit.closed[prev[n].edge] = true;
+        }
+      }
+      VA.closeLitSet(topoProj, lit);
+    }
+    return lit;
   };
 
   // The lit set a list of edge ids makes: the edges, and every node either end
-  // of one stands on -- so a node an unlit edge shares with a lit one is lit.
+  // of one stands on -- so a node an unlit edge shares with a lit one is lit --
+  // closed over the joints between lit nodes (VA.closeLitSet).
   VA.litSetOfEdges = function (topoProj, edgeIds) {
     var index = VA.topologyIndex(topoProj);
     var lit = { edges: {}, nodes: {} };
@@ -1962,7 +2052,7 @@
       lit.nodes[edge.from] = true;
       lit.nodes[edge.to] = true;
     });
-    return lit;
+    return VA.closeLitSet(topoProj, lit);
   };
 
   // What the walk outside the lit set does (Jeff, 2026-10-26): stays drawn,
@@ -2793,7 +2883,8 @@
       // A dropped edge leaves `prevPart` and `pendingBoundaryNode` alone, so a
       // leader waiting for a seam binds to the next row the grid actually
       // keeps and a group break still lands where the part really changes.
-      if (focusEdges && !focusEdges[row.id]) return;
+      if (focusEdges && (!focusEdges[row.id] ||
+          (focus.closed && focus.closed[row.id]))) return;
       var edge = index.edges[row.id] || null;
       var part = edge && edge.part !== undefined ? edge.part : null;
       var breakHere = rows.length === 0 || part !== prevPart ||

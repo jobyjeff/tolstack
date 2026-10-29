@@ -9279,11 +9279,14 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         /marginal/.test(verdicts[1]) && /margin -0\.839 deg/.test(verdicts[1]) &&
         await page.locator("div.kmverdict span.tvverdict--marginal").count() === 2);
 
-      // The model: the study's thirteen lit edges on (six contributors, the
-      // three edges three of them borrow a band from, and the four edges the
-      // travel study's terms stand on), the other eighty-two dimmed (forty-six before the four fastener stacks joined the model, 2026-10-27), the grid
-      // beside them the thirteen, all under verdicts that are on the first
-      // screen.
+      // The model: the study's twenty-one lit edges on (six contributors, the
+      // three edges three of them borrow a band from, the four edges the
+      // travel study's terms stand on, the five joints between lit nodes and
+      // the three edges that join the travel stack to the linkage through the
+      // hub -- the_lit_set_closes_over_its_joints, 2026-10-28), the other
+      // seventy-four dimmed (eighty-two before the closure), the grid beside
+      // them the thirteen contributors, all under verdicts that are on the
+      // first screen.
       const fold = await page.evaluate(() => {
         const bottoms = [...document.querySelectorAll("div.kmverdict > *")]
           .map((n) => n.getBoundingClientRect().bottom);
@@ -9299,18 +9302,52 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       push("[real] above the fold, the verdicts; under them the model, the study's " +
         "contributors and the edges they stand on lit and the rest dimmed",
         fold.verdicts < fold.viewport && fold.paneTop < fold.viewport &&
-        dimmed[0] === 13 && dimmed[1] === 82 && dimmed[2] === 13);
+        dimmed[0] === 21 && dimmed[1] === 74 && dimmed[2] === 13);
+      // The joint symbols on the active study: every glyph on a lit joint is
+      // drawn at full opacity, none of the lit path's glyphs is dimmed.
+      const glyphsDimmed = await page.locator("#topopane use.rail__glyph--on.rail__glyph--off").count();
+      const glyphsLit = await page.locator("#topopane use.rail__glyph--on").count();
+      push("[real] the joints on the lit path wear their symbols at full opacity on the " +
+        "active study, and no lit symbol is dimmed", glyphsLit >= 5 && glyphsDimmed === 0);
       await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(400);
       const hidden = await litCounts();
+      const hiddenGlyphs = await page.locator("#topopane use.rail__glyph--on").count();
+      const hiddenDimGlyphs = await page.locator("#topopane use.rail__glyph--off").count();
+      // One connected drawing: the hidden walk of the very projection the page
+      // was handed has one connected component, nodes and edges together.
+      const hiddenPieces = await page.evaluate(({ topologies, kinematic, study }) => {
+        const VA = window.ViewerApp;
+        const topo = VA.findTopology(topologies, kinematic.studies.filter(
+          (s) => s.id === study)[0].topology);
+        const lit = VA.kinematicLitSet(VA.findKinematicStudy(kinematic, study), topo);
+        const rows = VA.hideUnlit(topo.layout, lit).rows;
+        const parent = {};
+        const find = (x) => {
+          if (parent[x] === undefined) parent[x] = x;
+          while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+          return x;
+        };
+        rows.forEach((row) => {
+          find(row.id);
+          if (row.kind !== "edge") return;
+          [row.entered_at, row.left_at].forEach((n) => {
+            if (n !== null && n !== undefined) parent[find(row.id)] = find(n);
+          });
+        });
+        return new Set(rows.map((row) => find(row.id))).size;
+      }, { topologies: realProjection, kinematic: realKinematic, study: STUDY });
       const hiddenLabel = await page.locator("#unlit-style-toggle").textContent().catch(() => "");
       await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(400);
       const restored = await litCounts();
       push("[real] the toolbar's Unused toggle hides the unlit model and brings it back",
         hiddenLabel === "Unused: hidden" &&
-        hidden[0] === 13 && hidden[1] === 0 && hidden[2] === 13 &&
-        restored[0] === 13 && restored[1] === 82);
+        hidden[0] === 21 && hidden[1] === 0 && hidden[2] === 13 &&
+        restored[0] === 21 && restored[1] === 74);
+      push("[real] hidden, the lit model is one connected drawing and the joints' symbols are " +
+        "all still there at full opacity", hiddenPieces === 1 &&
+        hiddenGlyphs === glyphsLit && hiddenDimGlyphs === 0);
 
       // The wiring, not the view: topology_app.js hands the kinematic view its
       // `onCardShow: showCard`. Without it citationTrigger falls back to a

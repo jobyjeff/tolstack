@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] hidden, the lit model is one connected drawing and the joints' symbols are all still there at full opacity",
+  "mutations": [
+    {
+      "contract": "With the unused model hidden the real study is one connected drawing.",
+      "issue": null,
+      "note": "the_lit_set_closes_over_its_joints (2026-10-28). The bridge returns at once; the travel stack and the linkage are two islands.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (groups.length < 2) return lit;",
+      "replace": "      if (true) return lit;"
+    }
+  ]
+}

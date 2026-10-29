@@ -6,9 +6,9 @@
     {
       "contract": "With a study selected the merged-row grid holds exactly the chain's edges: VA.gridPlan's `focus.edges` filter drops every walk row outside the chain.",
       "issue": null,
-      "note": "Declared in review of viewer_respine_whole_walk (2026-09-15), the second of the three emphasis contracts. This is the half of the deliverable that is NOT visible on the rails, so a reader comparing screenshots cannot see it go; two fast-tier plan-level checks and one render-level check redden on the mutation.",
+      "note": "Declared in review of viewer_respine_whole_walk (2026-09-15), the second of the three emphasis contracts. This is the half of the deliverable that is NOT visible on the rails, so a reader comparing screenshots cannot see it go; two fast-tier plan-level checks and one render-level check redden on the mutation. Re-pointed 2026-10-28 (the_lit_set_closes_over_its_joints): the filter now also drops the edges the closure lit, which are joints and carry no row.",
       "file": "apps/viewer/topology.js",
-      "find": "      if (focusEdges && !focusEdges[row.id]) return;",
+      "find": "      if (focusEdges && (!focusEdges[row.id] ||\n          (focus.closed && focus.closed[row.id]))) return;",
       "replace": "      if (false) return;"
     }
   ]

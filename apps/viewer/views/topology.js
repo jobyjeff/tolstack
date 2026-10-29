@@ -229,7 +229,7 @@
     // is the result), so it leaves the walk at full emphasis exactly as no
     // selection does. With the unlit part HIDDEN (VA.UNLIT_STYLES) the walk
     // drawn is the lit part re-laid (VA.hideUnlit) rather than the whole of it.
-    var lit = ctx.lit || VA.studyLitSet(study);
+    var lit = ctx.lit || VA.studyLitSet(study, topoProj);
     var marking = !!lit;
     var hiding = marking && ctx.unlitStyle === "hide";
     // Collapsed bodies (VA.collapseBodies) fold AFTER hiding, so a body the

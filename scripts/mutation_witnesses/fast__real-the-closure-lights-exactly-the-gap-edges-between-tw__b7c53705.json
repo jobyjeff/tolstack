@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the closure lights exactly the gap edges between two lit nodes on the real study -- five, derived from the projection -- the bridge joins its two pieces through the hub, and no row of the grid is either",
+  "mutations": [
+    {
+      "contract": "A gap edge whose two end nodes are both lit is lit: the real kinematic study lights its five joints.",
+      "issue": null,
+      "note": "the_lit_set_closes_over_its_joints (2026-10-28). The closure is switched off; no joint is lit and nothing is named closed.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (edge.kind === \"gap\" && !lit.edges[edge.id] &&",
+      "replace": "      if (false && !lit.edges[edge.id] &&"
+    },
+    {
+      "contract": "A lit set in two pieces is joined through the model: the real study's travel stack and linkage meet through the hub.",
+      "issue": null,
+      "note": "the_lit_set_closes_over_its_joints (2026-10-28). The bridge returns at once; the three hub edges are never lit.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (groups.length < 2) return lit;",
+      "replace": "      if (true) return lit;"
+    }
+  ]
+}
