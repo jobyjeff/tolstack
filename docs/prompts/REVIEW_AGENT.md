@@ -5295,6 +5295,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       whether any trunk reader of that inbox or projection
       (`git grep <file> master -- apps scripts tolerance_stack`) still holds the
       old vocabulary, and file the window if one does.
+- [ ] **A contact rank term with no margin behind it decides between two
+      drawing callouts.** New 2026-10-29
+      (`the_contact_engine_asks_the_ends_what_shape_they_are`): `rank_score`'s
+      `|seat_r - ball_r| / ball_r` met a DoD of "r 3.975 **or** 4.26 first" by
+      preferring the companion Ø8.520 over the Ø7.950 the topology cites as the
+      attach bore. When a DoD accepts either of two values, ask which one the
+      term picks and *why*, against the topology's own callouts
+      (`ISSUE_20261029_a_balls_seat_ranks_the_companion_bore_over_…`). Build the
+      projection into a scratch `--data-root` to read the ranks; the builder
+      takes ~2–5 min since `AXIS_INTERFACES` fits every hub face.
 
 ## Architectural errors to check
 
