@@ -116,6 +116,11 @@ STACK_KEY_KINDS = ("topology_edge", "stack_element")
 # accepting a proposal writes an ordinary `bound` event naming it in
 # `ratifies`. Agents propose; only a human binds or rejects (`AGENT_ACTOR`).
 VERDICTS = ("bound", "owner_not_in_set", "proposed", "rejected")
+# The verdicts that name a face (a geometry_key and a direction), and the ones
+# only a human may write. Subsets of VERDICTS, named so the checks below never
+# spell a verdict set inline.
+FACE_VERDICTS = ("bound", "proposed")
+HUMAN_ONLY_VERDICTS = ("bound", "rejected")
 
 # How sure the proposing agent is. `high`: the contact engine's one clear top
 # pair, or a shape class plus a drawing crop that leave one face. `medium`: a
@@ -320,7 +325,7 @@ class FeatureIdentityEvent:
     def __post_init__(self) -> None:
         if self.verdict not in VERDICTS:
             raise ValueError(f"event {self.event_id!r}: verdict must be one of {VERDICTS}, got {self.verdict!r}")
-        if self.verdict in ("bound", "proposed"):
+        if self.verdict in FACE_VERDICTS:
             if self.geometry_key is None:
                 raise ValueError(f"event {self.event_id!r}: verdict={self.verdict} requires a geometry_key")
             if self.direction not in DIRECTIONS:
@@ -374,7 +379,7 @@ class FeatureIdentityEvent:
                 raise ValueError(f"{name}: verdict=rejected requires rejects, the proposal it turns down")
         elif self.rejects is not None:
             raise ValueError(f"{name}: only a rejected event may carry rejects")
-        if self.verdict in ("bound", "rejected") and actor_kind(self.recorded_by) == AGENT_ACTOR:
+        if self.verdict in HUMAN_ONLY_VERDICTS and actor_kind(self.recorded_by) == AGENT_ACTOR:
             raise ValueError(
                 f"{name}: recorded_by {self.recorded_by!r} is an agent, and an agent only proposes -- "
                 f"a human binds or rejects")
