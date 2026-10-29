@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate face suggestions (candidate colours, the pick, the switch)",
+  "expect_red": "clicking a listed pair colours that pair instead and frames the camera on it",
+  "mutations": [
+    {
+      "contract": "A click on a listed pair frames the camera on that pair's box.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_an_interface_suggests_the_faces_that_touch.md",
+      "note": "The colour still moves without the frame, so only the camera's target can see this one.",
+      "file": "apps/annotate/app.js",
+      "find": "  state.scene.frameBox(hit.candidate.box.min, hit.candidate.box.max);",
+      "replace": "  void hit;"
+    }
+  ]
+}

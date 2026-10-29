@@ -160,14 +160,17 @@ export const GUARD_SOURCES = {
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
   fast: { declared: 599, enrollable: 599, names: "dbc8af926861" },
-  annotate: { declared: 246, enrollable: 246, names: "8cfc5f299bfd" },
+  // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
+  // browser +4, the contact suggestions' rows, words, colour, list, frame and
+  // no-write guards. Every one carries a spec.
+  annotate: { declared: 248, enrollable: 248, names: "e01be3819f16" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
   // `[real] SKIPPED:` pushes of the hosted read-only half and of "the scene
   // pane reads over HTTP", whose condition is the literal `true`, so no
   // mutation can redden them.
-  browser: { declared: 713, enrollable: 680, names: "3902e5312c24" },
+  browser: { declared: 717, enrollable: 684, names: "c412b899ccaa" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

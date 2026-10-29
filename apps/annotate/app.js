@@ -5147,6 +5147,10 @@ async function main() {
   if (MOCK) {
     state.storage = new AA.MemoryAdapter(AA.FIXTURES);
     await state.storage.connect();
+    // The autotest convention once more: a READ-ONLY handle on what mock mode
+    // captured instead of writing, so a harness can show a gesture wrote
+    // nothing (the contact list's clicks, which must never bind).
+    window.__mockWrites = state.storage.written;
     el.connectBtn.style.display = "none";
     el.transportSub.textContent = "mock mode (?mock=1) -- writes are captured, not persisted";
     await loadAll();

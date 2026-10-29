@@ -37,7 +37,9 @@
 // shared frame -- two mating cylinders have the same radius, because a radius
 // belongs to one face rather than to a pair of frames -- and for flat faces
 // there is none at all. The table says so rather than computing a coplanarity
-// it cannot support.
+// it cannot support. A gap edge's two parts ARE compared in the assembly frame
+// since 2026-10-28 -- by scripts/build_contact_suggestions.py, in Python, and
+// listed by the "contact suggestions" half at the bottom of this file.
 (function (AA, VOCAB) {
   "use strict";
 

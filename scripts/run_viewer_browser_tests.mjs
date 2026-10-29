@@ -8188,6 +8188,46 @@ async function testAnnotateSuggestions(browser, label) {
     push("two callers that both ask for one part before either finishes get " +
       "ONE body in the scene", bodies === 1);
 
+    // --- the faces that touch (an_interface_suggests_the_faces_that_touch) --
+    //
+    // The studyless topology's one edge carries a two-candidate contact row in
+    // the fixture (fixtures.js `contactSuggestions`): the demo triangle with
+    // the bracket, then with the plate. After the block above on purpose: it
+    // opens two more parts, which that block's body count would see. Marks are
+    // read with their PART, because a contact pair is two parts by definition.
+    const contactMarks = () => page.evaluate(() => window.__scene._marks
+      .filter((m) => m.role === "contact")
+      .map((m) => m.sha256.charAt(0) + ":" + m.faceId + ":" + m.material.color.getHexString())
+      .sort());
+    await page.goto(url + "?mock=1&topology=demo_studyless&edge=demo_studyless_edge",
+      { waitUntil: "load" });
+    await page.waitForSelector("#detail .an__contact", { timeout: 15000 });
+    await page.waitForFunction(
+      () => window.__scene.listMarks("contact").length === 2, null, { timeout: 5000 });
+    const topPair = await contactMarks();
+    push("a gap edge's top touching pair is coloured on both of its parts, in " +
+      "a hue that is not the suggestion colour",
+      JSON.stringify(topPair) === JSON.stringify(["0:0:b48cf2", "1:1:b48cf2"]));
+    const listed = await page.locator("#detail .an__contact").allTextContents();
+    push("...and listed in the bar, best first, each as one line of evidence " +
+      "in everyday words",
+      listed.length === 2 && listed[0] === "pin in bore, clearance 0.003 mm, 2.20 mm shared" &&
+      (await page.locator("#detail .an__contact").first().getAttribute("aria-pressed")) === "true");
+    await page.locator("#detail .an__contact").nth(1).click();
+    await page.waitForFunction(
+      () => window.__scene.listMarks("contact").some((m) => m.sha256.charAt(0) === "2"),
+      null, { timeout: 5000 });
+    const framed = await page.evaluate(() => window.__scene.controls.target.toArray());
+    push("clicking a listed pair colours that pair instead and frames the " +
+      "camera on it",
+      JSON.stringify(await contactMarks()) === JSON.stringify(["0:1:b48cf2", "2:0:b48cf2"]) &&
+      Math.abs(framed[0] - 42) < 1e-6 && Math.abs(framed[1] - 2) < 1e-6 &&
+      Math.abs(framed[2]) < 1e-6);
+    push("...and picks nothing and writes nothing -- the pick stays the reader's",
+      (await page.evaluate(() => window.__mockWrites.length)) === 0 &&
+      (await page.evaluate(() => window.__scene.highlightedFace())) === null &&
+      (await overlays("picked")).length === 0);
+
     push("no page error anywhere in the run", errors.length === 0);
     return reportSuite(label, checks, errors);
   } catch (err) {
