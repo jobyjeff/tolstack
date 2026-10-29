@@ -1040,7 +1040,8 @@
     var table = VA.el("table", "kmreadouts");
     var head = VA.el("tr");
     model.head.forEach(function (text, i) {
-      head.appendChild(VA.el("th", i ? "num" : null, text));
+      // Right-aligned over its numbers, in the label face, not theirs.
+      head.appendChild(VA.el("th", i ? "kmreadouts__numhead" : null, text));
     });
     table.appendChild(head);
     model.rows.forEach(function (row) {

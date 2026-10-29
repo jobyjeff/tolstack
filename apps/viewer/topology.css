@@ -1068,7 +1068,7 @@ body { display: flex; flex-direction: column; }
      nowhere to stick within. The shared `.detail` rule (style.css) is the
      stack viewer's and is never edited from here. */
   align-self: flex-start;
-  position: sticky; top: 47px; max-height: calc(100vh - 47px); overflow-y: auto;
+  position: sticky; top: 47px; height: calc(100vh - 47px); overflow-y: auto;
 }
 .detail__values { margin: 8px 0; }
 .detail__valrow { display: flex; gap: 10px; font-size: var(--t-dense); }
@@ -1524,7 +1524,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   text-transform: none; letter-spacing: normal; vertical-align: bottom;
 }
 .kmreadouts td { padding: 3px 10px 3px 0; vertical-align: baseline; }
-.kmreadouts .num { text-align: right; font-variant-numeric: tabular-nums; }
+.kmreadouts .num, .kmreadouts .kmreadouts__numhead { text-align: right; }
 
 /* The envelope chart. The SVG keeps its own pixel size up to the column's
    width and scales DOWN only, so its text lands at the token sizes below
@@ -1543,8 +1543,10 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    it, the envelope carried on the stop's slope at the envelope's own. */
 .kmchart__band--worst { fill: var(--ink); fill-opacity: 0.05; }
 .kmchart__band--rss { fill: var(--ink); fill-opacity: 0.08; }
-.kmchart__region--worst { fill: var(--ink); fill-opacity: 0.1; }
-.kmchart__region--rss { fill: var(--ink); fill-opacity: 0.22; }
+/* Outlined: on a product-length axis the band is a few pixels wide, and
+   its slope is the point of drawing it. */
+.kmchart__region--worst { fill: var(--ink); fill-opacity: 0.1; stroke: var(--ink); stroke-opacity: 0.45; }
+.kmchart__region--rss { fill: var(--ink); fill-opacity: 0.22; stroke: var(--ink); stroke-opacity: 0.3; }
 .kmchart__bandlabel { fill: var(--muted); font-size: var(--t-micro); }
 .kmchart__note { margin: 0 0 12px; font-size: var(--t-meta); }
 .kmchart__notelink { color: inherit; }
