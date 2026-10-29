@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/browser-tier
 reporter: agent
 class: guard_green_on_its_branch_red_after_later_landings
@@ -48,3 +48,9 @@ bisected at the sweep.
 Found after the merge had landed (the browser tier needs `node_modules`, which
 only the main checkout has, so it runs post-merge). Routed: staged
 `docs/sessions/HANDOFF_20261029_the_grid_header_rides_its_rows_on_merged_trunk.md`.
+
+## Resolution 2026-10-29
+
+Not reproducible on trunk (4/4 green); the guard's fixed 60 ms wait raced the
+frame-driven scroll event under load. Wait made deterministic, assertions
+unchanged. See `docs/sessions/lessons/LESSONS_20261029_the_grid_header_rides_its_rows_on_merged_trunk.md`.

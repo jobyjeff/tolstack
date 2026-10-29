@@ -4011,8 +4011,15 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     // the page bar, so is the header, held just under it.
     const stops = [];
     for (const frac of [0.15, 0.3, 0.45, 0.6, 0.75, 0.9]) {
-      await page.evaluate((f) => window.scrollTo(0,
-        f * (document.documentElement.scrollHeight - window.innerHeight)), frac);
+      // The header's pin is written from the scroll event, and Chrome fires
+      // that inside a rendered frame -- a fixed sleep reads before the pin on
+      // a loaded box. Two animation frames is "the scroll event has run".
+      await page.evaluate((f) => {
+        window.scrollTo(0,
+          f * (document.documentElement.scrollHeight - window.innerHeight));
+        return new Promise((done) => requestAnimationFrame(() =>
+          requestAnimationFrame(done)));
+      }, frac);
       await settle(60);
       stops.push(await read());
     }
