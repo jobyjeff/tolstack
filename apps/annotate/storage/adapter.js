@@ -21,7 +21,9 @@
 //           local binaries is CORS-blocked, per the step_tessellation spike's
 //           own finding, and there is no write API at all without FSA) --
 //           the app's write controls must be HIDDEN, not disabled-and-silent,
-//           when this is false. See index.html's binding panel.
+//           when this is false. See index.html's binding panel. The HTTP
+//           adapter (storage/http.js) answers true: its write asks for the
+//           folder at the first bind, or says in one line why it cannot.
 //   readTopologyProjection(): Promise<object|null>
 //        -- data/projections/viewer/topologies.json. null if absent.
 //   readFeatureIdentityProjection(): Promise<object|null>

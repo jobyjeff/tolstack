@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "http: with no folder to grant, a write says so in one plain line",
+  "mutations": [
+    {
+      "contract": "A page with no folder to grant says, in one plain line, that binding is not available here.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "The reader presses bind on a hosted read-only scene; what comes back is the only thing they are told.",
+      "file": "apps/annotate/storage/http.js",
+      "find": "    if (!this._writer) throw new Error(AA.READ_ONLY_WRITE);",
+      "replace": "    if (!this._writer) throw new Error(\"no writer\");"
+    }
+  ]
+}

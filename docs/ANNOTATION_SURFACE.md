@@ -671,6 +671,7 @@ its +X anchor.
 | scene → shell | `{type: "annotate:result", id, ok, result\|error}` | every exec; ignored by the shell |
 | scene → shell | `{type: "annotate:state", mode, topology, study, run, title}` | after an announced verb |
 | scene → shell | `{type: "annotate:tree", mode, chips, rows}` | the rail's rendered rows changed, or an announced verb completed |
+| scene → shell | `{type: "annotate:status", word, tone, sentence}` | at boot, and whenever what it can read or write changes (a folder granted at the first bind); the pane header's dot and word (`AA.PANE_STATUS`) |
 | scene → shell | `{type: "annotate:anchors", nodes: {<node id>: [x, y] \| null}, edges: {<edge id>: [[x, y], [x, y]]}}` | after a drawn frame whose anchors moved — a camera change or a sweep frame — so at most once per animation frame |
 
 `annotate:anchors` is in **CSS pixels of the iframe's own viewport**, rounded

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the pane's header says the folder is still needed, as a dot and one word, the sentence on hover -- and the pane has no banner band of its own",
+  "mutations": [
+    {
+      "contract": "Embedded, the annotator says what it can read and write as a dot and one word in the viewer's pane header; on a loopback origin nobody has granted a folder on yet, that word asks for it.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "Replaces the pre-GRANT banner check: the pane has no banner any more. The mutation makes a served page with a folder to grant report itself read-only -- the wrong word on the right dot.",
+      "file": "apps/annotate/storage/adapter.js",
+      "find": "    return canWrite ? AA.PANE_STATUS.folderNeeded : AA.PANE_STATUS.readOnly;",
+      "replace": "    return AA.PANE_STATUS.readOnly;"
+    }
+  ]
+}

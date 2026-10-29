@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "http: every read a folder grant makes is answered from the served origin",
+  "mutations": [
+    {
+      "contract": "Over HTTP every read the annotator makes is answered from the served origin -- and a catch-all's 200 + HTML is never read as a mesh's bytes.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "Drawing-checker's hosted nginx answers 200 + the site index for any path; read as positions.f32 those bytes would draw garbage rather than nothing.",
+      "file": "apps/viewer/storage/http.js",
+      "find": "    if (ct.toLowerCase().indexOf(\"html\") !== -1) return null;\n",
+      "replace": ""
+    }
+  ]
+}

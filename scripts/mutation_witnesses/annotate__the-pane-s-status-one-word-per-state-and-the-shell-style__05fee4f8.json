@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the pane's status: one word per state, and the shell styles every tone",
+  "mutations": [
+    {
+      "contract": "Every tone a pane status carries is one the viewer's stylesheet colours.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "A tone with no rule draws the dot in the default grey, so 'folder needed' would look like 'read-only'.",
+      "file": "apps/viewer/topology.css",
+      "find": ".flyout__status[data-tone=\"warn\"]::before { background: var(--marginal); }\n",
+      "replace": ""
+    }
+  ]
+}

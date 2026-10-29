@@ -1799,8 +1799,13 @@ annotator's own command vocabulary — the same verbs the boot URL's params run;
 `VA.annotateExecCommands` mirrors `VA.annotateLink` param for param).
 
 **A pane that stays** (handoff `the_3d_pane_opens_in_the_mode_the_study_wants`,
-2026-10-20). The head's **3D** control opens the panel on whatever is
-selected, no row needed; once open it stays open across the page's own
+2026-10-20). **One handle** (2026-10-28, `the_scene_pane_is_one_flyout_that_
+reads_over_http`): a slim "3D" tab on the seam between the nav and the model
+opens the panel on whatever is selected, no row needed, and a chevron on the
+panel's own divider closes it — the head's old 3D button and the panel's Close
+button are gone. The panel's header strip carries the annotator's status (a
+dot and one word, `annotate:status`; the sentence on hover) and the full-page
+route as a small ↗ icon-link. Once open it stays open across the page's own
 navigation and **follows the selection**: a kinematic study opens the
 annotator's sweep mode on the run it folds, a chain study or an edge the goto
 its row would post (which leaves sweep mode), all through one rule,
@@ -1816,7 +1821,7 @@ and the selected edge is posted as a `highlight` instead — the one the panel
 shows whenever the pointer is resting on nothing in particular.
 
 **The annotator's rail is drawn in the nav** (2026-10-26). The iframe boots
-with `embedded=1` (`VA.annotateEmbedHref`; the "Open full page" link keeps
+with `embedded=1` (`VA.annotateEmbedHref`; the full-page ↗ link keeps
 the plain url): the annotator then lays its rail out but does not show it,
 hides its command box, takes the page's background, and sends the rows its
 rail has just rendered as `{type: "annotate:tree", mode, chips, rows}`. The

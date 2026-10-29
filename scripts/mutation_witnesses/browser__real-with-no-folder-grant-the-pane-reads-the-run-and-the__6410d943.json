@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
+  "expect_red": "[real] with no folder grant, the pane reads the run and the meshes over HTTP and shows the mechanism -- on the HTTP transport, not the mock and not a folder",
+  "mutations": [
+    {
+      "contract": "With no grant, the pane draws the mechanism from what the origin serves: the read set's mesh list.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "A static mount lists no directory; without the index the sweep has no parts to place.",
+      "file": "apps/annotate/storage/http.js",
+      "find": "    return ((index && index.meshes) || []).map(function (m) {",
+      "replace": "    return [].map(function (m) {"
+    }
+  ]
+}

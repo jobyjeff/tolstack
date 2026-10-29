@@ -724,6 +724,12 @@ check("index.html loads the shared decision before this app's own adapter", () =
   if (shared === -1) throw new Error("index.html does not load ../viewer/storage/adapter.js");
   if (own === -1) throw new Error("index.html does not load ./storage/adapter.js");
   if (shared > own) throw new Error("the shared decision must load BEFORE this app's adapter");
+  // ...and the viewer's HTTP adapter before this app's, which wraps it.
+  const sharedHttp = html.indexOf('src="../viewer/storage/http.js"');
+  const ownHttp = html.indexOf('src="./storage/http.js"');
+  if (sharedHttp === -1 || ownHttp === -1 || sharedHttp > ownHttp) {
+    throw new Error("index.html must load ../viewer/storage/http.js, then ./storage/http.js");
+  }
 });
 
 // --- the HTTP read transport (handoff the_scene_pane_is_one_flyout_that_
@@ -806,11 +812,13 @@ check("http: every read a folder grant makes is answered from the served origin"
   assertEqual(new Uint8Array(await adapter.readMeshBuffer("aa", "positions.f32"))[3], 4);
   // drawing-checker serves no feature-identity projection: absent, not an error.
   assertEqual(await adapter.readFeatureIdentityProjection(), null);
-});
-
-check("http: a catch-all's HTML is never read as a mesh's bytes", async () => {
-  const { adapter } = await servedAdapter(servedFiles());
+  // A catch-all's HTML is never read as a mesh's bytes.
   assertEqual(await adapter.readMeshBuffer("aa", "html.u32"), null);
+  // Every served path is derived from the config, under the served data dir:
+  // a config path outside it would be a file no mount reaches.
+  for (const key of ["topologyProjection", "kinematicProjection", "annotateReadSet", "annotateSweepsDir"]) {
+    assertEqual(AA.CONFIG[key].slice(0, AA.CONFIG.servedDataDir.length), AA.CONFIG.servedDataDir, key);
+  }
 });
 
 check("http: no read set yet is no meshes and no runs, never an error", async () => {
@@ -821,15 +829,6 @@ check("http: no read set yet is no meshes and no runs, never an error", async ()
   assertEqual(await adapter.listSweepRuns(), []);
   assertEqual(await adapter.readPartMeshAliases(), null);
   assertEqual(await adapter.readPartNames(), null);
-});
-
-check("http: the read set's paths come from the config, under the served data dir", () => {
-  // storage/http.js derives every served path from AA.CONFIG; a config path
-  // outside the served dir would be a file no mount reaches.
-  for (const key of ["topologyProjection", "kinematicProjection", "annotateReadSet", "annotateSweepsDir"]) {
-    const segs = AA.CONFIG[key];
-    assertEqual(segs.slice(0, AA.CONFIG.servedDataDir.length), AA.CONFIG.servedDataDir, key);
-  }
 });
 
 function writerSpy(initial) {
@@ -857,13 +856,11 @@ check("http: the first write asks for the folder once, and the next one does not
   assertEqual(adapter.writeGranted(), true);
   // Granted, the projection a filename is counted off comes from the folder.
   assertEqual((await adapter.readFeatureIdentityProjection()).built_from_events, ["from-the-folder"]);
-});
-
-check("http: a remembered grant needing a re-grant re-grants rather than re-picks", async () => {
-  const spy = writerSpy(AA.STATE.NEEDS_REGRANT);
-  const { adapter } = await servedAdapter(servedFiles(), spy);
-  await adapter.writeFeatureIdentityEvent("a.json", {});
-  assertEqual([spy.reconnects, spy.connects], [1, 0]);
+  // A remembered grant that needs re-granting is re-granted, not re-picked.
+  const regrant = writerSpy(AA.STATE.NEEDS_REGRANT);
+  const again = (await servedAdapter(servedFiles(), regrant)).adapter;
+  await again.writeFeatureIdentityEvent("a.json", {});
+  assertEqual([regrant.reconnects, regrant.connects], [1, 0]);
 });
 
 check("http: with no folder to grant, a write says so in one plain line", async () => {
@@ -890,9 +887,7 @@ check("a served origin is read with no grant, hosted or local, and FSA is never 
     assertEqual(picked.adapter === fresh, true, hostname);
     assertEqual(spy.booted, false, hostname + ": the folder adapter was booted on a served page");
   }
-});
-
-check("an origin that serves nothing falls back exactly as before", async () => {
+  // ...and an origin that serves nothing falls back exactly as before.
   const empty = fakeOrigin({});
   const http = new AA.HttpAdapter({ va: new VA.HttpAdapter({
     pathname: "/tolstack/annotate/index.html", fetchImpl: empty.fetchImpl }) });
@@ -927,15 +922,6 @@ check("the pane's status: one word per state, and the shell styles every tone", 
       throw new Error(`apps/viewer/topology.css has no rule for status tone "${tone}"`);
     }
   }
-});
-
-check("index.html loads the viewer's HTTP adapter before this app's own", () => {
-  const html = fs.readFileSync(path.join(here, "index.html"), "utf8");
-  const shared = html.indexOf('src="../viewer/storage/http.js"');
-  const own = html.indexOf('src="./storage/http.js"');
-  if (shared === -1) throw new Error("index.html does not load ../viewer/storage/http.js");
-  if (own === -1) throw new Error("index.html does not load ./storage/http.js");
-  if (shared > own) throw new Error("the viewer's HTTP adapter must load BEFORE this app's");
 });
 
 check("sweep: the folded bar's two figures and the scrubber chip are one composition", () => {

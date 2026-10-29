@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
+  "expect_red": "[real] one twisty folds the sweep bar to its summary line -- the controls and the readouts go, the frame's two figures come, the gate line stays -- and brings them back",
+  "mutations": [
+    {
+      "contract": "One twisty folds the sweep bar to its summary line and brings it back.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "A twisty that never folds is a control that does nothing.",
+      "file": "apps/annotate/app.js",
+      "find": "  const folded = sweepBarFolded();",
+      "replace": "  const folded = false;"
+    }
+  ]
+}

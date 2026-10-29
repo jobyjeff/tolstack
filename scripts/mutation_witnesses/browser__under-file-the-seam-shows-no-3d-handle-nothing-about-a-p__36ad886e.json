@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "under file:// the seam shows no 3D handle -- nothing about a pane this page cannot open",
+  "mutations": [
+    {
+      "contract": "The seam's 3D handle is rendered only where the mount probe found the annotator served beside the page.",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "Shown unconditionally, the tab would sit on a file:// page and do nothing when clicked -- the absent-feature rule, broken. Renamed 2026-10-28.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.paneHandle.style.display = state.annotateMount && !open ? \"\" : \"none\";",
+      "replace": "    nodes.paneHandle.style.display = !open ? \"\" : \"none\";"
+    }
+  ]
+}

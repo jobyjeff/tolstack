@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
+  "expect_red": "[real] the handle opens the pane and hides itself while it is open; the pane's own head carries no Close button -- the divider's chevron is the way back",
+  "mutations": [
+    {
+      "contract": "Open, the pane has one handle: the divider's chevron. The seam's tab hides.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "Two open/close controls in two places is the defect deliverable 4 removed.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.paneHandle.style.display = state.annotateMount && !open ? \"\" : \"none\";",
+      "replace": "    nodes.paneHandle.style.display = state.annotateMount ? \"\" : \"none\";"
+    }
+  ]
+}

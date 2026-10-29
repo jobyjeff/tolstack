@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the folded bar's two figures and the scrubber chip are one composition",
+  "mutations": [
+    {
+      "contract": "The folded bar's figures and the scrubber chip are one composition, formatted by the bar's own decimals.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "An unformatted driver value is the drift this pins: a digit that moves under a scrub.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        text: AA.formatSweepNumber(driver, artifact.driverUnit) + \" \" + (artifact.driverUnit || \"\"),",
+      "replace": "        text: String(driver) + \" \" + (artifact.driverUnit || \"\"),"
+    }
+  ]
+}
