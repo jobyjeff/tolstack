@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] on a chain study at 1600 wide, the DAG and grid keep the scene's reserve with the scene at its floor and the results pane beside them",
+  "mutations": [
+    {
+      "contract": "At 1600 wide with the scene at its floor and the results pane open, the DAG and grid keep the scene's reserve.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md",
+      "note": "A floor that leaves the DAG and grid less than the reserve beside a 560px results pane: 1000 at 1600 wide.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "  VA.FLYOUT_WIDTH = { min: 400, max: 1200, reserve: 320 };",
+      "replace": "  VA.FLYOUT_WIDTH = { min: 1000, max: 1200, reserve: 320 };"
+    }
+  ]
+}

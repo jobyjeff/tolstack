@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] Fit brings the study's whole lit set into the window in one step",
+  "mutations": [
+    {
+      "contract": "Fit scales the lit set to the window under the topbar.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Fits to twice the window, so the lit set's far end is off screen.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      : (typeof window !== \"undefined\" ? window.innerHeight : 0) - topEdge;",
+      "replace": "      : (typeof window !== \"undefined\" ? window.innerHeight * 2 : 0) - topEdge;"
+    }
+  ]
+}

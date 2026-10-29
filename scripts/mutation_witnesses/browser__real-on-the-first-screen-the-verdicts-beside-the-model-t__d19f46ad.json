@@ -1,12 +1,12 @@
 {
   "tier": "browser",
   "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
-  "expect_red": "[real] above the fold, the verdicts; under them the model, the study's contributors and the edges they stand on lit and the rest dimmed",
+  "expect_red": "[real] on the first screen, the verdicts beside the model, the study's contributors and the edges they stand on lit and the rest dimmed",
   "mutations": [
     {
       "contract": "The kinematic page hands its lit set to the model.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26). Hands none, so the whole walk is drawn at full emphasis.",
+      "note": "Declared with the guard by handoff the_kinematic_page_keeps_the_dag_and_says_each_contributor_once (2026-10-26); renamed 2026-10-28 when the verdicts moved beside the model. Hands none, so the whole walk is drawn at full emphasis.",
       "file": "apps/viewer/topology_app.js",
       "find": "        lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,",
       "replace": "        lit: null,"

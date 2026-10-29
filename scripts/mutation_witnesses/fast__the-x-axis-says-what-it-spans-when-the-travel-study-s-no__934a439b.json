@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the x axis says what it spans when the travel study's nominal is not the sweep's, and says nothing extra when they agree",
+  "mutations": [
+    {
+      "contract": "The axis clause appears only when the two nominals differ at the projection's precision.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Adds the clause whenever there is a band.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        VA.kinematicNumber(t.nominal, decimals) !== spanText;",
+      "replace": "        true;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the chart fits the results pane at its default width without scaling its text down",
+  "mutations": [
+    {
+      "contract": "The chart is drawn at a width the results pane holds at its default.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). The pre-2026-10-28 width, drawn for the main column.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    width: 520, height: 280, left: 52, right: 12, top: 14, bottom: 44,",
+      "replace": "    width: 720, height: 280, left: 52, right: 12, top: 14, bottom: 44,"
+    }
+  ]
+}
