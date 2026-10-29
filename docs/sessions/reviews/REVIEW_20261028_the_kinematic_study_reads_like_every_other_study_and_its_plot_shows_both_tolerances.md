@@ -168,6 +168,24 @@ with none left to the sweep. The one miss is the same known `d42adbc7`, so
 the merge caused no drop. (An earlier draft of this section said this run
 had not been done; it was then done.)
 
+### Third merge: `an_interface_suggests_the_faces_that_touch`
+
+The second landing was refused as a non-fast-forward because `integration`
+had moved again. The merge (`939977a0`) was clean: that review had already
+merged this work and re-pinned the census, which reads fast 622, annotate 248
+and browser 727/694. I rebuilt the scratch projections from `939977a0`,
+including the new `build_contact_suggestions.py`, and re-ran:
+
+- census, architecture, kinematic and vocabulary tests: 178 passed;
+- viewer fast tier: 621/621, paired with this tree;
+- annotate fast tier: 248/248;
+- browser tier: 34 of 35 suites passed in 341 s. The failure was
+  `annotate rail filter + face deselect`, "a real click on the face tints it".
+  Run alone it passed once and failed once. This handoff does not touch
+  `apps/annotate/`, and the suite passed in full on `ad93af9e`. It is already
+  filed as `ISSUE_20261028_two_browser_suites_fail_in_the_full_run_under_load_and_pass_alone.md`,
+  and I added an addendum saying it also fails alone.
+
 ## Findings
 
 **Blockers: none.**

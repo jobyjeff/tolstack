@@ -66,3 +66,15 @@ Same pair again on the review's full run of the merged tree (33/35, 351 s,
 `--repo` the tactical's scratch root): `3D pane follows the selection`
 ("…leaving it takes the light down") and `crop lightbox` (launcher focus).
 Each passed alone with `--only` immediately after (1/1, 1/1).
+
+## Addendum 2026-10-29 (review of the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances)
+
+On the merged tree at `939977a0` (after `an_interface_suggests_the_faces_that_touch`
+landed), with projections rebuilt from that tree into a scratch root, the full
+run failed `annotate rail filter + face deselect` 33/34 on "a real click on the
+face tints it" (341 s). **It also failed alone:** two back-to-back
+`--only "annotate rail filter"` runs gave 34/34, then 33/34 on the same check.
+A failure with only one suite running is weak evidence for the load theory.
+It points instead at a race on the annotator's selection path, which
+`suggest` now also colours. On the earlier merged tree at `ad93af9e`, before
+that landing, the same suite passed 34/34 in the full run.
