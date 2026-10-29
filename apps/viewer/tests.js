@@ -9150,26 +9150,35 @@
     // chain covered nearly every visible element. The cure is uniformity, so
     // the check is a count taken over EVERY study of the fixture rather than
     // one reading of one study.
+    //
+    // Since 2026-10-28 a selection re-ARRANGES the walk around the study
+    // (VA.bandLayout), so the rails and links it draws are the re-arranged
+    // walk's, not the projection's: what must not change is the set of bars
+    // and dots, and what is drawn must still be a walk.
     await test("selecting a study never hides a node or an edge: the DAG is " +
       "the whole walk before and after, whatever the study is",
       function () {
         var marks = function (root) {
           return [all(root, "line.rail__barhit").length,
-                  all(root, "circle.rail__dot").length,
-                  all(root, "line.rail").length,
-                  all(root, "path.rail__link").length];
+                  all(root, "circle.rail__dot").length];
         };
-        var walk = marks(render(function (r) {
+        var deselected = render(function (r) {
           VA.renderTopoPane(r, topoCtx());
-        }));
-        eq(walk, [TOPO.edges.length, TOPO.nodes.length,
-                  TOPO.layout.columns, TOPO.layout.links.length],
+        });
+        var walk = marks(deselected);
+        eq(walk, [TOPO.edges.length, TOPO.nodes.length],
            "the deselected walk draws every element of the document");
+        eq([all(deselected, "line.rail").length, all(deselected, "path.rail__link").length],
+           [TOPO.layout.columns, TOPO.layout.links.length], "as the projection laid it");
         TOPO.studies.forEach(function (study) {
           var root = render(function (r) {
             VA.renderTopoPane(r, topoCtx({ study: study }));
           });
           eq(marks(root), walk, "study " + study.id + " kept the whole walk");
+          var drawn = VA.bandLayout(TOPO.layout, VA.studyLitSet(study, TOPO));
+          eq(walkProblems(drawn), [], study.id + " draws as a walk");
+          eq([all(root, "line.rail").length, all(root, "path.rail__link").length],
+             [drawn.rails.length, drawn.links.length], study.id + ": its own rails and links");
         });
       });
 
@@ -11861,6 +11870,64 @@
 
     function setOf(list) {
       return list.map(function (x) { return JSON.stringify(x, Object.keys(x).sort()); }).sort();
+    }
+
+    // Everything that would make a walk's rows draw wrong, as a list of
+    // sentences (empty is a walk that draws): an edge with no node above it
+    // to hang from, a through edge that does not land on its node's column,
+    // a curve that does not land on its node, two rails sharing a column over
+    // a row, or a dot sitting on a rail that is not its own. The drawing model
+    // VA.walkRailsAndLinks reads, checked from the rows alone -- so it holds
+    // the projection's walk and every re-arrangement of it to one standard.
+    function walkProblems(layout) {
+      var rows = (layout && layout.rows) || [];
+      var at = {};
+      var out = [];
+      rows.forEach(function (r, i) {
+        if (r.row !== i) out.push("row " + i + " is numbered " + r.row);
+        if (r.kind === "node") at[r.id] = i;
+      });
+      var spans = {};
+      rows.forEach(function (r, i) {
+        if (r.kind !== "edge") return;
+        var from = at[r.entered_at];
+        if (from === undefined || from >= i) { out.push(r.id + " hangs from nothing above"); return; }
+        var curves = r.closes_row !== null && r.closes_row !== undefined;
+        var to = at[r.left_at];
+        if (curves) {
+          if (r.closes_row !== to || r.closes_column !== rows[to].column) {
+            out.push(r.id + "'s curve misses its node");
+          }
+        } else if (!(to > i) || rows[to].column !== r.column) {
+          out.push(r.id + " does not run down to its node");
+        }
+        (spans[r.column] = spans[r.column] || []).push(
+          { a: from, b: curves ? i : to, id: r.id, from: r.entered_at,
+            to: curves ? null : r.left_at });
+      });
+      Object.keys(spans).forEach(function (c) {
+        var list = spans[c];
+        for (var j = 0; j < list.length; j++) {
+          for (var k = j + 1; k < list.length; k++) {
+            var p = list[j].a <= list[k].a ? list[j] : list[k];
+            var q = p === list[j] ? list[k] : list[j];
+            var touch = q.a === p.b && p.to !== null && p.to === q.from;
+            if (q.a < p.b || (q.a === p.b && !touch)) {
+              out.push("column " + c + ": " + p.id + " and " + q.id + " share a rail");
+            }
+          }
+        }
+      });
+      rows.forEach(function (r, i) {
+        if (r.kind !== "node") return;
+        (spans[r.column] || []).forEach(function (s) {
+          if (s.a <= i && i <= s.b &&
+              !((s.a === i && s.from === r.id) || (s.b === i && s.to === r.id))) {
+            out.push(r.id + " sits on " + s.id + "'s rail");
+          }
+        });
+      });
+      return out;
     }
 
     await test("a walk's rails and links re-derive from its rows alone, exactly " +
@@ -15550,8 +15617,14 @@
               eq(walk.rows, topoProj.edges.length, topoProj.id + " deselected");
               (topoProj.studies || []).forEach(function (study) {
                 var lit = marks(study);
-                eq(lit.shape, walk.shape,
+                // Every bar and every dot stays; the rails and links are the
+                // walk re-arranged around the study (VA.bandLayout), which
+                // must still draw as a walk.
+                var drawn = VA.bandLayout(topoProj.layout, VA.studyLitSet(study, topoProj));
+                eq(lit.shape, walk.shape.slice(0, 2).concat(
+                     [drawn.rails.length, drawn.links.length]),
                    topoProj.id + "/" + study.id + " changed what is on screen");
+                eq(walkProblems(drawn), [], topoProj.id + "/" + study.id + " draws as a walk");
                 if (study.status !== "ok") {
                   eq(lit.rows, walk.rows,
                      study.id + " refused: the table stays the whole walk");
@@ -17021,8 +17094,9 @@
             var folded = VA.collapseBodies(topo.layout, { base: true }, topo, null);
             var pills = folded.rows.filter(function (r) { return r.collapsed; });
             // Two blocks since 2026-10-27 (the mechanism's and the rotor
-            // bolt's): two pills, one per block.
-            eq(pills.map(function (r) { return r.id; }), ["body:base", "body:base"]);
+            // bolt's): two pills, one per block -- and two rows, so two ids
+            // (a node id is one row; the second block's carries its place).
+            eq(pills.map(function (r) { return r.id; }), ["body:base", "body:base#2"]);
             var spans = topo.layout.bodies.filter(function (s) { return s.body === "base"; });
             eq(folded.rows.length, topo.layout.rows.length -
                spans.reduce(function (n, s) { return n + (s.end - s.start); }, 0),

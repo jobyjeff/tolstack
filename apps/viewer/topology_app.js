@@ -1812,7 +1812,7 @@
     var box = zoomBox();
     var hscroll = paneHscroll();
     var drawn = VA.lastTopoRender;
-    if (!box || !hscroll || !drawn || !drawn.span) return;
+    if (!box || !hscroll || !drawn || !drawn.span || !box.getBoundingClientRect) return;
     var bounded = paneScroller();
     var bar = typeof document !== "undefined" ? document.querySelector(".topbar") : null;
     var topEdge = bounded ? nodes.pane.getBoundingClientRect().top
@@ -2407,6 +2407,15 @@
           { onError: renderCrash });
       } else {
         VA.renderTopoPane(nodes.pane, ctx);
+      }
+      // Arriving at a study re-arranges the walk around it (VA.bandLayout),
+      // and the band is then framed (Fit) once the transition has settled:
+      // the point of the band is that the whole study is on screen without
+      // scrolling. Any other paint leaves the reader's zoom alone.
+      if (serialisation() !== paintedSerialisation &&
+          (ctx.lit || VA.studyLitSet(ctx.study, topoProj))) {
+        if (respineHandle && !respineHandle.done) respineHandle.onSettled = fitDag;
+        else fitDag();
       }
       if (showTopology) {
         VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));

@@ -2166,6 +2166,386 @@
     return out;
   };
 
+  // --- the active study as one band (the_active_study_is_a_compact_band_and_
+  //     the_rest_of_the_model_hangs_above_and_below, 2026-10-28) ------------
+  //
+  // Jeff, 2026-10-28: "the active part of the model for any given study
+  // becomes a straight vertical line, with the rest of the graph extending
+  // above/below it ... so you don't have to scroll the graph to see all the
+  // elements of the active study". His 2026-09-15 rule still holds -- the
+  // entire model stays drawn when a study is selected -- and it was always
+  // about VISIBILITY, not about the rows never moving. So nothing is hidden
+  // and nothing is replaced: the walk's rows are RE-ORDERED so the lit ones
+  // are one contiguous band, laid out on its own columns at the spine, and
+  // the rest of the walk keeps its own columns above and below it.
+
+  // Which side of the band each row goes to: `{ above, band, below }`, each a
+  // list of the walk's own rows in walk order, or null with nothing lit.
+  //
+  // The lit rows keep their relative walk order and make the band. An unlit
+  // row before the first lit row goes above, one after the last goes below.
+  // An unlit row INSIDE the lit span goes to the side it is nearer -- but by
+  // its connected piece, not row by row: the interleaved unlit rows are
+  // grouped into the pieces their own edges join, and a piece moves as one,
+  // judged by its mean row against the span's middle. Row by row, a side
+  // branch forking off a lit node was torn in two (its first edge below, its
+  // far node above) and joined back by a curve the height of the band. A piece
+  // with an edge that forks off a LIT node goes below whatever its position:
+  // an edge is drawn down from the node it was entered at, so above the band
+  // it would have nothing above it to hang from.
+  VA.bandSides = function (layout, lit) {
+    if (!layout || !lit) return null;
+    var rows = layout.rows || [];
+    var isLit = function (row) {
+      return row.kind === "edge" ? !!lit.edges[row.id] : !!lit.nodes[row.id];
+    };
+    var first = -1;
+    var last = -1;
+    rows.forEach(function (row, i) {
+      if (!isLit(row)) return;
+      if (first === -1) first = i;
+      last = i;
+    });
+    if (first === -1) return null;
+    var nodeAt = {};
+    rows.forEach(function (row, i) { if (row.kind === "node") nodeAt[row.id] = i; });
+    var inside = function (i) { return i > first && i < last && !isLit(rows[i]); };
+    // The interleaved unlit pieces, by union-find over their own edges.
+    var parent = {};
+    var find = function (i) {
+      while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+      return i;
+    };
+    rows.forEach(function (row, i) { if (inside(i)) parent[i] = i; });
+    rows.forEach(function (row, i) {
+      if (!inside(i) || row.kind !== "edge") return;
+      [row.entered_at, row.left_at].forEach(function (id) {
+        var n = nodeAt[id];
+        if (n !== undefined && inside(n)) parent[find(n)] = find(i);
+      });
+    });
+    var pieces = {};
+    Object.keys(parent).forEach(function (i) {
+      var root = find(Number(i));
+      var p = pieces[root] || (pieces[root] = { sum: 0, count: 0, hangs: false });
+      p.sum += Number(i);
+      p.count += 1;
+      var row = rows[i];
+      var entered = row.kind === "edge" ? nodeAt[row.entered_at] : undefined;
+      if (entered !== undefined && isLit(rows[entered])) p.hangs = true;
+    });
+    var middle = (first + last) / 2;
+    var out = { above: [], band: [], below: [] };
+    rows.forEach(function (row, i) {
+      if (isLit(row)) { out.band.push(row); return; }
+      if (i < first) { out.above.push(row); return; }
+      if (i > last) { out.below.push(row); return; }
+      var p = pieces[find(i)];
+      (!p.hangs && p.sum / p.count <= middle ? out.above : out.below).push(row);
+    });
+    // Below the band, an unlit edge that forks off a lit node is drawn AFTER
+    // the node at its other end rather than before it: it then hangs from
+    // that node and curves up to the band (VA.layWalk), where in walk order it
+    // would run a rail down through every row of the band -- a column per such
+    // edge. The node moves up one place; nothing else moves.
+    var below = out.below;
+    for (var b = 0; b + 1 < below.length; b++) {
+      var edge = below[b];
+      var next = below[b + 1];
+      if (edge.kind === "edge" && lit.nodes[edge.entered_at] &&
+          next.kind === "node" && next.id === edge.left_at) {
+        below[b] = next;
+        below[b + 1] = edge;
+        b += 1;
+      }
+    }
+    return out;
+  };
+
+  // A list of a walk's rows, in a NEW order, laid out as a walk: each edge
+  // re-derives which of its two nodes it is drawn down from (the one now
+  // higher) and whether it continues down to the other or curves to it, and
+  // every row gets a column. The rails and links come out of the rows
+  // (VA.walkRailsAndLinks), exactly as hiding and collapsing do.
+  //
+  //   * An edge whose other node is now ABOVE it closes back up to it -- the
+  //     walk's own loop closure.
+  //   * An edge whose other node is below it continues down its column to
+  //     that node, which then sits on the edge's column -- for ONE such edge
+  //     per node (its arrival: the walk's own where that one is still a
+  //     candidate, else the nearest). Any other edge arriving from above
+  //     curves DOWN to the node instead, the same curve as a close the other
+  //     way up; a re-ordered walk is where a node first gets two.
+  //   * Columns are handed out in row order, an interval per edge from the
+  //     node it hangs from to where its rail ends: `fixed(row)` pins a row's
+  //     column outright; otherwise an edge tries `prefer(row)`, then the
+  //     column of the node it hangs from (which is how a chain stays one
+  //     rail), then the lowest free column. A column is free over an interval
+  //     when nothing already on it reaches that far down and
+  //     `reserved(column, top, bottom)` does not claim it -- which is how a
+  //     column pinned further down stays clear for what is pinned to it. Two
+  //     rails never share a column over any row, and a dot never sits on a
+  //     rail it is not on.
+  //   * `group(row)`: a node's arrival must come from its own group, which is
+  //     how the band's nodes keep the columns the band laid them out on.
+  //
+  // Returns `{ rows, rails, links, columns }`, or null when some edge has
+  // neither of its nodes above it (there is nothing to draw it down from --
+  // VA.bandSides never builds that order).
+  VA.layWalk = function (rows, opts) {
+    opts = opts || {};
+    var none = function () { return undefined; };
+    var fixed = opts.fixed || none;
+    var prefer = opts.prefer || none;
+    var reserved = opts.reserved || function () { return false; };
+    var group = opts.group || function () { return 0; };
+    var at = {};
+    rows.forEach(function (row, i) { if (row.kind === "node") at[row.id] = i; });
+    // Per edge: the row of the node it hangs from (`from`), the row of its
+    // other node (`to`), and how it reaches that one.
+    var plan = [];
+    var leaving = {};
+    var candidates = {};
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (row.kind !== "edge") continue;
+      var ends = [at[row.entered_at], at[row.left_at]]
+        .filter(function (n) { return n !== undefined; })
+        .sort(function (a, b) { return a - b; });
+      if (!ends.length || ends[0] > i) return null;
+      // Both nodes above: drawn down from the node the walk entered it at,
+      // curving back to the other -- unless only the other is in the edge's
+      // own group: an unlit edge hangs from an unlit node and curves to the
+      // band, rather than running a rail down through it.
+      if (ends.length > 1 && ends[1] < i) {
+        var entered = at[row.entered_at];
+        var other = entered === ends[0] ? ends[1] : ends[0];
+        var hang = group(rows[entered]) !== group(row) && group(rows[other]) === group(row)
+          ? other : entered;
+        if (hang === ends[1]) ends.reverse();
+      }
+      var p = { i: i, from: ends[0], to: ends[1], close: false, merge: false };
+      if (p.to === undefined || p.to < i) p.close = true;
+      else (candidates[p.to] = candidates[p.to] || []).push(p);
+      plan[i] = p;
+      (leaving[p.from] = leaving[p.from] || []).push(p);
+    }
+    Object.keys(candidates).forEach(function (n) {
+      var node = rows[n];
+      var own = candidates[n].filter(function (p) {
+        return group(rows[p.i]) === group(node);
+      });
+      var chosen = null;
+      own.forEach(function (p) {
+        var r = rows[p.i];
+        if (r.left_at === node.id && (r.closes_row === null || r.closes_row === undefined)) {
+          chosen = p;
+        }
+      });
+      if (!chosen && own.length) chosen = own[own.length - 1];
+      candidates[n].forEach(function (p) { if (p !== chosen) p.merge = true; });
+    });
+
+    var busy = {};
+    var column = [];
+    // Free from `top` (a node's row) down to `bottom`: whatever is on the
+    // column already ends above `top`, or ends AT it on the very node an edge
+    // is leaving from -- a chain going on down its own rail.
+    var free = function (c, top, bottom, nodeId) {
+      if (c === undefined || c < 0 || reserved(c, top, bottom)) return false;
+      var b = busy[c];
+      return !b || b.end < top || (b.end === top && nodeId !== null && b.node === nodeId);
+    };
+    var pick = function (tries, top, bottom, nodeId) {
+      for (var t = 0; t < tries.length; t++) {
+        if (free(tries[t], top, bottom, nodeId)) return tries[t];
+      }
+      for (var c = 0; ; c++) if (free(c, top, bottom, nodeId)) return c;
+    };
+    rows.forEach(function (row, r) {
+      if (row.kind !== "node") return;
+      var c = fixed(row);
+      if (c === undefined) {
+        var arrival = (candidates[r] || []).filter(function (p) { return !p.merge; })[0];
+        c = arrival ? column[arrival.i] : pick([prefer(row)], r, r, null);
+      }
+      column[r] = c;
+      busy[c] = { end: r, node: row.id };
+      (leaving[r] || []).forEach(function (p) {
+        var edge = rows[p.i];
+        var through = !p.close && !p.merge;
+        var bottom = through ? p.to : p.i;
+        var col = fixed(edge);
+        if (col === undefined) col = pick([prefer(edge), c], r, bottom, row.id);
+        column[p.i] = col;
+        busy[col] = { end: bottom, node: through ? rows[p.to].id : null };
+      });
+    });
+
+    var out = rows.map(function (row, r) {
+      var copy = assign(row, { row: r, column: column[r] });
+      if (row.kind === "edge") {
+        var p = plan[r];
+        copy.entered_at = rows[p.from].id;
+        if (p.to !== undefined) copy.left_at = rows[p.to].id;
+        var curves = p.to !== undefined && (p.close || p.merge);
+        copy.closes_row = curves ? p.to : null;
+        copy.closes_column = curves ? column[p.to] : null;
+      }
+      return copy;
+    });
+    var structure = VA.walkRailsAndLinks(out);
+    var columns = 0;
+    column.forEach(function (c) { if (c + 1 > columns) columns = c + 1; });
+    return { rows: out, rails: structure.rails, links: structure.links, columns: columns };
+  };
+
+  // How many times a drawn line crosses a rail it has no business touching:
+  // scripts/build_topology_projection.py's `layout_crossings`, the same three
+  // terms counted the same way (its docstring is the definition), in the
+  // projection's column space -- before VA.spineRight mirrors it, so a leader
+  // leaves "towards column 0". Here so the band can be held to it: the band's
+  // own layout never crosses itself more than its rows did in the walk.
+  VA.layoutCrossings = function (layout) {
+    var rows = (layout && layout.rows) || [];
+    var rails = (layout && layout.rails) || [];
+    var links = (layout && layout.links) || [];
+    var counts = { branch: 0, close: 0, leader: 0 };
+    links.forEach(function (link) {
+      var lo = Math.min(link.from_column, link.to_column);
+      var hi = Math.max(link.from_column, link.to_column);
+      var top = Math.min(link.row, link.to_row);
+      var bottom = Math.max(link.row, link.to_row);
+      rails.forEach(function (rail) {
+        if (!(lo < rail.column && rail.column < hi)) return;
+        if (link.kind === "branch") {
+          if (rail.start === link.row) return;
+          if (rail.start <= link.row && link.row <= rail.end) counts.branch += 1;
+        } else if (Math.max(rail.start, top) <= Math.min(rail.end, bottom)) {
+          counts.close += 1;
+        }
+      });
+    });
+    rows.forEach(function (row) {
+      if (row.kind !== "node") return;
+      rails.forEach(function (rail) {
+        if (rail.column < row.column && rail.start <= row.row && row.row <= rail.end) {
+          counts.leader += 1;
+        }
+      });
+    });
+    counts.total = counts.branch + counts.close + counts.leader;
+    return counts;
+  };
+
+  // The band's own columns. Laid out alone (VA.layWalk, a chain on one rail
+  // and a branch on the next column for as long as it runs), then the
+  // non-trunk columns permuted to cross least -- exhaustively, since a band is
+  // a handful of columns wide -- and held against the columns the same rows
+  // already had in the walk (VA.hideUnlit's, which order_columns chose over
+  // the whole graph). Whichever crosses less wins; a tie goes to the narrower,
+  // then to the re-laid one. So the band never crosses itself more than its
+  // rows did in the walk.
+  var BAND_PERMUTE_MAX = 6;
+
+  function relabel(layout, order) {
+    var to = {};
+    order.forEach(function (c, i) { to[c] = i; });
+    var rows = layout.rows.map(function (row) {
+      var copy = assign(row, { column: to[row.column] });
+      if (row.closes_column !== null && row.closes_column !== undefined) {
+        copy.closes_column = to[row.closes_column];
+      }
+      return copy;
+    });
+    var structure = VA.walkRailsAndLinks(rows);
+    return { rows: rows, rails: structure.rails, links: structure.links,
+             columns: layout.columns };
+  }
+
+  function permutations(items) {
+    if (items.length <= 1) return [items.slice()];
+    var out = [];
+    items.forEach(function (item, i) {
+      var rest = items.slice(0, i).concat(items.slice(i + 1));
+      permutations(rest).forEach(function (tail) { out.push([item].concat(tail)); });
+    });
+    return out;
+  }
+
+  function bandColumns(layout, lit, bandRows) {
+    var laid = VA.layWalk(bandRows);
+    var options = [];
+    if (laid) {
+      var others = [];
+      for (var c = 1; c < laid.columns; c++) others.push(c);
+      var orders = others.length <= BAND_PERMUTE_MAX ? permutations(others) : [others];
+      orders.forEach(function (order) {
+        options.push(relabel(laid, [0].concat(order)));
+      });
+    }
+    var walked = VA.hideUnlit(layout, lit);
+    options.push({ rows: walked.rows, rails: walked.rails, links: walked.links,
+                   columns: walked.columns });
+    var best = null;
+    var bestScore = null;
+    options.forEach(function (option) {
+      var score = [VA.layoutCrossings(option).total, option.columns];
+      if (!best || score[0] < bestScore[0] ||
+          (score[0] === bestScore[0] && score[1] < bestScore[1])) {
+        best = option;
+        bestScore = score;
+      }
+    });
+    return best;
+  }
+
+  // The walk re-arranged around `lit`: the rows above the band, the band, the
+  // rows below it (VA.bandSides), as one layout. The band takes the columns
+  // nearest the spine -- 0..k-1 here, the rightmost once VA.spineRight mirrors
+  // them -- so every leader leaves a lit dot toward the grid without crossing
+  // a single rail of the unlit model; the rest of the walk keeps its own
+  // columns, moved out by k, and takes another only where its own is now
+  // occupied (a rail that used to end before the band started can run on into
+  // it). Applied to the PROJECTION's layout, before collapsing and mirroring,
+  // like VA.hideUnlit.
+  //
+  // `options.only`: the band alone, renumbered from row 0 -- what the page
+  // draws with the unlit model hidden, so hiding is the same picture as the
+  // band with the rest taken away. Pure: returns a new layout; the walk's own
+  // when nothing is lit, or (never, on a walk VA.bandSides ordered) when the
+  // order cannot be drawn.
+  VA.bandLayout = function (layout, lit, options) {
+    var sides = VA.bandSides(layout, lit);
+    if (!sides) return layout;
+    var band = bandColumns(layout, lit, sides.band);
+    var result = function (laid) {
+      var out = {};
+      Object.keys(layout).forEach(function (key) { out[key] = layout[key]; });
+      out.rows = laid.rows;
+      out.rails = laid.rails;
+      out.links = laid.links;
+      out.columns = laid.columns;
+      return out;
+    };
+    if (options && options.only) return result(band);
+    var k = band.columns;
+    var bandColumn = {};
+    band.rows.forEach(function (row) { bandColumn[slotKey(row.kind, row.id)] = row.column; });
+    var inBand = function (row) {
+      return bandColumn[slotKey(row.kind, row.id)] !== undefined;
+    };
+    var top = sides.above.length;
+    var bottom = top + sides.band.length - 1;
+    var laid = VA.layWalk(sides.above.concat(sides.band, sides.below), {
+      fixed: function (row) { return bandColumn[slotKey(row.kind, row.id)]; },
+      prefer: function (row) { return row.column; },
+      reserved: function (c, from, to) { return c < k && from <= bottom && to >= top; },
+      group: function (row) { return inBand(row) ? "band" : "rest"; },
+    });
+    return laid ? result(laid) : layout;
+  };
+
   // --- bodies as containers, joints as glyphs ------------------------------
   //
   // (the_dag_draws_bodies_as_containers_and_joints_as_symbols, 2026-10-26)
@@ -2198,6 +2578,32 @@
       }
     });
     return spans;
+  };
+
+  // Which of a walk's body fields carries the body's name. With nothing lit,
+  // every one: a body is one block per connected piece of the walk, and each
+  // block is named. With a study lit the band splits bodies further
+  // (VA.bandLayout), so a body is named ONCE -- on the first field that holds
+  // a lit row (the band's), else on its first. `fields` is any list of spans
+  // ({body, start, end}) over `rows`; returns booleans parallel to it.
+  VA.bodyLabelFields = function (fields, rows, lit) {
+    fields = fields || [];
+    rows = rows || [];
+    if (!lit) return fields.map(function () { return true; });
+    var holdsLit = function (field) {
+      if (!lit) return false;
+      for (var r = field.start; r <= field.end; r++) {
+        var row = rows[r];
+        if (row && (row.kind === "edge" ? lit.edges[row.id] : lit.nodes[row.id])) return true;
+      }
+      return false;
+    };
+    var pick = {};
+    fields.forEach(function (field, i) {
+      if (pick[field.body] === undefined) pick[field.body] = i;
+      else if (!holdsLit(fields[pick[field.body]]) && holdsLit(field)) pick[field.body] = i;
+    });
+    return fields.map(function (field, i) { return pick[field.body] === i; });
   };
 
   // How many muted fills the containers cycle through (topology.css's
@@ -2257,7 +2663,15 @@
         keep[edge.to] = true;
       });
     }
-    var pillId = function (span) { return "body:" + span.body; };
+    // One pill per BLOCK: a body the band split (VA.bandLayout) folds to a
+    // pill in each of its blocks, and a node id is one row, so the second
+    // and later blocks carry their place in the body's own list.
+    var nth = {};
+    spans.forEach(function (span) {
+      nth[span.body] = (nth[span.body] || 0) + 1;
+      span.pill = "body:" + span.body + (nth[span.body] > 1 ? "#" + nth[span.body] : "");
+    });
+    var pillId = function (span) { return span.pill; };
     var folded = {};      // node id -> {pill, column}
     rows.forEach(function (row) {
       var i = spanOf[row.row];
@@ -2559,13 +2973,16 @@
   // A loop closing: up from the closing edge's bar to the dot of the node it
   // lands on, which the walk emitted earlier and therefore higher. Long on
   // purpose — a grounded loop that spans half the mechanism should look like it
-  // does, not be hidden behind a short stub.
+  // does, not be hidden behind a short stub. A re-arranged walk (VA.layWalk)
+  // also curves DOWN, from an edge above the band to the node in it it meets;
+  // the same curve, the other way up.
   function closePath(link, metrics, slotY, x) {
     var x1 = columnX(link.from_column, metrics, x);
     var x2 = columnX(link.to_column, metrics, x);
     var y1 = slotY(link.row);
     var y2 = slotY(link.to_row);
     var lift = Math.min(metrics.rowHeight * 1.5, Math.abs(y1 - y2) / 2);
+    if (y2 > y1) lift = -lift;
     return "M " + x1 + " " + y1 +
       " C " + x1 + " " + (y1 - lift) +
       " " + x2 + " " + (y2 + lift) +
