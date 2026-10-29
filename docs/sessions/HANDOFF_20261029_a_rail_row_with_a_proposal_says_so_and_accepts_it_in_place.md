@@ -1,6 +1,6 @@
 ---
 priority: high
-depends_on: [the_plus72_stop_is_the_travel_datum]
+depends_on: [a_face_is_picked_the_way_cad_picks_it]
 model: opus
 hitl: false
 ---
@@ -21,8 +21,11 @@ proposal at all. Jeff:
 > when you select that row in the menu, it should hilight the surface in the
 > 3d viewer, and give you an option to approve or select a different surface.
 
-Baseline: `master` with the datum handoff landed (it rewrites
-`apps/viewer/views/kinematic.js`; this handoff does not touch that file).
+Baseline: `master` with `a_face_is_picked_the_way_cad_picks_it` landed — it
+gives the rail one row template, the resize handle, isolate/ghost on arming
+Pick, the part-scoped selection filter, hover pre-selection and the click
+confirmation; "Pick a different face" below reuses that armed-pick flow
+unchanged.
 Scope: `apps/annotate/sweep.js` (the kinematic rail), `apps/annotate/scene.js`
 (highlight + camera framing of a proposed face), `apps/annotate/binding_state.js`
 / `suggestions.js` as needed, the proposal read in `apps/annotate/app.js`
