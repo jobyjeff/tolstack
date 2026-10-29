@@ -82,6 +82,10 @@
     return this._readJson(AA.CONFIG.partMeshAliases);
   };
 
+  FsaAdapter.prototype.readContactSuggestions = function () {
+    return this._readJson(AA.CONFIG.contactSuggestions);
+  };
+
   FsaAdapter.prototype.readPartNames = function () {
     return this._readJson(AA.CONFIG.partNamesProjection);
   };

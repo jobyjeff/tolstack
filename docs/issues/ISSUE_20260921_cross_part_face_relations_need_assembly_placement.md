@@ -105,3 +105,23 @@ and a face's fitted plane or axis goes into the assembly frame through
 `AA.placeSweepFeature`. The open design question is the one it always was:
 which occurrence of a part a relation is asked at, when a part sits in more
 than one place and a binding names the part rather than one occurrence.
+
+## Addendum 2026-10-28 (handoff an_interface_suggests_the_faces_that_touch)
+
+Jeff's "coincident faces from two bodies" step now exists for **gap edges**,
+by a different path than this issue proposed: `tolerance_stack/interface_contact.py`
+and `scripts/build_contact_suggestions.py` read both parts' faces in the
+assembly frame (Python, on the rebuild rail) and the annotator lists and
+colours the touching pairs (`docs/ANNOTATION_SURFACE.md`, "Contact
+suggestions"). The occurrence question above is answered there for that path:
+every occurrence pair in reach is compared, the best-ranked wins, and a rival
+pair sharing an occurrence and touching different faces is reported as
+ambiguous rather than chosen.
+
+What this issue still names, unchanged: the per-part suggestion engine's own
+narrowing stage against a face bound on the adjacent part
+(`AA.NARROWING_STAGES`' `mating_fit`) still compares radii only, and its two
+declared nulls (`AA.NO_MATING_PLANE_RELATION`,
+`AA.NO_SAME_PART_SPHERE_RELATION`) still stand. Whether that stage should now
+read the contact projection, or stay as the shape-only narrowing it is, is the
+design question left for triage.

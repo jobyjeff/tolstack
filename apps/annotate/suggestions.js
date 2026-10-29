@@ -37,7 +37,9 @@
 // shared frame -- two mating cylinders have the same radius, because a radius
 // belongs to one face rather than to a pair of frames -- and for flat faces
 // there is none at all. The table says so rather than computing a coplanarity
-// it cannot support.
+// it cannot support. A gap edge's two parts ARE compared in the assembly frame
+// since 2026-10-28 -- by scripts/build_contact_suggestions.py, in Python, and
+// listed by the "contact suggestions" half at the bottom of this file.
 (function (AA, VOCAB) {
   "use strict";
 
@@ -526,4 +528,130 @@
     var name = ref.source === "other_end" ? names[ref.direction] : end.interfaceName;
     return " (face " + ref.faceId + (name ? ", bound as " + name : "") + ")";
   }
+
+  // --- contact suggestions: the faces of two parts that touch ----------------
+  //
+  // Handoff an_interface_suggests_the_faces_that_touch (2026-10-28). A gap
+  // edge names two parts and an interface word, and scripts/
+  // build_contact_suggestions.py has already read, in the assembly frame, which
+  // faces of those two parts touch: flat on flat, a pin in its bore, a ball in
+  // its seat -- ranked, with the evidence. This half only FINDS the rows for an
+  // element and SAYS them in everyday words. The same fence as above: it
+  // colours and lists, it never selects a face and never writes.
+  //
+  // An element that is not itself a gap edge still gets the rows of the gap
+  // edges at its two ends -- "a feature on either side of it": a link's length
+  // runs between two joints, and the faces that close those joints are the
+  // ones a reader binding the length is looking for.
+
+  // How many candidates the bar lists.
+  AA.CONTACT_LISTED = 3;
+
+  // What each pairing is, in a reader's words. Keyed by the Python vocabulary
+  // (tolerance_stack/interface_contact.py's PAIRING_KINDS and RELATIONS,
+  // generated), so a kind added there without words here throws at load.
+  AA.CONTACT_PAIRING_WORDS = VOCAB.table("CONTACT_PAIRING_KINDS", {
+    plane_on_plane: "flat on flat",
+    cylinder_in_cylinder: "pin in bore",
+    ball_in_seat: "ball in its seat",
+  });
+  AA.CONTACT_RELATION_WORDS = VOCAB.table("CONTACT_RELATIONS", {
+    contact: "touching",
+    coaxial: "on one axis",
+  });
+  AA.CONTACT_SEAT_WORDS = VOCAB.table("CONTACT_SEAT_SURFACES", {
+    spherical: "ball in its race",
+    cylindrical: "ball on a bore's axis",
+    planar: "ball against a flat",
+  });
+  // The heading over the list, and the one a list read off a neighbouring
+  // joint wears (with that joint's name).
+  AA.CONTACT_HEADING = "Faces that touch";
+  AA.CONTACT_HEADING_AT = "Faces that touch at ";
+  // When a second pair of occurrences touches different faces -- a link with
+  // a bearing at each end -- the list is one of those places.
+  AA.CONTACT_AMBIGUOUS = "these parts touch in more than one place";
+
+  function mm(value) {
+    var abs = Math.abs(value);
+    var digits = abs >= 10 ? 1 : abs >= 0.1 ? 2 : 3;
+    return value.toFixed(digits) + " mm";
+  }
+
+  // The rows for one element: [{row, via}] where `row` is the projection's
+  // edge row and `via` is null for the element itself, or the gap edge's own
+  // row when it was reached through a shared node. Rows with no candidate are
+  // left out: an empty one says nothing a reader can act on in the bar.
+  AA.contactRowsFor = function (doc, topology, edgeId) {
+    if (!doc || !topology || !edgeId) return [];
+    var entry = null;
+    (doc.topologies || []).forEach(function (t) { if (t.id === topology.id) entry = t; });
+    if (!entry) return [];
+    var rows = (entry.edges || []).filter(function (r) {
+      return r.status === "ok" && (r.candidates || []).length;
+    });
+    var own = rows.filter(function (r) { return r.edge === edgeId; })[0];
+    if (own) return [{ row: own, via: null }];
+    // A gap edge with nothing touching lists nothing -- never its neighbours'
+    // pairs, which would read as this joint's.
+    if ((entry.edges || []).some(function (r) { return r.edge === edgeId; })) return [];
+    var edge = ((topology.edges || []).filter(function (e) { return e.id === edgeId; }))[0];
+    if (!edge) return [];
+    return rows.filter(function (r) {
+      return [edge.from, edge.to].some(function (n) {
+        return n && (r.from.node === n || r.to.node === n);
+      });
+    }).map(function (r) { return { row: r, via: r }; });
+  };
+
+  // One candidate's evidence, as one short line: "pin in bore, clearance
+  // 0.003 mm, 2.20 mm shared". Numbers are evidence for a rank, read off a
+  // mesh -- never a value -- so they are rounded for reading.
+  AA.describeContact = function (pairing, candidate) {
+    var e = candidate.evidence || {};
+    if (candidate.relation !== "contact") {
+      return AA.CONTACT_RELATION_WORDS[candidate.relation] + ", " + mm(e.axis_offset_mm) + " apart";
+    }
+    if (pairing === "plane_on_plane") {
+      return AA.CONTACT_PAIRING_WORDS[pairing] + ", gap " + mm(e.gap_mm) +
+        ", overlap " + Math.round(e.overlap_mm2) + " mm²";
+    }
+    if (pairing === "cylinder_in_cylinder") {
+      var fit = e.clearance_mm < 0 ? "press fit " + mm(-e.clearance_mm)
+        : "clearance " + mm(e.clearance_mm);
+      return AA.CONTACT_PAIRING_WORDS[pairing] + ", " + fit + ", " +
+        mm(e.axial_overlap_mm) + " shared";
+    }
+    var words = AA.CONTACT_SEAT_WORDS[e.seat];
+    if (e.seat === "planar") return words + ", gap " + mm(e.seat_gap_mm);
+    return words + ", off by " + mm(e.centre_mm);
+  };
+
+  // The faces to colour for one candidate: [{sha256, faceId}], both ends.
+  AA.contactFaces = function (candidate) {
+    var out = [];
+    if (!candidate) return out;
+    ["from", "to"].forEach(function (side) {
+      var end = candidate[side];
+      (end && end.faces || []).forEach(function (f) {
+        out.push({ sha256: end.sha256, faceId: f });
+      });
+    });
+    return out;
+  };
+
+  // A candidate by edge id and rank, or null.
+  AA.findContact = function (doc, topologyId, edgeId, rank) {
+    var found = null;
+    ((doc && doc.topologies) || []).forEach(function (t) {
+      if (t.id !== topologyId) return;
+      (t.edges || []).forEach(function (r) {
+        if (r.edge !== edgeId) return;
+        (r.candidates || []).forEach(function (c) {
+          if (c.rank === rank) found = { row: r, candidate: c };
+        });
+      });
+    });
+    return found;
+  };
 })(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);

@@ -774,6 +774,7 @@ function servedFiles(extra) {
       meshes: [{ sha256: "aa", label: "Bolt", part_id: "bolt_1" }],
       mesh_aliases: { aliases: [{ topology_part: "x", part_id: "bolt_1" }] },
       part_names: { parts: { "123": "bolt" } },
+      contact_suggestions: { topologies: [{ id: "t", edges: [] }] },
       sweep_runs: [
         { run_id: "run-old", ts: "2026-10-01T00:00:00Z", mechanism: "m" },
         { run_id: "run-new", ts: "2026-10-16T00:00:00Z", mechanism: "m" },
@@ -803,6 +804,7 @@ check("http: every read a folder grant makes is answered from the served origin"
   assertEqual(await adapter.listMeshes(), [{ sha256: "aa", label: "Bolt", part_id: "bolt_1" }]);
   assertEqual((await adapter.readPartMeshAliases()).aliases.length, 1);
   assertEqual((await adapter.readPartNames()).parts["123"], "bolt");
+  assertEqual((await adapter.readContactSuggestions()).topologies[0].id, "t");
   // Newest first by the run's own ts, through the one ordering every adapter uses.
   assertEqual((await adapter.listSweepRuns()).map((r) => r.runId), ["run-new", "run-old"]);
   assertEqual((await adapter.readSweepRun("run-new")).run_id, "run-new");
@@ -829,6 +831,7 @@ check("http: no read set yet is no meshes and no runs, never an error", async ()
   assertEqual(await adapter.listSweepRuns(), []);
   assertEqual(await adapter.readPartMeshAliases(), null);
   assertEqual(await adapter.readPartNames(), null);
+  assertEqual(await adapter.readContactSuggestions(), null);
 });
 
 function writerSpy(initial) {
@@ -3525,6 +3528,90 @@ check("describeSuggestions says WHICH face the narrowing compared against -- " +
 const SCENE_SOURCE = fs.readFileSync(path.join(here, "scene.js"), "utf8");
 const APP_SOURCE = fs.readFileSync(path.join(here, "app.js"), "utf8");
 
+// --- contact suggestions (handoff an_interface_suggests_the_faces_that_touch)
+//
+// The rows and the words. Which faces touch is decided in Python
+// (tolerance_stack/interface_contact.py, pinned value by value in
+// tests/test_interface_contact.py); this half finds an element's rows in the
+// projection and says them. The browser tier owns what is on screen.
+
+const CONTACT_TOPOLOGY = {
+  id: "t",
+  nodes: [{ id: "n1" }, { id: "n2" }, { id: "n3" }, { id: "n4" }],
+  edges: [
+    { id: "joint", from: "n1", to: "n2" },
+    { id: "length", from: "n2", to: "n3" },
+    { id: "elsewhere", from: "n3", to: "n4" },
+  ],
+};
+
+function contactRow(edge, from, to, extra) {
+  return Object.assign({
+    edge, name: edge + " name", pairing: "ball_in_seat", status: "ok",
+    from: { node: from }, to: { node: to }, ambiguous_with: [],
+    candidates: [{ rank: 1, relation: "contact",
+      from: { sha256: "a", faces: [3, 4] }, to: { sha256: "b", faces: [9] },
+      evidence: { seat: "spherical", centre_mm: 0 }, box: { min: [0, 0, 0], max: [1, 1, 1] } }],
+  }, extra || {});
+}
+
+const CONTACT_DOC = { topologies: [{ id: "t", edges: [
+  contactRow("joint", "n1", "n2"),
+  contactRow("empty_joint", "n3", "n4", { status: "no_contact", candidates: [] }),
+] }] };
+
+check("contact rows: a gap edge gets its own row, an element beside it gets " +
+  "the rows at its two ends, and a row with no candidate is never listed", () => {
+  const own = AA.contactRowsFor(CONTACT_DOC, CONTACT_TOPOLOGY, "joint");
+  assertEqual(own.map((r) => [r.row.edge, r.via === null]), [["joint", true]]);
+  const beside = AA.contactRowsFor(CONTACT_DOC, CONTACT_TOPOLOGY, "length");
+  assertEqual(beside.map((r) => r.row.edge), ["joint"],
+    "a length ending at a joint did not find that joint's touching faces");
+  if (beside[0].via === null) throw new Error("a neighbour's row was not marked as one");
+  // n3-n4's joint has no candidate: an element ending there lists nothing,
+  // and neither does that joint itself, though `length` touches it AND the
+  // joint that does have a pair.
+  assertEqual(AA.contactRowsFor(CONTACT_DOC, CONTACT_TOPOLOGY, "elsewhere"), []);
+  const emptyJoint = { id: "t", nodes: CONTACT_TOPOLOGY.nodes,
+    edges: CONTACT_TOPOLOGY.edges.concat([{ id: "empty_joint", from: "n2", to: "n4" }]) };
+  assertEqual(AA.contactRowsFor(CONTACT_DOC, emptyJoint, "empty_joint"), [],
+    "a gap edge with nothing touching listed a neighbour's pair as its own");
+  assertEqual(AA.contactRowsFor(null, CONTACT_TOPOLOGY, "joint"), []);
+  assertEqual(AA.contactRowsFor(CONTACT_DOC, { id: "other", edges: [] }, "joint"), []);
+  // Both features' faces are what gets coloured, each on its own part.
+  assertEqual(AA.contactFaces(own[0].row.candidates[0]),
+    [{ sha256: "a", faceId: 3 }, { sha256: "a", faceId: 4 }, { sha256: "b", faceId: 9 }]);
+  assertEqual(AA.findContact(CONTACT_DOC, "t", "joint", 1).candidate.rank, 1);
+  assertEqual(AA.findContact(CONTACT_DOC, "t", "joint", 2), null);
+});
+
+check("contact words: each pairing, relation and seat says what it is in " +
+  "everyday words, with its evidence rounded for reading", () => {
+  const say = (pairing, relation, evidence) =>
+    AA.describeContact(pairing, { relation, evidence });
+  assertEqual(say("plane_on_plane", "contact",
+    { gap_mm: 0.0169, overlap_mm2: 340.4, overlap_fraction: 0.9 }),
+    "flat on flat, gap 0.017 mm, overlap 340 mm²");
+  assertEqual(say("cylinder_in_cylinder", "contact",
+    { clearance_mm: 0.003, axial_overlap_mm: 2.1995, axis_offset_mm: 0 }),
+    "pin in bore, clearance 0.003 mm, 2.20 mm shared");
+  assertEqual(say("cylinder_in_cylinder", "contact",
+    { clearance_mm: -0.02, axial_overlap_mm: 7.157, axis_offset_mm: 0 }),
+    "pin in bore, press fit 0.020 mm, 7.16 mm shared");
+  assertEqual(say("cylinder_in_cylinder", "coaxial", { axis_offset_mm: 0.0123 }),
+    "on one axis, 0.012 mm apart");
+  assertEqual(say("ball_in_seat", "contact", { seat: "spherical", centre_mm: 0 }),
+    "ball in its race, off by 0.000 mm");
+  assertEqual(say("ball_in_seat", "contact", { seat: "cylindrical", centre_mm: 0.0501 }),
+    "ball on a bore's axis, off by 0.050 mm");
+  assertEqual(say("ball_in_seat", "contact", { seat: "planar", seat_gap_mm: -0.0186 }),
+    "ball against a flat, gap -0.019 mm");
+  [AA.CONTACT_HEADING, AA.CONTACT_HEADING_AT, AA.CONTACT_AMBIGUOUS].forEach((text, i) => {
+    assertNoCommandOrPath(text, `contact sentence #${i + 1}`);
+    if (/[a-z]_[a-z]/.test(text)) throw new Error("an underscored identifier: " + text);
+  });
+});
+
 check("the suggestion colour IS the shared accent -- one declaration in " +
   "apps/viewer/style.css, not a hex typed twice", () => {
   const viewerCss = fs.readFileSync(path.join(here, "..", "viewer", "style.css"), "utf8");
@@ -3538,9 +3625,10 @@ check("the suggestion colour IS the shared accent -- one declaration in " +
   if (!suggested) throw new Error("MARK_COLORS has no `suggested` role");
   assertEqual("#" + suggested[1].toLowerCase(), declared[1].toLowerCase(),
     "the suggestion colour has drifted from apps/viewer/style.css's --accent");
-  // Three roles and three claims: a fourth colour added with no claim behind
-  // it is the emphasis budget being spent without a decision.
-  ["bound", "suggested", "picked"].forEach((role) => {
+  // Four roles and four claims (the fourth, `contact`, since
+  // an_interface_suggests_the_faces_that_touch): a colour added with no claim
+  // behind it is the emphasis budget being spent without a decision.
+  ["bound", "suggested", "picked", "contact"].forEach((role) => {
     if (roles[1].indexOf(role + ":") === -1) {
       throw new Error(`MARK_COLORS lost the "${role}" role`);
     }

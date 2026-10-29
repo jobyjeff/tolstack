@@ -44,6 +44,12 @@
     annotateSweepsDir: ["data", "projections", "viewer", "kinematic", "sweeps"],
     featureIdentityEventsDir: ["data", "inbox", "feature-identity"],
     featureIdentityProjection: ["data", "projections", "feature-identity", "bindings.json"],
+    // Which faces could be each gap edge's interface (handoff
+    // an_interface_suggests_the_faces_that_touch), built by
+    // scripts/build_contact_suggestions.py. A folder grant reads it here; over
+    // HTTP it comes in the read set, which copies it. Absent is fine: the bar
+    // then lists no touching faces. tests/test_kinematic.py pairs this line.
+    contactSuggestions: ["data", "projections", "feature-identity", "contact_suggestions.json"],
 
     // There is deliberately NO `rebuild` entry here. It held the two build
     // commands as strings, one of which the "no projection" banner rendered

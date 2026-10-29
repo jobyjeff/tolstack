@@ -194,9 +194,10 @@ geometry and material, so it costs a draw call and a matrix, not a copy.
 
 **What this does not change: the face suggestions.** The suggestion engine
 still reads each part in its own frame, so two flat faces on two parts are
-still not compared. Parts now *sit* in a shared frame, which is what the
-coincident-face cross-part suggestions Jeff asked for need first — that is the
-named next step, still open as
+still not compared by it. Across two parts, a gap edge's touching faces are
+now read in the assembly frame by "Contact suggestions", below. What is still
+open is the engine's own narrowing stage against a face bound on the adjacent
+part, which still compares radii only —
 `ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
 
 Every scene/navigation operation is a named, text-addressable verb behind one
@@ -352,14 +353,89 @@ logic was deliberately left as it was. Exactly one relation survives having no
 shared frame: two mating cylinders have the same radius, because a radius
 belongs to one face rather than to a pair of frames. The table declares the gap
 with its reason rather than computing a coplanarity it cannot support, and the
-surface says so in plain words. Reading the placements the scene now applies
-into the engine is the next step, filed as
+surface says so in plain words. A gap edge's two parts ARE compared in the
+assembly frame since 2026-10-28, by a different path ("Contact suggestions",
+below); reading the placements into this engine's own stages is what stays
+open in
 `docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
 
 Full detail — the thresholds, the measured hit rates over the installed meshes,
 the rule table and the display states — is in `apps/annotate/README.md`'s "Face
 suggestions" and in
 `docs/sessions/lessons/LESSONS_20260921_annotate_face_suggestions.md`.
+
+## Contact suggestions — the faces of two parts that touch
+
+Added 2026-10-28 by handoff `an_interface_suggests_the_faces_that_touch`. Jeff:
+*"If you know there's an interface between two parts, it's very easy to narrow
+down by filtering planar surfaces on each body that are coplanar, or even
+better contacting each other (within some narrow margin). Same for cylindrical
+surfaces (coaxial)."* A topology gap edge names two parts (its end nodes'
+`parts[0]`) and an `interface` word, so this narrows across parts where the
+face suggestions above narrow within one.
+
+**It suggests; it never binds.** The same fence as the face suggestions: the
+annotator colours the top pair and lists the best few, a click frames one, and
+nothing selects a face or writes an event. The pick stays a human's — or, next,
+an agent's proposal a human ratifies. And it is not a value: a gap, a clearance
+or a radius read off a mesh is **evidence for a rank**, and a drawing callout
+still wins wherever one exists (decision 6).
+
+**Where it is computed.** `tolerance_stack/interface_contact.py` holds the
+geometry; `scripts/build_contact_suggestions.py` resolves each gap edge to two
+meshes through the alias table, takes each part's occurrences (its own sidecar's
+and the annotator's two borrowing arms, `AA.sweepCandidateOccurrences`), and
+writes `data/projections/feature-identity/contact_suggestions.json` on the
+rebuild rail. The kinematic builder copies it into the annotator's served read
+set, so a page reading over HTTP gets it as a folder grant does. Faces are
+compared **in the assembly frame**, through each occurrence's
+`placement_world` — the third place a placement is applied, and like the
+scene's, to rank rather than to produce a value.
+
+**The kinds.** The `interface` word picks the pairing
+(`interface_contact.CONTACT_PAIRINGS`, paired against the topology's interface
+vocabulary by a test):
+
+| pairing | interfaces | a pair is | evidence |
+|---|---|---|---|
+| flat on flat | `planar` | two flat faces facing each other, touching, footprints overlapping | `gap_mm`, `angle_deg`, `overlap_mm2`, `overlap_fraction` |
+| pin in bore | `pin_in_bore`, `cylindrical_slide`, `thread`, `clearance` | a convex and a concave cylinder on one axis, the bore no smaller than the pin past a press-fit margin, sharing length | `axis_offset_mm`, `angle_deg`, `pin_radius_mm`, `bore_radius_mm`, `clearance_mm`, `axial_overlap_mm`, `bore` (which end) |
+| ball in its seat | `spherical` | a convex sphere and a concave sphere sharing its centre, a bore whose axis runs through the centre, or a flat it rests on | `centre_mm` (or `seat_gap_mm`), `ball_radius_mm`, `seat_radius_mm`, `along_axis_mm`, `seat`, `ball` (which end) |
+
+A pin-in-bore pairing that finds nothing touching falls back to two cylinders
+**on one axis** (`relation: coaxial`), which is what a coaxiality edge between
+two bores is about. The faces of one feature — a cylinder exported as two
+halves, a bore split by a groove — are listed together as one candidate.
+
+**Which occurrences.** Every pair of occurrences whose boxes come within reach
+is compared; the best-ranked wins, then the pair the annotator actually draws,
+then key order. The same joint on every blade is one answer five times over.
+A second pair that shares an occurrence with the winner and touches *different*
+faces — a link with a bearing at each end — is not: the row lists it under
+`ambiguous_with` and the bar says the parts touch in more than one place. Only
+the edge's own words can settle which end it means. A part every blade shares
+(the pitch plate, the tangential link mount) touches at a different face per
+blade and is reported the same way: nothing declares which blade a topology is
+about (`docs/issues/ISSUE_20261028_contact_suggestions_cannot_say_which_blade_a_topology_edge_means.md`).
+
+**An edge with no candidate says why**, one of
+`interface_contact.EMPTY_REASONS`: no installed mesh for an end, no recorded
+place in the assembly, a mesh that does not declare millimetres, no face of the
+asked-for kind near the other part, or nothing passing the margins. The bar
+shows nothing for such an edge; the projection keeps the reason.
+
+**The margins** are `interface_contact.CONTACT_TOLERANCES`, each with the
+population it was chosen against in its comment, measured over the pitch
+linkage's gap edges. How cleanly each one separates contact from near-miss is
+in `docs/sessions/lessons/LESSONS_20261028_an_interface_suggests_the_faces_that_touch.md`.
+
+**In the annotator.** Selecting a gap edge — or an element ending at one —
+lists that edge's best pairs under **Faces that touch** in the top bar, one
+line of evidence each, and colours the pair in focus in the contact hue
+(`scene.js` `MARK_COLORS.contact`), distinct from the suggestion colour. A
+click on a listed pair is the `frame-contact` verb: it moves the colour to that
+pair and frames the camera on the box the projection carries for it. Both
+follow the **Suggest likely faces** setting, like the face suggestions.
 
 ## Sweep mode — playing back a solver's answer
 

@@ -61,7 +61,10 @@ traced ratio" — never restate the rule elsewhere).
   citation still wins wherever one exists. Since 2026-09-21 the surface also
   *suggests* which faces could be the feature (a diameter needs a round
   surface, a thickness flat ones, a joint centre a ball-shaped one) — still
-  colour only: it never selects a face and never writes.
+  colour only: it never selects a face and never writes. Since 2026-10-28 a
+  gap edge's two parts are compared too, in the assembly frame — the faces
+  that touch, ranked with their evidence, behind the same fence
+  (`docs/ANNOTATION_SURFACE.md`, "Contact suggestions").
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

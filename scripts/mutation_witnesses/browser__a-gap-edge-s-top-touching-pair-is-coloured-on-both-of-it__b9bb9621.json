@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate face suggestions (candidate colours, the pick, the switch)",
+  "expect_red": "a gap edge's top touching pair is coloured on both of its parts, in a hue that is not the suggestion colour",
+  "mutations": [
+    {
+      "contract": "The touching pair is drawn in its own hue, never the suggestion colour.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_an_interface_suggests_the_faces_that_touch.md",
+      "note": "The narrower claim drawn in the wider claim's colour is indistinguishable from it on screen.",
+      "file": "apps/annotate/scene.js",
+      "find": "picked: 0xff8c1a, contact: 0xb48cf2 };",
+      "replace": "picked: 0xff8c1a, contact: 0x6ea8fe };"
+    }
+  ]
+}

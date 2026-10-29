@@ -40,10 +40,15 @@ const GHOST_OPACITY = 0.22;
 //              uses). It needs an overlay of its own only while the body is
 //              translucent: a vertex tint at GHOST_OPACITY is not a selection a
 //              reader can see.
+//   contact    these two faces, one on each part, TOUCH in the assembly -- the
+//              pair a gap edge's interface most likely is (handoff
+//              an_interface_suggests_the_faces_that_touch). A narrower claim
+//              than `suggested` (that a face is the right SHAPE), so it needs
+//              its own hue, and like it a hue that is not a state: violet.
 //
 // run_tests.cjs pairs `suggested` against that stylesheet's own `--accent`
 // declaration, so the two cannot drift.
-const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };
+const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a, contact: 0xb48cf2 };
 // THE HOVER TINT (handoff the_rail_and_the_scene_point_at_each_other): what
 // the pointer resting on a sweep-rail row lights -- a whole part at one
 // occurrence, a bound face, a joint's bead. A pale wash drawn OVER the part
@@ -781,6 +786,17 @@ export class AnnotateScene {
     if (!targets.length) return;
     const overall = new THREE.Box3();
     for (const sha of targets) overall.union(this._assemblyBox(sha));
+    this._frameBox(overall);
+  }
+
+  // Frames a box given in the ASSEMBLY frame -- `frame-contact`'s camera, the
+  // box a contact candidate carries in the projection. The same placement as
+  // framing a part, so a reader's camera behaves one way whatever it frames.
+  frameBox(min, max) {
+    this._frameBox(new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max)));
+  }
+
+  _frameBox(overall) {
     const center = overall.getCenter(new THREE.Vector3());
     const size = overall.getSize(new THREE.Vector3());
     const dist = Math.max(size.x, size.y, size.z) * 1.5 + 50;

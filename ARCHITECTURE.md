@@ -40,6 +40,12 @@ tolerance_stack/
                     generated from. stdlib only. Added 2026-09-30. It measures a
                     mesh; it is not a value source for a tolerance -- see
                     docs/ANNOTATION_SURFACE.md.
+  interface_contact.py which faces of a pair of parts touch, in the assembly frame:
+                    flat on flat, pin in bore, ball in its seat -- ranked, with
+                    the evidence that paired them. stdlib only. Added
+                    2026-10-28. A suggestion, never a binding and never a
+                    value -- see docs/ANNOTATION_SURFACE.md, "Contact
+                    suggestions".
   kinematic.py      the kinematic study: a published linkage sweep's Jacobian
                     read as cited Term coefficients, a band / sphere / disk zone
                     per contributor, folded through fold() per sweep point
@@ -63,13 +69,14 @@ scripts/
                                in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
-                               2026-08-10; stdlib only. Imported by all nine
+                               2026-08-10; stdlib only. Imported by all ten
                                projection writers (the three above and
                                `scripts/build_part_names_projection.py`, 2026-10-20,
                                `tolerance_stack/spec_library.py`, 2026-08-12,
                                `scripts/build_kinematic_projection.py`, 2026-10-16,
                                `tolerance_stack/feature_identity.py`, 2026-09-06,
-                               `scripts/fit_bound_features.py`, 2026-09-30, and
+                               `scripts/fit_bound_features.py`, 2026-09-30,
+                               `scripts/build_contact_suggestions.py`, 2026-10-28, and
                                `scripts/export_stack_tabular.py`, 2026-09-04 --
                                for its provenance stamp: that script writes no
                                shared projection and does not call the gate).
@@ -127,6 +134,15 @@ scripts/
                                apply any. Added 2026-09-30; stdlib plus
                                feature_geometry, feature_identity and
                                projection_provenance.
+  build_contact_suggestions.py which faces could be a gap edge's interface ->
+                               data/projections/feature-identity/contact_suggestions.json:
+                               the ranked face pairs with their evidence and the
+                               occurrence pair they were read at, or the reason
+                               why there is no candidate. The kinematic builder copies it
+                               into the annotator's read set. Added 2026-10-28;
+                               stdlib plus interface_contact, topology,
+                               feature_geometry, fit_bound_features,
+                               build_topology_projection and projection_provenance.
   record_spec_crop_region.py   the verb behind docs/spec_library/crop_regions.json:
                                validates a rect against the pile document and the
                                sheet it names, previews it, and appends the entry.

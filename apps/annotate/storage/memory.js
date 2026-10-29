@@ -35,6 +35,9 @@
   MemoryAdapter.prototype.readPartMeshAliases = async function () {
     return this._fixtures.partMeshAliases || null;
   };
+  MemoryAdapter.prototype.readContactSuggestions = async function () {
+    return this._fixtures.contactSuggestions || null;
+  };
   MemoryAdapter.prototype.readPartNames = async function () {
     return this._fixtures.partNames || null;
   };

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "contact rows: a gap edge gets its own row, an element beside it gets the rows at its two ends, and a row with no candidate is never listed",
+  "mutations": [
+    {
+      "contract": "A gap edge with no touching faces is never listed for an element beside it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_an_interface_suggests_the_faces_that_touch.md",
+      "note": "Keeping every row would list an empty joint's heading over nothing, which is the absent-state rule broken.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "      return r.status === \"ok\" && (r.candidates || []).length;",
+      "replace": "      return true;"
+    }
+  ]
+}
