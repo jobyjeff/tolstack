@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: open
 area: feature-identity
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_an_agent_proposes_a_face_binding_and_a_human_ratifies_it.md
 class: contact_engine_ignores_end_geometry
 defer_until: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
-resolution: triage 2026-10-29: med beyond the budget; deferred onto the_contact_engine_asks_the_ends_what_shape_they_are, whose engine changes this issue's premise
+resolution: triage 2026-10-29: med beyond the budget; deferred onto the_contact_engine_asks_the_ends_what_shape_they_are, whose engine changes this issue's premise -- woke 2026-10-29 -- the_contact_engine_asks_the_ends_what_shape_they_are completed; re-triage
 ---
 
 # The first agent proposal pass left 90 meshed edge ends unproposed
