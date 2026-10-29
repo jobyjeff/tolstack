@@ -1,14 +1,14 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: kinematic study / travel between end stops
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md
 class: band_attributed_to_the_wrong_member
 defer_until: 2026-11-12
-resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | burndown 2026-10-29 (strategy): Jeff ruled: the +72 feather stop is the datum; the travel study is an x-uncertainty of the -7 stop only (never a y-term of the envelope, which is what draws the kinks); neither stop is anchored to the blade-root bores -- declared as a gap
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | burndown 2026-10-29 (strategy): Jeff ruled: the +72 feather stop is the datum; the travel study is an x-uncertainty of the -7 stop only (never a y-term of the envelope, which is what draws the kinks); neither stop is anchored to the blade-root bores -- declared as a gap | resolved 2026-10-29 by handoff the_plus72_stop_is_the_travel_datum: (a) option 1 -- the +72 stop is the study's `datum` (driver 0), the travel study_ref carries applies_to [minus7] and is an x-interval of that stop, never a term of the envelope; -7 stays +/-1.707 (margin -1.207), +72 is its direct +/-0.315 (margin +0.185, pass); the hub anchor is a declared-gap study_ref at both stops. (b) unchanged by ruling: the band is drawn about the sweep's stop and the axis keeps its note
 handoff: docs/sessions/HANDOFF_20261029_the_plus72_stop_is_the_travel_datum.md
 ---
 
@@ -66,3 +66,21 @@ chart draws the band about the sweep's stop and its x axis now reads
 "(swept 0.000–64.466; travel study nominal 64.440)". A 0.026 mm difference
 in nominal is small against a ±0.82 band but it is two sources for one
 dimension: which one is the stop?
+
+## Resolution (2026-10-29)
+
+Jeff's ruling, 2026-10-29 strategy session: *"for now let's make the 72deg
+feather hard stop the datum, since that's where the propeller is at rest when
+the gas spring is charged (and what is modeled in nominal CAD)."* Implemented
+by `the_plus72_stop_is_the_travel_datum`: a `study_ref` on the sweep's driver
+is an x-uncertainty of the stops it names (`applies_to`, required), never a
+y-term of the envelope, so the plot's kinks (one term drawn twice) are gone.
+
+| stop | worst case (deg) | margin vs ±0.5 | verdict |
+|---|---|---|---|
+| −7° | 1.707 (0.290 direct + 1.417 travel) | −1.207 | marginal |
+| +72° | 0.315 (direct only) | +0.185 | pass |
+
+Neither stop is yet anchored to the blade-root bores; that chain is a
+declared gap on both checks (`vpa_pitch_linkage_hub_to_feather_stop`), not a
+modelled band.

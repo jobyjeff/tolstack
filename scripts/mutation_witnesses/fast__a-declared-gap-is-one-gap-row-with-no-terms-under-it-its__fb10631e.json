@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a declared gap is one gap row with no terms under it, its chip saying why, ranked last",
+  "mutations": [
+    {
+      "contract": "A declared-gap group wears the gap chip in its band cell.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_plus72_stop_is_the_travel_datum (2026-10-29). Never draws the chip.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    } else if (group.flag) {",
+      "replace": "    } else if (false) {"
+    }
+  ]
+}

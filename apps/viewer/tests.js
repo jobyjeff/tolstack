@@ -17450,9 +17450,12 @@
             eq(chart.bands.map(function (b) { return b.stop; }), ["minus7"]);
             var minus7 = chart.bands[0];
             eq(VA.kinematicNumber(minus7.cornerWorst, decimals), "1.707");
-            ok(Math.abs(minus7.cornerWorst - stops.minus7.worst_case_half) < 1e-9,
+            // Within the projection's rounding: the corner is made of three
+            // rounded figures (J, the x half, the envelope's half), the stop's
+            // total is one, each to INTERVAL_DECIMALS (six) places.
+            ok(Math.abs(minus7.cornerWorst - stops.minus7.worst_case_half) < 5e-6,
                "the corner is the stop's own swept worst case, " + minus7.cornerWorst);
-            ok(Math.abs(minus7.cornerRss - stops.minus7.rss_half) < 1e-9, "RSS too");
+            ok(Math.abs(minus7.cornerRss - stops.minus7.rss_half) < 5e-6, "RSS too");
             // No step where the band joins the envelope: its half-height at
             // the stop is the envelope's own half there, 0.290.
             var envelopeHalf = realKinStudy.envelope[stops.minus7.index].worst_case_half;

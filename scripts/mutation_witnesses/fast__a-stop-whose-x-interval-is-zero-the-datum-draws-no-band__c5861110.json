@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a stop whose x-interval is zero -- the datum -- draws no band",
+  "mutations": [
+    {
+      "contract": "A stop with no x-interval is a line on x, not a band.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_plus72_stop_is_the_travel_datum (2026-10-29). Drops the zero-width test, so the datum draws an empty band.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      if (!x || !(x.worst_case_half > 0) || typeof stop.driver_entry !== \"number\") return;",
+      "replace": "      if (!x || typeof stop.driver_entry !== \"number\") return;"
+    }
+  ]
+}

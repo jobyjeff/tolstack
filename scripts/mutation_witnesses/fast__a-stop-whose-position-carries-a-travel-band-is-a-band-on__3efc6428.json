@@ -4,12 +4,12 @@
   "expect_red": "a stop whose position carries a travel band is a band on x, and the envelope across it reaches the stop's folded worst case at its far corners",
   "mutations": [
     {
-      "contract": "Across a stop's travel band the envelope's far corner is the stop's folded worst case.",
+      "contract": "Across a stop's travel band the envelope's far corner is the stop's swept worst case, and the band starts at the envelope's own half-width.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Takes the whole stop total as the half-height at the band's centre, so the corner overshoots by the group's reach.",
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Takes the whole stop total as the half-height at the band's centre, so the corner overshoots by the group's reach. Re-anchored 2026-10-29 (the_plus72_stop_is_the_travel_datum): the half-height at the centre is now the stop's direct half; the mutation takes the stop's swept total there, the kink this handoff removed.",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "        var d = Math.max(0, stop.worst_case_half - group.reach);",
-      "replace": "        var d = stop.worst_case_half;"
+      "find": "      var d = direct.worst_case_half;",
+      "replace": "      var d = stop.worst_case_half;"
     }
   ]
 }

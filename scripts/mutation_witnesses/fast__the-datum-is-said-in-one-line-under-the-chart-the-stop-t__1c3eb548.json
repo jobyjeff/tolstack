@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the datum is said in one line under the chart: the stop the driver is measured from, the stop that carries the band, and each declared gap",
+  "mutations": [
+    {
+      "contract": "A study that names a datum says it under the chart.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_plus72_stop_is_the_travel_datum (2026-10-29). Drops the line.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (datum) root.appendChild(datumNote(datum, ctx));\n",
+      "replace": ""
+    }
+  ]
+}

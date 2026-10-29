@@ -10109,21 +10109,43 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const verdicts = await page.locator("div.kmverdict").allTextContents();
       push("[real] the study page reads one verdict chip per stop",
         verdicts.length === 2 &&
-        // Both read `marginal` since the travel between the end stops entered
-        // by its terms (a_contributor_may_be_a_study; they read `pass` at
-        // +0.210 and +0.185 before it).
+        // -7 reads `marginal`: the travel between the end stops moves it
+        // (a_contributor_may_be_a_study). +72 is the datum since 2026-10-29
+        // (the_plus72_stop_is_the_travel_datum) and reads its direct `pass`,
+        // +0.185, where it read -0.839 with the travel counted there too.
         /marginal/.test(verdicts[0]) && /margin -1\.207 deg/.test(verdicts[0]) &&
-        /marginal/.test(verdicts[1]) && /margin -0\.839 deg/.test(verdicts[1]) &&
-        await page.locator("div.kmverdict span.tvverdict--marginal").count() === 2);
+        /pass/.test(verdicts[1]) && /margin \+0\.185 deg/.test(verdicts[1]) &&
+        await page.locator("div.kmverdict span.tvverdict--marginal").count() === 1 &&
+        await page.locator("div.kmverdict span.tvverdict--pass").count() === 1);
 
-      // Both tolerances on the plot (2026-10-28): each stop a band on x, the
-      // envelope carried across it, labelled once, and the one line under the
-      // chart that says both stops carry the band -- all in the right-hand
-      // pane, the chart at its own drawn size there.
+      // Both tolerances on the plot (2026-10-28): the -7 stop a band on x
+      // (the +72 stop is the datum and carries none, 2026-10-29), the envelope
+      // carried across it, labelled once, and the one line under the chart
+      // that names the datum -- all in the right-hand pane, the chart at its
+      // own drawn size there. `join` is the band's top edge at the stop's own
+      // x against the envelope's top there, in pixels: no step.
       const plot = await page.evaluate(() => {
         const svg = document.querySelector("#detail figure.kmchart svg");
         const detail = document.querySelector("#detail");
+        const pts = (node) => (node ? node.getAttribute("points") : "").trim().split(/\s+/)
+          .filter(Boolean).map((p) => p.split(",").map(Number));
+        const region = pts(document.querySelector(
+          "#detail polygon.kmchart__region--worst[data-stop='minus7']"));
+        const worst = pts(document.querySelector("#detail polygon.kmchart__worst"));
+        let join = null;
+        if (region.length === 4 && worst.length) {
+          const mid = [(region[0][0] + region[1][0]) / 2, (region[0][1] + region[1][1]) / 2];
+          // The envelope's upper edge is the first half of its points.
+          const upper = worst.slice(0, worst.length / 2);
+          const near = upper.reduce((a, b) =>
+            Math.abs(b[0] - mid[0]) < Math.abs(a[0] - mid[0]) ? b : a);
+          join = { dx: Math.abs(near[0] - mid[0]), dy: Math.abs(near[1] - mid[1]) };
+        }
+        const anchor = document.querySelector(
+          "tr.kmgroup[data-study='vpa_pitch_linkage_hub_to_feather_stop']");
         return {
+          join,
+          anchorGap: !!(anchor && anchor.querySelector(".chip--gap")),
           bands: [...document.querySelectorAll("#detail rect.kmchart__band")]
             .map((n) => n.getAttribute("data-stop")),
           regions: document.querySelectorAll("#detail polygon.kmchart__region").length,
@@ -10139,13 +10161,19 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       });
       console.log(`      results pane ${plot.paneWidth}px, chart ${plot.chartWidth}px ` +
         `of its ${plot.drawnWidth}px`);
-      push("[real] the plot draws both stops as travel bands, labelled once, with the " +
-        "line that says both carry it",
+      console.log(`      the -7 band joins the envelope ${JSON.stringify(plot.join)} px`);
+      push("[real] the plot draws the -7 stop's travel band, labelled once, joining the " +
+        "envelope with no step, under the line that names the datum and the hub anchor gap",
         plot.bands.filter((b) => b === "minus7").length === 2 &&
-        plot.bands.filter((b) => b === "plus72").length === 2 && plot.regions === 4 &&
+        plot.bands.filter((b) => b === "plus72").length === 0 && plot.regions === 2 &&
+        plot.join !== null && plot.join.dx < 0.5 && plot.join.dy < 0.05 &&
         plot.labels.length === 1 &&
         plot.labels[0] === "Travel between end stops 63.620–65.260 mm" &&
-        /^Both stops carry the whole travel band/.test(plot.note) &&
+        plot.note === "The +72 deg stop is the datum (at rest, gas spring charged; " +
+          "nominal CAD). The −7 deg stop carries the travel between end stops " +
+          "(±0.820 mm). Neither stop is yet anchored to the blade-root bores — a " +
+          "declared gap." &&
+        plot.anchorGap &&
         plot.axis.indexOf("actuator travel, mm (swept 0.000–64.466; travel study " +
           "nominal 64.440)") !== -1);
       push("[real] the chart fits the results pane at its default width without " +
@@ -10271,13 +10299,16 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       // The first sweep point is the -7 deg stop; its strip is at the chart's
       // driver minimum or maximum depending on the sweep's direction, so the
       // point is found by its own index rather than by where it is drawn.
+      // A point reads the ENVELOPE there -- the six direct contributors,
+      // 0.290 / 0.169 -- not the stop's swept 1.707 / 0.985, which the
+      // travel band carries (2026-10-29).
       await page.locator('rect.kmchart__hit[data-index="0"]').hover();
       const tip = page.locator("div.kmchart__tip");
       const tipText = (await tip.isVisible()) ? await tip.innerText() : "";
       push("[real] hovering an envelope point reads its driver, nominal and both spreads",
         /actuator travel/.test(tipText) && /64\.466 mm/.test(tipText) &&
-        /-6\.992 deg/.test(tipText) && /±1\.707 deg/.test(tipText) &&
-        /RSS/.test(tipText) && /±0\.985 deg/.test(tipText));
+        /-6\.992 deg/.test(tipText) && /±0\.290 deg/.test(tipText) &&
+        /RSS/.test(tipText) && /±0\.169 deg/.test(tipText));
 
       const rows = page.locator("table.kmtable tr.kmrow");
       const classes = [];
@@ -10295,20 +10326,23 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
 
       // The travel between the end stops is a contributor that is a study: one
       // group row, collapsed, that opens onto its four terms with the motion
-      // ratio's magnitude at each stop as their coefficient (the first stop's
-      // 1.728 deg/mm, the second's 1.249).
+      // ratio's magnitude at the -7 stop as their coefficient (1.728 deg/mm).
+      // At +72, the datum, it does not enter, so its cells there are empty
+      // (they read 1.249 until 2026-10-29). The hub anchor is the second
+      // group row, a declared gap with nothing to open.
+      const travelRow = 'tr.kmgroup[data-study="vpa_pitch_linkage_travel_between_end_stops"]';
       const kids = page.locator("table.kmtable tr.kmchild");
       const closedKids = await kids.count() === 4 && !(await kids.first().isVisible());
-      await page.locator("tr.kmgroup button.kmgroup__toggle").click();
+      await page.locator(travelRow + " button.kmgroup__toggle").click();
       const openKids = await kids.first().isVisible() && await kids.last().isVisible();
       const kidTexts = await kids.allInnerTexts();
-      await page.locator("tr.kmgroup button.kmgroup__toggle").click();
+      await page.locator(travelRow + " button.kmgroup__toggle").click();
       push("[real] the travel study is one group row, collapsed, that opens onto its " +
         "four terms with the composed coefficients",
-        await page.locator("table.kmtable tr.kmgroup").count() === 1 &&
-        /Travel between end stops/.test(await page.locator("tr.kmgroup").innerText()) &&
+        await page.locator("table.kmtable tr.kmgroup").count() === 2 &&
+        /Travel between end stops/.test(await page.locator(travelRow).innerText()) &&
         closedKids && openKids && kidTexts.length === 4 &&
-        kidTexts.every((t) => /1\.728/.test(t) && /1\.249/.test(t)) &&
+        kidTexts.every((t) => /1\.728/.test(t) && !/1\.249/.test(t)) &&
         !(await kids.first().isVisible()));
 
       // A coefficient's hover: its curve across P2, in the page's one popover.

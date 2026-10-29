@@ -6,10 +6,10 @@
     {
       "contract": "A group row's coefficient is the motion ratio's magnitude, its sign a column of its own.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_contributor_may_be_a_study (2026-10-26). Prints the signed Jacobian entry as the coefficient.",
+      "note": "Declared with the guard by handoff a_contributor_may_be_a_study (2026-10-26). Prints the signed Jacobian entry as the coefficient. Re-anchored 2026-10-29 (the_plus72_stop_is_the_travel_datum): the call now also carries a declared gap's kind.",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "      return tableCell({ kind: \"term\", sign: g.sign, coefficient: Math.abs(g.entry),",
-      "replace": "      return tableCell({ kind: \"term\", sign: g.sign, coefficient: g.entry,"
+      "find": "                         coefficient: Math.abs(g.entry), magnitude: gapKind ? null : g.reach },",
+      "replace": "                         coefficient: g.entry, magnitude: gapKind ? null : g.reach },"
     }
   ]
 }
