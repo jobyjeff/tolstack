@@ -155,3 +155,15 @@ and the flyout status check. The
 `--only` runs above show their unmutated suites green, but their mutations
 were not exercised here. Specs it did witness: all seven annotate specs and
 the seam-handle display spec.
+
+> **Correction, 2026-10-28 (review).** No `--only` run is recorded "above":
+> the table has none, and the scratch root's `witness.log` holds none either.
+> What does show the unmutated suites green is the full browser-tier row
+> (33/34). The review's post-merge `--changed-since integration` run is the
+> record for those specs: `docs/sessions/reviews/REVIEW_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md`.
+> Two things this lesson's DoD record leaves out. The first-bind folder
+> prompt was never opened in a real browser
+> (`ISSUE_20261028_the_served_panes_first_bind_folder_prompt_has_not_been_seen_in_a_real_browser.md`).
+> The main checkout's `data/projections/viewer/kinematic/` has no
+> `annotate.json` until a rebuild runs this builder, so until then the served
+> pane reads no meshes and no runs.
