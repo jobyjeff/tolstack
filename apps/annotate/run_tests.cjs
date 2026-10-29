@@ -3082,6 +3082,18 @@ check("requiredSurfaceClass matches WORDS, not substrings -- and a name that " +
     "a centreline read as a centre");
 });
 
+check("requiredSurfaceClass reads tests/fixtures/suggestion_rule_cases.json as " +
+  "Python's required_surface_class does -- one list of answers, two readers", () => {
+  const cases = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "tests",
+    "fixtures", "suggestion_rule_cases.json"), "utf8")).cases;
+  cases.forEach(([text, want]) => {
+    const got = AA.requiredSurfaceClass(text);
+    if ((got ? got.surface : null) !== want) {
+      throw new Error(`"${text}" read as ${got ? got.surface : "nothing"}, wanted ${want}`);
+    }
+  });
+});
+
 check("endSurfaceClass asks the INTERFACE first: one dimension's two ends can " +
   "want different surfaces, and the dimension name cannot tell them apart", () => {
   const edge = { id: "cotter_hole_from_point",

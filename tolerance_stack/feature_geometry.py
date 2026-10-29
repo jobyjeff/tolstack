@@ -67,6 +67,7 @@ from __future__ import annotations
 import array
 import json
 import math
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -104,6 +105,68 @@ SURFACE_CLASSES = ("planar", "cylindrical", "spherical", "other")
 #: parallel. Every residual is still reported (:attr:`FaceFit.fits`), so a
 #: reader can see how firmly the winner won; it is just not what decides.
 FITTED_SURFACE_CLASSES = tuple(c for c in SURFACE_CLASSES if c != "other")
+
+#: Which surface class an element's NAME asks for -- the shape rule the
+#: annotator's suggestions colour by (``apps/annotate/suggestions.js``,
+#: ``AA.SUGGESTION_RULES``) and ``scripts/propose_bindings.py`` refuses a
+#: proposal by ("a diameter on a flat face"). **These three tuples are the
+#: definition, for both languages**: they moved here from the JS on 2026-10-28
+#: so the refusal and the colouring cannot disagree, and they reach the browser
+#: through ``apps/viewer/vocab.gen.js`` like every other word Python owns. The
+#: reader-facing sentence for each rule stays in JS, keyed by these keys.
+#:
+#: One entry per rule, the three tuples in the same order, matched in ORDER --
+#: the first rule with a word hit wins, so the specific feature words beat the
+#: generic ones. **The sphere rule is last on purpose**: three live interfaces
+#: are named "spherical bearing face against ..." and "spherical bearing width"
+#: -- flat faces and a width on a part that happens to be a spherical bearing --
+#: and asked earlier it would take all three on the word "spherical".
+#: Ambiguous words ("seat": a bore on a bearing, a flat on a spring) are left
+#: out rather than guessed; widen this from a real miss, not from imagination.
+SUGGESTION_RULE_KEYS = ("diametral", "between_faces", "spherical_centre")
+SUGGESTION_RULE_SURFACES = ("cylindrical", "planar", "spherical")
+#: Each rule's words, space-separated (the generated module carries flat lists
+#: of strings, ``LINKAGE_JOINT_ROW_SIGNATURES``'s precedent). Matched on word
+#: boundaries, case-insensitively, a hyphen counting as one: "dia" never fires
+#: on "diagonal", and "cotter-pin" hits "pin".
+SUGGESTION_RULE_WORDS = (
+    "diameter dia bore hole od id shank shaft journal barrel thread pin cylindrical",
+    "thickness length width height depth grip flange face shoulder gap protrusion step land",
+    "sphere spherical ball centre center",
+)
+
+
+def required_surface_class(text: Optional[str]) -> Optional[Dict[str, str]]:
+    """The class a string of words asks for, or ``None`` -- ``AA.requiredSurfaceClass``.
+
+    ``{"surface", "rule", "word"}``. Python's ``\\b`` and the browser's agree on
+    the ASCII names this reads; ``tests/test_feature_geometry.py`` runs the same
+    cases through both.
+    """
+    words = str(text or "")
+    if not words:
+        return None
+    for key, surface, rule_words in zip(SUGGESTION_RULE_KEYS, SUGGESTION_RULE_SURFACES,
+                                        SUGGESTION_RULE_WORDS):
+        for word in rule_words.split(" "):
+            if re.search(r"\b" + re.escape(word) + r"\b", words, re.IGNORECASE):
+                return {"surface": surface, "rule": key, "word": word}
+    return None
+
+
+def end_surface_class(edge_name: Optional[str], node_name: Optional[str]) -> Optional[Dict[str, str]]:
+    """The class for ONE END of a dimension -- ``AA.endSurfaceClass``.
+
+    The interface's own name is asked first and the dimension's second, because
+    the thing being bound IS the interface; ``where`` says which answered.
+    """
+    found = required_surface_class(node_name)
+    if found:
+        return dict(found, where="interface")
+    found = required_surface_class(edge_name)
+    if found:
+        return dict(found, where="dimension")
+    return None
 
 #: Every threshold this module applies, in one block so a run can print them
 #: beside the residuals they produced. All of them are **angles or fractions**:

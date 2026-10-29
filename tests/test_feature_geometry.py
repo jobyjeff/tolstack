@@ -330,28 +330,41 @@ def test_other_is_the_last_word_and_is_never_fitted():
 
 
 def test_the_suggestion_rule_for_a_sphere_is_asked_last():
-    """The rule order is load-bearing and lives in JS; this is the Python-side
-    reader that says so where a changed order would otherwise only be caught by
-    a browser suite nobody runs in a worktree.
+    """The rule order is load-bearing, and it is Python's since 2026-10-28
+    (``fg.SUGGESTION_RULE_KEYS``, generated into the browser).
 
     Three live interface names contain "spherical" and are not spheres -- two
     flat faces and a width. Asked before the planar row, the sphere rule takes
     all three.
     """
-    source = SUGGESTIONS_JS.read_text(encoding="utf-8")
-    block = re.search(r"AA\.SUGGESTION_RULES = Object\.freeze\(\[(.*?)\n  \]\);",
-                      source, re.S)
-    assert block, (
-        "could not find AA.SUGGESTION_RULES in apps/annotate/suggestions.js -- "
-        "the table moved or was renamed; repoint this rather than drop it"
-    )
-    keys = re.findall(r'key: "(\w+)",', block.group(1))
-    assert keys, "could not read AA.SUGGESTION_RULES' keys out of suggestions.js"
+    keys = list(fg.SUGGESTION_RULE_KEYS)
+    assert len(fg.SUGGESTION_RULE_SURFACES) == len(fg.SUGGESTION_RULE_WORDS) == len(keys)
+    assert set(fg.SUGGESTION_RULE_SURFACES) <= set(fg.FITTED_SURFACE_CLASSES)
     assert keys[-1] == "spherical_centre", (
         f"the suggestion rules are asked in the order {keys}; the sphere row must "
         "be last, or `spherical bearing face against the flanged bushing's "
         "flange` -- a FLAT face -- reads as a ball"
     )
+
+
+SUGGESTION_RULE_CASES = REPO_ROOT / "tests" / "fixtures" / "suggestion_rule_cases.json"
+
+
+def test_the_python_shape_rule_reads_the_shared_cases_as_the_browser_does():
+    """The same file ``apps/annotate/run_tests.cjs`` runs ``AA.requiredSurfaceClass``
+    over -- one list of answers for the two readers of the rule."""
+    cases = json.loads(SUGGESTION_RULE_CASES.read_text(encoding="utf-8"))["cases"]
+    for text, want in cases:
+        got = fg.required_surface_class(text)
+        assert (got["surface"] if got else None) == want, f"{text!r} read as {got}, wanted {want}"
+
+
+def test_an_end_asks_its_interface_before_its_dimension():
+    edge = "cotter-hole centreline to bolt point (dimension M)"
+    assert fg.end_surface_class(edge, "cotter-pin hole centreline")["where"] == "interface"
+    assert fg.end_surface_class(edge, "bolt-head bearing face against the bushing")["surface"] == "planar"
+    assert fg.end_surface_class(edge, None)["where"] == "dimension"
+    assert fg.end_surface_class("diagonal brace", "rigid mount") is None
 
 
 # ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@ from tolerance_stack.feature_identity import (
     DIRECTIONS,
     GDT_MODIFIERS,
     PATH_KINDS,
+    PROPOSAL_CONFIDENCES,
     STACK_KEY_KINDS,
     VERDICTS,
     FeatureIdentityEvent,
@@ -149,7 +150,7 @@ def test_owner_not_in_set_event_must_carry_no_geometry_or_direction():
 
 
 def test_verdict_must_be_one_of_the_vocabulary():
-    assert VERDICTS == ("bound", "owner_not_in_set")
+    assert VERDICTS == ("bound", "owner_not_in_set", "proposed", "rejected")
     with pytest.raises(ValueError):
         FeatureIdentityEvent(**{**_bound_kwargs(), "verdict": "maybe"})
 
@@ -457,3 +458,160 @@ def test_only_a_bound_event_may_supersede():
             event_id="n", seq=3, created_at="x", recorded_by="t",
             stack_key=StackKey(kind="topology_edge", topology_id="t", edge_id="e"),
             verdict="owner_not_in_set", supersedes="a")
+
+
+# ---------------------------------------------------------------------------
+# proposals: an agent proposes, a human accepts or rejects (2026-10-28)
+# ---------------------------------------------------------------------------
+
+_AGENT = "agent:an_agent_proposes_a_face_binding_and_a_human_ratifies_it"
+_HUMAN = "annotate-app:jeff"
+
+
+def _proposed(event_id, seq, face_id, direction, *, edge="piston_head_upper_thickness", **extra):
+    fields = dict(
+        event_id=event_id, seq=seq, created_at="2026-10-28T00:00:00Z", recorded_by=_AGENT,
+        stack_key=StackKey(kind="topology_edge", topology_id="vpa_pitch_linkage", edge_id=edge),
+        verdict="proposed",
+        geometry_key=GeometryKey(_SHA, face_id, 1.0, (0.0, 0.0, 0.0)),
+        direction=direction, confidence="high", basis="flat face, the one clear contact pair",
+        surface_class="planar",
+    )
+    fields.update(extra)
+    return FeatureIdentityEvent(**fields)
+
+
+def _accept(event_id, seq, proposal, **extra):
+    fields = dict(
+        event_id=event_id, seq=seq, created_at="2026-10-28T01:00:00Z", recorded_by=_HUMAN,
+        stack_key=proposal.stack_key, verdict="bound", geometry_key=proposal.geometry_key,
+        direction=proposal.direction, ratifies=proposal.event_id,
+    )
+    fields.update(extra)
+    return FeatureIdentityEvent(**fields)
+
+
+def _reject(event_id, seq, proposal, **extra):
+    fields = dict(
+        event_id=event_id, seq=seq, created_at="2026-10-28T01:00:00Z", recorded_by=_HUMAN,
+        stack_key=proposal.stack_key, verdict="rejected", rejects=proposal.event_id,
+    )
+    fields.update(extra)
+    return FeatureIdentityEvent(**fields)
+
+
+def test_the_proposal_confidences_are_three_words():
+    assert PROPOSAL_CONFIDENCES == ("high", "medium", "low")
+
+
+def test_a_proposal_never_stands_as_a_binding():
+    """Value-level: no binding, one open proposal, and the state says `proposed`."""
+    record = _record(build_projection([_proposed("p1", 1, 110, "from")]))
+    assert record.bindings == []
+    assert [e.event_id for e in record.proposals] == ["p1"]
+    assert record.state == "proposed"
+    as_dict = record.as_dict()
+    assert as_dict["bindings"] == [] and as_dict["state"] == "proposed"
+    assert [e["event_id"] for e in as_dict["proposals"]] == ["p1"]
+
+
+def test_an_accept_makes_the_proposed_face_a_binding_and_closes_the_proposal():
+    p = _proposed("p1", 1, 110, "from")
+    record = _record(build_projection([p, _accept("a1", 2, p)]))
+    assert [e.event_id for e in record.bindings] == ["a1"]
+    assert record.bindings[0].geometry_key.face_id == 110
+    assert record.bindings[0].recorded_by == _HUMAN
+    assert record.proposals == []
+    assert [e.event_id for e in record.accepted_proposals] == ["p1"]
+    assert record.state == "bound"
+
+
+def test_a_reject_hides_the_proposal_and_remembers_the_face():
+    p = _proposed("p1", 1, 110, "from")
+    projection = build_projection([p, _reject("r1", 2, p)])
+    record = _record(projection)
+    assert record.bindings == [] and record.proposals == []
+    assert [e.event_id for e in record.rejected_proposals] == ["p1"]
+    assert record.rejected_faces() == {(_SHA, 110)}
+    assert record.state == "unbound"
+    assert [e.event_id for e in record.history] == ["p1", "r1"]
+    counts = projection.counts()
+    assert (counts["proposed"], counts["rejected"], counts["bound"], counts["open_proposals"]) == (1, 1, 0, 0)
+
+
+def test_the_projection_counts_proposals_apart_from_bindings():
+    p1 = _proposed("p1", 1, 110, "from")
+    p2 = _proposed("p2", 2, 111, "to")
+    data = build_projection([p1, p2, _accept("a1", 3, p1)]).as_dict()
+    assert data["counts"]["bound"] == 1
+    assert data["counts"]["proposed"] == 2
+    assert data["counts"]["open_proposals"] == 1
+    assert data["built_from_events"] == ["p1", "p2", "a1"]
+
+
+def test_a_proposal_requires_confidence_basis_and_surface_class():
+    with pytest.raises(ValueError, match="confidence"):
+        _proposed("p", 1, 1, "from", confidence="certain")
+    with pytest.raises(ValueError, match="basis"):
+        _proposed("p", 1, 1, "from", basis="  ")
+    with pytest.raises(ValueError, match="one line"):
+        _proposed("p", 1, 1, "from", basis="two\nlines")
+    with pytest.raises(ValueError, match="surface_class"):
+        _proposed("p", 1, 1, "from", surface_class="conical")
+
+
+def test_proposal_fields_are_refused_on_any_other_verdict():
+    with pytest.raises(ValueError, match="only a proposed event may carry confidence"):
+        FeatureIdentityEvent(**{**_bound("b", 1, 1, "from").__dict__, "confidence": "high"})
+
+
+def test_an_agent_may_not_bind_or_reject():
+    p = _proposed("p1", 1, 110, "from")
+    with pytest.raises(ValueError, match="agent only proposes"):
+        _accept("a1", 2, p, recorded_by=_AGENT)
+    with pytest.raises(ValueError, match="agent only proposes"):
+        _reject("r1", 2, p, recorded_by=_AGENT)
+
+
+def test_a_rejected_event_needs_its_proposal_and_carries_no_face():
+    key = StackKey(kind="topology_edge", topology_id="t", edge_id="e")
+    with pytest.raises(ValueError, match="requires rejects"):
+        FeatureIdentityEvent(event_id="r", seq=2, created_at="x", recorded_by=_HUMAN,
+                             stack_key=key, verdict="rejected")
+    with pytest.raises(ValueError, match="no geometry_key"):
+        FeatureIdentityEvent(event_id="r", seq=2, created_at="x", recorded_by=_HUMAN,
+                             stack_key=key, verdict="rejected", rejects="p",
+                             geometry_key=GeometryKey(_SHA, 1, 1.0, (0.0, 0.0, 0.0)))
+
+
+def test_an_accept_must_bind_the_face_and_end_that_were_proposed():
+    p = _proposed("p1", 1, 110, "from")
+    other_face = GeometryKey(_SHA, 111, 1.0, (0.0, 0.0, 0.0))
+    with pytest.raises(ValueError, match="different face or end"):
+        build_projection([p, _accept("a1", 2, p, geometry_key=other_face)])
+    with pytest.raises(ValueError, match="different face or end"):
+        build_projection([p, _accept("a1", 2, p, direction="to")])
+
+
+def test_an_answer_naming_no_proposal_or_a_binding_fails_naming_both_ids():
+    p = _proposed("p1", 1, 110, "from")
+    with pytest.raises(ValueError, match=r"'r1'.*'ghost'"):
+        build_projection([_reject("r1", 2, p, rejects="ghost")])
+    with pytest.raises(ValueError, match=r"'r1'.*'b1'.*not a proposal"):
+        build_projection([_bound("b1", 1, 110, "from"), _reject("r1", 2, p, rejects="b1")])
+
+
+def test_a_proposal_answered_twice_is_a_load_error():
+    p = _proposed("p1", 1, 110, "from")
+    with pytest.raises(ValueError, match="answered twice"):
+        build_projection([p, _accept("a1", 2, p), _reject("r1", 3, p)])
+
+
+def test_proposal_and_answer_fields_round_trip():
+    p = _proposed("p1", 1, 110, "from", contact_rank=2)
+    back = FeatureIdentityEvent.from_dict(p.as_dict())
+    assert (back.confidence, back.basis, back.surface_class, back.contact_rank) == (
+        "high", p.basis, "planar", 2)
+    assert FeatureIdentityEvent.from_dict(_accept("a1", 2, p).as_dict()).ratifies == "p1"
+    assert FeatureIdentityEvent.from_dict(_reject("r1", 2, p).as_dict()).rejects == "p1"
+    assert "confidence" not in _bound("b", 1, 1, "from").as_dict()

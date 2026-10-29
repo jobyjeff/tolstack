@@ -68,6 +68,19 @@ re-checks a stored binding against a **replacement** mesh's manifest by that
 fingerprint, never by index alone. A non-match is ``needs_re_confirmation``,
 never silently re-bound and never dropped -- the same three-outcome posture
 ``tolerance_stack.spec_library`` uses for a value/absence/unreadable.
+
+An agent proposes; a human ratifies (2026-10-28)
+--------------------------------------------------
+A ``proposed`` event names a face exactly as a ``bound`` one does, written by
+``scripts/propose_bindings.py`` with ``recorded_by: "agent:<handoff-slug>"``,
+a ``confidence``, a one-line ``basis`` and the face's ``surface_class``. The
+fold never lets it stand: it is listed under ``proposals``, and everything that
+reads ``bindings`` -- the fitter, the scene's anchors, a row's state -- is blind
+to it. A human answers in the annotator: **Accept** writes an ordinary
+``bound`` event with ``ratifies: <proposal id>`` (the same face, the same end,
+checked), **Reject** writes ``rejected`` with ``rejects: <proposal id>``, and a
+rejected face is never proposed for that key again. An ``agent:`` actor can
+write neither.
 """
 
 from __future__ import annotations
@@ -78,6 +91,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+from tolerance_stack.feature_geometry import SURFACE_CLASSES
 
 SCHEMA_EVENT = "joby.tolerance_stack/feature-identity/v0"
 SCHEMA_PROJECTION = "joby.tolerance_stack/feature-identity-projection/v0"
@@ -92,7 +107,29 @@ STACK_KEY_KINDS = ("topology_edge", "stack_element")
 # The outcome of one binding attempt. `bound` names a face; `owner_not_in_set`
 # names why it cannot yet -- the loaded part set doesn't contain the owner --
 # and carries no geometry_key at all, because there is no face to cite.
-VERDICTS = ("bound", "owner_not_in_set")
+#
+# Since 2026-10-28 (handoff an_agent_proposes_a_face_binding_and_a_human_
+# ratifies_it) two more: `proposed` names a face the way `bound` does, but
+# NEVER STANDS -- the fold keeps it apart from `bindings`, so no fitted
+# nominal, no anchor and no rail state reads it as a binding; and `rejected`
+# names the proposal a human turned down (`rejects`), carrying no face. A human
+# accepting a proposal writes an ordinary `bound` event naming it in
+# `ratifies`. Agents propose; only a human binds or rejects (`AGENT_ACTOR`).
+VERDICTS = ("bound", "owner_not_in_set", "proposed", "rejected")
+
+# How sure the proposing agent is. `high`: the contact engine's one clear top
+# pair, or a shape class plus a drawing crop that leave one face. `medium`: a
+# discriminating fact (stated in `basis`) chose between close candidates.
+# `low`: a best guess a human should look at hardest.
+PROPOSAL_CONFIDENCES = ("high", "medium", "low")
+
+# Who wrote an event, as the prefix of `recorded_by` ("<kind>:<who>"):
+# `annotate-app:<reviewer>` from the annotator, `agent:<handoff-slug>` from
+# scripts/propose_bindings.py. Events written before 2026-10-28 carry a bare
+# "annotate-app" (or a test's own string) and still load -- the prefix is read,
+# never required, except that an `agent:` actor may not bind or reject.
+ACTOR_KINDS = ("annotate-app", "agent")
+AGENT_ACTOR = "agent"
 
 # How the owner part named by a binding was reached. `direct`: the part set's
 # own BOM/assembly names it. `hypothesis`: a lateral hop through another
@@ -120,6 +157,13 @@ GDT_MODIFIERS = ("M", "L")
 #: to no looser a standard than the spike's own proof was.
 FACE_AREA_TOLERANCE = 1e-3
 FACE_CENTROID_TOLERANCE = 1e-3
+
+
+def actor_kind(recorded_by: str) -> Optional[str]:
+    """The :data:`ACTOR_KINDS` word ``recorded_by`` starts with, or ``None``."""
+    text = str(recorded_by or "")
+    head = text.split(":", 1)[0]
+    return head if ":" in text and head in ACTOR_KINDS else None
 
 
 # ---------------------------------------------------------------------------
@@ -262,23 +306,34 @@ class FeatureIdentityEvent:
     # The id of an earlier event on the SAME stack key that this one corrects.
     # Optional and additive; the fold hides the named event and keeps it.
     supersedes: Optional[str] = None
+    # A proposal's own fields (verdict=proposed only): how sure, why, the
+    # face's surface class as tolerance_stack.feature_geometry.fit_face reads
+    # it, and -- when the contact engine ranked it -- that rank.
+    confidence: Optional[str] = None
+    basis: Optional[str] = None
+    surface_class: Optional[str] = None
+    contact_rank: Optional[int] = None
+    # The proposal a `bound` event accepts, or a `rejected` event turns down.
+    ratifies: Optional[str] = None
+    rejects: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.verdict not in VERDICTS:
             raise ValueError(f"event {self.event_id!r}: verdict must be one of {VERDICTS}, got {self.verdict!r}")
-        if self.verdict == "bound":
+        if self.verdict in ("bound", "proposed"):
             if self.geometry_key is None:
-                raise ValueError(f"event {self.event_id!r}: verdict=bound requires a geometry_key")
+                raise ValueError(f"event {self.event_id!r}: verdict={self.verdict} requires a geometry_key")
             if self.direction not in DIRECTIONS:
                 raise ValueError(
-                    f"event {self.event_id!r}: verdict=bound requires direction in {DIRECTIONS}, "
+                    f"event {self.event_id!r}: verdict={self.verdict} requires direction in {DIRECTIONS}, "
                     f"got {self.direction!r}"
                 )
-        else:  # owner_not_in_set
+        else:  # owner_not_in_set, rejected
             if self.geometry_key is not None:
-                raise ValueError(f"event {self.event_id!r}: verdict=owner_not_in_set must carry no geometry_key")
+                raise ValueError(f"event {self.event_id!r}: verdict={self.verdict} must carry no geometry_key")
             if self.direction is not None:
-                raise ValueError(f"event {self.event_id!r}: verdict=owner_not_in_set must carry no direction")
+                raise ValueError(f"event {self.event_id!r}: verdict={self.verdict} must carry no direction")
+        self._check_proposal_fields()
         if self.supersedes is not None:
             if self.verdict != "bound":
                 raise ValueError(f"event {self.event_id!r}: only a bound event may carry supersedes")
@@ -289,6 +344,40 @@ class FeatureIdentityEvent:
                 f"event {self.event_id!r}: gdt_modifier must be one of {GDT_MODIFIERS} or absent, "
                 f"got {self.gdt_modifier!r}"
             )
+
+    def _check_proposal_fields(self) -> None:
+        """The proposal lane's invariants: an agent proposes, a human answers."""
+        name = f"event {self.event_id!r}"
+        if self.verdict == "proposed":
+            if self.confidence not in PROPOSAL_CONFIDENCES:
+                raise ValueError(
+                    f"{name}: verdict=proposed requires confidence in {PROPOSAL_CONFIDENCES}, "
+                    f"got {self.confidence!r}")
+            if not (self.basis and str(self.basis).strip()):
+                raise ValueError(f"{name}: verdict=proposed requires a one-line basis")
+            if "\n" in str(self.basis):
+                raise ValueError(f"{name}: a proposal's basis is one line")
+            if self.surface_class not in SURFACE_CLASSES:
+                raise ValueError(
+                    f"{name}: verdict=proposed requires surface_class in {SURFACE_CLASSES}, "
+                    f"got {self.surface_class!r}")
+            if self.contact_rank is not None and int(self.contact_rank) < 1:
+                raise ValueError(f"{name}: contact_rank is a rank, counted from 1")
+        else:
+            for key in ("confidence", "basis", "surface_class", "contact_rank"):
+                if getattr(self, key) is not None:
+                    raise ValueError(f"{name}: only a proposed event may carry {key}")
+        if self.ratifies is not None and self.verdict != "bound":
+            raise ValueError(f"{name}: only a bound event may carry ratifies")
+        if self.verdict == "rejected":
+            if not self.rejects:
+                raise ValueError(f"{name}: verdict=rejected requires rejects, the proposal it turns down")
+        elif self.rejects is not None:
+            raise ValueError(f"{name}: only a rejected event may carry rejects")
+        if self.verdict in ("bound", "rejected") and actor_kind(self.recorded_by) == AGENT_ACTOR:
+            raise ValueError(
+                f"{name}: recorded_by {self.recorded_by!r} is an agent, and an agent only proposes -- "
+                f"a human binds or rejects")
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "FeatureIdentityEvent":
@@ -312,6 +401,12 @@ class FeatureIdentityEvent:
             general_tol_regime=d.get("general_tol_regime"),
             note=d.get("note"),
             supersedes=d.get("supersedes"),
+            confidence=d.get("confidence"),
+            basis=d.get("basis"),
+            surface_class=d.get("surface_class"),
+            contact_rank=int(d["contact_rank"]) if d.get("contact_rank") is not None else None,
+            ratifies=d.get("ratifies"),
+            rejects=d.get("rejects"),
         )
 
     def as_dict(self) -> Dict[str, Any]:
@@ -328,7 +423,8 @@ class FeatureIdentityEvent:
             out["geometry_key"] = self.geometry_key.as_dict()
         if self.direction is not None:
             out["direction"] = self.direction
-        for key in ("composition_note", "owner_part", "gdt_modifier", "general_tol_regime", "note", "supersedes"):
+        for key in ("composition_note", "owner_part", "gdt_modifier", "general_tol_regime", "note", "supersedes",
+                    "confidence", "basis", "surface_class", "contact_rank", "ratifies", "rejects"):
             value = getattr(self, key)
             if value is not None:
                 out[key] = value
@@ -378,21 +474,40 @@ class StackKeyBindings:
     history: List[FeatureIdentityEvent] = field(default_factory=list)
     # `bound` events another event supersedes: hidden from `bindings`, kept here.
     superseded: List[FeatureIdentityEvent] = field(default_factory=list)
+    # `proposed` events nobody has answered yet. NEVER standing: nothing that
+    # reads `bindings` (the fitter, the scene's anchors, the rail's state)
+    # sees these, which is the whole point of keeping them in a list of their own.
+    proposals: List[FeatureIdentityEvent] = field(default_factory=list)
+    # Proposals a human turned down -- kept, so the same face cannot be
+    # proposed for this key again (:meth:`rejected_faces`).
+    rejected_proposals: List[FeatureIdentityEvent] = field(default_factory=list)
+    # Proposals a `bound` event ratified; the binding itself is in `bindings`.
+    accepted_proposals: List[FeatureIdentityEvent] = field(default_factory=list)
 
     @property
     def state(self) -> str:
-        """``bound`` / ``owner_not_in_set`` -- the coarse state a UI shows.
+        """``bound`` / ``owner_not_in_set`` / ``proposed`` / ``unbound`` -- the
+        coarse state a UI shows, in that order of precedence.
 
-        ``unbound`` is deliberately not a value this returns: it is the
-        absence of any :class:`StackKeyBindings` for a key at all, which a
-        consumer that knows the full set of keys (a topology's edges, a
-        stack's elements) detects by this key having no entry in
-        :attr:`FeatureIdentityProjection.by_stack_key` -- the same "absence
-        is the consumer's to notice" posture ``IntakeQueue.status`` uses.
+        A key no event names has no :class:`StackKeyBindings` at all, and that
+        absence is ``unbound`` for a consumer that knows the full set of keys
+        (a topology's edges, a stack's elements) -- the same "absence is the
+        consumer's to notice" posture ``IntakeQueue.status`` uses. Since
+        2026-10-28 a record can say it too: a key whose only events are
+        proposals a human turned down stands exactly where a key with no
+        events does.
         """
         if self.bindings:
             return "bound"
-        return "owner_not_in_set"
+        if self.owner_not_in_set:
+            return "owner_not_in_set"
+        if self.proposals:
+            return "proposed"
+        return "unbound"
+
+    def rejected_faces(self) -> set:
+        """``(sha256, face_id)`` of every face a human rejected for this key."""
+        return {e.geometry_key.as_key() for e in self.rejected_proposals}
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -402,6 +517,9 @@ class StackKeyBindings:
             "owner_not_in_set": [e.as_dict() for e in self.owner_not_in_set],
             "history": [e.event_id for e in self.history],
             "superseded": [e.as_dict() for e in self.superseded],
+            "proposals": [e.as_dict() for e in self.proposals],
+            "rejected_proposals": [e.as_dict() for e in self.rejected_proposals],
+            "accepted_proposals": [e.event_id for e in self.accepted_proposals],
         }
 
 
@@ -413,10 +531,21 @@ class FeatureIdentityProjection:
     def for_stack_key(self, key: StackKey) -> Optional[StackKeyBindings]:
         return self.by_stack_key.get(key.as_key())
 
+    def counts(self) -> Dict[str, int]:
+        """Events by verdict, plus the proposals still open -- a proposal is
+        counted apart from a binding wherever the log is summarised."""
+        out = {verdict: 0 for verdict in VERDICTS}
+        for record in self.by_stack_key.values():
+            for event in record.history:
+                out[event.verdict] += 1
+        out["open_proposals"] = sum(len(r.proposals) for r in self.by_stack_key.values())
+        return out
+
     def as_dict(self) -> Dict[str, Any]:
         return {
             "schema": SCHEMA_PROJECTION,
             "built_from_events": self.events,
+            "counts": self.counts(),
             "stack_keys": [v.as_dict() for _, v in sorted(self.by_stack_key.items())],
         }
 
@@ -453,6 +582,7 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
         if target.seq >= event.seq:
             raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not earlier")
         hidden[target.event_id] = event.event_id
+    answered = _answered_proposals(events, seen_ids)
     for event in events:
         key = event.stack_key.as_key()
         record = projection.by_stack_key.get(key)
@@ -462,9 +592,56 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
         record.history.append(event)
         if event.verdict == "bound":
             (record.superseded if event.event_id in hidden else record.bindings).append(event)
-        else:
+        elif event.verdict == "proposed":
+            answer = answered.get(event.event_id)
+            if answer is None:
+                record.proposals.append(event)
+            elif answer.verdict == "rejected":
+                record.rejected_proposals.append(event)
+            else:
+                record.accepted_proposals.append(event)
+        elif event.verdict == "owner_not_in_set":
             record.owner_not_in_set.append(event)
+        # a `rejected` event lives in history; what it does is to its proposal
     return projection
+
+
+def _answered_proposals(events: List[FeatureIdentityEvent],
+                        seen_ids: Dict[str, FeatureIdentityEvent]) -> Dict[str, FeatureIdentityEvent]:
+    """``{proposal id: the event that answered it}`` -- a ``ratifies`` or a ``rejects``.
+
+    An answer must name an earlier ``proposed`` event on the same key, and a
+    ratification must bind exactly the proposed face at the proposed end: an
+    accept that names a proposal and binds something else would record a human
+    agreeing to a face nobody proposed. A proposal answered twice is a load
+    error naming both answers -- accepted-then-rejected is not a state.
+    """
+    answered: Dict[str, FeatureIdentityEvent] = {}
+    for event in events:
+        target_id = event.ratifies or event.rejects
+        if target_id is None:
+            continue
+        verb = "ratifies" if event.ratifies else "rejects"
+        target = seen_ids.get(target_id)
+        if target is None:
+            raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is not in the log")
+        if target.stack_key.as_key() != event.stack_key.as_key():
+            raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is on a different stack key")
+        if target.verdict != "proposed":
+            raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is not a proposal")
+        if target.seq >= event.seq:
+            raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is not earlier")
+        if event.ratifies and (event.geometry_key.as_key() != target.geometry_key.as_key()
+                               or event.direction != target.direction):
+            raise ValueError(
+                f"event {event.event_id!r} ratifies {target_id!r} but binds a different face or end "
+                f"than the one proposed")
+        if target_id in answered:
+            raise ValueError(
+                f"proposal {target_id!r} is answered twice, by {answered[target_id].event_id!r} "
+                f"and {event.event_id!r}")
+        answered[target_id] = event
+    return answered
 
 
 # ---------------------------------------------------------------------------
@@ -650,7 +827,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     events = load_events(events_dir)
     projection = build_projection(events)
     print(f"wrote {out}")
-    print(f"  {len(projection.by_stack_key)} stack key(s) from {len(projection.events)} event(s)")
+    counts = projection.counts()
+    print(f"  {len(projection.by_stack_key)} stack key(s) from {len(projection.events)} event(s): "
+          + ", ".join(f"{counts[v]} {v}" for v in VERDICTS)
+          + f"; {counts['open_proposals']} proposal(s) still open")
     return 0
 
 
