@@ -1805,8 +1805,12 @@
     state.dagZoom = to;
     VA.applyTopoZoom(nodes.pane, to, true);
     var after = box.getBoundingClientRect();
+    // The page's own scroll is never moved by a zoom (the_wheel_the_column_and_
+    // fit_behave): a wheel is the reader's hand on the DRAWING, and a page that
+    // slides under it is the page being scrolled by the wheel. Only the bounded
+    // pane, a scrollport of its own, keeps the point under the pointer.
     scrollDag(VA.dagScrollAfterZoom(left, clientX - hbox.left, from, to) - left,
-      after.top + cy * to - clientY);
+      paneScroller() ? after.top + cy * to - clientY : 0);
     VA.pinTopoHead(nodes.pane);
     scheduleSeamDraw();
   }
@@ -1832,6 +1836,11 @@
       : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
     var pad = 12;
     var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
+    // Both axes: the DAG's own width must fit the pane too, or Fit leaves the
+    // drawing wider than the box it is meant to fill.
+    if (drawn.width > 0 && hscroll.clientWidth > 0) {
+      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.width));
+    }
     state.dagZoom = to;
     VA.applyTopoZoom(nodes.pane, to, true);
     var rect = box.getBoundingClientRect();

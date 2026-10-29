@@ -425,6 +425,10 @@
     var zoom = VA.clampDagZoom(ctx.zoom || 1);
     var sizer = VA.el("div", "tv__zoomsizer");
     var zoomed = VA.el("div", "tv__zoom");
+    // The DAG's width, for the one grid column that is held beside it
+    // (topology.css, `.tvcell--component`): the grid scrolls sideways under the
+    // sticky rails, and COMPONENT is the first thing it would hide.
+    zoomed.style.setProperty("--tv-rail-w", leaderGeo.width + "px");
     // The column header rides with the GRID (it used to be the first thing in
     // the pane, above the whole DAG, where its `position: sticky` was inert:
     // the nearest scrollport above it is `.tv__hscroll`, which never scrolls
@@ -743,6 +747,9 @@
     var k = Number(zoomed.getAttribute("data-zoom")) || 1;
     var left = typeof hscroll.scrollLeft === "number" ? hscroll.scrollLeft : 0;
     zoomed.style.setProperty("--tv-shift", (left / k) + "px");
+    // Opaque COMPONENT only while the grid is scrolled under it.
+    if (left > 0) zoomed.classList.add("tv__zoom--shifted");
+    else zoomed.classList.remove("tv__zoom--shifted");
     var head = zoomed.querySelector(".tv__head");
     if (head && head.placeColumnGrips) {
       head.placeColumnGrips(left / k, (hscroll.clientWidth || 0) / k);
@@ -2191,8 +2198,10 @@
         if (event && event.stopPropagation) event.stopPropagation();
         show();
       };
-    } else if (group.title) {
-      cell.setAttribute("title", group.title);
+    } else if (group.title || group.label) {
+      // Whatever the column clips is readable in full: the gap's own wording,
+      // else the label itself.
+      cell.setAttribute("title", group.title || group.label);
     }
     return cell;
   }
