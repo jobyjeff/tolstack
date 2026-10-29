@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261028_a_pick_on_an_element_that_names_no_part_leaves_the_scene_standing.md
 reviewer: agent
 date: 2026-10-28
-verdict: REQUEST CHANGES (round 2)
-blockers: 3
+verdict: APPROVE
+blockers: 0
 ---
 
 # Review — a pick that names no part leaves the scene standing
@@ -76,3 +76,16 @@ re-anchor the mutation so it reddens its declared check, or say why it no longer
 
 Other results: 15/18 witnesses WITNESSED (the three above are the rest); annotate 239/239; viewer 485/485; `pytest -q`
 (excluding the worktree-only viewer-suite file) 1590 passed, 1 skipped.
+
+## Re-run 2026-10-28 — round 3: APPROVE
+
+Merged `4247c9a4`. All three round-2 blockers resolved: hover added; the two witness specs name the right suite; the
+decayed `9a4a093f#2` mutation re-pointed. Measured on the merged tree (real tier via `--repo` + `node_modules` junction):
+
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration`: **18/18 witnessed**, 0 left to the sweep.
+- `node apps/annotate/run_tests.cjs` 239/239; full browser tier 32/33 — the one red, `crop lightbox` launcher focus,
+  is flake: 20/20 twice in isolation on the merged tree and 20/20 on a clean `integration` checkout.
+- `pytest -q` (excluding the worktree-only viewer-suite file) 1590 passed, 1 skipped.
+- Open follow-up (not a blocker): the agent's issue on node-feature Pick rows whose edge is a gap edge.
+- Note for the operator's batch merge: the browser tier is flaky under load (`3D pane` and `crop lightbox` each failed
+  once in a full run and passed in isolation); the focus-dependent lightbox check is the likelier to recur.
