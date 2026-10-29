@@ -128,3 +128,29 @@ under new file names, and the no-projection banner's spec got a new anchor.
 - **A folder-grant page embedded keeps its top bar.** Its Connect button is
   that page's only way in: a click in the shell cannot open a picker inside the
   iframe.
+
+## Verification, as recorded
+
+Every `[real]` and browser run here read projections from
+`C:\workspace\tolstack\data\scratch\scene_pane\` (gitignored). That root
+holds copies of `data/projections`, `data/meshes` and
+`data/inbox/linkage-sweeps`, with the kinematic projection and read set
+rebuilt there from this branch (`ade6ee9c`). It also has `docs/` and `apps/`
+copied from this tree, plus `base2/`: a `git archive` of `182be115`, used for
+the base comparisons. The shared projections in the main checkout were not
+written. Delete the root after the review.
+
+| tier | result | wall time |
+|---|---|---:|
+| `pytest -q` (worktree) | 1593 passed, 1 skipped (bearing re-extraction not installed), 1 failed: `test_viewer_js_suite`, the by-design worktree red; its tier is the row below | 307 s |
+| `node apps/viewer/run_tests.cjs --repo <scratch>` | 594/594 | — |
+| `node apps/annotate/run_tests.cjs` | 246/246 | — |
+| `node apps/annotate/run_browser_check.mjs` | 80/82: the two mock anchor checks, red on base too (`ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration.md`) | 34 s |
+| `node scripts/run_viewer_browser_tests.mjs --repo <scratch>` | 33/34: crop lightbox launcher focus, red on base's full run too (already filed: `ISSUE_20261028_two_browser_suites_fail_in_the_full_run_under_load_and_pass_alone.md`) | 294 s |
+| `node scripts/run_mutation_witness_tests.mjs --changed-since master --repo <scratch>` | 47/48 witnessed, 48/95 reached before the 30-min cap, 47 left to the sweep. The one NOT WITNESSED decay predates this branch (`ISSUE_20261028_the_contributor_row_highlight_witness_aborts_before_its_check.md`) | 1798 s |
+
+The budget cap left some of this handoff's new specs to the sweep, among
+them the hosted read-only three and the flyout status check. The
+`--only` runs above show their unmutated suites green, but their mutations
+were not exercised here. Specs it did witness: all seven annotate specs and
+the seam-handle display spec.
