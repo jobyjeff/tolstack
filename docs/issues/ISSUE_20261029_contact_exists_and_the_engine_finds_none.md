@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: contact-suggestions
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_an_agent_proposes_a_face_binding_and_a_human_ratifies_it.md
 class: contact_engine_ignores_end_geometry
 handoff: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
+resolution: engine half fixed 2026-10-29 by the_contact_engine_asks_the_ends_what_shape_they_are (cylindrical_slide edges judged as axes: hub/plate coaxial at 0.000 mm, 0.000 deg); the data half and the interface-node feature gap are refiled as ISSUE_20261029_the_gas_spring_sits_at_another_stroke_and_its_mount_has_no_placement.md and ISSUE_20261029_contact_suggestions_run_on_gap_edges_only.md
 ---
 
 # Three gap edges whose parts are joined report no contact, and structural interfaces are never compared at all

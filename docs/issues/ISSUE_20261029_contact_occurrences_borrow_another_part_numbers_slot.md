@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: contact-suggestions
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_an_agent_proposes_a_face_binding_and_a_human_ratifies_it.md
 class: contact_engine_ignores_end_geometry
 handoff: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
+resolution: fixed 2026-10-29 by the_contact_engine_asks_the_ends_what_shape_they_are: every candidate's evidence carries own per end and own-slot pairs win over borrowed ones; measured, the U11D bolt's NAS6403U10D.3 slot is its own sidecar's (own: true), so that case was a CAD instance name and not a borrow; the pitch-link bearing edges' blade-1 link slot is the borrowed one (own: false)
 ---
 
 # Contact occurrences borrow another part number's slot: the U11D bolt is measured where a U10D bolt sits
