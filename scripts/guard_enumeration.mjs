@@ -173,9 +173,10 @@ export const DECLARED_GUARDS = {
   // Then +2 (the_kinematic_study_reads_like_every_other_study_and_its_plot_
   // shows_both_tolerances): two new checks on the plot, and ten renamed for
   // the unbounded model, the results pane and the scene no longer standing
-  // it down. Every new name carries a spec but one, Fit's "in that mode",
+  // it down, and the leaders' hide count (the window holds twelve). Every
+  // new name carries a spec but one, Fit's "in that mode",
   // which had none under its old name either.
-  browser: { declared: 715, enrollable: 682, names: "ab80acbfdaab" },
+  browser: { declared: 715, enrollable: 682, names: "26032e71b40d" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

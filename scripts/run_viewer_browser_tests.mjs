@@ -11484,13 +11484,23 @@ async function testSeamLeaders(browser, label, topologies) {
     const CONTRIBUTOR = "tan_link_length";
     const edge = topology.edges.find((e) => e.id === CONTRIBUTOR);
     // The contributor table is below the fold, so the click scrolls the page
-    // down to it; the reader scrolls back up to the model to trace the leaders.
+    // down to it; the reader scrolls back up to the model to trace the leaders
+    // -- to the selected row's place in it, since the model is the page's
+    // own height (2026-10-28: no bounded box to have scrolled there itself).
     const backUp = async () => {
       await live.mouse.move(800, 20);
       await live.evaluate(() => window.scrollTo(0, 0));
     };
+    const backToSelection = async () => {
+      await live.mouse.move(800, 20);
+      await live.evaluate(() => {
+        const row = document.querySelector("#topopane .tv__hscroll tr.tvrow--selected");
+        if (row) row.scrollIntoView({ block: "center" });
+        else window.scrollTo(0, 0);
+      });
+    };
     await live.locator(`tr.kmrow[data-edge="${CONTRIBUTOR}"] td.kmrow__name a`).first().click();
-    await backUp();
+    await backToSelection();
     const lit1 = await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;
       return d && ends.every((id) => !d.states[id] || d.states[id] === "selected") &&
@@ -11568,9 +11578,11 @@ async function testSeamLeaders(browser, label, topologies) {
         !window.ViewerApp.lastTopoRender.tweening;
     }, null, 15000);
     await live.waitForTimeout(600);
-    // Which dots are in the bounded box's view depends on where the clicks
-    // above left it scrolled, so the count is read in one pinned state: the
-    // page at its top, the pointer off the page's rows, the box at its top.
+    // Which dots are in view depends on where the clicks above left the page
+    // scrolled, so the count is read in one pinned state: the page at its
+    // top, the pointer off the page's rows. Since 2026-10-28 the window is the
+    // DAG's view (no bounded box), and at its top it holds twelve of the
+    // lit set's leaders where the 50vh box held six to ten.
     await backUp();
     const drawsBefore = await live.evaluate(() => {
       const box = document.querySelector("#topopane");
@@ -11587,9 +11599,9 @@ async function testSeamLeaders(browser, label, topologies) {
     console.log(`      [${label}] hidden, the box at its top: leaders ${after.ids.length} (${after.ids.join(", ")}); ` +
       `off the DAG's view: ${(after.skipped && after.skipped.offDag || []).join(", ") || "-"}; ` +
       `crossings among them ${after.crossings}; through a lit bar ${after.barCrossings}`);
-    push("[real] with the toggle at hide, six to ten leaders across the seam, drawn from the lit " +
+    push("[real] with the toggle at hide, at least six leaders across the seam, drawn from the lit " +
       "part alone",
-      hidden && after.ids.length >= 6 && after.ids.length <= 10 && after.paths === after.ids.length &&
+      hidden && after.ids.length >= 6 && after.paths === after.ids.length &&
       JSON.stringify(after.ids.slice().sort()) === JSON.stringify(after.expected));
     await shot("4_unlit_hidden.png");
   } catch (err) {
