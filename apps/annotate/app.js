@@ -149,6 +149,12 @@ const state = {
   // question with one answer, and leaving is `state.sweep = null` plus the
   // scene's own restore.
   sweep: null,
+  // A pick that could show nothing, per edge id: {text, nodeIds}. Drawn on the
+  // row that was clicked; cleared when a sweep is (re)entered.
+  rowNotes: {},
+  // What a goto out of sweep mode left behind (AA.planSweepReturn), so the
+  // pane can offer the way back. null when there is nowhere to return to.
+  sweepReturn: null,
   // sha256 -> {source, points} -- the joint-feature candidates used to decide
   // which occurrence a body is. Cached beside faceClasses and for the same
   // reason: reading and fitting a part's geometry is the expensive half, and
@@ -432,7 +438,7 @@ function cmdMarkFace(identifier, faceIdText) {
 async function cmdTrace(topologyId, studyId) {
   if (!topologyId) throw new Error("trace needs <topology> [study]");
   // A trace is a bind-mode arrival, like goto (see there).
-  leaveSweep();
+  leaveSweepForBind();
   const arrival = AA.planArrival({
     auto: state.autoSteps,
     currentTopologyId: state.currentTopology && state.currentTopology.id,
@@ -707,7 +713,22 @@ async function cmdGoto(topologyId, edgeId, studyId) {
   // kinematic study to a chain study, and a binding is only ever made at the
   // as-modelled pose sweep mode moves away from). leaveSweep restores the
   // scene exactly and is a no-op outside sweep mode.
-  leaveSweep();
+  //
+  // A pick that cannot show anything changes nothing: asked before the sweep
+  // is left or a part unloaded, because leaving is what blanks the scene. It
+  // is a sweep-mode question -- outside sweep there is no scene to strand, and
+  // the rail's filter line already says why nothing is isolated.
+  if (state.sweep && edgeId) {
+    const target = ((state.topologyProjection && state.topologyProjection.topologies) || [])
+      .find((t) => t.id === topologyId) || state.currentTopology;
+    const refusal = AA.planGotoRefusal(target, edgeId, state.meshList, state.partMeshAliases);
+    if (refusal) {
+      state.rowNotes[edgeId] = { text: refusal.text, nodeIds: refusal.nodeIds };
+      renderSweepRail();
+      return { topologyId, edgeId, applied: false, refused: refusal.kind, note: refusal.text };
+    }
+  }
+  leaveSweepForBind();
   const arrival = AA.planArrival({
     auto: state.autoSteps,
     currentTopologyId: state.currentTopology && state.currentTopology.id,
@@ -1110,6 +1131,9 @@ async function cmdSweep(target, studyId) {
   };
   state.isolation = null;
   state.contextEdit = { added: [], removed: [] };
+  state.rowNotes = {};
+  state.sweepReturn = null;
+  renderSweepReturn();
   // A sweep arrival selects the topology the run is about, through the verb
   // the topology select drives (so the filter-clearing and study reset
   // happen). A run that names none -- or one this projection does not carry --
@@ -1137,6 +1161,65 @@ async function cmdSweep(target, studyId) {
   const loaded = { runId, points: artifact.points.length, source: artifact.source };
   if (paired.refusal) loaded.contributors = paired.refusal;
   return loaded;
+}
+
+// Leaving sweep mode because the reader is arriving somewhere in bind mode:
+// the same leave, with the way back kept (and drawn) so the pane never strands.
+function leaveSweepForBind() {
+  const returning = AA.planSweepReturn(state.sweep);
+  leaveSweep();
+  if (returning) state.sweepReturn = returning;
+  renderSweepReturn();
+}
+
+// "← back to the sweep": the control a goto out of sweep mode leaves at the top
+// of the rail. It is built as an `.an__filter` line so the embedded mirror
+// carries it like the scope bar beside it.
+function renderSweepReturn() {
+  let bar = document.getElementById("sweep-return");
+  if (!bar) {
+    if (!state.sweepReturn) return;
+    bar = document.createElement("div");
+    bar.id = "sweep-return";
+    el.railFilter.insertAdjacentElement("beforebegin", bar);
+  }
+  bar.innerHTML = "";
+  if (!state.sweepReturn || state.sweep) {
+    bar.style.display = "none";
+    return;
+  }
+  bar.style.display = "block";
+  const line = document.createElement("div");
+  line.className = "an__filter";
+  line.style.display = "block";
+  bar.appendChild(line);
+  const note = document.createElement("span");
+  note.className = "an__filter-note";
+  note.textContent = AA.GOTO_REFUSAL_WORDS.backContext;
+  line.appendChild(note);
+  const btn = document.createElement("button");
+  btn.className = "an__filter-clear";
+  btn.textContent = AA.GOTO_REFUSAL_WORDS.back;
+  btn.onclick = () => {
+    const back = state.sweepReturn;
+    if (!back) return;
+    clearPanelFilter();
+    renderElementList();
+    renderPartsPanel();
+    railExec(["sweep", back.runId, back.studyId || ""]);
+  };
+  line.appendChild(btn);
+}
+
+// The parts a goto out of sweep mode unloaded, opened again: what "Show all"
+// means once the sweep's own scene is gone.
+async function reloadSweepParts() {
+  const back = state.sweepReturn;
+  if (!back || state.sweep) return;
+  for (const sha of back.parts) {
+    if (state.scene.listOpenParts().indexOf(sha) !== -1) continue;
+    try { await AA.exec(["open-part", sha]); } catch (err) { setBanner(err.message, "error"); }
+  }
 }
 
 function leaveSweep() {
@@ -2351,8 +2434,36 @@ function featureRow(topology, joint, feature) {
       railExec(["goto", topology.id, via.edgeId]);
     };
     li.appendChild(repick);
+    appendPickNote(li, via.edgeId, topology);
   }
   return li;
+}
+
+// A refused pick's reason, on the row that was clicked: one muted line, then
+// a link to each end's own row (the features a binding can actually be made
+// on). The links are direct buttons so the embedded mirror carries them.
+function appendPickNote(li, edgeId, topology) {
+  const note = state.rowNotes[edgeId];
+  if (!note) return;
+  const words = document.createElement("span");
+  words.className = "tree-row__face tree-row__note";
+  words.textContent = note.text;
+  li.appendChild(words);
+  for (const nodeId of note.nodeIds || []) {
+    const node = ((topology && topology.nodes) || []).find((n) => n.id === nodeId);
+    const link = document.createElement("button");
+    link.className = "tree-row__repick";
+    link.textContent = (node && node.name) || nodeId;
+    link.onclick = (ev) => {
+      ev.stopPropagation();
+      const target = document.querySelector('#sweep-tree [data-feature="' + nodeId + '"]');
+      if (!target) return;
+      const joint = target.closest("details");
+      if (joint) joint.open = true;
+      target.scrollIntoView({ block: "nearest" });
+    };
+    li.appendChild(link);
+  }
 }
 
 function contributorsGroup(topology) {
@@ -2405,6 +2516,7 @@ function contributorsGroup(topology) {
       railExec(["goto", topology.id, row.edge]);
     };
     li.appendChild(pick);
+    appendPickNote(li, row.edge, topology);
     if (selected === row.edge) li.classList.add("selected");
     li.onclick = () => {
       railExec(selected === row.edge ? ["inspect", "clear"]
@@ -3351,8 +3463,10 @@ function renderRailFilter() {
   btn.textContent = "Show all";
   btn.title = "list every element in the study and every installed part again";
   btn.onclick = () => {
-    try { AA.exec(["filter-element"]); }
-    catch (err) { setBanner(err.message, "error"); }
+    try {
+      Promise.resolve(AA.exec(["filter-element"])).then(reloadSweepParts)
+        .catch((err) => setBanner(err.message, "error"));
+    } catch (err) { setBanner(err.message, "error"); }
   };
   el.railFilter.appendChild(btn);
 
@@ -4256,7 +4370,7 @@ let embedTreeTimer = null;
 function railRoots() {
   const roots = state.sweep
     ? [document.getElementById("sweep-tree")]
-    : [el.railFilter, el.elementList, el.partsPanel];
+    : [document.getElementById("sweep-return"), el.railFilter, el.elementList, el.partsPanel];
   return roots.filter(Boolean);
 }
 
@@ -4349,7 +4463,8 @@ function railRow(node, parentKey, seen) {
     const key = railKey(parentKey, node, name, seen);
     const row = { key, text: name, title: node.title ||
       (node.querySelector(":scope > .part-row__label") || {}).title || "" };
-    const sub = railText(node, ".tree-row__text > .tree-row__face") || railText(node, ".part-row__note");
+    const sub = railText(node, ".tree-row__note") ||
+      railText(node, ".tree-row__text > .tree-row__face") || railText(node, ".part-row__note");
     if (sub) row.sub = sub;
     const value = railText(node, ".tree-row__value") || railText(node, ".part-row__count");
     if (value) row.value = value;

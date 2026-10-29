@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] the return control shows after a re-pick and restores sweep mode with its parts, no filter, and the control gone",
+  "mutations": [
+    {
+      "contract": "Leaving sweep for bind mode keeps the way back and draws it.",
+      "issue": null,
+      "note": "Without it a re-pick strands the pane in bind mode.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (returning) state.sweepReturn = returning;",
+      "replace": "  if (false) state.sweepReturn = returning;"
+    }
+  ]
+}

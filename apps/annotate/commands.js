@@ -303,6 +303,56 @@
     return plan(null, [], []);
   };
 
+  // Words for a pick that has nothing to show. One table, read by the rail's
+  // row note and by the tests.
+  AA.GOTO_REFUSAL_WORDS = Object.freeze({
+    noPart: "This joint is between two axes and names no part to pick on — " +
+      "bind the features on either side instead",
+    noMesh: "No installed 3D part for",
+    back: "← back to the sweep",
+    backContext: "As-modelled pose",
+  });
+
+  // Whether a `goto` onto an EDGE could show anything at all: null when it
+  // could, else {edgeId, kind: "no-part" | "no-mesh", text, missingParts,
+  // nodeIds}. Asked BEFORE the verb leaves sweep mode or unloads a part --
+  // an arrival that isolates nothing would otherwise blank the scene and leave
+  // the reader in a mode with no way back. A node target, or no target, is
+  // never refused here: those scope the rail to a list, not to one pick.
+  AA.planGotoRefusal = function (topology, edgeId, meshes, aliases) {
+    if (!edgeId) return null;
+    var edge = ((topology && topology.edges) || []).filter(function (e) {
+      return e.id === edgeId;
+    })[0];
+    if (!edge) return null;
+    var plan = AA.planPanelFilter(topology, edgeId, meshes, aliases);
+    var shown = plan.parts.filter(function (p) { return p.sha256; });
+    if (shown.length) return null;
+    var nodeIds = [edge.from, edge.to].filter(Boolean);
+    if (plan.missingParts.length) {
+      return {
+        edgeId: edgeId, kind: "no-mesh", missingParts: plan.missingParts, nodeIds: nodeIds,
+        text: AA.GOTO_REFUSAL_WORDS.noMesh + " " + plan.missingParts.join(", "),
+      };
+    }
+    return {
+      edgeId: edgeId, kind: "no-part", missingParts: [], nodeIds: nodeIds,
+      text: AA.GOTO_REFUSAL_WORDS.noPart,
+    };
+  };
+
+  // What leaving sweep mode through a `goto` keeps, so the pane can offer the
+  // way back: the run, its kinematic study, and the parts the sweep had
+  // opened (which leaving unloads). null outside sweep mode.
+  AA.planSweepReturn = function (sweep) {
+    if (!sweep || !sweep.artifact) return null;
+    return {
+      runId: sweep.artifact.runId,
+      studyId: (sweep.study && sweep.study.id) || null,
+      parts: (sweep.openedBySweep || []).slice(),
+    };
+  };
+
   // The same plan shape, for a WHOLE study or a whole topology (handoff
   // annotate_hint_bar_and_context_autofilter, deliverable 4). Deliberately the
   // shape `planPanelFilter` returns and not a second one: the rail's two

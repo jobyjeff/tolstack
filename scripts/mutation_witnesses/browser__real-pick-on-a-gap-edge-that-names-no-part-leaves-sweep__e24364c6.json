@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] Pick on a gap edge that names no part leaves sweep mode, every loaded part and the tree's rows as they were, and the row carries the reason",
+  "mutations": [
+    {
+      "contract": "A refused pick returns before the sweep is left.",
+      "issue": null,
+      "note": "Without it the canvas blanks and the tree shrinks to one edge.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (refusal) {\n      state.rowNotes[edgeId]",
+      "replace": "    if (false) {\n      state.rowNotes[edgeId]"
+    }
+  ]
+}
