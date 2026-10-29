@@ -2582,6 +2582,103 @@
     return spans;
   };
 
+  // --- studies as containers ------------------------------------------------
+  //
+  // (a_study_is_a_translucent_group_on_the_dag, 2026-10-28) A study's group is
+  // the body field's twin: maximal runs of consecutive rows the study's lit set
+  // holds, {start, end, lo, hi}. A study not selected sits wherever the current
+  // arrangement puts it, so its group may be several spans. A collapsed body's
+  // pill is not a lit row (its id is never in a lit set), so it ends a run.
+  VA.studySpans = function (layout, lit) {
+    var spans = [];
+    if (!lit) return spans;
+    ((layout && layout.rows) || []).forEach(function (row) {
+      var on = row.kind === "edge" ? lit.edges[row.id] : lit.nodes[row.id];
+      if (!on) return;
+      var last = spans[spans.length - 1];
+      if (last && last.end === row.row - 1) {
+        last.end = row.row;
+        last.lo = Math.min(last.lo, row.column);
+        last.hi = Math.max(last.hi, row.column);
+      } else {
+        spans.push({ start: row.row, end: row.row, lo: row.column, hi: row.column });
+      }
+    });
+    return spans;
+  };
+
+  // Every study of a topology that has something to light, as
+  // [{id, kind, title, lit, selected}]: its chain studies (an errored one has no
+  // chain, so no group) and the kinematic studies on it (`kinematic` is the
+  // kinematic projection, null where there is none). `kind` is one hue each in
+  // topology.css. The selected study is last, so it draws over the others.
+  VA.studyGroups = function (topoProj, kinematic, selected) {
+    if (!topoProj) return [];
+    var out = [];
+    (topoProj.studies || []).forEach(function (study) {
+      var lit = VA.studyLitSet(study, topoProj);
+      if (lit) out.push({ id: study.id, kind: "chain", title: study.title || study.id,
+                          lit: lit, selected: selected === study.id });
+    });
+    ((kinematic && kinematic.studies) || []).forEach(function (study) {
+      if (study.topology !== topoProj.id) return;
+      var lit = VA.kinematicLitSet(study, topoProj);
+      if (lit) out.push({ id: study.id, kind: "kinematic", title: study.title || study.id,
+                          lit: lit, selected: selected === study.id });
+    });
+    return out.filter(function (g) { return !g.selected; })
+      .concat(out.filter(function (g) { return g.selected; }));
+  };
+
+  // Which containers the walk draws (Jeff, 2026-10-28): the bodies', the
+  // studies', both, or neither. One toolbar button cycling through `next`, the
+  // same shape as VA.UNLIT_STYLES, remembered per topology per reader.
+  VA.GROUP_FILTERS = {
+    bodies:  { label: "bodies",  next: "studies", bodies: true,  studies: false,
+               title: "Bodies are drawn as grey containers. Click to show study groups instead." },
+    studies: { label: "studies", next: "both",    bodies: false, studies: true,
+               title: "Each study is drawn as a see-through group. Click to show both." },
+    both:    { label: "both",    next: "none",    bodies: true,  studies: true,
+               title: "Bodies and study groups are both drawn. Click to hide both." },
+    none:    { label: "none",    next: "bodies",  bodies: false, studies: false,
+               title: "No containers are drawn. Click to show the bodies." },
+  };
+
+  // Both once a study is open, the bodies alone before that.
+  VA.DEFAULT_GROUP_FILTER = "bodies";
+  VA.defaultGroupFilter = function (hasStudy) {
+    return hasStudy ? "both" : VA.DEFAULT_GROUP_FILTER;
+  };
+
+  VA.GROUP_FILTER_KEY = "tolstack.viewer.groupFilter";
+
+  // {topologyId: filter}; an unreadable store, or a word outside the set, reads
+  // as "not chosen" (null) so the default applies.
+  VA.readGroupFilter = function (store, topologyId) {
+    try {
+      var raw = store && store.getItem(VA.GROUP_FILTER_KEY);
+      var all = raw ? JSON.parse(raw) : {};
+      var value = all && typeof all === "object" ? all[topologyId] : null;
+      return typeof value === "string" && Object.prototype.hasOwnProperty.call(VA.GROUP_FILTERS, value)
+        ? value : null;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  VA.writeGroupFilter = function (store, topologyId, value) {
+    try {
+      if (!store) return;
+      var raw = store.getItem(VA.GROUP_FILTER_KEY);
+      var all = raw ? JSON.parse(raw) : {};
+      if (!all || typeof all !== "object" || Array.isArray(all)) all = {};
+      all[topologyId] = value;
+      store.setItem(VA.GROUP_FILTER_KEY, JSON.stringify(all));
+    } catch (err) {
+      // A browser that refuses to store it still filters for this session.
+    }
+  };
+
   // Which of a walk's body fields carries the body's name. With nothing lit,
   // every one: a body is one block per connected piece of the walk, and each
   // block is named. With a study lit the band splits bodies further
@@ -2892,7 +2989,9 @@
     // sits wholly inside. Off the same store the marks are, so it stretches
     // with a length mode exactly as they do.
     var pad = metrics.gutter * 0.45;
-    out.bodies = VA.bodySpans(rows).map(function (span) {
+    // `inset` is how far inside the rows' extent the field sits: a body's 1px,
+    // a study group's -2px -- it wraps the body field it coincides with.
+    var field = function (span, padding, inset) {
       var top = Infinity;
       var bottom = -Infinity;
       for (var r = span.start; r <= span.end; r++) {
@@ -2902,12 +3001,25 @@
         top = Math.min(top, t);
         bottom = Math.max(bottom, t + h);
       }
-      return { body: span.body, start: span.start, end: span.end,
-               lo: span.lo, hi: span.hi,
-               x1: columnX(span.lo, metrics, x) - pad,
-               x2: columnX(span.hi, metrics, x) + pad,
-               y1: top + 1, y2: bottom - 1 };
+      return { start: span.start, end: span.end, lo: span.lo, hi: span.hi,
+               x1: columnX(span.lo, metrics, x) - padding,
+               x2: columnX(span.hi, metrics, x) + padding,
+               y1: top + inset, y2: bottom - inset };
+    };
+    out.bodies = VA.bodySpans(rows).map(function (span) {
+      var f = field(span, pad, 1);
+      f.body = span.body;
+      return f;
     });
+    // The study groups, one entry per `options.groups` item (VA.studyGroups):
+    // its spans, a little wider than a body field so the two read as nested.
+    out.groups = ((options && options.groups) || []).map(function (group) {
+      return { id: group.id, kind: group.kind, title: group.title,
+               selected: !!group.selected,
+               spans: VA.studySpans(layout, group.lit).map(function (span) {
+                 return field(span, pad + 3, -2);
+               }) };
+    }).filter(function (group) { return group.spans.length; });
 
     (layout && layout.links || []).forEach(function (link) {
       out.links.push({

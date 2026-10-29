@@ -129,6 +129,19 @@
       root.appendChild(unlit);
     }
 
+    // Which containers are drawn: bodies, studies, both, none
+    // (VA.GROUP_FILTERS). The page hands in the effective word -- the reader's
+    // own for this topology, else the default -- as `handlers.groupFilter`.
+    if (handlers.onGroupFilter && topoProj) {
+      var groupPreset = VA.GROUP_FILTERS[handlers.groupFilter] ||
+        VA.GROUP_FILTERS[VA.DEFAULT_GROUP_FILTER];
+      var groupButton = VA.el("button", "ghost tvpick__mode", "Groups: " + groupPreset.label);
+      groupButton.setAttribute("id", "group-filter-toggle");
+      groupButton.setAttribute("title", groupPreset.title);
+      groupButton.onclick = handlers.onGroupFilter;
+      root.appendChild(groupButton);
+    }
+
     // The study's own 3D affordance, only once a real study is selected --
     // "trace this in 3D" means nothing about the whole topology, only about
     // one human-lassoed chain. Two forms of the same capability (handoff
@@ -317,7 +330,22 @@
     // The page's own listener for the leaders across the seam, which light
     // with whatever the pointer lights here (topology_app.js).
     hot.onChange = ctx.onHot || null;
-    var geometry = VA.railGeometry(layout, M, positions, { x: xTween });
+    // The study groups the filter lets through (VA.GROUP_FILTERS): hidden, the
+    // walk IS the selected study's band, so its group is the only one left.
+    var groupFilter = VA.GROUP_FILTERS[ctx.groupFilter] ||
+      VA.GROUP_FILTERS[VA.defaultGroupFilter(marking)];
+    var groups = !groupFilter.studies ? [] : (ctx.studyGroups || []).filter(function (g) {
+      return !hiding || g.selected;
+    });
+    var geometry = VA.railGeometry(layout, M, positions, { x: xTween, groups: groups });
+    geometry.showBodies = groupFilter.bodies;
+    // A study group's hover lights its edges' bars and grid rows: each edge
+    // leads under its groups' keys (hotState's `studyOfEdge`).
+    groups.forEach(function (g) {
+      Object.keys(g.lit.edges).forEach(function (id) {
+        (hot.studyOfEdge[id] = hot.studyOfEdge[id] || []).push(hotKey("study", g.id));
+      });
+    });
     // The links' opacity, which is neither the store's business nor the
     // unfold's (VA.linkOpacity says why): a link on a column BOTH
     // serialisations have is the one drawn thing the interpolated column
@@ -1264,7 +1292,7 @@
       rails: [], railOfLink: [],
       // The two adjacencies the `--lead` set needs: an edge's two interfaces
       // and an interface's edges, off the walk's own `entered_at`/`left_at`.
-      nodesOfEdge: {}, edgesAtNode: {},
+      nodesOfEdge: {}, edgesAtNode: {}, studyOfEdge: {},
       on: null, marked: [],
     };
     rails.forEach(function (rail, i) {
@@ -1435,7 +1463,11 @@
     // A body the band split (VA.bandLayout) is several fields and is named
     // once: on its field in the band.
     var named = VA.bodyLabelFields(geometry.bodies, layout && layout.rows, lit);
+    // The names go in after the study groups (0c'), so a group's see-through
+    // field never sits over the control that folds a body.
+    var bodyNames = [];
     (geometry.bodies || []).forEach(function (field, f) {
+      if (geometry.showBodies === false) return;
       if (pillRows[field.start]) return;
       var body = bodiesById[field.body] || { id: field.body, name: field.body };
       var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
@@ -1447,8 +1479,45 @@
       });
       rect.setAttribute("data-body", field.body);
       svg.appendChild(rect);
-      if (named[f]) svg.appendChild(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
+      if (named[f]) bodyNames.push(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
     });
+
+    // 0c'. the study groups (a_study_is_a_translucent_group_on_the_dag): a
+    //      see-through field per run of a study's rows, over the bodies and
+    //      under every mark, in the study kind's hue. It wraps the body field
+    //      it coincides with; two groups overlap and both show. Hover lights
+    //      the study's rows and bars (the shared hover, keyed `study|<id>`);
+    //      the title, once, on the first span, opens the study.
+    (geometry.groups || []).forEach(function (group) {
+      var key = hotKey("study", group.id);
+      group.spans.forEach(function (span, i) {
+        var rect = VA.svg("rect", "tv__studyfield tv__studyfield--" + group.kind +
+          (group.selected ? " tv__studyfield--selected" : ""), {
+          x: span.x1, y: span.y1, width: Math.max(0, span.x2 - span.x1),
+          height: Math.max(0, span.y2 - span.y1), rx: 9, ry: 9,
+        });
+        rect.setAttribute("data-study-group", group.id);
+        svg.appendChild(hotHover(hot, rect, key));
+        if (i) return;
+        var label = VA.svg("text", "tv__studyname", { x: span.x1 + 6, y: span.y1 + 3 });
+        label.textContent = fitText(group.title, span.x2 - span.x1 - 8);
+        label.appendChild(svgTitle(group.title + " — click to open this study"));
+        label.setAttribute("data-study-open", group.id);
+        label.setAttribute("tabindex", "0");
+        label.setAttribute("role", "button");
+        var open = function () { if (ctx.onOpenStudy) ctx.onOpenStudy(group); };
+        label.onclick = open;
+        label.onkeydown = function (event) {
+          if (event && (event.key === "Enter" || event.key === " ")) {
+            if (event.preventDefault) event.preventDefault();
+            open();
+          }
+        };
+        hotHover(hot, label, key);
+        bodyNames.push(label);
+      });
+    });
+    bodyNames.forEach(function (node) { svg.appendChild(node); });
 
     // 0d. the sub-stacks (a kinematic page's `study_ref`s,
     //     VA.kinematicSubStacks): a dashed field around each of the chain's
@@ -1640,7 +1709,7 @@
             x1: mark.x, y1: y1, x2: mark.x, y2: y2,
           }), "edge", mark.id),
           base: barBase, rail: hot.railOf[hotKey("edge", mark.id)],
-          leads: [hotKey("edge", mark.id)],
+          leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
           hot: "rail__bar--hot", lead: "rail__bar--lead",
         });
         svg.appendChild(bar);
@@ -1670,7 +1739,8 @@
           el: fade(VA.svg("line", "rail__barhit",
             { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), "edge", mark.id),
           base: "rail__barhit", rail: hot.railOf[hotKey("edge", mark.id)],
-          leads: [hotKey("edge", mark.id)], hot: "rail__barhit--hot",
+          leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
+          hot: "rail__barhit--hot",
         });
         // One hover surface, not two (viewer_dag_hover_cards): where a card
         // handler exists the bar opens the SAME edge card the grid's crop
@@ -1846,6 +1916,13 @@
   // A native SVG tooltip: the element's own name, so hovering the graph reads
   // without the grid. `textContent` rather than a text node, because the DOM
   // shim's appendChild return value is the one place the two DOMs differ.
+  // `text` cut to what a field `width` px wide holds at the micro step (about
+  // 6px a character), with an ellipsis; its full text is the label's tooltip.
+  function fitText(text, width) {
+    var room = Math.max(1, Math.floor(width / 6));
+    return text.length <= room ? text : text.slice(0, Math.max(0, room - 1)) + "…";
+  }
+
   function svgTitle(text) {
     var node = VA.svg("title");
     node.textContent = String(text);
@@ -2272,7 +2349,7 @@
       leads: [hotKey("edge", planRow.id)].concat(
         (hot.nodesOfEdge[planRow.id] || []).map(function (nodeId) {
           return hotKey("node", nodeId);
-        })),
+        }), hot.studyOfEdge[planRow.id] || []),
       hot: "tvrow--hot", lead: "tvrow--lead",
     });
     hotHover(hot, el, hotKey("edge", planRow.id));

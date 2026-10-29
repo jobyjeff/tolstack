@@ -12174,6 +12174,166 @@
            "no bodies declared, no containers");
       });
 
+    // --- a study as a see-through group (a_study_is_a_translucent_group_on_the_dag)
+    //
+    // Study one lights A's block, the joint and B's first leg (rows 0-6, one
+    // span); study two lights B's second leg and the fork it leaves (b1, then
+    // eB2 and b3: rows 4 and 7-8, two spans).
+    function twoStudies(selected) {
+      var proj = twoBodyProjection();
+      return { proj: proj, groups: [
+        { id: "s1", kind: "chain", title: "First study",
+          lit: VA.litSetOfEdges(proj, ["eA", "eB"]), selected: selected === "s1" },
+        { id: "s2", kind: "kinematic", title: "Second study",
+          lit: VA.litSetOfEdges(proj, ["eB2"]), selected: selected === "s2" },
+      ] };
+    }
+    function paintGroups(proj, groups, filter, extra) {
+      return render(function (r) {
+        VA.renderTopoPane(r, Object.assign({ topoProj: proj, study: null, crops: {},
+          selection: null, onSelect: function () {}, studyGroups: groups,
+          groupFilter: filter }, extra || {}));
+      });
+    }
+
+    await test("a study's group is every run of consecutive rows its lit set holds, " +
+      "and a study the walk splits is several", function () {
+        var s = twoStudies(null);
+        var rows = s.proj.layout.rows;
+        // The joint j is closed over by the lit set (both ends lit): it joins A
+        // to B's leg, so study one is ONE run.
+        eq(VA.studySpans(s.proj.layout, s.groups[0].lit),
+           [{ start: 0, end: 6, lo: 0, hi: 0 }], "study one");
+        eq(VA.studySpans(s.proj.layout, s.groups[1].lit).map(function (x) {
+          return [x.start, x.end, x.lo, x.hi]; }), [[4, 4, 0, 0], [7, 8, 1, 1]],
+          "study two is cut by the leg it does not light");
+        eq(VA.studySpans(s.proj.layout, null), []);
+        eq(VA.studySpans({ rows: [] }, s.groups[0].lit), []);
+        eq(rows.length, 9);
+      });
+
+    await test("a group's field is wider and taller than the body field it " +
+      "wraps, and the bodies' own geometry is unchanged by it", function () {
+        var s = twoStudies(null);
+        var plain = VA.railGeometry(s.proj.layout, VA.RAIL_METRICS);
+        var geo = VA.railGeometry(s.proj.layout, VA.RAIL_METRICS, undefined,
+          { groups: s.groups });
+        eq(geo.bodies, plain.bodies);
+        eq(plain.groups, [], "no groups asked for, none made");
+        eq(geo.groups.map(function (g) { return [g.id, g.spans.length]; }),
+           [["s1", 1], ["s2", 2]]);
+        var field = geo.groups[0].spans[0];
+        var bodyA = geo.bodies[0];
+        ok(field.x1 < bodyA.x1 && field.x2 > bodyA.x2 && field.y1 < bodyA.y1,
+           "the group wraps the body field it coincides with");
+      });
+
+    await test("the groups draw after every body field and before every mark, " +
+      "and a body's name stays above them", function () {
+        var s = twoStudies("s1");
+        var root = paintGroups(s.proj, s.groups, "both");
+        var svg = all(root, "svg.tv__rails")[0];
+        var kids = Array.prototype.slice.call(svg.childNodes);
+        var last = function (cls) {
+          var at = -1;
+          kids.forEach(function (n, i) { if (hasClass(n, cls)) at = i; });
+          return at;
+        };
+        var first = function (cls) {
+          for (var i = 0; i < kids.length; i++) if (hasClass(kids[i], cls)) return i;
+          return -1;
+        };
+        eq(all(root, "rect.tv__bodyfield").length, 2);
+        eq(all(root, "rect.tv__studyfield").length, 3, "one rect per span: 1 + 2");
+        ok(last("tv__bodyfield") < first("tv__studyfield"), "over the bodies");
+        ok(last("tv__studyfield") < first("rail__bar"), "under every mark");
+        ok(last("tv__studyfield") < first("tv__bodyname"), "under the body's name");
+      });
+
+    await test("the groups filter has four states, each drawing what it names, and " +
+      "a reader's choice is remembered per topology", function () {
+        var s = twoStudies(null);
+        var counts = function (filter) {
+          var root = paintGroups(s.proj, s.groups, filter);
+          return [all(root, "rect.tv__bodyfield").length,
+                  all(root, "rect.tv__studyfield").length];
+        };
+        eq(counts("bodies"), [2, 0]);
+        eq(counts("studies"), [0, 3]);
+        eq(counts("both"), [2, 3]);
+        eq(counts("none"), [0, 0]);
+        eq(["bodies", "studies", "both", "none"].map(function (k) {
+          return VA.GROUP_FILTERS[k].next; }), ["studies", "both", "none", "bodies"],
+          "one button cycles through all four");
+        eq([VA.defaultGroupFilter(false), VA.defaultGroupFilter(true)], ["bodies", "both"]);
+        // No word given: the default for the page, off whether a study is lit.
+        eq(counts(undefined), [2, 0], "nothing lit: bodies");
+        var data = {};
+        var store = { getItem: function (k) { return k in data ? data[k] : null; },
+                      setItem: function (k, v) { data[k] = String(v); } };
+        eq(VA.readGroupFilter(store, "t"), null, "never chosen");
+        VA.writeGroupFilter(store, "t", "none");
+        VA.writeGroupFilter(store, "u", "studies");
+        eq([VA.readGroupFilter(store, "t"), VA.readGroupFilter(store, "u")], ["none", "studies"]);
+        data[VA.GROUP_FILTER_KEY] = JSON.stringify({ t: "nonsense" });
+        eq(VA.readGroupFilter(store, "t"), null, "a word outside the set reads as unchosen");
+        data[VA.GROUP_FILTER_KEY] = "{not json";
+        eq(VA.readGroupFilter(store, "t"), null, "an unreadable store reads as unchosen");
+        eq(VA.readGroupFilter(null, "t"), null);
+        VA.writeGroupFilter(null, "t", "both");
+        var clicks = 0;
+        var toolbar = render(function (r) {
+          VA.renderTopoToolbar(r, { mode: "topology", topologyId: s.proj.id, studyId: null },
+            s.proj, { groupFilter: "both", onGroupFilter: function () { clicks++; } });
+        });
+        var button = all(toolbar, "button").filter(function (b) {
+          return b.getAttribute("id") === "group-filter-toggle"; })[0];
+        eq(button.textContent, "Groups: both");
+        button.click();
+        eq(clicks, 1);
+      });
+
+    await test("the selected study's group is drawn last and a step stronger; hidden, " +
+      "only it remains, whole", function () {
+        var s = twoStudies("s1");
+        var root = paintGroups(s.proj, s.groups.slice().reverse(), "both");
+        var rects = all(root, "rect.tv__studyfield");
+        eq(rects.map(function (n) { return n.getAttribute("data-study-group"); }),
+           ["s2", "s2", "s1"], "as handed in, one rect per span: the page's " +
+           "VA.studyGroups is what puts the selected one last");
+        eq(rects.filter(function (n) { return hasClass(n, "tv__studyfield--selected"); })
+          .map(function (n) { return n.getAttribute("data-study-group"); }), ["s1"]);
+        eq(all(root, "text.tv__studyname").map(function (n) {
+          return n.getAttribute("data-study-open"); }).sort(), ["s1", "s2"], "named once each");
+        // Hidden: the walk is s1's band alone, and so is the one group.
+        var hidden = paintGroups(s.proj, s.groups, "both",
+          { study: null, lit: s.groups[0].lit, unlitStyle: "hide" });
+        eq(all(hidden, "rect.tv__studyfield").map(function (n) {
+          return n.getAttribute("data-study-group"); }), ["s1"],
+          "one rect: the lit band is one run");
+      });
+
+    await test("clicking a group's title opens its study, and hovering the field " +
+      "lights its edges' bars", function () {
+        var s = twoStudies(null);
+        var opened = [];
+        var root = paintGroups(s.proj, s.groups, "studies",
+          { onOpenStudy: function (g) { opened.push(g.id); } });
+        var titles = all(root, "text.tv__studyname");
+        titles.filter(function (n) { return n.getAttribute("data-study-open") === "s2"; })[0]
+          .onclick();
+        eq(opened, ["s2"]);
+        var field = all(root, "rect.tv__studyfield").filter(function (n) {
+          return n.getAttribute("data-study-group") === "s1"; })[0];
+        field.onmouseenter();
+        var lit = all(root, "line.rail__bar").filter(function (n) {
+          return hasClass(n, "rail__bar--hot") || hasClass(n, "rail__bar--lead"); });
+        ok(lit.length >= 2, "s1's two edges' bars light: " + lit.length);
+        field.onmouseleave();
+        eq(all(root, "line.rail__bar").filter(function (n) {
+          return hasClass(n, "rail__bar--lead"); }).length, 0, "and clear again");
+      });
+
     await test("collapsing a body folds its block to one pill, and the edges " +
       "that leave it meet the pill at the columns their nodes were on", function () {
         var proj = twoBodyProjection();
@@ -17316,6 +17476,70 @@
             eq(all(root, "rect.tv__bodyfield").filter(function (n) {
               return n.getAttribute("data-body") === "base";
             }).length, 0, "a collapsed body has no field of its own");
+          });
+
+        await test("[real] every study of the product model has a group, and the page " +
+          "paints exactly its spans, in both modes", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var groups = VA.studyGroups(topo, realKinematic, realKinStudy.id);
+            var chain = groups.filter(function (g) { return g.kind === "chain"; });
+            eq(chain.length, topo.studies.filter(function (s) { return s.status === "ok"; })
+              .length, "a group per chain study that summed");
+            eq(groups.filter(function (g) { return g.kind === "kinematic"; })
+              .map(function (g) { return g.id; }), [realKinStudy.id]);
+            eq(groups[groups.length - 1].id, realKinStudy.id, "the selected one is last");
+            eq(groups.filter(function (g) { return g.selected; }).length, 1);
+            var spansOf = function (layout) {
+              var out = {};
+              groups.forEach(function (g) { out[g.id] = VA.studySpans(layout, g.lit); });
+              return out;
+            };
+            var kinLit = VA.kinematicLitSet(realKinStudy, topo);
+            var band = VA.bandLayout(topo.layout, kinLit, null);
+            var bandSpans = spansOf(band);
+            eq(bandSpans[realKinStudy.id].length, 1, "the selected study is one band");
+            var total = 0;
+            Object.keys(bandSpans).forEach(function (id) {
+              ok(bandSpans[id].length >= 1, id + " is somewhere on the walk");
+              total += bandSpans[id].length;
+            });
+            var paint = function (unlitStyle) {
+              return render(function (r) {
+                VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
+                  selection: null, onSelect: function () {}, lit: kinLit,
+                  studyGroups: groups, groupFilter: "both", unlitStyle: unlitStyle });
+              });
+            };
+            var dim = paint("dim");
+            eq(all(dim, "rect.tv__studyfield").length, total, "one rect per span");
+            eq(all(dim, "text.tv__studyname").length, groups.length, "each named once");
+            eq(all(dim, "rect.tv__studyfield").filter(function (n) {
+              return hasClass(n, "tv__studyfield--selected");
+            }).length, 1);
+            ok(all(dim, "rect.tv__bodyfield").length > 0, "the bodies are still there");
+            var hidden = paint("hide");
+            eq(all(hidden, "rect.tv__studyfield").map(function (n) {
+              return n.getAttribute("data-study-group");
+            }), [realKinStudy.id], "hidden: the selected study's band, whole");
+          });
+
+        await test("[real] a grip-budget study's group nests inside its own band", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var study = topo.studies.filter(function (s) { return s.status === "ok"; })[0];
+            var groups = VA.studyGroups(topo, null, study.id);
+            eq(groups.filter(function (g) { return g.kind === "kinematic"; }).length, 0,
+              "no kinematic projection handed in, none drawn");
+            var root = render(function (r) {
+              VA.renderTopoPane(r, { topoProj: topo, study: study, crops: realCrops,
+                selection: null, onSelect: function () {}, studyGroups: groups,
+                groupFilter: "both" });
+            });
+            var mine = all(root, "rect.tv__studyfield").filter(function (n) {
+              return n.getAttribute("data-study-group") === study.id;
+            });
+            eq(mine.length, 1, "the selected study is one band");
+            ok(hasClass(mine[0], "tv__studyfield--selected"));
+            ok(all(root, "rect.tv__studyfield").length > 1, "the other studies are drawn too");
           });
 
         await test("[real] the live product model draws a container per body, " +
