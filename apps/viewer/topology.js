@@ -2197,7 +2197,7 @@
     if (!layout || !lit) return null;
     var rows = layout.rows || [];
     var isLit = function (row) {
-      return row.kind === "edge" ? !!lit.edges[row.id] : !!lit.nodes[row.id];
+      return !!(row.kind === "edge" ? lit.edges : lit.nodes)[row.id];
     };
     var first = -1;
     var last = -1;

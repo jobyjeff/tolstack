@@ -5716,6 +5716,11 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         push(`[real] SKIPPED -- the live projection has no study ${liveStudy}`, true);
       } else {
         await liveRow.click();
+        // The click reaches the respine through a promise, so a settled-check
+        // taken at once can read the PREVIOUS paint; the study's nav row
+        // lights in the paint that starts the transition.
+        await page.waitForSelector(navRow("study", liveStudy) + ".navtree__row--on",
+          { timeout: 10000 }).catch(() => {});
         push("[real] the live study's respine settles", await paneSettled());
         await page.waitForSelector("#study-3d", { timeout: 20000 });
         const liveRailsBefore = await page.evaluate(() => {
