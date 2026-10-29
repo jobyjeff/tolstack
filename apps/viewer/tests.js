@@ -11975,6 +11975,137 @@
         eq(whole.columns, topo.layout.columns);
       });
 
+    // --- the active study as one band (2026-10-28) ---------------------------
+    //
+    // A walk by hand with every case the side rule has: an unlit run before
+    // the first lit row (p, pa), three unlit pieces interleaved inside the lit
+    // span -- one forking off a lit node near the top (au, u), one hanging off
+    // p near the top (pq, q), one hanging off p near the bottom (pt, t) -- and
+    // an unlit edge after the last lit row that forks off a lit node (dz, z).
+    // The lit chain is a-b-c-d. Body C is the two pieces au/u and pt/t, body A
+    // the rest -- three blocks in the walk.
+    function bandWalk() {
+      var n = function (row, id, column, body) {
+        return { row: row, kind: "node", id: id, column: column, branch: false, body: body };
+      };
+      var e = function (row, id, column, from, to, body) {
+        return { row: row, kind: "edge", id: id, column: column, entered_at: from,
+                 left_at: to, closes_row: null, closes_column: null, body: body };
+      };
+      var rows = [
+        n(0, "p", 0, "A"), e(1, "pa", 0, "p", "a", "A"), n(2, "a", 0, "A"),
+        e(3, "au", 1, "a", "u", "C"), n(4, "u", 1, "C"),
+        e(5, "ab", 0, "a", "b", "A"), n(6, "b", 0, "A"),
+        e(7, "pq", 2, "p", "q", "A"), n(8, "q", 2, "A"),
+        e(9, "bc", 0, "b", "c", "A"), n(10, "c", 0, "A"),
+        e(11, "pt", 3, "p", "t", "C"), n(12, "t", 3, "C"),
+        e(13, "cd", 0, "c", "d", "A"), n(14, "d", 0, "A"),
+        e(15, "dz", 0, "d", "z", "A"), n(16, "z", 0, "A"),
+      ];
+      var structure = VA.walkRailsAndLinks(rows);
+      return { rows: rows, rails: structure.rails, links: structure.links, columns: 4 };
+    }
+    var BAND_LIT = { edges: { ab: true, bc: true, cd: true },
+                     nodes: { a: true, b: true, c: true, d: true } };
+    function idsOf(rows) { return rows.map(function (r) { return r.id; }); }
+
+    await test("re-laying a walk in its own order on its own columns reproduces it " +
+      "row for row, rail for rail", function () {
+        var walks = [TOPO.layout, bandWalk()];
+        KIN_TOPOLOGIES.topologies.forEach(function (t) { if (t.layout) walks.push(t.layout); });
+        walks.forEach(function (layout, w) {
+          eq(walkProblems(layout), [], "walk " + w + " draws");
+          var again = VA.layWalk(layout.rows, { prefer: function (r) { return r.column; } });
+          eq(setOf(again.rows), setOf(layout.rows), "walk " + w + " rows");
+          eq(setOf(again.rails), setOf(layout.rails), "walk " + w + " rails");
+          eq(setOf(again.links), setOf(layout.links), "walk " + w + " links");
+          eq(again.columns, layout.columns, "walk " + w + " columns");
+        });
+      });
+
+    await test("the band's sides: an unlit run before the lit span goes above and " +
+      "after it below, an interleaved piece goes to its nearer side, and a piece " +
+      "that forks off a lit node goes below", function () {
+        var sides = VA.bandSides(bandWalk(), BAND_LIT);
+        eq(idsOf(sides.above), ["p", "pa", "pq", "q"],
+           "the run before, and the interleaved piece nearer the top");
+        eq(idsOf(sides.band), ["a", "ab", "b", "bc", "c", "cd", "d"], "walk order");
+        // au/u forks off lit a, so it cannot hang above the band; pt/t is
+        // nearer the bottom. An edge forking off a lit node below the band is
+        // drawn after the node at its far end (u before au, z before dz).
+        eq(idsOf(sides.below), ["u", "au", "pt", "t", "z", "dz"]);
+        eq(VA.bandSides(bandWalk(), null), null, "nothing lit, nothing to arrange");
+        eq(VA.bandSides(bandWalk(), { edges: {}, nodes: {} }), null);
+      });
+
+    await test("the band layout keeps every row, draws the lit rows as one chain " +
+      "on the spine's column, and joins the rest to it with curves", function () {
+        var walk = bandWalk();
+        var laid = VA.bandLayout(walk, BAND_LIT);
+        eq(walkProblems(laid), [], "it draws as a walk");
+        eq(setOf(idsOf(laid.rows)), setOf(idsOf(walk.rows)), "nothing hidden");
+        var row = {};
+        laid.rows.forEach(function (r) { row[r.id] = r; });
+        eq(["a", "ab", "b", "bc", "c", "cd", "d"].map(function (id) { return row[id].row; }),
+           [4, 5, 6, 7, 8, 9, 10], "the lit rows are one contiguous band");
+        ["a", "ab", "b", "bc", "c", "cd", "d"].forEach(function (id) {
+          eq(row[id].column, 0, id + " is on the band's one rail");
+        });
+        // pa, above, meets a in the band: it curves DOWN to it.
+        ok(row.pa.closes_row === row.a.row && row.pa.closes_row > row.pa.row, "pa curves down");
+        // au, below, hangs from u and curves UP to a.
+        eq(row.au.entered_at, "u");
+        ok(row.au.closes_row === row.a.row && row.au.closes_row < row.au.row, "au curves up");
+        // No rail of the rest runs on the band's column over the band's rows.
+        laid.rails.forEach(function (rail) {
+          if (rail.column !== 0) return;
+          ok(rail.end < 4 || rail.start > 10 || (rail.start >= 4 && rail.end <= 10),
+             "rail " + JSON.stringify(rail) + " crosses into the band's column");
+        });
+        ok(VA.layoutCrossings(VA.bandLayout(walk, BAND_LIT, { only: true })).total <=
+           VA.layoutCrossings(VA.hideUnlit(walk, BAND_LIT)).total);
+        eq(VA.bandLayout(walk, null), walk, "nothing lit: the walk as laid");
+        // Hidden: the band alone, from row 0.
+        var only = VA.bandLayout(walk, BAND_LIT, { only: true });
+        eq(idsOf(only.rows), ["a", "ab", "b", "bc", "c", "cd", "d"]);
+        eq([only.columns, walkProblems(only)], [1, []]);
+      });
+
+    await test("a curve to a node below it bows downward, a close to a node above " +
+      "it bows upward", function () {
+        var laid = VA.bandLayout(bandWalk(), BAND_LIT);
+        var geo = VA.railGeometry(laid, VA.RAIL_METRICS);
+        var nums = function (d) { return d.match(/-?[0-9.]+/g).map(Number); };
+        var byRow = {};
+        laid.rows.forEach(function (r) { byRow[r.id] = r.row; });
+        var down = geo.links.filter(function (l) { return l.kind === "close" && l.row === byRow.pa; })[0];
+        var up = geo.links.filter(function (l) { return l.kind === "close" && l.row === byRow.au; })[0];
+        var d = nums(down.d);   // x1 y1  x1 c1  x2 c2  x2 y2
+        ok(d[7] > d[1] && d[3] > d[1] && d[5] < d[7], "down: " + down.d);
+        var u = nums(up.d);
+        ok(u[7] < u[1] && u[3] < u[1] && u[5] > u[7], "up: " + up.d);
+      });
+
+    await test("a body in several blocks around the band is named once, on the " +
+      "band's field -- and each block folds to a pill of its own", function () {
+        var laid = VA.bandLayout(bandWalk(), BAND_LIT);
+        var spans = VA.bodySpans(laid.rows);
+        var fieldsOf = spans.filter(function (s) { return s.body === "A"; });
+        ok(fieldsOf.length >= 2, "A is still more than one block: " +
+           JSON.stringify(fieldsOf));
+        var named = VA.bodyLabelFields(spans, laid.rows, BAND_LIT);
+        var namedA = spans.filter(function (s, i) { return named[i] && s.body === "A"; });
+        eq(namedA.length, 1, "A is named once");
+        eq([namedA[0].start <= 4, namedA[0].end >= 10], [true, true], "on the band's field");
+        eq(spans.filter(function (s, i) { return named[i]; }).length, 2, "and C once");
+        eq(VA.bodyLabelFields(spans, laid.rows, null).every(Boolean), true,
+           "with nothing lit every block is named");
+        var pills = VA.collapseBodies(laid, { A: true }, null, BAND_LIT).rows
+          .filter(function (r) { return r.collapsed; }).map(function (r) { return r.id; });
+        eq(pills.length, fieldsOf.length);
+        eq(new Set(pills).size, pills.length, "one id per pill: " + pills.join(", "));
+      });
+
     // --- bodies as containers, joints as glyphs (2026-10-26) ----------------
     //
     // A two-body walk by hand: body A's block (rows 0-2), a joint `j`, then
@@ -17084,6 +17215,72 @@
                "blocks per body: " + JSON.stringify(per));
             // Blocks never share a row, so no two containers overlap.
             for (var i = 1; i < spans.length; i++) ok(spans[i].start > spans[i - 1].end);
+          });
+
+        // The band (the_active_study_is_a_compact_band_and_the_rest_of_the_
+        // model_hangs_above_and_below): every study of the product model,
+        // chain and kinematic alike, re-arranges the walk into ONE contiguous
+        // band of lit rows that draws as a walk, crosses itself no more than
+        // the same rows did in the walk, and widens the walk by nothing.
+        await test("[real] every study of the product model is one contiguous band " +
+          "that draws as a walk, crosses itself no more than its rows did in the walk, " +
+          "and widens nothing", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var cases = (topo.studies || []).filter(function (s) { return s.status === "ok"; })
+              .map(function (s) { return { id: s.id, lit: VA.studyLitSet(s, topo) }; });
+            var chains = cases.length;
+            cases.push({ id: realKinStudy.id, lit: VA.kinematicLitSet(realKinStudy, topo) });
+            var swept = 0;
+            cases.forEach(function (c) {
+              var laid = VA.bandLayout(topo.layout, c.lit);
+              eq(walkProblems(laid), [], c.id + " draws as a walk");
+              eq(laid.rows.length, topo.layout.rows.length, c.id + " keeps every row");
+              var at = laid.rows.filter(function (r) {
+                return r.kind === "edge" ? c.lit.edges[r.id] : c.lit.nodes[r.id];
+              }).map(function (r) { return r.row; });
+              eq(at[at.length - 1] - at[0] + 1, at.length, c.id + " is one contiguous band");
+              var band = VA.layoutCrossings(VA.bandLayout(topo.layout, c.lit, { only: true }));
+              var walked = VA.layoutCrossings(VA.hideUnlit(topo.layout, c.lit));
+              ok(band.total <= walked.total, c.id + " crosses itself " + band.total +
+                 " times in the band, " + walked.total + " in the walk");
+              ok(laid.columns <= topo.layout.columns, c.id + " widens the walk to " +
+                 laid.columns + " columns");
+              swept++;
+            });
+            eq(swept, chains + 1, "every chain study and the kinematic one");
+            ok(chains >= 22, "the product model's chain studies: " + chains);
+          });
+
+        await test("[real] re-laying the product model's walk in its own order on its " +
+          "own columns reproduces the projection row for row", function () {
+            realKinTopologies.topologies.forEach(function (topo) {
+              if (!topo.layout) return;
+              var again = VA.layWalk(topo.layout.rows,
+                { prefer: function (r) { return r.column; } });
+              eq(setOf(again.rows), setOf(topo.layout.rows), topo.id + " rows");
+              eq(again.columns, topo.layout.columns, topo.id + " columns");
+            });
+          });
+
+        await test("[real] hidden, the blade-pitch study is its band alone: every lit " +
+          "row, one connected drawing, named once per body", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var lit = VA.kinematicLitSet(realKinStudy, topo);
+            var only = VA.bandLayout(topo.layout, lit, { only: true });
+            eq(only.rows.length, HIDDEN_ROWS);
+            eq(walkProblems(only), []);
+            eq(walkComponents(only.rows).length, 1, "one connected drawing");
+            var root = render(function (r) {
+              VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
+                selection: null, onSelect: function () {}, lit: lit,
+                unlitStyle: "hide" });
+            });
+            eq(all(root, "circle.rail__dot").length +
+               all(root, "line.rail__barhit").length, HIDDEN_ROWS);
+            var names = all(root, "text.tv__bodyname").map(function (n) {
+              return n.getAttribute("data-body-toggle");
+            });
+            eq(names.length, new Set(names).size, "each body named once: " + names.join(", "));
           });
 
         await test("[real] collapsing the product model's base folds it to one node " +
