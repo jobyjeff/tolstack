@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "contact words: each pairing, relation and seat says what it is in everyday words, with its evidence rounded for reading",
+  "mutations": [
+    {
+      "contract": "Evidence is rounded for reading, more digits the smaller the number.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_an_interface_suggests_the_faces_that_touch.md",
+      "note": "A fixed precision prints 2.200 mm for a shared length and 0.0 for a clearance of three microns.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    var digits = abs >= 10 ? 1 : abs >= 0.1 ? 2 : 3;",
+      "replace": "    var digits = 3;"
+    }
+  ]
+}

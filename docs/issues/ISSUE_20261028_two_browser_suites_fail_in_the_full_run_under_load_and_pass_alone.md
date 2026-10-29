@@ -41,3 +41,28 @@ to discount reds. Find what each check waits on (a fixed timeout, a first-paint
 race, focus stolen by an earlier suite in the same page) and make it wait on
 the condition instead of the clock; if it is order-dependent, the `--only` pass
 alone does not prove it.
+
+## Addendum 2026-10-28 (an_interface_suggests_the_faces_that_touch)
+
+Seen again on that branch's full run (32/35, 348 s, against a scratch data root
+built from the branch), with a **third** suite in the same shape:
+
+```
+[3D pane follows the selection (sweep, bind, reload, hover)] 31/32: FAIL
+    FAIL sub-check: [real] ...and leaving it takes the light down
+[annotate rail filter + face deselect] 33/34: FAIL
+    FAIL sub-check: a real click on the face tints it
+[crop lightbox (launch, zoom, pan on the live crops)] ABORTED after 2 sub-checks
+```
+
+Each of the three passed alone straight afterwards (32/32, 34/34, 20/20),
+against the same scratch root. That branch does run new code on the annotator's
+selection path (`suggest` now also colours touching faces), so the third suite
+is put down to load on the strength of it passing alone, not of a code reading.
+
+## Addendum 2026-10-28 (review of an_interface_suggests_the_faces_that_touch)
+
+Same pair again on the review's full run of the merged tree (33/35, 351 s,
+`--repo` the tactical's scratch root): `3D pane follows the selection`
+("…leaving it takes the light down") and `crop lightbox` (launcher focus).
+Each passed alone with `--only` immediately after (1/1, 1/1).

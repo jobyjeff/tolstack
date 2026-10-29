@@ -141,6 +141,11 @@ MESHES_SUBDIR = Path("meshes")
 MESH_PROVENANCE_NAME = "provenance.json"
 MESH_ALIASES_NAME = "part_mesh_aliases.json"
 PART_NAMES_PROJECTION = Path("projections") / "parts" / "names.json"
+#: The contact suggestions (scripts/build_contact_suggestions.py), copied into
+#: the read set for the same reason the part names are: no mount serves
+#: projections/feature-identity/, and the served annotator colours from them.
+CONTACT_SUGGESTIONS_PROJECTION = (Path("projections") / "feature-identity"
+                                  / "contact_suggestions.json")
 
 #: A study row's outcome. An error is a **result**, exactly as in the topology
 #: projection: a study that refuses to load (a missing run, a label the sweep
@@ -482,6 +487,7 @@ def annotate_read_set(topologies_dir: Path, data_root: Path,
         "meshes": served_meshes(data_root),
         "mesh_aliases": _read_json_or_none(topologies_dir / MESH_ALIASES_NAME),
         "part_names": _read_json_or_none(data_root / PART_NAMES_PROJECTION),
+        "contact_suggestions": _read_json_or_none(data_root / CONTACT_SUGGESTIONS_PROJECTION),
         "sweep_runs": [{k: run[k] for k in ("run_id", "ts", "mechanism")} for run in runs],
     }
 

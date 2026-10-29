@@ -194,6 +194,17 @@
     // tolerance_stack/feature_geometry.py: SURFACE_CLASSES
     SURFACE_CLASSES: ["planar", "cylindrical", "spherical", "other"],
 
+    // tolerance_stack/interface_contact.py: PAIRING_KINDS
+    CONTACT_PAIRING_KINDS: [
+      "plane_on_plane", "cylinder_in_cylinder", "ball_in_seat"
+    ],
+
+    // tolerance_stack/interface_contact.py: RELATIONS
+    CONTACT_RELATIONS: ["contact", "coaxial"],
+
+    // tolerance_stack/interface_contact.py: SEAT_SURFACES
+    CONTACT_SEAT_SURFACES: ["spherical", "cylindrical", "planar"],
+
     // tolerance_stack/kinematic.py: LINKAGE_JOINT_TYPES
     LINKAGE_JOINT_TYPES: [
       "spherical", "distance", "revolute", "cylindrical", "prismatic",

@@ -37,6 +37,11 @@
 //        -- data/projections/parts/names.json, the part number -> everyday
 //           name projection (scripts/build_part_names_projection.py). null if
 //           absent: a row then shows its number alone.
+//   readContactSuggestions(): Promise<object|null>
+//        -- data/projections/feature-identity/contact_suggestions.json, which
+//           faces could be each gap edge's interface
+//           (scripts/build_contact_suggestions.py). Over HTTP, the read set's
+//           copy. null if absent: the bar lists no touching faces.
 //   readKinematicProjection(): Promise<object|null>
 //        -- data/projections/viewer/kinematic/kinematic_studies.json, the
 //           projection the viewer's kinematic page renders. Sweep mode reads a

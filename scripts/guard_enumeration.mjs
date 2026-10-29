@@ -166,7 +166,10 @@ export const DECLARED_GUARDS = {
   // Re-measured again at the same review's second merge, on top of
   // a_study_is_a_translucent_group_on_the_dag.
   fast: { declared: 622, enrollable: 622, names: "ed4b94d0cb97" },
-  annotate: { declared: 246, enrollable: 246, names: "8cfc5f299bfd" },
+  // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
+  // browser +4, the contact suggestions' rows, words, colour, list, frame and
+  // no-write guards. Every one carries a spec. Re-measured at the review merge.
+  annotate: { declared: 248, enrollable: 248, names: "e01be3819f16" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -183,8 +186,9 @@ export const DECLARED_GUARDS = {
   // which had none under its old name either. Re-measured at its review
   // merge.
   // Re-measured again at the same review's second merge, on top of
-  // a_study_is_a_translucent_group_on_the_dag.
-  browser: { declared: 723, enrollable: 690, names: "c84d7e05a385" },
+  // a_study_is_a_translucent_group_on_the_dag. Then +4
+  // (an_interface_suggests_the_faces_that_touch, above).
+  browser: { declared: 727, enrollable: 694, names: "4f8e804382c3" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

@@ -129,6 +129,14 @@ const state = {
   // Whether selecting an element colours the faces that could be its feature
   // (handoff annotate_face_suggestions). Persists like the two above.
   faceSuggestions: AA.readStoredSuggestions(prefStore()),
+  // Which faces of two parts touch, per gap edge (handoff
+  // an_interface_suggests_the_faces_that_touch): the projection, the rows the
+  // last `suggest` found for the selected element, and the candidate a click
+  // on the list put in focus -- {selected, edge, rank}, forgotten when the
+  // element changes. The top candidate is in focus until then.
+  contactSuggestions: null,
+  contactRows: { edge: null, rows: [] },
+  contactFocus: null,
   // The model layer (buildModel): whether bind mode draws it, the shell's lit
   // set (undefined until one is posted; null is "nothing emphasised"), what
   // the unlit rest does, the edge `highlight` lit, what `model select` chose,
@@ -960,7 +968,9 @@ async function loadClassesForSuggestion(edge, identity) {
 async function cmdSuggest() {
   state.scene.clearMarks("suggested");
   state.scene.clearMarks("picked");
+  state.scene.clearMarks("contact");
   state.suggestionPlan = null;
+  state.contactRows = { edge: null, rows: [] };
   const edge = state.selectedEdge;
   if (!edge || !state.currentTopology) {
     renderDetail();
@@ -977,24 +987,31 @@ async function cmdSuggest() {
     faceClasses: state.faceClasses,
   });
   state.suggestionPlan = plan;
+  state.contactRows = { edge: edge.id,
+    rows: AA.contactRowsFor(state.contactSuggestions, state.currentTopology, edge.id) };
+  const focus = focusedContact();
+  const touching = focus ? AA.contactFaces(focus.candidate) : [];
 
   // Nothing suggested renders the ORDINARY view -- not a faded ghost of a body
   // with no marks on it, which says "look here" about nothing (the handoff's
   // own requirement, and the standing rule that an absent feature shows
   // nothing at all).
-  if (!plan.faces.length) {
+  if (!plan.faces.length && !touching.length) {
     renderDetail();
     return plan;
   }
 
   // The face under the pick is drawn as the PICK and not as a suggestion: two
   // opaque overlays on one face would z-fight, and "you picked this" is the
-  // more specific of the two claims.
+  // more specific of the two claims. A face of the pair that touches is drawn
+  // as that, for the same reason: it is the narrower claim of the two.
   const picked = state.currentPick;
-  const faces = plan.faces.filter((f) =>
-    !(picked && picked.sha256 === f.sha256 && picked.faceId === f.faceId));
+  const isPicked = (f) => !!picked && picked.sha256 === f.sha256 && picked.faceId === f.faceId;
+  const isTouching = (f) => touching.some((t) => t.sha256 === f.sha256 && t.faceId === f.faceId);
+  const faces = plan.faces.filter((f) => !isPicked(f) && !isTouching(f));
   const shas = [];
-  plan.faces.forEach((f) => { if (shas.indexOf(f.sha256) === -1) shas.push(f.sha256); });
+  plan.faces.concat(touching)
+    .forEach((f) => { if (shas.indexOf(f.sha256) === -1) shas.push(f.sha256); });
 
   for (const sha of shas) {
     if (state.scene.listOpenParts().indexOf(sha) === -1) await state.scene.loadPart(sha);
@@ -1004,6 +1021,8 @@ async function cmdSuggest() {
     state.scene.setGhost(sha, state.transparentParts);
   }
   faces.forEach((f) => state.scene.markFace(f.sha256, f.faceId, "suggested"));
+  touching.filter((f) => !isPicked(f))
+    .forEach((f) => state.scene.markFace(f.sha256, f.faceId, "contact"));
   if (picked && shas.indexOf(picked.sha256) !== -1) {
     state.scene.markFace(picked.sha256, picked.faceId, "picked");
   }
@@ -1026,9 +1045,59 @@ async function cmdAutoSuggest(value) {
   }
   state.scene.clearMarks("suggested");
   state.scene.clearMarks("picked");
+  state.scene.clearMarks("contact");
   state.suggestionPlan = null;
+  state.contactRows = { edge: null, rows: [] };
   renderDetail();
   return on;
+}
+
+// The rows `suggest` found for the element still selected, or [].
+function currentContactRows() {
+  const edge = state.selectedEdge;
+  const found = state.contactRows;
+  return edge && found && found.edge === edge.id ? found.rows : [];
+}
+
+// The candidate in focus: the one a click on the list chose for THIS element,
+// or the top candidate of the first row. {row, candidate} or null.
+function focusedContact() {
+  const rows = currentContactRows();
+  if (!rows.length) return null;
+  const f = state.contactFocus;
+  if (f && state.selectedEdge && f.selected === state.selectedEdge.id && state.currentTopology) {
+    const hit = AA.findContact(state.contactSuggestions, state.currentTopology.id, f.edge, f.rank);
+    if (hit) return hit;
+  }
+  return { row: rows[0].row, candidate: rows[0].row.candidates[0] };
+}
+
+// frame-contact <edge> [rank] -- puts one listed candidate in focus, colours
+// its two features in the contact colour, and frames the camera on them (the
+// box the projection carries, in the assembly frame). Rank 1 when omitted.
+// Like `suggest` it selects nothing and writes nothing: the pick is the
+// reader's.
+async function cmdFrameContact(edgeId, rank) {
+  if (!state.currentTopology) throw new Error("no topology selected");
+  if (!edgeId) throw new Error("frame-contact needs an edge id");
+  const n = rank === undefined ? 1 : Number(rank);
+  const hit = AA.findContact(state.contactSuggestions, state.currentTopology.id, edgeId, n);
+  if (!hit) throw new Error("no touching faces numbered " + n + " for " + edgeId);
+  state.contactFocus = {
+    selected: state.selectedEdge ? state.selectedEdge.id : null, edge: edgeId, rank: n };
+  if (currentContactRows().length) {
+    await cmdSuggest();
+  } else {
+    state.scene.clearMarks("contact");
+    for (const f of AA.contactFaces(hit.candidate)) {
+      if (state.scene.listOpenParts().indexOf(f.sha256) === -1) await state.scene.loadPart(f.sha256);
+      state.scene.setVisible(f.sha256, true);
+      state.scene.markFace(f.sha256, f.faceId, "contact");
+    }
+    renderPartsPanel();
+  }
+  state.scene.frameBox(hit.candidate.box.min, hit.candidate.box.max);
+  return { edge: edgeId, rank: n };
 }
 
 // What every UI path that changes the element or the pick calls. Goes through
@@ -3219,6 +3288,7 @@ commands.register("auto-filter", cmdAutoFilter);
 commands.register("transparency", cmdTransparency);
 commands.register("suggest", cmdSuggest);
 commands.register("auto-suggest", cmdAutoSuggest);
+commands.register("frame-contact", cmdFrameContact);
 commands.register("help", cmdHelp);
 // Sweep mode (handoff kinematic_sweep_animation). Every one of them is a
 // verb for the same reason the rest are: the controls in the bar, the
@@ -3678,6 +3748,8 @@ function renderDetail() {
       p.textContent = suggestion;
       work.appendChild(p);
     }
+    const contacts = buildContactBlock();
+    if (contacts) work.appendChild(contacts);
     const note = precedenceNote(edge);
     if (note) {
       const p = document.createElement("p");
@@ -3704,6 +3776,48 @@ function renderDetail() {
 
   if (work.childNodes.length) el.detail.appendChild(work);
   renderHintPanel();
+}
+
+// The faces that touch, listed: per row, a muted heading and the top
+// AA.CONTACT_LISTED candidates as quiet buttons, each one line of evidence in
+// everyday words. A click is `frame-contact` -- it frames and colours, never
+// picks. The candidate in focus is the pressed one.
+function buildContactBlock() {
+  const rows = currentContactRows();
+  if (!rows.length) return null;
+  const focus = focusedContact();
+  const block = document.createElement("div");
+  block.className = "an__contacts";
+  for (const { row, via } of rows) {
+    const head = document.createElement("p");
+    head.className = "an__contacts-head";
+    head.textContent = (via ? AA.CONTACT_HEADING_AT + (row.name || row.edge) : AA.CONTACT_HEADING) +
+      ((row.ambiguous_with || []).length ? " — " + AA.CONTACT_AMBIGUOUS : "");
+    head.title = head.textContent;
+    block.appendChild(head);
+    const list = document.createElement("ol");
+    list.className = "an__contacts-list";
+    for (const c of row.candidates.slice(0, AA.CONTACT_LISTED)) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.className = "an__contact";
+      const inFocus = !!focus && focus.row.edge === row.edge && focus.candidate.rank === c.rank;
+      btn.setAttribute("aria-pressed", inFocus ? "true" : "false");
+      btn.dataset.edge = row.edge;
+      btn.dataset.rank = String(c.rank);
+      btn.textContent = AA.describeContact(row.pairing, c);
+      btn.title = btn.textContent;
+      btn.onclick = () => {
+        Promise.resolve()
+          .then(() => AA.exec(["frame-contact", row.edge, String(c.rank)]))
+          .catch((err) => setBanner(err.message, "error"));
+      };
+      li.appendChild(btn);
+      list.appendChild(li);
+    }
+    block.appendChild(list);
+  }
+  return block;
 }
 
 // The suggestion line, or null when there is nothing to say -- the setting is
@@ -4743,6 +4857,8 @@ async function loadAll() {
     const aliasDoc = await state.storage.readPartMeshAliases();
     state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
     state.partNames = await state.storage.readPartNames();
+    state.contactSuggestions = state.storage.readContactSuggestions
+      ? await state.storage.readContactSuggestions() : null;
     // Every recorded occurrence, before any part opens: it is where every
     // part is drawn (scene.placementsFor), and what the panel's notes say.
     await loadOccurrences();
@@ -5031,6 +5147,10 @@ async function main() {
   if (MOCK) {
     state.storage = new AA.MemoryAdapter(AA.FIXTURES);
     await state.storage.connect();
+    // The autotest convention once more: a READ-ONLY handle on what mock mode
+    // captured instead of writing, so a harness can show a gesture wrote
+    // nothing (the contact list's clicks, which must never bind).
+    window.__mockWrites = state.storage.written;
     el.connectBtn.style.display = "none";
     el.transportSub.textContent = "mock mode (?mock=1) -- writes are captured, not persisted";
     await loadAll();

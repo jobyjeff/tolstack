@@ -10,11 +10,18 @@
       2. venv-win\Scripts\python.exe scripts\build_viewer_projection.py
       3. venv-win\Scripts\python.exe scripts\build_part_names_projection.py
       4. <drawing-checker's venv> scripts\build_viewer_crops.py
-      5. venv-win\Scripts\python.exe scripts\build_kinematic_projection.py
+      5. venv-win\Scripts\python.exe scripts\build_contact_suggestions.py
+      6. venv-win\Scripts\python.exe scripts\build_kinematic_projection.py
     (PyMuPDF lives only in drawing-checker's venv -- build_viewer_crops.py's own
     docstring says so, and that fallback stays intact here.)
 
-    Step 5 is the kinematic studies' projection
+    Step 5 is the contact suggestions
+    (data\projections\feature-identity\contact_suggestions.json): which faces
+    could be each gap edge's interface, read off the installed meshes. BEFORE
+    the kinematic step, because that step copies it into the annotator's served
+    read set, as it does the part names.
+
+    Step 6 is the kinematic studies' projection
     (data\projections\viewer\kinematic\, read by apps/viewer/views/kinematic.js
     since 2026-10-20). LAST because it is the one leg that reads a gitignored
     input the others do not -- the linkage sweeps under
@@ -146,6 +153,10 @@ Invoke-Step -Name "part names projection" -Exe $TolstackPython -Arguments @(
 Invoke-Step -Name "viewer crops" -Exe $DrawingCheckerPython -Arguments @(
     (Join-Path $ScriptsDir "build_viewer_crops.py"),
     "--drawing-checker-root", $DrawingCheckerRoot
+)
+
+Invoke-Step -Name "contact suggestions" -Exe $TolstackPython -Arguments @(
+    (Join-Path $ScriptsDir "build_contact_suggestions.py")
 )
 
 Invoke-Step -Name "kinematic projection" -Exe $TolstackPython -Arguments @(
