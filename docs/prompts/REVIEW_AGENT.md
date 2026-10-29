@@ -5266,6 +5266,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261028_the_seam_dot_clip_lost_both_its_witnesses_…`). When a diff
       modifies or deletes a spec, check that the old `find` line is still some
       spec's target, and look for two specs with an identical `find`/`replace`.
+- [ ] **Two branches renamed the same guard to the same new name — the spec
+      merges as add/add + rename/delete, each side re-aimed at a different
+      mutation.** New 2026-10-28 (`the_kinematic_study_reads_like_…`, against
+      `the_active_study_is_a_compact_band_…`'s "at least six leaders"). Picking
+      a side silently drops the other's witness. Keep both mutations in the one
+      spec's `mutations` array and `--only` the guard on the merged tree; drop
+      a mutation only if it is NOT WITNESSED there, with the reason in its
+      `note`.
 
 ## Architectural errors to check
 
