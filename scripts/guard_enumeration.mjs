@@ -159,10 +159,10 @@ export const GUARD_SOURCES = {
 // `node scripts/run_mutation_witness_tests.mjs --unenrolled` is what names the
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
-  fast: { declared: 607, enrollable: 607, names: "57c2e46fa36a" },
+  fast: { declared: 615, enrollable: 615, names: "076fa33e0da7" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
-  // no-write guards. Every one carries a spec.
+  // no-write guards. Every one carries a spec. Re-measured at the review merge.
   annotate: { declared: 248, enrollable: 248, names: "e01be3819f16" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
@@ -173,7 +173,7 @@ export const DECLARED_GUARDS = {
   // 2026-10-28 (the_active_study_is_a_compact_band_...): +8 fast, +6 browser
   // on top, re-measured at that review's merge; then +4 browser
   // (an_interface_suggests_the_faces_that_touch, above).
-  browser: { declared: 723, enrollable: 690, names: "5c66cd0130d5" },
+  browser: { declared: 725, enrollable: 692, names: "8d18c01f24b8" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
