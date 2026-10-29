@@ -139,6 +139,32 @@ main checkout's `git status` was clean after the runs, and its shared
 `data/projections/viewer/kinematic/` still has its 00:41 mtime, so the runs
 wrote nothing to production data.
 
+### Second merge: integration moved again before landing
+
+`a_study_is_a_translucent_group_on_the_dag` landed on `integration` after the
+first merge. I merged `integration` into this branch again, as `6d08276e`.
+Its viewer edits to `topology_app.js`, `topology.css` and `views/topology.js`
+merged with this handoff's without conflict. The one conflict was the guard
+pins again. I re-measured on the merged tree: fast 622/622 (= 614 + 8) and
+browser 723/690 (= 721/688 + 2). Then I re-ran on that tree:
+
+- the risky subset (the first list plus `tests/test_topology_projection.py`):
+  210 passed;
+- `run_tests.cjs --repo <scratch>`: 621/621, with the projection paired with
+  this tree;
+- the browser tier: 34 of 35 suites passed in 350 s. `crop lightbox` failed
+  on "the launcher takes keyboard focus…" with a 10 s timeout. Run alone with
+  `--only` it passed 20/20 twice, and it passed 20/20 in the first-merge
+  full run. That is the load flake already filed on integration as
+  `ISSUE_20261028_crop_lightbox_suite_fails_under_load_on_launcher_focus.md`.
+  Nothing in either diff touches the stack page's crop launcher, except that
+  `.tv .detail` is now sticky on that page as well. Because the suite passes
+  alone, I read this as the known flake and not as a sticky-pane regression.
+
+I did not re-run the witness tier after this second merge. Its `SHADOWED`
+inputs changed only through `integration`'s own reviewed landing, and every
+entry the conflict resolutions touched was witnessed above.
+
 ## Findings
 
 **Blockers: none.**
