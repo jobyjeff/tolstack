@@ -1163,3 +1163,17 @@ def test_the_annotators_config_names_the_read_set_the_builder_writes():
     assert line("contactSuggestions",
                 ("data",) + builder.CONTACT_SUGGESTIONS_PROJECTION.parts) in annotate
     assert f'"{builder.MESH_ALIASES_NAME}"]' in annotate
+
+
+def test_the_open_question_the_kinematic_chart_links_to_is_on_file():
+    """The kinematic chart's one line about a travel band carried at both
+    stops links to the issue that asks which stop it belongs to
+    (views/kinematic.js's VA.KINEMATIC_TRAVEL_DATUM_ISSUE). A link to a
+    renamed or missing file is a dead end on a reader's page."""
+    import re  # noqa: PLC0415
+
+    view = (REPO_ROOT / "apps" / "viewer" / "views" / "kinematic.js").read_text(
+        encoding="utf-8")
+    found = re.search(r'VA\.KINEMATIC_TRAVEL_DATUM_ISSUE =\s*"([^"]+)"', view)
+    assert found, "the constant is not declared where the test looks for it"
+    assert (REPO_ROOT / found.group(1)).is_file(), found.group(1)

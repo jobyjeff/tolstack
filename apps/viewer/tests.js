@@ -11380,17 +11380,18 @@
     var KIN_STUDY = KIN.studies[0];
     var KIN_TOPOLOGIES = VA.demoTopologyProjection();
 
-    // The page's two blocks, head first, into one root -- the order
-    // topology.html stacks them in, with the model between.
+    // The page's two blocks into one root: the results (the right-hand
+    // pane's, topology_app.js's paint) and the contributor table (the main
+    // column's, under the model).
     function kinematicPage(overrides) {
       var ctx = Object.assign({ kinematic: KIN, study: KIN_STUDY,
         topologies: KIN_TOPOLOGIES }, overrides || {});
       return render(function (r) {
-        var head = VA.el("section");
+        var results = VA.el("section");
         var body = VA.el("section");
-        r.appendChild(head);
+        r.appendChild(results);
         r.appendChild(body);
-        VA.renderKinematicHead(head, ctx);
+        VA.renderKinematicResults(results, ctx);
         VA.renderKinematic(body, ctx);
       });
     }
@@ -12807,6 +12808,144 @@
         }
         eq(chart.xLabel, "actuator travel, mm");
         eq(chart.yLabel, "tip angle from nominal, deg");
+      });
+
+    // The demo study with a contributor that is a study moving the driver
+    // itself: a "travel" sub-study at both stops, its terms folded at |J|
+    // times their bands (the chain rule, as the builder folds it), so each
+    // stop's worst case is the direct terms' plus the group's reach.
+    function kinTravelStudy(opts) {
+      opts = opts || {};
+      var study = JSON.parse(JSON.stringify(KIN_STUDY));
+      var J = [-2.0, -1.8, -1.6, -1.4, -1.2];
+      var h = 0.05, a = 0.04;
+      study.study_refs = [{ study: "demo_travel", topology: study.topology,
+        title: "Demo travel", parameter: opts.parameter || "actuator.value", units: "mm",
+        total: { nominal: opts.nominal === undefined ? 19.98 : opts.nominal,
+                 worst_case_min: 19.93, worst_case_max: 20.03, worst_case_half: h,
+                 rss_center: 19.98, rss_half: a },
+        entries: J.map(function (e, i) { return { index: i, entry: e, sign: -1 }; }),
+        children: [] }];
+      var stopsWithBand = opts.stops || ["low", "high"];
+      study.stops.forEach(function (stop) {
+        if (stopsWithBand.indexOf(stop.id) === -1) { stop.groups = []; return; }
+        var e = J[stop.index];
+        stop.groups = [{ study: "demo_travel", topology: study.topology, title: "Demo travel",
+          parameter: "actuator.value", entry: e, sign: -1, reach: Math.abs(e) * h,
+          units: "mm", children: [] }];
+      });
+      return study;
+    }
+
+    // The pixel scale of a chart's y axis, read off its own zero and limit
+    // lines, so a test can turn a polygon's pixels back into degrees.
+    function chartYValue(chart, py) {
+      var perUnit = (chart.zeroY - chart.limits[0].upper) / 0.5;
+      return (chart.zeroY - py) / perUnit;
+    }
+
+    function polygonYs(points) {
+      return points.split(" ").map(function (p) { return Number(p.split(",")[1]); });
+    }
+
+    await test("a stop whose position carries a travel band is a band on x, and the " +
+      "envelope across it reaches the stop's folded worst case at its far corners", function () {
+        var study = kinTravelStudy();
+        var chart = VA.kinematicChart(study, 3);
+        eq(chart.bands.map(function (b) { return b.stop; }), ["low", "high"]);
+        var low = study.stops[0];
+        var band = chart.bands[0];
+        // The identity the chips and the plot share: |J| x the travel's half
+        // plus what the other contributors spread is the stop's own total.
+        ok(Math.abs(band.cornerWorst - low.worst_case_half) < 1e-12,
+           "corner " + band.cornerWorst + " vs the stop's " + low.worst_case_half);
+        ok(Math.abs(band.cornerRss - low.rss_half) < 1e-12, "the RSS ellipse's top is the stop's RSS");
+        // ...and it is what is DRAWN: the parallelogram's extreme pixels are
+        // that many degrees from zero, either way.
+        var ys = polygonYs(band.worst).map(function (py) { return chartYValue(chart, py); });
+        ok(Math.abs(Math.max.apply(null, ys) - low.worst_case_half) < 0.005, "top corner " + ys);
+        ok(Math.abs(Math.min.apply(null, ys) + low.worst_case_half) < 0.005, "bottom corner " + ys);
+        var rssYs = polygonYs(band.rss).map(function (py) { return chartYValue(chart, py); });
+        ok(Math.max.apply(null, rssYs) <= low.rss_half + 0.005 &&
+           Math.max.apply(null, rssYs) > low.rss_half - 0.01, "the ellipse reaches the RSS half");
+        // On x: the worst-case band outside the RSS one, both about the stop.
+        ok(band.worstFrom < band.rssFrom && band.rssTo < band.worstTo, "RSS inside worst case");
+        var stopX = chart.stops[0].x;
+        ok(Math.abs((band.worstFrom + band.worstTo) / 2 - stopX) < 0.02, "centred on the stop");
+        // The axis was widened to hold it: the low stop sits at the sweep's
+        // driver minimum, so its band starts left of where the sweep does.
+        ok(band.worstFrom >= chart.plot.left - 0.01 && stopX > chart.plot.left,
+           "the band is inside the plot, past the sweep's own end");
+        // One label per study, at the stop nearest its nominal (19.98 is the
+        // high stop's 20).
+        eq(chart.bands.map(function (b) { return b.label ? b.label.text : null; }),
+           [null, "Demo travel 19.930–20.030 mm"]);
+      });
+
+    await test("both stops carrying one travel band is said in one line under the chart, " +
+      "linked where the page can reach the repo's documents", function () {
+        var root = kinematicPage({ study: kinTravelStudy() });
+        var note = all(root, "p.kmchart__note");
+        eq(note.length, 1);
+        has(note[0].textContent, "Both stops carry the whole travel band");
+        eq(all(note[0], "a").length, 0, "no link without a way to the documents");
+        var linked = kinematicPage({ study: kinTravelStudy(),
+          docsHref: function (path) { return "../../" + path; } });
+        var a = all(all(linked, "p.kmchart__note")[0], "a")[0];
+        eq(a.getAttribute("href"), "../../" + VA.KINEMATIC_TRAVEL_DATUM_ISSUE);
+        eq(a.textContent, "an open question");
+        // One stop with the band: nothing to say.
+        eq(all(kinematicPage({ study: kinTravelStudy({ stops: ["high"] }) }),
+          "p.kmchart__note").length, 0);
+        eq(all(kinematicPage(), "p.kmchart__note").length, 0);
+        eq(all(kinematicPage(), "rect.kmchart__band").length, 0, "no travel, no band");
+        eq(all(root, "rect.kmchart__band").length, 4, "two stops, worst case and RSS each");
+        eq(all(root, "polygon.kmchart__region").length, 4);
+      });
+
+    await test("only a study that moves the sweep's own driver is a band on x", function () {
+        eq(VA.kinematicTravelBands(kinTravelStudy({ parameter: "arm.length" })), []);
+        eq(VA.kinematicTravelBands(kinTravelStudy()).length, 2);
+      });
+
+    await test("the x axis says what it spans when the travel study's nominal is not " +
+      "the sweep's, and says nothing extra when they agree", function () {
+        eq(VA.kinematicChart(kinTravelStudy(), 3).xLabel,
+           "actuator travel, mm (swept 0.000–20.000; travel study nominal 19.980)");
+        eq(VA.kinematicChart(kinTravelStudy({ nominal: 20.0 }), 3).xLabel,
+           "actuator travel, mm");
+        eq(VA.kinematicChart(KIN_STUDY, 3).xLabel, "actuator travel, mm");
+      });
+
+    await test("each stop's readout is one row: where it is on the sweep, the measure " +
+      "there and both spreads, at the projection's precision", function () {
+        var model = VA.kinematicStopReadouts(KIN_STUDY, 3);
+        eq(model.head, ["stop", "actuator travel (mm)", "tip angle (deg)", "worst case", "RSS"]);
+        eq(model.rows.map(function (r) { return r.cells; }),
+           [["low stop", "0.000", "-7.000", "±0.310", "±0.210"],
+            ["high stop", "20.000", "72.000", "±0.550", "±0.360"]]);
+        var root = kinematicPage();
+        eq(all(root, "tr.kmreadouts__row").map(function (tr) {
+          return tr.getAttribute("data-stop");
+        }), ["low", "high"]);
+      });
+
+    await test("a chain study's verdicts are the same strip a kinematic study's are: " +
+      "one chip per check, or the one rollup badge", function () {
+        var study = { id: "s", title: "S", status: "ok", checks: [{
+          check_id: "c1", label: "Gap stays open", verdict: "pass", margin: 0.2,
+          units: "mm", criterion: ">= 0", verdict_scope: "budget", complete: true }] };
+        var strip = VA.verdictStrip(VA.chainVerdictItems(study), {});
+        var items = all(strip, "div.kmverdict");
+        eq(items.length, 1);
+        ok(hasClass(items[0].querySelector("span.tvverdict"), "tvverdict--pass"));
+        has(items[0].textContent, "Gap stays open");
+        has(items[0].textContent, "margin +0.2 mm");
+        has(items[0].textContent, "must be >= 0");
+        var none = VA.chainVerdictItems({ id: "n", title: "N", status: "ok", checks: [] });
+        eq(none.length, 1);
+        eq(none[0].state, "none");
+        eq(VA.chainVerdictItems(null), []);
       });
 
     await test("hovering an envelope point shows the driver, the nominal and both " +
@@ -17206,16 +17345,45 @@
             eq(minus7.rows[0].edge, "pitch_plate_attach_height");
           });
 
+        await test("[real] the live -7 deg stop is drawn as a travel band whose far-edge " +
+          "envelope corner is its folded worst case, 1.707 deg, and the +72 stop's band " +
+          "is there too, with the one line that says both carry it", function () {
+            var decimals = realKinematic.display_decimals;
+            var chart = VA.kinematicChart(realKinStudy, decimals);
+            var stops = {};
+            realKinStudy.stops.forEach(function (s) { stops[s.id] = s; });
+            eq(chart.bands.map(function (b) { return b.stop; }), ["minus7", "plus72"]);
+            var minus7 = chart.bands[0];
+            eq(VA.kinematicNumber(minus7.cornerWorst, decimals), "1.707");
+            ok(Math.abs(minus7.cornerWorst - stops.minus7.worst_case_half) < 1e-9,
+               "the corner is the stop's own worst case, " + minus7.cornerWorst);
+            ok(Math.abs(chart.bands[1].cornerWorst - stops.plus72.worst_case_half) < 1e-9,
+               "and at +72, " + chart.bands[1].cornerWorst);
+            ok(Math.abs(minus7.cornerRss - stops.minus7.rss_half) < 1e-9, "RSS too");
+            // What the chips print is what the corner reaches.
+            var verdict = VA.kinematicVerdicts(realKinStudy, decimals)[0];
+            eq(verdict.marginText, "margin " +
+               VA.kinematicSigned(0.5 - minus7.cornerWorst, decimals) + " deg");
+            var ys = polygonYs(minus7.worst).map(function (py) { return chartYValue(chart, py); });
+            eq(VA.kinematicNumber(Math.max.apply(null, ys), 2), "1.71");
+            eq(chart.bands.filter(function (b) { return b.label; }).map(function (b) {
+              return [b.stop, b.label.text];
+            }), [["minus7", "Travel between end stops 63.620–65.260 mm"]]);
+            eq(chart.sharedBands, ["vpa_pitch_linkage_travel_between_end_stops"]);
+            eq(chart.xLabel,
+               "actuator travel, mm (swept 0.000–64.466; travel study nominal 64.440)");
+          });
+
         await test("[real] the kinematic page renders the live study: two verdicts, " +
           "one table of six contributors said once, none of them a gap", function () {
             var root = render(function (r) {
-              var head = VA.el("section");
+              var results = VA.el("section");
               var body = VA.el("section");
-              r.appendChild(head);
+              r.appendChild(results);
               r.appendChild(body);
               var ctx = { kinematic: realKinematic, study: realKinStudy,
                 topologies: realKinTopologies };
-              VA.renderKinematicHead(head, ctx);
+              VA.renderKinematicResults(results, ctx);
               VA.renderKinematic(body, ctx);
             });
             eq(all(root, "div.kmverdict").length, 2);
@@ -17311,7 +17479,7 @@
             });
             var shown = [];
             var root = render(function (r) {
-              VA.renderKinematicHead(r, { kinematic: realKinematic, study: realKinStudy,
+              VA.renderKinematicResults(r, { kinematic: realKinematic, study: realKinStudy,
                 topologies: realKinTopologies,
                 onCardShow: function (card) { shown.push(card.title); } });
             });

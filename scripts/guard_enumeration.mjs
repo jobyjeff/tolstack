@@ -159,7 +159,13 @@ export const GUARD_SOURCES = {
 // `node scripts/run_mutation_witness_tests.mjs --unenrolled` is what names the
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
-  fast: { declared: 615, enrollable: 615, names: "076fa33e0da7" },
+  // 2026-10-28 (the_kinematic_study_reads_like_every_other_study_and_its_
+  // plot_shows_both_tolerances): +7, the travel band's and the results
+  // pane's checks, each with a spec -- re-measured at its review merge, on
+  // top of the_active_study_is_a_compact_band_...'s +8.
+  // Re-measured again at the same review's second merge, on top of
+  // a_study_is_a_translucent_group_on_the_dag.
+  fast: { declared: 622, enrollable: 622, names: "ed4b94d0cb97" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
@@ -171,9 +177,18 @@ export const DECLARED_GUARDS = {
   // pane reads over HTTP", whose condition is the literal `true`, so no
   // mutation can redden them.
   // 2026-10-28 (the_active_study_is_a_compact_band_...): +8 fast, +6 browser
-  // on top, re-measured at that review's merge; then +4 browser
+  // on top, re-measured at that review's merge.
+  // Then +2 (the_kinematic_study_reads_like_every_other_study_and_its_plot_
+  // shows_both_tolerances): two new checks on the plot, and ten renamed for
+  // the unbounded model, the results pane and the scene no longer standing
+  // it down, and the leaders' hide count (the window holds twelve). Every
+  // new name carries a spec but one, Fit's "in that mode",
+  // which had none under its old name either. Re-measured at its review
+  // merge.
+  // Re-measured again at the same review's second merge, on top of
+  // a_study_is_a_translucent_group_on_the_dag. Then +4
   // (an_interface_suggests_the_faces_that_touch, above).
-  browser: { declared: 725, enrollable: 692, names: "8d18c01f24b8" },
+  browser: { declared: 727, enrollable: 694, names: "4f8e804382c3" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

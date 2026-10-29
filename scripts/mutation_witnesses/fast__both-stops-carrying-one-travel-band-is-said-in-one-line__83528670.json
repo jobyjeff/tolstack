@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "both stops carrying one travel band is said in one line under the chart, linked where the page can reach the repo's documents",
+  "mutations": [
+    {
+      "contract": "A travel band carried at more than one stop is said under the chart.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Drops the line.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (chart && chart.sharedBands.length) root.appendChild(sharedBandNote(study, chart, ctx));\n",
+      "replace": ""
+    }
+  ]
+}

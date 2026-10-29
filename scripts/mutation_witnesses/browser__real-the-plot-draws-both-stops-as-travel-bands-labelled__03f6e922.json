@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the plot draws both stops as travel bands, labelled once, with the line that says both carry it",
+  "mutations": [
+    {
+      "contract": "Each live stop's travel band is drawn worst case and RSS.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Draws only the worst-case strip.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      [[\"worst\", band.worstFrom, band.worstTo], [\"rss\", band.rssFrom, band.rssTo]]\n",
+      "replace": "      [[\"worst\", band.worstFrom, band.worstTo]]\n"
+    }
+  ]
+}

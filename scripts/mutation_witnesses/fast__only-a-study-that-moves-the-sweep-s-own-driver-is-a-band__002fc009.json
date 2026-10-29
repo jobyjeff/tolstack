@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "only a study that moves the sweep's own driver is a band on x",
+  "mutations": [
+    {
+      "contract": "A contributor study chained through any other parameter is not a shift along x.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Drops the parameter test, so every study ref becomes a band.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        if (!parameter || ref.parameter !== parameter) return;\n",
+      "replace": ""
+    }
+  ]
+}
