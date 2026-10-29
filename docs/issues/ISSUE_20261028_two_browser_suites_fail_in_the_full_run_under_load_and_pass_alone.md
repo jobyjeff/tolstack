@@ -59,3 +59,10 @@ Each of the three passed alone straight afterwards (32/32, 34/34, 20/20),
 against the same scratch root. That branch does run new code on the annotator's
 selection path (`suggest` now also colours touching faces), so the third suite
 is put down to load on the strength of it passing alone, not of a code reading.
+
+## Addendum 2026-10-28 (review of an_interface_suggests_the_faces_that_touch)
+
+Same pair again on the review's full run of the merged tree (33/35, 351 s,
+`--repo` the tactical's scratch root): `3D pane follows the selection`
+("…leaving it takes the light down") and `crop lightbox` (launcher focus).
+Each passed alone with `--only` immediately after (1/1, 1/1).
