@@ -150,7 +150,8 @@ written. Delete the root after the review.
 | `node scripts/run_mutation_witness_tests.mjs --changed-since master --repo <scratch>` | 47/48 witnessed, 48/95 reached before the 30-min cap, 47 left to the sweep. The one NOT WITNESSED decay predates this branch (`ISSUE_20261028_the_contributor_row_highlight_witness_aborts_before_its_check.md`) | 1798 s |
 
 The budget cap left some of this handoff's new specs to the sweep, among
-them the hosted read-only three and the flyout status check. The
+them all nine of "the scene pane reads over HTTP", the hosted read-only three
+and the flyout status check. The
 `--only` runs above show their unmutated suites green, but their mutations
 were not exercised here. Specs it did witness: all seven annotate specs and
 the seam-handle display spec.
