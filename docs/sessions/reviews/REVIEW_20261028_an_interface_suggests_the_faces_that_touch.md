@@ -112,5 +112,49 @@ neighbour-joint heading), no commands and no state hues. Nothing to file.
   skipping there. This is the operator's normal post-batch-merge rebuild, not
   a new step.
 - The tactical scratch root `C:\workspace\tolstack\data\scratch\contact_suggest\`
-  (~430 MB) was used by this review and is removed at the end of it (see the
+  (~430 MB) was used by this review and is left in place (see the
   closing section).
+
+## Landing — two integration merges, and the witness gate
+
+`integration` moved twice while the review ran (`a_study_is_a_translucent_group_on_the_dag`,
+then `the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances`),
+so `review/…` merged it twice.
+
+**Conflicts, both merges: `scripts/guard_enumeration.mjs`'s `DECLARED_GUARDS`.**
+Neither side is right on its own, because each side's pins were measured
+without the other's guards. Resolution: take integration's lines and comments,
+add this handoff's note, and paste the counts `node scripts/guard_enumeration.mjs --json`
+measured. Each count is integration's pin plus this handoff's delta: annotate
+246+2 = 248, and browser 721+4 / 688+4 at the first merge, 723+4 = 727 /
+690+4 = 694 at the second. `fast` is integration's (622).
+**Second merge also: `docs/prompts/REVIEW_AGENT.md`**. Both sides appended a
+new Recurring-bugs entry at the same place, so both are kept, ours first. No
+marker lines were committed (checked with the grep).
+
+After each merge: `test_mutation_witnesses`, the contact/inventory/kinematic/
+vocabulary/doc-corpus tests (199, then 396 passed), the annotator fast tier
+248/248, and the viewer fast tier through the scratch root (614/614, then
+621/621, projection paired).
+
+**Witness gate after the first merge** (`--changed-since master --repo <scratch>`,
+30-minute cap): **84/85 witnessed, 85/174 reached, 30m40s, 89 left to the
+sweep (budget)**. The one NOT WITNESSED is
+`browser__real-clicking-a-contributor-row-with-the-pane-open-keeps__d42adbc7`:
+"another check reddened, but not the declared one". It reproduces with
+`--only` on the merged tree, **and identically on a `git archive` of the
+integration tip without this handoff** (`88440806`). So the decay is not
+caused by this merge; it is already filed on integration as
+`ISSUE_20261028_the_contributor_row_highlight_witness_aborts_before_its_check.md`.
+It was selected only because `master..HEAD` spans other handoffs' harness hunks.
+This handoff's own harness hunk is at `run_viewer_browser_tests.mjs:8242`,
+far from that guard (`:6924`).
+
+**Witness gate after the second merge** (`--changed-since integration --repo <scratch>`,
+i.e. the hunks this handoff adds on top of the current integration tip):
+**20/20 witnessed, 20/20 reached, 8m10s, 0 left to the sweep**, exit 0, at
+`3be8f1be`. No drop.
+
+Scratch root `C:\workspace\tolstack\data\scratch\contact_suggest\` (the
+tactical's; gitignored) is left in place for the operator's housekeeping. This
+review's own projection under the worktree's `data/` goes with the worktree.
