@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a proposal never stands: the row's state is `proposed`, with no binding and no alert, and a rejected-only record is `unbound`",
+  "mutations": [
+    {
+      "contract": "A record whose only open events are proposals is `proposed`, never `bound` -- the fold's precedence (StackKeyBindings.state).",
+      "issue": null,
+      "note": "The failure this pins: an agent's proposal colouring a row green as if a human had bound it.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      if ((record.proposals || []).length) return AA.BINDING_STATES.PROPOSED;",
+      "replace": "      if ((record.proposals || []).length) return AA.BINDING_STATES.BOUND;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the rail chip and the hover say who proposed, how sure and why, in everyday words",
+  "mutations": [
+    {
+      "contract": "The chip names the proposer in everyday words -- \"agent\" -- never the raw `agent:<handoff-slug>` actor string.",
+      "issue": null,
+      "note": "A handoff slug on a rail row is an internal id on the surface, which the web-UI rules forbid.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    if (kind === AA.ACTOR_KINDS[1]) return \"agent\";",
+      "replace": "    if (kind === AA.ACTOR_KINDS[1]) return String(recordedBy);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "Accept writes the proposed face, at the proposed end, as a `bound` event naming the proposal and recorded as the reviewer",
+  "mutations": [
+    {
+      "contract": "An Accept is a `bound` event carrying `ratifies: <proposal id>`; without it the fold cannot close the proposal and the face reads as proposed and bound at once.",
+      "issue": null,
+      "note": "Dropping `ratifies` still writes a plausible binding -- which is why it needs pinning.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      ratifies: proposal.event_id,",
+      "replace": "      ratifies: null,"
+    }
+  ]
+}

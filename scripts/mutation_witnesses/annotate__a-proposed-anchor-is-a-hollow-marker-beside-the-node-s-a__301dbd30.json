@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a proposed anchor is a hollow marker BESIDE the node's anchor -- never for a node already anchored at a joint or a binding, and never moving the anchor",
+  "mutations": [
+    {
+      "contract": "A node already anchored at a solver joint or a binding gets no hollow marker: it has its answer, and a proposal beside it would read as a disagreement.",
+      "issue": null,
+      "note": "The mutation draws a marker for every proposed node, joint and bound ones included.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (!a || a.source === AA.MODEL_ANCHOR_SOURCES[0] || a.source === AA.MODEL_ANCHOR_SOURCES[1]) return;",
+      "replace": "      if (!a) return;"
+    }
+  ]
+}
