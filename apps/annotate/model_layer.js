@@ -401,6 +401,22 @@
     return out;
   };
 
+  // The hollow markers: an agent's proposed point per node, beside the anchor
+  // the node actually has -- {node id: {subject, point}}. A node anchored at
+  // a solver joint or at a binding already has its answer and gets none; a
+  // proposal NEVER replaces an anchor (the scene moves only on an accept).
+  // `proposedPoints` is {node id: [x, y, z]}, read from open proposals exactly
+  // as `bound` is read from bindings.
+  AA.modelProposedAnchors = function (anchors, proposedPoints) {
+    var out = {};
+    Object.keys(proposedPoints || {}).forEach(function (id) {
+      var a = anchors[id];
+      if (!a || a.source === AA.MODEL_ANCHOR_SOURCES[0] || a.source === AA.MODEL_ANCHOR_SOURCES[1]) return;
+      out[id] = { subject: a.subject, point: proposedPoints[id].slice() };
+    });
+    return out;
+  };
+
   // Every edge's two ends, by node: {edge id: {from, to, kind, body}} where
   // `body` is the body both ends ride when they ride the same one (the
   // structural line drawn in that body's frame), else null (a joint line,

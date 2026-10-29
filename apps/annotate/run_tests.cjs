@@ -1249,6 +1249,99 @@ check("faceSubGeometry throws for a face with no triangles", () => {
     { start: 0, count: 3 }, 7));
 });
 
+// --- an agent proposes, a human ratifies (handoff an_agent_proposes_a_face_
+// binding_and_a_human_ratifies_it) ------------------------------------------
+
+const PROPOSAL_SHA = "c".repeat(64);
+const PROPOSAL = Object.freeze({
+  schema: "joby.tolerance_stack/feature-identity/v0",
+  event_id: "proposal-0001-rod_len-from", seq: 1, created_at: "2026-10-28T00:00:00Z",
+  recorded_by: "agent:an_agent_proposes_a_face_binding_and_a_human_ratifies_it",
+  stack_key: { kind: "topology_edge", topology_id: "rail_topo", edge_id: "rod_len" },
+  verdict: "proposed",
+  geometry_key: { source_step_sha256: PROPOSAL_SHA, face_id: 7, area_native2: 12.5,
+    centroid_native: [1, 2, 3] },
+  direction: "from", confidence: "high", surface_class: "cylindrical",
+  basis: "round face; the contact engine's one clear pair",
+});
+const emptyRow = () => ({ stack_key: PROPOSAL.stack_key, bindings: [], owner_not_in_set: [],
+  history: [], superseded: [] });
+
+check("faceBoundaryEdges: a face's outline is the edges only one of its triangles uses", () => {
+  // Two triangles sharing the diagonal 1-2: four outline edges, the diagonal not one.
+  const edges = AA.faceBoundaryEdges([0, 1, 2, 1, 3, 2]).map((e) => e.join("-")).sort();
+  assertEqual(edges, ["0-1", "0-2", "1-3", "2-3"]);
+  assertEqual(AA.faceBoundaryEdges([0, 1, 2]).length, 3);
+});
+
+check("a proposal never stands: the row's state is `proposed`, with no binding and no " +
+  "alert, and a rejected-only record is `unbound`", () => {
+  const row = AA.addEventToRecord(emptyRow(), PROPOSAL);
+  assertEqual(row.bindings, []);
+  assertEqual(row.proposals.map((p) => p.event_id), [PROPOSAL.event_id]);
+  assertEqual(AA.elementBindingState(row, null), AA.BINDING_STATES.PROPOSED);
+  assertEqual(AA.elementAlerts(AA.BINDING_STATES.PROPOSED), []);
+  const reject = AA.buildRejectEvent(PROPOSAL, { eventId: "r1", seq: 2,
+    createdAt: "2026-10-28T01:00:00Z", recordedBy: AA.humanActor("jeff") });
+  AA.addEventToRecord(row, reject);
+  assertEqual(row.proposals, []);
+  assertEqual(row.rejected_proposals.map((p) => p.event_id), [PROPOSAL.event_id]);
+  assertEqual(AA.elementBindingState(row, null), AA.BINDING_STATES.UNBOUND);
+});
+
+check("Accept writes the proposed face, at the proposed end, as a `bound` event naming " +
+  "the proposal and recorded as the reviewer", () => {
+  const event = AA.buildAcceptEvent(PROPOSAL, { eventId: "a1", seq: 2,
+    createdAt: "2026-10-28T01:00:00Z", recordedBy: AA.humanActor("jeff") });
+  assertEqual(event.verdict, "bound");
+  assertEqual(event.ratifies, PROPOSAL.event_id);
+  assertEqual(event.recorded_by, "annotate-app:jeff");
+  assertEqual(event.direction, "from");
+  assertEqual(event.geometry_key, PROPOSAL.geometry_key);
+  assertEqual(event.supersedes, undefined, "an accept with nothing to replace superseded something");
+  const row = AA.addEventToRecord(AA.addEventToRecord(emptyRow(), PROPOSAL), event);
+  assertEqual(row.bindings.map((b) => b.event_id), ["a1"]);
+  assertEqual(row.proposals, []);
+  assertEqual(row.accepted_proposals, [PROPOSAL.event_id]);
+  assertEqual(AA.elementBindingState(row, null), AA.BINDING_STATES.BOUND);
+});
+
+check("an agent cannot accept or reject, and nothing but a proposal can be answered", () => {
+  const agent = { eventId: "x", seq: 2, createdAt: "t", recordedBy: PROPOSAL.recorded_by };
+  assertThrows(() => AA.buildAcceptEvent(PROPOSAL, agent));
+  assertThrows(() => AA.buildRejectEvent(PROPOSAL, agent));
+  const human = Object.assign({}, agent, { recordedBy: AA.humanActor("jeff") });
+  assertThrows(() => AA.buildAcceptEvent(Object.assign({}, PROPOSAL, { verdict: "bound" }), human));
+  assertThrows(() => AA.humanActor(""));
+});
+
+check("the rail chip and the hover say who proposed, how sure and why, in everyday words", () => {
+  const row = AA.addEventToRecord(emptyRow(), PROPOSAL);
+  AA.addEventToRecord(row, Object.assign({}, PROPOSAL, {
+    event_id: "proposal-0002-rod_len-to", direction: "to", confidence: "medium" }));
+  assertEqual(AA.proposalChip(row), "proposed by agent · high");
+  assertEqual(AA.proposalChip(emptyRow()), null);
+  const rows = AA.describeProposals(row, { from: "rod top", to: "rod bottom" });
+  assertEqual(rows.map((r) => [r.end, r.face, r.confidence, r.actor]),
+    [["rod top", 7, "high", "agent"], ["rod bottom", 7, "medium", "agent"]]);
+  assertEqual(AA.proposalHoverText(rows[0]),
+    "Proposed by agent (high): round face; the contact engine's one clear pair");
+  assertEqual(AA.actorWords("annotate-app:jeff"), "jeff");
+  assertEqual(AA.actorWords("annotate-app"), "annotate-app", "a pre-prefix event lost its words");
+});
+
+check("a proposed anchor is a hollow marker BESIDE the node's anchor -- never for a node " +
+  "already anchored at a joint or a binding, and never moving the anchor", () => {
+  const anchors = {
+    a: { source: "section", subject: "body1", point: [0, 0, 0] },
+    b: { source: "bound", subject: "body1", point: [1, 1, 1] },
+    c: { source: "joint", subject: null, point: null },
+  };
+  const proposed = AA.modelProposedAnchors(anchors, { a: [5, 5, 5], b: [9, 9, 9], c: [7, 7, 7] });
+  assertEqual(proposed, { a: { subject: "body1", point: [5, 5, 5] } });
+  assertEqual(anchors.a.point, [0, 0, 0], "the proposal moved the anchor");
+});
+
 // --- planStudyTrace (handoff study_3d_flyout): the per-study 3D trace as
 // data. Fixture-shaped plain objects; the identity projection reuses the
 // mock fixture's own (demo_edge_untraced bound to face 0 of the demo mesh).
@@ -1447,7 +1540,9 @@ check("a node feature's colour is the binding at its own end of the edge, and a 
   assertEqual(state("to"), AA.BINDING_STATES.UNBOUND, "the other end is not bound");
   assertEqual(state(null), AA.BINDING_STATES.BOUND);
   assertEqual(state("from", { e1: "needs_re_confirmation" }), AA.BINDING_STATES.NEEDS_RECONFIRMATION);
-  const owner = { stack_keys: [{ stack_key: identity.stack_keys[0].stack_key, bindings: [] }] };
+  // The fold's own shape for an owner-not-in-set key: no binding, one finding.
+  const owner = { stack_keys: [{ stack_key: identity.stack_keys[0].stack_key, bindings: [],
+    owner_not_in_set: [{ event_id: "n1", verdict: "owner_not_in_set" }] }] };
   assertEqual(AA.sweepFeatureState(owner, null, "rail_topo", { edgeId: "rod_len", direction: "to" }),
     AA.BINDING_STATES.OWNER_NOT_IN_SET);
   assertEqual(AA.sweepFeatureState(identity, null, "rail_topo", { edgeId: null, direction: null }),
@@ -1875,11 +1970,12 @@ check("DESELECT_TARGETS is a closed set whose FIRST value is the default the " +
 // actual alerts." The row keeps the COLOUR (a class per state, style.css);
 // the words move into this table and out of the badge's text, where they used
 // to be the raw schema value.
-check("every binding state except `bound` has an alert sentence, and `bound` " +
-  "deliberately has none", () => {
+check("every binding state except the quiet ones (`bound`, `proposed`) has an " +
+  "alert sentence, and the quiet ones deliberately have none", () => {
   const states = Object.keys(AA.BINDING_STATES).map((k) => AA.BINDING_STATES[k]);
   const alerted = Object.keys(AA.BINDING_STATE_ALERTS).sort();
-  const expected = states.filter((s) => s !== AA.BINDING_STATES.BOUND).sort();
+  const expected = states.filter((s) => AA.QUIET_BINDING_STATES.indexOf(s) === -1).sort();
+  assertEqual(AA.QUIET_BINDING_STATES.slice().sort(), ["bound", "proposed"]);
   // The pairing, so a state added to AA.BINDING_STATES without a decision
   // about whether it is an alert fails HERE rather than rendering a silent row.
   assertEqual(alerted, expected);

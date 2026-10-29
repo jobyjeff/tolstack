@@ -147,6 +147,29 @@
     };
   };
 
+  // A face's outline: the edges of its triangles that only ONE triangle of the
+  // face uses, as index pairs into the same local vertex run faceSubGeometry
+  // returns. OCC shares a face's nodes between its triangles, so an interior
+  // edge is used twice and a boundary edge once. What an agent's proposed face
+  // is drawn with (dashed), so a proposal reads apart from a binding's fill.
+  AA.faceBoundaryEdges = function (indices) {
+    var count = {};
+    for (var t = 0; t + 2 < indices.length; t += 3) {
+      for (var k = 0; k < 3; k++) {
+        var a = indices[t + k], b = indices[t + (k + 1) % 3];
+        var key = a < b ? a + "," + b : b + "," + a;
+        count[key] = (count[key] || 0) + 1;
+      }
+    }
+    var out = [];
+    Object.keys(count).forEach(function (key) {
+      if (count[key] !== 1) return;
+      var pair = key.split(",");
+      out.push([Number(pair[0]), Number(pair[1])]);
+    });
+    return out;
+  };
+
   // Which elements a SCOPE covers: one study's own lassoed selection, or --
   // with no study -- every edge in the topology (handoff annotate_hint_bar_
   // and_context_autofilter, deliverable 4: Jeff asked for a way into 3D

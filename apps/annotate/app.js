@@ -690,6 +690,7 @@ function cmdDeselect(target) {
   // Letting go of the face takes its overlay down; letting go of the ELEMENT
   // takes the whole suggestion display down, bodies included.
   refreshSuggestions();
+  paintProposals().catch((err) => setBanner(err.message, "error"));
   return cleared;
 }
 
@@ -1637,6 +1638,20 @@ function showSweepTip(hover, ev) {
   el.sweepTip.style.display = "block";
   // Offset from the pointer rather than centred on it, so the tooltip never
   // sits under the cursor and flickers the hover it is reporting.
+  el.sweepTip.style.left = (ev.clientX + 14) + "px";
+  el.sweepTip.style.top = (ev.clientY + 14) + "px";
+}
+
+// What a hovered proposed face says (AA.proposalHoverText), at the pointer.
+function showProposalTip(text, ev) {
+  if (!el.sweepTip || state.sweep) return;
+  if (!text || !ev) {
+    el.sweepTip.style.display = "none";
+    el.sweepTip.textContent = "";
+    return;
+  }
+  el.sweepTip.textContent = text;
+  el.sweepTip.style.display = "block";
   el.sweepTip.style.left = (ev.clientX + 14) + "px";
   el.sweepTip.style.top = (ev.clientY + 14) + "px";
 }
@@ -3015,7 +3030,13 @@ async function modelPartInfo(topology, partId, bias, occurrences, sweep) {
 // {node id: [x, y, z]}: the fitted point of the face a committed binding
 // names at that node's end of an edge, in the as-modelled assembly frame. A
 // binding with no direction binds an edge, not a node, and anchors nothing.
-async function modelBoundPoints(topology, parts, occurrences) {
+//
+// `list` picks which events of a record count: the standing `bindings` (the
+// anchors), or -- for the hollow markers beside them -- the open `proposals`,
+// which never move an anchor. One reader, so a proposed point is where the
+// node WOULD sit once accepted, by the same fit and the same occurrence.
+async function modelBoundPoints(topology, parts, occurrences, list) {
+  const which = list || "bindings";
   const identity = mergedIdentityProjection();
   const homes = AA.modelNodeHomes(topology);
   const out = {};
@@ -3026,7 +3047,7 @@ async function modelBoundPoints(topology, parts, occurrences) {
         : (edge.to === node.id ? AA.DIRECTIONS[1] : null);
       if (!direction) continue;
       const record = AA.findBindingRecord(identity, AA.topologyEdgeKey(topology.id, edge.id));
-      const binding = ((record && record.bindings) || []).find((b) => b && b.direction === direction &&
+      const binding = ((record && record[which]) || []).find((b) => b && b.direction === direction &&
         b.geometry_key && b.geometry_key.source_step_sha256);
       if (!binding) continue;
       const sha = binding.geometry_key.source_step_sha256;
@@ -3072,16 +3093,19 @@ async function buildModel() {
   const anchors = AA.modelAnchors({ topology, bias, parts, bound,
     linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {} });
   const lines = AA.modelEdgeLines(topology, anchors);
+  const proposedPoints = await modelBoundPoints(topology, parts, occurrences, "proposals");
+  if (generation !== model.generation || state.sweep !== sweep) return null;
+  const proposed = AA.modelProposedAnchors(anchors, proposedPoints);
   // `bodies`: whether the run's anchoring had resolved when this was built --
   // before it, a moving part's anchor sits on its first recorded occurrence.
-  model.built = { topologyId: topology.id, bias, parts, anchors, lines,
+  model.built = { topologyId: topology.id, bias, parts, anchors, lines, proposed,
     runId: sweep ? sweep.artifact.runId : null, bodies: !!(sweep && sweep.bodies.length) };
   const nodes = {};
   for (const [id, a] of Object.entries(anchors)) {
     nodes[id] = { source: a.source, subject: a.subject, point: a.point,
       exported: a.source !== AA.MODEL_ANCHOR_SOURCES[3] };
   }
-  state.scene.setModel({ nodes, lines });
+  state.scene.setModel({ nodes, lines, proposed });
   state.scene.setModelVisible(true);
   applyModelFrame();
   applyModelStyle();
@@ -3513,6 +3537,16 @@ function renderElementList() {
     rowName.className = "el-row__name";
     rowName.textContent = rowText;
     li.appendChild(rowName);
+    // An agent's open proposal, as one muted chip; the Accept and Reject that
+    // answer it are in the bar, with the face, once the row is selected.
+    const chipText = AA.proposalChip(record);
+    if (chipText) {
+      const chip = document.createElement("span");
+      chip.className = "el-row__proposal";
+      chip.textContent = chipText;
+      chip.title = chipText;
+      li.appendChild(chip);
+    }
     const alerts = AA.elementAlerts(bindingState);
     if (alerts.length) li.appendChild(alertBadge(alerts));
     li.onclick = () => {
@@ -3665,6 +3699,7 @@ function selectEdge(edge) {
   // a click handler has nothing to await into. refreshSuggestions() reports
   // its own failures on the banner for exactly that reason.
   refreshSuggestions();
+  paintProposals().catch((err) => setBanner(err.message, "error"));
 }
 
 // --- the top bar (deliverable 1) -------------------------------------------
@@ -4064,7 +4099,7 @@ function buildBindForm(edge, pick, bind, onChoose) {
         eventId,
         seq: filenames.length + 1,
         createdAt: nowIso(),
-        recordedBy: "annotate-app",
+        recordedBy: AA.humanActor(AA.CONFIG.reviewer),
         stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
         geometryKey: AA.geometryKeyOfPick(pick),
         direction: selected,
@@ -4137,9 +4172,11 @@ async function writeIdentityEvent(filename, event, banner) {
 // an element with no binding. Controls only where the transport can write.
 function buildBindingsBlock(edge, bind, canWrite) {
   const shown = AA.describeBindings(bind.record, bind.names);
-  if (!shown.current.length && !shown.earlier.length) return null;
+  const proposed = AA.describeProposals(bind.record, bind.names);
+  if (!shown.current.length && !shown.earlier.length && !proposed.length) return null;
   const box = document.createElement("div");
   box.className = "an__bound";
+  for (const row of proposed) box.appendChild(buildProposalRow(edge, bind, row, canWrite));
   for (const row of shown.current) {
     const line = document.createElement("div");
     line.className = "an__bound-row";
@@ -4167,7 +4204,7 @@ function buildBindingsBlock(edge, bind, canWrite) {
               eventId: "annotate-" + Date.now() + "-" + slugify(edge.id),
               seq: filenames.length + 1,
               createdAt: nowIso(),
-              recordedBy: "annotate-app",
+              recordedBy: AA.humanActor(AA.CONFIG.reviewer),
               direction: other,
             });
             state.correcting = null;
@@ -4207,6 +4244,91 @@ function buildBindingsBlock(edge, bind, canWrite) {
     box.appendChild(hist);
   }
   return box;
+}
+
+// One agent proposal, answered in one click (handoff an_agent_proposes_a_face_
+// binding_and_a_human_ratifies_it): the end and face it names, who proposed it
+// and how sure, the basis on hover -- and Accept (writes the `bound` event,
+// recorded as this reviewer, naming the proposal) or Reject (writes the
+// `rejected` event; the agent may never propose that face for this element
+// again). Over HTTP the folder is asked for inside the click, like any write.
+function buildProposalRow(edge, bind, row, canWrite) {
+  const line = document.createElement("div");
+  line.className = "an__bound-row an__proposal";
+  line.dataset.direction = row.direction;
+  line.dataset.proposal = row.eventId;
+  const text = document.createElement("span");
+  text.className = "an__bound-text";
+  text.textContent = row.end + " · face " + row.face + " · proposed by " + row.actor + " · " + row.confidence;
+  text.title = AA.proposalHoverText(row);
+  line.appendChild(text);
+  if (!canWrite) return line;
+  const answer = async (verb) => {
+    try {
+      const filenames = await existingEventFilenames();
+      const fields = {
+        eventId: "annotate-" + Date.now() + "-" + slugify(edge.id),
+        seq: filenames.length + 1,
+        createdAt: nowIso(),
+        recordedBy: AA.humanActor(AA.CONFIG.reviewer),
+      };
+      if (verb === "accept") {
+        const standing = ((bind.record && bind.record.bindings) || []).find((b) => b.direction === row.direction);
+        fields.supersedes = standing ? standing.event_id : null;
+        const event = AA.buildAcceptEvent(row.event, fields);
+        await writeIdentityEvent(nextFilename(filenames, slugify(edge.id) + "_accepted"), event,
+          "Bound face " + row.face + " at " + row.end);
+      } else {
+        const event = AA.buildRejectEvent(row.event, fields);
+        await writeIdentityEvent(nextFilename(filenames, slugify(edge.id) + "_rejected"), event,
+          "Rejected face " + row.face + " for " + row.end);
+      }
+      await paintProposals();
+    } catch (err) {
+      setBanner((verb === "accept" ? "Accept" : "Reject") + " failed: " + err.message, "error");
+    }
+  };
+  for (const [verb, label] of [["accept", "Accept"], ["reject", "Reject"]]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "an__bound-act an__proposal-" + verb;
+    btn.textContent = label;
+    btn.title = verb === "accept"
+      ? "bind face " + row.face + " at " + row.end
+      : "turn this face down; it will not be proposed for this element again";
+    btn.onclick = () => answer(verb);
+    line.appendChild(btn);
+  }
+  return line;
+}
+
+// The selected element's open proposals, drawn on the parts as dashed
+// outlines in the suggestion colour -- apart from a binding's solid green and
+// never in the colour buffer a pick uses. Every UI path that changes the
+// element or the record calls this; it loads a proposal's part when it is not
+// open yet, the way `suggest` does.
+async function paintProposals() {
+  if (!state.scene || !state.scene.setProposalOutlines) return [];
+  const edge = state.selectedEdge;
+  if (!edge || !state.currentTopology || state.sweep) {
+    state.scene.setProposalOutlines([]);
+    return [];
+  }
+  const record = AA.findBindingRecord(mergedIdentityProjection(),
+    AA.topologyEdgeKey(state.currentTopology.id, edge.id));
+  const rows = AA.describeProposals(record, AA.edgeEndNames(state.currentTopology, edge));
+  try {
+    for (const row of rows) {
+      if (state.scene.listOpenParts().indexOf(row.sha256) === -1) await state.scene.loadPart(row.sha256);
+      state.scene.setVisible(row.sha256, true);
+    }
+  } catch (err) {
+    setBanner("A proposed face's part could not be opened: " + err.message, "error");
+  }
+  state.scene.setProposalOutlines(rows.map((r) => ({
+    sha256: r.sha256, faceId: r.face, text: AA.proposalHoverText(r) })));
+  renderPartsPanel();
+  return rows;
 }
 
 // The interface choice: one button per end that may be chosen, carrying the
@@ -4298,7 +4420,7 @@ function buildOwnerNotInSetFields(edge) {
         eventId,
         seq: filenames.length + 1,
         createdAt: nowIso(),
-        recordedBy: "annotate-app",
+        recordedBy: AA.humanActor(AA.CONFIG.reviewer),
         stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
         note: noteField.input.value || null,
       });
@@ -5048,6 +5170,9 @@ async function main() {
   // The part under a pointer that has come to rest, into the rail (sweep
   // mode only; the scene asks nothing outside it).
   state.scene.onPartHover = sceneHoverPart;
+  // ...and in bind mode, the proposal under a resting pointer: who proposed
+  // it, how sure, and why, in the one tooltip node the joint hover uses.
+  state.scene.onProposalHover = showProposalTip;
   // The model layer: its anchors after every drawn frame, and a click on one
   // of its dots selects that node (a second click lets it go).
   state.scene.onModelRendered = () => postModelAnchors(false);

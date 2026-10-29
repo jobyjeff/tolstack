@@ -540,6 +540,8 @@ async function checkEverything(browser, base) {
   await railRealPass(browser, base);
   await contextViewPass(browser, base);
   await correctionPass(browser, base);
+  await proposalPass(browser, base, "accept");
+  await proposalPass(browser, base, "reject");
   await reducedMotionTimingPass(browser, base);
 
   if (SHOTS) await captureShots(page, `${base}?mock=1&sweep=synthetic-demo-sweep`, "mock");
@@ -953,6 +955,143 @@ async function correctionPass(browser, base) {
     earlier.length === 1 && earlier[0].includes("demo bolt-head bearing face"), JSON.stringify(earlier));
   const surface = await page.locator("#detail").innerText();
   check("no event id reaches the surface", !/annotate-\d+/.test(surface), surface);
+  await page.close();
+}
+
+// AN AGENT PROPOSES, A HUMAN RATIFIES (handoff an_agent_proposes_a_face_
+// binding_and_a_human_ratifies_it). The mock's identity projection gains ONE
+// open proposal -- an agent's, on demo_edge_traced's `from` end, face 0 of the
+// demo triangle -- by wrapping the in-memory adapter's read before the app's
+// own scripts run, so the shared fixture every other pass reads is untouched.
+// Then: the rail chip, the dashed outline and its hover text, the hollow
+// anchor beside the node's own, and the one-click answer writing exactly the
+// event it should into the captured fixture folder.
+async function proposalPass(browser, base, verb) {
+  console.log(`\n--- an agent proposes, a human ${verb}s (mock)`);
+  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  const errors = [];
+  page.on("pageerror", (err) => errors.push(String(err && err.message || err)));
+  await page.addInitScript(() => {
+    const install = () => {
+      const AA = window.AnnotateApp;
+      if (!AA || !AA.MemoryAdapter || !AA.FIXTURES) return false;
+      const read = AA.MemoryAdapter.prototype.readFeatureIdentityProjection;
+      AA.MemoryAdapter.prototype.readFeatureIdentityProjection = async function () {
+        const base = JSON.parse(JSON.stringify((await read.call(this)) || { stack_keys: [] }));
+        base.stack_keys.push({
+          stack_key: { kind: "topology_edge", topology_id: "demo_system", edge_id: "demo_edge_traced" },
+          state: "proposed", bindings: [], owner_not_in_set: [], superseded: [],
+          history: ["proposal-0009-demo_edge_traced-from"],
+          proposals: [{
+            schema: "joby.tolerance_stack/feature-identity/v0",
+            event_id: "proposal-0009-demo_edge_traced-from", seq: 9,
+            created_at: "2026-10-28T00:00:00Z",
+            recorded_by: "agent:an_agent_proposes_a_face_binding_and_a_human_ratifies_it",
+            stack_key: { kind: "topology_edge", topology_id: "demo_system", edge_id: "demo_edge_traced" },
+            verdict: "proposed",
+            geometry_key: { source_step_sha256: AA.FIXTURES.demoSha, face_id: 0,
+              area_native2: 0.5, centroid_native: [0.33, 0.33, 0] },
+            direction: "from", confidence: "high", surface_class: "planar",
+            basis: "flat face; the one face of the demo triangle",
+          }],
+          rejected_proposals: [], accepted_proposals: [],
+        });
+        return base;
+      };
+      return true;
+    };
+    if (!install()) {
+      const timer = setInterval(() => { if (install()) clearInterval(timer); }, 0);
+    }
+  });
+  await page.goto(`${base}?mock=1&topology=demo_system`);
+  await page.waitForFunction(() => window.__scene && window.AnnotateApp && window.AnnotateApp.exec &&
+    document.querySelector(".el-row__proposal"), null, { timeout: 20000 });
+  const chip = await page.locator(".el-row__proposal").first().innerText();
+  check("the proposed element's rail row carries one chip: who proposed it and how sure",
+    chip === "proposed by agent · high" && (await page.locator(".el-row__proposal").count()) === 1, chip);
+  check("...and the row is drawn in the proposed state, with no alert mark",
+    await page.locator(".el-row--proposed").evaluate((n) => !n.querySelector(".alertbadge")));
+
+  await page.evaluate(() => window.AnnotateApp.exec(["select-edge", "demo_edge_traced"]));
+  await page.waitForFunction(() => window.__scene.proposalOutlines().length === 1 &&
+    window.__scene.proposalOutlines()[0].drawn > 0, null, { timeout: 20000 });
+  const outline = await page.evaluate(() => window.__scene.proposalOutlines()[0]);
+  check("the proposed face is drawn as a DASHED outline on every drawn occurrence of its part",
+    outline.dashed && outline.faceId === 0 && outline.segments === 3 &&
+    outline.drawn === (await page.evaluate((sha) => window.__scene.drawnPlacements(sha).length, outline.sha256)),
+    JSON.stringify(outline));
+  check("...whose hover says who proposed it, how sure, and the basis",
+    outline.text === "Proposed by agent (high): flat face; the one face of the demo triangle", outline.text);
+  // Hovering the face itself: aim the camera down the face's normal through
+  // its centroid and ask the scene what is under the middle of the canvas.
+  const hovered = await page.evaluate(() => {
+    const scene = window.__scene;
+    const mesh = scene.parts.get(window.AnnotateApp.FIXTURES.demoSha);
+    const pos = mesh.geometry.attributes.position.array;
+    const v = [0, 1, 2].map((i) => mesh.position.clone().set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2])
+      .applyMatrix4(mesh.matrix));
+    const centre = v[0].clone().add(v[1]).add(v[2]).multiplyScalar(1 / 3);
+    const normal = v[1].clone().sub(v[0]).cross(v[2].clone().sub(v[0])).normalize();
+    scene.camera.position.copy(centre).addScaledVector(normal, 30);
+    scene.camera.lookAt(centre);
+    scene.camera.updateMatrixWorld(true);
+    return scene.proposalAt(0, 0);
+  });
+  check("pointing at the proposed face in the scene reads its hover text", hovered === outline.text,
+    JSON.stringify(hovered));
+
+  const row = page.locator(".an__proposal");
+  const text = await row.innerText();
+  check("the bar lists the proposal by its interface name and face, with Accept and Reject",
+    text.includes("demo bolt-head bearing face") && text.includes("face 0") &&
+    text.includes("Accept") && text.includes("Reject"), text);
+  check("...and its title carries the basis",
+    (await row.locator(".an__bound-text").getAttribute("title")) === outline.text);
+
+  // The model layer: a hollow marker beside the node the proposal would move,
+  // and the node's own anchor where it was.
+  await page.evaluate(() => window.AnnotateApp.exec(["layer", "model", "on"]));
+  await page.waitForFunction(() => window.__model.built, null, { timeout: 20000 });
+  const model = await page.evaluate(() => ({
+    markers: window.__scene.modelProposedMarkers(),
+    source: window.__model.built.anchors.a && window.__model.built.anchors.a.source,
+  }));
+  check("the model layer draws a hollow marker for the proposed node and leaves its anchor alone",
+    JSON.stringify(model.markers) === JSON.stringify(["a"]) && model.source !== "bound",
+    JSON.stringify(model));
+
+  const before = await page.evaluate(() => window.__mockWrites.length);
+  await page.locator(".an__proposal-" + verb).click();
+  await page.waitForFunction((n) => window.__mockWrites.length === n + 1, before, { timeout: 5000 });
+  const written = await page.evaluate(() => window.__mockWrites[window.__mockWrites.length - 1]);
+  const e = written.event;
+  if (verb === "accept") {
+    check("Accept writes a `bound` event naming the proposal, at its end, on its face, as the reviewer",
+      e.verdict === "bound" && e.ratifies === "proposal-0009-demo_edge_traced-from" &&
+      e.direction === "from" && e.geometry_key.face_id === 0 && e.recorded_by === "annotate-app:jeff" &&
+      /_accepted\.json$/.test(written.filename), JSON.stringify(written));
+    await page.waitForFunction(() => document.querySelector(".an__bound-flip"), null, { timeout: 5000 });
+    check("...the element now shows the binding and no proposal",
+      (await page.locator(".an__proposal").count()) === 0 &&
+      (await page.locator(".el-row__proposal").count()) === 0);
+    await page.waitForFunction(() => window.__model.built && window.__model.built.anchors.a.source === "bound",
+      null, { timeout: 20000 }).catch(() => {});
+    const after = await page.evaluate(() => ({ markers: window.__scene.modelProposedMarkers(),
+      source: window.__model.built.anchors.a.source }));
+    check("...and the anchor moves only now: the node is bound and its hollow marker is gone",
+      after.source === "bound" && after.markers.length === 0, JSON.stringify(after));
+  } else {
+    check("Reject writes a `rejected` event naming the proposal and carrying no face",
+      e.verdict === "rejected" && e.rejects === "proposal-0009-demo_edge_traced-from" &&
+      !e.geometry_key && !e.direction && e.recorded_by === "annotate-app:jeff" &&
+      /_rejected\.json$/.test(written.filename), JSON.stringify(written));
+    await page.waitForFunction(() => window.__scene.proposalOutlines().length === 0, null, { timeout: 5000 });
+    check("...the outline and the chip come down, and nothing is bound",
+      (await page.locator(".el-row__proposal").count()) === 0 &&
+      (await page.locator(".an__bound-row").count()) === 0);
+  }
+  check("no page error while proposing and answering", errors.length === 0, errors.join(" | "));
   await page.close();
 }
 
