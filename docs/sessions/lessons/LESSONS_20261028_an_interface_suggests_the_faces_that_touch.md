@@ -185,3 +185,11 @@ empty, on `master`). Nothing was written there outside `data/scratch/`.
 - `node_modules` in this worktree is a junction to the main checkout's (the
   browser tier imports `playwright-core` relative to the script). Gitignored;
   it goes with the worktree.
+
+## Final runs (after the lesson was first written)
+
+| tier | where | result | wall |
+|---|---|---|---:|
+| `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo <scratch>` | scratch | **20/20 witnessed, 20/20 reached**, 0 left to the sweep; exit 0. `integration` rather than `master`: this branch contains integration, so the diff against it is this handoff's own | 8m07s |
+| `--only "contact rows"`, re-run after `contactRowsFor` changed (an empty gap edge lists nothing) | scratch | WITNESSED | 47 s |
+| `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs` | worktree, at `8a0241a5` | **1616 passed, 3 skipped, 1 failed**: the failure is `test_viewer_js_suite`, the by-design worktree red (its tier ran 606/606 above); the skips are the two `[real]` contact tests (run by hand against the scratch projection, both pass) and the bearing re-extraction test | 323 s, inside budget |
