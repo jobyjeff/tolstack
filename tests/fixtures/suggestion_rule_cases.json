@@ -1,0 +1,24 @@
+{
+  "about": "One list of names and the surface class each must read as, run through BOTH readers of the shape rule: tolerance_stack/feature_geometry.py's required_surface_class (tests/test_feature_geometry.py) and apps/annotate/suggestions.js's AA.requiredSurfaceClass (apps/annotate/run_tests.cjs). The rule's words are Python's and generated into the browser; the matching is written twice, and this file is what holds the two to one answer. null = no rule answers.",
+  "cases": [
+    ["cotter-pin hole centreline", "cylindrical"],
+    ["end of the bolt's full cylindrical shank", "cylindrical"],
+    ["hub lower bearing-seat bore, M1 hub 212966-004", "cylindrical"],
+    ["lower bearing outer-ring OD (214589-002, ID 160 / OD 200)", "cylindrical"],
+    ["bolt-head bearing face against the plain bushing", "planar"],
+    ["plain bushing length (214820-002)", "planar"],
+    ["flanged bushing flange thickness (NAS77A3-015A)", "planar"],
+    ["washer thickness, NAS1149V0332H (.032 in)", "planar"],
+    ["spherical bearing ball", "spherical"],
+    ["plain bushing face against the pitch-link eye (spherical bearing ball)", "planar"],
+    ["spherical bearing face against the flanged bushing's flange", "planar"],
+    ["spherical bearing width", "planar"],
+    ["pitch-link spherical bearing housing bore", "cylindrical"],
+    ["pitch link lower bearing centre", "spherical"],
+    ["diagonal brace", null],
+    ["rigid mount", null],
+    ["the grid", null],
+    ["pinion", null],
+    ["", null]
+  ]
+}

@@ -68,36 +68,31 @@
   //   * Notes are not read either, only names. A note is prose about
   //     provenance and scope and it mentions every feature in the joint; the
   //     name is the one string that is about THIS element.
-  AA.SUGGESTION_RULES = Object.freeze([
-    Object.freeze({
-      key: "diametral",
-      surface: "cylindrical",
-      // Plain words for the reader-facing line, no schema and no module names.
-      says: "a diameter is on a round surface",
-      words: Object.freeze(["diameter", "dia", "bore", "hole", "od", "id",
-        "shank", "shaft", "journal", "barrel", "thread", "pin", "cylindrical"]),
-    }),
-    Object.freeze({
-      key: "between_faces",
-      surface: "planar",
-      says: "a length between faces is on flat surfaces",
-      words: Object.freeze(["thickness", "length", "width", "height", "depth",
-        "grip", "flange", "face", "shoulder", "gap", "protrusion", "step", "land"]),
-    }),
-    // LAST, and the order is load-bearing rather than incidental. Three live
-    // interfaces are already named "spherical bearing face against ..." and
-    // "spherical bearing width" -- a flat face and a width, on a part that
-    // happens to be a spherical bearing. Asked before the row above, this one
-    // would take all three on the word "spherical" and colour the wrong faces.
-    // Asked last, it answers only when nothing more specific did, which is what
-    // a joint named for its CENTRE looks like.
-    Object.freeze({
-      key: "spherical_centre",
-      surface: "spherical",
-      says: "a joint centre is on a ball-shaped surface",
-      words: Object.freeze(["sphere", "spherical", "ball", "centre", "center"]),
-    }),
-  ]);
+  //
+  // The keys, surfaces and words are PYTHON's since 2026-10-28
+  // (tolerance_stack/feature_geometry.py, SUGGESTION_RULE_*), read out of the
+  // generated vocabulary: scripts/propose_bindings.py refuses an agent's
+  // proposal by the same rule this colours by, and two copies of it would be
+  // two answers to "is a diameter on this face". The order -- sphere LAST -- is
+  // carried there with its reason. Only the reader-facing sentence is authored
+  // here, keyed by the generated keys, so a rule added in Python with no
+  // sentence throws at load.
+  var RULE_SAYS = VOCAB.table("SUGGESTION_RULE_KEYS", {
+    // Plain words for the reader-facing line, no schema and no module names.
+    diametral: "a diameter is on a round surface",
+    between_faces: "a length between faces is on flat surfaces",
+    spherical_centre: "a joint centre is on a ball-shaped surface",
+  });
+  var RULE_SURFACES = VOCAB.list("SUGGESTION_RULE_SURFACES");
+  var RULE_WORDS = VOCAB.list("SUGGESTION_RULE_WORDS");
+  AA.SUGGESTION_RULES = Object.freeze(VOCAB.list("SUGGESTION_RULE_KEYS").map(function (key, i) {
+    return Object.freeze({
+      key: key,
+      surface: RULE_SURFACES[i],
+      says: RULE_SAYS[key],
+      words: Object.freeze(RULE_WORDS[i].split(" ")),
+    });
+  }));
 
   // Every rule's surface must be one face_geometry.js actually answers --
   // paired by run_tests.cjs, so a row naming a class the classifier cannot

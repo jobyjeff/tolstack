@@ -180,7 +180,7 @@
     STACK_KEY_KINDS: ["topology_edge", "stack_element"],
 
     // tolerance_stack/feature_identity.py: VERDICTS
-    VERDICTS: ["bound", "owner_not_in_set"],
+    VERDICTS: ["bound", "owner_not_in_set", "proposed", "rejected"],
 
     // tolerance_stack/feature_identity.py: DIRECTIONS
     DIRECTIONS: ["from", "to"],
@@ -193,6 +193,27 @@
 
     // tolerance_stack/feature_geometry.py: SURFACE_CLASSES
     SURFACE_CLASSES: ["planar", "cylindrical", "spherical", "other"],
+
+    // tolerance_stack/feature_identity.py: PROPOSAL_CONFIDENCES
+    PROPOSAL_CONFIDENCES: ["high", "medium", "low"],
+
+    // tolerance_stack/feature_identity.py: ACTOR_KINDS
+    ACTOR_KINDS: ["annotate-app", "agent"],
+
+    // tolerance_stack/feature_geometry.py: SUGGESTION_RULE_KEYS
+    SUGGESTION_RULE_KEYS: ["diametral", "between_faces", "spherical_centre"],
+
+    // tolerance_stack/feature_geometry.py: SUGGESTION_RULE_SURFACES (one per
+    // SUGGESTION_RULE_KEYS entry, same order)
+    SUGGESTION_RULE_SURFACES: ["cylindrical", "planar", "spherical"],
+
+    // tolerance_stack/feature_geometry.py: SUGGESTION_RULE_WORDS (one per
+    // SUGGESTION_RULE_KEYS entry, same order)
+    SUGGESTION_RULE_WORDS: [
+      "diameter dia bore hole od id shank shaft journal barrel thread pin cylindrical",
+      "thickness length width height depth grip flange face shoulder gap protrusion step land",
+      "sphere spherical ball centre center"
+    ],
 
     // tolerance_stack/interface_contact.py: PAIRING_KINDS
     CONTACT_PAIRING_KINDS: [

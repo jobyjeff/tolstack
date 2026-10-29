@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "requiredSurfaceClass reads tests/fixtures/suggestion_rule_cases.json as Python's required_surface_class does -- one list of answers, two readers",
+  "mutations": [
+    {
+      "contract": "The browser and scripts/propose_bindings.py read one rule; both match a word on word boundaries, so the colouring and the refusal agree.",
+      "issue": null,
+      "note": "A substring match reads \"diagonal\" as a diameter -- the browser would colour round faces the CLI's rule never asked for.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "        return new RegExp(\"\\\\b\" + word + \"\\\\b\", \"i\");",
+      "replace": "        return new RegExp(word, \"i\");"
+    }
+  ]
+}

@@ -120,6 +120,12 @@ const MODEL_COLORS = {
   region: 0x6ea8fe,
 };
 const MODEL_NODE_RADIUS = 2;     // mm, half a joint bead
+// A proposed anchor's hollow marker: a wireframe ball a little larger than
+// the dot it sits beside, in the suggestion colour, so "this is where the node
+// would move if you accepted" reads as a candidacy and not as a node.
+const MODEL_PROPOSED_RADIUS = 3; // mm
+// A proposed face's dash, as a fraction of its part's bounding radius.
+const PROPOSAL_DASH_FRACTION = 0.02;
 const MODEL_RENDER_ORDER = 20;   // over the parts, the leader and the hover
 const MODEL_DIM_OPACITY = 0.22;
 const MODEL_PLANE_OPACITY = 0.08;
@@ -181,6 +187,10 @@ export class AnnotateScene {
     // {sha256, faceId, role, geometry, material, meshes} -- opaque face
     // overlays, one mesh per drawn occurrence of the part (see markFace).
     this._marks = [];
+    // An agent's proposed faces, drawn as dashed outlines (setProposalOutlines).
+    this._proposals = [];
+    // ...and what hovering one says, in bind mode: (text | null, event).
+    this.onProposalHover = function () {};
     // sha256 -> the extra THREE.Meshes drawn for a part's second and later
     // occurrences. Every mode, since 2026-10-14: a part with three recorded
     // positions in the assembly is drawn at all three.
@@ -293,7 +303,7 @@ export class AnnotateScene {
     this.onModelPick = function () {};
     this._partHoverTimer = null;
     this.renderer.domElement.addEventListener("pointermove", (ev) => {
-      if (!this._sweep) return;
+      if (!this._sweep) { this._proposalHoverMove(ev); return; }
       const rect = this.renderer.domElement.getBoundingClientRect();
       const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
@@ -650,6 +660,7 @@ export class AnnotateScene {
     if (mine.length !== before) {
       this._syncMarks(sha256);
       this._syncHover(sha256);
+      this._syncProposals(sha256);
     }
   }
 
@@ -729,6 +740,108 @@ export class AnnotateScene {
         return overlay;
       });
     }
+  }
+
+  // --- an agent's proposals (handoff an_agent_proposes_a_face_binding_and_a_
+  // human_ratifies_it) --------------------------------------------------------
+  //
+  // A proposed face is drawn as its OUTLINE, dashed, in the suggestion colour:
+  // a candidacy like `suggested`, and never a fill -- so it can sit on a face
+  // that is also coloured as a suggestion, a contact or a pick without
+  // z-fighting it, and it never reads as the solid green of a binding. Like a
+  // mark, one line set per drawn occurrence, as a child of it. `list` is
+  // [{sha256, faceId, text}]; an empty list takes them all down.
+  setProposalOutlines(list) {
+    this._disposeProposals();
+    const AA = window.AnnotateApp;
+    for (const item of list || []) {
+      const parent = this.parts.get(item.sha256);
+      const range = parent && parent.userData.faceRanges[item.faceId];
+      if (!range) continue;
+      const sub = AA.faceSubGeometry(parent.geometry.attributes.position.array,
+        parent.geometry.index.array, parent.userData.faceIdPerTriangle, range, item.faceId);
+      const edges = AA.faceBoundaryEdges(sub.indices);
+      const positions = new Float32Array(edges.length * 6);
+      edges.forEach(([a, b], i) => {
+        for (let k = 0; k < 3; k++) {
+          positions[i * 6 + k] = sub.positions[a * 3 + k];
+          positions[i * 6 + 3 + k] = sub.positions[b * 3 + k];
+        }
+      });
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      if (!parent.geometry.boundingSphere) parent.geometry.computeBoundingSphere();
+      const size = parent.geometry.boundingSphere.radius;
+      const material = new THREE.LineDashedMaterial({
+        color: MARK_COLORS.suggested, dashSize: size * PROPOSAL_DASH_FRACTION,
+        gapSize: size * PROPOSAL_DASH_FRACTION, depthTest: false, transparent: true,
+      });
+      this._proposals.push({ sha256: item.sha256, faceId: item.faceId, text: item.text || "",
+        geometry, material, lines: [] });
+      this._syncProposals(item.sha256);
+    }
+    this.requestRender();
+    return this._proposals.length;
+  }
+
+  _syncProposals(sha256) {
+    const nodes = this._occurrenceNodes(sha256);
+    for (const p of this._proposals) {
+      if (p.sha256 !== sha256) continue;
+      for (const old of p.lines) if (old.parent) old.parent.remove(old);
+      p.lines = nodes.map((node) => {
+        const line = new THREE.LineSegments(p.geometry, p.material);
+        line.computeLineDistances();
+        line.renderOrder = MODEL_RENDER_ORDER - 1;
+        line.userData.proposal = true;
+        node.add(line);
+        return line;
+      });
+    }
+  }
+
+  _disposeProposals() {
+    for (const p of this._proposals) {
+      for (const line of p.lines) if (line.parent) line.parent.remove(line);
+      p.geometry.dispose();
+      p.material.dispose();
+    }
+    this._proposals = [];
+  }
+
+  // What is drawn for the proposals, counted -- a harness reads this rather
+  // than trusting that a call reached here.
+  proposalOutlines() {
+    return this._proposals.map((p) => ({
+      sha256: p.sha256, faceId: p.faceId, text: p.text,
+      dashed: !!(p.material && p.material.isLineDashedMaterial),
+      segments: p.geometry.attributes.position.count / 2,
+      drawn: p.lines.filter((l) => l.parent).length,
+    }));
+  }
+
+  // The proposal under a resting pointer, in bind mode only and only while
+  // there are proposals: the parts raycast runs once per settle, the cost
+  // rule sweep mode's part hover set.
+  _proposalHoverMove(ev) {
+    if (this._partHoverTimer) clearTimeout(this._partHoverTimer);
+    this._partHoverTimer = null;
+    if (!this._proposals.length || ev.buttons) { this.onProposalHover(null, ev); return; }
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    this._partHoverTimer = setTimeout(() => {
+      this._partHoverTimer = null;
+      this.onProposalHover(this.proposalAt(ndcX, ndcY), ev);
+    }, AnnotateScene.PART_HOVER_SETTLE_MS);
+  }
+
+  // The hover text of the proposed face at a canvas point, or null.
+  proposalAt(ndcX, ndcY) {
+    const hit = this.pick(ndcX, ndcY);
+    if (!hit) return null;
+    const p = this._proposals.find((q) => q.sha256 === hit.sha256 && q.faceId === hit.faceId);
+    return p ? p.text : null;
   }
 
   listMarks(role) {
@@ -1271,9 +1384,32 @@ export class AnnotateScene {
       groupOf(line.body).add(object);
       lines.set(id, object);
     }
+    // An agent's proposed anchors (`model.proposed`, {node id: {subject,
+    // point}}): hollow, beside the dot, riding the same body group -- never a
+    // replacement for it. The scene's anchors move only when a human accepts.
+    const proposedGeometry = new THREE.SphereGeometry(MODEL_PROPOSED_RADIUS, 10, 6);
+    const proposed = new Map();
+    for (const [id, p] of Object.entries(model.proposed || {})) {
+      const ring = new THREE.Mesh(proposedGeometry, new THREE.MeshBasicMaterial({
+        color: MARK_COLORS.suggested, wireframe: true, depthTest: false, transparent: true,
+      }));
+      ring.renderOrder = MODEL_RENDER_ORDER + 1;
+      ring.position.fromArray(p.point);
+      ring.userData = { modelProposed: id };
+      groupOf(p.subject || "").add(ring);
+      proposed.set(id, ring);
+    }
     this.scene.add(root);
-    this._model = { root, groups, dots, lines, dotGeometry, selection: null, strengths: {} };
+    this._model = { root, groups, dots, lines, dotGeometry, proposed, proposedGeometry,
+      selection: null, strengths: {} };
     return true;
+  }
+
+  // The hollow markers drawn, by node -- what a harness reads.
+  modelProposedMarkers() {
+    const model = this._model;
+    if (!model) return [];
+    return Array.from(model.proposed.keys()).sort();
   }
 
   // One frame: {world: {node id: [x,y,z] | null}, subjects: {body: 3x4}}.
@@ -1510,10 +1646,12 @@ export class AnnotateScene {
     if (!model) return;
     this.scene.remove(model.root);
     model.root.traverse((node) => {
-      if (node.geometry && node.geometry !== model.dotGeometry) node.geometry.dispose();
+      if (node.geometry && node.geometry !== model.dotGeometry &&
+        node.geometry !== model.proposedGeometry) node.geometry.dispose();
       if (node.material) { if (node.material.map) node.material.map.dispose(); node.material.dispose(); }
     });
     model.dotGeometry.dispose();
+    model.proposedGeometry.dispose();
     this._model = null;
   }
 

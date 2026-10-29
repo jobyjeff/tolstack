@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "every binding state except the quiet ones (`bound`, `proposed`) has an alert sentence, and the quiet ones deliberately have none",
+  "mutations": [
+    {
+      "contract": "`proposed` is quiet on purpose: the row's chip is the signal, and an alert beside it would spend the emphasis twice.",
+      "issue": null,
+      "note": "Taking `proposed` out of the quiet list makes it a state with no alert sentence and no stated reason.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "  AA.QUIET_BINDING_STATES = Object.freeze([AA.BINDING_STATES.BOUND, AA.BINDING_STATES.PROPOSED]);",
+      "replace": "  AA.QUIET_BINDING_STATES = Object.freeze([AA.BINDING_STATES.BOUND]);"
+    }
+  ]
+}

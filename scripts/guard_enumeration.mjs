@@ -169,7 +169,11 @@ export const DECLARED_GUARDS = {
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
-  annotate: { declared: 248, enrollable: 248, names: "e01be3819f16" },
+  // 2026-10-29 (an_agent_proposes_a_face_binding_and_a_human_ratifies_it):
+  // annotate +7 -- the proposal fold, accept/reject, the chip, the hollow
+  // anchor, the outline and the shared shape-rule cases -- and one renamed
+  // (the alert pairing now names its quiet states). Every one carries a spec.
+  annotate: { declared: 255, enrollable: 255, names: "ef8773a74583" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

@@ -590,6 +590,24 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("annotate", "SURFACE_CLASSES",
                "tolerance_stack/feature_geometry.py: SURFACE_CLASSES",
                _const(_feature_geometry_module, "SURFACE_CLASSES")),
+    Vocabulary("annotate", "PROPOSAL_CONFIDENCES",
+               "tolerance_stack/feature_identity.py: PROPOSAL_CONFIDENCES",
+               _const(_feature_identity_module, "PROPOSAL_CONFIDENCES")),
+    Vocabulary("annotate", "ACTOR_KINDS",
+               "tolerance_stack/feature_identity.py: ACTOR_KINDS",
+               _const(_feature_identity_module, "ACTOR_KINDS")),
+    # --- apps/annotate/suggestions.js: the shape rule ---------------------- #
+    Vocabulary("annotate", "SUGGESTION_RULE_KEYS",
+               "tolerance_stack/feature_geometry.py: SUGGESTION_RULE_KEYS",
+               _const(_feature_geometry_module, "SUGGESTION_RULE_KEYS")),
+    Vocabulary("annotate", "SUGGESTION_RULE_SURFACES",
+               "tolerance_stack/feature_geometry.py: SUGGESTION_RULE_SURFACES "
+               "(one per SUGGESTION_RULE_KEYS entry, same order)",
+               _const(_feature_geometry_module, "SUGGESTION_RULE_SURFACES")),
+    Vocabulary("annotate", "SUGGESTION_RULE_WORDS",
+               "tolerance_stack/feature_geometry.py: SUGGESTION_RULE_WORDS "
+               "(one per SUGGESTION_RULE_KEYS entry, same order)",
+               _const(_feature_geometry_module, "SUGGESTION_RULE_WORDS")),
     # --- apps/annotate/suggestions.js: contact suggestions ----------------- #
     Vocabulary("annotate", "CONTACT_PAIRING_KINDS",
                "tolerance_stack/interface_contact.py: PAIRING_KINDS",

@@ -15,8 +15,9 @@ Of 43 endstop ground-truth rows, measurement blocked 0 and **identity blocked
 nothing in a 2D drawing states *which physical feature* a stack element or
 topology edge means — the drawings carry ~90 callouts and not one statement
 of the kinematic chain. So the surface built here does **not** measure
-anything from geometry. It resolves identity, a human does the selecting, and
-every binding is an immutable event, cited like everything else this repo
+anything from geometry. It resolves identity, a human ratifies every binding
+(since 2026-10-28 an agent may *propose* the face first, "Proposals" below),
+and every binding is an immutable event, cited like everything else this repo
 produces.
 
 ## The model
@@ -678,6 +679,49 @@ the surface has always allowed.
 - **Consumers fold the same way.** `scripts/fit_bound_features.py` reads the
   projection's standing bindings, so a superseded binding produces no fit;
   `fits.json` never carries a feature for an event another event supersedes.
+
+### Proposals — an agent proposes, a human ratifies (2026-10-28)
+
+Seven weeks after the surface could bind, nothing was bound, and every node in
+the scene sat on a fallback anchor. Jeff, 2026-10-28: agents propose, he
+ratifies. So the event stream has two more verdicts, and **a human still makes
+every binding**:
+
+- **`proposed`** names a face exactly as `bound` does, plus a `confidence`
+  (`high | medium | low`), a one-line `basis` (the discriminating fact) and the
+  face's `surface_class`. The fold keeps it in a key's `proposals` list. That
+  list is apart from `bindings`, so the fitter, the scene's anchors and a
+  row's state never read a proposal as a binding.
+- **Accept** writes an ordinary `bound` event with `ratifies: <proposal id>`.
+  The fold refuses one that binds any face or end other than the proposed one.
+- **Reject** writes `rejected` with `rejects: <proposal id>` and no face. The
+  proposal moves to `rejected_proposals`, and that face is never proposed for
+  that key again.
+- **Who wrote it** is `recorded_by`, now `<kind>:<who>`:
+  `annotate-app:<reviewer>` from this app (`AA.CONFIG.reviewer`, hand-edited)
+  and `agent:<handoff-slug>` from the CLI. An `agent:` actor cannot write
+  `bound` or `rejected`; the schema refuses it. Events from before 2026-10-28
+  carry a bare `annotate-app` and still load.
+
+**The one agent write path** is `scripts/propose_bindings.py` (one proposal,
+or `--from-report` all-or-nothing). It refuses a missing key, an uninstalled
+sha or face, a face on another part than the end's interface, a face whose
+shape the end's name rules out, a face rejected before, and an end already
+bound or already proposed with that face. The shape rule is the suggestion
+engine's: its words are Python's (`tolerance_stack/feature_geometry.py`,
+`SUGGESTION_RULE_*`), generated into the browser, so the refusal and the
+colouring are one rule.
+
+**On the surface.** A row with an open proposal carries one muted chip,
+"proposed by agent · high", and a dashed stripe. Its state is `proposed`,
+which raises no alert, because the chip already says it. Select the row and
+the bar lists each proposal (interface, face, who, how sure; the basis on
+hover) with **Accept** and **Reject**. Over HTTP the folder is asked for inside
+that click, like any write. The proposed face is drawn as a **dashed outline**
+in the suggestion colour on every occurrence of its part, and hovering it in
+the scene shows the same basis. With the model layer on, a proposed point is a
+**hollow marker beside** the node's own dot. The anchor itself moves only when
+a human accepts.
 
 ## The model in the scene (2026-10-26)
 

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an agent cannot accept or reject, and nothing but a proposal can be answered",
+  "mutations": [
+    {
+      "contract": "An `agent:` actor only proposes. The browser refuses to build an accept recorded as an agent, as the Python schema does.",
+      "issue": null,
+      "note": "Removing the browser-side refusal leaves only the Python check at projection rebuild -- after the file is already in the append-only inbox.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      throw new Error(\"an agent only proposes -- a human accepts\");",
+      "replace": "      void 0;"
+    }
+  ]
+}

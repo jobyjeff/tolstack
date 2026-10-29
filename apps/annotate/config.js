@@ -5,6 +5,11 @@
 (function (AA) {
   "use strict";
   AA.CONFIG = {
+    // Who answers on this machine: every event this app writes is recorded
+    // as "annotate-app:<reviewer>" (AA.humanActor), so a binding says which
+    // person made it and an agent's proposal can be told apart from a
+    // human's accept. Hand-edit it for another reviewer.
+    reviewer: "jeff",
     topologiesDir: ["docs", "topologies"],
     meshesDir: ["data", "meshes"],
     // The tracked topology-part -> mesh part_id alias table (handoff

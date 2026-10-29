@@ -4,9 +4,10 @@
 // specifically so the interesting logic lives here instead of spread across
 // DOM event handlers.
 //
-// The five vocabularies below are tolerance_stack/feature_identity.py's
+// The vocabularies below are tolerance_stack/feature_identity.py's
 // module-level constants (STACK_KEY_KINDS, VERDICTS, DIRECTIONS, PATH_KINDS,
-// GDT_MODIFIERS), read out of ../viewer/vocab.gen.js. They were hand copies
+// GDT_MODIFIERS, PROPOSAL_CONFIDENCES, ACTOR_KINDS), read out of
+// ../viewer/vocab.gen.js. They were hand copies
 // until 2026-09-23, with a pytest module pairing each against its definition --
 // this repo's most-repeated defect is exactly that kind of drift (CLAUDE.md,
 // "A field vocabulary is a module-level constant"), so the copies are gone
@@ -37,7 +38,21 @@
     UNBOUND: "unbound",
     OWNER_NOT_IN_SET: "owner_not_in_set",
     NEEDS_RECONFIRMATION: "needs_re_confirmation",
+    // An agent proposed a face and nobody has answered yet (handoff
+    // an_agent_proposes_a_face_binding_and_a_human_ratifies_it). Nothing is
+    // bound: the fold keeps a proposal out of `bindings`.
+    PROPOSED: "proposed",
   });
+
+  AA.PROPOSAL_CONFIDENCES = VOCAB.list("PROPOSAL_CONFIDENCES");
+  AA.ACTOR_KINDS = VOCAB.list("ACTOR_KINDS");
+
+  // The states whose row carries NO alert, and why each is quiet. `bound`: a
+  // row with nothing wrong shows nothing. `proposed`: the row's own chip
+  // ("proposed by agent · high") already is the signal, and an agent's
+  // proposal is a question waiting for its answer, not something wrong -- a
+  // second mark beside the chip would spend the emphasis twice.
+  AA.QUIET_BINDING_STATES = Object.freeze([AA.BINDING_STATES.BOUND, AA.BINDING_STATES.PROPOSED]);
 
   // What each coarse state MEANS, in everyday words, and which of them is an
   // alert a reader has to act on (flyout_resize_annotator_filter_and_deselect,
@@ -138,10 +153,16 @@
   // if the caller has one loaded (a projection rebuild that named a
   // --mesh-replacements file). Absent staleness info means "nothing known to
   // have changed", which reads as plain `bound`, never a guessed confirmation.
+  //
+  // The precedence is the fold's (StackKeyBindings.state): bound, then
+  // owner_not_in_set, then proposed -- and a record whose only events are
+  // rejected proposals is unbound, exactly like no record at all.
   AA.elementBindingState = function (record, staleness) {
     if (!record) return AA.BINDING_STATES.UNBOUND;
     if (!record.bindings || record.bindings.length === 0) {
-      return AA.BINDING_STATES.OWNER_NOT_IN_SET;
+      if ((record.owner_not_in_set || []).length) return AA.BINDING_STATES.OWNER_NOT_IN_SET;
+      if ((record.proposals || []).length) return AA.BINDING_STATES.PROPOSED;
+      return AA.BINDING_STATES.UNBOUND;
     }
     if (staleness) {
       for (var i = 0; i < record.bindings.length; i++) {
@@ -221,7 +242,120 @@
     // (tolerance_stack.feature_identity.build_projection) hides that event and
     // keeps it; nothing else about the schema changes.
     if (fields.supersedes) event.supersedes = fields.supersedes;
+    // The agent's proposal this binding accepts (an Accept click).
+    if (fields.ratifies) event.ratifies = fields.ratifies;
     return event;
+  };
+
+  // --- an agent's proposal, and a human's answer to it ------------------------
+  //
+  // scripts/propose_bindings.py writes the proposals; this app only ever
+  // answers them. The fold never lets a proposal stand, so a proposal is drawn
+  // apart (dashed, in the suggestion colour, a hollow anchor) and the scene's
+  // anchors stay where they were until a human accepts.
+
+  // Who a human is on an event: "annotate-app:<reviewer>". `reviewer` is
+  // AA.CONFIG.reviewer, hand-edited like the rest of that file.
+  AA.humanActor = function (reviewer) {
+    var who = String(reviewer || "").trim();
+    if (!who) throw new Error("no reviewer is configured (config.js), so this app cannot say who answered");
+    return AA.ACTOR_KINDS[0] + ":" + who;
+  };
+
+  // The actor kind an event's `recorded_by` starts with, or null -- Python's
+  // feature_identity.actor_kind.
+  AA.actorKind = function (recordedBy) {
+    var text = String(recordedBy || "");
+    var cut = text.indexOf(":");
+    if (cut === -1) return null;
+    var head = text.slice(0, cut);
+    return AA.ACTOR_KINDS.indexOf(head) === -1 ? null : head;
+  };
+
+  // Accept: the proposed face, at the proposed end, as an ordinary `bound`
+  // event naming the proposal. `supersedes` only when that end already has a
+  // binding the accept replaces.
+  AA.buildAcceptEvent = function (proposal, fields) {
+    if (!proposal || proposal.verdict !== "proposed") throw new Error("only a proposal can be accepted");
+    if (AA.actorKind(fields.recordedBy) === AA.ACTOR_KINDS[1]) {
+      throw new Error("an agent only proposes -- a human accepts");
+    }
+    var key = proposal.geometry_key;
+    return AA.buildBoundEvent({
+      eventId: fields.eventId, seq: fields.seq, createdAt: fields.createdAt,
+      recordedBy: fields.recordedBy, stackKey: proposal.stack_key,
+      geometryKey: { sourceStepSha256: key.source_step_sha256, faceId: key.face_id,
+        areaNative2: key.area_native2, centroidNative: key.centroid_native },
+      direction: proposal.direction,
+      supersedes: fields.supersedes || null,
+      ratifies: proposal.event_id,
+    });
+  };
+
+  // Reject: names the proposal, carries no face.
+  AA.buildRejectEvent = function (proposal, fields) {
+    if (!proposal || proposal.verdict !== "proposed") throw new Error("only a proposal can be rejected");
+    if (AA.actorKind(fields.recordedBy) === AA.ACTOR_KINDS[1]) {
+      throw new Error("an agent only proposes -- a human rejects");
+    }
+    var event = {
+      schema: "joby.tolerance_stack/feature-identity/v0",
+      event_id: fields.eventId,
+      seq: fields.seq,
+      created_at: fields.createdAt,
+      recorded_by: fields.recordedBy,
+      stack_key: proposal.stack_key,
+      verdict: "rejected",
+      rejects: proposal.event_id,
+    };
+    if (fields.note) event.note = fields.note;
+    return event;
+  };
+
+  // Who proposed, in everyday words: "agent" for an agent, the reviewer's
+  // name for a person, and the raw string for an event older than the prefix.
+  AA.actorWords = function (recordedBy) {
+    var kind = AA.actorKind(recordedBy);
+    if (kind === AA.ACTOR_KINDS[1]) return "agent";
+    if (kind === AA.ACTOR_KINDS[0]) return String(recordedBy).slice(kind.length + 1);
+    return String(recordedBy || "unknown");
+  };
+
+  // The open proposals on a record, one row per proposal, in the same shape
+  // AA.describeBindings uses -- end name, face -- plus who, how sure and why.
+  AA.describeProposals = function (record, names) {
+    var nm = names || {};
+    return ((record && record.proposals) || []).map(function (p) {
+      var key = p.geometry_key || {};
+      return {
+        eventId: p.event_id,
+        direction: p.direction,
+        end: nm[p.direction] || p.direction,
+        face: key.face_id,
+        sha256: key.source_step_sha256,
+        confidence: p.confidence,
+        actor: AA.actorWords(p.recorded_by),
+        basis: p.basis || "",
+        event: p,
+      };
+    });
+  };
+
+  // The rail row's chip: "proposed by agent · high", naming the surest of the
+  // row's open proposals (they are ranked by AA.PROPOSAL_CONFIDENCES' order),
+  // or null when there is none.
+  AA.proposalChip = function (record) {
+    var open = (record && record.proposals) || [];
+    if (!open.length) return null;
+    var best = open.slice().sort(function (a, b) {
+      return AA.PROPOSAL_CONFIDENCES.indexOf(a.confidence) - AA.PROPOSAL_CONFIDENCES.indexOf(b.confidence);
+    })[0];
+    return "proposed by " + AA.actorWords(best.recorded_by) + " · " + best.confidence;
+  };
+
+  // What hovering a proposed face says: who, how sure, and the basis.
+  AA.proposalHoverText = function (row) {
+    return "Proposed by " + row.actor + " (" + row.confidence + "): " + row.basis;
   };
 
   // --- correcting a binding ---------------------------------------------------
@@ -232,6 +366,27 @@
   // Add one session event to a projection row, as build_projection would.
   AA.addEventToRecord = function (row, event) {
     row.history.push(event.event_id);
+    row.proposals = row.proposals || [];
+    row.rejected_proposals = row.rejected_proposals || [];
+    row.accepted_proposals = row.accepted_proposals || [];
+    // An answer takes its proposal out of the open list: a reject keeps it
+    // under `rejected_proposals` (the face is never proposed again), an accept
+    // records its id and binds below.
+    var answered = event.ratifies || event.rejects;
+    if (answered) {
+      var open = [];
+      row.proposals.forEach(function (p) {
+        if (p.event_id !== answered) { open.push(p); return; }
+        if (event.rejects) row.rejected_proposals.push(p);
+        else row.accepted_proposals.push(p.event_id);
+      });
+      row.proposals = open;
+    }
+    if (event.verdict === "proposed") {
+      row.proposals.push(event);
+      return row;
+    }
+    if (event.verdict === "rejected") return row;
     if (event.verdict !== "bound") {
       row.owner_not_in_set.push(event);
       return row;

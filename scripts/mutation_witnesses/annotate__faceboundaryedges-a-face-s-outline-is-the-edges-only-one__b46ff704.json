@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "faceBoundaryEdges: a face's outline is the edges only one of its triangles uses",
+  "mutations": [
+    {
+      "contract": "A proposed face is drawn as its outline: the edges one triangle of the face uses. An interior edge is used twice and is not outline.",
+      "issue": null,
+      "note": "Counting every edge draws the triangulation's diagonals as dashes across the face, which reads as hatching rather than an outline.",
+      "file": "apps/annotate/commands.js",
+      "find": "      if (count[key] !== 1) return;",
+      "replace": "      if (count[key] < 1) return;"
+    }
+  ]
+}

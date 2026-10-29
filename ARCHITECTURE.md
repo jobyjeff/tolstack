@@ -143,6 +143,14 @@ scripts/
                                stdlib plus interface_contact, topology,
                                feature_geometry, fit_bound_features,
                                build_topology_projection and projection_provenance.
+  propose_bindings.py          the agent write path into
+                               data/inbox/feature-identity/: a `proposed` event,
+                               checked against the key, the mesh, the end's part,
+                               the shape rule and the log (rejected, bound,
+                               already proposed) first. Never a binding. Added
+                               2026-10-28; stdlib plus feature_identity,
+                               feature_geometry, topology and
+                               build_topology_projection.
   record_spec_crop_region.py   the verb behind docs/spec_library/crop_regions.json:
                                validates a rect against the pile document and the
                                sheet it names, previews it, and appends the entry.
@@ -422,9 +430,9 @@ writes one immutable event per binding.
 |---|---|
 | `StackKey` | which stack element or topology edge a binding names — reuses `tolerance_stack.topology`'s and `tolerance_stack.stack`'s own ids, one identity namespace rather than a fork (`docs/DAG_TOPOLOGY.md`) |
 | `GeometryKey` | a mesh face: `(source_step_sha256, face_id)` plus the `area_native2`/`centroid_native` fingerprint copied from `data/meshes/<sha>/manifest.json` at binding time |
-| `FeatureIdentityEvent` | one binding (`verdict: "bound"`, with a `GeometryKey` and a `direction`) or one `owner_not_in_set` finding (no geometry at all) |
+| `FeatureIdentityEvent` | one binding (`verdict: "bound"`, with a `GeometryKey` and a `direction`), one `owner_not_in_set` finding (no geometry at all), one agent's `proposed` face (never standing) or one human's `rejected` answer to a proposal; an accept is a `bound` event naming the proposal in `ratifies` |
 | `OwnerPath` | how a binding's `owner_part` was reached: `direct` or a carried-as-such `hypothesis` |
-| `build_projection(events)` | **the fold**: per stack-side key, every `bound` event (many-to-many, decision 4) plus every `owner_not_in_set` event, plus the full history |
+| `build_projection(events)` | **the fold**: per stack-side key, every `bound` event (many-to-many, decision 4) plus every `owner_not_in_set` event, plus the full history; open proposals in a list of their own that nothing reading `bindings` sees, and rejected ones kept so the face is never proposed again |
 | `revalidate(event, new_manifest)` / `revalidate_projection(...)` | the staleness re-check: does a stored `face_id` still match its fingerprint in a replacement mesh's manifest? `"needs_re_confirmation"` on a mismatch, never a silent re-bind and never a drop |
 | `rebuild()` | wipe-and-rebuild `<data-root>/projections/feature-identity/bindings.json`, stamped and gated exactly like the spec library's (`scripts/projection_provenance.py`) |
 
