@@ -5257,6 +5257,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Second, ask what the served page shows between the merge and the next
       rebuild. The HTTP probe wins as soon as `topologies.json` is served, so
       with no index the pane is empty.
+- [ ] **A re-aimed witness pair collapsed onto ONE mutation, and the old
+      contract is now unwitnessed.** New 2026-10-28
+      (`the_active_study_is_a_compact_band_…`). The arrival Fit made every lit
+      dot fit the box, so both specs on the seam's `dotClip` stopped reddening.
+      The author re-aimed both at the same new zoom mutation, and
+      `git grep dotClip -- scripts/mutation_witnesses/` came back empty
+      (`ISSUE_20261028_the_seam_dot_clip_lost_both_its_witnesses_…`). When a diff
+      modifies or deletes a spec, check that the old `find` line is still some
+      spec's target, and look for two specs with an identical `find`/`replace`.
 
 ## Architectural errors to check
 
