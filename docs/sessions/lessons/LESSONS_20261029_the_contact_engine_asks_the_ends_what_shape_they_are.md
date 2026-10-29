@@ -164,3 +164,18 @@ the plate's lug holes, which are now drawing-consistent, for the
 Nothing: the worktree was clean. Nothing tracked was written into the main
 checkout. The only main-checkout reads were `data/` (meshes, the live
 projection and the inbox).
+
+## Verification, as recorded
+
+| tier | where | result | wall |
+|---|---|---|---:|
+| `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs` | worktree @ `751ae9ae` | **1666 passed, 1 failed, 5 skipped, 2 deselected.** The failure is `test_viewer_js_suite`, the by-design worktree red (no viewer projection here). Skips: the four new `[real]` ends checks (the live projection predates `pairing_basis`; they passed 14/14 in their file against the rebuilt one) and the pitch-link bearing re-extraction test. This venv has no xdist, so the run is single-process | 439 s, inside budget (`suite-time record`) |
+| `node apps/annotate/run_tests.cjs` | worktree | 255/255 | — |
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | main data | 506/507. The one FAIL is the freshness gate, and it is correct: this diff changes `tolerance_stack/interface_contact.py`, an input of results/topologies/crops/kinematic, so the node-fs `[real]` tier did NOT run. It runs after `scripts/rebuild_projections.ps1` at merge | — |
+| `node scripts/run_mutation_witness_tests.mjs --changed-since master --repo C:/workspace/tolstack` | main data | **3/3 witnessed, 3/3 reached**, 0 left to the sweep; exit 0 | 123 s, recorded (merge tier) |
+| browser TRUTH tier | not run | Merge-only. The diff's only browser-visible change is two words in the contact bar and one `describeContact` branch, both pinned in the annotate fast tier | — |
+
+**At merge:** run `scripts/rebuild_projections.ps1` in the main checkout,
+**before** the viewer and browser tiers. It rewrites the shared projections
+every worktree reads, so run it once the review's own tier runs are finished.
+The four new `[real]` contact checks then arm.
