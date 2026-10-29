@@ -49,3 +49,7 @@ candidates for a merge-only tier.
 ## Measurement 2026-10-28 (triage batch merge)
 
 615 s (10m15s), `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` in the batch-merge candidate worktree (`28c6f783`, inputs bridged, projections rebuilt in the candidate): `1 failed, 1590 passed, 1 skipped, 2 deselected`. `suite-time record`: OVER BUDGET by 0m15s. Run without `--durations`; the pareto above still stands. The one failure is not a worktree artifact. See `ISSUE_20261028_the_default_tier_is_red_on_every_fresh_projection_because_a_named_real_skip_trips_the_skip_guard.md`.
+
+## Measurement 2026-10-28 (review, the_scene_pane_is_one_flyout_that_reads_over_http)
+
+669 s (11m09s), serial, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`, in the review worktree after the merge: `1 failed, 1593 passed, 1 skipped, 2 deselected`. The one failure is the worktree-only `test_viewer_js_suite`; its tier passed 598/598 through `--repo`. `suite-time record`: OVER BUDGET by 1m09s. The run overlapped a `--changed-since` mutation-witness run that held the browser slot, so the `browser_slot` tests queued behind it. The tactical's run of the same branch alone took 307 s. Still no xdist in the venv, and `--durations` was not captured.

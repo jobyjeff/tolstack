@@ -5246,6 +5246,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       projection). The button hides…". `test_viewer_readme_doc_facts` reads
       declared facts, not sentences, so it stays green. Read every rewritten
       paragraph's last line against the next unchanged one.
+- [ ] **A builder that publishes a snapshot of what another transport WALKS.**
+      New 2026-10-28 (`the_scene_pane_is_one_flyout_that_reads_over_http`).
+      The kinematic builder writes `kinematic/annotate.json` so the HTTP pane
+      can list meshes and runs. Two checks. First, diff its failure answers
+      against the walk's (`apps/annotate/storage/fsa.js`): its
+      `_read_json_or_none` turns a malformed alias table or names file into
+      `null`, and it drops an unparseable run that the walk would list
+      (`ISSUE_20261028_the_annotators_served_read_set_turns_an_unreadable_file_into_an_absent_one.md`).
+      Second, ask what the served page shows between the merge and the next
+      rebuild. The HTTP probe wins as soon as `topologies.json` is served, so
+      with no index the pane is empty.
 
 ## Architectural errors to check
 
