@@ -4305,6 +4305,46 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       kinDistinct.length >= 3);
     push("[real] and Fit still brings the lit set into the box in that mode",
       kinTol.litTop >= kinTol.paneTop - 2 && kinTol.litBottom <= kinTol.paneBottom + 2);
+
+    // --- the Groups filter on the real page (a_study_is_a_translucent_group_on_
+    //     the_dag): a study opens with both containers drawn, and one button
+    //     walks bodies -> studies -> both -> none.
+    const groupsNow = () => page.evaluate(() => ({
+      button: document.querySelector("#group-filter-toggle").textContent,
+      bodies: document.querySelectorAll("#topopane rect.tv__bodyfield").length,
+      studies: document.querySelectorAll("#topopane rect.tv__studyfield").length,
+      selected: document.querySelectorAll("#topopane rect.tv__studyfield--selected").length,
+      names: document.querySelectorAll("#topopane text.tv__studyname").length,
+    }));
+    const groupsBoth = await groupsNow();
+    push("[real] a study opens with its bodies AND every study's group drawn, the " +
+      "selected one marked", groupsBoth.button === "Groups: both" && groupsBoth.bodies > 0 &&
+      groupsBoth.studies >= groupsBoth.names && groupsBoth.names > 1 && groupsBoth.selected >= 1);
+    const seen = {};
+    for (let i = 0; i < 4; i++) {
+      await page.locator("#group-filter-toggle").click();
+      await settle(200);
+      const g = await groupsNow();
+      seen[g.button] = g;
+    }
+    push("[real] the Groups button draws exactly what it names in each of its four states",
+      seen["Groups: none"].bodies === 0 && seen["Groups: none"].studies === 0 &&
+      seen["Groups: bodies"].bodies > 0 && seen["Groups: bodies"].studies === 0 &&
+      seen["Groups: studies"].bodies === 0 && seen["Groups: studies"].studies === groupsBoth.studies &&
+      seen["Groups: both"].bodies === groupsBoth.bodies &&
+      seen["Groups: both"].studies === groupsBoth.studies);
+    if (process.env.GROUPS_SHOTS) {
+      for (const word of ["both", "studies"]) {
+        while ((await groupsNow()).button !== `Groups: ${word}`) {
+          await page.locator("#group-filter-toggle").click();
+          await settle(200);
+        }
+        await page.screenshot({ path: join(process.env.GROUPS_SHOTS, `kinematic_${word}.png`) });
+      }
+    }
+    await page.evaluate(() => {
+      try { localStorage.removeItem("tolstack.viewer.groupFilter"); } catch (e) { /* none */ }
+    });
     return reportSuite(label, checks, errors);
   } catch (err) {
     return reportAbortedSuite(label, checks, errors, err);

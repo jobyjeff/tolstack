@@ -1500,7 +1500,7 @@
         svg.appendChild(hotHover(hot, rect, key));
         if (i) return;
         var label = VA.svg("text", "tv__studyname", { x: span.x1 + 6, y: span.y1 + 3 });
-        label.textContent = fitText(group.title, span.x2 - span.x1 - 8);
+        label.textContent = fitText(group.title, Math.max(span.x2 - span.x1 - 8, 84));
         label.appendChild(svgTitle(group.title + " — click to open this study"));
         label.setAttribute("data-study-open", group.id);
         label.setAttribute("tabindex", "0");
@@ -1916,8 +1916,9 @@
   // A native SVG tooltip: the element's own name, so hovering the graph reads
   // without the grid. `textContent` rather than a text node, because the DOM
   // shim's appendChild return value is the one place the two DOMs differ.
-  // `text` cut to what a field `width` px wide holds at the micro step (about
-  // 6px a character), with an ellipsis; its full text is the label's tooltip.
+  // `text` cut to what `width` px holds at the micro step (about 6px a
+  // character), with an ellipsis; its full text is the label's tooltip. A
+  // study's title gets at least 84px, so a one-column field is not just "…".
   function fitText(text, width) {
     var room = Math.max(1, Math.floor(width / 6));
     return text.length <= room ? text : text.slice(0, Math.max(0, room - 1)) + "…";

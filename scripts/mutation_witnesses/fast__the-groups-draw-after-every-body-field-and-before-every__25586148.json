@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the groups draw after every body field and before every mark, and a body's name stays above them",
+  "mutations": [
+    {
+      "contract": "Study groups draw over the body fields and under every mark.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_a_study_is_a_translucent_group_on_the_dag.md",
+      "note": "The one line this guard stands on.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "svg.appendChild(hotHover(hot, rect, key));",
+      "replace": "svg.insertBefore(hotHover(hot, rect, key), svg.firstChild);"
+    }
+  ]
+}

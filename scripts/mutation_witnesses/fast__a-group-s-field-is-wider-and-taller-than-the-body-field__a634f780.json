@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a group's field is wider and taller than the body field it wraps, and the bodies' own geometry is unchanged by it",
+  "mutations": [
+    {
+      "contract": "A study group wraps the body field it coincides with, so the two read as nested.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_a_study_is_a_translucent_group_on_the_dag.md",
+      "note": "The one line this guard stands on.",
+      "file": "apps/viewer/topology.js",
+      "find": "return field(span, pad + 3, -2);",
+      "replace": "return field(span, pad, 1);"
+    }
+  ]
+}

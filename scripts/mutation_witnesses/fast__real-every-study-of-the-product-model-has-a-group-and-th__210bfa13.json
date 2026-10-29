@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every study of the product model has a group, and the page paints exactly its spans, in both modes",
+  "mutations": [
+    {
+      "contract": "Every study of the topology, kinematic included, has a group.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_a_study_is_a_translucent_group_on_the_dag.md",
+      "note": "The one line this guard stands on.",
+      "file": "apps/viewer/topology.js",
+      "find": "if (study.topology !== topoProj.id) return;",
+      "replace": "return;"
+    }
+  ]
+}
