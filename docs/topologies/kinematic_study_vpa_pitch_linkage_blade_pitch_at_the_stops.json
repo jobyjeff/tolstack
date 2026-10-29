@@ -6,6 +6,11 @@
   "topology": "vpa_pitch_linkage",
   "sweep": {"run_id": "vpa-pitch-p2-20261016-235852", "schema": "linkage-sweep/v1"},
   "measure": "blade_pitch",
+  "datum": {
+    "stop": "plus72",
+    "basis": "at rest, gas spring charged; nominal CAD",
+    "note": "Jeff, 2026-10-29: 'for now let's make the 72deg feather hard stop the datum, since that's where the propeller is at rest when the gas spring is charged (and what is modeled in nominal CAD).' The sweep's driver is 0 there (S461-610/636: 0 mm at full extension), so the stop-to-stop travel moves the -7 deg stop only."
+  },
   "stops": [
     {
       "id": "minus7",
@@ -121,7 +126,19 @@
         "study_id": "vpa_pitch_linkage_travel_between_end_stops",
         "parameter": "actuator.value"
       },
-      "note": "Where the end stops sit: the travel between them is a study of its own, and it moves the sweep's driver, actuator.value, whose Jacobian entry is the motion ratio in degrees of blade pitch per millimetre. Its terms enter here one by one, each scaled by that entry (the chain rule), and each keeps the citation it has in the travel study -- the travel study's folded total is never used as a band."
+      "applies_to": ["minus7"],
+      "note": "Where the -7 deg stop sits: the travel between the stops is a study of its own, and it moves the sweep's driver, actuator.value, so it is an x-uncertainty of the stop it moves and never a term of the envelope. It moves the -7 deg stop only: the +72 deg stop is the datum the driver is measured from (`datum`). At that stop its terms enter the stop's verdict one by one, each scaled by the Jacobian entry there -- the motion ratio in degrees of blade pitch per millimetre (the chain rule) -- and each keeps the citation it has in the travel study; the travel study's folded total is never used as a band."
+    },
+    {
+      "study_ref": {
+        "topology": "vpa_pitch_linkage",
+        "study_id": "vpa_pitch_linkage_hub_to_feather_stop",
+        "parameter": "actuator.value"
+      },
+      "applies_to": ["plus72", "minus7"],
+      "title": "Blade-root bores to the feather stop",
+      "gap": "Neither stop is yet anchored to the blade-root bores",
+      "note": "Declared 2026-10-29 (handoff the_plus72_stop_is_the_travel_datum), not authored: no chain in vpa_pitch_linkage runs from the blade-root bearing bores (the hub datum the blade angle is indexed to) to either end stop, so where the feather stop sits relative to the blades has no band. The chain to author, with the drawings: blade-root bearing bores -> hub -> actuator mount / cover -> feather end-stop face, along CAD Z (the sweep's frame: CAD Z = the spindle axis, CAD X = blade 1's pitch axis). An error there moves both stops together, so it applies to both. Jeff, 2026-10-29: 'the nominal location of both end stops is really indexed relative to the blade root bores, since shifting those features relative to each other along the z-axis actually shifts the blade angle.'"
     }
   ],
   "checks": [
@@ -202,6 +219,7 @@
   },
   "notes": [
     "Variation only: every band is about a nominal of 0.0, so each point's fold is the deviation of blade pitch from the sweep's own nominal there. The nominal itself is the sweep's solved value, carried beside the fold, never added to it.",
-    "complete: false at both stops, so both verdicts render as budgets: bushing tipping and temperature are not contributors yet, and the travel study's own untraced terms are open here too (the checks name them)."
+    "complete: false at both stops, so both verdicts render as budgets: bushing tipping and temperature are not contributors yet, and the travel study's own untraced terms are open here too (the checks name them).",
+    "Where the stops are (2026-10-29, Jeff's ruling): the +72 deg stop is the datum, the -7 deg stop carries the stop-to-stop travel as an x-interval, and the envelope at every point folds the six direct contributors only. Neither stop is anchored to the blade-root bores yet -- the declared gap contributor -- so both checks are incomplete on it as well. Jeff, 2026-10-29: 'the nominal location of both end stops is really indexed relative to the blade root bores, since shifting those features relative to each other along the z-axis actually shifts the blade angle.'"
   ]
 }
