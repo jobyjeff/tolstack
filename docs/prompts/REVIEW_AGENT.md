@@ -5284,6 +5284,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       spec's `mutations` array and `--only` the guard on the merged tree; drop
       a mutation only if it is NOT WITNESSED there, with the reason in its
       `note`.
+- [ ] **A schema extension whose first events go into a shared gitignored
+      inbox before the merge.** New 2026-10-29
+      (`an_agent_proposes_a_face_binding_and_a_human_ratifies_it`). The main
+      checkout runs **trunk** code over the shared `data/`, so a new verdict
+      written to `data/inbox/feature-identity/` breaks trunk's fold, and a
+      projection rebuilt from the branch is misread by trunk's annotator until
+      the batch merge. Here, 33 rows showed `owner_not_in_set`
+      (`ISSUE_20261029_trunks_annotator_reads_the_proposal_pass_as_…`). Check
+      whether any trunk reader of that inbox or projection
+      (`git grep <file> master -- apps scripts tolerance_stack`) still holds the
+      old vocabulary, and file the window if one does.
 
 ## Architectural errors to check
 
