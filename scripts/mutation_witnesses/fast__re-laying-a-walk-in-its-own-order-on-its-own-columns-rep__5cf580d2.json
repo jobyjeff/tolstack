@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "re-laying a walk in its own order on its own columns reproduces it row for row, rail for rail",
+  "mutations": [
+    {
+      "contract": "VA.layWalk, handed a walk's own order and its own columns as the preference, reproduces the walk: the re-layer honours a preferred column wherever it is free.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). An edge stops trying its preferred column, so every fork lands on the lowest free one instead of the walk's own.",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (col === undefined) col = pick([prefer(edge), c], r, bottom, row.id);",
+      "replace": "        if (col === undefined) col = pick([c], r, bottom, row.id);"
+    }
+  ]
+}

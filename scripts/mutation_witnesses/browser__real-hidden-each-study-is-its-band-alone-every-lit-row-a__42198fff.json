@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file:// respine",
+  "expect_red": "[real] hidden, each study is its band alone -- every lit row and nothing else, one connected drawing, leaders still on their dots",
+  "mutations": [
+    {
+      "contract": "With the unlit model hidden the page draws the band alone.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Hidden draws the whole re-arranged walk.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      ? VA.bandLayout(topoProj.layout, lit, hiding ? { only: true } : null)",
+      "replace": "      ? VA.bandLayout(topoProj.layout, lit, null)"
+    }
+  ]
+}

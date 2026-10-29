@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every study of the product model is one contiguous band that draws as a walk, crosses itself no more than its rows did in the walk, and widens nothing",
+  "mutations": [
+    {
+      "contract": "On the product model no band widens the walk: an unlit edge forking off a lit node below the band curves back to it instead of running a rail down through the band.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Without the swap the kinematic study's walk was measured at 23 columns against 11.",
+      "file": "apps/viewer/topology.js",
+      "find": "          next.kind === \"node\" && next.id === edge.left_at) {",
+      "replace": "          next.kind === \"node\" && next.id === null) {"
+    },
+    {
+      "contract": "The band's columns are reserved over the band's rows, so no rail of the rest of the model runs on them there.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). No reservation: a rail of the rest takes a band column through the band and a band row is pinned on top of it.",
+      "file": "apps/viewer/topology.js",
+      "find": "      reserved: function (c, from, to) { return c < k && from <= bottom && to >= top; },",
+      "replace": "      reserved: function () { return false; },"
+    }
+  ]
+}

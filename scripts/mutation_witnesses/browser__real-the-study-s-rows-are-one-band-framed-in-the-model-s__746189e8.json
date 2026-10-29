@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the study's rows are one band, framed in the model's pane on arrival, every leader on its moved dot",
+  "mutations": [
+    {
+      "contract": "Arriving at a study frames its band (Fit) once the paint settles.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). No arrival framing: the bounded pane is scrolled to the grid's header and the 42-row band runs past its bottom.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      if (serialisation() !== paintedSerialisation &&",
+      "replace": "      if (false &&"
+    }
+  ]
+}

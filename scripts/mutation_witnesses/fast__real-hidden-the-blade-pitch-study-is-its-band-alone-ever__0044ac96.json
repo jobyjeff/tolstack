@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] hidden, the blade-pitch study is its band alone: every lit row, one connected drawing, named once per body",
+  "mutations": [
+    {
+      "contract": "Hidden is the band alone: VA.bandLayout's `only` returns just the band's rows.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). `only` ignored, so hidden draws the whole re-arranged walk.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (options && options.only) return result(band);",
+      "replace": "    if (false) return result(band);"
+    }
+  ]
+}

@@ -1827,12 +1827,17 @@
 
   // Fit: the scale at which the lit set (the whole walk where nothing is lit)
   // fills the visible pane, never past 1, and the page scrolled so it starts
-  // at the visible top. One step, from wherever the reader is.
-  function fitDag() {
+  // at the visible top. One step, from wherever the reader is. The control
+  // and the key also go back to the drawing's left edge; the framing a study
+  // arrival does (`keepSideways`) leaves the reader's sideways scroll where
+  // it was, as every other re-paint of this pane does.
+  function fitDag() { fitDagTo(false); }
+
+  function fitDagTo(keepSideways) {
     var box = zoomBox();
     var hscroll = paneHscroll();
     var drawn = VA.lastTopoRender;
-    if (!box || !hscroll || !drawn || !drawn.span) return;
+    if (!box || !hscroll || !drawn || !drawn.span || !box.getBoundingClientRect) return;
     var bounded = paneScroller();
     var bar = typeof document !== "undefined" ? document.querySelector(".topbar") : null;
     var topEdge = bounded ? nodes.pane.getBoundingClientRect().top
@@ -1844,7 +1849,8 @@
     state.dagZoom = to;
     VA.applyTopoZoom(nodes.pane, to, true);
     var rect = box.getBoundingClientRect();
-    scrollDag(-hscroll.scrollLeft, rect.top + (drawn.span.top - pad) * to - topEdge);
+    scrollDag(keepSideways ? 0 : -hscroll.scrollLeft,
+      rect.top + (drawn.span.top - pad) * to - topEdge);
     VA.pinTopoHead(nodes.pane);
     scheduleSeamDraw();
   }
@@ -2427,6 +2433,16 @@
           { onError: renderCrash });
       } else {
         VA.renderTopoPane(nodes.pane, ctx);
+      }
+      // Arriving at a study re-arranges the walk around it (VA.bandLayout),
+      // and the band is then framed (Fit) once the transition has settled:
+      // the point of the band is that the whole study is on screen without
+      // scrolling. Any other paint leaves the reader's zoom alone.
+      if (serialisation() !== paintedSerialisation &&
+          (ctx.lit || VA.studyLitSet(ctx.study, topoProj))) {
+        var frame = function () { fitDagTo(true); };
+        if (respineHandle && !respineHandle.done) respineHandle.onSettled = frame;
+        else frame();
       }
       if (showTopology) {
         VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));

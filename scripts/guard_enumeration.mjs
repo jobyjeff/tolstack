@@ -159,7 +159,7 @@ export const GUARD_SOURCES = {
 // `node scripts/run_mutation_witness_tests.mjs --unenrolled` is what names the
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
-  fast: { declared: 599, enrollable: 599, names: "dbc8af926861" },
+  fast: { declared: 607, enrollable: 607, names: "57c2e46fa36a" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec.
@@ -170,7 +170,10 @@ export const DECLARED_GUARDS = {
   // `[real] SKIPPED:` pushes of the hosted read-only half and of "the scene
   // pane reads over HTTP", whose condition is the literal `true`, so no
   // mutation can redden them.
-  browser: { declared: 717, enrollable: 684, names: "c412b899ccaa" },
+  // 2026-10-28 (the_active_study_is_a_compact_band_...): +8 fast, +6 browser
+  // on top, re-measured at that review's merge; then +4 browser
+  // (an_interface_suggests_the_faces_that_touch, above).
+  browser: { declared: 723, enrollable: 690, names: "5c66cd0130d5" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
