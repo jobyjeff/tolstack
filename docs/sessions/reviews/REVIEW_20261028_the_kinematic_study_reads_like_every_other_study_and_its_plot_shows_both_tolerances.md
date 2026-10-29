@@ -161,9 +161,12 @@ browser 723/690 (= 721/688 + 2). Then I re-ran on that tree:
   `.tv .detail` is now sticky on that page as well. Because the suite passes
   alone, I read this as the known flake and not as a sticky-pane regression.
 
-I did not re-run the witness tier after this second merge. Its `SHADOWED`
-inputs changed only through `integration`'s own reviewed landing, and every
-entry the conflict resolutions touched was witnessed above.
+After landing, I re-ran the witness tier on this merge:
+`run_mutation_witness_tests.mjs --repo <scratch> --changed-since 5b5a4723`.
+It selected 48 of 543 entries, reached all 48, and witnessed 47, in 28m26s,
+with none left to the sweep. The one miss is the same known `d42adbc7`, so
+the merge caused no drop. (An earlier draft of this section said this run
+had not been done; it was then done.)
 
 ## Findings
 
