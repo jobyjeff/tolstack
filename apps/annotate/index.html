@@ -61,6 +61,13 @@
          aria-orientation="vertical" aria-label="resize the list" tabindex="0"></div>
 
     <section class="an__scene">
+      <!-- Embedded only (app.js's setBanner): the banner band does not exist
+           in the pane, and what it would have said -- an error above all --
+           is this one line, dismissable, until the next message. -->
+      <div id="notice" class="an__notice" style="display:none" role="status">
+        <span id="notice-text" class="an__notice-text"></span>
+        <button id="notice-close" class="an__notice-close" aria-label="dismiss">×</button>
+      </div>
       <!-- THE TOP BAR. This was a 320px column to the RIGHT of the canvas
            until 2026-09-21 -- Jeff, using the annotator through the viewer
            flyout: "the 'Pick an element on the left, then click a face in the
@@ -123,6 +130,10 @@
        (/tolstack/annotate/ beside /tolstack/viewer/) and ops.toml's serve
        verb, which serves apps/ for this reason. -->
   <script src="../viewer/storage/adapter.js"></script>
+  <!-- ...and its HTTP adapter, which this app's storage/http.js wraps (handoff
+       the_scene_pane_is_one_flyout_that_reads_over_http): one probe, one set
+       of served roots, for both apps. -->
+  <script src="../viewer/storage/http.js"></script>
   <!-- ...and the same app's ALERT MARK, for the same reason: the rail's badge
        and the viewer's wear one triangle, drawn once (apps/viewer/
        warning_icon.js; AA.warningIcon in binding_state.js is the one caller). -->
@@ -132,6 +143,7 @@
   <script src="./storage/adapter.js"></script>
   <script src="./storage/memory.js"></script>
   <script src="./storage/fsa.js"></script>
+  <script src="./storage/http.js"></script>
   <script src="./binding_state.js"></script>
   <script src="./commands.js"></script>
   <!-- The face-suggestion pair (handoff annotate_face_suggestions,

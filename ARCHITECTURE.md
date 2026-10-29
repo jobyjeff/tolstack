@@ -101,7 +101,10 @@ scripts/
                                from; apps/viewer/views/kinematic.js reads it),
                                beside an
                                evidence plot per study as hand-written SVG set
-                               in the viewer's own :root tokens. A sibling of
+                               in the viewer's own :root tokens, and the
+                               annotator's served read set (annotate.json +
+                               sweeps/: what a static mount cannot list, for
+                               apps/annotate/storage/http.js; 2026-10-28). A sibling of
                                the topology builder rather than a section of
                                the topology projection, because it reads a
                                gitignored sweep. Added 2026-10-16; stdlib plus

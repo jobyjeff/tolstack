@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "http: no read set yet is no meshes and no runs, never an error",
+  "mutations": [
+    {
+      "contract": "An origin with no read set yet reads as no meshes and no runs -- the ordinary first-run state.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "Reading the index's fields off a null throws, and a throw inside loadAll is a page that never boots.",
+      "file": "apps/annotate/storage/http.js",
+      "find": "    return AA.orderSweepRuns(((index && index.sweep_runs) || []).map(function (r) {",
+      "replace": "    return AA.orderSweepRuns((index.sweep_runs || []).map(function (r) {"
+    }
+  ]
+}

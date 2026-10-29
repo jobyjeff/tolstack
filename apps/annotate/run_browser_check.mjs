@@ -235,10 +235,35 @@ async function checkEverything(browser, base) {
   check("the raw source token is not a field of the summary line",
     !summary.split(" · ").includes("sheet"), summary);
 
+  // EXPANDED is the resting state (handoff the_scene_pane_is_one_flyout_that_
+  // reads_over_http, deliverable 5): the summary line's twisty says so.
   check("the transport, the scrubber, the speed and the loop are one line",
+    (await page.locator(".an__sweep-twisty[aria-expanded=\"true\"]").count()) === 1 &&
     (await page.locator(".an__sweep-controls .an__sweep-btn").count()) === 3 &&
     (await page.locator(".an__sweep-range").count()) === 1 &&
     (await page.locator(".an__sweep-select").count()) === 2);
+
+  // FOLDED: the twisty puts the controls and the numbers away, the line then
+  // carries the frame's blade pitch and actuator travel, and the gate line --
+  // a warning -- stays. Away from the as-modelled pose so the gate is up.
+  await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
+  await page.locator(".an__sweep-twisty").click();
+  const foldedFigures = (await page.locator(".an__sweep-figures").textContent().catch(() => "")) || "";
+  check("folded, the sweep bar is its summary line, the frame's two figures and the gate",
+    (await page.locator(".an__sweep-twisty[aria-expanded=\"false\"]").count()) === 1 &&
+    (await page.locator(".an__sweep-controls").count()) === 0 &&
+    (await page.locator(".an__sweep-readouts").count()) === 0 &&
+    foldedFigures.includes("blade pitch") && foldedFigures.includes("actuator travel") &&
+    (await page.locator(".an__sweep-gate").isVisible()), foldedFigures);
+  // Remembered for the session: a repaint (a step) keeps it folded.
+  await page.evaluate(() => window.AnnotateApp.exec(["step", "1"]));
+  check("folded stays folded across a repaint, and its figures follow the frame",
+    (await page.locator(".an__sweep-controls").count()) === 0 &&
+    ((await page.locator(".an__sweep-figures").textContent()) || "") !== foldedFigures);
+  await page.locator(".an__sweep-twisty").click();
+  check("the same twisty unfolds it again",
+    (await page.locator(".an__sweep-controls .an__sweep-btn").count()) === 3 &&
+    (await page.locator(".an__sweep-figures").count()) === 0);
 
   // The readouts, as rendered -- the four numbers that are the verification.
   const readoutText = await page.locator(".an__sweep-readouts").innerText();

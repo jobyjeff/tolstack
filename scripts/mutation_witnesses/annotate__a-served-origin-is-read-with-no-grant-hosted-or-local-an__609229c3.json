@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a served origin is read with no grant, hosted or local, and FSA is never booted",
+  "mutations": [
+    {
+      "contract": "The annotator hands its HTTP adapter to the shared transport decision, so a served origin is read with no grant.",
+      "issue": "docs/issues/ISSUE_20260910_annotate_has_no_http_read_transport.md",
+      "note": "The exact pre-handoff shape: `http: null`.",
+      "file": "apps/annotate/storage/adapter.js",
+      "find": "      http: opts.http || null,",
+      "replace": "      http: null,"
+    }
+  ]
+}

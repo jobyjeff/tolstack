@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
+  "expect_red": "[real] the divider's chevron closes the pane and the seam's handle returns",
+  "mutations": [
+    {
+      "contract": "The chevron closes the pane and the seam's handle comes back.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "The same seam both ways; a close that leaves no way back in strands the page.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      nodes.flyoutCollapse.onclick = function () { nodes.flyout.close(); };",
+      "replace": "      nodes.flyoutCollapse.onclick = function () {};"
+    }
+  ]
+}

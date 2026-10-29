@@ -607,3 +607,53 @@ body.an--embedded .an__console,
 body.an--embedded .topbar h1 { display: none; }
 body.an--embedded .an__canvas-host,
 body.an--embedded .an__scene-empty { inset: 0; }
+
+/* --- the pane never scrolls (handoff the_scene_pane_is_one_flyout_that_reads_
+   over_http, deliverable 3). The page used to be sized `100vh - 70px`, which
+   assumed a one-line top bar and a one-line banner; at the pane's 400-560px
+   width both wrapped, the document outgrew the frame and the body scrolled --
+   a scroll bar on the pane's right edge that the 2D-to-3D leaders crossed.
+   Embedded, the body is the frame: a column whose last row (`.an`) takes
+   what is left, and nothing in it may overflow the frame. The hint bar keeps
+   its own scroll region; it is the one scroller. */
+html:has(body.an--embedded) { height: 100%; overflow: hidden; }
+body.an--embedded {
+  height: 100%; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+body.an--embedded .an { height: auto; flex: 1; min-height: 0; }
+/* Reading over HTTP there is nothing for the top bar or the banner to say in
+   the pane -- the shell's header carries the status -- so neither takes a
+   line. A folder-grant page keeps its top bar: Connect is its only way in. */
+body.an--embedded #banner,
+body.an--embedded.an--served .topbar { display: none; }
+
+/* The banner's one line, in the pane: muted at rest, coloured by state, the
+   whole message on hover, and a quiet control that lets it go. */
+.an__notice {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 4px 12px; font-size: var(--t-meta); color: #9aa1ab;
+}
+.an__notice--warn { color: #d6b45b; }
+.an__notice--error { color: #d65b5b; }
+.an__notice-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an__notice-close {
+  flex: none; background: none; border: none; padding: 0 4px; cursor: pointer;
+  color: #9aa1ab; font: inherit; line-height: 1;
+}
+.an__notice-close:hover, .an__notice-close:focus { color: #e8e8e8; outline: none; }
+
+/* --- the sweep bar, folded to its summary line (deliverable 5) -------------
+   The twisty is the line's first control; folded, the line carries the two
+   figures a reader scrubs for, right-aligned and tabular like the readouts. */
+.an__sweep-twisty {
+  flex: none; background: none; border: none; padding: 0 2px; cursor: pointer;
+  color: #9aa1ab; font: inherit; line-height: 1; width: 16px;
+}
+.an__sweep-twisty:hover, .an__sweep-twisty:focus { color: #e8e8e8; outline: none; }
+.an__sweep-figures {
+  flex: none; display: flex; gap: 12px; font-size: var(--t-meta);
+  color: #e8e8e8; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.an__sweep-figure-label { color: #9aa1ab; }
+.an__sweep-figures--warn { color: #d6705b; }

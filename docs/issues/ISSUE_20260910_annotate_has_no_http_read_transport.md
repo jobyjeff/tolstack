@@ -5,6 +5,7 @@ status: triaged
 area: apps/annotate
 reporter: agent
 strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
+handoff: the_scene_pane_is_one_flyout_that_reads_over_http
 ---
 
 # The annotator has no HTTP read transport — every session needs a folder grant even to look
@@ -90,3 +91,16 @@ decision.
 > handoff named ("waits only for a verb that writes") follows once a read
 > transport exists; today every command waits on `loadAll()`, which waits on
 > the grant because nothing else can read.
+
+> **Fixed, 2026-10-28 (handoff `the_scene_pane_is_one_flyout_that_reads_over_http`).**
+> `apps/annotate/storage/http.js` wraps the viewer's `HttpAdapter` and is the
+> `http` candidate `AA.chooseTransport` hands the shared decision. The two
+> halves the 2026-10-26 addendum named are both closed on tolstack's side:
+> what a static mount cannot list (meshes, runs) and what no mount reaches
+> (aliases, part names) is published by `scripts/build_kinematic_projection.py`
+> as `data/projections/viewer/kinematic/annotate.json`, with each run byte for
+> byte under `kinematic/sweeps/` -- inside the directory drawing-checker
+> already serves and bakes, so no drawing-checker change was needed. The
+> feature-identity projection is still served by no mount; a page reads it
+> from the folder once granted. Writes go through the folder, asked for at the
+> first bind.

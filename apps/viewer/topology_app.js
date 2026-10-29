@@ -208,11 +208,12 @@
       detailDivider: document.getElementById("detail-divider"),
       crop: document.getElementById("croppop"),
       flyout: document.getElementById("annotate-flyout"),
-      flyoutClose: document.getElementById("flyout-close"),
+      flyoutCollapse: document.getElementById("flyout-collapse"),
       flyoutDivider: document.getElementById("flyout-divider"),
       flyoutFullpage: document.getElementById("flyout-fullpage"),
       flyoutTitle: document.getElementById("flyout-title"),
-      paneToggle: document.getElementById("pane-toggle"),
+      flyoutStatus: document.getElementById("flyout-status"),
+      paneHandle: document.getElementById("pane-handle"),
     };
     applyDensity();
     state.detailWidth = VA.readStoredPaneWidth(widthStore());
@@ -230,15 +231,18 @@
     applyFlyoutWidth();
     wireFlyoutDivider();
 
-    nodes.flyoutClose.onclick = function () { nodes.flyout.close(); };
-    // The head's "3D" control opens the pane on whatever is selected -- no row
-    // needed -- and closes it again. Rendered only where the mount probe
-    // passed (paint()), so a page that cannot embed the annotator shows
-    // nothing about it.
-    if (nodes.paneToggle) {
-      nodes.paneToggle.onclick = function () {
-        if (nodes.flyout.open) nodes.flyout.close();
-        else openPane();
+    // ONE handle (handoff the_scene_pane_is_one_flyout_that_reads_over_http):
+    // the seam's tab opens the pane on whatever is selected -- no row needed --
+    // and the chevron on the pane's own divider closes it. The tab is rendered
+    // only where the mount probe passed (syncPaneHandle), so a page that
+    // cannot embed the annotator shows nothing about it.
+    if (nodes.paneHandle) nodes.paneHandle.onclick = function () { openPane(); };
+    if (nodes.flyoutCollapse) {
+      nodes.flyoutCollapse.onclick = function () { nodes.flyout.close(); };
+      // A press on the chevron is a click, never the start of a resize drag
+      // on the divider it sits in.
+      nodes.flyoutCollapse.onpointerdown = function (event) {
+        if (event && event.stopPropagation) event.stopPropagation();
       };
     }
     // The ONE seam every close path goes through. Not the button's handler:
@@ -257,7 +261,7 @@
       VA.writeStoredFlyoutOpen(widthStore(), false);
       paneFollowed = null;
       clearPaneHover();
-      syncPaneToggle();
+      syncPaneHandle();
       // The leaders go with the scene; it is told everything again on reopen.
       sceneModelPosted = null;
       sceneSelectPosted = null;
@@ -1219,8 +1223,8 @@
     return params ? JSON.stringify(params) : "";
   }
 
-  // The head's "3D" control, and a pane the reader left open reopening after
-  // a reload: open on the current selection, no row needed.
+  // The seam's tab, and a pane the reader left open reopening after a
+  // reload: open on the current selection, no row needed.
   function openPane() {
     launchAnnotate(currentAnnotateParams());
   }
@@ -1294,7 +1298,7 @@
     document.body.classList.add("flyout-open");
     syncSceneColumn();
     VA.writeStoredFlyoutOpen(widthStore(), true);
-    syncPaneToggle();
+    syncPaneHandle();
     // The nav grows the slot the scene's tree is drawn into.
     renderNav();
 
@@ -1361,13 +1365,25 @@
     return true;
   }
 
-  // The head control is rendered only where the pane can exist, and reads as
-  // pressed while it is open.
-  function syncPaneToggle() {
-    if (!nodes.paneToggle) return;
-    nodes.paneToggle.style.display = state.annotateMount ? "" : "none";
-    nodes.paneToggle.setAttribute("aria-pressed",
-      nodes.flyout && nodes.flyout.open ? "true" : "false");
+  // The seam's tab is rendered only where the pane can exist, and only while
+  // it is closed: open, the divider's chevron is the way back.
+  function syncPaneHandle() {
+    if (!nodes.paneHandle) return;
+    var open = !!(nodes.flyout && nodes.flyout.open);
+    nodes.paneHandle.style.display = state.annotateMount && !open ? "" : "none";
+  }
+
+  // The annotator's status, as it says it ({type: "annotate:status", word,
+  // tone, sentence}): the word beside a dot coloured by `tone`, the sentence
+  // on hover. All three are the annotator's (AA.PANE_STATUS); nothing here is
+  // composed.
+  function setPaneStatus(msg) {
+    var node = nodes.flyoutStatus;
+    if (!node) return;
+    node.textContent = msg.word || "";
+    node.setAttribute("title", msg.sentence || "");
+    node.setAttribute("data-tone", msg.tone || "");
+    node.style.display = msg.word ? "" : "none";
   }
 
   // --- what the pane says it is showing (deliverable 4) ----------------------
@@ -1405,6 +1421,10 @@
       if (msg && msg.type === VA.SCENE_ANCHORS_MESSAGE) {
         seamAnchors = msg.nodes || {};
         scheduleSeamDraw();
+        return;
+      }
+      if (msg && msg.type === "annotate:status") {
+        setPaneStatus(msg);
         return;
       }
       if (!msg || msg.type !== "annotate:state") return;
@@ -2450,9 +2470,9 @@
     // the target's throughout one.
     paintedSerialisation = serialisation();
 
-    // The head's 3D control, and an open pane following what was just
-    // selected -- after the paint, so the views' own state is settled.
-    syncPaneToggle();
+    // The seam's tab, and an open pane following what was just selected --
+    // after the paint, so the views' own state is settled.
+    syncPaneHandle();
     syncSceneColumn();
     followSelection();
     followSeam();

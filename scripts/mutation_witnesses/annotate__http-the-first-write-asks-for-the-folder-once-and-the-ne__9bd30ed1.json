@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "http: the first write asks for the folder once, and the next one does not",
+  "mutations": [
+    {
+      "contract": "The folder is asked for at the first write and never again in the session; a remembered grant is looked at before a picker is opened.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "Without the state check every bind would open the directory picker.",
+      "file": "apps/annotate/storage/http.js",
+      "find": "    var state = this._writer.getState();\n    if (state !== AA.STATE.READY) state = await this._writer.init();",
+      "replace": "    var state = AA.STATE.DISCONNECTED;"
+    }
+  ]
+}

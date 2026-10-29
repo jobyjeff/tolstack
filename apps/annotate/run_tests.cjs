@@ -724,6 +724,220 @@ check("index.html loads the shared decision before this app's own adapter", () =
   if (shared === -1) throw new Error("index.html does not load ../viewer/storage/adapter.js");
   if (own === -1) throw new Error("index.html does not load ./storage/adapter.js");
   if (shared > own) throw new Error("the shared decision must load BEFORE this app's adapter");
+  // ...and the viewer's HTTP adapter before this app's, which wraps it.
+  const sharedHttp = html.indexOf('src="../viewer/storage/http.js"');
+  const ownHttp = html.indexOf('src="./storage/http.js"');
+  if (sharedHttp === -1 || ownHttp === -1 || sharedHttp > ownHttp) {
+    throw new Error("index.html must load ../viewer/storage/http.js, then ./storage/http.js");
+  }
+});
+
+// --- the HTTP read transport (handoff the_scene_pane_is_one_flyout_that_
+// reads_over_http, closing ISSUE_20260910_annotate_has_no_http_read_transport)
+//
+// The viewer's own HttpAdapter is the probe and the fetch; this app's
+// storage/http.js maps the annotator's reads onto it and onto the read set
+// scripts/build_kinematic_projection.py publishes. Driven here against a
+// fake origin -- a map of path -> response -- shaped like drawing-checker's
+// mounts (the page under /tolstack/annotate/, data at /tolstack/data/).
+vm.runInContext(fs.readFileSync(path.join(here, "..", "viewer", "storage", "http.js"), "utf8"),
+  sandbox, { filename: "../viewer/storage/http.js" });
+vm.runInContext(fs.readFileSync(path.join(here, "storage", "http.js"), "utf8"),
+  sandbox, { filename: "storage/http.js" });
+
+function fakeOrigin(files) {
+  const seen = [];
+  const fetchImpl = (url) => {
+    seen.push(url);
+    const hit = Object.prototype.hasOwnProperty.call(files, url) ? files[url] : undefined;
+    if (hit === undefined) {
+      return Promise.resolve({ ok: false, status: 404, headers: { get: () => "text/plain" },
+        text: async () => "", arrayBuffer: async () => new ArrayBuffer(0) });
+    }
+    const isBytes = hit instanceof Uint8Array;
+    const type = hit && hit.__html ? "text/html" : (isBytes ? "application/octet-stream" : "application/json");
+    const body = hit && hit.__html ? "<html></html>" : (isBytes ? "" : JSON.stringify(hit));
+    return Promise.resolve({ ok: true, status: 200, headers: { get: () => type },
+      text: async () => body,
+      arrayBuffer: async () => (isBytes ? hit.buffer : new ArrayBuffer(0)) });
+  };
+  return { fetchImpl, seen };
+}
+
+const SERVED = "/tolstack/data/";
+function servedFiles(extra) {
+  return Object.assign({
+    [SERVED + "topologies.json"]: { topologies: [] },
+    [SERVED + "kinematic/kinematic_studies.json"]: { studies: [] },
+    [SERVED + "kinematic/annotate.json"]: {
+      schema: "joby.tolerance_stack/annotate_read_set/v0",
+      meshes: [{ sha256: "aa", label: "Bolt", part_id: "bolt_1" }],
+      mesh_aliases: { aliases: [{ topology_part: "x", part_id: "bolt_1" }] },
+      part_names: { parts: { "123": "bolt" } },
+      sweep_runs: [
+        { run_id: "run-old", ts: "2026-10-01T00:00:00Z", mechanism: "m" },
+        { run_id: "run-new", ts: "2026-10-16T00:00:00Z", mechanism: "m" },
+      ],
+    },
+    [SERVED + "kinematic/sweeps/run-new.json"]: { schema: "linkage-sweep/v1", run_id: "run-new" },
+    [SERVED + "meshes/aa/manifest.json"]: { faces: [] },
+    [SERVED + "meshes/aa/provenance.json"]: { label: "Bolt" },
+    [SERVED + "meshes/aa/positions.f32"]: new Uint8Array([1, 2, 3, 4]),
+    [SERVED + "meshes/aa/html.u32"]: { __html: true },
+  }, extra || {});
+}
+
+async function servedAdapter(files, writer) {
+  const origin = fakeOrigin(files);
+  const va = new VA.HttpAdapter({ pathname: "/tolstack/annotate/index.html",
+    fetchImpl: origin.fetchImpl });
+  const adapter = new AA.HttpAdapter({ va, writer: writer || null });
+  return { adapter, origin, state: await adapter.init() };
+}
+
+check("http: every read a folder grant makes is answered from the served origin", async () => {
+  const { adapter, state } = await servedAdapter(servedFiles());
+  assertEqual(state, AA.STATE.READY);
+  assertEqual((await adapter.readTopologyProjection()).topologies, []);
+  assertEqual((await adapter.readKinematicProjection()).studies, []);
+  assertEqual(await adapter.listMeshes(), [{ sha256: "aa", label: "Bolt", part_id: "bolt_1" }]);
+  assertEqual((await adapter.readPartMeshAliases()).aliases.length, 1);
+  assertEqual((await adapter.readPartNames()).parts["123"], "bolt");
+  // Newest first by the run's own ts, through the one ordering every adapter uses.
+  assertEqual((await adapter.listSweepRuns()).map((r) => r.runId), ["run-new", "run-old"]);
+  assertEqual((await adapter.readSweepRun("run-new")).run_id, "run-new");
+  assertEqual(await adapter.readSweepRun("run-gone"), null);
+  assertEqual((await adapter.readMeshManifest("aa")).faces, []);
+  assertEqual((await adapter.readMeshProvenance("aa")).label, "Bolt");
+  assertEqual(new Uint8Array(await adapter.readMeshBuffer("aa", "positions.f32"))[3], 4);
+  // drawing-checker serves no feature-identity projection: absent, not an error.
+  assertEqual(await adapter.readFeatureIdentityProjection(), null);
+  // A catch-all's HTML is never read as a mesh's bytes.
+  assertEqual(await adapter.readMeshBuffer("aa", "html.u32"), null);
+  // Every served path is derived from the config, under the served data dir:
+  // a config path outside it would be a file no mount reaches.
+  for (const key of ["topologyProjection", "kinematicProjection", "annotateReadSet", "annotateSweepsDir"]) {
+    assertEqual(AA.CONFIG[key].slice(0, AA.CONFIG.servedDataDir.length), AA.CONFIG.servedDataDir, key);
+  }
+});
+
+check("http: no read set yet is no meshes and no runs, never an error", async () => {
+  const files = servedFiles();
+  delete files[SERVED + "kinematic/annotate.json"];
+  const { adapter } = await servedAdapter(files);
+  assertEqual(await adapter.listMeshes(), []);
+  assertEqual(await adapter.listSweepRuns(), []);
+  assertEqual(await adapter.readPartMeshAliases(), null);
+  assertEqual(await adapter.readPartNames(), null);
+});
+
+function writerSpy(initial) {
+  const spy = {
+    state: initial, inits: 0, connects: 0, reconnects: 0, writes: [],
+    getState: () => spy.state,
+    init: async () => { spy.inits++; return spy.state; },
+    connect: async () => { spy.connects++; spy.state = AA.STATE.READY; return spy.state; },
+    reconnect: async () => { spy.reconnects++; spy.state = AA.STATE.READY; return spy.state; },
+    writeFeatureIdentityEvent: async (name, ev) => { spy.writes.push(name); },
+    readFeatureIdentityProjection: async () => ({ built_from_events: ["from-the-folder"] }),
+  };
+  return spy;
+}
+
+check("http: the first write asks for the folder once, and the next one does not", async () => {
+  const spy = writerSpy(AA.STATE.DISCONNECTED);
+  const { adapter } = await servedAdapter(servedFiles(), spy);
+  assertEqual(adapter.canWrite(), true);
+  assertEqual(adapter.writeGranted(), false);
+  await adapter.writeFeatureIdentityEvent("a.json", {});
+  await adapter.writeFeatureIdentityEvent("b.json", {});
+  assertEqual(spy.connects, 1, "the picker opened more than once");
+  assertEqual(spy.writes, ["a.json", "b.json"]);
+  assertEqual(adapter.writeGranted(), true);
+  // Granted, the projection a filename is counted off comes from the folder.
+  assertEqual((await adapter.readFeatureIdentityProjection()).built_from_events, ["from-the-folder"]);
+  // A remembered grant that needs re-granting is re-granted, not re-picked.
+  const regrant = writerSpy(AA.STATE.NEEDS_REGRANT);
+  const again = (await servedAdapter(servedFiles(), regrant)).adapter;
+  await again.writeFeatureIdentityEvent("a.json", {});
+  assertEqual([regrant.reconnects, regrant.connects], [1, 0]);
+});
+
+check("http: with no folder to grant, a write says so in one plain line", async () => {
+  const { adapter } = await servedAdapter(servedFiles(), null);
+  // The controls still show (canWrite) -- the hosted read-only scene says it
+  // cannot bind when the reader presses, never as standing copy.
+  assertEqual(adapter.canWrite(), true);
+  assertEqual(adapter.hasWriter(), false);
+  let message = null;
+  try { await adapter.writeFeatureIdentityEvent("a.json", {}); } catch (err) { message = err.message; }
+  assertEqual(message, AA.READ_ONLY_WRITE);
+  assertNoCommandOrPath(AA.READ_ONLY_WRITE, "the read-only write line");
+  assertNothingBanned(AA.READ_ONLY_WRITE, "the read-only write line");
+});
+
+check("a served origin is read with no grant, hosted or local, and FSA is never booted", async () => {
+  for (const hostname of ["tolstack.joby.aero", "127.0.0.1"]) {
+    const spy = fsaSpy();
+    const { adapter } = await servedAdapter(servedFiles());
+    const fresh = new AA.HttpAdapter({ va: adapter._va });
+    const picked = await AA.chooseTransport({ protocol: "http:", hostname, http: fresh, fsa: spy });
+    assertEqual(AA.isServed(picked), true, hostname);
+    assertEqual(AA.isHosted(picked), false, hostname);
+    assertEqual(picked.adapter === fresh, true, hostname);
+    assertEqual(spy.booted, false, hostname + ": the folder adapter was booted on a served page");
+  }
+  // ...and an origin that serves nothing falls back exactly as before.
+  const empty = fakeOrigin({});
+  const http = new AA.HttpAdapter({ va: new VA.HttpAdapter({
+    pathname: "/tolstack/annotate/index.html", fetchImpl: empty.fetchImpl }) });
+  const hosted = await AA.chooseTransport({ protocol: "https:", hostname: "kibot", http, fsa: fsaSpy() });
+  assertEqual(AA.isHosted(hosted), true);
+  const spy = fsaSpy();
+  const local = await AA.chooseTransport({ protocol: "http:", hostname: "localhost", http, fsa: spy });
+  assertEqual(local.kind, VA.TRANSPORT.FSA);
+  assertEqual(spy.booted, true);
+});
+
+check("the pane's status: one word per state, and the shell styles every tone", () => {
+  assertEqual(AA.paneStatus(true, true, true), AA.PANE_STATUS.live);
+  assertEqual(AA.paneStatus(true, true, false), AA.PANE_STATUS.folderNeeded);
+  assertEqual(AA.paneStatus(true, false, false), AA.PANE_STATUS.readOnly);
+  assertEqual(AA.paneStatus(false, true, true), AA.PANE_STATUS.folder);
+  assertEqual(AA.paneStatus(false, true, false), AA.PANE_STATUS.unread);
+  // The shell prints these verbatim and colours the dot by tone, so every
+  // tone a status carries must be one topology.css has a rule for.
+  const css = fs.readFileSync(path.join(here, "..", "viewer", "topology.css"), "utf8");
+  for (const key of Object.keys(AA.PANE_STATUS)) {
+    const status = AA.PANE_STATUS[key];
+    if (AA.PANE_STATUS_TONES.indexOf(status.tone) === -1) {
+      throw new Error(`status ${key} carries tone ${status.tone}, not one of AA.PANE_STATUS_TONES`);
+    }
+    if (status.word.split(" ").length > 2) throw new Error(`status ${key}'s word is not a word: ${status.word}`);
+    assertNoCommandOrPath(status.sentence, `status ${key}'s sentence`);
+    assertNothingBanned(status.sentence, `status ${key}'s sentence`);
+  }
+  for (const tone of AA.PANE_STATUS_TONES) {
+    if (css.indexOf(`.flyout__status[data-tone="${tone}"]`) === -1) {
+      throw new Error(`apps/viewer/topology.css has no rule for status tone "${tone}"`);
+    }
+  }
+});
+
+check("sweep: the folded bar's two figures and the scrubber chip are one composition", () => {
+  const art = AA.readSweepArtifact(sweepFixture());
+  const values = AA.sweepDriverValues(art);
+  const frame = AA.sweepFrameAt(art, 0);
+  const figures = AA.sweepHeadlineFigures(art, values, 0, frame);
+  assertEqual(figures.driver.text,
+    AA.formatSweepNumber(AA.indexToDriver(values, 0), art.driverUnit) + " " + (art.driverUnit || ""));
+  assertEqual(figures.driver.label, art.driverLabel || "");
+  const referenced = art.reference && art.reference.measure;
+  if (referenced && frame.nearer.measures[referenced] != null) {
+    assertEqual(figures.measure.label, AA.measureLabel(referenced));
+  } else {
+    assertEqual(figures.measure, null);
+  }
 });
 
 // --- README's verb table <-> app.js's commands.register(...) calls -------

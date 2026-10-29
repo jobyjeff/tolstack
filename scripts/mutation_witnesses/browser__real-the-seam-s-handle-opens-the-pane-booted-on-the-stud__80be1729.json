@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] the seam's handle opens the pane, booted on the study's run -- the same link the kinematic study's selection asks for",
+  "mutations": [
+    {
+      "contract": "The seam's handle opens the pane on the current selection, through the one rule.",
+      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
+      "note": "Opening on nothing still opens a working annotator, which is exactly why it needs a guard: the pane would look fine and show the wrong thing. Renamed 2026-10-28 (the head control became the seam's handle).",
+      "file": "apps/viewer/topology_app.js",
+      "find": "  function openPane() {\n    launchAnnotate(currentAnnotateParams());",
+      "replace": "  function openPane() {\n    launchAnnotate(null);"
+    }
+  ]
+}

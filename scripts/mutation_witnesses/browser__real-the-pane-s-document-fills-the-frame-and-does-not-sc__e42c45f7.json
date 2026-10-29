@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
+  "expect_red": "[real] the pane's document fills the frame and does not scroll, at a 400px pane or at a 1200px one",
+  "mutations": [
+    {
+      "contract": "Embedded, the annotator's page is the frame: the scene reaches its bottom edge and the document never scrolls.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "The pre-handoff sizing, `100vh - 70px`, assumed a one-line top bar and banner: it overflowed when they wrapped and leaves a 70px strip when they are hidden.",
+      "file": "apps/annotate/style.css",
+      "find": "body.an--embedded .an { height: auto; flex: 1; min-height: 0; }\n",
+      "replace": ""
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the divider's chevron closes the flyout",
+  "mutations": [
+    {
+      "contract": "The pane's one close control is the chevron on its own divider.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "The Close button and the head's toggle are gone; a chevron that does nothing leaves the pane with no way out but a reload.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      nodes.flyoutCollapse.onclick = function () { nodes.flyout.close(); };",
+      "replace": "      nodes.flyoutCollapse.onclick = function () {};"
+    }
+  ]
+}

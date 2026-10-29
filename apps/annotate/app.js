@@ -28,6 +28,12 @@ if (EMBEDDED) document.body.classList.add("an--embedded");
 
 const el = {
   banner: document.getElementById("banner"),
+  // Embedded, the banner band is gone (handoff the_scene_pane_is_one_flyout_
+  // that_reads_over_http): what it said lands on this one dismissable line at
+  // the top of the pane instead (setBanner), so the error channel stays.
+  notice: document.getElementById("notice"),
+  noticeText: document.getElementById("notice-text"),
+  noticeClose: document.getElementById("notice-close"),
   connectBtn: document.getElementById("connect-btn"),
   transportSub: document.getElementById("transport-sub"),
   // The whole bind workspace, as one node (index.html's #workspace) -- see
@@ -187,8 +193,48 @@ function prefStore() {
 }
 
 function setBanner(text, kind) {
+  if (EMBEDDED) {
+    // One line, the whole of it on hover, until the next message or a click
+    // on its close control. Every kind lands here -- an error above all,
+    // but a warning ("pick an element first") and a write's confirmation are
+    // things the reader needs to see too.
+    el.noticeText.textContent = text || "";
+    el.noticeText.title = text || "";
+    el.notice.className = "an__notice" + (kind ? " an__notice--" + kind : "");
+    el.notice.style.display = text ? "" : "none";
+    return;
+  }
   el.banner.textContent = text;
   el.banner.className = "banner" + (kind ? " banner--" + kind : "");
+}
+
+// --- what this page reads and whether it can write (the pane's status) ------
+//
+// Shown as a dot and one word in the viewer's pane header (embedded), and as
+// the transport line on the full page. AA.paneStatus picks it; the words are
+// AA.PANE_STATUS's, and the shell prints them verbatim.
+let servedTransport = false;
+
+function paneStatusNow() {
+  const storage = state.storage;
+  if (!storage) return null;
+  if (servedTransport) {
+    return AA.paneStatus(true, storage.hasWriter(), storage.writeGranted());
+  }
+  return AA.paneStatus(false, true, storage.getState() === AA.STATE.READY);
+}
+
+function renderPaneStatus() {
+  const status = paneStatusNow();
+  if (!status) return;
+  if (servedTransport) {
+    el.transportSub.textContent = status.sentence;
+  }
+  if (window.parent === window) return;
+  try {
+    window.parent.postMessage({ type: "annotate:status", word: status.word,
+      tone: status.tone, sentence: status.sentence }, window.location.origin);
+  } catch (_) { /* embedder gone */ }
 }
 
 // --- the command layer: register handlers, one dispatch point ------------
@@ -1751,13 +1797,39 @@ function tickSweep(now) {
 // The bind instruction is not here, because binding is not available here
 // (see the frame rule): a page that has said it cannot do a thing does not
 // also instruct the reader to do it -- the same posture the hosted page took.
+//
+// FOLDED (handoff the_scene_pane_is_one_flyout_that_reads_over_http,
+// deliverable 5): one twisty on the summary line puts rows 2 and 3 away, and
+// the line then carries the two figures a reader scrubs for. The frame rule's
+// gate line stays in both states -- it is a warning. Remembered per session.
+const SWEEP_FOLD_KEY = "tolstack-annotate:sweep-bar-folded";
+
+function sweepBarFolded() {
+  try { return window.sessionStorage.getItem(SWEEP_FOLD_KEY) === "1"; }
+  catch (_) { return false; }
+}
+
+function setSweepBarFolded(folded) {
+  try { window.sessionStorage.setItem(SWEEP_FOLD_KEY, folded ? "1" : "0"); }
+  catch (_) { /* a browser that keeps nothing still folds for this render */ }
+}
+
 function renderSweepBar() {
   const sweep = state.sweep;
   el.detail.innerHTML = "";
   sweep.nodes = {};
+  const folded = sweepBarFolded();
 
   const summary = document.createElement("div");
   summary.className = "an__detail-line";
+  const twisty = document.createElement("button");
+  twisty.className = "an__sweep-twisty";
+  twisty.textContent = folded ? "\u25b8" : "\u25be";
+  twisty.title = folded ? "show the controls and the numbers" : "fold the controls and the numbers away";
+  twisty.setAttribute("aria-label", twisty.title);
+  twisty.setAttribute("aria-expanded", folded ? "false" : "true");
+  twisty.onclick = () => { setSweepBarFolded(!folded); renderDetail(); };
+  summary.appendChild(twisty);
   const who = document.createElement("span");
   who.className = "an__sweep-summary";
   // With a run picker beside it, the picker names the mechanism, so the line
@@ -1767,6 +1839,12 @@ function renderSweepBar() {
     { mechanism: !picking }).join(" · ");
   summary.appendChild(who);
   if (sweep.artifact.notConverged) who.classList.add("an__sweep-summary--warn");
+  if (folded) {
+    const figures = document.createElement("span");
+    figures.className = "an__sweep-figures";
+    summary.appendChild(figures);
+    sweep.nodes.figures = figures;
+  }
   // Which run, as a choice, when there is one to make -- each named by its
   // mechanism in words and when it was published, newest first, driving the
   // same `sweep <run>` verb the console takes.
@@ -1779,6 +1857,13 @@ function renderSweepBar() {
   }
   summary.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
   el.detail.appendChild(summary);
+
+  if (folded) {
+    el.detail.appendChild(buildSweepGate());
+    renderSweepReadouts();
+    renderHintPanel();
+    return;
+  }
 
   const controls = document.createElement("div");
   controls.className = "an__sweep-controls";
@@ -1850,12 +1935,28 @@ function renderSweepBar() {
   work.appendChild(readouts);
   sweep.nodes.readouts = readouts;
 
-  // The frame rule, said once, where the bind instruction would otherwise be.
-  // It is the ONLY place the frame rule is written (a click on the canvas away
-  // from the pose pulses this line, it does not raise a second message), and
-  // it names where the pose is and goes there. Built once per bar: the frame
-  // does not change while a run plays, so the per-frame repaint only shows or
-  // hides it.
+  work.appendChild(buildSweepGate());
+  if (sweep.artifact.topologyId === null) {
+    const note = document.createElement("p");
+    note.className = "an__sweep-note";
+    note.textContent = AA.SWEEP_NO_TOPOLOGY;
+    work.appendChild(note);
+  }
+
+  if (sweep.bodies.length) work.appendChild(buildSweepBodiesDisclosure());
+  el.detail.appendChild(work);
+  renderSweepReadouts();
+  renderHintPanel();
+}
+
+// The frame rule, said once, where the bind instruction would otherwise be.
+// It is the ONLY place the frame rule is written (a click on the canvas away
+// from the pose pulses this line, it does not raise a second message), and
+// it names where the pose is and goes there. Built once per bar: the frame
+// does not change while a run plays, so the per-frame repaint only shows or
+// hides it. On the bar whether it is folded or not.
+function buildSweepGate() {
+  const sweep = state.sweep;
   const gate = document.createElement("p");
   gate.className = "an__sweep-gate";
   gate.tabIndex = -1;
@@ -1875,19 +1976,8 @@ function renderSweepBar() {
     gate.appendChild(go);
     sweep.nodes.gateGo = go;
   }
-  work.appendChild(gate);
   sweep.nodes.gate = gate;
-  if (sweep.artifact.topologyId === null) {
-    const note = document.createElement("p");
-    note.className = "an__sweep-note";
-    note.textContent = AA.SWEEP_NO_TOPOLOGY;
-    work.appendChild(note);
-  }
-
-  if (sweep.bodies.length) work.appendChild(buildSweepBodiesDisclosure());
-  el.detail.appendChild(work);
-  renderSweepReadouts();
-  renderHintPanel();
+  return gate;
 }
 
 // A click the frame rule refuses points at the gate line -- the one place the
@@ -1982,12 +2072,11 @@ function sweepSelect(label, options, selected, onChange) {
 // a frame instead of rebuilding a slider sixty times a second.
 function renderSweepReadouts() {
   const sweep = state.sweep;
-  if (!sweep || !sweep.nodes || !sweep.nodes.readouts) return;
+  if (!sweep || !sweep.nodes) return;
   const frame = sweep.frame;
-  const rows = AA.sweepReadouts(sweep.artifact, frame);
   const list = sweep.nodes.readouts;
-  list.innerHTML = "";
-  for (const row of rows) {
+  if (list) list.innerHTML = "";
+  for (const row of list ? AA.sweepReadouts(sweep.artifact, frame) : []) {
     const term = document.createElement("dt");
     term.textContent = row.label;
     const value = document.createElement("dd");
@@ -2009,18 +2098,29 @@ function renderSweepReadouts() {
   if (sweep.nodes.range && document.activeElement !== sweep.nodes.range) {
     sweep.nodes.range.value = String(sweep.index);
   }
+  const figures = AA.sweepHeadlineFigures(sweep.artifact, sweep.driverValues, sweep.index, frame);
+  if (sweep.nodes.figures) {
+    const box = sweep.nodes.figures;
+    box.innerHTML = "";
+    for (const figure of [figures.measure, figures.driver]) {
+      if (!figure) continue;
+      const words = (figure.label ? figure.label + " " : "") + figure.text.trim();
+      const item = document.createElement("span");
+      item.className = "an__sweep-figure";
+      item.title = words;
+      const label = document.createElement("span");
+      label.className = "an__sweep-figure-label";
+      label.textContent = figure.label ? figure.label + " " : "";
+      item.appendChild(label);
+      item.appendChild(document.createTextNode(figure.text.trim()));
+      box.appendChild(item);
+    }
+    box.classList.toggle("an__sweep-figures--warn", frame.nearer.converged === false);
+  }
   if (sweep.nodes.chip) {
     const last = sweep.artifact.points.length - 1;
-    const driver = AA.indexToDriver(sweep.driverValues, sweep.index);
-    const referenced = sweep.artifact.reference && sweep.artifact.reference.measure;
-    const headline = referenced && frame.nearer.measures[referenced] != null
-      ? AA.formatSweepNumber(frame.nearer.measures[referenced],
-        sweep.artifact.measureUnits[referenced]) + " " +
-        (sweep.artifact.measureUnits[referenced] || "")
-      : "";
-    sweep.nodes.chip.textContent =
-      AA.formatSweepNumber(driver, sweep.artifact.driverUnit) + " " +
-      (sweep.artifact.driverUnit || "") + (headline ? " · " + headline : "");
+    sweep.nodes.chip.textContent = figures.driver.text +
+      (figures.measure ? " · " + figures.measure.text : "");
     sweep.nodes.chip.style.left = (last ? (sweep.index / last) * 100 : 0) + "%";
     sweep.nodes.chip.classList.toggle("an__sweep-chip--warn",
       frame.nearer.converged === false);
@@ -3777,6 +3877,15 @@ function nextFilename(known, slug) {
 }
 
 async function existingEventFilenames() {
+  // Reading over HTTP, the first write asks for the folder HERE -- inside the
+  // click that wrote, before a filename is counted -- and the projection the
+  // count comes from is then re-read from the folder, which the served origin
+  // may not publish at all (storage/http.js).
+  if (servedTransport && !state.storage.writeGranted()) {
+    await state.storage.ensureWriter();
+    state.identityProjection = await state.storage.readFeatureIdentityProjection();
+    renderPaneStatus();
+  }
   // The app cannot list an FSA directory's file entries as cheaply as it can
   // list data/meshes/ subdirectories (there is no manifest to key off), so
   // the running count is this session's own writes plus whatever the
@@ -4619,12 +4728,16 @@ async function loadAll() {
       execQueue.markLoaded();
       return;
     }
-    setBanner(
-      "loaded " + state.topologyProjection.topologies.length + " topolog" +
-      (state.topologyProjection.topologies.length === 1 ? "y" : "ies") +
-      (state.identityProjection ? "" : " -- no feature-identity projection yet (nothing bound, or not rebuilt)"),
-      "ok"
-    );
+    // A successful boot is not news in the pane: its header's status dot
+    // already says what was read. The full page keeps its line.
+    if (!EMBEDDED) {
+      setBanner(
+        "loaded " + state.topologyProjection.topologies.length + " topolog" +
+        (state.topologyProjection.topologies.length === 1 ? "y" : "ies") +
+        (state.identityProjection ? "" : " -- no feature-identity projection yet (nothing bound, or not rebuilt)"),
+        "ok"
+      );
+    }
     renderTopologyPicker();
     state.meshList = await state.storage.listMeshes();
     const aliasDoc = await state.storage.readPartMeshAliases();
@@ -4714,10 +4827,19 @@ async function main() {
   //
   // ?mock=1 short-circuits it the way it always has: the tour reads a fixture
   // and touches no transport, so it is legitimate on any origin.
+  //
+  // Served first (handoff the_scene_pane_is_one_flyout_that_reads_over_http):
+  // a page whose origin publishes the projections reads them with no grant
+  // (storage/http.js). The folder adapter rides along as its WRITER only
+  // where a grant is legitimate at all -- a local page, the same rule that
+  // decides the picker below -- so a hosted origin reads and never asks.
+  const fsa = AA.FsaAdapter.isSupported() ? new AA.FsaAdapter() : null;
+  const local = window.ViewerApp.isLocalPage(window.location.protocol, window.location.hostname);
   const picked = MOCK ? null : await AA.chooseTransport({
     protocol: window.location.protocol,
     hostname: window.location.hostname,
-    fsa: AA.FsaAdapter.isSupported() ? new AA.FsaAdapter() : null,
+    http: AA.HttpAdapter.isSupported() ? new AA.HttpAdapter({ writer: local ? fsa : null }) : null,
+    fsa,
   });
 
   // A hosted origin (handoff surfaces_that_state_something_false, applying
@@ -4744,12 +4866,21 @@ async function main() {
   // origin is the ordinary page with no "put it back" path to get wrong.
   if (AA.isHosted(picked)) {
     setBanner(AA.HOSTED_NOTICE, "warn");
+    // Embedded, setBanner writes the pane's notice line -- which is inside the
+    // workspace this branch withholds. This one sentence is the whole page,
+    // so it goes on the banner band itself, shown in the pane too.
+    if (EMBEDDED) {
+      el.banner.textContent = AA.HOSTED_NOTICE;
+      el.banner.className = "banner banner--warn";
+      el.banner.style.display = "block";
+    }
     el.connectBtn.style.display = "none";
     el.transportSub.textContent = "";
     el.workspace.style.display = "none";
     return;
   }
 
+  el.noticeClose.onclick = () => setBanner("", null);
   el.topologySelect.onchange = async () => {
     try { await AA.exec(["select-topology", el.topologySelect.value]); }
     catch (err) { setBanner(err.message, "error"); }
@@ -4919,18 +5050,35 @@ async function main() {
   }
 
   state.storage = picked.adapter;
+
+  // Read over HTTP: no Connect button and no grant prompt at boot -- a grant
+  // the folder already holds is only LOOKED at (init asks the browser, it
+  // never opens a picker), so the status can say "live" when it is.
+  if (AA.isServed(picked)) {
+    servedTransport = true;
+    document.body.classList.add("an--served");
+    el.connectBtn.style.display = "none";
+    const writer = state.storage.writer();
+    if (writer) await writer.init().catch(() => null);
+    renderPaneStatus();
+    await loadAll();
+    return;
+  }
+
   el.transportSub.textContent = "read/write, data/inbox/feature-identity/ writes land in the connected folder";
   const initial = picked.state;
   el.connectBtn.onclick = async () => {
     try {
       await (initial === AA.STATE.NEEDS_REGRANT ? state.storage.reconnect() : state.storage.connect());
       el.connectBtn.textContent = "Connected";
+      renderPaneStatus();
       await loadAll();
     } catch (err) {
       setBanner("Connect failed: " + err.message, "error");
     }
   };
   el.connectBtn.textContent = initial === AA.STATE.NEEDS_REGRANT ? "Re-grant folder" : "Connect folder";
+  renderPaneStatus();
   if (initial === AA.STATE.READY) {
     el.connectBtn.textContent = "Connected";
     await loadAll();

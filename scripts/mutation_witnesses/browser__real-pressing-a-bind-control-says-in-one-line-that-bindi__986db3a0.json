@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate hosted posture (no folder grant off-machine)",
+  "expect_red": "[real] pressing a bind control says, in one line, that binding is not available here",
+  "mutations": [
+    {
+      "contract": "A bind pressed where no folder can be granted says so in one line.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "A write that quietly returns reads as success: the page says 'Wrote' and nothing was written.",
+      "file": "apps/annotate/storage/http.js",
+      "find": "    if (!this._writer) throw new Error(AA.READ_ONLY_WRITE);",
+      "replace": "    if (!this._writer) return;"
+    }
+  ]
+}

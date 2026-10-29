@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
+  "expect_red": "[real] ...and the sweep plays",
+  "mutations": [
+    {
+      "contract": "Read over HTTP, the sweep plays.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "The clock is the one loop that advances playback; a page that draws the mechanism and never moves it fails the deliverable.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (!sweep || !sweep.playing) return;\n  const last = sweep.lastTick;",
+      "replace": "  return;\n  const last = sweep.lastTick;"
+    }
+  ]
+}

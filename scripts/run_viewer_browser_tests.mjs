@@ -124,12 +124,18 @@ function startServer() {
 // file already uses) so a worktree run still reaches the main checkout's
 // projections; everything else — the app's own files — always comes from
 // THIS tree, same rule as the rest of the file.
-function startRepoRootServer() {
+// `{ data: false }` serves the apps and 404s everything under /data/ -- an
+// origin that publishes nothing, which is what the annotator's hosted notice
+// and folder-grant page are for since it reads over HTTP wherever it can
+// (handoff the_scene_pane_is_one_flyout_that_reads_over_http).
+function startRepoRootServer(opts) {
+  const serveData = !opts || opts.data !== false;
   return new Promise((resolve) => {
     const server = createServer(async (req, res) => {
       try {
         const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
         const rel = normalize(urlPath).replace(/^[/\\]+/, "");
+        if (!serveData && rel.split(sep)[0] === "data") throw new Error("unpublished");
         const root = rel.split(sep)[0] === "data" ? DATA_REPO : REPO;
         const full = join(root, rel);
         if (full !== root && !full.startsWith(root + sep)) {
@@ -5511,7 +5517,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // check sees the page still shifted and fails on correct code. (Measured:
     // that is exactly what the first version of this did, and what a probe
     // without the wait reported as a regression that was not there.)
-    await page.locator("#flyout-close").click();
+    await page.locator("#flyout-collapse").click();
     await page.waitForFunction(
       () => !document.body.classList.contains("flyout-open"),
       null, { timeout: 5000 }).catch(() => {});
@@ -5537,11 +5543,13 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
     const fullpage = page.locator("#flyout-fullpage");
     const studyHref = await fullpage.getAttribute("href");
+    // An icon-link since 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_
+    // over_http): the glyph on the strip, the words on its name and title.
     push("the flyout head carries a plain new-tab link out to the full page",
       await fullpage.count() === 1 &&
       await fullpage.getAttribute("target") === "_blank" &&
       await fullpage.getAttribute("rel") === "noopener" &&
-      /Open full page/.test((await fullpage.textContent()) || ""));
+      /new tab/.test((await fullpage.getAttribute("aria-label")) || ""));
     // The panel boots EMBEDDED (its rail is drawn in this page's nav); the
     // full page is the plain url, menus and all.
     push("...pointed at the same url the panel booted with, less the embedded flag",
@@ -5549,63 +5557,50 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // House rule: no internal file or module name in user-facing copy.
     push("its label names no file, module or param",
       !/index\.html|annotate\.js|topology=|\?/.test(
-        (await fullpage.textContent()) || ""));
+        ((await fullpage.textContent()) || "") + " " +
+        ((await fullpage.getAttribute("aria-label")) || "")));
 
-    // The iframe is the real annotate app, same-origin, no mock: it boots to
-    // its own pre-connect banner (FSA cannot be granted from Playwright), and
-    // the deep-link queue note proves the trace params were understood.
-    // NOT waitFor({state:"visible"}) on #banner: apps/annotate/index.html ships
-    // `<div id="banner" class="banner"></div>` present and EMPTY, and
-    // style.css's `.banner` padding gives even an empty one a non-zero box, so
-    // Playwright calls it visible from first paint -- before any setBanner()
-    // has run, which is how this check sampled "" and failed on correct code
-    // (ISSUE_20260911_annotate_flyout_banner_check_samples_a_transient). Anchor
-    // the wait on the effect being asserted -- text -- and let the SAME read
-    // return it, so no paint can slip between waiting and sampling. The iframe
-    // is same-origin because startRepoRootServer serves BOTH apps/viewer and
-    // apps/annotate off this one origin (the src check above reads an
-    // attribute on the host document's own element, which says nothing about
-    // origin), so contentDocument is readable from the host page; a boot that
-    // never writes a banner fails as a
-    // waitForFunction TIMEOUT rather than as a wrong-text sighting.
-    const bannerText = await page.waitForFunction(() => {
-      const doc = document.querySelector("#annotate-flyout iframe")?.contentDocument;
-      const el = doc && doc.querySelector("#banner");
-      const text = el ? el.textContent.trim() : "";
-      return text.length > 0 ? text : null;
-    }, null, { timeout: 15000 }).then((handle) => handle.jsonValue());
-    // WHICH pre-connect state, asserted rather than accepted. This read
-    // `/Connect folder|File System Access/` until 2026-09-22 and was
-    // satisfied by EITHER -- the has-FSA banner, which asks for the folder,
-    // or the no-FSA one, which says this browser cannot have it -- so "an
-    // honest pre-connect state" was a claim about neither state in
-    // particular. Same defect and same fix as the loopback half in
-    // testAnnotateHostedPosture; see the long note there for the argument,
-    // BRIEF_20260915_origin_posture_and_absent_feature_rule for the policy
-    // question this does NOT answer.
+    // The iframe is the real annotate app, same-origin, no mock. It has no
+    // banner in the pane any more (handoff the_scene_pane_is_one_flyout_that_
+    // reads_over_http): it says what it can read and write as a dot and one
+    // word in THIS page's pane header, and it says so whichever transport it
+    // booted on -- over HTTP where /data/ serves the projections, on the
+    // folder grant where it does not. A browser with File System Access on
+    // this loopback origin can grant a folder, which nobody has done yet, so
+    // either way the word is the one that asks for it.
     //
-    // Read off the IFRAME's own window, not the host page's: the surface
-    // under test is the embedded app, and same-origin is what makes that
-    // readable (startRepoRootServer serves both apps off one origin). Same
-    // predicate apps/annotate/storage/fsa.js's FsaAdapter.isSupported() uses.
+    // Waited for on the effect -- the word -- not on the node, which ships
+    // present and hidden.
+    const status = await page.waitForFunction(() => {
+      const node = document.querySelector("#flyout-status");
+      const word = node && node.style.display !== "none" ? node.textContent.trim() : "";
+      return word ? { word, tone: node.getAttribute("data-tone"),
+        sentence: node.getAttribute("title") || "" } : null;
+    }, null, { timeout: 15000 }).then((h) => h.jsonValue()).catch(() => null);
     const flyoutHasFsa = await page.evaluate(() => {
       const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
       return !!w && typeof w.showDirectoryPicker === "function";
     });
+    const noBand = await page.evaluate(() => {
+      const doc = document.querySelector("#annotate-flyout iframe")?.contentDocument;
+      const band = doc && doc.querySelector("#banner");
+      return !!band && band.offsetParent === null;
+    });
     if (flyoutHasFsa) {
-      push("the embedded annotator boots to the pre-GRANT state -- it asks " +
-        "for the folder, and says nothing about the API",
-        /Connect folder/.test(bannerText) &&
-        !/File System Access/.test(bannerText));
+      push("the pane's header says the folder is still needed, as a dot and one " +
+        "word, the sentence on hover -- and the pane has no banner band of its own",
+        !!status && status.word === "folder needed" && status.tone === "warn" &&
+        status.sentence.length > 0 && !/File System Access/.test(status.sentence) &&
+        noBand);
     } else {
       push("SKIPPED: the embedded annotator in a browser WITHOUT File System " +
         "Access -- what that reader should be shown is " +
         "BRIEF_20260915_origin_posture_and_absent_feature_rule's open " +
         "question, so this tier asserts no copy for it", true);
     }
-
-    await page.locator("#flyout-close").click();
-    push("the close button closes the flyout",
+    // The pane's ONE close control: the chevron on its own divider.
+    await page.locator("#flyout-collapse").click();
+    push("the divider's chevron closes the flyout",
       !(await page.locator("#annotate-flyout").evaluate((n) => n.open)));
 
     // An untraced edge's pane: the attach-to-3D button. The open flyout sits
@@ -5630,7 +5625,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // folder grants, two cameras. And a part with no installed mesh offers
     // nothing at all: the card still renders its identity, minus a link that
     // would have dead-ended in the annotator's empty state.
-    await page.locator("#flyout-close").click();
+    await page.locator("#flyout-collapse").click();
     // The merged cell prints the part's NAME, not its id, since 2026-09-15
     // (VA.componentLabel) -- `base` was the id and is nowhere a reader reads.
     await page.locator("td.tvcell--component").filter({ hasText: /^base plate$/ })
@@ -5644,7 +5639,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     push("the card drives the one panel and closes itself behind it",
       await page.locator("#annotate-flyout iframe").count() === 1 &&
       await page.locator("#croppop").evaluate((n) => n.style.display) === "none");
-    await page.locator("#flyout-close").click();
+    await page.locator("#flyout-collapse").click();
     await page.locator("td.tvcell--component").filter({ hasText: /^post$/ })
       .first().click();
     await page.waitForSelector("#croppop.hovercard--component", { timeout: 5000 });
@@ -5723,7 +5718,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         });
         push("[real] dragged to the clamp on a live study, the whole drawing " +
           "is still clear", liveMaxed.clear);
-        await page.locator("#flyout-close").click();
+        await page.locator("#flyout-collapse").click();
         await page.waitForFunction(
           () => !document.body.classList.contains("flyout-open"),
           null, { timeout: 5000 }).catch(() => {});
@@ -6054,8 +6049,8 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
   try {
     await page.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
     await page.waitForSelector("div.kmverdict", { timeout: 30000 });
-    await page.waitForSelector("#pane-toggle:visible", { timeout: 15000 }).catch(() => {});
-    await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector("#pane-handle:visible", { timeout: 15000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
     // The bodies resolve first, and the model is rebuilt on the occurrences
     // they chose; only then is it the model this suite is about.
     const swept = await until((w, r) => w.__sweep && w.__sweep.artifact.runId === r &&
@@ -6385,10 +6380,10 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
   try {
     await filePage.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
     await filePage.waitForSelector("tr.tvrow", { timeout: 15000 });
-    push("under file:// the head shows no 3D control -- nothing about a pane " +
+    push("under file:// the seam shows no 3D handle -- nothing about a pane " +
       "this page cannot open",
-      await filePage.locator("#pane-toggle").count() === 1 &&
-      !(await filePage.locator("#pane-toggle").isVisible()));
+      await filePage.locator("#pane-handle").count() === 1 &&
+      !(await filePage.locator("#pane-handle").isVisible()));
   } catch (err) {
     errors.push(String(err));
   } finally {
@@ -6442,15 +6437,15 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
   try {
     await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
     await page.waitForSelector("div.kmverdict", { timeout: 30000 });
-    await page.waitForSelector("#pane-toggle:visible", { timeout: 15000 }).catch(() => {});
-    push("[real] served beside the annotator, the head shows the 3D control",
-      await page.locator("#pane-toggle").isVisible());
+    await page.waitForSelector("#pane-handle:visible", { timeout: 15000 }).catch(() => {});
+    push("[real] served beside the annotator, the seam shows the 3D handle",
+      await page.locator("#pane-handle").isVisible());
 
     // --- 1. open on the kinematic study -> sweep mode on its run ------------
-    await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 }).catch(() => {});
     const src = await page.locator("#annotate-flyout iframe").getAttribute("src").catch(() => null);
-    push("[real] the head control opens the pane, booted on the study's run -- " +
+    push("[real] the seam's handle opens the pane, booted on the study's run -- " +
       "the same link the kinematic study's selection asks for",
       await page.locator("#annotate-flyout").evaluate((n) => n.open) &&
       src === "../annotate/index.html?sweep=" + encodeURIComponent(study.sweep.run_id) +
@@ -6855,7 +6850,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       main: Math.round(document.querySelector(".tv__main").getBoundingClientRect().width),
       floor: window.ViewerApp.FLYOUT_WIDTH.min,
     }));
-    await page.locator("#flyout-close").click({ timeout: 5000 }).catch(() => {});
+    await page.locator("#flyout-collapse").click({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction(() => !document.body.classList.contains("flyout-open"),
       null, { timeout: 5000 }).catch(() => {});
     const noPane = await page.evaluate(() => ({
@@ -6877,7 +6872,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       await page.setViewportSize({ width: 1920, height: 1000 });
       await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
       await page.waitForSelector("div.kmverdict", { timeout: 30000 });
-      await page.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+      await page.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
       await until((w) => w.__sweep && w.__sweep.openedBySweep && w.__sweep.openedBySweep.length > 0,
         null, 120000);
       await page.waitForSelector('.navtree__scene [data-scene-key^="#sweep-tree/edge="]',
@@ -7843,6 +7838,17 @@ async function testAnnotateRail(browser, label) {
       "real ones on real geometry", hit !== null);
     if (hit) {
       await page.mouse.click(hit.x, hit.y);
+      // Waited for on the effect, not sampled: the pick runs on the pointer's
+      // release and the tint lands after it, so a read straight after the
+      // click raced it -- red 2 runs in 3 on 2026-10-28 with nothing on the
+      // pick path changed (the_scene_pane_is_one_flyout_that_reads_over_http).
+      await page.waitForFunction((s) => {
+        const mesh = window.__scene.parts.get(s);
+        const live = mesh.geometry.attributes.color.array;
+        const base = mesh.userData.baseColors;
+        for (let i = 0; i < base.length; i++) if (live[i] !== base[i]) return true;
+        return false;
+      }, sha, { timeout: 2000 }).catch(() => {});
       push("a real click on the face tints it",
         await tinted() &&
         (await page.evaluate(() => window.__scene.highlightedFace())) !== null);
@@ -8433,7 +8439,206 @@ async function testAnnotateTopBar(browser, label) {
   }
 }
 
-async function testAnnotateHostedPosture(browser, label) {
+// --- the scene pane reads over HTTP (handoff the_scene_pane_is_one_flyout_
+// that_reads_over_http) ------------------------------------------------------
+//
+// drawing-checker's mounts, reproduced (webui/analyses.py's tolstack_mounts):
+// the two apps as siblings under /tolstack/, the meshes at /tolstack/data/
+// meshes/ registered BEFORE /tolstack/data/, which is the viewer projection
+// dir and nothing else. No ?mock=1, no patched reads, no folder grant: the
+// annotator in the pane reads what this origin serves, exactly as Jeff opens
+// it on 127.0.0.1:8000.
+function startDrawingCheckerMountServer() {
+  const mounts = [
+    ["/tolstack/viewer/", join(REPO, "apps", "viewer")],
+    ["/tolstack/annotate/", join(REPO, "apps", "annotate")],
+    ["/tolstack/data/meshes/", join(DATA_REPO, "data", "meshes")],
+    ["/tolstack/data/", join(DATA_REPO, "data", "projections", "viewer")],
+  ];
+  return new Promise((resolve) => {
+    const server = createServer(async (req, res) => {
+      try {
+        const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
+        const mount = mounts.find(([prefix]) => urlPath.startsWith(prefix));
+        if (!mount) throw new Error("no mount");
+        const root = mount[1];
+        const full = join(root, normalize(urlPath.slice(mount[0].length)));
+        if (!full.startsWith(root + sep)) throw new Error("outside the mount");
+        const body = await readFile(full);
+        res.writeHead(200, { "content-type": MIME[extname(full)] || "application/octet-stream" });
+        res.end(body);
+      } catch {
+        res.writeHead(404).end("not found");
+      }
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
+async function testScenePaneOverHttp(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const readSet = await readProjection("kinematic/annotate.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  if (!study || !readSet) {
+    push("[real] SKIPPED: the pane over HTTP -- the kinematic projection or the " +
+      "annotator's read set (kinematic/annotate.json) is not built under the " +
+      "target repo (rebuild, or pass --repo)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startDrawingCheckerMountServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 2400, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  // The pane's own document, measured: does it scroll?
+  const scrollOf = () => inPane((w) => {
+    const d = w.document.scrollingElement;
+    const an = w.document.querySelector(".an").getBoundingClientRect();
+    return { scroll: d.scrollHeight, client: d.clientHeight,
+      width: Math.round(w.innerWidth), gap: Math.round(w.innerHeight - an.bottom) };
+  });
+  const atWidth = async (px) => {
+    await page.evaluate((px) => {
+      document.querySelector("#annotate-flyout").style.width = px + "px";
+    }, px);
+    await page.waitForTimeout(400);
+    return scrollOf();
+  };
+  try {
+    await page.goto(url + "/tolstack/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY,
+      { waitUntil: "load" });
+    await page.waitForSelector("div.kmverdict", { timeout: 30000 });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 15000 }).catch(() => {});
+    push("[real] served the way drawing-checker serves it, the seam shows the one 3D handle " +
+      "and the head shows none",
+      await page.locator("#pane-handle").isVisible() &&
+      await page.locator(".topbar button", { hasText: /^3D$/ }).count() === 0);
+    await page.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 }).catch(() => {});
+    push("[real] the handle opens the pane and hides itself while it is open; the pane's " +
+      "own head carries no Close button -- the divider's chevron is the way back",
+      await page.locator("#annotate-flyout").evaluate((n) => n.open) &&
+      !(await page.locator("#pane-handle").isVisible()) &&
+      await page.locator("#annotate-flyout .flyout__head button").count() === 0 &&
+      await page.locator("#flyout-divider #flyout-collapse").count() === 1);
+
+    // --- the mechanism, read with no grant ----------------------------------
+    const runId = study.sweep.run_id;
+    const swept = await until((w, r) => w.__sweep && w.__sweep.artifact &&
+      w.__sweep.artifact.runId === r && w.__sweep.bodies && w.__sweep.bodies.length > 0 &&
+      w.__sweep.openedBySweep && w.__sweep.openedBySweep.length > 0, runId, 180000);
+    const served = await inPane((w) => w.document.body.classList.contains("an--served"));
+    push("[real] with no folder grant, the pane reads the run and the meshes over HTTP " +
+      "and shows the mechanism -- on the HTTP transport, not the mock and not a folder",
+      swept && served);
+    const start = await inPane((w) => w.__sweep.playbackPosition);
+    await inPane((w) => w.AnnotateApp.exec(["play"]));
+    const played = await until((w, s) => w.__sweep.playbackPosition !== s, start, 15000);
+    push("[real] ...and the sweep plays", played);
+    await inPane((w) => w.AnnotateApp.exec(["pause"]));
+
+    // --- the status dot, in the pane's header -------------------------------
+    const status = await page.waitForFunction(() => {
+      const node = document.querySelector("#flyout-status");
+      const word = node && node.style.display !== "none" ? node.textContent.trim() : "";
+      return word ? { word, tone: node.getAttribute("data-tone"),
+        sentence: node.getAttribute("title") || "" } : null;
+    }, null, { timeout: 15000 }).then((h) => h.jsonValue()).catch(() => null);
+    const hasFsa = await inPane((w) => typeof w.showDirectoryPicker === "function");
+    const expected = await inPane((w, fsa) => {
+      const S = w.AnnotateApp.PANE_STATUS;
+      return fsa ? S.folderNeeded : S.readOnly;
+    }, hasFsa);
+    push("[real] the pane's header shows the status dot and one word -- the folder is " +
+      "asked for at the first bind, never at boot",
+      !!status && !!expected && status.word === expected.word &&
+      status.tone === expected.tone && status.sentence === expected.sentence);
+    const fullpage = page.locator("#annotate-flyout .flyout__head #flyout-fullpage");
+    push("[real] the pane itself shows no banner, no transport line and no Connect " +
+      "button, and the full-page route is an icon-link in the pane's header",
+      await inPane((w) => {
+        const shown = (sel) => { const n = w.document.querySelector(sel); return !!n && n.offsetParent !== null; };
+        return !shown("#banner") && !shown("#transport-sub") && !shown("#connect-btn");
+      }) &&
+      await fullpage.count() === 1 && (await fullpage.textContent()).trim() === "↗" &&
+      /^\.\.\/annotate\/index\.html\?/.test((await fullpage.getAttribute("href")) || ""));
+
+    // --- the pane's document never scrolls ---------------------------------
+    const narrow = await atWidth(400);
+    const wide = await atWidth(1200);
+    console.log(`      [${label}] pane document at ${narrow.width}px: scrollHeight ` +
+      `${narrow.scroll} / clientHeight ${narrow.client}, ${narrow.gap}px under the scene; ` +
+      `at ${wide.width}px: ${wide.scroll} / ${wide.client}, ${wide.gap}px under it`);
+    // Fills AND does not scroll: the scene reaching the frame's bottom edge is
+    // what stops a fixed height from either overflowing or leaving a strip.
+    push("[real] the pane's document fills the frame and does not scroll, at a 400px " +
+      "pane or at a 1200px one",
+      narrow.width <= 400 && narrow.scroll === narrow.client && narrow.gap === 0 &&
+      wide.width >= 1150 && wide.scroll === wide.client && wide.gap === 0);
+    await atWidth(560);
+
+    // --- the sweep bar folds to its summary line ----------------------------
+    const bar = () => inPane((w) => {
+      const d = w.document;
+      const gate = d.querySelector(".an__sweep-gate");
+      return { controls: !!d.querySelector(".an__sweep-controls"),
+        readouts: !!d.querySelector(".an__sweep-readouts"),
+        figures: d.querySelector(".an__sweep-figures")
+          ? d.querySelector(".an__sweep-figures").textContent : null,
+        gate: !!gate };
+    });
+    await inPane((w) => w.AnnotateApp.exec(["seek", "#0"]));
+    await inPane((w) => w.document.querySelector(".an__sweep-twisty").click());
+    const folded = await bar();
+    await inPane((w) => w.document.querySelector(".an__sweep-twisty").click());
+    const unfolded = await bar();
+    push("[real] one twisty folds the sweep bar to its summary line -- the controls and " +
+      "the readouts go, the frame's two figures come, the gate line stays -- and brings them back",
+      !folded.controls && !folded.readouts && folded.gate &&
+      typeof folded.figures === "string" && folded.figures.length > 0 &&
+      unfolded.controls && unfolded.readouts && unfolded.figures === null);
+
+    // --- the chevron closes, the handle comes back --------------------------
+    await page.locator("#flyout-collapse").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !document.body.classList.contains("flyout-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    push("[real] the divider's chevron closes the pane and the seam's handle returns",
+      !(await page.locator("#annotate-flyout").evaluate((n) => n.open)) &&
+      await page.locator("#pane-handle").isVisible());
+
+    const keys = await page.evaluate(() => [window.ViewerApp.FLYOUT_WIDTH_KEY,
+      window.ViewerApp.FLYOUT_OPEN_KEY]);
+    await page.evaluate((ks) => ks.forEach((k) => window.localStorage.removeItem(k)), keys);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+async function testAnnotateHostedPosture(browser, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   // "Is this element on the page at all?" -- NOT locator.isVisible(), which
@@ -8448,7 +8653,11 @@ async function testAnnotateHostedPosture(browser, label) {
     const node = document.querySelector(sel);
     return !!node && node.offsetParent !== null;
   }, selector);
-  const server = await startRepoRootServer();
+  // Everything below until the read-only half is an origin that PUBLISHES
+  // NOTHING: the annotator reads over HTTP wherever the projections are
+  // served, so the hosted notice and the folder-grant page are what an
+  // unpublished origin gets.
+  const server = await startRepoRootServer({ data: false });
   const { port } = server.address();
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
   const errors = [];
@@ -8515,9 +8724,9 @@ async function testAnnotateHostedPosture(browser, label) {
         document.querySelector("#console-input").onkeydown === null));
 
     // --- local: the same URL from the machine holding the repo --------------
-    // Unchanged by this handoff and it must stay that way: drawing-checker
-    // serves this app from 127.0.0.1:8000 in dev, and the folder grant is the
-    // only way in (there is no HTTP read transport, and no file:// story).
+    // On an origin that publishes nothing the folder grant is the only way in
+    // (no file:// story); where the projections ARE served, see the
+    // read-only half below.
     await page.goto(`http://127.0.0.1:${port}/apps/annotate/index.html`,
       { waitUntil: "load" });
     const localBanner = await page.waitForFunction(() => {
@@ -8594,6 +8803,64 @@ async function testAnnotateHostedPosture(browser, label) {
         "sentence -- withhold the workspace, substitute ?mock=1, or leave it " +
         "-- is BRIEF_20260915_origin_posture_and_absent_feature_rule's call, " +
         "and the live dev console on it is the same question", true);
+    }
+
+    // --- hosted, and the origin publishes the projections: read-only --------
+    //
+    // (handoff the_scene_pane_is_one_flyout_that_reads_over_http.) Until then
+    // a non-loopback origin withheld the whole workspace, because the folder
+    // grant was the only thing that could read. It reads over HTTP now, so a
+    // hosted reader sees the scene; what they still cannot do is WRITE, and a
+    // bind says so in one line when pressed -- never as standing copy, and
+    // never with a folder picker they could not satisfy.
+    if (!topologies) {
+      push("[real] SKIPPED: the hosted read-only scene -- no data/projections/" +
+        "viewer/topologies.json under the target repo (pass --repo)", true);
+    } else {
+      const served = await startRepoRootServer();
+      try {
+        const servedPort = served.address().port;
+        await page.goto(`http://${HOSTED_TEST_HOST}:${servedPort}/apps/annotate/index.html`,
+          { waitUntil: "load" });
+        const loaded = await page.waitForFunction(() => {
+          const text = document.querySelector("#banner")?.textContent.trim() || "";
+          return /^loaded /.test(text) ? text : null;
+        }, null, { timeout: 20000 }).then((h) => h.jsonValue()).catch(() => "");
+        push("[real] hosted, a served origin's projections load with no grant, and the " +
+          "scene is there: pickers, list, parts and the 3D view",
+          /^loaded \d+ topolog/.test(loaded) &&
+          await rendered(page, "#topology-select") &&
+          await rendered(page, "#element-list") &&
+          await rendered(page, "#parts-panel") &&
+          await rendered(page, "#canvas-host") &&
+          await page.locator("#canvas-host canvas").count() === 1);
+        push("[real] ...with no folder control anywhere, and a transport line that says read-only",
+          await page.locator("#connect-btn").evaluate((n) => n.style.display) === "none" &&
+          (await page.locator("#transport-sub").textContent()) ===
+            await page.evaluate(() => window.AnnotateApp.PANE_STATUS.readOnly.sentence) &&
+          !/Connect folder|connected folder/.test(
+            await page.evaluate(() => document.body.innerText)));
+        // A bind, pressed: the owner-not-in-set record is the one bind control
+        // that needs no face picked, so it is the one this tier can press.
+        const pressed = await page.evaluate(async () => {
+          const rows = Array.from(document.querySelectorAll("#element-list li"));
+          const row = rows.find((r) => typeof r.onclick === "function");
+          if (!row) return null;
+          row.click();
+          await new Promise((r) => setTimeout(r, 200));
+          const button = document.querySelector(".owner-not-in-set-form button");
+          if (!button) return null;
+          button.click();
+          await new Promise((r) => setTimeout(r, 300));
+          return document.querySelector("#banner").textContent.trim();
+        });
+        const readOnly = await page.evaluate(() => window.AnnotateApp.READ_ONLY_WRITE);
+        push("[real] pressing a bind control says, in one line, that binding is not available here",
+          typeof pressed === "string" && pressed.indexOf(readOnly) !== -1);
+      } finally {
+        served.closeAllConnections();
+        served.close();
+      }
     }
 
     return reportSuite(label, checks, errors);
@@ -11037,7 +11304,7 @@ async function testSeamLeaders(browser, label, topologies) {
       `max ${costs.length ? costs[costs.length - 1].toFixed(3) : "-"} ms`);
 
     // Closing the scene takes them all down.
-    await page.locator("#flyout-close").click();
+    await page.locator("#flyout-collapse").click();
     const gone = await until(() =>
       document.querySelectorAll("svg.seamleaders path").length === 0, null, 5000);
     push("closing the scene takes every leader across the seam down", gone);
@@ -11127,8 +11394,8 @@ async function testSeamLeaders(browser, label, topologies) {
   try {
     await live.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
     await live.waitForSelector("div.kmverdict", { timeout: 30000 });
-    await live.waitForSelector("#pane-toggle:visible", { timeout: 15000 }).catch(() => {});
-    await live.locator("#pane-toggle").click({ timeout: 5000 }).catch(() => {});
+    await live.waitForSelector("#pane-handle:visible", { timeout: 15000 }).catch(() => {});
+    await live.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
     const runId = study.sweep.run_id;
     const built = await liveUntil((r) => {
       const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
@@ -11405,7 +11672,9 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       ["annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)", (label) =>
         testAnnotateRailAndScene(browser, label, topologies)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>
-        testAnnotateHostedPosture(browser, label)],
+        testAnnotateHostedPosture(browser, label, topologies)],
+      ["the scene pane reads over HTTP (drawing-checker's mounts, no grant)", (label) =>
+        testScenePaneOverHttp(browser, label)],
       ["annotate top bar + entry context (auto-filter, see-through)", (label) =>
         testAnnotateTopBar(browser, label)],
       ["annotate face suggestions (candidate colours, the pick, the switch)", (label) =>

@@ -1157,10 +1157,27 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    separate tab/page"). A plain <a target="_blank">, carrying the same params
    the panel booted with -- the same href VA.annotateLink builds for every
    other route into that app. */
+/* An icon-link since 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_
+   http): quiet until hover, the words on its title. */
 .flyout__fullpage {
-  color: var(--accent); font-size: var(--t-meta); text-decoration: none; white-space: nowrap;
+  color: var(--muted); font-size: var(--t-body); line-height: 1; text-decoration: none;
+  white-space: nowrap;
 }
-.flyout__fullpage:hover, .flyout__fullpage:focus { text-decoration: underline; }
+.flyout__fullpage:hover, .flyout__fullpage:focus { color: var(--accent); outline: none; }
+/* What the annotator can read and write here: a dot and one muted word, the
+   sentence on hover. The dot's colour is the state (semantic colour only),
+   keyed by the annotator's own `tone` words -- AA.PANE_STATUS_TONES, which
+   apps/annotate/run_tests.cjs pairs against the rules below. */
+.flyout__status {
+  flex: none; color: var(--muted); font-size: var(--t-micro); white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.flyout__status::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted);
+}
+.flyout__status[data-tone="ok"]::before { background: var(--pass); }
+.flyout__status[data-tone="warn"]::before { background: var(--marginal); }
+.flyout__status[data-tone="quiet"]::before { background: var(--muted); }
 /* The flyout's own drag divider, on the edge away from the dock -- so the
    panel grows INTO the page rather than off the screen. Deliberately the same
    control as the preview pane's `.tv__divider` above: same 7px hit area, same
@@ -1198,6 +1215,32 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
     var(--accent) 1.3px, transparent 1.5px);
 }
 .flyout__divider:focus { outline: none; }
+/* The pane's one close control, on its divider just above the grip: quiet
+   until hover, like every other affordance on the seam. */
+.flyout__collapse {
+  position: absolute; left: -4px; top: calc(50% - 44px);
+  width: 15px; height: 26px; padding: 0;
+  background: var(--panel); color: var(--muted);
+  border: 1px solid var(--line); border-radius: 4px;
+  font: inherit; font-size: var(--t-meta); line-height: 1; cursor: pointer;
+}
+.flyout__collapse:hover, .flyout__collapse:focus { color: var(--accent); outline: none; }
+
+/* The seam's tab (deliverable 4): the one way into the pane, on the seam
+   between the nav and the model. A zero-width column of the row, so opening
+   nothing moves nothing; the tab straddles the seam. */
+.panehandle {
+  flex: none; width: 0; position: sticky; top: 47px;
+  height: calc(100vh - 47px); align-self: flex-start; z-index: 4;
+}
+.panehandle__tab {
+  position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
+  writing-mode: vertical-rl; padding: 8px 2px;
+  background: var(--panel); color: var(--muted);
+  border: 1px solid var(--line); border-radius: 4px;
+  font: inherit; font-size: var(--t-micro); line-height: 1; cursor: pointer;
+}
+.panehandle__tab:hover, .panehandle__tab:focus { color: var(--accent); outline: none; }
 .flyout__frame { flex: 1; width: 100%; border: none; background: var(--bg); }
 
 /* --- what the page does while the scene is open ---------------------------

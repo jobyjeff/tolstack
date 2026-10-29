@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
+  "expect_red": "[real] served the way drawing-checker serves it, the seam shows the one 3D handle and the head shows none",
+  "mutations": [
+    {
+      "contract": "On drawing-checker's mounts the seam's handle is the one way into the pane.",
+      "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
+      "note": "Hidden, the pane has no way in on the very origin Jeff uses.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.paneHandle.style.display = state.annotateMount && !open ? \"\" : \"none\";",
+      "replace": "    nodes.paneHandle.style.display = \"none\";"
+    }
+  ]
+}

@@ -135,16 +135,39 @@ Serve `apps\`, not `apps\annotate\` — this page loads one file from its
 sibling (`../viewer/storage/adapter.js`, the shared transport decision below),
 and the two apps are siblings on the canonical mount too.
 
-Click **Connect folder**, pick the tolstack repo root
-(`C:\workspace\tolstack`), grant **read/write**. Build the two projections
-this app reads first, from the main checkout:
+Served by drawing-checker (`http://127.0.0.1:8000/tolstack/annotate/`) or by
+any server that publishes the projections, the page **reads over HTTP with no
+folder grant** (`storage/http.js`, since handoff
+`the_scene_pane_is_one_flyout_that_reads_over_http`): the topology and
+kinematic projections, the meshes, and the read set
+`scripts/build_kinematic_projection.py` writes beside them
+(`data/projections/viewer/kinematic/annotate.json` — the mesh list, the alias
+table, the part names and the run list — and each run under `kinematic/sweeps/`),
+because a static mount lists no directory. **Writing still needs the folder**:
+the first bind asks for it, from inside that click, and every bind after it
+writes through the grant. Where no server publishes anything (`ops.toml`'s
+serve verb serves `apps\` only), click **Connect folder**, pick the tolstack
+repo root (`C:\workspace\tolstack`), grant **read/write**.
+
+| transport | chosen when | reads | writes |
+|---|---|---|---|
+| HTTP (`storage/http.js`) | the origin answers `topologies.json` as JSON — tried first, any origin | every projection, the meshes, the read set; the feature-identity projection only where served (no drawing-checker mount serves it), else from the folder once granted | through the folder, asked for at the first bind on a local page; on a hosted origin a bind says, in one line, that it is not available |
+| folder grant (`storage/fsa.js`) | nothing is served, and the page is local (loopback) | everything, by walking the folder | yes |
+| none | nothing is served, and the page is hosted | — | — (the one sentence below) |
+
+Build the projections this app reads first, from the main checkout:
 
 ```powershell
 venv-win/Scripts/python.exe scripts\build_topology_projection.py
 venv-win/Scripts/python.exe scripts\build_feature_identity_projection.py
+venv-win/Scripts/python.exe scripts\build_kinematic_projection.py
 ```
 
-### On a hosted origin there is one sentence and nothing else
+### On a hosted origin that publishes nothing there is one sentence
+
+(A hosted origin that **does** publish the projections — drawing-checker's
+bake — reads them like any other and shows the scene read-only; see the table
+above.)
 
 The folder grant is offered on **local** pages only — a loopback server like
 the one above, or drawing-checker's own local mount. On a hosted origin the
@@ -154,10 +177,9 @@ however it were presented, and this app's whole job is to *write* into that
 repo. (handoff `surfaces_that_state_something_false`, applying
 `apps/viewer/`'s `viewer_transport_honest_hosted` posture. The decision
 itself is the viewer's `VA.chooseTransport`, reached through
-`AA.chooseTransport` — one rule for both apps, not two. Note this app hands
-it no HTTP candidate at all, which is
-`ISSUE_20260910_annotate_has_no_http_read_transport`, still open: a hosted
-page cannot *read* here either.)
+`AA.chooseTransport` — one rule for both apps, not two. Since 2026-10-28 this
+app hands it its HTTP adapter as the `http` candidate, so this sentence is
+only what an origin publishing NOTHING gets.)
 
 The sentence is the whole page, not just the top bar. Everything below it —
 the element list and its two pickers, the parts panel, the 3D pane and the
@@ -449,10 +471,11 @@ that rule is about driving **Jeff's own live session**, which a headful run
 hijacks, and nothing here touches one.
 
 The default pass runs against `?mock=1` and needs nothing. `--real <run-id>`
-runs the same page against a published run and the real mesh store; because
-this app has no HTTP read transport and FSA cannot be granted from a script,
-that pass swaps the in-memory adapter's *read* methods for fetches over the
-test server — a harness, not a transport, and it proves nothing about FSA.
+runs the same page against a published run and the real mesh store; that
+pass swaps the in-memory adapter's *read* methods for fetches over the test
+server — a harness, not a transport, and it proves nothing about FSA. (It
+predates the HTTP transport; the viewer's TRUTH tier drives the real one on
+drawing-checker-shaped mounts, "the scene pane reads over HTTP".)
 `--shots` writes the screenshot evidence; it is **dark only**, because both
 apps render one theme by decision and no mechanism for a second exists
 (`docs/DESIGN_TYPE_AND_COLOUR.md`, "One theme").
@@ -535,9 +558,11 @@ picking off anyway while the linkage is away from its as-modelled pose.
 sweep rail then lists that study's contributors (`docs/ANNOTATION_SURFACE.md`,
 "The rail in sweep mode").
 
-**FSA cannot pre-grant the folder from a URL.** A deep link opened cold has
-no folder access yet — the banner says so ("a linked element is queued"),
-and the boot commands replay only after you click **Connect folder**.
+**FSA cannot pre-grant the folder from a URL.** On a page that reads over
+HTTP that does not matter — the boot commands run as soon as the read set is
+loaded. On a folder-grant page a deep link opened cold has no folder access
+yet — the banner says so ("a linked element is queued"), and the boot commands
+replay only after you click **Connect folder**.
 
 ## Flyout embedding (`apps/viewer/`'s side panel)
 
@@ -555,9 +580,18 @@ behind it — the deep link's own "queued until you connect" semantics. The
 viewer probes for this mount and degrades to its plain "Annotate →" links
 (new tab) where the probe fails; this listener's own behaviour is unchanged
 off-origin (a message from any other origin is simply ignored). What *does*
-turn on the origin is the folder grant — a flyout opened on a **hosted**
-viewer page shows the sentence in "On a hosted origin" above instead of a
-connect prompt, because nothing on that origin can write a binding.
+turn on the origin is what it publishes — a flyout on an origin serving the
+projections reads them (read-only where it is hosted), and only one publishing
+nothing shows the sentence in "On a hosted origin" above.
+
+**Embedded, the page has no banner band** (handoff
+`the_scene_pane_is_one_flyout_that_reads_over_http`). What it can read and
+write is posted to the viewer as `{type: "annotate:status", word, tone,
+sentence}` — `AA.PANE_STATUS`, picked by `AA.paneStatus` — and the pane's
+header prints the word beside a dot coloured by `tone`, the sentence on hover.
+What the banner would have said (an error above all) is one dismissable line at
+the top of the pane (`#notice`). The document never scrolls: the body is the
+frame, and the hint bar is the one scroller.
 
 **The other direction** (handoff `the_3d_pane_opens_in_the_mode_the_study_wants`):
 after `sweep`, `goto` or `trace` completes — whoever ran it, the viewer, the
