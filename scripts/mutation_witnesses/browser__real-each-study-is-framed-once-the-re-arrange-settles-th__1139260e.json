@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file:// respine",
+  "expect_red": "[real] each study is framed once the re-arrange settles -- the whole band in the visible pane, no scroll",
+  "mutations": [
+    {
+      "contract": "A study arrival through the respine frames the band once the transition settles.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Nothing runs on settle, so the band is wherever the page happened to be scrolled.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        if (respineHandle && !respineHandle.done) respineHandle.onSettled = frame;",
+      "replace": "        if (respineHandle && !respineHandle.done) respineHandle.onSettled = null;"
+    }
+  ]
+}

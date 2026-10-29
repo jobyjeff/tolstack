@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file:// respine",
+  "expect_red": "[real] each study's lit rows are one band on screen, every bar and dot still drawn",
+  "mutations": [
+    {
+      "contract": "The re-arranged walk is above + band + below, so the lit rows are contiguous.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Re-lays the walk in its own order: the lit rows stay where the walk had them.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var laid = VA.layWalk(sides.above.concat(sides.band, sides.below), {",
+      "replace": "    var laid = VA.layWalk(layout.rows, {"
+    }
+  ]
+}

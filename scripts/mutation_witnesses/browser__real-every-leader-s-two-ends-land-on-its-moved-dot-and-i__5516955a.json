@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file:// respine",
+  "expect_red": "[real] every leader's two ends land on its moved dot and its seam, study by study",
+  "mutations": [
+    {
+      "contract": "The grid plan and its leaders are built from the SAME re-arranged layout the rails are drawn from, so a leader runs to its node where the band moved it.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Plans the leaders off the projection's own walk, so each leader runs to the row its node used to be on.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var plan = VA.gridPlan(layout, topoProj, lit);",
+      "replace": "    var plan = VA.gridPlan(VA.spineRight(topoProj.layout), topoProj, lit);"
+    }
+  ]
+}

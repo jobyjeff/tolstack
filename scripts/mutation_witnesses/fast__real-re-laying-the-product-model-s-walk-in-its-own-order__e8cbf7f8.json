@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] re-laying the product model's walk in its own order on its own columns reproduces the projection row for row",
+  "mutations": [
+    {
+      "contract": "An edge with both nodes above it is drawn down from the node the walk entered it at, as the projection drew it.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Always hangs from the higher node: the product model's deferred joints then run their rails from the wrong end (measured: 17 columns, not 11).",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (hang === ends[1]) ends.reverse();",
+      "replace": ""
+    }
+  ]
+}

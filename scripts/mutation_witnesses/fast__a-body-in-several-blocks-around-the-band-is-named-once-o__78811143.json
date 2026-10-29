@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a body in several blocks around the band is named once, on the band's field -- and each block folds to a pill of its own",
+  "mutations": [
+    {
+      "contract": "With a study lit, a body is named once, on its band field.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Every field named again.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return fields.map(function (field, i) { return pick[field.body] === i; });",
+      "replace": "    return fields.map(function () { return true; });"
+    },
+    {
+      "contract": "Each collapsed block is its own pill row with its own node id.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Two blocks of one body share an id again.",
+      "file": "apps/viewer/topology.js",
+      "find": "      span.pill = \"body:\" + span.body + (nth[span.body] > 1 ? \"#\" + nth[span.body] : \"\");",
+      "replace": "      span.pill = \"body:\" + span.body;"
+    }
+  ]
+}

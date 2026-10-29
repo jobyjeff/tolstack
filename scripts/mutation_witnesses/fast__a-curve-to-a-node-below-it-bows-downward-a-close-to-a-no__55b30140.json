@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a curve to a node below it bows downward, a close to a node above it bows upward",
+  "mutations": [
+    {
+      "contract": "closePath bows toward the node it lands on in either direction; a downward curve with an upward lift loops back on itself.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Removes the direction flip.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (y2 > y1) lift = -lift;",
+      "replace": ""
+    }
+  ]
+}
