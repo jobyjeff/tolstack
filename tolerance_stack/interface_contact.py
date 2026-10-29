@@ -1,8 +1,10 @@
 """Which faces of two parts touch, in the assembly frame -- the candidates a gap
 edge's interface suggests.
 
-A topology gap edge names two parts (its end nodes' ``parts[0]``) and an
-``interface`` word (``tolerance_stack.topology.INTERFACE_KINDS``). That is
+A topology gap edge names two parts (its end nodes' ``parts[0]``), the shape
+each end node asks for (``feature_geometry.end_surface_class``) and an
+``interface`` word (``tolerance_stack.topology.INTERFACE_KINDS``); the ends
+decide the pairing and the word breaks the tie (:func:`end_pairing`). That is
 enough to narrow a few thousand faces to a handful: a ``planar`` interface is
 two flat faces facing each other, touching, with footprints that overlap; a pin
 in a bore is two coaxial cylinders, one convex and one concave, the bore no
@@ -40,8 +42,9 @@ from tolerance_stack import feature_geometry as fg
 
 Vec = Tuple[float, float, float]
 
-#: How a gap edge's ``interface`` word pairs faces. **This mapping is the
-#: definition**; its keys are paired against
+#: How a gap edge's ``interface`` word pairs faces when its ends do not say --
+#: the tiebreak behind :data:`END_PAIRINGS` (:func:`end_pairing`). **This
+#: mapping is the definition**; its keys are paired against
 #: ``tolerance_stack.topology.INTERFACE_KINDS`` by ``tests/test_interface_contact.py``,
 #: so a new interface word without a pairing rule is a red test, not a silent
 #: ``no_contact``.
@@ -58,13 +61,58 @@ CONTACT_PAIRINGS: Dict[str, str] = {
     "spherical": "ball_in_seat",
 }
 
-#: The pairing families :data:`CONTACT_PAIRINGS` maps onto, in the order the
-#: evidence fields are documented.
-PAIRING_KINDS = ("plane_on_plane", "cylinder_in_cylinder", "ball_in_seat")
+#: The pairing families :data:`CONTACT_PAIRINGS` and :data:`END_PAIRINGS` map
+#: onto, in the order the evidence fields are documented.
+PAIRING_KINDS = ("plane_on_plane", "cylinder_in_cylinder", "ball_in_seat",
+                 "plane_across_axis")
 
 #: What a ball can sit in. A ball's centre is the joint; its seat is another
 #: sphere (a race), a bore it is centred on, or a flat it rests against.
 SEAT_SURFACES = ("spherical", "cylindrical", "planar")
+
+#: How a gap edge pairs faces when its ENDS say what shape they are -- the
+#: surface class each end node asks for under the annotator's own shape rule
+#: (``feature_geometry.end_surface_class``, the rule
+#: ``scripts/propose_bindings.py`` refuses a proposal by). **This mapping is
+#: the definition**, keyed by the two classes in sorted order; every pair of
+#: ``feature_geometry.FITTED_SURFACE_CLASSES`` has a row
+#: (``tests/test_interface_contact.py``).
+#:
+#: It is asked BEFORE :data:`CONTACT_PAIRINGS`, which is now only the tiebreak
+#: for ends that name no class (:func:`end_pairing`). Measured 2026-10-29: on
+#: all four of the projection's "clear" edges the interface word's pairing
+#: contradicted what both ends name -- two ball centres paired as a bearing's
+#: OD in its eye, and two washer/bushing far faces paired as their bores.
+#: A per-edge override table was the rejected alternative: it would hide the
+#: same mismatch on the next linkage.
+#:
+#: ``plane_across_axis`` is a flat whose normal runs along a cylinder's axis,
+#: the axis crossing it -- a washer's far face and the bolt shank through it.
+#: It is a relation, not a touch: the two faces of a "shank out" gap never meet.
+END_PAIRINGS: Dict[Tuple[str, str], str] = {
+    ("planar", "planar"): "plane_on_plane",
+    ("cylindrical", "cylindrical"): "cylinder_in_cylinder",
+    ("cylindrical", "planar"): "plane_across_axis",
+    ("cylindrical", "spherical"): "ball_in_seat",
+    ("planar", "spherical"): "ball_in_seat",
+    ("spherical", "spherical"): "ball_in_seat",
+}
+
+#: What decided an edge's pairing. **This tuple is the definition.**
+#:
+#: ``ends``       both end nodes name a surface class.
+#: ``one_end``    one does; the silent end takes the class the interface word
+#:                gives it.
+#: ``interface``  neither does; the interface word alone.
+PAIRING_BASES = ("ends", "one_end", "interface")
+
+#: Interfaces that are a relation between two AXES, judged as axes: every
+#: occurrence pair and every cylinder of both parts is compared by angle and
+#: offset, however far apart along the axis the surfaces are. Measured
+#: 2026-10-29: the pitch plate's only cylinder on the rotor axis is 42 mm from
+#: the hub's box, so a surface-distance gate (``reach_mm``) could never see the
+#: coaxiality ``hub_to_pitch_plate_spindle_coaxiality`` is about.
+AXIS_INTERFACES = ("cylindrical_slide",)
 
 #: Why an edge has no candidate. **This tuple is the definition.**
 #:
@@ -126,7 +174,10 @@ CONTACT_TOLERANCES: Dict[str, float] = {
     # bigger, farther bore. THIN, and it is thin for a known reason, not noise.
     "centre_mm": 0.1,
     # Ball resting on a flat: |distance - radius|. Measured -0.0007 and
-    # -0.019 mm; next 0.23 mm.
+    # -0.019 mm; next 0.23 mm. The -0.019 mm pair (tangential link mount
+    # faces 810 and 1594) is NOT a seat: the flat sits where the ball's sphere
+    # is cut away, which ``ball_in_seat`` now checks on the ball's own facets
+    # rather than by this gap -- so the gap is necessary, never sufficient.
     "seat_gap_mm": 0.05,
 }
 
@@ -571,13 +622,42 @@ def cylinder_in_cylinder(a: PlacedFace, b: PlacedFace, tol: Dict[str, float]
     return evidence
 
 
+def _ray_hits(origin: Vec, direction: Vec, triangles: Sequence[Tuple[Vec, Vec, Vec]]) -> bool:
+    """Does the ray from ``origin`` along ``direction`` pass through any of
+    ``triangles``? Moller-Trumbore, both windings."""
+    for a, b, c in triangles:
+        e1, e2 = _sub(b, a), _sub(c, a)
+        p = _cross(direction, e2)
+        det = _dot(e1, p)
+        if abs(det) < 1e-12:
+            continue
+        s = _sub(origin, a)
+        u = _dot(s, p) / det
+        if u < 0.0 or u > 1.0:
+            continue
+        q = _cross(s, e1)
+        v = _dot(direction, q) / det
+        if v < 0.0 or u + v > 1.0:
+            continue
+        if _dot(e2, q) / det > 0.0:
+            return True
+    return False
+
+
 def ball_in_seat(a: PlacedFace, b: PlacedFace, tol: Dict[str, float]
                  ) -> Optional[Dict[str, Any]]:
     """A ball and what it sits in, or ``None``.
 
     The ball is a convex sphere. Its seat is a concave sphere sharing its centre
-    (a race), a cylinder whose axis passes through the centre (a lug bore the
-    ball is pinned in), or a flat it rests on at its own radius.
+    (a race), a concave cylinder whose axis passes through the centre (a lug
+    bore the ball is pinned in), or a flat it rests on at its own radius.
+
+    A **cylindrical seat is a bore**: a convex cylinder on the ball's axis is a
+    bushing's flange or a boss, and on the pitch plate those were rank 1 before
+    2026-10-29 (r 5.5499, which drawing 215735 refutes). A **flat seat touches
+    the sphere where the sphere is**: the ray from the centre to the flat has
+    to pass through the ball's own facets, so a flat where a truncated ball
+    has been cut away is a face grazing nothing, whatever its gap.
     """
     for ball, seat in ((a, b), (b, a)):
         if ball.surface != "spherical" or ball.local.convex is not True:
@@ -590,7 +670,7 @@ def ball_in_seat(a: PlacedFace, b: PlacedFace, tol: Dict[str, float]
                 return {"relation": "contact", "ball": side, "seat": "spherical",
                         "centre_mm": d, "ball_radius_mm": radius,
                         "seat_radius_mm": seat.geometry["radius"]}
-        elif seat.surface == "cylindrical":
+        elif seat.surface == "cylindrical" and seat.local.convex is False:
             axis, origin = seat.geometry["axis"], seat.geometry["axis_point"]
             d = _line_distance(centre, origin, axis)
             if d <= tol["centre_mm"]:
@@ -604,10 +684,50 @@ def ball_in_seat(a: PlacedFace, b: PlacedFace, tol: Dict[str, float]
                         # nearer than a counterbore on the far side.
                         "along_axis_mm": max(0.0, lo - at, at - hi)}
         elif seat.surface == "planar":
-            d = abs(_dot(_sub(centre, seat.geometry["point"]), seat.geometry["normal"]))
+            normal = seat.geometry["normal"]
+            signed = _dot(_sub(seat.geometry["point"], centre), normal)
+            d = abs(signed)
             if abs(d - radius) <= tol["seat_gap_mm"]:
-                return {"relation": "contact", "ball": side, "seat": "planar",
-                        "seat_gap_mm": d - radius, "ball_radius_mm": radius}
+                toward = _scale(normal, 1.0 if signed >= 0 else -1.0)
+                if _ray_hits(centre, toward, ball.triangles):
+                    return {"relation": "contact", "ball": side, "seat": "planar",
+                            "seat_gap_mm": d - radius, "ball_radius_mm": radius}
+    return None
+
+
+def plane_across_axis(a: PlacedFace, b: PlacedFace, tol: Dict[str, float]
+                      ) -> Optional[Dict[str, Any]]:
+    """A flat whose normal runs along a cylinder's axis, the axis crossing the
+    flat's extent -- or ``None``.
+
+    The evidence says where the cylinder ENDS relative to the flat: ``end_mm``
+    is the station of the cylinder's nearer end along the flat's outward
+    normal, so a bolt's full shank running on past a washer's far face is
+    positive by how far, and a shank stopping short of it negative. Of a
+    washer's two flats the far one ranks first because it is the nearer to
+    that end.
+    """
+    for plane, cyl in ((a, b), (b, a)):
+        if plane.surface != "planar" or cyl.surface != "cylindrical":
+            continue
+        normal = plane.geometry["normal"]
+        axis, origin = cyl.geometry["axis"], cyl.geometry["axis_point"]
+        angle = _angle_deg(normal, axis)
+        angle = min(angle, 180.0 - angle)
+        if angle > tol["angle_deg"]:
+            return None
+        along = _dot(axis, normal)
+        station = _dot(_sub(plane.geometry["point"], origin), normal) / along
+        crossing = _add(origin, _scale(axis, station))
+        offset = _norm(_sub(crossing, plane.centre))
+        if offset > plane.local.extent:
+            return None
+        lo, hi = _interval(cyl.vertices, origin, axis)
+        end = lo if abs(lo - station) <= abs(hi - station) else hi
+        return {"relation": "across", "plane": "a" if plane is a else "b",
+                "angle_deg": angle, "axis_offset_mm": offset,
+                "end_mm": (end - station) * (1.0 if along > 0 else -1.0),
+                "cylinder_radius_mm": cyl.geometry["radius"]}
     return None
 
 
@@ -615,15 +735,45 @@ _PAIRERS = {
     "plane_on_plane": (("planar",), plane_on_plane),
     "cylinder_in_cylinder": (("cylindrical",), cylinder_in_cylinder),
     "ball_in_seat": (("spherical",) + SEAT_SURFACES, ball_in_seat),
+    "plane_across_axis": (("planar", "cylindrical"), plane_across_axis),
 }
 
 #: What a pair can be. ``contact`` is what an interface is; ``coaxial`` is the
-#: fallback a cylinder pairing offers when nothing on the edge touches.
-RELATIONS = ("contact", "coaxial")
+#: fallback a cylinder pairing offers when nothing on the edge touches;
+#: ``across`` is a flat across a cylinder's axis, which never touches.
+RELATIONS = ("contact", "coaxial", "across")
 
 #: The ball-in-seat ranking: a shared centre is the joint, a bore through it is
 #: next, a flat it rests on last.
 _SEAT_ORDER = {"spherical": 0.0, "cylindrical": 1.0, "planar": 2.0}
+
+
+def end_pairing(surface_a: Optional[str], surface_b: Optional[str], interface: str
+                ) -> Tuple[str, Tuple[Tuple[str, ...], Tuple[str, ...]], str]:
+    """``(pairing, (surfaces end a accepts, surfaces end b accepts), basis)``.
+
+    The ends decide (:data:`END_PAIRINGS`), and each end is paired only on
+    faces of the class it names -- so every candidate passes the shape rule
+    the annotator and ``propose_bindings.py`` judge a face by. An end that
+    names no class takes the class the interface word's pairing gives it
+    (a ball's other end is any seat); two silent ends take the interface
+    word's pairing whole. ``basis`` is one of :data:`PAIRING_BASES`.
+    """
+    word = CONTACT_PAIRINGS[interface]
+    if surface_a is None and surface_b is None:
+        accepts = _PAIRERS[word][0]
+        return word, (accepts, accepts), "interface"
+    if surface_a is None or surface_b is None:
+        named = surface_a or surface_b
+        if word == "ball_in_seat":
+            silent = SEAT_SURFACES if named == "spherical" else ("spherical",)
+        else:
+            silent = (_PAIRERS[word][0][0],)
+        kind = END_PAIRINGS[tuple(sorted((named, silent[0])))]
+        sides = ((named,), silent) if surface_a else (silent, (named,))
+        return kind, sides, "one_end"
+    kind = END_PAIRINGS[tuple(sorted((surface_a, surface_b)))]
+    return kind, ((surface_a,), (surface_b,)), "ends"
 
 
 def rank_score(kind: str, evidence: Dict[str, Any], tol: Dict[str, float]) -> float:
@@ -632,16 +782,27 @@ def rank_score(kind: str, evidence: Dict[str, Any], tol: Dict[str, float]) -> fl
     Each term is the share of one margin a pair uses up, so a perfect pair
     scores zero and one exactly on every margin scores the number of terms; a
     shared length or area subtracts, so of two equally tight pairs the one that
-    shares more surface wins.
+    shares more surface wins. A term with no margin behind it (a radius against
+    the ball's, a distance to a shank's end) is a share of the part's own
+    size instead.
     """
     if kind == "plane_on_plane":
         return (abs(evidence["gap_mm"]) / tol["plane_gap_mm"]
                 + evidence["angle_deg"] / tol["angle_deg"]
                 - evidence["overlap_fraction"])
+    if kind == "plane_across_axis":
+        return (evidence["angle_deg"] / tol["angle_deg"]
+                + abs(evidence["end_mm"]) / max(evidence["cylinder_radius_mm"], 1e-9))
     if kind == "cylinder_in_cylinder":
         score = (evidence["axis_offset_mm"] / tol["axis_offset_mm"]
                  + evidence["angle_deg"] / tol["angle_deg"])
-        if "clearance_mm" not in evidence or evidence.get("relation", "contact") != "contact":
+        if evidence.get("relation", "contact") != "contact":
+            # Two features merely on one axis: of the many a hub has on its
+            # rotor axis, the nearest in size to the other part's is first.
+            ra = evidence.get("a_radius_mm", evidence.get("pin_radius_mm", 0.0))
+            rb = evidence.get("b_radius_mm", evidence.get("bore_radius_mm", 0.0))
+            return score + abs(ra - rb) / max(ra, rb, 1e-9)
+        if "clearance_mm" not in evidence:
             return score
         clearance = evidence["clearance_mm"]
         allowed = tol["max_clearance_mm"] if clearance >= 0 else tol["max_interference_mm"]
@@ -651,7 +812,13 @@ def rank_score(kind: str, evidence: Dict[str, Any], tol: Dict[str, float]) -> fl
         return _SEAT_ORDER["planar"] + abs(evidence["seat_gap_mm"]) / tol["seat_gap_mm"]
     score = _SEAT_ORDER[evidence["seat"]] + evidence["centre_mm"] / tol["centre_mm"]
     if evidence["seat"] == "cylindrical":
-        score += min(1.0, evidence["along_axis_mm"] / max(evidence["ball_radius_mm"], 1e-9))
+        ball = max(evidence["ball_radius_mm"], 1e-9)
+        score += min(1.0, evidence["along_axis_mm"] / ball)
+        # The seat's radius against the ball's own. Measured 2026-10-29 on the
+        # pitch plate's two joints: the ball's own bore (r 2.41) would rank the
+        # pressed bushing's bore first, and drawing 215735 calls out the lug
+        # holes (r 3.975, r 4.26) -- which the ball's radius ranks first.
+        score += abs(evidence["seat_radius_mm"] - evidence["ball_radius_mm"]) / ball
     return score
 
 
@@ -702,25 +869,31 @@ def feature_groups(faces: Sequence[PlacedFace], tol: Dict[str, float]) -> Dict[i
 
 
 def pair_faces(kind: str, faces_a: Sequence[PlacedFace], faces_b: Sequence[PlacedFace],
-               tolerances: Optional[Dict[str, float]] = None) -> List[Dict[str, Any]]:
+               tolerances: Optional[Dict[str, float]] = None,
+               accepts: Optional[Tuple[Sequence[str], Sequence[str]]] = None,
+               axes: bool = False) -> List[Dict[str, Any]]:
     """Every pair of features (one per part) that ``kind`` pairs, best first.
 
     A candidate is ``{a_faces, b_faces, a_surface, b_surface, relation,
     evidence, score}``: the faces of the feature on each side, and the evidence
-    of the best face pair between the two features.
+    of the best face pair between the two features. ``accepts`` narrows each
+    side to the surface classes its end names (:func:`end_pairing`); ``axes``
+    drops the surface-distance gate, for an axis relation.
     """
     tol = dict(CONTACT_TOLERANCES)
     tol.update(tolerances or {})
     surfaces, test = _PAIRERS[kind]
     reach = tol["reach_mm"]
-    faces_a = [f for f in faces_a if f.surface in surfaces]
-    faces_b = [f for f in faces_b if f.surface in surfaces]
+    accept_a, accept_b = accepts or (surfaces, surfaces)
+    faces_a = [f for f in faces_a if f.surface in surfaces and f.surface in accept_a]
+    faces_b = [f for f in faces_b if f.surface in surfaces and f.surface in accept_b]
     groups_a = feature_groups(faces_a, tol)
     groups_b = feature_groups(faces_b, tol)
     best: Dict[Tuple[int, int], Dict[str, Any]] = {}
     for fa in faces_a:
         for fb in faces_b:
-            if _norm(_sub(fa.centre, fb.centre)) > fa.local.extent + fb.local.extent + reach:
+            if not axes and (_norm(_sub(fa.centre, fb.centre))
+                             > fa.local.extent + fb.local.extent + reach):
                 continue
             evidence = test(fa, fb, tol)
             if evidence is None:
@@ -760,27 +933,34 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
                     occurrences_a: Sequence[Dict[str, Any]],
                     occurrences_b: Sequence[Dict[str, Any]],
                     tolerances: Optional[Dict[str, float]] = None,
-                    limit: int = MAX_CANDIDATES) -> Dict[str, Any]:
+                    limit: int = MAX_CANDIDATES,
+                    accepts: Optional[Tuple[Sequence[str], Sequence[str]]] = None,
+                    axes: bool = False) -> Dict[str, Any]:
     """The ranked candidates for one edge, over every occurrence pair in reach.
 
     An occurrence is ``{"key", "placement", "own"?, ...}``. Every pair of
-    occurrences whose placed bounding boxes come within ``reach_mm`` is paired;
-    the pair whose best candidate ranks best wins (scores compared to
-    :data:`TIE_DECIMALS`), then the pair more of whose occurrences are the
-    mesh's ``own`` (the ones the annotator draws it at), then the first in key
-    order -- on a five-bladed rotor the same joint is in reach five times over,
-    with the same faces. What is *not* a tie is a second pair sharing one of
-    the winner's occurrences and touching different faces: a link with a
-    bearing at each end, asked which end. That is ``ambiguous_with``, and only
-    the edge's own words can settle it.
+    occurrences whose placed bounding boxes come within ``reach_mm`` is paired
+    -- every pair at all, and every face of both parts, when ``axes`` (an
+    :data:`AXIS_INTERFACES` edge, judged by angle and offset rather than by
+    how near the surfaces come). The pair whose best candidate ranks best wins,
+    a pair more of whose occurrences are the mesh's ``own`` (the ones the
+    annotator draws it at) beating one that borrows another mesh's slot, then
+    scores compared to :data:`TIE_DECIMALS`, then the first in key order -- on
+    a five-bladed rotor the same joint is in reach five times over, with the
+    same faces. What is *not* a tie is a second pair sharing one of the
+    winner's occurrences and touching different faces: a link with a bearing
+    at each end, asked which end. That is ``ambiguous_with``, and only the
+    edge's own words can settle it.
 
-    Returns ``{"status": "ok" | one of EMPTY_REASONS, "occurrences",
-    "pairs_in_reach", "nearest_gap_mm", "candidates", "ambiguous_with"}``.
+    Returns ``{"status": "ok" | one of EMPTY_REASONS, "occurrences", "own",
+    "pairs_in_reach", "nearest_gap_mm", "candidates", "ambiguous_with"}``;
+    ``own`` is ``{"a", "b"}``, whether each winning occurrence is its mesh's
+    own slot.
     """
     tol = dict(CONTACT_TOLERANCES)
     tol.update(tolerances or {})
     reach = tol["reach_mm"]
-    needed = _PAIRERS[kind][0]
+    needed = accepts or (_PAIRERS[kind][0], _PAIRERS[kind][0])
     in_reach = []
     nearest = math.inf
     boxes_b = [(ob, placed_box(part_b.box, ob["placement"])) for ob in occurrences_b]
@@ -791,10 +971,11 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
                 continue
             gap = box_gap(box_a, box_b)
             nearest = min(nearest, gap)
-            if gap <= reach:
+            if axes or gap <= reach:
                 in_reach.append((oa, ob, box_a, box_b))
     result: Dict[str, Any] = {
-        "status": "no_contact", "occurrences": None, "pairs_in_reach": len(in_reach),
+        "status": "no_contact", "occurrences": None, "own": None,
+        "pairs_in_reach": len(in_reach),
         "nearest_gap_mm": None if nearest == math.inf else nearest,
         "candidates": [], "ambiguous_with": []}
     if not in_reach:
@@ -803,15 +984,18 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
     fitted = [False, False]
     scored = []
     for oa, ob, box_a, box_b in sorted(in_reach, key=lambda r: (r[0]["key"], r[1]["key"])):
-        ids_a = faces_within(part_a, oa["placement"], box_b, reach)
-        ids_b = faces_within(part_b, ob["placement"], box_a, reach)
+        if axes:
+            ids_a, ids_b = sorted(part_a.bounds), sorted(part_b.bounds)
+        else:
+            ids_a = faces_within(part_a, oa["placement"], box_b, reach)
+            ids_b = faces_within(part_b, ob["placement"], box_a, reach)
         fit_faces(part_a, ids_a)
         fit_faces(part_b, ids_b)
         faces_a = [place(part_a.fitted[f], oa["placement"]) for f in ids_a if part_a.fitted.get(f)]
         faces_b = [place(part_b.fitted[f], ob["placement"]) for f in ids_b if part_b.fitted.get(f)]
-        fitted[0] = fitted[0] or any(f.surface in needed for f in faces_a)
-        fitted[1] = fitted[1] or any(f.surface in needed for f in faces_b)
-        candidates = pair_faces(kind, faces_a, faces_b, tol)
+        fitted[0] = fitted[0] or any(f.surface in needed[0] for f in faces_a)
+        fitted[1] = fitted[1] or any(f.surface in needed[1] for f in faces_b)
+        candidates = pair_faces(kind, faces_a, faces_b, tol, accepts=accepts, axes=axes)
         if candidates:
             scored.append((oa, ob, candidates,
                            ({f.face_id: f for f in faces_a}, {f.face_id: f for f in faces_b})))
@@ -822,7 +1006,7 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
     def best_of(row):
         top = row[2][0]
         own = int(bool(row[0].get("own"))) + int(bool(row[1].get("own")))
-        return (RELATIONS.index(top["relation"]), round(top["score"], TIE_DECIMALS), -own)
+        return (RELATIONS.index(top["relation"]), -own, round(top["score"], TIE_DECIMALS))
 
     oa, ob, candidates, placed = min(scored, key=best_of)   # min keeps the first of a tie
     # Coaxial is the fallback: offered only when the winning pair has no contact.
@@ -851,6 +1035,7 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
     result.update({
         "status": "ok",
         "occurrences": {"a": oa["key"], "b": ob["key"]},
+        "own": {"a": bool(oa.get("own")), "b": bool(ob.get("own"))},
         "candidates": candidates,
         "ambiguous_with": ambiguous,
     })

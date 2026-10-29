@@ -160,11 +160,17 @@ class Store:
         return candidate_occurrences(sha, self.own, self.every, product)
 
 
-def _end(topology, node_id: str, store: Store) -> Dict[str, Any]:
+def _end(topology, edge, node_id: str, store: Store) -> Dict[str, Any]:
+    """One end: its node, part and mesh, and the surface class it asks for --
+    ``feature_geometry.end_surface_class`` called exactly as
+    ``scripts/propose_bindings.py`` calls it, so a candidate's face on this end
+    is never one that script would refuse for its shape."""
     node = next(n for n in topology.nodes if n.id == node_id)
     part = node.parts[0] if node.parts else None
     mesh = store.resolve(part)
-    row: Dict[str, Any] = {"node": node_id, "part": part, "mesh": None}
+    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id)
+    row: Dict[str, Any] = {"node": node_id, "part": part, "mesh": None,
+                           "asks": rule["surface"] if rule else None}
     if mesh:
         provenance = store.provenance.get(mesh["sha256"], {})
         row["mesh"] = {"sha256": mesh["sha256"], "part_id": mesh["part_id"],
@@ -177,14 +183,19 @@ def _side(word: str) -> str:
     return {"a": "from", "b": "to"}[word]
 
 
-def _candidate_row(candidate: Dict[str, Any], sha_from: str, sha_to: str) -> Dict[str, Any]:
+def _candidate_row(candidate: Dict[str, Any], sha_from: str, sha_to: str,
+                   own: Dict[str, bool]) -> Dict[str, Any]:
     evidence = dict(candidate["evidence"])
-    for key in ("bore", "ball"):
+    for key in ("bore", "ball", "plane"):
         if key in evidence:
             evidence[key] = _side(evidence[key])
     for old, new in (("a_radius_mm", "from_radius_mm"), ("b_radius_mm", "to_radius_mm")):
         if old in evidence:
             evidence[new] = evidence.pop(old)
+    # Whether each end was measured at its mesh's own slot. ``False`` is a
+    # slot borrowed from another mesh (``candidate_occurrences``' two arms):
+    # the numbers are about where THAT part sits.
+    evidence["own"] = {_side(k): v for k, v in own.items()}
     return {
         "rank": candidate["rank"],
         "relation": candidate["relation"],
@@ -200,12 +211,13 @@ def _candidate_row(candidate: Dict[str, Any], sha_from: str, sha_to: str) -> Dic
 
 def edge_row(topology, edge, store: Store) -> Dict[str, Any]:
     """One gap edge's row: its two ends, and its candidates or its reason."""
-    pairing = ic.CONTACT_PAIRINGS[edge.interface]
+    ends = [_end(topology, edge, edge.from_node, store), _end(topology, edge, edge.to_node, store)]
+    pairing, accepts, basis = ic.end_pairing(ends[0]["asks"], ends[1]["asks"], edge.interface)
+    axes = edge.interface in ic.AXIS_INTERFACES and pairing == "cylinder_in_cylinder"
     row: Dict[str, Any] = {
         "edge": edge.id, "name": edge.name, "interface": edge.interface,
-        "pairing": pairing,
-        "from": _end(topology, edge.from_node, store),
-        "to": _end(topology, edge.to_node, store),
+        "pairing": pairing, "pairing_basis": basis, "axes": axes,
+        "from": ends[0], "to": ends[1],
         "status": None, "candidates": [],
     }
 
@@ -213,7 +225,6 @@ def edge_row(topology, edge, store: Store) -> Dict[str, Any]:
         row.update(status=reason, note=note, **extra)
         return row
 
-    ends = [row["from"], row["to"]]
     missing = [e["part"] or e["node"] for e in ends if not e["mesh"]]
     if missing:
         return empty("no_mesh", "no installed 3D model for " + ", ".join(map(str, missing)))
@@ -228,7 +239,7 @@ def edge_row(topology, edge, store: Store) -> Dict[str, Any]:
                      + ", ".join(str(e["part"]) for e, o in zip(ends, occurrences) if not o))
 
     found = ic.edge_candidates(pairing, store.part_faces(shas[0]), store.part_faces(shas[1]),
-                               occurrences[0], occurrences[1])
+                               occurrences[0], occurrences[1], accepts=accepts, axes=axes)
     row["pairs_in_reach"] = found["pairs_in_reach"]
     row["nearest_gap_mm"] = found["nearest_gap_mm"]
     if found["status"] != "ok":
@@ -243,7 +254,8 @@ def edge_row(topology, edge, store: Store) -> Dict[str, Any]:
         return empty(found["status"], note)
     row["status"] = "ok"
     row["occurrences"] = {"from": found["occurrences"]["a"], "to": found["occurrences"]["b"]}
-    row["candidates"] = [_candidate_row(c, shas[0], shas[1]) for c in found["candidates"]]
+    row["candidates"] = [_candidate_row(c, shas[0], shas[1], found["own"])
+                         for c in found["candidates"]]
     row["ambiguous_with"] = [
         {"occurrences": {"from": a["a"], "to": a["b"]},
          "from_faces": a["a_faces"], "to_faces": a["b_faces"]}
@@ -291,6 +303,7 @@ def build(topologies_dir: Path, meshes_dir: Path, out_dir: Path, *,
         "meshes_dir": str(Path(meshes_dir)),
         "tolerances": dict(ic.CONTACT_TOLERANCES),
         "pairings": dict(ic.CONTACT_PAIRINGS),
+        "end_pairings": {"+".join(k): v for k, v in ic.END_PAIRINGS.items()},
         "summary": {
             "gap_edges": len(rows),
             "by_status": dict(sorted(by_status.items())),
@@ -304,12 +317,15 @@ def build(topologies_dir: Path, meshes_dir: Path, out_dir: Path, *,
 
 
 def clear_top(row: Dict[str, Any]) -> bool:
-    """Exactly one clear top pair: a contact, no rival occurrence pair that
-    touches different faces, and the runner-up scoring visibly worse."""
+    """Exactly one clear top pair: the relation its pairing is for (a contact,
+    or a flat across an axis), no rival occurrence pair that touches different
+    faces, and the runner-up scoring visibly worse. Every face it names is of
+    the class its end asks for, by construction (``ic.end_pairing``)."""
     candidates = row.get("candidates") or []
     if row.get("status") != "ok" or row.get("ambiguous_with"):
         return False
-    if candidates[0]["relation"] != "contact":
+    wanted = "across" if row.get("pairing") == "plane_across_axis" else "contact"
+    if candidates[0]["relation"] != wanted:
         return False
     if len(candidates) == 1:
         return True

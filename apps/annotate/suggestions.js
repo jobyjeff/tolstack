@@ -549,10 +549,12 @@
     plane_on_plane: "flat on flat",
     cylinder_in_cylinder: "pin in bore",
     ball_in_seat: "ball in its seat",
+    plane_across_axis: "flat across the axis",
   });
   AA.CONTACT_RELATION_WORDS = VOCAB.table("CONTACT_RELATIONS", {
     contact: "touching",
     coaxial: "on one axis",
+    across: "flat across the axis",
   });
   AA.CONTACT_SEAT_WORDS = VOCAB.table("CONTACT_SEAT_SURFACES", {
     spherical: "ball in its race",
@@ -604,6 +606,12 @@
   // mesh -- never a value -- so they are rounded for reading.
   AA.describeContact = function (pairing, candidate) {
     var e = candidate.evidence || {};
+    if (candidate.relation === "across") {
+      // A washer's far face and the shank through it: where the shank ends,
+      // past the flat (+) or short of it (-).
+      return AA.CONTACT_RELATION_WORDS.across + ", ends " + mm(Math.abs(e.end_mm)) +
+        (e.end_mm < 0 ? " short of it" : " past it");
+    }
     if (candidate.relation !== "contact") {
       return AA.CONTACT_RELATION_WORDS[candidate.relation] + ", " + mm(e.axis_offset_mm) + " apart";
     }
