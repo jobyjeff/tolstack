@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a chain study's verdicts are the same strip a kinematic study's are: one chip per check, or the one rollup badge",
+  "mutations": [
+    {
+      "contract": "A chain study's verdict item carries its criterion in the strip's limit cell.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Leaves the criterion out.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "               marginText: \"margin \" + row.marginValue, limitText: row.criterionText,",
+      "replace": "               marginText: \"margin \" + row.marginValue, limitText: null,"
+    }
+  ]
+}

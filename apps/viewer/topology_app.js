@@ -195,7 +195,6 @@
       pane: document.getElementById("topopane"),
       stackview: document.getElementById("stackview"),
       kinematicview: document.getElementById("kinematicview"),
-      kinematichead: document.getElementById("kinematichead"),
       totals: document.getElementById("totals"),
       legendToggle: document.getElementById("legend-toggle"),
       legendDialog: document.getElementById("legend-dialog"),
@@ -252,8 +251,7 @@
     // the whole of "closing restores whatever it covered".
     nodes.flyout.addEventListener("close", function () {
       document.body.classList.remove("flyout-open");
-      // The preview pane comes back, and the scene's tree leaves the nav.
-      syncSceneColumn();
+      // The scene's tree leaves the nav.
       sceneTree = null;
       renderNav();
       // Closed is remembered as firmly as open: the pane stays where the
@@ -1292,11 +1290,10 @@
     // the nav and every row's 3D control keep driving the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
     // The scene is a column of the page's own row, between the nav and the
-    // DAG (topology.css's `body.flyout-open`), and on a topology or kinematic
-    // page it takes the preview pane's place. Both come off again in the
+    // DAG (topology.css's `body.flyout-open`); the preview pane keeps its own
+    // column to the right (2026-10-28). The class comes off again in the
     // dialog's own `close` event, wired once at boot.
     document.body.classList.add("flyout-open");
-    syncSceneColumn();
     VA.writeStoredFlyoutOpen(widthStore(), true);
     syncPaneHandle();
     // The nav grows the slot the scene's tree is drawn into.
@@ -1496,17 +1493,6 @@
     var r = row.getBoundingClientRect();
     if (r.top >= n.top && r.top <= n.top + n.height / 2) return;
     nav.scrollTop += r.top - n.top - 8;
-  }
-
-  // The preview pane stands down while the scene is open on a page with a
-  // DAG -- every page but a stack's, which has none to make room for -- and
-  // comes back when it closes (topology.css's `body.flyout-replaces-detail`).
-  function syncSceneColumn() {
-    if (typeof document === "undefined" || !document.body ||
-        !document.body.classList || !document.body.classList.toggle) return;
-    var open = !!(nodes.flyout && nodes.flyout.open);
-    document.body.classList.toggle("flyout-replaces-detail",
-      open && state.mode !== "stack");
   }
 
   // --- hover crosses the seam (deliverable 3) --------------------------------
@@ -2223,6 +2209,13 @@
     VA.renderCrashBanner(nodes.banner, err);
   }
 
+  // A repo document's link from this page, which sits at apps/viewer/ --
+  // offered only where the transport reaches docs/ at all (paint's
+  // `canReadWorksheets`, the worksheet's own test).
+  function docsHref(path) {
+    return "../../" + path;
+  }
+
   function paint() {
     // A transition in flight renders the pane from the ctx it started with,
     // so any paint that is not one of its own frames has to stop it first: a
@@ -2262,10 +2255,11 @@
     var showStack = !showTopology && !showKinematic;
     var kinematicStudy = showKinematic
       ? VA.findKinematicStudy(state.kinematic, state.kinematicId) : null;
-    // The kinematic page draws its topology's model between its head and its
-    // body (2026-10-26): the same DAG a chain study's page draws, with the
-    // kinematic study's lit set in place of a chain. A study whose topology
-    // the projection does not carry has no model to draw.
+    // The kinematic page draws its topology's model (2026-10-26): the same
+    // DAG a chain study's page draws, with the kinematic study's lit set in
+    // place of a chain, its contributor table under it and its results in the
+    // right-hand pane (2026-10-28). A study whose topology the projection does
+    // not carry has no model to draw.
     var showDag = showTopology || (showKinematic && !!topoProj);
 
     nodes.toolbar.style.display = showDag ? "" : "none";
@@ -2275,9 +2269,6 @@
     nodes.stackview.style.display = showStack ? "" : "none";
     if (nodes.kinematicview) {
       nodes.kinematicview.style.display = showKinematic ? "" : "none";
-    }
-    if (nodes.kinematichead) {
-      nodes.kinematichead.style.display = showKinematic ? "" : "none";
     }
 
     // The legend ("how to read the rails") is a topology-mode concept, always
@@ -2314,11 +2305,7 @@
         topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
         // The kinematic page's lit set; a chain study's is read off `study`.
         lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
-        // ...whose model is a bounded box, so the numbers under it are a
-        // scroll away rather than a model's height away (topology.css).
-        bounded: showKinematic,
         zoom: state.dagZoom,
-        scrollToGrid: showKinematic && (paneToGrid || serialisation() !== paintedSerialisation),
         // Where a contributor borrows its band from another edge, the
         // preview pane says so and links to it (VA.kinematicBandEdges).
         bandEdges: showKinematic ? VA.kinematicBandEdges(kinematicStudy) : null,
@@ -2447,26 +2434,47 @@
       if (showTopology) {
         VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
       }
-      VA.renderTopoDetail(nodes.detail, ctx);
-      ensureThumbImages(topoProj);
     }
-    if (showKinematic && !showDag) VA.clear(nodes.detail);
-    if (showKinematic) {
-      var kinematicCtx = {
-        kinematic: state.kinematic,
-        study: kinematicStudy,
-        topologies: state.topologies,
-        selection: state.selection,
-        onEdge: onKinematicEdge,
-        openSubStacks: state.openSubStacks,
-        onToggleSubStack: toggleSubStack,
-        annotateMount: state.annotateMount,
-        onAttach3d: launchAnnotate,
-        onCardShow: showCard,
-      };
-      if (nodes.kinematichead) VA.renderKinematicHead(nodes.kinematichead, kinematicCtx);
-      VA.renderKinematic(nodes.kinematicview, kinematicCtx);
-    } else if (showStack) {
+    // The right-hand pane, on every page with a model or a study: the page's
+    // RESULTS first -- a kinematic study's name, verdicts, chart, readouts and
+    // provenance; a chain study's verdict chips, the same component (its
+    // totals stay at the grid's foot) -- and the selection's preview under
+    // them. One page shape for every study kind (2026-10-28).
+    if (showDag || showKinematic) {
+      VA.clear(nodes.detail);
+      nodes.detail.className = "detail";
+      if (showKinematic) {
+        var kinematicCtx = {
+          kinematic: state.kinematic,
+          study: kinematicStudy,
+          topologies: state.topologies,
+          selection: state.selection,
+          onEdge: onKinematicEdge,
+          openSubStacks: state.openSubStacks,
+          onToggleSubStack: toggleSubStack,
+          annotateMount: state.annotateMount,
+          onAttach3d: launchAnnotate,
+          onCardShow: showCard,
+          // The repo's documents are reachable exactly where a worksheet is.
+          docsHref: canReadWorksheets ? docsHref : null,
+        };
+        nodes.detail.appendChild(VA.renderKinematicResults(VA.el("section"), kinematicCtx));
+        VA.renderKinematic(nodes.kinematicview, kinematicCtx);
+      } else if (study) {
+        var chainResults = VA.el("section", "detail__results");
+        chainResults.appendChild(VA.verdictStrip(VA.chainVerdictItems(study), { onCardShow: showCard }));
+        nodes.detail.appendChild(chainResults);
+      }
+      if (showDag) {
+        // VA.renderTopoDetail owns its root's class; the preview is a part of
+        // the pane here, not the pane.
+        var preview = VA.renderTopoDetail(VA.el("div"), ctx);
+        preview.className = "detail__preview";
+        nodes.detail.appendChild(preview);
+        ensureThumbImages(topoProj);
+      }
+    }
+    if (showStack) {
       VA.renderStack(nodes.stackview, stackProj, state.crops, {
         onCropShow: showCrop,
         onCardShow: showCard,
@@ -2479,8 +2487,6 @@
 
     VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
 
-    paneToGrid = false;
-
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays
     // the target's throughout one.
@@ -2489,7 +2495,6 @@
     // The seam's tab, and an open pane following what was just selected --
     // after the paint, so the views' own state is settled.
     syncPaneHandle();
-    syncSceneColumn();
     followSelection();
     followSeam();
   }
@@ -2575,14 +2580,6 @@
     rewind();
   }
 
-  // The kinematic page's model is a bounded box (topology.css), and its grid
-  // -- the lit rows, the ones the page is about -- is centred against the
-  // whole walk, so on a product-sized model it starts a long way down. On
-  // arriving at the page, and on a control that re-lays the walk, the box is
-  // scrolled to put that grid at its top; any other repaint keeps the box
-  // where the reader left it.
-  var paneToGrid = false;
-
   // A kinematic page's sub-stack opened or closed, from the DAG's label or the
   // table's group row: one map, one repaint, both surfaces follow.
   function toggleSubStack(id) {
@@ -2592,11 +2589,8 @@
   }
 
   function rewind() {
-    paneToGrid = true;
     render();
-    // The kinematic page's bounded model box is scrolled by its own paint
-    // (paneToGrid, below); every other page's pane goes back to the top.
-    if (nodes.pane && state.mode !== "kinematic") nodes.pane.scrollTop = 0;
+    if (nodes.pane) nodes.pane.scrollTop = 0;
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
     if (nodes.kinematicview) nodes.kinematicview.scrollTop = 0;
   }

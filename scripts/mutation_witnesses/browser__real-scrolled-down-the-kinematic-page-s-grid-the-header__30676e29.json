@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] scrolled down the kinematic page's grid, the header is held under the topbar whenever a grid row is in view",
+  "mutations": [
+    {
+      "contract": "The grid header is pinned under the topbar on the kinematic page.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Pins it against the viewport's top instead, under the bar.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return bar && bar.getBoundingClientRect ? bar.getBoundingClientRect().bottom : 0;",
+      "replace": "    return 0;"
+    }
+  ]
+}

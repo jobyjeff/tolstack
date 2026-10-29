@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "each stop's readout is one row: where it is on the sweep, the measure there and both spreads, at the projection's precision",
+  "mutations": [
+    {
+      "contract": "A stop's readout prints its driver at the projection's precision.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Prints the driver verbatim.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "            VA.kinematicNumber(stop.driver_value, decimals),\n",
+      "replace": "            VA.fmt(stop.driver_value),\n"
+    }
+  ]
+}

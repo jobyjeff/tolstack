@@ -632,9 +632,85 @@
   // was the 2026-10-16 lesson's own finding about plotting it the other way.
   // The axis is symmetric about zero and reaches past both the widest
   // worst-case edge and the limit, so a limit is always on the chart.
+  // Sized for the right-hand pane it is drawn in since 2026-10-28 (the pane's
+  // 560px default less its padding), so its text lands at the token sizes.
   VA.KINEMATIC_CHART = Object.freeze({
-    width: 720, height: 280, left: 60, right: 16, top: 14, bottom: 44,
+    width: 520, height: 280, left: 52, right: 12, top: 14, bottom: 44,
   });
+
+  // --- a stop whose position is itself a tolerance --------------------------
+  //
+  // Where a stop carries a study among its contributors and that study moves
+  // the sweep's own driver (`study_refs[].parameter` is the sweep's
+  // parameter: the travel between the end stops, in actuator mm), the stop's
+  // place on x is a band, not a line (Jeff, 2026-10-28: "both the X and Y
+  // axis of the plot have tolerance ranges"). On x the band is the study's
+  // own total about the stop's driver, worst case and RSS. On y, across it,
+  // the deviation is the stop's local slope times the shift, plus what the
+  // stop's other contributors spread:
+  //
+  //   worst case  a parallelogram, y = J·dx ± d over |dx| <= h, whose far
+  //               corners reach |J|·h + d -- the stop's folded worst case,
+  //               since d is that total less the group's own reach and the
+  //               builder folded the group's terms at exactly |J| times
+  //               their bands (the chain rule);
+  //   RSS         the sheared ellipse dx = a·cos t, y = J·a·cos t + b·sin t,
+  //               whose top is sqrt((J·a)^2 + b^2) -- the stop's RSS half,
+  //               with b what the other contributors spread in quadrature.
+  //
+  // Every number is the projection's: J is the group's entry at the stop's
+  // own sweep point, h and a the study's own halves. Display only -- nothing
+  // here is folded, and the chips read the builder's totals, not these.
+  VA.kinematicTravelBands = function (study) {
+    var out = [];
+    if (!study) return out;
+    var parameter = (((study.sweep || {}).driver) || {}).parameter;
+    var refs = {};
+    (study.study_refs || []).forEach(function (ref) { refs[ref.study] = ref; });
+    (study.stops || []).forEach(function (stop) {
+      (stop.groups || []).forEach(function (group) {
+        var ref = refs[group.study];
+        var total = ref && ref.total;
+        if (!ref || !total || typeof total.worst_case_half !== "number") return;
+        // Only a study that moves the driver itself is a shift along x.
+        if (!parameter || ref.parameter !== parameter) return;
+        var entry = null;
+        (ref.entries || []).forEach(function (e) {
+          if (e.index === stop.index) entry = e.entry;
+        });
+        if (typeof entry !== "number") entry = group.entry;
+        var slope = Math.abs(entry);
+        var h = total.worst_case_half;
+        var a = typeof total.rss_half === "number" ? total.rss_half : 0;
+        var d = Math.max(0, stop.worst_case_half - group.reach);
+        var b = Math.sqrt(Math.max(0, stop.rss_half * stop.rss_half - slope * a * slope * a));
+        out.push({
+          stop: stop.id, study: ref.study, title: ref.title || ref.study,
+          units: ref.units || null, centre: stop.driver_value, entry: entry,
+          worstHalf: h, rssHalf: a, direct: d, directRss: b,
+          cornerWorst: slope * h + d,
+          cornerRss: Math.sqrt(slope * a * slope * a + b * b),
+          min: total.worst_case_min, max: total.worst_case_max, nominal: total.nominal,
+        });
+      });
+    });
+    return out;
+  };
+
+  // The study's bands drawn at more than one stop: a study that is the
+  // distance BETWEEN two stops moves one of them relative to the other, so
+  // carrying it at both is a reading the page states rather than hides
+  // (VA.KINEMATIC_TRAVEL_DATUM_ISSUE). Ids of the studies that do.
+  VA.kinematicSharedBands = function (bands) {
+    var count = {};
+    (bands || []).forEach(function (band) { count[band.study] = (count[band.study] || 0) + 1; });
+    return Object.keys(count).filter(function (id) { return count[id] > 1; });
+  };
+
+  // The open question that sentence leads to, as a repo-relative path
+  // (tests/test_kinematic.py checks the file is there).
+  VA.KINEMATIC_TRAVEL_DATUM_ISSUE =
+    "docs/issues/ISSUE_20261028_both_end_stops_carry_the_full_travel_band.md";
 
   function niceStep(span, target) {
     var raw = span / Math.max(target, 1);
@@ -663,6 +739,13 @@
     var pw = C.width - C.left - C.right;
     var ph = C.height - C.top - C.bottom;
     var xs = env.map(function (p) { return p.driver_value; });
+    var sweptFrom = Math.min.apply(null, xs);
+    var sweptTo = Math.max.apply(null, xs);
+    // The axis reaches past the sweep to hold every stop's travel band.
+    var travel = VA.kinematicTravelBands(study);
+    travel.forEach(function (t) {
+      xs.push(t.centre - t.worstHalf, t.centre + t.worstHalf);
+    });
     var x0 = Math.min.apply(null, xs);
     var x1 = Math.max.apply(null, xs);
     var limits = [];
@@ -677,6 +760,7 @@
       reach = Math.max(reach, Math.abs(p.worst_case_min), Math.abs(p.worst_case_max));
     });
     limits.forEach(function (v) { reach = Math.max(reach, Math.abs(v)); });
+    travel.forEach(function (t) { reach = Math.max(reach, t.cornerWorst); });
     var y1 = reach * 1.15;
     var y0 = -y1;
     var X = function (v) { return C.left + (v - x0) / ((x1 - x0) || 1) * pw; };
@@ -710,7 +794,64 @@
 
     var driver = (study.sweep && study.sweep.driver) || {};
     var yTicks = ticks(y0, y1, 6);
-    var xTicks = ticks(x0, x1, 7);
+    var xTicks = ticks(x0, x1, 6);
+
+    // Each travel band's shapes, in plot pixels (VA.kinematicTravelBands says
+    // what they are). A study's band is labelled once, at the stop nearest
+    // the study's own nominal -- where its interval actually lies.
+    var labelled = {};
+    var nearest = {};
+    travel.forEach(function (t, i) {
+      var miss = typeof t.nominal === "number" ? Math.abs(t.centre - t.nominal) : i;
+      if (!(t.study in nearest) || miss < nearest[t.study].miss) {
+        nearest[t.study] = { miss: miss, index: i };
+      }
+    });
+    var ELLIPSE_STEPS = 48;
+    var bands = travel.map(function (t, i) {
+      var c = t.centre, h = t.worstHalf, a = t.rssHalf, J = t.entry;
+      var pt = function (dx, y) { return r2(X(c + dx)) + "," + r2(Y(y)); };
+      var ellipse = [];
+      for (var k = 0; k < ELLIPSE_STEPS; k++) {
+        var s = 2 * Math.PI * k / ELLIPSE_STEPS;
+        ellipse.push(pt(a * Math.cos(s), J * a * Math.cos(s) + t.directRss * Math.sin(s)));
+      }
+      var label = null;
+      if (nearest[t.study].index === i && !labelled[t.study]) {
+        labelled[t.study] = true;
+        var anchorEnd = X(c) > C.left + pw / 2;
+        label = {
+          x: r2(X(c) + (anchorEnd ? -5 : 5)), y: C.top + 26, anchorEnd: anchorEnd,
+          text: t.title + " " + VA.kinematicNumber(t.min, decimals) + "–" +
+            withUnit(VA.kinematicNumber(t.max, decimals), t.units),
+        };
+      }
+      return {
+        stop: t.stop, study: t.study,
+        worstFrom: r2(X(c - h)), worstTo: r2(X(c + h)),
+        rssFrom: r2(X(c - a)), rssTo: r2(X(c + a)),
+        worst: [pt(-h, -J * h + t.direct), pt(h, J * h + t.direct),
+                pt(h, J * h - t.direct), pt(-h, -J * h - t.direct)].join(" "),
+        rss: ellipse.join(" "),
+        cornerWorst: t.cornerWorst, cornerRss: t.cornerRss,
+        label: label,
+      };
+    });
+
+    // The axis says what it spans when the travel study's nominal is not the
+    // sweep's own span (deliverable 3 of the 2026-10-28 handoff): the band is
+    // drawn about the stop the sweep solved, which is a different number.
+    var xNote = "";
+    var spanText = VA.kinematicNumber(sweptTo - sweptFrom, decimals);
+    var noted = travel.filter(function (t) {
+      return typeof t.nominal === "number" &&
+        VA.kinematicNumber(t.nominal, decimals) !== spanText;
+    })[0];
+    if (noted) {
+      xNote = " (swept " + VA.kinematicNumber(sweptFrom, decimals) + "–" +
+        VA.kinematicNumber(sweptTo, decimals) + "; travel study nominal " +
+        VA.kinematicNumber(noted.nominal, decimals) + ")";
+    }
     return {
       width: C.width, height: C.height,
       plot: { left: C.left, top: C.top, width: pw, height: ph },
@@ -739,7 +880,9 @@
         return { id: stop.id, label: stop.label, x: r2(X(stop.driver_value)),
                  anchorEnd: X(stop.driver_value) > C.left + pw / 2 };
       }),
-      xLabel: (driver.label || "driver") + (driver.unit ? ", " + driver.unit : ""),
+      bands: bands,
+      sharedBands: VA.kinematicSharedBands(travel),
+      xLabel: (driver.label || "driver") + (driver.unit ? ", " + driver.unit : "") + xNote,
       yLabel: measureWords(study) + " from nominal" +
         (study.units ? ", " + study.units : ""),
       points: points,
@@ -772,20 +915,21 @@
 
   // --- rendering ----------------------------------------------------------------
 
-  // The page is two blocks with the model between them (2026-10-26): the
-  // HEAD -- the study's name and its verdict per stop, which have to be on
-  // screen before anything else -- above the DAG, and the BODY -- the sweep,
-  // the envelope chart, the one contributor table and the provenance fold --
-  // below it. topology_app.js renders the DAG between the two; a page with
-  // no DAG beside it renders both into one root, head first.
+  // The page has the shape every study page has (2026-10-28): the model and
+  // the one contributor table in the main column, and the RESULTS -- the
+  // study's name, its verdict per stop, the swept chart, the stop readouts and
+  // the provenance fold -- in the right-hand pane, above the selection's
+  // preview (topology_app.js's paint). Jeff, 2026-10-28: "vertical screen
+  // real estate is precious ... the kinematic study results should use this
+  // same pane".
   function studyFailed(study) {
     var status = VA.KINEMATIC_STUDY_STATUSES[study.status];
     return !status || status.failed;
   }
 
-  VA.renderKinematicHead = function (root, ctx) {
+  VA.renderKinematicResults = function (root, ctx) {
     VA.clear(root);
-    root.className = "kmhead";
+    root.className = "kmresults";
     var study = ctx.study;
     if (!study) {
       root.appendChild(VA.el("p", "muted", "Pick a kinematic study in the list."));
@@ -809,16 +953,6 @@
       return root;
     }
     root.appendChild(verdictStrip(study, decimals, ctx));
-    return root;
-  };
-
-  VA.renderKinematic = function (root, ctx) {
-    VA.clear(root);
-    root.className = "kmview";
-    var study = ctx.study;
-    if (!study || studyFailed(study)) return root;
-    var decimals = ctx.kinematic && ctx.kinematic.display_decimals;
-    var topoProj = VA.findTopology(ctx.topologies, study.topology);
 
     var driver = (study.sweep && study.sweep.driver) || {};
     root.appendChild(VA.el("p", "muted kmhead__driver",
@@ -829,12 +963,97 @@
 
     var chart = VA.kinematicChart(study, decimals);
     if (chart) root.appendChild(chartFigure(chart));
+    if (chart && chart.sharedBands.length) root.appendChild(sharedBandNote(study, chart, ctx));
 
-    root.appendChild(contributorTable(study, topoProj, decimals, ctx));
-
+    root.appendChild(stopReadouts(study, decimals));
     root.appendChild(provenance(study));
     return root;
   };
+
+  VA.renderKinematic = function (root, ctx) {
+    VA.clear(root);
+    root.className = "kmview";
+    var study = ctx.study;
+    if (!study || studyFailed(study)) return root;
+    var decimals = ctx.kinematic && ctx.kinematic.display_decimals;
+    var topoProj = VA.findTopology(ctx.topologies, study.topology);
+    root.appendChild(contributorTable(study, topoProj, decimals, ctx));
+    return root;
+  };
+
+  // One line under the chart where a study's band is drawn at more than one
+  // stop. The question it names is a link only where this page can reach the
+  // repo's documents (`ctx.docsHref`); elsewhere it is the same words.
+  function sharedBandNote(study, chart, ctx) {
+    var count = chart.bands.filter(function (band) {
+      return chart.sharedBands.indexOf(band.study) !== -1;
+    }).length;
+    var line = VA.el("p", "muted kmchart__note");
+    line.appendChild(document.createTextNode(
+      (count === (study.stops || []).length && count === 2 ? "Both stops" : count + " stops") +
+      " carry the whole travel band; which one it belongs to is "));
+    var href = ctx && typeof ctx.docsHref === "function"
+      ? ctx.docsHref(VA.KINEMATIC_TRAVEL_DATUM_ISSUE) : null;
+    var words = "an open question";
+    if (href) {
+      var a = VA.el("a", "kmchart__notelink", words);
+      a.setAttribute("href", href);
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener");
+      line.appendChild(a);
+    } else {
+      line.appendChild(document.createTextNode(words));
+    }
+    line.appendChild(document.createTextNode("."));
+    return line;
+  }
+
+  // Each stop's readout, one row per stop: where it is on the sweep, the
+  // measure there, and both spreads -- the builder's numbers at the
+  // projection's precision. The margin is the verdict's, in the strip above.
+  VA.kinematicStopReadouts = function (study, decimals) {
+    var driver = (study.sweep && study.sweep.driver) || {};
+    return {
+      head: [
+        "stop",
+        withUnit(driver.label || "driver", driver.unit ? "(" + driver.unit + ")" : null),
+        withUnit(measureWords(study), study.units ? "(" + study.units + ")" : null),
+        "worst case", "RSS",
+      ],
+      rows: (study.stops || []).map(function (stop) {
+        return {
+          stop: stop.id,
+          cells: [
+            stop.label,
+            VA.kinematicNumber(stop.driver_value, decimals),
+            VA.kinematicNumber(stop.nominal_measure, decimals),
+            "±" + VA.kinematicNumber(stop.worst_case_half, decimals),
+            "±" + VA.kinematicNumber(stop.rss_half, decimals),
+          ],
+        };
+      }),
+    };
+  };
+
+  function stopReadouts(study, decimals) {
+    var model = VA.kinematicStopReadouts(study, decimals);
+    var table = VA.el("table", "kmreadouts");
+    var head = VA.el("tr");
+    model.head.forEach(function (text, i) {
+      // Right-aligned over its numbers, in the label face, not theirs.
+      head.appendChild(VA.el("th", i ? "kmreadouts__numhead" : null, text));
+    });
+    table.appendChild(head);
+    model.rows.forEach(function (row) {
+      var tr = VA.el("tr", "kmreadouts__row");
+      tr.setAttribute("data-stop", row.stop);
+      row.cells.forEach(function (text, i) {
+        tr.appendChild(VA.el("td", i ? "num" : null, text));
+      });
+      table.appendChild(tr);
+    });
+    return table;
+  }
 
   // A cell that opens a citation card on hover, focus or click -- the trigger
   // shape the topology rail's confidence chip uses. With no card host (a page
@@ -856,35 +1075,70 @@
   }
 
   function verdictStrip(study, decimals, ctx) {
-    var strip = VA.el("div", "kmhead__verdicts");
     var verdicts = VA.kinematicVerdicts(study, decimals);
     if (!verdicts.length) {
+      var strip = VA.el("div", "kmhead__verdicts");
       strip.appendChild(VA.el("span", "muted", study.no_checks_reason ||
         "no pass/fail criterion recorded yet"));
       return strip;
     }
-    verdicts.forEach(function (v) {
+    return VA.verdictStrip(verdicts.map(function (v) {
+      return { key: v.stop, state: v.verdict, word: v.verdict, title: v.title,
+               incomplete: v.incomplete, subject: v.stopLabel, subjectCard: v.contextCard,
+               marginText: v.marginText, marginTitle: v.label,
+               limitText: v.limitText, limitCard: v.limitCard,
+               scopeChip: v.scopeChip, scopeTitle: v.scopeTitle };
+    }), ctx);
+  }
+
+  // The one verdict strip every study page draws in its right-hand pane: a
+  // chip, what it is the verdict on, the margin, the limit and the budget
+  // scope -- a kinematic study's per stop, a chain study's per check
+  // (VA.chainVerdictItems). The class names are the kinematic page's, where
+  // it was first drawn.
+  VA.verdictStrip = function (items, ctx) {
+    var strip = VA.el("div", "kmhead__verdicts");
+    items.forEach(function (v) {
       var item = VA.el("div", "kmverdict");
-      item.setAttribute("data-stop", v.stop);
-      var chip = VA.chip("tvverdict tvverdict--" + (v.verdict || "unknown") +
-        (v.incomplete ? " tvverdict--qualified" : ""), v.verdict, v.title);
+      if (v.key) item.setAttribute("data-stop", v.key);
+      var chip = VA.chip("tvverdict tvverdict--" + (v.state || "unknown") +
+        (v.incomplete ? " tvverdict--qualified" : ""), v.word, v.title);
       item.appendChild(chip);
-      item.appendChild(citationTrigger(VA.el("span", "kmverdict__stop", v.stopLabel),
-        v.contextCard, ctx));
-      var margin = VA.el("span", "kmverdict__margin num", v.marginText);
-      margin.setAttribute("title", v.label);
+      item.appendChild(citationTrigger(VA.el("span", "kmverdict__stop", v.subject || ""),
+        v.subjectCard || null, ctx));
+      var margin = VA.el("span", "kmverdict__margin num", v.marginText || "");
+      if (v.marginTitle) margin.setAttribute("title", v.marginTitle);
       item.appendChild(margin);
       // Always five cells, empty where there is nothing to say: the strip is
       // one grid (topology.css), and a short row would shift every row below.
       item.appendChild(citationTrigger(
         VA.el("span", "muted kmverdict__limit", v.limitText || ""),
-        v.limitText ? v.limitCard : null, ctx));
+        v.limitText ? v.limitCard || null : null, ctx));
       item.appendChild(v.scopeChip ? VA.chip("chip--budget", v.scopeChip, v.scopeTitle)
         : VA.el("span"));
       strip.appendChild(item);
     });
     return strip;
-  }
+  };
+
+  // A chain study's verdicts as the strip's items: one per authored check
+  // (VA.studyMarginRows, the grid foot's own rows), or the one rollup badge
+  // VA.studyVerdict gives a study with no check or one that does not sum.
+  VA.chainVerdictItems = function (study) {
+    if (!study) return [];
+    var rows = study.status === "ok" ? VA.studyMarginRows(study) : [];
+    if (!rows.length) {
+      var rollup = VA.studyVerdict(study);
+      return rollup ? [{ key: study.id, state: rollup.state, word: rollup.word,
+                         title: rollup.title, incomplete: rollup.incomplete }] : [];
+    }
+    return rows.map(function (row) {
+      return { key: row.checkId, state: row.verdict, word: row.verdict, title: row.title,
+               incomplete: row.incomplete, subject: row.label,
+               marginText: "margin " + row.marginValue, limitText: row.criterionText,
+               scopeChip: row.scopeChip, scopeTitle: row.scopeTitle };
+    });
+  };
 
   function chartFigure(chart) {
     var figure = VA.el("figure", "kmchart");
@@ -919,8 +1173,36 @@
     yLabel.textContent = chart.yLabel;
     svg.appendChild(yLabel);
 
+    // A stop's travel band on x, under everything: the stop could sit
+    // anywhere across it (VA.kinematicTravelBands).
+    chart.bands.forEach(function (band) {
+      [["worst", band.worstFrom, band.worstTo], ["rss", band.rssFrom, band.rssTo]]
+        .forEach(function (b) {
+          var strip = VA.svg("rect", "kmchart__band kmchart__band--" + b[0],
+            { x: b[1], y: p.top, width: Math.max(0.5, b[2] - b[1]), height: p.height });
+          strip.setAttribute("data-stop", band.stop);
+          svg.appendChild(strip);
+        });
+    });
     svg.appendChild(VA.svg("polygon", "kmchart__worst", { points: chart.worst }));
     svg.appendChild(VA.svg("polygon", "kmchart__rss", { points: chart.rss }));
+    // ...and the envelope carried across it on the stop's own slope.
+    chart.bands.forEach(function (band) {
+      [["worst", band.worst], ["rss", band.rss]].forEach(function (r) {
+        var region = VA.svg("polygon", "kmchart__region kmchart__region--" + r[0],
+          { points: r[1] });
+        region.setAttribute("data-stop", band.stop);
+        svg.appendChild(region);
+      });
+      if (band.label) {
+        var text = VA.svg("text", "kmchart__bandlabel", {
+          x: band.label.x, y: band.label.y,
+          "text-anchor": band.label.anchorEnd ? "end" : "start",
+        });
+        text.textContent = band.label.text;
+        svg.appendChild(text);
+      }
+    });
     svg.appendChild(VA.svg("line", "kmchart__zero",
       { x1: p.left, x2: p.left + p.width, y1: chart.zeroY, y2: chart.zeroY }));
     chart.limits.forEach(function (limit) {

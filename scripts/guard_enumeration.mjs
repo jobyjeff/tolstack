@@ -159,7 +159,11 @@ export const GUARD_SOURCES = {
 // `node scripts/run_mutation_witness_tests.mjs --unenrolled` is what names the
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
-  fast: { declared: 607, enrollable: 607, names: "57c2e46fa36a" },
+  // 2026-10-28 (the_kinematic_study_reads_like_every_other_study_and_its_
+  // plot_shows_both_tolerances): +7, the travel band's and the results
+  // pane's checks, each with a spec -- re-measured at its review merge, on
+  // top of the_active_study_is_a_compact_band_...'s +8.
+  fast: { declared: 614, enrollable: 614, names: "0163ed59f442" },
   annotate: { declared: 246, enrollable: 246, names: "8cfc5f299bfd" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
@@ -169,7 +173,14 @@ export const DECLARED_GUARDS = {
   // mutation can redden them.
   // 2026-10-28 (the_active_study_is_a_compact_band_...): +8 fast, +6 browser
   // on top, re-measured at that review's merge.
-  browser: { declared: 719, enrollable: 686, names: "7a36112a0c77" },
+  // Then +2 (the_kinematic_study_reads_like_every_other_study_and_its_plot_
+  // shows_both_tolerances): two new checks on the plot, and ten renamed for
+  // the unbounded model, the results pane and the scene no longer standing
+  // it down, and the leaders' hide count (the window holds twelve). Every
+  // new name carries a spec but one, Fit's "in that mode",
+  // which had none under its old name either. Re-measured at its review
+  // merge.
+  browser: { declared: 721, enrollable: 688, names: "3f0bc4d7c4e5" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
