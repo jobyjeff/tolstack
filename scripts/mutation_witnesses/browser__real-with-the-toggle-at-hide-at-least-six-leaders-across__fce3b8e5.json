@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] with the toggle at hide, at least six leaders across the seam, drawn from the lit part alone",
+  "mutations": [
+    {
+      "contract": "A leader leaves its dot where the browser painted it: the seam reads the drawing's zoom off the painted box, so a framed (zoomed) band's dots are clipped and joined where they are.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27); renamed and re-aimed 2026-10-28 by the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below. The study arrival now frames the whole band in the bounded box, so no rung lies below it and the old mutation (drop the box's bottom edge from the dot clip) changed nothing; the box's count is no longer six to ten. This one drops the zoom from the dots, so at the framed scale the seam clips the wrong ones.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      dots[id] = [r.left + d[0] * k, r.top + d[1] * k];",
+      "replace": "      dots[id] = [r.left + d[0], r.top + d[1]];"
+    }
+  ]
+}

@@ -2299,10 +2299,20 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
     const litShape = await railShape();
+    // Since 2026-10-28 the selection re-arranges the walk around the study
+    // (VA.bandLayout), so its rails and links are the re-arranged walk's --
+    // drawn exactly as that layout says -- while every dot and bar stays.
+    const bandShape = await page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const topo = VA.findTopology(VA.demoTopologyFixture().topologies, "demo_mechanism");
+      const laid = VA.bandLayout(topo.layout,
+        VA.studyLitSet(VA.findStudy(topo, "demo_strut_branch"), topo));
+      return { rails: laid.rails.length, links: laid.links.length };
+    });
     push("selecting a study hides nothing: every dot, bar, rail and link the " +
       "walk drew is still on screen",
       litShape.dots === walkShape.dots && litShape.bars === walkShape.bars &&
-      litShape.rails === walkShape.rails && litShape.links === walkShape.links);
+      litShape.rails === bandShape.rails && litShape.links === bandShape.links);
     if (litShape.dots !== walkShape.dots || litShape.bars !== walkShape.bars) {
       console.log("    walk " + JSON.stringify(walkShape) +
                   " vs study " + JSON.stringify(litShape));
@@ -4253,10 +4263,14 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       };
     });
     const kinStart = await kin();
+    // Since 2026-10-28 the arrival frames the study's band (Fit), which puts
+    // the header Fit's own breathing room below the box's top.
     push("[real] the kinematic page's model is a bounded box that arrives " +
-      "with the grid's header at its top",
+      "with the study framed in it, the grid's header at its top",
       kinStart.bounded && kinStart.rows > 0 &&
-      Math.abs(kinStart.headTop - kinStart.paneTop) < 3);
+      kinStart.headTop >= kinStart.paneTop - 3 &&
+      kinStart.headTop - kinStart.paneTop <= 12 * kinStart.k + 3 &&
+      kinStart.litTop >= kinStart.paneTop - 2 && kinStart.litBottom <= kinStart.paneBottom + 2);
     await page.locator("#dag-fit").click();
     await settle(300);
     const kinFit = await kin();
@@ -11228,9 +11242,12 @@ async function testSeamLeaders(browser, label, topologies) {
     const draw = VA.lastSeamDraw;
     const svg = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
     const r = svg ? svg.getBoundingClientRect() : null;
+    // The seam's numbers are the SVG's own pixels; the drawing may be zoomed
+    // (a study arrival frames its band), so they are scaled by what was painted.
+    const k = r ? r.width / Number(svg.getAttribute("width")) : 1;
     const leaders = draw ? draw.leaders : [];
     const bars = (VA.lastTopoRender.seam.bars || []).map((b) => ({ id: b.id,
-      x: r.left + b.x, y1: r.top + b.y1, y2: r.top + b.y2 }));
+      x: r.left + k * b.x, y1: r.top + k * b.y1, y2: r.top + k * b.y2 }));
     const grid = {};
     const lines = [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leader")];
     [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leaderhit")].forEach((h, i) => {
@@ -11251,7 +11268,7 @@ async function testSeamLeaders(browser, label, topologies) {
       ? headNode.getBoundingClientRect() : { bottom: -Infinity };
     const dots = VA.lastTopoRender.seam.dots;
     const expected = Object.keys(dots).filter((id) => {
-      const y = r.top + dots[id][1];
+      const y = r.top + k * dots[id][1];
       return onScene(sent[id]) && y >= Math.max(pane.top, head.bottom) &&
         y <= Math.min(pane.bottom, innerHeight);
     }).sort();
@@ -11397,9 +11414,11 @@ async function testSeamLeaders(browser, label, topologies) {
     console.log(`      [${label}] hidden, the box at its top: leaders ${after.ids.length} (${after.ids.join(", ")}); ` +
       `off the DAG's view: ${(after.skipped && after.skipped.offDag || []).join(", ") || "-"}; ` +
       `crossings among them ${after.crossings}; through a lit bar ${after.barCrossings}`);
-    push("[real] with the toggle at hide, six to ten leaders across the seam, drawn from the lit " +
+    // Six to ten until 2026-10-28, when the box showed part of the walk; the
+    // band now fits it whole, so every lit node with an anchor has its leader.
+    push("[real] with the toggle at hide, at least six leaders across the seam, drawn from the lit " +
       "part alone",
-      hidden && after.ids.length >= 6 && after.ids.length <= 10 && after.paths === after.ids.length &&
+      hidden && after.ids.length >= 6 && after.paths === after.ids.length &&
       JSON.stringify(after.ids.slice().sort()) === JSON.stringify(after.expected));
     await shot("4_unlit_hidden.png");
   } catch (err) {
