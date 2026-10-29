@@ -947,6 +947,41 @@ const CORRESPONDENCE_IN_PAGE = () => {
   return { rows: rows.length, leaders: leaders.length, drift };
 };
 
+// The band (the_active_study_is_a_compact_band_and_the_rest_of_the_model_
+// hangs_above_and_below), measured off what the browser painted: the lit
+// marks (bars and dots wearing `--on`) and the dimmed ones (`--off`) as boxes.
+//
+//   contiguous  no dimmed mark's centre lies between the highest and the
+//               lowest lit mark's -- the lit rows are one band on screen;
+//   inView      every lit mark's box is inside the visible pane: the page's
+//               viewport below the top bar, or the bounded pane's own box;
+//   bars, dots  every bar and dot drawn, lit or not, for "nothing hidden".
+const BAND_IN_PAGE = () => {
+  const svg = Array.from(document.querySelectorAll("svg.tv__rails"))
+    .filter((n) => !n.closest("div.tv__ghost"))[0];
+  const box = (n) => n.getBoundingClientRect();
+  const centre = (b) => (b.top + b.bottom) / 2;
+  const on = Array.from(svg.querySelectorAll("line.rail__bar--on, circle.rail__dot--on")).map(box);
+  const off = Array.from(svg.querySelectorAll("line.rail__bar--off, circle.rail__dot--off")).map(box);
+  const lo = Math.min(...on.map(centre));
+  const hi = Math.max(...on.map(centre));
+  const inside = off.filter((b) => centre(b) > lo + 0.5 && centre(b) < hi - 0.5).length;
+  const pane = document.querySelector("#topopane");
+  const bounded = pane.classList.contains("tv__scroll--bounded");
+  const bar = document.querySelector(".topbar");
+  const top = bounded ? box(pane).top : (bar ? box(bar).bottom : 0);
+  const bottom = bounded ? box(pane).bottom : window.innerHeight;
+  const outOfView = on.filter((b) => b.top < top - 1 || b.bottom > bottom + 1).length;
+  return {
+    lit: on.length, contiguous: on.length > 0 && inside === 0, between: inside,
+    inView: on.length > 0 && outOfView === 0, outOfView,
+    bandTop: Math.min(...on.map((b) => b.top)), bandBottom: Math.max(...on.map((b) => b.bottom)),
+    visibleTop: top, visibleBottom: bottom,
+    bars: svg.querySelectorAll("line.rail__barhit").length,
+    dots: svg.querySelectorAll("circle.rail__dot").length,
+  };
+};
+
 // Edge-length scaling (viewer_edge_length_scaling): every bar's MEASURED
 // height against the keyed position store's own slot for it, plus the break
 // marks against the store's floored flags. Runs in-page so it reads the same
@@ -2270,10 +2305,20 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
     const litShape = await railShape();
+    // Since 2026-10-28 the selection re-arranges the walk around the study
+    // (VA.bandLayout), so its rails and links are the re-arranged walk's --
+    // drawn exactly as that layout says -- while every dot and bar stays.
+    const bandShape = await page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const topo = VA.findTopology(VA.demoTopologyFixture().topologies, "demo_mechanism");
+      const laid = VA.bandLayout(topo.layout,
+        VA.studyLitSet(VA.findStudy(topo, "demo_strut_branch"), topo));
+      return { rails: laid.rails.length, links: laid.links.length };
+    });
     push("selecting a study hides nothing: every dot, bar, rail and link the " +
       "walk drew is still on screen",
       litShape.dots === walkShape.dots && litShape.bars === walkShape.bars &&
-      litShape.rails === walkShape.rails && litShape.links === walkShape.links);
+      litShape.rails === bandShape.rails && litShape.links === bandShape.links);
     if (litShape.dots !== walkShape.dots || litShape.bars !== walkShape.bars) {
       console.log("    walk " + JSON.stringify(walkShape) +
                   " vs study " + JSON.stringify(litShape));
@@ -4224,10 +4269,14 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       };
     });
     const kinStart = await kin();
+    // Since 2026-10-28 the arrival frames the study's band (Fit): the box
+    // opens on the whole lit set, so the header sits over the grid wherever
+    // the band puts it rather than at the box's top.
     push("[real] the kinematic page's model is a bounded box that arrives " +
-      "with the grid's header at its top",
+      "with the study framed in it and the grid's header in view",
       kinStart.bounded && kinStart.rows > 0 &&
-      Math.abs(kinStart.headTop - kinStart.paneTop) < 3);
+      kinStart.headTop >= kinStart.paneTop - 3 && kinStart.headBottom <= kinStart.paneBottom + 3 &&
+      kinStart.litTop >= kinStart.paneTop - 2 && kinStart.litBottom <= kinStart.paneBottom + 2);
     await page.locator("#dag-fit").click();
     await settle(300);
     const kinFit = await kin();
@@ -5676,6 +5725,11 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         push(`[real] SKIPPED -- the live projection has no study ${liveStudy}`, true);
       } else {
         await liveRow.click();
+        // The click reaches the respine through a promise, so a settled-check
+        // taken at once can read the PREVIOUS paint; the study's nav row
+        // lights in the paint that starts the transition.
+        await page.waitForSelector(navRow("study", liveStudy) + ".navtree__row--on",
+          { timeout: 10000 }).catch(() => {});
         push("[real] the live study's respine settles", await paneSettled());
         await page.waitForSelector("#study-3d", { timeout: 20000 });
         const liveRailsBefore = await page.evaluate(() => {
@@ -9966,6 +10020,37 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         "contributors and the edges they stand on lit and the rest dimmed",
         fold.verdicts < fold.viewport && fold.paneTop < fold.viewport &&
         dimmed[0] === 21 && dimmed[1] === 74 && dimmed[2] === 13);
+      // The band: the study's rows re-arranged into one band and framed in
+      // the bounded pane on arrival, with every leader on its moved dot --
+      // and the handoff's measured target, the band in view without a scroll
+      // at compact density in this 1000px window once Fit has framed it.
+      const arrived = await page.evaluate(BAND_IN_PAGE);
+      const arrivedCorr = await page.evaluate(CORRESPONDENCE_IN_PAGE);
+      push("[real] the study's rows are one band, framed in the model's pane on arrival, " +
+        "every leader on its moved dot",
+        arrived.contiguous && arrived.inView &&
+        arrived.bars === dimmed[0] + dimmed[1] &&
+        arrivedCorr.leaders > 0 && arrivedCorr.drift.length === 0);
+      await page.locator("#density-toggle").click();
+      await page.locator("#dag-fit").click();
+      await page.waitForTimeout(200);
+      const compact = await page.evaluate(BAND_IN_PAGE);
+      const compactZoom = await page.evaluate(() => {
+        const z = document.querySelector("#topopane .tv__zoom");
+        return z.getBoundingClientRect().width / z.offsetWidth;
+      });
+      push("[real] at compact density, Fit frames the whole band in the pane",
+        compact.contiguous && compact.inView);
+      console.log("    band at compact density: " +
+        Math.round(compact.bandBottom - compact.bandTop) + "px drawn in a " +
+        Math.round(compact.visibleBottom - compact.visibleTop) + "px pane at zoom " +
+        compactZoom.toFixed(3));
+      if (!arrived.inView || !compact.inView || arrivedCorr.drift.length) {
+        console.log("    arrived " + JSON.stringify(arrived) + " compact " +
+          JSON.stringify(compact) + " " + arrivedCorr.drift.slice(0, 3).join(" | "));
+      }
+      await page.locator("#density-toggle").click();
+      await page.waitForTimeout(200);
       // The joint symbols on the active study: every glyph on a lit joint is
       // drawn at full opacity, none of the lit path's glyphs is dimmed.
       const glyphsDimmed = await page.locator("#topopane use.rail__glyph--on.rail__glyph--off").count();
@@ -9984,7 +10069,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         const topo = VA.findTopology(topologies, kinematic.studies.filter(
           (s) => s.id === study)[0].topology);
         const lit = VA.kinematicLitSet(VA.findKinematicStudy(kinematic, study), topo);
-        const rows = VA.hideUnlit(topo.layout, lit).rows;
+        const rows = VA.bandLayout(topo.layout, lit, { only: true }).rows;
         const parent = {};
         const find = (x) => {
           if (parent[x] === undefined) parent[x] = x;
@@ -10816,6 +10901,73 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       (await correspondence()).drift.length === 0);
     await page.emulateMedia({ reducedMotion: null });
 
+    // (5). The band (the_active_study_is_a_compact_band_and_the_rest_of_the_
+    // model_hangs_above_and_below): a selection re-arranges the walk so the
+    // study's rows are one band, and the page frames it once the transition
+    // settles. A grip budget (a short chain at the bottom of the walk) and the
+    // pitch system's worst case (the chain the walk spread over 81 rows), each
+    // in turn from the deselected walk: contiguous on screen, inside the
+    // visible pane without a scroll, every bar and dot still drawn, every
+    // leader's two ends on its moved dot and its seam -- and hidden, the band
+    // alone as one connected drawing. (The kinematic study is the third, on
+    // its own page: testKinematicStudyPage.)
+    const BAND_STUDIES = ["rotor_fastener_grip_u2h", "pitch_system_blade_angle_worst"];
+    const bandRuns = [];
+    for (const id of BAND_STUDIES) {
+      await page.locator(walkRow).click();
+      await settled();
+      await page.locator(navRow("study", id)).click();
+      await settled();
+      const band = await page.evaluate(BAND_IN_PAGE);
+      const corr = await correspondence();
+      if (!band.contiguous || !band.inView || corr.drift.length) {
+        console.log("    " + id + ": " + JSON.stringify(band) + " " +
+          corr.drift.slice(0, 3).join(" | "));
+      }
+      await page.locator("#unlit-style-toggle").click();
+      await page.waitForFunction(() =>
+        /hidden/.test(document.querySelector("#unlit-style-toggle").textContent),
+        null, { timeout: 5000 }).catch(() => {});
+      await settled();
+      const hidden = await page.evaluate(({ topologyId, studyId }) => {
+        const VA = window.ViewerApp;
+        const topo = VA.findTopology(VA.demoTopologyFixture().topologies, topologyId);
+        const lit = VA.studyLitSet(VA.findStudy(topo, studyId), topo);
+        const rows = VA.bandLayout(topo.layout, lit, { only: true }).rows;
+        const parent = {};
+        const find = (x) => {
+          if (parent[x] === undefined) parent[x] = x;
+          while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+          return x;
+        };
+        rows.forEach((row) => {
+          find(row.id);
+          if (row.kind !== "edge") return;
+          [row.entered_at, row.left_at].forEach((n) => { parent[find(row.id)] = find(n); });
+        });
+        const drawn = document.querySelectorAll(
+          "svg.tv__rails line.rail__barhit, svg.tv__rails circle.rail__dot").length;
+        return { pieces: new Set(rows.map((r) => find(r.id))).size, drawn,
+                 lit: Object.keys(lit.edges).length + Object.keys(lit.nodes).length };
+      }, { topologyId: "vpa_pitch_linkage", studyId: id });
+      const hiddenCorr = await correspondence();
+      bandRuns.push({ id, band, corr, hidden, hiddenCorr });
+      await page.locator("#unlit-style-toggle").click();
+      await settled();
+    }
+    const every = (fn) => bandRuns.length === BAND_STUDIES.length && bandRuns.every(fn);
+    push("[real] each study's lit rows are one band on screen, every bar and dot still drawn",
+      every((r) => r.band.contiguous && r.band.bars === pitch.edges.length &&
+        r.band.dots === pitch.nodes.length));
+    push("[real] each study is framed once the re-arrange settles -- the whole band in " +
+      "the visible pane, no scroll", every((r) => r.band.inView));
+    push("[real] every leader's two ends land on its moved dot and its seam, study by study",
+      every((r) => r.corr.leaders > 0 && r.corr.drift.length === 0));
+    push("[real] hidden, each study is its band alone -- every lit row and nothing else, " +
+      "one connected drawing, leaders still on their dots",
+      every((r) => r.hidden.pieces === 1 && r.hidden.drawn === r.hidden.lit &&
+        r.hiddenCorr.drift.length === 0));
+
     return reportSuite(suite, checks, errors);
   } catch (err) {
     return reportAbortedSuite(suite, checks, errors, err);
@@ -11357,9 +11509,12 @@ async function testSeamLeaders(browser, label, topologies) {
     const draw = VA.lastSeamDraw;
     const svg = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
     const r = svg ? svg.getBoundingClientRect() : null;
+    // The seam's numbers are the SVG's own pixels; the drawing may be zoomed
+    // (a study arrival frames its band), so they are scaled by what was painted.
+    const k = r ? r.width / Number(svg.getAttribute("width")) : 1;
     const leaders = draw ? draw.leaders : [];
     const bars = (VA.lastTopoRender.seam.bars || []).map((b) => ({ id: b.id,
-      x: r.left + b.x, y1: r.top + b.y1, y2: r.top + b.y2 }));
+      x: r.left + k * b.x, y1: r.top + k * b.y1, y2: r.top + k * b.y2 }));
     const grid = {};
     const lines = [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leader")];
     [...document.querySelectorAll("#topopane .tv__hscroll path.rail__leaderhit")].forEach((h, i) => {
@@ -11380,7 +11535,7 @@ async function testSeamLeaders(browser, label, topologies) {
       ? headNode.getBoundingClientRect() : { bottom: -Infinity };
     const dots = VA.lastTopoRender.seam.dots;
     const expected = Object.keys(dots).filter((id) => {
-      const y = r.top + dots[id][1];
+      const y = r.top + k * dots[id][1];
       return onScene(sent[id]) && y >= Math.max(pane.top, head.bottom) &&
         y <= Math.min(pane.bottom, innerHeight);
     }).sort();
@@ -11526,9 +11681,11 @@ async function testSeamLeaders(browser, label, topologies) {
     console.log(`      [${label}] hidden, the box at its top: leaders ${after.ids.length} (${after.ids.join(", ")}); ` +
       `off the DAG's view: ${(after.skipped && after.skipped.offDag || []).join(", ") || "-"}; ` +
       `crossings among them ${after.crossings}; through a lit bar ${after.barCrossings}`);
-    push("[real] with the toggle at hide, six to ten leaders across the seam, drawn from the lit " +
+    // Six to ten until 2026-10-28, when the box showed part of the walk; the
+    // band now fits it whole, so every lit node with an anchor has its leader.
+    push("[real] with the toggle at hide, at least six leaders across the seam, drawn from the lit " +
       "part alone",
-      hidden && after.ids.length >= 6 && after.ids.length <= 10 && after.paths === after.ids.length &&
+      hidden && after.ids.length >= 6 && after.paths === after.ids.length &&
       JSON.stringify(after.ids.slice().sort()) === JSON.stringify(after.expected));
     await shot("4_unlit_hidden.png");
   } catch (err) {

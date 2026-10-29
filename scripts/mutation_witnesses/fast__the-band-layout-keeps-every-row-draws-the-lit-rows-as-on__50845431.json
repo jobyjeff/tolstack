@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the band layout keeps every row, draws the lit rows as one chain on the spine's column, and joins the rest to it with curves",
+  "mutations": [
+    {
+      "contract": "A band node's arrival comes from the band: an unlit edge above the band that meets a band node curves down to it rather than claiming it.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Any group may arrive, so the unlit pa becomes a's arrival and stops curving.",
+      "file": "apps/viewer/topology.js",
+      "find": "        return group(rows[p.i]) === group(node);",
+      "replace": "        return true;"
+    }
+  ]
+}

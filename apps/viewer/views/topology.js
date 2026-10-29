@@ -28,9 +28,9 @@
   // (viewer_respine_whole_walk, 2026-09-15). It offered a SECOND layout of
   // the same document, and Jeff read the difference between the two as a bug
   // rather than a choice: "When you click a study/stack, the entire dag/model
-  // should still be visible." The DAG is now always the whole walk and a
-  // study selection only changes what is EMPHASIZED on it, so there is one
-  // behaviour and nothing left for a control to pick between.
+  // should still be visible." The DAG is always the whole walk; a study
+  // selection re-arranges it around the study (VA.bandLayout) without taking
+  // anything out, so there is one behaviour and nothing for a control to pick.
   VA.renderTopoToolbar = function (root, state, topoProj, handlers) {
     VA.clear(root);
     root.className = "tv__toolbar";
@@ -229,29 +229,31 @@
     // Right-justified (viewer_dag_spine_layout): the walk's mainline on the
     // rightmost rail, hard against the jog zone, branches extending left.
     //
-    // ALWAYS the topology's own walk (viewer_respine_whole_walk, 2026-09-15).
-    // Selecting a study used to swap this for `study.layout` — a second
-    // serialisation of the same document, one rail, non-members gone — and
-    // Jeff read the result as a defect: "When you click a study/stack, the
-    // entire dag/model should still be visible." So the rails never change
-    // shape; what a study selection changes is emphasis, leaders and the
-    // table beside them.
+    // ALWAYS the topology's own walk, every row of it (viewer_respine_whole_
+    // walk, 2026-09-15: "When you click a study/stack, the entire dag/model
+    // should still be visible"). What a selection changes is the ORDER: the
+    // lit rows become one band on the spine's columns and the rest of the
+    // walk hangs above and below it (VA.bandLayout; Jeff, 2026-10-28, "the
+    // active part ... becomes a straight vertical line"), and the emphasis,
+    // the leaders and the table beside them follow the lit set.
     //
     // What is EMPHASIZED is the page's lit set (VA.studyLitSet, topology.js):
     // a kinematic page hands its own in as `ctx.lit`, a chain study's is its
     // chain. A study that refused to sum has no chain to emphasize (the error
     // is the result), so it leaves the walk at full emphasis exactly as no
     // selection does. With the unlit part HIDDEN (VA.UNLIT_STYLES) the walk
-    // drawn is the lit part re-laid (VA.hideUnlit) rather than the whole of it.
+    // drawn is the band alone -- the same picture with the rest taken away.
     var lit = ctx.lit || VA.studyLitSet(study, topoProj);
     var marking = !!lit;
     var hiding = marking && ctx.unlitStyle === "hide";
-    // Collapsed bodies (VA.collapseBodies) fold AFTER hiding, so a body the
-    // study does not reach is simply gone and a pill stands only for what is
-    // drawn; the mirror runs last, as it always has.
+    // Collapsed bodies (VA.collapseBodies) fold AFTER the re-arrange, so a
+    // body the study does not reach is simply gone when hidden and a pill
+    // stands only for what is drawn; the mirror runs last, as it always has.
+    var walk = marking
+      ? VA.bandLayout(topoProj.layout, lit, hiding ? { only: true } : null)
+      : topoProj.layout;
     var layout = VA.spineRight(VA.collapseBodies(
-      hiding ? VA.hideUnlit(topoProj.layout, lit) : topoProj.layout,
-      ctx.collapsedBodies || null, topoProj, lit));
+      walk, ctx.collapsedBodies || null, topoProj, lit));
     // The chain's ordinals and contributions, for the grid's # and
     // contribution columns: a chain study's own, empty on a kinematic page,
     // whose contributions are its own table's business.
@@ -567,7 +569,8 @@
   // nothing. So a frame that throws stops the transition and hands the error
   // to the same crash seam every other render uses.
   //
-  // Returns a handle with `cancel()`, or null when nothing was animated. The
+  // Returns a handle with `cancel()`, or null when nothing was animated; a
+  // caller may set `handle.onSettled`, run once after the settled frame. The
   // caller MUST cancel a running transition before painting the pane itself:
   // a frame rendered from a stale ctx would otherwise land on top of it.
   VA.animateTopoPane = function (root, ctx, from, opts) {
@@ -612,6 +615,7 @@
         delete ctx.tween;
       }
       if (!settling) raf(step);
+      else if (handle.onSettled) handle.onSettled();
     };
     step();
     return handle;
@@ -1428,7 +1432,10 @@
     geometry.marks.forEach(function (mark) {
       if (mark.collapsed) pillRows[mark.row] = true;
     });
-    (geometry.bodies || []).forEach(function (field) {
+    // A body the band split (VA.bandLayout) is several fields and is named
+    // once: on its field in the band.
+    var named = VA.bodyLabelFields(geometry.bodies, layout && layout.rows, lit);
+    (geometry.bodies || []).forEach(function (field, f) {
       if (pillRows[field.start]) return;
       var body = bodiesById[field.body] || { id: field.body, name: field.body };
       var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
@@ -1440,7 +1447,7 @@
       });
       rect.setAttribute("data-body", field.body);
       svg.appendChild(rect);
-      svg.appendChild(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
+      if (named[f]) svg.appendChild(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
     });
 
     // 0d. the sub-stacks (a kinematic page's `study_ref`s,

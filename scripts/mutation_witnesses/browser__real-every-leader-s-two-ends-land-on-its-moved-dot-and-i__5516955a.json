@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file:// respine",
+  "expect_red": "[real] every leader's two ends land on its moved dot and its seam, study by study",
+  "mutations": [
+    {
+      "contract": "The position store the dots and the leaders both read is built from the SAME re-arranged layout the rails are drawn from, so a leader lands on its node where the band moved it.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Builds the store off the projection's own walk: the leaders (by node id) and the dots (by row) then disagree wherever the band moved a row. A first cut planned the leaders off the walk instead, and stayed green: a leader finds its node by id.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var positions = VA.rowPositions(layout, topoProj,",
+      "replace": "    var positions = VA.rowPositions(VA.spineRight(topoProj.layout), topoProj,"
+    }
+  ]
+}

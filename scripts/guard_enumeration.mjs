@@ -159,7 +159,7 @@ export const GUARD_SOURCES = {
 // `node scripts/run_mutation_witness_tests.mjs --unenrolled` is what names the
 // guard that needs a spec, which is the actionable half anyway.
 export const DECLARED_GUARDS = {
-  fast: { declared: 599, enrollable: 599, names: "dbc8af926861" },
+  fast: { declared: 607, enrollable: 607, names: "57c2e46fa36a" },
   annotate: { declared: 246, enrollable: 246, names: "8cfc5f299bfd" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
@@ -167,7 +167,9 @@ export const DECLARED_GUARDS = {
   // `[real] SKIPPED:` pushes of the hosted read-only half and of "the scene
   // pane reads over HTTP", whose condition is the literal `true`, so no
   // mutation can redden them.
-  browser: { declared: 713, enrollable: 680, names: "3902e5312c24" },
+  // 2026-10-28 (the_active_study_is_a_compact_band_...): +8 fast, +6 browser
+  // on top, re-measured at that review's merge.
+  browser: { declared: 719, enrollable: 686, names: "7a36112a0c77" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

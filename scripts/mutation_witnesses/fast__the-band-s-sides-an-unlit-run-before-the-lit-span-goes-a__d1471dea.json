@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the band's sides: an unlit run before the lit span goes above and after it below, an interleaved piece goes to its nearer side, and a piece that forks off a lit node goes below",
+  "mutations": [
+    {
+      "contract": "An interleaved unlit piece that forks off a lit node goes below the band, whatever side it is nearer: above, it would have nothing to hang from.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Drops the `hangs` clause, so a piece forking off a lit node near the top of the span is sent above.",
+      "file": "apps/viewer/topology.js",
+      "find": "      (!p.hangs && p.sum / p.count <= middle ? out.above : out.below).push(row);",
+      "replace": "      (p.sum / p.count <= middle ? out.above : out.below).push(row);"
+    },
+    {
+      "contract": "Below the band, an edge forking off a lit node is drawn after the node at its far end, so it curves to the band instead of running a rail through it.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). The swap never matches, so the edge stays ahead of its node.",
+      "file": "apps/viewer/topology.js",
+      "find": "          next.kind === \"node\" && next.id === edge.left_at) {",
+      "replace": "          next.kind === \"node\" && next.id === null) {"
+    }
+  ]
+}

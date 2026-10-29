@@ -950,8 +950,9 @@ crash.
 
 ### Studies
 
-Picking a study **emphasizes its chain on the walk**. The DAG does not change
-shape: every node and every edge of the document stays on screen, the chain's
+Picking a study **emphasizes its chain on the walk** and re-arranges the walk
+around it (the band, below): every node and every edge of the document stays
+on screen, the chain's
 bars and dots light, the rest dim, and a **leader is drawn only where it points
 at a chain node** — so the part boundaries the study does not cross simply have
 no line, which is the loudest of the three signals. The grid beside it drops to
@@ -968,8 +969,10 @@ study/stack, the entire dag/model should still be visible. It should be fairly
 obvious that there are no leader lines pointing to certain elements."* That old
 nav-click behaviour gave a reader no signal at all about what a study excluded
 from the walk: every study dropped its non-chain rows and none of them dimmed
-anything, so there was nothing on screen to notice was missing. One layout,
-varying emphasis, is the fix.
+anything, so there was nothing on screen to notice was missing. One walk,
+varying emphasis, is the fix — and since 2026-10-28 the walk's rows are
+re-ordered around the study rather than left where they were, which Jeff never
+asked to lose (the band, below).
 
 That paragraph used to reconstruct which of the three `pitch_link_*` studies
 (on `vpa_pitch_linkage`, since the 2026-10-26 fold — `pitch_link_to_pitch_plate`
@@ -999,17 +1002,56 @@ DAG" below.
 study is most of the picture, so the toolbar carries one more toggle wherever
 something is lit — a chain study, or a kinematic study's page — **Unused:
 dimmed** (the default) or **Unused: hidden** (`VA.UNLIT_STYLES`,
-`VA.DEFAULT_UNLIT_STYLE`). Hidden draws only the lit rows, in walk order, and
-re-lays them (`VA.hideUnlit`): a column left with nothing on it is dropped, the
-rails and links are re-derived from what is left (`VA.walkRailsAndLinks`, which
-on every committed topology reproduces the projection's own rails and links
-exactly — the fast tier pins that), and a run of the walk that a hidden edge
-used to join becomes two runs with nothing drawn between them — which is why
+`VA.DEFAULT_UNLIT_STYLE`). Hidden draws only the lit rows, in walk order: the
+band of "The active study is one band" below, with the rest taken away
+(`VA.bandLayout(…, { only: true })`). The rails and links are re-derived from
+the rows (`VA.walkRailsAndLinks`, which on every committed topology reproduces
+the projection's own rails and links exactly — the fast tier pins that), and a
+run of the walk that a hidden edge used to join becomes two runs with nothing
+drawn between them — which is why
 the lit set is *closed* first (2026-10-28, `the_lit_set_closes_over_its_joints`):
 a joint whose two ends are lit is lit (`VA.closeLitSet`), so the bodies' joint
 symbols draw at full strength on the active study and the hidden drawing stays
 one piece. A node a hidden edge shares with a lit one stays: it is lit. The leaders still land on their
 grid rows. The choice is kept for the session, like the leader style.
+
+**The active study is one band** (2026-10-28,
+`the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below`).
+Jeff: *"the active part of the model for any given study becomes a straight
+vertical line, with the rest of the graph extending above/below it … so you
+don't have to scroll the graph to see all the elements of the active study."*
+Nothing is hidden and nothing is replaced — the 2026-09-15 rule ("the entire
+dag/model should still be visible") was about visibility, and still holds. The
+walk's rows are **re-ordered** (`VA.bandLayout`, `topology.js`):
+
+* **the band.** The lit rows, in their walk order, contiguous, laid out on
+  their own columns (`VA.layWalk`: a chain is one rail, a branch takes the next
+  column for as long as it runs), then the non-trunk columns permuted to cross
+  least and held against the columns the same rows had in the walk
+  (`VA.layoutCrossings`, the builder's `layout_crossings` ported) — the band
+  never crosses itself more than its rows did. Its columns are the spine's, so
+  no leader from a lit dot crosses a rail of the unlit model;
+* **above and below** (`VA.bandSides`). An unlit row before the first lit row
+  goes above, one after the last goes below, and the unlit rows *inside* the lit
+  span go to the nearer side **as connected pieces**, judged by the piece's mean
+  row — row by row tore a side branch in two. A piece that forks off a lit node
+  goes below whatever its position (above, it would have nothing to hang from),
+  and below the band such an edge is drawn after the node at its far end, so it
+  curves back up to the band instead of running a rail through it. The rest
+  keeps the walk's own columns wherever they are free;
+* **curves both ways.** An edge whose other node is now above it closes up to
+  it, as always; one whose other node is in the band below it curves *down*
+  to it (`closePath` bows toward its node either way);
+* **bodies** the band splits are several fields (they always could be), and
+  with a study lit a body is **named once**, on its band field
+  (`VA.bodyLabelFields`); collapsed, each block is its own pill
+  (`body:<id>`, then `body:<id>#2`, …).
+
+Arriving at a study **frames the band** (Fit, below) once the transition has
+settled, keeping the reader's sideways scroll. The `[real]` tier holds every
+study of the product model to one contiguous band that draws as a walk, crosses
+itself no more than in the walk and widens the walk by nothing; the browser tier
+checks three on screen.
 
 **A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,
 `BrokenChain`, `CycleDetected` and `UnitMismatch` each render as a block carrying
@@ -1428,6 +1470,8 @@ tallest mode, shows in a 900px pane (a test re-derives that off the real model).
 * **Fit** (toolbar, key `0`) zooms to the lit set — a study's chain, a
   kinematic study's — or the whole walk where nothing is lit, never past a
   scale of 1, and scrolls it to the top of what is visible, in one step.
+  Arriving at a study does the same on its own once the paint (or the
+  transition) has settled, leaving the sideways scroll where it was.
 * **The leaders across the seam** read the drawing's scale off the rails SVG's
   painted box (`r.width / drawn.width`), so a zoom changes nothing about where
   a dot is in the SVG's own pixels (`VA.lastTopoRender.seam`).
@@ -1489,10 +1533,14 @@ the *same* rows are drawn, and have always been a plain render. (There used to
 be a third: the toolbar's layout toggle, retired with the second layout it
 picked between.)
 
-**What actually moves, since the walk stopped being swapped out.** The rails do
-not: both frames are the same walk, so every column, every rail and every dot's
-`y` is identical on the two sides and `VA.respineX` returns a zero column
-shift. What is left is real, and measured per study on the live corpus. Taking
+**What actually moves, since the walk stopped being swapped out.** Both frames
+are the same rows, and since 2026-10-28 in a different ORDER: the study's band
+(above) moves every row it re-orders, keyed by element, so a dot travels from
+where the walk had it to its place in the band. The column count is the walk's
+on both sides on the live corpus, so `VA.respineX` returns a zero column shift
+and a row that changes column jumps to it on the first frame — x is not keyed,
+for the reason given below. The rest is real, and measured per study on the
+live corpus (before the band). Taking
 `pitch_system_gas_spring_branch`, over the product graph:
 
 * the **jog zone narrows** as leaders drop, and the pane width with it — the
