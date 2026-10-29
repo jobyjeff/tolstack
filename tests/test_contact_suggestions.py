@@ -26,7 +26,7 @@ import build_contact_suggestions as builder  # noqa: E402
 from tolerance_stack import interface_contact as ic  # noqa: E402
 
 from tests.test_interface_contact import (  # noqa: E402
-    IDENTITY, cylinder_face, make_mesh, translate)
+    IDENTITY, box_faces, cylinder_face, make_mesh, translate)
 
 LIVE = Path("C:/workspace/tolstack/data") / builder.PROJECTION_SUBDIR / builder.PROJECTION_NAME
 LIVE_CANDIDATES = (REPO_ROOT / "data" / builder.PROJECTION_SUBDIR / builder.PROJECTION_NAME, LIVE)
@@ -229,3 +229,150 @@ def test_real_each_ball_joint_has_a_spherical_candidate():
         assert row["status"] == "ok", (edge_id, row.get("note"))
         assert any("spherical" in (c["from"]["surface"], c["to"]["surface"])
                    for c in row["candidates"]), edge_id
+
+
+# ---------------------------------------------------------------------------
+# 2026-10-29: the ends say what shape they are
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def shank_store(tmp_path):
+    """A washer on a bolt shank, the "shank out" edge of the pitch-link joint
+    in miniature, with node names worded as the linkage words them. The bolt
+    mesh records no slot of its own: its one placement is another mesh's
+    ``<product>.<n>`` slot, borrowed."""
+    meshes = tmp_path / "data" / "meshes"
+    washer = make_mesh(box_faces(-2, 2, -2, 2, 0, 1))
+    shank = make_mesh([cylinder_face(1.0, -5.0, 1.5, convex=True)])
+    write_mesh(meshes, "a" * 64, "washer_part", washer, [instance("washer.1", IDENTITY)])
+    write_mesh(meshes, "b" * 64, "bolt_part", shank, [])
+    write_mesh(meshes, "c" * 64, "bolt_variant", shank, [instance("bolt_part.1", IDENTITY)])
+    topologies = tmp_path / "topologies"
+    topologies.mkdir()
+    nodes = [{"id": "washer_far", "name": "flat washer far face", "kind": "datum_feature",
+              "parts": ["washer_part"]},
+             {"id": "shank_end", "name": "end of the bolt's full cylindrical shank",
+              "kind": "datum_feature", "parts": ["bolt_part"]}]
+    edge = gap_edge("shank_out", "washer_far", "shank_end", "clearance")
+    edge["name"] = "shank out -- full-diameter shank beyond the clamped stack"
+    topology = {
+        "schema": "joby.tolerance_stack/topology/v0", "id": "shank", "title": "Shank",
+        "units": "mm", "nodes": nodes,
+        "parts": [{"id": p, "name": p} for p in ("washer_part", "bolt_part")],
+        "edges": [edge],
+    }
+    (topologies / "topology_shank.json").write_text(json.dumps(topology), encoding="utf-8")
+    return tmp_path / "data", topologies
+
+
+def test_the_ends_decide_the_pairing_and_every_face_passes_their_shape_rule(shank_store):
+    """The word `clearance` alone paired the washer's BORE round the shank;
+    the ends name a flat (the far face) and a cylinder (the shank), and every
+    candidate's faces are of the class its end asks for -- the rule
+    `scripts/propose_bindings.py` refuses a proposal by."""
+    _out, data = build(shank_store)
+    (row,) = data["topologies"][0]["edges"]
+    assert ic.CONTACT_PAIRINGS[row["interface"]] == "cylinder_in_cylinder"
+    assert (row["from"]["asks"], row["to"]["asks"]) == ("planar", "cylindrical")
+    assert (row["pairing"], row["pairing_basis"]) == ("plane_across_axis", "ends")
+    assert row["status"] == "ok"
+    top = row["candidates"][0]
+    assert (top["relation"], top["from"]["faces"], top["to"]["faces"]) == ("across", [1], [0])
+    assert top["evidence"]["plane"] == "from"
+    assert top["evidence"]["end_mm"] == pytest.approx(0.5, abs=1e-4)
+    for c in row["candidates"]:
+        assert (c["from"]["surface"], c["to"]["surface"]) == ("planar", "cylindrical")
+    assert builder.clear_top(row)
+    assert data["summary"]["single_clear_top"] == 1
+    assert data["end_pairings"]["cylindrical+planar"] == "plane_across_axis"
+
+
+def test_a_borrowed_slot_says_so_in_every_candidates_evidence(shank_store):
+    _out, data = build(shank_store)
+    (row,) = data["topologies"][0]["edges"]
+    assert row["occurrences"] == {"from": "asm/washer.1", "to": "asm/bolt_part.1"}
+    for c in row["candidates"]:
+        assert c["evidence"]["own"] == {"from": True, "to": False}
+
+
+def test_an_edge_whose_ends_name_nothing_is_paired_by_its_interface_word(store):
+    """The fixture's nodes are named by bare ids. "pin joint" still asks for
+    a cylinder through the edge's own name (``end_surface_class`` asks the
+    dimension when the node is silent); "loose joint" asks nothing at all."""
+    _out, data = build(store)
+    rows = {r["edge"]: r for r in data["topologies"][0]["edges"]}
+    row = rows["pin_joint"]
+    assert (row["from"]["asks"], row["to"]["asks"]) == ("cylindrical", "cylindrical")
+    assert (row["pairing"], row["pairing_basis"], row["axes"]) == (
+        "cylinder_in_cylinder", "ends", False)
+    assert row["candidates"][0]["evidence"]["own"] == {"from": True, "to": True}
+    loose = rows["loose_joint"]
+    assert (loose["from"]["asks"], loose["to"]["asks"]) == (None, None)
+    assert (loose["pairing"], loose["pairing_basis"]) == ("cylinder_in_cylinder", "interface")
+
+
+# ---------------------------------------------------------------------------
+# [real] -- what the 2026-10-29 rebuild found, held
+# ---------------------------------------------------------------------------
+
+def live_rows():
+    data = live_projection()
+    return {e["edge"]: e for t in data["topologies"] for e in t["edges"]}
+
+
+#: A projection built before the ends were asked carries no ``pairing_basis``;
+#: these checks wait for the rebuild rather than reading that one as a failure.
+needs_ends = pytest.mark.skipif(
+    live_projection() is None or any("pairing_basis" not in e for e in live_rows().values()),
+    reason="the live contact_suggestions.json predates the ends-first pairing "
+           "(2026-10-29); scripts/rebuild_projections.ps1 rebuilds it")
+
+#: Drawing 215735 rev A sheet 2, Section A-A: the lug holes are 5X dia 7.950
+#: and 5X dia 8.520 (3X each for the tangential-link lugs).
+PLATE_LUG_RADII = (7.950 / 2, 8.520 / 2)
+
+
+@needs_live
+@needs_ends
+def test_real_no_candidate_names_a_face_its_end_would_refuse_for_its_shape():
+    """The 2026-10-29 proposal pass found all four "clear" top pairs refused by
+    the shape rule. Every candidate now names faces of its end's class."""
+    for edge_id, row in live_rows().items():
+        for c in row["candidates"]:
+            for side in builder.SIDES:
+                asks = row[side]["asks"]
+                assert asks is None or c[side]["surface"] == asks, (edge_id, side, c["rank"])
+
+
+@needs_live
+@needs_ends
+def test_real_the_pitch_plates_two_ball_joints_rank_a_lug_hole_the_drawing_calls_out_first():
+    rows = live_rows()
+    for edge_id in ("pitch_plate_link_joint", "tan_link_plate_joint"):
+        top = rows[edge_id]["candidates"][0]
+        assert top["evidence"]["seat"] == "cylindrical"
+        radius = top["evidence"]["seat_radius_mm"]
+        assert min(abs(radius - r) for r in PLATE_LUG_RADII) < 0.01, (edge_id, radius)
+
+
+@needs_live
+@needs_ends
+def test_real_the_hub_and_pitch_plate_coaxiality_is_judged_as_axes():
+    row = live_rows()["hub_to_pitch_plate_spindle_coaxiality"]
+    assert row["axes"] is True
+    assert row["status"] == "ok", row.get("note")
+    top = row["candidates"][0]
+    assert top["relation"] == "coaxial"
+    assert top["evidence"]["axis_offset_mm"] <= ic.CONTACT_TOLERANCES["axis_offset_mm"]
+
+
+@needs_live
+@needs_ends
+def test_real_every_candidate_says_whether_its_slots_are_its_meshes_own():
+    rows = live_rows()
+    for row in rows.values():
+        for c in row["candidates"]:
+            assert set(c["evidence"]["own"]) == set(builder.SIDES)
+    # Blade 1's pitch link is placed at the instrumented variant's slot.
+    lower = rows["pitch_link_lower_centre_is_this_bearing"]["candidates"][0]
+    assert lower["evidence"]["own"] == {"from": True, "to": False}

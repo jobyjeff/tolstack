@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: contact-suggestions
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_an_agent_proposes_a_face_binding_and_a_human_ratifies_it.md
 class: contact_engine_ignores_end_geometry
 handoff: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
+resolution: fixed 2026-10-29 by the_contact_engine_asks_the_ends_what_shape_they_are: the pairing comes from both ends' end_surface_class through interface_contact.END_PAIRINGS (the word is the tiebreak) and each end pairs only on faces of its class; none of the old four clear pairs survives, and no candidate in the rebuilt projection names a face its end would refuse
 ---
 
 # The contact engine picks its pairing from the edge's interface word, and on every "clear" edge that contradicts the shape both ends name

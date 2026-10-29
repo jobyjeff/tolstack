@@ -148,7 +148,7 @@ def test_every_interface_word_has_a_pairing_rule():
     """A new interface word with no rule would answer `no_contact` for every
     edge that uses it -- silently, and wrongly."""
     assert set(ic.CONTACT_PAIRINGS) == set(INTERFACE_KINDS)
-    assert set(ic.CONTACT_PAIRINGS.values()) == set(ic.PAIRING_KINDS)
+    assert set(ic.CONTACT_PAIRINGS.values()) | set(ic.END_PAIRINGS.values()) == set(ic.PAIRING_KINDS)
 
 
 # ---------------------------------------------------------------------------
@@ -354,3 +354,161 @@ def test_a_part_with_no_face_of_the_asked_kind_is_no_fit():
     found = candidates("cylinder_in_cylinder", plate, ball,
                        [occ("plate")], [occ("ball", translate(5, 5, 8))])
     assert found["status"] == "no_fit"
+
+
+# ---------------------------------------------------------------------------
+# 2026-10-29: the ends' shapes, the seat's radius, axes as axes, own slots
+# ---------------------------------------------------------------------------
+
+def test_every_pair_of_end_shapes_has_a_pairing_rule():
+    """The ends decide the pairing, so two ends naming any two fitted classes
+    must name a rule -- a missing pair would be a KeyError on the next linkage."""
+    classes = fg.FITTED_SURFACE_CLASSES
+    wanted = {tuple(sorted((a, b))) for a in classes for b in classes}
+    assert set(ic.END_PAIRINGS) == wanted
+    assert all(key == tuple(sorted(key)) for key in ic.END_PAIRINGS)
+
+
+def test_the_ends_decide_the_pairing_and_the_interface_word_only_breaks_the_tie():
+    """The four 2026-10-29 "clear" edges, by what their ends name."""
+    # shank_out_*: a washer's far face and the end of the bolt's shank, on a
+    # `clearance` edge the word alone paired as cylinder in cylinder.
+    assert ic.end_pairing("planar", "cylindrical", "clearance") == (
+        "plane_across_axis", (("planar",), ("cylindrical",)), "ends")
+    # *_centre_is_this_bearing: two ball centres on a `pin_in_bore` edge.
+    assert ic.end_pairing("spherical", "spherical", "pin_in_bore") == (
+        "ball_in_seat", (("spherical",), ("spherical",)), "ends")
+    # A ball joint whose bore end is the one naming a class.
+    assert ic.end_pairing("cylindrical", "spherical", "spherical") == (
+        "ball_in_seat", (("cylindrical",), ("spherical",)), "ends")
+    # One silent end takes the class the word gives it: a ball's is any seat,
+    # a seat's is the ball, a pin-in-bore's is a cylinder.
+    assert ic.end_pairing(None, "spherical", "spherical") == (
+        "ball_in_seat", (ic.SEAT_SURFACES, ("spherical",)), "one_end")
+    assert ic.end_pairing("planar", None, "spherical") == (
+        "ball_in_seat", (("planar",), ("spherical",)), "one_end")
+    assert ic.end_pairing(None, "planar", "clearance") == (
+        "plane_across_axis", (("cylindrical",), ("planar",)), "one_end")
+    # Two silent ends: the word alone, as before.
+    assert ic.end_pairing(None, None, "pin_in_bore") == (
+        "cylinder_in_cylinder", (("cylindrical",), ("cylindrical",)), "interface")
+    assert {"ends", "one_end", "interface"} == set(ic.PAIRING_BASES)
+
+
+def test_a_bearing_pressed_into_its_eye_is_not_offered_to_two_ball_centres():
+    """The bearing's OD in the link's eye is a real cylinder-in-cylinder
+    contact, and two ends naming ball centres get only the spheres: the ball
+    on one part, the race it turns in on the other."""
+    bearing = make_mesh([cylinder_face(7.14, -2, 2, convex=True),
+                         sphere_face(5.147, convex=True)], sha="a" * 64)
+    link = make_mesh([cylinder_face(7.144, -2, 2, convex=False),
+                      sphere_face(5.198, convex=False, lat=30.0, rows=5)], sha="b" * 64)
+    by_word = candidates("cylinder_in_cylinder", bearing, link)
+    assert (by_word["candidates"][0]["a_faces"], by_word["candidates"][0]["b_faces"]) == ([0], [0])
+    kind, accepts, _basis = ic.end_pairing("spherical", "spherical", "pin_in_bore")
+    found = ic.edge_candidates(kind, ic.part_faces(bearing), ic.part_faces(link),
+                               [occ("a")], [occ("b")], accepts=accepts)
+    assert found["status"] == "ok"
+    (top,) = found["candidates"]
+    assert (top["a_surface"], top["b_surface"]) == ("spherical", "spherical")
+    assert (top["a_faces"], top["b_faces"]) == ([1], [1])
+    assert top["evidence"]["seat_radius_mm"] == pytest.approx(5.198, abs=1e-3)
+
+
+def test_a_balls_seat_is_a_bore_nearest_its_radius_never_a_flange_on_its_axis():
+    """The pitch plate's lug, in miniature: a bushing flange (convex, r 5.55),
+    the bushing's bore (r 2.413) right beside the ball, and the lug hole the
+    drawing calls out (r 4.26) a little farther along. Before 2026-10-29 the
+    flange ranked first and the bushing bore second."""
+    ball = make_mesh([sphere_face(5.147, convex=True)], sha="a" * 64)
+    lug = make_mesh([cylinder_face(5.5499, 3.5, 4.5, convex=True),     # flange OD
+                     cylinder_face(2.413, 3.0, 9.0, convex=False),     # bushing bore
+                     cylinder_face(4.26, 4.0, 9.0, convex=False)],     # lug hole
+                    sha="b" * 64)
+    found = candidates("ball_in_seat", ball, lug, reach_mm=10.0)
+    seats = [(c["b_faces"], round(c["evidence"]["seat_radius_mm"], 3)) for c in found["candidates"]]
+    assert seats == [([2], 4.26), ([1], 2.413)]
+    first, second = found["candidates"]
+    # The seat order, the centre's distance along the bore as a share of the
+    # ball's radius, and the radius gap as a share of it: the radius decides.
+    assert first["score"] == pytest.approx(
+        1.0 + 4.0 / 5.147 + (5.147 - 4.26) / 5.147, abs=1e-3)
+    assert second["score"] == pytest.approx(
+        1.0 + 3.0 / 5.147 + (5.147 - 2.413) / 5.147, abs=1e-3)
+
+
+def test_a_flat_where_a_truncated_ball_is_cut_away_is_not_its_seat():
+    """A ball band from -60 to +60 degrees: a flat at its radius across the
+    equator touches the sphere; one at its radius across the pole touches
+    where the ball has been cut off -- the tangential link mount's faces
+    810 and 1594, at -0.019 mm, were that."""
+    ball = make_mesh([sphere_face(6.0, convex=True)], sha="a" * 64)
+    beside = make_mesh(box_faces(6.0, 8.0, -1, 1, -1, 1), sha="b" * 64)
+    above = make_mesh(box_faces(-1, 1, -1, 1, 6.0, 8.0), sha="c" * 64)
+    (top,) = candidates("ball_in_seat", ball, beside)["candidates"]
+    assert top["evidence"]["seat"] == "planar"
+    assert top["evidence"]["seat_gap_mm"] == pytest.approx(0.0, abs=1e-3)
+    assert candidates("ball_in_seat", ball, above)["status"] == "no_contact"
+
+
+def test_a_washers_far_face_is_the_flat_nearer_the_end_of_the_shank_through_it():
+    """``plane_across_axis``: a 1 mm washer on a shank that runs on 0.5 mm past
+    its top face. Both flats lie across the axis; the far one is nearer the
+    end, and its ``end_mm`` is positive by how far the shank runs past it."""
+    washer = make_mesh(box_faces(-2, 2, -2, 2, 0, 1), sha="a" * 64)
+    shank = make_mesh([cylinder_face(1.0, -5.0, 1.5, convex=True)], sha="b" * 64)
+    found = candidates("plane_across_axis", washer, shank)
+    assert found["status"] == "ok"
+    rows = [(c["a_faces"], c["relation"], round(c["evidence"]["end_mm"], 4))
+            for c in found["candidates"]]
+    # The far face, then the near one; the side walls run along the axis.
+    assert rows == [([1], "across", 0.5), ([0], "across", -1.5)]
+    top = found["candidates"][0]
+    assert top["evidence"]["plane"] == "a"
+    assert top["evidence"]["axis_offset_mm"] == pytest.approx(0.0, abs=1e-6)
+    assert top["score"] == pytest.approx(0.5, abs=1e-4)     # 0.5 mm over a 1 mm radius
+
+
+def test_a_shank_beside_the_flat_rather_than_through_it_is_not_across():
+    washer = make_mesh(box_faces(-2, 2, -2, 2, 0, 1), sha="a" * 64)
+    shank = make_mesh([cylinder_face(1.0, -5.0, 1.5, convex=True, centre=(4.5, 0.0))], sha="b" * 64)
+    assert candidates("plane_across_axis", washer, shank)["status"] == "no_contact"
+
+
+def test_an_axis_relation_is_judged_by_angle_and_offset_however_far_apart_the_surfaces():
+    """The hub and the pitch plate, in miniature: two parts on one axis, the
+    plate's only cylinder 40 mm from the hub's box. A surface gate sees
+    nothing; judged as axes, the hub's bore nearest the plate's size is first."""
+    hub = make_mesh([cylinder_face(30.0, 0, 10, convex=False),
+                     cylinder_face(20.0, 0, 10, convex=False),
+                     cylinder_face(3.0, 0, 10, convex=False, centre=(25.0, 0.0))], sha="a" * 64)
+    plate = make_mesh([cylinder_face(16.5, 50, 60, convex=True)], sha="b" * 64)
+    by_surface = candidates("cylinder_in_cylinder", hub, plate)
+    assert by_surface["status"] == "no_contact" and by_surface["pairs_in_reach"] == 0
+    found = ic.edge_candidates("cylinder_in_cylinder", ic.part_faces(hub), ic.part_faces(plate),
+                               [occ("hub")], [occ("plate")], axes=True)
+    assert found["status"] == "ok"
+    assert found["nearest_gap_mm"] == pytest.approx(40.0, abs=1e-6)
+    rows = [(c["a_faces"], c["relation"]) for c in found["candidates"]]
+    assert rows == [([1], "coaxial"), ([0], "coaxial")]     # the off-axis hole is not on it
+    top = found["candidates"][0]
+    assert top["evidence"]["axis_offset_mm"] == pytest.approx(0.0, abs=1e-6)
+    assert top["evidence"]["angle_deg"] == pytest.approx(0.0, abs=1e-6)
+    assert top["score"] == pytest.approx(3.5 / 20.0, abs=1e-4)
+
+
+def test_an_own_slot_is_preferred_to_a_borrowed_one_and_the_result_says_which():
+    """The same pin and bore at two bore slots: the borrowed one is dead on
+    the axis, the own one 0.05 mm off. The own slot wins, and the result
+    carries whether each winning occurrence is its mesh's own."""
+    pin = make_mesh([cylinder_face(5.0, 0, 10, convex=True)], sha="a" * 64)
+    bore = make_mesh([cylinder_face(5.05, 0, 10, convex=False)], sha="b" * 64)
+    mine = dict(occ("pin"), own=True)
+    borrowed = dict(occ("borrowed"), own=False)
+    own = dict(occ("own", translate(0.05, 0, 0)), own=True)
+    found = candidates("cylinder_in_cylinder", pin, bore, [mine], [borrowed, own])
+    assert found["occurrences"] == {"a": "pin", "b": "own"}
+    assert found["own"] == {"a": True, "b": True}
+    assert found["candidates"][0]["evidence"]["axis_offset_mm"] == pytest.approx(0.05, abs=1e-4)
+    assert candidates("cylinder_in_cylinder", pin, bore, [mine], [borrowed])["own"] == \
+        {"a": True, "b": False}

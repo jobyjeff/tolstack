@@ -393,24 +393,40 @@ compared **in the assembly frame**, through each occurrence's
 `placement_world` — the third place a placement is applied, and like the
 scene's, to rank rather than to produce a value.
 
-**The kinds.** The `interface` word picks the pairing
-(`interface_contact.CONTACT_PAIRINGS`, paired against the topology's interface
-vocabulary by a test):
+**The kinds.** The edge's two **ends** pick the pairing: each end node asks
+for a surface class under the same shape rule the face suggestions colour by
+and `scripts/propose_bindings.py` refuses a proposal by
+(`feature_geometry.end_surface_class`), and the two classes name a pairing
+(`interface_contact.END_PAIRINGS`). Each end is then paired only on faces of
+its own class, so no candidate names a face its end would refuse. The
+`interface` word (`interface_contact.CONTACT_PAIRINGS`, paired against the
+topology's interface vocabulary by a test) is the tiebreak: it pairs two ends
+that name nothing, and gives a silent end its class. The row says which
+decided (`pairing_basis`, one of `interface_contact.PAIRING_BASES`). Since
+2026-10-29: before, the word decided alone, and on all four of the
+projection's "clear" edges it contradicted what both ends name.
 
-| pairing | interfaces | a pair is | evidence |
+| pairing | ends | a pair is | evidence |
 |---|---|---|---|
-| flat on flat | `planar` | two flat faces facing each other, touching, footprints overlapping | `gap_mm`, `angle_deg`, `overlap_mm2`, `overlap_fraction` |
-| pin in bore | `pin_in_bore`, `cylindrical_slide`, `thread`, `clearance` | a convex and a concave cylinder on one axis, the bore no smaller than the pin past a press-fit margin, sharing length | `axis_offset_mm`, `angle_deg`, `pin_radius_mm`, `bore_radius_mm`, `clearance_mm`, `axial_overlap_mm`, `bore` (which end) |
-| ball in its seat | `spherical` | a convex sphere and a concave sphere sharing its centre, a bore whose axis runs through the centre, or a flat it rests on | `centre_mm` (or `seat_gap_mm`), `ball_radius_mm`, `seat_radius_mm`, `along_axis_mm`, `seat`, `ball` (which end) |
+| flat on flat | flat, flat | two flat faces facing each other, touching, footprints overlapping | `gap_mm`, `angle_deg`, `overlap_mm2`, `overlap_fraction` |
+| pin in bore | round, round | a convex and a concave cylinder on one axis, the bore no smaller than the pin past a press-fit margin, sharing length | `axis_offset_mm`, `angle_deg`, `pin_radius_mm`, `bore_radius_mm`, `clearance_mm`, `axial_overlap_mm`, `bore` (which end) |
+| ball in its seat | ball, any | a convex sphere and a concave sphere sharing its centre, a **bore** whose axis runs through the centre (ranked by how near its radius is to the ball's), or a flat it rests on **where the ball's sphere is** | `centre_mm` (or `seat_gap_mm`), `ball_radius_mm`, `seat_radius_mm`, `along_axis_mm`, `seat`, `ball` (which end) |
+| flat across the axis | flat, round | a flat whose normal runs along a cylinder's axis, the axis crossing it: a washer's far face and the shank through it. Never a touch (`relation: across`) | `angle_deg`, `axis_offset_mm`, `end_mm` (where the cylinder ends, past the flat + or short of it −), `cylinder_radius_mm`, `plane` (which end) |
 
 A pin-in-bore pairing that finds nothing touching falls back to two cylinders
 **on one axis** (`relation: coaxial`), which is what a coaxiality edge between
-two bores is about. The faces of one feature — a cylinder exported as two
+two bores is about. An interface in `interface_contact.AXIS_INTERFACES` is
+judged **as axes**: every occurrence pair and every cylinder of both parts is
+compared by angle and offset, however far apart along the axis the surfaces
+sit: the pitch plate's only cylinder on the rotor axis is far outside the reach of the hub. The faces of one feature — a cylinder exported as two
 halves, a bore split by a groove — are listed together as one candidate.
 
 **Which occurrences.** Every pair of occurrences whose boxes come within reach
-is compared; the best-ranked wins, then the pair the annotator actually draws,
-then key order. The same joint on every blade is one answer five times over.
+is compared; of the pairs with the best relation, the one the annotator
+actually draws (both occurrences the meshes' own) wins over one that borrows
+another mesh's slot, then the best-ranked, then key order. Every candidate's
+evidence carries `own` per end, so a number measured at a borrowed slot says
+so. The same joint on every blade is one answer five times over.
 A second pair that shares an occurrence with the winner and touches *different*
 faces — a link with a bearing at each end — is not: the row lists it under
 `ambiguous_with` and the bar says the parts touch in more than one place. Only

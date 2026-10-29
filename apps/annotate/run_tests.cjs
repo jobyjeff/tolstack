@@ -3714,6 +3714,12 @@ check("contact words: each pairing, relation and seat says what it is in " +
     "ball on a bore's axis, off by 0.050 mm");
   assertEqual(say("ball_in_seat", "contact", { seat: "planar", seat_gap_mm: -0.0186 }),
     "ball against a flat, gap -0.019 mm");
+  // A washer's far face and the shank through it (2026-10-29): the measured
+  // pitch-link and VPA-output values.
+  assertEqual(say("plane_across_axis", "across", { end_mm: 0.0234, axis_offset_mm: 0.0011 }),
+    "flat across the axis, ends 0.023 mm past it");
+  assertEqual(say("plane_across_axis", "across", { end_mm: -0.0109, axis_offset_mm: 0.0012 }),
+    "flat across the axis, ends 0.011 mm short of it");
   [AA.CONTACT_HEADING, AA.CONTACT_HEADING_AT, AA.CONTACT_AMBIGUOUS].forEach((text, i) => {
     assertNoCommandOrPath(text, `contact sentence #${i + 1}`);
     if (/[a-z]_[a-z]/.test(text)) throw new Error("an underscored identifier: " + text);

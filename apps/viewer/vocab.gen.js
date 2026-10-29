@@ -217,11 +217,12 @@
 
     // tolerance_stack/interface_contact.py: PAIRING_KINDS
     CONTACT_PAIRING_KINDS: [
-      "plane_on_plane", "cylinder_in_cylinder", "ball_in_seat"
+      "plane_on_plane", "cylinder_in_cylinder", "ball_in_seat",
+      "plane_across_axis"
     ],
 
     // tolerance_stack/interface_contact.py: RELATIONS
-    CONTACT_RELATIONS: ["contact", "coaxial"],
+    CONTACT_RELATIONS: ["contact", "coaxial", "across"],
 
     // tolerance_stack/interface_contact.py: SEAT_SURFACES
     CONTACT_SEAT_SURFACES: ["spherical", "cylindrical", "planar"],
