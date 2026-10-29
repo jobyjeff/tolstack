@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a study's group is every run of consecutive rows its lit set holds, and a study the walk splits is several",
+  "mutations": [
+    {
+      "contract": "A study's span is the run of consecutive lit rows with its column extent.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_a_study_is_a_translucent_group_on_the_dag.md",
+      "note": "The one line this guard stands on.",
+      "file": "apps/viewer/topology.js",
+      "find": "last.lo = Math.min(last.lo, row.column);",
+      "replace": "last.lo = 99;"
+    }
+  ]
+}

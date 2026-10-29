@@ -1868,7 +1868,8 @@
       if (event.button !== 0 || !event.target || !event.target.closest) return;
       var t = event.target;
       var empty = t.tagName === "svg" || (t.classList && (
-        t.classList.contains("rail__band") || t.classList.contains("tv__bodyfield")));
+        t.classList.contains("rail__band") || t.classList.contains("tv__bodyfield") ||
+        t.classList.contains("tv__studyfield")));
       if (!empty || !t.closest("svg.tv__rails")) return;
       drag = { x: event.clientX, y: event.clientY };
       nodes.pane.classList.add("tv__scroll--zoomgrab");
@@ -2301,7 +2302,23 @@
     // The pane is rebuilt below, so whatever it had under the pointer is gone.
     paneHot = null;
     if (showDag) {
+      // Which containers are drawn (VA.GROUP_FILTERS): the reader's own word
+      // for this topology, else both once something is lit and the bodies
+      // before that. Every study of the topology has a group to offer.
+      var pageLit = showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj)
+        : VA.studyLitSet(study, topoProj);
+      var groupFilter = (topoProj && VA.readGroupFilter(widthStore(), topoProj.id)) ||
+        VA.defaultGroupFilter(!!pageLit);
       var ctx = {
+        groupFilter: groupFilter,
+        studyGroups: topoProj && VA.GROUP_FILTERS[groupFilter].studies
+          ? VA.studyGroups(topoProj, state.kinematic,
+              showKinematic ? state.kinematicId : state.studyId) : [],
+        onOpenStudy: function (group) {
+          if (group.selected) return;
+          if (group.kind === "kinematic") onNavKinematic(group.id);
+          else onNavStudy(topoProj.id, group.id);
+        },
         topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
         // The kinematic page's lit set; a chain study's is read off `study`.
         lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
@@ -2366,6 +2383,12 @@
         onAttach3d: launchAnnotate,
       };
       VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
+        groupFilter: groupFilter,
+        onGroupFilter: function () {
+          VA.writeGroupFilter(widthStore(), topoProj.id,
+            VA.GROUP_FILTERS[groupFilter].next);
+          render();
+        },
         // Density changes how tall the rows already on screen are, not WHICH
         // rows are on screen — so a plain render(), not rewind(): see
         // rewind's own comment for why that distinction matters.

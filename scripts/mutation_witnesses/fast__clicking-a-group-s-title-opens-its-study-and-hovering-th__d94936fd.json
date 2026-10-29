@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "clicking a group's title opens its study, and hovering the field lights its edges' bars",
+  "mutations": [
+    {
+      "contract": "A study group's title opens that study.",
+      "issue": "docs/sessions/lessons/LESSONS_20261028_a_study_is_a_translucent_group_on_the_dag.md",
+      "note": "The one line this guard stands on.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "var open = function () { if (ctx.onOpenStudy) ctx.onOpenStudy(group); };",
+      "replace": "var open = function () {};"
+    }
+  ]
+}

@@ -503,6 +503,26 @@ body { display: flex; flex-direction: column; }
 .tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }
 .tv__pill__shape { pointer-events: none; }
 
+/* A study's group (a_study_is_a_translucent_group_on_the_dag): a see-through
+   field over the grey body containers, one hue per kind of study, taken from
+   the palette's own tokens -- a chain study on --zero (the neutral axis hue,
+   no provenance claim), a kinematic one on --accent, a thermal fit (reserved:
+   the topology page carries none) on --muted. Low-alpha fill and a medium
+   stroke, so two groups that overlap both show; the selected study's is a
+   step stronger. The field takes the pointer (its hover lights the study's
+   rows); the title is the control that opens it. */
+.tv__studyfield { --study-hue: var(--zero); stroke-width: 1;
+  fill: color-mix(in srgb, var(--study-hue) 9%, transparent);
+  stroke: color-mix(in srgb, var(--study-hue) 40%, transparent); }
+.tv__studyfield--kinematic { --study-hue: var(--accent); }
+.tv__studyfield--thermal { --study-hue: var(--muted); }
+.tv__studyfield--selected { stroke-width: 1.5;
+  fill: color-mix(in srgb, var(--study-hue) 16%, transparent);
+  stroke: color-mix(in srgb, var(--study-hue) 70%, transparent); }
+.tv__studyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.tv__studyname:hover, .tv__studyname:focus { fill: var(--ink); outline: none; }
+
 /* A sub-stack inside its bodies: a dashed field round each of its bars, the
    study's title and folded interval once. Closed, its bars are one muted fold
    the label stands for. */

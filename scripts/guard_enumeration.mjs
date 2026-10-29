@@ -163,7 +163,9 @@ export const DECLARED_GUARDS = {
   // plot_shows_both_tolerances): +7, the travel band's and the results
   // pane's checks, each with a spec -- re-measured at its review merge, on
   // top of the_active_study_is_a_compact_band_...'s +8.
-  fast: { declared: 614, enrollable: 614, names: "0163ed59f442" },
+  // Re-measured again at the same review's second merge, on top of
+  // a_study_is_a_translucent_group_on_the_dag.
+  fast: { declared: 622, enrollable: 622, names: "ed4b94d0cb97" },
   annotate: { declared: 246, enrollable: 246, names: "8cfc5f299bfd" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
@@ -180,7 +182,9 @@ export const DECLARED_GUARDS = {
   // new name carries a spec but one, Fit's "in that mode",
   // which had none under its old name either. Re-measured at its review
   // merge.
-  browser: { declared: 721, enrollable: 688, names: "3f0bc4d7c4e5" },
+  // Re-measured again at the same review's second merge, on top of
+  // a_study_is_a_translucent_group_on_the_dag.
+  browser: { declared: 723, enrollable: 690, names: "c84d7e05a385" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
