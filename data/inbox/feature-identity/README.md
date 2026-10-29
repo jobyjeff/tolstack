@@ -42,6 +42,21 @@ element means.
    `data/projections/feature-identity/` (derived, disposable, rebuild any
    time — see that script and `tolerance_stack/feature_identity.py`).
 
+## The kinds of file here
+
+- **`<NNNN>_<slug>.json`, `verdict: "bound"` or `"owner_not_in_set"`.** A
+  human's binding, or a human's finding that the owner is not in the set.
+  Written by `apps/annotate/`.
+- **`<NNNN>_<edge>_proposed.json`, `verdict: "proposed"`** (since 2026-10-28).
+  An agent's proposed face, with `confidence`, a one-line `basis` and
+  `recorded_by: "agent:<handoff-slug>"`. Written only by
+  `scripts/propose_bindings.py`. The fold never lets one stand: nothing is
+  bound until a human accepts it.
+- **`<NNNN>_<edge>_accepted.json`** is a `bound` event naming the proposal in
+  `ratifies`. **`<NNNN>_<edge>_rejected.json`** is `verdict: "rejected"`
+  naming it in `rejects`. Both are written by the annotator's Accept/Reject,
+  recorded as `annotate-app:<reviewer>`.
+
 ## What an event says
 
 A binding names a **stack-side key** (a topology edge or a stack element —

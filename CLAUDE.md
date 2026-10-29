@@ -64,7 +64,11 @@ traced ratio" — never restate the rule elsewhere).
   colour only: it never selects a face and never writes. Since 2026-10-28 a
   gap edge's two parts are compared too, in the assembly frame — the faces
   that touch, ranked with their evidence, behind the same fence
-  (`docs/ANNOTATION_SURFACE.md`, "Contact suggestions").
+  (`docs/ANNOTATION_SURFACE.md`, "Contact suggestions"). Since 2026-10-28 an
+  agent may *propose* a face, through `scripts/propose_bindings.py` only and
+  never as a binding: the annotator shows the proposal apart, and Jeff's
+  Accept or Reject is the event that counts (`docs/ANNOTATION_SURFACE.md`,
+  "Proposals").
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's
