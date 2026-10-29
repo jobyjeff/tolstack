@@ -6,10 +6,10 @@
     {
       "contract": "The header sits above the first grid row, measured.",
       "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
-      "note": "A header at the pane top is the inert-sticky defect.",
+      "note": "A header left at the top of the pane is the defect this replaced. (The pin rewrites style.top from the same number, so the mutation is on the number, not on the one style write.)",
       "file": "apps/viewer/views/topology.js",
-      "find": "    head.style.top = headTop + \"px\";",
-      "replace": "    head.style.top = \"0px\";"
+      "find": "    var headTop = bodyPad + gridTop - VA.DAG_FIT.headHeight;",
+      "replace": "    var headTop = 0;"
     }
   ]
 }
