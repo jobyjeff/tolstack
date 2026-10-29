@@ -1,5 +1,7 @@
 # BRIEF 2026-09-16 — the two propeller links are named three different ways: which source is authoritative, and do the committed ids get to stay wrong?
 
+> **CONSUMED 2026-10-29 — decided: the drawing title block is authoritative for display; committed ids never move; each link/plate node gains `display_name` + a `naming_note`. Item 2 of `docs/sessions/HANDOFF_20261029_the_rebuild_says_when_its_inputs_are_absent_and_a_link_is_named_by_its_drawing.md`.**
+
 > **Routing note.** Filed by the 2026-09-16 triage sweep from
 > `docs/issues/ISSUE_20260915_the_link_names_are_crossed_between_the_workbook_the_drawings_and_the_stacks.md`
 > (chore, low, `audience: strategy`, found by

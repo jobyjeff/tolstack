@@ -1,5 +1,7 @@
 # BRIEF 2026-09-14 — the hover-card mechanism needs an occlusion policy and an accessibility convention
 
+> **CONSUMED 2026-10-29 — Jeff decided the mechanism (his 2026-10-29 note): hover popups go; a preview section of the right-hand pane shows the hovered element and freezes on click. Staged as `docs/sessions/HANDOFF_20261029_a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark.md`; the accessible-name convention rides with it.**
+
 > Routed here by the triage sweep of 2026-09-14/15 from two issues that the
 > second one explicitly asks to be paired: it says the accessibility call
 > "belongs with whoever owns the hover-card mechanism as a whole — the same

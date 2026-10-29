@@ -1,5 +1,7 @@
 # BRIEF 2026-09-14 — the DAG spine layout's three unresolved geometry trade-offs
 
+> **CONSUMED 2026-10-29 — items 3 (scaled length modes) and 4 (row pitch) landed in `the_dag_is_zoomable_and_a_length_mode_draws_to_scale` and the compact band (2026-10-29); item 1 (leaders crossing) is Jeff's 2026-10-29 leader-anchor note, staged as `docs/sessions/HANDOFF_20261029_a_leader_starts_at_the_mark_it_names_on_every_tier.md`. (The 2026-09-30 partial marker below stands as history.)**
+
 > **PARTIALLY CONSUMED 2026-09-30 — item 2 decided by Jeff, live, on a `pitch_system` screenshot: column order MAY be chosen to minimise self-crossings ("moving the shorter legs to be closer to the trunk would help a lot"); the author-first root and the walk's row order stay. Measured the same day: as-allocated 32 link-over-rail crossings on `pitch_system`, shortest-leg-nearest 17, exact permutation minimum 7 → tolstack `HANDOFF_20260930_columns_ordered_to_minimise_crossings` (opus), which also carries item 1's no-regrets comment fix. Item 2's rider (the respine fade machinery): re-columning on SELECTION is still not greenlit — the new order is projection-time and identical on both sides of a respine, so the fade stays unreachable; its retirement is a separate small chore, not decided here. Items 1 (leaders cross each other), 3 (scaled length modes) and 4 (dynamic row pitch) remain open.**
 
 > Routed here by the triage sweep of 2026-09-14/15, which found three open issues
