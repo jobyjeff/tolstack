@@ -4176,7 +4176,10 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     await page.keyboard.press("0");
     await settle(250);
 
-    // --- the kinematic page: a bounded box ------------------------------------
+    // --- the kinematic page: the model unbounded, the page scrolls it --------
+    // (2026-10-28: the results moved to the right-hand pane, so the model is
+    // no longer a 50vh box with the numbers under it. The visible window is
+    // the viewport under the topbar, as on every other page.)
     if (!realResults || !realKinematic) {
       push("[real] the kinematic page's zoom (skipped: the projections are " +
         "not built -- build them, or pass --repo <main checkout>)", true);
@@ -4200,7 +4203,8 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     await settle(600);
     const kin = () => page.evaluate(() => {
       const pane = document.querySelector("#topopane");
-      const pr = pane.getBoundingClientRect();
+      const bar = document.querySelector(".topbar").getBoundingClientRect();
+      const pr = { top: bar.bottom, bottom: window.innerHeight };
       const lit = Array.from(pane.querySelectorAll("svg.tv__rails .rail__bar--on"))
         .map((n) => n.getBoundingClientRect());
       const head = pane.querySelector(".tv__zoom .tv__head").getBoundingClientRect();
@@ -4210,7 +4214,8 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         return b.bottom > pr.top + 1 && b.top < pr.bottom - 1;
       }).length;
       return {
-        bounded: pane.classList.contains("tv__scroll--bounded"),
+        bounded: pane.classList.contains("tv__scroll--bounded") ||
+          pane.scrollHeight > pane.clientHeight + 1,
         paneTop: pr.top, paneBottom: pr.bottom,
         litTop: Math.min(...lit.map((b) => b.top)),
         litBottom: Math.max(...lit.map((b) => b.bottom)),
@@ -4224,26 +4229,27 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       };
     });
     const kinStart = await kin();
-    push("[real] the kinematic page's model is a bounded box that arrives " +
-      "with the grid's header at its top",
-      kinStart.bounded && kinStart.rows > 0 &&
-      Math.abs(kinStart.headTop - kinStart.paneTop) < 3);
+    push("[real] the kinematic page's model has no box of its own: the page " +
+      "scrolls it, as on every other page",
+      !kinStart.bounded && kinStart.rows > 0);
     await page.locator("#dag-fit").click();
     await settle(300);
     const kinFit = await kin();
     console.log(`      kinematic fit: ${kinFit.lit} lit bars, scale ${kinFit.k.toFixed(3)}`);
-    push("[real] Fit brings the study's whole lit set into the bounded box in " +
+    push("[real] Fit brings the study's whole lit set into the window in " +
       "one step",
       kinFit.lit > 0 && kinFit.litTop >= kinFit.paneTop - 2 &&
       kinFit.litBottom <= kinFit.paneBottom + 2);
-    // Scroll the box down its grid: the header is held at its top while any
-    // grid row is in it.
-    await page.evaluate(() => { document.querySelector("#topopane").scrollTop += 700; });
+    // Scroll the page down the grid: the header is held under the topbar
+    // while any grid row is in view.
+    await page.evaluate(() => window.scrollBy(0, 700));
     await settle(150);
     const kinScrolled = await kin();
-    push("[real] scrolled down the grid, the header is held at the top of the " +
-      "bounded box whenever a grid row is in it",
+    push("[real] scrolled down the kinematic page's grid, the header is held " +
+      "under the topbar whenever a grid row is in view",
       kinScrolled.rows === 0 || Math.abs(kinScrolled.headTop - kinScrolled.paneTop) < 3);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await settle(150);
     await page.locator("#edge-length-toggle").click();
     await settle(300);
     await page.locator("#dag-fit").click();
@@ -4254,7 +4260,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     push("[real] on the kinematic page Lengths -> tolerance width visibly " +
       "changes bar lengths",
       kinDistinct.length >= 3);
-    push("[real] and Fit still brings the lit set into the box in that mode",
+    push("[real] and Fit still brings the lit set into the window in that mode",
       kinTol.litTop >= kinTol.paneTop - 2 && kinTol.litBottom <= kinTol.paneBottom + 2);
     return reportSuite(label, checks, errors);
   } catch (err) {
@@ -5416,8 +5422,8 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       "at either side and no hairline on its divider at rest",
       seams.scene === seams.page && seams.sceneBorders.every((w) => w === "0px") &&
       seams.navRule === "0px" && seams.dividerRule === "rgba(0, 0, 0, 0)");
-    push("the preview pane stands down while the scene is open on a topology page",
-      !seams.detailShown);
+    push("the right-hand pane stays beside the model while the scene is open on a " +
+      "topology page", seams.detailShown);
     const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
 
     // The drag seam, on the edge AWAY from the dock -- so the panel grows into
@@ -6481,8 +6487,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       (await headLine()) === "Sweep — " + mechanism);
 
     // --- the shell seats the scene beside the model (2026-10-26) -----------
-    // nav | scene | DAG + grid, left to right, the preview pane stood down,
-    // and the annotator's own rail drawn in the nav under the study row.
+    // nav | scene | DAG + grid | results, left to right (the results pane
+    // stays beside the grid since 2026-10-28), and the annotator's own rail
+    // drawn in the nav under the study row.
     const layout = await page.evaluate(() => {
       const box = (sel) => {
         const n = document.querySelector(sel);
@@ -6492,13 +6499,15 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       };
       return { nav: box("#navtree"), scene: box("#annotate-flyout"),
         dag: box("#topopane svg.tv__rails"), grid: box(".tv__main"),
-        detail: getComputedStyle(document.querySelector("#detail")).display };
+        detail: box("#detail"), chart: box("#detail figure.kmchart"),
+        shown: getComputedStyle(document.querySelector("#detail")).display };
     });
-    push("[real] the kinematic page reads nav | scene | DAG, left to right, with " +
-      "no preview pane",
-      layout.nav && layout.scene && layout.dag && layout.nav.x <= 1 &&
-      Math.abs(layout.scene.x - layout.nav.right) <= 1 &&
-      layout.dag.x >= layout.scene.right - 1 && layout.detail === "none");
+    push("[real] the kinematic page reads nav | scene | DAG | results, left to " +
+      "right, the chart in the results pane",
+      layout.nav && layout.scene && layout.dag && layout.detail && layout.chart &&
+      layout.nav.x <= 1 && Math.abs(layout.scene.x - layout.nav.right) <= 1 &&
+      layout.dag.x >= layout.scene.right - 1 && layout.shown !== "none" &&
+      layout.detail.x >= layout.grid.right - 8 && layout.chart.w > 0);
     const embedded = await inPane((w) => {
       const rail = w.document.querySelector(".an__rail");
       const host = w.document.querySelector("#canvas-host").getBoundingClientRect();
@@ -6834,8 +6843,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       await page.locator(`tr.kmrow--selected[data-edge="${bound.edge}"]`).count() === 1);
 
     // --- 6. the room the DAG and grid get on a chain study ------------------
-    // With the scene at its floor it is at least the room they had with no
-    // scene open at all (the preview pane in its place, at its own default).
+    // With the scene at its floor and the results pane beside them, the DAG
+    // and grid keep at least the room the scene's clamp reserves for them;
+    // closing the scene gives its column back to them.
     await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
     await page.waitForSelector("svg.tv__rails", { timeout: 15000 }).catch(() => {});
     const floorSeam = await page.locator("#flyout-divider").boundingBox();
@@ -6849,6 +6859,8 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       scene: Math.round(document.querySelector("#annotate-flyout").getBoundingClientRect().width),
       main: Math.round(document.querySelector(".tv__main").getBoundingClientRect().width),
       floor: window.ViewerApp.FLYOUT_WIDTH.min,
+      reserve: window.ViewerApp.FLYOUT_WIDTH.reserve,
+      detail: getComputedStyle(document.querySelector("#detail")).display,
     }));
     await page.locator("#flyout-collapse").click({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction(() => !document.body.classList.contains("flyout-open"),
@@ -6859,11 +6871,13 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     }));
     console.log(`    [chain study at 1600] DAG + grid: ${atFloor.main}px with the scene at ` +
       `its ${atFloor.scene}px floor, ${noPane.main}px with no scene open`);
-    push("[real] on a chain study at 1600 wide, the DAG and grid get at least as " +
-      "much room with the scene at its floor as with no scene open",
-      atFloor.scene === atFloor.floor && atFloor.main >= noPane.main && noPane.main > 0);
-    push("[real] ...and closing the scene brings the preview pane back",
-      noPane.detail !== "none");
+    push("[real] on a chain study at 1600 wide, the DAG and grid keep the scene's " +
+      "reserve with the scene at its floor and the results pane beside them",
+      atFloor.scene === atFloor.floor && atFloor.main >= atFloor.reserve &&
+      atFloor.detail !== "none");
+    push("[real] ...and closing the scene gives its column to the DAG and grid, " +
+      "the results pane still there",
+      noPane.main > atFloor.main && noPane.detail !== "none");
 
     if (SHELL_SCENE_SHOTS) {
       // The same two pages at 1920, the scene at its default width.
@@ -9899,18 +9913,29 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await page.locator("div.kmverdict").count() === 2 &&
       await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops") +
         ".navtree__row--on").count() === 1);
-    // The head above the model, the model above the chart, the preview pane
-    // beside them all.
-    const order = await page.evaluate(() => {
-      const top = (sel) => document.querySelector(sel).getBoundingClientRect().top;
-      return [top("#kinematichead"), top("#topopane"), top("figure.kmchart")];
+    // The page every study page is (2026-10-28): the model over its
+    // contributor table in the main column, and the results -- name,
+    // verdicts, chart, readouts -- at the top of the right-hand pane, over
+    // the selection's preview.
+    const shape = await page.evaluate(() => {
+      const box = (sel) => {
+        const n = document.querySelector(sel);
+        return n ? n.getBoundingClientRect() : null;
+      };
+      return { pane: box("#topopane"), table: box("#kinematicview table.kmtable"),
+        main: box(".tv__main"), detail: box("#detail"),
+        verdicts: box("#detail div.kmverdict"), chart: box("#detail figure.kmchart"),
+        readouts: box("#detail table.kmreadouts"), preview: box("#detail .detail__preview") };
     });
-    push("the kinematic page draws the model between its verdicts and its chart, " +
-      "with the preview pane beside it",
+    push("the kinematic page draws the model over its contributors in the main " +
+      "column, and its verdicts and chart at the top of the right-hand pane",
       await page.locator("#topopane svg.tv__rails").isVisible() &&
-      await page.locator("#detail").isVisible() &&
-      await page.locator("figure.kmchart svg").isVisible() &&
-      order[0] < order[1] && order[1] < order[2]);
+      await page.locator("#detail figure.kmchart svg").isVisible() &&
+      shape.table && shape.pane.top < shape.table.top &&
+      shape.verdicts && shape.chart && shape.readouts && shape.preview &&
+      shape.detail.left >= shape.main.right - 8 &&
+      shape.verdicts.top < shape.chart.top && shape.chart.top < shape.readouts.top &&
+      shape.readouts.top < shape.preview.top);
     await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops")).click();
@@ -9942,6 +9967,42 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         /marginal/.test(verdicts[1]) && /margin -0\.839 deg/.test(verdicts[1]) &&
         await page.locator("div.kmverdict span.tvverdict--marginal").count() === 2);
 
+      // Both tolerances on the plot (2026-10-28): each stop a band on x, the
+      // envelope carried across it, labelled once, and the one line under the
+      // chart that says both stops carry the band -- all in the right-hand
+      // pane, the chart at its own drawn size there.
+      const plot = await page.evaluate(() => {
+        const svg = document.querySelector("#detail figure.kmchart svg");
+        const detail = document.querySelector("#detail");
+        return {
+          bands: [...document.querySelectorAll("#detail rect.kmchart__band")]
+            .map((n) => n.getAttribute("data-stop")),
+          regions: document.querySelectorAll("#detail polygon.kmchart__region").length,
+          labels: [...document.querySelectorAll("#detail text.kmchart__bandlabel")]
+            .map((n) => n.textContent),
+          note: (document.querySelector("#detail p.kmchart__note") || {}).textContent || "",
+          axis: [...document.querySelectorAll("#detail text.kmchart__axis")]
+            .map((n) => n.textContent),
+          chartWidth: svg ? Math.round(svg.getBoundingClientRect().width) : 0,
+          drawnWidth: svg ? Number(svg.getAttribute("width")) : 0,
+          paneWidth: Math.round(detail.getBoundingClientRect().width),
+        };
+      });
+      console.log(`      results pane ${plot.paneWidth}px, chart ${plot.chartWidth}px ` +
+        `of its ${plot.drawnWidth}px`);
+      push("[real] the plot draws both stops as travel bands, labelled once, with the " +
+        "line that says both carry it",
+        plot.bands.filter((b) => b === "minus7").length === 2 &&
+        plot.bands.filter((b) => b === "plus72").length === 2 && plot.regions === 4 &&
+        plot.labels.length === 1 &&
+        plot.labels[0] === "Travel between end stops 63.620–65.260 mm" &&
+        /^Both stops carry the whole travel band/.test(plot.note) &&
+        plot.axis.indexOf("actuator travel, mm (swept 0.000–64.466; travel study " +
+          "nominal 64.440)") !== -1);
+      push("[real] the chart fits the results pane at its default width without " +
+        "scaling its text down", plot.chartWidth >= plot.drawnWidth - 1 &&
+        plot.chartWidth <= plot.paneWidth);
+
       // The model: the study's twenty-one lit edges on (six contributors, the
       // three edges three of them borrow a band from, the four edges the
       // travel study's terms stand on, the five joints between lit nodes and
@@ -9962,7 +10023,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         await page.locator("#topopane .rail__bar--off").count(),
         await page.locator("#topopane tr.tvrow--edge").count()];
       const dimmed = await litCounts();
-      push("[real] above the fold, the verdicts; under them the model, the study's " +
+      push("[real] on the first screen, the verdicts beside the model, the study's " +
         "contributors and the edges they stand on lit and the rest dimmed",
         fold.verdicts < fold.viewport && fold.paneTop < fold.viewport &&
         dimmed[0] === 21 && dimmed[1] === 74 && dimmed[2] === 13);
