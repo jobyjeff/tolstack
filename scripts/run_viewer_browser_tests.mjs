@@ -4247,11 +4247,15 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     await page.evaluate(() => {
       const bar = document.querySelector(".topbar").getBoundingClientRect().bottom;
       const rows = document.querySelectorAll("#topopane tr.tvrow");
-      const row = rows[Math.min(rows.length - 1, 3)];
-      if (row) window.scrollBy(0, row.getBoundingClientRect().top - bar - 40);
+      // The middle row to just under the bar: the header's own place is
+      // then well above the window, so only a pin can hold it there.
+      const row = rows[Math.floor(rows.length / 2)];
+      if (row) window.scrollBy(0, row.getBoundingClientRect().top - bar - 10);
     });
     await settle(150);
     const kinScrolled = await kin();
+    console.log(`      kinematic grid scrolled: rows in view ${kinScrolled.rows}, header ` +
+      `${Math.round(kinScrolled.headTop)} against the topbar's ${Math.round(kinScrolled.paneTop)}`);
     push("[real] scrolled down the kinematic page's grid, the header is held " +
       "under the topbar whenever a grid row is in view",
       kinScrolled.rows > 0 && Math.abs(kinScrolled.headTop - kinScrolled.paneTop) < 3);
@@ -5707,12 +5711,15 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         const liveRails = await page.evaluate(() => {
           const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
           const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
-          return { w: Math.round(r.width), left: Math.round(r.left), clear: r.left >= p.right };
+          // Flush is clear: the two meet on a sub-pixel seam, so within 1px.
+          return { w: Math.round(r.width), left: Math.round(r.left), clear: r.left >= p.right - 1 };
         });
+        console.log(`      live drawing ${liveRailsBefore.w}px -> ${liveRails.w}px, its left ` +
+          `${liveRails.left} against the panel's right ${Math.round(livePanel.x + livePanel.width)}`);
         push("[real] the whole live drawing is clear of the panel, at its own " +
           "measured width",
           liveRails.w === liveRailsBefore.w && liveRails.clear &&
-          liveRails.left >= livePanel.x + livePanel.width);
+          liveRails.left >= livePanel.x + livePanel.width - 1);
         // ...and dragged as wide as it will go, still clear. This is the leg
         // the mock cannot run: at 262px the drawing is under the floor, so
         // what bounds the panel here is the same arithmetic either way -- but
