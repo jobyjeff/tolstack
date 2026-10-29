@@ -1383,12 +1383,19 @@ def test_the_annotators_config_names_the_read_set_the_builder_writes():
 
 
 def test_the_open_question_the_kinematic_chart_links_to_is_on_file():
-    """The kinematic chart's one line about a travel band carried at both
-    stops links to the issue that asks which stop it belongs to
-    (views/kinematic.js's VA.KINEMATIC_TRAVEL_DATUM_ISSUE). A link to a
+    """The kinematic chart's datum line links to the issue that records the
+    ruling on which stop is the datum (views/kinematic.js's
+    VA.KINEMATIC_TRAVEL_DATUM_ISSUE). A link to a
     renamed or missing file is a dead end on a reader's page."""
     import re  # noqa: PLC0415
 
+    issues = REPO_ROOT / "docs" / "issues"
+    if not any(issues.iterdir()):
+        # The mutation-witness shadow carries docs/issues/ empty on purpose
+        # (scripts/run_mutation_witness_tests.mjs, SHADOW_EMPTY_DIRS); a
+        # checkout never has it empty. Without this the whole python tier of
+        # this file is red in every shadow and none of its witnesses can run.
+        pytest.skip("docs/issues/ is empty: the mutation-witness shadow tree")
     view = (REPO_ROOT / "apps" / "viewer" / "views" / "kinematic.js").read_text(
         encoding="utf-8")
     found = re.search(r'VA\.KINEMATIC_TRAVEL_DATUM_ISSUE =\s*"([^"]+)"', view)
