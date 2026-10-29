@@ -110,3 +110,75 @@
 
 Nothing: the worktree was clean, and I touched the main checkout only under
 gitignored `data/scratch/`.
+
+## What the unbounded page did to older checks
+
+- Leaders suite: after a contributor click the check scrolled the page to the
+  top, where the tangential link's dots no longer are (the old box had
+  scrolled itself to the row). It now scrolls to the selected grid row, and
+  so does the scene-pick comparison. At hide the window shows 12 leaders where
+  the 50vh box showed 6–10, so the check reads "at least six" (renamed, its
+  spec moved).
+- Two older witnesses showed their defect only because a closed scene used to
+  leave the preview pane hidden: `c85739df` was re-aimed (the closed scene
+  laid out anyway), and `09a1cf0a`'s second mutation (clamping the stored
+  width at boot) was retired with the reason in its spec.
+- `annotate flyout`'s "whole live drawing is clear of the panel" failed twice
+  in four runs on an exact-adjacency comparison (860 against 860, sub-pixel).
+  It is now within 1 px.
+- `d42adbc7` stays NOT WITNESSED: a pre-existing decay already filed on
+  integration (`ISSUE_20261028_the_contributor_row_highlight_witness_aborts_before_its_check.md`).
+
+## Integration moved while this ran: the merge conflicts, for the reviewer
+
+`the_active_study_is_a_compact_band_…` landed on integration mid-session. It
+kept the 50vh box and made a study arrival **frame** the lit set
+(`fitDagTo(true)` after the respine settles). This handoff removed the box.
+The two compose: `fitDagTo` falls back to the window when the pane is not
+bounded, and the results pane is sticky, so the arrival frame scrolls the
+model and leaves the results in view. `git merge-tree HEAD integration`
+reports three textual conflicts (topology_app.js auto-merges):
+
+1. `scripts/guard_enumeration.mjs`: both re-pinned. Re-measure after the
+   merge (`node scripts/run_mutation_witness_tests.mjs --unenrolled`) and keep
+   both comments.
+2. `scripts/run_viewer_browser_tests.mjs` ~:4277: integration's "bounded box
+   that arrives with the study framed" against this branch's "no box of its
+   own". Keep the unbounded check and fold in integration's framing
+   assertion against the window: `!kinStart.bounded && kinStart.lit > 0 &&
+   kinStart.litTop >= kinStart.paneTop - 2 && kinStart.litBottom <=
+   kinStart.paneBottom + 2` (`kin()`'s pane rect is the window here).
+3. The "at least six leaders" spec: both branches renamed the same guard to
+   the same name (add/add plus rename/delete). Keep one file and either note.
+   ~:11783 is comment-only.
+
+I did not merge integration into this branch. No merge is this session's to
+make.
+
+## Verification record
+
+Run from this worktree. The data tiers ran against the scratch root
+`C:\workspace\tolstack\data\scratch\kinband` (kinematic projection rebuilt
+there from this branch's committed tree, other projections copied, the rest
+of `data/` and `node_modules` junctioned read-only from the main checkout):
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`: 1594
+  passed, 1 skipped, 1 failed, 309 s, single process (no xdist in venv-win).
+  The failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+  the deliberate worktree red (no projection under the worktree). That tier
+  ran separately, below. After the last pin and spec edits I re-ran
+  `-k "guard or witness or enumeration or kinematic"`: 131 passed.
+- `node apps/viewer/run_tests.cjs --repo <scratch>`: 605/605, `[real]` tier
+  included, final commit.
+- `node apps/annotate/run_tests.cjs --repo <scratch>`: 246/246.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch>`: the full run
+  was 33/35 suites in 336 s (zoom and leaders red, above). After the fixes,
+  those two plus `annotate flyout` (twice) were re-run with `--only` and are
+  green: 26/26, 17/17, 46/46. The kinematic suite is 19/19 plus my two new
+  checks. I did not repeat the full tier after the last test edits.
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch>
+  --changed-since integration`: 38/45 witnessed, 45/45 reached, 0 left to
+  the sweep, 25m46s. The six misses this diff caused were repaired, and each
+  was re-checked with `--only` and is WITNESSED: `fb0d661d`, `671f9aed`,
+  `e93b7a99`, `30676e29`, `c85739df`, `09a1cf0a`. `d42adbc7` is pre-existing
+  (above).
