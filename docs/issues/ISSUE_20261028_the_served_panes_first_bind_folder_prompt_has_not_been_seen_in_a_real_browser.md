@@ -7,6 +7,7 @@ reporter: agent
 needs: jeff
 ask: In the viewer's 3D pane on port 8000, bind one face, pick the tolerance-stack folder when asked, and check the event file appears
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
+todo: 20261029T103459_anknms
 ---
 
 # The served pane's first-bind folder prompt has not been seen in a real browser
