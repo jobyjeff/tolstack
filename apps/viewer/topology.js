@@ -2503,12 +2503,14 @@
   // The walk re-arranged around `lit`: the rows above the band, the band, the
   // rows below it (VA.bandSides), as one layout. The band takes the columns
   // nearest the spine -- 0..k-1 here, the rightmost once VA.spineRight mirrors
-  // them -- so every leader leaves a lit dot toward the grid without crossing
-  // a single rail of the unlit model; the rest of the walk keeps its own
-  // columns, moved out by k, and takes another only where its own is now
-  // occupied (a rail that used to end before the band started can run on into
-  // it). Applied to the PROJECTION's layout, before collapsing and mirroring,
-  // like VA.hideUnlit.
+  // them -- and they are reserved over the band's rows, so every leader leaves
+  // a lit dot toward the grid without crossing a single rail of the unlit
+  // model. The rest of the walk keeps its own columns wherever they are free
+  // (above and below the band that is nearly everywhere, so the model around
+  // the band looks as it does in the walk) and takes the lowest free one where
+  // not. Measured on the product model: no study widens the walk. Applied to
+  // the PROJECTION's layout, before collapsing and mirroring, like
+  // VA.hideUnlit.
   //
   // `options.only`: the band alone, renumbered from row 0 -- what the page
   // draws with the unlit model hidden, so hiding is the same picture as the
