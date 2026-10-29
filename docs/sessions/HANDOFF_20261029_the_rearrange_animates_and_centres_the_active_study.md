@@ -1,6 +1,6 @@
 ---
 priority: med
-depends_on: [the_dag_zoom_leaves_the_grid_and_the_page_alone]
+depends_on: [the_wheel_the_column_and_fit_behave]
 model: sonnet
 hitl: false
 ---
@@ -10,8 +10,8 @@ hitl: false
 Source: Jeff's forge note `20261029T121242_jlanwy` / `20261029T135845_jdy8k2`,
 consumed by the 2026-10-29 strategy session
 (`dispatch/docs/strategy/HANDOFF_20261029_strategy.md`). Baseline: `master`
-with `the_dag_zoom_leaves_the_grid_and_the_page_alone` landed (Fit and zoom
-scope are its; this handoff reuses them). Scope: `apps/viewer/views/topology.js`
+with `the_wheel_the_column_and_fit_behave` landed (Fit is its; this handoff
+reuses it; the DAG-only zoom lands later with the leader handoff). Scope: `apps/viewer/views/topology.js`
 (the respine / band re-layout transition), `apps/viewer/topology_app.js`
 (arrival), `apps/viewer/tests.js`, the browser tier. Do NOT touch leaders,
 `#detail`, `kinematic.js`, the toolbar's group/unlit controls.

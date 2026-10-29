@@ -14,11 +14,12 @@ consumed by the 2026-10-29 strategy session
 consumed `docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md`
 (leaders crossing). Baseline: `master` with the datum handoff landed (it
 rewrites `kinematic.js`, which draws nothing you need but shares the pane).
-Scope: the leader-drawing code in `apps/viewer/topology_app.js` and the
+Scope: the leader-drawing code in `apps/viewer/topology_app.js`, the zoom
+transform root in `apps/viewer/views/topology.js` (deliverable 0 only), and the
 scene's anchor export in `apps/annotate/` (`__lastAnchors`, the seam
 messages), `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs`
-(`testSeamLeaders`). Do NOT touch zoom/Fit/toolbar/grid layout
-(`the_dag_zoom_leaves_the_grid_and_the_page_alone`) or the hover/preview
+(`testSeamLeaders`). Do NOT touch the wheel handler, Fit or the grid's column layout
+(`the_wheel_the_column_and_fit_behave`) or the hover/preview
 mechanism (`a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark`).
 
 Jeff's words:
@@ -68,6 +69,21 @@ is the test-side symptom of the same race.
 
 ## Deliverables
 
+0. **The DAG zooms alone, and the leaders bridge two scales** (moved here
+   2026-10-29 from `the_dag_zoom_leaves_the_grid_and_the_page_alone`, whose
+   agent stopped because this is leader code; its issue
+   `docs/issues/ISSUE_20261029_dag_only_zoom_needs_leaders_that_bridge_two_scales.md`
+   recommends exactly this). Today one `.tv__zoom` transform scales the
+   column header, the DAG's SVG and the grid rows together
+   (`views/topology.js` ~418–480), and the in-SVG leaders end at y
+   positions the two share. Decision: **the grid stays at scale 1**, the
+   transform covers the DAG's SVG only, and every leader end on the grid
+   side is computed from the grid row's own unscaled position while the
+   DAG end is computed from the scaled SVG rect — which is the "anchors
+   measured at draw time" rule below applied to the DAG↔grid seam. The
+   page-level overlay already works from the scaled rect. Resolve that
+   issue (`status: resolved`, pointing here) when it lands; the three
+   fixes it says are independent are `the_wheel_the_column_and_fit_behave`.
 1. The anchor source rewritten as above; the stale cache gone or invalidated
    on the events listed.
 2. Browser checks: for each of the two screenshot cases (edge
