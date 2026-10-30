@@ -5305,6 +5305,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261029_a_balls_seat_ranks_the_companion_bore_over_…`). Build the
       projection into a scratch `--data-root` to read the ranks; the builder
       takes ~2–5 min since `AXIS_INTERFACES` fits every hub face.
+- [ ] **A python test that reads a `SHADOW_EMPTY_DIRS` directory turns its
+      whole file's `python__` witnesses NOT WITNESSED, and nothing goes red.**
+      New 2026-10-29 (`the_plus72_stop_is_the_travel_datum`). The witness
+      shadow carries `docs/issues/` and `docs/reference/` empty on purpose
+      (`scripts/run_mutation_witness_tests.mjs`). The 10-28 test
+      `test_the_open_question_the_kinematic_chart_links_to_is_on_file` read an
+      issue file, so the unmutated run of `tests/test_kinematic.py` was red in
+      every shadow, and all eight of that file's witnesses decayed on
+      integration. For a new test that opens a file under either directory,
+      check that it skips when the directory is empty. Skip on the directory
+      being empty, never on the file being missing.
+- [ ] **A stop-offset (x-interval) band is drawn as symmetric halves about the
+      stop's driver value.** Same handoff. `VA.kinematicTravelBands` reads
+      `x_interval.worst_case_half` / `rss_half` and ignores `worst_case_min/max`.
+      The fold in `kinematic.fold_at_stop` uses the true min/max. The two agree
+      only while the chain is symmetric, as the travel study is today. When the
+      hub-anchor chain (or any asymmetric driver ref) lands, compare the band's
+      drawn corners with the stop's swept `worst_case_min/max`.
 
 ## Architectural errors to check
 
