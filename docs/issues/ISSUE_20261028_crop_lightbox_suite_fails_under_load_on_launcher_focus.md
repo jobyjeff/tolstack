@@ -23,3 +23,11 @@ A fixed-timeout wait on focus should poll for it instead. Same night, one witnes
 ## Resolved 2026-10-29
 
 Fixed in 083ba71b (handoff `viewer_browser_checks_wait_on_settled_state`): the check waits on a settled state under a deadline of seconds.
+
+## 2026-10-30 — seen again (a_leader_starts_at_the_mark_it_names_on_every_tier)
+
+Aborted after 2 sub-checks in a full `node scripts/run_viewer_browser_tests.mjs
+--repo C:/workspace/tolstack` run with `pytest -q` running alongside:
+`page.waitForSelector: Timeout 10000ms exceeded` waiting for
+`#crop-lightbox[open]` (the open itself this time, not the launcher focus).
+The suite alone right after: 20/20.
