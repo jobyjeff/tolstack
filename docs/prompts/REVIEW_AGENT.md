@@ -5345,6 +5345,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the only other hit allowed is bind mode's form (`buildBindForm`), and it
       leaves an open proposal standing (bound wins in the fold) until that page
       goes. A new surface that writes events itself is a finding.
+- [ ] **A per-event gesture that used to set a transform now repaints.** New
+      2026-10-30 (`a_leader_starts_at_the_mark_it_names_on_every_tier`). When
+      the DAG's zoom moved into the rails SVG, `VA.applyTopoZoom` started
+      calling `root.topoRezoom` (a full `renderTopoPane`) on every `wheel`
+      event, and no tier times a gesture. When a diff moves a zoom, pan or drag
+      from CSS into geometry, trace the handler down to the paint. Ask for a
+      timing, or for a one-per-frame coalesce
+      (`ISSUE_20261030_a_wheel_zoom_repaints_the_whole_topology_pane_on_every_wheel_event.md`).
 
 ## Architectural errors to check
 
