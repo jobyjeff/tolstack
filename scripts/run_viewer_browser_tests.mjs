@@ -6202,6 +6202,13 @@ async function installRealAnnotatorReads(page, seed) {
       // The synthetic binding, resolved when it is read: faces of the first
       // part the sweep opened, so it is a part that is in the scene.
       const b = seed.binding;
+      // `binding: "real"`: the feature-identity projection and the contact
+      // suggestions on disk, as built -- an agent's open proposals included.
+      if (b === "real") {
+        P.readFeatureIdentityProjection = async () => json("/projections/feature-identity/bindings.json");
+        P.readContactSuggestions = async () => json("/projections/feature-identity/contact_suggestions.json");
+        return true;
+      }
       // `binding: "window"`: whatever the check has put on the frame's own
       // `__truthStackKeys`, read when the projection is read.
       if (b === "window") {
@@ -7424,6 +7431,339 @@ async function testAnnotateArmedPick(browser, label) {
     await page.close();
     server.close();
   }
+}
+
+// --- a rail row with a proposal (a_rail_row_with_a_proposal_says_so_and_
+// accepts_it_in_place) ----------------------------------------------------------
+//
+// ?mock=1, the synthetic crank-slider, as the armed pick suite sets it up (node
+// `a` given the demo triangle). An init script adds, as the fixture is read,
+// either an agent's open proposal on demo_edge_traced's `from` end (face 0) or
+// -- `candidates` -- the contact engine's ranked pairs on that edge and no
+// proposal. Writes are the mock adapter's captured list. Then the same rail on
+// P2 and the topology-level bind rail over the REAL feature-identity
+// projection, counted against the projection read here, off disk.
+async function openSuggestionPage(browser, url, mode, errors, extra) {
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript((mode) => {
+    const AA = window.AnnotateApp = window.AnnotateApp || {};
+    let fixtures;
+    Object.defineProperty(AA, "FIXTURES", {
+      configurable: true,
+      get() { return fixtures; },
+      set(v) {
+        const demo = v.topologyProjection.topologies.find((t) => t.id === "demo_system");
+        demo.nodes.find((n) => n.id === "a").parts = ["demo_triangle"];
+        const key = { kind: "topology_edge", topology_id: "demo_system", edge_id: "demo_edge_traced" };
+        if (mode === "proposal") {
+          v.featureIdentityProjection.stack_keys.push({
+            stack_key: key, state: "proposed", bindings: [], owner_not_in_set: [], superseded: [],
+            history: ["proposal-0009-demo_edge_traced-from"],
+            proposals: [{
+              schema: "joby.tolerance_stack/feature-identity/v0",
+              event_id: "proposal-0009-demo_edge_traced-from", seq: 9,
+              created_at: "2026-10-29T00:00:00Z",
+              recorded_by: "agent:a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place",
+              stack_key: key, verdict: "proposed",
+              geometry_key: { source_step_sha256: v.demoSha, face_id: 0,
+                area_native2: 0.5, centroid_native: [0.33, 0.33, 0] },
+              direction: "from", confidence: "high", surface_class: "planar",
+              basis: "flat face; the one face of the demo triangle",
+            }],
+            rejected_proposals: [], accepted_proposals: [],
+          });
+        } else {
+          v.contactSuggestions.topologies.push({ id: "demo_system", edges: [{
+            edge: "demo_edge_traced", status: "ok", pairing: "plane_on_plane",
+            from: { node: "a" }, to: { node: "b" }, ambiguous_with: [],
+            candidates: [1, 2, 3].map((rank) => ({ rank, relation: "contact", score: rank,
+              from: { sha256: v.demoSha, surface: "planar", faces: [rank === 1 ? 1 : 0] },
+              to: { sha256: "1".repeat(63), surface: "planar", faces: [0] },
+              evidence: {}, box: { min: [0, 0, 0], max: [1, 1, 1] } })),
+          }] });
+        }
+        fixtures = v;
+      },
+    });
+  }, mode);
+  await page.goto(url + "?mock=1" + (extra || ""), { waitUntil: "load" });
+  return page;
+}
+
+async function testAnnotateRailSuggestion(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const ROW = '#sweep-tree .tree-row[data-feature="a"]';
+  const BRACKET = "1".repeat(63);
+  const enterSweep = async (page) => {
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    await page.evaluate(() => window.AnnotateApp.exec(["sweep", "synthetic-demo-sweep"]));
+    await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree") &&
+      window.__scene.listOpenParts().length > 0, null, { timeout: 15000 });
+    await page.evaluate((b) => window.AnnotateApp.exec(["show", b]), BRACKET);
+    await page.evaluate(() => { document.querySelector('#sweep-tree [data-joint="pitch_link"]').open = true; });
+    await page.waitForSelector(ROW, { timeout: 5000 });
+  };
+  const read = (page) => page.evaluate(([sel, bracket]) => {
+    const s = window.__scene;
+    const sha = window.AnnotateApp.FIXTURES.demoSha;
+    const li = document.querySelector(sel);
+    const line = li && li.querySelector(".tree-row__face");
+    const mesh = s.parts.get(sha);
+    const centre = mesh ? mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrix)
+      .getCenter(s.camera.position.clone()) : null;
+    return {
+      line: line ? line.textContent : null,
+      suggestedColour: !!(line && line.classList.contains("tree-row__face--suggested")),
+      title: li ? li.title : "",
+      buttons: li ? Array.from(li.querySelectorAll(":scope > button")).map((b) => b.textContent) : [],
+      selected: !!(li && li.classList.contains("selected")),
+      focus: s.suggestionFocus(),
+      drawn: mesh ? s.drawnPlacements(sha).length : 0,
+      bracketGhost: s.isGhosted(bracket), triangleGhost: s.isGhosted(sha),
+      targetToPart: centre ? centre.distanceTo(s.controls.target) : null,
+      armed: !!(window.__sweep && window.__sweep.armed),
+      writes: (window.__mockWrites || []).map((w) => ({ filename: w.filename, event: w.event })),
+    };
+  }, [ROW, BRACKET]);
+
+  // --- 1. the row says so, and selecting it lights the face -------------------
+  let page = await openSuggestionPage(browser, url, "proposal", errors);
+  try {
+    await enterSweep(page);
+    const rest = await read(page);
+    push("a joint end with an open proposal reads 'suggested · high' in the suggestion colour, " +
+      "with who and why on the hover and no action until it is selected",
+      rest.line === "suggested · high" && rest.suggestedColour &&
+      rest.title.indexOf("Proposed by agent (high): flat face; the one face of the demo triangle") !== -1 &&
+      rest.buttons.length === 0 && !/proposal|ratif|[0-9a-f]{12}/.test(rest.line));
+    await page.locator(ROW).click();
+    await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null,
+      { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__scene.suggestionFocus().markerEmphasised, null,
+      { timeout: 15000 }).catch(() => {});
+    const lit = await read(page);
+    push("selecting the row draws the proposed face SOLID on every occurrence of its part",
+      lit.selected && lit.focus.solid && lit.focus.faces.length === 1 &&
+      lit.focus.faces[0].faceId === 0 && lit.focus.faces[0].drawn === lit.drawn && lit.drawn > 0);
+    push("...frames the camera on it, dims every other part, and emphasises the node's hollow marker",
+      lit.targetToPart !== null && lit.targetToPart < 0.5 && lit.bracketGhost && !lit.triangleGhost &&
+      lit.focus.node === "a" && lit.focus.markerEmphasised);
+    push("the selected row offers Accept and Pick a different face, and nothing else",
+      JSON.stringify(lit.buttons) === JSON.stringify(["Accept", "Pick a different face"]));
+    await page.locator(ROW + " .tree-row__accept").click();
+    await page.waitForFunction(() => (window.__mockWrites || []).length > 0, null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((sel) => {
+      const n = document.querySelector(sel + " .tree-row__face");
+      return n && /^bound/.test(n.textContent);
+    }, ROW, { timeout: 5000 }).catch(() => {});
+    const accepted = await read(page);
+    const e = (accepted.writes[0] || {}).event || {};
+    push("Accept writes one `bound` event that ratifies the proposal, at its end and face, as the reviewer",
+      accepted.writes.length === 1 && e.verdict === "bound" &&
+      e.ratifies === "proposal-0009-demo_edge_traced-from" && e.direction === "from" &&
+      e.geometry_key.face_id === 0 && e.recorded_by === "annotate-app:jeff" &&
+      /_accepted\.json$/.test(accepted.writes[0].filename));
+    push("...the row reads bound, the solid face and the dimming come down, and Pick is back",
+      accepted.line === "bound · face 0" && !accepted.suggestedColour &&
+      !accepted.focus.faces.length && !accepted.bracketGhost === !rest.bracketGhost &&
+      accepted.buttons.indexOf("Re-pick") !== -1);
+  } catch (err) {
+    await page.close();
+    server.close();
+    return reportAbortedSuite(label, checks, errors, err);
+  }
+  await page.close();
+
+  // --- 2. pick a different face: rejected, then bound, in one click -----------
+  page = await openSuggestionPage(browser, url, "proposal", errors);
+  try {
+    await enterSweep(page);
+    await page.locator(ROW).click();
+    await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null, { timeout: 5000 });
+    await page.locator(ROW + " .tree-row__pick-other").click();
+    await page.waitForFunction(() => window.__sweep.armed && window.__scene.pickFilter(), null, { timeout: 5000 });
+    const armed = await read(page);
+    push("Pick a different face arms the pick exactly as Pick does, and the selected face's fill goes",
+      armed.armed && armed.line === "at the as-modelled pose for picking" && !armed.focus.faces.length);
+    await page.evaluate(() => window.__scene.onPick(
+      { sha256: window.AnnotateApp.FIXTURES.demoSha, faceId: 1 }, null, null));
+    await page.waitForFunction(() => (window.__mockWrites || []).length >= 2 && !window.__sweep.armed,
+      null, { timeout: 5000 }).catch(() => {});
+    const answered = await read(page);
+    const [r, b] = answered.writes.map((w) => w.event);
+    push("the face then clicked writes `rejected` for the proposal and then `bound` for that face, " +
+      "both as the reviewer, numbered in that order",
+      answered.writes.length === 2 && r && b && r.verdict === "rejected" &&
+      r.rejects === "proposal-0009-demo_edge_traced-from" && b.verdict === "bound" &&
+      b.geometry_key.face_id === 1 && b.direction === "from" && !b.ratifies &&
+      r.recorded_by === "annotate-app:jeff" && b.recorded_by === "annotate-app:jeff" &&
+      b.seq === r.seq + 1 && /_rejected\.json$/.test(answered.writes[0].filename) &&
+      answered.writes[0].filename < answered.writes[1].filename);
+    push("...and the end reads bound to the face picked, with the suggestion gone",
+      answered.line === "bound · face 1" && !answered.suggestedColour);
+  } catch (err) {
+    await page.close();
+    server.close();
+    return reportAbortedSuite(label, checks, errors, err);
+  }
+  await page.close();
+
+  // --- 3. ranked, never proposed: candidates, dashed --------------------------
+  page = await openSuggestionPage(browser, url, "candidates", errors);
+  try {
+    await enterSweep(page);
+    const rest = await read(page);
+    push("an end the contact engine ranked and nobody proposed reads 'candidates · 3' and keeps plain Pick",
+      rest.line === "candidates · 3" && rest.suggestedColour &&
+      JSON.stringify(rest.buttons) === JSON.stringify(["Pick"]));
+    await page.locator(ROW).click();
+    await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null,
+      { timeout: 5000 }).catch(() => {});
+    const lit = await read(page);
+    push("selecting it outlines the top-ranked face at this end, dashed, not filled",
+      !lit.focus.solid && lit.focus.faces.length === 1 && lit.focus.faces[0].faceId === 1 &&
+      lit.focus.faces[0].drawn > 0 && lit.focus.node === null);
+  } catch (err) {
+    await page.close();
+    server.close();
+    return reportAbortedSuite(label, checks, errors, err);
+  }
+  await page.close();
+
+  // --- 4. the shell's mirror ----------------------------------------------------
+  // The pane posts its rail to the page that embeds it; a page of this origin
+  // hosting it in an iframe receives the same message the shell does.
+  page = await openSuggestionPage(browser, url, "proposal", errors);
+  try {
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    await page.evaluate((src) => {
+      window.__trees = [];
+      window.addEventListener("message", (ev) => {
+        if (ev.data && ev.data.type === "annotate:tree") window.__trees.push(ev.data);
+      });
+      const frame = document.createElement("iframe");
+      frame.style.cssText = "width:800px;height:600px";
+      frame.src = src;
+      document.body.appendChild(frame);
+    }, url + "?mock=1&embedded=1");
+    let inner = null;
+    for (let i = 0; i < 100 && !inner; i++) {
+      inner = page.frames().find((f) => f.url().indexOf("embedded=1") !== -1) || null;
+      if (!inner) await page.waitForTimeout(100);
+    }
+    await inner.waitForFunction(() => window.AnnotateApp && window.AnnotateApp.exec &&
+      document.querySelector("#element-list li.el-row"), null, { timeout: 15000 });
+    await inner.evaluate(() => window.AnnotateApp.exec(["sweep", "synthetic-demo-sweep"]));
+    await inner.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree"), null,
+      { timeout: 15000 });
+    await inner.evaluate(() => { document.querySelector('#sweep-tree [data-joint="pitch_link"]').open = true; });
+    await page.waitForFunction(() => {
+      const find = (rows) => (rows || []).some((r) => r.sub === "suggested · high" || find(r.rows));
+      return window.__trees.some((t) => find(t.rows));
+    }, null, { timeout: 10000 }).catch(() => {});
+    const row = await page.evaluate(() => {
+      const find = (rows) => {
+        for (const r of rows || []) {
+          if (r.sub === "suggested · high") return r;
+          const k = find(r.rows);
+          if (k) return k;
+        }
+        return null;
+      };
+      for (let i = window.__trees.length - 1; i >= 0; i--) {
+        const hit = find(window.__trees[i].rows);
+        if (hit) return hit;
+      }
+      return null;
+    });
+    push("the shell's mirror carries the row's suggestion line, marked as a suggestion, " +
+      "selectable, and not amber", row && row.suggestion === true && row.activate === true &&
+      !row.attention);
+  } catch (err) {
+    await page.close();
+    server.close();
+    return reportAbortedSuite(label, checks, errors, err);
+  }
+  await page.close();
+
+  // --- 5. the real projection: every open proposal reachable ------------------
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => study && t.id === study.topology);
+  const index = await realDataIndexForTheAnnotator();
+  let identity = null;
+  try {
+    identity = JSON.parse(await readFile(join(DATA_REPO, "data", "projections",
+      "feature-identity", "bindings.json"), "utf8"));
+  } catch { identity = null; }
+  if (!study || !topology || !identity || index.runs.indexOf(SWEEP_RAIL_RUN) === -1) {
+    push("[real] the suggestions on the real projection (skipped: the run, the kinematic, the " +
+      "topology or the feature-identity projection is not on disk -- build them, or pass --repo " +
+      "<main checkout>)", true);
+    server.close();
+    return reportSuite(label, checks, errors);
+  }
+  // Open proposals per (edge, end), straight off the projection on disk.
+  const open = {};
+  for (const row of identity.stack_keys || []) {
+    const k = row.stack_key || {};
+    if (k.kind !== "topology_edge" || k.topology_id !== topology.id) continue;
+    for (const p of row.proposals || []) {
+      const bound = (row.bindings || []).some((b) => b.direction === p.direction);
+      if (!bound) open[k.edge_id + "|" + p.direction] = (open[k.edge_id + "|" + p.direction] || 0) + 1;
+    }
+  }
+  const openEdges = new Set(Object.keys(open).map((k) => k.split("|")[0]));
+  const openEnds = Object.values(open).reduce((a, n) => a + n, 0);
+  page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "real" });
+  try {
+    await page.goto(`${url}?topology=${topology.id}`, { waitUntil: "load" });
+    // The boot draws the first study's rail before the entry's goto lands:
+    // the whole topology is the one with the studyless head.
+    await page.waitForFunction(() => document.querySelector("#element-list li.el-head") &&
+      document.querySelectorAll("#element-list li.el-row").length > 0, null, { timeout: 60000 });
+    const bindRail = await page.evaluate(() => Array.from(
+      document.querySelectorAll("#element-list li.el-row .el-row__proposal")).map((n) => n.textContent));
+    console.log(`    topology-level rail: ${bindRail.length} rows read suggested; the projection ` +
+      `has ${openEdges.size} edges with ${openEnds} open ends`);
+    push("[real] the topology-level rail shows a suggestion on every edge with an open proposal",
+      bindRail.length === openEdges.size && bindRail.every((t) => /^suggested · (high|medium|low)$/.test(t)));
+
+    await page.goto(`${url}?sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree") &&
+      window.__sweep.tree.joints.length > 0, null, { timeout: 180000 });
+    const sweepRail = await page.evaluate(() => {
+      const out = [];
+      for (const n of document.querySelectorAll("#sweep-tree .tree-row[data-feature][data-direction]")) {
+        out.push({ edge: n.dataset.edge, dir: n.dataset.direction,
+          line: (n.querySelector(".tree-row__face") || {}).textContent || "" });
+      }
+      return out;
+    });
+    const expected = sweepRail.filter((r) => open[r.edge + "|" + r.dir]);
+    const shown = sweepRail.filter((r) => /^suggested · /.test(r.line));
+    console.log(`    kinematic study's joint ends: ${sweepRail.length}, ${shown.length} read suggested, ` +
+      `${new Set(shown.map((r) => r.edge + "|" + r.dir)).size} distinct ends of ` +
+      `${new Set(shown.map((r) => r.edge)).size} edges`);
+    push("[real] on the kinematic study every joint end with an open proposal reads suggested, " +
+      "and no other does", expected.length === shown.length &&
+      expected.every((r) => /^suggested · /.test(r.line)));
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
 }
 
 async function testAnnotateSweepRail(browser, label, topologies) {
@@ -12472,6 +12812,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateSweepRail(browser, label, topologies)],
       ["annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)", (label) =>
         testAnnotateArmedPick(browser, label)],
+      ["annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)", (label) =>
+        testAnnotateRailSuggestion(browser, label, topologies)],
       ["annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)", (label) =>
         testAnnotateRailAndScene(browser, label, topologies)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>

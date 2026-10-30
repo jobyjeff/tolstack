@@ -798,6 +798,11 @@ async function cmdGoto(topologyId, edgeId, studyId) {
     if (owning) targetStudyId = owning.id;
   }
   if (targetStudyId && arrival.selectStudy) cmdSelectStudy(targetStudyId);
+  // The whole topology, asked for -- no study and no element, the shell's
+  // topology row -- lists every edge rather than whichever study happens to
+  // be first, so every open suggestion on it is reachable from there (handoff
+  // a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place).
+  else if (!targetStudyId && !edgeId && arrival.selectStudy) wholeTopology();
   // The edge is never gated: it is the thing the reader clicked on, and the
   // three checkboxes are about how much CONTEXT comes with it.
   if (edgeId) cmdSelectEdge(edgeId);
@@ -2699,10 +2704,10 @@ async function armedClick(pick, other) {
     const mesh = state.meshList.find((m) => m.sha256 === full.sha256);
     const toast = AA.armedWords("toast", { end: a.endName, face: full.faceId,
       part: mesh ? AA.partRowWords(mesh, state.partNames).text : a.partWords });
-    await writeAnswer(answer, a.edgeId, toast);
+    const events = await writeAnswer(answer, a.edgeId, toast);
     disarmPick("bound");
     state.sweep.lastBound = { topologyId: a.topologyId, edgeId: a.edgeId, direction: a.direction,
-      faceId: full.faceId, by: String(AA.CONFIG.reviewer || ""), at: event.created_at };
+      faceId: full.faceId, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
     state.scene.markFace(full.sha256, full.faceId, "bound");
     showToast(toast);
     renderSweepRail();
@@ -4017,6 +4022,18 @@ function selectStudy(studyId) {
   // the opposite of a one-element scope -- same reasoning as selectTopology.
   clearPanelFilter();
   el.studySelect.value = studyId;
+  syncSelectTitle(el.studySelect);
+  renderElementList();
+  resetContext(false);
+  applyModelStyle();
+}
+
+// No study: the rail lists every edge of the topology (renderElementList's
+// studyless branch), and the study picker names none.
+function wholeTopology() {
+  state.currentStudy = null;
+  clearPanelFilter();
+  el.studySelect.value = "";
   syncSelectTitle(el.studySelect);
   renderElementList();
   resetContext(false);

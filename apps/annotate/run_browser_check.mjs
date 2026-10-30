@@ -1008,8 +1008,8 @@ async function proposalPass(browser, base, verb) {
   await page.waitForFunction(() => window.__scene && window.AnnotateApp && window.AnnotateApp.exec &&
     document.querySelector(".el-row__proposal"), null, { timeout: 20000 });
   const chip = await page.locator(".el-row__proposal").first().innerText();
-  check("the proposed element's rail row carries one chip: who proposed it and how sure",
-    chip === "proposed by agent · high" && (await page.locator(".el-row__proposal").count()) === 1, chip);
+  check("the proposed element's rail row carries one suggestion line: how sure, in reader words",
+    chip === "suggested · high" && (await page.locator(".el-row__proposal").count()) === 1, chip);
   check("...and the row is drawn in the proposed state, with no alert mark",
     await page.locator(".el-row--proposed").evaluate((n) => !n.querySelector(".alertbadge")));
 

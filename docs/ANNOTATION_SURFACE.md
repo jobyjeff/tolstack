@@ -653,6 +653,9 @@ table is the one statement of the gestures.**
 | Esc, the row's **Cancel**, `arm off` | ends the pick and puts back what was shown and where the camera was |
 | play, seek, step, the scrubber | end the pick (the pose moves) |
 | **back to the sweep** (the bar) | once a pick has ended, returns to the frame the arm moved away from |
+| a click on a joint end's **row** | selects it (`inspect feature`): a bound end's face takes the pick tint; a suggested end's face is drawn solid in the suggestion colour, framed, the rest dimmed ("Proposals", below) |
+| **Accept** on a selected suggested row | binds the suggested face (`accept`) |
+| **Pick a different face** on a selected suggested row | arms the pick as **Pick** does; the click then turns the suggestion down and binds the face clicked |
 
 - **Which part.** The end node's first-named part with an installed 3D model
   (`AA.pickEndPartIds`), else the edge's. Two-part interfaces named
@@ -773,16 +776,47 @@ engine's: its words are Python's (`tolerance_stack/feature_geometry.py`,
 `SUGGESTION_RULE_*`), generated into the browser, so the refusal and the
 colouring are one rule.
 
-**On the surface.** A row with an open proposal carries one muted chip,
-"proposed by agent · high", and a dashed stripe. Its state is `proposed`,
-which raises no alert, because the chip already says it. Select the row and
-the bar lists each proposal (interface, face, who, how sure; the basis on
-hover) with **Accept** and **Reject**. Over HTTP the folder is asked for inside
-that click, like any write. The proposed face is drawn as a **dashed outline**
-in the suggestion colour on every occurrence of its part, and hovering it in
-the scene shows the same basis. With the model layer on, a proposed point is a
-**hollow marker beside** the node's own dot. The anchor itself moves only when
-a human accepts.
+**On the surface — the rail row (2026-10-29).** Handoff
+`a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place`, after Jeff
+found 4 of 55 proposals on a page he does not use and none on the rail he
+does. The rail row is the surface, in both modes and in the shell's mirror:
+
+- **The row says so.** A joint end whose key has an open proposal reads
+  **"suggested · high"** (or medium) in place of "no face bound", in the
+  suggestion colour, with who proposed it and the basis on hover. An end the
+  contact engine ranked and nobody proposed reads **"candidates · n"**. A
+  bound end reads as bound (bound wins, as the fold says), and a proposal at
+  the *other* end of an edge is not a suggestion at this one. Its state is
+  `proposed`, which raises no alert. Bind mode's element row (one row per
+  edge) carries the same line, naming the surest of the edge's proposals.
+- **Selecting the row lights the face** (`inspect feature <edge> <end>`): the
+  proposed face is drawn **solid** in the suggestion colour on every
+  occurrence of its part, the camera frames the occurrence the end's body
+  anchors, every other part is dimmed, and the node's hollow marker -- or its
+  dot, for a joint's own node, which is anchored at the joint and never gets a
+  marker -- is drawn larger. A candidates end lights its top-ranked face as a
+  **dashed outline** instead: a ranking, not a claim.
+- **Two actions on the selected row: Accept, and Pick a different face.**
+  Accept (`accept <edge> <end>`) writes the ordinary `bound` event with
+  `ratifies`. Pick a different face arms the pick exactly as Pick does
+  ("Picking a face", above); the face then clicked writes `rejected` for the
+  proposal and then `bound` for that face, both as the reviewer, in that order,
+  in that one click -- and a click on the proposed face itself is an Accept.
+  An end with no proposal keeps plain Pick.
+- **Where each one is reachable.** The rail lists what its entry lists: from
+  the shell's topology row (the whole topology, every edge -- a `goto` with no
+  study and no element no longer lands on the first study), every open
+  proposal; from a chain study, those on its edges; from a kinematic study,
+  those at its joints' ends. Bind mode keeps its bar: selecting an element row
+  lists each proposal with **Accept** and **Reject**, and draws the proposed
+  face as a dashed outline.
+
+**One write path.** Every answer -- the rail's Accept, an armed click, the
+bar's Accept and Reject -- is planned by `AA.planAnswer` and written by one
+function in `app.js` (`writeAnswer`); none of them builds an event of its own.
+Over HTTP the folder is asked for inside that click, like any write. With the
+model layer on, a proposed point is a **hollow marker beside** the node's own
+dot; the anchor itself moves only when a human accepts.
 
 ## The model in the scene (2026-10-26)
 

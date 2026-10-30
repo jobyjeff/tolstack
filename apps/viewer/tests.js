@@ -316,6 +316,19 @@
         eq(slot.querySelector("span.navtree__scenesub").textContent, "moved to its body");
       });
 
+    await test("a mirrored row the annotator marks as a suggestion carries the mark, and " +
+      "no other row does", function () {
+        var slot = document.createElement("div");
+        VA.renderSceneTree(slot, { rows: [
+          { key: "s", text: "pitch link lower ball", sub: "suggested · high", suggestion: true, activate: true },
+          { key: "n", text: "pitch link upper ball", sub: "no face bound", attention: true },
+        ] }, { send: function () {} });
+        var rows = slot.querySelectorAll("div.navtree__scenerow");
+        eq(rows[0].getAttribute("data-suggestion"), "true");
+        eq(rows[0].getAttribute("data-attention"), null, "a suggestion is not amber");
+        eq(rows[1].getAttribute("data-suggestion"), null);
+      });
+
     await test("annotateExecCommands mirrors annotateLink param for param -- " +
       "the already-open flyout runs the same vocabulary the boot URL does",
       function () {

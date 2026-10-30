@@ -924,6 +924,9 @@ export class AnnotateScene {
   }
 
   // The focused node's hollow marker, emphasised; every other one as built.
+  // A node with no hollow marker -- a joint's own node is anchored at the
+  // joint, and a proposal never draws one there -- has its dot emphasised
+  // instead (_applyModelStyle reads the focus).
   _applyFocusMarker() {
     const model = this._model;
     if (!model || !model.proposed) return;
@@ -933,6 +936,7 @@ export class AnnotateScene {
       ring.scale.setScalar(lit ? FOCUS_MARKER_SCALE : 1);
       ring.material.wireframe = !lit;
     }
+    this._applyModelStyle();
     this.requestRender();
   }
 
@@ -942,12 +946,13 @@ export class AnnotateScene {
     const f = this._focus;
     const model = this._model;
     const ring = f && f.node && model && model.proposed ? model.proposed.get(f.node) : null;
+    const dot = f && f.node && model && !ring ? model.dots.get(f.node) : null;
     return {
       faces: f ? f.items.map((x) => ({ sha256: x.sha256, faceId: x.faceId,
         drawn: x.meshes.filter((m) => m.parent).length })) : [],
       solid: !!(f && f.solid),
       node: f ? f.node : null,
-      markerEmphasised: !!(ring && ring.scale.x > 1 && !ring.material.wireframe),
+      markerEmphasised: ring ? ring.scale.x > 1 && !ring.material.wireframe : !!(dot && dot.scale.x > 1),
     };
   }
 
@@ -1791,8 +1796,9 @@ export class AnnotateScene {
       const hidden = !lit && model.hideUnlit && !emphasisNodes.has(id);
       dot.visible = !!live && !hidden;
       dot.material.opacity = lit || emphasisNodes.has(id) ? 1 : MODEL_DIM_OPACITY;
+      const focused = !!this._focus && this._focus.node === id && !model.proposed.has(id);
       const on = id === selected || emphasisNodes.has(id);
-      dot.scale.setScalar(on ? SWEEP_EMPHASIS_SCALE : 1);
+      dot.scale.setScalar(focused ? FOCUS_MARKER_SCALE : (on ? SWEEP_EMPHASIS_SCALE : 1));
       if (id === selected) dot.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
       else dot.material.color.setHex(MODEL_COLORS[dot.userData.source] || MODEL_COLORS.line);
     }
