@@ -4051,21 +4051,18 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     const emptyPoint = await findEmpty();
     push("[real] the drawing has empty space to point at", !!emptyPoint);
     const before = await read();
-    // The content point under the pointer, as a fraction of the drawing.
-    const under = (s, p) => ({ u: (p.x - s.svgLeft) / s.k, v: (p.y - s.svgTop) / s.k });
-    const pointBefore = under(before, emptyPoint);
     await page.mouse.move(emptyPoint.x, emptyPoint.y);
     await page.mouse.wheel(0, -100);
     await settle(200);
     const zoomedIn = await read();
-    const pointAfter = under(zoomedIn, emptyPoint);
     console.log(`      wheel notch: ${before.k.toFixed(3)} -> ${zoomedIn.k.toFixed(3)}`);
     push("[real] one wheel notch toward the reader zooms in one step",
       Math.abs(zoomedIn.k / before.k - before.step) < 0.01);
-    // Sideways only: the page's own scroll is never moved by a zoom (below), so
-    // the point's height is the scale's, not the pointer's.
-    push("[real] and the point under the pointer stays under it, sideways",
-      Math.abs(pointAfter.u - pointBefore.u) < 2);
+    // The page's own scroll is never moved by a zoom (below) and the grid's
+    // sideways scroll stays where it was, so the drawing grows from the box's
+    // top-left rather than about the pointer.
+    push("[real] a zoom leaves the grid's sideways scroll at the left edge",
+      await page.evaluate(() => document.querySelector("#topopane .tv__hscroll").scrollLeft === 0));
     push("[real] the rails and the rows were scaled together: the grid's " +
       "first row is still where the rails' seam leaders expect it",
       (await correspondence()).drift.length === 0);

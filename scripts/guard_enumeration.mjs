@@ -192,7 +192,7 @@ export const DECLARED_GUARDS = {
   // Re-measured again at the same review's second merge, on top of
   // a_study_is_a_translucent_group_on_the_dag. Then +4
   // (an_interface_suggests_the_faces_that_touch, above).
-  browser: { declared: 727, enrollable: 694, names: "4f8e804382c3" },
+  browser: { declared: 733, enrollable: 700, names: "8e34172f5941" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

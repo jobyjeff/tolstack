@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] a wheel zoom over the drawing never changes the page's scroll",
+  "mutations": [
+    {
+      "contract": "A wheel zoom never scrolls the document.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). Puts the pointer-anchoring compensation back on the page's own scroll.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      paneScroller() ? after.top + cy * to - clientY : 0);",
+      "replace": "      after.top + cy * to - clientY);"
+    }
+  ]
+}
