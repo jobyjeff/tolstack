@@ -52,3 +52,20 @@
   integration` witnesses: all witnessed after the repairs above (re-run
   individually). The full pytest took 26 min under browser-slot contention.
 - No three-frame shots were produced.
+
+## Re-run 2026-10-29 (review: REQUEST CHANGES)
+- **Blocker 1:** Jeff amended the requirement to "nothing blinks" (the issue
+  keeps patch-in-place open). New guard `a study change never blinks` samples
+  every rAF frame of the transition and requires dots and bars on screen in
+  each; witnessed by a mutation that renders an empty pane on tween frames.
+  The churn count stays logged only.
+- **Blocker 2:** `RESPINE_SHOTS=<dir>` makes the DAG-zoom suite (real data via
+  `--repo`) capture the kinematic -> `pitch_link_cotter_hole_clearance` ->
+  kinematic switch: `docs/sessions/lessons/shots/the_rearrange_animates_and_centres_the_active_study/`
+  (1 kinematic, 2 mid-transition, 3 landed, 4 back on the kinematic study).
+- **Blocker 3:** the Fit-button guard has a spec again, with a mutation that
+  touches only the button's non-centring branch (the earlier `to = 1` one is
+  caught by the arrival guard first). Census pinned at 736/703.
+- Notes: ease-in-out kept (pinned by fast tests; unchanged). The 4 px centring
+  check measures the lit bars' box against the hscroll box horizontally and
+  topbar..window bottom vertically, not a "DAG box" element.

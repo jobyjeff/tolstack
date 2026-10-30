@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "a study change never blinks: the transition drew frames, and every one of them has the DAG on screen",
+  "mutations": [
+    {
+      "contract": "Every frame of a respine draws the DAG; the pane is never emptied between the old layout and the new.",
+      "issue": null,
+      "note": "Declared by handoff the_rearrange_animates_and_centres_the_active_study (2026-10-29), the amended form of 'no element removed and re-added'. Transition frames render an empty pane.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      try {\n        VA.renderTopoPane(root, ctx);\n      } catch (err) {",
+      "replace": "      try {\n        if (!settling) VA.clear(root); else VA.renderTopoPane(root, ctx);\n      } catch (err) {"
+    }
+  ]
+}

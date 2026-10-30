@@ -22,3 +22,12 @@ cost and about a check the handoff wanted, not a visible defect.
 
 Options: (a) keyed patch renderer; (b) drop the requirement. Recommend (b)
 unless frame cost shows up on the large real topology.
+
+## Addendum 2026-10-29 (review round 1)
+
+Jeff chose option (b) for this handoff: the requirement is amended to "nothing
+blinks". The browser tier now asserts that every animation frame of a study
+change has the DAG drawn (dots and bars on screen, never an emptied pane), with
+a mutation spec that reddens it. The per-frame rebuild itself (all churned ids)
+stays; patching in place remains open here for strategy (it needs the hover
+registries and handlers, which hold element refs, reworked).
