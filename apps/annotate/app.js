@@ -2528,10 +2528,11 @@ async function cmdArm(what, direction) {
   };
   if (sweep.asModelledIndex === null) return refuse(AA.ARMED_PICK_WORDS.noPose);
   const partIds = AA.pickEndPartIds(topology, edge.id, direction);
+  // The FIRST named part with an installed mesh (AA.pickEndPartIds' order).
   const targets = [];
   for (const id of partIds) {
     const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
-    if (mesh && !targets.some((t) => t.sha256 === mesh.sha256)) targets.push({ partId: id, sha256: mesh.sha256, mesh });
+    if (mesh) { targets.push({ partId: id, sha256: mesh.sha256, mesh }); break; }
   }
   if (!targets.length) return refuse(AA.ARMED_PICK_WORDS.noPart);
 

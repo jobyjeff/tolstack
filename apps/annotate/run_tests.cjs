@@ -1742,8 +1742,8 @@ check("the type chips: the tree's own row kinds, toggled one at a time, remember
 
 // --- an armed pick (handoff a_face_is_picked_the_way_cad_picks_it) -----------
 
-check("an armed pick's part is the end node's part the edge also names, else the node's, " +
-  "else the edge's -- the hub bore is picked on the hub, not on the blade root", () => {
+check("an armed pick's parts are the end node's own, in the order it names them, else the " +
+  "edge's -- the hub bore is picked on the hub, whichever edge it is bound through", () => {
   const topology = {
     nodes: [
       { id: "spindle", parts: ["hub"] },
@@ -1755,8 +1755,9 @@ check("an armed pick's part is the end node's part the edge also names, else the
       { id: "arm", part: "blade_root", from: "bore", to: "seat" },
     ],
   };
-  assertEqual(AA.pickEndPartIds(topology, "offset", "to"), ["hub"]);
-  assertEqual(AA.pickEndPartIds(topology, "arm", "from"), ["blade_root"]);
+  assertEqual(AA.pickEndPartIds(topology, "offset", "to"), ["hub", "blade_root"]);
+  assertEqual(AA.pickEndPartIds(topology, "arm", "from"), ["hub", "blade_root"],
+    "bound through the blade root's edge, the bore is still the hub's first");
   assertEqual(AA.pickEndPartIds(topology, "offset", "from"), ["hub"]);
   assertEqual(AA.pickEndPartIds(topology, "arm", "to"), ["blade_root"], "a node naming no part: the edge's");
   assertEqual(AA.pickEndPartIds(topology, "nope", "to"), []);

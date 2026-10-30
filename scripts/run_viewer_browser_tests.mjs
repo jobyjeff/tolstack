@@ -7514,24 +7514,19 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       "on hover", clipped.clipped > 0 && clipped.unreadable.length === 0);
 
     // --- a pick that can show nothing changes nothing ---------------------------
-    // A gap edge names no part: Pick on it must leave sweep mode, the loaded
-    // parts and the tree exactly as they were, and say why on the row itself.
+    // A gap edge names no part: the jump to bind mode onto it (an edge
+    // feature's or a contributor's Pick -- the `goto` verb) must leave sweep
+    // mode, the loaded parts and the tree exactly as they were, and say why on
+    // the rows of that edge. Driven through the verb since a_face_is_picked_
+    // the_way_cad_picks_it: every rail row on THIS edge is a joint end now,
+    // and an end's Pick arms in place on its node's own part (checked below).
     const GAP_EDGE = "hub_to_pitch_plate_spindle_coaxiality";
     const beforeGap = await page.evaluate(() => ({
       sweep: !!window.__sweep, parts: window.__scene.listOpenParts().length,
       rows: document.querySelectorAll("#sweep-tree .tree-row").length,
     }));
-    const gapRow = page.locator(`#sweep-tree .tree-row[data-edge="${GAP_EDGE}"]`).first();
-    // The row sits under a collapsed joint: open every ancestor <details> first,
-    // as a reader would, so the press below is a press and not a silent no-op.
-    await page.evaluate((edge) => {
-      const r = document.querySelector(`#sweep-tree .tree-row[data-edge="${edge}"]`);
-      for (let d = r && r.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
-    }, GAP_EDGE);
-    await gapRow.hover({ timeout: 5000 }).catch(() => {});
-    let gapPressed = true;
-    await gapRow.locator(".tree-row__repick").first().click({ timeout: 5000 })
-      .catch(() => { gapPressed = false; });
+    const gapPressed = await page.evaluate(([t, e]) => window.AnnotateApp.exec(["goto", t, e])
+      .then(() => true, () => false), [topology.id, GAP_EDGE]);
     await page.waitForFunction((edge) => document.querySelector(
       `#sweep-tree .tree-row[data-edge="${edge}"] .tree-row__note`), GAP_EDGE,
     { timeout: 15000 }).catch(() => {});
@@ -7547,6 +7542,36 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       gapPressed && beforeGap.sweep && afterGap.sweep && afterGap.inSweep &&
       afterGap.parts === beforeGap.parts && afterGap.rows === beforeGap.rows &&
       afterGap.note.indexOf("names no part") !== -1);
+
+    // --- Jeff's reproduction: a joint end's Pick arms on its own part ----------
+    // a_face_is_picked_the_way_cad_picks_it: Pick on `hub blade-1 root bearing
+    // bore` goes to the as-modelled frame with no prompt, the hub alone is
+    // solid, and the ray hits only the hub; `arm off` puts it all back.
+    const BORE = "hub_blade1_root_bearing_bore";
+    await page.evaluate((f) => {
+      const r = document.querySelector(`#sweep-tree .tree-row[data-feature="${f}"][data-direction]`);
+      for (let d = r && r.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+    }, BORE);
+    const boreRow = page.locator(`#sweep-tree .tree-row[data-feature="${BORE}"][data-direction]`).first();
+    await boreRow.hover({ timeout: 5000 }).catch(() => {});
+    await boreRow.locator(".tree-row__repick").first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__sweep && window.__sweep.armed && window.__scene.pickFilter(),
+      null, { timeout: 30000 }).catch(() => {});
+    const armedBore = await page.evaluate(() => {
+      const s = window.__scene;
+      const filter = s.pickFilter() || [];
+      const others = s.listOpenParts().filter((sha) => filter.indexOf(sha) === -1 && s.isVisible(sha));
+      const meshes = window.__sweep && window.__sweep.armed ? window.__sweep.armed.partWords : "";
+      return { home: window.__sweep.index === window.__sweep.asModelledIndex, filter, meshes,
+        solid: filter.every((sha) => !s.isGhosted(sha)), othersFaint: others.length > 0 &&
+          others.every((sha) => s.isGhosted(sha) && s.parts.get(sha).material.opacity < 0.15),
+        row: (document.querySelector("#sweep-tree .tree-row--armed .tree-row__face") || {}).textContent || "" };
+    });
+    push("[real] Pick on hub blade-1 root bearing bore goes to the as-modelled frame with no " +
+      "prompt, the hub alone is solid and pickable, and every other part is ghosted faint",
+      armedBore.home && armedBore.filter.length === 1 && /hub/.test(armedBore.meshes) &&
+      armedBore.solid && armedBore.othersFaint && armedBore.row === "at the as-modelled pose for picking");
+    await page.evaluate(() => window.AnnotateApp.exec(["arm", "off"]));
 
     // --- re-pick is the jump to bind mode ---------------------------------------
     const row = page.locator('#sweep-tree [data-joint="pitch_link"] .tree-row[data-feature="pitch_link_length"]');
