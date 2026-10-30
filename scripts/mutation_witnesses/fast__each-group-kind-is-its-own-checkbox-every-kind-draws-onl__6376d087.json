@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "each group kind is its own checkbox: every kind draws only what it names, and a reader's choice is remembered per topology",
+  "mutations": [
+    {
+      "contract": "A kind the reader switched off stays off when read back.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_the_contributor_table_lives_in_the_results_pane_and_groups_are_checkboxes.md",
+      "note": "The persistence line the checkbox popover stands on.",
+      "file": "apps/viewer/topology.js",
+      "find": "if (Object.prototype.hasOwnProperty.call(on, id)) on[id] = false;",
+      "replace": "if (Object.prototype.hasOwnProperty.call(on, id)) on[id] = true;"
+    }
+  ]
+}

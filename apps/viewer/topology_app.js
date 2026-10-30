@@ -199,7 +199,6 @@
       topojoint: document.getElementById("topojoint"),
       pane: document.getElementById("topopane"),
       stackview: document.getElementById("stackview"),
-      kinematicview: document.getElementById("kinematicview"),
       totals: document.getElementById("totals"),
       legendToggle: document.getElementById("legend-toggle"),
       legendDialog: document.getElementById("legend-dialog"),
@@ -2401,9 +2400,6 @@
     nodes.pane.style.display = showDag ? "" : "none";
     nodes.totals.style.display = showTopology ? "" : "none";
     nodes.stackview.style.display = showStack ? "" : "none";
-    if (nodes.kinematicview) {
-      nodes.kinematicview.style.display = showKinematic ? "" : "none";
-    }
 
     // The legend ("how to read the rails") is a topology-mode concept, always
     // offered there. The worksheet is offered wherever the SELECTED node
@@ -2434,17 +2430,15 @@
 
     // The pane is rebuilt below, so whatever it had under the pointer is gone.
     paneHot = null;
+    repaintDag = null;
     if (showDag) {
-      // Which containers are drawn (VA.GROUP_FILTERS): the reader's own word
-      // for this topology, else both once something is lit and the bodies
-      // before that. Every study of the topology has a group to offer.
-      var pageLit = showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj)
-        : VA.studyLitSet(study, topoProj);
-      var groupFilter = (topoProj && VA.readGroupFilter(widthStore(), topoProj.id)) ||
-        VA.defaultGroupFilter(!!pageLit);
+      // Which containers are drawn (VA.GROUP_KINDS): the reader's own set for
+      // this topology, else every kind. Every study of the topology has a
+      // group to offer; the pane filters them by kind.
+      var groupKinds = topoProj ? VA.readGroupKinds(widthStore(), topoProj.id) : null;
       var ctx = {
-        groupFilter: groupFilter,
-        studyGroups: topoProj && VA.GROUP_FILTERS[groupFilter].studies
+        groupKinds: groupKinds,
+        studyGroups: topoProj
           ? VA.studyGroups(topoProj, state.kinematic,
               showKinematic ? state.kinematicId : state.studyId) : [],
         onOpenStudy: function (group) {
@@ -2516,12 +2510,14 @@
         annotateMount: state.annotateMount,
         onAttach3d: launchAnnotate,
       };
-      VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
-        groupFilter: groupFilter,
-        onGroupFilter: function () {
-          VA.writeGroupFilter(widthStore(), topoProj.id,
-            VA.GROUP_FILTERS[groupFilter].next);
-          render();
+      var toolbarHandlers = {
+        groupKinds: groupKinds,
+        // One kind's checkbox: the pane repaints, nothing else on the page
+        // depends on which containers are drawn.
+        onGroupKind: function (kind, on) {
+          groupKinds[kind] = on;
+          VA.writeGroupKinds(widthStore(), topoProj.id, groupKinds);
+          repaintDag(false);
         },
         // Density changes how tall the rows already on screen are, not WHICH
         // rows are on screen — so a plain render(), not rewind(): see
@@ -2564,9 +2560,23 @@
         onUnlitStyle: function () {
           var style = VA.UNLIT_STYLES[state.unlitStyle];
           state.unlitStyle = style ? style.next : VA.DEFAULT_UNLIT_STYLE;
-          rewind();
+          ctx.unlitStyle = state.unlitStyle;
+          repaintDag(true);
         },
-      });
+      };
+      VA.renderTopoToolbar(nodes.toolbar, state, topoProj, toolbarHandlers);
+      // The DAG's own repaint, for the controls that change only what the
+      // model draws (Unused, Groups): the pane (and, for Unused, its toolbar
+      // label and the 3D scene's copy of the word), never the results, the
+      // nav or the preview -- the results are a different component and
+      // re-rendering the page around them was what coupled the two.
+      repaintDag = function (rewound) {
+        paneHot = null;
+        if (rewound) VA.renderTopoToolbar(nodes.toolbar, state, topoProj, toolbarHandlers);
+        VA.renderTopoPane(nodes.pane, ctx);
+        if (rewound) nodes.pane.scrollTop = 0;
+        syncSceneModel();
+      };
       if (showTopology) VA.renderTopoJoint(nodes.topojoint, topoProj, study);
       if (respineStart && respineStart.topologyId === topoProj.id) {
         // `onError` puts an animation frame's throw on the SAME seam every
@@ -2626,7 +2636,6 @@
           docsHref: canReadWorksheets ? docsHref : null,
         };
         nodes.detail.appendChild(VA.renderKinematicResults(VA.el("section"), kinematicCtx));
-        VA.renderKinematic(nodes.kinematicview, kinematicCtx);
       } else if (study) {
         var chainResults = VA.el("section", "detail__results");
         chainResults.appendChild(VA.verdictStrip(VA.chainVerdictItems(study), { onCardShow: showCard }));
@@ -2730,6 +2739,8 @@
   // to instead of snapping back to where it began.
   var respineFrom = null;
   var respineHandle = null;
+  // Set by each paint that draws the DAG, cleared by each that does not.
+  var repaintDag = null;
   var paintedSerialisation = null;
   var landingPending = false;
 
@@ -2762,7 +2773,6 @@
     render();
     if (nodes.pane) nodes.pane.scrollTop = 0;
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
-    if (nodes.kinematicview) nodes.kinematicview.scrollTop = 0;
   }
 
   // --- rebuild (viewer_rebuild_affordance): the banner's button, end to end -

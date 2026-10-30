@@ -944,11 +944,13 @@
 
   // --- rendering ----------------------------------------------------------------
 
-  // The page has the shape every study page has (2026-10-28): the model and
-  // the one contributor table in the main column, and the RESULTS -- the
-  // study's name, its verdict per stop, the swept chart, the stop readouts and
-  // the provenance fold -- in the right-hand pane, above the selection's
-  // preview (topology_app.js's paint). Jeff, 2026-10-28: "vertical screen
+  // The page has the shape every study page has: the model in the main
+  // column, and the RESULTS -- the study's name, its verdict per stop, the
+  // swept chart, the stop readouts, the one contributor table and the
+  // provenance fold -- in the right-hand pane, above the selection's
+  // preview (topology_app.js's paint). One component, one container
+  // (2026-10-29: the table used to render under the model, wired to the
+  // model's re-render rather than to the results). Jeff, 2026-10-28: "vertical screen
   // real estate is precious ... the kinematic study results should use this
   // same pane".
   function studyFailed(study) {
@@ -996,18 +998,9 @@
     if (datum) root.appendChild(datumNote(datum, ctx));
 
     root.appendChild(stopReadouts(study, decimals));
+    root.appendChild(contributorTable(study, VA.findTopology(ctx.topologies, study.topology),
+      decimals, ctx));
     root.appendChild(provenance(study));
-    return root;
-  };
-
-  VA.renderKinematic = function (root, ctx) {
-    VA.clear(root);
-    root.className = "kmview";
-    var study = ctx.study;
-    if (!study || studyFailed(study)) return root;
-    var decimals = ctx.kinematic && ctx.kinematic.display_decimals;
-    var topoProj = VA.findTopology(ctx.topologies, study.topology);
-    root.appendChild(contributorTable(study, topoProj, decimals, ctx));
     return root;
   };
 

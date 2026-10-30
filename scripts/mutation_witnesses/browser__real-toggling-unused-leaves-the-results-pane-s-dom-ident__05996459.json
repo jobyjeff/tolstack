@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] toggling Unused leaves the results pane's DOM identical, its contributor table included",
+  "mutations": [
+    {
+      "contract": "The contributor table is part of the results pane, not the model's column.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_the_contributor_table_lives_in_the_results_pane_and_groups_are_checkboxes.md",
+      "note": "One component: the table renders with the results.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    root.appendChild(contributorTable(study, VA.findTopology(ctx.topologies, study.topology),\n      decimals, ctx));\n",
+      "replace": ""
+    }
+  ]
+}

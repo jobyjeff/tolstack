@@ -174,7 +174,10 @@ export const DECLARED_GUARDS = {
   // reading a pressed mirrored row. All three carry a spec.
   // 2026-10-29 (a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place):
   // +1, the shell's mirror marking a suggestion row. It carries a spec.
-  fast: { declared: 626, enrollable: 626, names: "ed804737f840" },
+  // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
+  // checkboxes): one swapped -- the Groups filter's four-state check for the
+  // checkbox popover's -- with its spec.
+  fast: { declared: 626, enrollable: 626, names: "d3ded298480e" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
@@ -222,7 +225,11 @@ export const DECLARED_GUARDS = {
   // +15, the rail-suggestion suite. Every one carries a spec but its
   // `[real] ... (skipped: ...)` push, whose condition is the literal `true`.
   // Both re-measured together at the rail_row review merge: 755 + 3 + 15.
-  browser: { declared: 773, enrollable: 740, names: "a7ecf256ad34" },
+  // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
+  // checkboxes): +2 -- the checkboxes' own check (replacing the four-state one)
+  // and Unused leaving the results pane untouched -- one renamed for the
+  // contributors' move. Every new name carries a spec.
+  browser: { declared: 775, enrollable: 742, names: "993858f978cf" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
