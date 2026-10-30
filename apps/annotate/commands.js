@@ -1224,7 +1224,11 @@
   // the part's row inside the subject it was picked on, and the feature rows
   // the face is bound to. `subject` is absent for an occurrence no body or
   // link was placed at. Appended, so the three older indices keep their words.
-  AA.INSPECT_TARGETS = Object.freeze(["joint", "contributor", "clear", "part"]);
+  //
+  // inspect feature <edge> [from|to] -- a joint end's row selected (handoff
+  // a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place): the face its
+  // suggestion names drawn solid, the camera on it, the rest dimmed. Appended.
+  AA.INSPECT_TARGETS = Object.freeze(["joint", "contributor", "clear", "part", "feature"]);
   AA.parseInspect = function (what, name, face, subject) {
     if (AA.INSPECT_TARGETS.indexOf(what) === -1) {
       throw new Error("inspect takes " + AA.INSPECT_TARGETS.join(", ") +
@@ -1232,6 +1236,13 @@
     }
     if (what === AA.INSPECT_TARGETS[2]) return { kind: null, name: null };
     if (!name) throw new Error("inspect " + what + " needs a name");
+    if (what === AA.INSPECT_TARGETS[4]) {
+      if (face !== undefined && face !== null && AA.DIRECTIONS.indexOf(face) === -1) {
+        throw new Error("inspect feature's third word is one of " + AA.DIRECTIONS.join(", ") +
+          ", got " + JSON.stringify(face));
+      }
+      return { kind: what, name: String(name), direction: face == null ? null : face };
+    }
     if (what !== AA.INSPECT_TARGETS[3]) return { kind: what, name: String(name) };
     var faceId = parseInt(face, 10);
     if (!isFinite(faceId) || String(faceId) !== String(face)) {

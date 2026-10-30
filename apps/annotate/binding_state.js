@@ -48,8 +48,8 @@
   AA.ACTOR_KINDS = VOCAB.list("ACTOR_KINDS");
 
   // The states whose row carries NO alert, and why each is quiet. `bound`: a
-  // row with nothing wrong shows nothing. `proposed`: the row's own chip
-  // ("proposed by agent · high") already is the signal, and an agent's
+  // row with nothing wrong shows nothing. `proposed`: the row's own line
+  // ("suggested · high") already is the signal, and an agent's
   // proposal is a question waiting for its answer, not something wrong -- a
   // second mark beside the chip would spend the emphasis twice.
   AA.QUIET_BINDING_STATES = Object.freeze([AA.BINDING_STATES.BOUND, AA.BINDING_STATES.PROPOSED]);
@@ -341,21 +341,131 @@
     });
   };
 
-  // The rail row's chip: "proposed by agent · high", naming the surest of the
-  // row's open proposals (they are ranked by AA.PROPOSAL_CONFIDENCES' order),
-  // or null when there is none.
+  //: The words a rail row says about a suggestion, in sweep mode and in bind
+  //: mode alike (handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_
+  //: in_place): an open proposal is "suggested · high", an end the contact
+  //: engine ranked and nobody proposed is "candidates · 3". Reader words only
+  //: -- who proposed it and why are on the hover, never on the row.
+  AA.SUGGESTION_ROW_WORDS = Object.freeze({
+    suggested: "suggested · {confidence}",
+    candidates: "candidates · {n}",
+    accept: "Accept",
+    acceptTitle: "bind the suggested face at this end",
+    pickOther: "Pick a different face",
+    pickOtherTitle: "pick the face yourself; binding another face turns the suggestion down",
+  });
+
+  // A list of open proposals, surest first (AA.PROPOSAL_CONFIDENCES' order),
+  // stable within one confidence.
+  AA.surestFirst = function (proposals) {
+    return (proposals || []).map(function (p, i) { return { p: p, i: i }; }).sort(function (a, b) {
+      var d = AA.PROPOSAL_CONFIDENCES.indexOf(a.p.confidence) - AA.PROPOSAL_CONFIDENCES.indexOf(b.p.confidence);
+      return d || a.i - b.i;
+    }).map(function (x) { return x.p; });
+  };
+
+  // The open proposals at ONE end of a record, surest first. A null
+  // direction is every end's.
+  AA.endProposals = function (record, direction) {
+    return AA.surestFirst(((record && record.proposals) || []).filter(function (p) {
+      return p && (!direction || p.direction === direction);
+    }));
+  };
+
+  // The rail row's suggestion line: "suggested · high", naming the surest of
+  // the row's open proposals, or null when there is none.
   AA.proposalChip = function (record) {
-    var open = (record && record.proposals) || [];
-    if (!open.length) return null;
-    var best = open.slice().sort(function (a, b) {
-      return AA.PROPOSAL_CONFIDENCES.indexOf(a.confidence) - AA.PROPOSAL_CONFIDENCES.indexOf(b.confidence);
-    })[0];
-    return "proposed by " + AA.actorWords(best.recorded_by) + " · " + best.confidence;
+    var best = AA.endProposals(record, null)[0];
+    if (!best) return null;
+    return AA.SUGGESTION_ROW_WORDS.suggested.replace("{confidence}", best.confidence);
   };
 
   // What hovering a proposed face says: who, how sure, and the basis.
   AA.proposalHoverText = function (row) {
     return "Proposed by " + row.actor + " (" + row.confidence + "): " + row.basis;
+  };
+
+  // --- one human answer at one end, planned once -----------------------------
+  //
+  // Every surface that answers a proposal -- the sweep rail's Accept, the
+  // armed pick that binds a different face, the bind bar's Accept and Reject
+  // -- plans here and writes what AA.buildAnswerEvents returns, in that
+  // order. A plan is {accept: proposal|null, reject: [proposal], pick:
+  // {geometryKey, direction, stackKey}|null, supersedes: event id|null}:
+  // at most one `bound` event (an accepted proposal's, or a picked face's),
+  // after every rejection.
+
+  //: The three answers (AA.planAnswer's `verb`).
+  AA.ANSWER_VERBS = Object.freeze(["accept", "reject", "pick"]);
+
+  // The binding an answer at this end replaces: the end's one standing
+  // binding, and nothing when it has none or several (a re-pick replaces;
+  // two faces at one end are not guessed between -- AA.planArmedClick's rule).
+  AA.answerSupersedes = function (standing) {
+    return (standing || []).length === 1 ? standing[0].event_id : null;
+  };
+
+  // `verb` accept: `proposal` accepted. reject: `proposal` turned down.
+  // pick: the human picked `pick` ({sha256, faceId, geometryKey}) at the end
+  // the open proposals `open` sit at -- a proposal naming that very face is
+  // accepted, and every other open one at the end is turned down, so the
+  // engine never proposes those faces for this key again. `standing` is the
+  // end's standing bindings.
+  AA.planAnswer = function (verb, args) {
+    var a = args || {};
+    if (AA.ANSWER_VERBS.indexOf(verb) === -1) {
+      throw new Error("an answer is one of " + AA.ANSWER_VERBS.join(", ") + ", got " + JSON.stringify(verb));
+    }
+    var supersedes = AA.answerSupersedes(a.standing);
+    if (verb === AA.ANSWER_VERBS[0]) {
+      if (!a.proposal) throw new Error("accept names the proposal it accepts");
+      return { accept: a.proposal, reject: [], pick: null, supersedes: supersedes };
+    }
+    if (verb === AA.ANSWER_VERBS[1]) {
+      if (!a.proposal) throw new Error("reject names the proposal it turns down");
+      return { accept: null, reject: [a.proposal], pick: null, supersedes: null };
+    }
+    var pick = a.pick;
+    if (!pick || !pick.geometryKey) throw new Error("a pick answer needs the picked face");
+    var same = (a.open || []).filter(function (p) {
+      var g = p.geometry_key || {};
+      return g.source_step_sha256 === pick.geometryKey.sourceStepSha256 && g.face_id === pick.geometryKey.faceId;
+    })[0] || null;
+    return {
+      accept: same,
+      reject: (a.open || []).filter(function (p) { return p !== same; }),
+      pick: same ? null : pick,
+      supersedes: supersedes,
+    };
+  };
+
+  // The events a plan writes, in the order they are written: every
+  // `rejected`, then the one `bound`. `fields` is {eventId, seq, createdAt,
+  // recordedBy}; each event after the first takes the next seq, and a
+  // rejection's id is the bound event's with "-rejected-<n>" after it, so one
+  // gesture's events are told apart and stay together.
+  AA.buildAnswerEvents = function (plan, fields) {
+    var out = [];
+    var seq = fields.seq;
+    (plan.reject || []).forEach(function (p, i) {
+      out.push(AA.buildRejectEvent(p, { eventId: fields.eventId + "-rejected-" + (i + 1), seq: seq++,
+        createdAt: fields.createdAt, recordedBy: fields.recordedBy }));
+    });
+    if (plan.accept) {
+      out.push(AA.buildAcceptEvent(plan.accept, { eventId: fields.eventId, seq: seq++,
+        createdAt: fields.createdAt, recordedBy: fields.recordedBy, supersedes: plan.supersedes }));
+    } else if (plan.pick) {
+      if (AA.actorKind(fields.recordedBy) === AA.ACTOR_KINDS[1]) {
+        throw new Error("an agent only proposes -- a human binds");
+      }
+      out.push(AA.buildBoundEvent({
+        eventId: fields.eventId, seq: seq++, createdAt: fields.createdAt,
+        recordedBy: fields.recordedBy, stackKey: plan.pick.stackKey,
+        geometryKey: plan.pick.geometryKey, direction: plan.pick.direction,
+        supersedes: plan.supersedes,
+      }));
+    }
+    return out;
   };
 
   // --- correcting a binding ---------------------------------------------------

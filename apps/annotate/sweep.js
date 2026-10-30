@@ -1457,10 +1457,63 @@
       AA.topologyEdgeKey(topologyId, via.edgeId));
     if (!via.direction || !record) return AA.elementBindingState(record, staleness);
     var all = record.bindings || [];
-    if (!all.length) return AA.elementBindingState(record, staleness);
     var mine = all.filter(function (b) { return b && b.direction === via.direction; });
-    if (!mine.length) return AA.BINDING_STATES.UNBOUND;
-    return AA.elementBindingState({ bindings: mine }, staleness);
+    if (mine.length) return AA.elementBindingState({ bindings: mine }, staleness);
+    if (all.length) return AA.BINDING_STATES.UNBOUND;
+    // Nothing bound on the edge: the record's own state -- except that a
+    // proposal at the OTHER end is not a suggestion at this one.
+    var whole = AA.elementBindingState(record, staleness);
+    if (whole === AA.BINDING_STATES.PROPOSED && !AA.endProposals(record, via.direction).length) {
+      return AA.BINDING_STATES.UNBOUND;
+    }
+    return whole;
+  };
+
+  // What a feature row has to SUGGEST at its end (handoff a_rail_row_with_a_
+  // proposal_says_so_and_accepts_it_in_place), or null:
+  //
+  //   {kind: "proposed", proposals}      an agent's open proposal(s) at the
+  //                                      end, surest first
+  //   {kind: "candidates", n, face}      no proposal, but the contact engine
+  //                                      ranked n touching pairs on the edge;
+  //                                      `face` is the top one's face at this
+  //                                      end ({sha256, faceId})
+  //
+  // A bound end suggests nothing (bound wins, as the fold says). An edge
+  // feature (direction null) is either end's proposals, and never
+  // candidates: a candidate is a face at ONE end.
+  AA.SUGGESTION_KINDS = Object.freeze(["proposed", "candidates"]);
+  AA.endSuggestion = function (identityProjection, contactDoc, topologyId, via) {
+    if (!via || !via.edgeId) return null;
+    var record = AA.findBindingRecord(identityProjection, AA.topologyEdgeKey(topologyId, via.edgeId));
+    var bound = ((record && record.bindings) || []).some(function (b) {
+      return b && (!via.direction || b.direction === via.direction);
+    });
+    if (bound) return null;
+    var open = AA.endProposals(record, via.direction);
+    if (open.length) return { kind: AA.SUGGESTION_KINDS[0], proposals: open };
+    if (!via.direction) return null;
+    var row = null;
+    ((contactDoc && contactDoc.topologies) || []).forEach(function (t) {
+      if (t.id !== topologyId) return;
+      (t.edges || []).forEach(function (r) { if (r.edge === via.edgeId) row = r; });
+    });
+    var candidates = (row && row.status === "ok" && row.candidates) || [];
+    if (!candidates.length) return null;
+    var top = candidates.slice().sort(function (a, b) { return a.rank - b.rank; })[0];
+    var side = top[via.direction] || {};
+    var face = side.sha256 && (side.faces || []).length
+      ? { sha256: side.sha256, faceId: side.faces[0] } : null;
+    return { kind: AA.SUGGESTION_KINDS[1], n: candidates.length, face: face };
+  };
+
+  // The row's line for a suggestion, in AA.SUGGESTION_ROW_WORDS.
+  AA.suggestionWords = function (suggestion) {
+    if (!suggestion) return null;
+    if (suggestion.kind === AA.SUGGESTION_KINDS[0]) {
+      return AA.SUGGESTION_ROW_WORDS.suggested.replace("{confidence}", suggestion.proposals[0].confidence);
+    }
+    return AA.SUGGESTION_ROW_WORDS.candidates.replace("{n}", String(suggestion.n));
   };
 
   // A feature's reader-facing name: the topology's own name for the node or

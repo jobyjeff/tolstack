@@ -212,6 +212,10 @@ details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "
 .navtree__scenename, .navtree__scenesub {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navtree__scenesub { color: var(--muted); font-size: var(--t-micro); }
+/* A row the annotator says carries a suggestion ("suggested · high",
+   "candidates · 3"): its state line in the suggestion colour, the colour the
+   scene draws a proposed face in. */
+.navtree__scenerow[data-suggestion="true"] .navtree__scenesub { color: var(--accent); }
 .navtree__scenevalue { flex: none; color: var(--muted); font-size: var(--t-micro);
   font-variant-numeric: tabular-nums; }
 .navtree__scenecheck { flex: none; margin: 0; }

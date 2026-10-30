@@ -1349,6 +1349,7 @@ function leaveSweep() {
   if (!sweep) return null;
   // An armed pick ends first: it holds parts it opened and a camera to give back.
   if (sweep.armed) disarmPick("left");
+  clearSuggestionFocus();
   state.sweep = null;
   showSweepTip(null, null);
   state.scene.clearHover();
@@ -2525,6 +2526,9 @@ async function cmdArm(what, direction) {
     if (again) return { armed: false };
   }
   delete state.rowNotes[edge.id];
+  // A selected suggestion's dimming and solid face go first: the arm draws
+  // the scene its own way and puts back what it found.
+  clearSuggestionFocus();
   const refuse = (text) => {
     state.rowNotes[edge.id] = { text, nodeIds: [] };
     renderSweepRail();
@@ -2572,21 +2576,28 @@ async function cmdArm(what, direction) {
   sweep.lastBound = null;
   applyArmDisplay();
   state.scene.setPickFilter(sweep.armed.shas);
-  // The occurrence the end's BODY anchors: a pitch arm is drawn five times
-  // and the end is on one of them.
-  const framed = [];
-  for (const t of targets) {
-    const body = (sweep.tree.bodies || []).find((b) => b.parts.indexOf(t.partId) !== -1);
-    const scoped = body ? AA.sweepPartOccurrences(sweep.occurrences, body.name, t.sha256) : [];
-    if (scoped.length) framed.push(...scoped);
-    else framed.push({ sha256: t.sha256, key: null });
-  }
-  state.scene.frameOccurrences(framed);
+  state.scene.frameOccurrences(anchoredOccurrences(targets));
   // The pre-selection line reads the suggestion engine's fit; classify now.
   for (const t of targets) ensureFaceClasses(t.sha256).catch(() => null);
   renderSweepRail();
   renderDetail();
   return { armed: true, edgeId: edge.id, direction, parts: sweep.armed.shas };
+}
+
+// The occurrences of each target ({partId, sha256}) its BODY anchors: a
+// pitch arm is drawn five times and an end is on one of them. A part no body
+// lists is every occurrence of it. What an armed pick and a selected
+// suggestion both frame.
+function anchoredOccurrences(targets) {
+  const sweep = state.sweep;
+  const out = [];
+  for (const t of targets) {
+    const body = t.partId ? (sweep.tree.bodies || []).find((b) => b.parts.indexOf(t.partId) !== -1) : null;
+    const scoped = body ? AA.sweepPartOccurrences(sweep.occurrences, body.name, t.sha256) : [];
+    if (scoped.length) out.push(...scoped);
+    else out.push({ sha256: t.sha256, key: null });
+  }
+  return out;
 }
 
 // What every open part looks like while armed: the armed part solid and
@@ -2675,30 +2686,29 @@ async function armedClick(pick, other) {
   const full = plan.pick.record ? plan.pick
     : Object.assign({}, plan.pick, { record: state.scene.faceRecord(plan.pick.sha256, plan.pick.faceId) });
   try {
-    const filenames = await existingEventFilenames();
-    const event = AA.buildBoundEvent({
-      eventId: "annotate-" + Date.now() + "-" + slugify(a.edgeId),
-      seq: filenames.length + 1,
-      createdAt: nowIso(),
-      recordedBy: AA.humanActor(AA.CONFIG.reviewer),
-      stackKey: AA.topologyEdgeKey(a.topologyId, a.edgeId),
-      geometryKey: AA.geometryKeyOfPick(full),
-      direction: a.direction,
-      compositionNote: null, ownerPart: null, gdtModifier: null,
-      generalTolRegime: null, note: null,
-      supersedes: plan.supersedes,
+    // An end with an agent's open proposal: the face the human clicks is the
+    // answer to it (handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_
+    // in_place) -- the proposed face itself is an Accept; any other face turns
+    // the proposal down and binds this one, in that order, in this one click.
+    const answer = AA.planAnswer(AA.ANSWER_VERBS[2], {
+      pick: { geometryKey: AA.geometryKeyOfPick(full), direction: a.direction,
+        stackKey: AA.topologyEdgeKey(a.topologyId, a.edgeId) },
+      open: AA.endProposals(record, a.direction),
+      standing: AA.endBindings(record, a.direction),
     });
     const mesh = state.meshList.find((m) => m.sha256 === full.sha256);
     const toast = AA.armedWords("toast", { end: a.endName, face: full.faceId,
       part: mesh ? AA.partRowWords(mesh, state.partNames).text : a.partWords });
-    await writeIdentityEvent(nextFilename(filenames, slugify(a.edgeId)), event, toast);
+    await writeAnswer(answer, a.edgeId, toast);
     disarmPick("bound");
     state.sweep.lastBound = { topologyId: a.topologyId, edgeId: a.edgeId, direction: a.direction,
       faceId: full.faceId, by: String(AA.CONFIG.reviewer || ""), at: event.created_at };
     state.scene.markFace(full.sha256, full.faceId, "bound");
     showToast(toast);
     renderSweepRail();
-    return { action: plan.action, faceId: full.faceId, supersedes: plan.supersedes };
+    return { action: plan.action, faceId: full.faceId, supersedes: answer.supersedes,
+      ratifies: answer.accept ? answer.accept.event_id : null,
+      rejects: answer.reject.map((p) => p.event_id) };
   } catch (err) {
     // The face stays pre-selected and the row says why, in words.
     state.scene.preselect(full);
@@ -2888,6 +2898,18 @@ function featureRow(topology, joint, feature) {
   // state line, and the links are gone (the reason says what to pick instead).
   const armed = isArmedRow(topology, via);
   const note = via.edgeId ? state.rowNotes[via.edgeId] : null;
+  // What the end suggests -- an agent's open proposal, or the contact
+  // engine's ranked candidates -- in reader words on the state line, with
+  // who and why on the hover (handoff a_rail_row_with_a_proposal_says_so_and_
+  // accepts_it_in_place). A bound end suggests nothing.
+  const suggestion = AA.endSuggestion(mergedIdentityProjection(), state.contactSuggestions,
+    topology.id, via);
+  const selected = isSelectedFeature(topology, via);
+  if (suggestion && suggestion.kind === AA.SUGGESTION_KINDS[0]) {
+    const names = via.edgeId ? AA.edgeEndNames(topology, topology.edges.find((e) => e.id === via.edgeId)) : {};
+    li.title += "\n" + AA.describeProposals({ proposals: suggestion.proposals }, names)
+      .map((r) => AA.proposalHoverText(r)).join("\n");
+  }
   const text = document.createElement("span");
   text.className = "tree-row__text";
   const words = document.createElement("span");
@@ -2900,16 +2922,54 @@ function featureRow(topology, joint, feature) {
   const lb = state.sweep && state.sweep.lastBound;
   const justBound = !armed && !note && lb && topology && lb.topologyId === topology.id &&
     lb.edgeId === via.edgeId && lb.direction === via.direction;
+  const suggestionLine = !armed && !note && !justBound ? AA.suggestionWords(suggestion) : null;
   face.textContent = armed ? state.sweep.armed.line
-    : (note ? note.text : (justBound ? AA.armedWords("bound", { face: lb.faceId }) : faceWords));
+    : (note ? note.text : (justBound ? AA.armedWords("bound", { face: lb.faceId })
+      : (suggestionLine || faceWords)));
+  if (suggestionLine) face.classList.add("tree-row__face--suggested");
   if (justBound) li.title += "\n" + [lb.by, lb.at].filter(Boolean).join(" · ");
   if (armed && state.sweep.armed.flash) face.classList.add("tree-row__note--flash");
   text.appendChild(face);
   li.appendChild(text);
   if (armed) li.classList.add("tree-row--armed");
+  if (selected) li.classList.add("selected");
   if (via.edgeId) {
     hoverOn(li, via.direction ? ["hover", "feature", via.edgeId, via.direction]
       : ["hover", "feature", via.edgeId]);
+    // Selecting the row lights what it is about: its bound face, or the face
+    // its suggestion names (`inspect feature`). A second click lets it go.
+    li.onclick = () => {
+      railExec(selected ? ["inspect", "clear"]
+        : ["inspect", "feature", via.edgeId].concat(via.direction ? [via.direction] : []));
+    };
+    if (!armed && via.direction && suggestion && suggestion.kind === AA.SUGGESTION_KINDS[0]) {
+      // An end with an open proposal: its two answers, on the selected row
+      // only. Accept binds the suggested face; "Pick a different face" arms
+      // the pick exactly as Pick does, and the face then clicked turns the
+      // suggestion down and binds (armedClick).
+      if (selected) {
+        const words = AA.SUGGESTION_ROW_WORDS;
+        const accept = document.createElement("button");
+        accept.className = "tree-row__repick tree-row__accept";
+        accept.textContent = words.accept;
+        accept.title = words.acceptTitle;
+        accept.onclick = (ev) => {
+          ev.stopPropagation();
+          railExec(["accept", via.edgeId, via.direction]);
+        };
+        li.appendChild(accept);
+        const other = document.createElement("button");
+        other.className = "tree-row__repick tree-row__pick-other";
+        other.textContent = words.pickOther;
+        other.title = words.pickOtherTitle;
+        other.onclick = (ev) => {
+          ev.stopPropagation();
+          railExec(["arm", via.edgeId, via.direction]);
+        };
+        li.appendChild(other);
+      }
+      return li;
+    }
     const repick = document.createElement("button");
     repick.className = "tree-row__repick";
     if (via.direction) {
@@ -2952,6 +3012,13 @@ function featureRow(topology, joint, feature) {
     }
   }
   return li;
+}
+
+// Is this feature row the one `inspect feature` selected?
+function isSelectedFeature(topology, via) {
+  const i = state.sweep && state.sweep.inspect;
+  return !!(i && topology && via.edgeId && i.kind === AA.INSPECT_TARGETS[4] &&
+    i.name === via.edgeId && (i.direction || null) === (via.direction || null));
 }
 
 function isArmedRow(topology, via) {
@@ -3087,6 +3154,10 @@ function renderSweepRail() {
     // features opens the joint, so its feature row is on screen selected.
     const holds = selectedPart && topology && joint.features.some((f) =>
       AA.featureReadMatches(AA.sweepFeatureEdge(topology, f, joint.features), selectedPart.bindings));
+    // ...and so does a feature row selected by `inspect feature`.
+    const holdsFeature = topology && joint.features.some((f) =>
+      isSelectedFeature(topology, AA.sweepFeatureEdge(topology, f, joint.features)));
+    if (holdsFeature) sweep.treeOpen["joint:" + joint.name] = true;
     if (holds || (selectedPart && selectedPart.subject === joint.name)) {
       sweep.treeOpen["joint:" + joint.name] = true;
     }
@@ -3208,7 +3279,10 @@ function sceneHoverPart(pick) {
 function cmdInspect(what, name, face, subject) {
   const sweep = sweepState();
   const target = AA.parseInspect(what, name, face, subject);
+  // Whatever was selected before, its suggestion goes with it.
+  clearSuggestionFocus();
   if (target.kind === AA.INSPECT_TARGETS[3]) return inspectPart(target);
+  if (target.kind === AA.INSPECT_TARGETS[4]) return inspectFeature(target);
   if (target.kind === AA.INSPECT_TARGETS[0] &&
       !sweep.tree.joints.some((j) => j.name === target.name)) {
     throw new Error("this run has no joint \"" + target.name + "\"");
@@ -3233,6 +3307,149 @@ function cmdInspect(what, name, face, subject) {
   renderSweepRail();
   applyModelSelection();
   return sweep.inspect;
+}
+
+// inspect feature <edge> [from|to] -- a feature row selected (handoff a_rail_
+// row_with_a_proposal_says_so_and_accepts_it_in_place). A bound end is lit in
+// the pick tint, like a selected contributor. An end with an agent's open
+// proposal has the proposed face drawn SOLID in the suggestion colour on every
+// occurrence of its part, the node's hollow marker emphasised, the camera on
+// the occurrence the end's body anchors and every other part dimmed; an end
+// with only the contact engine's candidates has the top one's face outlined
+// dashed, framed the same way. Writes nothing.
+function inspectFeature(target) {
+  const sweep = state.sweep;
+  const topology = sweepTopology();
+  if (!topology) throw new Error("this run names no topology, so it has no features to select");
+  const edge = (topology.edges || []).find((e) => e.id === target.name);
+  if (!edge) throw new Error("unknown edge \"" + target.name + "\" in topology \"" + topology.id + "\"");
+  const via = { edgeId: edge.id, direction: target.direction };
+  const identity = mergedIdentityProjection();
+  const open = new Set(state.scene.listOpenParts());
+  const faces = AA.planHighlightFaces(identity, topology.id, [via], (sha) => open.has(sha));
+  const suggestion = AA.endSuggestion(identity, state.contactSuggestions, topology.id, via);
+  let lit = [];
+  if (suggestion && suggestion.kind === AA.SUGGESTION_KINDS[0]) {
+    const top = suggestion.proposals[0];
+    const key = top.geometry_key || {};
+    lit = [{ sha256: key.source_step_sha256, faceId: key.face_id }];
+  } else if (suggestion && suggestion.face) {
+    lit = [suggestion.face];
+  }
+  lit = lit.filter((f) => open.has(f.sha256));
+  sweep.inspect = { kind: target.kind, name: edge.id, direction: target.direction, faces,
+    suggestion: suggestion ? suggestion.kind : null, lit };
+  state.scene.setSweepEmphasis(null);
+  if (faces.length) state.scene.highlightFaces(faces);
+  else if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
+  else state.scene.clearHighlight();
+  if (lit.length) {
+    const node = target.direction ? (target.direction === AA.DIRECTIONS[1] ? edge.to : edge.from) : null;
+    const solid = suggestion.kind === AA.SUGGESTION_KINDS[0];
+    state.scene.setSuggestionFocus({ faces: lit, solid, node: solid ? node : null });
+    focusDim(lit.map((f) => f.sha256));
+    state.scene.frameOccurrences(anchoredOccurrences(lit.map((f) => ({
+      sha256: f.sha256, partId: endPartIdOf(topology, edge.id, target.direction, f.sha256) }))));
+  }
+  window.__lastInspect = sweep.inspect;
+  renderSweepRail();
+  applyModelSelection();
+  return sweep.inspect;
+}
+
+// The topology part an end's face is on, out of the parts the end names
+// (AA.pickEndPartIds), matched by its installed mesh; null when none is.
+function endPartIdOf(topology, edgeId, direction, sha256) {
+  if (!direction) return null;
+  for (const id of AA.pickEndPartIds(topology, edgeId, direction)) {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    if (mesh && mesh.sha256 === sha256) return id;
+  }
+  return null;
+}
+
+// The rest of the scene, dimmed while a suggestion is selected: every open
+// part but the lit ones goes see-through, and what each was is remembered so
+// clearSuggestionFocus puts exactly that back.
+function focusDim(shas) {
+  const sweep = state.sweep;
+  if (!sweep) return;
+  undoFocusDim();
+  sweep.focusDim = state.scene.listOpenParts().map((sha) => ({ sha, ghost: state.scene.isGhosted(sha) }));
+  for (const entry of sweep.focusDim) state.scene.setGhost(entry.sha, shas.indexOf(entry.sha) === -1);
+}
+
+function undoFocusDim() {
+  const sweep = state.sweep;
+  if (!sweep || !sweep.focusDim) return;
+  for (const entry of sweep.focusDim) state.scene.setGhost(entry.sha, entry.ghost);
+  sweep.focusDim = null;
+}
+
+// A selected suggestion, taken down: the solid face or outline, the
+// emphasised marker and the dimming.
+function clearSuggestionFocus() {
+  undoFocusDim();
+  if (state.scene && state.scene.setSuggestionFocus) state.scene.setSuggestionFocus(null);
+}
+
+// accept <edge> <from|to> -- the surest open proposal at that end, accepted:
+// one `bound` event naming it (ratifies), recorded as this reviewer,
+// superseding the end's one standing binding if it has one. A sweep rail
+// row's Accept; in either mode, through the one answer path (writeAnswer).
+async function cmdAccept(edgeId, direction) {
+  const topology = state.sweep ? sweepTopology() : state.currentTopology;
+  if (!topology) throw new Error("no topology is open, so there is nothing to accept");
+  const edge = (topology.edges || []).find((e) => e.id === edgeId);
+  if (!edge) throw new Error("unknown edge \"" + edgeId + "\" in topology \"" + topology.id + "\"");
+  if (AA.DIRECTIONS.indexOf(direction) === -1) {
+    throw new Error("accept <edge> takes an end, " + AA.DIRECTIONS.join(" or ") + ", got " + JSON.stringify(direction));
+  }
+  const record = AA.findBindingRecord(mergedIdentityProjection(), AA.topologyEdgeKey(topology.id, edge.id));
+  const proposal = AA.endProposals(record, direction)[0];
+  if (!proposal) throw new Error("nothing is suggested at " + (AA.edgeEndNames(topology, edge)[direction] || direction));
+  const plan = AA.planAnswer(AA.ANSWER_VERBS[0], { proposal, standing: AA.endBindings(record, direction) });
+  const key = proposal.geometry_key;
+  const mesh = state.meshList.find((m) => m.sha256 === key.source_step_sha256);
+  const toast = AA.armedWords("toast", { end: AA.edgeEndNames(topology, edge)[direction] || direction,
+    face: key.face_id, part: mesh ? AA.partRowWords(mesh, state.partNames).text : String(key.source_step_sha256).slice(0, 12) });
+  const events = await writeAnswer(plan, edge.id, toast);
+  if (state.sweep) {
+    clearSuggestionFocus();
+    state.scene.markFace(key.source_step_sha256, key.face_id, "bound");
+    state.sweep.lastBound = { topologyId: topology.id, edgeId: edge.id, direction,
+      faceId: key.face_id, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
+    showToast(toast);
+    if (isSelectedFeature(topology, { edgeId: edge.id, direction })) {
+      cmdInspect(AA.INSPECT_TARGETS[4], edge.id, direction);
+    } else {
+      renderSweepRail();
+    }
+  } else {
+    await paintProposals();
+  }
+  return { accepted: proposal.event_id, events: events.map((e) => e.event_id) };
+}
+
+// THE ONE WRITE PATH FOR AN ANSWER (handoff a_rail_row_with_a_proposal_says_
+// so_and_accepts_it_in_place): the events AA.planAnswer's plan comes to, in
+// their order -- every rejection, then the one binding -- each to the next
+// numbered file. The sweep rail's Accept, an armed pick's click and the bind
+// bar's Accept and Reject all come here; none of them builds an event itself.
+async function writeAnswer(plan, edgeId, banner) {
+  const filenames = await existingEventFilenames();
+  const events = AA.buildAnswerEvents(plan, {
+    eventId: "annotate-" + Date.now() + "-" + slugify(edgeId),
+    seq: filenames.length + 1,
+    createdAt: nowIso(),
+    recordedBy: AA.humanActor(AA.CONFIG.reviewer),
+  });
+  for (const event of events) {
+    const suffix = event.rejects ? "_rejected"
+      : (event.ratifies ? "_accepted" : "");
+    await writeIdentityEvent(nextFilename(filenames, slugify(edgeId) + suffix), event, banner);
+  }
+  return events;
 }
 
 // inspect part <mesh> <face> [<subject>] -- a pick in the scene, selected in
@@ -3653,6 +3870,7 @@ commands.register("hover", cmdHover);
 commands.register("show-body", (name) => cmdSubjectView(true, name));
 commands.register("hide-body", (name) => cmdSubjectView(false, name));
 commands.register("arm", cmdArm);
+commands.register("accept", cmdAccept);
 AA.exec = (input) => commands.exec(input);
 
 // The last arrival, run again -- what ticking an auto-setup box back on does.
@@ -3867,7 +4085,8 @@ function renderElementList() {
       const chip = document.createElement("span");
       chip.className = "el-row__proposal";
       chip.textContent = chipText;
-      chip.title = chipText;
+      chip.title = AA.describeProposals(record, AA.edgeEndNames(state.currentTopology, edge))
+        .map((r) => r.end + ": " + AA.proposalHoverText(r)).join("\n");
       li.appendChild(chip);
     }
     const alerts = AA.elementAlerts(bindingState);
@@ -4588,35 +4807,23 @@ function buildProposalRow(edge, bind, row, canWrite) {
   if (!canWrite) return line;
   const answer = async (verb) => {
     try {
-      const filenames = await existingEventFilenames();
-      const fields = {
-        eventId: "annotate-" + Date.now() + "-" + slugify(edge.id),
-        seq: filenames.length + 1,
-        createdAt: nowIso(),
-        recordedBy: AA.humanActor(AA.CONFIG.reviewer),
-      };
-      if (verb === "accept") {
-        const standing = ((bind.record && bind.record.bindings) || []).find((b) => b.direction === row.direction);
-        fields.supersedes = standing ? standing.event_id : null;
-        const event = AA.buildAcceptEvent(row.event, fields);
-        await writeIdentityEvent(nextFilename(filenames, slugify(edge.id) + "_accepted"), event,
-          "Bound face " + row.face + " at " + row.end);
-      } else {
-        const event = AA.buildRejectEvent(row.event, fields);
-        await writeIdentityEvent(nextFilename(filenames, slugify(edge.id) + "_rejected"), event,
-          "Rejected face " + row.face + " for " + row.end);
-      }
+      // The one answer path (writeAnswer), as the sweep rail's Accept uses it.
+      const plan = AA.planAnswer(verb, { proposal: row.event,
+        standing: AA.endBindings(bind.record, row.direction) });
+      await writeAnswer(plan, edge.id, verb === AA.ANSWER_VERBS[0]
+        ? "Bound face " + row.face + " at " + row.end
+        : "Rejected face " + row.face + " for " + row.end);
       await paintProposals();
     } catch (err) {
       setBanner((verb === "accept" ? "Accept" : "Reject") + " failed: " + err.message, "error");
     }
   };
-  for (const [verb, label] of [["accept", "Accept"], ["reject", "Reject"]]) {
+  for (const [verb, label] of [[AA.ANSWER_VERBS[0], AA.SUGGESTION_ROW_WORDS.accept], [AA.ANSWER_VERBS[1], "Reject"]]) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "an__bound-act an__proposal-" + verb;
     btn.textContent = label;
-    btn.title = verb === "accept"
+    btn.title = verb === AA.ANSWER_VERBS[0]
       ? "bind face " + row.face + " at " + row.end
       : "turn this face down; it will not be proposed for this element again";
     btn.onclick = () => answer(verb);
@@ -5026,7 +5233,7 @@ function postEmbedState() {
 // "shown" is read off the layout (a closed <details>, a chip-hidden group,
 // bind furniture in sweep mode all have no boxes).
 //
-// A row: {key, text, title?, sub?, value?, state?, attention?, selected?, sceneHover?,
+// A row: {key, text, title?, sub?, suggestion?, value?, state?, attention?, selected?, sceneHover?,
 // open? (a disclosure), activate? (a click does something), check?
 // {checked, indeterminate, disabled, title}, buttons? [{text, title,
 // pressed}], alert? (the badge's words), rows? [...]}; a heading is {key,
@@ -5132,8 +5339,14 @@ function railRow(node, parentKey, seen) {
     const row = { key, text: name, title: node.title ||
       (node.querySelector(":scope > .part-row__label") || {}).title || "" };
     const sub = railText(node, ".tree-row__note") ||
-      railText(node, ".tree-row__text > .tree-row__face") || railText(node, ".part-row__note");
+      railText(node, ".tree-row__text > .tree-row__face") || railText(node, ".part-row__note") ||
+      railText(node, ".el-row__proposal");
     if (sub) row.sub = sub;
+    // A suggestion line ("suggested · high", "candidates · 3") is drawn in
+    // the suggestion colour; the shell is told THAT, not which words.
+    if (node.querySelector(":scope > .tree-row__text > .tree-row__face--suggested, :scope > .el-row__proposal")) {
+      row.suggestion = true;
+    }
     const value = railText(node, ".tree-row__value") || railText(node, ".part-row__count");
     if (value) row.value = value;
     if (node.dataset.state) row.state = node.dataset.state;
@@ -5142,8 +5355,10 @@ function railRow(node, parentKey, seen) {
       if (cls) row.state = cls.slice("el-row--".length);
     }
     // A row whose binding is not settled is the one the rail colours; the
-    // shell is told THAT, so it keeps no copy of the state words.
-    if (row.state && row.state !== AA.BINDING_STATES.BOUND) row.attention = true;
+    // shell is told THAT, so it keeps no copy of the state words. A quiet
+    // state (bound; an open suggestion, which its own line already says)
+    // asks for no attention.
+    if (row.state && AA.QUIET_BINDING_STATES.indexOf(row.state) === -1) row.attention = true;
     if (node.classList.contains("selected")) row.selected = true;
     if (node.classList.contains("is-scene-hover")) row.sceneHover = true;
     if (node.onclick) row.activate = true;

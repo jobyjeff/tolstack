@@ -186,7 +186,7 @@ body {
    the one way the stripe says it is not yet anybody's answer. */
 .el-row--proposed { border-left: 3px dashed #6ea8fe; }
 /* The row's chip: muted and smaller-weight than the name, never a badge. */
-.el-row__proposal { color: #9aa1ab; font-size: var(--t-meta); white-space: nowrap; margin-left: 8px; }
+.el-row__proposal { color: #6ea8fe; font-size: var(--t-meta); white-space: nowrap; margin-left: 8px; }
 
 /* ONE alert badge per row, whatever it carries, with the words on hover
    (deliverable 5). A row with nothing wrong renders no badge at all, so there
@@ -606,6 +606,9 @@ body {
   color: #9aa1ab; font-size: var(--t-micro);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* A feature row's suggestion ("suggested · high", "candidates · 3"), in
+   the suggestion colour -- the colour the scene draws the proposed face in. */
+.tree-row__face--suggested { color: #6ea8fe; }
 /* A part row standing for more than one drawn position: how many, muted. */
 .part-row__count { flex: none; color: #9aa1ab; font-size: var(--t-micro); font-variant-numeric: tabular-nums; }
 /* A body's own checkbox sits at the end of its summary line. */

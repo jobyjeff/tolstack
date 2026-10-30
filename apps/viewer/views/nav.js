@@ -350,6 +350,9 @@
       (row.sceneHover ? " navtree__scenerow--hot" : ""));
     line.setAttribute("data-scene-key", row.key);
     if (row.attention) line.setAttribute("data-attention", "true");
+    // A suggestion line (the annotator says which rows carry one) is drawn in
+    // the suggestion colour.
+    if (row.suggestion) line.setAttribute("data-suggestion", "true");
     if (row.title) line.setAttribute("title", row.title);
     var text = VA.el("span", "navtree__scenetext");
     text.appendChild(VA.el("span", "navtree__scenename", row.text));

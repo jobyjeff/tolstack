@@ -138,6 +138,11 @@ const MODEL_PROPOSED_RADIUS = 3; // mm
 // A proposed face's dash, as a fraction of its part's bounding radius.
 const PROPOSAL_DASH_FRACTION = 0.02;
 const MODEL_RENDER_ORDER = 20;   // over the parts, the leader and the hover
+// A SELECTED suggestion (handoff a_rail_row_with_a_proposal_says_so_and_
+// accepts_it_in_place): the proposed face filled solid in the suggestion
+// colour, and the hollow marker of the node it would move drawn this much
+// larger and solid. The un-selected state stays the dashed outline.
+const FOCUS_MARKER_SCALE = 1.8;
 const MODEL_DIM_OPACITY = 0.22;
 const MODEL_PLANE_OPACITY = 0.08;
 
@@ -200,6 +205,8 @@ export class AnnotateScene {
     this._marks = [];
     // An agent's proposed faces, drawn as dashed outlines (setProposalOutlines).
     this._proposals = [];
+    // The face a selected rail row suggests (setSuggestionFocus), or null.
+    this._focus = null;
     // ...and what hovering one says, in bind mode: (text | null, event).
     this.onProposalHover = function () {};
     // sha256 -> the extra THREE.Meshes drawn for a part's second and later
@@ -539,6 +546,10 @@ export class AnnotateScene {
     if (!mesh) return;
     this._disposeMarks((m) => m.sha256 === sha256);
     this._disposeHoverOf(sha256);
+    if (this._focus) {
+      this._syncFocus(sha256, true);
+      this._focus.faces = this._focus.faces.filter((f) => f.sha256 !== sha256);
+    }
     if (this._preselect && this._preselect.sha256 === sha256) this._disposePreselect();
     for (const repeat of this._repeats.get(sha256) || []) this.scene.remove(repeat);
     this._repeats.delete(sha256);
@@ -691,6 +702,7 @@ export class AnnotateScene {
       this._syncMarks(sha256);
       this._syncHover(sha256);
       this._syncProposals(sha256);
+      this._syncFocus(sha256);
     }
   }
 
@@ -787,33 +799,156 @@ export class AnnotateScene {
     this._disposeProposals();
     const AA = window.AnnotateApp;
     for (const item of list || []) {
-      const parent = this.parts.get(item.sha256);
-      const range = parent && parent.userData.faceRanges[item.faceId];
-      if (!range) continue;
-      const sub = AA.faceSubGeometry(parent.geometry.attributes.position.array,
-        parent.geometry.index.array, parent.userData.faceIdPerTriangle, range, item.faceId);
-      const edges = AA.faceBoundaryEdges(sub.indices);
-      const positions = new Float32Array(edges.length * 6);
-      edges.forEach(([a, b], i) => {
-        for (let k = 0; k < 3; k++) {
-          positions[i * 6 + k] = sub.positions[a * 3 + k];
-          positions[i * 6 + 3 + k] = sub.positions[b * 3 + k];
-        }
-      });
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      if (!parent.geometry.boundingSphere) parent.geometry.computeBoundingSphere();
-      const size = parent.geometry.boundingSphere.radius;
-      const material = new THREE.LineDashedMaterial({
-        color: MARK_COLORS.suggested, dashSize: size * PROPOSAL_DASH_FRACTION,
-        gapSize: size * PROPOSAL_DASH_FRACTION, depthTest: false, transparent: true,
-      });
+      const outline = this._dashedOutline(item.sha256, item.faceId);
+      if (!outline) continue;
       this._proposals.push({ sha256: item.sha256, faceId: item.faceId, text: item.text || "",
-        geometry, material, lines: [] });
+        geometry: outline.geometry, material: outline.material, lines: [] });
       this._syncProposals(item.sha256);
     }
     this.requestRender();
     return this._proposals.length;
+  }
+
+  // One face's boundary as a dashed line set in the suggestion colour, in the
+  // part's own frame: {geometry, material}, or null for a face the part does
+  // not have. A proposal's un-selected look, and a contact candidate's.
+  _dashedOutline(sha256, faceId) {
+    const AA = window.AnnotateApp;
+    const parent = this.parts.get(sha256);
+    const range = parent && parent.userData.faceRanges[faceId];
+    if (!range) return null;
+    const sub = AA.faceSubGeometry(parent.geometry.attributes.position.array,
+      parent.geometry.index.array, parent.userData.faceIdPerTriangle, range, faceId);
+    const edges = AA.faceBoundaryEdges(sub.indices);
+    const positions = new Float32Array(edges.length * 6);
+    edges.forEach(([a, b], i) => {
+      for (let k = 0; k < 3; k++) {
+        positions[i * 6 + k] = sub.positions[a * 3 + k];
+        positions[i * 6 + 3 + k] = sub.positions[b * 3 + k];
+      }
+    });
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    if (!parent.geometry.boundingSphere) parent.geometry.computeBoundingSphere();
+    const size = parent.geometry.boundingSphere.radius;
+    const material = new THREE.LineDashedMaterial({
+      color: MARK_COLORS.suggested, dashSize: size * PROPOSAL_DASH_FRACTION,
+      gapSize: size * PROPOSAL_DASH_FRACTION, depthTest: false, transparent: true,
+    });
+    return { geometry, material };
+  }
+
+  // --- a selected suggestion (handoff a_rail_row_with_a_proposal_says_so_and_
+  // accepts_it_in_place) ------------------------------------------------------
+  //
+  // What a selected rail row suggests, drawn on every occurrence of its part
+  // (a binding is part-local, so it is the same face on each): an agent's
+  // proposal SOLID in the suggestion colour, a contact candidate (`solid`
+  // false -- a ranking, not a claim) as its dashed outline; and the hollow
+  // marker of the node a proposal would move, larger and solid. `spec` is
+  // {faces: [{sha256, faceId}], solid, node} or null to take it all down.
+  // Overlays only: the colour buffer -- the pick's -- is untouched.
+  setSuggestionFocus(spec) {
+    this._disposeFocus();
+    const s = spec || {};
+    const faces = (s.faces || []).slice();
+    if (faces.length || s.node) {
+      this._focus = { faces, solid: !!s.solid, node: s.node || null, items: [] };
+      for (const sha of new Set(faces.map((f) => f.sha256))) this._syncFocus(sha);
+    }
+    this._applyFocusMarker();
+    this.requestRender();
+    return this.suggestionFocus();
+  }
+
+  // One part's focus overlays, rebuilt -- on a focus and whenever the part's
+  // occurrence COUNT changes, never per frame (each is a child of its
+  // occurrence and moves with it). `dropOnly` takes them down and draws none.
+  _syncFocus(sha256, dropOnly) {
+    const f = this._focus;
+    if (!f) return;
+    for (const item of f.items.filter((x) => x.sha256 === sha256)) {
+      for (const m of item.meshes) if (m.parent) m.parent.remove(m);
+      item.geometry.dispose();
+      item.material.dispose();
+    }
+    f.items = f.items.filter((x) => x.sha256 !== sha256);
+    const parent = this.parts.get(sha256);
+    if (!parent || dropOnly) return;
+    const nodes = this._occurrenceNodes(sha256);
+    const AA = window.AnnotateApp;
+    for (const face of f.faces.filter((x) => x.sha256 === sha256)) {
+      let geometry, material;
+      if (f.solid) {
+        const range = parent.userData.faceRanges[face.faceId];
+        if (!range) continue;
+        const sub = AA.faceSubGeometry(parent.geometry.attributes.position.array,
+          parent.geometry.index.array, parent.userData.faceIdPerTriangle, range, face.faceId);
+        geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(
+          sub.positions instanceof Float32Array ? sub.positions : new Float32Array(sub.positions), 3));
+        geometry.setIndex(sub.indices);
+        material = new THREE.MeshBasicMaterial({
+          color: MARK_COLORS.suggested, side: THREE.DoubleSide,
+          polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+        });
+      } else {
+        const outline = this._dashedOutline(sha256, face.faceId);
+        if (!outline) continue;
+        geometry = outline.geometry;
+        material = outline.material;
+      }
+      const meshes = nodes.map((node) => {
+        const obj = f.solid ? new THREE.Mesh(geometry, material) : new THREE.LineSegments(geometry, material);
+        if (!f.solid) obj.computeLineDistances();
+        obj.renderOrder = HOVER_RENDER_ORDER + 2;
+        obj.userData = { sha256, focus: true };
+        node.add(obj);
+        return obj;
+      });
+      f.items.push({ sha256, faceId: face.faceId, geometry, material, meshes });
+    }
+  }
+
+  _disposeFocus() {
+    const f = this._focus;
+    this._focus = null;
+    if (f) {
+      for (const item of f.items) {
+        for (const m of item.meshes) if (m.parent) m.parent.remove(m);
+        item.geometry.dispose();
+        item.material.dispose();
+      }
+    }
+    this._applyFocusMarker();
+  }
+
+  // The focused node's hollow marker, emphasised; every other one as built.
+  _applyFocusMarker() {
+    const model = this._model;
+    if (!model || !model.proposed) return;
+    const on = this._focus && this._focus.node;
+    for (const [id, ring] of model.proposed) {
+      const lit = id === on;
+      ring.scale.setScalar(lit ? FOCUS_MARKER_SCALE : 1);
+      ring.material.wireframe = !lit;
+    }
+    this.requestRender();
+  }
+
+  // What the focus draws, counted -- a harness reads this rather than
+  // trusting that a call reached here.
+  suggestionFocus() {
+    const f = this._focus;
+    const model = this._model;
+    const ring = f && f.node && model && model.proposed ? model.proposed.get(f.node) : null;
+    return {
+      faces: f ? f.items.map((x) => ({ sha256: x.sha256, faceId: x.faceId,
+        drawn: x.meshes.filter((m) => m.parent).length })) : [],
+      solid: !!(f && f.solid),
+      node: f ? f.node : null,
+      markerEmphasised: !!(ring && ring.scale.x > 1 && !ring.material.wireframe),
+    };
   }
 
   _syncProposals(sha256) {
@@ -1580,6 +1715,7 @@ export class AnnotateScene {
     this.scene.add(root);
     this._model = { root, groups, dots, lines, dotGeometry, proposed, proposedGeometry,
       selection: null, strengths: {} };
+    this._applyFocusMarker();
     return true;
   }
 

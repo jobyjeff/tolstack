@@ -1315,11 +1315,11 @@ check("an agent cannot accept or reject, and nothing but a proposal can be answe
   assertThrows(() => AA.humanActor(""));
 });
 
-check("the rail chip and the hover say who proposed, how sure and why, in everyday words", () => {
+check("the rail's suggestion line says how sure in reader words, and the hover says who and why", () => {
   const row = AA.addEventToRecord(emptyRow(), PROPOSAL);
   AA.addEventToRecord(row, Object.assign({}, PROPOSAL, {
     event_id: "proposal-0002-rod_len-to", direction: "to", confidence: "medium" }));
-  assertEqual(AA.proposalChip(row), "proposed by agent · high");
+  assertEqual(AA.proposalChip(row), "suggested · high");
   assertEqual(AA.proposalChip(emptyRow()), null);
   const rows = AA.describeProposals(row, { from: "rod top", to: "rod bottom" });
   assertEqual(rows.map((r) => [r.end, r.face, r.confidence, r.actor]),
@@ -1328,6 +1328,120 @@ check("the rail chip and the hover say who proposed, how sure and why, in everyd
     "Proposed by agent (high): round face; the contact engine's one clear pair");
   assertEqual(AA.actorWords("annotate-app:jeff"), "jeff");
   assertEqual(AA.actorWords("annotate-app"), "annotate-app", "a pre-prefix event lost its words");
+});
+
+// --- the rail row answers a proposal in place (handoff a_rail_row_with_a_
+// proposal_says_so_and_accepts_it_in_place) ----------------------------------
+
+const HUMAN = Object.freeze({ eventId: "annotate-1-rod_len", seq: 10,
+  createdAt: "2026-10-29T00:00:00Z", recordedBy: "annotate-app:jeff" });
+const PROPOSAL_TO = Object.freeze(Object.assign({}, PROPOSAL, {
+  event_id: "proposal-0002-rod_len-to", direction: "to", confidence: "medium",
+  geometry_key: Object.assign({}, PROPOSAL.geometry_key, { face_id: 9 }) }));
+const pickOf = (faceId, direction) => ({
+  geometryKey: { sourceStepSha256: PROPOSAL_SHA, faceId, areaNative2: 1, centroidNative: [0, 0, 0] },
+  direction: direction || "from", stackKey: PROPOSAL.stack_key });
+
+check("an end's proposals are its own, surest first; the other end's are not this end's", () => {
+  const row = AA.addEventToRecord(AA.addEventToRecord(emptyRow(), PROPOSAL_TO), PROPOSAL);
+  assertEqual(AA.endProposals(row, "from").map((p) => p.event_id), [PROPOSAL.event_id]);
+  assertEqual(AA.endProposals(row, "to").map((p) => p.event_id), [PROPOSAL_TO.event_id]);
+  assertEqual(AA.endProposals(row, null).map((p) => p.confidence), ["high", "medium"],
+    "surest first");
+  assertEqual(AA.endProposals(null, "from"), []);
+});
+
+check("Accept plans one `bound` event that ratifies the proposal and replaces the end's one " +
+  "standing binding", () => {
+  const standing = [{ event_id: "old-bind", direction: "from" }];
+  const plan = AA.planAnswer("accept", { proposal: PROPOSAL, standing });
+  const events = AA.buildAnswerEvents(plan, HUMAN);
+  assertEqual(events.map((e) => e.verdict), ["bound"]);
+  assertEqual(events[0].ratifies, PROPOSAL.event_id);
+  assertEqual(events[0].supersedes, "old-bind");
+  assertEqual(events[0].event_id, HUMAN.eventId);
+  assertEqual(AA.planAnswer("accept", { proposal: PROPOSAL, standing: [] }).supersedes, null);
+  assertEqual(AA.planAnswer("accept", { proposal: PROPOSAL,
+    standing: standing.concat([{ event_id: "two", direction: "from" }]) }).supersedes, null,
+    "two faces at one end are not guessed between");
+});
+
+check("Pick a different face: the click writes `rejected` for the proposal FIRST, then `bound` " +
+  "for the picked face, both as the reviewer, numbered in that order", () => {
+  const plan = AA.planAnswer("pick", { pick: pickOf(42), open: [PROPOSAL], standing: [] });
+  assertEqual(plan.accept, null);
+  assertEqual(plan.reject.map((p) => p.event_id), [PROPOSAL.event_id]);
+  const events = AA.buildAnswerEvents(plan, HUMAN);
+  assertEqual(events.map((e) => e.verdict), ["rejected", "bound"]);
+  assertEqual(events[0].rejects, PROPOSAL.event_id);
+  assertEqual(events[1].geometry_key.face_id, 42);
+  assertEqual(events[1].direction, "from");
+  assertEqual(events[1].ratifies, undefined, "a different face ratified the proposal it turned down");
+  assertEqual(events.map((e) => e.seq), [10, 11]);
+  assertEqual(events.map((e) => e.recorded_by), ["annotate-app:jeff", "annotate-app:jeff"]);
+  assertEqual(new Set(events.map((e) => e.event_id)).size, 2, "one gesture wrote two events under one id");
+  // ...and folded, the proposal has left the open list for good and the face stands.
+  const row = AA.addEventToRecord(emptyRow(), PROPOSAL);
+  events.forEach((e) => AA.addEventToRecord(row, e));
+  assertEqual(row.proposals, []);
+  assertEqual(row.rejected_proposals.map((p) => p.event_id), [PROPOSAL.event_id]);
+  assertEqual(row.bindings.map((b) => b.geometry_key.face_id), [42]);
+});
+
+check("an armed click on the proposed face itself is an Accept, and on an end with no " +
+  "proposal it is a plain bind", () => {
+  const same = AA.buildAnswerEvents(AA.planAnswer("pick",
+    { pick: pickOf(7), open: [PROPOSAL], standing: [] }), HUMAN);
+  assertEqual(same.map((e) => [e.verdict, e.ratifies]), [["bound", PROPOSAL.event_id]]);
+  const plain = AA.buildAnswerEvents(AA.planAnswer("pick",
+    { pick: pickOf(3, "to"), open: [], standing: [{ event_id: "was", direction: "to" }] }), HUMAN);
+  assertEqual(plain.map((e) => [e.verdict, e.direction, e.supersedes]), [["bound", "to", "was"]]);
+});
+
+check("Reject plans one `rejected` event and no binding; an unknown answer and an agent are refused", () => {
+  const events = AA.buildAnswerEvents(AA.planAnswer("reject", { proposal: PROPOSAL }), HUMAN);
+  assertEqual(events.map((e) => e.verdict), ["rejected"]);
+  assertThrows(() => AA.planAnswer("maybe", { proposal: PROPOSAL }));
+  assertThrows(() => AA.planAnswer("accept", {}));
+  assertThrows(() => AA.buildAnswerEvents(AA.planAnswer("pick", { pick: pickOf(1), open: [] }),
+    Object.assign({}, HUMAN, { recordedBy: PROPOSAL.recorded_by })));
+});
+
+check("a feature row's suggestion: an open proposal at its end, else the contact engine's " +
+  "candidates with the top one's face at this end, and nothing once the end is bound", () => {
+  const record = AA.addEventToRecord(emptyRow(), PROPOSAL);
+  const identity = { stack_keys: [record] };
+  const contact = { topologies: [{ id: "rail_topo", edges: [{ edge: "rod_len", status: "ok",
+    candidates: [
+      { rank: 2, from: { sha256: "a", faces: [5] }, to: { sha256: "b", faces: [6] } },
+      { rank: 1, from: { sha256: "a", faces: [1, 2] }, to: { sha256: "b", faces: [3] } },
+    ] }] }] };
+  const from = AA.endSuggestion(identity, contact, "rail_topo", { edgeId: "rod_len", direction: "from" });
+  assertEqual([from.kind, from.proposals.map((p) => p.event_id)], ["proposed", [PROPOSAL.event_id]]);
+  assertEqual(AA.suggestionWords(from), "suggested · high");
+  const to = AA.endSuggestion(identity, contact, "rail_topo", { edgeId: "rod_len", direction: "to" });
+  assertEqual([to.kind, to.n, to.face], ["candidates", 2, { sha256: "b", faceId: 3 }]);
+  assertEqual(AA.suggestionWords(to), "candidates · 2");
+  assertEqual(AA.endSuggestion(identity, null, "rail_topo", { edgeId: "rod_len", direction: "to" }), null);
+  // Bound wins: a binding at the end takes its suggestion away, as the fold does.
+  AA.addEventToRecord(record, AA.buildAcceptEvent(PROPOSAL, HUMAN));
+  assertEqual(AA.endSuggestion(identity, contact, "rail_topo", { edgeId: "rod_len", direction: "from" }), null);
+});
+
+check("a node feature's state is ITS end's: a proposal at the other end leaves it unbound", () => {
+  const record = AA.addEventToRecord(emptyRow(), PROPOSAL);
+  const identity = { stack_keys: [record] };
+  assertEqual(AA.sweepFeatureState(identity, null, "rail_topo", { edgeId: "rod_len", direction: "from" }),
+    AA.BINDING_STATES.PROPOSED);
+  assertEqual(AA.sweepFeatureState(identity, null, "rail_topo", { edgeId: "rod_len", direction: "to" }),
+    AA.BINDING_STATES.UNBOUND);
+});
+
+check("inspect feature <edge> [from|to] selects one feature row; a wrong end is refused", () => {
+  assertEqual(AA.parseInspect("feature", "rod_len", "to"), { kind: "feature", name: "rod_len", direction: "to" });
+  assertEqual(AA.parseInspect("feature", "rod_len"), { kind: "feature", name: "rod_len", direction: null });
+  assertThrows(() => AA.parseInspect("feature", "rod_len", "middle"));
+  assertThrows(() => AA.parseInspect("feature"));
 });
 
 check("a proposed anchor is a hollow marker BESIDE the node's anchor -- never for a node " +
