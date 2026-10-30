@@ -116,3 +116,44 @@ not the same thing. When it lands, delete `gap`/`title` from the contributor
 Nothing: the worktree was clean. The main checkout was touched only under
 gitignored `data/scratch/plus72/` (removed at hand-back) and through the
 read-only junctions into it.
+
+## A pre-existing witness decay, fixed here
+
+Every `python__…` witness on `tests/test_kinematic.py` was NOT WITNESSED, on
+integration as well as on this branch. The tier was red before any mutation
+because the 10-28 test
+`test_the_open_question_the_kinematic_chart_links_to_is_on_file` reads a
+`docs/issues/` file, and the witness shadow carries `docs/issues/` empty by
+design (`SHADOW_EMPTY_DIRS`). The test now skips only when that directory is
+empty, which happens in the shadow and never in a checkout. After the fix all
+eight entries are witnessed. Separately, a scratch `--repo` root needs a
+`venv-win` junction, or every python entry reports "the tier's process could
+not be started".
+
+## Verification record
+
+Run from this worktree. The data tiers ran against the scratch root
+`C:\workspace\tolstack\data\scratch\plus72`. Topology, viewer, crops and
+kinematic projections were rebuilt there from committed `2536a112`. The
+other projection dirs, `inbox/`, `meshes/`, `node_modules` and `venv-win`
+were junctioned read-only from the main checkout, and the worktree's `docs/`
+was junctioned in. The root was removed at hand-back.
+
+- `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`
+  (committed `a36dc106`): 1679 passed, 1 failed, 5 skipped, 336 s, single
+  process (no xdist). The failure is `test_viewer_js_suite_is_green`, the
+  deliberate worktree red; that tier ran green below. The 5 skips are
+  data-state skips unrelated to this diff: 4 × the live
+  contact_suggestions.json predates the ends-first pairing, and 1 × the
+  pitch-link bearing re-extraction is not installed. After the last test edit,
+  `tests/test_kinematic.py` passed 79/79.
+- `node apps/viewer/run_tests.cjs --repo <scratch>`: 622/622, `[real]` tier
+  included, projection paired with `2536a112`.
+- `node apps/annotate/run_tests.cjs`: 255/255.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch> --only kinematic`:
+  21/21. The −7 band's top edge meets the envelope at dx 0.005 px,
+  dy 1e-14 px. The full browser tier was not run (a merge-only tier).
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration`:
+  32/33 witnessed, 33/33 reached, 0 left to the sweep, 7m23s. The one miss,
+  `fb0d661d`, was red-before-mutation once, witnessed in the previous run,
+  and witnessed again with `--only` (30 s).
