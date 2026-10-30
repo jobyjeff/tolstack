@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] the scene's pointer on an anchor previews that node in the shell's Preview",
+  "mutations": [
+    {
+      "contract": "The scene raycasts its model dots on pointermove and posts the anchor under the pointer.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). The pointermove no longer asks which dot is under it. Needs the real run and meshes (--repo a root built from this tree).",
+      "file": "apps/annotate/scene.js",
+      "find": "      if (this._pickFilter) { this._preselectMove(ev); return; }\n      this._modelHoverMove(ev);",
+      "replace": "      if (this._pickFilter) { this._preselectMove(ev); return; }"
+    }
+  ]
+}

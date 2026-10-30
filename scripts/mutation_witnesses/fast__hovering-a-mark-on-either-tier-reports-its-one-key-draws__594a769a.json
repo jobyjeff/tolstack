@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "hovering a mark on either tier reports its ONE key, draws one line of label, and opens no card",
+  "mutations": [
+    {
+      "contract": "A hovered mark draws its one-line label.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). setHot no longer draws the label.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (hot.onChange) hot.onChange(key);\n    drawHoverLabel(hot, key);",
+      "replace": "    if (hot.onChange) hot.onChange(key);"
+    }
+  ]
+}

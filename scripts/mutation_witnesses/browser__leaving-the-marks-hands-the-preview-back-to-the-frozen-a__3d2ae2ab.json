@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "leaving the marks hands the Preview back to the frozen A",
+  "mutations": [
+    {
+      "contract": "Off every mark the Preview returns to the frozen element.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). The return timer never paints.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    previewReturn = setTimeout(function () {\n      previewReturn = null;\n      paintPreview();\n    }, VA.PREVIEW_RETURN_MS);",
+      "replace": "    previewReturn = null;"
+    }
+  ]
+}

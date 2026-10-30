@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "pointing at a contributor row previews its edge's record",
+  "mutations": [
+    {
+      "contract": "A kinematic contributor row previews its edge's record, as its grid row does.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). The results pane's hover no longer reaches the Preview.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        if (key !== resultsHotKey) setPreviewHot(\"results\", key);",
+      "replace": "        /* mutated: contributor rows do not preview */"
+    }
+  ]
+}

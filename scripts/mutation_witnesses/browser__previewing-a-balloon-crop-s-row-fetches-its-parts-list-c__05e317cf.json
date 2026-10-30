@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "real render path (non-mock)",
+  "expect_red": "previewing a balloon crop's row fetches its parts-list companion too — the Preview's list is built separately and carries the same second image",
+  "mutations": [
+    {
+      "contract": "The Preview builds its own fetch list and carries a balloon crop's parts-list companion.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md",
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Re-anchored from the hover card's own fetcher (cardPngs), retired with the edge card on 2026-10-30. The companion term in fetchPreviewImages.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      if (!entry || entry.status !== \"resolved\") return;\n      [entry.png, entry.companion && entry.companion.png].forEach(function (png) {\n        if (png && !Object.prototype.hasOwnProperty.call(imageCache, png) &&",
+      "replace": "      if (!entry || entry.status !== \"resolved\") return;\n      [entry.png].forEach(function (png) {\n        if (png && !Object.prototype.hasOwnProperty.call(imageCache, png) &&"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "Escape lets go: nothing frozen, nothing selected",
+  "mutations": [
+    {
+      "contract": "Escape with no popover open unfreezes the Preview.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Escape no longer unfreezes.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        if (state.selection) unfreeze();\n      });",
+      "replace": "        if (false) unfreeze();\n      });"
+    }
+  ]
+}

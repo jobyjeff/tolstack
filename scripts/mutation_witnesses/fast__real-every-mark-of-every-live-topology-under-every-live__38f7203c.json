@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every mark of every live topology, under every live study, resolves to a record and is named by its title",
+  "mutations": [
+    {
+      "contract": "A grid row's accessible name is its record's title, on the live model.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Names every grid row by its id. Needs the node-fs tier armed against a projection built from this tree.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    el.setAttribute(\"aria-label\", name);",
+      "replace": "    el.setAttribute(\"aria-label\", id);"
+    }
+  ]
+}

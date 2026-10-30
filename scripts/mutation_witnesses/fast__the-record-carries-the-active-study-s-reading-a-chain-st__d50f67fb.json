@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the record carries the active study's reading: a chain study's contribution, none outside the chain",
+  "mutations": [
+    {
+      "contract": "An edge's record carries the active chain study's contribution.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Never reads the chain.",
+      "file": "apps/viewer/element_record.js",
+      "find": "    var hit = opts.chain && opts.chain[edgeId];",
+      "replace": "    var hit = null;"
+    }
+  ]
+}

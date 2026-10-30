@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the hover label goes where no other mark is, and keeps a picture fact when it must cut the name",
+  "mutations": [
+    {
+      "contract": "The hover label is placed where it meets the fewest marks.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Always takes the first place, whatever is in it.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      if (!best || c.hits < best.hits) best = c;",
+      "replace": "      if (!best) best = c;"
+    }
+  ]
+}

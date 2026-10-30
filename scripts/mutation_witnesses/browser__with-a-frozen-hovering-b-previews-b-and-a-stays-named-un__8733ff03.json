@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "with A frozen, hovering B previews B — and A stays named under the pin",
+  "mutations": [
+    {
+      "contract": "The Preview's head names the frozen element beside its pin.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Drops the frozen name from the head.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    label.setAttribute(\"title\", name);\n    head.appendChild(label);",
+      "replace": "    label.setAttribute(\"title\", name);"
+    }
+  ]
+}

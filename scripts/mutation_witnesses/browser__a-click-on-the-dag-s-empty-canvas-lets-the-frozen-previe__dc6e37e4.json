@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "a click on the DAG's empty canvas lets the frozen Preview go",
+  "mutations": [
+    {
+      "contract": "A click on the model's empty canvas unfreezes the Preview.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). The pane's click no longer unfreezes.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      if (target && target.closest && target.closest(PREVIEW_KEEPERS)) return;\n      unfreeze();",
+      "replace": "      if (target && target.closest && target.closest(PREVIEW_KEEPERS)) return;"
+    }
+  ]
+}

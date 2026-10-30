@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a node's record names its DERIVED sides, pictures only the side whose own rows cropped, and names a clearance rather than skipping it",
+  "mutations": [
+    {
+      "contract": "A node's sides are derived from its incident edges, never its authored parts list.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Reads the authored list, which cannot name a clearance.",
+      "file": "apps/viewer/element_record.js",
+      "find": "    var adjacent = VA.nodeAdjacentParts(topoProj)[id] || [];\n    return {\n      key: VA.elementKey(\"node\", id),",
+      "replace": "    var adjacent = (node.parts || []).slice();\n    return {\n      key: VA.elementKey(\"node\", id),"
+    }
+  ]
+}

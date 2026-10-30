@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the records are built once per page state, and a hover reads one rather than rebuilding it",
+  "mutations": [
+    {
+      "contract": "VA.elementRecords is memoised on its inputs: a hover reads a record, it never rebuilds the set.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Drops the memo's early return.",
+      "file": "apps/viewer/element_record.js",
+      "find": "        memo.bandEdges === (opts.bandEdges || null)) {\n      return memo.records;\n    }",
+      "replace": "        memo.bandEdges === (opts.bandEdges || null)) {\n      /* mutated: no memo */\n    }"
+    }
+  ]
+}

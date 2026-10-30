@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: the anchor under the pointer and the anchor clicked go to the shell as its own element key",
+  "mutations": [
+    {
+      "contract": "Off every anchor the scene posts a hover naming nothing.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Names a node kind even with no node.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "    return { type: AA.HOVER_MESSAGE, kind: nodeId ? AA.MODEL_SELECT_KINDS[0] : null,",
+      "replace": "    return { type: AA.HOVER_MESSAGE, kind: AA.MODEL_SELECT_KINDS[0],"
+    }
+  ]
+}

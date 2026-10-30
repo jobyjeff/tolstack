@@ -1429,7 +1429,7 @@ async function hoverIgnoringOcclusion(page, selector) {
 // before what it certifies.
 //
 // The two triggers the corridor needs: a row's citation chip opens its card
-// BELOW it, and the crop trigger of the row ABOVE sits over that card, so a
+// BELOW it, and the same row's alert mark sits just above that card, so a
 // pointer coming down onto it is heading into the card and one coming in level
 // from the right is not.
 const STACK_CARD_CHIP = "#stackview tr.el-row:nth-child(1) span.cardtrig:not(.rowalert)";
@@ -1498,7 +1498,8 @@ async function testPopoverMechanics(browser, url, label) {
     push("the elements table carries the two triggers these contracts are " +
       "measured on", await page.locator(STACK_CARD_CHIP).count() === 1 &&
       await page.locator(CHIP).count() === 1 &&
-      await page.locator(STACK_CARD_TRIGGER).count() === 1);
+      await page.locator(STACK_CARD_TRIGGER).count() === 1 &&
+      await page.locator("#stackview tr.el-row:nth-child(3) span.rowalert").count() === 1);
 
     // --- out of flow, capped to the room, reachable -------------------------
     await page.setViewportSize(CARD_CAP_VIEWPORT);
@@ -1579,9 +1580,24 @@ async function testPopoverMechanics(browser, url, label) {
     await dismiss();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.setViewportSize(TOPO_VIEWPORT);
+    // ...and every scroll the reading above needed is put back, so the
+    // corridor below is measured on the table as it first laid out.
+    await page.evaluate(() => {
+      document.querySelectorAll("#stackview, #stackview *").forEach((n) => {
+        if (n.scrollLeft) n.scrollLeft = 0;
+      });
+      window.scrollTo(0, 0);
+    });
     await page.waitForTimeout(250);
 
     // --- reaching an open card with the mouse: the hover-intent corridor -----
+    //
+    // The competing trigger is the same row's alert mark, beside the chip
+    // and a few pixels above the card the chip opens -- inside the corridor's
+    // reach, as the topology grid's crop trigger was above its row's citation
+    // card. (Row 1's crop trigger, 66px up, is past it: the corridor reads a
+    // pointer that far away as not heading for the card, by design.)
+    const CORRIDOR_TRIGGER = "#stackview tr.el-row:nth-child(3) span.rowalert";
     const intentMs = await page.evaluate(() => window.ViewerApp.HOVER_INTENT_MS);
     const approachFrom = async (fromX, fromY, x, y) => {
       for (const t of [0.4, 0.7, 0.9]) {
@@ -1602,7 +1618,7 @@ async function testPopoverMechanics(browser, url, label) {
         trigger: { cx: trig.left + trig.width / 2, cy: trig.top + trig.height / 2,
                    top: trig.top, bottom: trig.bottom, right: trig.right },
       };
-    }, STACK_CARD_TRIGGER);
+    }, CORRIDOR_TRIGGER);
     await page.evaluate((sel) => {
       window.__cropTriggerEnteredAt = null;
       document.addEventListener("mouseenter", (e) => {
@@ -1610,21 +1626,22 @@ async function testPopoverMechanics(browser, url, label) {
           window.__cropTriggerEnteredAt = performance.now();
         }
       }, true);
-    }, STACK_CARD_TRIGGER);
+    }, CORRIDOR_TRIGGER);
     const openCitation = async () => {
       await dismiss();
       await openChipCard(CHIP);
       return boxes();
     };
     const lay = await openCitation();
-    push("the citation card opens BELOW its row and under the crop trigger " +
-      "of the row above — the layout the two approaches below are only " +
+    push("the citation card opens BELOW its row and just under the row's own " +
+      "alert mark — the layout the two approaches below are only " +
       "distinguishable in",
       lay.card !== null && lay.card.top > lay.trigger.bottom &&
+      lay.card.top - lay.trigger.bottom < 40 &&
       lay.trigger.cx > lay.card.left && lay.trigger.cx < lay.card.right);
     const readSteal = () => page.evaluate(() => ({
       citation: document.querySelectorAll(".hovercard--citation").length,
-      crop: document.querySelectorAll(".croppop--resolved").length,
+      crop: document.querySelectorAll(".hovercard--alerts").length,
       sinceEnter: window.__cropTriggerEnteredAt === null ? null
         : performance.now() - window.__cropTriggerEnteredAt,
     }));
@@ -1644,30 +1661,33 @@ async function testPopoverMechanics(browser, url, label) {
       const when = steal.sinceEnter === null ? "with no mouseenter on the trigger"
         : `${Math.round(steal.sinceEnter)}ms after the trigger's mouseenter`;
       console.log(`    read ${when} (window ${intentMs}ms): ` +
-        `${steal.citation} citation, ${steal.crop} crop popover(s)`);
+        `${steal.citation} citation, ${steal.crop} alerts card(s)`);
     }
     // THE EXPIRY: the pointer stops on that trigger and never reaches the card.
     await page.waitForTimeout(intentMs + 250);
     push("a held trigger the pointer STOPS on opens after the grace period — " +
       "a deferral is a delay, never a card that never arrives",
-      await page.locator(".croppop--resolved").count() === 1);
+      await page.locator(".hovercard--alerts").count() === 1);
     // ARRIVAL WINS.
     const lay2 = await openCitation();
     await approachFrom(lay2.trigger.cx, lay2.trigger.top - 60,
                        lay2.trigger.cx, lay2.trigger.cy);
-    await page.mouse.move(lay2.trigger.cx, lay2.card.top + 60, { steps: 6 });
+    // Awaited steps, not one stepped move: between this trigger and the card
+    // lies the open card's own chip, and a coalesced move can hand the page a
+    // pointer that never left the trigger.
+    await approachFrom(lay2.trigger.cx, lay2.trigger.cy, lay2.trigger.cx, lay2.card.top + 60);
     await page.waitForTimeout(intentMs + 250);
     push("...and it does NOT open when the pointer arrives at the card " +
       "instead — the reader got where they were going",
       await page.locator(".hovercard--citation").count() === 1 &&
-      await page.locator(".croppop--resolved").count() === 0 &&
+      await page.locator(".hovercard--alerts").count() === 0 &&
       await page.locator(".croppop").isVisible());
     // APPROACH 2 — level, from the right: aimed past the card.
     await approachFrom(lay2.trigger.right + 300, lay2.trigger.cy,
                        lay2.trigger.cx, lay2.trigger.cy);
     push("a trigger hovered while the pointer is moving AWAY from the open " +
       "card opens at once — the guard is intent, not a dead period",
-      await page.locator(".croppop--resolved").count() === 1);
+      await page.locator(".hovercard--alerts").count() === 1);
 
     // --- an open card under the pointer is never re-placed ------------------
     const NUDGE = 4;
@@ -5457,12 +5477,15 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
         "[data-nav-kind='topology'][data-nav-id='vpa_pitch_linkage']").click();
       await page.waitForSelector("tr.tvrow[data-id='fastener_grip_vpa_out']", { timeout: 15000 });
       await clearPoint(page, "tr.tvrow[data-id='fastener_grip_vpa_out'] td.tvcell--nominal", "click");
+      // FROZEN, not merely shown: the pointer is on the row as it clicks, so
+      // the row previews at once, and the selection's own repaint lands a
+      // fetch later.
+      await page.mouse.move(4, 4);
       await page.waitForFunction(() => {
         const p = document.querySelector(".detail__preview");
-        return p && p.getAttribute("data-preview-key") === "edge|fastener_grip_vpa_out";
+        return p && p.getAttribute("data-preview-state") === "frozen" &&
+          p.getAttribute("data-preview-key") === "edge|fastener_grip_vpa_out";
       }, null, { timeout: 15000 }).catch(() => {});
-      await page.mouse.move(4, 4);
-      await page.waitForTimeout(400);
       const specPane = await previewText();
       push("[real] a real spec citation reaches the row's Preview",
         /NAS6403/.test(specPane));
@@ -6439,6 +6462,50 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
     const moved = await page.waitForFunction((n) => (window.__anchorMessages || []).length > n,
       before, { timeout: 15000 }).then(() => true, () => false);
     push("[real] a camera move posts the anchors again", moved);
+
+    // --- 2b. an anchor under the real pointer previews its node in the shell
+    // (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_
+    // mark): the scene's own raycast against its dots, its own post, and the
+    // shell's Preview -- end to end, on real geometry.
+    await page.waitForTimeout(400);
+    const aim = await page.evaluate(() => {
+      const list = window.__anchorMessages || [];
+      const last = list[list.length - 1];
+      const iframe = document.querySelector("#annotate-flyout iframe");
+      const f = iframe.getBoundingClientRect();
+      const ids = last ? Object.keys(last.nodes).filter((id) => {
+        const p = last.nodes[id];
+        return p && p[0] > 40 && p[1] > 60 && p[0] < f.width - 40 && p[1] < f.height - 40;
+      }) : [];
+      if (!ids.length) return null;
+      const p = last.nodes[ids[0]];
+      return { id: ids[0], x: f.left + iframe.clientLeft + p[0], y: f.top + iframe.clientTop + p[1],
+        away: { x: f.left + iframe.clientLeft + 8, y: f.bottom - 8 } };
+    });
+    let hovered = null;
+    if (aim) {
+      await page.mouse.move(aim.x - 3, aim.y - 3);
+      await page.mouse.move(aim.x, aim.y);
+      hovered = await page.waitForFunction(() => {
+        const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+        const m = w.__shellMessages && w.__shellMessages["annotate:hover"];
+        const p = document.querySelector(".detail__preview");
+        return m && m.id && p && p.getAttribute("data-preview-key") === "node|" + m.id ? m.id : null;
+      }, null, { timeout: 10000 }).then((h) => h.jsonValue(), () => null);
+    }
+    push("[real] the scene's pointer on an anchor previews that node in the shell's Preview",
+      !!aim && !!hovered);
+    if (aim) {
+      await page.mouse.move(aim.away.x, aim.away.y);
+      await page.mouse.move(aim.away.x + 2, aim.away.y - 2);
+    }
+    push("[real] ...and off every anchor the scene says so, and the Preview lets it go",
+      !!aim && await page.waitForFunction(() => {
+        const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+        const m = w.__shellMessages && w.__shellMessages["annotate:hover"];
+        const p = document.querySelector(".detail__preview");
+        return m && m.id === null && p && p.getAttribute("data-preview-state") !== "hover";
+      }, null, { timeout: 10000 }).then(() => true, () => false));
 
     // --- 3. the lines ride the sweep ----------------------------------------
     await exec(["seek", "#0"]);
@@ -10804,6 +10871,18 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       shape.results.bottom <= shape.preview.top + 1 &&
       await page.locator(".tv__main table.kmtable").count() === 0 &&
       await page.locator("#kinematicview").count() === 0);
+    // A contributor row names an edge, and pointing at it previews that
+    // edge's record below the results, as its grid row would.
+    const contributor = await page.locator("#detail tr.kmrow[data-edge]").first()
+      .getAttribute("data-edge");
+    await page.locator("#detail tr.kmrow[data-edge]").first().locator("td").first().hover();
+    push("pointing at a contributor row previews its edge's record",
+      await page.waitForFunction((key) => {
+        const p = document.querySelector(".detail__preview");
+        return p && p.getAttribute("data-preview-key") === key &&
+          p.getAttribute("data-preview-state") === "hover";
+      }, "edge|" + contributor, { timeout: 5000 }).then(() => true, () => false));
+    await page.mouse.move(4, 4);
     await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops")).click();

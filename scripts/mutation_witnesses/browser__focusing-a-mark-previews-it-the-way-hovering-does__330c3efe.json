@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "focusing a mark previews it the way hovering does",
+  "mutations": [
+    {
+      "contract": "Keyboard focus drives the shared hover, and so the Preview.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Focus no longer sets the hover.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    chain(node, \"onfocus\", function () { setHot(hot, key); });",
+      "replace": "    /* mutated: focus does not hover */"
+    }
+  ]
+}

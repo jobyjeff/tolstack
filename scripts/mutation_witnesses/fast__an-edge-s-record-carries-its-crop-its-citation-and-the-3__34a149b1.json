@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an edge's record carries its crop, its citation, and the 3D way out only under the gap rule",
+  "mutations": [
+    {
+      "contract": "A record wants a binding only under VA.needsAnnotation -- a traced edge offers no way out to the annotator.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Wants a binding on every edge.",
+      "file": "apps/viewer/element_record.js",
+      "find": "        wanted: VA.needsAnnotation(edge.confidence, edge),",
+      "replace": "        wanted: true,"
+    }
+  ]
+}

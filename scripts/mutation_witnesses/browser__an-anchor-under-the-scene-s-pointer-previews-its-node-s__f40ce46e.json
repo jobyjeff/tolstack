@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the Preview from the scene (anchor hover and pick)",
+  "expect_red": "an anchor under the scene's pointer previews its node's record",
+  "mutations": [
+    {
+      "contract": "The scene's anchor hover reaches the Preview.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). The page drops the scene's hover.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        setPreviewHot(\"scene\", msg.kind && msg.id ? VA.elementKey(msg.kind, msg.id) : null);",
+      "replace": "        setPreviewHot(\"scene\", null);"
+    }
+  ]
+}

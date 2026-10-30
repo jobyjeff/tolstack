@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology
 reporter: agent
 audience: strategy
@@ -66,3 +66,7 @@ Every obvious repair trades against something already decided:
 
 Someone should pick, and the pick belongs with whoever owns the hover-card
 mechanism as a whole rather than with the next tactical edit to a view.
+
+## Resolved 2026-10-30
+
+Resolved 2026-10-30 by `docs/sessions/active/HANDOFF_20261029_a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark.md`: the DAG and grid open no hover card at all. A hovered mark previews its record in the right-hand pane and draws one line of label beside itself, placed off every other mark and taking no pointer (`VA.hoverLabelPlacement`). The browser tier pins it (`the label covers no other mark on the DAG, and takes no pointer`).

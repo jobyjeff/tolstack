@@ -180,7 +180,14 @@ export const DECLARED_GUARDS = {
   // 2026-10-30 (a_leader_starts_at_the_mark_it_names_on_every_tier): +1, a
   // hovered row lighting its two ends' leaders, and one renamed -- the render
   // draws only the DAG at the zoom. Both carry a spec.
-  fast: { declared: 627, enrollable: 627, names: "9d0dbd59c71f" },
+  // 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_
+  // every_mark): -4 -- 31 out (the edge, node and component cards' models and
+  // renderers, the grid's card triggers) and 27 in (the element record, the
+  // Preview, the marks' names and label). Twelve of the new names carry a
+  // spec; the other fifteen are the retired cards' checks re-pointed at the
+  // record, which carried none under their old names either (the lesson lists
+  // them) -- the pin is raised for them rather than a spec written.
+  fast: { declared: 623, enrollable: 623, names: "6f7503255a22" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -202,7 +209,10 @@ export const DECLARED_GUARDS = {
   // rail's width and the arrival menu's markup checks went with the standalone
   // page (their specs with them); two came in, the pane's markup carrying none
   // of its furniture and the redirect. Both carry a spec.
-  annotate: { declared: 265, enrollable: 265, names: "40a85c794971" },
+  // 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_
+  // every_mark): +1, the anchor hover and pick messages to the shell. It
+  // carries a spec.
+  annotate: { declared: 266, enrollable: 266, names: "dec13928d000" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -251,7 +261,16 @@ export const DECLARED_GUARDS = {
   // the pinned header, the reopen) and four renamed (a row's hover lighting its
   // ends' leaders; the zoom scaling the DAG alone, its zoom-out, and Fit leaving
   // the grid at its own scale). Every one carries a spec.
-  browser: { declared: 772, enrollable: 739, names: "3e6527da83b9" },
+  // 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_
+  // every_mark): +13 -- the topology suite's hover-card block replaced by the
+  // Preview's (hover, freeze, return, Escape, empty canvas, keyboard, names,
+  // the label), the popover's own contracts moved to a new stack-page suite,
+  // a suite for the scene's anchor hover and pick, the real scene's own
+  // pointer on an anchor, and a contributor row's hover. Four specs
+  // re-anchored with their guard, three moved suite with theirs, thirteen new names
+  // carry a spec; the rest are ports of checks that had none (the lesson
+  // lists them), and the pin is raised for those.
+  browser: { declared: 785, enrollable: 752, names: "c6cdb9bcd632" },
 };
 
 

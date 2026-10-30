@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every mark the pane draws resolves to a record, and is named by its title",
+  "mutations": [
+    {
+      "contract": "A DAG mark's accessible name is its record's title.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Names every mark by its id instead.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    node.setAttribute(\"aria-label\", name || String(id));",
+      "replace": "    node.setAttribute(\"aria-label\", String(id));"
+    }
+  ]
+}

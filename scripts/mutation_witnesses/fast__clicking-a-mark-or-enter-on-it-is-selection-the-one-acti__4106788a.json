@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "clicking a mark, or Enter on it, is selection -- the one action that freezes the Preview",
+  "mutations": [
+    {
+      "contract": "Enter or Space on a focused DAG mark selects it, as a click does.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). The DAG mark's keydown no longer selects.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    node.onkeydown = function (event) {\n      if (!event || (event.key !== \"Enter\" && event.key !== \" \")) return;\n      if (event.preventDefault) event.preventDefault();\n      ctx.onSelect(kind, id);\n    };",
+      "replace": "    node.onkeydown = function (event) {\n      if (!event || (event.key !== \"Enter\" && event.key !== \" \")) return;\n      if (event.preventDefault) event.preventDefault();\n    };"
+    }
+  ]
+}

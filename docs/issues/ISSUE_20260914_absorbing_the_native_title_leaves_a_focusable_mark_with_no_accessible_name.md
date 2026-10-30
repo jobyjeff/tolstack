@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: resolved
 area: viewer/accessibility
 reporter: agent
 audience: strategy
@@ -43,3 +43,7 @@ Cheap interim option if the full answer is deferred: `aria-label` on the mark
 carrying `VA.edgeHoverTitle(...)` / the node name — the strings already exist
 as constants, it is one attribute per mark, and it restores what the `<title>`
 used to provide without re-introducing a visible second tooltip.
+
+## Resolved 2026-10-30
+
+Resolved 2026-10-30 by `docs/sessions/active/HANDOFF_20261029_a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark.md`: every focusable mark (DAG dot, bar, joint glyph, leader, and now the grid row) carries `role="button"` and an `aria-label` that is its element record's title; focus previews as hover does and Enter or Space clicks. The convention is written in `apps/viewer/README.md`, "The Preview — one record behind every mark", and the browser tier pins it (`every focusable mark on both tiers carries an accessible name`).

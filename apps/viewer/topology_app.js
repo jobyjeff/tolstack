@@ -1135,6 +1135,7 @@
   var preview = null;          // { box, head, body, ctx, records }
   var paneHotKey = null;       // the pane's hover/focus, an element key or null
   var sceneHotKey = null;      // the scene's pointer on an anchor
+  var resultsHotKey = null;    // a contributor row in the results above
   var previewShown = undefined;
   var previewReturn = null;    // the timer that hands the Preview back
 
@@ -1143,7 +1144,7 @@
   }
 
   function previewKey() {
-    return paneHotKey || sceneHotKey || selectionKey();
+    return paneHotKey || resultsHotKey || sceneHotKey || selectionKey();
   }
 
   function mountPreview(ctx) {
@@ -1161,6 +1162,7 @@
     // The pane was rebuilt with this paint, so what it had under the pointer
     // is gone; the scene's hover is still where it was.
     paneHotKey = null;
+    resultsHotKey = null;
     paintPreview(true);
   }
 
@@ -1170,16 +1172,18 @@
     previewShown = undefined;
   }
 
-  // `source` is "pane" or "scene". A key that is no element's (a study
-  // group's `study|<id>`) previews nothing and reads as leaving.
+  // `source` is "pane", "results" or "scene". A key that is no element's (a
+  // study group's `study|<id>`) previews nothing and reads as leaving.
   function setPreviewHot(source, key) {
     if (!VA.parseElementKey(key)) key = null;
-    if (source === "pane") paneHotKey = key; else sceneHotKey = key;
+    if (source === "pane") paneHotKey = key;
+    else if (source === "results") resultsHotKey = key;
+    else sceneHotKey = key;
     if (previewReturn !== null) {
       clearTimeout(previewReturn);
       previewReturn = null;
     }
-    if (paneHotKey || sceneHotKey) { paintPreview(); return; }
+    if (paneHotKey || resultsHotKey || sceneHotKey) { paintPreview(); return; }
     // Back to the frozen element a beat later, so a pointer crossing the gap
     // between two marks does not flash it in between them.
     previewReturn = setTimeout(function () {
@@ -1291,6 +1295,21 @@
   var PREVIEW_KEEPERS = "[data-row-kind], .rail__leaderhit, button, a, input, select, " +
     "label, summary, th, [role=\"button\"], [role=\"separator\"], .tvgrip, tr";
   function wirePreviewRelease() {
+    // A kinematic study's contributor row names an edge too, so pointing at
+    // one previews that edge's record like its grid row and its bar do.
+    // Delegated: the rows are rebuilt by every paint of the results.
+    if (nodes.detail && nodes.detail.addEventListener) {
+      nodes.detail.addEventListener("mouseover", function (event) {
+        var row = event.target && event.target.closest
+          ? event.target.closest("tr.kmrow[data-edge], tr.kmchild[data-edge]") : null;
+        var key = row ? VA.elementKey("edge", row.getAttribute("data-edge")) : null;
+        if (key && !(preview && preview.records[key])) key = null;
+        if (key !== resultsHotKey) setPreviewHot("results", key);
+      });
+      nodes.detail.addEventListener("mouseleave", function () {
+        if (resultsHotKey) setPreviewHot("results", null);
+      });
+    }
     if (!nodes.pane || !nodes.pane.addEventListener) return;
     var down = null;
     nodes.pane.addEventListener("pointerdown", function (event) {

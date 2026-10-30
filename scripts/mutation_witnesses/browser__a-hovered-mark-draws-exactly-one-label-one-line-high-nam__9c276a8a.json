@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "a hovered mark draws exactly one label, one line high, naming it",
+  "mutations": [
+    {
+      "contract": "The hover label is the record's title, once.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Doubles the label's text.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    node.textContent = text;\n    layer.appendChild(node);",
+      "replace": "    node.textContent = text + \" \" + text;\n    layer.appendChild(node);"
+    }
+  ]
+}
