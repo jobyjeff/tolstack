@@ -424,6 +424,12 @@
     // size times the scale, after the append below.
     var zoom = VA.clampDagZoom(ctx.zoom || 1);
     var sizer = VA.el("div", "tv__zoomsizer");
+    // The space a study arrival put before the drawing to centre its band
+    // (topology_app.js, fitDagTo); it outlives a repaint, not a study change.
+    if (ctx.bandPad) {
+      if (ctx.bandPad.top > 0) sizer.style.marginTop = ctx.bandPad.top + "px";
+      if (ctx.bandPad.left > 0) sizer.style.marginLeft = ctx.bandPad.left + "px";
+    }
     var zoomed = VA.el("div", "tv__zoom");
     // The column header rides with the GRID (it used to be the first thing in
     // the pane, above the whole DAG, where its `position: sticky` was inert:

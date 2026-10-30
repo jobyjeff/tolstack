@@ -215,10 +215,14 @@ export const DECLARED_GUARDS = {
   // nav's divider, seventeen for the armed pick on ?mock=1, one [real] for
   // Jeff's bore reproduction on P2. Every one carries a spec. Re-measured at
   // the review merge, on top of the_wheel_the_column_and_fit_behave's +6.
+  // 2026-10-29 (the_rearrange_animates_and_centres_the_active_study): +3 on top of
+  // the pick handoff -- landing, reduced-motion landing, never-blinks -- re-measured
+  // at the review merge.
   // 2026-10-29 (a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place):
   // +15, the rail-suggestion suite. Every one carries a spec but its
   // `[real] ... (skipped: ...)` push, whose condition is the literal `true`.
-  browser: { declared: 770, enrollable: 737, names: "6d47164d5694" },
+  // Both re-measured together at the rail_row review merge: 755 + 3 + 15.
+  browser: { declared: 773, enrollable: 740, names: "a7ecf256ad34" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

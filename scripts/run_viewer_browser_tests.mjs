@@ -2300,8 +2300,96 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     }));
     const walkShape = await railShape();
     const walkRows = await page.locator("tr.tvrow").count();
+    // The landing (the_rearrange_animates_and_centres_the_active_study): count
+    // the transition's mutations, then measure where the band came to rest.
+    await page.evaluate(() => {
+      window.__respineMutations = { removed: 0, added: 0, removedIds: [], addedIds: [] };
+      window.__respineObserver = new MutationObserver((records) => {
+        const ids = (nodes) => [...nodes].flatMap((n) => n.nodeType !== 1 ? [] :
+          [n, ...n.querySelectorAll("[data-node-id],[data-edge-id],[data-leader-id]")])
+          .map((n) => n.getAttribute && (n.getAttribute("data-node-id") ||
+            n.getAttribute("data-edge-id") || n.getAttribute("data-leader-id")))
+          .filter(Boolean);
+        for (const r of records) {
+          window.__respineMutations.removed += r.removedNodes.length;
+          window.__respineMutations.added += r.addedNodes.length;
+          window.__respineMutations.removedIds.push(...ids(r.removedNodes));
+          window.__respineMutations.addedIds.push(...ids(r.addedNodes));
+        }
+      });
+      window.__respineObserver.observe(document.querySelector("#topopane"),
+        { childList: true, subtree: true });
+    });
+    // The amended "nothing blinks" requirement (the per-frame rebuild stays; see
+    // ISSUE_20261029_the_respine_rebuilds_the_pane_every_frame): every animation
+    // frame of the transition has the DAG drawn -- dots and bars on screen --
+    // never an emptied pane between the old layout and the new.
+    await page.evaluate(() => {
+      window.__frames = [];
+      const until = Date.now() + 1200;
+      const tick = () => {
+        const live = Array.from(document.querySelectorAll("#topopane .tv__hscroll"))
+          .filter((n) => !n.closest(".tv__ghost"))[0];
+        window.__frames.push({
+          dots: live ? live.querySelectorAll("circle.rail__dot").length : 0,
+          bars: live ? live.querySelectorAll("line.rail__bar").length : 0,
+          tweening: !!window.ViewerApp.lastTopoRender.tweening });
+        if (Date.now() < until) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
     await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForSelector("tfoot.tvfoot", { timeout: 5000 });
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    await page.waitForTimeout(150);
+    const landed = await page.evaluate(() => {
+      window.__respineObserver.disconnect();
+      const bars = Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
+        .map((n) => n.getBoundingClientRect());
+      const hs = document.querySelector("#topopane .tv__hscroll").getBoundingClientRect();
+      const top = document.querySelector(".topbar").getBoundingClientRect().bottom;
+      const mid = (a, b) => (a + b) / 2;
+      return {
+        bars: bars.length,
+        dx: mid(Math.min(...bars.map((b) => b.left)), Math.max(...bars.map((b) => b.right))) -
+          mid(hs.left, hs.right),
+        dy: mid(Math.min(...bars.map((b) => b.top)), Math.max(...bars.map((b) => b.bottom))) -
+          mid(top, window.innerHeight),
+        scrollY: window.scrollY, mutations: window.__respineMutations,
+      };
+    });
+    console.log("      landing: " + JSON.stringify(landed));
+    push("a study arrival lands with the active band centred in the window, within 4 px",
+      landed.bars > 0 && Math.abs(landed.dx) <= 4 && Math.abs(landed.dy) <= 4);
+    const churn = landed.mutations.removedIds.filter((id) => landed.mutations.addedIds.includes(id));
+    console.log(`      transition churn: ${churn.length} ids removed and re-added of ` +
+      `${landed.mutations.removedIds.length} removed`);
+    await page.waitForTimeout(1200);
+    const frames = await page.evaluate(() => window.__frames);
+    const tweened = frames.filter((f) => f.tweening);
+    push("a study change never blinks: the transition drew frames, and every one of them has the DAG on screen",
+      tweened.length > 0 && frames.every((f) => f.dots > 0 && f.bars > 0));
+    // Reduced motion: positions jump (no ghost, no tween frame), and the band
+    // still lands centred.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    await page.waitForTimeout(150);
+    const reduced = await page.evaluate(() => {
+      const bars = Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
+        .map((n) => n.getBoundingClientRect());
+      const hs = document.querySelector("#topopane .tv__hscroll").getBoundingClientRect();
+      const mid = (a, b) => (a + b) / 2;
+      return { bars: bars.length, ghost: document.querySelectorAll("#topopane .tv__ghost").length,
+        dx: mid(Math.min(...bars.map((b) => b.left)), Math.max(...bars.map((b) => b.right))) -
+          mid(hs.left, hs.right) };
+    });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    push("with reduced motion the band still lands centred, with no ghost of the old layout",
+      reduced.bars > 0 && reduced.ghost === 0 && Math.abs(reduced.dx) <= 4);
+    await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
     const litShape = await railShape();
@@ -4471,6 +4559,26 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       kinDistinct.length >= 3);
     push("[real] and Fit still brings the lit set into the window in that mode",
       kinTol.litTop >= kinTol.paneTop - 2 && kinTol.litBottom <= kinTol.paneBottom + 2);
+
+    // Three frames of the kinematic -> chain study -> kinematic switch, on the
+    // real data, when RESPINE_SHOTS names a directory (the handoff's definition
+    // of done), from the kinematic page this suite is already on.
+    if (RESPINE_SHOTS) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const shot = (name) => page.screenshot({ path: join(RESPINE_SHOTS, name), timeout: 240000 });
+      const landed = () => page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+        null, { timeout: 10000 }).then(() => page.waitForTimeout(400));
+      await page.waitForTimeout(400);
+      await shot("1_kinematic.png");
+      await page.locator(navRow("study", "pitch_link_cotter_hole_clearance")).click();
+      await page.waitForTimeout(120);
+      await shot("2_mid_transition.png");
+      await landed();
+      await shot("3_cotter_hole_clearance_landed.png");
+      await page.locator(navRow("kinematic", "vpa_pitch_linkage_blade_pitch_at_the_stops")).click();
+      await landed();
+      await shot("4_kinematic_landed.png");
+    }
 
     // --- the Groups filter on the real page (a_study_is_a_translucent_group_on_
     //     the_dag): a study opens with both containers drawn, and one button
@@ -12144,6 +12252,7 @@ async function testAnnotateBindForm(browser, label) {
 // live P2 kinematic study with the real scene posting its own anchors, and
 // photographs it when SEAM_LEADER_SHOTS names a directory.
 const SEAM_LEADER_SHOTS = process.env.SEAM_LEADER_SHOTS || null;
+const RESPINE_SHOTS = process.env.RESPINE_SHOTS || null;
 
 async function testSeamLeaders(browser, label, topologies) {
   const checks = [];

@@ -272,6 +272,8 @@
       // The leaders go with the scene; it is told everything again on reopen.
       sceneModelPosted = null;
       sceneSelectPosted = null;
+      // The page is back to the width the band was centred for.
+      if (state.landed) { dropBandPad(); fitDagTo(true, true); }
       scheduleSeamDraw();
     });
     wirePaneHover();
@@ -1285,6 +1287,7 @@
   // on no element at all.
   function launchAnnotate(params) {
     if (!state.annotateMount) return;
+    dropBandPad();
     // An explicit launch -- a row's 3D control, the model row -- is what the
     // pane shows now. The selection it was launched FROM is marked followed,
     // so the paint after it does not re-drive the pane straight back to that
@@ -1843,9 +1846,34 @@
   // and the key also go back to the drawing's left edge; the framing a study
   // arrival does (`keepSideways`) leaves the reader's sideways scroll where
   // it was, as every other re-paint of this pane does.
-  function fitDag() { fitDagTo(false); }
+  function fitDag() { fitDagTo(false, false); }
 
-  function fitDagTo(keepSideways) {
+  // `centre` is a study arrival's landing (the centre branch of fitDagTo); `keepSideways`
+  // is the older framing that only leaves the sideways scroll alone.
+  // The pad was worked out for one pane and window size; at another (a flyout
+  // opening, a resize) it would push the drawing off-centre the other way, so
+  // it is only drawn at the size it was made for.
+  function padKey() {
+    return [nodes.pane ? nodes.pane.clientWidth : 0,
+      typeof window !== "undefined" ? window.innerHeight : 0].join("x");
+  }
+
+  function livePad() {
+    return state.bandPad && state.bandPad.key === padKey() ? state.bandPad : null;
+  }
+
+  // The pane's width is about to change under the pad (the scene opening or
+  // closing beside it): the landing was centred for the old one, so it goes.
+  function dropBandPad() {
+    state.bandPad = null;
+    var sizer = zoomBox() && zoomBox().parentNode;
+    if (sizer && sizer.style) {
+      sizer.style.marginTop = "";
+      sizer.style.marginLeft = "";
+    }
+  }
+
+  function fitDagTo(keepSideways, centre) {
     var box = zoomBox();
     var hscroll = paneHscroll();
     var drawn = VA.lastTopoRender;
@@ -1863,11 +1891,58 @@
     if (drawn.width > 0 && hscroll.clientWidth > 0) {
       to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.width));
     }
+    // A study's arrival only ever scales DOWN, and only when the band does not
+    // fit at the zoom the reader has: a zoom they chose is theirs until the
+    // next study change moves the band.
+    if (centre) to = Math.min(to, state.dagZoom);
     state.dagZoom = to;
     VA.applyTopoZoom(nodes.pane, to, true);
     var rect = box.getBoundingClientRect();
-    scrollDag(keepSideways ? 0 : -hscroll.scrollLeft,
-      rect.top + (drawn.span.top - pad) * to - topEdge);
+    if (!centre) {
+      scrollDag(keepSideways ? 0 : -hscroll.scrollLeft,
+        rect.top + (drawn.span.top - pad) * to - topEdge);
+    } else {
+      // Centre the band's own box in the visible window, both axes. The page
+      // clamps what it cannot reach (a band near the top of a short drawing),
+      // so the centre is as close as the page's own extents allow.
+      var hr = hscroll.getBoundingClientRect();
+      var bandOffset = function () {
+        var r = box.getBoundingClientRect();
+        var dx = 0;
+        var dyBand = r.top + (drawn.span.top + drawn.span.bottom) / 2 * to;
+        var bars = box.querySelectorAll ? box.querySelectorAll("line.rail__bar--on") : [];
+        if (bars.length) {
+          var x1 = Infinity, x2 = -Infinity, y1 = Infinity, y2 = -Infinity;
+          for (var i = 0; i < bars.length; i++) {
+            var br = bars[i].getBoundingClientRect();
+            x1 = Math.min(x1, br.left); x2 = Math.max(x2, br.right);
+            y1 = Math.min(y1, br.top); y2 = Math.max(y2, br.bottom);
+          }
+          dx = (x1 + x2) / 2 - (hr.left + hr.width / 2);
+          dyBand = (y1 + y2) / 2;
+        }
+        return { dx: dx, dy: dyBand - (topEdge + visible / 2) };
+      };
+      // A reader parked sideways stays where they are (the 10-28 contract,
+      // carried across a respine): only the vertical half centres for them.
+      var parked = hscroll.scrollLeft > 0;
+      var off = bandOffset();
+      scrollDag(parked ? 0 : off.dx, off.dy);
+      // Whatever the scroll could not reach -- a band that sits above or left
+      // of the centre with nothing further to scroll back to -- is taken up by
+      // space before the drawing. It is kept in state.bandPad so a repaint
+      // redraws it; the next study change drops it.
+      off = bandOffset();
+      var sizer = box.parentNode;
+      var top = off.dy < -0.5 ? -off.dy : 0;
+      var left = !parked && off.dx < -0.5 ? -off.dx : 0;
+      state.bandPad = { top: top, left: left, key: padKey() };
+      state.landed = true;
+      if (sizer && sizer.style) {
+        if (top) sizer.style.marginTop = top + "px";
+        if (left) sizer.style.marginLeft = left + "px";
+      }
+    }
     VA.pinTopoHead(nodes.pane);
     scheduleSeamDraw();
   }
@@ -2284,6 +2359,7 @@
     if (respineHandle) { respineHandle.cancel(); respineHandle = null; }
     var respineStart = respineFrom;
     respineFrom = null;
+    if (serialisation() !== paintedSerialisation) { state.bandPad = null; state.landed = false; }
 
     VA.renderBanner(nodes.banner, bannerState(), {
       // Guarded: the banner only ever offers these when an FSA adapter exists,
@@ -2380,6 +2456,7 @@
         // The kinematic page's lit set; a chain study's is read off `study`.
         lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
         zoom: state.dagZoom,
+        bandPad: livePad(),
         // Where a contributor borrows its band from another edge, the
         // preview pane says so and links to it (VA.kinematicBandEdges).
         bandEdges: showKinematic ? VA.kinematicBandEdges(kinematicStudy) : null,
@@ -2507,7 +2584,17 @@
       // scrolling. Any other paint leaves the reader's zoom alone.
       if (serialisation() !== paintedSerialisation &&
           (ctx.lit || VA.studyLitSet(ctx.study, topoProj))) {
-        var frame = function () { fitDagTo(true); };
+        landingPending = true;
+      }
+      // Landing waits for a settled layout: a transition's own onSettled, or
+      // the first paint that is not mid-transition (a repaint that cancels the
+      // tween leaves the settled layout, and the landing must not be lost
+      // with it).
+      if (landingPending) {
+        var frame = function () {
+          landingPending = false;
+          fitDagTo(true, true);
+        };
         if (respineHandle && !respineHandle.done) respineHandle.onSettled = frame;
         else frame();
       }
@@ -2644,6 +2731,7 @@
   var respineFrom = null;
   var respineHandle = null;
   var paintedSerialisation = null;
+  var landingPending = false;
 
   // Which serialisation is on screen: the mode, the topology and the study.
   // A respine is only a TRANSITION when one of those actually changed --
