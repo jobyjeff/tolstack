@@ -12347,7 +12347,7 @@
         var summary = all(toolbar, "summary").filter(function (b) {
           return b.getAttribute("id") === "group-kinds-toggle"; })[0];
         eq(summary.textContent, "Groups (3 of 3)");
-        var boxes = all(toolbar, "details.tvgroups input[type=checkbox]");
+        var boxes = all(toolbar, "input");
         eq(boxes.length, 3);
         boxes[1].checked = false;
         boxes[1].onchange();
