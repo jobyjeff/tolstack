@@ -140,3 +140,29 @@ recursive delete.
   `lastBound` line. That threw after the write, so the row never said
   "bound". The new suite caught it, and the "...and the end reads bound" spec
   is that exact mutation.
+
+## Verification record
+
+All runs were from the handoff worktree. `node_modules` was a junction to the
+main checkout's for the browser runs, and I removed it before hand-back.
+
+The `[real]` tiers read a second scratch root,
+`C:\workspace\tolstack\data\scratch\rail_row_root\`. It holds `data/` with
+junctions to the main checkout's meshes and inbox streams, a `docs` junction
+to this worktree, and every projection rebuilt from this branch: topology,
+viewer, part names, crops, contact, kinematic, feature identity and fits. That
+took 387 s. The main checkout's shared projections were built from
+`ef84059a` and were left alone. **Delete this scratch root too after the
+review**, removing the junctions with `rmdir`.
+
+| tier | where | result | wall |
+|---|---|---|---:|
+| `node apps/annotate/run_tests.cjs` | worktree | 266/266 | — |
+| `node apps/viewer/run_tests.cjs --repo <rail_row_root>` | scratch | 623/626. The 3 reds (two fixture-shape pairings and the merged-cell name) are `display_name`'s, already filed on integration: `ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md` | — |
+| `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs` | worktree | 1684 passed, 1 skipped, 2 failed. The failures were `test_viewer_js_suite` (the by-design worktree red) and one witness anchor, since re-anchored; `tests/test_mutation_witnesses.py` is now 44/44. The skip is the pitch-link bearing re-extraction. | 330 s |
+| `node apps/annotate/run_browser_check.mjs` | worktree | 103/105. The 2 reds are the mock-anchor checks, already filed (`ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration.md`) | — |
+| `node scripts/run_viewer_browser_tests.mjs --repo <rail_row_root>` | scratch | 36/37. The one red is `[real] ...and leaving it takes the light down` in "3D pane follows the selection", the known full-run flake (`ISSUE_20261029_four_3d_pane_nav_gesture_checks_fail_together_when_the_bodies_resolve_late.md`). Re-run alone: 32/32 | 434 s |
+| `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack` | main data | 58/63 witnessed, 63/63 reached, 0 left to the sweep. 2 of the 5 NOT WITNESSED were then re-checked with `--only` and are WITNESSED: the arm-framing spec (re-anchored mid-run) and the topology-level spec (its wait now fails the check instead of aborting the suite). The other 3 are fast-tier specs, including this handoff's nav one, and are blocked: the viewer tier is red at baseline on every root available (stale shared projections, or the `display_name` reds above), so no fast mutation can be proved until that issue is fixed | 20m41s |
+
+I recorded each wall time with `dispatch suite-time record`. All were inside
+budget.
