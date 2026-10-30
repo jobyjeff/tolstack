@@ -3305,13 +3305,19 @@ function cmdInspect(what, name, face, subject) {
   }
   sweep.inspect = target.kind ? { kind: target.kind, name: target.name, faces } : null;
   state.scene.setSweepEmphasis(target.kind === AA.INSPECT_TARGETS[0] ? target.name : null);
-  if (faces.length) state.scene.highlightFaces(faces);
-  else if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
-  else state.scene.clearHighlight();
+  tintInspected(faces);
   window.__lastInspect = sweep.inspect;
   renderSweepRail();
   applyModelSelection();
   return sweep.inspect;
+}
+
+// A selection's faces in the pick tint; with none, the reader's own pick
+// keeps its tint, and with no pick nothing is tinted.
+function tintInspected(faces) {
+  if (faces.length) state.scene.highlightFaces(faces);
+  else if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
+  else state.scene.clearHighlight();
 }
 
 // inspect feature <edge> [from|to] -- a feature row selected (handoff a_rail_
@@ -3345,9 +3351,7 @@ function inspectFeature(target) {
   sweep.inspect = { kind: target.kind, name: edge.id, direction: target.direction, faces,
     suggestion: suggestion ? suggestion.kind : null, lit };
   state.scene.setSweepEmphasis(null);
-  if (faces.length) state.scene.highlightFaces(faces);
-  else if (state.currentPick) state.scene.highlightFace(state.currentPick.sha256, state.currentPick.faceId);
-  else state.scene.clearHighlight();
+  tintInspected(faces);
   if (lit.length) {
     const node = target.direction ? (target.direction === AA.DIRECTIONS[1] ? edge.to : edge.from) : null;
     const solid = suggestion.kind === AA.SUGGESTION_KINDS[0];
