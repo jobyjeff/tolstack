@@ -743,7 +743,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # The gate runs BEFORE the build, not before the write: refusing after a
     # minute of work would still be correct and would still read as a crash.
-    provenance = prov.stamp(REPO_ROOT, stacks_dir, BUILT_BY)
+    provenance = prov.stamp(REPO_ROOT, stacks_dir, BUILT_BY,
+                            data_root=Path(args.data_root))
     rebuild_command = (
         f"python scripts\\build_viewer_projection.py "
         f"--data-root {Path(args.data_root)}"

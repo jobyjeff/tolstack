@@ -748,7 +748,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(line)
         return 0
 
-    provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY, "topologies_dir")
+    provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY, "topologies_dir",
+                            data_root=data_root)
     rebuild_command = (f"python scripts\\build_kinematic_projection.py "
                        f"--data-root {data_root}")
     try:

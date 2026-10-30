@@ -753,7 +753,8 @@ def rebuild(
     prov = _provenance()
     out_dir = Path(out_dir)
     out_path = out_dir / PROJECTION_NAME
-    provenance = prov.stamp(REPO_ROOT, Path(events_dir), BUILT_BY, source_key="events_dir")
+    provenance = prov.stamp(REPO_ROOT, Path(events_dir), BUILT_BY, source_key="events_dir",
+                            data_root=out_dir.parents[1])
     rebuild_command = "venv-win/Scripts/python.exe scripts/build_feature_identity_projection.py"
 
     for line in prov.guard(out_path, provenance, REPO_ROOT, allow_older, rebuild_command):

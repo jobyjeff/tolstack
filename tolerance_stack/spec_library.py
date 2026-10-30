@@ -662,7 +662,8 @@ def rebuild(
     # `events_dir`, not `--data-root`: the stamp answers *which tree built this*,
     # and the data root is the main checkout's for every worktree that writes
     # here. The events dir is this tree's committed input, resolved absolute.
-    provenance = prov.stamp(REPO_ROOT, Path(events_dir), BUILT_BY, source_key="events_dir")
+    provenance = prov.stamp(REPO_ROOT, Path(events_dir), BUILT_BY, source_key="events_dir",
+                            data_root=out_dir.parents[1])
     rebuild_command = f"python -m tolerance_stack --data-root {out_dir.parents[1]}"
 
     # Gate before the fold, not before the write: a refusal after the work is

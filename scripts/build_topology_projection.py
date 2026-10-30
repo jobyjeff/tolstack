@@ -1758,7 +1758,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # The gate runs BEFORE the build, not before the write: refusing after the
     # work would still be correct and would still read as a crash.
-    provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY)
+    provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY,
+                            data_root=Path(args.data_root))
     rebuild_command = (
         f"python scripts\\build_topology_projection.py "
         f"--data-root {Path(args.data_root)}"

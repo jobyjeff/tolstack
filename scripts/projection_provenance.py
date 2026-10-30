@@ -67,6 +67,23 @@ TRUNK = "master"
 PROVENANCE_KEY = "provenance"
 
 
+#: The gitignored inputs the projection builders read, relative to a data root
+#: (``data/`` in a checkout). A rebuild over a data root where one of these is
+#: missing or holds nothing but a tracked README is *announced*, never refused:
+#: :func:`absent_inputs` names them and :func:`stamp` records them as
+#: ``inputs_absent``, so "built from nothing" reads differently from "built from
+#: everything" (2026-09-29: a merge candidate rebuilt over an empty ``data/`` and
+#: stamped clean). Mirrors ``[tests] candidate_inputs`` in ``.dispatch.toml``.
+READ_INPUTS = (
+    "inbox/specs",
+    "inbox/drawings",
+    "inbox/feature-identity",
+    "inbox/tolerance_stacks",
+    "inbox/linkage-sweeps",
+    "meshes",
+)
+
+
 class RebuildRefused(Exception):
     """This tree may not overwrite the projection that is already there."""
 
@@ -118,11 +135,32 @@ def short(sha: Optional[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
+def absent_inputs(data_root: Path) -> List[str]:
+    """The :data:`READ_INPUTS` under ``data_root`` that are missing or empty.
+
+    "Empty" ignores ``README*`` files, which a fresh worktree carries tracked.
+    Reported as ``data/<relative path>`` so the prose stays portable.
+    """
+    absent: List[str] = []
+    for rel in READ_INPUTS:
+        path = Path(data_root) / rel
+        try:
+            has_content = path.is_dir() and any(
+                not child.name.upper().startswith("README") for child in path.iterdir()
+            )
+        except OSError:
+            has_content = False
+        if not has_content:
+            absent.append(f"data/{rel}")
+    return absent
+
+
 def stamp(
     repo_root: Path,
     stacks_dir: Path,
     built_by: str,
     source_key: str = "stacks_dir",
+    data_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """The provenance block to write into a projection file.
 
@@ -138,6 +176,9 @@ def stamp(
     an events directory is the sort of field a reader stops trusting. Nothing in
     this module reads the key back -- :func:`guard` compares ``head_sha`` -- so it
     is a label for the reader, and it should say what it is.
+
+    ``data_root`` is where the gitignored inputs are looked for to fill
+    ``inputs_absent`` (default: this tree's own ``data/``).
     """
     head = git(repo_root, "rev-parse", "HEAD")
     branch = git(repo_root, "rev-parse", "--abbrev-ref", "HEAD")
@@ -176,6 +217,11 @@ def stamp(
         # occurrence 2: a projection built from a tree that predates labels
         # already merged.
         "behind_trunk": behind,
+        # The gitignored inputs this build had no content for. [] = built from
+        # everything; non-empty = built over a data root with holes in it.
+        "inputs_absent": absent_inputs(
+            data_root if data_root is not None else Path(repo_root) / "data"
+        ),
     }
 
 
@@ -313,6 +359,9 @@ def note_lines(current: Dict[str, Any]) -> List[str]:
             f"WARNING: this tree is {behind} commit(s) behind {current.get('trunk')} "
             f"-- the projection will show labels that trunk has already moved past."
         )
+    absent = current.get("inputs_absent")
+    if absent:
+        lines.append(f"WARNING: inputs absent ({len(absent)}): {', '.join(absent)}")
     if current.get("dirty"):
         lines.append(
             "WARNING: this tree has uncommitted changes, so the recorded sha does "

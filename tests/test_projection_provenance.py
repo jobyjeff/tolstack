@@ -278,6 +278,24 @@ def test_behind_trunk_and_dirty_are_warned_about():
     assert "uncommitted changes" in joined
 
 
+def test_inputs_absent_names_every_missing_or_readme_only_input(tmp_path):
+    (tmp_path / "inbox" / "specs").mkdir(parents=True)
+    (tmp_path / "inbox" / "specs" / "a.pdf").write_bytes(b"x")
+    (tmp_path / "inbox" / "feature-identity").mkdir(parents=True)
+    (tmp_path / "inbox" / "feature-identity" / "README.md").write_text("r")
+    absent = prov.absent_inputs(tmp_path)
+    assert "data/inbox/specs" not in absent
+    assert "data/inbox/feature-identity" in absent       # a tracked README is not content
+    assert "data/meshes" in absent                        # missing outright
+    assert set(absent) == {f"data/{r}" for r in prov.READ_INPUTS} - {"data/inbox/specs"}
+
+
+def test_stamp_records_inputs_absent_and_note_lines_announce_it(tmp_path):
+    stamp = prov.stamp(REPO_ROOT, tmp_path, "t", data_root=tmp_path)
+    assert stamp["inputs_absent"] == [f"data/{r}" for r in prov.READ_INPUTS]
+    assert any("inputs absent (6)" in line for line in prov.note_lines(stamp))
+
+
 # --- the script, not the predicate -----------------------------------------
 
 

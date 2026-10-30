@@ -277,7 +277,7 @@ def build(topologies_dir: Path, meshes_dir: Path, out_dir: Path, *,
     out_dir = Path(out_dir)
     out_path = out_dir / PROJECTION_NAME
     provenance = prov.stamp(REPO_ROOT, Path(topologies_dir), BUILT_BY,
-                            source_key="topologies_dir")
+                            source_key="topologies_dir", data_root=Path(out_dir).parents[1])
     for line in prov.guard(out_path, provenance, REPO_ROOT, allow_older, REBUILD_COMMAND):
         print(f"note: {line}", file=sys.stderr)
     for line in prov.note_lines(provenance):

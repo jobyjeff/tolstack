@@ -348,6 +348,13 @@ class Part:
     drawing: Optional[str] = None
     revision: Optional[str] = None
     note: Optional[str] = None
+    #: What a reader sees where the viewer shows the part (``name`` when absent).
+    #: The drawing title block is authoritative for it; ``id`` stays a stable
+    #: handle even where it names the wrong thing. ``naming_note`` records the
+    #: crossing in one line (``docs/SOP_TOLERANCE_STACK.md``, "Names follow the
+    #: drawing").
+    display_name: Optional[str] = None
+    naming_note: Optional[str] = None
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Part":

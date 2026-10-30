@@ -490,6 +490,8 @@
     {
       "id": "pitch_link",
       "name": "pitch link assembly",
+      "display_name": "Pitch link 213862-002",
+      "naming_note": "The drawing 213862-002 titles it PITCH LINK ASSEMBLY; Jeff and this repo call the joint \"pitch link\".",
       "drawing": "213862-002",
       "note": "PITCH LINK ASSEMBLY, PROPELLER, 216231 B.1 find 30. Its own parts list (213862-002 A) is two rows: the body 213861-002 PITCH LINK, PROPELLER x1, and MS14101-3 x2. Blade 1's link is the instrumented variant, and this part's drawing number is the standard one: rotorkit's 2026-10-01 extraction shows the propeller carries five pitch links, with 546293-002 INSTRUMENTED PITCH LINK ASSEMBLY (216231 B.1 find 29) at instance 213862-002.1 and 213862-002 itself at .2 to .5. The two joint centres this document's `pitch_link_length` is about sit inside that .1 -- so the geometry is the instrumented link's, and the two agree with the 3DX sweep sheet's own nodes to under two microns, which is what says the kinematics are the same link. Which drawing this part should carry is a decision nobody has made: ISSUE_20260930_blade_1s_pitch_link_is_the_instrumented_546293_002.md."
     },
@@ -501,6 +503,8 @@
     {
       "id": "pitch_plate_215177_001",
       "name": "215177-001 pitch plate",
+      "display_name": "Pitch plate 215735-001/-002",
+      "naming_note": "The lug thicknesses cite the released 215735 A; the superseded PRELIM 215197 survives only in the old ids pitch_plate_215197 and pitch_flange_215197.",
       "drawing": "215177-001",
       "note": "Also the plate of the three plate-side fastener stacks (pitch link, tangential link, VPA output): their lug-thickness edges `pitch_plate_flange` (5X group) and `pitch_flange_thickness` cite 215735 A, the machined detail inside this 215177-001 installation. Their old part ids pitch_plate_215197 and pitch_flange_215197 folded into this one on 2026-10-27. PITCH PLATE ASSEMBLY, PROPELLER, CW, 217755-001 A.1 find 32. The same physical part topology_pitch_system.json names; the id is reused so the declared alias table keeps resolving it to the installed mesh. That mesh is the INSTALLATION (plate plus its nine NAS77 bushings, 10 solids); its one machined detail is installed separately as `asm217755_215735_001`."
     },
@@ -531,6 +535,8 @@
     {
       "id": "tan_link_212956_005",
       "name": "212956-005 pitch anti-rotation link assembly",
+      "display_name": "Pitch anti-rotation link 212956-005",
+      "naming_note": "The 260729 workbook's \"Tan Link\" is this drawing's PITCH ANTI ROTATION LINK ASSEMBLY; the id keeps the workbook's word.",
       "drawing": "212956-005",
       "note": "PITCH ANTI ROTATION LINK ASSEMBLY, PROPELLER, 217755-001 A.1 find 25, qty 3 -- the TANGENTIAL (anti-rotation) link, not the pitch link. A 2026-09-14 rotorkit lesson guessed `pitch_link -> 212956-005`; the parts list refutes it and 216231 B.1 find 30 names 213862-002 as the pitch link assembly. The mesh `asm217755_212956_005` is four solids: the link body, an MS14101-3, an MS14103-3 and a bolt."
     },

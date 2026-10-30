@@ -3166,12 +3166,15 @@
 
   VA.componentLabel = function (part) {
     if (!part) return VA.GAP_COMPONENT_LABEL;
-    return part.name || part.id;
+    // `display_name` follows the drawing's title block; `name` and `id` are the
+    // fallbacks, and the id rides in componentTitle's tooltip.
+    return part.display_name || part.name || part.id;
   };
 
   VA.componentTitle = function (part) {
     if (!part) return "a gap: its two interfaces share no part";
     var text = VA.componentLabel(part);
+    if (part.display_name && part.id) text += " · " + part.id;
     if (part.drawing) text += " · drawing " + part.drawing;
     return text;
   };

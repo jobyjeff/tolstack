@@ -1283,7 +1283,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     # The gate runs first -- before the rmtree below, and before a few minutes of
     # PDF rendering. Refusing after wiping crops/ would be a refusal that
     # destroyed the thing it was protecting.
-    provenance = prov.stamp(REPO_ROOT, stacks_dir, BUILT_BY)
+    provenance = prov.stamp(REPO_ROOT, stacks_dir, BUILT_BY, data_root=data_root)
     rebuild_command = (
         r"C:\workspace\drawing-checker\venv-win\Scripts\python.exe "
         f"scripts\\build_viewer_crops.py --data-root {data_root}"
