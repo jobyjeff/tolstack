@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] Fit puts the whole drawing inside the visible window, vertically",
+  "mutations": [
+    {
+      "contract": "Fit leaves the drawing inside the window under the topbar.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). Scrolls the page 300px past where Fit frames the drawing.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      rect.top + (drawn.span.top - pad) * to - topEdge);",
+      "replace": "      rect.top + (drawn.span.top - pad) * to - topEdge + 300);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] a zoom leaves the grid's sideways scroll at the left edge",
+  "mutations": [
+    {
+      "contract": "A zoom does not scroll the grid sideways under the DAG.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). A zoom that nudges the grid sideways, as the old pointer anchoring did.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    scrollDag(left * (to / from) - left,",
+      "replace": "    scrollDag(left * (to / from) - left + 40,"
+    }
+  ]
+}

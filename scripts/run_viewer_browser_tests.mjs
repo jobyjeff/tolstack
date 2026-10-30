@@ -4051,20 +4051,18 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     const emptyPoint = await findEmpty();
     push("[real] the drawing has empty space to point at", !!emptyPoint);
     const before = await read();
-    // The content point under the pointer, as a fraction of the drawing.
-    const under = (s, p) => ({ u: (p.x - s.svgLeft) / s.k, v: (p.y - s.svgTop) / s.k });
-    const pointBefore = under(before, emptyPoint);
     await page.mouse.move(emptyPoint.x, emptyPoint.y);
     await page.mouse.wheel(0, -100);
     await settle(200);
     const zoomedIn = await read();
-    const pointAfter = under(zoomedIn, emptyPoint);
     console.log(`      wheel notch: ${before.k.toFixed(3)} -> ${zoomedIn.k.toFixed(3)}`);
     push("[real] one wheel notch toward the reader zooms in one step",
       Math.abs(zoomedIn.k / before.k - before.step) < 0.01);
-    push("[real] and the point under the pointer stays under it",
-      Math.abs(pointAfter.u - pointBefore.u) < 2 &&
-      Math.abs(pointAfter.v - pointBefore.v) < 2);
+    // The page's own scroll is never moved by a zoom (below) and the grid's
+    // sideways scroll stays where it was, so the drawing grows from the box's
+    // top-left rather than about the pointer.
+    push("[real] a zoom leaves the grid's sideways scroll at the left edge",
+      await page.evaluate(() => document.querySelector("#topopane .tv__hscroll").scrollLeft === 0));
     push("[real] the rails and the rows were scaled together: the grid's " +
       "first row is still where the rails' seam leaders expect it",
       (await correspondence()).drift.length === 0);
@@ -4192,6 +4190,107 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         "pane's left edge",
         sticky.k !== 1 && sticky.scrolled > 50 && Math.abs(sticky.drift) < 1.5);
       await page.evaluate(() => { document.querySelector("#topopane .tv__hscroll").scrollLeft = 0; });
+    }
+
+    // --- the wheel leaves the page's scroll alone; the COMPONENT column is never
+    // under the DAG; Fit fits both axes (the_wheel_the_column_and_fit_behave) ---
+    {
+      await page.setViewportSize({ width: 1600, height: 1000 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.keyboard.press("0");
+      await settle(300);
+      const GEOM = () => {
+        const svg = document.querySelector("#topopane svg.tv__rails");
+        const s = svg.getBoundingClientRect();
+        const cell = document.querySelector("#topopane td.tvcell--component");
+        const c = cell ? cell.getBoundingClientRect() : null;
+        const bar = document.querySelector(".topbar").getBoundingClientRect();
+        const pane = document.querySelector("#topopane").getBoundingClientRect();
+        return { svgRight: s.right, svgTop: s.top, svgBottom: s.bottom,
+                 compLeft: c ? c.left : null, scrollY: window.scrollY,
+                 barBottom: bar.bottom, paneLeft: pane.left,
+                 innerHeight: window.innerHeight };
+      };
+      // 1. The wheel over the drawing never moves the page, at several
+      // page scroll offsets and in both directions.
+      let moved = 0;
+      for (const y of [0, 300]) {
+        await page.evaluate((y) => window.scrollTo(0, y), y);
+        await settle(100);
+        const aimW = await findEmpty();
+        if (!aimW) continue;
+        await page.mouse.move(aimW.x, aimW.y);
+        const y0 = (await read()).scrollY;
+        for (const d of [-100, -100, 100, -100, 100, 100]) {
+          await page.mouse.wheel(0, d);
+          await settle(60);
+          if (Math.abs((await read()).scrollY - y0) > 0.5) moved++;
+        }
+      }
+      push("[real] a wheel zoom over the drawing never changes the page's scroll", moved === 0);
+      // 2. COMPONENT is never under the DAG, at zoom 1 and at the Fit zoom.
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.keyboard.press("0");
+      await settle(300);
+      await page.evaluate(() => {
+        const aimBtn = document.querySelector("#dag-fit");
+        aimBtn.click();
+      });
+      await settle(300);
+      const fitGeom = await page.evaluate(GEOM);
+      const fitK = (await read()).k;
+      // zoom 1: a Fit that lands at 1 is the same box, so force one step in.
+      const aimC = await findEmpty();
+      if (aimC) {
+        await page.mouse.move(aimC.x, aimC.y);
+        for (let i = 0; i < 40 && Math.abs((await read()).k - 1) > 0.02; i++) {
+          await page.mouse.wheel(0, (await read()).k < 1 ? -100 : 100);
+          await settle(40);
+        }
+      }
+      const oneK = await read();
+      const oneGeom = await page.evaluate(GEOM);
+      console.log(`      component left vs DAG right: zoom ${oneK.k.toFixed(2)}: ` +
+        `${oneGeom.compLeft} >= ${oneGeom.svgRight}; fit ${fitK.toFixed(2)}: ` +
+        `${fitGeom.compLeft} >= ${fitGeom.svgRight}`);
+      push("[real] at zoom 1 the COMPONENT column starts at or after the DAG's right edge",
+        oneGeom.compLeft !== null && oneGeom.compLeft >= oneGeom.svgRight - 0.5);
+      push("[real] ...and at the Fit zoom",
+        fitGeom.compLeft !== null && fitGeom.compLeft >= fitGeom.svgRight - 0.5);
+      // 3. Fit's drawing sits inside the visible window in both axes, page still.
+      await page.evaluate(() => window.scrollTo(0, 500));
+      await settle(150);
+      const aimF = await findEmpty();
+      if (aimF) {
+        await page.mouse.move(aimF.x, aimF.y);
+        for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -100);
+        await settle(150);
+      }
+      await page.locator("#dag-fit").click();
+      await settle(300);
+      const f = await page.evaluate(GEOM);
+      const fh = await page.evaluate(() => {
+        const h = document.querySelector("#topopane .tv__hscroll").getBoundingClientRect();
+        const z = document.querySelector("#topopane .tv__zoom").getBoundingClientRect();
+        const s = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+        return { hLeft: h.left, hRight: h.right, zTop: z.top, zBottom: z.bottom,
+                 sLeft: s.left, sRight: s.right };
+      });
+      console.log(`      fit bbox: svg x ${Math.round(fh.sLeft)}..${Math.round(fh.sRight)} ` +
+        `in ${Math.round(fh.hLeft)}..${Math.round(fh.hRight)}; y ${Math.round(f.svgTop)}..` +
+        `${Math.round(f.svgBottom)} in ${Math.round(f.barBottom)}..${f.innerHeight}`);
+      push("[real] Fit puts the whole drawing inside the visible window, vertically",
+        f.svgTop >= f.barBottom - 14 && f.svgBottom <= f.innerHeight + 1);
+      push("[real] ...and horizontally inside its pane",
+        fh.sLeft >= fh.hLeft - 1 && fh.sRight <= fh.hRight + 1);
+      push("[real] at the Fit zoom every grid column is inside the frame (no sideways scroll)",
+        await page.evaluate(() => {
+          const h = document.querySelector("#topopane .tv__hscroll");
+          return h.scrollWidth <= h.clientWidth + 1;
+        }));
+      await page.setViewportSize({ width: 1400, height: 900 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await settle(200);
     }
 
     // --- pan -----------------------------------------------------------------

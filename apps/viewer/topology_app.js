@@ -1799,14 +1799,20 @@
     to = VA.clampDagZoom(to);
     if (to === from) return;
     var before = box.getBoundingClientRect();
-    var hbox = hscroll.getBoundingClientRect();
     var cy = (clientY - before.top) / from;
     var left = hscroll.scrollLeft;
     state.dagZoom = to;
     VA.applyTopoZoom(nodes.pane, to, true);
     var after = box.getBoundingClientRect();
-    scrollDag(VA.dagScrollAfterZoom(left, clientX - hbox.left, from, to) - left,
-      after.top + cy * to - clientY);
+    // A zoom moves nothing the reader did not (the_wheel_the_column_and_fit_
+    // behave). The page's own scroll is never touched: a wheel is the reader's
+    // hand on the DRAWING, and a page that slides under it is the page being
+    // scrolled by the wheel. Sideways, the grid keeps the content at the pane's
+    // left edge -- anchoring on the pointer scrolled the grid UNDER the sticky
+    // rails, which is how COMPONENT came to sit beneath the DAG. Only the
+    // bounded pane, a scrollport of its own, keeps the point under the pointer.
+    scrollDag(left * (to / from) - left,
+      paneScroller() ? after.top + cy * to - clientY : 0);
     VA.pinTopoHead(nodes.pane);
     scheduleSeamDraw();
   }
@@ -1832,6 +1838,11 @@
       : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
     var pad = 12;
     var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
+    // Both axes: the DAG's own width must fit the pane too, or Fit leaves the
+    // drawing wider than the box it is meant to fill.
+    if (drawn.width > 0 && hscroll.clientWidth > 0) {
+      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.width));
+    }
     state.dagZoom = to;
     VA.applyTopoZoom(nodes.pane, to, true);
     var rect = box.getBoundingClientRect();

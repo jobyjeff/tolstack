@@ -2191,8 +2191,10 @@
         if (event && event.stopPropagation) event.stopPropagation();
         show();
       };
-    } else if (group.title) {
-      cell.setAttribute("title", group.title);
+    } else if (group.title || group.label) {
+      // Whatever the column clips is readable in full: the gap's own wording,
+      // else the label itself.
+      cell.setAttribute("title", group.title || group.label);
     }
     return cell;
   }
