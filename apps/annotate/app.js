@@ -3745,10 +3745,18 @@ function applyModelSelection() {
 }
 
 // model lit <edge>... | model lit all | model unlit dim|hide |
-// model select node <id> | model select body <id> | model select clear
+// model select node <id> | model select body <id> | model select clear |
+// model anchors
 function cmdModel(...args) {
   const plan = AA.parseModelVerb(args);
   const model = state.model;
+  if (plan.action === AA.MODEL_VERB_ACTIONS[3]) {
+    // The shell dropped its copy (a reopened pane, a new document): the same
+    // bytes again, now, rather than at the next frame whose numbers move.
+    model.postedText = null;
+    postModelAnchors(false);
+    return { posted: model.postedText !== null };
+  }
   if (plan.action === AA.MODEL_VERB_ACTIONS[0]) {
     model.lit = plan.lit;
     applyModelStyle();

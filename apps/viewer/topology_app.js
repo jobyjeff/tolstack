@@ -270,8 +270,11 @@
       clearPaneHover();
       syncPaneHandle();
       // The leaders go with the scene; it is told everything again on reopen.
+      // Its anchors too: a closed panel's canvas has no size, and what it
+      // posted describes a box that is no longer there.
       sceneModelPosted = null;
       sceneSelectPosted = null;
+      forgetSeamAnchors(false);
       // The page is back to the width the band was centred for.
       if (state.landed) { dropBandPad(); fitDagTo(true, true); }
       scheduleSeamDraw();
@@ -1317,7 +1320,12 @@
 
     // show(), not showModal(): the page beside the panel stays clickable, so
     // the nav and every row's 3D control keep driving the open panel.
-    if (!nodes.flyout.open) nodes.flyout.show();
+    if (!nodes.flyout.open) {
+      nodes.flyout.show();
+      // Closing dropped the anchors; the scene is asked for them again rather
+      // than waited on, since an unchanged scene posts nothing.
+      forgetSeamAnchors(true);
+    }
     // The scene is a column of the page's own row, between the nav and the
     // DAG (topology.css's `body.flyout-open`); the preview pane keeps its own
     // column to the right (2026-10-28). The class comes off again in the
@@ -1359,7 +1367,12 @@
       flyoutFrame = document.createElement("iframe");
       flyoutFrame.className = "flyout__frame";
       flyoutFrame.setAttribute("title", "3D annotation panel");
-      flyoutFrame.addEventListener("load", function () { flyoutLoaded = true; });
+      flyoutFrame.addEventListener("load", function () {
+        flyoutLoaded = true;
+        // A new document: the last one's anchors are points in a scene that
+        // is gone. This one posts its own after its first drawn frame.
+        forgetSeamAnchors(false);
+      });
       flyoutFrame.src = embedHref;
       nodes.flyout.appendChild(flyoutFrame);
     } else if (!flyoutLoaded) {
@@ -1461,6 +1474,10 @@
       }
       if (!msg || msg.type !== "annotate:state") return;
       setPaneTitle(msg.title || null);
+      // What the scene shows changed: its anchors are asked for afresh, and
+      // the page keeps drawing from the last ones until they land -- they are
+      // still where the scene draws its nodes.
+      postToPane(["model", "anchors"]);
       // The scene has just (re)loaded what it shows: it is told the page's
       // lit set and dim-or-hide word again, whatever it was told before.
       sceneModelPosted = null;
@@ -1627,6 +1644,17 @@
     return seamSvg;
   }
 
+  // The page's copy of the scene's anchors goes, and every DAG->3D leader
+  // with it until the scene posts again -- a leader is drawn to the DAG only
+  // rather than to a point the scene no longer draws. `ask`: request that
+  // post now (the `model anchors` verb) instead of waiting for a frame whose
+  // numbers move.
+  function forgetSeamAnchors(ask) {
+    seamAnchors = null;
+    scheduleSeamDraw();
+    if (ask) postToPane(["model", "anchors"]);
+  }
+
   function scheduleSeamDraw() {
     if (seamFrame !== null) return;
     var raf = (typeof window !== "undefined" && window.requestAnimationFrame)
@@ -1669,7 +1697,12 @@
     var k = drawn.width > 0 && r.width > 0 ? r.width / drawn.width : 1;
     var f = flyoutFrame.getBoundingClientRect();
     var p = nodes.pane.getBoundingClientRect();
+    // The pinned header covers a dot only where it is painted: its table. Over
+    // the rails it is transparent (topology.css, `.tv__head`), and a dot drawn
+    // there is on screen and keeps its leader.
     var head = nodes.pane.querySelector(".tv__zoom .tv__head");
+    var band = head && head.getAttribute("data-pinned")
+      ? head.querySelector(".tvheadtable") : null;
     var bottom = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : Infinity;
     var dots = {};
     Object.keys(drawn.seam.dots).forEach(function (id) {
@@ -1685,11 +1718,10 @@
     });
     var geo = VA.seamLeaderGeometry({
       dots: dots, anchors: anchors, bendX: r.left + drawn.seam.bend * k,
-      // Under the pane's sticky head, inside the pane, inside the window.
-      dotClip: { left: p.left, right: p.right,
-                 top: Math.max(p.top, head && head.getAttribute("data-pinned")
-                   ? head.getBoundingClientRect().bottom : p.top, 0),
+      // Inside the pane, inside the window, and not under the pinned header.
+      dotClip: { left: p.left, right: p.right, top: Math.max(p.top, 0),
                  bottom: Math.min(p.bottom, bottom) },
+      dotCover: band ? rectOf(band.getBoundingClientRect()) : null,
       anchorClip: { left: f.left, right: f.right, top: Math.max(f.top, 0),
                     bottom: Math.min(f.bottom, bottom) },
     });
@@ -1701,6 +1733,10 @@
     VA.lastSeamDraw = { leaders: geo.leaders, crossings: geo.crossings,
       skipped: geo.skipped, states: states, ms: clock() - started, draws: seamDraws };
     return geo;
+  }
+
+  function rectOf(r) {
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
   }
 
   // The scene is told the page's lit set and dim-or-hide word (its `model`

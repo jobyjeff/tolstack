@@ -5212,6 +5212,7 @@ check("model: the model verb parses lit, unlit and select, and refuses anything 
   assertEqual(AA.parseModelVerb(["select", "node", "n1"]),
     { action: "select", select: { kind: "node", id: "n1" } }, "a node selected");
   assertEqual(AA.parseModelVerb(["select", "clear"]), { action: "select", select: null }, "let go");
+  assertEqual(AA.parseModelVerb(["anchors"]), { action: "anchors" }, "post the anchors again, now");
   const refusals = [["paint"], ["unlit", "fade"], ["lit"], ["select", "edge", "e"], ["select", "body"]];
   for (const args of refusals) {
     let err = null;

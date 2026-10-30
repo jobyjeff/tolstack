@@ -3615,7 +3615,8 @@
   // segment, preceded by the run out of the rails. A node whose anchor is
   // null -- off the scene's screen, or a part with no geometry -- gets no
   // leader and no stub, and an end outside its clip (the DAG scrolled past
-  // the dot, a point outside the iframe) is the same absence.
+  // the dot, a point outside the iframe) is the same absence, as is a dot
+  // under `dotCover` (the pinned header's painted band, or null).
   VA.seamLeaderGeometry = function (spec) {
     var leaders = [];
     var skipped = { noAnchor: [], offDag: [], offScene: [] };
@@ -3628,7 +3629,10 @@
       var from = spec.dots[id];
       var to = anchors[id];
       if (!to) { skipped.noAnchor.push(id); return; }
-      if (!inside(from, spec.dotClip)) { skipped.offDag.push(id); return; }
+      if (!inside(from, spec.dotClip) || (spec.dotCover && inside(from, spec.dotCover))) {
+        skipped.offDag.push(id);
+        return;
+      }
       if (!inside(to, spec.anchorClip)) { skipped.offScene.push(id); return; }
       var bend = [Math.min(spec.bendX, from[0]), from[1]];
       leaders.push({
@@ -3711,6 +3715,19 @@
         out[edge.to] = true;
       }
     }
+    return out;
+  };
+
+  // The same rule read backwards: {node id: [edge ids]}, every edge whose
+  // selection lights that node's leaders. A DAG<->grid leader leads for these
+  // on hover, so a hovered row lights the leaders a click on it would select.
+  VA.leaderEdgesAt = function (index) {
+    var out = {};
+    Object.keys((index && index.edges) || {}).sort().forEach(function (id) {
+      Object.keys(VA.selectedLeaderNodes({ kind: "edge", id: id }, index)).forEach(function (node) {
+        (out[node] || (out[node] = [])).push(id);
+      });
+    });
     return out;
   };
 

@@ -3307,6 +3307,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
             "svg.tv__rails path.rail__leader--lead").length,
           leadDots: document.querySelectorAll(
             "svg.tv__rails circle.rail__dot--lead").length,
+          // Which leaders lit, and which of the lit dots have a leader to
+          // light: a row's leaders are its two ends' and nobody else's.
+          leaderIds: Array.from(document.querySelectorAll(
+            "svg.tv__rails path.rail__leaderhit--hot"))
+            .map((n) => n.getAttribute("data-leader-id")).sort(),
+          endsWithLeader: Array.from(document.querySelectorAll(
+            "svg.tv__rails circle.rail__dot--lead"))
+            .map((n) => n.getAttribute("data-id"))
+            .filter((id) => document.querySelector("svg.tv__rails path.rail__leaderhit[data-leader-id='" +
+              CSS.escape(id) + "']")).sort(),
           hotRows: Array.from(document.querySelectorAll("tr.tvrow--hot"))
             .map((n) => n.getAttribute("data-id")),
           leadRows: Array.from(document.querySelectorAll("tr.tvrow--lead"))
@@ -3360,9 +3370,21 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         console.log("    surfaces disagreed on: " +
           disagreed.map((r) => r.id).join(", "));
       }
-      push("[real] a part boundary's leader lights with the edge it bounds, " +
-        "so the eye is led from the bar to the row across the jog zone",
-        rowsLit.filter((r) => r.fromRow.leadLeaders >= 1).length >= 1);
+      // Since 2026-10-29 (a_leader_starts_at_the_mark_it_names_on_every_tier)
+      // a row lights its two ENDS' leaders, the ones the 3D overlay lights --
+      // not the leaders whose seam it starts at, which lit up to three
+      // leaders from nodes the edge does not name.
+      const strayLeaders = rowsLit.filter((r) =>
+        r.fromRow.leaderIds.join() !== r.fromRow.endsWithLeader.join());
+      push("[real] hovering a grid row lights exactly its two ends' leaders -- every one of " +
+        "them that has a leader, and no leader of a node it does not name",
+        rowsLit.filter((r) => r.fromRow.leadLeaders >= 1).length >= 1 &&
+        strayLeaders.length === 0);
+      if (strayLeaders.length) {
+        console.log("    rows lighting other nodes' leaders: " + strayLeaders.map((r) =>
+          r.id + " lit " + r.fromRow.leaderIds.join("+") + " ends " +
+          r.fromRow.endsWithLeader.join("+")).join(" | "));
+      }
       push("[real] leaving clears both surfaces, every time: nothing is left " +
         "lit behind the pointer",
         rowsLit.every((r) => r.cleared.leadRows.length === 0 &&
@@ -12463,6 +12485,35 @@ async function testSeamLeaders(browser, label, topologies) {
     const gone = await until(() =>
       document.querySelectorAll("svg.seamleaders path").length === 0, null, 5000);
     push("closing the scene takes every leader across the seam down", gone);
+
+    // Reopened, the page draws from what the scene posts NOW, never from the
+    // anchors it held before the close (2026-10-29: a closed pane's numbers
+    // describe a box that is not there). The synthetic message above is the
+    // stale copy: the scene itself never posted those points.
+    await page.locator("#pane-handle").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    await settled();
+    const asked = await page.evaluate(() =>
+      !!document.querySelector("#annotate-flyout iframe").contentWindow.__lastAnchors);
+    await page.waitForTimeout(300);
+    const reopened = await page.evaluate(() => {
+      const frame = document.querySelector("#annotate-flyout iframe");
+      const sent = (frame.contentWindow.__lastAnchors || {}).nodes || {};
+      const f = frame.getBoundingClientRect();
+      return [...document.querySelectorAll("svg.seamleaders path.seam__leader")].map((p) => {
+        const b = p.getPointAtLength(p.getTotalLength());
+        const a = sent[p.getAttribute("data-node-id")];
+        return !!a && Math.abs(f.left + frame.clientLeft + a[0] - b.x) <= 0.5 &&
+          Math.abs(f.top + frame.clientTop + a[1] - b.y) <= 0.5;
+      });
+    });
+    console.log(`      [${label}] reopened: the scene posted ${asked ? "its anchors" : "nothing"}; ` +
+      `leaders ${reopened.length}`);
+    // The fixture's scene has no geometry, so it may post nothing at all: what
+    // counts is that nothing is drawn from the copy held across the close.
+    push("reopening the scene draws no leader to a point the scene did not post: the anchors held " +
+      "before the close are dropped",
+      reopened.every(Boolean));
   } catch (err) {
     errors.push(String(err && err.stack || err));
   } finally {
@@ -12531,15 +12582,18 @@ async function testSeamLeaders(browser, label, topologies) {
     const onScene = (a) => a && a[0] >= 0 && a[0] <= fr.width && fr.top + a[1] >= Math.max(fr.top, 0) &&
       fr.top + a[1] <= Math.min(fr.bottom, innerHeight);
     const pane = document.querySelector("#topopane").getBoundingClientRect();
-    // The header rides the grid, so it only clips a dot where it is pinned
-    // over the DAG's own rows (data-pinned, VA.pinTopoHead).
+    // The header rides the grid, so it only covers a dot where it is pinned
+    // (data-pinned, VA.pinTopoHead) -- and only under its painted table: over
+    // the rails it is transparent, and a dot there is on screen (2026-10-29).
     const headNode = document.querySelector("#topopane .tv__zoom .tv__head");
-    const head = headNode.getAttribute("data-pinned")
-      ? headNode.getBoundingClientRect() : { bottom: -Infinity };
+    const band = headNode.getAttribute("data-pinned")
+      ? headNode.querySelector(".tvheadtable").getBoundingClientRect() : null;
     const dots = VA.lastTopoRender.seam.dots;
     const expected = Object.keys(dots).filter((id) => {
+      const x = r.left + k * dots[id][0];
       const y = r.top + k * dots[id][1];
-      return onScene(sent[id]) && y >= Math.max(pane.top, head.bottom) &&
+      const covered = band && x >= band.left && x <= band.right && y >= band.top && y <= band.bottom;
+      return onScene(sent[id]) && !covered && y >= Math.max(pane.top, 0) &&
         y <= Math.min(pane.bottom, innerHeight);
     }).sort();
     return { ids: leaders.map((l) => l.id), expected, states: draw ? draw.states : {},
@@ -12598,6 +12652,209 @@ async function testSeamLeaders(browser, label, topologies) {
       JSON.stringify(lm.ids.slice().sort()) === JSON.stringify(lm.expected));
     push("[real] no leader across the seam runs through a lit edge's bar", built && lm.barCrossings === 0);
     await shot("1_kinematic_study_leaders.png");
+
+    // --- one trace, three tiers (a_leader_starts_at_the_mark_it_names_on_
+    // every_tier, 2026-10-29). Jeff's two screenshots: a selected row whose
+    // upper end had no leg into the scene, and a hovered row with three
+    // leaders into the DAG and one leg out of a node it does not name. A
+    // hovered or selected edge's leaders run grid -> its two end dots -> the
+    // scene's anchor of exactly those dots: never more leaders than marks,
+    // none from a mark the edge does not name. Every end is measured from
+    // what is on screen -- the dot's own circle, the scene's own last
+    // message (__lastAnchors) plus the iframe's rect -- never from the copies
+    // the page draws from, so a stale copy cannot agree with itself.
+    const TRACE_EDGES = ["pitch_plate_flange_to_link_hole", "gas_spring_mount_flange_to_end_stop"];
+    const traceMeasure = (arg) => live.evaluate(({ ends, how }) => {
+      const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
+      const screen = (path, at) => {
+        const p = path.getPointAtLength(at);
+        const m = path.getScreenCTM();
+        return [m.a * p.x + m.c * p.y + m.e, m.b * p.x + m.d * p.y + m.f];
+      };
+      const dot = (id) => {
+        const c = rails.querySelector(`circle[data-row-kind="node"][data-id="${CSS.escape(id)}"]`);
+        if (!c) return null;
+        const b = c.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2, r: b.width / 2 };
+      };
+      const lines = [...rails.querySelectorAll("path.rail__leader")];
+      const hits = [...rails.querySelectorAll("path.rail__leaderhit")];
+      const gridLit = hits.map((h, i) => ({ id: h.getAttribute("data-leader-id"), h, line: lines[i] }))
+        .filter((g) => how === "click"
+          ? /rail__leader--selected/.test(g.line.getAttribute("class"))
+          : /rail__leaderhit--hot/.test(g.h.getAttribute("class")))
+        .map((g) => ({ id: g.id, from: screen(g.line, 0) }));
+      const withGridLeader = ends.filter((id) =>
+        hits.some((h) => h.getAttribute("data-leader-id") === id));
+      const seamLit = [...document.querySelectorAll("svg.seamleaders path.seam__leader--" +
+        (how === "click" ? "selected" : "hot"))].map((p) => ({ id: p.getAttribute("data-node-id"),
+        from: screen(p, 0), to: screen(p, p.getTotalLength()) }));
+      const frame = document.querySelector("#annotate-flyout iframe");
+      const fr = frame.getBoundingClientRect();
+      const fx = fr.left + frame.clientLeft;
+      const fy = fr.top + frame.clientTop;
+      const sent = (frame.contentWindow.__lastAnchors || {}).nodes || {};
+      const pane = document.querySelector("#topopane").getBoundingClientRect();
+      const headNode = document.querySelector("#topopane .tv__zoom .tv__head");
+      const band = headNode && headNode.getAttribute("data-pinned")
+        ? headNode.querySelector(".tvheadtable").getBoundingClientRect() : null;
+      const dots = {};
+      const anchors = {};
+      ends.forEach((id) => {
+        dots[id] = dot(id);
+        anchors[id] = sent[id] ? [fx + sent[id][0], fy + sent[id][1]] : null;
+      });
+      const shown = (d) => d && d.y >= Math.max(pane.top, 0) && d.y <= Math.min(pane.bottom, innerHeight) &&
+        !(band && d.x >= band.left && d.x <= band.right && d.y >= band.top && d.y <= band.bottom);
+      const onScene = (a) => a && a[0] >= fr.left && a[0] <= fr.right &&
+        a[1] >= Math.max(fr.top, 0) && a[1] <= Math.min(fr.bottom, innerHeight);
+      const with3d = ends.filter((id) => onScene(anchors[id]) && shown(dots[id]));
+      return { gridLit, withGridLeader, seamLit, with3d, dots, anchors,
+        noAnchor: ends.filter((id) => !sent[id]) };
+    }, arg);
+    // A leader's DAG end is on its dot: level with the centre, at the rim.
+    const atMark = (p, d) => !!d && Math.abs(p[1] - d.y) <= 2 &&
+      Math.hypot(p[0] - d.x, p[1] - d.y) <= d.r + 4;
+    const sameIds = (list, ids) => list.map((x) => x.id).sort().join() === ids.slice().sort().join();
+    const traceHolds = (t, ends) =>
+      t.gridLit.length <= ends.length && sameIds(t.gridLit, t.withGridLeader) &&
+      t.gridLit.every((g) => atMark(g.from, t.dots[g.id])) &&
+      t.seamLit.length <= ends.length && sameIds(t.seamLit, t.with3d) &&
+      t.seamLit.every((l) => atMark(l.from, t.dots[l.id]) &&
+        Math.hypot(l.to[0] - t.anchors[l.id][0], l.to[1] - t.anchors[l.id][1]) <= 1);
+    const traceCase = async (E, how) => {
+      const edge = topology.edges.find((e) => e.id === E);
+      const ends = [edge.from, edge.to];
+      await live.mouse.move(5, 5);
+      // The part of the row a reader can point at: right of the sticky rails
+      // and inside the pane. At 1600x1000 the row's own centre is under the
+      // rails, where a pointer lands on a leader rather than on the row.
+      await live.evaluate((E) => {
+        const row = document.querySelector(`#topopane .tv__hscroll tr.tvrow[data-id="${E}"]`);
+        if (row) row.scrollIntoView({ block: "center" });
+      }, E);
+      // Read where it is once it has stopped moving (two frames agree).
+      await liveUntil((E) => {
+        const row = document.querySelector(`#topopane .tv__hscroll tr.tvrow[data-id="${E}"]`);
+        const y = row ? row.getBoundingClientRect().top : null;
+        const same = window.__traceRowY === y;
+        window.__traceRowY = y;
+        return same;
+      }, E, 5000);
+      const at = await live.evaluate((E) => {
+        const row = document.querySelector(`#topopane .tv__hscroll tr.tvrow[data-id="${E}"]`);
+        if (!row) return null;
+        const r = row.getBoundingClientRect();
+        const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails").getBoundingClientRect();
+        const pane = document.querySelector("#topopane").getBoundingClientRect();
+        const left = Math.max(r.left, rails.right);
+        const right = Math.min(r.right, pane.right, innerWidth);
+        return right > left ? [(left + right) / 2, r.top + r.height / 2] : null;
+      }, E);
+      if (at) {
+        await live.mouse.move(at[0], at[1]);
+        if (how === "click") await live.mouse.click(at[0], at[1]);
+      }
+      const lit = await liveUntil(({ E, how }) => !!document.querySelector(how === "click"
+        ? `#topopane .tv__hscroll tr.tvrow--selected[data-id="${E}"]`
+        : `#topopane .tv__hscroll tr.tvrow--lead[data-id="${E}"]`), { E, how }, 15000);
+      await liveSettle();
+      const t = await traceMeasure({ ends, how });
+      const held = !!at && lit && traceHolds(t, ends);
+      const words = (l) => l.map((x) => x.id).join("+") || "-";
+      console.log(`      [${label}] ${how} ${E}: grid ${words(t.gridLit)} of ` +
+        `${t.withGridLeader.join("+") || "-"}; 3D ${words(t.seamLit)} of ${t.with3d.join("+") || "-"}` +
+        `; no anchor in the scene: ${t.noAnchor.join("+") || "-"}${held ? "" : " " + JSON.stringify(t)}`);
+      return { held, t };
+    };
+    const traceRound = async (sequence) => {
+      const out = [];
+      for (const [E, how] of sequence) out.push(await traceCase(E, how));
+      return out;
+    };
+    const [E1, E2] = TRACE_EDGES;
+    // Nothing is selected yet, so both hovers are seen as hovers; after that
+    // a hover is only ever of a row whose ends are not the selected ones.
+    const order = [[E1, "hover"], [E2, "hover"], [E1, "click"], [E2, "hover"], [E2, "click"],
+      [E1, "hover"]];
+    const at1600 = await traceRound(order);
+    push("[real] at 1600x1000, both screenshot rows' leaders -- hovered and selected -- run from " +
+      "the row to exactly its two ends' dots and on to those dots' anchors in the scene",
+      at1600.every((r) => r.held) && at1600.some((r) => r.t.seamLit.length > 0));
+    // A re-lay with the selection standing (E2 is selected): the leaders
+    // follow the marks to where the new layout put them, and back.
+    const e2 = topology.edges.find((e) => e.id === E2);
+    const relay = async (word) => {
+      await live.locator("#unlit-style-toggle").click();
+      await liveUntil((word) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        return w && w.__model && w.__model.unlit === word && window.ViewerApp.lastTopoRender &&
+          !window.ViewerApp.lastTopoRender.tweening;
+      }, word, 15000);
+      await live.mouse.move(5, 5);
+      await liveSettle();
+      return traceMeasure({ ends: [e2.from, e2.to], how: "click" });
+    };
+    const relaid = await relay("hide");
+    const relaidBack = await relay("dim");
+    console.log(`      [${label}] re-laid with ${E2} selected: grid ${relaid.gridLit.length}, ` +
+      `3D ${relaid.seamLit.length}; back: grid ${relaidBack.gridLit.length}, 3D ${relaidBack.seamLit.length}`);
+    push("[real] a re-lay of the DAG with a row selected leaves its leaders on its ends' dots and " +
+      "their anchors, both ways",
+      traceHolds(relaid, [e2.from, e2.to]) && traceHolds(relaidBack, [e2.from, e2.to]) &&
+      relaid.gridLit.length > 0);
+    await live.setViewportSize({ width: 1920, height: 1080 });
+    const at1920 = await traceRound(order.slice(2));
+    push("[real] ...and at 1920x1080, after the window grew under them",
+      at1920.every((r) => r.held) && at1920.some((r) => r.t.seamLit.length > 0));
+    await live.setViewportSize({ width: 1600, height: 1000 });
+    await liveSettle();
+
+    // The pinned header is painted only over the grid: a dot level with it,
+    // over the rails, is on screen and keeps its leader into the scene (Jeff's
+    // first screenshot circled COMPONENT beside a node that had none).
+    const underHead = async () => {
+      const ids = await live.evaluate(() => {
+        const sent = (document.querySelector("#annotate-flyout iframe").contentWindow.__lastAnchors || {})
+          .nodes || {};
+        return Object.keys(window.ViewerApp.lastTopoRender.seam.dots).filter((id) => sent[id]);
+      });
+      for (const id of ids) {
+        await live.mouse.move(5, 5);
+        await live.evaluate((id) => {
+          // The grid back at its left edge, so the band starts right of the rails.
+          document.querySelector("#topopane .tv__hscroll").scrollLeft = 0;
+          const c = document.querySelector(`#topopane svg.tv__rails circle[data-id="${CSS.escape(id)}"]`);
+          const bar = document.querySelector(".topbar");
+          if (!c) return;
+          const y = c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2;
+          window.scrollBy(0, y - ((bar ? bar.getBoundingClientRect().bottom : 0) + 13));
+        }, id);
+        await liveSettle();
+        const at = await live.evaluate((id) => {
+          const c = document.querySelector(`#topopane svg.tv__rails circle[data-id="${CSS.escape(id)}"]`);
+          const head = document.querySelector("#topopane .tv__zoom .tv__head");
+          if (!c || !head || !head.getAttribute("data-pinned")) return null;
+          const d = c.getBoundingClientRect();
+          const h = head.getBoundingClientRect();
+          const y = d.top + d.height / 2;
+          if (y < h.top || y > h.bottom) return null;
+          const top = document.elementFromPoint(d.left + d.width / 2, y);
+          // Left of the painted band: the case the clip used to get wrong.
+          if (d.right >= head.querySelector(".tvheadtable").getBoundingClientRect().left) return null;
+          return { id, onScreen: !!top && !!top.closest("svg.tv__rails"),
+            drawn: (window.ViewerApp.lastSeamDraw.leaders || []).some((l) => l.id === id) };
+        }, id);
+        if (at) return at;
+      }
+      return null;
+    };
+    const covered = await underHead();
+    console.log(`      [${label}] a dot level with the pinned header: ${JSON.stringify(covered)}`);
+    push("[real] a lit dot level with the pinned header, over the rails, is on screen and keeps its " +
+      "leader into the scene", !!covered && covered.onScreen && covered.drawn);
+    await live.evaluate(() => window.scrollTo(0, 0));
+    await liveSettle();
 
     // A contributor row: its two ends light on both overlays, and the scene's line.
     const CONTRIBUTOR = "tan_link_length";

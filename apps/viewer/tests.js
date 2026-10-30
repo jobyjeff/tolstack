@@ -6922,6 +6922,34 @@
         ok(nothingLit(root), "leaving the drawing clears both surfaces");
       });
 
+    await test("a hovered grid row lights its two ends' leaders and no other, " +
+      "whichever leaders' seams it starts at", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var index = VA.topologyIndex(TOPO);
+        var hits = all(root, "path.rail__leaderhit");
+        var drawn = {};
+        hits.forEach(function (h) { drawn[h.getAttribute("data-leader-id")] = true; });
+        // At least one row lighting a leader whose seam is NOT its own: the
+        // far end's, which the old seam rule (data-boundary-edge) left dark.
+        var farEnd = 0;
+        all(root, "tr.tvrow--edge").forEach(function (row) {
+          var id = row.getAttribute("data-id");
+          var ends = VA.selectedLeaderNodes({ kind: "edge", id: id }, index);
+          row.onmouseenter({});
+          var lit = all(root, "path.rail__leaderhit--hot").map(function (h) {
+            return h.getAttribute("data-leader-id");
+          }).sort();
+          eq(lit, Object.keys(ends).filter(function (n) { return drawn[n]; }).sort(), id);
+          eq(all(root, "path.rail__leader--lead").length, lit.length, id);
+          hits.forEach(function (h) {
+            if (h.getAttribute("class").indexOf("--hot") !== -1 &&
+                h.getAttribute("data-boundary-edge") !== id) farEnd++;
+          });
+          row.onmouseleave({});
+        });
+        ok(farEnd > 0, "some row lights a leader that lands at another row's seam");
+      });
+
     await test("an interface has no grid row of its own, so hovering its dot " +
       "lights the rows of the edges that meet there", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });

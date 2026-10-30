@@ -492,7 +492,9 @@
   //   model unlit dim|hide            what the rest does
   //   model select node|body <id>     show why an anchor is where it is
   //   model select clear
-  AA.MODEL_VERB_ACTIONS = Object.freeze(["lit", "unlit", "select"]);
+  //   model anchors                   post the anchors message now, even
+  //                                   unchanged (a shell that dropped its copy)
+  AA.MODEL_VERB_ACTIONS = Object.freeze(["lit", "unlit", "select", "anchors"]);
   AA.MODEL_SELECT_KINDS = Object.freeze(["node", "body", "clear"]);
   AA.parseModelVerb = function (args) {
     var list = (args || []).map(function (a) { return String(a); });
@@ -501,6 +503,7 @@
       throw new Error("model takes " + AA.MODEL_VERB_ACTIONS.join(" or ") +
         ", got " + JSON.stringify(action == null ? null : action));
     }
+    if (action === AA.MODEL_VERB_ACTIONS[3]) return { action: action };
     if (action === AA.MODEL_VERB_ACTIONS[2]) {
       var kind = list[1];
       if (AA.MODEL_SELECT_KINDS.indexOf(kind) === -1) {

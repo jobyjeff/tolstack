@@ -1716,8 +1716,11 @@
     //     (VA.selectedLeaderNodes): a node's own, an edge's two ends -- and
     //     with anything selected, every other leader steps back.
     var leaderLit = VA.selectedLeaderNodes(ctx.selection, index);
+    var leaderEdges = VA.leaderEdgesAt(index);
     leaderGeo.leaders.forEach(function (leader) {
       var node = index.nodes[leader.id];
+      var leaderLeads = [hotKey("node", leader.id)].concat(
+        (leaderEdges[leader.id] || []).map(function (id) { return hotKey("edge", id); }));
       var classes = ["rail__leader"];
       if (marking) classes.push("rail__leader--on");
       if (leaderLit[leader.id]) classes.push("rail__leader--selected");
@@ -1726,22 +1729,22 @@
       // A leader is `--lead` only, never part of the leg's own glow: it leaves
       // the rail rather than running along it, and lighting every leader off a
       // nine-edge mainline turns the jog zone into a fan. It leads for its own
-      // node AND for the edge whose boundary it marks, which is what makes
-      // "hover a grid row, see which seam it hangs off" work in both
-      // directions.
+      // node AND for every edge that ends there (VA.leaderEdgesAt, the
+      // selection rule read backwards): hovering a grid row lights exactly
+      // its two ends' leaders, the ones the 3D overlay lights too. It used to
+      // lead for the edge whose row starts at its seam, which lit up to three
+      // leaders from nodes the hovered edge does not name (2026-10-29).
       svg.appendChild(hotRegister(hot, {
         el: fade(VA.svg("path", leaderBase, { d: leader.d }), "node", leader.id),
         base: leaderBase,
-        leads: [hotKey("node", leader.id)].concat(
-          leader.beforeEdge ? [hotKey("edge", leader.beforeEdge)] : []),
+        leads: leaderLeads,
         hot: "rail__leader--hot", lead: "rail__leader--lead",
       }));
       var hit = hotRegister(hot, {
         el: fade(VA.svg("path", "rail__leaderhit", { d: leader.d }),
           "node", leader.id),
         base: "rail__leaderhit",
-        leads: [hotKey("node", leader.id)].concat(
-          leader.beforeEdge ? [hotKey("edge", leader.beforeEdge)] : []),
+        leads: leaderLeads,
         lead: "rail__leaderhit--hot",
       });
       hotHover(hot, hit, hotKey("node", leader.id));
