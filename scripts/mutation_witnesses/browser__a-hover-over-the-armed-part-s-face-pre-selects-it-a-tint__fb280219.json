@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "a hover over the armed part's face pre-selects it: a tint and an outline on every occurrence, the crosshair, and the state line names the face",
+  "mutations": [
+    {
+      "contract": "A hover pre-selects the face under the pointer.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). No feedback before the click is the complaint.",
+      "file": "apps/annotate/scene.js",
+      "find": "      this._applyPreselect(this.pick(x, y));",
+      "replace": "      this._applyPreselect(null);"
+    }
+  ]
+}

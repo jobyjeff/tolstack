@@ -317,6 +317,16 @@
     return slot;
   };
 
+  // Does any mirrored row (at any depth) carry a pressed button? The
+  // annotator presses a row's Pick while a pick is armed, so this is how the
+  // page knows an Esc here has something to cancel.
+  VA.sceneRowsPressed = function (rows) {
+    return (rows || []).some(function (row) {
+      return (row.buttons || []).some(function (b) { return !!b.pressed; }) ||
+        VA.sceneRowsPressed(row.rows);
+    });
+  };
+
   function sceneList(rows, send) {
     var ul = VA.el("ul", "navtree__scenelist");
     rows.forEach(function (row) { ul.appendChild(sceneItem(row, send)); });

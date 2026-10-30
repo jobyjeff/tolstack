@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "the nav carries a full-height drag divider",
+  "mutations": [
+    {
+      "contract": "The nav has its own drag divider.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Jeff's first complaint: the menu could not be widened.",
+      "file": "apps/viewer/topology.html",
+      "find": "    <div id=\"nav-divider\" class=\"tv__divider\" role=\"separator\"",
+      "replace": "    <div id=\"nav-divider-gone\" class=\"tv__divider\" role=\"separator\""
+    }
+  ]
+}

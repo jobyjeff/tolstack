@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "Esc ends an armed pick and puts the scene and camera back",
+  "mutations": [
+    {
+      "contract": "Esc cancels an armed pick.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). The standard CAD cancel gesture.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (ev.key === \"Escape\" && state.sweep.armed) {",
+      "replace": "    if (false) {"
+    }
+  ]
+}

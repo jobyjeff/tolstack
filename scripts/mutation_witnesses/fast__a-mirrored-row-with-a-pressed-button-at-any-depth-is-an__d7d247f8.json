@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a mirrored row with a pressed button, at any depth, is an armed pick an Esc on this page cancels",
+  "mutations": [
+    {
+      "contract": "A pressed button on a nested row counts.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). An end's row is nested under its joint, so a top-level-only scan never sees the armed pick.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        VA.sceneRowsPressed(row.rows);",
+      "replace": "        false;"
+    }
+  ]
+}

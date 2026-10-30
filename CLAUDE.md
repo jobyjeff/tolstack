@@ -68,7 +68,10 @@ traced ratio" — never restate the rule elsewhere).
   agent may *propose* a face, through `scripts/propose_bindings.py` only and
   never as a binding: the annotator shows the proposal apart, and Jeff's
   Accept or Reject is the event that counts (`docs/ANNOTATION_SURFACE.md`,
-  "Proposals").
+  "Proposals"). Since 2026-10-29 a joint end's Pick in sweep mode arms a
+  CAD-style pick — isolate, filter, pre-select, click binds — and its gesture
+  table is the one statement of how a face is picked
+  (`docs/ANNOTATION_SURFACE.md`, "Picking a face — the gestures").
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] Pick on hub blade-1 root bearing bore goes to the as-modelled frame with no prompt, the hub alone is solid and pickable, and every other part is ghosted faint",
+  "mutations": [
+    {
+      "contract": "The hub's bore is picked on the hub.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Jeff's reproduction: the edge it is bound through is the blade root's.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return own.length ? own : edgeParts;",
+      "replace": "    return edgeParts.length ? edgeParts : own;"
+    }
+  ]
+}

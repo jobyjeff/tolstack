@@ -927,6 +927,13 @@ on this page that survives a reload.** A full-height divider on its left edge
 `VA.TOPO_PANE_WIDTH`, remembered in `localStorage` under one key
 (`VA.PANE_WIDTH_KEY`).
 
+**So is the nav, since 2026-10-29** (handoff
+`a_face_is_picked_the_way_cad_picks_it`: with the 3D pane open the nav carries
+the scene's mechanism tree, and its joint-end names were clipped). The same
+divider control on its right edge (`#nav-divider`), dragged right to widen,
+clamped by `VA.clampNavWidth` to a floor and to half the window, remembered
+under `VA.NAV_WIDTH_KEY`. The stylesheet's width stays the default.
+
 Its **default** is **560px** since 2026-09-16, and the two-step history is why
 that is a measured number rather than a guess. It went to 560 with the drag on
 2026-09-15 and came straight back the same day: the centre pane is then 133px

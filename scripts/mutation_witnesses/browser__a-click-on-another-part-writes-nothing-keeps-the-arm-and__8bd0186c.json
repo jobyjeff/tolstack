@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "a click on another part writes nothing, keeps the arm and the row says it is not on the part",
+  "mutations": [
+    {
+      "contract": "A refused click names the part the pick is on.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). A silent refusal is the no-feedback defect again.",
+      "file": "apps/annotate/app.js",
+      "find": "    setArmedLine(AA.armedWords(\"notOn\", { part: a.partWords }), true);",
+      "replace": "    setArmedLine(AA.ARMED_PICK_WORDS.armed, true);"
+    }
+  ]
+}

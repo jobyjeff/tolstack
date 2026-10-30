@@ -169,7 +169,10 @@ export const DECLARED_GUARDS = {
   // datum line, a zero x-interval draws no band, a declared gap's row), two
   // out (both stops carrying the band, only a driver study is a band) and
   // the live corner check renamed for the datum. Every new name carries a spec.
-  fast: { declared: 622, enrollable: 622, names: "7375fb9f5645" },
+  // 2026-10-29 (a_face_is_picked_the_way_cad_picks_it): +3, the nav's width
+  // (drag sign and floor/cap, its own remembered key) and the shell's Esc
+  // reading a pressed mirrored row. All three carry a spec.
+  fast: { declared: 625, enrollable: 625, names: "c84e449a967d" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
@@ -177,7 +180,9 @@ export const DECLARED_GUARDS = {
   // annotate +7 -- the proposal fold, accept/reject, the chip, the hollow
   // anchor, the outline and the shared shape-rule cases -- and one renamed
   // (the alert pairing now names its quiet states). Every one carries a spec.
-  annotate: { declared: 255, enrollable: 255, names: "ef8773a74583" },
+  // 2026-10-29 (a_face_is_picked_the_way_cad_picks_it): +3, the armed pick's
+  // part order, its click plan and its words. All three carry a spec.
+  annotate: { declared: 258, enrollable: 258, names: "bb3f3a18c1a0" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -199,7 +204,11 @@ export const DECLARED_GUARDS = {
   // 2026-10-29 (the_plus72_stop_is_the_travel_datum): one renamed, the live
   // plot's check -- the -7 band alone, joining the envelope with no step --
   // with its spec.
-  browser: { declared: 733, enrollable: 700, names: "8a6219644d8d" },
+  // 2026-10-29 (a_face_is_picked_the_way_cad_picks_it): +22 -- four for the
+  // nav's divider, seventeen for the armed pick on ?mock=1, one [real] for
+  // Jeff's bore reproduction on P2. Every one carries a spec. Re-measured at
+  // the review merge, on top of the_wheel_the_column_and_fit_behave's +6.
+  browser: { declared: 755, enrollable: 722, names: "7d3aa0a125b0" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "dragging the nav's divider RIGHT widens the nav, and the width is written down",
+  "mutations": [
+    {
+      "contract": "A drag ends by writing the nav's width down.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). An unwritten width is a width a reload loses.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      VA.writeStoredNavWidth(widthStore(), state.navWidth);",
+      "replace": "      void 0;"
+    }
+  ]
+}

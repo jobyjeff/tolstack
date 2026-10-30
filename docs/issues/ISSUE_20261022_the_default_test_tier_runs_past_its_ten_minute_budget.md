@@ -61,3 +61,7 @@ candidates for a merge-only tier.
 ## Measurement 2026-10-29 (the_wheel_the_column_and_fit_behave)
 
 `venv-win/Scripts/python.exe -m pytest -q` (no -n; the pytest.ini here rejects it) took 19m10s in a worktree while a witness run shared the box; an earlier uncontended run took 8m37s and a later one 5m17s. Contention, not growth.
+
+## Measurement 2026-10-29 (tactical, a_face_is_picked_the_way_cad_picks_it)
+
+602 s (10m02s) pytest, serial, `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` in the handoff worktree: `2 failed, 1682 passed, 1 skipped, 2 deselected`. `suite-time record`: OVER BUDGET by 0m02s. The failures are the worktree-only `test_viewer_js_suite` (its `[real]` tier has no projection here) and `test_browser_runner[throw-True]`, which passed on a rerun (`ISSUE_20261022_the_browser_runner_kill_witness_reddens_under_load_here_as_it_did_in_drawing_checker.md`). `-n 16 --dist loadfile` is not available (no xdist in the venv); `--durations` was not captured.

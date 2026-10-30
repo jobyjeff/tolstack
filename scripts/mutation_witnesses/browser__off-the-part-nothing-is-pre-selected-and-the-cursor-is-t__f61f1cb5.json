@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "off the part, nothing is pre-selected and the cursor is the default",
+  "mutations": [
+    {
+      "contract": "The crosshair means a click would do something.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). A crosshair everywhere promises nothing.",
+      "file": "apps/annotate/scene.js",
+      "find": "    this.renderer.domElement.style.cursor = face ? \"crosshair\" : \"\";",
+      "replace": "    this.renderer.domElement.style.cursor = \"crosshair\";"
+    }
+  ]
+}

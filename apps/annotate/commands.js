@@ -1019,6 +1019,7 @@
     faceSuggestions: "tolstack.annotate.faceSuggestions",
     railWidth: "tolstack.annotate.railWidth",
     sweepRowKinds: "tolstack.annotate.sweepRowKinds",
+    armOthers: "tolstack.annotate.armOthers",
   });
 
   // --- the rail's width (handoff the_annotator_rail_resizes_and_names_what_

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the pre-selection line names the face, its class in everyday words and the fitted radius; the others toggle is remembered and anything unreadable is ghost",
+  "mutations": [
+    {
+      "contract": "The pre-selection line carries the fitted radius.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). The radius is the fact that tells a bore from its chamfer.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (cls.radius > 0) words.push(",
+      "replace": "      if (false) words.push("
+    }
+  ]
+}

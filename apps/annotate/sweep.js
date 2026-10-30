@@ -1786,4 +1786,131 @@
       return k === kind ? !on : (hidden || []).indexOf(k) !== -1;
     });
   };
+
+  // --- an armed pick (handoff a_face_is_picked_the_way_cad_picks_it) ---------
+  //
+  // Jeff, 2026-10-29: "When you go to pick a surface, it needs to filter the
+  // view to only show the body that the surface is attached to … and have a
+  // selection filter so that you can only select surfaces from the actual
+  // part containing the interface. Also a hover over pre-selection." A joint
+  // end's Pick ARMS the pick in place, in sweep mode: the sweep goes to the
+  // as-modelled pose, the end's part is drawn opaque and every other part
+  // ghosted (or hidden), the raycast hits only that part, a hover pre-selects
+  // and the click binds. The pure half is below; app.js wires it.
+
+  //: Every word an armed pick shows -- on the row's state line, its two
+  //: buttons, the toast and the bar's way back.
+  AA.ARMED_PICK_WORDS = Object.freeze({
+    armed: "at the as-modelled pose for picking",
+    notOn: "not on {part}",
+    sameFace: "already bound to face {face}",
+    bound: "bound · face {face}",
+    toast: "Bound {end} to face {face} of {part}",
+    noPart: "no installed 3D part to pick on",
+    noPose: "no frame of this run is at the as-modelled pose",
+    cancel: "Cancel",
+    cancelTitle: "stop picking and put the scene back (Esc)",
+    pickTitle: "pick this feature's face in the 3D view",
+    back: "back to the sweep",
+    others: { ghost: "ghost others", hide: "hide others" },
+    othersTitle: "how the parts you are not picking on are drawn",
+  });
+
+  //: How the parts an armed pick is NOT on are drawn: ghosted (very low
+  //: opacity, no depth write) or hidden. Ghost first: it is the default.
+  AA.ARM_OTHERS_MODES = Object.freeze(["ghost", "hide"]);
+
+  AA.readArmOthers = function (store) {
+    var raw = null;
+    try { raw = store ? store.getItem(AA.PREF_KEYS.armOthers) : null; } catch (err) { raw = null; }
+    return AA.ARM_OTHERS_MODES.indexOf(raw) !== -1 ? raw : AA.ARM_OTHERS_MODES[0];
+  };
+
+  AA.writeArmOthers = function (store, mode) {
+    if (AA.ARM_OTHERS_MODES.indexOf(mode) === -1) {
+      throw new Error("others are drawn " + AA.ARM_OTHERS_MODES.join(" or ") + ", got " + JSON.stringify(mode));
+    }
+    try { if (store) store.setItem(AA.PREF_KEYS.armOthers, mode); } catch (err) { /* honoured now anyway */ }
+  };
+
+  // The topology part ids a face for one END of an edge can be on, best
+  // first: the end node's own parts IN THE ORDER IT NAMES THEM, else the
+  // edge's. The order is the topology's convention -- every two-part
+  // interface is named "<first part's face> against <second part>" ("hub
+  // blade-1 root bearing bore" is [hub, blade_root]; "pitch arm root clamp
+  // face against the blade root" is [pitch_arm, blade_root]) -- so the face
+  // is on the first-named part, whichever edge the end is bound through. The
+  // caller arms on the first one with an installed mesh. [] when nothing
+  // names a part -- an end there is nothing to pick on.
+  AA.pickEndPartIds = function (topology, edgeId, direction) {
+    var edges = (topology && topology.edges) || [];
+    var nodes = (topology && topology.nodes) || [];
+    var edge = edges.filter(function (e) { return e.id === edgeId; })[0];
+    if (!edge) return [];
+    var nodeId = direction === AA.DIRECTIONS[1] ? edge.to : edge.from;
+    var node = nodes.filter(function (n) { return n.id === nodeId; })[0];
+    var own = [];
+    function add(list, id) { if (id && list.indexOf(id) === -1) list.push(id); }
+    if (node) { add(own, node.part); (node.parts || []).forEach(function (id) { add(own, id); }); }
+    var edgeParts = [];
+    add(edgeParts, edge.part);
+    (edge.parts || []).forEach(function (id) { add(edgeParts, id); });
+    return own.length ? own : edgeParts;
+  };
+
+  // What the state line says while the pointer pre-selects a face: its
+  // number, its surface class in the suggestion engine's everyday words, and
+  // the radius that engine fitted, where it fitted one. `cls` is the face's
+  // AA.classifyPartFaces entry, or null while the part is unclassified.
+  AA.preselectWords = function (faceId, cls) {
+    var words = ["face " + faceId];
+    if (cls && cls.surface && cls.surface !== "other" && AA.SURFACE_WORDS) {
+      words.push(AA.SURFACE_WORDS[cls.surface]);
+      if (cls.radius > 0) words.push("r " + AA.formatSweepNumber(cls.radius, "mm") + " mm");
+    }
+    return words.join(" · ");
+  };
+
+  // One word in an ARMED_PICK_WORDS template, by name.
+  AA.armedWords = function (key, fields) {
+    var text = AA.ARMED_PICK_WORDS[key];
+    Object.keys(fields || {}).forEach(function (k) {
+      text = text.split("{" + k + "}").join(String(fields[k]));
+    });
+    return text;
+  };
+
+  //: What one click does while a pick is armed (AA.planArmedClick).
+  AA.ARMED_CLICK_ACTIONS = Object.freeze(["bind", "refuse", "same", "stay"]);
+
+  // A click while armed. `pick` is the filtered raycast's answer (a face on
+  // the armed part, or null); `other` is what an unfiltered ray hit when the
+  // filtered one did not (a face on another part, or null). `standing` is the
+  // end's standing bindings ([{event_id, geometry_key}]).
+  //
+  //   empty space        -> stay   (the arm is kept; nothing is said)
+  //   another part only  -> refuse (the state line says which part it is on)
+  //   the face already bound at this end -> same (no second event; unbinding
+  //                         needs a retraction the event schema does not have)
+  //   any other face     -> bind, superseding the end's one standing binding
+  //                         when there is exactly one (a re-pick replaces)
+  AA.planArmedClick = function (pick, other, standing) {
+    var acts = AA.ARMED_CLICK_ACTIONS;
+    if (!pick) return { action: other ? acts[1] : acts[3], other: other || null };
+    var list = standing || [];
+    var same = list.some(function (b) {
+      var g = b && b.geometry_key;
+      return g && g.source_step_sha256 === pick.sha256 && g.face_id === pick.faceId;
+    });
+    if (same) return { action: acts[2], faceId: pick.faceId };
+    return { action: acts[0], pick: pick,
+      supersedes: list.length === 1 ? list[0].event_id : null };
+  };
+
+  // An end's standing bindings, out of its edge's record.
+  AA.endBindings = function (record, direction) {
+    return ((record && record.bindings) || []).filter(function (b) {
+      return b && b.direction === direction;
+    });
+  };
 })(window.AnnotateApp = window.AnnotateApp || {});

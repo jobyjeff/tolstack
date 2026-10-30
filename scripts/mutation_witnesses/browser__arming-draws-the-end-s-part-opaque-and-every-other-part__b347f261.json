@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "arming draws the end's part opaque and every other part ghosted faint",
+  "mutations": [
+    {
+      "contract": "Other parts are ghosted far fainter than the see-through setting.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). At the ordinary ghost the hub hides the bore.",
+      "file": "apps/annotate/scene.js",
+      "find": "    mesh.material.opacity = on ? (faint ? ARMED_GHOST_OPACITY : GHOST_OPACITY) : 1;",
+      "replace": "    mesh.material.opacity = on ? GHOST_OPACITY : 1;"
+    }
+  ]
+}
