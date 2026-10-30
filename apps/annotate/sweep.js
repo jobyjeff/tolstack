@@ -11,9 +11,11 @@
 // call site: the midpoint of a 90-degree rotation being 45 degrees is a fact
 // a test in Node can hold, and `new THREE.Quaternion()` in Node is not.
 //
-// THIS APP WRITES NOTHING IN SWEEP MODE. The artifact is a solver's output,
-// read out of the inbox and rendered; the one write path this app has
-// (storage.writeFeatureIdentityEvent) is not reachable from anything here.
+// NOTHING IN THIS FILE WRITES. The artifact is a solver's output, read out of
+// the inbox and rendered; the one write path the app has
+// (storage.writeFeatureIdentityEvent) is not reachable from anything here --
+// sweep mode's one write, an armed pick's bind, is app.js's (armedClick), and
+// this file only plans it (AA.planArmedClick).
 //
 // ---------------------------------------------------------------------------
 // The one matrix layout, stated once
@@ -1835,11 +1837,14 @@
 
   // The topology part ids a face for one END of an edge can be on, best
   // first: the end node's own parts IN THE ORDER IT NAMES THEM, else the
-  // edge's. The order is the topology's convention -- every two-part
-  // interface is named "<first part's face> against <second part>" ("hub
-  // blade-1 root bearing bore" is [hub, blade_root]; "pitch arm root clamp
-  // face against the blade root" is [pitch_arm, blade_root]) -- so the face
-  // is on the first-named part, whichever edge the end is bound through. The
+  // edge's. The order is taken as the topology's convention that the face is
+  // on the first-named part ("hub blade-1 root bearing bore" is [hub,
+  // blade_root]; "pitch arm root clamp face against the blade root" is
+  // [pitch_arm, blade_root]), whichever edge the end is bound through. Only
+  // the "X against Y" names state it; for the other two-part nodes the order
+  // is unverified -- "gas-spring bushing in the pitch plate" lists
+  // [pitch_plate, gas_spring] (review 2026-10-29; ISSUE_20261029_an_armed_
+  // pick_assumes_the_face_is_on_the_nodes_first_named_part). The
   // caller arms on the first one with an installed mesh. [] when nothing
   // names a part -- an end there is nothing to pick on.
   AA.pickEndPartIds = function (topology, edgeId, direction) {

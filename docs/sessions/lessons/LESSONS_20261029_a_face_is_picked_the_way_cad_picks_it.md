@@ -35,6 +35,13 @@ itself so that path never asks.
   face> against <second part>", so the face is on the node's first-named part
   with an installed mesh (`AA.pickEndPartIds`), edge's part only when the node
   names none. A `[real]` check pins Jeff's bore.
+
+  > **Correction, 2026-10-29 (review).** The count does not re-derive. The
+  > topology has **34** two-part nodes, and only **20** are named "X against
+  > Y". Jeff's bore ("hub blade-1 root bearing bore") is one of the 14 that
+  > aren't, so the convention as stated covers neither it nor them. For those
+  > 14 the first-part order is unverified:
+  > `docs/issues/ISSUE_20261029_an_armed_pick_assumes_the_face_is_on_the_nodes_first_named_part.md`.
 - **Edge features and contributors keep the bind-mode jump.** An edge has two
   ends and the 2026-10-21 wrong-end rule forbids a default between them, so
   arming needs an end; only node features (rows with `data-direction`) arm.

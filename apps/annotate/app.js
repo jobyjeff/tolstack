@@ -1127,10 +1127,12 @@ async function refreshSuggestions() {
 // and every decision it makes comes out of sweep.js, which a test in Node can
 // call.
 //
-// THIS MODE WRITES NOTHING. It is a viewer of another repo's solver output;
-// `storage.writeFeatureIdentityEvent` is not reachable from anything below,
-// and face picking is switched off outright whenever the linkage is away from
-// the as-modelled pose every binding in this repo is about.
+// THIS MODE WRITES ONE THING: an armed pick's `bound` event (cmdArm /
+// armedClick, since 2026-10-29), and only at the as-modelled pose -- arming
+// seeks there and any transport verb ends the arm. Otherwise it is a viewer
+// of another repo's solver output, and face picking is switched off outright
+// whenever the linkage is away from the as-modelled pose every binding in
+// this repo is about.
 
 // What the console says when nothing has published a run yet. Plain words and
 // nothing to paste, the posture AA.NO_PROJECTION_NOTICE set: this page has no

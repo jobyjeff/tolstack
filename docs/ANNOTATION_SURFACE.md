@@ -655,10 +655,12 @@ table is the one statement of the gestures.**
 | **back to the sweep** (the bar) | once a pick has ended, returns to the frame the arm moved away from |
 
 - **Which part.** The end node's first-named part with an installed 3D model
-  (`AA.pickEndPartIds`), else the edge's. The topology names every two-part
-  interface "<first part's face> against <second part>", so the hub's blade-1
-  root bearing bore is picked on the hub even though the end is bound through
-  the blade root's edge.
+  (`AA.pickEndPartIds`), else the edge's. Two-part interfaces named
+  "<first part's face> against <second part>" list the face's part first, and
+  the hub's blade-1 root bearing bore is picked on the hub even though the end
+  is bound through the blade root's edge. For the other two-part nodes the
+  order is unverified ("gas-spring bushing in the pitch plate" lists the pitch
+  plate first): `docs/issues/ISSUE_20261029_an_armed_pick_assumes_the_face_is_on_the_nodes_first_named_part.md`.
 - **The filter is the raycast.** While armed the ray tests only that part, so a
   ghosted part in front of it is looked through, not hit.
 - **Not built:** unbinding. A second click on the bound face would retract it,
