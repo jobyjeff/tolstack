@@ -204,111 +204,102 @@ The outbound twin, for building one of these links in code, is
 `VA.viewerLink(params)` — same param names, round-tripped against
 `VA.parseDeepLink` by the fast tier.
 
-## Hover reference cards — the grid's own reference material
+## The Preview — one record behind every mark
+
+(`a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark`,
+2026-10-30.) Jeff: *"The point of the leader lines is that they're tracing the
+same data from 3d to 2d to grid view, which means all of them should present
+the same additional data when hovered or clicked. … the hover previews are
+actually pretty jarring and obscure too much of what you're trying to look at
+or select."*
+
+- **One record per element.** Every mark of the model — a 3D anchor, a DAG dot,
+  bar, joint glyph or leader, a grid row — resolves by the pane's own
+  `node|<id>` / `edge|<id>` key to ONE record (`element_record.js`,
+  `VA.elementRecords`): title, kind, part (name, drawing or the documents its
+  rows cite, picture, whether it has a 3D model), the two interfaces, the
+  values as transcribed, confidence, citation, crop, whether a binding is still
+  wanted, and the active study's reading of it. Built once per page state out
+  of the projections, never per hover; nothing in it is computed. The Preview
+  renders the record, a mark's accessible name and hover label are its title,
+  and the grid row prints its name and numbers off it.
+- **Hover previews, click freezes.** The right-hand pane splits: the results
+  scroll above, the **Preview** stays below a rule. Pointing at — or focusing —
+  any mark on any tier shows its record there: the crop at a legible size, the
+  numbers, the citation. Clicking selects it, and the selection IS the freeze:
+  the section head shows a pin and the element's name, other marks preview
+  while the pointer is on them, and the Preview returns to the frozen element a
+  beat after the pointer leaves every mark (`VA.PREVIEW_RETURN_MS`). Esc, a
+  click on the model's empty canvas, or the pin itself lets go. The scene posts
+  the anchor under its pointer and the anchor clicked (`annotate:hover`,
+  `annotate:pick`), so a 3D anchor previews and freezes exactly as its DAG dot
+  does.
+- **No popups over the model.** The edge, component and node hover cards are
+  gone. The only thing a hover draws on the DAG is its mark's highlight and one
+  line of label — the record's title, cut to `VA.HOVER_LABEL_CHARS` — placed
+  beside the mark where no other mark is (`VA.hoverLabelPlacement`), and taking
+  no pointer.
+- **Accessibility.** Every focusable mark carries `role="button"` and an
+  `aria-label` that is its record's title; a grid row is focusable too. Focus
+  previews exactly as hover does, and Enter or Space clicks. A new mark is named
+  from its record, never from a string of its own.
+
+A node's Preview names **which parts meet there**: the sides derived from the
+edges actually incident on it (`VA.nodeAdjacentParts` — the same adjacency the
+leader/internal rule reads, not the node's authored `parts` list), each with
+what identifies its part and that part's own picture, so the dot and every row
+of the part cannot disagree about it. An adjacent edge with no part is a
+**clearance**, named (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped, and there
+is never a crop *of the interface itself*: an interface is a location, not a
+value. The pane printed the authored `parts` list until handoff
+`surfaces_that_state_something_false`, which is 35 of the
+74 live nodes answering differently hovered and clicked — one surface and one
+record now.
+
+A part with no drawing of its own is identified by the documents its own rows
+cite (`VA.renderPartSource`): *"standard part — dimensions from NAS6403-NAS6420
+Rev 4.pdf · sheet 3"* where every one is a standard sheet, *"dimensions from …"*
+otherwise, each document qualified *unverified* where nothing readable stands
+behind its numbers. A part number is never printed on two consecutive lines
+(`VA.componentDrawingText`, `VA.citationWhere`'s second argument).
+
+## Hover reference cards — what is left of them
 
 (`viewer_hover_cards_and_deep_links`, 2026-09-10; drawing-checker's card
-pattern. Extended to the DAG's own hover surfaces by `viewer_dag_hover_cards`,
-2026-09-14.) Four hover cards, all rendered into the one positioned popover node
-the crop popover already used, all **hover-only chrome**: the popover is
-`position: fixed`, so an open card cannot disturb the layout contracts —
-full-page scroll, whole-edge hover, leader alignment — and the browser tier
-measures exactly that (the DAG pane's box with a card open, to the pixel, from
-a grid-side trigger AND from a trigger inside the DAG).
+pattern.) The cards that remain serve controls that are not marks of the model
+— a stack row's citation, a nav row's and a table row's alerts, a kinematic
+verdict's limit, a contributor's missing band, a coefficient's curve — all
+rendered into the one positioned popover node the crop popover already used,
+all **hover-only chrome**: the popover is `position: fixed`, so an open card
+cannot disturb the layout contracts.
 
 **Two rules decide what a card says** (Jeff's de-slopification note,
 2026-09-16):
 
-1. **One document statement per card.** A card used to print the same drawing
-   three times — its own where-line, then the crop block's head restating it
-   (*"NAS6403-NAS6420 Rev 4.pdf · sheet 3"*), then the matching provenance
-   restating it again in jargon. The where-line is the statement; the picture
-   under it carries no caption naming the file it came from. A part number is
-   likewise never printed on two consecutive lines: where a part is *named*
-   after its own drawing — most of them are — the drawing line says only the
-   revision or nothing at all (`VA.componentDrawingText`), and the citation line
-   drops a document the line above it already named (`VA.citationWhere`'s second
-   argument). Four live edge cards needed that second rule.
+1. **One document statement per card.** The where-line is the statement; the
+   picture under it carries no caption naming the file it came from.
 2. **One fold per card, and all the long-form prose is in it.** *"For now just
    put all the long form text into a collapsible element (data source)."* The
    record's note in full, the export/identity narrative and each crop's matching
    provenance go inside one closed **Data source** disclosure — the same word
    the banner's own fold wears (`VA.DATA_SOURCE_SUMMARY`). What stays in the
-   open is the note's **lead sentence** (`VA.leadSentence` — a prefix of the
-   record or the whole of it, never a rewording) and anything that is an
-   **absence**: a "no crop, because…" reason, a floored bar's not-to-scale
-   note, and a *loud* export state. A disclosure is a fold, not a place to hide
-   a gap.
+   open is the note's **lead sentence** (`VA.leadSentence`) and anything that is
+   an **absence**. A disclosure is a fold, not a place to hide a gap.
 
-**One hover surface, not two.** A mark that opens a card no longer carries the
-native `<title>` it used to: the rail bars and the dots hand their tooltip text
-to the card's own head rather than stacking a browser tooltip under it. The
-`<title>` is still what a caller with no card handler gets — that fallback is
-what the fast tier renders — and the one thing a *title* said that a card
-otherwise could not is the floored bar's "not to scale", which rides in as the
-edge card's `renderNote` (`VA.FLOORED_RENDER_NOTE`, one set of words for both
-carriers).
+**One hover surface, not two.** Since `nav_tooltip_once_and_rail_hover_emphasis`
+(2026-09-30) that holds for the **alert mark** on all three surfaces it is worn
+(`VA.alertBadge`: the nav rail's rows, the elements table's source cell, the
+materials table's). Jeff, on the rail: *"there is a duplicate hover-over tooltip
+(unformatted and formatted versions) that sometimes block each other. Keep just
+the formatted one."*
 
-Since `nav_tooltip_once_and_rail_hover_emphasis` (2026-09-30) that holds for
-the **alert mark** too, on all three surfaces it is worn (`VA.alertBadge`: the
-nav rail's rows, the elements table's source cell, the materials table's).
-Jeff, on the rail: *"there is a duplicate hover-over tooltip (unformatted and
-formatted versions) that sometimes block each other. Keep just the formatted
-one."* The same pass moved a nav row's authored `description` from the ROW onto
-its **name**, so a row with a mark offers one hover surface per target — the
-name says what the artifact is, the mark says what is wrong with it — instead
-of the browser dropping a plain box over the card.
-
-- **Edge card** — on the edge row's crop trigger (hover, focus or click; the
-  trigger is the inline thumbnail once fetched) **and on the DAG's own bar**
-  (`.rail__barhit`, hover or focus; the click stays selection). Same model,
-  same card: the browser tier pins the two triggers' rendered cards equal
-  character for character, because two answers about one dimension is the
-  defect that pairing exists to prevent. The crop of the actual
-  tolerance annotation with its placement provenance and click-throughs (the
-  same `VA.cropBlock` the plain popover shows), plus the citation's where-ref
-  and which crop-index entry the key addresses. The card's crop slot is a
-  **list**: an interface's two half-sides are usually different parts/drawings
-  by definition, so an edge should eventually show BOTH sides' annotations —
-  today crops.json records one crop per citation and an edge carries one
-  citation, so one renders where one exists and nothing is invented where none
-  (second-side crops are a recorded gap, not a rendering choice). An untraced /
-  uncited edge's card offers the annotator (`VA.annotateLink`) under the same
-  two rules the detail pane applies — the gap-only rule, and **only where the
-  part has a 3D model** ("No dead 3D links" below).
-- **Component card** — on the grid's merged component cell. The part's name,
-  drawing and note, plus a thumbnail **derived from what exists**: the resolved
-  crop of one of the part's own rows' annotations, which is a crop of that
-  part's drawing by construction — never matched by filename or prefix. There
-  is no mesh/annotator render yet (the annotator has no snapshot verb), so a
-  part with no crop-bearing row gets **no thumbnail** — absent is absent, no
-  placeholder. Offers the annotator isolating the part, where a mesh for it is
-  installed and not otherwise ("No dead 3D links" below).
-- **Node card** — on the DAG's own dot (hover or focus). A node is an
-  *interface*, so the card says **which parts meet there**: the sides derived
-  from the edges actually incident on it (`VA.nodeAdjacentParts` — the same
-  adjacency the leader/internal rule reads, not the node's authored `parts`
-  list, which the card also carries), each one carrying that part's **own
-  component-card thumbnail** so the dot and the merged cell cannot disagree
-  about a part's picture. An internal node says it is internal to its one
-  part rather than leaving a one-sided list to read as a missing side; an
-  adjacent edge with no part is a **clearance**, named
-  (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped. A side whose part has no
-  crop-bearing row gets no thumbnail and no slot — the component card's rule,
-  unchanged. There is never a crop *of the interface itself*: an interface is
-  a location, not a value, and the card says so. **The preview pane the same
-  dot's click fills names the same derived sides** — and, since 2026-09-15,
-  names them the same WAY: `VA.nodeSideLabels` returns the part's own
-  `VA.componentLabel` text, so there is one label style where there were two
-  (ids in the pane, names on the card) and the two can no longer read
-  differently about the same interface. The pane printed the authored `parts`
-  list until handoff `surfaces_that_state_something_false`, which is 35 of the
-  74 live nodes answering differently hovered and clicked.
-- **Citation card** — on the sourcing confidence chip, in **both** modes (the
-  topology grid's chips cell and the elements table's sourcing cell).
-  The spec-sheet reference: the where-ref, the callout as printed, the note in
-  full, the export/identity block (`VA.exportBlockNode`, the same builder the
-  right pane uses, run links included) and the crop of the cited sheet where
-  one resolved — for a spec citation that crop *is* the spec sheet.
+- **Citation card** — on the elements table's sourcing confidence chip (the
+  stack page; the topology grid's chip opened one too until 2026-10-30, and its
+  row's Preview carries the citation now). The spec-sheet reference: the
+  where-ref, the callout as printed, the note in full, the export/identity
+  block (`VA.exportBlockNode`, the same builder the right pane uses, run links
+  included) and the crop of the cited sheet where one resolved — for a spec
+  citation that crop *is* the spec sheet.
 
 Outbound deep links from cards: the drawing-checker **run** page wherever a
 crop resolved through a run (`/run/<run_dir>`, `VA.runUrl` — the immutable

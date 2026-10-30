@@ -1314,20 +1314,23 @@ async function hoverRailBar(page, id) {
     }, sel);
     if (at) {
       await page.mouse.move(at.x, at.y);
-      const state = await page.evaluate(([x, y]) => {
-        const pop = document.querySelector("#croppop");
+      // Arrived when the Preview shows this edge's record
+      // (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_
+      // mark): the bar's hover writes its record there and opens nothing.
+      await page.waitForTimeout(60);
+      const state = await page.evaluate(([x, y, id]) => {
+        const p = document.querySelector(".detail__preview");
         const under = document.elementFromPoint(x, y);
         return {
-          open: !!pop && pop.style.display === "block" &&
-            pop.className.indexOf("hovercard--edge") !== -1,
-          pop: pop ? pop.className + " " + pop.style.display : "no popover node",
+          open: !!p && p.getAttribute("data-preview-key") === "edge|" + id,
+          pop: p ? (p.getAttribute("data-preview-key") || "(empty)") : "no Preview",
           under: under ? under.tagName + "." + (under.getAttribute("class") || "") +
             " #" + (under.getAttribute("data-id") || "") : "nothing",
         };
-      }, [at.x, at.y]);
+      }, [at.x, at.y, id]);
       if (state.open) return true;
       seen = `at ${at.x},${at.y} the pointer is over ${state.under}; ` +
-        `the popover is "${state.pop}"`;
+        `the Preview shows "${state.pop}"`;
       await page.mouse.move(4, 4);   // step off, so the next move re-enters
     }
     await page.waitForTimeout(100);
@@ -1335,7 +1338,7 @@ async function hoverRailBar(page, id) {
   // Returns true once the card is open, else the reason as a string: a bar
   // that cannot be hovered is a named FAIL at the caller, not a throw that
   // aborts the suite and reads to the mutation tier as a MISS.
-  return `hovering the rail bar ${id} never opened its card — ${seen}`;
+  return `hovering the rail bar ${id} never previewed it — ${seen}`;
 }
 
 // Hover a trigger WITHOUT asking playwright whether anything sits on top of it.
@@ -1409,6 +1412,302 @@ async function hoverIgnoringOcclusion(page, selector) {
   }
   await page.mouse.move(at.x, at.y);
   return at;
+}
+
+// --- the popover's own mechanics, on the page that still has popovers ------
+//
+// (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark,
+// 2026-10-30.) These contracts were measured on the topology grid's EDGE card
+// until the marks of the model stopped opening cards. The popover they
+// protect is still live -- the elements table's citation card and crop
+// popover, the nav's and the tables' alert cards, the kinematic page's limit,
+// gap and curve cards all open into the same #croppop node through the same
+// showCard/showCrop, position(), replace() and hover-intent corridor -- so the
+// contracts move to the stack page's citation card, the tallest card left
+// (where-ref, export block and the cited sheet's crop), rather than going with
+// the card they were first written on. Each tripwire is re-measured here
+// before what it certifies.
+//
+// The two triggers the corridor needs: a row's citation chip opens its card
+// BELOW it, and the crop trigger of the row ABOVE sits over that card, so a
+// pointer coming down onto it is heading into the card and one coming in level
+// from the right is not.
+const STACK_CARD_CHIP = "#stackview tr.el-row:nth-child(1) span.cardtrig:not(.rowalert)";
+const STACK_CARD_TRIGGER = "#stackview tr.el-row:nth-child(1) button.crop-trigger";
+
+async function testPopoverMechanics(browser, url, label) {
+  const page = await browser.newPage({ viewport: TOPO_VIEWPORT });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+
+  const cardLayout = (triggerSel) => page.evaluate((triggerSel) => {
+    const pop = document.querySelector(".croppop");
+    const open = pop && getComputedStyle(pop).display !== "none";
+    const card = open ? pop.getBoundingClientRect() : null;
+    const trig = document.querySelector(triggerSel);
+    const trigger = trig ? trig.getBoundingClientRect() : null;
+    return {
+      docHeight: document.documentElement.scrollHeight,
+      cardTop: card ? card.top : null,
+      cardBottom: card ? card.bottom : null,
+      cardHeight: card ? card.height : null,
+      cardScrolls: card ? pop.scrollHeight > pop.clientHeight + 1 : null,
+      cardMid: card ? [card.left + card.width / 2, card.top + card.height / 2] : null,
+      triggerTop: trigger ? trigger.top : null,
+      triggerBottom: trigger ? trigger.bottom : null,
+      innerHeight: window.innerHeight,
+    };
+  }, triggerSel);
+  const cropOverlay = () => page.evaluate(() => {
+    const fig = document.querySelector(".hovercard .cropblock .cropfig");
+    const img = fig && fig.querySelector("img.croppop__img");
+    if (!fig || !img) return null;
+    const box = (r) => ({ left: r.left, top: r.top, right: r.right,
+                          bottom: r.bottom, width: r.width, height: r.height });
+    return {
+      img: box(img.getBoundingClientRect()),
+      ratio: parseFloat(getComputedStyle(fig).getPropertyValue("--crop-ratio")),
+      blockWidth: fig.parentElement.getBoundingClientRect().width,
+      highlights: Array.from(fig.querySelectorAll(".crophl"))
+        .map((n) => box(n.getBoundingClientRect())),
+    };
+  });
+  const dismiss = async () => {
+    await page.mouse.move(4, 4);
+    await page.keyboard.press("Escape");
+  };
+  const openChipCard = async (chip) => {
+    await page.locator(chip).hover();
+    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    // A card paints at once and REPAINTS as each of its PNGs resolves, and a
+    // repaint can re-place it: settle first.
+    await page.waitForTimeout(250);
+  };
+
+  try {
+    await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector('[data-nav-kind="stack"]', { timeout: 15000 });
+    await page.locator(navRow("stack", "demo_joint_standalone")).click();
+    await page.waitForSelector("#stackview tr.el-row", { timeout: 15000 });
+    // The second row's chip, whose card opens under the first row's crop
+    // trigger; resolved to a selector once, by index, so every check below
+    // names the same two elements.
+    const CHIP = "#stackview tr.el-row:nth-child(3) span.cardtrig:not(.rowalert)";
+    push("the elements table carries the two triggers these contracts are " +
+      "measured on", await page.locator(STACK_CARD_CHIP).count() === 1 &&
+      await page.locator(CHIP).count() === 1 &&
+      await page.locator(STACK_CARD_TRIGGER).count() === 1);
+
+    // --- out of flow, capped to the room, reachable -------------------------
+    await page.setViewportSize(CARD_CAP_VIEWPORT);
+    await page.waitForTimeout(450);
+    const before = await cardLayout(STACK_CARD_CHIP);
+    await openChipCard(STACK_CARD_CHIP);
+    const withCard = await cardLayout(STACK_CARD_CHIP);
+    const roomBelow = withCard.innerHeight - withCard.triggerBottom - 16;
+    const roomAbove = withCard.triggerTop - 16;
+    push("the citation card wants more height than there is room for on " +
+      "either side of its chip — the configuration the card-layout contracts " +
+      "below are only falsifiable in",
+      withCard.cardBottom !== null && withCard.cardScrolls === true &&
+      Math.abs(withCard.cardHeight - Math.max(roomAbove, roomBelow)) <= 1);
+    push("an open card leaves the document's own height untouched",
+      withCard.docHeight === before.docHeight);
+    push("the open card's bottom edge is inside the window",
+      withCard.cardBottom !== null && withCard.cardBottom <= withCard.innerHeight);
+    push("the capped card keeps the overrun reachable in its own scrollport",
+      withCard.cardScrolls === true);
+    push("the card still sits clear of the trigger it was opened from",
+      withCard.cardBottom <= withCard.triggerTop || withCard.cardTop >= withCard.triggerBottom);
+
+    // The highlight overlay points at the crop, not past it.
+    const overlay = await cropOverlay();
+    push("the open card's crop carries a highlight box to measure, and the " +
+      "figure knows the crop's own shape",
+      overlay !== null && overlay.highlights.length >= 1 && overlay.ratio > 0);
+    push("the card's 260px crop cap really bites here — uncapped this crop " +
+      "would be taller than the cap",
+      overlay && overlay.blockWidth / overlay.ratio > 260 &&
+      Math.abs(overlay.img.height - 260) <= 1.5);
+    push("the card's crop element IS the picture — its box still carries the " +
+      "crop's own aspect ratio",
+      overlay && Math.abs(overlay.img.width / overlay.img.height - overlay.ratio) <
+        overlay.ratio * 0.02);
+    push("every highlight box on the card lands inside the crop image it " +
+      "points into",
+      overlay && overlay.highlights.every((h) =>
+        h.left >= overlay.img.left - 0.5 && h.right <= overlay.img.right + 0.5 &&
+        h.top >= overlay.img.top - 0.5 && h.bottom <= overlay.img.bottom + 0.5));
+
+    await page.mouse.move(withCard.cardMid[0], withCard.cardMid[1]);
+    push("and it stays open with the pointer moved off the trigger onto it",
+      await page.locator(".croppop").isVisible());
+    await page.keyboard.press("Escape");
+    push("Escape closes it", !(await page.locator(".croppop").isVisible()));
+
+    // --- placed in the window's frame, with the document scrolled -----------
+    await dismiss();
+    await page.setViewportSize(CARD_SCROLL_VIEWPORT);
+    await page.waitForTimeout(450);
+    // Scrolled so the chip sits below the sticky topbar with the document
+    // still scrolled: scrolled to the end, the chip is above the window and
+    // the nearest scroll back to it parks it under the topbar.
+    await page.evaluate((sel) => {
+      const chip = document.querySelector(sel);
+      window.scrollTo(0, chip.getBoundingClientRect().top + window.scrollY - 150);
+    }, STACK_CARD_CHIP);
+    const frame = await page.evaluate(() => ({
+      scrollY: window.scrollY, docHeight: document.documentElement.scrollHeight,
+      innerHeight: window.innerHeight,
+    }));
+    push("the document really scrolls at this viewport — the only " +
+      "configuration the out-of-flow contract below is falsifiable in",
+      frame.docHeight > frame.innerHeight && frame.scrollY >= 24);
+    const aimed = await hoverIgnoringOcclusion(page, STACK_CARD_CHIP);
+    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    const openedAt = await page.evaluate(() => window.scrollY);
+    push("the card was opened with the document still scrolled, and opening " +
+      "it moved the page by nothing", aimed.scrollY >= 24 && openedAt === aimed.scrollY);
+    const scrolled = await cardLayout(STACK_CARD_CHIP);
+    const gapBelow = scrolled.cardTop - scrolled.triggerBottom;
+    const gapAbove = scrolled.triggerTop - scrolled.cardBottom;
+    push("an open card is placed in the WINDOW's frame, not the document's — " +
+      "it still sits against its trigger with the page scrolled",
+      Math.abs(gapBelow - 8) < 1.5 || Math.abs(gapAbove - 8) < 1.5);
+    await dismiss();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.setViewportSize(TOPO_VIEWPORT);
+    await page.waitForTimeout(250);
+
+    // --- reaching an open card with the mouse: the hover-intent corridor -----
+    const intentMs = await page.evaluate(() => window.ViewerApp.HOVER_INTENT_MS);
+    const approachFrom = async (fromX, fromY, x, y) => {
+      for (const t of [0.4, 0.7, 0.9]) {
+        await page.mouse.move(Math.round(fromX + (x - fromX) * t),
+                              Math.round(fromY + (y - fromY) * t));
+      }
+      await page.waitForTimeout(80);
+      await page.mouse.move(x, y);
+    };
+    const boxes = () => page.evaluate((sel) => {
+      const pop = document.querySelector("#croppop");
+      const open = pop && getComputedStyle(pop).display !== "none";
+      const card = open ? pop.getBoundingClientRect() : null;
+      const trig = document.querySelector(sel).getBoundingClientRect();
+      return {
+        card: card ? { left: card.left, top: card.top, right: card.right,
+                       bottom: card.bottom } : null,
+        trigger: { cx: trig.left + trig.width / 2, cy: trig.top + trig.height / 2,
+                   top: trig.top, bottom: trig.bottom, right: trig.right },
+      };
+    }, STACK_CARD_TRIGGER);
+    await page.evaluate((sel) => {
+      window.__cropTriggerEnteredAt = null;
+      document.addEventListener("mouseenter", (e) => {
+        if (e.target && e.target.matches && e.target.matches(sel)) {
+          window.__cropTriggerEnteredAt = performance.now();
+        }
+      }, true);
+    }, STACK_CARD_TRIGGER);
+    const openCitation = async () => {
+      await dismiss();
+      await openChipCard(CHIP);
+      return boxes();
+    };
+    const lay = await openCitation();
+    push("the citation card opens BELOW its row and under the crop trigger " +
+      "of the row above — the layout the two approaches below are only " +
+      "distinguishable in",
+      lay.card !== null && lay.card.top > lay.trigger.bottom &&
+      lay.trigger.cx > lay.card.left && lay.trigger.cx < lay.card.right);
+    const readSteal = () => page.evaluate(() => ({
+      citation: document.querySelectorAll(".hovercard--citation").length,
+      crop: document.querySelectorAll(".croppop--resolved").length,
+      sinceEnter: window.__cropTriggerEnteredAt === null ? null
+        : performance.now() - window.__cropTriggerEnteredAt,
+    }));
+    let steal = null, layNow = lay;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) layNow = await openCitation();
+      await page.evaluate(() => { window.__cropTriggerEnteredAt = null; });
+      await approachFrom(layNow.trigger.cx, layNow.trigger.top - 60,
+                         layNow.trigger.cx, layNow.trigger.cy);
+      steal = await readSteal();
+      if (steal.sinceEnter !== null && steal.sinceEnter < intentMs) break;
+    }
+    const inWindow = steal.sinceEnter !== null && steal.sinceEnter < intentMs;
+    push("a trigger crossed while the pointer is heading for the open card " +
+      "does not steal it", inWindow && steal.citation === 1 && steal.crop === 0);
+    if (!(inWindow && steal.citation === 1 && steal.crop === 0)) {
+      const when = steal.sinceEnter === null ? "with no mouseenter on the trigger"
+        : `${Math.round(steal.sinceEnter)}ms after the trigger's mouseenter`;
+      console.log(`    read ${when} (window ${intentMs}ms): ` +
+        `${steal.citation} citation, ${steal.crop} crop popover(s)`);
+    }
+    // THE EXPIRY: the pointer stops on that trigger and never reaches the card.
+    await page.waitForTimeout(intentMs + 250);
+    push("a held trigger the pointer STOPS on opens after the grace period — " +
+      "a deferral is a delay, never a card that never arrives",
+      await page.locator(".croppop--resolved").count() === 1);
+    // ARRIVAL WINS.
+    const lay2 = await openCitation();
+    await approachFrom(lay2.trigger.cx, lay2.trigger.top - 60,
+                       lay2.trigger.cx, lay2.trigger.cy);
+    await page.mouse.move(lay2.trigger.cx, lay2.card.top + 60, { steps: 6 });
+    await page.waitForTimeout(intentMs + 250);
+    push("...and it does NOT open when the pointer arrives at the card " +
+      "instead — the reader got where they were going",
+      await page.locator(".hovercard--citation").count() === 1 &&
+      await page.locator(".croppop--resolved").count() === 0 &&
+      await page.locator(".croppop").isVisible());
+    // APPROACH 2 — level, from the right: aimed past the card.
+    await approachFrom(lay2.trigger.right + 300, lay2.trigger.cy,
+                       lay2.trigger.cx, lay2.trigger.cy);
+    push("a trigger hovered while the pointer is moving AWAY from the open " +
+      "card opens at once — the guard is intent, not a dead period",
+      await page.locator(".croppop--resolved").count() === 1);
+
+    // --- an open card under the pointer is never re-placed ------------------
+    const NUDGE = 4;
+    const replaced = () => page.evaluate((nudge) => {
+      const pop = document.querySelector("#croppop");
+      const img = pop.querySelector("img");
+      if (!img) return null;
+      const spacer = document.createElement("div");
+      spacer.style.height = "300px";
+      pop.appendChild(spacer);
+      const nudged = Math.round(pop.getBoundingClientRect().top) - nudge;
+      pop.style.top = nudged + "px";
+      img.dispatchEvent(new Event("load"));
+      const after = pop.style.top;
+      spacer.remove();
+      return { nudged: nudged + "px", top: after };
+    }, NUDGE);
+    // The card with a picture in it: the first row's, whose crop resolves.
+    await dismiss();
+    await openChipCard(STACK_CARD_CHIP);
+    const held = await page.evaluate(() => {
+      const card = document.querySelector("#croppop").getBoundingClientRect();
+      return { x: card.left + card.width / 2, y: card.top + 60 };
+    });
+    await page.mouse.move(held.x, held.y);
+    const onCard = await replaced();
+    push("a card with the pointer on it is not re-placed when one of its " +
+      "images settles", onCard !== null && onCard.top === onCard.nudged);
+    await page.mouse.move(8, 8);
+    const offCard = await replaced();
+    push("...and it IS re-placed with the pointer off it — the guard is the " +
+      "pointer, not an inert code path",
+      offCard !== null && offCard.top !== offCard.nudged);
+    await dismiss();
+  } catch (e) {
+    errors.push("harness: " + (e && e.message ? e.message.split("\n")[0] : String(e)));
+  } finally {
+    await page.close();
+  }
+  return reportSuite(label, checks, errors);
 }
 
 async function testTheTopologyPage(browser, url, label, realProjection, realCrops) {
@@ -1593,27 +1892,221 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("circle.rail__dot--selected").count() === 1 &&
       await page.locator("tr.tvrow--selected").count() === 0);
 
-    // Dismiss the node card that dot's own hover opened
-    // (viewer_dag_hover_cards): a rail mark now cards, and a card is chrome
-    // that persists until it is dismissed -- ✕, Escape, an outside click, or
-    // the next card replacing it (nothing closes on pointer-leave, a landed
-    // decision reasoned in views/stack.js's cropTrigger). Opened from inside
-    // the DAG it sits OVER the diagram, so the leader below is genuinely
-    // behind it until then -- filed as
-    // ISSUE_20260914_dag_hover_card_occludes_the_marks_beneath_it.
-    await dismissCard(page);
+    // The thumbnail column (viewer_leader_line_grid): the one resolved demo
+    // crop shows the actual image once fetched; the unresolvable one stays a
+    // word with no image, ever.
+    await page.waitForSelector("img.tvthumb", { timeout: 5000 });
+    push("the resolved crop renders as a real inline thumbnail",
+      await page.locator("tr.tvrow[data-id='base_thickness'] img.tvthumb").count() === 1);
+    push("an unresolvable crop stays a word, never a placeholder image",
+      await page.locator("tr.tvrow[data-id='post_height'] img").count() === 0 &&
+      /no crop/.test(await page.locator("tr.tvrow[data-id='post_height'] span.crop-trigger")
+        .textContent()));
+
+    // --- the Preview: one record behind every mark (a_preview_pane_replaces_
+    // the_hover_popups_and_one_record_backs_every_mark) ------------------------
+    //
+    // Real pointers over real geometry, which is the half the DOM shim cannot
+    // drive: a hover over a mark on either tier writes that mark's record into
+    // the right-hand pane's Preview; a click freezes it; a hover over another
+    // mark previews that one for as long as the pointer is on it; leaving
+    // hands the Preview back to the frozen element; Escape lets go.
+    await page.keyboard.press("Escape");
+    await page.mouse.move(4, 4);
+    const returnMs = await page.evaluate(() => window.ViewerApp.PREVIEW_RETURN_MS);
+    const previewIs = (state, key) => page.waitForFunction(([state, key]) => {
+      const p = document.querySelector(".detail__preview");
+      return !!p && p.getAttribute("data-preview-state") === state &&
+        (key === null || p.getAttribute("data-preview-key") === key);
+    }, [state, key], { timeout: 5000 }).then(() => true).catch(() => false);
+    const preview = () => page.evaluate(() => {
+      const p = document.querySelector(".detail__preview");
+      if (!p) return null;
+      const head = p.querySelector(".detail__previewhead");
+      const body = p.querySelector(".detail__previewbody");
+      return { state: p.getAttribute("data-preview-state"),
+               key: p.getAttribute("data-preview-key"),
+               head: head ? head.textContent : "", pinned: !!p.querySelector(".detail__unpin"),
+               body: body ? body.textContent : "",
+               images: body ? body.querySelectorAll("img").length : 0 };
+    });
+    const leave = async () => {
+      await page.mouse.move(4, 4);
+      await page.waitForTimeout(returnMs + 120);
+    };
+    const rowFor = (id) => `tr.tvrow[data-id='${id}']`;
+    const dotFor = (id) => `svg.tv__rails circle.rail__dot[data-id="${id}"]`;
+    // A row is hovered on its own visible cells, right of the sticky rails --
+    // the measured trap from the leaders handoff: a row's centre can sit under
+    // the rails, where a hover reaches a leader instead.
+    const hoverRow = async (id) => {
+      const at = await page.evaluate((sel) => {
+        const row = document.querySelector(sel);
+        if (!row) return null;
+        const cell = row.querySelector("td.tvcell--nominal") || row;
+        const b = cell.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }, rowFor(id));
+      if (at) await page.mouse.move(at.x, at.y);
+      return !!at;
+    };
+
+    push("with nothing selected and nothing pointed at, the Preview says so " +
+      "in one line", await previewIs("empty", "") &&
+      /Point at a dot, a bar or a row/.test((await preview()).body));
+
+    // A grid row previews its edge: the crop at a legible size, the part in
+    // its own words, the citation.
+    await hoverRow("base_thickness");
+    push("hovering a grid row previews its record — the crop, the part and " +
+      "the citation", await previewIs("hover", "edge|base_thickness") &&
+      await (async () => {
+        const p = await preview();
+        return /base plate thickness/.test(p.body) && /a dimension of base plate/.test(p.body) &&
+          /215197/.test(p.body) && p.images >= 1 && !p.pinned;
+      })());
+    const rowPreview = (await preview()).body;
+    // The Preview is the one place a crop may be large: wider than the 260px
+    // the hover card capped it at.
+    const crop = await page.evaluate(() => {
+      const img = document.querySelector(".detail__previewbody .detail__crop img.detail__crop-img");
+      return img ? img.getBoundingClientRect().width : 0;
+    });
+    push("the Preview draws the crop wider than the retired card's 260px cap",
+      crop > 260);
+    push("no popover opens on a mark's hover", !(await page.locator(".croppop").isVisible()));
+
+    // The same edge's own bar previews the same record, character for
+    // character: one edge, two marks, one record.
+    const barHovered = await hoverRailBar(page, "base_thickness");
+    push("hovering the DAG's own bar previews the edge's record", barHovered === true);
+    push("the bar's Preview and the same edge's row's Preview are the same " +
+      "record, character for character", (await preview()).body === rowPreview);
+
+    // What a hover draws on the canvas: the mark's own highlight and ONE
+    // line of label -- and nothing larger than the label.
+    const canvas = await page.evaluate(() => {
+      const svg = document.querySelector("svg.tv__rails");
+      const labels = [...svg.querySelectorAll("text.rail__hoverlabel")];
+      const label = labels[0] ? labels[0].getBoundingClientRect() : null;
+      const own = svg.querySelector('line.rail__barhit[data-id="base_thickness"]');
+      const marks = [...svg.querySelectorAll("circle.rail__dot, line.rail__bar, use.rail__glyph")]
+        .filter((n) => n.getAttribute("data-id") !== "base_thickness" &&
+          !(n.tagName === "line" && n.getAttribute("x1") === own.getAttribute("x1") &&
+            n.getAttribute("y1") === own.getAttribute("y1")))
+        .map((n) => n.getBoundingClientRect());
+      const meets = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      return {
+        count: labels.length, text: labels[0] ? labels[0].textContent : null,
+        height: label ? label.height : null, width: label ? label.width : null,
+        covers: label ? marks.filter((m) => m.width + m.height > 0 && meets(label, m)).length : null,
+        takesPointer: labels[0] ? getComputedStyle(labels[0]).pointerEvents !== "none" : null,
+      };
+    });
+    push("a hovered mark draws exactly one label, one line high, naming it",
+      canvas.count === 1 && canvas.text === "base plate thickness" &&
+      canvas.height > 0 && canvas.height <= 18);
+    push("the label covers no other mark on the DAG, and takes no pointer",
+      canvas.covers === 0 && canvas.takesPointer === false);
+    push("no rail mark carries a native tooltip any more",
+      await page.locator("svg.tv__rails line.rail__barhit > title").count() === 0 &&
+      await page.locator("svg.tv__rails circle.rail__dot > title").count() === 0);
+    await leave();
+    push("leaving every mark takes the label down and empties the Preview",
+      await page.locator("text.rail__hoverlabel").count() === 0 &&
+      await previewIs("empty", ""));
+
+    // A boundary dot: both parts named, the one with a crop pictured.
+    await page.locator(dotFor("base_post_seat")).hover();
+    push("hovering a boundary dot previews the parts that meet there, with " +
+      "the picture only where one resolves",
+      await previewIs("hover", "node|base_post_seat") && await (async () => {
+        const p = await preview();
+        return /base plate ⇔ post/.test(p.body) && /mating_surface/.test(p.body) &&
+          /drawing 215197/.test(p.body) &&
+          await page.locator(".detail__previewbody div.detail__side img").count() === 1;
+      })());
+    await page.locator(dotFor("base_datum")).hover();
+    push("an internal dot's Preview says it is internal",
+      await previewIs("hover", "node|base_datum") &&
+      /An internal interface/.test((await preview()).body));
+    await page.locator(dotFor("arm_tip")).hover();
+    push("a dot with no croppable side names the clearance and shows no image",
+      await previewIs("hover", "node|arm_tip") && await (async () => {
+        const p = await preview();
+        return /a clearance/.test(p.body) && p.images === 0;
+      })());
+
+    // FREEZE on a dot: click A; hover B shows B under A's pin; leave, A again;
+    // Escape, nothing.
+    await page.locator(dotFor("base_post_seat")).click();
+    push("clicking a dot freezes the Preview on it, pinned and named in the " +
+      "section head", await previewIs("frozen", "node|base_post_seat") && await (async () => {
+        const p = await preview();
+        return p.pinned && /base \/ post seat/.test(p.head);
+      })());
+    await hoverRailBar(page, "base_thickness");
+    push("with A frozen, hovering B previews B — and A stays named under the pin",
+      await previewIs("hover", "edge|base_thickness") && await (async () => {
+        const p = await preview();
+        return p.pinned && /base \/ post seat/.test(p.head) && /base plate thickness/.test(p.body);
+      })());
+    await leave();
+    push("leaving the marks hands the Preview back to the frozen A",
+      await previewIs("frozen", "node|base_post_seat"));
+    await page.keyboard.press("Escape");
+    push("Escape lets go: nothing frozen, nothing selected",
+      await previewIs("empty", "") &&
+      await page.locator("circle.rail__dot--selected").count() === 0);
+
+    // FREEZE on a grid row, the same four steps.
+    await page.locator(rowFor("base_thickness")).locator("td.tvcell--nominal").click();
+    push("clicking a grid row freezes the Preview on its edge",
+      await previewIs("frozen", "edge|base_thickness"));
+    await hoverRow("post_height");
+    push("with a row frozen, hovering another row previews that one",
+      await previewIs("hover", "edge|post_height") && (await preview()).pinned);
+    await leave();
+    push("...and leaving returns to the frozen row",
+      await previewIs("frozen", "edge|base_thickness"));
+    // Keyboard parity: focus previews exactly like hover.
+    await page.locator(dotFor("strut_end")).focus();
+    push("focusing a mark previews it the way hovering does",
+      await previewIs("hover", "node|strut_end"));
+    await page.locator(dotFor("strut_end")).evaluate((n) => n.blur());
+    await page.waitForTimeout(returnMs + 120);
+    // A click on the model's empty canvas lets go too.
+    const blank = await page.evaluate(() => {
+      const svg = document.querySelector("svg.tv__rails");
+      const b = svg.getBoundingClientRect();
+      for (let y = b.top + 4; y < Math.min(b.bottom, window.innerHeight) - 4; y += 6) {
+        const x = b.left + 3;
+        const hit = document.elementFromPoint(x, y);
+        if (hit && hit.closest && hit.closest("svg.tv__rails") &&
+            !hit.closest("[data-row-kind], .rail__leaderhit, [role]")) return { x, y };
+      }
+      return null;
+    });
+    if (blank) await page.mouse.click(blank.x, blank.y);
+    push("a click on the DAG's empty canvas lets the frozen Preview go",
+      !!blank && await previewIs("empty", ""));
+
+    // Every focusable mark is NAMED, by its record's title.
+    const unnamed = await page.evaluate(() =>
+      [...document.querySelectorAll(
+        "svg.tv__rails [tabindex][data-row-kind], svg.tv__rails path.rail__leaderhit, tr.tvrow")]
+        .filter((n) => !(n.getAttribute("aria-label") || "").trim()).length);
+    push("every focusable mark on both tiers carries an accessible name", unnamed === 0);
+    await page.locator(rowFor("base_thickness")).locator("td.tvcell--nominal").click();
+    await page.keyboard.press("Escape");
+    await page.mouse.move(4, 4);
 
     // A leader is clickable too, and selecting a boundary node marks it.
     // Clicked at a point ON the path rather than at its box's centre. That is
     // belt-and-braces at the angled default (a straight segment's box centre
     // IS on the path) and load-bearing in jogged style, which this same click
-    // has to keep working in: a jogged leader is an L, so whether its box
-    // centre happens to fall within
-    // the 10px hit stroke is luck about that one leader's proportions — and
-    // the luck ran out when viewer_dag_spine_layout moved the spine right
-    // (the node end moved 20px closer to the lane, and the centre fell off
-    // the stroke into the SVG behind it). Half the path's own length is on
-    // the path by construction.
+    // has to keep working in: half the path's own length is on the path by
+    // construction.
     const leaderHit = page.locator('path.rail__leaderhit[data-leader-id="base_post_seat"]');
     const leaderMid = await leaderHit.evaluate((el) => {
       const svg = el.ownerSVGElement.getBoundingClientRect();
@@ -1626,641 +2119,22 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("clicking a leader selects its interface",
       /A component boundary/.test(await page.locator("#detail").textContent()) &&
       await page.locator("path.rail__leader--selected").count() === 1);
-
-    // The thumbnail column (viewer_leader_line_grid): the one resolved demo
-    // crop upgrades its trigger to the actual image once fetched; the
-    // unresolvable one stays a text button with no image, ever.
-    await page.waitForSelector("img.tvthumb", { timeout: 5000 });
-    push("the resolved crop renders as a real inline thumbnail",
-      await page.locator("tr.tvrow[data-id='base_thickness'] img.tvthumb").count() === 1);
-    push("an unresolvable crop stays a text trigger, never a placeholder image",
-      await page.locator("tr.tvrow[data-id='post_height'] img").count() === 0 &&
-      /no crop/.test(await page.locator("tr.tvrow[data-id='post_height'] button.crop-trigger")
-        .textContent()));
-
-    // The grid's own thumbnail trigger — a real click, which the DOM shim
-    // cannot exercise. Since viewer_hover_cards_and_deep_links it opens the
-    // EDGE hover card (views/cards.js) into the same positioned popover node:
-    // the crop body plus the citation line and the crop-key claim.
-    // `base_thickness` re-expresses demo_joint's `plate`, whose crop resolves.
-    //
-    // WHERE this is measured decides whether it can fail at all
-    // (ISSUE_20260911_card_layout_guard_passes_on_the_absolute_popover): at
-    // this suite's 1000px-tall viewport the mock fixture's document is SHORTER
-    // than the window and the ~528px card opens wholly inside it, so the
-    // original `position: absolute` popover moved nothing measurable either —
-    // both assertions below passed with that defect fully reverted. Squeezing
-    // the viewport to CARD_LAYOUT_VIEWPORT puts the same card on the same
-    // trigger ~889px down a 700px document: in flow it lengthens the document,
-    // out of flow it cannot. Measured 2026-09-11: 700 -> 889 with `.croppop`
-    // back on `position: absolute` and `position()` back on scroll offsets,
-    // 700 -> 700 as shipped.
-    await page.setViewportSize(CARD_CAP_VIEWPORT);
-    await page.waitForTimeout(450);
-    const beforeCard = await cardLayout();
-    // hover, not click: a click also SELECTS the row (its normal job), and the
-    // detail pane repopulating is legitimate layout movement that would drown
-    // the measurement below — the card itself is what must move nothing.
-    await page.locator(CARD_TRIGGER).hover();
-    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-    push("the thumbnail trigger opens the edge hover card with the crop body",
-      await page.locator(".croppop").isVisible() &&
-      // The document, from the card's ONE where-line. It came off
-      // `.croppop__head` -- the crop block's own caption -- until 2026-09-16,
-      // when a card stopped restating its document over the picture
-      // (viewer_hover_deslop_and_banner_purge, deliverable 2).
-      /cited at: .*215197/.test(await page.locator(".hovercard__cited").textContent()) &&
-      await page.locator(".hovercard .cropblock .croppop__head").count() === 0 &&
-      // The part in a reader's words. This asserted the crop KEY here until
-      // 2026-09-15 ("from stack `demo_joint`, element `plate`") -- which of the
-      // crop index's two key spaces answered, in the ids of a stack and an
-      // element, above a picture that names its own document.
-      /a dimension of base plate/.test(await page.locator(".croppop").textContent()) &&
-      !/from stack `demo_joint`/.test(await page.locator(".croppop").textContent()));
-    // Cards are hover-only chrome: opening one must not disturb the layout
-    // contracts — the document's own height, the DAG pane's box and the leader
-    // correspondence are all measured with the card OPEN.
-    const withCard = await cardLayout();
-    // The measurement's own tripwire, asserted BEFORE what it certifies: if a
-    // later change (a shorter card, a taller fixture, a bigger viewport here)
-    // stops the card needing to be placed past the bottom, this suite must go
-    // red for being unable to see the defect rather than green for not
-    // finding it.
-    //
-    // Measured as "the cap bit" rather than as "the card hangs past the
-    // document bottom", which is what this said before
-    // viewer_popover_clamp_and_rebuild_terminal_state: the shipped card is now
-    // capped to the room on the side it is placed, so it never reaches past
-    // anything and the old witness can no longer be true. What still
-    // distinguishes this configuration is that the card WANTS more height than
-    // either side of its trigger can give it — its box is exactly the
-    // roomier side's room, and its content still overflows that box.
-    const roomBelow = withCard.innerHeight - withCard.triggerBottom - 16;
-    const roomAbove = withCard.triggerTop - 16;
-    push("the card wants more height than there is room for on either side " +
-      "of its trigger — the configuration the card-layout contracts " +
-      "below are only falsifiable in",
-      withCard.cardBottom !== null && withCard.cardScrolls === true &&
-      Math.abs(withCard.cardHeight - Math.max(roomAbove, roomBelow)) <= 1);
-    push("an open card leaves the document's own height untouched",
-      withCard.docHeight === beforeCard.docHeight);
-    push("an open card moves the DAG pane by nothing at all",
-      beforeCard.pane === withCard.pane);
-    push("leaders still land on their dots and seams with a card open",
-      (await correspondence()).drift.length === 0);
-
-    // --- the highlight overlay points at the crop, not past it -------------
-    //
-    // Same open card, measured rather than read. Two tripwires first, because
-    // this contract is only falsifiable where a box exists to mis-place and
-    // where the width cap actually bit.
-    const overlay = await cropOverlay();
-    push("the open card's crop carries a highlight box to measure, and the " +
-      "figure knows the crop's own shape",
-      overlay !== null && overlay.highlights.length >= 1 &&
-      overlay.ratio > 0);
-    push("the card's 260px crop cap really bites here — uncapped this crop " +
-      "would be taller than the cap",
-      overlay.blockWidth / overlay.ratio > 260 &&
-      Math.abs(overlay.img.height - 260) <= 1.5);
-    // The letterbox, stated as the thing a reader would see: the element the
-    // overlay is positioned against still has the crop's own proportions, so
-    // the percentages land on the picture. `object-fit: contain` under a
-    // height cap gives the element the block's full width and the cap's
-    // height, and this ratio is the first thing that stops being true.
-    push("the crop's element IS the picture — its box still carries the " +
-      "crop's own aspect ratio, so a percentage lands where it reads",
-      Math.abs(overlay.img.width / overlay.img.height - overlay.ratio) <
-        overlay.ratio * 0.02);
-    push("every highlight box on the card lands inside the crop image it " +
-      "points into",
-      overlay.highlights.every((h) =>
-        h.left >= overlay.img.left - 0.5 && h.right <= overlay.img.right + 0.5 &&
-        h.top >= overlay.img.top - 0.5 && h.bottom <= overlay.img.bottom + 0.5));
-
-    // The room cap (viewer_popover_clamp_and_rebuild_terminal_state): this
-    // card fits neither below its trigger nor above it, and before the cap it
-    // rendered below anyway with a strip of itself — the citation line and
-    // the crop-key claim — past the window bottom, where a
-    // `position: fixed` element can never be scrolled to and where its own
-    // `overflow-y` does not reach either (the card is shorter than
-    // `max-height: calc(100vh - 24px)`, so nothing scrolls inside it).
-    // Three things have to hold at once, and the last two are why the fix is a
-    // cap and not a move: a card nudged up over its own trigger becomes
-    // undismissable, because hiding it hands the pointer back to the trigger,
-    // whose mouseenter re-opens it.
-    push("the open card's bottom edge is inside the window",
-      withCard.cardBottom !== null &&
-      withCard.cardBottom <= withCard.innerHeight);
-    push("the capped card keeps the overrun reachable in its own scrollport",
-      withCard.cardScrolls === true);
-    push("the card still sits clear of the trigger it was opened from",
-      withCard.cardBottom <= withCard.triggerTop ||
-      withCard.cardTop >= withCard.triggerBottom);
-    // Nothing in this app closes a popover on mouseleave, by design
-    // (views/stack.js's crop trigger says why): the pointer has to leave the
-    // trigger to reach the links inside the card. A REAL pointer move onto the
-    // card proves it — a card that opens and shuts again is worse than one
-    // with an unreachable footer.
-    await page.mouse.move(withCard.cardMid[0], withCard.cardMid[1]);
-    push("and it stays open with the pointer moved off the trigger onto it",
-      await page.locator(".croppop").isVisible());
-
     await page.keyboard.press("Escape");
-    push("Escape closes it here too", !(await page.locator(".croppop").isVisible()));
+    await page.mouse.move(4, 4);
 
-    // --- hover chrome is OUT OF FLOW, restored ------------------------------
-    //
-    // The three contracts above (`...the document's own height untouched`,
-    // `...moves the DAG pane by nothing at all`, `leaders still land...`) were
-    // written to catch a `position: absolute` popover and can no longer do it:
-    // the room cap keeps the card wholly inside the window, the document is at
-    // least as tall as the window, and at `scrollY === 0` document and viewport
-    // coordinates coincide — so absolute and fixed place the card identically
-    // and neither lengthens anything. Flipping `.croppop` back to `absolute`
-    // shipped the whole suite green on 2026-09-14
-    // (ISSUE_20260914_card_layout_guard_cannot_see_the_absolute_popover_again);
-    // they are kept because a popover returned to normal FLOW would still
-    // lengthen the document, which is the other half of the same defect.
-    //
-    // What restores the fixed-vs-absolute half is the one configuration where
-    // the two coordinate systems differ: a document taller than the window,
-    // scrolled. `position()` computes the card's placement in VIEWPORT
-    // coordinates and writes it to `style.top`; under `absolute` that same
-    // number is read against the DOCUMENT, so the card renders `scrollY` px
-    // away from the trigger it belongs to. Measured at CARD_SCROLL_VIEWPORT,
-    // 2026-09-15: 8px off the trigger as shipped, 148px off it with
-    // `.croppop` on `absolute`.
-    await dismissCard(page);
-    await page.setViewportSize(CARD_SCROLL_VIEWPORT);
-    await page.waitForTimeout(450);
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    const scrollFrame = await page.evaluate(() => ({
-      scrollY: window.scrollY,
-      docHeight: document.documentElement.scrollHeight,
-      innerHeight: window.innerHeight,
-    }));
-    // The tripwire again, asserted before what it certifies: with no scroll
-    // there is nothing to tell the two positioning schemes apart, and this
-    // suite must go red for being unable to see the defect rather than green
-    // for not finding it.
-    push("the document really scrolls at this viewport — the only " +
-      "configuration the out-of-flow contract below is falsifiable in",
-      scrollFrame.docHeight > scrollFrame.innerHeight && scrollFrame.scrollY >= 24);
-    // NOT locator.hover(): hoverIgnoringOcclusion's own note says why at
-    // length -- under the mutation this contract is named for, the card lands
-    // ON its own trigger, and playwright's hover refuses to act on an occluded
-    // element and retries to its 30-second timeout instead. The measurement
-    // below is the thing that has to be REACHED.
-    const aimed = await hoverIgnoringOcclusion(page, CARD_TRIGGER);
-    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-    // ...and the second half of the tripwire above, on the scroll the reading
-    // is actually taken at rather than the one it was set up at. Getting the
-    // trigger into the window moves the page (it sits above the window once the
-    // document is scrolled to its end), and a card opened back at the top would
-    // be measured in the one configuration where `fixed` and `absolute` agree.
-    const openedAt = await page.evaluate(() => window.scrollY);
-    push("the card was opened with the document still scrolled, and opening " +
-      "it moved the page by nothing", aimed.scrollY >= 24 && openedAt === aimed.scrollY);
-    const scrolledCard = await cardLayout();
-    const gapBelow = scrolledCard.cardTop - scrolledCard.triggerBottom;
-    const gapAbove = scrolledCard.triggerTop - scrolledCard.cardBottom;
-    push("an open card is placed in the WINDOW's frame, not the document's — " +
-      "it still sits against its trigger with the page scrolled",
-      Math.abs(gapBelow - 8) < 1.5 || Math.abs(gapAbove - 8) < 1.5);
-    await dismissCard(page);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.setViewportSize(TOPO_VIEWPORT);
-
-    // The citation card, from the row's confidence chip (the same model the
-    // stack table's chip opens): the full reference — where-ref, export
-    // block — as hover chrome.
-    await page.locator("tr.tvrow[data-id='base_thickness'] span.cardtrig").hover();
-    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
-    const citationText = await page.locator(".croppop").textContent();
-    push("the confidence chip opens the citation card with the file it was read from",
-      /215197/.test(citationText) && /Read from 215197\.pdf/.test(citationText));
-    await page.keyboard.press("Escape");
-
-    // The component card, from the merged component cell: part identity plus
-    // the thumbnail derived from its own row's resolved crop.
-    await page.locator("td.tvcell--component.cardtrig").first().hover();
-    await page.waitForSelector(".hovercard--component", { state: "visible", timeout: 5000 });
-    const componentText = await page.locator(".croppop").textContent();
-    push("the component cell opens the component card with the derived crop line",
-      /base plate/.test(componentText) &&
-      // No backticks: a row's display name is user copy, not an id
-      // (viewer_hover_deslop_and_banner_purge, deliverable 2).
-      /crop of its base plate thickness annotation/.test(componentText) &&
-      !componentText.includes("`"));
-    push("the component card deep-links into the annotator isolating the part",
-      /isolate=base/.test(await page.locator(".hovercard--component a")
-        .last().getAttribute("href")));
-
-    // --- ONE fold per card, closed (deliverable 3, 2026-09-16) --------------
-    //
-    // Every long-form thing a card carries -- the record's note in full, the
-    // export/identity narrative, each crop's matching provenance -- is inside
-    // ONE <details>, and it is shut. Counted rather than read: the defect this
-    // replaces was TWO folds on one card (the crop block opened its own), and
-    // a substring check on the summary word cannot see a second one.
-    push("a card carries exactly one disclosure, closed, wearing the same " +
-      "word the banner's fold wears",
-      await page.locator(".hovercard details").count() === 1 &&
-      await page.locator(".hovercard details.hovercard__source").count() === 1 &&
-      !(await page.locator(".hovercard details").first().evaluate((n) => n.open)) &&
-      /Data source/.test(await page.locator(
-        ".hovercard details.hovercard__source > summary").textContent()));
-    // ...and the note itself: the lead sentence in the open, the whole of it
-    // inside the fold. The fixture's `base` part has a multi-sentence note.
-    push("a long note shows its lead sentence in the open and the whole of " +
-      "it in the fold", await (async () => {
-        const lead = await page.locator(".hovercard .hovercard__note").count()
-          ? (await page.locator(".hovercard .hovercard__note").textContent()).trim()
-          : null;
-        const full = await page.locator(
-          ".hovercard .hovercard__source .hovercard__notefull").count()
-          ? (await page.locator(
-              ".hovercard .hovercard__source .hovercard__notefull").textContent()).trim()
-          : null;
-        if (lead === null) return full === null;   // a card with no note at all
-        return full === null
-          ? true                                   // a one-sentence note: open, once
-          : full.startsWith(lead) && full.length > lead.length;
-      })());
-
-    // --- reaching an open card with the mouse (deliverable 4) ---------------
-    //
-    // Jeff: "sometimes the preview pop-up disappears when you try to move the
-    // mouse over it, you have to do it just right." Nothing closes a card on
-    // mouseleave; what happened is that a trigger crossed EN ROUTE re-pointed
-    // the shared #croppop node at itself. This is the only tier that can see
-    // it: the corridor is computed from real mousemove coordinates.
-    //
-    // EVERY move below is a real `page.mouse.move`, and every `mouseenter` is
-    // the browser's own. The first version of this block dispatched the
-    // competing `mouseenter` synthetically while the pointer sat elsewhere,
-    // and that could not reach the EXPIRY path at all — the expiry only
-    // honours a held trigger the pointer is still ON, so the one case the
-    // design promises to handle ("a card that arrives a quarter-second late,
-    // never one that never arrives") went unmeasured and was broken. Review
-    // measured 4.4 seconds and counting, 2026-09-16.
-    //
-    // THE GEOMETRY, and it is chosen rather than incidental: the citation card
-    // opens from the row's confidence chip and is placed BELOW that row, wide
-    // enough to sit under the row's own crop trigger. So the crop trigger is
-    // ~20px directly above the open card — a pointer landing on it from above
-    // is aiming straight into the card, and a pointer landing on it from the
-    // RIGHT (level with the row) is not. Two approaches, one trigger, no
-    // synthetic events. The tripwire below asserts that layout before anything
-    // stands on it.
-    const intentMs = await page.evaluate(() => window.ViewerApp.HOVER_INTENT_MS);
-    const CHIP_TRIGGER = "tr.tvrow[data-id='base_thickness'] span.cardtrig";
-
-    // Walk the pointer to `[x, y]` along a straight line from `[fromX, fromY]`,
-    // STOPPING JUST SHORT, letting the page drain, and only then taking the
-    // final step that crosses into the target.
-    //
-    // Every part of that is load-bearing, and the first draft of this block --
-    // one `mouse.move(..., { steps: 12 })` -- was flaky for the want of it. Two
-    // browser facts compound:
-    //
-    //   * `mouseenter` is dispatched on the element being entered BEFORE the
-    //     `mousemove` at the new coordinates, so the corridor is always read
-    //     from the two positions the page had processed BEFORE the crossing;
-    //   * Chrome COALESCES mousemove events under load. A stepped move whose
-    //     interpolated events are coalesced can leave the page holding only the
-    //     position it started from, and the corridor is then computed off a
-    //     vector pointing wherever the pointer came from — which on a loaded
-    //     machine is a different answer from the same code on an idle one.
-    //
-    // Measured 2026-09-16: green five runs out of five in isolation, red inside
-    // a full mutation-witness run, which is the worst shape a guard can have.
-    // Three awaited moves plus a drain make the two positions either side of
-    // the crossing deterministic: both already PROCESSED by the page, both on
-    // the approach line, and the nearer one a short hop from the target.
-    const approachFrom = async (fromX, fromY, x, y) => {
-      for (const t of [0.4, 0.7, 0.9]) {
-        await page.mouse.move(Math.round(fromX + (x - fromX) * t),
-                              Math.round(fromY + (y - fromY) * t));
-      }
-      await page.waitForTimeout(80);
-      await page.mouse.move(x, y);
-    };
-    const boxes = () => page.evaluate((sel) => {
-      const pop = document.querySelector("#croppop");
-      const open = pop && getComputedStyle(pop).display !== "none";
-      const card = open ? pop.getBoundingClientRect() : null;
-      const trig = document.querySelector(sel).getBoundingClientRect();
-      return {
-        card: card ? { left: card.left, top: card.top, right: card.right,
-                       bottom: card.bottom } : null,
-        trigger: { cx: trig.left + trig.width / 2, cy: trig.top + trig.height / 2,
-                   top: trig.top, bottom: trig.bottom, right: trig.right },
-      };
-    }, CARD_TRIGGER);
-
-    // When the browser's own `mouseenter` reached the crop trigger, in page
-    // time, so a reading can say how far into the deferral it was taken.
-    await page.evaluate((sel) => {
-      window.__cropTriggerEnteredAt = null;
-      document.addEventListener("mouseenter", (e) => {
-        if (e.target && e.target.matches && e.target.matches(sel)) {
-          window.__cropTriggerEnteredAt = performance.now();
-        }
-      }, true);
-    }, CARD_TRIGGER);
-    const openCitation = async () => {
-      await dismissCard(page);
-      await page.locator(CHIP_TRIGGER).hover();
-      await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
-      // A card paints immediately and REPAINTS as each of its PNGs resolves,
-      // and a repaint can re-place it. Settling first keeps the box the
-      // tripwire reads and the box the approach aims at the same box.
-      await page.waitForTimeout(250);
-      return boxes();
-    };
-    const lay = await openCitation();
-    push("the citation card opens BELOW its row and under the row's own crop " +
-      "trigger — the layout the two approaches below are only distinguishable " +
-      "in",
-      lay.card !== null && lay.card.top > lay.trigger.bottom &&
-      lay.card.top - lay.trigger.bottom < 40 &&
-      lay.trigger.cx > lay.card.left && lay.trigger.cx < lay.card.right);
-
-    // APPROACH 1 — down onto the crop trigger, which aims into the card.
-    //
-    // "Not stolen" is a claim about the deferral window: a held trigger the
-    // pointer stays on opens after VA.HOVER_INTENT_MS BY DESIGN (the expiry
-    // check below). So both counts are read in ONE evaluate, with how long
-    // after the browser's own `mouseenter` they were read. A reading taken
-    // past the window has measured the expiry, not the corridor, and says
-    // nothing either way about this claim. It is re-measured, up to three
-    // times, and never counted as a pass. Two locator round trips after the
-    // move used to be the reading, and a red on 2026-10-21 (main checkout,
-    // 3 of 3, unreproduced at the same tree and the same data since) could
-    // not say which of the two it was.
-    const readSteal = () => page.evaluate(() => ({
-      citation: document.querySelectorAll(".hovercard--citation").length,
-      edge: document.querySelectorAll(".hovercard--edge").length,
-      sinceEnter: window.__cropTriggerEnteredAt === null ? null
-        : performance.now() - window.__cropTriggerEnteredAt,
-    }));
-    let steal = null, layNow = lay;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt) layNow = await openCitation();
-      await page.evaluate(() => { window.__cropTriggerEnteredAt = null; });
-      await approachFrom(layNow.trigger.cx, layNow.trigger.top - 60,
-                         layNow.trigger.cx, layNow.trigger.cy);
-      steal = await readSteal();
-      if (steal.sinceEnter !== null && steal.sinceEnter < intentMs) break;
-    }
-    const inWindow = steal.sinceEnter !== null && steal.sinceEnter < intentMs;
-    push("a trigger crossed while the pointer is heading for the open card " +
-      "does not steal it",
-      inWindow && steal.citation === 1 && steal.edge === 0);
-    if (!(inWindow && steal.citation === 1 && steal.edge === 0)) {
-      const when = steal.sinceEnter === null
-        ? "with no mouseenter on the trigger"
-        : `${Math.round(steal.sinceEnter)}ms after the trigger's mouseenter`;
-      console.log(`    read ${when} (window ${intentMs}ms): ` +
-        `${steal.citation} citation, ${steal.edge} edge card(s)`);
-    }
-
-    // THE EXPIRY. The pointer stops on that trigger and never reaches the
-    // card — a deliberate hover, not a crossing — so the held open has to
-    // happen after all. This is the promise the code makes in as many words
-    // ("never one that never arrives"); without this check it is a claim.
-    await page.waitForTimeout(intentMs + 250);
-    push("a held trigger the pointer STOPS on opens after the grace period — " +
-      "a deferral is a delay, never a card that never arrives",
-      await page.locator(".hovercard--edge").count() === 1);
-
-    // ARRIVAL WINS. Same approach, but this time the pointer keeps going and
-    // reaches the card: the trigger it crossed must never open, then or later.
-    await dismissCard(page);
-    await page.locator(CHIP_TRIGGER).hover();
-    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
-    await page.waitForTimeout(250);
-    const lay2 = await boxes();
-    await approachFrom(lay2.trigger.cx, lay2.trigger.top - 60,
-                       lay2.trigger.cx, lay2.trigger.cy);
-    await page.mouse.move(lay2.trigger.cx, lay2.card.top + 60, { steps: 6 });
-    await page.waitForTimeout(intentMs + 250);
-    push("...and it does NOT open when the pointer arrives at the card " +
-      "instead — the reader got where they were going",
-      await page.locator(".hovercard--citation").count() === 1 &&
-      await page.locator(".hovercard--edge").count() === 0 &&
-      await page.locator(".croppop").isVisible());
-
-    // APPROACH 2 — onto the same trigger from the RIGHT, level with its own
-    // row, which aims past the card rather than into it. This is the reason
-    // the guard is a corridor and not a blanket grace period: a reader who
-    // wants the other card gets it at once, with no delay at all.
-    await approachFrom(lay2.trigger.right + 300, lay2.trigger.cy,
-                       lay2.trigger.cx, lay2.trigger.cy);
-    push("a trigger hovered while the pointer is moving AWAY from the open " +
-      "card opens at once — the guard is intent, not a dead period",
-      await page.locator(".hovercard--edge").count() === 1);
-
-    // --- an open card under the pointer is never re-placed (deliverable 4b) -
-    //
-    // `position()` flips a card above its trigger when it no longer fits
-    // below, so a re-place that runs on every settling PNG can move the box
-    // out from under a pointer already on its way to it.
-    //
-    // Observed as "did `position()` RUN", not as "did the answer change":
-    // `position()` unconditionally rewrites `style.top`, so nudging that by a
-    // few pixels and seeing whether it comes back is a direct reading of the
-    // guard, in every layout, without needing a configuration where the
-    // placement's answer happens to differ. The second half is the tripwire
-    // for the first.
-    //
-    // FOUR pixels, and upward, for a reason that cost a red run: the guard
-    // reads the card's box as it is AT THAT MOMENT, so a probe that shoves the
-    // box far enough to slide out from under the pointer destroys its own
-    // precondition and the guard correctly declines to hold. A nudge has to be
-    // smaller than the pointer's clearance inside the card.
-    const NUDGE = 4;
-    const replaced = () => page.evaluate((nudge) => {
-      const pop = document.querySelector("#croppop");
-      const img = pop.querySelector("img");
-      if (!img) return null;
-      // Grow the box too, so the "it is exactly the height it was measured at"
-      // guard is not the one doing the work. Downward, so the top does not
-      // move and the pointer stays where it is relative to the box.
-      const spacer = document.createElement("div");
-      spacer.style.height = "300px";
-      pop.appendChild(spacer);
-      const nudged = Math.round(pop.getBoundingClientRect().top) - nudge;
-      pop.style.top = nudged + "px";
-      img.dispatchEvent(new Event("load"));
-      const after = pop.style.top;
-      spacer.remove();
-      return { nudged: nudged + "px", top: after };
-    }, NUDGE);
-
-    await dismissCard(page);
-    await page.locator(CARD_TRIGGER).hover();
-    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-    await page.waitForTimeout(250);
-    const held = await boxes();
-    await page.mouse.move(held.trigger.cx, held.card.top + 60);
-    const onCard = await replaced();
-    push("a card with the pointer on it is not re-placed when one of its " +
-      "images settles", onCard !== null && onCard.top === onCard.nudged);
-    // ...and it IS re-placed with the pointer away, or the check above passes
-    // on a page where nothing would have re-placed it anyway.
-    await page.mouse.move(8, 8);
-    const offCard = await replaced();
-    push("...and it IS re-placed with the pointer off it — the guard is the " +
-      "pointer, not an inert code path",
-      offCard !== null && offCard.top !== offCard.nudged);
-    await dismissCard(page);
-
-    // --- the DAG's own hover surfaces (viewer_dag_hover_cards) --------------
-    //
-    // The cards reach the graph itself: the invisible whole-edge hit line
-    // (.rail__barhit) opens the EDGE card the grid's crop trigger opens, and a
-    // dot opens the NODE card. Both are real hovers over real SVG geometry,
-    // which is the half a DOM shim cannot exercise -- a transparent stroke
-    // under `pointer-events: stroke` either takes the pointer or it does not.
-    const dotFor = (id) =>
-      page.locator(`svg.tv__rails circle.rail__dot[data-id="${id}"]`);
-    // A dot takes .hover(); a bar cannot -- hoverRailBar above says why.
-    const BAR_TRIGGER =
-      'svg.tv__rails line.rail__barhit[data-id="base_thickness"]';
-    const hoverBar = (id) => hoverRailBar(page, id);
-
-    const barOpened = await hoverBar("base_thickness");
-    let barCardText = null;
-    if (barOpened === true) {
-      await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-      barCardText = await page.locator(".croppop").textContent();
-    }
-    push("hovering the DAG's own bar opens the edge card with the crop body",
-      barOpened === true &&
-      /base plate thickness/.test(barCardText) && /215197/.test(barCardText) &&
-      /cited at:/.test(barCardText) &&
-      await page.locator(".hovercard--edge img.croppop__img").count() === 1);
-    await dismissCard(page);
-
-    // The value-level pin: one edge, two triggers, ONE card. If the bar and
-    // the grid ever rendered different content for the same dimension, a
-    // reader would get two answers about one number.
-    await page.locator("tr.tvrow[data-id='base_thickness'] button.crop-trigger")
-      .hover();
-    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-    const gridCardText = await page.locator(".croppop").textContent();
-    push("the bar's card and the same edge's grid-trigger card are the same " +
-      "card, character for character", barCardText === gridCardText);
-    await dismissCard(page);
-
-    // One hover surface, not two: the marks' native <title> tooltips are
-    // ABSORBED into the cards, never stacked under them.
-    push("no rail mark still carries a native tooltip under its card",
-      await page.locator("svg.tv__rails line.rail__barhit > title").count() === 0 &&
-      await page.locator("svg.tv__rails circle.rail__dot > title").count() === 0);
-
-    // A boundary dot: both parts named, and the side whose own rows cropped
-    // carries that part's component thumbnail. `base_post_seat` is base ⇔
-    // post, and only base's crop resolves.
-    await dotFor("base_post_seat").hover();
-    await page.waitForSelector(".hovercard--node", { state: "visible", timeout: 5000 });
-    const nodeCardText = await page.locator(".croppop").textContent();
-    push("hovering a boundary dot names both parts that meet there",
-      /base plate ⇔ post/.test(nodeCardText) &&
-      /mating_surface/.test(nodeCardText));
-    push("a boundary dot shows the adjacent part's thumbnail where one " +
-      "resolves, and no slot where none does",
-      // One line per thumbed side, naming the side and its drawing -- and it
-      // is that side's ONE document statement, so the crop under it renders
-      // no head of its own (deliverable 2, 2026-09-16). The line used to end
-      // "— crop of its `base plate thickness` annotation", which dressed a
-      // display name as an id.
-      /base plate · drawing 215197/.test(nodeCardText) &&
-      await page.locator(".hovercard--node .cropblock .croppop__head").count() === 0 &&
-      await page.locator(".hovercard--node img.croppop__img").count() === 1);
-    await dismissCard(page);
-
-    // An internal dot says it is internal rather than leaving a one-sided
-    // list to read as a missing side. `base_datum` is the fixture's one.
-    await dotFor("base_datum").hover();
-    await page.waitForSelector(".hovercard--node", { state: "visible", timeout: 5000 });
-    push("an internal dot says which part it is internal to",
-      /internal to base plate/.test(await page.locator(".croppop").textContent()));
-    await dismissCard(page);
-
-    // A dot neither of whose sides cropped gets no image slot at all --
-    // absent is absent. `arm_tip` is the arm's own dimension against a
-    // clearance, and neither side resolves a crop.
-    await dotFor("arm_tip").hover();
-    await page.waitForSelector(".hovercard--node", { state: "visible", timeout: 5000 });
-    const clearanceText = await page.locator(".croppop").textContent();
-    push("a dot with no croppable side names the clearance and shows no image",
-      /a clearance/.test(clearanceText) &&
-      await page.locator(".hovercard--node img").count() === 0);
-    await dismissCard(page);
-
-    // And the layout contract again, measured on the DAG's own trigger this
-    // time: a card opened from inside the DAG pane is still hover-only chrome,
-    // so the pane it is opened from cannot move and the document cannot grow.
-    // Same short viewport and the same kind of non-vacuity witness as the
-    // grid-side block above, for the same reason (ISSUE_20260911_card_layout_
-    // guard_passes_on_the_absolute_popover): at TOPO_VIEWPORT the card fits
-    // inside the document and the measurement could not fail.
-    //
-    // The witness is the CAP BITING, not "the card hangs past the document
-    // bottom" -- which is what this said when viewer_dag_hover_cards was
-    // written, against an integration that did not yet have
-    // viewer_popover_clamp_and_rebuild_terminal_state's room cap. The cap
-    // keeps every open card wholly inside the window, so nothing reaches past
-    // the document any more and the old witness cannot be true (the sibling
-    // handoff measured exactly this and filed
-    // ISSUE_20260914_card_layout_guard_cannot_see_the_absolute_popover_again).
-    // Re-expressed here the way the grid-side block was: the card WANTS more
-    // height than either side of its trigger can give it, so its box is
-    // exactly the roomier side's room and its content still overflows that
-    // box.
-    //
-    // CARD_CAP_VIEWPORT (440px tall), not CARD_LAYOUT_VIEWPORT (700), since
-    // 2026-09-16 -- and the reason is a DELIVERABLE, not a flake. Folding a
-    // card is long-form prose behind one disclosure took ~200px off every edge
-    // card, so at 700px the card fit beside its bar on a served origin (where
-    // there is also no "open the PDF" link to add a line) and this tripwire
-    // went red for being unable to see the defect, which is exactly its job.
-    // It is the same window the grid-side block above measures its own cap in.
-    await page.setViewportSize(CARD_CAP_VIEWPORT);
-    const beforeBarCard = await cardLayout(BAR_TRIGGER);
-    const capOpened = await hoverBar("base_thickness");
-    if (capOpened !== true) {
-      push("the DAG-side card opens from its own rail bar in the short window " +
-        "(the three layout checks that need it open are skipped)", false);
-    } else {
-      await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-      const withBarCard = await cardLayout(BAR_TRIGGER);
-      const barRoomBelow = withBarCard.innerHeight - withBarCard.triggerBottom - 16;
-      const barRoomAbove = withBarCard.triggerTop - 16;
-      push("the DAG-side card wants more height than there is room for on " +
-        "either side of its own rail bar — the configuration the card-layout " +
-        "contracts below are only falsifiable in",
-        withBarCard.cardBottom !== null && withBarCard.cardScrolls === true &&
-        Math.abs(withBarCard.cardHeight -
-          Math.max(barRoomAbove, barRoomBelow)) <= 1);
-      push("a card opened from inside the DAG moves the DAG pane by nothing at all",
-        beforeBarCard.pane === withBarCard.pane &&
-        withBarCard.docHeight === beforeBarCard.docHeight);
-      push("leaders still land on their dots and seams with a DAG-side card open",
-        (await correspondence()).drift.length === 0);
-    }
-    await dismissCard(page);
-    await page.setViewportSize(TOPO_VIEWPORT);
     // An edge with no crop_key (authored inline, or a derived gap) gets no
-    // trigger at all — showing one would read as a stale index rather than
-    // what it is.
-    push("an edge with no crop_key gets no trigger",
-      await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] button.crop-trigger")
+    // thumbnail cell content at all — showing one would read as a stale index
+    // rather than what it is.
+    push("an edge with no crop_key gets no crop word or thumbnail",
+      await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] .crop-trigger")
         .count() === 0);
+    // Whatever the clicks above scrolled is put back: the checks below measure
+    // from the pane's and the page's resting scroll.
+    await page.evaluate(() => {
+      const pane = document.querySelector("#topopane");
+      if (pane) { pane.scrollLeft = 0; pane.scrollTop = 0; }
+      window.scrollTo(0, 0);
+    });
 
     // Whole-edge hover (deliverable 3): a dashed bar's OWN stroke
     // (rail__bar--gap/--derived) has real gaps in it, and under
@@ -4918,18 +4792,21 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       await page.waitForFunction(
         (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
         paneRow.companion, { timeout: 5000 }).catch(() => {});
-      // ...and the CARD's, which is a different list builder (`cardPngs`) with
-      // the same companion term in it: hovering the row's own crop trigger.
-      const trigger = `tr.tvrow[data-id="${cardRow.edge}"] button.crop-trigger`;
+      // ...and the PREVIEW's, which is a different list builder
+      // (topology_app.js's fetchPreviewImages) with the same companion term in
+      // it: hovering another row previews it without selecting it.
+      const trigger = `tr.tvrow[data-id="${cardRow.edge}"]`;
       await page.locator(navRow("topology", cardRow.topology)).click();
       await page.waitForSelector(trigger, { timeout: 5000 });
-      await page.locator(trigger).hover();
-      await page.waitForSelector(".hovercard--edge",
-        { state: "visible", timeout: 5000 });
+      await page.locator(trigger).locator("td.tvcell--nominal").hover();
+      await page.waitForFunction((key) => {
+        const p = document.querySelector(".detail__preview");
+        return p && p.getAttribute("data-preview-key") === key;
+      }, "edge|" + cardRow.edge, { timeout: 5000 }).catch(() => {});
       await page.waitForFunction(
         (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
         cardRow.companion, { timeout: 5000 }).catch(() => {});
-      await page.keyboard.press("Escape");
+      await page.mouse.move(4, 4);
       fetched = await page.evaluate(() => window.__CROP_FETCHES__ || []);
     }
     push("the open topology's own crop images are fetched",
@@ -4938,9 +4815,9 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       "too, so the PANE's second image is there with the first rather than " +
       "a paint later",
       !!paneRow && fetched.indexOf(paneRow.companion) !== -1);
-    push("opening a balloon crop's hover CARD fetches its parts-list " +
-      "companion too — the card's list is built separately and carries the " +
-      "same second image",
+    push("previewing a balloon crop's row fetches its parts-list companion " +
+      "too — the Preview's list is built separately and carries the same " +
+      "second image",
       !!cardRow && fetched.indexOf(cardRow.companion) !== -1);
 
     // --- the crop lightbox, ON THIS ORIGIN ---------------------------------
@@ -4959,9 +4836,9 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
     for (const topology of realProjection.topologies) {
       await page.locator(navRow("topology", topology.id)).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-      const withCrop = page.locator("tr.tvrow button.crop-trigger").first();
+      const withCrop = page.locator("tr.tvrow .crop-trigger").first();
       if (await withCrop.count() === 0) continue;
-      await page.locator("tr.tvrow button.crop-trigger").first()
+      await page.locator("tr.tvrow .crop-trigger").first()
         .evaluate((b) => b.closest("tr").click());
       await launcher.waitFor({ timeout: 5000 }).then(() => { launchable = true; })
         .catch(() => {});
@@ -5490,9 +5367,10 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
           .getAttribute("title") === "pitch_system_gas_spring_branch" &&
         await page.locator("tfoot.tvfoot").count() === 1);
 
-      // Edge hover on a pitch_system edge with a crop: the edge card, with
-      // the REAL crop PNG rendered. pitch_system's croppable edges live in
-      // crops.json's by_topology space — the space this handoff wired in.
+      // Edge hover on a crop-bearing edge, over the real served transport:
+      // the Preview, with the REAL crop PNG rendered (a_preview_pane_replaces_
+      // the_hover_popups_and_one_record_backs_every_mark; the edge card until
+      // 2026-10-30).
       await page.waitForSelector("img.tvthumb", { timeout: 15000 });
       const keyedRow = await page.evaluate(() => {
         const img = document.querySelector("tr.tvrow img.tvthumb");
@@ -5502,45 +5380,37 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       });
       push("[real] a pitch_system crop renders as an inline thumbnail at all",
         !!keyedRow);
+      const previewOf = (key) => page.waitForFunction((key) => {
+        const p = document.querySelector(".detail__preview");
+        return !!p && p.getAttribute("data-preview-key") === key &&
+          !!p.querySelector(".detail__previewbody img.detail__crop-img, .detail__previewbody .detail__side");
+      }, key, { timeout: 15000 }).then(() => true).catch(() => false);
+      const previewText = () => page.locator(".detail__preview .detail__previewbody").textContent();
       if (keyedRow) {
-        await page.locator(
-          `tr.tvrow[data-id='${keyedRow}'] button.crop-trigger`).hover();
-        await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 15000 });
-        const cardText = await page.locator(".croppop").textContent();
-        push("[real] hovering the edge shows the crop card with the real image " +
-          "and the document it is a crop OF",
-          await page.locator(".hovercard--edge img.croppop__img").count() === 1 &&
-          // The reference, in a reader's words, said ONCE. This asserted the
-          // crop-KEY claim until 2026-09-15 ("authored in topology
-          // `pitch_system`"), then the crop block's own "<file>.pdf · sheet N"
-          // head until 2026-09-16 -- which was the document's third printing
-          // on one card. It comes off the citation's where-line now, and the
-          // crop under it carries no caption at all.
-          /cited at: .+ · sheet \d/.test(cardText) &&
-          await page.locator(".hovercard--edge .cropblock .croppop__head")
-            .count() === 0 &&
-          !/authored in topology/.test(cardText));
-        await page.keyboard.press("Escape");
+        await clearPoint(page, `tr.tvrow[data-id='${keyedRow}'] td.tvcell--nominal`, "hover");
+        const shown = await previewOf("edge|" + keyedRow);
+        const rowText = shown ? await previewText() : null;
+        push("[real] hovering the edge's row previews it with the real crop and " +
+          "the document it is a crop OF",
+          shown && await page.locator(
+            ".detail__preview .detail__previewbody img.detail__crop-img").count() >= 1 &&
+          / · sheet \d/.test(rowText) && !/authored in topology/.test(rowText));
 
-        // The DoD's own sentence, on the real graph (viewer_dag_hover_cards):
-        // hovering the DAG's own BAR for that same edge shows the same card,
-        // real crop image and all.
+        // ...and the DAG's own BAR for that same edge previews the same
+        // record, real crop image and all.
         await page.mouse.move(4, 4);
         const realBarOpened = await hoverRailBar(page, keyedRow);
-        const barText = realBarOpened === true
-          ? await page.locator(".croppop").textContent() : null;
-        push("[real] hovering pitch_system's own bar shows the crop card",
-          realBarOpened === true && barText === cardText &&
-          await page.locator(".hovercard--edge img.croppop__img").count() === 1);
+        const barText = realBarOpened === true ? await previewText() : null;
+        push("[real] hovering pitch_system's own bar previews the same record",
+          realBarOpened === true && barText === rowText);
         await page.mouse.move(4, 4);
-        await page.keyboard.press("Escape");
       }
 
-      // ...and the node card, on a real boundary dot. Which node that is comes
-      // out of the projection rather than being written down here: a boundary
-      // is a node whose incident edges do not all carry the same part, and the
-      // most interesting one to hover is the boundary with the most
-      // crop-bearing parts around it.
+      // ...and a real boundary dot. Which node that is comes out of the
+      // projection rather than being written down here: a boundary is a node
+      // whose incident edges do not all carry the same part, and the most
+      // interesting one to hover is the boundary with the most crop-bearing
+      // parts around it.
       const boundary = realProjection && (() => {
         const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
         if (!pitch) return null;
@@ -5554,54 +5424,50 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
           });
         });
         const names = {};
-        (pitch.parts || []).forEach((part) => { names[part.id] = part.name || part.id; });
+        (pitch.parts || []).forEach((part) => {
+          names[part.id] = part.display_name || part.name || part.id;
+        });
         return Object.keys(sides)
           .filter((n) => sides[n].length > 1 && sides[n].every((x) => x !== null))
           .map((n) => ({ id: n, parts: sides[n], names: sides[n].map((x) => names[x]),
                          score: sides[n].filter((x) => cropped[x]).length }))
           .sort((a, b) => b.score - a.score)[0] || null;
       })();
-      // The same witness the keyedRow block above carries: without it a
-      // projection that stopped emitting a multi-part boundary in
-      // pitch_system would silently drop the two sub-checks below and still
-      // report PASS (review, 2026-09-14).
       push("[real] pitch_system has a multi-part boundary dot to hover at all",
         !!boundary);
       if (boundary) {
-        await page.locator(
-          `svg.tv__rails circle.rail__dot[data-id="${boundary.id}"]`).hover();
-        await page.waitForSelector(".hovercard--node", { state: "visible", timeout: 15000 });
-        const realNode = await page.locator(".croppop").textContent();
-        push("[real] hovering a pitch_system boundary dot names both parts " +
+        await clearPoint(page, `svg.tv__rails circle.rail__dot[data-id="${boundary.id}"]`, "hover");
+        await previewOf("node|" + boundary.id);
+        const realNode = await previewText();
+        push("[real] hovering a pitch_system boundary dot previews both parts " +
           "that meet there",
           boundary.names.every((name) => realNode.includes(name)));
-        // Absent is absent, on real data too: a thumbnail line and an image
-        // arrive together or neither does.
-        // Keyed off the caption NODE rather than its wording since 2026-09-16:
-        // a side's line is "<part> · drawing <no>" now, which has no fixed
-        // substring to match on across live parts.
-        const thumbLines = await page.locator(
-          ".hovercard--node .hovercard__cropkey").count();
-        push("[real] a node card's thumbnail line and its image arrive together",
-          thumbLines > 0
-            ? await page.locator(".hovercard--node img.croppop__img").count() > 0
-            : await page.locator(".hovercard--node img").count() === 0);
+        // Absent is absent, on real data too: a side's picture is there only
+        // for a part with a resolved crop.
+        const sides = await page.evaluate(() => [...document.querySelectorAll(
+          ".detail__preview .detail__side")].map((s) => s.querySelectorAll("img").length));
+        push("[real] a node's Preview pictures a side at most once, and only " +
+          "where a crop resolves", sides.length > 0 && sides.every((n) => n <= 1));
         await page.mouse.move(4, 4);
-        await page.keyboard.press("Escape");
       }
 
-      // A citation card from a REAL spec citation: the L1 fastener grip's
-      // NAS6403 spec, hover on its row's confidence chip.
+      // A real SPEC citation, in the Preview of the L1 fastener grip's row:
+      // the NAS6403 sheet, cited and cropped.
       await page.locator(
         "[data-nav-kind='topology'][data-nav-id='vpa_pitch_linkage']").click();
       await page.waitForSelector("tr.tvrow[data-id='fastener_grip_vpa_out']", { timeout: 15000 });
-      await clearPoint(page, "tr.tvrow[data-id='fastener_grip_vpa_out'] span.cardtrig", "hover");
-      await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 15000 });
-      const specCard = await page.locator(".croppop").textContent();
-      push("[real] a citation card renders from a real spec citation",
-        /NAS6403/.test(specCard));
-      push("[real] the spec-sheet card shows the real crop of the spec page",
-        await page.locator(".hovercard--citation img.croppop__img").count() === 1);
+      await clearPoint(page, "tr.tvrow[data-id='fastener_grip_vpa_out'] td.tvcell--nominal", "click");
+      await page.waitForFunction(() => {
+        const p = document.querySelector(".detail__preview");
+        return p && p.getAttribute("data-preview-key") === "edge|fastener_grip_vpa_out";
+      }, null, { timeout: 15000 }).catch(() => {});
+      await page.mouse.move(4, 4);
+      await page.waitForTimeout(400);
+      const specPane = await previewText();
+      push("[real] a real spec citation reaches the row's Preview",
+        /NAS6403/.test(specPane));
+      push("[real] ...with the real crop of the spec page",
+        await page.locator(".detail__preview img.detail__crop-img").count() >= 1);
       await page.keyboard.press("Escape");
 
       // Deliverable 3 (viewer_http_transport): a mid-session server stop must
@@ -6003,33 +5869,39 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       await page.locator("#annotate-flyout iframe").count() === 1 &&
       await page.locator("#annotate-flyout").evaluate((n) => n.open));
 
-    // The hover cards' own 3D affordance, rewired to the SAME panel (handoff
-    // annotate_affordances_flyout_and_mesh_gating): before, a card's link
-    // opened a second tab even with the flyout live -- two annotators, two
-    // folder grants, two cameras. And a part with no installed mesh offers
-    // nothing at all: the card still renders its identity, minus a link that
-    // would have dead-ended in the annotator's empty state.
+    // A part with no installed mesh offers nothing about 3D: the Preview of
+    // its untraced row renders its identity and its gap, minus a way out that
+    // would have dead-ended in the annotator's empty state. (The component
+    // card's "view this part in 3D" went with the card on 2026-10-30; the
+    // open pane follows the selection to the part instead.)
     await page.locator("#flyout-collapse").click();
-    // The merged cell prints the part's NAME, not its id, since 2026-09-15
-    // (VA.componentLabel) -- `base` was the id and is nowhere a reader reads.
-    await page.locator("td.tvcell--component").filter({ hasText: /^base plate$/ })
-      .first().click();
-    await page.waitForSelector("#croppop button.hovercard__3d", { timeout: 5000 });
-    push("a component card's 3D affordance is a flyout button, not a new-tab link",
-      await page.locator("#croppop button.hovercard__3d").count() === 1 &&
-      await page.locator("#croppop a.hovercard__3d").count() === 0);
-    await page.locator("#croppop button.hovercard__3d").click();
-    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
-    push("the card drives the one panel and closes itself behind it",
-      await page.locator("#annotate-flyout iframe").count() === 1 &&
-      await page.locator("#croppop").evaluate((n) => n.style.display) === "none");
-    await page.locator("#flyout-collapse").click();
-    await page.locator("td.tvcell--component").filter({ hasText: /^post$/ })
-      .first().click();
-    await page.waitForSelector("#croppop.hovercard--component", { timeout: 5000 });
-    push("a part with no installed mesh shows NOTHING about 3D on its card",
-      await page.locator("#croppop .hovercard__3d").count() === 0 &&
-      !/3D/.test(await page.locator("#croppop").textContent()));
+    // The whole walk, so every row is on screen, and whichever of them wants a
+    // binding its part has no model for.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await page.waitForSelector("tr.tvrow[data-id='post_bushing_offset']", { timeout: 5000 })
+      .catch(() => {});
+    await page.waitForTimeout(400);
+    const meshless = await page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const topo = VA.findTopology(VA.demoTopologyFixture().topologies,
+        VA.lastTopoRender.topologyId);
+      const row = [...document.querySelectorAll("tr.tvrow")].find((tr) => {
+        const r = VA.elementRecord(topo, "edge|" + tr.getAttribute("data-id"), {});
+        return r && r.binding.wanted && !r.binding.meshed && r.part;
+      });
+      return row ? row.getAttribute("data-id") : null;
+    });
+    if (meshless) {
+      await page.locator(`tr.tvrow[data-id='${meshless}'] .tvcell--name`).click();
+      await page.waitForFunction((key) => {
+        const p = document.querySelector(".detail__preview");
+        return p && p.getAttribute("data-preview-key") === key;
+      }, "edge|" + meshless, { timeout: 5000 }).catch(() => {});
+    }
+    push("a part with no installed mesh shows NOTHING about 3D in its row's Preview",
+      !!meshless && await page.locator(".detail__preview .detail__annotate").count() === 0 &&
+      !/3D/.test(await page.locator(".detail__preview .detail__previewbody").textContent()));
+    await page.keyboard.press("Escape");
 
     // --- [real] adjacency against a LIVE study's own drawing ----------------
     //
@@ -6175,15 +6047,6 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     push("under file:// the edge pane keeps the annotate-this link",
       await page.locator("a.detail__annotate-link").count() === 1 &&
       await page.locator("button.detail__annotate-btn").count() === 0);
-    // The merged cell prints the part's NAME, not its id, since 2026-09-15
-    // (VA.componentLabel) -- `base` was the id and is nowhere a reader reads.
-    await page.locator("td.tvcell--component").filter({ hasText: /^base plate$/ })
-      .first().click();
-    await page.waitForSelector("#croppop a.hovercard__3d", { timeout: 5000 });
-    push("under file:// a card's 3D affordance stays the plain new-tab link",
-      await page.locator("#croppop a.hovercard__3d").count() === 1 &&
-      await page.locator("#croppop button.hovercard__3d").count() === 0 &&
-      await page.locator("#croppop a.hovercard__3d").getAttribute("target") === "_blank");
 
     return reportSuite(label, checks, errors);
   } catch (err) {
@@ -10249,18 +10112,20 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
 
     // 8. the GRID's route. Its inline thumbnail is the one crop image on this
     // page that is not a cropFigure and carries no launcher of its own;
-    // clicking it opens the edge card, and the card's figure is where the
-    // launcher lives. That is the coverage claim the handoff left as a call,
-    // so it is measured rather than asserted in a comment.
-    const trigger = `${row} button.crop-trigger--thumb`;
+    // clicking it keeps its row's Preview (a_preview_pane_replaces_the_hover_
+    // popups_and_one_record_backs_every_mark -- the edge card until
+    // 2026-10-30), and the Preview's figure is where the launcher lives. The
+    // click is what lets the pointer travel to it: a hover alone hands the
+    // Preview back the moment the pointer leaves the row.
+    const trigger = `${row} span.crop-trigger--thumb`;
     await page.waitForSelector(trigger, { timeout: 15000 });
     push("the grid's own inline thumbnail carries no launcher — it is not a " +
-      "cropFigure, and clicking it opens the card that is",
+      "cropFigure, and clicking it keeps the Preview that is",
       await page.locator(`${row} button.cropfig__launch`).count() === 0);
+    await page.keyboard.press("Escape");
     await page.locator(trigger).click();
-    await page.waitForSelector("#croppop.hovercard--edge",
-      { state: "visible", timeout: 10000 });
-    const cardLauncher = page.locator("#croppop button.cropfig__launch").first();
+    const cardLauncher = page.locator(
+      ".detail__preview[data-preview-state='frozen'] .detail__previewbody button.cropfig__launch").first();
     await cardLauncher.waitFor({ timeout: 10000 });
     await cardLauncher.click();
     await page.waitForSelector("#crop-lightbox[open]", { timeout: 10000 });
@@ -10269,7 +10134,7 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
       return box && box.getBoundingClientRect().width > 0;
     }, null, { timeout: 10000 });
     const fromCard = await measure();
-    push("a hover card's launcher opens the same lightbox, on the same rect " +
+    push("the Preview's launcher opens the same lightbox, on the same rect " +
       "— so the grid thumbnail reaches full size in two clicks",
       agrees(fromCard && fromCard.frac, target.entry.highlights[0].frac));
 
@@ -10921,7 +10786,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       return { pane: box("#topopane"), table: box("#detail table.kmtable"),
         main: box(".tv__main"), detail: box("#detail"),
         verdicts: box("#detail div.kmverdict"), chart: box("#detail figure.kmchart"),
-        readouts: box("#detail table.kmreadouts"), preview: box("#detail .detail__preview") };
+        readouts: box("#detail table.kmreadouts"), preview: box("#detail .detail__preview"),
+        results: box("#detail .kmresults") };
     });
     push("the kinematic page draws the model in the main column, and its verdicts, " +
       "chart, readouts and contributors in one column at the top of the right-hand pane",
@@ -10930,7 +10796,12 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       shape.table && shape.verdicts && shape.chart && shape.readouts && shape.preview &&
       shape.detail.left >= shape.main.right - 8 &&
       shape.verdicts.top < shape.chart.top && shape.chart.top < shape.readouts.top &&
-      shape.readouts.top < shape.table.top && shape.table.top < shape.preview.top &&
+      // The results scroll in their own box above the Preview (a_preview_
+      // pane_replaces_the_hover_popups_and_one_record_backs_every_mark), so
+      // the table can run past the Preview's top inside that box: what holds
+      // is the order within the results, and the results' box above it.
+      shape.readouts.top < shape.table.top && shape.results &&
+      shape.results.bottom <= shape.preview.top + 1 &&
       await page.locator(".tv__main table.kmtable").count() === 0 &&
       await page.locator("#kinematicview").count() === 0);
     await page.locator(navRow("topology", "demo_mechanism")).click();
@@ -12245,6 +12116,101 @@ async function testAnnotateBindForm(browser, label) {
 const SEAM_LEADER_SHOTS = process.env.SEAM_LEADER_SHOTS || null;
 const RESPINE_SHOTS = process.env.RESPINE_SHOTS || null;
 
+// --- the Preview from the scene's side (a_preview_pane_replaces_the_hover_
+// popups_and_one_record_backs_every_mark) ----------------------------------
+//
+// A 3D anchor previews and freezes exactly as its DAG dot does: the scene
+// posts the anchor under its pointer (`annotate:hover`) and the anchor clicked
+// (`annotate:pick`), and the page writes that node's record into the Preview.
+// The messages are posted from the pane's own window, so the page's source
+// check passes exactly as it does for the real scene; the fixture scene has no
+// geometry to point at, and the scene's half -- which dot is under the pointer
+// and what it posts -- is the annotator's fast tier
+// (`AA.modelHoverMessage`, `AA.modelPickMessage`).
+async function testPreviewFromTheScene(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    if (location.pathname.indexOf("/apps/annotate/") === -1) return;
+    if (!/[?&]mock=1(&|$)/.test(location.search)) {
+      history.replaceState(null, "", location.pathname +
+        (location.search ? location.search + "&" : "?") + "mock=1" + location.hash);
+    }
+  });
+  const fromPane = (msg) => page.evaluate((msg) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w) return false;
+    new w.Function("msg", "window.parent.postMessage(msg, window.location.origin);")(msg);
+    return true;
+  }, msg);
+  const previewIs = (state, key) => page.waitForFunction(([state, key]) => {
+    const p = document.querySelector(".detail__preview");
+    return !!p && p.getAttribute("data-preview-state") === state &&
+      p.getAttribute("data-preview-key") === key;
+  }, [state, key], { timeout: 5000 }).then(() => true).catch(() => false);
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 15000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 5000 });
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    await page.waitForFunction(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.AnnotateApp && w.document.readyState === "complete";
+    }, null, { timeout: 30000 });
+    const returnMs = await page.evaluate(() => window.ViewerApp.PREVIEW_RETURN_MS);
+    await page.mouse.move(4, 4);
+
+    await fromPane({ type: "annotate:hover", kind: "node", id: "base_post_seat" });
+    push("an anchor under the scene's pointer previews its node's record",
+      await previewIs("hover", "node|base_post_seat") &&
+      /base plate ⇔ post/.test(await page.locator(".detail__previewbody").textContent()));
+    // The same record its DAG dot previews, character for character.
+    const fromScene = await page.locator(".detail__previewbody").textContent();
+    await fromPane({ type: "annotate:hover", kind: null, id: null });
+    await page.locator('svg.tv__rails circle.rail__dot[data-id="base_post_seat"]').hover();
+    await previewIs("hover", "node|base_post_seat");
+    push("the anchor's Preview and its DAG dot's are the same record",
+      await page.locator(".detail__previewbody").textContent() === fromScene);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(returnMs + 120);
+
+    await fromPane({ type: "annotate:pick", kind: "node", id: "base_post_seat" });
+    push("clicking an anchor freezes the Preview on it, and selects its dot",
+      await previewIs("frozen", "node|base_post_seat") &&
+      await page.locator('circle.rail__dot--selected[data-id="base_post_seat"]').count() === 1);
+    await fromPane({ type: "annotate:hover", kind: "node", id: "arm_tip" });
+    push("with an anchor frozen, another anchor under the pointer previews that one",
+      await previewIs("hover", "node|arm_tip"));
+    await fromPane({ type: "annotate:hover", kind: null, id: null });
+    push("...and off every anchor the Preview returns to the frozen one",
+      await previewIs("frozen", "node|base_post_seat"));
+    await fromPane({ type: "annotate:pick", kind: "node", id: "base_post_seat" });
+    push("a second click on the frozen anchor lets it go, as the scene's own " +
+      "second click does", await previewIs("empty", ""));
+    await fromPane({ type: "annotate:pick", kind: "node", id: "base_post_seat" });
+    await previewIs("frozen", "node|base_post_seat");
+    await page.locator("#flyout-title").focus().catch(() => {});
+    await page.keyboard.press("Escape");
+    push("Escape lets an anchor-frozen Preview go too", await previewIs("empty", ""));
+    await fromPane({ type: "annotate:pick", kind: "node", id: "not_a_node" });
+    push("an anchor the page's topology does not carry selects nothing",
+      await previewIs("empty", ""));
+  } catch (err) {
+    errors.push(String(err && err.stack || err));
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 async function testSeamLeaders(browser, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -13163,6 +13129,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testTheTopologyPage(browser, fileBase, label, topologies, crops)],
       ["topology http", (label) =>
         testTheTopologyPage(browser, baseUrl, label, topologies, crops)],
+      ["popover mechanics (the stack page's citation card)", (label) =>
+        testPopoverMechanics(browser, fileBase, label)],
       ["deep links file://", (label) => testDeepLinks(browser, fileBase, label)],
       ["deep links http", (label) => testDeepLinks(browser, baseUrl, label)],
       ["topology height budget", (label) =>
@@ -13218,6 +13186,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateRenderOnDemand(browser, label)],
       ["annotate model in the scene (anchors, lines, the sweep, the anchors message)", (label) =>
         testAnnotateModelInTheScene(browser, fileBase, label, topologies)],
+      ["the Preview from the scene (anchor hover and pick)", (label) =>
+        testPreviewFromTheScene(browser, label)],
       ["leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)", (label) =>
         testSeamLeaders(browser, label, topologies)],
     ];
