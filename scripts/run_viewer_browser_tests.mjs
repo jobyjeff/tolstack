@@ -2300,8 +2300,73 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     }));
     const walkShape = await railShape();
     const walkRows = await page.locator("tr.tvrow").count();
+    // The landing (the_rearrange_animates_and_centres_the_active_study): count
+    // the transition's mutations, then measure where the band came to rest.
+    await page.evaluate(() => {
+      window.__respineMutations = { removed: 0, added: 0, removedIds: [], addedIds: [] };
+      window.__respineObserver = new MutationObserver((records) => {
+        const ids = (nodes) => [...nodes].flatMap((n) => n.nodeType !== 1 ? [] :
+          [n, ...n.querySelectorAll("[data-node-id],[data-edge-id],[data-leader-id]")])
+          .map((n) => n.getAttribute && (n.getAttribute("data-node-id") ||
+            n.getAttribute("data-edge-id") || n.getAttribute("data-leader-id")))
+          .filter(Boolean);
+        for (const r of records) {
+          window.__respineMutations.removed += r.removedNodes.length;
+          window.__respineMutations.added += r.addedNodes.length;
+          window.__respineMutations.removedIds.push(...ids(r.removedNodes));
+          window.__respineMutations.addedIds.push(...ids(r.addedNodes));
+        }
+      });
+      window.__respineObserver.observe(document.querySelector("#topopane"),
+        { childList: true, subtree: true });
+    });
     await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForSelector("tfoot.tvfoot", { timeout: 5000 });
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    await page.waitForTimeout(150);
+    const landed = await page.evaluate(() => {
+      window.__respineObserver.disconnect();
+      const bars = Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
+        .map((n) => n.getBoundingClientRect());
+      const hs = document.querySelector("#topopane .tv__hscroll").getBoundingClientRect();
+      const top = document.querySelector(".topbar").getBoundingClientRect().bottom;
+      const mid = (a, b) => (a + b) / 2;
+      return {
+        bars: bars.length,
+        dx: mid(Math.min(...bars.map((b) => b.left)), Math.max(...bars.map((b) => b.right))) -
+          mid(hs.left, hs.right),
+        dy: mid(Math.min(...bars.map((b) => b.top)), Math.max(...bars.map((b) => b.bottom))) -
+          mid(top, window.innerHeight),
+        scrollY: window.scrollY, mutations: window.__respineMutations,
+      };
+    });
+    console.log("      landing: " + JSON.stringify(landed));
+    push("a study arrival lands with the active band centred in the window, within 4 px",
+      landed.bars > 0 && Math.abs(landed.dx) <= 4 && Math.abs(landed.dy) <= 4);
+    const churn = landed.mutations.removedIds.filter((id) => landed.mutations.addedIds.includes(id));
+    console.log(`      transition churn: ${churn.length} ids removed and re-added of ` +
+      `${landed.mutations.removedIds.length} removed`);
+    // Reduced motion: positions jump (no ghost, no tween frame), and the band
+    // still lands centred.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    await page.waitForTimeout(150);
+    const reduced = await page.evaluate(() => {
+      const bars = Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
+        .map((n) => n.getBoundingClientRect());
+      const hs = document.querySelector("#topopane .tv__hscroll").getBoundingClientRect();
+      const mid = (a, b) => (a + b) / 2;
+      return { bars: bars.length, ghost: document.querySelectorAll("#topopane .tv__ghost").length,
+        dx: mid(Math.min(...bars.map((b) => b.left)), Math.max(...bars.map((b) => b.right))) -
+          mid(hs.left, hs.right) };
+    });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    push("with reduced motion the band still lands centred, with no ghost of the old layout",
+      reduced.bars > 0 && reduced.ghost === 0 && Math.abs(reduced.dx) <= 4);
+    await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
     const litShape = await railShape();

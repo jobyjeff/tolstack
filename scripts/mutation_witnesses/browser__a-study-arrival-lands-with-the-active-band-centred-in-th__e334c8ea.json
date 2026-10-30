@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "a study arrival lands with the active band centred in the window, within 4 px",
+  "mutations": [
+    {
+      "contract": "A study arrival centres the band's box in the window, using space before the drawing where the page cannot scroll that far.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_rearrange_animates_and_centres_the_active_study (2026-10-29).",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      var top = off.dy < -0.5 ? -off.dy : 0;",
+      "replace": "      var top = 0;"
+    }
+  ]
+}

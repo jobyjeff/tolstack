@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "with reduced motion the band still lands centred, with no ghost of the old layout",
+  "mutations": [
+    {
+      "contract": "The landing runs on the settled layout whether or not a transition ran.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_rearrange_animates_and_centres_the_active_study (2026-10-29).",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          fitDagTo(true, true);\n        };\n        if (respineHandle",
+      "replace": "          0;\n        };\n        if (respineHandle"
+    }
+  ]
+}
