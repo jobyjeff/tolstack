@@ -233,7 +233,7 @@ or select."*
   click on the model's empty canvas, or the pin itself lets go. The scene posts
   the anchor under its pointer and the anchor clicked (`annotate:hover`,
   `annotate:pick`), so a 3D anchor previews and freezes exactly as its DAG dot
-  does.
+  does; a kinematic study's contributor row previews its edge the same way.
 - **No popups over the model.** The edge, component and node hover cards are
   gone. The only thing a hover draws on the DAG is its mark's highlight and one
   line of label — the record's title, cut to `VA.HOVER_LABEL_CHARS` — placed

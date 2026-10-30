@@ -6,10 +6,10 @@
     {
       "contract": "The hover state is shared BOTH ways: the grid drives it as well as reading it. A grid that only receives is the `.tvrow:hover` rule this replaced, wearing a class name.",
       "issue": null,
-      "note": "Dropping the row's own hover wiring leaves every registration in place and the DAG-to-grid direction working, which is exactly the half-built state a class-name check would pass. The bar-to-row direction is unaffected, so the guard fails on the asymmetry rather than on everything at once.",
+      "note": "Dropping the row's own hover wiring leaves every registration in place and the DAG-to-grid direction working, which is exactly the half-built state a class-name check would pass. The bar-to-row direction is unaffected, so the guard fails on the asymmetry rather than on everything at once. Re-pointed 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark): the preview pane and the marks read the element record now; same contract, new site.",
       "file": "apps/viewer/views/topology.js",
-      "find": "    hotHover(hot, el, hotKey(\"edge\", planRow.id));\n    return el;",
-      "replace": "    return el;"
+      "find": "    hotHover(hot, el, hotKey(\"edge\", planRow.id));\n    return nameRow(el, ctx, \"edge\", planRow.id, fullName);",
+      "replace": "    return nameRow(el, ctx, \"edge\", planRow.id, fullName);"
     }
   ]
 }

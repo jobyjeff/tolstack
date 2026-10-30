@@ -6,10 +6,10 @@
     {
       "contract": "A rail bar's hover previews its edge's record; a bar with no hit path fails by name and does not abort the suite.",
       "issue": "docs/issues/ISSUE_20261021_hoverrailbar_throws_so_a_bar_with_no_hit_path_aborts_the_topology_suite.md",
-      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Re-anchored from 'hovering the DAG's own bar opens the edge card with the crop body' (the edge card retired 2026-10-30). The bar's hit path no longer joins the shared hover, so nothing previews.",
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Re-anchored from 'hovering the DAG's own bar opens the edge card with the crop body' (the edge card retired 2026-10-30). Renames the bar hit path's class at both its sites, so hoverRailBar finds nothing to aim at and the check fails by name. (Dropping the hit path's hover alone is masked: the joint glyph at the bar's midpoint previews the same edge.)",
       "file": "apps/viewer/views/topology.js",
-      "find": "        wire(hit, ctx, \"edge\", mark.id, recordTitle(\"edge\", mark.id));\n        hotHover(hot, hit, hotKey(\"edge\", mark.id));",
-      "replace": "        wire(hit, ctx, \"edge\", mark.id, recordTitle(\"edge\", mark.id));"
+      "find": "el: fade(VA.svg(\"line\", \"rail__barhit\",\n            { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), \"edge\", mark.id),\n          base: \"rail__barhit\",",
+      "replace": "el: fade(VA.svg(\"line\", \"rail__barhit_renamed\",\n            { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), \"edge\", mark.id),\n          base: \"rail__barhit_renamed\","
     }
   ]
 }

@@ -6,10 +6,10 @@
     {
       "contract": "A gap edge's glyph wears the bar's confidence colour.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Draws every glyph in the neutral stroke.",
+      "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Draws every glyph in the neutral stroke. Re-pointed 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark): the preview pane and the marks read the element record now; same contract, new site.",
       "file": "apps/viewer/views/topology.js",
-      "find": "          (edge ? VA.confidenceClass(edge.confidence) : \"\") +",
-      "replace": "          \"\" +"
+      "find": "          wire(use, ctx, \"edge\", mark.id, recordTitle(\"edge\", mark.id));\n          hotHover(hot, use, hotKey(\"edge\", mark.id));\n          over.appendChild(use);",
+      "replace": "          over.appendChild(use);"
     },
     {
       "contract": "The glyph selects its own edge.",

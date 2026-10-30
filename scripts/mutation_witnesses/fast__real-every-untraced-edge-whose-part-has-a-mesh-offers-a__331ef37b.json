@@ -6,10 +6,10 @@
     {
       "contract": "The other half of the same rule: where a mesh DOES resolve the link is really offered, carrying that edge's own topology/edge/study/part identity. Withholding it everywhere would satisfy the entry above on its own.",
       "issue": "docs/issues/ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows.md",
-      "note": "Inverts the pane's mesh gate rather than blinding VA.partHasMesh, so the red comes from the pane's behaviour and not from the test's own classifier changing under it. This mutation reddens the entry above too; the runner only requires the declared check among the failures. Re-anchored 2026-10-26 (the_kinematic_page_keeps_the_dag_and_says_each_contributor_once): VA.needsAnnotation takes the edge too.",
-      "file": "apps/viewer/views/topology.js",
-      "find": "    if (VA.needsAnnotation(edge.confidence, edge) &&\n        VA.partHasMesh(ctx.topoProj, edge.part)) {",
-      "replace": "    if (VA.needsAnnotation(edge.confidence, edge) &&\n        !VA.partHasMesh(ctx.topoProj, edge.part)) {"
+      "note": "Inverts the pane's mesh gate rather than blinding VA.partHasMesh, so the red comes from the pane's behaviour and not from the test's own classifier changing under it. This mutation reddens the entry above too; the runner only requires the declared check among the failures. Re-anchored 2026-10-26 (the_kinematic_page_keeps_the_dag_and_says_each_contributor_once): VA.needsAnnotation takes the edge too. Re-pointed 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark): the preview pane and the marks read the element record now; same contract, new site.",
+      "file": "apps/viewer/element_record.js",
+      "find": "    if (record.binding.wanted && record.binding.meshed) {",
+      "replace": "    if (record.binding.wanted && !record.binding.meshed) {"
     }
   ]
 }

@@ -6,10 +6,10 @@
     {
       "contract": "An edge whose part is named after its own drawing number does not say that number on two consecutive lines: VA.citationWhere's alreadySaid argument is threaded from the topology pane's citation() call.",
       "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
-      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md; see materials-vocabulary-scanned-for-schema-jargon's note for why it arrived unenrolled.",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md; see materials-vocabulary-scanned-for-schema-jargon's note for why it arrived unenrolled. Re-pointed 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark): the preview pane and the marks read the element record now; same contract, new site.",
       "file": "apps/viewer/views/topology.js",
-      "find": "      root.appendChild(citation(dimension.source_ref, edge.confidence, partLabel));",
-      "replace": "      root.appendChild(citation(dimension.source_ref, edge.confidence));"
+      "find": "      root.appendChild(citation(record.citation, record.confidence, partLabel));",
+      "replace": "      root.appendChild(citation(record.citation, record.confidence));"
     }
   ]
 }
