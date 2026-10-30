@@ -1510,7 +1510,7 @@
     var text = VA.hoverLabelText(anchor.text, anchor.note);
     var w = (text.length * m.charPx + 2 * m.pad) / k;
     var h = m.height / k;
-    var at = VA.hoverLabelPlacement(anchor, w, h, hot.obstacles, hot.label.bounds,
+    var at = VA.hoverLabelPlacement(anchor, w, h, hot.obstacles, labelBounds(hot),
       anchor.box);
     var node = VA.svg("text", "rail__hoverlabel", {
       x: 0, y: 0,
@@ -1522,6 +1522,21 @@
     node.setAttribute("aria-hidden", "true");
     node.textContent = text;
     layer.appendChild(node);
+  }
+
+  // Where a label may go: the drawing's own box, widened on the left to the
+  // pane's visible edge -- the rails SVG is often narrower than its pane, and
+  // the room beside it is empty page -- but never right of the drawing, where
+  // the grid is. Measured at hover time, in the browser only; the DOM shim has
+  // no layout and keeps the drawing's box.
+  function labelBounds(hot) {
+    var b = hot.label.bounds;
+    var svg = hot.label.svg;
+    var pane = svg && svg.closest ? svg.closest(".tv__scroll") : null;
+    if (!pane || !svg.getBoundingClientRect || !pane.getBoundingClientRect) return b;
+    var room = svg.getBoundingClientRect().left - pane.getBoundingClientRect().left;
+    if (!(room > 0)) return b;
+    return { x1: b.x1 - room / (hot.label.zoom || 1), x2: b.x2, y1: b.y1, y2: b.y2 };
   }
 
   function chain(node, name, fn) {
@@ -2004,7 +2019,7 @@
     over.appendChild(labelLayer);
     var k = leaderGeo.zoom || 1;
     var y0 = leaderGeo.y0 || 0;
-    hot.label = { layer: labelLayer, zoom: k, bounds: {
+    hot.label = { layer: labelLayer, zoom: k, svg: svg, bounds: {
       x1: 0, x2: width / k, y1: y0 - y0 / k, y2: y0 + (height - y0) / k,
     } };
     return svg;
@@ -2105,6 +2120,21 @@
     };
     return node;
   }
+
+  // The Preview's pin: a small drawn pushpin in the text colour, a picture
+  // rather than a character (an emoji pin renders in whatever colour the
+  // platform's emoji font picks; docs/DESIGN_TYPE_AND_COLOUR.md, "An icon is a
+  // picture").
+  VA.PIN_GLYPH_PX = 12;
+  VA.pinGlyph = function () {
+    var px = VA.PIN_GLYPH_PX;
+    var svg = VA.svg("svg", "pinglyph", { width: px, height: px, viewBox: "0 0 12 12" });
+    svg.setAttribute("aria-hidden", "true");
+    svg.appendChild(VA.svg("path", "pinglyph__head",
+      { d: "M4 1h4l-.6 4 2.1 2H2.5l2.1-2z" }));
+    svg.appendChild(VA.svg("path", "pinglyph__needle", { d: "M6 7v4.5" }));
+    return svg;
+  };
 
   // --- the one-line hover label ------------------------------------------
   //

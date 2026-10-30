@@ -328,6 +328,11 @@ export class AnnotateScene {
     // and with the node id of a model dot that was clicked.
     this.onModelRendered = function () {};
     this.onModelPick = function () {};
+    // ...and with the node id of the model dot under the pointer, or null
+    // once it leaves every dot -- on a CHANGE only. The dots only, like the
+    // click: a few dozen spheres, cheap at pointer rate (modelHit).
+    this.onModelHover = function () {};
+    this._modelHovered = null;
     this._partHoverTimer = null;
     // ...and, while a pick is armed, the face under the pointer that a click
     // would bind (or null): called on every settled move (one raycast per
@@ -338,6 +343,7 @@ export class AnnotateScene {
     this._preselectFrame = null;
     this.renderer.domElement.addEventListener("pointermove", (ev) => {
       if (this._pickFilter) { this._preselectMove(ev); return; }
+      this._modelHoverMove(ev);
       if (!this._sweep) { this._proposalHoverMove(ev); return; }
       const rect = this.renderer.domElement.getBoundingClientRect();
       const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
@@ -354,6 +360,7 @@ export class AnnotateScene {
     this.renderer.domElement.addEventListener("pointerleave", () => {
       if (this._partHoverTimer) clearTimeout(this._partHoverTimer);
       this._partHoverTimer = null;
+      this._setModelHover(null);
       if (this._pickFilter) { this._applyPreselect(null); return; }
       if (this._sweep) {
         this.onSweepHover(null, null);
@@ -1913,6 +1920,22 @@ export class AnnotateScene {
         label: sel.labelSprite ? sel.labelSprite.userData.modelLabel : null,
       } : null,
     };
+  }
+
+  _modelHoverMove(ev) {
+    if (ev.buttons) { this._setModelHover(null); return; }
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    this._setModelHover(this.modelHit(ndcX, ndcY));
+  }
+
+  _setModelHover(nodeId) {
+    const id = nodeId || null;
+    if (id === this._modelHovered) return;
+    this._modelHovered = id;
+    this.onModelHover(id);
   }
 
   // The model node whose dot is under the pointer, or null. The dots only --

@@ -901,6 +901,12 @@ body { display: flex; flex-direction: column; }
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tvcell--crop .crop-trigger.crop-trigger--thumb { padding: 0; }
+/* Part of its row since 2026-10-30, not a control of its own: the row's
+   hover is its hover, so it does not light on its own. */
+.tvcell--crop .crop-trigger:hover {
+  border-color: var(--line); color: inherit;
+}
+.tvcell--crop .crop-trigger--thumb:hover { border: none; }
 .tvrow__weight { color: var(--accent); margin-right: 4px; }
 
 /* The grid's own chips. Outlined, all of them, under the one fill rule at the
@@ -1514,7 +1520,69 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    by space and one rule, never a box. */
 .kmresults, .detail__results { margin-bottom: 14px; }
 .detail__results + .detail__preview, .kmresults + .detail__preview {
-  border-top: 1px solid var(--line); padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* --- the Preview (a_preview_pane_replaces_the_hover_popups_and_one_record_
+   backs_every_mark) ----------------------------------------------------------
+   The right-hand pane splits in two on every model page: the results above,
+   scrolling on their own, and the Preview below a rule, always on screen --
+   it is what a hover anywhere on the page writes into, so it may never be
+   scrolled away under a long chart. The Preview takes at least a little over
+   half the pane and all of whatever the results leave; its head stays put
+   while its body scrolls. The stack page's pane (`.detail` alone) keeps its
+   one scroll. */
+.tv .detail.detail--split {
+  display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0;
+}
+.detail--split > .kmresults, .detail--split > .detail__results {
+  flex: 0 1 auto; min-height: 0; overflow-y: auto;
+}
+.detail--split > .detail__preview {
+  flex: 1 0 55%; min-height: 0; display: flex; flex-direction: column;
+}
+.detail__previewhead {
+  flex: none; display: flex; align-items: center; gap: 6px; min-width: 0;
+  padding: 8px 0 6px;
+}
+.detail__previewlabel {
+  font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted);
+}
+/* The frozen element's name: one line, its whole self on hover. */
+.detail__frozen {
+  font-size: var(--t-meta); color: var(--ink); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The pin is the way to let go: quiet until it is pointed at. */
+.detail__unpin {
+  flex: none; display: inline-flex; align-items: center; padding: 1px 2px;
+  background: none; border: 1px solid transparent; border-radius: 4px;
+  color: var(--ink); cursor: pointer;
+}
+.detail__unpin:hover, .detail__unpin:focus-visible { border-color: var(--line); }
+.pinglyph__head { fill: currentColor; }
+.pinglyph__needle { stroke: currentColor; stroke-width: 1.4; fill: none; }
+.detail__previewbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 24px; }
+/* A node's sides, each with what identifies its part and its picture. */
+.detail__sides {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px; margin: 10px 0;
+}
+.detail__partsource { color: var(--muted); font-size: var(--t-meta); margin: 2px 0 4px; }
+
+/* The one thing a hover draws on the DAG: its mark's name, one line, beside
+   it (VA.hoverLabelPlacement). A halo of the page's own background keeps it
+   legible over a rail, and it takes no pointer, so it can never stand between
+   the reader and the mark they are reaching for. */
+/* The label may run left of the rails SVG into the empty pane beside it
+   (views/topology.js's labelBounds), so the SVG does not clip on its left.
+   Every other edge clips exactly as before: the right one is the grid's. */
+svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
+.rail__hoverlabel {
+  font-size: var(--t-micro); fill: var(--ink); dominant-baseline: central;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
+  pointer-events: none;
 }
 /* One grid for every verdict, so the subjects, the margins and the limits
    line up in columns whatever width each verdict word's chip is. Its

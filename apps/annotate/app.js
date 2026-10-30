@@ -3783,6 +3783,15 @@ function cmdModel(...args) {
   return window.__lastModelSelection;
 }
 
+// A message for the embedding shell, when there is one; a harness reads the
+// last of each type off window.__shellMessages.
+function postToShell(message) {
+  window.__shellMessages = window.__shellMessages || {};
+  window.__shellMessages[message.type] = message;
+  if (window.parent === window) return;
+  try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
+}
+
 // The anchors, out to the shell (embedded) and to a harness (always), once
 // per drawn frame whose numbers changed. `cleared` posts the empty message a
 // shell needs to take its leaders down when the layer goes.
@@ -5595,7 +5604,12 @@ async function main() {
     const again = was && was.kind === AA.MODEL_SELECT_KINDS[0] && was.id === nodeId;
     AA.exec(again ? ["model", "select", "clear"] : ["model", "select", "node", nodeId])
       .catch((err) => setBanner(err.message, "error"));
+    // Embedded, the shell freezes its Preview on the same anchor (or lets
+    // it go, on the second click) -- the scene's click and the DAG's are one.
+    postToShell(AA.modelPickMessage(nodeId));
   };
+  // ...and the anchor under the pointer, which the shell previews.
+  state.scene.onModelHover = (nodeId) => postToShell(AA.modelHoverMessage(nodeId));
   Object.defineProperty(window, "__model", { get: () => state.model });
   // The same read-only convention, for sweep mode: a harness (and the
   // screenshot pass) can ask where the scrubber is and what frame rate the

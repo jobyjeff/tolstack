@@ -3765,6 +3765,22 @@
   VA.SEAM_LEADER_STATES = Object.freeze(["selected", "hot", "dim"]);
   // The scene's message carrying them (apps/annotate's AA.ANCHORS_MESSAGE).
   VA.SCENE_ANCHORS_MESSAGE = "annotate:anchors";
+  // ...and the two it posts about its anchors under the pointer
+  // (apps/annotate's AA.HOVER_MESSAGE and AA.PICK_MESSAGE): {kind, id} of the
+  // anchor hovered (both null off one), and of the anchor clicked. The page
+  // previews the first and freezes on the second (topology_app.js).
+  VA.SCENE_HOVER_MESSAGE = "annotate:hover";
+  VA.SCENE_PICK_MESSAGE = "annotate:pick";
+
+  // How long the Preview waits, once the pointer has left every mark, before
+  // it goes back to the frozen element: long enough that crossing the gap
+  // between two neighbouring marks does not flash it in between, short enough
+  // to read as "it came back".
+  VA.PREVIEW_RETURN_MS = 150;
+  // How far a press may travel and still be a click (the pane pans under a
+  // pressed pointer): a click on empty canvas lets the Preview go, a pan
+  // does not.
+  VA.PREVIEW_CLICK_SLOP_PX = 4;
   // The dot a leader ends in on the scene, in CSS pixels: a picture, like
   // VA.INTERFACE_GLYPH_PX, not a type step.
   VA.SEAM_END_RADIUS = 2.5;

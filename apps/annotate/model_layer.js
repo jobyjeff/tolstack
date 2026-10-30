@@ -531,6 +531,23 @@
   // is dropped. `screen` is {node id: [x, y] | null}; an edge is reported only
   // when it is drawn and both its ends are on screen.
   AA.ANCHORS_MESSAGE = "annotate:anchors";
+
+  // The anchor under the pointer, and the anchor clicked, out to the shell
+  // (handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_
+  // every_mark): the shell previews the first in its right-hand pane and
+  // freezes it on the second, so a 3D anchor presents the same record a DAG
+  // dot and a grid row do. {kind, id} -- the shell's own element key -- and
+  // both null off every anchor. Paired with the shell's VA.SCENE_HOVER_MESSAGE
+  // and VA.SCENE_PICK_MESSAGE by the literal both tiers assert.
+  AA.HOVER_MESSAGE = "annotate:hover";
+  AA.PICK_MESSAGE = "annotate:pick";
+  AA.modelHoverMessage = function (nodeId) {
+    return { type: AA.HOVER_MESSAGE, kind: nodeId ? AA.MODEL_SELECT_KINDS[0] : null,
+             id: nodeId || null };
+  };
+  AA.modelPickMessage = function (nodeId) {
+    return { type: AA.PICK_MESSAGE, kind: AA.MODEL_SELECT_KINDS[0], id: nodeId };
+  };
   AA.modelAnchorsMessage = function (lines, screen, strengths) {
     var round = function (p) { return p ? [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10] : null; };
     var nodes = {};

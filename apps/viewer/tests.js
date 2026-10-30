@@ -12498,6 +12498,9 @@
         ["model", "lit", "a", "b"]);
       eq(VA.sceneLitCommand(null), ["model", "lit", "all"]);
       eq(VA.SCENE_ANCHORS_MESSAGE, "annotate:anchors");
+      // The scene's hover and pick, by the literals apps/annotate asserts too.
+      eq(VA.SCENE_HOVER_MESSAGE, "annotate:hover");
+      eq(VA.SCENE_PICK_MESSAGE, "annotate:pick");
     });
 
     await test("a collapsed body is remembered per topology per reader, and an " +

@@ -268,6 +268,8 @@
       VA.writeStoredFlyoutOpen(widthStore(), false);
       paneFollowed = null;
       clearPaneHover();
+      // An anchor the pointer was on has gone with the scene.
+      setPreviewHot("scene", null);
       syncPaneHandle();
       // The leaders go with the scene; it is told everything again on reopen.
       // Its anchors too: a closed panel's canvas has no size, and what it
@@ -281,6 +283,7 @@
     });
     wirePaneHover();
     wirePaneState();
+    wirePreviewRelease();
     wireSeam();
     wireZoom();
 
@@ -390,8 +393,15 @@
         if (nodes.crop.contains && nodes.crop.contains(target)) return;
         hideCrop();
       });
+      // Escape closes an open popover; with none open it lets go of the
+      // frozen Preview (unfreeze), unless something else on the page owns
+      // the key right now -- a modal dialog, or an armed pick in the scene.
       document.addEventListener("keydown", function (event) {
-        if (event && event.key === "Escape") hideCrop();
+        if (!event || event.key !== "Escape") return;
+        if (nodes.crop && nodes.crop.style.display === "block") { hideCrop(); return; }
+        hideCrop();
+        if (modalOpen() || (sceneTree && VA.sceneRowsPressed(sceneTree.rows))) return;
+        if (state.selection) unfreeze();
       });
       // The pointer's own track, for the hover-intent corridor below. Cheap on
       // purpose: two numbers per move, and the only work beyond that happens
@@ -1106,6 +1116,197 @@
     });
   }
 
+  // --- the Preview: hover previews, click freezes (a_preview_pane_replaces_
+  // the_hover_popups_and_one_record_backs_every_mark) -------------------------
+  //
+  // Jeff, 2026-10-29: "a preview pane that shows the details (especially the
+  // thumbnail crop for the source) for whatever element is hilighted. Clicking
+  // the item then freezes the pane. If you then drag over other elements it
+  // momentarily switches to the preview to the thing you're hovering over, but
+  // if you don't click, then it returns to the last frozen item when you move
+  // the mouse away."
+  //
+  // What is shown is ONE key: the pane's hovered or focused mark, else the
+  // scene's hovered anchor, else the selection -- and the selection IS the
+  // freeze (clicking selects; selection lights the chain; one action). The
+  // body is the element's record (VA.renderTopoDetail over VA.elementRecords);
+  // the head says "Preview" and, while something is frozen, a pin and its name.
+  // A hover repaints the Preview and nothing else on the page.
+  var preview = null;          // { box, head, body, ctx, records }
+  var paneHotKey = null;       // the pane's hover/focus, an element key or null
+  var sceneHotKey = null;      // the scene's pointer on an anchor
+  var previewShown = undefined;
+  var previewReturn = null;    // the timer that hands the Preview back
+
+  function selectionKey() {
+    return state.selection ? VA.elementKey(state.selection.kind, state.selection.id) : null;
+  }
+
+  function previewKey() {
+    return paneHotKey || sceneHotKey || selectionKey();
+  }
+
+  function mountPreview(ctx) {
+    var box = VA.el("section", "detail__preview");
+    var head = VA.el("div", "detail__previewhead");
+    var body = VA.el("div", "detail__previewbody");
+    box.appendChild(head);
+    box.appendChild(body);
+    nodes.detail.appendChild(box);
+    preview = {
+      box: box, head: head, body: body,
+      ctx: Object.assign({}, ctx, { cropImages: imageCache }),
+      records: VA.elementRecords(ctx.topoProj, VA.previewRecordOptions(ctx)),
+    };
+    // The pane was rebuilt with this paint, so what it had under the pointer
+    // is gone; the scene's hover is still where it was.
+    paneHotKey = null;
+    paintPreview(true);
+  }
+
+  function unmountPreview() {
+    preview = null;
+    paneHotKey = null;
+    previewShown = undefined;
+  }
+
+  // `source` is "pane" or "scene". A key that is no element's (a study
+  // group's `study|<id>`) previews nothing and reads as leaving.
+  function setPreviewHot(source, key) {
+    if (!VA.parseElementKey(key)) key = null;
+    if (source === "pane") paneHotKey = key; else sceneHotKey = key;
+    if (previewReturn !== null) {
+      clearTimeout(previewReturn);
+      previewReturn = null;
+    }
+    if (paneHotKey || sceneHotKey) { paintPreview(); return; }
+    // Back to the frozen element a beat later, so a pointer crossing the gap
+    // between two marks does not flash it in between them.
+    previewReturn = setTimeout(function () {
+      previewReturn = null;
+      paintPreview();
+    }, VA.PREVIEW_RETURN_MS);
+  }
+
+  function paintPreview(force) {
+    if (!preview) return;
+    var key = previewKey();
+    if (!force && key === previewShown) return;
+    previewShown = key;
+    var frozen = selectionKey();
+    renderPreviewHead(frozen);
+    VA.renderTopoDetail(preview.body, Object.assign({}, preview.ctx, {
+      previewKey: key,
+      record: key ? (preview.records[key] || null) : undefined,
+    }));
+    preview.body.className = "detail__previewbody";
+    // What a reader -- and the browser tier -- can ask of the section without
+    // reading its prose: which element it shows, and why.
+    preview.box.setAttribute("data-preview-key", key || "");
+    preview.box.setAttribute("data-preview-state",
+      !key ? "empty" : key === frozen ? "frozen" : "hover");
+    fetchPreviewImages(key);
+  }
+
+  // "Preview", and while something is frozen, a pin and the frozen element's
+  // name: the pin is the way to let go (as Esc and a click on empty canvas
+  // are), so the control a reader needs is the glyph that says why it exists.
+  function renderPreviewHead(frozen) {
+    var head = preview.head;
+    VA.clear(head);
+    head.appendChild(VA.el("span", "detail__previewlabel", "Preview"));
+    var record = frozen ? preview.records[frozen] : null;
+    if (!frozen) return;
+    var name = record ? record.title : state.selection.id;
+    var unpin = VA.el("button", "detail__unpin");
+    unpin.appendChild(VA.pinGlyph());
+    unpin.setAttribute("title", "kept — click, or press Esc, to let go");
+    unpin.setAttribute("aria-label", "let go of " + name);
+    unpin.onclick = function () { unfreeze(); };
+    head.appendChild(unpin);
+    var label = VA.el("span", "detail__frozen", name);
+    label.setAttribute("title", name);
+    head.appendChild(label);
+  }
+
+  // The pictures a record shows: its crop (and a balloon crop's parts-list
+  // companion), or a node's sides' part pictures. Most are cached already --
+  // the grid's thumbnails fetch every resolved crop the topology addresses --
+  // and one that is not is fetched and the Preview repainted if it is still
+  // showing the same element.
+  function fetchPreviewImages(key) {
+    var record = key && preview ? preview.records[key] : null;
+    if (!record || !adapter) return;
+    var entries = [];
+    if (record.crop) entries.push(record.crop.entry);
+    (record.sides || []).forEach(function (side) {
+      if (side.thumb) entries.push(side.thumb.entry);
+    });
+    var pngs = [];
+    entries.forEach(function (entry) {
+      if (!entry || entry.status !== "resolved") return;
+      [entry.png, entry.companion && entry.companion.png].forEach(function (png) {
+        if (png && !Object.prototype.hasOwnProperty.call(imageCache, png) &&
+            pngs.indexOf(png) === -1) pngs.push(png);
+      });
+    });
+    if (!pngs.length) return;
+    Promise.all(pngs.map(cacheCropImage)).then(function () {
+      if (previewShown === key) paintPreview(true);
+    });
+  }
+
+  // Let go of the frozen element: the selection goes, and with it the lit
+  // chain's emphasis on the element and its leaders -- the same one action.
+  function unfreeze() {
+    if (!state.selection) return;
+    state.selection = null;
+    state.detailImage = null;
+    render();
+  }
+
+  function modalOpen() {
+    return [nodes.legendDialog, nodes.worksheetDialog,
+            document.getElementById("crop-lightbox")].some(function (dialog) {
+      return !!(dialog && dialog.open);
+    });
+  }
+
+  // A click on a scene anchor: the scene's own rule is that a second click on
+  // the selected anchor lets it go, and the page follows it.
+  function onScenePick(msg) {
+    if (!msg.kind || !msg.id) return;
+    var topoProj = currentTopology();
+    var index = VA.topologyIndex(topoProj);
+    var known = msg.kind === "node" ? index.nodes[msg.id] : index.edges[msg.id];
+    if (!known) return;
+    var key = VA.elementKey(msg.kind, msg.id);
+    if (key === selectionKey()) { unfreeze(); return; }
+    selectElement(msg.kind, msg.id);
+  }
+
+  // A click on the model's empty canvas lets go too: on the pane, anywhere
+  // that is not a mark, a row or a control, and not the end of a drag (the
+  // pane pans under a pressed pointer).
+  var PREVIEW_KEEPERS = "[data-row-kind], .rail__leaderhit, button, a, input, select, " +
+    "label, summary, th, [role=\"button\"], [role=\"separator\"], .tvgrip, tr";
+  function wirePreviewRelease() {
+    if (!nodes.pane || !nodes.pane.addEventListener) return;
+    var down = null;
+    nodes.pane.addEventListener("pointerdown", function (event) {
+      down = { x: event.clientX, y: event.clientY };
+    });
+    nodes.pane.addEventListener("click", function (event) {
+      var moved = down && (Math.abs(event.clientX - down.x) > VA.PREVIEW_CLICK_SLOP_PX ||
+        Math.abs(event.clientY - down.y) > VA.PREVIEW_CLICK_SLOP_PX);
+      down = null;
+      if (moved || !state.selection) return;
+      var target = event.target;
+      if (target && target.closest && target.closest(PREVIEW_KEEPERS)) return;
+      unfreeze();
+    });
+  }
+
   // --- crops: the grid's inline thumbnails (viewer_leader_line_grid) ---------
   //
   // The thumbnail column renders synchronously out of `imageCache`; this is
@@ -1461,6 +1662,16 @@
         sceneTree = msg;
         renderSceneSlot();
         followScenePick(msg);
+        return;
+      }
+      // The scene's pointer on an anchor previews that node; a click on one
+      // freezes it (or lets it go, the scene's own second-click rule).
+      if (msg && msg.type === VA.SCENE_HOVER_MESSAGE) {
+        setPreviewHot("scene", msg.kind && msg.id ? VA.elementKey(msg.kind, msg.id) : null);
+        return;
+      }
+      if (msg && msg.type === VA.SCENE_PICK_MESSAGE) {
+        onScenePick(msg);
         return;
       }
       if (msg && msg.type === VA.SCENE_ANCHORS_MESSAGE) {
@@ -2511,6 +2722,10 @@
         // Where a contributor borrows its band from another edge, the
         // preview pane says so and links to it (VA.kinematicBandEdges).
         bandEdges: showKinematic ? VA.kinematicBandEdges(kinematicStudy) : null,
+        // ...and the study a kinematic page's records read their contributor
+        // rows from (VA.elementRecord's `kinematicStudy`).
+        kinematicStudy: showKinematic ? kinematicStudy : null,
+        decimals: state.kinematic ? state.kinematic.display_decimals : undefined,
         unlitStyle: state.unlitStyle,
         // The bodies the reader has folded, remembered per topology
         // (VA.readCollapsedBodies), and the sub-stacks a kinematic page
@@ -2556,7 +2771,13 @@
         onSelect: selectElement, onCropShow: showCrop,
         // The leaders across the seam light with the pane's hover, and are
         // re-drawn after every paint of it (a respine's frames included).
-        onHot: function (key) { paneHot = key; scheduleSeamDraw(); },
+        // ...and the Preview, which shows whatever is hovered or focused on
+        // any tier and returns to the frozen element when nothing is.
+        onHot: function (key) {
+          paneHot = key;
+          scheduleSeamDraw();
+          setPreviewHot("pane", key);
+        },
         onPainted: scheduleSeamDraw,
         // The hover reference cards (viewer_hover_cards_and_deep_links): the
         // crop trigger, the merged component cell and the confidence chip all
@@ -2629,6 +2850,7 @@
       // re-rendering the page around them was what coupled the two.
       repaintDag = function (rewound) {
         paneHot = null;
+        setPreviewHot("pane", null);
         if (rewound) VA.renderTopoToolbar(nodes.toolbar, state, topoProj, toolbarHandlers);
         VA.renderTopoPane(nodes.pane, ctx);
         if (rewound) nodes.pane.scrollTop = 0;
@@ -2676,7 +2898,8 @@
     // them. One page shape for every study kind (2026-10-28).
     if (showDag || showKinematic) {
       VA.clear(nodes.detail);
-      nodes.detail.className = "detail";
+      // Split: the results scroll above, the Preview stays below (topology.css).
+      nodes.detail.className = showDag ? "detail detail--split" : "detail";
       if (showKinematic) {
         var kinematicCtx = {
           kinematic: state.kinematic,
@@ -2699,14 +2922,17 @@
         nodes.detail.appendChild(chainResults);
       }
       if (showDag) {
-        // VA.renderTopoDetail owns its root's class; the preview is a part of
-        // the pane here, not the pane.
-        var preview = VA.renderTopoDetail(VA.el("div"), ctx);
-        preview.className = "detail__preview";
-        nodes.detail.appendChild(preview);
+        // The Preview (a_preview_pane_replaces_the_hover_popups_and_one_
+        // record_backs_every_mark): under a rule, below the results. It shows
+        // whatever is hovered or focused on any tier -- a DAG mark, a grid
+        // row, a 3D anchor -- and the frozen (selected) element otherwise.
+        mountPreview(ctx);
         ensureThumbImages(topoProj);
+      } else {
+        unmountPreview();
       }
     }
+    if (!showDag && !showKinematic) unmountPreview();
     if (showStack) {
       VA.renderStack(nodes.stackview, stackProj, state.crops, {
         onCropShow: showCrop,

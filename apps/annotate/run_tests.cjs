@@ -5187,6 +5187,20 @@ check("model: an unlit line is dim or hidden by the shell's word, and nothing li
   assertEqual(AA.MODEL_DEFAULT_UNLIT, "dim", "dim is the default, as on the shell's toggle");
 });
 
+check("model: the anchor under the pointer and the anchor clicked go to the shell as its own element key", () => {
+  // The literals the shell listens for (apps/viewer/topology.js's
+  // VA.SCENE_HOVER_MESSAGE / VA.SCENE_PICK_MESSAGE, which the viewer's tier
+  // asserts by the same two strings).
+  assertEqual(AA.HOVER_MESSAGE, "annotate:hover", "the hover message type");
+  assertEqual(AA.PICK_MESSAGE, "annotate:pick", "the pick message type");
+  assertEqual(AA.modelHoverMessage("ring_base"),
+    { type: "annotate:hover", kind: "node", id: "ring_base" }, "on an anchor: its node");
+  assertEqual(AA.modelHoverMessage(null),
+    { type: "annotate:hover", kind: null, id: null }, "off every anchor: nothing");
+  assertEqual(AA.modelPickMessage("ring_seat"),
+    { type: "annotate:pick", kind: "node", id: "ring_seat" }, "a click names its node");
+});
+
 check("model: the anchors message rounds to a tenth of a pixel, drops a hidden line and a line with an end off screen", () => {
   const lines = AA.modelEdgeLines(MODEL_TOPOLOGY, modelDemoAnchors());
   const screen = { ring_base: [10.04, 20.06], ring_seat: [30, 40], ring_top: [50.55, 60],
