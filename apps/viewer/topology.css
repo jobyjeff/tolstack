@@ -405,15 +405,6 @@ body { display: flex; flex-direction: column; }
 .tv__zoom--scaled .tv__rails { position: relative; transform: translateX(var(--tv-shift, 0px)); }
 .tv__zoom--scaled .tvgrip--jog { position: relative; transform: translateX(var(--tv-shift, 0px)); }
 .tv__scroll--zoomgrab, .tv__scroll--zoomgrab * { cursor: grabbing; }
-/* COMPONENT is held beside the DAG, never under it (the_wheel_the_column_and_
-   fit_behave): the rails are sticky and the grid scrolls sideways beneath them,
-   so the first column was the one a scroll hid. `--tv-rail-w` is the SVG's
-   width (views/topology.js); the cell is opaque only while something slides
-   under it. At a scale other than 1 it rides `--tv-shift` as the rails do. */
-.tvcell--component { position: sticky; left: var(--tv-rail-w, 0px); z-index: 1; }
-.tv__zoom--shifted .tvcell--component { background-color: var(--bg); }
-.tv__zoom--shifted .tvheadtable th.tvcell--component { background-color: var(--panel); }
-.tv__zoom--scaled .tvcell--component { position: relative; left: auto; transform: translateX(var(--tv-shift, 0px)); }
 .tv__body { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
 /* The rails stay put when the grid is scrolled sideways: a six-column grid is
    wider than the pane, and rails that scrolled off the left would leave the
