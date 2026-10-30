@@ -2630,50 +2630,48 @@
       .concat(out.filter(function (g) { return g.selected; }));
   };
 
-  // Which containers the walk draws (Jeff, 2026-10-28): the bodies', the
-  // studies', both, or neither. One toolbar button cycling through `next`, the
-  // same shape as VA.UNLIT_STYLES, remembered per topology per reader.
-  VA.GROUP_FILTERS = {
-    bodies:  { label: "bodies",  next: "studies", bodies: true,  studies: false,
-               title: "Bodies are drawn as grey containers. Click to show study groups instead." },
-    studies: { label: "studies", next: "both",    bodies: false, studies: true,
-               title: "Each study is drawn as a see-through group. Click to show both." },
-    both:    { label: "both",    next: "none",    bodies: true,  studies: true,
-               title: "Bodies and study groups are both drawn. Click to hide both." },
-    none:    { label: "none",    next: "bodies",  bodies: false, studies: false,
-               title: "No containers are drawn. Click to show the bodies." },
-  };
+  // The kinds of container the walk can draw (Jeff, 2026-10-29): the bodies,
+  // and one translucent group per kind of study (VA.studyGroups' `kind`). Each
+  // is its own checkbox in the toolbar's Groups popover, so any combination is
+  // one click from any other. Every kind a group can carry is named here.
+  VA.GROUP_KINDS = [
+    { id: "bodies",    label: "Bodies" },
+    { id: "chain",     label: "Chain studies" },
+    { id: "kinematic", label: "Kinematic studies" },
+  ];
 
-  // Both once a study is open, the bodies alone before that.
-  VA.DEFAULT_GROUP_FILTER = "bodies";
-  VA.defaultGroupFilter = function (hasStudy) {
-    return hasStudy ? "both" : VA.DEFAULT_GROUP_FILTER;
-  };
+  VA.GROUP_KINDS_KEY = "tolstack.viewer.groupKinds";
 
-  VA.GROUP_FILTER_KEY = "tolstack.viewer.groupFilter";
-
-  // {topologyId: filter}; an unreadable store, or a word outside the set, reads
-  // as "not chosen" (null) so the default applies.
-  VA.readGroupFilter = function (store, topologyId) {
+  // Every kind on, minus the ones this reader switched off for this topology
+  // ({topologyId: [hidden kind, ...]} in the store). An unreadable store, or a
+  // word outside VA.GROUP_KINDS, reads as "nothing switched off".
+  VA.readGroupKinds = function (store, topologyId) {
+    var on = {};
+    VA.GROUP_KINDS.forEach(function (k) { on[k.id] = true; });
     try {
-      var raw = store && store.getItem(VA.GROUP_FILTER_KEY);
+      var raw = store && store.getItem(VA.GROUP_KINDS_KEY);
       var all = raw ? JSON.parse(raw) : {};
-      var value = all && typeof all === "object" ? all[topologyId] : null;
-      return typeof value === "string" && Object.prototype.hasOwnProperty.call(VA.GROUP_FILTERS, value)
-        ? value : null;
+      var hidden = all && typeof all === "object" ? all[topologyId] : null;
+      if (Array.isArray(hidden)) {
+        hidden.forEach(function (id) {
+          if (Object.prototype.hasOwnProperty.call(on, id)) on[id] = false;
+        });
+      }
     } catch (err) {
-      return null;
+      // Unreadable: everything on.
     }
+    return on;
   };
 
-  VA.writeGroupFilter = function (store, topologyId, value) {
+  VA.writeGroupKinds = function (store, topologyId, on) {
     try {
       if (!store) return;
-      var raw = store.getItem(VA.GROUP_FILTER_KEY);
+      var raw = store.getItem(VA.GROUP_KINDS_KEY);
       var all = raw ? JSON.parse(raw) : {};
       if (!all || typeof all !== "object" || Array.isArray(all)) all = {};
-      all[topologyId] = value;
-      store.setItem(VA.GROUP_FILTER_KEY, JSON.stringify(all));
+      all[topologyId] = VA.GROUP_KINDS.filter(function (k) { return !on[k.id]; })
+        .map(function (k) { return k.id; });
+      store.setItem(VA.GROUP_KINDS_KEY, JSON.stringify(all));
     } catch (err) {
       // A browser that refuses to store it still filters for this session.
     }

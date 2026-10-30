@@ -11440,12 +11440,7 @@
       var ctx = Object.assign({ kinematic: KIN, study: KIN_STUDY,
         topologies: KIN_TOPOLOGIES }, overrides || {});
       return render(function (r) {
-        var results = VA.el("section");
-        var body = VA.el("section");
-        r.appendChild(results);
-        r.appendChild(body);
-        VA.renderKinematicResults(results, ctx);
-        VA.renderKinematic(body, ctx);
+        r.appendChild(VA.renderKinematicResults(VA.el("section"), ctx));
       });
     }
 
@@ -12245,8 +12240,7 @@
     function paintGroups(proj, groups, filter, extra) {
       return render(function (r) {
         VA.renderTopoPane(r, Object.assign({ topoProj: proj, study: null, crops: {},
-          selection: null, onSelect: function () {}, studyGroups: groups,
-          groupFilter: filter }, extra || {}));
+          selection: null, onSelect: function () {}, studyGroups: groups }, extra || {}));
       });
     }
 
@@ -12304,47 +12298,61 @@
         ok(last("tv__studyfield") < first("tv__bodyname"), "under the body's name");
       });
 
-    await test("the groups filter has four states, each drawing what it names, and " +
-      "a reader's choice is remembered per topology", function () {
+    await test("each group kind is its own checkbox: every kind draws only what it " +
+      "names, and a reader's choice is remembered per topology", function () {
         var s = twoStudies(null);
-        var counts = function (filter) {
-          var root = paintGroups(s.proj, s.groups, filter);
+        var counts = function (kinds) {
+          var root = paintGroups(s.proj, s.groups, undefined, { groupKinds: kinds });
           return [all(root, "rect.tv__bodyfield").length,
                   all(root, "rect.tv__studyfield").length];
         };
-        eq(counts("bodies"), [2, 0]);
-        eq(counts("studies"), [0, 3]);
-        eq(counts("both"), [2, 3]);
-        eq(counts("none"), [0, 0]);
-        eq(["bodies", "studies", "both", "none"].map(function (k) {
-          return VA.GROUP_FILTERS[k].next; }), ["studies", "both", "none", "bodies"],
-          "one button cycles through all four");
-        eq([VA.defaultGroupFilter(false), VA.defaultGroupFilter(true)], ["bodies", "both"]);
-        // No word given: the default for the page, off whether a study is lit.
-        eq(counts(undefined), [2, 0], "nothing lit: bodies");
+        var on = function (ids) {
+          var o = {};
+          VA.GROUP_KINDS.forEach(function (k) { o[k.id] = ids.indexOf(k.id) >= 0; });
+          return o;
+        };
+        eq(counts(on(["bodies", "chain", "kinematic"])), [2, 3]);
+        eq(counts(on(["bodies"])), [2, 0]);
+        eq(counts(on(["chain", "kinematic"])), [0, 3]);
+        eq(counts(on(["chain"])), [0, 1], "study one alone: one run");
+        eq(counts(on(["kinematic"])), [0, 2], "study two alone: two runs");
+        eq(counts(on([])), [0, 0]);
+        eq(counts(undefined), [2, 3], "nothing chosen: everything on");
+        // Every kind a group can carry is a checkbox kind.
+        var kinds = VA.GROUP_KINDS.map(function (k) { return k.id; });
+        VA.studyGroups(s.proj, null, null).concat(s.groups).forEach(function (g) {
+          ok(kinds.indexOf(g.kind) >= 0, "group kind " + g.kind);
+        });
         var data = {};
         var store = { getItem: function (k) { return k in data ? data[k] : null; },
                       setItem: function (k, v) { data[k] = String(v); } };
-        eq(VA.readGroupFilter(store, "t"), null, "never chosen");
-        VA.writeGroupFilter(store, "t", "none");
-        VA.writeGroupFilter(store, "u", "studies");
-        eq([VA.readGroupFilter(store, "t"), VA.readGroupFilter(store, "u")], ["none", "studies"]);
-        data[VA.GROUP_FILTER_KEY] = JSON.stringify({ t: "nonsense" });
-        eq(VA.readGroupFilter(store, "t"), null, "a word outside the set reads as unchosen");
-        data[VA.GROUP_FILTER_KEY] = "{not json";
-        eq(VA.readGroupFilter(store, "t"), null, "an unreadable store reads as unchosen");
-        eq(VA.readGroupFilter(null, "t"), null);
-        VA.writeGroupFilter(null, "t", "both");
-        var clicks = 0;
+        eq(VA.readGroupKinds(store, "t"), on(kinds), "never chosen: all on");
+        VA.writeGroupKinds(store, "t", on(["bodies"]));
+        VA.writeGroupKinds(store, "u", on(["chain", "kinematic"]));
+        eq([VA.readGroupKinds(store, "t"), VA.readGroupKinds(store, "u")],
+           [on(["bodies"]), on(["chain", "kinematic"])]);
+        data[VA.GROUP_KINDS_KEY] = JSON.stringify({ t: ["nonsense", "chain"] });
+        eq(VA.readGroupKinds(store, "t"), on(["bodies", "kinematic"]),
+           "a word outside the set is ignored");
+        data[VA.GROUP_KINDS_KEY] = "{not json";
+        eq(VA.readGroupKinds(store, "t"), on(kinds), "an unreadable store: all on");
+        eq(VA.readGroupKinds(null, "t"), on(kinds));
+        VA.writeGroupKinds(null, "t", on(kinds));
+        var seen = [];
+        var live = on(kinds);
         var toolbar = render(function (r) {
           VA.renderTopoToolbar(r, { mode: "topology", topologyId: s.proj.id, studyId: null },
-            s.proj, { groupFilter: "both", onGroupFilter: function () { clicks++; } });
+            s.proj, { groupKinds: live, onGroupKind: function (k, v) { seen.push([k, v]); } });
         });
-        var button = all(toolbar, "button").filter(function (b) {
-          return b.getAttribute("id") === "group-filter-toggle"; })[0];
-        eq(button.textContent, "Groups: both");
-        button.click();
-        eq(clicks, 1);
+        var summary = all(toolbar, "summary").filter(function (b) {
+          return b.getAttribute("id") === "group-kinds-toggle"; })[0];
+        eq(summary.textContent, "Groups (3 of 3)");
+        var boxes = all(toolbar, "details.tvgroups input[type=checkbox]");
+        eq(boxes.length, 3);
+        boxes[1].checked = false;
+        boxes[1].onchange();
+        eq(seen, [["chain", false]]);
+        eq(summary.textContent, "Groups (2 of 3)");
       });
 
     await test("the selected study's group is drawn last and a step stronger; hidden, " +
@@ -17538,14 +17546,9 @@
         await test("[real] the kinematic page renders the live study: two verdicts, " +
           "one table of six contributors said once, none of them a gap", function () {
             var root = render(function (r) {
-              var results = VA.el("section");
-              var body = VA.el("section");
-              r.appendChild(results);
-              r.appendChild(body);
               var ctx = { kinematic: realKinematic, study: realKinStudy,
                 topologies: realKinTopologies };
-              VA.renderKinematicResults(results, ctx);
-              VA.renderKinematic(body, ctx);
+              r.appendChild(VA.renderKinematicResults(VA.el("section"), ctx));
             });
             eq(all(root, "div.kmverdict").length, 2);
             eq(all(root, "table.kmtable").length, 1);
@@ -17839,7 +17842,7 @@
               return render(function (r) {
                 VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
                   selection: null, onSelect: function () {}, lit: kinLit,
-                  studyGroups: groups, groupFilter: "both", unlitStyle: unlitStyle });
+                  studyGroups: groups, unlitStyle: unlitStyle });
               });
             };
             var dim = paint("dim");
@@ -17864,7 +17867,7 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, { topoProj: topo, study: study, crops: realCrops,
                 selection: null, onSelect: function () {}, studyGroups: groups,
-                groupFilter: "both" });
+                });
             });
             var mine = all(root, "rect.tv__studyfield").filter(function (n) {
               return n.getAttribute("data-study-group") === study.id;
@@ -17937,7 +17940,7 @@
             var o = {};
             o[sub.id] = true;
             var table = render(function (r) {
-              VA.renderKinematic(r, { kinematic: realKinematic, study: realKinStudy,
+              VA.renderKinematicResults(r, { kinematic: realKinematic, study: realKinStudy,
                 topologies: realKinTopologies, selection: null,
                 openSubStacks: o, onToggleSubStack: function (id) { opened.push(id); } });
             });

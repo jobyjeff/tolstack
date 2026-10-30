@@ -4580,44 +4580,45 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       await shot("4_kinematic_landed.png");
     }
 
-    // --- the Groups filter on the real page (a_study_is_a_translucent_group_on_
-    //     the_dag): a study opens with both containers drawn, and one button
-    //     walks bodies -> studies -> both -> none.
+    // --- the Groups checkboxes on the real page: a study opens with every
+    //     container drawn, and each checkbox hides exactly its own kind.
     const groupsNow = () => page.evaluate(() => ({
-      button: document.querySelector("#group-filter-toggle").textContent,
+      button: document.querySelector("#group-kinds-toggle").textContent,
       bodies: document.querySelectorAll("#topopane rect.tv__bodyfield").length,
+      chain: document.querySelectorAll("#topopane rect.tv__studyfield--chain").length,
+      kinematic: document.querySelectorAll("#topopane rect.tv__studyfield--kinematic").length,
       studies: document.querySelectorAll("#topopane rect.tv__studyfield").length,
       selected: document.querySelectorAll("#topopane rect.tv__studyfield--selected").length,
       names: document.querySelectorAll("#topopane text.tv__studyname").length,
     }));
     const groupsBoth = await groupsNow();
     push("[real] a study opens with its bodies AND every study's group drawn, the " +
-      "selected one marked", groupsBoth.button === "Groups: both" && groupsBoth.bodies > 0 &&
+      "selected one marked", groupsBoth.button === "Groups (3 of 3)" && groupsBoth.bodies > 0 &&
       groupsBoth.studies >= groupsBoth.names && groupsBoth.names > 1 && groupsBoth.selected >= 1);
-    const seen = {};
-    for (let i = 0; i < 4; i++) {
-      await page.locator("#group-filter-toggle").click();
+    await page.locator("#group-kinds-toggle").click();
+    const tick = async (kind) => {
+      await page.locator(`#group-kinds input[data-kind="${kind}"]`).click();
       await settle(200);
-      const g = await groupsNow();
-      seen[g.button] = g;
-    }
-    push("[real] the Groups button draws exactly what it names in each of its four states",
-      seen["Groups: none"].bodies === 0 && seen["Groups: none"].studies === 0 &&
-      seen["Groups: bodies"].bodies > 0 && seen["Groups: bodies"].studies === 0 &&
-      seen["Groups: studies"].bodies === 0 && seen["Groups: studies"].studies === groupsBoth.studies &&
-      seen["Groups: both"].bodies === groupsBoth.bodies &&
-      seen["Groups: both"].studies === groupsBoth.studies);
+      return groupsNow();
+    };
+    const noBodies = await tick("bodies");
+    const noChain = await tick("chain");
+    const noKin = await tick("kinematic");
+    push("[real] each Groups checkbox hides exactly its own kind's containers and the " +
+      "popover stays open while it is ticked",
+      noBodies.bodies === 0 && noBodies.studies === groupsBoth.studies &&
+      noChain.chain === 0 && noChain.kinematic === groupsBoth.kinematic &&
+      noKin.kinematic === 0 && noKin.studies === 0 && noKin.button === "Groups (0 of 3)" &&
+      await page.locator("#group-kinds").getAttribute("open") !== null);
+    await tick("bodies"); await tick("chain"); await tick("kinematic");
+    const back = await groupsNow();
+    push("[real] ticking them all again restores every container",
+      back.bodies === groupsBoth.bodies && back.studies === groupsBoth.studies);
     if (process.env.GROUPS_SHOTS) {
-      for (const word of ["both", "studies"]) {
-        while ((await groupsNow()).button !== `Groups: ${word}`) {
-          await page.locator("#group-filter-toggle").click();
-          await settle(200);
-        }
-        await page.screenshot({ path: join(process.env.GROUPS_SHOTS, `kinematic_${word}.png`) });
-      }
+      await page.screenshot({ path: join(process.env.GROUPS_SHOTS, "kinematic_groups.png") });
     }
     await page.evaluate(() => {
-      try { localStorage.removeItem("tolstack.viewer.groupFilter"); } catch (e) { /* none */ }
+      try { localStorage.removeItem("tolstack.viewer.groupKinds"); } catch (e) { /* none */ }
     });
     return reportSuite(label, checks, errors);
   } catch (err) {
@@ -10592,20 +10593,21 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         const n = document.querySelector(sel);
         return n ? n.getBoundingClientRect() : null;
       };
-      return { pane: box("#topopane"), table: box("#kinematicview table.kmtable"),
+      return { pane: box("#topopane"), table: box("#detail table.kmtable"),
         main: box(".tv__main"), detail: box("#detail"),
         verdicts: box("#detail div.kmverdict"), chart: box("#detail figure.kmchart"),
         readouts: box("#detail table.kmreadouts"), preview: box("#detail .detail__preview") };
     });
-    push("the kinematic page draws the model over its contributors in the main " +
-      "column, and its verdicts and chart at the top of the right-hand pane",
+    push("the kinematic page draws the model in the main column, and its verdicts, " +
+      "chart, readouts and contributors in one column at the top of the right-hand pane",
       await page.locator("#topopane svg.tv__rails").isVisible() &&
       await page.locator("#detail figure.kmchart svg").isVisible() &&
-      shape.table && shape.pane.top < shape.table.top &&
-      shape.verdicts && shape.chart && shape.readouts && shape.preview &&
+      shape.table && shape.verdicts && shape.chart && shape.readouts && shape.preview &&
       shape.detail.left >= shape.main.right - 8 &&
       shape.verdicts.top < shape.chart.top && shape.chart.top < shape.readouts.top &&
-      shape.readouts.top < shape.preview.top);
+      shape.readouts.top < shape.table.top && shape.table.top < shape.preview.top &&
+      await page.locator(".tv__main table.kmtable").count() === 0 &&
+      await page.locator("#kinematicview").count() === 0);
     await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops")).click();
@@ -10762,8 +10764,13 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const glyphsLit = await page.locator("#topopane use.rail__glyph--on").count();
       push("[real] the joints on the lit path wear their symbols at full opacity on the " +
         "active study, and no lit symbol is dimmed", glyphsLit >= 5 && glyphsDimmed === 0);
+      const detailBefore = await page.locator("#detail").innerHTML();
+      const contribBefore = await page.locator("#detail table.kmtable").count();
       await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(400);
+      push("[real] toggling Unused leaves the results pane's DOM identical, its " +
+        "contributor table included", contribBefore === 1 &&
+        await page.locator("#detail").innerHTML() === detailBefore);
       const hidden = await litCounts();
       const hiddenGlyphs = await page.locator("#topopane use.rail__glyph--on").count();
       const hiddenDimGlyphs = await page.locator("#topopane use.rail__glyph--off").count();
@@ -10843,7 +10850,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         await page.locator("th.kmtable__stop").count() === 2 &&
         classes.length === 6 &&
         classes.every((c) => /kmrow--term/.test(c) && !/kmrow--gap/.test(c)) &&
-        !/contributors at/.test(await page.locator("#kinematicview").innerText()));
+        !/contributors at/.test(await page.locator("#detail .kmcontrib").innerText()));
 
       // The travel between the end stops is a contributor that is a study: one
       // group row, collapsed, that opens onto its four terms with the motion

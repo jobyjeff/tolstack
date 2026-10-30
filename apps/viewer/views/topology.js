@@ -129,17 +129,48 @@
       root.appendChild(unlit);
     }
 
-    // Which containers are drawn: bodies, studies, both, none
-    // (VA.GROUP_FILTERS). The page hands in the effective word -- the reader's
-    // own for this topology, else the default -- as `handlers.groupFilter`.
-    if (handlers.onGroupFilter && topoProj) {
-      var groupPreset = VA.GROUP_FILTERS[handlers.groupFilter] ||
-        VA.GROUP_FILTERS[VA.DEFAULT_GROUP_FILTER];
-      var groupButton = VA.el("button", "ghost tvpick__mode", "Groups: " + groupPreset.label);
-      groupButton.setAttribute("id", "group-filter-toggle");
-      groupButton.setAttribute("title", groupPreset.title);
-      groupButton.onclick = handlers.onGroupFilter;
-      root.appendChild(groupButton);
+    // Which containers are drawn: one checkbox per kind (VA.GROUP_KINDS), in a
+    // popover under one button. The page hands in the effective set as
+    // `handlers.groupKinds` ({kind: bool}); a change is reported per kind and
+    // repaints the pane without rebuilding this toolbar, so the popover stays
+    // open while the reader ticks through it.
+    if (handlers.onGroupKind && topoProj) {
+      var kindsOn = handlers.groupKinds || {};
+      var menu = VA.el("details", "tvgroups");
+      menu.setAttribute("id", "group-kinds");
+      var count = function () {
+        return VA.GROUP_KINDS.filter(function (k) { return kindsOn[k.id]; }).length;
+      };
+      var summary = VA.el("summary", "ghost tvpick__mode",
+        "Groups (" + count() + " of " + VA.GROUP_KINDS.length + ")");
+      summary.setAttribute("id", "group-kinds-toggle");
+      menu.appendChild(summary);
+      var list = VA.el("div", "tvgroups__menu");
+      VA.GROUP_KINDS.forEach(function (kind) {
+        var label = VA.el("label", "tvgroups__item");
+        var box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = !!kindsOn[kind.id];
+        box.setAttribute("data-kind", kind.id);
+        box.onchange = function () {
+          kindsOn[kind.id] = box.checked;
+          summary.textContent = "Groups (" + count() + " of " + VA.GROUP_KINDS.length + ")";
+          handlers.onGroupKind(kind.id, box.checked);
+        };
+        label.appendChild(box);
+        label.appendChild(document.createTextNode(" " + kind.label));
+        list.appendChild(label);
+      });
+      menu.appendChild(list);
+      // A click anywhere else closes it; the listener goes with the toolbar.
+      var away = function (e) {
+        if (!menu.isConnected) { document.removeEventListener("click", away); return; }
+        if (!menu.contains(e.target)) menu.removeAttribute("open");
+      };
+      if (typeof document.addEventListener === "function") {
+        document.addEventListener("click", away);
+      }
+      root.appendChild(menu);
     }
 
     // The study's own 3D affordance, only once a real study is selected --
@@ -330,15 +361,16 @@
     // The page's own listener for the leaders across the seam, which light
     // with whatever the pointer lights here (topology_app.js).
     hot.onChange = ctx.onHot || null;
-    // The study groups the filter lets through (VA.GROUP_FILTERS): hidden, the
-    // walk IS the selected study's band, so its group is the only one left.
-    var groupFilter = VA.GROUP_FILTERS[ctx.groupFilter] ||
-      VA.GROUP_FILTERS[VA.defaultGroupFilter(marking)];
-    var groups = !groupFilter.studies ? [] : (ctx.studyGroups || []).filter(function (g) {
-      return !hiding || g.selected;
+    // The containers the reader has switched on (VA.GROUP_KINDS), every one
+    // where nothing was chosen. With the unlit part HIDDEN the walk IS the
+    // selected study's band, so its group is the only one left.
+    var kindsOn = ctx.groupKinds || {};
+    var showKind = function (id) { return ctx.groupKinds ? !!kindsOn[id] : true; };
+    var groups = (ctx.studyGroups || []).filter(function (g) {
+      return showKind(g.kind) && (!hiding || g.selected);
     });
     var geometry = VA.railGeometry(layout, M, positions, { x: xTween, groups: groups });
-    geometry.showBodies = groupFilter.bodies;
+    geometry.showBodies = showKind("bodies");
     // A study group's hover lights its edges' bars and grid rows: each edge
     // leads under its groups' keys (hotState's `studyOfEdge`).
     groups.forEach(function (g) {

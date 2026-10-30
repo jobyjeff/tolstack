@@ -172,7 +172,10 @@ export const DECLARED_GUARDS = {
   // 2026-10-29 (a_face_is_picked_the_way_cad_picks_it): +3, the nav's width
   // (drag sign and floor/cap, its own remembered key) and the shell's Esc
   // reading a pressed mirrored row. All three carry a spec.
-  fast: { declared: 625, enrollable: 625, names: "c84e449a967d" },
+  // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
+  // checkboxes): one swapped -- the Groups filter's four-state check for the
+  // checkbox popover's -- with its spec.
+  fast: { declared: 625, enrollable: 625, names: "1cd3f5c0faf8" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
@@ -211,7 +214,11 @@ export const DECLARED_GUARDS = {
     // 2026-10-29 (the_rearrange_animates_and_centres_the_active_study): +3 on top of
   // the pick handoff -- landing, reduced-motion landing, never-blinks -- re-measured
   // at the review merge.
-  browser: { declared: 758, enrollable: 725, names: "6be8f69ca129" },
+  // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
+  // checkboxes): +2 -- the checkboxes' own check (replacing the four-state one)
+  // and Unused leaving the results pane untouched -- one renamed for the
+  // contributors' move. Every new name carries a spec.
+  browser: { declared: 760, enrollable: 727, names: "ad2c79989214" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
