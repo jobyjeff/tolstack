@@ -29,3 +29,21 @@ Options for a strategy session:
 2. **Expand an edge row into its two ends**, each with its own armed Pick, as
    the joint rows already do for node features.
 3. Leave both as the jump to bind mode.
+
+## Addendum 2026-10-29 — the same rows cannot answer a proposal in place
+
+From `docs/sessions/HANDOFF_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md`.
+A joint **end** with an agent's open proposal now reads "suggested · high",
+lights the face when selected, and offers Accept / Pick a different face on
+the row. The two row kinds above still cannot, for the same reason (two ends,
+no default):
+
+- an **edge** feature (`pitch_link_length`, `tan_link_length` on P2) reads
+  "suggested · …" (either end's proposal) and its selection lights the face,
+  but its only action is still the jump to bind mode, where the bar's Accept /
+  Reject answer each end;
+- a **contributor** row shows no suggestion line at all.
+
+Whichever option above is chosen should carry the answer with it: option 2
+(the row expands into its two ends) gets Accept / Pick a different face for
+free, since each end would be the joint-end row that already has them.
