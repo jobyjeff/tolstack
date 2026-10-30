@@ -5756,6 +5756,54 @@
         VA.writeStoredPaneWidth(null, 600);        // must not throw
       });
 
+    await test("a mirrored row with a pressed button, at any depth, is an armed pick an " +
+      "Esc on this page cancels", function () {
+        eq(VA.sceneRowsPressed([]), false);
+        eq(VA.sceneRowsPressed([{ key: "a", buttons: [{ text: "Pick", pressed: false }] }]), false);
+        eq(VA.sceneRowsPressed([{ key: "j", rows: [{ key: "j/a",
+          buttons: [{ text: "Cancel", pressed: true }] }] }]), true);
+        eq(VA.sceneRowsPressed(null), false);
+      });
+
+    // --- the nav's width (a_face_is_picked_the_way_cad_picks_it) ------------
+    await test("the nav widens to the RIGHT, floors at its min and caps at " +
+      "half the window it is shown in", function () {
+        eq(VA.navWidthAfterDrag(300, 40, 1600), 340);
+        eq(VA.navWidthAfterDrag(300, -40, 1600), VA.NAV_WIDTH.min);
+        eq(VA.navWidthAfterDrag(300, 900, 1600), 800);
+        // No layout to go on: only the floor applies.
+        eq(VA.clampNavWidth(1400, 0), 1400);
+        // A window narrower than twice the floor never caps below the floor.
+        eq(VA.clampNavWidth(400, 300), VA.NAV_WIDTH.min);
+        eq(VA.clampNavWidth("x", 1600), VA.NAV_WIDTH.min);
+      });
+
+    await test("the nav width is remembered under its own key, and a storage " +
+      "that cannot answer is never a crash", function () {
+        var store = {
+          data: {},
+          getItem: function (k) {
+            return Object.prototype.hasOwnProperty.call(this.data, k)
+              ? this.data[k] : null;
+          },
+          setItem: function (k, v) { this.data[k] = String(v); },
+        };
+        ok(VA.NAV_WIDTH_KEY !== VA.PANE_WIDTH_KEY && VA.NAV_WIDTH_KEY !== VA.FLYOUT_WIDTH_KEY,
+          "one key per control");
+        eq(VA.readStoredNavWidth(store), null);
+        VA.writeStoredNavWidth(store, 420);
+        eq(store.data[VA.NAV_WIDTH_KEY], "420");
+        eq(VA.readStoredNavWidth(store), 420);
+        store.data[VA.NAV_WIDTH_KEY] = "garbage";
+        eq(VA.readStoredNavWidth(store), null);
+        var hostile = {
+          getItem: function () { throw new Error("SecurityError"); },
+          setItem: function () { throw new Error("SecurityError"); },
+        };
+        eq(VA.readStoredNavWidth(hostile), null);
+        VA.writeStoredNavWidth(hostile, 400);       // must not throw
+      });
+
     // --- the annotator flyout's width (flyout_resize_annotator_filter_and_
     // deselect, deliverable 1) ------------------------------------------------
     //

@@ -933,6 +933,47 @@
     writeStoredWidth(store, VA.PANE_WIDTH_KEY, VA.clampPaneWidth, px);
   };
 
+  // --- the nav's width (handoff a_face_is_picked_the_way_cad_picks_it) ------
+  //
+  // Jeff, 2026-10-29: "the left side menu needs to be draggable to resize,
+  // currently it clips off a bunch of text." The nav holds the scene's
+  // mechanism tree whenever the 3D pane is open, and a joint end's name is
+  // longer than 300px. Dragged by the divider on its right edge (topology.html),
+  // remembered, and clamped to `min` and to half the window: the nav is LEFT of
+  // its divider, so dragging right widens it, the flyout's sign and not the
+  // pane's. `room` is the window's width; 0 or absent is "no layout to go on"
+  // and leaves only the floor.
+  VA.NAV_WIDTH = { min: 260 };
+
+  VA.clampNavWidth = function (px, room) {
+    var n = Math.round(Number(px));
+    if (!isFinite(n)) return VA.NAV_WIDTH.min;
+    var have = Math.round(Number(room));
+    var cap = isFinite(have) && have > 0
+      ? Math.max(VA.NAV_WIDTH.min, Math.floor(have / 2)) : Infinity;
+    return Math.min(cap, Math.max(VA.NAV_WIDTH.min, n));
+  };
+
+  VA.navWidthAfterDrag = function (startWidth, dx, room) {
+    return VA.clampNavWidth(startWidth + dx, room);
+  };
+
+  // Its own key: the reader's preference, kept as chosen (floor only); the
+  // half-window cap is applied against the window it is shown in.
+  VA.NAV_WIDTH_KEY = "tolstack.viewer.navWidth";
+
+  VA.readStoredNavWidth = function (store) {
+    return readStoredWidth(store, VA.NAV_WIDTH_KEY, function (n) {
+      return VA.clampNavWidth(n, 0);
+    });
+  };
+
+  VA.writeStoredNavWidth = function (store, px) {
+    writeStoredWidth(store, VA.NAV_WIDTH_KEY, function (n) {
+      return VA.clampNavWidth(n, 0);
+    }, px);
+  };
+
   // --- the annotator flyout's width (Jeff, 2026-09-16) ----------------------
   //
   // "I actually want the 3d flyout on the left side, adjacent to the DAG. It

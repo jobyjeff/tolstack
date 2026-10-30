@@ -623,12 +623,57 @@ copies from the solver; the artifact never states one.
 **Nothing in this rail writes.** Hovering a feature tints its bound face (the
 `highlight` verb, narrowed to that feature's end of the edge it is bound
 through); selecting a joint or a contributor is the `inspect` verb, which
-tints and emphasises and nothing else. The one road from here to a binding is a
-feature row's **Re-pick**, which runs `goto <topology> <edge>`: that leaves sweep
+tints and emphasises and nothing else. *Superseded in part 2026-10-29:* a
+joint **end**'s Pick now arms a pick in place and its click writes a `bound`
+event ("Picking a face", below). An edge feature's and a contributor's Pick
+still run `goto <topology> <edge>`: that leaves sweep
 mode — every part back at its as-modelled placement — and lands in the bind
-flow on that edge, which is where the write boundary has always been. The tree
+flow on that edge, where an edge's two ends are chosen by name. The tree
 is built on entering sweep mode and removed on leaving it, so the bind-mode
 rail is node for node what it was before the tree existed.
+
+### Picking a face — the gestures (2026-10-29)
+
+Handoff `a_face_is_picked_the_way_cad_picks_it`, from Jeff trying to bind a
+joint end from the shell's rail: the pick was buried in the assembly, nothing
+said before or after a click whether it would do anything, and a "Go there"
+prompt re-flowed the rail. A face is now picked the way CAD picks one. **This
+table is the one statement of the gestures.**
+
+| gesture | what it does |
+|---|---|
+| **Pick** on a joint end's row | arms the pick (`arm <edge> <from\|to>`): the sweep goes to the as-modelled pose by itself, the end's part is drawn solid and every other part ghosted faint (or hidden — the armed row's toggle, remembered), the camera frames the occurrence the end's body anchors, and the row reads "at the as-modelled pose for picking" |
+| hover | pre-selects: the face under the pointer gets a yellow wash and its outline, the cursor becomes a crosshair, and the row's state line names it — face number, its surface class in the suggestion engine's words, the fitted radius where there is one |
+| hover off the part | nothing pre-selected, the default cursor |
+| left-click on a pre-selected face | binds it at that end (a `bound` event; a re-pick supersedes the end's one standing binding), the face takes the bound tint, a toast names the write, the row reads "bound · face N" (reviewer and time on hover), and the pick ends |
+| left-click on another part | nothing is written; the state line flashes "not on <part>" and the pick stays armed |
+| left-click on empty space | nothing; the pick stays armed |
+| left-click on the face already bound at that end | nothing is written; the state line says so |
+| drag | orbits; nothing is pre-selected or picked (a pick is a release that did not travel — "Binding a face", above) |
+| Esc, the row's **Cancel**, `arm off` | ends the pick and puts back what was shown and where the camera was |
+| play, seek, step, the scrubber | end the pick (the pose moves) |
+| **back to the sweep** (the bar) | once a pick has ended, returns to the frame the arm moved away from |
+
+- **Which part.** The end node's first-named part with an installed 3D model
+  (`AA.pickEndPartIds`), else the edge's. Two-part interfaces named
+  "<first part's face> against <second part>" list the face's part first, and
+  the hub's blade-1 root bearing bore is picked on the hub even though the end
+  is bound through the blade root's edge. For the other two-part nodes the
+  order is unverified ("gas-spring bushing in the pitch plate" lists the pitch
+  plate first): `docs/issues/ISSUE_20261029_an_armed_pick_assumes_the_face_is_on_the_nodes_first_named_part.md`.
+- **The filter is the raycast.** While armed the ray tests only that part, so a
+  ghosted part in front of it is looked through, not hit.
+- **Not built:** unbinding. A second click on the bound face would retract it,
+  but the event schema has no retraction (`docs/issues/ISSUE_20261029_an_armed_
+  pick_cannot_unbind_because_the_event_schema_has_no_retraction.md`). An edge
+  feature's Pick (two ends, no default between them) still jumps to bind mode.
+
+**One row template.** A rail row is the name, one state line under it, then
+its actions at the right — at every frame and in either mode. A refused Pick
+used to append its reason and a button per end (named after the interface)
+*after* the row's Pick; mirrored into the shell's nav those long-named buttons
+squeezed the name off the line, which is the re-flow Jeff saw. The reason is
+the state line now.
 
 ### The rail and the scene point at each other (2026-10-26)
 

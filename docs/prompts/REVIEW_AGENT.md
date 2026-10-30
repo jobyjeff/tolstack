@@ -5194,6 +5194,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       through `--repo` on a projection that diff built, and expect
       `topology_fixtures.js` / `fixtures.js` in the same diff
       (`ISSUE_20261026_topology_fixtures_lack_the_tags_fields_so_the_real_fixture_pairing_is_red_on_integration.md`).
+      **Second sighting 2026-10-29:** the `display_name` / `naming_note` fields
+      (the_rebuild_says_…_a_link_is_named_by_its_drawing) passed review on a
+      skipped `[real]` tier. The *next* review, armed through a scratch root,
+      found three reds on integration
+      (`ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md`).
+      A skipped `[real]` line in a review record is not a pass. Arm the tier,
+      or say it was not run.
+- [ ] **An annotator heuristic justified by a universal claim about the
+      topology's wording.** New 2026-10-29 (`a_face_is_picked_the_way_cad_picks_it`).
+      `AA.pickEndPartIds` arms the node's `parts[0]` on the strength of "all 35
+      two-part nodes are named X against Y". Re-derived, it was 34 nodes, 20 of
+      them "against". When the selection filter makes a heuristic's miss
+      unrecoverable (the other part can't be picked), recount the claim
+      against `docs/topologies/*.json` in one script.
 - [ ] **A projection field read off another repo's directory listing sits
       outside the provenance stamp.** Same review: the kinematic builder's
       `gap_rows[].drawings[].on_file` lists drawing-checker's

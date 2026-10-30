@@ -59,6 +59,17 @@ const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a, co
 // about provenance.
 const HOVER_COLOR = 0xfff4d6;
 const HOVER_OPACITY = 0.45;
+// AN ARMED PICK'S PRE-SELECTION (handoff a_face_is_picked_the_way_cad_picks_it):
+// the face a click would bind, under a resting pointer -- a yellow wash and
+// the face's own outline, as a CAD program pre-highlights. Yellow because it
+// is none of the claims above: not the pick's orange (nothing is picked yet),
+// not bound green, not the suggestion accent.
+const PRESELECT_COLOR = 0xffd84d;
+const PRESELECT_OPACITY = 0.6;
+// ...and what every OTHER part is drawn at while a pick is armed: far fainter
+// than GHOST_OPACITY, because here the other parts are only where-am-I context
+// and the part being picked on has to read as the one solid thing on screen.
+const ARMED_GHOST_OPACITY = 0.07;
 const HOVER_RENDER_ORDER = 5;
 // How much larger a hovered joint's bead is drawn: less than the selected
 // joint's SWEEP_EMPHASIS_SCALE, for the same reason the tint is pale.
@@ -255,6 +266,15 @@ export class AnnotateScene {
       if (!at) return;
       const ndcX = ((at.x - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((at.y - rect.top) / rect.height) * 2 + 1;
+      // While a pick is armed the ray sees only the armed part -- not a
+      // model dot, not a bead -- and what an unfiltered ray would have hit
+      // instead goes along as the third argument, so a click on another part
+      // can say which part it was on.
+      if (this._pickFilter) {
+        const hit = this.pick(ndcX, ndcY);
+        this.onPick(hit, null, hit ? null : this.pick(ndcX, ndcY, { all: true }));
+        return;
+      }
       // A model dot under the pointer is a node selected, and nothing else:
       // the dots are drawn over the parts, so the click is the dot's.
       const node = this.modelHit(ndcX, ndcY);
@@ -302,7 +322,15 @@ export class AnnotateScene {
     this.onModelRendered = function () {};
     this.onModelPick = function () {};
     this._partHoverTimer = null;
+    // ...and, while a pick is armed, the face under the pointer that a click
+    // would bind (or null): called on every settled move (one raycast per
+    // animation frame, against the armed part's triangles only).
+    this.onPreselect = function () {};
+    this._pickFilter = null;
+    this._preselect = null;
+    this._preselectFrame = null;
     this.renderer.domElement.addEventListener("pointermove", (ev) => {
+      if (this._pickFilter) { this._preselectMove(ev); return; }
       if (!this._sweep) { this._proposalHoverMove(ev); return; }
       const rect = this.renderer.domElement.getBoundingClientRect();
       const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
@@ -319,6 +347,7 @@ export class AnnotateScene {
     this.renderer.domElement.addEventListener("pointerleave", () => {
       if (this._partHoverTimer) clearTimeout(this._partHoverTimer);
       this._partHoverTimer = null;
+      if (this._pickFilter) { this._applyPreselect(null); return; }
       if (this._sweep) {
         this.onSweepHover(null, null);
         this.onPartHover(null);
@@ -510,6 +539,7 @@ export class AnnotateScene {
     if (!mesh) return;
     this._disposeMarks((m) => m.sha256 === sha256);
     this._disposeHoverOf(sha256);
+    if (this._preselect && this._preselect.sha256 === sha256) this._disposePreselect();
     for (const repeat of this._repeats.get(sha256) || []) this.scene.remove(repeat);
     this._repeats.delete(sha256);
     this.scene.remove(mesh);
@@ -667,11 +697,13 @@ export class AnnotateScene {
   // Ghost rendering (handoff study_3d_flyout): the whole part goes translucent
   // so the opaque bound-face marks trace the chain over it. depthWrite stays
   // off while ghosted so the marks (and other parts) show through cleanly.
-  setGhost(sha256, on) {
+  // `faint` draws it at ARMED_GHOST_OPACITY instead -- an armed pick's
+  // context parts.
+  setGhost(sha256, on, faint) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
     mesh.material.transparent = !!on;
-    mesh.material.opacity = on ? GHOST_OPACITY : 1;
+    mesh.material.opacity = on ? (faint ? ARMED_GHOST_OPACITY : GHOST_OPACITY) : 1;
     mesh.material.depthWrite = !on;
     mesh.material.needsUpdate = true;
     this.requestRender();
@@ -940,7 +972,8 @@ export class AnnotateScene {
   // picked on the tangential link's third occurrence is the same face a pick
   // on its first would bind. `occurrence` says which drawn node was hit, for
   // a reader of the pick; nothing writes it.
-  pick(ndcX, ndcY) {
+  pick(ndcX, ndcY, opts) {
+    const filter = opts && opts.all ? null : this._pickFilter;
     // The raycaster reads `matrixWorld`, which three.js refreshes only when
     // it renders -- and a placement set since the last frame (a part just
     // opened into the assembly, a sweep scrubbed) has moved the MATRIX and
@@ -954,7 +987,12 @@ export class AnnotateScene {
     // One occurrence hidden on its own (a body's checkbox) is not pickable
     // either, so the node's own flag is the test.
     const meshes = [];
+    // THE SELECTION FILTER: while a pick is armed only the armed part is
+    // tested, so a ghosted part in front of it is looked through rather than
+    // hit -- the CAD behaviour, where a filtered-out body is not there for
+    // the pointer at all.
     for (const [sha256] of this.parts) {
+      if (filter && !filter.has(sha256)) continue;
       for (const node of this._occurrenceNodes(sha256)) if (node.visible) meshes.push(node);
     }
     const hits = this.raycaster.intersectObjects(meshes, false);
@@ -970,6 +1008,146 @@ export class AnnotateScene {
       // how a pick finds its body in the sweep rail.
       key: hit.object.userData.key == null ? null : hit.object.userData.key,
     };
+  }
+
+  // --- an armed pick (handoff a_face_is_picked_the_way_cad_picks_it) --------
+
+  // Which parts the ray may hit (sha256s), or null for every part. Setting
+  // or lifting it takes any pre-selection down and puts the cursor back.
+  setPickFilter(shas) {
+    this._pickFilter = shas && shas.length ? new Set(shas) : null;
+    this._applyPreselect(null);
+    return this.pickFilter();
+  }
+
+  pickFilter() { return this._pickFilter ? Array.from(this._pickFilter) : null; }
+
+  // One raycast per animation frame while the pointer moves with no button
+  // down; a drag (orbit) pre-selects nothing, and takes down what was.
+  _preselectMove(ev) {
+    if (ev.buttons) {
+      if (this._preselectFrame !== null) cancelAnimationFrame(this._preselectFrame);
+      this._preselectFrame = null;
+      this._applyPreselect(null);
+      return;
+    }
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndcX = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    this._preselectAt = [ndcX, ndcY];
+    if (this._preselectFrame !== null) return;
+    this._preselectFrame = requestAnimationFrame(() => {
+      this._preselectFrame = null;
+      if (!this._pickFilter) return;
+      const [x, y] = this._preselectAt;
+      this._applyPreselect(this.pick(x, y));
+    });
+  }
+
+  // Pre-select a face by hand (a harness, or a keyboard path): the same
+  // drawing and the same callback a pointer gets.
+  preselect(face) {
+    this._applyPreselect(face && this._pickFilter && this._pickFilter.has(face.sha256) ? face : null);
+    return this.preselected();
+  }
+
+  preselected() {
+    const p = this._preselect;
+    return p ? { sha256: p.sha256, faceId: p.faceId,
+      overlays: p.meshes.filter((m) => m.parent).length } : null;
+  }
+
+  _applyPreselect(face) {
+    const was = this._preselect;
+    const same = was && face && was.sha256 === face.sha256 && was.faceId === face.faceId;
+    if (same) return;
+    this._disposePreselect();
+    this.renderer.domElement.style.cursor = face ? "crosshair" : "";
+    if (face) this._drawPreselect(face.sha256, face.faceId);
+    this.requestRender();
+    if (was || face) this.onPreselect(face || null);
+  }
+
+  _drawPreselect(sha256, faceId) {
+    const parent = this.parts.get(sha256);
+    const range = parent && parent.userData.faceRanges[faceId];
+    if (!range) return;
+    const AA = window.AnnotateApp;
+    const sub = AA.faceSubGeometry(parent.geometry.attributes.position.array,
+      parent.geometry.index.array, parent.userData.faceIdPerTriangle, range, faceId);
+    const fill = new THREE.BufferGeometry();
+    fill.setAttribute("position", new THREE.BufferAttribute(
+      sub.positions instanceof Float32Array ? sub.positions : new Float32Array(sub.positions), 3));
+    fill.setIndex(sub.indices);
+    const edges = AA.faceBoundaryEdges(sub.indices);
+    const linePositions = new Float32Array(edges.length * 6);
+    edges.forEach(([a, b], i) => {
+      for (let k = 0; k < 3; k++) {
+        linePositions[i * 6 + k] = sub.positions[a * 3 + k];
+        linePositions[i * 6 + 3 + k] = sub.positions[b * 3 + k];
+      }
+    });
+    const outline = new THREE.BufferGeometry();
+    outline.setAttribute("position", new THREE.BufferAttribute(linePositions, 3));
+    const fillMaterial = new THREE.MeshBasicMaterial({
+      color: PRESELECT_COLOR, transparent: true, opacity: PRESELECT_OPACITY,
+      depthWrite: false, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
+    });
+    const lineMaterial = new THREE.LineBasicMaterial({ color: PRESELECT_COLOR, depthTest: false });
+    const meshes = [];
+    for (const node of this._occurrenceNodes(sha256)) {
+      const wash = new THREE.Mesh(fill, fillMaterial);
+      wash.renderOrder = HOVER_RENDER_ORDER + 1;
+      const line = new THREE.LineSegments(outline, lineMaterial);
+      line.renderOrder = HOVER_RENDER_ORDER + 2;
+      node.add(wash);
+      node.add(line);
+      meshes.push(wash, line);
+    }
+    this._preselect = { sha256, faceId, geometries: [fill, outline],
+      materials: [fillMaterial, lineMaterial], meshes };
+  }
+
+  _disposePreselect() {
+    const p = this._preselect;
+    if (!p) return;
+    for (const m of p.meshes) if (m.parent) m.parent.remove(m);
+    p.geometries.forEach((g) => g.dispose());
+    p.materials.forEach((m) => m.dispose());
+    this._preselect = null;
+  }
+
+  // Frames the named occurrences ([{sha256, key}]; a key of null is every
+  // occurrence of that part) -- an armed pick frames the occurrence the end's
+  // body anchors, not all five pitch arms.
+  frameOccurrences(list) {
+    const box = new THREE.Box3();
+    for (const o of list || []) {
+      const mesh = this.parts.get(o.sha256);
+      if (!mesh) continue;
+      for (const node of this._occurrenceNodes(o.sha256)) {
+        if (o.key != null && node.userData.key !== o.key) continue;
+        box.union(mesh.geometry.boundingBox.clone().applyMatrix4(node.matrix));
+      }
+    }
+    if (box.isEmpty()) return false;
+    this._frameBox(box);
+    return true;
+  }
+
+  // The camera, as numbers -- what an armed pick puts back when it ends.
+  cameraState() {
+    return { position: this.camera.position.toArray(), target: this.controls.target.toArray() };
+  }
+
+  setCameraState(s) {
+    if (!s) return;
+    this.camera.position.fromArray(s.position);
+    this.controls.target.fromArray(s.target);
+    this.camera.lookAt(this.controls.target);
+    this.controls.update();
+    this.requestRender();
   }
 
   restoreColors(sha256) {

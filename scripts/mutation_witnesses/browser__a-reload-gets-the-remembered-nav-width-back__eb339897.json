@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "a reload gets the remembered nav width back",
+  "mutations": [
+    {
+      "contract": "Boot reads the remembered nav width.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Nothing else carries it across a reload.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.navWidth = VA.readStoredNavWidth(widthStore());",
+      "replace": "    state.navWidth = null;"
+    }
+  ]
+}

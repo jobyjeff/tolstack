@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "the armed row's toggle hides the other parts instead, and is remembered",
+  "mutations": [
+    {
+      "contract": "The others toggle can hide the other parts.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Jeff asked for hide as well as ghost.",
+      "file": "apps/annotate/app.js",
+      "find": "    } else if (a.others === AA.ARM_OTHERS_MODES[1]) {",
+      "replace": "    } else if (false) {"
+    }
+  ]
+}

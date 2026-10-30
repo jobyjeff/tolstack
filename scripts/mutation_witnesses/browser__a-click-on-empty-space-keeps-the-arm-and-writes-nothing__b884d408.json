@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "a click on empty space keeps the arm and writes nothing",
+  "mutations": [
+    {
+      "contract": "A miss keeps the arm.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). CAD keeps a selection mode through a miss.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (plan.action === acts[3]) return plan;",
+      "replace": "  if (plan.action === acts[3]) return disarmPick(\"cancel\");"
+    }
+  ]
+}

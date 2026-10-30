@@ -3750,6 +3750,48 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /comfortable/i.test(await page.locator("#density-toggle").textContent()));
     await page.evaluate(() => window.localStorage.removeItem("tolstack.viewer.detailWidth"));
 
+    // --- the nav's own divider (a_face_is_picked_the_way_cad_picks_it) ------
+    // Jeff: "the left side menu needs to be draggable to resize." The nav is
+    // LEFT of its divider, so a drag RIGHT widens it; the width is clamped to
+    // the floor and to half the window, and a reload gets it back.
+    const navWidth = () => page.evaluate(() => ({
+      nav: Math.round(document.getElementById("navtree").getBoundingClientRect().width),
+      stored: window.localStorage.getItem(window.ViewerApp.NAV_WIDTH_KEY),
+      floor: window.ViewerApp.NAV_WIDTH.min,
+      half: Math.floor(window.innerWidth / 2),
+    }));
+    const navDivider = page.locator("#nav-divider");
+    const navBox = (await navDivider.count()) === 1 ? await navDivider.boundingBox() : null;
+    push("the nav carries a full-height drag divider", !!navBox && navBox.height > 300);
+    // With no divider the drags below have nothing to press: they do nothing,
+    // and the checks after them say so rather than aborting the suite.
+    const dragNav = async (dx) => {
+      const box = navBox ? await navDivider.boundingBox() : null;
+      if (!box) return;
+      await page.mouse.move(box.x + box.width / 2, box.y + 120);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2 + dx, box.y + 120, { steps: 8 });
+      await page.mouse.up();
+      await page.waitForTimeout(120);
+    };
+    const navBefore = await navWidth();
+    await dragNav(140);
+    const navAfter = await navWidth();
+    push("dragging the nav's divider RIGHT widens the nav, and the width is written down",
+      navAfter.nav > navBefore.nav + 120 && Number(navAfter.stored) === navAfter.nav);
+    await page.reload();
+    await page.waitForSelector(".tvtable", { timeout: 15000 });
+    const navReloaded = await navWidth();
+    push("a reload gets the remembered nav width back",
+      Math.abs(navReloaded.nav - navAfter.nav) < 2);
+    await dragNav(-2000);
+    const navFloor = await navWidth();
+    await dragNav(4000);
+    const navCap = await navWidth();
+    push("the nav clamps at its floor and at half the window",
+      Math.abs(navFloor.nav - navFloor.floor) < 2 && Math.abs(navCap.nav - navCap.half) < 2);
+    await page.evaluate(() => window.localStorage.removeItem(window.ViewerApp.NAV_WIDTH_KEY));
+
     return reportSuite(label, checks, errors);
   } catch (err) {
     return reportAbortedSuite(label, checks, errors, err);
@@ -7268,6 +7310,230 @@ const WRITE_BIND_RAIL_SNAPSHOT = process.argv.includes("--write-bind-rail-snapsh
 const SWEEP_RAIL_RUN = "vpa-pitch-p2-20261016-235852";
 const SWEEP_RAIL_STUDY = "vpa_pitch_linkage_blade_pitch_at_the_stops";
 
+// --- an armed pick (a_face_is_picked_the_way_cad_picks_it) -------------------
+//
+// ?mock=1, the synthetic crank-slider: its pitch link's one feature is node
+// `a`, bound through demo_edge_traced at its `from` end. The fixture's node
+// names no part, so an init script gives it the demo triangle (the arm body's
+// part) as the page loads -- the shared fixture is untouched, and every other
+// suite reads it as it was. Writes are the mock adapter's captured list,
+// never a folder.
+async function testAnnotateArmedPick(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    const AA = window.AnnotateApp = window.AnnotateApp || {};
+    let fixtures;
+    Object.defineProperty(AA, "FIXTURES", {
+      configurable: true,
+      get() { return fixtures; },
+      set(v) {
+        const demo = v.topologyProjection.topologies.find((t) => t.id === "demo_system");
+        demo.nodes.find((n) => n.id === "a").parts = ["demo_triangle"];
+        fixtures = v;
+      },
+    });
+  });
+  const ROW = '#sweep-tree .tree-row[data-feature="a"]';
+  // A row's shape: its children's tags and base classes, in order.
+  const rowShape = () => page.evaluate((sel) => {
+    const li = document.querySelector(sel);
+    const shape = (n) => n.tagName + "." + (n.className.split(" ")[0] || "") +
+      (n.children.length ? "[" + Array.from(n.children).map(shape).join(",") + "]" : "");
+    return li ? Array.from(li.children).map(shape) : null;
+  }, ROW);
+  const scene = () => page.evaluate((sel) => {
+    const s = window.__scene;
+    const AA = window.AnnotateApp;
+    const sha = AA.FIXTURES.demoSha;
+    const bracket = "1".repeat(63);
+    const line = document.querySelector(sel + " .tree-row__face");
+    return {
+      filter: s.pickFilter(),
+      index: window.__sweep && window.__sweep.index,
+      home: window.__sweep && window.__sweep.asModelledIndex,
+      armed: !!(window.__sweep && window.__sweep.armed),
+      triangleGhost: s.isGhosted(sha), triangleShown: s.isVisible(sha),
+      bracketGhost: s.isGhosted(bracket), bracketShown: s.isVisible(bracket),
+      bracketOpacity: s.parts.get(bracket) ? s.parts.get(bracket).material.opacity : null,
+      camera: s.cameraState(),
+      // How far the orbit target is from the armed part's drawn box centre.
+      targetToPart: (() => {
+        const mesh = s.parts.get(sha);
+        if (!mesh) return null;
+        const c = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrix)
+          .getCenter(s.camera.position.clone());
+        return c.distanceTo(s.controls.target);
+      })(),
+      line: line ? line.textContent : null,
+      pressed: (document.querySelector(sel + " .tree-row__repick") || { getAttribute: () => null })
+        .getAttribute("aria-pressed"),
+      preselected: s.preselected(),
+      cursor: s.renderer.domElement.style.cursor,
+      writes: (window.__mockWrites || []).length,
+    };
+  }, ROW);
+  // Where a face's centroid lands on the page, through its first occurrence.
+  const faceOnScreen = (faceId, sha) => page.evaluate(([f, s]) => {
+    const scn = window.__scene;
+    const mesh = scn.parts.get(s || window.AnnotateApp.FIXTURES.demoSha);
+    scn.scene.updateMatrixWorld();
+    const c = mesh.userData.manifest.faces[f].centroid_native;
+    const v = scn.camera.position.clone().set(c[0], c[1], c[2]).applyMatrix4(mesh.matrixWorld).project(scn.camera);
+    const r = scn.renderer.domElement.getBoundingClientRect();
+    return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
+  }, [faceId, sha]);
+  try {
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    await page.evaluate(() => window.AnnotateApp.exec(["sweep", "synthetic-demo-sweep"]));
+    await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree") &&
+      window.__scene.listOpenParts().length > 0, null, { timeout: 15000 });
+    // A second, unanchored part in the scene, so "every other part" is not empty.
+    await page.evaluate(() => window.AnnotateApp.exec(["show", "1".repeat(63)]));
+    await page.evaluate(() => { document.querySelector('#sweep-tree [data-joint="pitch_link"]').open = true; });
+    await page.waitForSelector(ROW, { timeout: 5000 });
+    const shapeAway = await rowShape();
+    const before = await scene();
+
+    // --- arm: the pose, the isolation, the frame, one template -------------
+    await page.locator(ROW).hover();
+    await page.locator(ROW + " .tree-row__repick").click();
+    await page.waitForFunction(() => window.__sweep.armed && window.__scene.pickFilter(), null, { timeout: 5000 });
+    const armed = await scene();
+    // What the arm saved to give back -- the camera at the moment of arming
+    // (the sweep's own framing may still have been settling when `before` was read).
+    const saved = await page.evaluate(() => window.__sweep.armed.restore.camera);
+    const sameCamera = (a, b) => !!a && !!b && a.position.concat(a.target)
+      .every((v, i) => Math.abs(v - b.position.concat(b.target)[i]) < 1e-3);
+    const shapeArmed = await rowShape();
+    push("Pick on a joint end moves the sweep to the as-modelled pose itself, with no prompt",
+      before.index !== before.home && armed.index === armed.home &&
+      !(await page.locator(".an__sweep-gate").isVisible()));
+    push("arming draws the end's part opaque and every other part ghosted faint",
+      armed.triangleShown && !armed.triangleGhost && armed.bracketGhost &&
+      armed.bracketOpacity > 0 && armed.bracketOpacity < 0.15);
+    push("arming filters the pick to the end's part and moves the camera onto it",
+      JSON.stringify(armed.filter) === JSON.stringify([await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha)]) &&
+      before.targetToPart > 5 && armed.targetToPart < 0.5);
+    push("the armed row says it is at the as-modelled pose, and its Pick reads pressed",
+      armed.line === "at the as-modelled pose for picking" && armed.pressed === "true");
+    push("one row template away from the pose and armed at it: name and state line, then " +
+      "the actions at the right", JSON.stringify(shapeAway.slice(0, 1)) === JSON.stringify(shapeArmed.slice(0, 1)) &&
+      shapeArmed.slice(1).every((s) => s.indexOf("BUTTON.") === 0) &&
+      shapeAway.slice(1).every((s) => s.indexOf("BUTTON.") === 0));
+
+    // --- the others toggle --------------------------------------------------
+    await page.locator(ROW + " .tree-row__others").click();
+    const hidden = await scene();
+    push("the armed row's toggle hides the other parts instead, and is remembered",
+      !hidden.bracketShown && await page.evaluate(() =>
+        window.localStorage.getItem("tolstack.annotate.armOthers") === "hide"));
+    await page.locator(ROW + " .tree-row__others").click();
+
+    // --- hover pre-selects, the filter rules others out ----------------------
+    // The demo triangle is flat in its own XY plane and the framing camera
+    // looks along +Y, so it is framed edge-on: tilt the view onto it (an
+    // orbit a reader would make; ending the pick still restores the camera
+    // it found before arming, which is what the restore check compares).
+    await page.evaluate(() => {
+      const s = window.__scene;
+      const t = s.cameraState().target;
+      s.setCameraState({ position: [t[0], t[1] - 6, t[2] + 12], target: t });
+    });
+    const face1 = await faceOnScreen(1);
+    await page.mouse.move(face1.x, face1.y, { steps: 3 });
+    await page.waitForFunction(() => window.__scene.preselected(), null, { timeout: 3000 }).catch(() => {});
+    const hover = await scene();
+    push("a hover over the armed part's face pre-selects it: a tint and an outline on every " +
+      "occurrence, the crosshair, and the state line names the face",
+      hover.preselected && hover.preselected.faceId === 1 && hover.preselected.overlays >= 2 &&
+      hover.cursor === "crosshair" && /^face 1( · |$)/.test(hover.line || ""));
+    const away = await page.evaluate(() => {
+      const r = window.__scene.renderer.domElement.getBoundingClientRect();
+      return { x: r.left + 8, y: r.bottom - 8 };
+    });
+    await page.mouse.move(away.x, away.y, { steps: 3 });
+    await page.waitForFunction(() => !window.__scene.preselected(), null, { timeout: 3000 }).catch(() => {});
+    const off = await scene();
+    push("off the part, nothing is pre-selected and the cursor is the default",
+      !off.preselected && off.cursor === "" && off.line === "at the as-modelled pose for picking");
+    const filtered = await page.evaluate(() => {
+      const s = window.__scene;
+      const bracket = "1".repeat(63);
+      s.scene.updateMatrixWorld();
+      const mesh = s.parts.get(bracket);
+      // The mock bracket shares the triangle's manifest, so its manifest
+      // centroid is not on its own geometry: aim at its first face's vertices.
+      const p = mesh.geometry.attributes.position.array;
+      const c = [0, 1, 2].map((k) => (p[k] + p[3 + k] + p[6 + k]) / 3);
+      const v = s.camera.position.clone().set(c[0], c[1], c[2]).applyMatrix4(mesh.matrixWorld).project(s.camera);
+      return { filtered: s.pick(v.x, v.y), all: s.pick(v.x, v.y, { all: true }) };
+    });
+    push("a ray at another part's face hits nothing while armed, and the unfiltered ray does",
+      filtered.filtered === null && filtered.all && filtered.all.sha256 === "1".repeat(63));
+    await page.evaluate(() => window.__scene.onPick(null, null, { sha256: "1".repeat(63), faceId: 0 }));
+    const refused = await scene();
+    push("a click on another part writes nothing, keeps the arm and the row says it is not on the part",
+      refused.armed && refused.writes === before.writes && /^not on /.test(refused.line || ""));
+    await page.evaluate(() => window.__scene.onPick(null, null, null));
+    push("a click on empty space keeps the arm and writes nothing",
+      (await scene()).armed && (await scene()).writes === before.writes);
+
+    // --- the click binds -----------------------------------------------------
+    await page.mouse.move(face1.x, face1.y, { steps: 3 });
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForFunction(() => !window.__sweep.armed, null, { timeout: 5000 }).catch(() => {});
+    const bound = await scene();
+    const written = await page.evaluate(() => {
+      const w = window.__mockWrites[window.__mockWrites.length - 1];
+      const e = w && (w.event || w.content || w.data || w);
+      return e ? JSON.stringify(e) : "";
+    });
+    const toast = await page.evaluate(() => (document.getElementById("an-toast") || {}).textContent || "");
+    push("a click binds face 1 at the end's own direction, into the mock's captured writes",
+      bound.writes === before.writes + 1 && written.indexOf('"face_id":1') !== -1 &&
+      written.indexOf('"direction":"from"') !== -1 && written.indexOf("demo_edge_traced") !== -1);
+    push("the row's state line reads bound, the toast names the write, and the pick disarms",
+      bound.line === "bound · face 1" && !bound.filter &&
+      /^Bound demo bolt-head bearing face to face 1 of /.test(toast));
+    // Sweep mode's own see-through setting ghosts a still part at its usual
+    // opacity; what must be gone is the armed pick's faint one.
+    push("ending the pick restores the scene and the camera it found",
+      bound.bracketOpacity > 0.15 && bound.bracketShown &&
+      sameCamera(bound.camera, saved));
+    push("the bar offers the way back to the frame the pick moved away from",
+      await page.locator(".an__sweep-back button").isVisible());
+    await page.locator(".an__sweep-back button").click();
+    push("...and it goes there", (await scene()).index === before.index);
+
+    // --- Esc restores ------------------------------------------------------------
+    await page.locator(ROW).hover();
+    await page.locator(ROW + " .tree-row__repick").click();
+    await page.waitForFunction(() => window.__sweep.armed, null, { timeout: 5000 });
+    const savedAgain = await page.evaluate(() => window.__sweep.armed.restore.camera);
+    await page.mouse.move(away.x, away.y);
+    await page.keyboard.press("Escape");
+    const escaped = await scene();
+    push("Esc ends an armed pick and puts the scene and camera back",
+      !escaped.armed && !escaped.filter && escaped.bracketOpacity > 0.15 && escaped.bracketShown &&
+      sameCamera(escaped.camera, savedAgain) &&
+      escaped.writes === before.writes + 1);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+}
+
 async function testAnnotateSweepRail(browser, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -7484,24 +7750,19 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       "on hover", clipped.clipped > 0 && clipped.unreadable.length === 0);
 
     // --- a pick that can show nothing changes nothing ---------------------------
-    // A gap edge names no part: Pick on it must leave sweep mode, the loaded
-    // parts and the tree exactly as they were, and say why on the row itself.
+    // A gap edge names no part: the jump to bind mode onto it (an edge
+    // feature's or a contributor's Pick -- the `goto` verb) must leave sweep
+    // mode, the loaded parts and the tree exactly as they were, and say why on
+    // the rows of that edge. Driven through the verb since a_face_is_picked_
+    // the_way_cad_picks_it: every rail row on THIS edge is a joint end now,
+    // and an end's Pick arms in place on its node's own part (checked below).
     const GAP_EDGE = "hub_to_pitch_plate_spindle_coaxiality";
     const beforeGap = await page.evaluate(() => ({
       sweep: !!window.__sweep, parts: window.__scene.listOpenParts().length,
       rows: document.querySelectorAll("#sweep-tree .tree-row").length,
     }));
-    const gapRow = page.locator(`#sweep-tree .tree-row[data-edge="${GAP_EDGE}"]`).first();
-    // The row sits under a collapsed joint: open every ancestor <details> first,
-    // as a reader would, so the press below is a press and not a silent no-op.
-    await page.evaluate((edge) => {
-      const r = document.querySelector(`#sweep-tree .tree-row[data-edge="${edge}"]`);
-      for (let d = r && r.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
-    }, GAP_EDGE);
-    await gapRow.hover({ timeout: 5000 }).catch(() => {});
-    let gapPressed = true;
-    await gapRow.locator(".tree-row__repick").first().click({ timeout: 5000 })
-      .catch(() => { gapPressed = false; });
+    const gapPressed = await page.evaluate(([t, e]) => window.AnnotateApp.exec(["goto", t, e])
+      .then(() => true, () => false), [topology.id, GAP_EDGE]);
     await page.waitForFunction((edge) => document.querySelector(
       `#sweep-tree .tree-row[data-edge="${edge}"] .tree-row__note`), GAP_EDGE,
     { timeout: 15000 }).catch(() => {});
@@ -7517,6 +7778,36 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       gapPressed && beforeGap.sweep && afterGap.sweep && afterGap.inSweep &&
       afterGap.parts === beforeGap.parts && afterGap.rows === beforeGap.rows &&
       afterGap.note.indexOf("names no part") !== -1);
+
+    // --- Jeff's reproduction: a joint end's Pick arms on its own part ----------
+    // a_face_is_picked_the_way_cad_picks_it: Pick on `hub blade-1 root bearing
+    // bore` goes to the as-modelled frame with no prompt, the hub alone is
+    // solid, and the ray hits only the hub; `arm off` puts it all back.
+    const BORE = "hub_blade1_root_bearing_bore";
+    await page.evaluate((f) => {
+      const r = document.querySelector(`#sweep-tree .tree-row[data-feature="${f}"][data-direction]`);
+      for (let d = r && r.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+    }, BORE);
+    const boreRow = page.locator(`#sweep-tree .tree-row[data-feature="${BORE}"][data-direction]`).first();
+    await boreRow.hover({ timeout: 5000 }).catch(() => {});
+    await boreRow.locator(".tree-row__repick").first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__sweep && window.__sweep.armed && window.__scene.pickFilter(),
+      null, { timeout: 30000 }).catch(() => {});
+    const armedBore = await page.evaluate(() => {
+      const s = window.__scene;
+      const filter = s.pickFilter() || [];
+      const others = s.listOpenParts().filter((sha) => filter.indexOf(sha) === -1 && s.isVisible(sha));
+      const meshes = window.__sweep && window.__sweep.armed ? window.__sweep.armed.partWords : "";
+      return { home: window.__sweep.index === window.__sweep.asModelledIndex, filter, meshes,
+        solid: filter.every((sha) => !s.isGhosted(sha)), othersFaint: others.length > 0 &&
+          others.every((sha) => s.isGhosted(sha) && s.parts.get(sha).material.opacity < 0.15),
+        row: (document.querySelector("#sweep-tree .tree-row--armed .tree-row__face") || {}).textContent || "" };
+    });
+    push("[real] Pick on hub blade-1 root bearing bore goes to the as-modelled frame with no " +
+      "prompt, the hub alone is solid and pickable, and every other part is ghosted faint",
+      armedBore.home && armedBore.filter.length === 1 && /hub/.test(armedBore.meshes) &&
+      armedBore.solid && armedBore.othersFaint && armedBore.row === "at the as-modelled pose for picking");
+    await page.evaluate(() => window.AnnotateApp.exec(["arm", "off"]));
 
     // --- re-pick is the jump to bind mode ---------------------------------------
     const row = page.locator('#sweep-tree [data-joint="pitch_link"] .tree-row[data-feature="pitch_link_length"]');
@@ -12288,6 +12579,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateRail(browser, label)],
       ["annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)", (label) =>
         testAnnotateSweepRail(browser, label, topologies)],
+      ["annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)", (label) =>
+        testAnnotateArmedPick(browser, label)],
       ["annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)", (label) =>
         testAnnotateRailAndScene(browser, label, topologies)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>

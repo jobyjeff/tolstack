@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "the nav clamps at its floor and at half the window",
+  "mutations": [
+    {
+      "contract": "The nav never takes more than half the window.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Without the cap a drag can cover the scene and the DAG.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      ? Math.max(VA.NAV_WIDTH.min, Math.floor(have / 2)) : Infinity;",
+      "replace": "      ? Infinity : Infinity;"
+    }
+  ]
+}

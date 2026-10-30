@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "Pick on a joint end moves the sweep to the as-modelled pose itself, with no prompt",
+  "mutations": [
+    {
+      "contract": "Arming moves the sweep to the as-modelled pose itself.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). The Go-there prompt Jeff met is what this replaces.",
+      "file": "apps/annotate/app.js",
+      "find": "    sweep.returnIndex = from;\n    setSweepIndex(sweep.asModelledIndex);",
+      "replace": "    sweep.returnIndex = from;"
+    }
+  ]
+}

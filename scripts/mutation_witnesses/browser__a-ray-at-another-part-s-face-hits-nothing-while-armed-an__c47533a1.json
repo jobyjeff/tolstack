@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "a ray at another part's face hits nothing while armed, and the unfiltered ray does",
+  "mutations": [
+    {
+      "contract": "While armed the ray tests only the armed part.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). The selection filter is the whole of decision 4.",
+      "file": "apps/annotate/scene.js",
+      "find": "      if (filter && !filter.has(sha256)) continue;",
+      "replace": "      if (false) continue;"
+    }
+  ]
+}

@@ -107,6 +107,11 @@
     // exactly the kind of preference that means the same thing on every
     // topology.
     flyoutWidth: null,
+    // How wide the nav is, in px, or null for "whatever topology.css
+    // declares" -- the same contract again, over VA.NAV_WIDTH_KEY (handoff
+    // a_face_is_picked_the_way_cad_picks_it: the scene's tree is drawn in the
+    // nav and its names were clipped at the stylesheet's width).
+    navWidth: null,
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -205,6 +210,7 @@
       worksheetClose: document.getElementById("worksheet-close"),
       detail: document.getElementById("detail"),
       detailDivider: document.getElementById("detail-divider"),
+      navDivider: document.getElementById("nav-divider"),
       crop: document.getElementById("croppop"),
       flyout: document.getElementById("annotate-flyout"),
       flyoutCollapse: document.getElementById("flyout-collapse"),
@@ -218,6 +224,9 @@
     state.detailWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
     wireDetailDivider();
+    state.navWidth = VA.readStoredNavWidth(widthStore());
+    applyNavWidth();
+    wireDivider(nodes.navDivider, { kind: "nav" });
 
     // The remembered width is the reader's PREFERENCE, kept as chosen (only
     // its own min/max applied -- a room of 0 is "no layout to go on"): at
@@ -1408,6 +1417,17 @@
 
   function wirePaneState() {
     if (typeof window === "undefined" || !window.addEventListener) return;
+    // Esc cancels an armed pick (a_face_is_picked_the_way_cad_picks_it) even
+    // when focus is HERE -- the reader pressed Pick on a mirrored row, so the
+    // keypress lands in this document and never reaches the scene's frame.
+    // Armed is the annotator's own word for it: a mirrored row with a
+    // pressed button. Nothing here knows the verb's meaning beyond its name.
+    if (document.addEventListener) {
+      document.addEventListener("keydown", function (event) {
+        if (!event || event.key !== "Escape" || !sceneTree) return;
+        if (VA.sceneRowsPressed(sceneTree.rows)) postToPane(["arm", "off"]);
+      });
+    }
     window.addEventListener("message", function (event) {
       if (!flyoutFrame || event.source !== flyoutFrame.contentWindow) return;
       if (event.origin !== window.location.origin) return;
@@ -2056,6 +2076,22 @@
     nodes.detail.style.width = state.detailWidth + "px";
   }
 
+  // The remembered nav width onto the nav, fitted to the window it is shown
+  // in (VA.clampNavWidth's half-window cap) -- or nothing, leaving the
+  // stylesheet's width standing.
+  function applyNavWidth() {
+    if (!nodes.navtree || state.navWidth === null) return;
+    var room = (typeof window !== "undefined" && window.innerWidth) || 0;
+    nodes.navtree.style.width = VA.clampNavWidth(state.navWidth, room) + "px";
+  }
+
+  function navWidthNow() {
+    var measured = nodes.navtree && nodes.navtree.offsetWidth;
+    if (typeof measured === "number" && measured > 0) return measured;
+    if (state.navWidth !== null) return state.navWidth;
+    return VA.NAV_WIDTH.min;
+  }
+
   // What a drag on the divider measures FROM. In a browser the pane's own
   // laid-out width, which is what makes the first drag continuous with
   // whatever the stylesheet declared; the remembered width where there is one;
@@ -2170,6 +2206,9 @@
     if (spec && spec.kind === "flyout") {
       return { kind: "flyout", width: flyoutWidthNow() };
     }
+    if (spec && spec.kind === "nav") {
+      return { kind: "nav", width: navWidthNow() };
+    }
     if (spec && spec.kind === "column") {
       var column = VA.topoColumn(spec.cls);
       return { kind: "column", cls: spec.cls, width: column ? column.width : 0 };
@@ -2202,6 +2241,11 @@
       // Both live in the pure layer (VA.flyoutWidthAfterDrag), not here.
       state.flyoutWidth = VA.flyoutWidthAfterDrag(from.width, dx, roomBesideFlyout(), graphNeed());
       applyFlyoutWidth();
+    } else if (from.kind === "nav") {
+      // LEFT of its divider, like the flyout: dragging right widens it.
+      state.navWidth = VA.navWidthAfterDrag(from.width, dx,
+        (typeof window !== "undefined" && window.innerWidth) || 0);
+      applyNavWidth();
     }
   }
 
@@ -2254,7 +2298,7 @@
     // own focus and needs none of what follows -- which exists because
     // render() rebuilds the column header and destroys the grip the keydown
     // came from.
-    if (spec.kind === "pane" || spec.kind === "flyout") return;
+    if (spec.kind === "pane" || spec.kind === "flyout" || spec.kind === "nav") return;
     var key = spec.kind + (spec.cls ? ":" + spec.cls : "");
     var grip = document.querySelector('[data-resize="' + key + '"]');
     if (grip && grip.focus) grip.focus();
@@ -2266,6 +2310,8 @@
     if (!spec) return;
     if (spec.kind === "pane" && state.detailWidth !== null) {
       VA.writeStoredPaneWidth(widthStore(), state.detailWidth);
+    } else if (spec.kind === "nav" && state.navWidth !== null) {
+      VA.writeStoredNavWidth(widthStore(), state.navWidth);
     } else if (spec.kind === "flyout" && state.flyoutWidth !== null) {
       flyoutWanted = state.flyoutWidth;
       VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth,
@@ -2636,9 +2682,11 @@
     if (state.connection !== VA.STATE.READY) {
       VA.clear(nodes.navtree);
       nodes.navtree.style.display = "none";
+      if (nodes.navDivider) nodes.navDivider.style.display = "none";
       return;
     }
     nodes.navtree.style.display = "";
+    if (nodes.navDivider) nodes.navDivider.style.display = "";
     var tree = VA.navTree(state.topologies, state.stacksResults, state.kinematic);
     VA.renderNavTree(nodes.navtree, tree, state, {
       onTopology: onNavTopology,

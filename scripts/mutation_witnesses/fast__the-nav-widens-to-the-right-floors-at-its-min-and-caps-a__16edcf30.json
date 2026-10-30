@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the nav widens to the RIGHT, floors at its min and caps at half the window it is shown in",
+  "mutations": [
+    {
+      "contract": "The nav is left of its divider: a drag right widens it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). The sign inverted -- the pane's, not the flyout's.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return VA.clampNavWidth(startWidth + dx, room);",
+      "replace": "    return VA.clampNavWidth(startWidth - dx, room);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an armed pick's parts are the end node's own, in the order it names them, else the edge's -- the hub bore is picked on the hub, whichever edge it is bound through",
+  "mutations": [
+    {
+      "contract": "An end's face is on its node's first-named part.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Preferring the edge's part arms the blade root for the hub's bore.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return own.length ? own : edgeParts;",
+      "replace": "    return edgeParts.length ? edgeParts : own;"
+    }
+  ]
+}

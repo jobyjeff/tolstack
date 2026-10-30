@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "one click while armed: empty space keeps the arm, another part is refused, the bound face is not written twice, any other face binds and a re-pick supersedes",
+  "mutations": [
+    {
+      "contract": "A click on the face already bound at the end writes nothing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Without the check the same face is written again.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (same) return { action: acts[2], faceId: pick.faceId };",
+      "replace": "    if (false) return { action: acts[2], faceId: pick.faceId };"
+    }
+  ]
+}

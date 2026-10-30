@@ -36,3 +36,20 @@ So the overage is contention, not suite growth. Two cheap fixes:
 
 There is no per-entry top 15 to give: the runner prints per-entry times, and
 none of this run's entries was slow out of line with its tier.
+
+## Measurement 2026-10-29 (tactical, a_face_is_picked_the_way_cad_picks_it)
+
+Same shape again. `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack` from the handoff worktree: 2187 s (36m27s) by the outer wall clock, recorded `--tier merge` and reported OVER BUDGET by 6m27s; the runner's own clock read 31m38s for `58/60 witnessed, 60/61 reached; 1 left to the sweep (budget)` (61 of 586 entries reached by the diff's hunks). The gap between the two is clean runs and the browser-slot queue, not mutated runs. Slowest entry 2m13s.
+
+## Measurement 2026-10-29 (review, a_face_is_picked_the_way_cad_picks_it)
+
+The command was `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack/data/scratch/review_face_pick --changed-since integration`,
+run on the review merge `08eb5d23`. Wall time was 1995 s (33m15s);
+`suite-time record` said OVER BUDGET by 3m15s. The runner's own figure was
+"63/63 reached in 25m38s; 0 left to the sweep", so the other ~7.5 min was the
+browser-slot queue. 59/63 were witnessed. The four NOT WITNESSED were fast
+entries whose tier was already red with no mutation: integration's
+`display_name` fixture drift
+(`ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md`).
+Each of the four was witnessed by hand instead: apply the mutation, watch the
+named check go PASS→FAIL.
