@@ -1244,6 +1244,10 @@ async function cmdSweep(target, studyId) {
     study,
     studyDecimals,
     stopId: null,
+    // The armed pick (cmdArm), or null; and the frame an armed pick moved
+    // away from, which the bar offers to go back to once the pick ends.
+    armed: null,
+    returnIndex: null,
   };
   state.isolation = null;
   state.contextEdit = { added: [], removed: [] };
@@ -1341,6 +1345,8 @@ async function reloadSweepParts() {
 function leaveSweep() {
   const sweep = state.sweep;
   if (!sweep) return null;
+  // An armed pick ends first: it holds parts it opened and a camera to give back.
+  if (sweep.armed) disarmPick("left");
   state.sweep = null;
   showSweepTip(null, null);
   state.scene.clearHover();
@@ -1736,6 +1742,9 @@ function applySweepFrame() {
     }
   }
   applyModelFrame();
+  // An armed pick's drawing outranks the per-frame visibility above (a
+  // layer toggled while armed must not bring the other parts back solid).
+  if (sweep.armed) applyArmDisplay();
   return frame;
 }
 
@@ -1768,6 +1777,7 @@ function prefersReducedMotion() {
 
 function cmdPlay() {
   const sweep = sweepState();
+  transportEndsArm();
   sweep.playing = true;
   sweep.lastTick = null;
   renderDetail();
@@ -1798,11 +1808,13 @@ function cmdLoop(value) {
 
 function cmdSeek(value) {
   const sweep = sweepState();
+  transportEndsArm();
   return setSweepIndex(AA.parseSweepSeek(value, sweep.driverValues));
 }
 
 function cmdStep(delta) {
   const sweep = sweepState();
+  transportEndsArm();
   const by = Number(delta);
   return setSweepIndex(AA.sweepStepIndex(sweep.index, isFinite(by) ? by : 1,
     sweep.artifact.points.length));
@@ -2020,6 +2032,7 @@ function renderSweepBar() {
   sweep.nodes.readouts = readouts;
 
   work.appendChild(buildSweepGate());
+  work.appendChild(buildSweepBack());
   if (sweep.artifact.topologyId === null) {
     const note = document.createElement("p");
     note.className = "an__sweep-note";
@@ -2064,6 +2077,33 @@ function buildSweepGate() {
   return gate;
 }
 
+// The way back once an armed pick has ended: an armed pick moved the sweep
+// to the as-modelled pose by itself, so the bar offers the frame it left.
+// Shown only while the pose is the as-modelled one, nothing is armed, and
+// there is a frame to go back to (renderSweepReadouts).
+function buildSweepBack() {
+  const sweep = state.sweep;
+  const line = document.createElement("p");
+  line.className = "an__sweep-back";
+  const go = document.createElement("button");
+  go.className = "an__sweep-gate-go";
+  go.textContent = AA.ARMED_PICK_WORDS.back;
+  go.onclick = async () => {
+    const back = sweep.returnIndex;
+    if (back == null) return;
+    try { await AA.exec(["seek", "#" + back]); } catch (err) { setBanner(err.message, "error"); }
+  };
+  line.appendChild(go);
+  sweep.nodes.back = line;
+  line.style.display = sweepBackShown() ? "block" : "none";
+  return line;
+}
+
+function sweepBackShown() {
+  const sweep = state.sweep;
+  return !!sweep && sweep.returnIndex != null && !sweep.armed && sweep.index === sweep.asModelledIndex;
+}
+
 // A click the frame rule refuses points at the gate line -- the one place the
 // rule is written -- instead of raising a second message of its own.
 function pulseSweepGate() {
@@ -2080,6 +2120,7 @@ function pulseSweepGate() {
 // control the pointer is holding, which would drop the drag.
 function setSweepIndexQuietly(index) {
   const sweep = state.sweep;
+  transportEndsArm();
   const last = sweep.artifact.points.length - 1;
   sweep.index = Math.min(Math.max(Number(index) || 0, 0), last);
   if (prefersReducedMotion()) sweep.index = Math.round(sweep.index);
@@ -2213,6 +2254,7 @@ function renderSweepReadouts() {
     const atHome = AA.sweepIsAsModelled(frame);
     sweep.nodes.gate.style.display = atHome ? "none" : "block";
   }
+  if (sweep.nodes.back) sweep.nodes.back.style.display = sweepBackShown() ? "block" : "none";
 }
 
 // Which occurrence each body turned out to be, how far off it was, and the
@@ -2442,6 +2484,243 @@ function occurrencesShown(list) {
     state.scene.isOccurrenceVisible(o.sha256, o.key)));
 }
 
+// --- an armed pick (handoff a_face_is_picked_the_way_cad_picks_it) ----------
+//
+// arm <edge> <from|to> | arm off | arm others <ghost|hide> -- a joint end's
+// Pick, in sweep mode. Arming moves the sweep to the as-modelled pose itself
+// (no prompt), draws the end's part opaque and every other part ghosted or
+// hidden, frames the occurrence the end's body anchors, and narrows the
+// raycast to that part: a hover pre-selects and a click binds. Ending it --
+// a bind, `arm off`, Esc, the row's Cancel, any transport verb, leaving
+// sweep mode -- puts back exactly what was shown and where the camera was.
+async function cmdArm(what, direction) {
+  const sweep = sweepState();
+  if (what === "off") return disarmPick("cancel");
+  if (what === "others") {
+    if (AA.ARM_OTHERS_MODES.indexOf(direction) === -1) {
+      throw new Error("arm others takes " + AA.ARM_OTHERS_MODES.join(" or ") + ", got " + JSON.stringify(direction));
+    }
+    AA.writeArmOthers(prefStore(), direction);
+    if (sweep.armed) {
+      sweep.armed.others = direction;
+      applyArmDisplay();
+      renderSweepRail();
+    }
+    return direction;
+  }
+  const topology = sweepTopology();
+  if (!topology) throw new Error("this run names no topology, so it has no ends to pick");
+  const edge = (topology.edges || []).find((e) => e.id === what);
+  if (!edge) throw new Error("unknown edge \"" + what + "\" in topology \"" + topology.id + "\"");
+  if (AA.DIRECTIONS.indexOf(direction) === -1) {
+    throw new Error("arm <edge> takes an end, " + AA.DIRECTIONS.join(" or ") + ", got " + JSON.stringify(direction));
+  }
+  if (sweep.armed) {
+    const again = sweep.armed.edgeId === edge.id && sweep.armed.direction === direction;
+    disarmPick("cancel");
+    if (again) return { armed: false };
+  }
+  delete state.rowNotes[edge.id];
+  const refuse = (text) => {
+    state.rowNotes[edge.id] = { text, nodeIds: [] };
+    renderSweepRail();
+    return { armed: false, note: text };
+  };
+  if (sweep.asModelledIndex === null) return refuse(AA.ARMED_PICK_WORDS.noPose);
+  const partIds = AA.pickEndPartIds(topology, edge.id, direction);
+  const targets = [];
+  for (const id of partIds) {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    if (mesh && !targets.some((t) => t.sha256 === mesh.sha256)) targets.push({ partId: id, sha256: mesh.sha256, mesh });
+  }
+  if (!targets.length) return refuse(AA.ARMED_PICK_WORDS.noPart);
+
+  // To the as-modelled pose, remembering where the reader was.
+  const from = sweep.index;
+  sweep.playing = false;
+  if (from !== sweep.asModelledIndex) {
+    sweep.returnIndex = from;
+    setSweepIndex(sweep.asModelledIndex);
+  }
+  const restore = {
+    camera: state.scene.cameraState(),
+    parts: state.scene.listOpenParts().map((sha) => ({ sha, visible: state.scene.isVisible(sha),
+      ghost: state.scene.isGhosted(sha) })),
+    opened: [],
+  };
+  for (const t of targets) {
+    if (state.scene.listOpenParts().indexOf(t.sha256) !== -1) continue;
+    await state.scene.loadPart(t.sha256);
+    restore.opened.push(t.sha256);
+  }
+  const names = AA.edgeEndNames(topology, edge);
+  sweep.armed = {
+    topologyId: topology.id, edgeId: edge.id, direction,
+    endName: names[direction] || edge.id,
+    shas: targets.map((t) => t.sha256),
+    partWords: targets.map((t) => AA.partRowWords(t.mesh, state.partNames).text).join(", "),
+    others: AA.readArmOthers(prefStore()),
+    line: AA.ARMED_PICK_WORDS.armed,
+    flash: false,
+    restore,
+  };
+  sweep.lastBound = null;
+  applyArmDisplay();
+  state.scene.setPickFilter(sweep.armed.shas);
+  // The occurrence the end's BODY anchors: a pitch arm is drawn five times
+  // and the end is on one of them.
+  const framed = [];
+  for (const t of targets) {
+    const body = (sweep.tree.bodies || []).find((b) => b.parts.indexOf(t.partId) !== -1);
+    const scoped = body ? AA.sweepPartOccurrences(sweep.occurrences, body.name, t.sha256) : [];
+    if (scoped.length) framed.push(...scoped);
+    else framed.push({ sha256: t.sha256, key: null });
+  }
+  state.scene.frameOccurrences(framed);
+  // The pre-selection line reads the suggestion engine's fit; classify now.
+  for (const t of targets) ensureFaceClasses(t.sha256).catch(() => null);
+  renderSweepRail();
+  renderDetail();
+  return { armed: true, edgeId: edge.id, direction, parts: sweep.armed.shas };
+}
+
+// What every open part looks like while armed: the armed part solid and
+// shown, the rest ghosted faint or hidden (`others`), from what was shown.
+function applyArmDisplay() {
+  const a = state.sweep && state.sweep.armed;
+  if (!a) return;
+  for (const entry of a.restore.parts.concat(a.restore.opened.map((sha) => ({ sha, visible: true })))) {
+    if (a.shas.indexOf(entry.sha) !== -1) {
+      state.scene.setVisible(entry.sha, true);
+      state.scene.setGhost(entry.sha, false);
+    } else if (a.others === AA.ARM_OTHERS_MODES[1]) {
+      state.scene.setVisible(entry.sha, false);
+    } else {
+      state.scene.setVisible(entry.sha, entry.visible);
+      state.scene.setGhost(entry.sha, true, true);
+    }
+  }
+}
+
+// End the arm and put the scene back. `reason` is what the result says.
+function disarmPick(reason) {
+  const sweep = state.sweep;
+  const a = sweep && sweep.armed;
+  if (!a) return { armed: false, reason: "not armed" };
+  sweep.armed = null;
+  state.scene.setPickFilter(null);
+  for (const entry of a.restore.parts) {
+    state.scene.setVisible(entry.sha, entry.visible);
+    state.scene.setGhost(entry.sha, entry.ghost);
+  }
+  for (const sha of a.restore.opened) state.scene.unloadPart(sha);
+  state.scene.setCameraState(a.restore.camera);
+  renderSweepRail();
+  renderDetail();
+  return { armed: false, reason };
+}
+
+// A transport verb moves the pose, so it ends the arm; and the reader has
+// left the frame the bar would have offered to go back to.
+function transportEndsArm() {
+  const sweep = state.sweep;
+  if (!sweep) return;
+  if (sweep.armed) disarmPick("moved");
+  sweep.returnIndex = null;
+}
+
+// The state line of the armed row, rewritten in place: the pointer moves
+// faster than a rebuilt rail should, and the mirror follows the text.
+function setArmedLine(text, flash) {
+  const a = state.sweep && state.sweep.armed;
+  if (!a) return;
+  a.line = text;
+  a.flash = !!flash;
+  const node = document.querySelector("#sweep-tree .tree-row--armed .tree-row__face");
+  if (!node) { renderSweepRail(); return; }
+  node.textContent = text;
+  node.classList.remove("tree-row__note--flash");
+  if (flash) { void node.offsetWidth; node.classList.add("tree-row__note--flash"); }
+}
+
+function onPreselect(face) {
+  const a = state.sweep && state.sweep.armed;
+  if (!a) return;
+  const classes = face ? state.faceClasses[face.sha256] : null;
+  setArmedLine(face ? AA.preselectWords(face.faceId, classes ? classes[face.faceId] : null)
+    : AA.ARMED_PICK_WORDS.armed);
+}
+
+// One click while armed (AA.planArmedClick decides; this does).
+async function armedClick(pick, other) {
+  const a = state.sweep.armed;
+  const record = AA.findBindingRecord(mergedIdentityProjection(),
+    AA.topologyEdgeKey(a.topologyId, a.edgeId));
+  const plan = AA.planArmedClick(pick, other, AA.endBindings(record, a.direction));
+  const acts = AA.ARMED_CLICK_ACTIONS;
+  if (plan.action === acts[3]) return plan;
+  if (plan.action === acts[1]) {
+    setArmedLine(AA.armedWords("notOn", { part: a.partWords }), true);
+    return plan;
+  }
+  if (plan.action === acts[2]) {
+    setArmedLine(AA.armedWords("sameFace", { face: plan.faceId }), true);
+    return plan;
+  }
+  const full = plan.pick.record ? plan.pick
+    : Object.assign({}, plan.pick, { record: state.scene.faceRecord(plan.pick.sha256, plan.pick.faceId) });
+  try {
+    const filenames = await existingEventFilenames();
+    const event = AA.buildBoundEvent({
+      eventId: "annotate-" + Date.now() + "-" + slugify(a.edgeId),
+      seq: filenames.length + 1,
+      createdAt: nowIso(),
+      recordedBy: AA.humanActor(AA.CONFIG.reviewer),
+      stackKey: AA.topologyEdgeKey(a.topologyId, a.edgeId),
+      geometryKey: AA.geometryKeyOfPick(full),
+      direction: a.direction,
+      compositionNote: null, ownerPart: null, gdtModifier: null,
+      generalTolRegime: null, note: null,
+      supersedes: plan.supersedes,
+    });
+    const mesh = state.meshList.find((m) => m.sha256 === full.sha256);
+    const toast = AA.armedWords("toast", { end: a.endName, face: full.faceId,
+      part: mesh ? AA.partRowWords(mesh, state.partNames).text : a.partWords });
+    await writeIdentityEvent(nextFilename(filenames, slugify(a.edgeId)), event, toast);
+    disarmPick("bound");
+    state.sweep.lastBound = { topologyId: a.topologyId, edgeId: a.edgeId, direction: a.direction,
+      faceId: full.faceId, by: String(AA.CONFIG.reviewer || ""), at: event.created_at };
+    state.scene.markFace(full.sha256, full.faceId, "bound");
+    showToast(toast);
+    renderSweepRail();
+    return { action: plan.action, faceId: full.faceId, supersedes: plan.supersedes };
+  } catch (err) {
+    // The face stays pre-selected and the row says why, in words.
+    state.scene.preselect(full);
+    setArmedLine("Bind failed: " + err.message, true);
+    return { action: "failed", error: err.message };
+  }
+}
+
+// A brief line over the scene naming what was just written.
+function showToast(text) {
+  let node = document.getElementById("an-toast");
+  if (!node) {
+    node = document.createElement("div");
+    node.id = "an-toast";
+    node.className = "an__toast";
+    node.setAttribute("role", "status");
+    document.body.appendChild(node);
+  }
+  node.textContent = text;
+  node.title = text;
+  node.classList.remove("an__toast--on");
+  void node.offsetWidth;
+  node.classList.add("an__toast--on");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => node.classList.remove("an__toast--on"), 3200);
+}
+
 // show-body <name> / hide-body <name>: every occurrence a body or a link is
 // drawn at, and no other (the body row's checkbox).
 function cmdSubjectView(visible, name) {
@@ -2594,6 +2873,16 @@ function featureRow(topology, joint, feature) {
     li.dataset.edge = via.edgeId;
     if (via.direction) li.dataset.direction = via.direction;
   }
+  // ONE ROW TEMPLATE (handoff a_face_is_picked_the_way_cad_picks_it): the
+  // name, then ONE state line under it, then the actions at the right --
+  // whatever the frame, the mode or the row's state. Until 2026-10-29 a
+  // refused Pick appended its reason AFTER the button and a link button per
+  // end of the edge, named after the interface; in the shell's mirror those
+  // long-named buttons took the line and squeezed the row's own name off it,
+  // which is the "Pick jumped to the left" Jeff saw. The reason is now the
+  // state line, and the links are gone (the reason says what to pick instead).
+  const armed = isArmedRow(topology, via);
+  const note = via.edgeId ? state.rowNotes[via.edgeId] : null;
   const text = document.createElement("span");
   text.className = "tree-row__text";
   const words = document.createElement("span");
@@ -2601,54 +2890,71 @@ function featureRow(topology, joint, feature) {
   words.textContent = name;
   text.appendChild(words);
   const face = document.createElement("span");
-  face.className = "tree-row__face";
-  face.textContent = faceWords;
+  face.className = "tree-row__face" + (note || armed ? " tree-row__note" : "");
+  // The end just bound by an armed pick says so, and who and when on hover.
+  const lb = state.sweep && state.sweep.lastBound;
+  const justBound = !armed && !note && lb && topology && lb.topologyId === topology.id &&
+    lb.edgeId === via.edgeId && lb.direction === via.direction;
+  face.textContent = armed ? state.sweep.armed.line
+    : (note ? note.text : (justBound ? AA.armedWords("bound", { face: lb.faceId }) : faceWords));
+  if (justBound) li.title += "\n" + [lb.by, lb.at].filter(Boolean).join(" · ");
+  if (armed && state.sweep.armed.flash) face.classList.add("tree-row__note--flash");
   text.appendChild(face);
   li.appendChild(text);
+  if (armed) li.classList.add("tree-row--armed");
   if (via.edgeId) {
     hoverOn(li, via.direction ? ["hover", "feature", via.edgeId, via.direction]
       : ["hover", "feature", via.edgeId]);
     const repick = document.createElement("button");
     repick.className = "tree-row__repick";
-    repick.textContent = bindingState === AA.BINDING_STATES.BOUND
-      ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick;
-    repick.title = AA.SWEEP_RAIL_WORDS.repickTitle;
-    repick.onclick = (ev) => {
-      ev.stopPropagation();
-      railExec(["goto", topology.id, via.edgeId]);
-    };
+    if (via.direction) {
+      // A joint END arms the pick in place (AA.ARMED_PICK_WORDS): the sweep
+      // goes to the as-modelled pose itself, and the scene filters to the
+      // end's part. Pressed while armed; a second press ends it.
+      repick.textContent = armed ? AA.ARMED_PICK_WORDS.cancel
+        : (bindingState === AA.BINDING_STATES.BOUND ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick);
+      repick.title = armed ? AA.ARMED_PICK_WORDS.cancelTitle : AA.ARMED_PICK_WORDS.pickTitle;
+      repick.setAttribute("aria-pressed", armed ? "true" : "false");
+      repick.onclick = (ev) => {
+        ev.stopPropagation();
+        railExec(armed ? ["arm", "off"] : ["arm", via.edgeId, via.direction]);
+      };
+    } else {
+      // An edge feature has two ends and no default between them (the
+      // 2026-10-21 wrong-end rule), so its Pick is still the jump to bind
+      // mode, where the end is chosen by name.
+      repick.textContent = bindingState === AA.BINDING_STATES.BOUND
+        ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick;
+      repick.title = AA.SWEEP_RAIL_WORDS.repickTitle;
+      repick.onclick = (ev) => {
+        ev.stopPropagation();
+        railExec(["goto", topology.id, via.edgeId]);
+      };
+    }
     li.appendChild(repick);
-    appendPickNote(li, via.edgeId, topology);
+    if (armed) {
+      // The other-parts toggle names what a press switches TO.
+      const others = document.createElement("button");
+      others.className = "tree-row__repick tree-row__others";
+      const next = AA.ARM_OTHERS_MODES.find((m) => m !== state.sweep.armed.others);
+      others.textContent = AA.ARMED_PICK_WORDS.others[next];
+      others.title = AA.ARMED_PICK_WORDS.othersTitle;
+      others.onclick = (ev) => {
+        ev.stopPropagation();
+        railExec(["arm", "others", next]);
+      };
+      li.appendChild(others);
+    }
   }
   return li;
 }
 
-// A refused pick's reason, on the row that was clicked: one muted line, then
-// a link to each end's own row (the features a binding can actually be made
-// on). The links are direct buttons so the embedded mirror carries them.
-function appendPickNote(li, edgeId, topology) {
-  const note = state.rowNotes[edgeId];
-  if (!note) return;
-  const words = document.createElement("span");
-  words.className = "tree-row__face tree-row__note";
-  words.textContent = note.text;
-  li.appendChild(words);
-  for (const nodeId of note.nodeIds || []) {
-    const node = ((topology && topology.nodes) || []).find((n) => n.id === nodeId);
-    const link = document.createElement("button");
-    link.className = "tree-row__repick";
-    link.textContent = (node && node.name) || nodeId;
-    link.onclick = (ev) => {
-      ev.stopPropagation();
-      const target = document.querySelector('#sweep-tree [data-feature="' + nodeId + '"]');
-      if (!target) return;
-      const joint = target.closest("details");
-      if (joint) joint.open = true;
-      target.scrollIntoView({ block: "nearest" });
-    };
-    li.appendChild(link);
-  }
+function isArmedRow(topology, via) {
+  const a = state.sweep && state.sweep.armed;
+  return !!(a && topology && a.topologyId === topology.id && a.edgeId === via.edgeId &&
+    a.direction === via.direction);
 }
+
 
 function contributorsGroup(topology) {
   const sweep = state.sweep;
@@ -2671,10 +2977,22 @@ function contributorsGroup(topology) {
     li.dataset.edge = row.edge;
     hoverOn(li, ["hover", "contributor", row.edge]);
     li.title = row.name + (row.magnitude ? " · " + row.magnitude : "");
+    // The feature row's template: name, then the state line a refused Pick
+    // leaves, then the value and the actions at the right.
+    const text = document.createElement("span");
+    text.className = "tree-row__text";
     const words = document.createElement("span");
     words.className = "tree-row__name";
     words.textContent = row.name;
-    li.appendChild(words);
+    text.appendChild(words);
+    const note = state.rowNotes[row.edge];
+    if (note) {
+      const line = document.createElement("span");
+      line.className = "tree-row__face tree-row__note";
+      line.textContent = note.text;
+      text.appendChild(line);
+    }
+    li.appendChild(text);
     if (row.magnitude) {
       const value = document.createElement("span");
       value.className = "tree-row__value";
@@ -2700,7 +3018,6 @@ function contributorsGroup(topology) {
       railExec(["goto", topology.id, row.edge]);
     };
     li.appendChild(pick);
-    appendPickNote(li, row.edge, topology);
     if (selected === row.edge) li.classList.add("selected");
     li.onclick = () => {
       railExec(selected === row.edge ? ["inspect", "clear"]
@@ -3330,6 +3647,7 @@ commands.register("model", cmdModel);
 commands.register("hover", cmdHover);
 commands.register("show-body", (name) => cmdSubjectView(true, name));
 commands.register("hide-body", (name) => cmdSubjectView(false, name));
+commands.register("arm", cmdArm);
 AA.exec = (input) => commands.exec(input);
 
 // The last arrival, run again -- what ticking an auto-setup box back on does.
@@ -5170,6 +5488,7 @@ async function main() {
   // The part under a pointer that has come to rest, into the rail (sweep
   // mode only; the scene asks nothing outside it).
   state.scene.onPartHover = sceneHoverPart;
+  state.scene.onPreselect = onPreselect;
   // ...and in bind mode, the proposal under a resting pointer: who proposed
   // it, how sure, and why, in the one tooltip node the joint hover uses.
   state.scene.onProposalHover = showProposalTip;
@@ -5204,6 +5523,12 @@ async function main() {
   // same keys (the scrubber itself) has focus.
   window.addEventListener("keydown", (ev) => {
     if (!state.sweep) return;
+    // Esc cancels an armed pick, wherever focus is -- the CAD gesture.
+    if (ev.key === "Escape" && state.sweep.armed) {
+      ev.preventDefault();
+      AA.exec(["arm", "off"]);
+      return;
+    }
     const target = ev.target;
     if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" ||
       target.tagName === "TEXTAREA")) return;
@@ -5226,7 +5551,12 @@ async function main() {
   // Before this, a miss set `state.currentPick = null` and left the orange
   // tint exactly where it was, and a re-click re-highlighted the same face --
   // so there were three ways to pick a face and none to unpick one.
-  state.scene.onPick = (pick, bead) => {
+  state.scene.onPick = (pick, bead, other) => {
+    // An ARMED pick owns the click: the scene has already filtered the ray
+    // to the armed part (AA.planArmedClick says what the click does).
+    if (state.sweep && state.sweep.armed) {
+      return armedClick(pick, other || null).catch((err) => setBanner(err.message, "error"));
+    }
     // IN SWEEP MODE A CLICK SELECTS IN THE RAIL, at any frame (handoff
     // the_rail_and_the_scene_point_at_each_other): a bead selects its joint,
     // a face selects its part inside the body it was picked on, and empty

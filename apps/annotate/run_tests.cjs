@@ -1740,6 +1740,69 @@ check("the type chips: the tree's own row kinds, toggled one at a time, remember
   AA.SWEEP_ROW_KINDS.forEach((k) => assertNothingBanned(AA.SWEEP_ROW_KIND_WORDS[k], "chip " + k));
 });
 
+// --- an armed pick (handoff a_face_is_picked_the_way_cad_picks_it) -----------
+
+check("an armed pick's part is the end node's part the edge also names, else the node's, " +
+  "else the edge's -- the hub bore is picked on the hub, not on the blade root", () => {
+  const topology = {
+    nodes: [
+      { id: "spindle", parts: ["hub"] },
+      { id: "bore", parts: ["hub", "blade_root"] },
+      { id: "seat" },
+    ],
+    edges: [
+      { id: "offset", part: "hub", from: "spindle", to: "bore" },
+      { id: "arm", part: "blade_root", from: "bore", to: "seat" },
+    ],
+  };
+  assertEqual(AA.pickEndPartIds(topology, "offset", "to"), ["hub"]);
+  assertEqual(AA.pickEndPartIds(topology, "arm", "from"), ["blade_root"]);
+  assertEqual(AA.pickEndPartIds(topology, "offset", "from"), ["hub"]);
+  assertEqual(AA.pickEndPartIds(topology, "arm", "to"), ["blade_root"], "a node naming no part: the edge's");
+  assertEqual(AA.pickEndPartIds(topology, "nope", "to"), []);
+});
+
+check("one click while armed: empty space keeps the arm, another part is refused, the bound " +
+  "face is not written twice, any other face binds and a re-pick supersedes", () => {
+  const acts = AA.ARMED_CLICK_ACTIONS;
+  const standing = [{ event_id: "e1", geometry_key: { source_step_sha256: "S", face_id: 4 } }];
+  assertEqual(AA.planArmedClick(null, null, standing).action, acts[3]);
+  assertEqual(AA.planArmedClick(null, { sha256: "T", faceId: 1 }, standing).action, acts[1]);
+  assertEqual(AA.planArmedClick({ sha256: "S", faceId: 4 }, null, standing).action, acts[2]);
+  const bind = AA.planArmedClick({ sha256: "S", faceId: 5 }, null, standing);
+  assertEqual([bind.action, bind.supersedes], [acts[0], "e1"]);
+  const fresh = AA.planArmedClick({ sha256: "S", faceId: 5 }, null, []);
+  assertEqual([fresh.action, fresh.supersedes], [acts[0], null]);
+  const two = standing.concat([{ event_id: "e2", geometry_key: { source_step_sha256: "S", face_id: 6 } }]);
+  assertEqual(AA.planArmedClick({ sha256: "S", faceId: 5 }, null, two).supersedes, null,
+    "two faces at one end: no single binding to replace");
+  assertEqual(AA.endBindings({ bindings: [{ direction: "to" }, { direction: "from" }] }, "to"),
+    [{ direction: "to" }]);
+});
+
+check("the pre-selection line names the face, its class in everyday words and the fitted " +
+  "radius; the others toggle is remembered and anything unreadable is ghost", () => {
+  assertEqual(AA.preselectWords(104, { surface: "spherical", radius: 5.1472 }),
+    "face 104 · " + AA.SURFACE_WORDS.spherical + " · r " + AA.formatSweepNumber(5.1472, "mm") + " mm");
+  assertEqual(AA.preselectWords(7, { surface: "planar" }), "face 7 · " + AA.SURFACE_WORDS.planar);
+  assertEqual(AA.preselectWords(7, { surface: "other" }), "face 7");
+  assertEqual(AA.preselectWords(7, null), "face 7");
+  assertEqual(AA.armedWords("toast", { end: "bore", face: 3, part: "hub" }), "Bound bore to face 3 of hub");
+  const store = { data: {}, getItem(k) { return this.data[k] === undefined ? null : this.data[k]; },
+    setItem(k, v) { this.data[k] = v; } };
+  assertEqual(AA.readArmOthers(store), AA.ARM_OTHERS_MODES[0]);
+  AA.writeArmOthers(store, "hide");
+  assertEqual(AA.readArmOthers(store), "hide");
+  store.data[AA.PREF_KEYS.armOthers] = "translucent";
+  assertEqual(AA.readArmOthers(store), "ghost");
+  assertThrows(() => AA.writeArmOthers(store, "translucent"));
+  const words = AA.ARMED_PICK_WORDS;
+  [words.armed, words.notOn, words.sameFace, words.bound, words.toast, words.noPart, words.noPose,
+    words.cancel, words.cancelTitle, words.pickTitle, words.back, words.othersTitle,
+    words.others.ghost, words.others.hide].forEach((t) => assertNothingBanned(t, "armed pick words"));
+  assertEqual(Object.keys(words.others).sort(), AA.ARM_OTHERS_MODES.slice().sort());
+});
+
 check("hover's and inspect part's grammar take what the rail sends and refuse the rest", () => {
   assertEqual(AA.parseHover("body", "blade"), { kind: "body", name: "blade" });
   assertEqual(AA.parseHover("part", "arm", "blade"), { kind: "part", name: "arm", subject: "blade" });

@@ -579,7 +579,22 @@ body {
   border-radius: 4px; padding: 0 4px; font: inherit; cursor: pointer;
 }
 .tree-row__repick:hover, .tree-row__repick:focus { color: #e8e8e8; border-color: #4a515a; outline: none; }
-.tree-row:not(:hover):not(:focus-within) .tree-row__repick { visibility: hidden; }
+.tree-row:not(:hover):not(:focus-within):not(.tree-row--armed) .tree-row__repick { visibility: hidden; }
+/* The armed row (an armed pick): the selection spine, its controls standing,
+   and a refused click flashes its state line once. */
+.tree-row--armed { box-shadow: inset 3px 0 0 #5b8dd6; }
+.tree-row__repick[aria-pressed="true"] { color: #e8e8e8; border-color: #4a515a; }
+.tree-row__note--flash { animation: an-gate-pulse .6s ease-out; }
+/* What an armed pick just wrote, over the scene for a moment. */
+.an__toast {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+  max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 4px;
+  background: #24282e; border: 1px solid #33383f; color: #e8e8e8;
+  font-size: var(--t-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20;
+}
+.an__toast--on { opacity: 1; }
+.an__sweep-back { margin: 4px 0 0; }
 .part-row--missing { color: #9aa1ab; }
 /* A feature row's second line: the surface that defines it, muted. */
 .tree-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
