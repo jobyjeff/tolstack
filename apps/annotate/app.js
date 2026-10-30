@@ -19,12 +19,14 @@ const params = new URLSearchParams(location.search);
 const MOCK = params.get("mock") === "1";
 // ?embedded=1 -- set by the viewer's shell only, never by a link a reader
 // follows (handoff the_shell_seats_the_scene_beside_the_model). The shell
-// draws this app's rail in its own nav, so here the rail and the command box
-// are not shown (style.css, `body.an--embedded`) and the rail's rows are
-// mirrored out instead (postEmbedTree). Nothing else changes: the rail is
-// still built, by the same code, and every row still runs its own handler.
-const EMBEDDED = params.get("embedded") === "1";
-if (EMBEDDED) document.body.classList.add("an--embedded");
+// draws this app's rail in its own nav, so here the rail is not shown
+// (style.css, `body.an--embedded`) and its rows are mirrored out instead
+// (postEmbedTree). The rail is still built, by the same code, and every row
+// still runs its own handler.
+// A page opened without it is not a UI: it goes to the shell (AA.shellUrl).
+const SHELL_URL = AA.shellUrl(location.search);
+if (SHELL_URL) location.replace(SHELL_URL);
+document.body.classList.add("an--embedded");
 
 const el = {
   banner: document.getElementById("banner"),
@@ -35,12 +37,9 @@ const el = {
   noticeText: document.getElementById("notice-text"),
   noticeClose: document.getElementById("notice-close"),
   connectBtn: document.getElementById("connect-btn"),
-  transportSub: document.getElementById("transport-sub"),
   // The whole bind workspace, as one node (index.html's #workspace) -- see
   // main()'s hosted branch for why it is addressed as a single thing.
   workspace: document.getElementById("workspace"),
-  topologySelect: document.getElementById("topology-select"),
-  studySelect: document.getElementById("study-select"),
   elementList: document.getElementById("element-list"),
   canvasHost: document.getElementById("canvas-host"),
   sceneEmpty: document.getElementById("scene-empty"),
@@ -55,17 +54,10 @@ const el = {
   alertPop: document.getElementById("alert-pop"),
   // Sweep mode's joint tooltip -- one node, placed at the pointer.
   sweepTip: document.getElementById("sweep-tip"),
-  // The rail's "set up automatically" menu (deliverable 3) -- the <details>
-  // and the box its checkbox rows are written into.
-  autoSetup: document.getElementById("auto-setup"),
-  autoSetupBody: document.getElementById("auto-setup-body"),
   // The top bar (deliverable 1): the always-present instruction line and its
   // element controls, and the help/settings panel that opens under them.
   detail: document.getElementById("detail"),
   hintPanel: document.getElementById("hint-panel"),
-  consoleInput: document.getElementById("console-input"),
-  consoleRun: document.getElementById("console-run"),
-  consoleOutput: document.getElementById("console-output"),
 };
 
 const state = {
@@ -201,19 +193,14 @@ function prefStore() {
 }
 
 function setBanner(text, kind) {
-  if (EMBEDDED) {
-    // One line, the whole of it on hover, until the next message or a click
-    // on its close control. Every kind lands here -- an error above all,
-    // but a warning ("pick an element first") and a write's confirmation are
-    // things the reader needs to see too.
-    el.noticeText.textContent = text || "";
-    el.noticeText.title = text || "";
-    el.notice.className = "an__notice" + (kind ? " an__notice--" + kind : "");
-    el.notice.style.display = text ? "" : "none";
-    return;
-  }
-  el.banner.textContent = text;
-  el.banner.className = "banner" + (kind ? " banner--" + kind : "");
+  // One line, the whole of it on hover, until the next message or a click
+  // on its close control. Every kind lands here -- an error above all,
+  // but a warning ("pick an element first") and a write's confirmation are
+  // things the reader needs to see too.
+  el.noticeText.textContent = text || "";
+  el.noticeText.title = text || "";
+  el.notice.className = "an__notice" + (kind ? " an__notice--" + kind : "");
+  el.notice.style.display = text ? "" : "none";
 }
 
 // --- what this page reads and whether it can write (the pane's status) ------
@@ -235,9 +222,6 @@ function paneStatusNow() {
 function renderPaneStatus() {
   const status = paneStatusNow();
   if (!status) return;
-  if (servedTransport) {
-    el.transportSub.textContent = status.sentence;
-  }
   if (window.parent === window) return;
   try {
     window.parent.postMessage({ type: "annotate:status", word: status.word,
@@ -648,7 +632,7 @@ function cmdHighlight(topologyId, edgeId, direction) {
     (sha) => open.has(sha), direction);
   window.__lastHighlight = plan.face;
   if (!plan.face) {
-    el.consoleOutput.textContent = "> highlight " + topologyId + " " + edgeId + "\n" + plan.note;
+    window.__lastHighlightNote = plan.note;
     return null;
   }
   state.scene.highlightFace(plan.face.sha256, plan.face.faceId);
@@ -856,7 +840,6 @@ async function cmdAutoFilter(key, value) {
   const on = AA.parseOnOff(value);
   state.autoSteps[key] = on;
   AA.writeStoredAutoSteps(prefStore(), state.autoSteps);
-  renderAutoSetup();
   // Two independent statements, not an if/else: turning the scope OFF and
   // turning it back ON are different jobs (one lifts what is on screen, the
   // other re-runs an arrival), and an else-branch makes each one a fallback
@@ -2405,7 +2388,6 @@ function sweepTopology() {
 // either happens, so entering and leaving cannot disagree about what moved.
 function setRailSweepPosture(on) {
   el.workspace.classList.toggle("an--sweep", on);
-  el.topologySelect.disabled = on;
   if (!on) {
     const tree = document.getElementById("sweep-tree");
     if (tree) tree.remove();
@@ -3117,9 +3099,9 @@ function renderSweepRail() {
     root = document.createElement("div");
     root.id = "sweep-tree";
     root.className = "an__tree";
-    // Under the topology select -- the one piece of the bind furniture that
-    // stays -- and above the parts panel's label.
-    el.studySelect.insertAdjacentElement("afterend", root);
+    // Above the bind furniture (the scope bar, the element list) and the
+    // parts panel's label.
+    el.railFilter.insertAdjacentElement("beforebegin", root);
   }
   // The rows are about to be replaced, and a replaced row under a still
   // pointer never fires its mouseleave: the hover goes with the old rows.
@@ -3933,59 +3915,10 @@ function precedenceNote(edge) {
   return null;
 }
 
-function renderTopologyPicker() {
-  el.topologySelect.innerHTML = "";
-  for (const t of state.topologyProjection.topologies) {
-    const opt = document.createElement("option");
-    opt.value = t.id; opt.textContent = t.title;
-    el.topologySelect.appendChild(opt);
-  }
-  if (state.topologyProjection.topologies.length) {
-    selectTopology(state.topologyProjection.topologies[0].id);
-  }
-}
-
-// The rail's drag handle: one custom property on the workspace, clamped
-// (AA.clampRailWidth) and remembered per browser. Pointer capture keeps the
-// drag alive when the pointer leaves the thin handle; the arrow keys resize it
-// for a reader with no pointer.
-function wireRailResize() {
-  const handle = document.getElementById("rail-handle");
-  if (!handle) return;
-  const apply = (width, remember) => {
-    const clamped = AA.clampRailWidth(width, window.innerWidth);
-    el.workspace.style.setProperty("--rail-w", clamped + "px");
-    if (remember) AA.writeStoredRailWidth(prefStore(), clamped);
-    return clamped;
-  };
-  const current = () => el.workspace.querySelector(".an__rail").getBoundingClientRect().width;
-  apply(AA.readStoredRailWidth(prefStore(), window.innerWidth), false);
-  handle.onpointerdown = (ev) => {
-    ev.preventDefault();
-    handle.classList.add("is-dragging");
-    if (handle.setPointerCapture) { try { handle.setPointerCapture(ev.pointerId); } catch (_) { /* synthetic */ } }
-    const left = el.workspace.getBoundingClientRect().left;
-    handle.onpointermove = (move) => { apply(move.clientX - left, false); };
-    handle.onpointerup = (up) => {
-      handle.onpointermove = null;
-      handle.onpointerup = null;
-      handle.classList.remove("is-dragging");
-      apply(up.clientX - left, true);
-    };
-  };
-  handle.onkeydown = (ev) => {
-    if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
-    ev.preventDefault();
-    apply(current() + (ev.key === "ArrowRight" ? 20 : -20), true);
-  };
-  window.addEventListener("resize", () => apply(current(), false));
-}
-
-// A native <select> cannot tooltip per option, so the select itself carries the
-// SELECTED option's full text: the clipped closed select is read in full on hover.
-function syncSelectTitle(select) {
-  const option = select.options[select.selectedIndex];
-  select.title = option ? option.textContent : "";
+// The first topology, until a goto or the shell says otherwise.
+function selectFirstTopology() {
+  const topologies = state.topologyProjection.topologies;
+  if (topologies.length) selectTopology(topologies[0].id);
 }
 
 function selectTopology(topologyId) {
@@ -3997,22 +3930,7 @@ function selectTopology(topologyId) {
   // A studyless topology has no study: the last topology's must not linger as
   // the scope of this one.
   state.currentStudy = null;
-  el.topologySelect.value = topologyId;
-  syncSelectTitle(el.topologySelect);
-  el.studySelect.innerHTML = "";
   const studies = (state.currentTopology && state.currentTopology.studies) || [];
-  for (const s of studies) {
-    const opt = document.createElement("option");
-    opt.value = s.id; opt.textContent = s.title;
-    el.studySelect.appendChild(opt);
-  }
-  if (!studies.length) {
-    const none = document.createElement("option");
-    none.value = ""; none.textContent = AA.PARTS_COPY.noStudies;
-    el.studySelect.appendChild(none);
-  }
-  el.studySelect.disabled = !studies.length;
-  syncSelectTitle(el.studySelect);
   if (studies.length) selectStudy(studies[0].id);
   else { renderElementList(); resetContext(false); }
   state.model.emphasis = null;
@@ -4025,8 +3943,6 @@ function selectStudy(studyId) {
   // Picking a study by hand is a reader saying "show me this study", which is
   // the opposite of a one-element scope -- same reasoning as selectTopology.
   clearPanelFilter();
-  el.studySelect.value = studyId;
-  syncSelectTitle(el.studySelect);
   renderElementList();
   resetContext(false);
   applyModelStyle();
@@ -4037,8 +3953,6 @@ function selectStudy(studyId) {
 function wholeTopology() {
   state.currentStudy = null;
   clearPanelFilter();
-  el.studySelect.value = "";
-  syncSelectTitle(el.studySelect);
   renderElementList();
   resetContext(false);
   applyModelStyle();
@@ -4528,23 +4442,6 @@ function settingCheckbox(label, checked, title, onSet) {
   row.appendChild(box);
   row.appendChild(document.createTextNode(label));
   return row;
-}
-
-// --- the rail's "set up automatically" menu (deliverable 3) ----------------
-//
-// Jeff: "the left side menu should have an 'auto-filter' menu at the top which
-// lets you enable/disable different parts of the selection algorithm
-// (checkboxes to auto select topology, study, part)." One row per
-// AA.AUTO_STEPS entry, so the words on the page and the steps `planArrival`
-// reads are one list.
-function renderAutoSetup() {
-  if (!el.autoSetupBody) return;
-  el.autoSetupBody.innerHTML = "";
-  for (const step of AA.AUTO_STEPS) {
-    el.autoSetupBody.appendChild(settingCheckbox(step.label,
-      state.autoSteps[step.key], step.hint,
-      (on) => AA.exec(["auto-filter", step.key, AA.onOff(on)])));
-  }
 }
 
 function labeledSelect(labelText, options, id) {
@@ -5427,7 +5324,7 @@ function embedTree() {
 // the shell clears its copy when it re-drives the scene, so it is sent again
 // even when nothing changed).
 function postEmbedTree(force) {
-  if (!EMBEDDED || window.parent === window) return;
+  if (window.parent === window) return;
   const tree = embedTree();
   const text = JSON.stringify(tree);
   if (!force && text === embedTreeSent) return;
@@ -5437,7 +5334,6 @@ function postEmbedTree(force) {
 }
 
 function watchRailForEmbed() {
-  if (!EMBEDDED) return;
   const rail = el.workspace.querySelector(".an__rail");
   if (!rail || typeof MutationObserver !== "function") return;
   new MutationObserver(() => {
@@ -5478,7 +5374,7 @@ function railGesture(msg) {
 // The embedding page's own background, so the scene and the page beside it
 // are one surface with no seam (same origin, so its token can be read).
 function adoptEmbedderBackground() {
-  if (!EMBEDDED || window.parent === window) return;
+  if (window.parent === window) return;
   let bg = "";
   try {
     bg = getComputedStyle(window.parent.document.documentElement).getPropertyValue("--bg").trim();
@@ -5491,7 +5387,7 @@ function adoptEmbedderBackground() {
 window.addEventListener("message", (ev) => {
   if (ev.origin !== window.location.origin) return;
   const msg = ev.data;
-  if (msg && msg.type === "annotate:rail" && EMBEDDED) {
+  if (msg && msg.type === "annotate:rail") {
     try { railGesture(msg); } catch (err) { setBanner(err.message, "error"); }
     return;
   }
@@ -5523,17 +5419,7 @@ async function loadAll() {
       execQueue.markLoaded();
       return;
     }
-    // A successful boot is not news in the pane: its header's status dot
-    // already says what was read. The full page keeps its line.
-    if (!EMBEDDED) {
-      setBanner(
-        "loaded " + state.topologyProjection.topologies.length + " topolog" +
-        (state.topologyProjection.topologies.length === 1 ? "y" : "ies") +
-        (state.identityProjection ? "" : " -- no feature-identity projection yet (nothing bound, or not rebuilt)"),
-        "ok"
-      );
-    }
-    renderTopologyPicker();
+    selectFirstTopology();
     state.meshList = await state.storage.listMeshes();
     const aliasDoc = await state.storage.readPartMeshAliases();
     state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
@@ -5589,23 +5475,6 @@ async function runAutotest() {
   statusEl.style.display = "block";
   statusEl.textContent = JSON.stringify(results);
   window.__autotestResults = results;
-}
-
-// --- the dev console: window.AnnotateApp.exec's own UI ---------------------
-//
-// The third consumer of the command layer, alongside the UI's own clicks and
-// the deep link -- and the shape a future vision-agent driver's own tool
-// calls would take (a command string in, a result or an error out).
-async function runConsoleCommand() {
-  const text = el.consoleInput.value.trim();
-  if (!text) return;
-  el.consoleOutput.textContent = "> " + text;
-  try {
-    const result = await AA.exec(text);
-    el.consoleOutput.textContent += "\n" + (result === undefined ? "(ok)" : JSON.stringify(result));
-  } catch (err) {
-    el.consoleOutput.textContent += "\nERROR: " + err.message;
-  }
 }
 
 async function main() {
@@ -5666,40 +5535,17 @@ async function main() {
     // Embedded, setBanner writes the pane's notice line -- which is inside the
     // workspace this branch withholds. This one sentence is the whole page,
     // so it goes on the banner band itself, shown in the pane too.
-    if (EMBEDDED) {
-      el.banner.textContent = AA.HOSTED_NOTICE;
-      el.banner.className = "banner banner--warn";
-      el.banner.style.display = "block";
-    }
+    el.banner.textContent = AA.HOSTED_NOTICE;
+    el.banner.className = "banner banner--warn";
+    el.banner.style.display = "block";
     el.connectBtn.style.display = "none";
-    el.transportSub.textContent = "";
     el.workspace.style.display = "none";
     return;
   }
 
   el.noticeClose.onclick = () => setBanner("", null);
-  el.topologySelect.onchange = async () => {
-    try { await AA.exec(["select-topology", el.topologySelect.value]); }
-    catch (err) { setBanner(err.message, "error"); }
-  };
-  el.studySelect.onchange = async () => {
-    try { await AA.exec(["select-study", el.studySelect.value]); }
-    catch (err) { setBanner(err.message, "error"); }
-  };
-  wireRailResize();
-  el.consoleRun.onclick = runConsoleCommand;
-  el.consoleInput.onkeydown = (ev) => { if (ev.key === "Enter") runConsoleCommand(); };
-  // What this box accepts, read off the registry every verb was registered
-  // into rather than spelled in the markup (AA.commandHint, commands.js).
-  // Wired HERE, with the rest of the console, so a hosted page that withholds
-  // the console never advertises it: "a control that is about to be withheld
-  // is never wired" -- see main()'s note above.
-  el.consoleInput.setAttribute("title", AA.commandHint(commands.verbs()));
-  // The rail's auto-setup menu and the top bar's first paint: both are
-  // written from the settings read at boot, and both are wired HERE, below
-  // the hosted early-return, for the same reason the console is -- a control
-  // that is about to be withheld is never wired.
-  renderAutoSetup();
+  // The top bar's first paint, wired HERE, below the hosted early-return: a
+  // control that is about to be withheld is never wired.
   renderDetail();
 
   state.scene = new AnnotateScene(el.canvasHost, {
@@ -5748,6 +5594,11 @@ async function main() {
   // playback is actually getting. Nothing in this app reads it, and it is
   // not a second way to drive the mode -- every mutation is still a verb.
   Object.defineProperty(window, "__sweep", { get: () => state.sweep });
+  // ...and for what the pane is on: which topology and study are selected.
+  Object.defineProperty(window, "__selection", { get: () => ({
+    topology: state.currentTopology ? state.currentTopology.id : null,
+    study: state.currentStudy ? state.currentStudy.id : null,
+  }) });
 
   // The clock. The scene has a requestAnimationFrame loop of its own that
   // only renders; deciding WHERE the sweep is belongs here, with the state,
@@ -5848,7 +5699,6 @@ async function main() {
     // nothing (the contact list's clicks, which must never bind).
     window.__mockWrites = state.storage.written;
     el.connectBtn.style.display = "none";
-    el.transportSub.textContent = "mock mode (?mock=1) -- writes are captured, not persisted";
     await loadAll();
     return;
   }
@@ -5881,7 +5731,6 @@ async function main() {
     return;
   }
 
-  el.transportSub.textContent = "read/write, data/inbox/feature-identity/ writes land in the connected folder";
   const initial = picked.state;
   el.connectBtn.onclick = async () => {
     try {
@@ -5904,4 +5753,4 @@ async function main() {
   }
 }
 
-main();
+if (!SHELL_URL) main();

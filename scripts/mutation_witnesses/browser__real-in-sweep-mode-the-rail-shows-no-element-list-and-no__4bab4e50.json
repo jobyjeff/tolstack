@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
-  "expect_red": "[real] in sweep mode the rail shows no study select, no element list, no arrival menu and no scope bar; the topology stays, as a label the run chose",
+  "expect_red": "[real] in sweep mode the rail shows no element list and no scope bar",
   "mutations": [
     {
       "contract": "In sweep mode the element list stands down with the rest of the bind furniture.",

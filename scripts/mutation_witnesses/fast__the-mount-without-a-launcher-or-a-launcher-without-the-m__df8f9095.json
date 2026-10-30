@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the mount without a launcher, or a launcher without the mount, shows no 3D affordance at all -- an absent feature says nothing",
+  "mutations": [
+    {
+      "contract": "The 3D button needs both the mount and the launcher; with either missing the toolbar shows nothing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261030_the_annotator_has_no_front_door.md",
+      "note": "Declared with the guard by handoff the_annotator_has_no_front_door (2026-10-30). One of the two is enough again.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      if (state.annotateMount && handlers.onStudy3d) {",
+      "replace": "      if (state.annotateMount || handlers.onStudy3d) {"
+    }
+  ]
+}

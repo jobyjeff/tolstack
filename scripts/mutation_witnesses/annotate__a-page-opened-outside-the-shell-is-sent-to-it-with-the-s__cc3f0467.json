@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a page opened outside the shell is sent to it with the selection it names and the pane open; the pane itself is left alone",
+  "mutations": [
+    {
+      "contract": "A bare open of the annotator redirects to the shell; the embedded pane never does.",
+      "issue": "docs/sessions/lessons/LESSONS_20261030_the_annotator_has_no_front_door.md",
+      "note": "Declared with the guard by handoff the_annotator_has_no_front_door (2026-10-30). The pane redirects itself away.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (params.embedded === \"1\") return null;",
+      "replace": "    if (false) return null;"
+    }
+  ]
+}

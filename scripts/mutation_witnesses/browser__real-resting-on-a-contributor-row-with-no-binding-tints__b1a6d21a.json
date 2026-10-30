@@ -6,9 +6,9 @@
     {
       "contract": "An unbound edge is the ordinary case: a console line, never the banner.",
       "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
-      "note": "The banner is the loud surface; a hover that wrote there would flash a warning every time the pointer crossed a row with no binding. Carried over 2026-10-26 when the guard stopped needing a gap row (the live study has none).",
+      "note": "The banner is the loud surface; a hover that wrote there would flash a warning every time the pointer crossed a row with no binding. Carried over 2026-10-26 when the guard stopped needing a gap row (the live study has none). Re-anchored 2026-10-30 (the_annotator_has_no_front_door): the line is kept on window.__lastHighlightNote now that the pane has no console.",
       "file": "apps/annotate/app.js",
-      "find": "    el.consoleOutput.textContent = \"> highlight \" + topologyId + \" \" + edgeId + \"\\n\" + plan.note;",
+      "find": "    window.__lastHighlightNote = plan.note;",
       "replace": "    setBanner(plan.note, \"warn\");"
     },
     {

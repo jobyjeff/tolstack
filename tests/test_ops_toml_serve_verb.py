@@ -1,4 +1,4 @@
-"""``ops.toml``'s ``serve`` verb -- annotate's one-click entry point.
+"""``ops.toml``'s ``serve`` verb -- the dev fallback that serves the shell (apps/).
 
 Parsed with stdlib ``tomllib`` and asserted directly against the manifest, per
 the handoff's own instruction: a test can toml-parse and assert here without
@@ -36,7 +36,7 @@ def test_ops_toml_parses():
     assert ops["repo"]["name"] == "tolstack"
 
 
-def test_serve_verb_is_the_annotate_entry_point():
+def test_serve_verb_serves_the_apps_tree_the_shell_lives_in():
     ops = load_ops()
     serve = ops["verbs"]["serve"]
     assert serve["cmd"] == [

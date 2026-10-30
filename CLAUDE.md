@@ -55,7 +55,11 @@ traced ratio" — never restate the rule elsewhere).
   declared on it — `docs/DAG_TOPOLOGY.md`, "Bodies".
 - **A stack element or topology edge whose physical feature is unresolved** →
   `docs/ANNOTATION_SURFACE.md`. The select-and-tag surface (2026-09-06):
-  `apps/annotate/` binds a stack-side key to a mesh face and writes an
+  `apps/annotate/` is the shell's embedded 3D pane and has no page of its own
+  (since 2026-10-30: opened bare it redirects to `apps/viewer/topology.html`
+  with the pane open; the one URL is the viewer's, on drawing-checker's mount
+  at 8000 — `ops.toml`'s `serve` on 8843 is the dev fallback). It binds a
+  stack-side key to a mesh face and writes an
   immutable `feature-identity/v0` event — **select + tag only, no
   measurement.** A binding is identity, not a value source; a drawing
   citation still wins wherever one exists. Since 2026-09-21 the surface also

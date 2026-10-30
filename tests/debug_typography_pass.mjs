@@ -499,7 +499,7 @@ try {
   const an = await browser.newPage({ viewport: { width: 1400, height: 900 } });
   an.on("pageerror", (e) => say(`  ANNOTATE PAGE ERROR: ${e}`));
   const onAnnotate = await stage("the annotator at ?mock=1", async () => {
-    await an.goto(`${url}/apps/annotate/index.html?mock=1`, { waitUntil: "load" });
+    await an.goto(`${url}/apps/annotate/index.html?embedded=1&mock=1`, { waitUntil: "load" });
     await an.waitForSelector("#element-list li.el-row", { timeout: 20000 });
     await an.mouse.move(2, 2);
   });

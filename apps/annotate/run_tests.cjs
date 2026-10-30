@@ -213,30 +213,35 @@ check("the annotator's own markup prints no repo path, module path, id or " +
     });
   });
 
-check("the command box says what it accepts, read off the registry rather " +
-  "than written down", () => {
-    // The placeholder carried a hand-written example naming an internal module
-    // path and a backend id. A list built from `commands.verbs()` cannot drift
-    // from what the box takes -- and it is the same list `CommandLayer.exec`
-    // answers an unknown command with, so a reader meets ONE vocabulary
-    // whichever way they find it.
-    const layer = new AA.CommandLayer();
-    layer.register("isolate", () => {});
-    layer.register("camera", () => {});
-    const hint = AA.commandHint(layer.verbs());
-    assertEqual(hint, "commands: camera, isolate");
-    assertNothingBanned(hint, "AA.commandHint");
-    // An empty registry says so rather than trailing off after the colon --
-    // the hosted page never wires the console at all, but a registry that
-    // failed to register is a state this must not render as a bare label.
-    assertEqual(AA.commandHint([]), "commands: ");
-    // The one thing the placeholder must NOT be: an example command. It is
-    // the word `command` and nothing else.
-    if (!/placeholder="command"/.test(ANNOTATE_HTML)) {
-      throw new Error("the console placeholder is no longer the plain word " +
-        "`command` -- if that is deliberate, the example it now carries has " +
-        "to survive the scan above, and this check has to say so");
+check("the pane's markup carries no standalone furniture: no dropdowns, no " +
+  "arrival menu, no command box, no rail handle, no title", () => {
+    // The page is the shell's embedded pane and nothing else (handoff
+    // the_annotator_has_no_front_door): opened bare it redirects, so there is
+    // no second UI for these to belong to.
+    ["topology-select", "study-select", "auto-setup", "console-input",
+      "console-run", "rail-handle", "transport-sub"].forEach((id) => {
+      if (ANNOTATE_HTML.indexOf('id="' + id + '"') !== -1) {
+        throw new Error("apps/annotate/index.html still has #" + id +
+          " -- the standalone page's furniture was deleted, not hidden");
+      }
+    });
+    if (/<h1[ >]/.test(ANNOTATE_HTML)) {
+      throw new Error("apps/annotate/index.html has a page title -- the pane has none");
     }
+  });
+
+check("a page opened outside the shell is sent to it with the selection it " +
+  "names and the pane open; the pane itself is left alone", () => {
+    assertEqual(AA.shellUrl("?embedded=1&topology=t"), null);
+    assertEqual(AA.shellUrl("?topology=vpa_pitch_linkage"),
+      "../viewer/topology.html?topology=vpa_pitch_linkage&pane=1");
+    assertEqual(AA.shellUrl("?topology=t&study=s&edge=e&isolate=p&trace=1"),
+      "../viewer/topology.html?topology=t&study=s&edge=e&pane=1");
+    assertEqual(AA.shellUrl("?mock=1&sweep=run&kinematic=k"),
+      "../viewer/topology.html?kinematic=k&mock=1&pane=1");
+    assertEqual(AA.shellUrl(""), "../viewer/topology.html?pane=1");
+    assertEqual(AA.shellUrl("?topology=a%20b"),
+      "../viewer/topology.html?topology=a%20b&pane=1");
   });
 
 check("every word table this app renders survives the shared ban list", () => {
@@ -2795,28 +2800,6 @@ check("the detail/hint pane is a BAR above the canvas, not a column beside " +
   }
 });
 
-check("the rail's auto-filter menu has the nodes app.js writes its rows into, " +
-  "above the controls it governs", () => {
-  const menu = ANNOTATE_HTML.indexOf('id="auto-setup"');
-  const body = ANNOTATE_HTML.indexOf('id="auto-setup-body"');
-  const topology = ANNOTATE_HTML.indexOf('id="topology-select"');
-  if (menu === -1 || body === -1) {
-    throw new Error("the auto-filter menu's nodes are missing from the markup");
-  }
-  if (!(menu < body && body < topology)) {
-    throw new Error("the auto-filter menu is not at the TOP of the rail");
-  }
-  // The rows themselves are written from AA.AUTO_STEPS, so the markup must
-  // carry no checkbox of its own -- a hand-written row is the drift this
-  // repo pays for most often.
-  const between = ANNOTATE_HTML.slice(menu, topology);
-  if (/type\s*=\s*"checkbox"/.test(between)) {
-    throw new Error("the auto-filter menu spells a checkbox in the markup -- " +
-      "the rows come from AA.AUTO_STEPS so the words and the steps cannot drift");
-  }
-});
-
-
 // --- face classification (face_geometry.js) ---------------------------------
 //
 // Synthetic meshes, built to be exactly the surfaces whose names the classes
@@ -4439,23 +4422,6 @@ check("sweep: the topology a run is about is read off its feature joins, and " +
     { label: "b", topology: "vpa_pitch_linkage" },
   ] };
   assertEqual(AA.readSweepArtifact(doc).topologyId, "vpa_pitch_linkage", "the named one");
-});
-
-check("rail: the width clamps to the minimum and to half the window, and an " +
-  "unreadable store is the default", () => {
-  assertEqual(AA.clampRailWidth(50, 1200), AA.RAIL_WIDTH_MIN, "below the minimum");
-  assertEqual(AA.clampRailWidth(5000, 1200), 600, "past half the window");
-  assertEqual(AA.clampRailWidth("abc", 1200), AA.RAIL_WIDTH_DEFAULT, "not a number");
-  assertEqual(AA.clampRailWidth(null, 1200), AA.RAIL_WIDTH_DEFAULT, "absent");
-  assertEqual(AA.clampRailWidth(null, 300), AA.RAIL_WIDTH_MIN, "a window narrower than the default");
-  const store = { data: {}, getItem(k) { return this.data[k] === undefined ? null : this.data[k]; },
-    setItem(k, v) { this.data[k] = v; } };
-  AA.writeStoredRailWidth(store, 333.4);
-  assertEqual(AA.readStoredRailWidth(store, 1200), 333, "a stored width comes back");
-  assertEqual(AA.readStoredRailWidth(null, 1200), AA.RAIL_WIDTH_DEFAULT, "no store");
-  const throwing = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
-  assertEqual(AA.readStoredRailWidth(throwing, 1200), AA.RAIL_WIDTH_DEFAULT, "a store that throws");
-  AA.writeStoredRailWidth(throwing, 300); // must not throw
 });
 
 check("parts: a row reads `<number> <name>`, the id is on the hover, and a number " +

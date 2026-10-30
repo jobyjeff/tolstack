@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate top bar + entry context (auto-filter, see-through)",
-  "expect_red": "unticking Parts returns the lists to manual at once",
+  "expect_red": "turning Parts off returns the lists to manual at once",
   "mutations": [
     {
       "contract": "Unticking an auto-filter switch returns that control to manual AT ONCE -- a switch whose effect only shows up on the next launch is a switch nobody can tell is working.",

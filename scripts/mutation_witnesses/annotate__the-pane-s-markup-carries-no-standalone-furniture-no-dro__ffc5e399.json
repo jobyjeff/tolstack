@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the pane's markup carries no standalone furniture: no dropdowns, no arrival menu, no command box, no rail handle, no title",
+  "mutations": [
+    {
+      "contract": "The pane's document has none of the standalone page's furniture.",
+      "issue": "docs/sessions/lessons/LESSONS_20261030_the_annotator_has_no_front_door.md",
+      "note": "Declared with the guard by handoff the_annotator_has_no_front_door (2026-10-30). A study dropdown is back in the markup.",
+      "file": "apps/annotate/index.html",
+      "find": "<main class=\"an\" id=\"workspace\">",
+      "replace": "<main class=\"an\" id=\"workspace\"><select id=\"study-select\"></select>"
+    }
+  ]
+}

@@ -174,7 +174,10 @@ export const DECLARED_GUARDS = {
   // reading a pressed mirrored row. All three carry a spec.
   // 2026-10-29 (a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place):
   // +1, the shell's mirror marking a suggestion row. It carries a spec.
-  fast: { declared: 626, enrollable: 626, names: "ed804737f840" },
+  // 2026-10-30 (the_annotator_has_no_front_door): two renamed -- the toolbar's
+  // link and the mount-without-a-launcher check now say there is no link. Both
+  // carry a spec.
+  fast: { declared: 626, enrollable: 626, names: "0e6ef1f80ac9" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
@@ -189,7 +192,11 @@ export const DECLARED_GUARDS = {
   // different face, the proposed face itself, reject and the agent guard),
   // a row's suggestion, a node feature's per-end state, `inspect feature` --
   // and the chip check renamed for its new words. Every one carries a spec.
-  annotate: { declared: 266, enrollable: 266, names: "34554ecaab95" },
+  // 2026-10-30 (the_annotator_has_no_front_door): -3 +2 -- the command box, the
+  // rail's width and the arrival menu's markup checks went with the standalone
+  // page (their specs with them); two came in, the pane's markup carrying none
+  // of its furniture and the redirect. Both carry a spec.
+  annotate: { declared: 265, enrollable: 265, names: "40a85c794971" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -222,7 +229,14 @@ export const DECLARED_GUARDS = {
   // +15, the rail-suggestion suite. Every one carries a spec but its
   // `[real] ... (skipped: ...)` push, whose condition is the literal `true`.
   // Both re-measured together at the rail_row review merge: 755 + 3 + 15.
-  browser: { declared: 773, enrollable: 740, names: "a7ecf256ad34" },
+  // 2026-10-30 (the_annotator_has_no_front_door): -8. The standalone page's
+  // checks went (the dropdowns, the arrival menu's boxes and persistence, the
+  // console, the transport line, the rail's resize, the full-page link) and the
+  // same suites say what is true of the pane instead. Six names carry over
+  // renamed with their spec; two specs retired with their guard. A few of the
+  // new names carry no spec (see the lesson's list) -- the pin is raised for
+  // them rather than a spec written, which is allowed and is this line.
+  browser: { declared: 765, enrollable: 732, names: "e69a8e194085" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

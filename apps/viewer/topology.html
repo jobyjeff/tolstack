@@ -72,13 +72,12 @@
       <div class="flyout__head">
         <!-- The annotator's own one-line answer to what it is showing
              (annotate:state); these resting words until it answers. -->
-        <h2 id="flyout-title">3D</h2>
+        <!-- The dialog's initial focus (autofocus): without a quiet first
+             target it lands on the drag divider and draws its hairline. -->
+        <h2 id="flyout-title" tabindex="-1" autofocus>3D</h2>
         <!-- What the annotator can read and write here, as a dot and one word
              (annotate:status; the sentence on hover). Hidden until it says. -->
         <span id="flyout-status" class="flyout__status" style="display: none"></span>
-        <a id="flyout-fullpage" class="flyout__fullpage" target="_blank" rel="noopener"
-           title="open the whole annotator, with its own menus, in a new tab"
-           aria-label="open the whole annotator in a new tab">↗</a>
       </div>
       <div id="flyout-divider" class="flyout__divider" role="separator"
            aria-orientation="vertical" tabindex="0"

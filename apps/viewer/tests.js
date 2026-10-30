@@ -11081,22 +11081,18 @@
         });
       });
 
-    await test("the annotate link appears once a study actually sums, and " +
-      "not before", function () {
-        var none = render(function (r) {
-          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            rowDensity: "comfortable" }, TOPO, {});
+    await test("the toolbar has no annotate link, with or without a study: the " +
+      "pane is opened by its own button, and nothing else", function () {
+        [null, "demo_base_to_tip"].forEach(function (studyId) {
+          [false, true].forEach(function (mount) {
+            var root = render(function (r) {
+              VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: studyId,
+                rowDensity: "comfortable", annotateMount: mount }, TOPO,
+                { onStudy3d: function () {} });
+            });
+            eq(all(root, "a").length, 0);
+          });
         });
-        // No study selected: the annotate link has nothing to point at.
-        eq(all(none, "a").length, 0);
-        var root = render(function (r) {
-          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            rowDensity: "comfortable" }, TOPO, {});
-        });
-        var link = root.querySelector("a");
-        ok(link, "expected an annotate link once a study sums");
-        has(link.href, "topology=" + TOPO.id);
-        has(link.href, "study=demo_base_to_tip");
       });
 
     await test("with the annotate mount probed, the toolbar's study affordance " +
@@ -11145,19 +11141,21 @@
       });
 
     await test("the mount without a launcher, or a launcher without the mount, " +
-      "still renders the plain link -- degradation is the default", function () {
+      "shows no 3D affordance at all -- an absent feature says nothing", function () {
         var mountNoHandler = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
             rowDensity: "comfortable", annotateMount: true },
             TOPO, {});
         });
-        ok(mountNoHandler.querySelector("a"), "expected the link with no onStudy3d");
+        eq(mountNoHandler.querySelector("a"), null);
+        eq(mountNoHandler.querySelector("#study-3d"), null);
         var handlerNoMount = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
             rowDensity: "comfortable" },
             TOPO, { onStudy3d: function () {} });
         });
-        ok(handlerNoMount.querySelector("a"), "expected the link with no probed mount");
+        eq(handlerNoMount.querySelector("a"), null);
+        eq(handlerNoMount.querySelector("#study-3d"), null);
       });
 
     await test("VA.applyRowDensity moves the one shared row-height metric, " +

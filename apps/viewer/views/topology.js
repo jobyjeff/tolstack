@@ -148,11 +148,10 @@
     // study_3d_flyout, feature 3): where the annotator is served beside this
     // page (state.annotateMount, probed at boot), a button flies out the 3D
     // panel with the study's parts ghosted and its bound faces opaque; where
-    // it is not -- file://, or a server without the sibling mount -- the
-    // pre-flyout "Annotate →" link (new tab) stays, unchanged. The viewer
-    // still computes and writes nothing for the annotate app either way; the
-    // flyout launch is the same params the link carries, handed to the same
-    // command vocabulary.
+    // it is not -- file://, or a server without the sibling mount -- nothing
+    // is shown. The viewer still computes and writes nothing for the annotate
+    // app; the flyout launch is the same params, handed to the command
+    // vocabulary.
     // ...and only where the chain HAS something to show in 3D (handoff
     // annotate_affordances_flyout_and_mesh_gating): a study none of whose
     // parts has an installed mesh traces to an empty scene, which is the same
@@ -171,12 +170,6 @@
           handlers.onStudy3d({ topologyId: state.topologyId, studyId: state.studyId, trace: true });
         };
         root.appendChild(view3d);
-      } else {
-        var annotateLink = VA.el("a", "ghost tvpick__mode", "Annotate →");
-        annotateLink.href = VA.annotateLink({ topologyId: state.topologyId, studyId: state.studyId });
-        annotateLink.title = "Open this study in the annotation surface (apps/annotate) to bind its " +
-          "elements to geometry -- select + tag, no measurement.";
-        root.appendChild(annotateLink);
       }
     }
     return root;

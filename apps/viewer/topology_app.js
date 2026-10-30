@@ -162,6 +162,8 @@
   // mock) or only after the user clicks Connect, and a later Reload never
   // yanks the selection back to what the URL said.
   var pendingDeepLink = null;
+  var paneWanted = false;
+  var bootLoaded = false;
   // Which transport `adapter` is -- one of VA.TRANSPORT (storage/adapter.js),
   // never a literal spelled here -- for the banner's own plain-words line
   // (viewer_http_transport, deliverable 2). Read in exactly two places: the
@@ -215,7 +217,6 @@
       flyout: document.getElementById("annotate-flyout"),
       flyoutCollapse: document.getElementById("flyout-collapse"),
       flyoutDivider: document.getElementById("flyout-divider"),
-      flyoutFullpage: document.getElementById("flyout-fullpage"),
       flyoutTitle: document.getElementById("flyout-title"),
       flyoutStatus: document.getElementById("flyout-status"),
       paneHandle: document.getElementById("pane-handle"),
@@ -297,6 +298,7 @@
       // A pane the reader left open reopens -- on whatever this boot
       // selected, through the same rule a selection change uses.
       if (mounted && VA.readStoredFlyoutOpen(widthStore())) openPane();
+      openWantedPane();
     });
 
     // The legend and the worksheet are both <dialog>s now (deliverable 2):
@@ -346,6 +348,10 @@
     // and applied by the first load(). Composes with ?mock=1 — mock picks the
     // dataset, these pick the selection within it.
     pendingDeepLink = VA.parseDeepLink(window.location.search);
+    // ?pane=1 -- the old annotator page's redirect (annotate/commands.js's
+    // AA.shellUrl): open the 3D pane on whatever the link selected, once the
+    // selection is applied and the mount is known.
+    paneWanted = /[?&]pane=1(&|$)/.test(window.location.search);
 
     chooseAdapter(mock).then(function (picked) {
       adapter = picked.adapter;
@@ -416,7 +422,19 @@
       return picked.state === VA.STATE.READY ? load() : null;
     }).catch(function (err) {
       state.error = String(err && err.message || err);
-    }).then(render);
+    }).then(function () {
+      bootLoaded = true;
+      render();
+      openWantedPane();
+    });
+  }
+
+  // The pane a ?pane=1 link asked for: once, when both the selection (boot's
+  // load) and the annotate mount are in.
+  function openWantedPane() {
+    if (!paneWanted || !bootLoaded || !state.annotateMount) return;
+    paneWanted = false;
+    openPane();
   }
 
   // The load-time transport probe (viewer_http_transport, deliverable 2):
@@ -1358,11 +1376,6 @@
     // until that reply lands it goes back to its resting words rather than
     // naming the subject the pane just left.
     setPaneTitle(null);
-    // The head's "Open full page" out-link (Jeff, 2026-09-16), pointed at the
-    // SAME url the panel booted with -- VA.annotateLink, once, for both. Set on
-    // every launch rather than at boot: a reader who re-drove the open panel
-    // from another row would otherwise open a new tab on the element they left.
-    if (nodes.flyoutFullpage) nodes.flyoutFullpage.setAttribute("href", href);
   }
 
   // True when the command reached a loaded frame; a hover that did not is

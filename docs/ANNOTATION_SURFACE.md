@@ -20,6 +20,17 @@ anything from geometry. It resolves identity, a human ratifies every binding
 and every binding is an immutable event, cited like everything else this repo
 produces.
 
+## Where it lives
+
+`apps/annotate/` is the shell's 3D pane and has no page of its own: the viewer
+(`apps/viewer/topology.html`) embeds `apps/annotate/index.html` as an iframe
+with `?embedded=1`, which only the shell sets, and draws the pane's rail in its
+own nav. Opened without it, the document redirects to the shell with the
+selection it names (`topology`, `study`, `edge`, `kinematic`, `mock`) and
+`pane=1`, which opens the pane on it (`AA.shellUrl`). There is no second
+entry, no topology or study dropdown and no command box: the shell's rows run
+the verbs, and `window.AnnotateApp.exec` is the driver's door.
+
 ## The model
 
 Two things are bound together, and neither is invented — both already exist
@@ -255,24 +266,19 @@ stream at the wrong end.
   no supersession, so correcting an end after Bind is a schema question, filed
   as `ISSUE_20261021_a_binding_written_at_the_wrong_end_has_no_correction.md`.
 
-### The rail: width, names, and what is clipped (2026-10-20)
+### The rail: names, and what is clipped (2026-10-20)
 
-Handoff `the_annotator_rail_resizes_and_names_what_it_lists`. Three rules, all
+Handoff `the_annotator_rail_resizes_and_names_what_it_lists`. Two rules, both
 about reading the rail rather than about binding:
 
-- **The width is the reader's.** A drag handle on the rail's right edge sets one
-  CSS custom property the grid reads, clamped to a minimum and to half the
-  window, remembered per browser (`AA.PREF_KEYS.railWidth`; absent or blocked
-  storage means the default). The handle lives in the annotator. Embedded in
-  the viewer (`embedded=1`, since 2026-10-26) the rail is not shown at all:
-  the viewer draws its rows in its own nav, under the study row, and every
+- **The rail is the shell's.** The pane does not show it: the viewer draws its
+  rows in its own nav, under the study row, and every
   gesture there runs on the rail row it mirrors
   (`the_shell_seats_the_scene_beside_the_model`; apps/viewer/README.md, "The
   3D flyout").
 - **Clipped text is always reachable.** Every line the rail clips carries its
-  full text on hover (`title`): part rows, element rows, the group header, and
-  the two selects, which carry the *selected* option's text because a native
-  select cannot tooltip per option. The ellipsis stays; the browser tier checks
+  full text on hover (`title`): part rows, element rows and the group header.
+  The ellipsis stays; the browser tier checks
   every clipped line at the minimum width.
 - **A part is named.** A row reads `<number> <name>`, in one lower-case casing
   whichever source the name came from. The name comes from
@@ -303,8 +309,7 @@ model/study) and the view filter which controls what's actually rendered").
 - **A view verb never changes the context**, and nothing about the context
   draws a part: a part added to the model is listed, not drawn.
 
-A topology with no study (the pitch linkage joints one, by design) shows
-"no studies yet" in a disabled picker. A face clicked with no element to bind
+A face clicked with no element to bind
 it to puts one line in the banner; away from the as-modelled pose in sweep mode
 it already said why.
 
@@ -500,7 +505,7 @@ second message of its own; a run with no qualifying frame says so instead.
 
 **A sweep arrival selects its topology.** The topology a run is about is read
 off its `geometry.features[]` (every entry but the driver names it) and
-selected through the same verb the topology select drives, so the rail's
+selected through the `select-topology` verb, so the rail's
 scope and study reset as they do for a hand-made switch. A run whose artifact
 carries no features leaves the selection alone and the bar says it names no
 topology. **A topology with no study lists every one of its edges** under a
@@ -601,16 +606,15 @@ tie-broken by run id, on every adapter that lists runs (`AA.orderSweepRuns`).
 Until 2026-10-14 it was the run id sorted descending, which is alphabetical —
 `vpa-pitch-s-…` beat a P1 run published two seconds later, and Jeff watched
 run S believing it was P1. The bar's first line names the run's mechanism in
-words, and offers the other published runs in a picker when there are any. Every control in the bar, every key and the command box drive
+words, and offers the other published runs in a picker when there are any. Every control in the bar and every key drive
 one state machine through those verbs, which is this app's standing rule.
 `apps/annotate/README.md`'s verb table is the reference.
 
 ### The rail in sweep mode: the mechanism, inspect only (2026-10-20)
 
 While a run plays, the rail shows the mechanism rather than the bind
-workflow. The arrival menu, the study select, the element list and the scope
-bar stand down; the topology select stays, disabled, because the run chose it.
-Under it: the run's **bodies**, each opening into its parts (the parts panel's
+workflow. The element list and the scope
+bar stand down. In their place: the run's **bodies**, each opening into its parts (the parts panel's
 own rows); its **joints**, each with its type in everyday words and the two
 bodies it joins, opening into the topology features that define it, coloured
 by binding state as the element rows are; and — when the run was opened from a

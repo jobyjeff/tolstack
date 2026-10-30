@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the toolbar has no annotate link, with or without a study: the pane is opened by its own button, and nothing else",
+  "mutations": [
+    {
+      "contract": "The study toolbar offers the 3D pane's button and no link to a page of the annotator's own.",
+      "issue": "docs/sessions/lessons/LESSONS_20261030_the_annotator_has_no_front_door.md",
+      "note": "Declared with the guard by handoff the_annotator_has_no_front_door (2026-10-30). The 3D button is an anchor again.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        var view3d = VA.el(\"button\", \"ghost tvpick__mode\", \"View in 3D →\");",
+      "replace": "        var view3d = VA.el(\"a\", \"ghost tvpick__mode\", \"View in 3D →\");"
+    }
+  ]
+}

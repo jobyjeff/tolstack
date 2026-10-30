@@ -51,10 +51,7 @@ body {
   background: #24282e;
   border-bottom: 1px solid #33383f;
 }
-.topbar h1 { font-size: var(--t-page); margin: 0; }
-.topbar .sub { color: #9aa1ab; font-size: var(--t-meta); }
-.topbar__spacer { flex: 1; }
-.topbar button, .an__console button, .parts-panel button, .bind-form button, .owner-not-in-set-form button {
+.topbar button, .parts-panel button, .bind-form button, .owner-not-in-set-form button {
   background: #3a4048;
   color: #e8e8e8;
   border: 1px solid #4a515a;
@@ -62,9 +59,7 @@ body {
   padding: 6px 12px;
   cursor: pointer;
   font: inherit;
-  /* Sized to its own label, not to whatever column it sits in. `Run` is a flex
-     item of `.an__console`'s column and stretched to the whole console width --
-     an 800px button for a three-letter action (2026-09-17). The two form
+  /* Sized to its own label, not to whatever column it sits in. The two form
      buttons opt back into full width explicitly at the foot of this file,
      because there a full-width button IS the submit affordance. */
   align-self: flex-start;
@@ -97,41 +92,18 @@ body {
   height: calc(100vh - 70px);
   position: relative;
 }
-/* The drag handle sits on the rail's right edge. Quiet until hover/focus. */
-.an__resize {
-  position: absolute; top: 0; bottom: 0; width: 8px;
-  left: calc(var(--rail-w, 260px) - 4px);
-  cursor: col-resize; z-index: 5; touch-action: none;
-}
-.an__resize:hover, .an__resize:focus, .an__resize.is-dragging {
-  background: #5b8dd6; opacity: .5; outline: none;
-}
-
 .an__rail {
   padding: 10px;
   overflow-y: auto;
   border-right: 1px solid #33383f;
 }
 
-/* What an arrival sets up for you (deliverable 3). Quiet and collapsed at
-   rest: it governs controls that are right below it and a reader who is happy
-   with the defaults should meet one word, not four checkboxes. */
-.an__auto { font-size: var(--t-meta); }
-/* `list-style-position: inside` on purpose: the rail is a 10px-padded
-   scrollport, so an OUTSIDE marker on a summary at x = 0 is drawn into the
-   padding and clipped -- measured, the disclosure triangle was invisible. */
-.an__auto > summary {
-  cursor: pointer; color: #9aa1ab; padding: 2px 0; list-style-position: inside;
-}
-.an__auto > summary:hover, .an__auto[open] > summary { color: #cfd3d8; }
-.an__auto-body { padding: 4px 0 6px 12px; }
 .an__label { display: block; font-size: var(--t-micro); color: #9aa1ab; margin-top: 8px; }
-.an__rail select, .bind-form select, .bind-form input,
-.owner-not-in-set-form input, .an__console input {
+.bind-form select, .bind-form input,
+.owner-not-in-set-form input {
   border: 1px solid #4a515a; border-radius: 4px; padding: 4px 6px;
   font: inherit;
 }
-.an__rail select { width: 100%; margin-bottom: 4px; }
 
 /* The rail's scope bar (flyout_resize_annotator_filter_and_deselect,
    deliverable 2). Quiet type: it states a state the reader put themselves in
@@ -243,20 +215,6 @@ body {
      is also nothing to left-align it against: the box it sits in is the canvas,
      and the canvas has no text. */
   font-size: var(--t-body); line-height: 1.5;
-}
-
-.an__console {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 92px;
-  display: flex; flex-direction: column; gap: 4px; padding: 6px 10px;
-  background: #24282e; border-top: 1px solid #33383f;
-}
-.an__console input {
-  background: #1b1e22; color: #e8e8e8; border: 1px solid #4a515a;
-  border-radius: 4px; padding: 4px 8px; font-family: monospace;
-}
-.an__console pre {
-  margin: 0; font-size: var(--t-meta); color: #9aa1ab; overflow-y: auto; flex: 1;
-  white-space: pre-wrap;
 }
 
 .parts-panel { list-style: none; padding: 0; margin: 10px 0 0; }
@@ -534,11 +492,8 @@ body {
 
 /* --- sweep mode's rail (handoff the_sweep_rail_shows_the_mechanism) -------
    One class on the workspace puts the bind furniture away while a run plays:
-   the arrival menu, the study select and its label, the scope bar and the
-   element list. `!important` because the scope bar carries an inline display
-   of its own. The topology select stays, disabled -- the sweep chose it. */
-.an--sweep #auto-setup, .an--sweep #study-select,
-.an--sweep .an__label:has(+ #study-select),
+   the scope bar and the element list. `!important` because the scope bar
+   carries an inline display of its own. */
 .an--sweep #rail-filter, .an--sweep #element-list { display: none !important; }
 
 /* The mechanism tree: bodies, joints, the open study's contributors. Every
@@ -649,9 +604,6 @@ body.an--embedded .an__rail {
   position: absolute; top: 0; left: 0; bottom: 0; width: var(--rail-w, 260px);
   visibility: hidden; pointer-events: none;
 }
-body.an--embedded #rail-handle,
-body.an--embedded .an__console,
-body.an--embedded .topbar h1 { display: none; }
 body.an--embedded .an__canvas-host,
 body.an--embedded .an__scene-empty { inset: 0; }
 

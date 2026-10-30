@@ -22,19 +22,16 @@ name = "tolstack"
 [verbs.install]
 cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", "setup.ps1"]
 
-# Run the app locally for dev, foreground; Ctrl-C is the stop. A DEV FALLBACK
-# since 2026-09-10 (consolidation decision, handoff study_3d_flyout): the
-# canonical serving surface for apps/annotate/ is now drawing-checker's mount
-# at /tolstack/annotate/, beside /tolstack/viewer/ and /tolstack/data/ --
-# same-origin siblings, which is what the viewer's flyout embedding stands on.
-# This verb serves the apps/ TREE on 8843 (its README's `Run it` section),
-# useful for hacking on the app with no drawing-checker server up; open
-# /annotate/index.html. The root is apps/, not apps/annotate/, since 2026-09-15
-# (handoff surfaces_that_state_something_false): the annotator loads one file
-# from its sibling -- ../viewer/storage/adapter.js, the shared "may this page
-# ask for a folder grant?" decision -- and a lone-app root 404s it, taking the
-# page's whole boot with it. Repo data/ is still not beside it either way; the
-# folder grant is how this app reads. There is no
+# Run the app locally for dev, foreground; Ctrl-C is the stop. A DEV FALLBACK:
+# the serving surface Jeff uses is drawing-checker's mount (8000,
+# /tolstack/viewer/ and /tolstack/annotate/, same-origin siblings -- which is
+# what the shell's embedded 3D pane stands on). This verb serves the apps/ TREE
+# on 8843 for hacking with no drawing-checker server up; open
+# http://127.0.0.1:8843/viewer/topology.html -- the shell is the one app, and
+# apps/annotate/ is its pane (opened bare, it redirects there). The root is
+# apps/, not one app's directory: the pane loads files from its sibling
+# (../viewer/...), and a lone-app root 404s them. Repo data/ is still not
+# beside it; the folder grant is how the apps read there. There is no
 # fifth `rebuild` verb for the projection rebuild recipe -- STANDARD_VERBS is
 # exactly install|serve|deploy|smoke -- so that stays
 # scripts\rebuild_projections.ps1, run by hand or from the ops console's

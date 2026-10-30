@@ -3,14 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>tolstack — annotate</title>
+  <title>tolstack — 3D pane</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div class="topbar">
-    <h1>tolstack — annotate</h1>
-    <span class="sub" id="transport-sub"></span>
-    <span class="topbar__spacer"></span>
     <button id="connect-btn">Connect folder</button>
   </div>
   <div id="banner" class="banner"></div>
@@ -21,22 +18,6 @@
        eight elements and forgetting the ninth. -->
   <main class="an" id="workspace">
     <aside class="an__rail">
-      <!-- What an arrival from the stack viewer sets up for you, and the three
-           switches that turn each step back to manual (handoff
-           annotate_hint_bar_and_context_autofilter, deliverable 3). Collapsed
-           at rest: a reader who is happy with the defaults never has to read
-           it, and one who is not finds it above the controls it governs. The
-           rows are written by app.js from AA.AUTO_STEPS, so the words and the
-           steps cannot drift. -->
-      <details id="auto-setup" class="an__auto">
-        <summary>Set up automatically</summary>
-        <div id="auto-setup-body" class="an__auto-body"></div>
-      </details>
-
-      <label class="an__label">topology</label>
-      <select id="topology-select"></select>
-      <label class="an__label">study</label>
-      <select id="study-select"></select>
       <!-- The rail's scope bar: what both panels below are filtered to, and
            the one control that lifts it. Empty and hidden until a
            `filter-element` sets a scope (app.js's renderRailFilter) -- an
@@ -54,11 +35,6 @@
       <label class="an__label">parts with a 3D model</label>
       <ul id="parts-panel" class="parts-panel"></ul>
     </aside>
-
-    <!-- The rail's right edge, as a handle (app.js's wireRailResize). Outside
-         the rail: the rail is a scrollport and a child would scroll with it. -->
-    <div id="rail-handle" class="an__resize" role="separator"
-         aria-orientation="vertical" aria-label="resize the list" tabindex="0"></div>
 
     <section class="an__scene">
       <!-- Embedded only (app.js's setBanner): the banner band does not exist
@@ -86,21 +62,6 @@
       <div class="an__stage">
         <div id="canvas-host" class="an__canvas-host"></div>
         <div id="scene-empty" class="an__scene-empty" style="display:none"></div>
-        <div class="an__console">
-          <!-- The placeholder read `command, e.g. isolate machined_213668
-               (window.AnnotateApp.exec)` until 2026-09-18, on a surface that is
-               visible at rest with nothing selected. `window.AnnotateApp.exec`
-               is an internal module path and `machined_213668` is a backend id
-               a reader cannot know without reading code -- two standing
-               web-UI rules, one placeholder. The list of commands this box
-               actually accepts is put on its `title` at boot, read off the
-               command registry itself (app.js), so it can never drift from what
-               the box takes -- and an unknown command already answers with the
-               same list. -->
-          <input id="console-input" type="text" placeholder="command" />
-          <button id="console-run">Run</button>
-          <pre id="console-output"></pre>
-        </div>
       </div>
     </section>
   </main>

@@ -59,23 +59,6 @@
   };
   AA.CommandLayer = CommandLayer;
 
-  // What the command box says it accepts, built from the REGISTRY rather
-  // than written down anywhere (handoff reader_facing_surfaces_second_pass,
-  // 2026-09-18). The placeholder used to carry an example command naming an
-  // internal module path and a backend id a reader cannot know
-  // (`isolate machined_213668 (window.AnnotateApp.exec)`), which is two
-  // standing web-UI rules broken on a surface that is visible at rest.
-  //
-  // A list read off `commands.verbs()` cannot drift from what the box takes,
-  // which a hand-written example always can -- and it is the same list
-  // `CommandLayer.exec` already answers an unknown command with, so a reader
-  // meets one vocabulary whichever way they find it. DOM-free like the rest
-  // of this file: app.js puts the string on the input.
-  AA.COMMAND_HINT_PREFIX = "commands: ";
-  AA.commandHint = function (verbs) {
-    return AA.COMMAND_HINT_PREFIX + (verbs || []).join(", ");
-  };
-
   // Pure: resolve a user-typed identifier (a mesh's sha256, its
   // provenance.json `part_id`, or a topology `part` id declared in the alias
   // table) against the mesh list `storage.listMeshes()` returns. Exact match
@@ -532,7 +515,6 @@
     remove: "Remove",
     showAll: "show or hide every part in this model",
     isolate: "Isolate",
-    noStudies: "no studies yet",
     noName: "no name on file",
     // A mesh drawn at more than one position: its row's checkbox reaches all of them.
     occurrences: "×{n}",
@@ -769,6 +751,44 @@
       selectStudy: !!auto.study,
       scopeParts: !!auto.part,
     };
+  };
+
+  // Where a page opened OUTSIDE the shell goes (handoff the_annotator_has_no_
+  // front_door): this document is the shell's embedded pane and nothing else,
+  // so a bare open -- an old bookmark, a `?topology=...` link in an issue --
+  // is sent to the shell with the selection it names and the pane open. Only
+  // the params the shell has a word for travel (its own deep-link set, plus
+  // `mock`); a sweep run rides as the kinematic study that folds it, which is
+  // the shell's own page for one, and a bare run id has no shell word and
+  // lands on the shell's default selection. `isolate`, `trace` and `t` are
+  // the pane's own state and the shell re-derives them from the selection.
+  // null when the page is the pane (`embedded=1`): nothing to redirect.
+  AA.SHELL_PAGE = "../viewer/topology.html";
+  AA.shellUrl = function (search) {
+    // Pure string work, no URL API: this file also runs under the node-vm
+    // tier, which has none (the viewer's VA.parseDeepLink precedent).
+    var params = {};
+    String(search || "").replace(/^\?/, "").split("&").forEach(function (pair) {
+      if (!pair) return;
+      var cut = pair.indexOf("=");
+      var key = cut === -1 ? pair : pair.slice(0, cut);
+      if (Object.prototype.hasOwnProperty.call(params, key)) return;
+      var raw = cut === -1 ? "" : pair.slice(cut + 1);
+      var value;
+      try { value = decodeURIComponent(raw); } catch (err) { value = raw; }
+      params[key] = value;
+    });
+    if (params.embedded === "1") return null;
+    var out = [];
+    ["topology", "study", "edge"].forEach(function (key) {
+      if (params[key]) out.push(key + "=" + encodeURIComponent(params[key]));
+    });
+    if (params.sweep && params.kinematic) {
+      out.push("kinematic=" + encodeURIComponent(params.kinematic));
+    }
+    if (params.mock === "1") out.push("mock=1");
+    out.push("pane=1");
+    return AA.SHELL_PAGE + "?" + out.join("&");
   };
 
   // The URL's params as the ordered command list a boot runs -- the deep link
@@ -1017,42 +1037,9 @@
     autoSteps: "tolstack.annotate.autoSteps",
     transparentParts: "tolstack.annotate.transparentParts",
     faceSuggestions: "tolstack.annotate.faceSuggestions",
-    railWidth: "tolstack.annotate.railWidth",
     sweepRowKinds: "tolstack.annotate.sweepRowKinds",
     armOthers: "tolstack.annotate.armOthers",
   });
-
-  // --- the rail's width (handoff the_annotator_rail_resizes_and_names_what_
-  // it_lists) --------------------------------------------------------------
-  //
-  // A drag handle on the rail's right edge sets one CSS custom property the
-  // grid reads. The pure half: the clamp and the stored form, `store` injected
-  // like every other preference here.
-  AA.RAIL_WIDTH_DEFAULT = 260;
-  AA.RAIL_WIDTH_MIN = 180;
-
-  // Clamped to [min, half the window]; a non-number is the default (itself
-  // clamped, so a very narrow window never gets a rail wider than half of it).
-  AA.clampRailWidth = function (value, windowWidth) {
-    var max = Math.max(AA.RAIL_WIDTH_MIN, Math.floor((Number(windowWidth) || 0) / 2));
-    var n = Number(value);
-    if (!isFinite(n) || value === null || value === "") n = AA.RAIL_WIDTH_DEFAULT;
-    return Math.min(Math.max(Math.round(n), AA.RAIL_WIDTH_MIN), max);
-  };
-
-  AA.readStoredRailWidth = function (store, windowWidth) {
-    var raw = null;
-    try { raw = store ? store.getItem(AA.PREF_KEYS.railWidth) : null; } catch (err) { raw = null; }
-    return AA.clampRailWidth(raw, windowWidth);
-  };
-
-  AA.writeStoredRailWidth = function (store, width) {
-    try {
-      if (store) store.setItem(AA.PREF_KEYS.railWidth, String(Math.round(Number(width))));
-    } catch (err) {
-      // A browser that refuses to store it still honours the width now.
-    }
-  };
 
   // Translucent by default: a scope entry is transparent by Jeff's own
   // description ("again transparent with the interface surfaces displayed in a

@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
-  "expect_red": "[real] on a P2 run the study did not fold, the rail has no contributor group and the banner says which run the study was folded on",
+  "expect_red": "[real] on a P2 run the study did not fold, the rail has no contributor group and the notice says which run the study was folded on",
   "mutations": [
     {
       "contract": "cmdSweep drops a study whose run is not the run being loaded.",

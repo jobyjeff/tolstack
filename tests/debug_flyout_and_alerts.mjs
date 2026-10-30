@@ -266,7 +266,7 @@ try {
 
   // --- 2 & 3. the annotator's rail: scoped, and one alert badge ------------
   const rail = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-  await rail.goto(`${url}/apps/annotate/index.html?mock=1`, { waitUntil: "load" });
+  await rail.goto(`${url}/apps/annotate/index.html?embedded=1&mock=1`, { waitUntil: "load" });
   await rail.waitForSelector("#element-list li.el-row", { timeout: 20000 });
   say(`unfiltered rail: ${await rail.locator("#element-list li.el-row").count()} ` +
       `elements, ${await rail.locator("#parts-panel li.part-row").count()} part(s), ` +
@@ -286,7 +286,7 @@ try {
   });
 
   // The rail scoped to one element, the way the flyout enters it.
-  await rail.goto(`${url}/apps/annotate/index.html?mock=1&topology=demo_system` +
+  await rail.goto(`${url}/apps/annotate/index.html?embedded=1&mock=1&topology=demo_system` +
     "&edge=demo_edge_untraced&isolate=demo_triangle", { waitUntil: "load" });
   await rail.waitForSelector("#rail-filter", { state: "visible", timeout: 20000 });
   say(`scoped rail: ${await rail.locator("#element-list li.el-row").count()} element, ` +

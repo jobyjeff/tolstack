@@ -1806,7 +1806,7 @@ states above) gets an `annotate this →` link in the topology-mode detail
 pane (`views/topology.js`'s `renderEdgeDetail`, `VA.needsAnnotation`) — a
 traced/inferred edge already has a citation, so the link only offers
 something when there is a gap to close. The link (`VA.annotateLink`, the
-same builder the toolbar's own "Annotate →" link uses) is relative
+same builder the flyout launch and the cards use) is relative
 (`../annotate/index.html`), carrying `topology`/`edge`, plus `study` when one
 is selected and `isolate=<part>` when the edge names an owning part — booting
 `apps/annotate/` with that study open, the edge selected, and the part

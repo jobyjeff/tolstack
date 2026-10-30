@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
-  "expect_red": "[real] the pane itself shows no banner, no transport line and no Connect button, and the full-page route is an icon-link in the pane's header",
+  "expect_red": "[real] the pane itself shows no banner and no Connect button, and the head has no link out to a page of its own",
   "mutations": [
     {
       "contract": "Reading over HTTP, the pane shows neither the top bar nor the banner; the header strip carries what they said.",

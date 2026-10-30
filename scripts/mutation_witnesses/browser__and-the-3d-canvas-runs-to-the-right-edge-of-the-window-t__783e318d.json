@@ -6,10 +6,10 @@
     {
       "contract": "The detail/hint pane is a bar across the TOP of the 3D view, not a column beside it -- the 3D canvas runs to the right edge of the window.",
       "issue": null,
-      "note": "The mutation is the pre-2026-09-21 layout exactly: the third grid column comes back. Nothing but a measurement notices -- the markup, the ids and every other annotate suite stay green, because #detail is still on the page, still populated and still inside #workspace. That is the whole reason this guard measures boxes rather than reading class names.",
+      "note": "The mutation is the pre-2026-09-21 layout exactly: the third grid column comes back. Nothing but a measurement notices -- the markup, the ids and every other annotate suite stay green, because #detail is still on the page, still populated and still inside #workspace. That is the whole reason this guard measures boxes rather than reading class names. Re-anchored 2026-10-30 (the_annotator_has_no_front_door): the browser harness lays the columns out itself, so the old grid mutation could not show; a 320px margin on the scene column takes the same slice.",
       "file": "apps/annotate/style.css",
-      "find": "  grid-template-columns: var(--rail-w, 260px) 1fr;",
-      "replace": "  grid-template-columns: var(--rail-w, 260px) 1fr 320px;"
+      "find": ".an__scene { display: flex; flex-direction: column; min-width: 0; min-height: 0; }",
+      "replace": ".an__scene { display: flex; flex-direction: column; min-width: 0; min-height: 0; margin-right: 320px; }"
     }
   ]
 }

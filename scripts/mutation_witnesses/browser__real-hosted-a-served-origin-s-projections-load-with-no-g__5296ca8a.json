@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate hosted posture (no folder grant off-machine)",
-  "expect_red": "[real] hosted, a served origin's projections load with no grant, and the scene is there: pickers, list, parts and the 3D view",
+  "expect_red": "[real] hosted, a served origin's projections load with no grant, and the scene is there: list, parts and the 3D view",
   "mutations": [
     {
       "contract": "A hosted origin that publishes the projections shows the scene read-only instead of withholding the workspace.",

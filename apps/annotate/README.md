@@ -9,10 +9,14 @@ topology edge means. This app is the human-in-the-loop surface that resolves
 that: open a study, open a part, click a face, write one
 `feature-identity/v0` event (`tolerance_stack/feature_identity.py`).
 
-> **This app is NOT the viewer.** `apps/viewer/` is read-only and renders
-> projections; this app **writes** — the one write path in this repo's
-> `apps/` tree — and needs a File System Access grant with `mode: "readwrite"`,
-> not `"read"`.
+> **This is the shell's 3D pane, and has no page of its own.**
+> `apps/viewer/topology.html` is the one app; it embeds this document in an
+> iframe (`?embedded=1`, which only the shell sets) and draws this document's
+> rail in its own nav. Opened bare — an old bookmark, a `?topology=…` link in an
+> issue — the page redirects to the shell with the selection it names and the
+> pane open (`AA.shellUrl`, `commands.js`). The viewer renders projections;
+> this pane **writes** — the one write path in this repo's `apps/` tree — and
+> needs a File System Access grant with `mode: "readwrite"`, not `"read"`.
 
 ## What it does and does not do
 
@@ -99,8 +103,7 @@ that: open a study, open a part, click a face, write one
   any occurrence binds the part's own `(sha256, face id)`, exactly as before.
   `docs/ANNOTATION_SURFACE.md`, "Where a part is drawn", has the rule.
 
-- **The rail is resizable and readable in full.** Drag the handle on its right
-  edge (the width is remembered per browser); every line it clips carries its
+- **The rail is readable in full.** Every line it clips carries its
   full text on hover; a part row reads `<number> <name>`, the name coming from
   `data/projections/parts/names.json` (`scripts/build_part_names_projection.py`,
   on `scripts/rebuild_projections.ps1`) and the row showing the number alone
@@ -114,26 +117,23 @@ workspace's `apps/` convention), but **not launchable by double-click**: a
 step_tessellation spike hit this first) nor write one, so both this app's
 reads (mesh binaries) and its one write path need a real transport.
 
-Open it on drawing-checker's mount — one server for both apps, and the
-viewer's flyout embeds it from the same origin:
+Open the shell on drawing-checker's mount — one server for both apps, and the
+shell embeds this pane from the same origin:
 
 ```
-http://127.0.0.1:8000/tolstack/annotate/index.html?sweep=latest
+http://127.0.0.1:8000/tolstack/viewer/topology.html
 ```
+
+`http://127.0.0.1:8000/tolstack/annotate/?topology=vpa_pitch_linkage` still
+works: it redirects to the shell with the pane open on that topology.
 
 ### Hacking on the app with no drawing-checker server up
 
-`ops.toml`'s `serve` verb is the same command as:
-
-```powershell
-cd apps
-C:\workspace\tolstack\venv-win\Scripts\python.exe -m http.server 8843
-# open http://127.0.0.1:8843/annotate/index.html
-```
-
-Serve `apps\`, not `apps\annotate\` — this page loads one file from its
-sibling (`../viewer/storage/adapter.js`, the shared transport decision below),
-and the two apps are siblings on the canonical mount too.
+`ops.toml`'s `serve` verb serves the `apps` tree on 8843 — open
+`http://127.0.0.1:8843/viewer/topology.html`. Serve `apps`, not one app's
+directory: the pane loads files from its sibling (`../viewer/…`, the shared
+transport decision below), and the two apps are siblings on the canonical
+mount too. 8000 is the surface Jeff uses; 8843 is the dev fallback.
 
 Served by drawing-checker (`http://127.0.0.1:8000/tolstack/annotate/`) or by
 any server that publishes the projections, the page **reads over HTTP with no
@@ -182,17 +182,16 @@ app hands it its HTTP adapter as the `http` candidate, so this sentence is
 only what an origin publishing NOTHING gets.)
 
 The sentence is the whole page, not just the top bar. Everything below it —
-the element list and its two pickers, the parts panel, the 3D pane and the
-dev console — exists to serve the bind workflow, so on this origin none of it
+the element list, the parts panel and the 3D pane — exists to serve the bind workflow, so on this origin none of it
 can do anything, and the detail pane's hint (*"Pick an element on the left,
 then click a face in the 3D view to bind it"*) actively contradicted the
-sentence two inches above it. It is all withheld together, and the console is
-not wired at all rather than wired-but-hidden (handoff
+sentence two inches above it. It is all withheld together, and nothing in it is
+wired rather than wired-but-hidden (handoff
 `annotate_hosted_page_posture`,
 `ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_reader_to_bind_a_face`).
-Nothing is latched: the same URL on a loopback server is the full page below.
+Nothing is latched: the same URL on a loopback server is the ordinary pane below.
 
-No folder handy? `index.html?mock=1` runs a small synthetic demo (one
+No folder handy? The shell's `topology.html?mock=1` runs a small synthetic demo (one
 topology, three edges — one bound, one `owner_not_in_set`, one unbound, so the
 rail shows all three states at once — and a single synthetic triangle mesh) — writes are captured in memory, never persisted,
 and the "Connect folder" button is hidden (mock mode has no transport to
@@ -206,25 +205,13 @@ handoff `annotate_deep_link_and_part_filter`) — the architecture is deliberate
 **the UI is a thin shell over CLI-shaped commands**, because the follow-on arc
 is a vision-agent driver operating this surface with vision + text commands
 (zoom/pan/rotate/filter/select), not a human mouse forever. The deep link
-below and the parts panel are its first two consumers; the dev console
-(bottom of the 3D pane, or `window.AnnotateApp.exec(...)` from a browser
-devtools console) is the third, and the shape a future agent driver's own
-tool calls would take.
+below and the parts panel are its first two consumers; the shell's
+`annotate:exec` message and `window.AnnotateApp.exec(...)` (from a browser
+devtools console) are the others, and the shape a future agent driver's own
+tool calls would take. There is no command box in the pane.
 
-**What the box SAYS, and why it is so little** (2026-09-18). Its placeholder
-read `command, e.g. isolate machined_213668 (window.AnnotateApp.exec)` -- an
-internal module path and a backend id a reader cannot know without reading
-code, on a surface that is visible at rest with nothing selected, which is two
-standing web-UI rules in one string. It is the word `command` now, with the
-accepted verbs on the input's own `title`, built at boot from
-`commands.verbs()` (`AA.commandHint`) rather than written into the markup: a
-hand-written example drifts from the registry, a list read off it cannot -- and
-it is the same list `CommandLayer.exec` already answers an unknown command
-with, so a reader meets one vocabulary whichever way they find it. The parts
-panel's label said `parts (data/meshes/)` and says `parts with a 3D model`,
-for the same reason one step over. **What this did NOT settle** is whether a
-developer affordance belongs at the foot of a reader's 3D view at all; that is
-a scope decision this handoff did not have, and it is filed.
+The parts panel's label said `parts (data/meshes/)` and says `parts with a 3D
+model`: a repo path is not a thing a reader can act on.
 
 | verb | does |
 |---|---|
@@ -240,12 +227,12 @@ a scope decision this handoff did not have, and it is filed.
 | `camera reset` | frames every currently-visible open part |
 | `camera frame <part…>` | frames the named part(s) (or the visible ones, with no args) |
 | `select-face <part> <face_id>` | picks a face by id — the non-mouse equivalent of clicking it |
-| `highlight <topology> <edge> [from\|to]` / `highlight clear` | tints the face that edge's binding names (with `from`/`to`, only the binding at that end of the edge — the sweep rail's node features), if its part is open in the scene — what the viewer's 3D pane posts while the pointer rests on that edge's row. Opens, picks and writes nothing, so it works in sweep mode too. An unbound edge, or one whose part is not open, tints nothing and says why in the console output, never the banner; `clear` takes the tint down and gives a picked face its tint back |
+| `highlight <topology> <edge> [from\|to]` / `highlight clear` | tints the face that edge's binding names (with `from`/`to`, only the binding at that end of the edge — the sweep rail's node features), if its part is open in the scene — what the viewer's 3D pane posts while the pointer rests on that edge's row. Opens, picks and writes nothing, so it works in sweep mode too. An unbound edge, or one whose part is not open, tints nothing and says why on `window.__lastHighlightNote`, never the banner; `clear` takes the tint down and gives a picked face its tint back |
 | `deselect [face\|element\|all]` | `select-face`'s and `select-edge`'s undo (default `face`): drops the pick AND its tint together, which is the pair that used to disagree. Clearing nothing is not an error — this is the undo of a mis-click |
 | `filter-element [<edge or node id>]` | scopes the left rail — element list *and* parts panel — to one element's own features; with no argument, lifts the filter. `goto` runs it for you when it arrives at an edge |
 | `select-topology <id>` / `select-study <id>` / `select-edge <id>` | the three steps `goto` composes, addressable one at a time |
 | `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge — then scopes the rail to that edge (`filter-element`) and shows only its part(s) in 3D. Each of those three steps is gated by its `auto-filter` switch; the edge itself never is. An arrival is a bind-mode arrival: in sweep mode it leaves first (`sweep off`'s restore) |
-| `auto-filter <topology\|study\|part> <on\|off>` | one step of an arrival, on or off — the rail's **Set up automatically** checkboxes. Turning `part` off lifts the current scope at once; turning it back on re-applies the last arrival |
+| `auto-filter <topology\|study\|part> <on\|off>` | one step of an arrival, on or off — a stored setting; the verb is its only switch. Turning `part` off lifts the current scope at once; turning it back on re-applies the last arrival |
 | `transparency <on\|off>` | renders bodies translucent (or solid), for both entry shapes, applied to what is on screen now as well as remembered — the top bar's **See-through parts** box |
 | `suggest` | colours the faces that could be the selected element's feature (handoff `annotate_face_suggestions`): fades the bodies carrying them, draws each candidate in the suggestion colour and the current pick in the pick colour. Recomputes every time, because the element, the pick and the bindings all change under it. Never gated by the setting below — a verb typed by hand does what it says |
 | `auto-suggest <on\|off>` | whether selecting an element runs `suggest` — the top bar's **Suggest likely faces** box. Applied to what is on screen now as well as remembered; turning it off puts the bodies back to whatever `transparency` says |
@@ -538,8 +525,7 @@ at_topology_scope.md`). `trace` owns the whole scene state, so the
 `edge`/`isolate` params are not also applied on top of it.
 
 **How much of a link is applied is the reader's setting** (deliverable 3).
-The rail's **Set up automatically** menu carries one switch per step —
-Topology, Study, Parts — and the two entry verbs (`goto`, `trace`) consult
+One switch per step — Topology, Study, Parts — is a stored setting (the `auto-filter` verb), and the two entry verbs (`goto`, `trace`) consult
 them; the manual verbs (`select-topology`/`select-study`/`select-edge`/
 `filter-element`/`isolate`) never do, because a verb typed by hand does what
 it says. The edge itself is never gated: it is the thing the reader clicked.
@@ -580,9 +566,8 @@ camera survive across launches. Replies are
 `{type: "annotate:result", id, ok, result|error}`; messages from any other
 origin are ignored, and commands arriving before the storage connects queue
 behind it — the deep link's own "queued until you connect" semantics. The
-viewer probes for this mount and degrades to its plain "Annotate →" links
-(new tab) where the probe fails; this listener's own behaviour is unchanged
-off-origin (a message from any other origin is simply ignored). What *does*
+viewer probes for this mount and offers no 3D pane where the probe fails;
+this listener's own behaviour is unchanged off-origin (a message from any other origin is simply ignored). What *does*
 turn on the origin is what it publishes — a flyout on an origin serving the
 projections reads them (read-only where it is hosted), and only one publishing
 nothing shows the sentence in "On a hosted origin" above.
@@ -598,7 +583,7 @@ frame, and the hint bar is the one scroller.
 
 **The other direction** (handoff `the_3d_pane_opens_in_the_mode_the_study_wants`):
 after `sweep`, `goto` or `trace` completes — whoever ran it, the viewer, the
-run picker or the command box — an embedded app posts
+run picker — the pane posts
 `{type: "annotate:state", mode, topology, study, run, title}` to its parent,
 same-origin (`AA.embedState`). `mode` is `sweep` or `bind`; `title` is the
 one line the pane's head prints verbatim ("Sweep — vpa pitch chunk2 p2",

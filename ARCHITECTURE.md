@@ -228,9 +228,9 @@ apps/
   viewer/           the static stack/check review surface (see its README);
                     since 2026-10-20 also a kinematic study's own page
                     (views/kinematic.js)
-  annotate/         the write-capable annotation surface: select a mesh face,
-                    tag it with a stack element's identity (see its README).
-                    Added 2026-09-06.
+  annotate/         the shell's embedded pane; no standalone entry. Select a mesh
+                    face, tag it with a stack element's identity (see its
+                    README). Added 2026-09-06.
 ```
 
 That listing is paired with the tree by `tests/test_architecture_inventory.py`:

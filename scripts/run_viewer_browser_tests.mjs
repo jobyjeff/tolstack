@@ -5894,34 +5894,13 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       railsClosed.left === railsBefore.left &&
       railsClosed.visible === railsBefore.visible);
 
-    // --- out to the whole annotator (deliverable 4) ------------------------
+    // --- no way out to a page of its own --------------------------------------
     //
-    // Jeff: "There can be a separate link that opens the full viewer (with the
-    // full fledged menus etc) in a separate tab/page." Not clicked: a real
-    // target="_blank" navigation would open a tab this suite then has to chase.
-    // What matters is that it carries the SAME params the panel booted with,
-    // which is the thing that can silently rot -- it is set per launch, so a
-    // re-drive from another row must re-point it.
+    // The pane is the shell's: there is no whole annotator to open in a tab.
     await page.locator("#study-3d").click();
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
-    const fullpage = page.locator("#flyout-fullpage");
-    const studyHref = await fullpage.getAttribute("href");
-    // An icon-link since 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_
-    // over_http): the glyph on the strip, the words on its name and title.
-    push("the flyout head carries a plain new-tab link out to the full page",
-      await fullpage.count() === 1 &&
-      await fullpage.getAttribute("target") === "_blank" &&
-      await fullpage.getAttribute("rel") === "noopener" &&
-      /new tab/.test((await fullpage.getAttribute("aria-label")) || ""));
-    // The panel boots EMBEDDED (its rail is drawn in this page's nav); the
-    // full page is the plain url, menus and all.
-    push("...pointed at the same url the panel booted with, less the embedded flag",
-      studyHref + "&embedded=1" === frameSrc && !/embedded/.test(studyHref));
-    // House rule: no internal file or module name in user-facing copy.
-    push("its label names no file, module or param",
-      !/index\.html|annotate\.js|topology=|\?/.test(
-        ((await fullpage.textContent()) || "") + " " +
-        ((await fullpage.getAttribute("aria-label")) || "")));
+    push("the flyout head carries no link out to a page of its own",
+      await page.locator("#annotate-flyout .flyout__head a").count() === 0);
 
     // The iframe is the real annotate app, same-origin, no mock. It has no
     // banner in the pane any more (handoff the_scene_pane_is_one_flyout_that_
@@ -6111,7 +6090,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     }
 
     // --- the trace boot itself, end to end over the annotate mock fixture ---
-    await page.goto(url + "/apps/annotate/index.html?mock=1&trace=1" +
+    await page.goto(url + "/apps/annotate/index.html?embedded=1&mock=1&trace=1" +
       "&topology=demo_system&study=demo_study", { waitUntil: "load" });
     await page.waitForFunction(() => window.__lastTrace !== undefined, null,
       { timeout: 15000 });
@@ -6125,9 +6104,9 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     push("trace reports the missing mesh and the unbound edges honestly",
       trace.missingParts.length === 1 && trace.missingParts[0] === "no_such_part" &&
       trace.unboundEdges.length === 2);
-    push("the banner narrates the trace in plain words",
+    push("the notice line narrates the trace in plain words",
       /Traced .*1 part\(s\) ghosted, 1 bound face\(s\) marked/.test(
-        await page.locator("#banner").textContent()));
+        await page.locator("#notice-text").textContent()));
 
     // --- degraded: file:// has no origin to share ----------------------------
     await page.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
@@ -6146,9 +6125,9 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // stand-in for the transition: 300 ms happens to clear the 260 ms
     // duration, which is the only reason THIS half never failed.
     await page.waitForTimeout(300);
-    push("under file:// the study affordance stays the pre-flyout link",
+    push("under file:// the study offers no 3D affordance at all",
       await page.locator("#study-3d").count() === 0 &&
-      await page.locator("#toolbar a").count() === 1);
+      await page.locator("#toolbar a").count() === 0);
     await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] .tvcell--name").click();
     await page.waitForSelector("a.detail__annotate-link", { timeout: 5000 });
     push("under file:// the edge pane keeps the annotate-this link",
@@ -6897,7 +6876,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       const host = w.document.querySelector("#canvas-host").getBoundingClientRect();
       return {
         rail: w.getComputedStyle(rail).visibility,
-        console: w.getComputedStyle(w.document.querySelector(".an__console")).display,
+        console: w.document.querySelector(".an__console") ? "present" : "none",
         canvas: Math.round(host.width), page: w.innerWidth,
       };
     });
@@ -7140,7 +7119,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       w.document.querySelectorAll(".an__rail .el-row").length > 0 &&
       !w.document.querySelector(".an__sweep-summary"));
     const railStudy = bindMode
-      ? await inPane((w) => w.document.querySelector("#study-select").value) : null;
+      ? await inPane((w) => w.__selection.study) : null;
     push("[real] selecting a chain study in the nav leaves sweep mode: the bar is " +
       "gone and the annotator lists that study's elements",
       bindMode && railStudy === CHAIN);
@@ -7205,8 +7184,8 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     await page.locator(`tr.kmrow[data-edge="${unbound.edge}"]`).first().hover();
     const cleared = await until((w) => w.__lastHighlight === null, null, 10000);
     const said = cleared
-      ? await inPane((w) => w.document.querySelector("#console-output").textContent) : "";
-    const banner = await inPane((w) => w.document.querySelector("#banner").textContent);
+      ? await inPane((w) => w.__lastHighlightNote || "") : "";
+    const banner = await inPane((w) => w.document.querySelector("#notice-text").textContent);
     push("[real] resting on a contributor row with no binding tints nothing, and the " +
       "annotator says so in its console line rather than its banner",
       cleared && /no binding/.test(said) && !/no binding/.test(banner || ""));
@@ -7396,7 +7375,7 @@ async function testAnnotateArmedPick(browser, label) {
     return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
   }, [faceId, sha]);
   try {
-    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.goto(url + "?embedded=1&mock=1", { waitUntil: "load" });
     await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
     await page.evaluate(() => window.AnnotateApp.exec(["sweep", "synthetic-demo-sweep"]));
     await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree") &&
@@ -7595,7 +7574,7 @@ async function openSuggestionPage(browser, url, mode, errors, extra) {
       },
     });
   }, mode);
-  await page.goto(url + "?mock=1" + (extra || ""), { waitUntil: "load" });
+  await page.goto(url + "?embedded=1&mock=1" + (extra || ""), { waitUntil: "load" });
   return page;
 }
 
@@ -7758,7 +7737,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       frame.style.cssText = "width:800px;height:600px";
       frame.src = src;
       document.body.appendChild(frame);
-    }, url + "?mock=1&embedded=1");
+    }, url + "?embedded=1&mock=1&embedded=1");
     let inner = null;
     for (let i = 0; i < 100 && !inner; i++) {
       inner = page.frames().find((f) => f.url().indexOf("embedded=1") !== -1) || null;
@@ -7834,7 +7813,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
   await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
     aliases: index.aliases, binding: "real" });
   try {
-    await page.goto(`${url}?topology=${topology.id}`, { waitUntil: "load" });
+    await page.goto(`${url}?embedded=1&topology=${topology.id}`, { waitUntil: "load" });
     // The boot draws the first study's rail before the entry's goto lands:
     // the whole topology is the one with the studyless head.
     await page.waitForFunction(() => document.querySelector("#element-list li.el-head") &&
@@ -7847,7 +7826,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     push("[real] the topology-level rail shows a suggestion on every edge with an open proposal",
       bindRail.length === openEdges.size && bindRail.every((t) => /^suggested · (high|medium|low)$/.test(t)));
 
-    await page.goto(`${url}?sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+    await page.goto(`${url}?embedded=1&sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree") &&
       window.__sweep.tree.joints.length > 0, null, { timeout: 180000 });
     const sweepRail = await page.evaluate(() => {
@@ -7888,7 +7867,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
   const mock = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   mock.on("pageerror", (e) => errors.push(String(e)));
   try {
-    await mock.goto(url + "?mock=1", { waitUntil: "load" });
+    await mock.goto(url + "?embedded=1&mock=1", { waitUntil: "load" });
     await mock.waitForSelector("#element-list li.el-row", { timeout: 15000 });
     const boot = await railHtml(mock);
     await mock.evaluate(() => window.AnnotateApp.exec(["goto", "demo_system", "demo_edge_untraced"]));
@@ -7911,11 +7890,10 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     const left = await mock.evaluate(() => ({
       tree: !!document.getElementById("sweep-tree"),
       posture: document.getElementById("workspace").classList.contains("an--sweep"),
-      locked: document.getElementById("topology-select").disabled,
       list: getComputedStyle(document.getElementById("element-list")).display !== "none",
     }));
     push("leaving sweep mode takes the whole tree away and puts the bind furniture back",
-      !left.tree && !left.posture && !left.locked && left.list);
+      !left.tree && !left.posture && left.list);
 
     // A gap row's badge, on the fixture's own gap row: the witness that does
     // not wait on the live study having an unbanded contributor (it has had
@@ -7979,22 +7957,17 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     // so these checks can never again lean on a run/study mismatch.
     push("[real] the sweep rail boots P2 on the run its kinematic study folded",
       study.sweep && study.sweep.run_id === SWEEP_RAIL_RUN);
-    await page.goto(`${url}?sweep=${study.sweep.run_id}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+    await page.goto(`${url}?embedded=1&sweep=${study.sweep.run_id}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
     // The bodies resolving is what opens the parts the synthetic binding sits on.
     await page.waitForFunction(() => window.__sweep && window.__sweep.bodies &&
       window.__sweep.bodies.length > 0 && document.getElementById("sweep-tree"),
       null, { timeout: 180000 }).catch(() => {});
 
     const furniture = {
-      study: await visible("#study-select"), list: await visible("#element-list"),
-      auto: await visible("#auto-setup"), scope: await visible("#rail-filter"),
-      topology: await visible("#topology-select"),
-      locked: await page.evaluate(() => document.getElementById("topology-select").disabled),
+      list: await visible("#element-list"), scope: await visible("#rail-filter"),
     };
-    push("[real] in sweep mode the rail shows no study select, no element list, no " +
-      "arrival menu and no scope bar; the topology stays, as a label the run chose",
-      !furniture.study && !furniture.list && !furniture.auto && !furniture.scope &&
-      furniture.topology && furniture.locked);
+    push("[real] in sweep mode the rail shows no element list and no scope bar",
+      !furniture.list && !furniture.scope);
 
     const counts = await page.evaluate(() => ({
       bodies: document.querySelectorAll('#sweep-tree [data-group="bodies"] > details').length,
@@ -8196,16 +8169,16 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     if (!otherRun) {
       push("[real] a run the study did not fold (skipped: only one P2 run is on disk)", true);
     } else {
-      await page.goto(`${url}?sweep=${otherRun}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+      await page.goto(`${url}?embedded=1&sweep=${otherRun}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
       await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree"),
         null, { timeout: 60000 }).catch(() => {});
       const refused = await page.evaluate(() => ({
         tree: !!document.getElementById("sweep-tree"),
         group: !!document.querySelector('#sweep-tree [data-group="contributors"]'),
-        banner: (document.getElementById("banner") || {}).textContent || "",
+        banner: (document.getElementById("notice-text") || {}).textContent || "",
       }));
       push("[real] on a P2 run the study did not fold, the rail has no contributor " +
-        "group and the banner says which run the study was folded on",
+        "group and the notice says which run the study was folded on",
         refused.tree && !refused.group &&
         refused.banner.indexOf("Contributors left out") !== -1 &&
         refused.banner.indexOf(study.sweep.run_id) !== -1);
@@ -8270,7 +8243,7 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
     return hovered();
   };
   try {
-    await page.goto(`${url}?sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
+    await page.goto(`${url}?embedded=1&sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__sweep && window.__sweep.bodies &&
       window.__sweep.bodies.length > 0 && Object.keys(window.__sweep.occurrences).length > 0 &&
       document.getElementById("sweep-tree"), null, { timeout: 180000 }).catch(() => {});
@@ -8568,7 +8541,7 @@ async function testAnnotateRail(browser, label) {
     () => Object.keys(window.AnnotateApp.FIXTURES.meshProvenance).length);
   try {
     // --- unfiltered: what the rail has always shown ------------------------
-    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.goto(url + "?embedded=1&mock=1", { waitUntil: "load" });
     await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
     const allRows = await rows().count();
     const allParts = await parts().count();
@@ -8660,7 +8633,7 @@ async function testAnnotateRail(browser, label) {
     // The deep link's own shape, which is also the flyout's: arrive AT an
     // element. Jeff: "it should also auto-filter the left side menu to just
     // the features that are in the element (node or edge) it was entered from."
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_untraced",
       { waitUntil: "load" });
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
     push("arriving at an edge scopes the element list to that one element",
@@ -8699,7 +8672,7 @@ async function testAnnotateRail(browser, label) {
     // The honest-absence case: an element whose part has no installed mesh.
     // An empty parts panel with no reason for it would be the silent drop this
     // repo keeps paying for.
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_no_owner",
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_no_owner",
       { waitUntil: "load" });
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
     // "To nothing" is the model's group: no parts, so no "in this model" header
@@ -8713,7 +8686,7 @@ async function testAnnotateRail(browser, label) {
         (await page.locator("#rail-filter").textContent()) || ""));
 
     // --- a face can be deselected (deliverable 3) --------------------------
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced" +
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_untraced" +
       "&isolate=demo_triangle", { waitUntil: "load" });
     await page.waitForSelector("#parts-panel li.part-row", { timeout: 15000 });
     const sha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
@@ -8867,7 +8840,7 @@ async function testAnnotateRail(browser, label) {
 
     // ...and the alert badge inside a row must not be a second way to select:
     // it is a disclosure.
-    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.goto(url + "?embedded=1&mock=1", { waitUntil: "load" });
     await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
     await page.locator("#element-list .alertbadge").first().click();
     push("clicking the alert badge opens its popup and does NOT select the row",
@@ -8882,7 +8855,7 @@ async function testAnnotateRail(browser, label) {
     // wiring (`scene.placementsFor`) could be deleted green in every gated tier.
     // The mock part carries two recorded occurrences, 200 mm apart, and the
     // expectation is read off the fixture's own provenance.
-    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.goto(url + "?embedded=1&mock=1", { waitUntil: "load" });
     await page.waitForFunction(() => window.__scene && window.AnnotateApp &&
       window.AnnotateApp.exec, null, { timeout: 15000 });
     await page.evaluate((s) => window.AnnotateApp.exec(["open-part", s]), sha);
@@ -8977,9 +8950,9 @@ async function testAnnotateSuggestions(browser, label) {
     const mesh = window.__scene.parts.get(s);
     return !!(mesh && mesh.material.transparent && mesh.material.opacity < 1);
   }, sha);
-  const element = url + "?mock=1&topology=demo_system&edge=demo_edge_untraced";
+  const element = url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_untraced";
   try {
-    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.goto(url + "?embedded=1&mock=1", { waitUntil: "load" });
     await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
     await page.evaluate(() => {
       Object.keys(window.AnnotateApp.PREF_KEYS)
@@ -9021,7 +8994,7 @@ async function testAnnotateSuggestions(browser, label) {
     // state a reader is actually in: one face green because a binding attaches
     // there, another in the accent because it could be the one they are about
     // to bind.
-    await page.goto(url + "?mock=1&trace=1&topology=demo_system&study=demo_study",
+    await page.goto(url + "?embedded=1&mock=1&trace=1&topology=demo_system&study=demo_study",
       { waitUntil: "load" });
     await page.waitForFunction(() => window.__lastTrace !== undefined, null,
       { timeout: 15000 });
@@ -9135,7 +9108,7 @@ async function testAnnotateSuggestions(browser, label) {
 
     // --- an element whose words say nothing shows NOTHING -------------------
     await setting("Suggest likely faces").check();
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_traced",
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_traced",
       { waitUntil: "load" });
     await page.waitForSelector("#element-list li.el-row.selected", { timeout: 15000 });
     // demo_edge_traced names no part at all, so there is nothing to suggest --
@@ -9180,7 +9153,7 @@ async function testAnnotateSuggestions(browser, label) {
       .filter((m) => m.role === "contact")
       .map((m) => m.sha256.charAt(0) + ":" + m.faceId + ":" + m.material.color.getHexString())
       .sort());
-    await page.goto(url + "?mock=1&topology=demo_studyless&edge=demo_studyless_edge",
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_studyless&edge=demo_studyless_edge",
       { waitUntil: "load" });
     await page.waitForSelector("#detail .an__contact", { timeout: 15000 });
     await page.waitForFunction(
@@ -9276,14 +9249,14 @@ async function testAnnotateTopBar(browser, label) {
   };
   try {
     await page.evaluate(() => {}).catch(() => {});
-    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.goto(url + "?embedded=1&mock=1", { waitUntil: "load" });
     await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
     // Settings persist, so a stale run must not decide this one.
     await page.evaluate(() => {
       Object.keys(window.AnnotateApp.PREF_KEYS)
         .forEach((k) => window.localStorage.removeItem(window.AnnotateApp.PREF_KEYS[k]));
     });
-    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.goto(url + "?embedded=1&mock=1", { waitUntil: "load" });
     await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
 
     // --- 1. the bar is a bar ------------------------------------------------
@@ -9330,12 +9303,12 @@ async function testAnnotateTopBar(browser, label) {
 
     // --- 2. arriving at an element -----------------------------------------
     const sha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_untraced",
       { waitUntil: "load" });
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
     push("the arrival selects the topology and the study it came from",
-      await page.locator("#topology-select").inputValue() === "demo_system" &&
-      await page.locator("#study-select").inputValue() === "demo_study");
+      await page.evaluate(() => window.__selection.topology === "demo_system" &&
+        window.__selection.study === "demo_study"));
     push("...and SELECTS the element, rather than only listing it",
       await page.locator("#element-list li.el-row.selected").count() === 1);
     push("...and shows that element's part alone, in the scene and in the list",
@@ -9366,7 +9339,7 @@ async function testAnnotateTopBar(browser, label) {
         window.AnnotateApp.PREF_KEYS.faceSuggestions) ===
         window.AnnotateApp.ON_OFF[1],
       null, { timeout: 5000 });
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_untraced",
       { waitUntil: "load" });
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
     push("...and it is the ARRIVAL that shows it, not the face suggestions — " +
@@ -9380,36 +9353,36 @@ async function testAnnotateTopBar(browser, label) {
     // panel left open would toggle it shut and time out there instead.
     await page.locator("#detail .an__disclose").click();
 
-    // --- 3. the switches ----------------------------------------------------
-    await page.locator("#auto-setup > summary").click();
-    const boxes = page.locator("#auto-setup-body input[type=checkbox]");
-    push("the rail's menu offers one switch per step of the arrival",
-      await boxes.count() === 3 &&
-      (await page.locator("#auto-setup-body").textContent()).includes("Topology"));
+    // --- 3. the switches (the `auto-filter` verb: the pane has no menu) -----
+    const autoFilter = (step, on) => page.evaluate(([k, v]) =>
+      window.AnnotateApp.exec(["auto-filter", k, v]), [step, on ? "on" : "off"]);
+    const storedSteps = () => page.evaluate(() =>
+      window.AnnotateApp.readStoredAutoSteps(window.localStorage));
+    push("the arrival has one switch per step: topology, study and part",
+      await page.evaluate(() => window.AnnotateApp.AUTO_STEP_KEYS.join()) === "topology,study,part");
 
     // Parts off: the scope has to LIFT, now, not on the next launch.
-    await boxes.nth(2).uncheck();
-    push("unticking Parts returns the lists to manual at once",
+    await autoFilter("part", false);
+    push("turning Parts off returns the lists to manual at once",
       !(await page.locator("#rail-filter").isVisible()) &&
       await page.locator("#element-list li.el-row").count() === 3);
+    const steps = await storedSteps();
     push("...and disturbs neither of the others",
-      await boxes.nth(0).isChecked() && await boxes.nth(1).isChecked());
-    await boxes.nth(2).check();
+      steps.topology === true && steps.study === true && steps.part === false);
+    await autoFilter("part", true);
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 5000 });
-    push("...and ticking it back re-applies the arrival it came from",
+    push("...and turning it back on re-applies the arrival it came from",
       await modelParts().count() === 1 &&
       await drawnAlone(sha));
 
     // The setting outlives the page, the way the viewer's remembered pane
     // width does.
-    await boxes.nth(1).uncheck();
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+    await autoFilter("study", false);
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_untraced",
       { waitUntil: "load" });
     await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
-    await page.locator("#auto-setup > summary").click();
-    push("an unticked switch survives a reload",
-      !(await page.locator("#auto-setup-body input[type=checkbox]").nth(1).isChecked()));
-    await page.locator("#auto-setup-body input[type=checkbox]").nth(1).check();
+    push("a switched-off step survives a reload", (await storedSteps()).study === false);
+    await autoFilter("study", true);
 
     // See-through, on the element entry that is already on screen.
     await openHelp();
@@ -9420,7 +9393,7 @@ async function testAnnotateTopBar(browser, label) {
     push("...and ticking it puts it back", await ghosted(sha));
 
     // --- study scope and topology scope ------------------------------------
-    await page.goto(url + "?mock=1&trace=1&topology=demo_system&study=demo_study",
+    await page.goto(url + "?embedded=1&mock=1&trace=1&topology=demo_system&study=demo_study",
       { waitUntil: "load" });
     await page.waitForFunction(() => window.__lastTrace !== undefined, null,
       { timeout: 15000 });
@@ -9438,7 +9411,7 @@ async function testAnnotateTopBar(browser, label) {
       !(await ghosted(sha)));
     await setting("See-through parts").check();
 
-    await page.goto(url + "?mock=1&trace=1&topology=demo_system", { waitUntil: "load" });
+    await page.goto(url + "?embedded=1&mock=1&trace=1&topology=demo_system", { waitUntil: "load" });
     await page.waitForFunction(() => window.__lastTrace !== undefined, null,
       { timeout: 15000 });
     const topoTrace = await page.evaluate(() => window.__lastTrace);
@@ -9593,15 +9566,13 @@ async function testScenePaneOverHttp(browser, label) {
       "asked for at the first bind, never at boot",
       !!status && !!expected && status.word === expected.word &&
       status.tone === expected.tone && status.sentence === expected.sentence);
-    const fullpage = page.locator("#annotate-flyout .flyout__head #flyout-fullpage");
-    push("[real] the pane itself shows no banner, no transport line and no Connect " +
-      "button, and the full-page route is an icon-link in the pane's header",
+    push("[real] the pane itself shows no banner and no Connect button, and the head " +
+      "has no link out to a page of its own",
       await inPane((w) => {
         const shown = (sel) => { const n = w.document.querySelector(sel); return !!n && n.offsetParent !== null; };
-        return !shown("#banner") && !shown("#transport-sub") && !shown("#connect-btn");
+        return !shown("#banner") && !shown("#connect-btn");
       }) &&
-      await fullpage.count() === 1 && (await fullpage.textContent()).trim() === "↗" &&
-      /^\.\.\/annotate\/index\.html\?/.test((await fullpage.getAttribute("href")) || ""));
+      await page.locator("#annotate-flyout .flyout__head a").count() === 0);
 
     // --- the pane's document never scrolls ---------------------------------
     const narrow = await atWidth(400);
@@ -9685,7 +9656,7 @@ async function testAnnotateHostedPosture(browser, label, topologies) {
   page.on("pageerror", (e) => errors.push(String(e)));
   try {
     // --- hosted: a visitor with no tolstack repo to grant -------------------
-    await page.goto(`http://${HOSTED_TEST_HOST}:${port}/apps/annotate/index.html`,
+    await page.goto(`http://${HOSTED_TEST_HOST}:${port}/apps/annotate/index.html?embedded=1`,
       { waitUntil: "load" });
     const hostedBanner = await page.waitForFunction(() => {
       const text = document.querySelector("#banner")?.textContent.trim() || "";
@@ -9698,8 +9669,6 @@ async function testAnnotateHostedPosture(browser, label, topologies) {
     push("Connect folder is not offered at all",
       !/Connect folder/.test(hostedBanner) &&
       await page.locator("#connect-btn").evaluate((n) => n.style.display) === "none");
-    push("nor is the read/write transport line, which would be false here",
-      (await page.locator("#transport-sub").textContent()).trim() === "");
     push("no path, script or command leaks into the sentence",
       !/\.py|venv-win|C:\\|http/.test(hostedBanner));
     push("the honest notice is not an error thrown on the way to it",
@@ -9722,36 +9691,20 @@ async function testAnnotateHostedPosture(browser, label, topologies) {
     // column is forgotten.
     push("the bind instruction is gone -- it named a 3D view this origin does not have",
       !(await rendered(page, "#detail")));
-    push("no topology picker is offered for data this page cannot load",
-      !(await rendered(page, "#topology-select")));
-    push("nor a study picker",
-      !(await rendered(page, "#study-select")));
     push("no element list or parts panel either",
       !(await rendered(page, "#element-list")) &&
       !(await rendered(page, "#parts-panel")));
     push("there is no 3D pane standing empty where the hint pointed",
       !(await rendered(page, "#canvas-host")) &&
       await page.locator("canvas").count() === 0);
-    // The console is the one that was WIRED, not merely visible -- main() bound
-    // its click and Enter handlers before the hosted early-return, so a hosted
-    // reader had a live command line into an app with no storage behind it. A
-    // hidden-but-live control is a different defect from a misleading hint, so
-    // both halves are asserted: withheld, and never wired in the first place.
-    push("the dev console is not shown",
-      !(await rendered(page, "#console-input")) &&
-      !(await rendered(page, "#console-run")));
-    push("and it was never wired -- no live handler behind the withheld control",
-      await page.evaluate(() => document.querySelector("#console-run").onclick === null &&
-        document.querySelector("#console-input").onkeydown === null));
-
     // --- local: the same URL from the machine holding the repo --------------
     // On an origin that publishes nothing the folder grant is the only way in
     // (no file:// story); where the projections ARE served, see the
     // read-only half below.
-    await page.goto(`http://127.0.0.1:${port}/apps/annotate/index.html`,
+    await page.goto(`http://127.0.0.1:${port}/apps/annotate/index.html?embedded=1`,
       { waitUntil: "load" });
     const localBanner = await page.waitForFunction(() => {
-      const text = document.querySelector("#banner")?.textContent.trim() || "";
+      const text = document.querySelector("#notice-text")?.textContent.trim() || "";
       return text.length > 0 ? text : null;
     }, null, { timeout: 15000 }).then((h) => h.jsonValue());
     // WHICH of the two pre-connect states this is, asserted rather than
@@ -9807,18 +9760,11 @@ async function testAnnotateHostedPosture(browser, label, topologies) {
     if (localHasFsa) {
       push("the same page on loopback still has the full bind workspace",
         await rendered(page, "#detail") &&
-        await rendered(page, "#topology-select") &&
-        await rendered(page, "#study-select") &&
         await rendered(page, "#element-list") &&
         await rendered(page, "#parts-panel") &&
-        await rendered(page, "#canvas-host") &&
-        await rendered(page, "#console-input") &&
-        await rendered(page, "#console-run"));
+        await rendered(page, "#canvas-host"));
       push("and the 3D view the bind instruction names really is there",
         await page.locator("#canvas-host canvas").count() === 1);
-      push("and its dev console is wired there",
-        await page.evaluate(() => document.querySelector("#console-run").onclick !== null &&
-          document.querySelector("#console-input").onkeydown !== null));
     } else {
       push("SKIPPED: what a no-FSA loopback page should SHOW under that " +
         "sentence -- withhold the workspace, substitute ?mock=1, or leave it " +
@@ -9841,24 +9787,21 @@ async function testAnnotateHostedPosture(browser, label, topologies) {
       const served = await startRepoRootServer();
       try {
         const servedPort = served.address().port;
-        await page.goto(`http://${HOSTED_TEST_HOST}:${servedPort}/apps/annotate/index.html`,
+        await page.goto(`http://${HOSTED_TEST_HOST}:${servedPort}/apps/annotate/index.html?embedded=1`,
           { waitUntil: "load" });
-        const loaded = await page.waitForFunction(() => {
-          const text = document.querySelector("#banner")?.textContent.trim() || "";
-          return /^loaded /.test(text) ? text : null;
-        }, null, { timeout: 20000 }).then((h) => h.jsonValue()).catch(() => "");
+        const loaded = await page.waitForFunction(() =>
+          document.querySelectorAll("#element-list li").length > 0 &&
+          document.querySelectorAll("#parts-panel li").length > 0,
+        null, { timeout: 20000 }).then(() => true).catch(() => false);
         push("[real] hosted, a served origin's projections load with no grant, and the " +
-          "scene is there: pickers, list, parts and the 3D view",
-          /^loaded \d+ topolog/.test(loaded) &&
-          await rendered(page, "#topology-select") &&
+          "scene is there: list, parts and the 3D view",
+          loaded &&
           await rendered(page, "#element-list") &&
           await rendered(page, "#parts-panel") &&
           await rendered(page, "#canvas-host") &&
           await page.locator("#canvas-host canvas").count() === 1);
-        push("[real] ...with no folder control anywhere, and a transport line that says read-only",
+        push("[real] ...with no folder control anywhere",
           await page.locator("#connect-btn").evaluate((n) => n.style.display) === "none" &&
-          (await page.locator("#transport-sub").textContent()) ===
-            await page.evaluate(() => window.AnnotateApp.PANE_STATUS.readOnly.sentence) &&
           !/Connect folder|connected folder/.test(
             await page.evaluate(() => document.body.innerText)));
         // A bind, pressed: the owner-not-in-set record is the one bind control
@@ -9873,7 +9816,7 @@ async function testAnnotateHostedPosture(browser, label, topologies) {
           if (!button) return null;
           button.click();
           await new Promise((r) => setTimeout(r, 300));
-          return document.querySelector("#banner").textContent.trim();
+          return document.querySelector("#notice-text").textContent.trim();
         });
         const readOnly = await page.evaluate(() => window.AnnotateApp.READ_ONLY_WRITE);
         push("[real] pressing a bind control says, in one line, that binding is not available here",
@@ -12114,7 +12057,7 @@ async function testAnnotateBindForm(browser, label) {
   const cameraAt = () => page.evaluate(() => window.__scene.camera.position.toArray()
     .concat(window.__scene.camera.quaternion.toArray()));
   try {
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_untraced",
       { waitUntil: "load" });
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
     await page.waitForFunction(() => window.__scene &&
@@ -12805,7 +12748,7 @@ async function testAnnotateRenderOnDemand(browser, label) {
   page.on("pageerror", (e) => errors.push(String(e)));
   const rendered = () => page.evaluate(() => window.__scene.renderCount);
   try {
-    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+    await page.goto(url + "?embedded=1&mock=1&topology=demo_system&edge=demo_edge_untraced",
       { waitUntil: "load" });
     await page.waitForFunction(() => window.__scene &&
       window.__scene.parts.has(window.AnnotateApp.FIXTURES.demoSha), null, { timeout: 15000 });
@@ -12857,6 +12800,27 @@ async function testAnnotateRenderOnDemand(browser, label) {
   try {
     ({ browser, channel } = await launch());
     console.log(`browser: ${browser.version()} via channel '${channel}'\n`);
+
+    // The annotate pane's rail is laid out but not shown, because the shell
+    // draws the same rows in its own nav (apps/annotate/style.css,
+    // `body.an--embedded`). The suites below that open the pane's document on
+    // its own (top level, `embedded=1`) read and click those rows, so they get
+    // the rail shown; the pane inside the shell's iframe is left as it ships.
+    const newPage = browser.newPage.bind(browser);
+    browser.newPage = async (...args) => {
+      const page = await newPage(...args);
+      await page.addInitScript(() => {
+        if (window.parent !== window) return;
+        document.addEventListener("DOMContentLoaded", () => {
+          if (!document.body.classList.contains("an--embedded")) return;
+          const style = document.createElement("style");
+          style.textContent = "body.an--embedded .an { grid-template-columns: 260px 1fr; }" +
+            "body.an--embedded .an__rail { position: static; visibility: visible; pointer-events: auto; width: auto; }";
+          document.head.appendChild(style);
+        });
+      });
+      return page;
+    };
 
     const topologies = await readProjection("topologies.json");
     const crops = await readProjection("crops.json");
