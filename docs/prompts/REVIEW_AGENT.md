@@ -5337,6 +5337,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       only while the chain is symmetric, as the travel study is today. When the
       hub-anchor chain (or any asymmetric driver ref) lands, compare the band's
       drawn corners with the stop's swept `worst_case_min/max`.
+- [ ] **A feature-identity write that bypasses the one answer path.** New
+      2026-10-29 (`a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place`).
+      Answering a proposal is planned by `AA.planAnswer` (`binding_state.js`)
+      and written by `writeAnswer` (`app.js`) only, so an armed click at a
+      proposed end rejects the proposal too. `grep -n "buildBoundEvent(\|buildAcceptEvent\|buildRejectEvent" apps/annotate/app.js`:
+      the only other hit allowed is bind mode's form (`buildBindForm`), and it
+      leaves an open proposal standing (bound wins in the fold) until that page
+      goes. A new surface that writes events itself is a finding.
 
 ## Architectural errors to check
 
