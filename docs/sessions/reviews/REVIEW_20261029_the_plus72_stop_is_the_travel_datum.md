@@ -153,3 +153,26 @@ Two **Recurring bugs** entries added:
 - a python test reading a `SHADOW_EMPTY_DIRS` directory silently decays its
   whole file's witnesses;
 - a symmetric-halves x-band against an asymmetric fold.
+
+## Post-merge record
+
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration`:
+  **33/33 witnessed, 33/33 reached** in 6m25s, with 0 left to the sweep
+  (exit 0).
+- Full suite, `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`,
+  in the review worktree on the merged tree, single process: **1 failed,
+  1683 passed, 1 skipped, 2 deselected**, 326 s. That is inside the
+  10-minute default budget, recorded with `dispatch suite-time`.
+  - The one failure is `test_viewer_js_suite_is_green`, the deliberate
+    worktree red: its `[real]` tier ran green through `--repo` above
+    (622/622).
+  - The suite printed no contention header lines (`concurrent pytest
+    processes at start` / `full-suite lock`) because tolstack's conftest
+    does not emit them.
+  - The main checkout was not run, because the diff touches no `data/`
+    path resolution.
+- `integration` did not move during the review (`git log HEAD..integration`
+  was empty).
+- No file under the main checkout's `data/` outside `data/scratch/` changed
+  during the review. The scratch root `data/scratch/review_plus72/` was
+  removed at the end.
