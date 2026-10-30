@@ -169,3 +169,29 @@ and the viewer fast tier is red at baseline (`display_name`).
   baseline. The cause is already filed as
   `ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md`.
   Once that is fixed, the sweep will reach them.
+
+## Landing merge — integration moved to `0b014596` during the review
+
+`the_rearrange_animates_and_centres_the_active_study` landed first, and
+`git merge integration` conflicted in one place: `scripts/guard_enumeration.mjs`'s
+`browser` pin. Each side had measured its pin without the other side's guards:
+this handoff's 770/737 against integration's 758/725.
+
+**Resolution.** I kept both comments, then re-measured with
+`node scripts/guard_enumeration.mjs --json`: **773 declared / 740 enrollable,
+names `a7ecf256ad34`**. That is 755 + 3 + 15 and 722 + 3 + 15, which is what
+the two deltas predict. I grepped for leftover markers and found none.
+
+**Re-run on the merged tree:**
+
+| run | result |
+|---|---|
+| `pytest -q` test_mutation_witnesses, test_js_vocabulary_is_generated, test_app_type_scale | 111 passed |
+| `node apps/annotate/run_tests.cjs` | 266/266 |
+| viewer fast tier `--repo` scratch | 623/626, the same 3 baseline `display_name` reds |
+| browser `--only "annotate rail suggestion"` | 1/1 |
+| browser `--only "topology file://"` | first run: 1/2 suites (I did not capture which sub-check failed); immediate re-run: 2/2 (`topology file://` 219/219, respine 44/44) |
+
+The topology suites cover integration's new tween code, and this diff touches
+none of their files. The one red did not repeat, so I am recording it as a
+flake without evidence of its cause, not as a pass.
