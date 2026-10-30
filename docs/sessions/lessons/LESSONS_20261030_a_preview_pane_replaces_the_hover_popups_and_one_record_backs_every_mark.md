@@ -221,3 +221,23 @@ These are ports of retired checks that had no spec under their old names, plus a
   their own box, so the contributor table can run past the Preview's top inside
   it. What holds is the order within the results and the results' box above
   the Preview.
+
+## The run record (final tree)
+
+- `PYTHONIOENCODING=utf-8 venv python -m pytest -q`, run in the worktree:
+  1684 passed, 1 skipped, 1 failed in 322s. The one failure is
+  `tests/test_viewer_js_suite.py`, red by design in a worktree because there is
+  no `data/projections` there.
+- `node apps/viewer/run_tests.cjs --repo <scratch root built from this tree>`:
+  620/623. The three failures are the `display_name` fixture drift, which is
+  integration's and already filed.
+- `node apps/annotate/run_tests.cjs`: 266/266.
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch root>`: 39/39
+  suites, 488s.
+- Witnesses: every spec this branch added or touched was proved. That is 32
+  new or re-anchored specs plus 7 re-pointed anchors, 40 in all. The browser
+  ones went through the runner with `--only`. The fast and annotate ones were
+  proved by hand, because the tier is red at baseline on the drift above.
+  An earlier full-tier run (37/39) went red on the corridor geometry and on the
+  spec-citation race; both are fixed above. In the same run, "3D pane follows …
+  leaving it takes the light down" was red once and green alone (load).
