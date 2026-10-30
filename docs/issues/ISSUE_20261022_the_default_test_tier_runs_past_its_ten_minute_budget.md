@@ -61,3 +61,7 @@ candidates for a merge-only tier.
 ## Measurement 2026-10-29 (the_wheel_the_column_and_fit_behave)
 
 `venv-win/Scripts/python.exe -m pytest -q` (no -n; the pytest.ini here rejects it) took 19m10s in a worktree while a witness run shared the box; an earlier uncontended run took 8m37s and a later one 5m17s. Contention, not growth.
+
+## Measurement 2026-10-29 (review, viewer_browser_checks_wait_on_settled_state)
+
+900 s, but concurrent with an 8 min witness run and the browser slot (tactical measured 473 s alone). Contended, not a regression.
