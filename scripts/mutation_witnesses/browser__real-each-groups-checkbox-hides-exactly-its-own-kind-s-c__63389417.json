@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] each Groups checkbox hides exactly its own kind's containers and the popover stays open while it is ticked",
+  "mutations": [
+    {
+      "contract": "A checkbox sets its own kind and no other.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_the_contributor_table_lives_in_the_results_pane_and_groups_are_checkboxes.md",
+      "note": "The page's one write of a kind's state.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          groupKinds[kind] = on;",
+      "replace": "          groupKinds[kind] = true;"
+    }
+  ]
+}
