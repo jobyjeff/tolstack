@@ -30,3 +30,19 @@ the bodies resolve late `bodyRow` is null and all four checks fail as one.
 
 Fix shape: wait (bounded) for a body row with an enabled checkbox before the
 lookup, the way the surrounding checks wait on their own selectors.
+
+## Addendum 2026-10-29 (review)
+
+The review ran the full browser tier on the merged tree, against a scratch
+root built from that tree (`--repo data/scratch/review_face_pick`): **34/36**.
+
+- "3D pane follows the selection" failed 31/32, on a different sub-check from
+  the four above: `[real] ...and leaving it takes the light down`.
+- "crop lightbox (launch, zoom, pan on the live crops)" ABORTED. "the launcher
+  takes keyboard focus and becomes visible" failed, then
+  `waitForSelector('#crop-lightbox[open]')` timed out at 10 s.
+
+Re-run alone with `--only`, minutes later, both were green (32/32, 20/20). The
+lightbox check calls `.focus()` directly, so the new `#nav-divider` in the tab
+order is not in its path. Same class: a check that does not wait on settled
+state, and goes red under a contended box.
