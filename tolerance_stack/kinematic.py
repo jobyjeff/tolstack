@@ -100,6 +100,37 @@ term that is untraced there is untraced here. v0 refuses a ``study_ref`` that
 names a kinematic study (no nesting). ``docs/DAG_TOPOLOGY.md``, "A kinematic
 study reads its sensitivity from a published sweep".
 
+A ``study_ref`` on the driver is where a stop IS, not a term of the envelope
+---------------------------------------------------------------------------
+
+A ``study_ref`` whose ``parameter`` is the sweep's own driver
+(``mechanism.driver.parameter``) moves the coordinate the sweep is plotted
+against, so it is an **x-uncertainty of a stop**, never a y-term of the
+envelope (Jeff, 2026-10-29, handoff ``the_plus72_stop_is_the_travel_datum``).
+Such a ref must say which stops it moves (``applies_to``, ids from
+``stops[]``; required, so which stop carries a stop-to-stop distance can never
+again be left to a reading), and it does three things and no others:
+
+* it is **left out of every point's fold** (:func:`fold_at`): the envelope is
+  the direct contributors' alone, so its half-width at a stop is the direct
+  half there and the band drawn across the stop joins it without a step;
+* at each stop it applies to, it is an x-interval ``x_stop +/- h``
+  (:class:`StopOffset`; ``h`` its leaves' worst-case half in the driver's
+  unit, folded once over the leaves at their own ratios -- the RSS half is
+  the same fold's);
+* the stop's verdict is the envelope **swept over that interval**, to first
+  order at the stop's own Jacobian entry ``J``: the direct terms and the
+  ref's leaves at ``|J| x`` their ratio, through the one :func:`fold`
+  (:func:`fold_at_stop`). Its worst case is the envelope's upper edge at the
+  interval's corner, ``|J| h`` + the direct half.
+
+The stop the driver is measured from is the **datum** (``datum.stop``): the
+sweep's driver is 0 there (refused at load if it is not), and a stop-to-stop
+distance does not move it. A ref may also be a **declared gap** (``gap``,
+with its own ``title``): the chain that would locate a stop is not authored
+yet, so the ref contributes no leaves and every check at a stop it applies to
+is incomplete, naming it.
+
 Which feature a label is
 ------------------------
 
@@ -272,6 +303,12 @@ LINKAGE_JOINT_INTERFACES: Dict[str, Optional[str]] = {
 
 #: The keys a ``study_ref`` names. **This tuple is the definition.**
 STUDY_REF_FIELDS = ("topology", "study_id", "parameter")
+
+#: The fields a ``study_ref`` contributor carries beside its ``study_ref``.
+#: ``applies_to`` is required exactly when the ref is on the sweep's driver
+#: (which stops it moves) and refused otherwise; ``gap`` and ``title`` declare
+#: a chain study that is not authored yet (both, or neither).
+STUDY_REF_CONTRIBUTOR_FIELDS = ("study_ref", "applies_to", "gap", "title", "note")
 
 #: The file patterns a ``study_ref``'s ``study_id`` is looked for under, in the
 #: topologies directory: a chain study (what a ref may name) and a kinematic
@@ -502,6 +539,11 @@ class StudyRef:
     is the sub-study's own derived completeness -- a term open there is open
     here. ``total`` is the sub-study's own published interval, kept to be shown
     beside the result and never read by an arithmetic step.
+
+    ``applies_to`` is non-empty exactly when ``parameter`` is the sweep's
+    driver: the ref is then part of a :class:`StopOffset` of those stops and
+    never a term of a point's fold. ``gap`` is set for a declared gap -- a
+    chain study not authored yet: no ``terms``, no ``total``, never complete.
     """
 
     topology: str
@@ -511,9 +553,16 @@ class StudyRef:
     units: str
     terms: Tuple[SubTerm, ...]
     completeness: Dict[str, Any]
-    total: Interval
+    total: Optional[Interval]
     note: Optional[str] = None
     source_file: Optional[str] = None
+    applies_to: Tuple[str, ...] = ()
+    gap: Optional[str] = None
+
+    @property
+    def is_stop_offset(self) -> bool:
+        """Whether this ref moves where a stop is (it is on the driver)."""
+        return bool(self.applies_to)
 
 
 @dataclass(frozen=True)
@@ -547,6 +596,16 @@ class KinematicStudy:
     no_checks_reason: Optional[str] = None
     provenance: Dict[str, Any] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
+    datum: Optional[Dict[str, Any]] = None
+
+    @property
+    def point_refs(self) -> List[StudyRef]:
+        """The refs folded at every point: those NOT on the driver."""
+        return [r for r in self.study_refs if not r.is_stop_offset]
+
+    def offset_refs(self, stop_id: str) -> List[StudyRef]:
+        """The driver refs that move stop ``stop_id``, in document order."""
+        return [r for r in self.study_refs if stop_id in r.applies_to]
 
     def stop(self, stop_id: str) -> Stop:
         for stop in self.stops:
@@ -792,20 +851,57 @@ def _study_file(study_id: str, topologies_dir: Path) -> Tuple[Path, Dict[str, An
     return found[0]
 
 
+def _applies_to(study_id: str, raw: Dict[str, Any], ref: Dict[str, Any],
+                sweep: Sweep, stop_ids: Sequence[str]) -> Tuple[str, ...]:
+    """A ref's ``applies_to``: required on the driver, refused off it."""
+    on_driver = ref["parameter"] == sweep.driver.get("parameter")
+    given = raw.get("applies_to")
+    if not on_driver:
+        if given is not None:
+            raise KinematicStudyError(
+                f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is on "
+                f"{ref['parameter']!r}, not the sweep's driver, so it is a term at "
+                f"every point and moves no stop; `applies_to` is a driver ref's")
+        return ()
+    if not isinstance(given, list) or not given:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is on the "
+            f"sweep's driver {ref['parameter']!r}, so it moves where a stop is and "
+            f"must say which: `applies_to` is required, a non-empty list of stop "
+            f"ids from {list(stop_ids)}")
+    unknown = [s for s in given if s not in stop_ids]
+    if unknown or len(set(given)) != len(given):
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} "
+            f"applies_to {given!r} "
+            + (f"names no stop {unknown!r}" if unknown else "lists a stop twice")
+            + f"; the stops are {list(stop_ids)}")
+    return tuple(given)
+
+
 def _load_study_ref(study_id: str, raw: Dict[str, Any], sweep: Sweep,
-                    topologies_dir: Path, cache: Dict[str, Topology]) -> StudyRef:
+                    topologies_dir: Path, cache: Dict[str, Topology],
+                    stop_ids: Sequence[str] = ()) -> StudyRef:
     """Resolve one ``study_ref`` contributor to the sub-study's signed terms."""
     ref = raw["study_ref"]
     if not isinstance(ref, dict) or any(not ref.get(k) for k in STUDY_REF_FIELDS):
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: a study_ref needs {STUDY_REF_FIELDS}, "
             f"got {ref!r}")
-    if raw.get("edge") or raw.get("parameters") or raw.get("dimension") \
-            or raw.get("dimension_ref"):
+    extra = sorted(set(raw) - set(STUDY_REF_CONTRIBUTOR_FIELDS))
+    if extra:
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is a "
             f"contributor by itself -- it carries no edge, parameters or band of "
-            f"its own; its terms are the sub-study's")
+            f"its own; its terms are the sub-study's (it has {extra})")
+    sweep.parameter_index(ref["parameter"])
+    applies_to = _applies_to(study_id, raw, ref, sweep, stop_ids)
+    if bool(raw.get("gap")) != bool(raw.get("title")):
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r}: a declared "
+            f"gap carries both `gap` (why) and `title` (what it is), or neither")
+    if raw.get("gap"):
+        return _gap_study_ref(study_id, raw, ref, sweep, topologies_dir, applies_to)
     path, data = _study_file(ref["study_id"], topologies_dir)
     if data.get("schema") == SCHEMA_KINEMATIC_STUDY:
         nested = any("study_ref" in c for c in data.get("contributors") or ())
@@ -821,7 +917,6 @@ def _load_study_ref(study_id: str, raw: Dict[str, Any], sweep: Sweep,
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} says "
             f"topology {ref['topology']!r}; the study is of {data.get('topology')!r}")
-    sweep.parameter_index(ref["parameter"])
     try:
         sub = load_study(path)
         result = summarize(_topology(ref["topology"], topologies_dir, cache), sub)
@@ -839,7 +934,36 @@ def _load_study_ref(study_id: str, raw: Dict[str, Any], sweep: Sweep,
         topology=ref["topology"], study_id=sub.id, parameter=ref["parameter"],
         title=sub.title, units=result.units, terms=terms,
         completeness=result.completeness(), total=result.interval,
-        note=raw.get("note"), source_file=path.name)
+        note=raw.get("note"), source_file=path.name, applies_to=applies_to)
+
+
+def _gap_study_ref(study_id: str, raw: Dict[str, Any], ref: Dict[str, Any],
+                   sweep: Sweep, topologies_dir: Path,
+                   applies_to: Tuple[str, ...]) -> StudyRef:
+    """A declared gap: the chain study a ref names is not authored yet.
+
+    Refused once the study exists, so a gap cannot outlive the chain that
+    closes it. Its unit is the parameter's own (there is no output to read
+    one from), and it is never complete.
+    """
+    try:
+        _study_file(ref["study_id"], topologies_dir)
+    except KinematicStudyError:
+        pass
+    else:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is declared "
+            f"a gap, but a document under {topologies_dir} declares that study: "
+            f"drop `gap` and `title` and let its terms enter")
+    _, units = parameter_unit(sweep, ref["parameter"])
+    reason = (f"declared gap -- {raw['gap']}; chain study {ref['study_id']!r} is "
+              f"not authored yet")
+    return StudyRef(
+        topology=ref["topology"], study_id=ref["study_id"], parameter=ref["parameter"],
+        title=raw["title"], units=units or "", terms=(),
+        completeness={"complete": False, "reason": reason, "open_terms": []},
+        total=None, note=raw.get("note"), source_file=None,
+        applies_to=applies_to, gap=raw["gap"])
 
 
 def load_kinematic_study(path: str | Path, data_root: str | Path,
@@ -880,6 +1004,10 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
             f"sweep {sweep.run_id!r}'s measures with a sensitivity table "
             f"({sorted(sweep.jacobian)})")
 
+    stops = [Stop(id=s["id"], label=s.get("label", s["id"]), target=float(s["target"]),
+                  context_ref=s.get("context_ref"))
+             for s in data.get("stops") or []]
+    stop_ids = [s.id for s in stops]
     cache: Dict[str, Topology] = {}
     topology = _topology(data["topology"], tdir, cache)
     contributors: List[Contributor] = []
@@ -887,7 +1015,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
     seen = set()
     for raw in data.get("contributors") or []:
         if "study_ref" in raw:
-            study_ref = _load_study_ref(study_id, raw, sweep, tdir, cache)
+            study_ref = _load_study_ref(study_id, raw, sweep, tdir, cache, stop_ids)
             if study_ref.study_id in {r.study_id for r in study_refs}:
                 raise KinematicStudyError(
                     f"kinematic study {study_id!r}: study_ref {study_ref.study_id!r} "
@@ -922,16 +1050,16 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
     if not contributors and not study_refs:
         raise KinematicStudyError(f"kinematic study {study_id!r} names no contributors")
 
-    stops = [Stop(id=s["id"], label=s.get("label", s["id"]), target=float(s["target"]),
-                  context_ref=s.get("context_ref"))
-             for s in data.get("stops") or []]
     study = KinematicStudy(
         id=study_id, title=data["title"], topology=topology.id, measure=measure,
         sweep_ref=sweep_ref, contributors=contributors, stops=stops,
         study_refs=study_refs,
         description=data.get("description"), checks=list(data.get("checks") or []),
         no_checks_reason=data.get("no_checks_reason"),
-        provenance=dict(data.get("provenance") or {}), notes=list(data.get("notes") or []))
+        provenance=dict(data.get("provenance") or {}), notes=list(data.get("notes") or []),
+        datum=dict(data["datum"]) if data.get("datum") else None)
+    if study.datum is not None:
+        _check_datum(study, sweep)
     if not study.checks and not study.no_checks_reason:
         raise KinematicStudyError(
             f"kinematic study {study_id!r} has no checks and no `no_checks_reason`")
@@ -939,6 +1067,18 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
         stop_id = (spec.get("configuration") or {}).get("stop")
         study.stop(stop_id)          # a check is applied AT a named stop
     return study, sweep
+
+
+def _check_datum(study: KinematicStudy, sweep: Sweep) -> None:
+    """``datum.stop`` is a stop, and the sweep's driver is zero there."""
+    stop_id = study.datum.get("stop")
+    study.stop(stop_id)
+    value = sweep.driver_values[stop_index(study, sweep, stop_id)]
+    if value != 0.0:
+        raise KinematicStudyError(
+            f"kinematic study {study.id!r}: datum stop {stop_id!r} sits at driver "
+            f"{value!r} on sweep {sweep.run_id!r}; the datum is where the driver is "
+            f"measured from, so it must be 0 there")
 
 
 # ---------------------------------------------------------------------------
@@ -1128,7 +1268,11 @@ class PointResult:
 
 
 def fold_at(study: KinematicStudy, sweep: Sweep, point: int) -> PointResult:
-    """Every contributor's term at ``point``, folded once."""
+    """Every contributor's term at ``point``, folded once.
+
+    A ``study_ref`` on the driver is not among them: it moves where a stop is
+    (:func:`fold_at_stop`), never the envelope.
+    """
     rows = []
     for contributor in study.contributors:
         entries = sweep.entries(study.measure, contributor.parameters, point)
@@ -1136,7 +1280,7 @@ def fold_at(study: KinematicStudy, sweep: Sweep, point: int) -> PointResult:
         rows.append(ContributorRow(contributor, entries, sign, coefficient,
                                    contributor_term(contributor, entries)))
     groups = [study_ref_group(ref, sweep.entries(study.measure, (ref.parameter,), point)[0])
-              for ref in study.study_refs]
+              for ref in study.point_refs]
     terms = [r.term for r in rows if r.term is not None]
     terms += [c.term for g in groups for c in g.children if c.term is not None]
     return PointResult(
@@ -1161,6 +1305,71 @@ def stop_index(study: KinematicStudy, sweep: Sweep, stop_id: str) -> int:
     return min(range(len(values)), key=lambda i: abs(values[i] - stop.target))
 
 
+@dataclass(frozen=True)
+class StopOffset:
+    """Where a stop is, as an x-interval: the driver refs that move it.
+
+    ``interval`` is the refs' leaves folded once at their own ratios, in the
+    driver's unit, about the stop's own driver value (variation only): its
+    worst-case half is ``h``, its RSS half the RSS figure's. ``entry`` is the
+    measure's Jacobian entry for the driver at the stop, ``groups`` the leaves
+    at ``|entry| x`` their ratios (:func:`study_ref_group`). No leaves: a zero
+    interval, and nothing is drawn.
+    """
+
+    stop: str
+    entry: float
+    refs: Tuple[StudyRef, ...]
+    groups: Tuple[GroupRow, ...]
+    interval: Interval
+
+
+@dataclass(frozen=True)
+class StopResult:
+    """A stop: the envelope there (direct only), its offset, and the swept fold."""
+
+    stop: Stop
+    point: PointResult
+    offset: StopOffset
+    interval: Interval
+
+    @property
+    def open_refs(self) -> List[StudyRef]:
+        """The refs reaching this stop (offset or per-point) that are open."""
+        return [r for r in (*self.offset.refs, *(g.ref for g in self.point.groups))
+                if not r.completeness["complete"]]
+
+
+def stop_offset(study: KinematicStudy, sweep: Sweep, stop_id: str) -> StopOffset:
+    """The x-interval of stop ``stop_id`` (:class:`StopOffset`)."""
+    point = stop_index(study, sweep, stop_id)
+    refs = tuple(study.offset_refs(stop_id))
+    parameter = sweep.driver.get("parameter")
+    entry = (sweep.entries(study.measure, (parameter,), point)[0]
+             if parameter in sweep.parameters else 0.0)
+    return StopOffset(
+        stop=stop_id, entry=entry, refs=refs,
+        groups=tuple(study_ref_group(ref, entry) for ref in refs),
+        interval=fold([Term(sub.dimension, sub.sign, sub.ratio)
+                       for ref in refs for sub in ref.terms]))
+
+
+def fold_at_stop(study: KinematicStudy, sweep: Sweep, stop_id: str) -> StopResult:
+    """The envelope at a stop, swept over the stop's own x-interval.
+
+    To first order at the stop's Jacobian entry: the direct terms of
+    :func:`fold_at` and the offset's leaves at ``|J| x`` their ratios, through
+    the one :func:`fold`. With no offset it is the point's own interval.
+    """
+    point = fold_at(study, sweep, stop_index(study, sweep, stop_id))
+    offset = stop_offset(study, sweep, stop_id)
+    terms = [r.term for r in point.rows if r.term is not None]
+    terms += [c.term for g in (*point.groups, *offset.groups)
+              for c in g.children if c.term is not None]
+    return StopResult(stop=study.stop(stop_id), point=point, offset=offset,
+                      interval=fold(terms))
+
+
 def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckResult:
     """One authored check, applied at its named stop.
 
@@ -1173,12 +1382,13 @@ def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckRe
     spec = next((c for c in study.checks if c.get("check_id") == check_id), None)
     if spec is None:
         raise KinematicStudyError(f"kinematic study {study.id!r} has no check {check_id!r}")
-    point = fold_at(study, sweep, stop_index(study, sweep, spec["configuration"]["stop"]))
+    at_stop = fold_at_stop(study, sweep, spec["configuration"]["stop"])
+    point = at_stop.point
     units = sweep.units.get(study.measure)
-    open_refs = [r for r in study.study_refs if not r.completeness["complete"]]
+    open_refs = at_stop.open_refs
     limit = spec.get("limit")
     if limit is None:
-        interval = point.interval
+        interval = at_stop.interval
     else:
         limit_dim = Dimension(
             id=f"{check_id}__limit", name=spec.get("label", check_id),
@@ -1187,8 +1397,8 @@ def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckRe
             source_ref=SourceRef.from_dict(limit["source_ref"]))
         total_dim = Dimension(
             id=f"{check_id}__stop_total", name=f"{study.id} at {point.index}",
-            nominal=point.interval.nominal, min=point.interval.min,
-            max=point.interval.max)
+            nominal=at_stop.interval.nominal, min=at_stop.interval.min,
+            max=at_stop.interval.max)
         interval = fold([Term(limit_dim, sign=1), Term(total_dim, sign=-1)])
         units = limit.get("units", units)
     return CheckResult(

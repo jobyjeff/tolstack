@@ -165,7 +165,11 @@ export const DECLARED_GUARDS = {
   // top of the_active_study_is_a_compact_band_...'s +8.
   // Re-measured again at the same review's second merge, on top of
   // a_study_is_a_translucent_group_on_the_dag.
-  fast: { declared: 621, enrollable: 621, names: "fd7b363db255" },
+  // 2026-10-29 (the_plus72_stop_is_the_travel_datum): +1 -- three in (the
+  // datum line, a zero x-interval draws no band, a declared gap's row), two
+  // out (both stops carrying the band, only a driver study is a band) and
+  // the live corner check renamed for the datum. Every new name carries a spec.
+  fast: { declared: 622, enrollable: 622, names: "7375fb9f5645" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
@@ -192,7 +196,10 @@ export const DECLARED_GUARDS = {
   // Re-measured again at the same review's second merge, on top of
   // a_study_is_a_translucent_group_on_the_dag. Then +4
   // (an_interface_suggests_the_faces_that_touch, above).
-  browser: { declared: 727, enrollable: 694, names: "4f8e804382c3" },
+  // 2026-10-29 (the_plus72_stop_is_the_travel_datum): one renamed, the live
+  // plot's check -- the -7 band alone, joining the envelope with no step --
+  // with its spec.
+  browser: { declared: 727, enrollable: 694, names: "dce0aae1d2a0" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

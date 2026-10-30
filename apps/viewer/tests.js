@@ -12811,29 +12811,81 @@
       });
 
     // The demo study with a contributor that is a study moving the driver
-    // itself: a "travel" sub-study at both stops, its terms folded at |J|
-    // times their bands (the chain rule, as the builder folds it), so each
-    // stop's worst case is the direct terms' plus the group's reach.
+    // itself, as the builder projects one since 2026-10-29: the envelope
+    // folds the direct contributors only; a stop the study applies to carries
+    // `x_interval` (where it is on x), `driver_entry` (J there), `direct` (the
+    // envelope's own interval there) and, at the top level, its SWEPT total --
+    // |J| x the x half plus the direct half, the RSS in quadrature. The low
+    // stop is the datum (driver 0), so by default only the high stop carries
+    // the band. `opts.gap` adds a declared gap applying to both stops.
     function kinTravelStudy(opts) {
       opts = opts || {};
       var study = JSON.parse(JSON.stringify(KIN_STUDY));
       var J = [-2.0, -1.8, -1.6, -1.4, -1.2];
       var h = 0.05, a = 0.04;
+      study.datum = { stop: "low", basis: "the demo's rest" };
       study.study_refs = [{ study: "demo_travel", topology: study.topology,
-        title: "Demo travel", parameter: opts.parameter || "actuator.value", units: "mm",
+        title: "Demo travel", parameter: "actuator.value", units: "mm",
+        applies_to: opts.stops || ["high"], gap: null,
         total: { nominal: opts.nominal === undefined ? 19.98 : opts.nominal,
                  worst_case_min: 19.93, worst_case_max: 20.03, worst_case_half: h,
                  rss_center: 19.98, rss_half: a },
         entries: J.map(function (e, i) { return { index: i, entry: e, sign: -1 }; }),
-        children: [] }];
-      var stopsWithBand = opts.stops || ["low", "high"];
+        children: [{ edge: "post_bushing_offset", name: "post bushing offset",
+                     by_point: J.map(function (e, i) {
+                       return { index: i, sign: -1, coefficient: -e, magnitude: -e * h };
+                     }) }] }];
+      if (opts.gap) {
+        study.study_refs.push({ study: "demo_anchor", topology: study.topology,
+          title: "Demo anchor", parameter: "actuator.value", units: "mm",
+          applies_to: ["low", "high"], gap: "Neither demo stop is anchored yet",
+          total: null, completeness: { complete: false, open_terms: [] },
+          entries: [], children: [] });
+      }
+      var stopsWithBand = opts.stops || ["high"];
       study.stops.forEach(function (stop) {
-        if (stopsWithBand.indexOf(stop.id) === -1) { stop.groups = []; return; }
         var e = J[stop.index];
-        stop.groups = [{ study: "demo_travel", topology: study.topology, title: "Demo travel",
-          parameter: "actuator.value", entry: e, sign: -1, reach: Math.abs(e) * h,
-          units: "mm", children: [] }];
+        var direct = study.envelope[stop.index];
+        var carries = stopsWithBand.indexOf(stop.id) !== -1;
+        stop.direct = JSON.parse(JSON.stringify(direct));
+        stop.driver_entry = e;
+        stop.x_interval = carries
+          ? { nominal: 0, worst_case_min: -h, worst_case_max: h, worst_case_half: h,
+              rss_center: 0, rss_half: a, rss_min: -a, rss_max: a }
+          : { nominal: 0, worst_case_min: 0, worst_case_max: 0, worst_case_half: 0,
+              rss_center: 0, rss_half: 0, rss_min: 0, rss_max: 0 };
+        var worst = (carries ? Math.abs(e) * h : 0) + direct.worst_case_half;
+        var rss = Math.sqrt((carries ? e * a * e * a : 0) + direct.rss_half * direct.rss_half);
+        stop.worst_case_half = worst;
+        stop.worst_case_min = -worst;
+        stop.worst_case_max = worst;
+        stop.rss_half = rss;
+        stop.rss_min = -rss;
+        stop.rss_max = rss;
+        stop.groups = [];
+        if (carries) {
+          stop.groups.push({ study: "demo_travel", topology: study.topology,
+            title: "Demo travel", parameter: "actuator.value", entry: e, sign: -1,
+            reach: Math.abs(e) * h, units: "mm", x_offset: true, gap: null,
+            children: [{ edge: "post_bushing_offset", name: "post bushing offset",
+                         kind: "term", sign: -1, coefficient: Math.abs(e),
+                         magnitude: Math.abs(e) * h, own_sign: 1, own_ratio: 1,
+                         band: { id: "post_bushing_offset", name: "post bushing offset",
+                                 nominal: 0, min: -h, max: h, half_range: h, units: null },
+                         confidence: "traced", source_kind: "drawing" }] });
+        }
+        if (opts.gap) {
+          stop.groups.push({ study: "demo_anchor", topology: study.topology,
+            title: "Demo anchor", parameter: "actuator.value", entry: e, sign: -1,
+            reach: 0, units: "mm", x_offset: true,
+            gap: "Neither demo stop is anchored yet", children: [] });
+        }
       });
+      if (opts.gap) {
+        study.gap_rows = (study.gap_rows || []).concat([{ edge: null, study: "demo_anchor",
+          title: "Demo anchor", gap: "Neither demo stop is anchored yet",
+          applies_to: ["low", "high"], band_source: { kind: "gap" }, drawings: [] }]);
+      }
       return study;
     }
 
@@ -12852,60 +12904,97 @@
       "envelope across it reaches the stop's folded worst case at its far corners", function () {
         var study = kinTravelStudy();
         var chart = VA.kinematicChart(study, 3);
-        eq(chart.bands.map(function (b) { return b.stop; }), ["low", "high"]);
-        var low = study.stops[0];
+        eq(chart.bands.map(function (b) { return b.stop; }), ["high"]);
+        var high = study.stops[1];
         var band = chart.bands[0];
-        // The identity the chips and the plot share: |J| x the travel's half
-        // plus what the other contributors spread is the stop's own total.
-        ok(Math.abs(band.cornerWorst - low.worst_case_half) < 1e-12,
-           "corner " + band.cornerWorst + " vs the stop's " + low.worst_case_half);
-        ok(Math.abs(band.cornerRss - low.rss_half) < 1e-12, "the RSS ellipse's top is the stop's RSS");
+        // The identity the chips and the plot share: |J| x the x half plus
+        // the envelope's own half at the stop is the stop's swept total.
+        ok(Math.abs(band.cornerWorst - high.worst_case_half) < 1e-12,
+           "corner " + band.cornerWorst + " vs the stop's " + high.worst_case_half);
+        ok(Math.abs(band.cornerRss - high.rss_half) < 1e-12, "the RSS ellipse's top is the stop's RSS");
         // ...and it is what is DRAWN: the parallelogram's extreme pixels are
         // that many degrees from zero, either way.
         var ys = polygonYs(band.worst).map(function (py) { return chartYValue(chart, py); });
-        ok(Math.abs(Math.max.apply(null, ys) - low.worst_case_half) < 0.005, "top corner " + ys);
-        ok(Math.abs(Math.min.apply(null, ys) + low.worst_case_half) < 0.005, "bottom corner " + ys);
+        ok(Math.abs(Math.max.apply(null, ys) - high.worst_case_half) < 0.005, "top corner " + ys);
+        ok(Math.abs(Math.min.apply(null, ys) + high.worst_case_half) < 0.005, "bottom corner " + ys);
         var rssYs = polygonYs(band.rss).map(function (py) { return chartYValue(chart, py); });
-        ok(Math.max.apply(null, rssYs) <= low.rss_half + 0.005 &&
-           Math.max.apply(null, rssYs) > low.rss_half - 0.01, "the ellipse reaches the RSS half");
+        ok(Math.max.apply(null, rssYs) <= high.rss_half + 0.005 &&
+           Math.max.apply(null, rssYs) > high.rss_half - 0.01, "the ellipse reaches the RSS half");
+        // It joins the envelope with no step: at the stop's own x the band's
+        // top edge is the envelope's own top there (the direct half).
+        var corners = band.worst.split(" ").map(function (pt) { return pt.split(",").map(Number); });
+        var mid = [(corners[0][0] + corners[1][0]) / 2, (corners[0][1] + corners[1][1]) / 2];
+        var envTop = chart.points[high.index];
+        ok(Math.abs(mid[0] - envTop.x) < 0.02 && Math.abs(mid[1] - envTop.worstTop) < 0.02,
+           "the band's top edge meets the envelope at the stop: " + mid + " vs " +
+           [envTop.x, envTop.worstTop]);
+        ok(Math.abs(VA.kinematicTravelBands(study)[0].direct -
+                    study.envelope[high.index].worst_case_half) < 1e-12,
+           "the half-height at the stop is the envelope's own");
         // On x: the worst-case band outside the RSS one, both about the stop.
         ok(band.worstFrom < band.rssFrom && band.rssTo < band.worstTo, "RSS inside worst case");
-        var stopX = chart.stops[0].x;
+        var stopX = chart.stops[1].x;
         ok(Math.abs((band.worstFrom + band.worstTo) / 2 - stopX) < 0.02, "centred on the stop");
-        // The axis was widened to hold it: the low stop sits at the sweep's
-        // driver minimum, so its band starts left of where the sweep does.
-        ok(band.worstFrom >= chart.plot.left - 0.01 && stopX > chart.plot.left,
+        // The axis was widened to hold it: the high stop sits at the sweep's
+        // driver maximum, so its band ends right of where the sweep does.
+        ok(band.worstTo <= chart.plot.left + chart.plot.width + 0.01 &&
+           stopX < chart.plot.left + chart.plot.width,
            "the band is inside the plot, past the sweep's own end");
-        // One label per study, at the stop nearest its nominal (19.98 is the
-        // high stop's 20).
         eq(chart.bands.map(function (b) { return b.label ? b.label.text : null; }),
-           [null, "Demo travel 19.930–20.030 mm"]);
+           ["Demo travel 19.930–20.030 mm"]);
       });
 
-    await test("both stops carrying one travel band is said in one line under the chart, " +
-      "linked where the page can reach the repo's documents", function () {
-        var root = kinematicPage({ study: kinTravelStudy() });
+    await test("the datum is said in one line under the chart: the stop the driver is " +
+      "measured from, the stop that carries the band, and each declared gap", function () {
+        var root = kinematicPage({ study: kinTravelStudy({ gap: true }) });
         var note = all(root, "p.kmchart__note");
         eq(note.length, 1);
-        has(note[0].textContent, "Both stops carry the whole travel band");
+        eq(note[0].textContent, "The −7 deg stop is the datum (the demo's rest). " +
+          "The +72 deg stop carries the demo travel (±0.050 mm). " +
+          "Neither demo stop is anchored yet — a declared gap.");
         eq(all(note[0], "a").length, 0, "no link without a way to the documents");
         var linked = kinematicPage({ study: kinTravelStudy(),
           docsHref: function (path) { return "../../" + path; } });
         var a = all(all(linked, "p.kmchart__note")[0], "a")[0];
         eq(a.getAttribute("href"), "../../" + VA.KINEMATIC_TRAVEL_DATUM_ISSUE);
-        eq(a.textContent, "an open question");
-        // One stop with the band: nothing to say.
-        eq(all(kinematicPage({ study: kinTravelStudy({ stops: ["high"] }) }),
-          "p.kmchart__note").length, 0);
+        eq(a.textContent, "the datum");
+        // A study that names no datum says nothing.
         eq(all(kinematicPage(), "p.kmchart__note").length, 0);
         eq(all(kinematicPage(), "rect.kmchart__band").length, 0, "no travel, no band");
-        eq(all(root, "rect.kmchart__band").length, 4, "two stops, worst case and RSS each");
-        eq(all(root, "polygon.kmchart__region").length, 4);
+        eq(all(root, "rect.kmchart__band").length, 2, "one stop, worst case and RSS");
+        eq(all(root, "polygon.kmchart__region").length, 2);
       });
 
-    await test("only a study that moves the sweep's own driver is a band on x", function () {
-        eq(VA.kinematicTravelBands(kinTravelStudy({ parameter: "arm.length" })), []);
-        eq(VA.kinematicTravelBands(kinTravelStudy()).length, 2);
+    await test("a stop whose x-interval is zero -- the datum -- draws no band", function () {
+        eq(VA.kinematicTravelBands(kinTravelStudy()).map(function (b) { return b.stop; }),
+           ["high"]);
+        eq(VA.kinematicTravelBands(kinTravelStudy({ stops: ["low", "high"] })).length, 2);
+        eq(VA.kinematicTravelBands(kinTravelStudy({ stops: [] })), []);
+      });
+
+    await test("a declared gap is one gap row with no terms under it, its chip saying " +
+      "why, ranked last", function () {
+        var study = kinTravelStudy({ gap: true });
+        var model = VA.kinematicTable(study, KIN_TOPOLOGIES.topologies[0], 3);
+        var anchor = model.groups.filter(function (g) { return g.id === "demo_anchor"; })[0];
+        ok(anchor, "the gap is a group of the table");
+        eq([anchor.reach, anchor.children.length, anchor.band, anchor.flag],
+           [null, 0, null, VA.KINEMATIC_ROW_KINDS.gap.flag]);
+        eq(anchor.flagTitle, "Neither demo stop is anchored yet");
+        eq(anchor.cells.map(function (c) { return c && c.magnitude; }), [null, null]);
+        eq(VA.kinematicGapCard(study, anchor, KIN_TOPOLOGIES.topologies[0]).why,
+           "Neither demo stop is anchored yet");
+        var root = kinematicPage({ study: study });
+        var row = all(root, "tr.kmgroup").filter(function (tr) {
+          return tr.getAttribute("data-study") === "demo_anchor";
+        })[0];
+        ok(row, "its row is drawn");
+        eq(all(row, "button.kmgroup__toggle").length, 0, "nothing to open");
+        eq(all(row, "span.chip--gap").length, 1);
+        var rows = all(root, "tr");
+        eq(rows[rows.length - 1].getAttribute("data-study"), "demo_anchor", "ranked last");
+        eq(VA.kinematicSubStacks(study, 3).map(function (s) { return s.id; }), ["demo_travel"],
+           "a gap spans no edges, so it draws no sub-stack");
       });
 
     await test("the x axis says what it spans when the travel study's nominal is not " +
@@ -17316,24 +17405,30 @@
             eq(realKinStudy.status, "ok");
             eq(realKinStudy.checks.map(function (c) {
               return [c.stop, c.verdict, VA.kinematicNumber(c.margin, 3)];
-            }), [["minus7", "marginal", "-1.207"], ["plus72", "marginal", "-0.839"]]);
-            // The travel between the end stops enters as a study_ref on the
-            // driver (a_contributor_may_be_a_study): one group per stop, its
-            // four terms scaled by the motion ratio there.
-            eq(realKinStudy.study_ref_count, 1);
-            eq(realKinStudy.study_refs[0].study, "vpa_pitch_linkage_travel_between_end_stops");
+            }), [["minus7", "marginal", "-1.207"], ["plus72", "pass", "0.185"]]);
+            // The travel between the end stops is an x-interval of the -7
+            // stop only (the +72 stop is the datum, 2026-10-29): its four
+            // terms scaled by the motion ratio there. The hub anchor is a
+            // declared gap at both stops, with no terms.
+            eq(realKinStudy.study_ref_count, 2);
+            eq(realKinStudy.study_refs.map(function (r) { return [r.study, r.applies_to]; }),
+               [["vpa_pitch_linkage_travel_between_end_stops", ["minus7"]],
+                ["vpa_pitch_linkage_hub_to_feather_stop", ["plus72", "minus7"]]]);
             eq(realKinStudy.stops.map(function (s) {
-              return [s.id, s.groups.length, s.groups[0].children.map(function (c) {
-                return [c.edge, c.sign, VA.kinematicNumber(c.coefficient, 3)];
+              return [s.id, s.groups.map(function (g) {
+                return [g.study, g.children.map(function (c) {
+                  return [c.edge, c.sign, VA.kinematicNumber(c.coefficient, 3)];
+                })];
               })];
-            }), [["minus7", 1, [["piston_head_upper_thickness", 1, "1.728"],
+            }), [["minus7", [["vpa_pitch_linkage_travel_between_end_stops",
+                               [["piston_head_upper_thickness", 1, "1.728"],
                                 ["piston_head_lower_thickness", 1, "1.728"],
                                 ["gas_spring_mount_flange_to_end_stop", 1, "1.728"],
                                 ["piston_cover_flange_to_end_stop", -1, "1.728"]]],
-                 ["plus72", 1, [["piston_head_upper_thickness", 1, "1.249"],
-                                ["piston_head_lower_thickness", 1, "1.249"],
-                                ["gas_spring_mount_flange_to_end_stop", 1, "1.249"],
-                                ["piston_cover_flange_to_end_stop", -1, "1.249"]]]]);
+                              ["vpa_pitch_linkage_hub_to_feather_stop", []]]],
+                 ["plus72", [["vpa_pitch_linkage_hub_to_feather_stop", []]]]]);
+            eq(realKinStudy.gap_rows.map(function (g) { return g.study || g.edge; }),
+               ["vpa_pitch_linkage_hub_to_feather_stop"]);
             // Both former gap rows carry a drawing's band since handoff
             // the_tangential_link_cites_its_drawing (2026-10-26).
             var minus7 = realKinStudy.stops.filter(function (s) {
@@ -17346,20 +17441,30 @@
           });
 
         await test("[real] the live -7 deg stop is drawn as a travel band whose far-edge " +
-          "envelope corner is its folded worst case, 1.707 deg, and the +72 stop's band " +
-          "is there too, with the one line that says both carry it", function () {
+          "envelope corner is its swept worst case, 1.707 deg, starting at the envelope's " +
+          "own half-width, and the +72 datum draws none", function () {
             var decimals = realKinematic.display_decimals;
             var chart = VA.kinematicChart(realKinStudy, decimals);
             var stops = {};
             realKinStudy.stops.forEach(function (s) { stops[s.id] = s; });
-            eq(chart.bands.map(function (b) { return b.stop; }), ["minus7", "plus72"]);
+            eq(chart.bands.map(function (b) { return b.stop; }), ["minus7"]);
             var minus7 = chart.bands[0];
             eq(VA.kinematicNumber(minus7.cornerWorst, decimals), "1.707");
-            ok(Math.abs(minus7.cornerWorst - stops.minus7.worst_case_half) < 1e-9,
-               "the corner is the stop's own worst case, " + minus7.cornerWorst);
-            ok(Math.abs(chart.bands[1].cornerWorst - stops.plus72.worst_case_half) < 1e-9,
-               "and at +72, " + chart.bands[1].cornerWorst);
-            ok(Math.abs(minus7.cornerRss - stops.minus7.rss_half) < 1e-9, "RSS too");
+            // Within the projection's rounding: the corner is made of three
+            // rounded figures (J, the x half, the envelope's half), the stop's
+            // total is one, each to INTERVAL_DECIMALS (six) places.
+            ok(Math.abs(minus7.cornerWorst - stops.minus7.worst_case_half) < 5e-6,
+               "the corner is the stop's own swept worst case, " + minus7.cornerWorst);
+            ok(Math.abs(minus7.cornerRss - stops.minus7.rss_half) < 5e-6, "RSS too");
+            // No step where the band joins the envelope: its half-height at
+            // the stop is the envelope's own half there, 0.290.
+            var envelopeHalf = realKinStudy.envelope[stops.minus7.index].worst_case_half;
+            eq(VA.kinematicNumber(envelopeHalf, decimals), "0.290");
+            var direct = VA.kinematicTravelBands(realKinStudy)[0].direct;
+            ok(Math.abs(direct - envelopeHalf) < 1e-12,
+               "direct " + direct + " vs the envelope's " + envelopeHalf);
+            eq(VA.kinematicNumber(stops.plus72.worst_case_half, decimals), "0.315");
+            eq(stops.plus72.x_interval.worst_case_half, 0);
             // What the chips print is what the corner reaches.
             var verdict = VA.kinematicVerdicts(realKinStudy, decimals)[0];
             eq(verdict.marginText, "margin " +
@@ -17369,7 +17474,10 @@
             eq(chart.bands.filter(function (b) { return b.label; }).map(function (b) {
               return [b.stop, b.label.text];
             }), [["minus7", "Travel between end stops 63.620–65.260 mm"]]);
-            eq(chart.sharedBands, ["vpa_pitch_linkage_travel_between_end_stops"]);
+            var note = VA.kinematicDatumNote(realKinStudy, decimals);
+            eq([note.datum, note.carried, note.gaps],
+               ["+72 deg stop", ["The −7 deg stop carries the travel between end stops (±0.820 mm)."],
+                ["Neither stop is yet anchored to the blade-root bores — a declared gap."]]);
             eq(chart.xLabel,
                "actuator travel, mm (swept 0.000–64.466; travel study nominal 64.440)");
           });
@@ -17398,9 +17506,12 @@
             eq(rows[0].getAttribute("data-edge"), "pitch_plate_attach_height");
             has(rows[0].textContent, "0.156");
             has(rows[0].textContent, "0.149");
-            // The travel study is ONE group row, collapsed, over its four terms.
-            eq(all(root, "tr.kmgroup").length, 1);
+            // The travel study is ONE group row, collapsed, over its four
+            // terms; the hub anchor a second, a declared gap with none.
+            eq(all(root, "tr.kmgroup").map(function (tr) { return tr.getAttribute("data-study"); }),
+               ["vpa_pitch_linkage_travel_between_end_stops", "vpa_pitch_linkage_hub_to_feather_stop"]);
             has(all(root, "tr.kmgroup")[0].textContent, "Travel between end stops");
+            eq(all(all(root, "tr.kmgroup")[1], "span.chip--gap").length, 1);
             var travel = all(root, "tr.kmchild");
             eq(travel.length, 4);
             ok(travel.every(function (t) { return t.hidden === true; }), "collapsed by default");

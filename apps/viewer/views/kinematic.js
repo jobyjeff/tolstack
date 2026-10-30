@@ -379,13 +379,17 @@
       (stop.groups || []).forEach(function (g) { if (g.study === ref.study) hit = g; });
       return hit;
     };
+    // A declared gap (a chain not authored yet) has a sensitivity and no
+    // band: a gap row, ranked last as one is, with nothing under it.
+    var gapKind = ref.gap ? VA.KINEMATIC_ROW_KINDS.gap : null;
     var reach = null;
     var cells = (study.stops || []).map(function (stop, s) {
       var g = groupAt(stop);
       if (!g) return null;
-      if (reach === null || g.reach > reach) reach = g.reach;
-      return tableCell({ kind: "term", sign: g.sign, coefficient: Math.abs(g.entry),
-                         magnitude: g.reach }, stops[s], perCellUnit, decimals);
+      if (!gapKind && (reach === null || g.reach > reach)) reach = g.reach;
+      return tableCell({ kind: gapKind ? "gap" : "term", sign: g.sign,
+                         coefficient: Math.abs(g.entry), magnitude: gapKind ? null : g.reach },
+                       stops[s], perCellUnit, decimals);
     });
     var sameTopology = ref.topology === study.topology;
     var children = (ref.children || []).map(function (child, k) {
@@ -425,7 +429,10 @@
     return {
       group: true,
       id: ref.study,
+      study: ref.study,
       name: ref.title,
+      flag: gapKind ? gapKind.flag : null,
+      flagTitle: gapKind ? ref.gap : null,
       title: "Its terms enter one by one, each scaled by " + measureWords(study) +
         "'s sensitivity to " + (((study.sweep || {}).driver || {}).label || "its driver") + ".",
       zone: "study",
@@ -494,7 +501,8 @@
   VA.kinematicSubStacks = function (study, decimals) {
     if (!study) return [];
     return (study.study_refs || []).filter(function (ref) {
-      return !ref.topology || ref.topology === study.topology;
+      return (!ref.topology || ref.topology === study.topology) &&
+        (ref.children || []).length > 0;
     }).map(function (ref) {
       var edges = [];
       (ref.children || []).forEach(function (child) {
@@ -604,7 +612,9 @@
 
   VA.kinematicGapCard = function (study, row, topoProj) {
     var gap = null;
-    (study.gap_rows || []).forEach(function (g) { if (g.edge === row.edge) gap = g; });
+    (study.gap_rows || []).forEach(function (g) {
+      if (row.study ? g.study === row.study : g.edge === row.edge) gap = g;
+    });
     var index = VA.topologyIndex(topoProj);
     var words = VA.KINEMATIC_GAP_DRAWING_WORDS;
     var drawings = ((gap && gap.drawings) || []).map(function (d) {
@@ -640,75 +650,95 @@
 
   // --- a stop whose position is itself a tolerance --------------------------
   //
-  // Where a stop carries a study among its contributors and that study moves
-  // the sweep's own driver (`study_refs[].parameter` is the sweep's
-  // parameter: the travel between the end stops, in actuator mm), the stop's
-  // place on x is a band, not a line (Jeff, 2026-10-28: "both the X and Y
-  // axis of the plot have tolerance ranges"). On x the band is the study's
-  // own total about the stop's driver, worst case and RSS. On y, across it,
-  // the deviation is the stop's local slope times the shift, plus what the
-  // stop's other contributors spread:
+  // A study that moves the sweep's own driver (the travel between the end
+  // stops, in actuator mm) is where a stop IS, not a term of the envelope
+  // (Jeff, 2026-10-29: the +72 deg stop is the datum, the -7 deg stop carries
+  // the travel). So the builder folds the envelope from the direct
+  // contributors only and gives each stop `x_interval` -- where it is on x,
+  // worst case and RSS -- and `driver_entry`, the slope J there. Across that
+  // interval the deviation is J times the shift plus what the envelope itself
+  // spreads at the stop (`direct`):
   //
-  //   worst case  a parallelogram, y = J·dx ± d over |dx| <= h, whose far
-  //               corners reach |J|·h + d -- the stop's folded worst case,
-  //               since d is that total less the group's own reach and the
-  //               builder folded the group's terms at exactly |J| times
-  //               their bands (the chain rule);
+  //   worst case  a parallelogram, y = J·dx ± d over |dx| <= h, d the
+  //               envelope's own half at the stop -- so it starts at the
+  //               envelope's edge, with no step, and its far corners reach
+  //               |J|·h + d, the stop's swept worst case;
   //   RSS         the sheared ellipse dx = a·cos t, y = J·a·cos t + b·sin t,
-  //               whose top is sqrt((J·a)^2 + b^2) -- the stop's RSS half,
-  //               with b what the other contributors spread in quadrature.
+  //               b the envelope's own RSS half, whose top is
+  //               sqrt((J·a)^2 + b^2) -- the stop's swept RSS half.
   //
-  // Every number is the projection's: J is the group's entry at the stop's
-  // own sweep point, h and a the study's own halves. Display only -- nothing
-  // here is folded, and the chips read the builder's totals, not these.
+  // A stop whose interval is zero (the datum, until the chain that anchors it
+  // to the hub is authored) draws nothing. Every number is the projection's;
+  // display only -- nothing here is folded, and the chips read the builder's.
   VA.kinematicTravelBands = function (study) {
     var out = [];
     if (!study) return out;
-    var parameter = (((study.sweep || {}).driver) || {}).parameter;
     var refs = {};
     (study.study_refs || []).forEach(function (ref) { refs[ref.study] = ref; });
     (study.stops || []).forEach(function (stop) {
+      var x = stop.x_interval;
+      if (!x || !(x.worst_case_half > 0) || typeof stop.driver_entry !== "number") return;
+      var direct = stop.direct || {};
+      // The study the interval is drawn as: the first of the stop's offsets
+      // that has terms (a declared gap has none, and spans nothing).
+      var ref = null;
       (stop.groups || []).forEach(function (group) {
-        var ref = refs[group.study];
-        var total = ref && ref.total;
-        if (!ref || !total || typeof total.worst_case_half !== "number") return;
-        // Only a study that moves the driver itself is a shift along x.
-        if (!parameter || ref.parameter !== parameter) return;
-        var entry = null;
-        (ref.entries || []).forEach(function (e) {
-          if (e.index === stop.index) entry = e.entry;
-        });
-        if (typeof entry !== "number") entry = group.entry;
-        var slope = Math.abs(entry);
-        var h = total.worst_case_half;
-        var a = typeof total.rss_half === "number" ? total.rss_half : 0;
-        var d = Math.max(0, stop.worst_case_half - group.reach);
-        var b = Math.sqrt(Math.max(0, stop.rss_half * stop.rss_half - slope * a * slope * a));
-        out.push({
-          stop: stop.id, study: ref.study, title: ref.title || ref.study,
-          units: ref.units || null, centre: stop.driver_value, entry: entry,
-          worstHalf: h, rssHalf: a, direct: d, directRss: b,
-          cornerWorst: slope * h + d,
-          cornerRss: Math.sqrt(slope * a * slope * a + b * b),
-          min: total.worst_case_min, max: total.worst_case_max, nominal: total.nominal,
-        });
+        var r = refs[group.study];
+        if (!ref && group.x_offset && r && (group.children || []).length) ref = r;
+      });
+      var total = (ref && ref.total) || {};
+      var slope = Math.abs(stop.driver_entry);
+      var h = x.worst_case_half;
+      var a = typeof x.rss_half === "number" ? x.rss_half : 0;
+      var d = direct.worst_case_half;
+      var b = direct.rss_half;
+      out.push({
+        stop: stop.id, study: ref ? ref.study : null,
+        title: ref ? ref.title || ref.study : null,
+        units: (ref && ref.units) || null, centre: stop.driver_value,
+        entry: stop.driver_entry, worstHalf: h, rssHalf: a, direct: d, directRss: b,
+        cornerWorst: slope * h + d,
+        cornerRss: Math.sqrt(slope * a * slope * a + b * b),
+        min: total.worst_case_min, max: total.worst_case_max, nominal: total.nominal,
       });
     });
     return out;
   };
 
-  // The study's bands drawn at more than one stop: a study that is the
-  // distance BETWEEN two stops moves one of them relative to the other, so
-  // carrying it at both is a reading the page states rather than hides
-  // (VA.KINEMATIC_TRAVEL_DATUM_ISSUE). Ids of the studies that do.
-  VA.kinematicSharedBands = function (bands) {
-    var count = {};
-    (bands || []).forEach(function (band) { count[band.study] = (count[band.study] || 0) + 1; });
-    return Object.keys(count).filter(function (id) { return count[id] > 1; });
+  // The study's datum, in one line under the chart: which stop the driver is
+  // measured from and why, which stops carry a travel band and how wide, and
+  // each declared gap that would place the stops further. Null for a study
+  // that names no datum.
+  function stopWords(study, stop) {
+    var t = stop.target;
+    if (typeof t !== "number") return stop.label || stop.id;
+    return (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t) +
+      (study.units ? " " + study.units : "") + " stop";
+  }
+
+  VA.kinematicDatumNote = function (study, decimals) {
+    var datum = study && study.datum;
+    if (!datum || !datum.stop) return null;
+    var stops = {};
+    (study.stops || []).forEach(function (stop) { stops[stop.id] = stop; });
+    var at = stops[datum.stop];
+    if (!at) return null;
+    var parts = { datum: stopWords(study, at),
+                  basis: datum.basis || null, carried: [], gaps: [] };
+    VA.kinematicTravelBands(study).forEach(function (band) {
+      parts.carried.push("The " + stopWords(study, stops[band.stop]) + " carries the " +
+        (band.title ? band.title.charAt(0).toLowerCase() + band.title.slice(1) : "travel") +
+        " (±" + withUnit(VA.kinematicNumber(band.worstHalf, decimals), band.units) + ").");
+    });
+    (study.study_refs || []).forEach(function (ref) {
+      if (ref.gap) parts.gaps.push(ref.gap + " — a declared gap.");
+    });
+    return parts;
   };
 
-  // The open question that sentence leads to, as a repo-relative path
-  // (tests/test_kinematic.py checks the file is there).
+  // The ruling the datum note names: a repo-relative path, linked only where
+  // the page can reach the repo's documents (tests/test_kinematic.py checks
+  // the file is there).
   VA.KINEMATIC_TRAVEL_DATUM_ISSUE =
     "docs/issues/ISSUE_20261028_both_end_stops_carry_the_full_travel_band.md";
 
@@ -881,7 +911,6 @@
                  anchorEnd: X(stop.driver_value) > C.left + pw / 2 };
       }),
       bands: bands,
-      sharedBands: VA.kinematicSharedBands(travel),
       xLabel: (driver.label || "driver") + (driver.unit ? ", " + driver.unit : "") + xNote,
       yLabel: measureWords(study) + " from nominal" +
         (study.units ? ", " + study.units : ""),
@@ -963,7 +992,8 @@
 
     var chart = VA.kinematicChart(study, decimals);
     if (chart) root.appendChild(chartFigure(chart));
-    if (chart && chart.sharedBands.length) root.appendChild(sharedBandNote(study, chart, ctx));
+    var datum = chart ? VA.kinematicDatumNote(study, decimals) : null;
+    if (datum) root.appendChild(datumNote(datum, ctx));
 
     root.appendChild(stopReadouts(study, decimals));
     root.appendChild(provenance(study));
@@ -981,20 +1011,15 @@
     return root;
   };
 
-  // One line under the chart where a study's band is drawn at more than one
-  // stop. The question it names is a link only where this page can reach the
-  // repo's documents (`ctx.docsHref`); elsewhere it is the same words.
-  function sharedBandNote(study, chart, ctx) {
-    var count = chart.bands.filter(function (band) {
-      return chart.sharedBands.indexOf(band.study) !== -1;
-    }).length;
+  // One line under the chart: the datum (VA.kinematicDatumNote). "the
+  // datum" links to the ruling where this page can reach the repo's
+  // documents (`ctx.docsHref`); elsewhere it is the same words.
+  function datumNote(parts, ctx) {
     var line = VA.el("p", "muted kmchart__note");
-    line.appendChild(document.createTextNode(
-      (count === (study.stops || []).length && count === 2 ? "Both stops" : count + " stops") +
-      " carry the whole travel band; which one it belongs to is "));
+    line.appendChild(document.createTextNode("The " + parts.datum + " is "));
     var href = ctx && typeof ctx.docsHref === "function"
       ? ctx.docsHref(VA.KINEMATIC_TRAVEL_DATUM_ISSUE) : null;
-    var words = "an open question";
+    var words = "the datum";
     if (href) {
       var a = VA.el("a", "kmchart__notelink", words);
       a.setAttribute("href", href);
@@ -1004,7 +1029,9 @@
     } else {
       line.appendChild(document.createTextNode(words));
     }
-    line.appendChild(document.createTextNode("."));
+    line.appendChild(document.createTextNode(
+      (parts.basis ? " (" + parts.basis + ")" : "") + "." +
+      parts.carried.concat(parts.gaps).map(function (t) { return " " + t; }).join("")));
     return line;
   }
 
@@ -1331,7 +1358,8 @@
     table.appendChild(thead);
     var body = VA.el("tbody");
     // A group ranks among the rows by its reach, as a row does by its own
-    // (a row with no magnitude -- a gap -- last).
+    // (a row with no magnitude -- a gap -- last; a declared-gap group after
+    // every row).
     var groups = (model.groups || []).slice().sort(function (x, y) {
       return (y.reach === null ? -Infinity : y.reach) - (x.reach === null ? -Infinity : x.reach);
     });
@@ -1340,7 +1368,8 @@
         .forEach(function (tr) { body.appendChild(tr); });
     };
     model.rows.forEach(function (row) {
-      while (groups.length && (row.reach === null || groups[0].reach > row.reach)) {
+      while (groups.length && groups[0].reach !== null &&
+             (row.reach === null || groups[0].reach > row.reach)) {
         emitGroup(groups.shift());
       }
       body.appendChild(contributorRow(study, row, model, topoProj, decimals, ctx));
@@ -1366,7 +1395,8 @@
     var toggle = VA.el("button", "ghost kmgroup__toggle", "▸");
     toggle.setAttribute("aria-expanded", "false");
     toggle.setAttribute("title", group.title);
-    nameCell.appendChild(toggle);
+    // Nothing to open under a declared gap: no toggle.
+    if (group.children.length) nameCell.appendChild(toggle);
     var label = VA.el("span", "kmgroup__name", group.name);
     label.setAttribute("title", group.title);
     nameCell.appendChild(label);
@@ -1377,6 +1407,9 @@
     if (group.band) {
       band.textContent = group.band;
       band.setAttribute("title", group.bandTitle);
+    } else if (group.flag) {
+      band.appendChild(gapTrigger(VA.chip("chip--gap", group.flag, null), study, group,
+                                  topoProj, ctx));
     }
     tr.appendChild(band);
     tr.appendChild(VA.el("td", "kmrow__conf"));

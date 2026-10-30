@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the plot draws the -7 stop's travel band, labelled once, joining the envelope with no step, under the line that names the datum and the hub anchor gap",
+  "mutations": [
+    {
+      "contract": "The live band's half-height at the stop is the envelope's own there: no step where they join.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_plus72_stop_is_the_travel_datum (2026-10-29). Takes the stop's swept total as the half-height at the band's centre -- the 2026-10-28 kink -- so the band's top edge sits 1.417 deg above the envelope's at the stop.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      var d = direct.worst_case_half;\n",
+      "replace": "      var d = stop.worst_case_half;\n"
+    }
+  ]
+}

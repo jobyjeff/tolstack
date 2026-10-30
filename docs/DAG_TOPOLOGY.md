@@ -853,6 +853,28 @@ parameter. A derivative of the output with respect to one input is exactly a
   sub-study's output unit must be the parameter's (the same refusal a band
   gets), and **v0 refuses a `study_ref` that names a kinematic study** — no
   nesting yet. The page shows the group as one collapsed row over its terms.
+- **A `study_ref` on the driver is an x-uncertainty of a stop, never a y-term
+  of the envelope** (Jeff, 2026-10-29, handoff
+  `the_plus72_stop_is_the_travel_datum`). A ref whose `parameter` is the
+  sweep's own driver moves the coordinate the sweep is plotted against, so it
+  says which stops it moves (`applies_to`, stop ids — required on a driver
+  ref, refused on any other) and enters no point's fold: the envelope is the
+  direct contributors' alone. At each stop it names it is an x-interval
+  `x_stop ± h`, its leaves folded once at their own ratios in the driver's
+  unit, and the stop's verdict is the envelope swept over that interval, to
+  first order at the stop's own `J` — the direct terms and the leaves at
+  `|J| ×` their ratio, through the one `fold()`; its worst case is the band's
+  corner, `|J|·h` + the envelope's own half there, so the band the page draws
+  starts at the envelope's edge with no step. **The datum rule:** the stop the
+  driver is measured from (`datum.stop`, where the sweep's driver is 0 —
+  refused at load otherwise) is not moved by a stop-to-stop distance; the
+  blade-pitch study's datum is the +72° feather stop (at rest, gas spring
+  charged, nominal CAD), so the travel between the stops moves the −7° stop
+  only. What locates the datum itself — the chain from the blade-root bores
+  to the feather stop face — is a **declared gap**: a ref with `gap` and
+  `title` and no study behind it, which contributes nothing, leaves every
+  check at the stops it names incomplete, sits on the gap list, and is
+  refused once the study it names exists.
 
 **The fence is unchanged.** Nothing here solves, perturbs or differentiates a
 mechanism, picks a load path, or calls `traverse()`/`summarize()`/`check_study()`.

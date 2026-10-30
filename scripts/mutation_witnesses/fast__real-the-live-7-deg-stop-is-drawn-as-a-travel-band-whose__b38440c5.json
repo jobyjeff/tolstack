@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the live -7 deg stop is drawn as a travel band whose far-edge envelope corner is its swept worst case, 1.707 deg, starting at the envelope's own half-width, and the +72 datum draws none",
+  "mutations": [
+    {
+      "contract": "The band's x half is the stop's worst-case x-interval, the one the fold scaled by |J|.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_plus72_stop_is_the_travel_datum (2026-10-29). Uses the RSS half for the band's width, so the live corner misses 1.707.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      var h = x.worst_case_half;\n",
+      "replace": "      var h = x.rss_half;\n"
+    }
+  ]
+}

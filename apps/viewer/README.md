@@ -453,17 +453,20 @@ has not been built.
   reaches the limit (a ±0.24 deg band on an 80 deg axis would be a hairline).
   Worst case is the outer band, RSS the inner, the limit a dashed pair, and
   each stop a vertical line at its own driver value. **A stop whose position is
-  itself a tolerance** — it carries a contributor study that moves the sweep's
-  own driver, the travel between the end stops — is also a band on x
-  (`VA.kinematicTravelBands`): the study's worst-case and RSS halves about the
-  stop's driver, and across it the envelope carried on the stop's local slope
-  (the Jacobian entry at the stop's own sweep point). The worst case is a
-  parallelogram whose far corners are the stop's folded worst case — the
-  number its chip's margin is taken from — and the RSS a sheared ellipse whose
-  top is the stop's RSS half. The band is labelled once, at the stop nearest
-  the study's nominal; where one study's band is drawn at more than one stop,
-  one line under the chart says so and links the open question (where the
-  page can reach the repo's documents). The x axis says what it spans when the
+  itself a tolerance** — a contributor study that moves the sweep's own
+  driver, the travel between the end stops, applies to it — is also a band on
+  x (`VA.kinematicTravelBands`): the stop's `x_interval`, worst case and RSS,
+  about its driver value, and across it the envelope carried on the stop's
+  local slope (`driver_entry`). The envelope itself folds the direct
+  contributors only, so the band starts at the envelope's own half-width
+  there (`direct`) with no step. The worst case is a parallelogram whose far
+  corners are the stop's swept worst case — the number its chip's margin is
+  taken from — and the RSS a sheared ellipse whose top is the stop's RSS half;
+  a stop whose interval is zero draws nothing. The band is labelled once, at
+  the stop nearest the study's nominal. One line under the chart names the
+  datum (`VA.kinematicDatumNote`): which stop the driver is measured from,
+  which stop carries which band, and each declared gap, "the datum" linking
+  the ruling where the page can reach the repo's documents. The x axis says what it spans when the
   travel study's nominal is not the sweep's. Hovering anywhere in the
   plot reads the nearest sweep point: the driver, the measure there, ± worst
   case, ± RSS, each with its unit. The SVG the builder writes beside the JSON
