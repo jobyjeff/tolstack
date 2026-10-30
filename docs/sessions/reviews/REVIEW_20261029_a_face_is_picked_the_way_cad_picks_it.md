@@ -258,3 +258,12 @@ WITNESSED for a reason unrelated to that diff.
   identical.
 - The scratch root `data/scratch/review_face_pick/` and the worktree's
   `node_modules` junction are removed at the end of this review.
+- **Integration moved again before landing** (`8e2a12a5` → `e6898934`,
+  `viewer_browser_checks_wait_on_settled_state`). I merged it into the review
+  branch. Its one conflict was the default-tier budget issue's appended
+  measurements, and I kept all of them. The census was unchanged at
+  755/722/`7d3aa0a125b0`. Re-run on that tree:
+  - `pytest -q` over `test_mutation_witnesses`, `test_annotate_js_suite` and
+    `test_claims_registry`: **85 passed**.
+  - `node apps/annotate/run_tests.cjs`: **258/258**.
+  - The browser suite "annotate armed pick": **17/17**.
