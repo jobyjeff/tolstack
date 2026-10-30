@@ -6,10 +6,10 @@
     {
       "contract": "Fit leaves the drawing inside the window under the topbar.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). Scrolls the page 300px past where Fit frames the drawing.",
+      "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). Scrolls the page 300px past where Fit frames the drawing. Re-aimed 2026-10-30 (a_leader_starts_at_the_mark_it_names_on_every_tier): with the grid unscaled the +300 scroll is caught by the top-of-pane check alone; Fit that never scales the DAG down runs it past the window's bottom, which is this check's own claim.",
       "file": "apps/viewer/topology_app.js",
-      "find": "        rect.top + spanAt.top - pad * to - topEdge);",
-      "replace": "        rect.top + spanAt.top - pad * to - topEdge + 300);"
+      "find": "    var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);",
+      "replace": "    var to = 1;"
     }
   ]
 }

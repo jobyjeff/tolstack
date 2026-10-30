@@ -4,12 +4,12 @@
   "expect_red": "[real] at the Fit zoom the grid is at its own scale: its rows keep the pitch they have at zoom 1",
   "mutations": [
     {
-      "contract": "No transform scales the grid with the DAG.",
+      "contract": "Fit scales the DAG only; the grid keeps its own size.",
       "issue": "docs/issues/ISSUE_20261029_dag_only_zoom_needs_leaders_that_bridge_two_scales.md",
-      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The one shared transform back on the zoom box.",
-      "file": "apps/viewer/views/topology.js",
-      "find": "    zoomed.setAttribute(\"data-zoom\", String(k));\n    var paneWidth",
-      "replace": "    zoomed.setAttribute(\"data-zoom\", String(k));\n    zoomed.style.transform = \"scale(\" + k + \")\";\n    var paneWidth"
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). Fit scaling the grid's rows with the DAG. (The shared transform on the whole box aborts the suite before Fit: a scaled box leaves the wheel nothing empty to aim at.)",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    // A zoom repaints the pane: the box and the span are read off the new one.\n    box = zoomBox();",
+      "replace": "    // A zoom repaints the pane: the box and the span are read off the new one.\n    box = zoomBox();\n    var rowsBlock = box && box.querySelector(\"div.tv__rows\");\n    if (rowsBlock) { rowsBlock.style.transformOrigin = \"0 0\"; rowsBlock.style.transform = \"scale(\" + to + \")\"; }"
     }
   ]
 }

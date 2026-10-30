@@ -4,12 +4,12 @@
   "expect_red": "[real] a re-lay of the DAG with a row selected leaves its leaders on its ends' dots and their anchors, both ways",
   "mutations": [
     {
-      "contract": "A repaint redraws the leaders across the seam.",
+      "contract": "The overlay draws from the pane's current render, never a copy kept from an earlier one.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The paint hook dropped: the overlay keeps the dots of the layout before the re-lay.",
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The stale-anchor shape itself: the dots kept from the first draw, so a re-lay moves the marks and not the leaders. (Dropping the paint hook alone is not seen: the scroll and resize redraws still read the fresh render.)",
       "file": "apps/viewer/topology_app.js",
-      "find": "        onPainted: scheduleSeamDraw,",
-      "replace": "        onPainted: null,"
+      "find": "    var started = clock();\n    var drawn = VA.lastTopoRender;",
+      "replace": "    var started = clock();\n    var drawn = VA.firstSeamRender || (VA.firstSeamRender = VA.lastTopoRender);"
     }
   ]
 }

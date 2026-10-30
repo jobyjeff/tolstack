@@ -12615,7 +12615,16 @@ async function testSeamLeaders(browser, label, topologies) {
       return onScene(sent[id]) && !covered && y >= Math.max(pane.top, 0) &&
         y <= Math.min(pane.bottom, innerHeight);
     }).sort();
-    return { ids: leaders.map((l) => l.id), expected, states: draw ? draw.states : {},
+    // Each drawn leader against the dot on screen, not the page's own copy of
+    // it: a leader whose start is not level with its circle (2px) is counted.
+    // A node folded into a pill has no circle and is not counted.
+    const offDot = [...document.querySelectorAll("svg.seamleaders path.seam__leader")].filter((p) => {
+      const c = document.querySelector(`#topopane svg.tv__rails circle[data-id="${CSS.escape(p.getAttribute("data-node-id"))}"]`);
+      if (!c) return false;
+      const b = c.getBoundingClientRect();
+      return Math.abs(p.getPointAtLength(0).y - (b.top + b.height / 2)) > 2;
+    }).map((p) => p.getAttribute("data-node-id"));
+    return { ids: leaders.map((l) => l.id), expected, offDot, states: draw ? draw.states : {},
       crossings: draw ? draw.crossings : null, ms: draw ? draw.ms : null,
       skipped: draw ? draw.skipped : null, barCrossings: VA.seamBarCrossings(leaders, bars),
       lit: Object.keys(VA.lastTopoRender.seam.dots).sort(), grid,
@@ -12667,7 +12676,7 @@ async function testSeamLeaders(browser, label, topologies) {
       `crossings among them ${lm.crossings}; through a lit bar ${lm.barCrossings}; draw ${lm.ms && lm.ms.toFixed(2)} ms`);
     push("[real] on P2 every lit node with an anchor and a dot in the DAG's view has its leader " +
       "across the seam, and nothing else has one",
-      built && lm.ids.length > 0 && lm.paths === lm.ids.length &&
+      built && lm.ids.length > 0 && lm.paths === lm.ids.length && lm.offDot.length === 0 &&
       JSON.stringify(lm.ids.slice().sort()) === JSON.stringify(lm.expected));
     push("[real] no leader across the seam runs through a lit edge's bar", built && lm.barCrossings === 0);
     await shot("1_kinematic_study_leaders.png");
@@ -13020,7 +13029,7 @@ async function testSeamLeaders(browser, label, topologies) {
     // walk; the window holds more of it now.
     push("[real] with the toggle at hide, at least six leaders across the seam, drawn from the lit " +
       "part alone",
-      hidden && after.ids.length >= 6 && after.paths === after.ids.length &&
+      hidden && after.ids.length >= 6 && after.paths === after.ids.length && after.offDot.length === 0 &&
       JSON.stringify(after.ids.slice().sort()) === JSON.stringify(after.expected));
     await shot("4_unlit_hidden.png");
   } catch (err) {
