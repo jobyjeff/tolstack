@@ -199,7 +199,7 @@ export const DECLARED_GUARDS = {
   // 2026-10-29 (the_plus72_stop_is_the_travel_datum): one renamed, the live
   // plot's check -- the -7 band alone, joining the envelope with no step --
   // with its spec.
-  browser: { declared: 733, enrollable: 700, names: "8a6219644d8d" },
+  browser: { declared: 735, enrollable: 702, names: "3903d9fc6a56" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
