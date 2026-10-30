@@ -1507,14 +1507,13 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 
 /* --- the kinematic study page (views/kinematic.js) ----------------------
    the_viewer_shows_a_kinematic_study, 2026-10-20. Since 2026-10-28 the page
-   has every study page's shape: the model and the contributor table in the
-   main column (`.kmview`, the same flex-item shape `.stackview` is), and the
-   results -- name, verdicts, chart, readouts, provenance -- at the top of the
-   right-hand pane (`.kmresults`). Type, colour and spacing are the :root
+   has every study page's shape: the model in the main column, and the
+   results -- name, verdicts, chart, readouts, contributors, provenance -- at
+   the top of the right-hand pane (`.kmresults`). Type, colour and spacing are the :root
    tokens and nothing else (docs/DESIGN_TYPE_AND_COLOUR.md); the one accent
    is the verdict chip. */
-.tv__main > .kmview { flex: 1 1 auto; min-height: 0; }
-.kmview { padding: 10px 18px 24px; min-width: 0; overflow-x: auto; }
+.kmresults { min-width: 0; }
+.kmcontrib { max-width: 100%; overflow-x: auto; margin-bottom: 14px; }
 .kmhead__title { font-size: var(--t-title); margin: 0 0 8px; }
 /* The pane's results, then the selection's preview under them: separated
    by space and one rule, never a box. */
@@ -1678,3 +1677,15 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .navtree__row--model .navtree__label { color: var(--muted); }
+
+/* The Groups popover (Jeff, 2026-10-29): one checkbox per kind of container.
+   A quiet summary like its sibling toolbar buttons; the menu floats under it. */
+.tvgroups { position: relative; display: inline-block; }
+.tvgroups > summary { list-style: none; cursor: pointer; }
+.tvgroups > summary::-webkit-details-marker { display: none; }
+.tvgroups__menu {
+  position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 4px;
+  padding: 6px 10px; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 4px; white-space: nowrap;
+}
+.tvgroups__item { display: block; padding: 3px 0; font-size: var(--t-dense); cursor: pointer; }

@@ -4,12 +4,12 @@
   "expect_red": "[real] a study opens with its bodies AND every study's group drawn, the selected one marked",
   "mutations": [
     {
-      "contract": "With a study open, both containers are drawn by default.",
+      "contract": "With a study open and nothing chosen, every container kind is drawn.",
       "issue": "docs/sessions/lessons/LESSONS_20261028_a_study_is_a_translucent_group_on_the_dag.md",
       "note": "The one line this guard stands on.",
       "file": "apps/viewer/topology.js",
-      "find": "return hasStudy ? \"both\" : VA.DEFAULT_GROUP_FILTER;",
-      "replace": "return VA.DEFAULT_GROUP_FILTER;"
+      "find": "VA.GROUP_KINDS.forEach(function (k) { on[k.id] = true; });",
+      "replace": "VA.GROUP_KINDS.forEach(function (k) { on[k.id] = k.id === \"bodies\"; });"
     }
   ]
 }

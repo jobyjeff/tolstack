@@ -177,7 +177,10 @@ export const DECLARED_GUARDS = {
   // 2026-10-30 (the_annotator_has_no_front_door): two renamed -- the toolbar's
   // link and the mount-without-a-launcher check now say there is no link. Both
   // carry a spec.
-  fast: { declared: 626, enrollable: 626, names: "0e6ef1f80ac9" },
+  fast: { declared: 626, enrollable: 626, names: "731c453e42bc" },
+  // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
+  // checkboxes): one swapped -- the Groups filter's four-state check for the
+  // checkbox popover's -- with its spec.
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
@@ -236,8 +239,13 @@ export const DECLARED_GUARDS = {
   // renamed with their spec; two specs retired with their guard. A few of the
   // new names carry no spec (see the lesson's list) -- the pin is raised for
   // them rather than a spec written, which is allowed and is this line.
-  browser: { declared: 765, enrollable: 732, names: "e69a8e194085" },
+  // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
+  // checkboxes): +2 -- the checkboxes' own check (replacing the four-state one)
+  // and Unused leaving the results pane untouched -- one renamed for the
+  // contributors' move. Every new name carries a spec.
+  browser: { declared: 767, enrollable: 734, names: "e12884bd63e7" },
 };
+
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed
 // by every census run and pinned key-for-key by

@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
-  "expect_red": "the kinematic page draws the model over its contributors in the main column, and its verdicts and chart at the top of the right-hand pane",
+  "expect_red": "the kinematic page draws the model in the main column, and its verdicts, chart, readouts and contributors in one column at the top of the right-hand pane",
   "mutations": [
     {
       "contract": "The kinematic page draws its topology's model.",
