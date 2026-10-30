@@ -6,10 +6,10 @@
     {
       "contract": "Arming frames the end's occurrence.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
-      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). A part buried in the assembly is the complaint.",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). A part buried in the assembly is the complaint. Re-anchored 2026-10-29 (a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place): the framing moved into anchoredOccurrences, shared with a selected suggestion.",
       "file": "apps/annotate/app.js",
-      "find": "  state.scene.frameOccurrences(framed);",
-      "replace": "  void framed;"
+      "find": "  state.scene.frameOccurrences(anchoredOccurrences(targets));",
+      "replace": "  void anchoredOccurrences;"
     }
   ]
 }
