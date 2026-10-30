@@ -2,6 +2,8 @@
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "pitch_link_to_pitch_plate",
   "title": "Pitch link to pitch plate grip length",
+  "display_name": "Pitch link 213862-002 to pitch plate 215735-001/-002 grip length",
+  "naming_note": "Jeff's \"pitch link\" is the drawing 213862-002's PITCH LINK ASSEMBLY; the plate was re-cited from the superseded 215197 to 215735, and the id keeps neither word.",
   "description": "Built from scratch against the drawings and the NAS standards. Three of its eight elements carry an unverified band -- two applied 2026-09-15 by operator ruling, and the eye a loudly-marked catalog placeholder whose bearing identity awaits the 213862-002 drawing.",
   "units": "mm",
   "joint": {

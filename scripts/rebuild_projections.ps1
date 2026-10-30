@@ -54,7 +54,9 @@
     LESSONS_20260908_projections_rebuild_script.md).
 
     On success, prints every projection's provenance stamp (branch, sha12,
-    dirty, behind_trunk) so a caller can see at a glance whether they agree,
+    dirty, behind_trunk, and `inputs absent: n` in yellow when the gitignored
+    inputs the builders read -- projection_provenance.READ_INPUTS -- are
+    missing; announced, never refused, exit stays 0) so a caller can see at a glance whether they agree,
     and then, last, how many kinematic studies built and each one that did not
     with its reason. A study that did not build still exits 0 -- a checkout
     without the gitignored sweep inbox is a normal case -- so that closing
@@ -178,7 +180,15 @@ foreach ($name in $Projections) {
     $sha12 = if ($p.head_sha) { $p.head_sha.Substring(0, 12) } else { "?" }
     $behind = if ($null -eq $p.behind_trunk) { "null" } else { $p.behind_trunk }
     Write-Host ("    {0,-34} branch={1} sha12={2} dirty={3} behind_trunk={4}" -f `
-        $name, $p.branch, $sha12, $p.dirty, $behind)
+        $name, $p.branch, $sha12, $p.dirty, $behind) -NoNewline
+    # Announced, never refused: a rebuild over missing gitignored inputs still
+    # exits 0, but its stamp says so (provenance.inputs_absent).
+    $absent = @($p.inputs_absent)
+    if ($absent.Count -gt 0) {
+        Write-Host (" inputs absent: {0}" -f $absent.Count) -ForegroundColor Yellow
+    } else {
+        Write-Host ""
+    }
 }
 
 # --- the kinematic studies that did not build, LAST -------------------------

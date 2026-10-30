@@ -175,7 +175,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     topologies_dir = Path(args.topologies_dir)
     out_path = Path(args.data_root) / PROJECTION_SUBDIR / PROJECTION_NAME
 
-    provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY, "topologies_dir")
+    provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY, "topologies_dir",
+                            data_root=Path(args.data_root))
     rebuild_command = (f"python scripts\\build_part_names_projection.py "
                        f"--data-root {args.data_root}")
     try:

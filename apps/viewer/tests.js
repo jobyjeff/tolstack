@@ -4950,6 +4950,11 @@
         // empty cell: absent is absent, but a blank component column would be
         // a worse lie than a raw id.
         eq(VA.componentLabel({ id: "only_an_id" }), "only_an_id");
+        // A `display_name` (the drawing's name) wins; the id moves to the tooltip.
+        var crossed = { id: "tan_link_x", name: "tangential link",
+                        display_name: "Pitch anti-rotation link 212956-005" };
+        eq(VA.componentLabel(crossed), "Pitch anti-rotation link 212956-005");
+        ok(VA.componentTitle(crossed).indexOf("tan_link_x") !== -1);
         // A gap is not a part and says what it is.
         eq(VA.componentLabel(null), VA.GAP_COMPONENT_LABEL);
         // An interface, same rule.

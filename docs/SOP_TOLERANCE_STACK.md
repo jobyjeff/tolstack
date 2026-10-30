@@ -371,6 +371,15 @@ optional, free-form, read by nothing that folds, and additive (so the schemas
 stay `/v0`, per `docs/DAG_TOPOLOGY.md`'s "Versioning: additive fields"). The
 **id** is not a title and never changes with one: ids are deep links.
 
+**Names follow the drawing; ids are stable handles** (2026-10-29). Where a
+source workbook, a person's word and a drawing title block name the same part
+differently, the title block wins for what a reader sees: the part or stack
+gains a `display_name` and a one-line `naming_note` recording the crossing
+(the workbook's "Tan Link" is the drawing's PITCH ANTI ROTATION LINK; "pitch
+link" is the drawing's PITCH LINK). The id keeps whatever it was committed as,
+because deep links, crop keys, binding keys and projection keys stand on it;
+the viewer prints `display_name` and carries the id in the tooltip.
+
 ## Step 2 — write the elements
 
 One `StackElement` per physical feature along the path, in physical order.

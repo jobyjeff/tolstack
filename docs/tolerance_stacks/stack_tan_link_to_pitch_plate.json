@@ -2,6 +2,8 @@
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "tan_link_to_pitch_plate",
   "title": "Tangential link to pitch plate grip length",
+  "display_name": "Pitch anti-rotation link 212956-005 to pitch plate grip length",
+  "naming_note": "The 260729 workbook's \"Tan Link\" is the drawing 212956-005's PITCH ANTI ROTATION LINK; the id keeps the workbook's word.",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",
