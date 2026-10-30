@@ -22,3 +22,11 @@ default-tier `pytest -q` overlapping it) failed 28/32 in this suite; runs 1, 3 (
 Same class as the four fixed by that handoff (a read taken before the nav's redraw has
 settled), but these are different sub-checks in a suite it did not scope. Fix shape:
 poll for the nav row's state after each click with a deadline of seconds.
+
+## 2026-10-30 — seen again (a_leader_starts_at_the_mark_it_names_on_every_tier)
+
+One sub-check, "[real] ...and leaving it takes the light down", red in a full
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` run
+from that handoff's worktree (33/37 suites; the other three reds were that
+handoff's own and are fixed). The suite alone, twice right after: 32/32 both
+times.

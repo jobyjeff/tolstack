@@ -16,8 +16,8 @@
       "issue": null,
       "note": "Declared with the guard by handoff the_dag_draws_bodies_as_containers_and_joints_as_symbols (2026-10-26). Leaves the glyph unwired.",
       "file": "apps/viewer/views/topology.js",
-      "find": "          wire(use, ctx, \"edge\", mark.id);\n          svg.appendChild(use);",
-      "replace": "          svg.appendChild(use);"
+      "find": "          wire(use, ctx, \"edge\", mark.id);\n          over.appendChild(use);",
+      "replace": "          over.appendChild(use);"
     }
   ]
 }

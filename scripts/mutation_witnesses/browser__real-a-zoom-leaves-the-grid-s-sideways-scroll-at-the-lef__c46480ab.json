@@ -6,10 +6,10 @@
     {
       "contract": "A zoom does not scroll the grid sideways under the DAG.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). A zoom that nudges the grid sideways, as the old pointer anchoring did.",
+      "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). A zoom that nudges the grid sideways, as the old pointer anchoring did. Re-aimed 2026-10-30 (a_leader_starts_at_the_mark_it_names_on_every_tier): the grid is no longer scaled, so the wheel moves it sideways by nothing at all.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    scrollDag(left * (to / from) - left,",
-      "replace": "    scrollDag(left * (to / from) - left + 40,"
+      "find": "    scrollDag(0, paneScroller() ? after.top + cy * to - clientY : 0);",
+      "replace": "    scrollDag(40, paneScroller() ? after.top + cy * to - clientY : 0);"
     }
   ]
 }

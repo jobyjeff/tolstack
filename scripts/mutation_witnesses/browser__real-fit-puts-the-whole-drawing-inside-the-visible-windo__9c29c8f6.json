@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). Scrolls the page 300px past where Fit frames the drawing.",
       "file": "apps/viewer/topology_app.js",
-      "find": "      rect.top + (drawn.span.top - pad) * to - topEdge);",
-      "replace": "      rect.top + (drawn.span.top - pad) * to - topEdge + 300);"
+      "find": "        rect.top + spanAt.top - pad * to - topEdge);",
+      "replace": "        rect.top + spanAt.top - pad * to - topEdge + 300);"
     }
   ]
 }

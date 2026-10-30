@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261028_a_study_is_a_translucent_group_on_the_dag.md",
       "note": "The one line this guard stands on.",
       "file": "apps/viewer/views/topology.js",
-      "find": "svg.appendChild(hotHover(hot, rect, key));",
-      "replace": "svg.insertBefore(hotHover(hot, rect, key), svg.firstChild);"
+      "find": "under.appendChild(hotHover(hot, rect, key));",
+      "replace": "under.insertBefore(hotHover(hot, rect, key), under.firstChild);"
     }
   ]
 }

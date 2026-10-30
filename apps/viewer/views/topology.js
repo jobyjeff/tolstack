@@ -497,10 +497,8 @@
         };
       },
     };
-    // Fit's horizontal half: the DAG's own width (it scales) and the jog
-    // zone's (it does not).
-    VA.lastTopoRender.dagWidth = leaderGeo.zoneLeft / zoom;
-    VA.lastTopoRender.zoneWidth = leaderGeo.width - leaderGeo.zoneLeft;
+    // Fit's horizontal half: the DAG and its jog zone, at 1 (both scale).
+    VA.lastTopoRender.dagWidth = leaderGeo.width / zoom;
     zoomed.appendChild(head);
     var body = VA.el("div", "tv__body");
     if (bodyPad) body.style.paddingTop = bodyPad + "px";

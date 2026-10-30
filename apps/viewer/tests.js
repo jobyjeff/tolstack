@@ -12338,6 +12338,7 @@
         var kids = [];
         var walk = function (node) {
           Array.prototype.slice.call(node.childNodes || []).forEach(function (n) {
+            if (n.nodeType !== 1) return;
             kids.push(n);
             walk(n);
           });

@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Starts every leader on the dot's right side instead.",
       "file": "apps/viewer/topology.js",
-      "find": "        out.dots[id] = [mark.x - r - 1.5, mark.y];",
-      "replace": "        out.dots[id] = [mark.x + r + 1.5, mark.y];"
+      "find": "        out.dots[id] = [k * (mark.x - r - 1.5), yk(mark.y)];",
+      "replace": "        out.dots[id] = [k * (mark.x + r + 1.5), yk(mark.y)];"
     }
   ]
 }

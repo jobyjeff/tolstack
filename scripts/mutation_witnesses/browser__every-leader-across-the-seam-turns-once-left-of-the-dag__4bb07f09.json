@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Puts it a gutter right of it, inside the rails.",
       "file": "apps/viewer/topology.js",
-      "find": "    out.bend = minX === Infinity ? 0 : Math.max(0, minX - metrics.gutter / 2);",
-      "replace": "    out.bend = minX === Infinity ? 0 : minX + metrics.gutter;"
+      "find": "    out.bend = minX === Infinity ? 0 : k * Math.max(0, minX - metrics.gutter / 2);",
+      "replace": "    out.bend = minX === Infinity ? 0 : k * (minX + metrics.gutter);"
     }
   ]
 }

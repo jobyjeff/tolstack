@@ -3502,9 +3502,10 @@
     // The DAG's zoom (a_leader_starts_at_the_mark_it_names_on_every_tier,
     // 2026-10-29): the DAG is drawn at `k` about its own top-left -- x from the
     // SVG's left edge, y from the DAG block's top `y0` -- and the GRID stays at
-    // 1. So a leader's node end is the scaled dot, its grid end the unscaled
-    // seam, and the jog zone between them keeps its own width: everything
-    // below is in the SVG's own (unscaled) pixels, and `width` is where the
+    // 1. Every x on this side scales, the jog zone's included, so the SVG is
+    // as wide as the old shared transform made it and a narrow pane still has
+    // room for the grid; only a leader's GRID end keeps the grid's unscaled y.
+    // Everything below is in the SVG's own pixels, and `width` is where the
     // grid table starts at this zoom.
     var zoom = options.zoom || null;
     var k = zoom && zoom.k > 0 ? zoom.k : 1;
@@ -3520,9 +3521,8 @@
     var scale = naturalZone > 0 ? (width - zoneLeft) / naturalZone : zone.scale;
     var pad = metrics.leaderPad * scale;
     var lane = metrics.leaderLane * scale;
-    var zoneWidth = width - zoneLeft;
-    zoneLeft = k * zoneLeft;
-    width = zoneLeft + zoneWidth;
+    var zoneLeftK = k * zoneLeft;
+    var widthK = k * width;
     var height = k === 1 ? (positions.height || 0)
       : Math.max(y0 + k * (positions.dagHeight || 0),
                  (positions.gridOffset || 0) + (positions.gridHeight || 0));
@@ -3546,14 +3546,14 @@
       // the view applies to the table itself). The pitch never moves with the
       // length mode — the grid stays evenly spaced whatever the DAG did.
       var y2 = (positions.gridOffset || 0) + leader.boundary * metrics.rowHeight;
-      var laneX = zoneLeft + pad + i * lane;
+      var laneX = k * (zoneLeft + pad + i * lane);
       // The polyline, node end first, grid end last -- the order the browser
       // tier reads the two contract points off (getPointAtLength 0 and total).
       // `points` is what the bands below are built from, so the two styles
       // need no second description of where a leader goes.
       var points = angled
-        ? [[x1, y1], [width, y2]]
-        : [[x1, y1], [laneX, y1], [laneX, y2], [width, y2]];
+        ? [[x1, y1], [widthK, y2]]
+        : [[x1, y1], [laneX, y1], [laneX, y2], [widthK, y2]];
       return {
         id: leader.id,
         boundary: leader.boundary,
@@ -3561,16 +3561,16 @@
         x1: x1, y1: y1, y2: y2, laneX: laneX,
         points: points,
         d: angled
-          ? "M " + x1 + " " + y1 + " L " + width + " " + y2
+          ? "M " + x1 + " " + y1 + " L " + widthK + " " + y2
           : "M " + x1 + " " + y1 +
             " H " + laneX +
             " V " + y2 +
-            " H " + width,
+            " H " + widthK,
       };
     });
 
     return {
-      zoneLeft: zoneLeft, width: width, naturalZone: naturalZone,
+      zoneLeft: zoneLeftK, width: widthK, naturalZone: naturalZone,
       // The reader's own preference, clamped -- not the stretch a transition
       // frame's lanes are spread by, which is `width` minus `zoneLeft`.
       zoneScale: zone.scale, style: angled ? "angled" : "jogged",
@@ -3578,7 +3578,7 @@
       // is drawn under `translate(0 y0) scale(k) translate(0 -y0)`.
       height: height, zoom: k, y0: y0,
       leaders: leaders,
-      bands: bandGeometry(leaders, plan, width, height),
+      bands: bandGeometry(leaders, plan, widthK, height),
     };
   };
 

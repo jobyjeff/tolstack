@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). Puts the pointer-anchoring compensation back on the page's own scroll.",
       "file": "apps/viewer/topology_app.js",
-      "find": "      paneScroller() ? after.top + cy * to - clientY : 0);",
-      "replace": "      after.top + cy * to - clientY);"
+      "find": "    scrollDag(0, paneScroller() ? after.top + cy * to - clientY : 0);",
+      "replace": "    scrollDag(0, after.top + cy * to - clientY);"
     }
   ]
 }
