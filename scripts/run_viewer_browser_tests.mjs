@@ -3673,10 +3673,13 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       half: Math.floor(window.innerWidth / 2),
     }));
     const navDivider = page.locator("#nav-divider");
-    push("the nav carries a full-height drag divider",
-      await navDivider.count() === 1 && (await navDivider.boundingBox()).height > 300);
+    const navBox = (await navDivider.count()) === 1 ? await navDivider.boundingBox() : null;
+    push("the nav carries a full-height drag divider", !!navBox && navBox.height > 300);
+    // With no divider the drags below have nothing to press: they do nothing,
+    // and the checks after them say so rather than aborting the suite.
     const dragNav = async (dx) => {
-      const box = await navDivider.boundingBox();
+      const box = navBox ? await navDivider.boundingBox() : null;
+      if (!box) return;
       await page.mouse.move(box.x + box.width / 2, box.y + 120);
       await page.mouse.down();
       await page.mouse.move(box.x + box.width / 2 + dx, box.y + 120, { steps: 8 });
@@ -7140,6 +7143,14 @@ async function testAnnotateArmedPick(browser, label) {
       bracketGhost: s.isGhosted(bracket), bracketShown: s.isVisible(bracket),
       bracketOpacity: s.parts.get(bracket) ? s.parts.get(bracket).material.opacity : null,
       camera: s.cameraState(),
+      // How far the orbit target is from the armed part's drawn box centre.
+      targetToPart: (() => {
+        const mesh = s.parts.get(sha);
+        if (!mesh) return null;
+        const c = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrix)
+          .getCenter(s.camera.position.clone());
+        return c.distanceTo(s.controls.target);
+      })(),
       line: line ? line.textContent : null,
       pressed: (document.querySelector(sel + " .tree-row__repick") || { getAttribute: () => null })
         .getAttribute("aria-pressed"),
@@ -7176,6 +7187,11 @@ async function testAnnotateArmedPick(browser, label) {
     await page.locator(ROW + " .tree-row__repick").click();
     await page.waitForFunction(() => window.__sweep.armed && window.__scene.pickFilter(), null, { timeout: 5000 });
     const armed = await scene();
+    // What the arm saved to give back -- the camera at the moment of arming
+    // (the sweep's own framing may still have been settling when `before` was read).
+    const saved = await page.evaluate(() => window.__sweep.armed.restore.camera);
+    const sameCamera = (a, b) => !!a && !!b && a.position.concat(a.target)
+      .every((v, i) => Math.abs(v - b.position.concat(b.target)[i]) < 1e-3);
     const shapeArmed = await rowShape();
     push("Pick on a joint end moves the sweep to the as-modelled pose itself, with no prompt",
       before.index !== before.home && armed.index === armed.home &&
@@ -7185,7 +7201,7 @@ async function testAnnotateArmedPick(browser, label) {
       armed.bracketOpacity > 0 && armed.bracketOpacity < 0.15);
     push("arming filters the pick to the end's part and moves the camera onto it",
       JSON.stringify(armed.filter) === JSON.stringify([await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha)]) &&
-      JSON.stringify(armed.camera) !== JSON.stringify(before.camera));
+      before.targetToPart > 5 && armed.targetToPart < 0.5);
     push("the armed row says it is at the as-modelled pose, and its Pick reads pressed",
       armed.line === "at the as-modelled pose for picking" && armed.pressed === "true");
     push("one row template away from the pose and armed at it: name and state line, then " +
@@ -7272,7 +7288,7 @@ async function testAnnotateArmedPick(browser, label) {
     // opacity; what must be gone is the armed pick's faint one.
     push("ending the pick restores the scene and the camera it found",
       bound.bracketOpacity > 0.15 && bound.bracketShown &&
-      JSON.stringify(bound.camera) === JSON.stringify(before.camera));
+      sameCamera(bound.camera, saved));
     push("the bar offers the way back to the frame the pick moved away from",
       await page.locator(".an__sweep-back button").isVisible());
     await page.locator(".an__sweep-back button").click();
@@ -7282,12 +7298,13 @@ async function testAnnotateArmedPick(browser, label) {
     await page.locator(ROW).hover();
     await page.locator(ROW + " .tree-row__repick").click();
     await page.waitForFunction(() => window.__sweep.armed, null, { timeout: 5000 });
+    const savedAgain = await page.evaluate(() => window.__sweep.armed.restore.camera);
     await page.mouse.move(away.x, away.y);
     await page.keyboard.press("Escape");
     const escaped = await scene();
     push("Esc ends an armed pick and puts the scene and camera back",
       !escaped.armed && !escaped.filter && escaped.bracketOpacity > 0.15 && escaped.bracketShown &&
-      JSON.stringify(escaped.camera) === JSON.stringify(before.camera) &&
+      sameCamera(escaped.camera, savedAgain) &&
       escaped.writes === before.writes + 1);
     return reportSuite(label, checks, errors);
   } catch (err) {
