@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] at compact density, Fit frames the whole band in the pane",
+  "mutations": [
+    {
+      "contract": "The Fit button scrolls the page so the lit span starts at the visible top.",
+      "issue": null,
+      "note": "Re-declared 2026-10-29 (the_rearrange_animates_and_centres_the_active_study): the old `to = 1` mutation is caught on arrival first now that arrival centres the band; this one only touches the Fit-button path (the non-centring branch), so the declared check is the one that reddens.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      scrollDag(keepSideways ? 0 : -hscroll.scrollLeft,\n        rect.top + (drawn.span.top - pad) * to - topEdge);",
+      "replace": "      scrollDag(keepSideways ? 0 : -hscroll.scrollLeft, 99999);"
+    }
+  ]
+}
