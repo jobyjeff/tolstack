@@ -6,10 +6,10 @@
     {
       "contract": "The binding is written at the armed end.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
-      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). The wrong end is the 2026-10-21 incident.",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). The wrong end is the 2026-10-21 incident. Re-anchored 2026-10-29 (a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place): the click now writes through the one answer path.",
       "file": "apps/annotate/app.js",
-      "find": "      direction: a.direction,\n      compositionNote: null,",
-      "replace": "      direction: AA.otherDirection(a.direction),\n      compositionNote: null,"
+      "find": "      pick: { geometryKey: AA.geometryKeyOfPick(full), direction: a.direction,",
+      "replace": "      pick: { geometryKey: AA.geometryKeyOfPick(full), direction: AA.otherDirection(a.direction),"
     }
   ]
 }
