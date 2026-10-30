@@ -169,9 +169,10 @@ export const DECLARED_GUARDS = {
   // datum line, a zero x-interval draws no band, a declared gap's row), two
   // out (both stops carrying the band, only a driver study is a band) and
   // the live corner check renamed for the datum. Every new name carries a spec.
-  // 2026-10-29 (a_face_is_picked_the_way_cad_picks_it): +2, the nav's width
-  // (drag sign and floor/cap, its own remembered key). Both carry a spec.
-  fast: { declared: 624, enrollable: 624, names: "12813d71f761" },
+  // 2026-10-29 (a_face_is_picked_the_way_cad_picks_it): +3, the nav's width
+  // (drag sign and floor/cap, its own remembered key) and the shell's Esc
+  // reading a pressed mirrored row. All three carry a spec.
+  fast: { declared: 625, enrollable: 625, names: "c84e449a967d" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.

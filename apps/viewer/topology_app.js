@@ -1414,6 +1414,17 @@
 
   function wirePaneState() {
     if (typeof window === "undefined" || !window.addEventListener) return;
+    // Esc cancels an armed pick (a_face_is_picked_the_way_cad_picks_it) even
+    // when focus is HERE -- the reader pressed Pick on a mirrored row, so the
+    // keypress lands in this document and never reaches the scene's frame.
+    // Armed is the annotator's own word for it: a mirrored row with a
+    // pressed button. Nothing here knows the verb's meaning beyond its name.
+    if (document.addEventListener) {
+      document.addEventListener("keydown", function (event) {
+        if (!event || event.key !== "Escape" || !sceneTree) return;
+        if (VA.sceneRowsPressed(sceneTree.rows)) postToPane(["arm", "off"]);
+      });
+    }
     window.addEventListener("message", function (event) {
       if (!flyoutFrame || event.source !== flyoutFrame.contentWindow) return;
       if (event.origin !== window.location.origin) return;

@@ -5751,6 +5751,15 @@
         VA.writeStoredPaneWidth(null, 600);        // must not throw
       });
 
+    await test("a mirrored row with a pressed button, at any depth, is an armed pick an " +
+      "Esc on this page cancels", function () {
+        eq(VA.sceneRowsPressed([]), false);
+        eq(VA.sceneRowsPressed([{ key: "a", buttons: [{ text: "Pick", pressed: false }] }]), false);
+        eq(VA.sceneRowsPressed([{ key: "j", rows: [{ key: "j/a",
+          buttons: [{ text: "Cancel", pressed: true }] }] }]), true);
+        eq(VA.sceneRowsPressed(null), false);
+      });
+
     // --- the nav's width (a_face_is_picked_the_way_cad_picks_it) ------------
     await test("the nav widens to the RIGHT, floors at its min and caps at " +
       "half the window it is shown in", function () {

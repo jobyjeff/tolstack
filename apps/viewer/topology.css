@@ -220,6 +220,12 @@ details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "
   border-radius: 4px; padding: 0 4px; cursor: pointer; }
 .navtree__scenerow:hover .navtree__scenebtn, .navtree__scenebtn:focus,
 .navtree__scenebtn[aria-pressed="true"] { color: var(--ink); border-color: var(--line); }
+/* A row with a pressed control is an armed pick (the annotator's Cancel and
+   its others toggle): the name and state line keep the first line and the
+   controls drop to their own, still at the right. */
+.navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) { flex-wrap: wrap; }
+.navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenetext { flex-basis: 100%; }
+.navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenebtn:first-of-type { margin-left: auto; }
 .navtree__scenealert { flex: none; color: var(--inferred); display: inline-flex; }
 
 /* --- the one status icon a row may wear ------------------------------------

@@ -582,7 +582,11 @@ body {
 .tree-row:not(:hover):not(:focus-within):not(.tree-row--armed) .tree-row__repick { visibility: hidden; }
 /* The armed row (an armed pick): the selection spine, its controls standing,
    and a refused click flashes its state line once. */
-.tree-row--armed { box-shadow: inset 3px 0 0 #5b8dd6; }
+.tree-row--armed { box-shadow: inset 3px 0 0 #5b8dd6; flex-wrap: wrap; }
+/* Armed, the row carries two controls: its name and state line keep the
+   whole first line and the controls drop to their own, still at the right. */
+.tree-row--armed > .tree-row__text { flex-basis: 100%; }
+.tree-row--armed > .tree-row__repick:first-of-type { margin-left: auto; }
 .tree-row__repick[aria-pressed="true"] { color: #e8e8e8; border-color: #4a515a; }
 .tree-row__note--flash { animation: an-gate-pulse .6s ease-out; }
 /* What an armed pick just wrote, over the scene for a moment. */

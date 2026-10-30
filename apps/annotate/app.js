@@ -2494,8 +2494,10 @@ function occurrencesShown(list) {
 // a bind, `arm off`, Esc, the row's Cancel, any transport verb, leaving
 // sweep mode -- puts back exactly what was shown and where the camera was.
 async function cmdArm(what, direction) {
-  const sweep = sweepState();
+  // `off` is safe anywhere: the shell posts it on any Esc while it shows a
+  // pressed row, and a sweep may have ended in between.
   if (what === "off") return disarmPick("cancel");
+  const sweep = sweepState();
   if (what === "others") {
     if (AA.ARM_OTHERS_MODES.indexOf(direction) === -1) {
       throw new Error("arm others takes " + AA.ARM_OTHERS_MODES.join(" or ") + ", got " + JSON.stringify(direction));
