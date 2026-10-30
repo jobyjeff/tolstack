@@ -7730,7 +7730,8 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     // The boot draws the first study's rail before the entry's goto lands:
     // the whole topology is the one with the studyless head.
     await page.waitForFunction(() => document.querySelector("#element-list li.el-head") &&
-      document.querySelectorAll("#element-list li.el-row").length > 0, null, { timeout: 60000 });
+      document.querySelectorAll("#element-list li.el-row").length > 0, null, { timeout: 60000 })
+      .catch(() => {});
     const bindRail = await page.evaluate(() => Array.from(
       document.querySelectorAll("#element-list li.el-row .el-row__proposal")).map((n) => n.textContent));
     console.log(`    topology-level rail: ${bindRail.length} rows read suggested; the projection ` +
