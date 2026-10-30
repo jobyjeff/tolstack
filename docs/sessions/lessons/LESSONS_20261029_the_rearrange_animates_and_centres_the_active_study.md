@@ -31,3 +31,24 @@
   browser tier (gitignored). The two `shadow_concurrency` pytest failures and
   `test_viewer_js_suite` are worktree artefacts (no projections / stale `tmp`
   shadow dirs), not this change.
+
+## Addenda
+- **Sideways scroll:** a reader parked sideways (`scrollLeft > 0`) keeps it;
+  the landing then centres vertically only (the real tier's "settles where the
+  reader was" check pins the 10-28 contract). From the left edge it also
+  centres horizontally.
+- **Witness changes:** retired the `at compact density, Fit frames the whole
+  band` spec — centring now keeps the band in view at scale 1, so its `to = 1`
+  mutation reddens the arrival guard (already witnessed by its own spec) and
+  not the declared Fit-button check; that Fit-button guard is now unwitnessed.
+  `each study is framed once the re-arrange settles` now mutates the
+  `landingPending` flag. Two specs added for the new guards; census pin
+  re-written (735/702).
+- **Test record:** worktree, `node apps/viewer/run_tests.cjs` 507/507 (node-fs
+  tier skipped: no projections in a worktree); browser tier 35/35 (real tier
+  armed via `--repo` main data for witnesses); pytest -q: 1683 passed, 1 failed
+  (`test_viewer_js_suite`, the documented worktree-only red) before the final
+  spec rename; witness tests re-run after: 44 passed. `--changed-since
+  integration` witnesses: all witnessed after the repairs above (re-run
+  individually). The full pytest took 26 min under browser-slot contention.
+- No three-frame shots were produced.
