@@ -57,3 +57,7 @@ candidates for a merge-only tier.
 ## Measurement 2026-10-29 (triage batch merge)
 
 616 s (10m16s) wall, 614.97 s pytest, serial, `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q --durations=15 -p no:cacheprovider` in the batch-merge candidate worktree (`8a2ae880`, inputs bridged, projections rebuilt in the candidate): `1 failed, 1654 passed, 1 skipped, 2 deselected`. `suite-time record`: OVER BUDGET by 0m16s. The failure is `ISSUE_20261029_a_data_conditional_pair_of_real_guards_reads_as_declared_but_not_run.md`, not a timing matter. Top of `--durations`: test_browser_runner[signal-False] setup 128 s (browser-slot queue) + call 24 s, test_feature_geometry real-readers 83 s, test_annotate_js_suite 51 s, shadow_concurrency corrupt-lock 45 s, test_mutation_witnesses setup 41 s, shadow_concurrency stale-lock 41 s, test_browser_runner[exit-False] 12 s, closing-the-concatenation-seam 11 s, test_viewer_js_suite 11 s, test_browser_runner[throw-True] 9 s, passing-over-the-skip-arm 8 s, topology column order 8 s.
+
+## Measurement 2026-10-29 (the_wheel_the_column_and_fit_behave)
+
+`venv-win/Scripts/python.exe -m pytest -q` (no -n; the pytest.ini here rejects it) took 19m10s in a worktree while a witness run shared the box; an earlier uncontended run took 8m37s and a later one 5m17s. Contention, not growth.
