@@ -36,3 +36,7 @@ So the overage is contention, not suite growth. Two cheap fixes:
 
 There is no per-entry top 15 to give: the runner prints per-entry times, and
 none of this run's entries was slow out of line with its tier.
+
+## Measurement 2026-10-29 (tactical, a_face_is_picked_the_way_cad_picks_it)
+
+Same shape again. `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack` from the handoff worktree: 2187 s (36m27s) by the outer wall clock, recorded `--tier merge` and reported OVER BUDGET by 6m27s; the runner's own clock read 31m38s for `58/60 witnessed, 60/61 reached; 1 left to the sweep (budget)` (61 of 586 entries reached by the diff's hunks). The gap between the two is clean runs and the browser-slot queue, not mutated runs. Slowest entry 2m13s.
