@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261029_the_rearrange_animates_and_centres_the_active_study.md
 reviewer: agent
 date: 2026-10-29
-verdict: REQUEST CHANGES
-blockers: 3
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_rearrange_animates_and_centres_the_active_study
@@ -46,3 +46,24 @@ path) reads sound and the 10-28 sideways-scroll contract is preserved.
 ## Inline fixes
 
 None.
+
+## Re-run 2026-10-29 (round 2) — APPROVE
+
+All three blockers resolved in `62bcc6d3`:
+1. Requirement amended (Jeff chose option b, recorded in the issue addendum) to
+   "nothing blinks"; the browser tier now asserts every animation frame has dots
+   and bars on screen, with a mutation spec. Per-frame rebuild stays open in the
+   issue for strategy.
+2. Four screenshots (kinematic, mid-transition, landed, back) under
+   `docs/sessions/lessons/shots/the_rearrange_animates_and_centres_the_active_study/`.
+3. Fit-button witness re-declared against the non-centring branch.
+
+Verified: `--changed-since integration` witnesses (junctioned `node_modules`,
+`--repo` main): 18/19 witnessed, 19/19 reached, including the new blink guard,
+the Fit-button guard, the landing and reduced-motion guards. The one
+NOT WITNESSED, `fast__the-render-puts-the-header-above-the-first-grid-row-push`,
+is "tier red before mutation" because the main checkout's projection is not
+paired with this tree ("[real] tier is stale") — environmental, and the diff
+does not touch the header; left to the sweep. `tests/test_mutation_witnesses.py`
++ `tests/test_claims_registry.py`: 84 passed. Fast viewer tier 507/507.
+Not re-run here: full pytest and plain browser tier (author's record, round 1).
