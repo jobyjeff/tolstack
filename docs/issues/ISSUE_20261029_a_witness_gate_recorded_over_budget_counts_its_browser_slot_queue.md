@@ -53,3 +53,14 @@ entries whose tier was already red with no mutation: integration's
 (`ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md`).
 Each of the four was witnessed by hand instead: apply the mutation, watch the
 named check go PASS→FAIL.
+
+## Measurement 2026-10-30 (review, a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark)
+
+The command was `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack/data/scratch/review_preview --changed-since integration`,
+run on the review merge `fb3eace0` (a fast-forward). Wall time was 1881 s
+(31m21s), and `suite-time record` said OVER BUDGET by 1m21s. The runner's own
+figure was "45/75 witnessed, 75/83 reached in 30m55s; 8 left to the sweep".
+So this time almost all the overrun was the cap letting its last browser entry
+finish, not the slot queue. All 30 NOT WITNESSED were fast entries where "the
+tier was red before the mutation" (the `display_name` drift again). Three of
+them were witnessed by hand.
