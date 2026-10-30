@@ -69,3 +69,31 @@ re-lay check confirms it.
 - Crossing (brief item 1): an edge's two grid leaders never crossed in any
   measured case. They land at their own boundary seams in walk order. The
   trace check now asserts that, so no routing change was needed.
+
+## Witnesses from a worktree, today
+
+- `--changed-since integration --repo C:/workspace/tolstack` selected 61
+  entries and reached 48 under the 30-minute cap. 29 were witnessed, and 13
+  were left to the sweep. 15 fast entries "proved nothing": the viewer's fast
+  tier is red before any mutation. Against the main checkout's projection it
+  refuses the stale projection. Against a projection built from this tree it
+  is red on `display_name` fixture drift, which is integration's
+  (`ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md`).
+  So **no** branch off integration can prove a viewer fast entry until that
+  lands.
+- Workaround used: every selected fast spec was checked by hand (apply the
+  mutation, run `node apps/viewer/run_tests.cjs`, require `FAIL  <expect_red>`,
+  revert). All 15 reddened. The two `[real]` ones were checked against a
+  scratch root (`data/scratch/leader_root/`, with `data/` junctions, `docs`
+  junctioned to the worktree, and projections built there by this tree's
+  builders with `--data-root`). That root was removed afterwards.
+- Four browser specs of mine needed re-aiming before they reddened their own
+  check:
+  - The re-lay spec now uses the stale-render copy; dropping the paint hook is
+    covered by other redraws.
+  - The P2 pair is now also held to the DOM circles; the old expectation read
+    the page's own `seam.dots`, which is deliverable 3 in miniature.
+  - The two Fit specs now use a rows-only scale and `to = 1`. A shared
+    transform aborts the suite, and a +300 scroll trips only the top check.
+  All four, plus four of mine the cap left to the sweep, were then witnessed
+  with `--only`.
