@@ -91,3 +91,38 @@ the bar's "back to the sweep" returns to the frame the arm left.
   end and arms on the hub.
 - The browser tier needs `node_modules`: a junction to the main checkout's,
   made and removed in this session (`LESSONS_..._annotate_affordances_...`).
+
+## Verification record
+
+All from the handoff worktree, reading the main checkout's data (`--repo`),
+with `node_modules` junctioned in and removed before hand-back.
+
+- `node apps/annotate/run_tests.cjs`: 258/258.
+- `node apps/viewer/run_tests.cjs`: 510/510, node-fs `[real]` tier skipped
+  (no projection in a worktree — the documented worktree red).
+- `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`:
+  `2 failed, 1682 passed, 1 skipped, 2 deselected` in 602 s (serial; no xdist
+  in the venv). Failures: `test_viewer_js_suite` (the worktree skip above) and
+  `test_browser_runner[throw-True]`, which passed on a rerun and is
+  `ISSUE_20261022_the_browser_runner_kill_witness_reddens_under_load_...`.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`:
+  35/36 suites in 1123 s. The one red, "3D pane follows the selection", was 32/32
+  run alone before and after; its four failures share one un-waited lookup
+  (`ISSUE_20261029_four_3d_pane_nav_gesture_checks_fail_together_when_the_bodies_resolve_late.md`).
+  After the run, "annotate armed pick" (17/17) and "topology http" (216/216)
+  were re-run on the fixed checks.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack`:
+  58/60 witnessed, 60/61 reached, 1 left to the sweep (budget). Both NOT
+  WITNESSED were this handoff's own specs and both were test-side: orbit
+  damping made "the camera moved" true with framing deleted, and a missing nav
+  divider aborted the suite before its check reported. Fixed; those two, the
+  two camera-restore specs and the one left to the sweep re-checked with
+  `--only`: all WITNESSED.
+- The witness gate measured 36m27s wall (over its 30-min merge budget,
+  appended to `ISSUE_20261029_a_witness_gate_recorded_over_budget_counts_its_browser_slot_queue.md`);
+  pytest 602 s (over the 10-min default budget by 2 s, appended to
+  `ISSUE_20261022_the_default_test_tier_runs_past_its_ten_minute_budget.md`).
+
+**Lesson from the gate:** a camera check that compares "before" against
+"after" is not testing framing when the scene's own framing is still damping;
+read the arm's saved camera, and assert the orbit target sits on the part.
