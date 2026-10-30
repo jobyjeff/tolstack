@@ -267,7 +267,7 @@ export const DECLARED_GUARDS = {
   // the label), the popover's own contracts moved to a new stack-page suite,
   // a suite for the scene's anchor hover and pick, the real scene's own
   // pointer on an anchor, and a contributor row's hover. Four specs
-  // re-anchored with their guard, three moved suite with theirs, thirteen new names
+  // re-anchored with their guard, three moved suite with theirs, twelve new names
   // carry a spec; the rest are ports of checks that had none (the lesson
   // lists them), and the pin is raised for those.
   browser: { declared: 785, enrollable: 752, names: "c6cdb9bcd632" },

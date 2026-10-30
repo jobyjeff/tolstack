@@ -4572,6 +4572,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       guard's docstring — whatever it claimed, some document repeats. Fixed
       inline in review; a sentence promising a guard that no longer exists is
       worse than no sentence, because the next author trusts it.
+      **The same applies when a diff retires a SURFACE, not a guard**
+      (2026-10-30, `a_preview_pane_replaces_the_hover_popups_…`, which removed
+      the topology hover cards). Grep `apps/viewer/README.md` for the surface's
+      everyday name ("edge hover card"), since four sentences survived there. Grep
+      `tests/debug_*.mjs` and both stylesheets for its classes too. No tier
+      runs the hand probes, so they break without going red
+      (`ISSUE_20261030_six_debug_probes_and_two_css_rules_still_drive_the_retired_topology_hover_cards.md`).
 - [ ] **A claims-registry review re-derives from the registry's own report,
       not from the lesson.** New 2026-09-24. `PYTHONIOENCODING=utf-8
       venv-win/Scripts/python.exe -m tests.claims_registry` prints every

@@ -241,3 +241,11 @@ These are ports of retired checks that had no spec under their old names, plus a
   An earlier full-tier run (37/39) went red on the corridor geometry and on the
   spec-citation race; both are fixed above. In the same run, "3D pane follows …
   leaving it takes the light down" was red once and green alone (load).
+
+  > **Correction (review, 2026-10-30).** 32 + 7 is **39**, not 40.
+  > `git diff --name-status integration` over `scripts/mutation_witnesses/`
+  > agrees: 28 added, 1 renamed and 10 modified specs survive, and 3 were
+  > deleted. That is 39. The same recount found **twelve** new browser names
+  > with a spec, not the thirteen `guard_enumeration.mjs`'s comment said:
+  > 16 added or renamed, less the 4 re-anchors in the table above. The comment
+  > has been corrected too.
