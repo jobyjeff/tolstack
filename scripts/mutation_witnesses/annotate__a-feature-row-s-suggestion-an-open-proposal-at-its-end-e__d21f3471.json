@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a feature row's suggestion: an open proposal at its end, else the contact engine's candidates with the top one's face at this end, and nothing once the end is bound",
+  "mutations": [
+    {
+      "contract": "A candidates end lights the contact engine's TOP-ranked face, whatever order the projection lists them in.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Taking the first-listed candidate lights a lower-ranked face.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var top = candidates.slice().sort(function (a, b) { return a.rank - b.rank; })[0];",
+      "replace": "    var top = candidates[0];"
+    }
+  ]
+}

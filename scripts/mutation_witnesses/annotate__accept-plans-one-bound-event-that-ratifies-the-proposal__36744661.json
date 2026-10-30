@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "Accept plans one `bound` event that ratifies the proposal and replaces the end's one standing binding",
+  "mutations": [
+    {
+      "contract": "An Accept on an end that already has one binding supersedes it, so the end never carries two faces.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Dropping the supersede leaves the old face standing beside the accepted one.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    return (standing || []).length === 1 ? standing[0].event_id : null;",
+      "replace": "    return null;"
+    }
+  ]
+}

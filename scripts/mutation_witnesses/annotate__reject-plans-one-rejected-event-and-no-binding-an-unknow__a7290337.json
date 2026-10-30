@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "Reject plans one `rejected` event and no binding; an unknown answer and an agent are refused",
+  "mutations": [
+    {
+      "contract": "An agent actor can never write the `bound` event a pick answer produces.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). The actor guard on the pick branch is the one place an agent's bound event is stopped before the schema.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "        throw new Error(\"an agent only proposes -- a human binds\");",
+      "replace": "        void 0;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "inspect feature <edge> [from|to] selects one feature row; a wrong end is refused",
+  "mutations": [
+    {
+      "contract": "A selection names an end by the stored direction word or not at all.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the check a typo selects no row and says nothing.",
+      "file": "apps/annotate/commands.js",
+      "find": "      if (face !== undefined && face !== null && AA.DIRECTIONS.indexOf(face) === -1) {",
+      "replace": "      if (false) {"
+    }
+  ]
+}

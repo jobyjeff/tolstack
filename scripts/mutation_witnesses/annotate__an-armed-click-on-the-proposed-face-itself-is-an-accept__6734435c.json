@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an armed click on the proposed face itself is an Accept, and on an end with no proposal it is a plain bind",
+  "mutations": [
+    {
+      "contract": "Clicking the very face that was proposed accepts it (ratifies) instead of rejecting it and binding it again.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the face match, picking the proposed face rejects the proposal and binds the same face unratified.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      return g.source_step_sha256 === pick.geometryKey.sourceStepSha256 && g.face_id === pick.geometryKey.faceId;",
+      "replace": "      return false;"
+    }
+  ]
+}

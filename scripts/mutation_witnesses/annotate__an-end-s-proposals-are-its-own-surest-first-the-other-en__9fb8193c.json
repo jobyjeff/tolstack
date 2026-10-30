@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an end's proposals are its own, surest first; the other end's are not this end's",
+  "mutations": [
+    {
+      "contract": "A proposal at the other end of an edge is not a suggestion at this one.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the direction filter every end of an edge reads the other end's proposal.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      return p && (!direction || p.direction === direction);",
+      "replace": "      return !!p;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a mirrored row the annotator marks as a suggestion carries the mark, and no other row does",
+  "mutations": [
+    {
+      "contract": "The shell draws a suggestion line in the suggestion colour, as the rail does.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the attribute the shell's copy of the row reads like any muted state line.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (row.suggestion) line.setAttribute(\"data-suggestion\", \"true\");",
+      "replace": "    void row.suggestion;"
+    }
+  ]
+}

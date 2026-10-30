@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "[real] on the kinematic study every joint end with an open proposal reads suggested, and no other does",
+  "mutations": [
+    {
+      "contract": "A joint end reads suggested only for a proposal at ITS end.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Reading the whole edge's proposals marks the hub spindle bore end suggested on the plate end's proposal.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var open = AA.endProposals(record, via.direction);",
+      "replace": "    var open = AA.endProposals(record, null);"
+    }
+  ]
+}

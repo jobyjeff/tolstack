@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "the face then clicked writes `rejected` for the proposal and then `bound` for that face, both as the reviewer, numbered in that order",
+  "mutations": [
+    {
+      "contract": "An armed click at a proposed end answers the proposal in the same gesture.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the open proposals the click binds and leaves the proposal open.",
+      "file": "apps/annotate/app.js",
+      "find": "      open: AA.endProposals(record, a.direction),",
+      "replace": "      open: [],"
+    }
+  ]
+}

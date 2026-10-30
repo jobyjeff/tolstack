@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "...and the end reads bound to the face picked, with the suggestion gone",
+  "mutations": [
+    {
+      "contract": "After the write the row says what was bound.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). This mutation is the bug the guard first caught: the time read off an event variable that no longer exists, so the row never said bound.",
+      "file": "apps/annotate/app.js",
+      "find": "at: events[events.length - 1].created_at };\n    state.scene.markFace(full.sha256",
+      "replace": "at: event.created_at };\n    state.scene.markFace(full.sha256"
+    }
+  ]
+}

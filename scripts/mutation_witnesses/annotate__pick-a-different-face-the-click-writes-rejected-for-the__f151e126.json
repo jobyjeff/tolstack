@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "Pick a different face: the click writes `rejected` for the proposal FIRST, then `bound` for the picked face, both as the reviewer, numbered in that order",
+  "mutations": [
+    {
+      "contract": "Binding a different face at a proposed end turns the proposal down, so the engine never proposes that face for the key again.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the rejection the proposal stays open beside the binding the human chose instead.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      reject: (a.open || []).filter(function (p) { return p !== same; }),",
+      "replace": "      reject: [],"
+    }
+  ]
+}

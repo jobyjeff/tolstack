@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "a joint end with an open proposal reads 'suggested · high' in the suggestion colour, with who and why on the hover and no action until it is selected",
+  "mutations": [
+    {
+      "contract": "The suggestion line is drawn in the suggestion colour.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the class the line is the muted grey of \"no face bound\" and reads as one.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (suggestionLine) face.classList.add(\"tree-row__face--suggested\");",
+      "replace": "  void suggestionLine;"
+    }
+  ]
+}

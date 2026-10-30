@@ -172,7 +172,9 @@ export const DECLARED_GUARDS = {
   // 2026-10-29 (a_face_is_picked_the_way_cad_picks_it): +3, the nav's width
   // (drag sign and floor/cap, its own remembered key) and the shell's Esc
   // reading a pressed mirrored row. All three carry a spec.
-  fast: { declared: 625, enrollable: 625, names: "c84e449a967d" },
+  // 2026-10-29 (a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place):
+  // +1, the shell's mirror marking a suggestion row. It carries a spec.
+  fast: { declared: 626, enrollable: 626, names: "ed804737f840" },
   // 2026-10-28 (an_interface_suggests_the_faces_that_touch): annotate +2 and
   // browser +4, the contact suggestions' rows, words, colour, list, frame and
   // no-write guards. Every one carries a spec. Re-measured at the review merge.
@@ -182,7 +184,12 @@ export const DECLARED_GUARDS = {
   // (the alert pairing now names its quiet states). Every one carries a spec.
   // 2026-10-29 (a_face_is_picked_the_way_cad_picks_it): +3, the armed pick's
   // part order, its click plan and its words. All three carry a spec.
-  annotate: { declared: 258, enrollable: 258, names: "bb3f3a18c1a0" },
+  // 2026-10-29 (a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place):
+  // +8 -- an end's own proposals, the answer planner (accept, pick a
+  // different face, the proposed face itself, reject and the agent guard),
+  // a row's suggestion, a node feature's per-end state, `inspect feature` --
+  // and the chip check renamed for its new words. Every one carries a spec.
+  annotate: { declared: 266, enrollable: 266, names: "34554ecaab95" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -208,7 +215,10 @@ export const DECLARED_GUARDS = {
   // nav's divider, seventeen for the armed pick on ?mock=1, one [real] for
   // Jeff's bore reproduction on P2. Every one carries a spec. Re-measured at
   // the review merge, on top of the_wheel_the_column_and_fit_behave's +6.
-  browser: { declared: 755, enrollable: 722, names: "7d3aa0a125b0" },
+  // 2026-10-29 (a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place):
+  // +15, the rail-suggestion suite. Every one carries a spec but its
+  // `[real] ... (skipped: ...)` push, whose condition is the literal `true`.
+  browser: { declared: 770, enrollable: 737, names: "6d47164d5694" },
 };
 
 // WHAT THIS CENSUS STILL CANNOT SEE, computed nowhere and stated here, printed

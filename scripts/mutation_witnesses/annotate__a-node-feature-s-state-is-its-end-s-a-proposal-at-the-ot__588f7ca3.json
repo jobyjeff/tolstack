@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a node feature's state is ITS end's: a proposal at the other end leaves it unbound",
+  "mutations": [
+    {
+      "contract": "A node feature's row is coloured by ITS end only.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Before this handoff an edge with one proposed end coloured both ends' rows as proposed.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (whole === AA.BINDING_STATES.PROPOSED && !AA.endProposals(record, via.direction).length) {",
+      "replace": "    if (false) {"
+    }
+  ]
+}

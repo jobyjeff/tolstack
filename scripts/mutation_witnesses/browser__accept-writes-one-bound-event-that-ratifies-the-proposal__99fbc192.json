@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "Accept writes one `bound` event that ratifies the proposal, at its end and face, as the reviewer",
+  "mutations": [
+    {
+      "contract": "The row's Accept answers the proposal at the row's own end.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). The wrong end is the 2026-10-21 incident.",
+      "file": "apps/annotate/app.js",
+      "find": "          railExec([\"accept\", via.edgeId, via.direction]);",
+      "replace": "          railExec([\"accept\", via.edgeId, AA.otherDirection(via.direction)]);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "[real] the topology-level rail shows a suggestion on every edge with an open proposal",
+  "mutations": [
+    {
+      "contract": "The shell's topology row lists every edge, so every open proposal is reachable from it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without it the topology row lands on the first chain study, which lists 4 of 33 proposed edges.",
+      "file": "apps/annotate/app.js",
+      "find": "  else if (!targetStudyId && !edgeId && arrival.selectStudy) wholeTopology();",
+      "replace": "  else void wholeTopology;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the rail's suggestion line says how sure in reader words, and the hover says who and why",
+  "mutations": [
+    {
+      "contract": "The hover names the proposer in everyday words -- \"agent\" -- never the raw `agent:<handoff-slug>` actor string.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Carried over from the guard's earlier name (\"the rail chip and the hover say who proposed...\"); a handoff slug on a hover is an internal id on the surface.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    if (kind === AA.ACTOR_KINDS[1]) return \"agent\";",
+      "replace": "    if (kind === AA.ACTOR_KINDS[1]) return String(recordedBy);"
+    }
+  ]
+}
