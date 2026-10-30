@@ -187,7 +187,11 @@ export const DECLARED_GUARDS = {
   // spec; the other fifteen are the retired cards' checks re-pointed at the
   // record, which carried none under their old names either (the lesson lists
   // them) -- the pin is raised for them rather than a spec written.
-  fast: { declared: 623, enrollable: 623, names: "6f7503255a22" },
+  // 2026-10-30 (a_point_exports_its_xyz_against_angle): +6 -- the point export's
+  // five builder checks and the live tangential-link check. Five carry a spec;
+  // the [real] one reads the main checkout's published run and is the same
+  // numbers the browser guard below witnesses, so the pin is raised for it.
+  fast: { declared: 629, enrollable: 629, names: "e9bf5903a629" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -212,7 +216,9 @@ export const DECLARED_GUARDS = {
   // 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_
   // every_mark): +1, the anchor hover and pick messages to the shell. It
   // carries a spec.
-  annotate: { declared: 266, enrollable: 266, names: "dec13928d000" },
+  // 2026-10-30 (a_point_exports_its_xyz_against_angle): +1, the export's load
+  // order and the run's commit reaching its header. It carries a spec.
+  annotate: { declared: 267, enrollable: 267, names: "d5d4bf9b0003" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -270,7 +276,12 @@ export const DECLARED_GUARDS = {
   // re-anchored with their guard, three moved suite with theirs, twelve new names
   // carry a spec; the rest are ports of checks that had none (the lesson
   // lists them), and the pin is raised for those.
-  browser: { declared: 785, enrollable: 752, names: "c6cdb9bcd632" },
+  // 2026-10-30 (a_point_exports_its_xyz_against_angle): +7 -- one new suite,
+  // the point export (a skip line and six checks: search, name, row count,
+  // the tangential link's values, its fixed mount end, the remembered
+  // choice). The plate-end values carry a spec; the rest ride the same
+  // download and the pin is raised for them.
+  browser: { declared: 792, enrollable: 759, names: "3ceb3ff0bf4a" },
 };
 
 

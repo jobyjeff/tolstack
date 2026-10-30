@@ -4743,6 +4743,19 @@ check("sweep: index.html loads sweep.js before the module that uses it, and " +
   }
 });
 
+check("sweep: the point export is loaded before app.js, and the run's pipeline " +
+  "commit survives the artifact reader into the file's header", () => {
+  const exp = ANNOTATE_HTML.indexOf('src="../viewer/sweep_export.js"');
+  const app = ANNOTATE_HTML.indexOf('src="./app.js"');
+  if (exp === -1) throw new Error("index.html does not load the point export");
+  if (exp > app) throw new Error("app.js loads before the point export it renders");
+  const doc = sweepFixture();
+  doc.pipeline_commit = "0123456789abcdef";
+  if (AA.readSweepArtifact(doc).pipelineCommit !== "0123456789abcdef") {
+    throw new Error("readSweepArtifact dropped pipeline_commit");
+  }
+});
+
 // --- parts sit where the assembly puts them (handoff 2026-10-14) -------------
 
 // A directory handle in memory, shaped like the File System Access one the

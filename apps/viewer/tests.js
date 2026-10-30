@@ -13050,6 +13050,60 @@
 
     // --- node-fs tier: the REAL projection ----------------------------------
 
+    // --- the point export (a_point_exports_its_xyz_against_angle) -----------
+    var SX = window.SweepExport;
+    var exportDoc = {
+      run_id: "run-x", pipeline_commit: "0123456789abcdef0123",
+      frame: "Every coordinate is expressed in the one 217755 assembly coordinate frame " +
+        "(CAD Z = the spindle axis, CAD X = blade 1's pitch axis). More words.",
+      points: [
+        { measures: { blade_pitch: -7.0004, actuator_travel: 64.4664, plate_rotation: 1.63118 },
+          joints: { tan_link: { point_a_world: [1, 2, 3], point_b_world: [4, 5, 9] } } },
+        { measures: { blade_pitch: 30, actuator_travel: 30, plate_rotation: 0 },
+          joints: { tan_link: { point_a_world: [1, 2, 3], point_b_world: [4, 5, 6] } } },
+        { measures: { blade_pitch: 72, actuator_travel: 0, plate_rotation: -0.00001 },
+          joints: { tan_link: { point_a_world: [1, 2, 3], point_b_world: [4, 5, 7.5] } } },
+      ],
+    };
+    await test("point export: every joint end is offered, by the artifact's own joint names", function () {
+      eq(SX.exportablePoints(exportDoc).map(function (p) { return [p.id, p.label]; }),
+         [["joint|tan_link|a", "tan link · a end"], ["joint|tan_link|b", "tan link · b end"]]);
+    });
+    await test("point export: XYZ against angle keeps the sweep's order and the header says where it came from", function () {
+      var out = SX.buildCsv(exportDoc, ["joint|tan_link|b"], { exportedAt: "T" });
+      var lines = out.text.split("\n");
+      eq(lines[0], "# run run-x, pipeline 0123456789ab, exported T");
+      eq(lines[1], "# 217755 assembly frame: CAD Z = the spindle axis, CAD X = blade 1's pitch axis; mm and deg");
+      eq(lines[2], "blade_pitch_deg,actuator_travel_mm,plate_rotation_deg,tan_link_b_end_X,tan_link_b_end_Y,tan_link_b_end_Z");
+      eq(lines.slice(3, 6), ["-7,64.466,1.6312,4,5,9", "30,30,0,4,5,6", "72,0,0,4,5,7.5"]);
+      eq(out.rows, 3);
+      eq(out.name, "run-x_tan_link_b_end_xyz_vs_angle.csv");
+    });
+    await test("point export: angle against XYZ sorts the same rows by the chosen coordinate", function () {
+      var out = SX.buildCsv(exportDoc, ["joint|tan_link|b", "joint|tan_link|a"],
+        { orientation: "angle_vs_xyz", sortAxis: "Z", exportedAt: "T" });
+      var lines = out.text.split("\n");
+      eq(lines[2].split(",").slice(-3), ["blade_pitch_deg", "actuator_travel_mm", "plate_rotation_deg"]);
+      eq(lines.slice(3, 6).map(function (l) { return l.split(",")[2]; }), ["6", "7.5", "9"]);
+      eq(lines[3].split(",").slice(-3), ["30", "30", "0"]);
+      has(lines[1], "rows sorted by tan link · b end Z");
+    });
+    await test("point export: an empty selection, an unknown point and a bad orientation refuse", function () {
+      throws(function () { SX.buildCsv(exportDoc, []); }, "choose at least one");
+      throws(function () { SX.buildCsv(exportDoc, ["joint|nope|a"]); }, "no exportable point");
+      throws(function () { SX.buildCsv(exportDoc, ["joint|tan_link|a"], { orientation: "sideways" }); },
+        "orientation is one of");
+    });
+    await test("point export: a bound feature's per-point world coordinates ride along as extras", function () {
+      var extras = [{ id: "node|n", label: "gas spring, upper", part: "p",
+        world: [[1, 1, 1], null, [3, 3, 3]] }];
+      var out = SX.buildCsv(exportDoc, ["node|n"], { extras: extras, exportedAt: "T" });
+      var lines = out.text.split("\n");
+      eq(lines[2].split(",").slice(3), ["gas_spring_upper_X", "gas_spring_upper_Y", "gas_spring_upper_Z"]);
+      eq(lines.slice(3, 6).map(function (l) { return l.split(",").slice(3).join(","); }),
+         ["1,1,1", ",,", "3,3,3"]);
+    });
+
     var nodeFs = typeof NODE_FS !== "undefined" ? NODE_FS : null;
     // WHICH TREE BUILT THE PROJECTION THIS TIER IS ABOUT TO TRUST. The runner
     // computes the verdict (git lives out there; this file runs in a vm
@@ -17350,6 +17404,39 @@
         var realKinStudy = VA.findKinematicStudy(realKinematic,
           "vpa_pitch_linkage_blade_pitch_at_the_stops");
         var realKinTopologies = await real.readTopologies();
+
+        // The numbers the hand-made sheet for the tangential link carried
+        // (linkage/data/runs/vpa-pitch-p2-20261016-235852/
+        // tan_link_attachment_xyz.csv), reproduced from the published run.
+        var p2Path = "data/projections/viewer/kinematic/sweeps/" +
+          realKinStudy.sweep.run_id + ".json";
+        if (!nodeFs.io.exists(p2Path)) {
+          skip("[real] point export reproduces the tangential-link sheet",
+               "no published run at " + nodeFs.root + "/" + p2Path);
+        } else {
+          await test("[real] point export reproduces the tangential-link sheet's three columns", function () {
+            var doc = VA.parseJson(nodeFs.io.readText(p2Path));
+            var out = SX.buildCsv(doc, ["joint|tan_link|b", "joint|tan_link|a", "joint|pitch_link|a"],
+              { exportedAt: "T" });
+            var lines = out.text.split("\n");
+            eq(out.rows, 80);
+            var cols = lines[2].split(",");
+            var row = function (i) { return lines[3 + i].split(","); };
+            var xyz = function (r, name) {
+              var at = cols.indexOf(name + "_X");
+              return r.slice(at, at + 3).map(Number);
+            };
+            eq(row(0)[0], "-6.992");
+            eq(xyz(row(0), "tan_link_b_end"), [80.708, 11.329, 144.132]);
+            eq(xyz(row(79), "tan_link_b_end"), [80.998, 9.027, 79.666]);
+            eq(xyz(row(0), "pitch_link_a_end"), [85.425, -14.713, 144.132]);
+            var mounts = lines.slice(3, 83).map(function (l) {
+              return xyz(l.split(","), "tan_link_a_end").join(",");
+            });
+            eq(mounts.filter(function (m, i) { return m === mounts[0]; }).length, 80);
+            eq(mounts[0], "79.428,62.43,110.027");
+          });
+        }
 
         await test("[real] the kinematic projection carries the blade-pitch study, " +
           "both stop margins and six banded rows", function () {

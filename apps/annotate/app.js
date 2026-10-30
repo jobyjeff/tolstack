@@ -1901,6 +1901,36 @@ function setSweepBarFolded(folded) {
   catch (_) { /* a browser that keeps nothing still folds for this render */ }
 }
 
+// What the point export (apps/viewer/sweep_export.js) reads for the loaded
+// run: the artifact's own points -- every joint end -- plus each node a
+// committed binding has anchored (the `bound` anchors: a fitted nominal), put
+// through its subject's pose at every sweep point by the same call that
+// draws it. Sections and origins are placements for drawing, not features,
+// and are not offered.
+async function sweepExportSource() {
+  const sweep = state.sweep;
+  const artifact = sweep.artifact;
+  const doc = { run_id: artifact.runId, pipeline_commit: artifact.pipelineCommit,
+    frame: artifact.frame, points: artifact.points };
+  const parts = {};
+  for (const body of sweep.structure.bodies) {
+    for (const rider of body.riders || []) parts[rider.joint + "|" + (rider.end === AA.SWEEP_JOINT_ENDS[0] ? "a" : "b")] = body.name;
+  }
+  const extras = [];
+  const built = state.model.built;
+  const topology = state.currentTopology;
+  if (built && topology) {
+    for (const node of topology.nodes || []) {
+      const anchor = built.anchors[node.id];
+      if (!anchor || anchor.source !== AA.MODEL_ANCHOR_SOURCES[1]) continue;
+      extras.push({ id: "node|" + node.id, label: node.name || node.id,
+        part: anchor.part || null,
+        world: artifact.points.map((point) => AA.modelWorldPoints({ [node.id]: anchor }, point)[node.id]) });
+    }
+  }
+  return { doc, extras, parts };
+}
+
 function renderSweepBar() {
   const sweep = state.sweep;
   el.detail.innerHTML = "";
@@ -1943,6 +1973,9 @@ function renderSweepBar() {
     }));
   }
   summary.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
+  if (window.SweepExport) {
+    window.SweepExport.renderControl(summary, sweepExportSource);
+  }
   el.detail.appendChild(summary);
 
   if (folded) {

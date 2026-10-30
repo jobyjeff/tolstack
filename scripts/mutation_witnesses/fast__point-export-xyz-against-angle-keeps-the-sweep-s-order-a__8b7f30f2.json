@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "point export: XYZ against angle keeps the sweep's order and the header says where it came from",
+  "mutations": [
+    {
+      "contract": "The travel column is printed at the hand-made sheet's three decimals.",
+      "issue": null,
+      "note": "a_point_exports_its_xyz_against_angle (2026-10-30). One decimal turns 64.466 into 64.5 and the file stops agreeing with the sheet.",
+      "file": "apps/viewer/sweep_export.js",
+      "find": "{ name: \"actuator_travel_mm\", measure: \"actuator_travel\", decimals: 3 },",
+      "replace": "{ name: \"actuator_travel_mm\", measure: \"actuator_travel\", decimals: 1 },"
+    }
+  ]
+}

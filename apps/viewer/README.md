@@ -2562,6 +2562,11 @@ apps/viewer/
                       fixtures into one mock adapter at boot
   element_record.js   the ONE record every mark on every tier resolves to
                       (VA.elementRecords / VA.elementRecord), built at page time
+  sweep_export.js     the point export, ONE module for this app and the annotator's
+                      sweep bar (window.SweepExport): pick joint ends or bound
+                      features, download their XYZ against blade angle, or the
+                      reverse, as CSV -- values read verbatim from the run
+                      file, nothing computed
   topology_app.js     boot + wiring for the whole page (formerly app.js's job
                       too — app.js is deleted; there is one boot file now)
   warning_icon.js     the alert mark's geometry and builder

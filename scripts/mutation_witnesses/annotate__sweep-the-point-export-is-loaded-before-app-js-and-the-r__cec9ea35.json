@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "sweep: the point export is loaded before app.js, and the run's pipeline commit survives the artifact reader into the file's header",
+  "mutations": [
+    {
+      "contract": "The annotator's export header names the pipeline commit.",
+      "issue": null,
+      "note": "a_point_exports_its_xyz_against_angle (2026-10-30). The normalised artifact would drop the commit and every file would say 'unknown'.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      pipelineCommit: doc.pipeline_commit || null,",
+      "replace": "      pipelineCommit: null,"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "point export: an empty selection, an unknown point and a bad orientation refuse",
+  "mutations": [
+    {
+      "contract": "An empty selection is refused in words.",
+      "issue": null,
+      "note": "a_point_exports_its_xyz_against_angle (2026-10-30). Without the refusal an empty choice fails as a TypeError reading the first point.",
+      "file": "apps/viewer/sweep_export.js",
+      "find": "    if (!ids || !ids.length) throw new Error(\"choose at least one point to export\");",
+      "replace": ""
+    }
+  ]
+}

@@ -4563,6 +4563,87 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
   }
 }
 
+// --- the point export (a_point_exports_its_xyz_against_angle) ----------------
+//
+// The kinematic page's results pane offers "Export points": pick two joint
+// ends of the live P2 run, download, and parse the file. The adapter is the
+// memory one with the one extra read a served transport has (readDataJson), so
+// the control is the real one, fed the run file the projection publishes.
+async function testSweepExport(browser, fileBase, label, realProjection, realCrops) {
+  const realResults = await readProjection("results.json");
+  const realKinematic = await readProjection("kinematic/kinematic_studies.json");
+  const runId = realKinematic && realKinematic.studies[0].sweep.run_id;
+  const sweepDoc = runId && await readProjection(`kinematic/sweeps/${runId}.json`);
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  if (!realResults || !realKinematic || !sweepDoc) {
+    push("[real] the point export (skipped: the projections are not built -- " +
+      "build them, or pass --repo <main checkout>)", true);
+    return reportSuite(label, checks);
+  }
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    await page.goto(fileBase + "/topology.html?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops",
+      { waitUntil: "load" });
+    await page.evaluate(({ topologies, results, crops, kinematic, doc }) => {
+      const VA = window.ViewerApp;
+      try { localStorage.removeItem("tolstack.sweepExport.v1"); } catch (e) { /* none */ }
+      const Fake = function () {
+        const a = new VA.MemoryAdapter({ startState: VA.STATE.READY, topologies,
+          results, crops, kinematic, images: {}, texts: {} });
+        a.readDataJson = () => Promise.resolve(doc);
+        return a;
+      };
+      Fake.isSupported = () => true;
+      VA.FsaAdapter = Fake;
+      VA.bootTopology();
+    }, { topologies: realProjection, results: realResults, crops: realCrops,
+         kinematic: realKinematic, doc: sweepDoc });
+    await page.waitForSelector("div.kmverdict", { timeout: 15000 });
+    await page.locator(".sx__toggle").click();
+    await page.waitForSelector(".sx__row", { timeout: 5000 });
+    await page.locator(".sx__search").fill("tan link");
+    const shown = await page.locator(".sx__row:visible").count();
+    push("[real] searching the picker narrows it to the tangential link's two ends", shown === 2);
+    await page.locator('input[data-point="joint|tan_link|b"]').check();
+    await page.locator('input[data-point="joint|tan_link|a"]').check();
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.locator(".sx__go").click(),
+    ]);
+    const chunks = [];
+    for await (const chunk of await download.createReadStream()) chunks.push(chunk);
+    const lines = Buffer.concat(chunks).toString("utf8").split("\n");
+    const header = lines[2].split(",");
+    const data = lines.slice(3).filter((l) => l !== "");
+    const at = (row, name) => {
+      const i = header.indexOf(name + "_X");
+      return row.split(",").slice(i, i + 3).map(Number);
+    };
+    push("[real] the download is named for the run and the points",
+      download.suggestedFilename() === `${runId}_tan_link_a_end+tan_link_b_end_xyz_vs_angle.csv`);
+    push("[real] the file has 80 data rows under a comment header naming the run",
+      data.length === 80 && lines[0].includes(runId));
+    push("[real] the tangential link's plate end at -7 and +72 degrees is where the hand-made sheet put it",
+      JSON.stringify(at(data[0], "tan_link_b_end")) === "[80.708,11.329,144.132]" &&
+      JSON.stringify(at(data[79], "tan_link_b_end")) === "[80.998,9.027,79.666]");
+    push("[real] its mount end never moves",
+      data.every((row) => JSON.stringify(at(row, "tan_link_a_end")) === "[79.428,62.43,110.027]"));
+    push("[real] the choice is remembered for the next visit", await page.evaluate(() => {
+      try {
+        return JSON.parse(localStorage.getItem("tolstack.sweepExport.v1")).ids.length === 2;
+      } catch (e) { return false; }
+    }));
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+  }
+}
+
 // --- the one error seam: a render crash shows a banner, not a silent page ---
 //
 // Deliverable 1 (viewer_error_surface_and_layout, 2026-09-09): the incident
@@ -13259,6 +13340,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       ["kinematic study page (deep link, chart hover, contributors, no projection)",
         (label) => testKinematicStudyPage(browser, fileBase, label, topologies,
           realResults, crops)],
+      ["point export (pick two points, download, parse the file)", (label) =>
+        testSweepExport(browser, fileBase, label, topologies, crops)],
       ["annotate bind form (a drag keeps the pick, the ends by name, the leader)", (label) =>
         testAnnotateBindForm(browser, label)],
       ["annotate renders on demand (a still scene draws nothing, an orbit draws)", (label) =>

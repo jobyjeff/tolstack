@@ -2933,6 +2933,12 @@
           onCardShow: showCard,
           // The repo's documents are reachable exactly where a worksheet is.
           docsHref: canReadWorksheets ? docsHref : null,
+          // The run's own file, where this transport serves one (the export
+          // control is absent where it does not).
+          readSweep: typeof adapter.readDataJson === "function"
+            ? function (runId) {
+              return adapter.readDataJson("kinematic/sweeps/" + runId + ".json");
+            } : null,
         };
         nodes.detail.appendChild(VA.renderKinematicResults(VA.el("section"), kinematicCtx));
       } else if (study) {

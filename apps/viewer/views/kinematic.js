@@ -992,6 +992,16 @@
       (study.envelope || []).length + " points · " +
       measureWords(study) + " in " + (study.units || "its own units")));
 
+    var runId = study.sweep && study.sweep.run_id;
+    if (runId && ctx.readSweep && window.SweepExport) {
+      window.SweepExport.renderControl(root, function () {
+        return ctx.readSweep(runId).then(function (doc) {
+          if (!doc) throw new Error("no run file");
+          return { doc: doc };
+        });
+      });
+    }
+
     var chart = VA.kinematicChart(study, decimals);
     if (chart) root.appendChild(chartFigure(chart));
     var datum = chart ? VA.kinematicDatumNote(study, decimals) : null;

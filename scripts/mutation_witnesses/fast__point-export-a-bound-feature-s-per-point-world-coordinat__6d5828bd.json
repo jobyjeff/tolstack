@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "point export: a bound feature's per-point world coordinates ride along as extras",
+  "mutations": [
+    {
+      "contract": "An extra's coordinates are read per sweep point.",
+      "issue": null,
+      "note": "a_point_exports_its_xyz_against_angle (2026-10-30). Every row would carry the first point's coordinates.",
+      "file": "apps/viewer/sweep_export.js",
+      "find": "        read: function (point, i) { return (x.world || [])[i] || null; },",
+      "replace": "        read: function (point, i) { return (x.world || [])[0] || null; },"
+    }
+  ]
+}

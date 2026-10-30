@@ -150,6 +150,7 @@
     var measures = doc.measures || {};
     return {
       runId: doc.run_id || null,
+      pipelineCommit: doc.pipeline_commit || null,
       // When the run was published -- what `sweep latest` orders by
       // (AA.orderSweepRuns), never the run id's spelling.
       ts: typeof doc.ts === "string" ? doc.ts : null,

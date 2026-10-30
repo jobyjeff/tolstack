@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "point export: every joint end is offered, by the artifact's own joint names",
+  "mutations": [
+    {
+      "contract": "Both ends of every joint the run carries are exportable.",
+      "issue": null,
+      "note": "a_point_exports_its_xyz_against_angle (2026-10-30). With the b end gone from the table the tangential link's plate end could not be chosen.",
+      "file": "apps/viewer/sweep_export.js",
+      "find": "    { end: \"b\", field: \"point_b_world\" },",
+      "replace": ""
+    }
+  ]
+}

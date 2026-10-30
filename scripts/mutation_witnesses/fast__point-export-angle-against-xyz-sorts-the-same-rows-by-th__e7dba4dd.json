@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "point export: angle against XYZ sorts the same rows by the chosen coordinate",
+  "mutations": [
+    {
+      "contract": "The inverse lookup sorts by the chosen coordinate.",
+      "issue": null,
+      "note": "a_point_exports_its_xyz_against_angle (2026-10-30). Sweep order again: the 'vice versa' file is the same file.",
+      "file": "apps/viewer/sweep_export.js",
+      "find": "        return a.sort - b.sort || a.index - b.index;",
+      "replace": "        return a.index - b.index;"
+    }
+  ]
+}

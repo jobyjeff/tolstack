@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "point export (pick two points, download, parse the file)",
+  "expect_red": "[real] the tangential link's plate end at -7 and +72 degrees is where the hand-made sheet put it",
+  "mutations": [
+    {
+      "contract": "A joint's b end is its point_b_world.",
+      "issue": null,
+      "note": "a_point_exports_its_xyz_against_angle (2026-10-30). With b reading point_a_world the plate end is the mount end.",
+      "file": "apps/viewer/sweep_export.js",
+      "find": "    { end: \"b\", field: \"point_b_world\" },",
+      "replace": "    { end: \"b\", field: \"point_a_world\" },"
+    }
+  ]
+}

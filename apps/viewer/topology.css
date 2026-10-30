@@ -1597,6 +1597,14 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 .kmverdict > .tvverdict { justify-self: start; }
 .kmverdict__limit { font-size: var(--t-meta); }
 .kmhead__driver { margin: 4px 0 10px; font-size: var(--t-meta); }
+/* The point export: one quiet button, a panel under it. */
+.sx { margin: 0 0 10px; }
+.sx__panel { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.sx__panel[hidden], .sx__row[hidden], .sx__options select[hidden] { display: none; }
+.sx__list { max-height: 180px; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+.sx__row { display: flex; gap: 6px; align-items: baseline; font-size: var(--t-meta); }
+.sx__options { display: flex; gap: 8px; align-items: center; }
+.sx__status { font-size: var(--t-meta); }
 /* Each stop's readout: the builder's numbers, a data row each. */
 .kmreadouts { border-collapse: collapse; font-size: var(--t-dense); margin: 0 0 12px; }
 .kmreadouts th {
