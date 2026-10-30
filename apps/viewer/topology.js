@@ -4205,74 +4205,13 @@
              kinematic: VA.kinematicNav ? VA.kinematicNav(kinematic, topologies) : [] };
   };
 
-  // --- hover reference cards (viewer_hover_cards_and_deep_links) ------------
+  // --- what the element record (element_record.js) reads about a part -----
   //
-  // Pure models for the topology grid's hover cards, so the fast tier can pin
-  // their contents without a DOM. views/cards.js renders them into the same
-  // positioned popover the crop popover uses; topology_app.js's showCard
-  // fetches the images they name. Cards are hover-only chrome: nothing in a
-  // model or its rendering participates in the page's layout.
-
-  // The edge card: every crop the crop index holds for this edge, plus its
-  // citation. `crops` is a LIST on purpose: an interface's two half-sides are
-  // usually different parts/drawings BY DEFINITION, so an edge should
-  // eventually show BOTH sides' tolerance annotations — but crops.json
-  // records one crop per citation and an edge carries one citation today, so
-  // the list holds at most one entry and the second side is a stated gap
-  // (this handoff's lesson), never an invented image.
-  // `opts.renderNote` is the one thing a card can say that is a fact about the
-  // PICTURE rather than about the edge (viewer_dag_hover_cards): a floored bar
-  // used to carry that fact in its native title, and a card that absorbs the
-  // title has to carry it instead or the not-to-scale warning is lost. Nothing
-  // else is allowed in here -- a value belongs to the edge, not to the
-  // trigger that opened its card.
-  VA.edgeCard = function (topoProj, edge, crops, opts) {
-    if (!edge) return null;
-    var card = {
-      kind: "edge",
-      title: edge.name,
-      id: edge.id,
-      part: edge.part || null,
-      // The part in a reader's words, never its id (VA.componentLabel). `part`
-      // above stays the id: it is what the annotate deep link carries and what
-      // a test addresses a row by, and those are not reading surfaces.
-      partLabel: edge.part
-        ? VA.componentLabel(VA.topologyIndex(topoProj).parts[edge.part] ||
-            { id: edge.part })
-        : null,
-      confidence: edge.confidence,
-      citation: (edge.dimension && edge.dimension.source_ref) || null,
-      crops: [],
-      noCropReason: null,
-      annotateParams: null,
-      renderNote: (opts && opts.renderNote) || null,
-    };
-    if (edge.crop_key) {
-      card.crops.push({
-        key: edge.crop_key,
-        entry: VA.cropForKey(crops, edge.crop_key),
-      });
-    } else {
-      var source = VA.VALUE_SOURCES[edge.value_source];
-      card.noCropReason = (source ? source.title
-        : VA.valueSourceText(edge.value_source)) + " No crop index covers it.";
-    }
-    // The deep link out to the annotator, under the SAME two rules the detail
-    // pane applies: VA.needsAnnotation (a traced/inferred edge already has a
-    // citation, and a binding is identity, never a value source, so the link
-    // only offers something when there is a gap to close) AND an installed
-    // mesh for the owning part (VA.partHasMesh) — an annotator without the
-    // part's geometry cannot bind a face, so the gap-closing gesture the link
-    // promises is not available. The gap stays on the gap list either way; the
-    // honest fix is installing the mesh.
-    if (topoProj && VA.needsAnnotation(edge.confidence) &&
-        VA.partHasMesh(topoProj, edge.part)) {
-      card.annotateParams = {
-        topologyId: topoProj.id, edgeId: edge.id, part: edge.part || null,
-      };
-    }
-    return card;
-  };
+  // The hover cards these served -- edge, component, node -- were retired on
+  // 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_
+  // backs_every_mark); every mark's facts are its ONE record now, rendered in
+  // the right-hand pane. What a part's record says about where its numbers
+  // come from is still decided here.
 
   // --- what a part with no drawing of its own is sourced FROM ---------------
   //
@@ -4367,54 +4306,6 @@
       (reference.unverified ? " (" + VA.ATTENTION.unverified.text + ")" : "");
   };
 
-  // The component card, for the grid's merged component cell: the part's own
-  // identity (name, drawing, note) plus a thumbnail DERIVED from what exists
-  // — the resolved crop of one of its OWN edges' tolerance annotations, which
-  // is a crop of that part's drawing by construction (the edge's dimension is
-  // a dimension OF the part; nothing is matched by filename or prefix). No
-  // mesh render yet: the annotator has no snapshot verb (study_3d_flyout's
-  // lesson), so a part none of whose edges' citations cropped gets NO
-  // thumbnail — absent is absent, nothing invented and no placeholder.
-  VA.componentCard = function (topoProj, partId, crops) {
-    if (!partId) return null;   // the gap "component" is a clearance, not a part
-    var part = VA.topologyIndex(topoProj).parts[partId] || { id: partId };
-    var thumbs = [];
-    ((topoProj && topoProj.edges) || []).forEach(function (edge) {
-      if (edge.part !== partId || !edge.crop_key) return;
-      var entry = VA.cropForKey(crops, edge.crop_key);
-      if (entry.status === "resolved") {
-        thumbs.push({ edgeId: edge.id, edgeName: edge.name, entry: entry });
-      }
-    });
-    var references = VA.partReferences(topoProj, partId);
-    return {
-      kind: "component",
-      title: VA.componentLabel(part),
-      id: part.id,
-      drawing: part.drawing || null,
-      revision: part.revision || null,
-      // Where a part with no drawing of its own gets its dimensions, and
-      // whether that makes it a STANDARD part: every document its rows cite
-      // is a standard sheet. Both empty/false for a part that has a drawing —
-      // that drawing IS the reference, and the card prints it instead.
-      references: part.drawing ? [] : references,
-      standardPart: !part.drawing && references.length > 0 &&
-        references.every(function (reference) {
-          return reference.kinds.length > 0 &&
-            reference.kinds.every(function (kind) {
-              return kind === VA.SPEC_CITATION_KIND;
-            });
-        }),
-      note: part.note || null,
-      thumbs: thumbs,
-      // "view this part in 3D" only where there IS a 3D model of it: with two
-      // installed meshes against ~29 topology parts, this link dead-ended in
-      // the annotator's empty state for all but one of them.
-      annotateParams: (topoProj && VA.partHasMesh(topoProj, part.id))
-        ? { topologyId: topoProj.id, part: part.id } : null,
-    };
-  };
-
   // What a card's drawing line has left to say once the card's TITLE has been
   // read (Jeff, 2026-09-16: a part number "is never printed on two consecutive
   // lines" -- the 214820-002 bushing's card said "214820-002 plain bushing"
@@ -4485,60 +4376,6 @@
       if (part === null) return VA.CLEARANCE_SIDE_LABEL;
       return VA.componentLabel(parts[part] || { id: part });
     });
-  };
-
-  // The node card (viewer_dag_hover_cards), for the DAG's own dots: a node is
-  // an INTERFACE, so what a reader wants on hover is which parts meet there --
-  // exactly what the preview pane already says, card-form, plus each adjacent
-  // part's own thumbnail.
-  //
-  // Two facts, and they are not the same fact:
-  //
-  //   `declaredParts` is the document's own `parts` list on the node -- what
-  //   the author said meets here.
-  //   `sides` is DERIVED from the edges actually incident on the node
-  //   (VA.nodeAdjacentParts), which is what the leader/internal rule reads and
-  //   therefore what the picture is drawn from.
-  //
-  // The card shows the derived sides, because those are the ones whose
-  // thumbnails it can honestly source: a side's thumbnail is that part's OWN
-  // component-card thumbnail (VA.componentCard), so the two surfaces cannot
-  // disagree about what a part's picture is. A part none of whose rows cropped
-  // gets `thumb: null` and renders nothing -- absent is absent, the same rule
-  // the component card follows.
-  VA.nodeCard = function (topoProj, nodeId, crops) {
-    var node = VA.topologyIndex(topoProj).nodes[nodeId];
-    if (!node) return null;
-    var adjacent = VA.nodeAdjacentParts(topoProj)[nodeId] || [];
-    return {
-      kind: "node",
-      title: node.name,
-      id: node.id,
-      nodeKind: node.kind,
-      degree: node.degree,
-      branch: !!node.branch,
-      note: node.note || null,
-      citation: node.source_ref || null,
-      confidence: node.confidence || null,
-      declaredParts: (node.parts || []).slice(),
-      // One predicate, shared with the leaders: internal means every adjacent
-      // edge carries one part, the degree-1 chain end included.
-      internal: !!VA.internalNodes(topoProj)[nodeId],
-      sides: adjacent.map(function (partId) {
-        if (partId === null) {
-          return { part: null, label: VA.CLEARANCE_SIDE_LABEL, drawing: null,
-                   revision: null, thumb: null };
-        }
-        var part = VA.componentCard(topoProj, partId, crops);
-        return {
-          part: partId,
-          label: part.title,
-          drawing: part.drawing,
-          revision: part.revision,
-          thumb: part.thumbs.length ? part.thumbs[0] : null,
-        };
-      }),
-    };
   };
 
   // --- the inbound deep link, resolved against the data ----------------------

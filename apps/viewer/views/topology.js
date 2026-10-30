@@ -1377,6 +1377,10 @@
       // and an interface's edges, off the walk's own `entered_at`/`left_at`.
       nodesOfEdge: {}, edgesAtNode: {}, studyOfEdge: {},
       on: null, marked: [],
+      // The one-line hover label (VA.hoverLabelPlacement): where each key's
+      // label is anchored, every mark's box it must not cover, and the layer
+      // it is drawn into. Filled by railsSvg; a pane with no rails has none.
+      labels: {}, obstacles: [], label: null,
     };
     rails.forEach(function (rail, i) {
       var id = "rail|" + i;
@@ -1448,6 +1452,7 @@
     if (!hot || hot.on === key) return;
     hot.on = key;
     if (hot.onChange) hot.onChange(key);
+    drawHoverLabel(hot, key);
     while (hot.marked.length) {
       var was = hot.marked.pop();
       was.el.setAttribute("class", was.base);
@@ -1488,6 +1493,35 @@
     chain(node, "onmouseleave", function () { if (hot.on === key) setHot(hot, null); });
     chain(node, "onblur", function () { if (hot.on === key) setHot(hot, null); });
     return node;
+  }
+
+  // The hovered mark's label, and nothing else: one <text>, drawn into the
+  // DAG's top layer at the mark's zoom and counter-scaled so it reads at the
+  // micro step whatever the zoom. It takes no pointer, so it can never stand
+  // between the reader and the mark they are reaching for.
+  function drawHoverLabel(hot, key) {
+    var layer = hot.label && hot.label.layer;
+    if (!layer) return;
+    VA.clear(layer);
+    var anchor = key ? hot.labels[key] : null;
+    if (!anchor) return;
+    var m = VA.HOVER_LABEL_METRICS;
+    var k = hot.label.zoom || 1;
+    var text = VA.hoverLabelText(anchor.text, anchor.note);
+    var w = (text.length * m.charPx + 2 * m.pad) / k;
+    var h = m.height / k;
+    var at = VA.hoverLabelPlacement(anchor, w, h, hot.obstacles, hot.label.bounds,
+      anchor.box);
+    var node = VA.svg("text", "rail__hoverlabel", {
+      x: 0, y: 0,
+      transform: "translate(" + (at.x1 + m.pad / k) + " " + (at.y1 + h / 2) +
+        ") scale(" + (1 / k) + ")",
+    });
+    node.setAttribute("data-label-for", key);
+    node.setAttribute("data-label-side", at.side);
+    node.setAttribute("aria-hidden", "true");
+    node.textContent = text;
+    layer.appendChild(node);
   }
 
   function chain(node, name, fn) {
@@ -1544,6 +1578,25 @@
     svg.appendChild(VA.interfaceGlyphDefs());
 
     var under = dagLayer();
+
+    // Every mark's record title (VA.elementRecords, built once per page state)
+    // is its accessible name and its hover label; nothing here composes one.
+    var records = VA.elementRecords(ctx.topoProj, VA.previewRecordOptions(ctx));
+    var recordTitle = function (kind, id) {
+      var record = records[hotKey(kind, id)];
+      return record ? record.title : String(id);
+    };
+    // A mark's label anchor and its box, the box also an obstacle every other
+    // mark's label must stay off. The first registration of a key wins.
+    var labelAt = function (key, x, y, r, text, box) {
+      var own = box && box.x1 !== undefined ? box
+        : { x1: x - r, x2: x + r, y1: y - r, y2: y + r };
+      hot.obstacles.push(own);
+      if (!hot.labels[key]) {
+        hot.labels[key] = { x: x, y: y, r: r, text: text, note: (box && box.note) || null,
+                            box: own };
+      }
+    };
 
     // 0c. the bodies (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a rounded
     //     field behind each body's block, its name once at the top-left, in
@@ -1777,9 +1830,8 @@
       hotHover(hot, hit, hotKey("node", leader.id));
       hit.setAttribute("data-leader-id", leader.id);
       hit.setAttribute("data-boundary-edge", leader.beforeEdge || "");
-      hit.appendChild(svgTitle(node ? node.name : leader.id));
-      hit.setAttribute("tabindex", "0");
-      hit.onclick = function () { ctx.onSelect("node", leader.id); };
+      // Its node's record names it; the label is drawn at the node's dot.
+      wire(hit, ctx, "node", leader.id, recordTitle("node", leader.id), true);
       svg.appendChild(hit);
     });
 
@@ -1846,27 +1898,19 @@
           leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
           hot: "rail__barhit--hot",
         });
-        // One hover surface, not two (viewer_dag_hover_cards): where a card
-        // handler exists the bar opens the SAME edge card the grid's crop
-        // trigger opens -- the crop thumbnail, the citation line, the deep
-        // links -- and the native title it used to carry is absorbed into the
-        // card's own head, never stacked under it. A floored bar's
-        // not-to-scale fact rides in as the card's render note, since the
-        // title that used to say it is gone. A caller with no card handler
-        // (the fast tier's bare ctx) keeps the plain title.
-        if (ctx.onCardShow) {
-          cardOnHover(hit, function () {
-            return VA.edgeCard(ctx.topoProj, edge, ctx.crops,
-              otherVariant ? { renderNote: VA.OTHER_VARIANT_NOTE }
-                : mark.floored ? { renderNote: VA.FLOORED_RENDER_NOTE } : null);
-          }, ctx);
-        } else {
-          hit.appendChild(svgTitle((otherVariant ? VA.OTHER_VARIANT_NOTE + ": " : "") +
-            (mark.floored
-              ? VA.flooredEdgeTitle(edge, mark.id)
-              : VA.edgeHoverTitle(edge, mark.id))));
-        }
-        wire(hit, ctx, "edge", mark.id);
+        // No card and no native title (a_preview_pane_replaces_the_hover_
+        // popups_and_one_record_backs_every_mark): hovering the bar previews
+        // its record in the right-hand pane and draws ONE line of label beside
+        // it (labelAt below) -- the record's title, plus the one fact about
+        // the PICTURE rather than the edge: a floored bar is not to scale, a
+        // dimmed one is the other variant's.
+        var barNote = [otherVariant ? VA.OTHER_VARIANT_NOTE : null,
+          mark.floored ? VA.FLOORED_RENDER_NOTE : null].filter(Boolean).join(", ");
+        var barHalf = Math.max(3, VA.INTERFACE_GLYPH_PX / 2 + 1);
+        labelAt(hotKey("edge", mark.id), mark.x, (y1 + y2) / 2, barHalf,
+          recordTitle("edge", mark.id), { note: barNote || null, x1: mark.x - barHalf, x2: mark.x + barHalf, y1: Math.min(y1, y2),
+            y2: Math.max(y1, y2) });
+        wire(hit, ctx, "edge", mark.id, recordTitle("edge", mark.id));
         hotHover(hot, hit, hotKey("edge", mark.id));
         over.appendChild(hit);
 
@@ -1895,14 +1939,8 @@
             r: VA.INTERFACE_GLYPH_PX / 2 + 1,
           }), "edge", mark.id));
           fade(use, "edge", mark.id);
-          if (ctx.onCardShow) {
-            cardOnHover(use, function () {
-              return VA.edgeCard(ctx.topoProj, edge, ctx.crops, null);
-            }, ctx);
-          } else {
-            use.appendChild(svgTitle(VA.edgeHoverTitle(edge, mark.id)));
-          }
-          wire(use, ctx, "edge", mark.id);
+          wire(use, ctx, "edge", mark.id, recordTitle("edge", mark.id));
+          hotHover(hot, use, hotKey("edge", mark.id));
           over.appendChild(use);
         });
         return;
@@ -1938,18 +1976,11 @@
           })),
         hot: "rail__dot--hot", lead: "rail__dot--lead",
       });
-      // The dot's own card (viewer_dag_hover_cards): a node IS an interface,
-      // so the hover says which parts meet there and shows their thumbnails,
-      // which is strictly more than the name the title carried. Same
-      // absorb-not-stack rule as the bar above.
-      if (ctx.onCardShow) {
-        cardOnHover(dot, function () {
-          return VA.nodeCard(ctx.topoProj, mark.id, ctx.crops);
-        }, ctx);
-      } else {
-        dot.appendChild(svgTitle(node ? node.name : mark.id));
-      }
-      wire(dot, ctx, "node", mark.id);
+      // The dot previews its record on hover, like every mark, and wears the
+      // same one-line label (labelAt).
+      labelAt(hotKey("node", mark.id), mark.x, mark.y,
+        mark.branch ? M.branchDot : M.dot, recordTitle("node", mark.id));
+      wire(dot, ctx, "node", mark.id, recordTitle("node", mark.id));
       hotHover(hot, dot, hotKey("node", mark.id));
       over.appendChild(dot);
       // A form modifier's squiggle, beside the face it is on: to the left of
@@ -1967,6 +1998,15 @@
         over.appendChild(fade(adorn, "node", mark.id));
       }
     });
+    // The hover label's layer, last and therefore on top of every mark; in
+    // the DAG's own units, so its bounds are the drawing's box at this zoom.
+    var labelLayer = VA.svg("g", "rail__hoverlabels");
+    over.appendChild(labelLayer);
+    var k = leaderGeo.zoom || 1;
+    var y0 = leaderGeo.y0 || 0;
+    hot.label = { layer: labelLayer, zoom: k, bounds: {
+      x1: 0, x2: width / k, y1: y0 - y0 / k, y2: y0 + (height - y0) / k,
+    } };
     return svg;
   }
 
@@ -2034,33 +2074,100 @@
     return node;
   }
 
-  // Open a card on hover and on keyboard focus, never on click: a rail mark's
-  // click is already SELECTION (wire() below), which is the mark's primary
-  // job, and the grid-side triggers only take the click because they select
-  // nothing. The model is built lazily per hover so a card always reads the
-  // crop cache as it stands when the pointer arrives.
-  function cardOnHover(node, build, ctx) {
-    var show = function () {
-      var card = build();
-      if (card) ctx.onCardShow(card, node);
-    };
-    node.onmouseenter = show;
-    node.onfocus = show;
-    return node;
-  }
-
   // A rail mark is clickable and addressable by the same (kind, id) pair its
   // grid row is. `data-id` is not decoration: it is what lets the browser tier
   // measure a mark's y against its row's y, which is the alignment claim this
-  // whole page is built on and the one thing a DOM shim cannot check.
-  function wire(node, ctx, kind, id) {
+  // whole page is built on and the one thing a DOM shim cannot check. A
+  // leader's hit path is wired the same way but is not addressed (`bare`):
+  // it is a mark OF its node, not a second node.
+  //
+  // `name` is the record's title, as the mark's accessible name: the native
+  // <title> it used to carry was retired with the hover cards, and a
+  // focusable graphic with no name is announced as nothing
+  // (BRIEF_20260914_hover_card_occlusion_and_a11y). Enter and Space click it,
+  // so the keyboard can freeze the Preview the way a pointer does.
+  function wire(node, ctx, kind, id, name, bare) {
     node.setAttribute("tabindex", "0");
-    node.setAttribute("data-row-kind", kind);
-    node.setAttribute("data-id", id);
-    node.onclick = function () { ctx.onSelect(kind, id); };
+    node.setAttribute("role", "button");
+    node.setAttribute("aria-label", name || String(id));
+    if (!bare) {
+      node.setAttribute("data-row-kind", kind);
+      node.setAttribute("data-id", id);
+    }
+    node.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      ctx.onSelect(kind, id);
+    };
+    node.onkeydown = function (event) {
+      if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+      if (event.preventDefault) event.preventDefault();
+      ctx.onSelect(kind, id);
+    };
     return node;
   }
 
+  // --- the one-line hover label ------------------------------------------
+  //
+  // The only thing hovering a mark draws on the canvas (handoff a_preview_
+  // pane_replaces_the_hover_popups_and_one_record_backs_every_mark): its
+  // record's title on one line, beside the mark, never over a neighbouring
+  // one. Everything else the reader wants is in the Preview, to the right of
+  // the page, where it covers nothing.
+  //
+  // At most this many characters, with an ellipsis: the whole title is the
+  // Preview's heading a hand's width away.
+  VA.HOVER_LABEL_CHARS = 48;
+  // The label's box in CSS pixels at the micro step: ~6px a character (the
+  // same figure fitText uses), one line high, and the gap to its mark.
+  VA.HOVER_LABEL_METRICS = Object.freeze({ charPx: 6, height: 12, gap: 4, pad: 2 });
+
+  // `note` is a fact about the picture (a floored bar is not to scale) and is
+  // never the part cut: the name gives up its room first.
+  VA.hoverLabelText = function (text, note) {
+    var t = String(text || "");
+    var tail = note ? " — " + note : "";
+    var room = Math.max(8, VA.HOVER_LABEL_CHARS - tail.length);
+    return (t.length <= room ? t : t.slice(0, room - 1) + "…") + tail;
+  };
+
+  function boxesMeet(a, b) {
+    return a.x1 < b.x2 && b.x1 < a.x2 && a.y1 < b.y2 && b.y1 < a.y2;
+  }
+
+  // Where a label goes: the first of six places around the mark -- its left
+  // (the side its rail's branches open to), its right, then the two corners
+  // above and the two below -- whose box meets no other mark and stays inside
+  // the drawing. Pure, in DAG units: `w`/`h` are the label's size already
+  // divided by the zoom. `own` is the hovered mark's own box, which a label
+  // may never cover either. Where every place is taken, the one meeting the
+  // fewest marks wins, the left first: a label must still be drawn.
+  VA.hoverLabelPlacement = function (anchor, w, h, obstacles, bounds, own) {
+    var g = VA.HOVER_LABEL_METRICS.gap;
+    var r = anchor.r || 0;
+    var x = anchor.x, y = anchor.y;
+    var candidates = [
+      { side: "left", x1: x - r - g - w, y1: y - h / 2 },
+      { side: "right", x1: x + r + g, y1: y - h / 2 },
+      { side: "above-left", x1: x - w, y1: y - r - g - h },
+      { side: "above-right", x1: x, y1: y - r - g - h },
+      { side: "below-left", x1: x - w, y1: y + r + g },
+      { side: "below-right", x1: x, y1: y + r + g },
+    ];
+    var best = null;
+    candidates.forEach(function (c) {
+      c.x2 = c.x1 + w;
+      c.y2 = c.y1 + h;
+      var inside = !bounds || (c.x1 >= bounds.x1 && c.x2 <= bounds.x2 &&
+        c.y1 >= bounds.y1 && c.y2 <= bounds.y2);
+      var hits = (own && boxesMeet(c, own)) ? 1 : 0;
+      (obstacles || []).forEach(function (o) { if (o !== own && boxesMeet(c, o)) hits++; });
+      c.hits = hits + (inside ? 0 : 1000);
+      if (!best || c.hits < best.hits) best = c;
+    });
+    return best;
+  };
+
+  // --- the grid ------------------------------------------------------------
   // --- the grid ------------------------------------------------------------
 
   // One row per EDGE, walk order, merged into component groups
@@ -2257,6 +2364,21 @@
     return node;
   }
 
+  // A grid row is a mark like a dot or a bar: focusable, named by its
+  // record's title, previewed on focus (hotHover) and kept by Enter or Space,
+  // so the keyboard reaches the Preview the way the pointer does.
+  function nameRow(el, ctx, kind, id, name) {
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("aria-label", name);
+    el.onkeydown = function (event) {
+      if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+      if (event.target && event.target !== el) return;
+      if (event.preventDefault) event.preventDefault();
+      ctx.onSelect(kind, id);
+    };
+    return el;
+  }
+
   // The sourcing cell's chips need their own flex row: setting `display: flex`
   // directly on a <td> pulls it out of the table's box generation in some
   // browsers, so the flex container is a plain div one layer inside the cell
@@ -2270,36 +2392,18 @@
   }
 
   // The merged component cell: one per group, spanning the group's sub-rows.
-  // The part id as text, or the gap wording for a clearance. Clicking it
-  // selects nothing: it is a grouping, not a row. A PART's cell is a hover
-  // card trigger (viewer_hover_cards_and_deep_links): the card carries the
-  // part's name, drawing, note and a derived thumbnail (VA.componentCard), so
-  // the old title attribute retired — a native tooltip under a card would be
-  // two hover surfaces saying less than one. The gap cell keeps its title:
-  // there is no part to card.
-  function componentCell(group, ctx) {
+  // The part's name as text, or the gap wording for a clearance. Clicking it
+  // selects nothing: it is a grouping, not a row. It opened the part's hover
+  // card until 2026-10-30; the part's name, drawing and picture are now in
+  // the Preview of any of its rows (the record's `part`), so the cell is a
+  // label again and whatever the column clips is readable in full on hover.
+  function componentCell(group) {
     var cell = VA.el("td", "tvcell tvcell--component", group.label);
     if (group.count > 1) cell.setAttribute("rowspan", String(group.count));
     cell.onclick = function (event) {
       if (event && event.stopPropagation) event.stopPropagation();
     };
-    if (group.part && ctx.onCardShow) {
-      cell.className += " cardtrig";
-      cell.setAttribute("tabindex", "0");
-      var show = function () {
-        ctx.onCardShow(VA.componentCard(ctx.topoProj, group.part, ctx.crops), cell);
-      };
-      cell.onmouseenter = show;
-      cell.onfocus = show;
-      cell.onclick = function (event) {
-        if (event && event.stopPropagation) event.stopPropagation();
-        show();
-      };
-    } else if (group.title || group.label) {
-      // Whatever the column clips is readable in full: the gap's own wording,
-      // else the label itself.
-      cell.setAttribute("title", group.title || group.label);
-    }
+    if (group.title || group.label) cell.setAttribute("title", group.title || group.label);
     return cell;
   }
 
@@ -2330,7 +2434,7 @@
     if (planRow.closes) el.className += " tvrow--closes";
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
 
-    if (first) el.appendChild(componentCell(group, ctx));
+    if (first) el.appendChild(componentCell(group));
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a
@@ -2354,7 +2458,11 @@
     //
     // The PART ROW is passed, not its id: the rule matches against what the
     // merged cell actually prints, which is the part's name now.
-    var fullName = edge ? edge.name : missing(planRow.id);
+    // The row's words and numbers are its record's (VA.elementRecords), the
+    // one copy the Preview, the DAG's label and the 3D anchor read too.
+    var record = VA.elementRecords(ctx.topoProj, VA.previewRecordOptions(ctx))[
+      hotKey("edge", planRow.id)] || null;
+    var fullName = record ? record.title : missing(planRow.id);
     var shownName = edge && group
       ? VA.elementDisplayLabel(fullName,
           group.part ? (index.parts[group.part] || { id: group.part }) : null)
@@ -2368,13 +2476,13 @@
     // Each number is still printed AS TRANSCRIBED (VA.fmt: no toFixed, no band
     // derived from the limits) — splitting the cell changes nothing about what
     // is printed, only how many columns it occupies.
-    var dimension = edge && edge.dimension;
+    var values = record && record.values;
     el.appendChild(VA.el("td", "tvcell tvcell--nominal num",
-      dimension ? VA.fmt(dimension.nominal) : ""));
+      values ? VA.fmt(values.nominal) : ""));
     el.appendChild(VA.el("td", "tvcell tvcell--min num",
-      dimension ? VA.fmt(dimension.min) : ""));
+      values ? VA.fmt(values.min) : ""));
     el.appendChild(VA.el("td", "tvcell tvcell--max num",
-      dimension ? VA.fmt(dimension.max) : ""));
+      values ? VA.fmt(values.max) : ""));
 
     var contribution = VA.el("td", "tvcell tvcell--contribution num");
     if (hit) {
@@ -2405,27 +2513,13 @@
         chips.wrap.appendChild(
           VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
       });
+      // The row's statement about its citation. It opened the citation's
+      // hover card until 2026-10-30; the full reference is the Preview's now,
+      // one hover away on this same row.
       var confChip = VA.chip(VA.confidenceClass(edge.confidence),
         edge.confidence === null ? "no value"
           : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence));
-      // The citation hover card (viewer_hover_cards_and_deep_links): the
-      // confidence chip is the row's statement about its citation, so it is
-      // the trigger for the full reference — where-ref, callout, note, export
-      // block and the cited sheet's crop where one resolved. Only an edge
-      // that HAS a citation gets one; a derived gap's chip stays a plain chip.
       var sourceRef = edge.dimension && edge.dimension.source_ref;
-      if (sourceRef && ctx.onCardShow) {
-        confChip.className += " cardtrig";
-        confChip.setAttribute("tabindex", "0");
-        var showCitation = function () {
-          ctx.onCardShow(VA.citationCard(sourceRef, null,
-            edge.crop_key ? VA.cropForKey(ctx.crops, edge.crop_key) : null),
-            confChip);
-        };
-        confChip.onmouseenter = showCitation;
-        confChip.onfocus = showCitation;
-        confChip.onclick = showCitation;
-      }
       chips.wrap.appendChild(VA.markGeneralNote(confChip, sourceRef));
       if (edge.kind === "gap") {
         chips.wrap.appendChild(VA.chip("chip--gap", "gap",
@@ -2460,33 +2554,28 @@
       hot: "tvrow--hot", lead: "tvrow--lead",
     });
     hotHover(hot, el, hotKey("edge", planRow.id));
-    return el;
+    return nameRow(el, ctx, "edge", planRow.id, fullName);
   }
 
   // The thumbnail cell (viewer_leader_line_grid): only where a crop index
   // actually covers this edge. An edge authored inline in the topology, or a
-  // derived gap, has no crop index to check — see cropSection in the detail
-  // pane below, which states the reason in full; a "no crop" button here for
-  // those would read as a stale index rather than what it is. When the crop is
-  // resolved AND its PNG has been fetched (ctx.cropImages, topology_app.js's
-  // cache), the trigger IS the thumbnail — the actual crop of the tolerance
-  // annotation, inline on the row; until then, or for a crop that cannot
-  // resolve, it stays the same text button, never a placeholder image. Either
-  // way it is the same vocabulary and the same crop plumbing views/stack.js's
-  // cropTrigger uses (VA.cropForKey — which reads BOTH of crops.json's key
-  // spaces, by_stack for a dimension_ref edge and by_topology for an inline
-  // one — and VA.cropProvenanceLine): an edge that re-expresses a committed
-  // stack element IS that element, crop and all, so there is one crop-trigger
-  // shape in the repo, not two. Since viewer_hover_cards_and_deep_links the
-  // trigger opens the EDGE hover card (VA.edgeCard, views/cards.js) — the
-  // same crop body inside a richer frame, plus the citation line and the
-  // deep links out — with the plain crop popover as the fallback wiring for
-  // a caller with no card handler.
+  // derived gap, has no crop index to check — the Preview's crop section
+  // states the reason in full; a "no crop" marker here for those would read
+  // as a stale index rather than what it is. When the crop is resolved AND
+  // its PNG has been fetched (ctx.cropImages, topology_app.js's cache), the
+  // cell shows the thumbnail — the actual crop of the tolerance annotation,
+  // inline on the row; until then, or for a crop that cannot resolve, a short
+  // word, never a placeholder image.
+  //
+  // It opened the edge's hover card on hover and click until 2026-10-30
+  // (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark).
+  // It is part of its row now: hovering it previews the row, whose Preview
+  // shows this same crop at a legible size, and clicking it keeps that Preview.
   function edgeCropCell(edge, ctx) {
     var cell = VA.el("td", "tvcell tvcell--crop");
     // The same clamp wrapper the chips cell uses, for the same reason: a real
-    // <tr>'s height is a floor, not a cap, and a text trigger one pixel taller
-    // than compact's 16px pitch would grow the row off its leader's seam —
+    // <tr>'s height is a floor, not a cap, and content one pixel taller than
+    // compact's 16px pitch would grow the row off its leader's seam —
     // exactly the drift the browser tier's correspondence check measures.
     var wrap = VA.el("div", "tvcell__cropwrap");
     cell.appendChild(wrap);
@@ -2494,7 +2583,7 @@
     var entry = VA.cropForKey(ctx.crops, edge.crop_key);
     var resolved = entry.status === "resolved";
     var image = resolved && ctx.cropImages ? ctx.cropImages[entry.png] : null;
-    var node = VA.el("button", "crop-trigger crop-trigger--" + entry.status +
+    var node = VA.el("span", "crop-trigger crop-trigger--" + entry.status +
       (image && image.url ? " crop-trigger--thumb" : ""));
     if (image && image.url) {
       var img = VA.el("img", "tvthumb");
@@ -2506,16 +2595,6 @@
     }
     node.setAttribute("title", resolved ? VA.cropProvenanceLine(entry) : (entry.reason || ""));
     node.cropEntry = entry;
-    var show = function () {
-      if (ctx.onCardShow) {
-        ctx.onCardShow(VA.edgeCard(ctx.topoProj, edge, ctx.crops), node);
-      } else if (ctx.onCropShow) {
-        ctx.onCropShow(entry, node);
-      }
-    };
-    node.onclick = show;
-    node.onmouseenter = show;
-    node.onfocus = show;
     wrap.appendChild(node);
     return cell;
   }
@@ -2815,37 +2894,61 @@
 
   // --- the preview pane ----------------------------------------------------
 
+  // The Preview (a_preview_pane_replaces_the_hover_popups_and_one_record_
+  // backs_every_mark): ONE element's record -- whatever is hovered on any
+  // tier, else whatever is frozen (selected) -- rendered from the record and
+  // from nothing else (VA.elementRecord, element_record.js). The 3D anchor,
+  // the DAG mark and the grid row of one element therefore present the same
+  // facts, because there is only one copy of them to present.
+  //
+  // `ctx.previewKey` names the element to show (`node|<id>` / `edge|<id>`);
+  // absent, the selection is. `ctx.record` short-cuts the lookup where the
+  // caller already holds the page's records.
   VA.renderTopoDetail = function (root, ctx) {
     VA.clear(root);
     root.className = "detail";
-    var selection = ctx.selection;
-    if (!selection) {
-      root.appendChild(VA.el("p", "muted",
-        "Click a dot or a row to see it here: the interface it is, or the " +
-        "dimension it carries — its value as transcribed, its citation, and the " +
-        "drawing crop behind that citation where there is one."));
+    var key = ctx.previewKey ||
+      (ctx.selection ? VA.elementKey(ctx.selection.kind, ctx.selection.id) : null);
+    if (!key) {
+      root.appendChild(VA.el("p", "muted", VA.PREVIEW_EMPTY_TEXT));
       return root;
     }
-    var index = VA.topologyIndex(ctx.topoProj);
-    if (selection.kind === "node") {
-      renderNodeDetail(root, index.nodes[selection.id], selection.id, ctx);
-    } else {
-      renderEdgeDetail(root, index.edges[selection.id], selection.id, ctx);
+    var record = ctx.record !== undefined ? ctx.record
+      : VA.elementRecord(ctx.topoProj, key, VA.previewRecordOptions(ctx));
+    if (!record) {
+      var parsed = VA.parseElementKey(key);
+      root.appendChild(VA.el("p", "muted", missing(parsed ? parsed.id : key)));
+      return root;
     }
+    if (record.kind === "node") renderNodeDetail(root, record, ctx);
+    else renderEdgeDetail(root, record, ctx);
     return root;
   };
 
-  function renderNodeDetail(root, node, id, ctx) {
-    if (!node) {
-      root.appendChild(VA.el("p", "muted", missing(id)));
-      return;
-    }
-    root.appendChild(paneHead(node.name, node.id));
+  // The one line an empty Preview carries.
+  VA.PREVIEW_EMPTY_TEXT = "Point at a dot, a bar or a row to preview it here; " +
+    "click to keep it.";
+
+  // What a pane's ctx hands the record builder: the same inputs the page
+  // builds its records from (topology_app.js), so a fast-tier render and the
+  // page agree about which study's contribution a record carries.
+  VA.previewRecordOptions = function (ctx) {
+    return {
+      crops: ctx.crops || null,
+      study: ctx.study || null,
+      kinematicStudy: ctx.kinematicStudy || null,
+      decimals: ctx.decimals,
+      bandEdges: ctx.bandEdges || null,
+    };
+  };
+
+  function renderNodeDetail(root, record, ctx) {
+    root.appendChild(paneHead(record.title, record.id));
 
     var chips = VA.el("div", "detail__chips");
-    chips.appendChild(VA.chip("chip--kind", node.kind));
-    chips.appendChild(VA.chip("chip--kind", node.degree + " edge(s)"));
-    if (node.branch) {
+    chips.appendChild(VA.chip("chip--kind", record.elementKind));
+    chips.appendChild(VA.chip("chip--kind", record.degree + " edge(s)"));
+    if (record.branch) {
       chips.appendChild(VA.chip("chip--branch", "BRANCH POINT",
         "a study reaching this node with two unconsumed selected edges raises " +
         "BranchAmbiguity, naming both. Which path binds is a mechanics question " +
@@ -2854,11 +2957,8 @@
     root.appendChild(chips);
 
     // This node's SIDES, derived from the edges actually incident on it
-    // (VA.nodeSideLabels -> VA.nodeAdjacentParts) -- the same adjacency the
-    // dot's hover card prints and the leader rule reads, NOT the document's
-    // own `parts` list. In the parts' own NAMES since 2026-09-15; it printed
-    // their ids until then, which is the one thing this pane said that a
-    // reader had no way to read.
+    // (the record's `sides`, VA.nodeAdjacentParts) -- what the leader rule
+    // reads -- NOT the document's own `parts` list. In the parts' own names.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
     // false, and on 35 of the 74 live nodes the same dot answered differently
@@ -2873,111 +2973,127 @@
     // noun included, because the set count shipped under the string count's
     // wording for a day and a pairing that only checked "some number" would
     // have passed it.)
-    // Neither list was wrong: a node against a `gap` edge
-    // has a clearance for a side, and a clearance is not a part, so an
-    // authored parts list cannot name one. The lists answer different
-    // questions -- and the question a reader clicking a dot in the DAG is
-    // asking ("what meets HERE, in the picture I am looking at") is the
-    // derived one, which is why the card already chose it.
-    var sides = VA.nodeSideLabels(ctx.topoProj, id);
+    // Neither list was wrong: a node against a `gap` edge has a clearance for
+    // a side, and a clearance is not a part, so an authored parts list cannot
+    // name one. Since 2026-10-30 hover and click are one surface (the
+    // Preview), and the record is the one derivation behind it.
+    var sides = record.sides.map(function (side) { return side.label; });
     root.appendChild(VA.el("div", "detail__where", "on " + sides.join(" ⇔ ")));
 
-    // Whether this interface got a leader line, and why (viewer_leader_line_
-    // grid): the omission rule is the component grouping, so the pane says
-    // which side of it this node is on rather than leaving a missing leader
-    // to read as a rendering gap. It states the RULE only -- the sides
-    // themselves are the line above, said once, in the same words the card
-    // uses (this sentence used to re-list them with a different separator).
-    root.appendChild(VA.el("p", "detail__crop-reason",
-      VA.internalNodes(ctx.topoProj)[id]
-        ? "An internal interface: every dimension meeting here belongs to one " +
-          "part, so no leader line is drawn — leaders mark component " +
-          "boundaries only."
-        : "A component boundary: its leader line marks that seam in the grid."));
-    if (node.note) root.appendChild(VA.el("div", "detail__note", node.note));
+    // Whether this interface got a leader line, and why: the omission rule is
+    // the component grouping, so the pane says which side of it this node is
+    // on rather than leaving a missing leader to read as a rendering gap.
+    root.appendChild(VA.el("p", "detail__crop-reason", record.internal
+      ? "An internal interface: every dimension meeting here belongs to one " +
+        "part, so no leader line is drawn — leaders mark component " +
+        "boundaries only."
+      : "A component boundary: its leader line marks that seam in the grid."));
+    if (record.note) root.appendChild(VA.el("div", "detail__note", record.note));
 
-    if (node.source_ref) {
-      root.appendChild(citation(node.source_ref, node.confidence));
+    if (record.citation) {
+      root.appendChild(citation(record.citation, record.confidence));
+    }
+
+    // Each side's part, in what identifies it (VA.renderPartSource) and its
+    // own picture where it has one (the part's first resolved crop): what the
+    // dot's and the merged cell's hover cards used to carry, at a legible
+    // size. A clearance is named above and has no part to show; a part with no
+    // crop shows no picture -- absent is absent.
+    var parts = record.sides.filter(function (side) { return side.id; });
+    if (parts.length) {
+      var box = VA.el("div", "detail__sides");
+      parts.forEach(function (side) {
+        var figure = VA.el("div", "detail__side");
+        figure.appendChild(VA.el("div", "detail__sublabel", side.label));
+        var source = VA.renderPartSource(side);
+        if (source) figure.appendChild(source);
+        if (side.thumb) {
+          figure.appendChild(VA.cropFigure(side.thumb.entry,
+            ctx.cropImages ? ctx.cropImages[side.thumb.entry.png] : null,
+            "detail__crop-img"));
+        }
+        box.appendChild(figure);
+      });
+      root.appendChild(box);
     }
     root.appendChild(VA.el("p", "detail__crop-reason",
       "An interface is a location, not a value — there is no dimension and no " +
       "crop behind it. The dimensions are the edges either side of this row."));
   }
 
-  function renderEdgeDetail(root, edge, id, ctx) {
-    if (!edge) {
-      root.appendChild(VA.el("p", "muted", missing(id)));
-      return;
+  // What identifies a part, said once: its drawing (less the number its name
+  // already carries, VA.componentDrawingText), or for a part with no drawing
+  // the documents its own rows cite -- and a standard part says so. Jeff,
+  // 2026-09-15: "'no drawing recorded for this part' on a COTS fastener --
+  // wrong and meaningless; say what's true". A part with neither gets no line
+  // at all. Each reference says for itself whether the numbers read off it are
+  // verified (VA.referenceText), and the line carrying the word explains it.
+  VA.renderPartSource = function (part) {
+    if (!part || !part.id) return null;
+    if (part.drawing) return VA.el("div", "detail__partsource", part.drawing);
+    if (!part.references || !part.references.length) return null;
+    var line = VA.el("div", "detail__partsource",
+      (part.standardPart ? "standard part — dimensions from " : "dimensions from ") +
+      part.references.map(VA.referenceText).join("; "));
+    if (part.references.some(function (r) { return r.unverified; })) {
+      line.setAttribute("title", VA.ATTENTION.unverified.title);
     }
-    root.appendChild(paneHead(edge.name, edge.id));
+    return line;
+  };
 
-    var source = VA.VALUE_SOURCES[edge.value_source];
+  function renderEdgeDetail(root, record, ctx) {
+    root.appendChild(paneHead(record.title, record.id));
+
+    var source = VA.VALUE_SOURCES[record.valueSource];
     var chips = VA.el("div", "detail__chips");
-    chips.appendChild(VA.markGeneralNote(VA.chip(VA.confidenceClass(edge.confidence),
-      edge.confidence === null ? "no value"
-        : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence)),
-      edge.dimension && edge.dimension.source_ref));
-    chips.appendChild(VA.chip("chip--kind", edge.kind));
+    chips.appendChild(VA.markGeneralNote(VA.chip(VA.confidenceClass(record.confidence),
+      record.confidenceLabel), record.citation));
+    chips.appendChild(VA.chip("chip--kind", record.elementKind));
     chips.appendChild(source
       ? VA.chip("chip--source", source.label, source.title)
-      : VA.chip("chip--unlabelled", edge.value_source,
-                VA.valueSourceText(edge.value_source)));
-    if (edge.zero_width) {
+      : VA.chip("chip--unlabelled", record.valueSource,
+                VA.valueSourceText(record.valueSource)));
+    if (record.zeroWidth) {
       chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
         VA.ATTENTION.no_tolerance.title));
     }
     root.appendChild(chips);
 
-    // The part and the two interfaces, in their own names -- all three were
-    // printed as ids here until 2026-09-15.
-    var partLabel = edge.part
-      ? VA.componentLabel(VA.topologyIndex(ctx.topoProj).parts[edge.part] ||
-          { id: edge.part })
-      : null;
+    // The part and the two interfaces, in their own names.
+    var partLabel = record.part ? record.part.label : null;
     root.appendChild(VA.el("div", "detail__where",
       (partLabel ? "a dimension of " + partLabel : "across a clearance") +
-      "  ·  " + VA.nodeLabel(ctx.topoProj, edge.from) +
-      " → " + VA.nodeLabel(ctx.topoProj, edge.to)));
+      "  ·  " + record.from.label + " → " + record.to.label));
 
     // On a kinematic page, a contributor whose band is another edge's
     // (VA.kinematicBandEdges): that edge, one click away, since this one may
     // carry no value of its own.
-    var bandEdgeId = ctx.bandEdges && ctx.bandEdges[edge.id];
-    var bandEdge = bandEdgeId ? VA.topologyIndex(ctx.topoProj).edges[bandEdgeId] : null;
-    if (bandEdge) {
+    if (record.bandEdge) {
       var band = VA.el("div", "detail__band");
       band.appendChild(VA.el("span", "muted", "band in this study: "));
-      var follow = VA.el("button", "detail__bandlink", bandEdge.name);
-      follow.onclick = function () { if (ctx.onSelect) ctx.onSelect("edge", bandEdge.id); };
+      var follow = VA.el("button", "detail__bandlink", record.bandEdge.title);
+      follow.onclick = function () {
+        if (ctx.onSelect) ctx.onSelect("edge", record.bandEdge.id);
+      };
       band.appendChild(follow);
       root.appendChild(band);
     }
 
-    // Deep link OUT to apps/annotate/ (deliverable 4): only for the two loud
-    // gap confidences and, since 2026-10-26, a structural edge with no value
-    // at all (VA.needsAnnotation's `edge`) -- a traced/inferred edge already has a citation, and a
-    // binding is identity, never a value source (docs/ANNOTATION_SURFACE.md),
-    // so sending a click there for an already-sourced row would offer nothing.
-    //
-    // And only where the owning part HAS a 3D model to click on (handoff
-    // annotate_affordances_flyout_and_mesh_gating): this affordance exists to
-    // CREATE a binding, and an annotator with no mesh for the part cannot bind
-    // a face -- the click would land on its empty state. Nothing is shown in
-    // that case, not a disabled control: the honest fix is installing the
+    // The picture next: the Preview is the one place a crop may be large,
+    // and the crop behind a citation is what a reader pointing at a row came
+    // to read.
+    root.appendChild(cropSection(record, ctx));
+
+    // The way OUT to the annotator, where a binding is still wanted and the
+    // part has a model to bind on (the record's `binding`): a traced/inferred
+    // edge already has a citation, and a binding is identity, never a value
+    // source (docs/ANNOTATION_SURFACE.md). Nothing is shown otherwise, not a
+    // disabled control: the honest fix for a meshless part is installing the
     // mesh, and the row stays on the gap list either way.
-    if (VA.needsAnnotation(edge.confidence, edge) &&
-        VA.partHasMesh(ctx.topoProj, edge.part)) {
-      var annotateParams = {
-        topologyId: ctx.topoProj.id,
-        edgeId: edge.id,
-        studyId: ctx.study && ctx.study.id,
-        part: edge.part,
-      };
+    if (record.binding.params) {
+      var annotateParams = record.binding.params;
       var annotateBox = VA.el("div", "detail__annotate");
       if (ctx.annotateMount && ctx.onAttach3d) {
-        // The flyout form (handoff study_3d_flyout, feature 2): same params
-        // as the link below, but the annotator flies out beside this page
-        // with just this edge's part visible, ready to click the surface.
         var attachBtn = VA.el("button", "detail__annotate-btn",
           "attach to 3D" + (partLabel ? " (" + partLabel + ")" : "") + " →");
         attachBtn.setAttribute("title",
@@ -3001,42 +3117,40 @@
       root.appendChild(annotateBox);
     }
 
-    if (edge.dimension) {
+    if (record.values) {
       var values = VA.el("div", "detail__values");
-      row(values, "nominal", VA.fmt(edge.dimension.nominal));
+      row(values, "nominal", VA.fmt(record.values.nominal));
       row(values, "min … max",
-        VA.fmt(edge.dimension.min) + " … " + VA.fmt(edge.dimension.max));
-      if (edge.dimension.plus_minus !== null &&
-          edge.dimension.plus_minus !== undefined) {
-        row(values, "as authored", VA.fmtPlusMinus(edge.dimension.plus_minus));
+        VA.fmt(record.values.min) + " … " + VA.fmt(record.values.max));
+      if (record.values.plusMinus !== null) {
+        row(values, "as authored", VA.fmtPlusMinus(record.values.plusMinus));
       }
-      if (edge.dimension.role) row(values, "role", edge.dimension.role);
-      if (edge.dimension.hardware_ref) {
-        row(values, "hardware", edge.dimension.hardware_ref);
-      }
+      if (record.values.role) row(values, "role", record.values.role);
+      if (record.values.hardware) row(values, "hardware", record.values.hardware);
       root.appendChild(values);
     }
 
     root.appendChild(VA.el("div", "detail__transform",
-      "default transform: " + VA.transformText(edge.transform)));
+      "default transform: " + VA.transformText(record.transform)));
 
-    var hit = VA.chainIndex(ctx.study)[edge.id];
-    if (hit) root.appendChild(contributionBlock(hit, ctx.study, ctx.topoProj));
+    if (record.contribution && record.contribution.kind === "chain") {
+      root.appendChild(contributionBlock(record.contribution, ctx.topoProj));
+    } else if (record.contribution && record.contribution.kind === "kinematic") {
+      root.appendChild(kinematicContributionBlock(record.contribution));
+    }
 
-    if (edge.note) root.appendChild(VA.el("div", "detail__note", edge.note));
+    if (record.note) root.appendChild(VA.el("div", "detail__note", record.note));
 
-    var dimension = edge.dimension;
-    if (dimension && dimension.source_ref) {
-      root.appendChild(citation(dimension.source_ref, edge.confidence, partLabel));
-      var provenance = VA.exportProvenance(dimension.source_ref, null);
+    if (record.citation) {
+      root.appendChild(citation(record.citation, record.confidence, partLabel));
+      var provenance = VA.exportProvenance(record.citation, null);
       if (provenance) root.appendChild(exportBlock(provenance));
-    } else if (dimension) {
+    } else if (record.uncited) {
       root.appendChild(VA.el("div", "el-export el-export--none el-export--loud",
         "This dimension cites nothing at all — nothing on record says where " +
         "the number came from."));
     }
 
-    root.appendChild(cropSection(edge, ctx));
   }
 
   // A preview-pane heading: the thing's own NAME, with its id on the
@@ -3058,7 +3172,9 @@
     box.appendChild(line);
   }
 
-  function contributionBlock(hit, study, topoProj) {
+  // The active chain study's reading of this edge (the record's
+  // `contribution`, kind `chain`).
+  function contributionBlock(hit, topoProj) {
     var c = hit.contribution;
     var box = VA.el("div", "detail__contribution");
     box.appendChild(VA.el("h4", null,
@@ -3073,10 +3189,26 @@
       VA.fmt(c.min) + " … " + VA.fmt(c.max) + " " + c.units);
     box.appendChild(VA.el("p", "muted",
       "No sign is authored anywhere: it is read off the direction the chain " +
-      "crossed this edge. " + (study && study.transforms[c.edge]
+      "crossed this edge. " + (hit.override
         ? "This study OVERRIDES the edge's default transform with `" +
-          study.transforms[c.edge] + "`."
+          hit.override + "`."
         : "The edge's own default transform applied.")));
+    return box;
+  }
+
+  // The active kinematic study's reading of this edge (the record's
+  // `contribution`, kind `kinematic`): the contributor table's own row, as
+  // the projection states it -- sign, coefficient and magnitude at each stop,
+  // and the band -- one line per stop.
+  function kinematicContributionBlock(hit) {
+    var box = VA.el("div", "detail__contribution");
+    box.appendChild(VA.el("h4", null, "In this study"));
+    hit.stops.forEach(function (stop) {
+      if (stop.sign === null) return;
+      row(box, stop.label, stop.sign + " " + stop.coefficient +
+        (stop.magnitude === null ? "" : "  →  " + stop.magnitude));
+    });
+    if (hit.band) row(box, "band", hit.band);
     return box;
   }
 
@@ -3121,24 +3253,23 @@
   // key is making). An edge with no key is not a stale index and must not
   // read like one: it is a workbook/assumed dimension, or the derived gap a
   // study computes, and it says which.
-  function cropSection(edge, ctx) {
+  function cropSection(record, ctx) {
     var box = VA.el("div", "detail__crop");
     box.appendChild(VA.el("h4", null, "Drawing crop"));
-    if (!edge.crop_key) {
+    if (!record.crop) {
       box.className = "detail__crop detail__crop--no-key";
-      var source = VA.VALUE_SOURCES[edge.value_source];
       box.appendChild(VA.el("div", "detail__crop-reason",
-        (source ? source.title : VA.valueSourceText(edge.value_source)) +
+        record.noCropReason +
         " No crop index covers it — that is the state of the documents, not a " +
         "stale projection."));
-      var ref = edge.dimension && edge.dimension.source_ref;
+      var ref = record.citation;
       if (ref && ref.kind === "assumed") {
         box.appendChild(VA.el("div", "detail__crop-reason",
           "Its citation is kind `assumed`: there is no document behind it to crop."));
       }
       return box;
     }
-    var entry = VA.cropForKey(ctx.crops, edge.crop_key);
+    var entry = record.crop.entry;
     box.className = "detail__crop detail__crop--" + entry.status;
     // The crop KEY line used to print here (VA.cropKeyText): which of the crop
     // index's two key spaces addressed this crop, spelled in the ids of a
@@ -3151,7 +3282,13 @@
     }
     // Shared builder, same as the stack pane's: the image, its highlight boxes
     // and the parts-list companion for a balloon crop.
-    box.appendChild(VA.cropFigure(entry, ctx.detailImage, "detail__crop-img"));
+    // The picture out of the page's image cache (every resolved crop the
+    // open topology addresses is fetched once, for the grid's thumbnails), so
+    // a hovered row's crop is on screen the moment the pointer is.
+    // `detailImage` is the SELECTION's picture, so it is read only for it.
+    var image = (ctx.cropImages && ctx.cropImages[entry.png]) ||
+      (isSelected(ctx, record.kind, record.id) ? ctx.detailImage : null) || null;
+    box.appendChild(VA.cropFigure(entry, image, "detail__crop-img"));
     var companion = VA.companionFigure(entry, ctx.cropImages);
     if (companion) box.appendChild(companion);
     // The reference, its links and the folded matching provenance, from the

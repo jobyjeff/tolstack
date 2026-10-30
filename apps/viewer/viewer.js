@@ -836,7 +836,7 @@
   };
 
   // The hover card behind that badge. A card model like every other one on this
-  // page (VA.citationCard, VA.edgeCard, VA.componentCard), so the badge reuses
+  // page (VA.citationCard, the kinematic ones), so the badge reuses
   // the whole popover apparatus the page already has -- one node, one
   // placement, one close story, the hover-intent corridor included -- instead
   // of growing a second kind of popup beside it.
