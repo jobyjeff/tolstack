@@ -5950,6 +5950,18 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         // argument it carried is retired with the layout it was about.
         await page.locator("#study-3d").click();
         await page.waitForSelector("#annotate-flyout[open]", { timeout: 10000 });
+        // Waited for on the state, not the clock: the column the panel opens
+        // moves the drawing through syncSceneColumn, the respine and the zoom
+        // fit, so its rect is read once two consecutive frames agree on it.
+        await page.waitForFunction(() => new Promise((resolve) => {
+          const rect = () => {
+            const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+            const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
+            return [r.left, r.width, r.top, p.right].join(",");
+          };
+          const first = rect();
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve(rect() === first)));
+        }), null, { timeout: 15000, polling: 100 }).catch(() => {});
         const livePanel = await page.locator("#annotate-flyout").boundingBox();
         const liveRails = await page.evaluate(() => {
           const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
@@ -8368,7 +8380,7 @@ async function testAnnotateRail(browser, label) {
         const base = mesh.userData.baseColors;
         for (let i = 0; i < base.length; i++) if (live[i] !== base[i]) return true;
         return false;
-      }, sha, { timeout: 2000 }).catch(() => {});
+      }, sha, { timeout: 15000, polling: 100 }).catch(() => {});
       push("a real click on the face tints it",
         await tinted() &&
         (await page.evaluate(() => window.__scene.highlightedFace())) !== null);
@@ -9561,11 +9573,15 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
     // visible once focused (opacity: 0 leaves a button in the tab order, so
     // the focus rule is what stops it being an invisible control), and Enter
     // opens it.
-    await paneLauncher.focus();
+    // The detail pane can re-render after the first launcher appears and take
+    // the focus with it, so focus is asked for again until it holds, under a
+    // deadline of seconds.
     await page.waitForFunction(() => {
       const button = document.querySelector("#detail button.cropfig__launch");
-      return button && Number(getComputedStyle(button).opacity) > 0.9;
-    }, null, { timeout: 5000 }).catch(() => {});
+      if (!button) return false;
+      if (document.activeElement !== button) button.focus();
+      return document.activeElement === button && Number(getComputedStyle(button).opacity) > 0.9;
+    }, null, { timeout: 20000, polling: 100 }).catch(() => {});
     const focused = await page.evaluate(() => {
       const button = document.querySelector("#detail button.cropfig__launch");
       return { active: document.activeElement === button,
@@ -12132,6 +12148,28 @@ async function testSeamLeaders(browser, label, topologies) {
       lit: Object.keys(VA.lastTopoRender.seam.dots).sort(), grid,
       paths: document.querySelectorAll("svg.seamleaders path.seam__leader").length };
   });
+  // What liveMeasure compares: the scene's last anchor message against the
+  // DAG's last draw. Settled when three reads 150ms apart agree on both, under
+  // a deadline of seconds -- a fixed pause measured while the scene was still
+  // projecting anchors (red 3 in 3 in a loaded witness baseline, 2026-10-28).
+  const liveSettle = async (deadline = 30000) => {
+    const read = () => live.evaluate(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      const d = window.ViewerApp.lastSeamDraw;
+      return JSON.stringify({ a: (w && w.__lastAnchors) || null,
+        l: d ? d.leaders.map((x) => x.id) : null });
+    });
+    const end = Date.now() + deadline;
+    let last = null, same = 0;
+    while (Date.now() < end) {
+      const now = await read();
+      same = now === last ? same + 1 : 0;
+      last = now;
+      if (same >= 2) return true;
+      await live.waitForTimeout(150);
+    }
+    return false;
+  };
   const S = ["selected", "hot", "dim"];
   try {
     await live.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
@@ -12147,7 +12185,7 @@ async function testSeamLeaders(browser, label, topologies) {
         window.ViewerApp.lastSeamDraw.leaders.length > 0;
     }, runId, 240000);
     await livePane((w) => w.AnnotateApp.exec(["pause"]));
-    await live.waitForTimeout(600);
+    await liveSettle();
     let lm = await liveMeasure();
     console.log(`      [${label}] P2: lit nodes ${lm.lit.length}, leaders ${lm.ids.length} ` +
       `(${lm.ids.join(", ")}); no anchor: ${(lm.skipped && lm.skipped.noAnchor || []).join(", ") || "-"}; ` +
@@ -12191,6 +12229,7 @@ async function testSeamLeaders(browser, label, topologies) {
       const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
       return w && w.__model && w.__model.emphasis === id;
     }, CONTRIBUTOR, 15000);
+    await liveSettle();
     lm = await liveMeasure();
     const selectedIds = Object.keys(lm.states).filter((id) => lm.states[id] === S[0]).sort();
     console.log(`      [${label}] contributor ${CONTRIBUTOR}: selected leaders ${selectedIds.join(", ")}`);
@@ -12244,6 +12283,7 @@ async function testSeamLeaders(browser, label, topologies) {
     await shot("3_picked_in_the_scene.png");
 
     // A node selected on the DAG is selected in the scene's own layer.
+    await liveSettle();
     lm = await liveMeasure();
     const node = Object.keys(lm.grid).find((id) => lm.ids.indexOf(id) !== -1) || null;
     if (node) {
@@ -12280,7 +12320,7 @@ async function testSeamLeaders(browser, label, topologies) {
       const d = window.ViewerApp.lastSeamDraw;
       return d && d.draws > n && document.querySelector("#topopane").scrollTop === 0;
     }, drawsBefore, 5000);
-    await live.waitForTimeout(300);
+    await liveSettle();
     const after = await liveMeasure();
     console.log(`      [${label}] hidden, the box at its top: leaders ${after.ids.length} (${after.ids.join(", ")}); ` +
       `off the DAG's view: ${(after.skipped && after.skipped.offDag || []).join(", ") || "-"}; ` +

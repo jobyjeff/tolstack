@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261028_the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below.md
@@ -23,3 +23,7 @@ without an anchor. `liveMeasure` compares the app's last draw against
 projecting anchors when the harness measured (it waits for one draw with any
 leader, pauses, then 600ms). Probably wants to wait until two consecutive anchor
 messages agree, or until the draw count stops moving, before measuring.
+
+## Resolved 2026-10-29
+
+Fixed in 083ba71b (handoff `viewer_browser_checks_wait_on_settled_state`): the check waits on a settled state under a deadline of seconds.

@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: tests
 reporter: agent
 class: timing_assertion_under_load
@@ -79,3 +79,7 @@ A failure with only one suite running is weak evidence for the load theory.
 It points instead at a race on the annotator's selection path, which
 `suggest` now also colours. On the earlier merged tree at `ad93af9e`, before
 that landing, the same suite passed 34/34 in the full run.
+
+## Resolved 2026-10-29
+
+Fixed in 083ba71b (handoff `viewer_browser_checks_wait_on_settled_state`): the check waits on a settled state under a deadline of seconds.

@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: scripts/run_viewer_browser_tests.mjs (annotate flyout suite)
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
@@ -46,3 +46,7 @@ now does. Poll until `svg.tv__rails`'s rect is stable across two frames
 after `flyout-open` is set, with a cap, and only then compare it with the
 panel's right edge. Then replay the A/B above several times on the merged
 tree.
+
+## Resolved 2026-10-29
+
+Fixed in 083ba71b (handoff `viewer_browser_checks_wait_on_settled_state`): the check waits on a settled state under a deadline of seconds.
