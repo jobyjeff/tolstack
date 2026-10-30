@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "the armed row says it is at the as-modelled pose, and its Pick reads pressed",
+  "mutations": [
+    {
+      "contract": "The armed row's Pick reads pressed.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). The mirror shows pressed from aria-pressed alone.",
+      "file": "apps/annotate/app.js",
+      "find": "      repick.setAttribute(\"aria-pressed\", armed ? \"true\" : \"false\");",
+      "replace": "      repick.setAttribute(\"aria-pressed\", \"false\");"
+    }
+  ]
+}

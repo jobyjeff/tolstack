@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "...and it goes there",
+  "mutations": [
+    {
+      "contract": "The way back seeks the remembered frame.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Going anywhere else is not back.",
+      "file": "apps/annotate/app.js",
+      "find": "    try { await AA.exec([\"seek\", \"#\" + back]); }",
+      "replace": "    try { await AA.exec([\"seek\", \"#\" + sweep.asModelledIndex]); }"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "the row's state line reads bound, the toast names the write, and the pick disarms",
+  "mutations": [
+    {
+      "contract": "A bind is confirmed by a toast naming it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Confirmation after the click is half of Jeff's complaint.",
+      "file": "apps/annotate/app.js",
+      "find": "    showToast(toast);\n    renderSweepRail();",
+      "replace": "    renderSweepRail();"
+    }
+  ]
+}

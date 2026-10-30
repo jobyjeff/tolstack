@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "the bar offers the way back to the frame the pick moved away from",
+  "mutations": [
+    {
+      "contract": "The bar offers the frame an armed pick left.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Arming moved the sweep without asking.",
+      "file": "apps/annotate/app.js",
+      "find": "  return !!sweep && sweep.returnIndex != null && !sweep.armed && sweep.index === sweep.asModelledIndex;",
+      "replace": "  return false;"
+    }
+  ]
+}

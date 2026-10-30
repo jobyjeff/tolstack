@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "one row template away from the pose and armed at it: name and state line, then the actions at the right",
+  "mutations": [
+    {
+      "contract": "A row's actions sit after its name and state line.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). A control ahead of the name is the re-flow Jeff saw.",
+      "file": "apps/annotate/app.js",
+      "find": "      li.appendChild(others);",
+      "replace": "      li.insertBefore(others, li.firstChild);"
+    }
+  ]
+}

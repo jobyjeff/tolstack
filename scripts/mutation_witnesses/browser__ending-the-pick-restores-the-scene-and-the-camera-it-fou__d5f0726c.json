@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "ending the pick restores the scene and the camera it found",
+  "mutations": [
+    {
+      "contract": "Ending the pick puts the camera back.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). A pick that leaves the view moved strands the reader.",
+      "file": "apps/annotate/app.js",
+      "find": "  state.scene.setCameraState(a.restore.camera);",
+      "replace": "  void a.restore.camera;"
+    }
+  ]
+}
