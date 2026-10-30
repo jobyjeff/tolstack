@@ -1490,7 +1490,8 @@ layers of the rails SVG (`g.tv__dag`, under and over the leaders) drawn at the
 scale about the DAG block's top-left; the grid, its header and `.tv__zoom`
 around them stay at the page's own pixels. The leaders and the bands are drawn
 in the SVG's own pixels between those layers, from the scaled dot to the
-unscaled seam (`VA.leaderGeometry`'s `zoom`), and the jog zone keeps its width.
+unscaled seam (`VA.leaderGeometry`'s `zoom`); the jog zone scales with the DAG,
+so a narrow pane keeps room for the grid.
 A zoom change repaints the pane at the new scale (`VA.applyTopoZoom` →
 `topoRezoom`). The scale is per page state (`state.dagZoom`), never stored. The
 minimum is chosen so the whole walk, in its tallest mode, shows in a 900px pane

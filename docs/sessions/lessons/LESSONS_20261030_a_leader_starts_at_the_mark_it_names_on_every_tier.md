@@ -34,9 +34,14 @@ re-lay check confirms it.
   about the DAG block's top-left (`y0 = positions.offset`). The grid and the
   header stay at 1, and **the grid does not move** on a zoom.
 - `VA.leaderGeometry(..., {zoom: {k, y0}})` runs each leader in SVG pixels,
-  from the scaled dot to the unscaled seam. The jog zone keeps its width, and
-  `width` is where the table starts at that zoom. `VA.seamDots` takes the same
-  zoom, so the page overlay no longer reads a scale off the SVG rect.
+  from the scaled dot to the unscaled seam. Every x on the DAG side scales,
+  the jog zone's included, and `width` is where the table starts at that
+  zoom. `VA.seamDots` takes the same zoom, so the page overlay no longer
+  reads a scale off the SVG rect.
+- The first cut kept the jog zone at full width. On the kinematic page at
+  1600×1000 that made the rails SVG as wide as the pane, and the grid sat
+  wholly under the sticky rails, with a 4px sliver under the divider. Only the
+  grid side of the picture may stay unscaled.
 - A zoom change repaints (`VA.applyTopoZoom` calls `root.topoRezoom(k)`).
   The old per-wheel transform is gone, and so is the `--tv-shift` sticky
   workaround: nothing above the rails is scaled.
