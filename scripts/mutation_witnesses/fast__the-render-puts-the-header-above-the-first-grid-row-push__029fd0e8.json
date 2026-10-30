@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the render puts the header above the first grid row, pushes the body down by what it lacks, and draws only the DAG at the zoom",
+  "mutations": [
+    {
+      "contract": "The header is drawn directly above the first grid row.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "A header left at the top of the pane is the defect this replaced (inert sticky, header a screen away from its rows).",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    head.style.top = headTop + \"px\";",
+      "replace": "    head.style.top = \"0px\";"
+    },
+    {
+      "contract": "The DAG's layers carry the zoom; the zoom box does not.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The DAG drawn at 1 whatever the zoom.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var dagTransform = leaderGeo.zoom !== 1",
+      "replace": "    var dagTransform = false"
+    }
+  ]
+}

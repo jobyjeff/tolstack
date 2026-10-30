@@ -390,10 +390,17 @@
     // and how far the reader has dragged the jog zone open. Neither moves a
     // leader's two ENDS -- the page's correspondence contract is untouched by
     // both -- so they ride in as options rather than as new geometry.
+    // The DAG's zoom (a_leader_starts_at_the_mark_it_names_on_every_tier,
+    // 2026-10-29): the DAG alone is drawn at it, about its own top-left, and
+    // the grid and its header stay at 1 -- Jeff: zoom the DAG, the grid keeps
+    // its own scale. The leaders bridge the two (VA.leaderGeometry's `zoom`).
+    var zoom = VA.clampDagZoom(ctx.zoom || 1);
+    var dagZoom = { k: zoom, y0: positions.offset || 0 };
     var leaderGeo = VA.leaderGeometry(layout, plan, M, positions, {
       style: ctx.leaderStyle,
       zoneScale: ctx.jogZoneScale,
       x: xTween,
+      zoom: dagZoom,
     });
     // The store this paint actually drew from, kept for the one render after
     // it: the browser tier re-derives the drawn geometry from the same budget
@@ -421,7 +428,8 @@
                           // this SVG's pixels: the page adds the SVG's rect
                           // (VA.seamDots, topology_app.js's drawSeamLeaders).
                           seam: VA.seamDots(layout, geometry, marking ? lit : null,
-                                            M, xTween) };
+                                            M, xTween, dagZoom),
+                          zoom: zoom };
     var index = VA.topologyIndex(topoProj);
 
     // The header and the body share ONE horizontal scrollport
@@ -440,14 +448,9 @@
     // 0 in the DOM shim, which reports no widths and needs no clamp.
     var paneWidth = (root && typeof root.clientWidth === "number")
       ? root.clientWidth : 0;
-    // The zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale): ONE
-    // transform on `.tv__zoom`, which holds the header, the rails SVG and the
-    // grid rows together, so nothing shears. `.tv__zoomsizer` is the box the
-    // scroll extents come from -- a transform does not change layout, so
-    // without it a zoomed-out drawing would keep scrolling the full-size
-    // content's length. The sizer is sized to the content's measured layout
-    // size times the scale, after the append below.
-    var zoom = VA.clampDagZoom(ctx.zoom || 1);
+    // The zoom is drawn INTO the rails SVG (railsSvg's DAG layers), so
+    // `.tv__zoom` is no longer scaled: it holds the header, the SVG and the
+    // grid at the page's own pixels, and its layout is its scroll extent.
     var sizer = VA.el("div", "tv__zoomsizer");
     // The space a study arrival put before the drawing to centre its band
     // (topology_app.js, fitDagTo); it outlives a repaint, not a study change.
@@ -465,9 +468,8 @@
     // grid when the centring left less than a head's height there -- both the
     // rails and the grid move together, so every leader's two ends keep their
     // relation.
-    // The pane's width in the zoom box's OWN pixels: the grips are clamped into
-    // the visible window, and that window is `paneWidth / zoom` of content.
-    var head = header(leaderGeo, ctx, paneWidth / zoom);
+    // The pane's width: the grips are clamped into the visible window.
+    var head = header(leaderGeo, ctx, paneWidth);
     var gridTop = positions.gridOffset || 0;
     var bodyPad = Math.max(0, VA.DAG_FIT.headHeight - gridTop);
     var headTop = bodyPad + gridTop - VA.DAG_FIT.headHeight;
@@ -478,12 +480,27 @@
     // What Fit brings into view, in `.tv__zoom`'s own (unscaled) pixels: the
     // lit set's span in the store, moved down by the body's own padding, and
     // reaching up to the header when the grid is part of it.
-    var litSpan = VA.litSpan(positions, marking ? lit : null, plan, M);
+    // The DAG's part only: the grid does not scale, so no zoom can fit it.
+    // `at(k)` is that span in `.tv__zoom`'s pixels drawn at k, reaching up to
+    // the header when the grid is part of what is lit.
+    // With nothing lit it is the whole DAG block, not the taller of the two.
+    var litSpan = marking ? VA.litSpan(positions, lit, null, M)
+      : { top: dagZoom.y0, bottom: dagZoom.y0 + (positions.dagHeight || 0) };
+    var withHead = !!(plan.rows.length && marking);
     VA.lastTopoRender.span = {
-      top: Math.min(litSpan.top + bodyPad,
-        plan.rows.length && marking ? headTop : Infinity),
-      bottom: litSpan.bottom + bodyPad,
+      top: litSpan.top, bottom: litSpan.bottom,
+      at: function (k) {
+        return {
+          top: Math.min(bodyPad + dagZoom.y0 + k * (litSpan.top - dagZoom.y0),
+            withHead ? headTop : Infinity),
+          bottom: bodyPad + dagZoom.y0 + k * (litSpan.bottom - dagZoom.y0),
+        };
+      },
     };
+    // Fit's horizontal half: the DAG's own width (it scales) and the jog
+    // zone's (it does not).
+    VA.lastTopoRender.dagWidth = leaderGeo.zoneLeft / zoom;
+    VA.lastTopoRender.zoneWidth = leaderGeo.width - leaderGeo.zoneLeft;
     zoomed.appendChild(head);
     var body = VA.el("div", "tv__body");
     if (bodyPad) body.style.paddingTop = bodyPad + "px";
@@ -508,6 +525,12 @@
     sizer.appendChild(zoomed);
     hscroll.appendChild(sizer);
     root.appendChild(hscroll);
+    // A zoom change repaints at the new scale (VA.applyTopoZoom): the same
+    // context, at rest, at k.
+    root.topoRezoom = function (k) {
+      VA.renderTopoPane(root, Object.assign({}, ctx, {
+        zoom: k, tween: null, scrollToGrid: false }));
+    };
     VA.applyTopoZoom(root, zoom, true);
     // ...and the reader's sideways scroll back onto the pane that replaced the
     // one they scrolled. Written after the append, so the browser has a laid-
@@ -520,7 +543,7 @@
     // re-lay), otherwise wherever the reader left it.
     if (ctx.bounded) {
       root.scrollTop = ctx.scrollToGrid
-        ? Math.max(0, headTop * zoom)
+        ? Math.max(0, headTop)
         : carriedTop;
     }
     VA.pinTopoHead(root);
@@ -733,50 +756,40 @@
     }
   };
 
-  // One scale onto a painted pane, without repainting it: the transform, the
-  // minimum width that keeps a narrow drawing filling the pane, and the sizer
-  // that carries the scroll extents (a transform does not change layout).
-  // The wheel calls this per event; renderTopoPane calls it once per paint.
-  // Returns the clamped scale applied, or 0 where there is no zoom box.
+  // One scale onto a painted pane. The DAG is drawn at its zoom (railsSvg),
+  // so a scale the pane was not painted at repaints it (`topoRezoom`, set by
+  // renderTopoPane); one it was painted at only records itself and re-syncs
+  // the sideways pins. The wheel calls this per event; renderTopoPane once per
+  // paint. Returns the clamped scale applied, or 0 where there is no zoom box.
   VA.applyTopoZoom = function (root, zoom, skipPin) {
     var zoomed = root && root.querySelector ? root.querySelector(".tv__zoom") : null;
     if (!zoomed) return 0;
     var k = VA.clampDagZoom(zoom);
-    var sizer = zoomed.parentNode;
-    zoomed.setAttribute("data-zoom", String(k));
-    zoomed.style.transform = "scale(" + k + ")";
-    var paneWidth = typeof root.clientWidth === "number" ? root.clientWidth : 0;
-    zoomed.style.minWidth = paneWidth > 0 ? (paneWidth / k) + "px" : "100%";
-    if (typeof zoomed.offsetWidth === "number" && zoomed.offsetWidth > 0) {
-      sizer.style.width = (zoomed.offsetWidth * k) + "px";
-      sizer.style.height = (zoomed.offsetHeight * k) + "px";
+    if (Number(zoomed.getAttribute("data-zoom")) !== k && root.topoRezoom &&
+        VA.lastTopoRender && VA.lastTopoRender.zoom !== k) {
+      root.topoRezoom(k);
+      return k;
     }
-    // `position: sticky` does not survive a scale on an ancestor: Chrome
-    // applies the sticky offset in the box's own pixels, so at a scale of k the
-    // rails drift (k - 1) of the scroll away from the pane's edge, measured. At
-    // a scale other than 1 the rails and the jog grip are held by hand instead
-    // (VA.syncTopoScroll, topology.css `.tv__zoom--scaled`).
-    if (k !== 1) zoomed.classList.add("tv__zoom--scaled");
-    else zoomed.classList.remove("tv__zoom--scaled");
+    zoomed.setAttribute("data-zoom", String(k));
+    var paneWidth = typeof root.clientWidth === "number" ? root.clientWidth : 0;
+    zoomed.style.minWidth = paneWidth > 0 ? paneWidth + "px" : "100%";
     VA.syncTopoScroll(root);
     if (!skipPin) VA.pinTopoHead(root);
     return k;
   };
 
-  // The sideways scroll, in the zoom box's own pixels, for the three things
-  // that follow it: the rails and the jog grip at a scale other than 1 (the
-  // `--tv-shift` variable the stylesheet reads), and the column grips' pin to
-  // the pane's right edge. At a scale of 1 this is the old per-scroll call.
+  // The sideways scroll, for the one thing that follows it by hand: the
+  // column grips' pin to the pane's right edge. The rails and the jog grip
+  // are plain `position: sticky` at every zoom, since nothing above them is
+  // scaled any more.
   VA.syncTopoScroll = function (root) {
     var hscroll = root && root.querySelector ? root.querySelector(".tv__hscroll") : null;
     var zoomed = hscroll ? hscroll.querySelector(".tv__zoom") : null;
     if (!zoomed) return;
-    var k = Number(zoomed.getAttribute("data-zoom")) || 1;
     var left = typeof hscroll.scrollLeft === "number" ? hscroll.scrollLeft : 0;
-    zoomed.style.setProperty("--tv-shift", (left / k) + "px");
     var head = zoomed.querySelector(".tv__head");
     if (head && head.placeColumnGrips) {
-      head.placeColumnGrips(left / k, (hscroll.clientWidth || 0) / k);
+      head.placeColumnGrips(left, hscroll.clientWidth || 0);
     }
   };
 
@@ -813,15 +826,15 @@
     var head = root.querySelector(".tv__head");
     var zoomed = head && head.parentNode;
     if (!head || !zoomed || typeof zoomed.getBoundingClientRect !== "function") return 0;
-    var k = Number(zoomed.getAttribute("data-zoom")) || 1;
+    // The header is at the grid's scale, which is 1 whatever the DAG's zoom.
     var natural = parseFloat(head.getAttribute("data-natural-top")) || 0;
     var bottom = parseFloat(head.getAttribute("data-block-bottom")) || 0;
     var top = zoomed.getBoundingClientRect().top;
-    var dy = VA.headPinOffset(top + natural * k, visibleTop(root), top + bottom * k,
-      VA.DAG_FIT.headHeight * k);
+    var dy = VA.headPinOffset(top + natural, visibleTop(root), top + bottom,
+      VA.DAG_FIT.headHeight);
     // `top`, not a transform: a transform on the head is what the respine's
     // settled-frame check reads as an unfinished transition.
-    head.style.top = (natural + dy / k) + "px";
+    head.style.top = (natural + dy) + "px";
     head.setAttribute("data-pinned", dy > 0 ? "1" : "");
     return dy;
   };
@@ -1494,13 +1507,27 @@
     // grid table's left edge, so a leader's final horizontal segment hands off
     // to its row's boundary with no seam to keep aligned.
     var width = leaderGeo.width;
+    var height = leaderGeo.height;
     var svg = VA.svg("svg", "tv__rails", {
       width: width,
-      height: geometry.height,
-      viewBox: "0 0 " + width + " " + geometry.height,
+      height: height,
+      viewBox: "0 0 " + width + " " + height,
     });
     svg.style.minWidth = width + "px";
-    svg.style.height = geometry.height + "px";
+    svg.style.height = height + "px";
+    // The DAG's own drawing goes in layers at its zoom, about the DAG's
+    // top-left (VA.leaderGeometry's `zoom`); the bands and the leaders, which
+    // end on the unscaled grid, are drawn in the SVG's own pixels between them.
+    var dagTransform = leaderGeo.zoom !== 1
+      ? "translate(0 " + leaderGeo.y0 + ") scale(" + leaderGeo.zoom + ") translate(0 " +
+        (-leaderGeo.y0) + ")"
+      : null;
+    var dagLayer = function () {
+      var g = VA.svg("g", "tv__dag");
+      if (dagTransform) g.setAttribute("transform", dagTransform);
+      svg.appendChild(g);
+      return g;
+    };
 
     // 0. the alternating bands (viewer_leader_grid_legibility): the region
     //    between two adjacent leaders, tinted in one of two neutral shades by
@@ -1517,6 +1544,8 @@
 
     // 0b. the joint glyphs' symbols, once per SVG (interface_glyphs.js).
     svg.appendChild(VA.interfaceGlyphDefs());
+
+    var under = dagLayer();
 
     // 0c. the bodies (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a rounded
     //     field behind each body's block, its name once at the top-left, in
@@ -1550,7 +1579,7 @@
         height: Math.max(0, field.y2 - field.y1), rx: 6, ry: 6,
       });
       rect.setAttribute("data-body", field.body);
-      svg.appendChild(rect);
+      under.appendChild(rect);
       if (named[f]) bodyNames.push(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
     });
 
@@ -1569,7 +1598,7 @@
           height: Math.max(0, span.y2 - span.y1), rx: 9, ry: 9,
         });
         rect.setAttribute("data-study-group", group.id);
-        svg.appendChild(hotHover(hot, rect, key));
+        under.appendChild(hotHover(hot, rect, key));
         if (i) return;
         var label = VA.svg("text", "tv__studyname", { x: span.x1 + 6, y: span.y1 + 3 });
         label.textContent = fitText(group.title, Math.max(span.x2 - span.x1 - 8, 84));
@@ -1589,7 +1618,7 @@
         bodyNames.push(label);
       });
     });
-    bodyNames.forEach(function (node) { svg.appendChild(node); });
+    bodyNames.forEach(function (node) { under.appendChild(node); });
 
     // 0d. the sub-stacks (a kinematic page's `study_ref`s,
     //     VA.kinematicSubStacks): a dashed field around each of the chain's
@@ -1612,7 +1641,7 @@
           height: Math.max(0, mark.y2 - mark.y1 + 2), rx: 4, ry: 4,
         });
         field.setAttribute("data-substack", sub.id);
-        svg.appendChild(field);
+        under.appendChild(field);
       });
       var top = marks.reduce(function (a, b) { return b.y1 < a.y1 ? b : a; });
       var label = VA.svg("text", "tv__substackname", { x: top.x + 10, y: top.y1 + 9 });
@@ -1632,7 +1661,7 @@
           toggle();
         }
       };
-      svg.appendChild(label);
+      under.appendChild(label);
     });
 
     // 1. the rails themselves: continuous, neutral, alternating shade by column
@@ -1660,16 +1689,16 @@
     // and a link is still hoverable everywhere no rail is -- which is most of
     // its length, and lights the same leg either way (2., below).
     var linkHits = VA.svg("g", "rail__linkhits");
-    svg.appendChild(linkHits);
+    under.appendChild(linkHits);
     geometry.rails.forEach(function (rail, i) {
       var railId = hot.rails[i];
       var base = "rail rail--" + (rail.column % 2 ? "odd" : "even");
       var ends = { x1: rail.x, y1: rail.y1, x2: rail.x, y2: rail.y2 };
-      svg.appendChild(hotRegister(hot, {
+      under.appendChild(hotRegister(hot, {
         el: VA.svg("line", base, ends), base: base,
         rail: railId, hot: "rail--hot",
       }));
-      svg.appendChild(hotHover(hot, hotRegister(hot, {
+      under.appendChild(hotHover(hot, hotRegister(hot, {
         el: VA.svg("line", "rail__hit", ends), base: "rail__hit",
         rail: railId, hot: "rail__hit--hot",
       }), railId));
@@ -1687,7 +1716,7 @@
     geometry.links.forEach(function (link, i) {
       var railId = hot.railOfLink[i];
       var base = "rail__link rail__link--" + link.kind;
-      svg.appendChild(hotRegister(hot, {
+      under.appendChild(hotRegister(hot, {
         el: fadeLink(VA.svg("path", base, { d: link.d }), link.key),
         base: base, rail: railId, hot: "rail__link--hot",
       }));
@@ -1756,6 +1785,8 @@
       svg.appendChild(hit);
     });
 
+    var over = dagLayer();
+
     // 3. one mark per row: a bar for an edge (the dimension IS the segment), a
     //    dot for a node (the interface IS the point).
     var formMarks = VA.formMarks(ctx.topoProj);
@@ -1787,13 +1818,13 @@
           leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
           hot: "rail__bar--hot", lead: "rail__bar--lead",
         });
-        svg.appendChild(bar);
+        over.appendChild(bar);
 
         // A floored bar (scaled modes only) wears a drafting-style break
         // across its middle: this length is the minimum render length, not a
         // measured proportion, and a reader must be able to tell at a glance.
         if (mark.floored) {
-          svg.appendChild(fade(VA.svg("path", "rail__break", {
+          over.appendChild(fade(VA.svg("path", "rail__break", {
             d: "M " + (mark.x - 5) + " " + (mark.y + 3) +
                " L " + (mark.x + 5) + " " + (mark.y - 1) +
                " M " + (mark.x - 5) + " " + (mark.y + 1) +
@@ -1839,7 +1870,7 @@
         }
         wire(hit, ctx, "edge", mark.id);
         hotHover(hot, hit, hotKey("edge", mark.id));
-        svg.appendChild(hit);
+        over.appendChild(hit);
 
         // The joint glyph (interface_glyphs.js) at the bar's midpoint, in the
         // bar's colour, and the form mark for a form element on the bar
@@ -1860,7 +1891,7 @@
             glyphs.length ? glyphY + VA.INTERFACE_GLYPH_PX : glyphY, glyphClass));
         }
         glyphs.forEach(function (use) {
-          svg.appendChild(fade(VA.svg("circle", "rail__glyphbg", {
+          over.appendChild(fade(VA.svg("circle", "rail__glyphbg", {
             cx: mark.x,
             cy: Number(use.getAttribute("y")) + VA.INTERFACE_GLYPH_PX / 2,
             r: VA.INTERFACE_GLYPH_PX / 2 + 1,
@@ -1874,12 +1905,12 @@
             use.appendChild(svgTitle(VA.edgeHoverTitle(edge, mark.id)));
           }
           wire(use, ctx, "edge", mark.id);
-          svg.appendChild(use);
+          over.appendChild(use);
         });
         return;
       }
       if (mark.collapsed) {
-        svg.appendChild(collapsedPill(mark, bodiesById, ctx, marking, layout, lit));
+        over.appendChild(collapsedPill(mark, bodiesById, ctx, marking, layout, lit));
         return;
       }
       var node = index.nodes[mark.id];
@@ -1922,7 +1953,7 @@
       }
       wire(dot, ctx, "node", mark.id);
       hotHover(hot, dot, hotKey("node", mark.id));
-      svg.appendChild(dot);
+      over.appendChild(dot);
       // A form modifier's squiggle, beside the face it is on: to the left of
       // the dot, the side away from the grid once the spine is mirrored right.
       if (formMarks.nodes[mark.id]) {
@@ -1935,7 +1966,7 @@
             var e = index.edges[id];
             return e ? e.name : id;
           }).join(", ")));
-        svg.appendChild(fade(adorn, "node", mark.id));
+        over.appendChild(fade(adorn, "node", mark.id));
       }
     });
     return svg;

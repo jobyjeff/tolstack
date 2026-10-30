@@ -4076,9 +4076,11 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
 // under the pointer where it was, one click that brings the lit set on
 // screen, and a column header that is on screen whenever a grid row is.
 //
-// The scale of the drawing is read off what the browser painted (the rails
-// SVG's rect against its own width attribute), never off the app's state: a
+// The scale of the drawing is read off what the browser painted (a DAG
+// layer's screen transform against its SVG's), never off the app's state: a
 // scale the state claims and the DOM does not wear would pass a state read.
+// Since 2026-10-29 only the DAG is scaled (the layers in the rails SVG), so
+// "the drawing" is those layers' box; the grid and its header stay at 1.
 const ZOOM_IN_PAGE = () => {
   const VA = window.ViewerApp;
   const svg = document.querySelector("#topopane svg.tv__rails");
@@ -4087,7 +4089,12 @@ const ZOOM_IN_PAGE = () => {
   const head = document.querySelector("#topopane .tv__zoom .tv__head");
   const hr = head.getBoundingClientRect();
   const bar = document.querySelector(".topbar").getBoundingClientRect();
-  const k = r.width / Number(svg.getAttribute("width"));
+  const layers = Array.from(svg.querySelectorAll("g.tv__dag"));
+  const k = layers.length ? layers[0].getScreenCTM().a / svg.getScreenCTM().a : 1;
+  const dag = layers.map((g) => g.getBoundingClientRect()).filter((b) => b.height > 0);
+  const dagTop = Math.min(...dag.map((b) => b.top));
+  const dagBottom = Math.max(...dag.map((b) => b.bottom));
+  const firstRow = document.querySelector("#topopane tr.tvrow");
   const rows = Array.from(document.querySelectorAll("#topopane tr.tvrow"));
   const visible = rows.filter((row) => {
     const b = row.getBoundingClientRect();
@@ -4096,6 +4103,8 @@ const ZOOM_IN_PAGE = () => {
   return {
     k, svgTop: r.top, svgLeft: r.left, svgHeight: r.height,
     zoomHeight: zoomBox.getBoundingClientRect().height,
+    dagTop, dagBottom, dagHeight: dagBottom - dagTop,
+    rowHeight: firstRow ? firstRow.getBoundingClientRect().height : null,
     headTop: hr.top, headBottom: hr.bottom, headHeight: hr.height,
     pinned: !!head.getAttribute("data-pinned"),
     topbarBottom: bar.bottom, visibleRows: visible,
@@ -4215,17 +4224,21 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     // top-left rather than about the pointer.
     push("[real] a zoom leaves the grid's sideways scroll at the left edge",
       await page.evaluate(() => document.querySelector("#topopane .tv__hscroll").scrollLeft === 0));
-    push("[real] the rails and the rows were scaled together: the grid's " +
-      "first row is still where the rails' seam leaders expect it",
+    // 2026-10-29 (a_leader_starts_at_the_mark_it_names_on_every_tier): the DAG
+    // zooms alone, and the leaders bridge the two scales.
+    push("[real] a zoom scales the DAG alone: the grid's rows and header keep their own size, " +
+      "and every leader still runs from its dot to its row's seam",
+      Math.abs(zoomedIn.rowHeight - before.rowHeight) < 0.5 &&
+      Math.abs(zoomedIn.headHeight - before.headHeight) < 0.5 &&
+      zoomedIn.dagHeight > before.dagHeight * 1.05 &&
       (await correspondence()).drift.length === 0);
     await page.mouse.wheel(0, 100);
     await page.mouse.wheel(0, 100);
     await page.mouse.wheel(0, 100);
     await settle(200);
     const zoomedOut = await read();
-    push("[real] the wheel away from the reader zooms out, and the page's " +
-      "scroll extent shrinks with the drawing",
-      zoomedOut.k < zoomedIn.k && zoomedOut.zoomHeight < zoomedIn.zoomHeight);
+    push("[real] the wheel away from the reader zooms out, and the DAG shrinks with it",
+      zoomedOut.k < zoomedIn.k && zoomedOut.dagHeight < zoomedIn.dagHeight);
     // The bounds: a long wheel stops at the table's own ends.
     for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 100);
     await settle(250);
@@ -4280,9 +4293,9 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       `${Math.round(fitted.zoomHeight)}px in a ${fitted.innerHeight}px window`);
     push("[real] Fit shows the whole walk at one step",
       fitted.k < zoomedFirst.k && fitted.k >= fitted.min &&
-      fitted.zoomHeight <= fitted.innerHeight - fitted.topbarBottom + 1);
+      fitted.dagHeight <= fitted.innerHeight - fitted.topbarBottom + 1);
     push("[real] Fit leaves the whole drawing's top at the top of the visible " +
-      "pane", Math.abs(fitted.svgTop - fitted.topbarBottom) < 14);
+      "pane", Math.abs(fitted.dagTop - fitted.topbarBottom) < 14);
     push("[real] leaders still correspond after a Fit",
       (await correspondence()).drift.length === 0);
     // `0` is Fit, from any zoom, and is silent in a field.
@@ -4306,15 +4319,15 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       "distinct lengths", distinct.length >= 3);
     push("[real] tolerance width takes more height than the window and Fit " +
       "still brings the whole of it on screen",
-      tolerance.zoomHeight / tolerance.k > tolerance.innerHeight &&
-      tolerance.zoomHeight <= tolerance.innerHeight - tolerance.topbarBottom + 1);
+      tolerance.dagHeight / tolerance.k > tolerance.innerHeight &&
+      tolerance.dagHeight <= tolerance.innerHeight - tolerance.topbarBottom + 1);
     await page.locator("#edge-length-toggle").click();
     await page.locator("#edge-length-toggle").click();
     await settle(250);
 
     // --- the rails stay put when a zoomed grid is scrolled sideways ------------
-    // `.tv__rails` is `position: sticky; left: 0` inside the scaled box: the
-    // claim is that it still holds the pane's left edge at a scale other than 1.
+    // `.tv__rails` is `position: sticky; left: 0`: the claim is that it still
+    // holds the pane's left edge at a scale other than 1.
     {
       await page.keyboard.press("0");
       await settle(200);
@@ -4331,7 +4344,8 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       const sticky = await page.evaluate(() => {
         const h = document.querySelector("#topopane .tv__hscroll");
         const svg = document.querySelector("#topopane svg.tv__rails");
-        const k = svg.getBoundingClientRect().width / Number(svg.getAttribute("width"));
+        const g = svg.querySelector("g.tv__dag");
+        const k = g ? g.getScreenCTM().a / svg.getScreenCTM().a : 1;
         return { k, overflow: h.scrollWidth - h.clientWidth, scrolled: h.scrollLeft,
                  drift: svg.getBoundingClientRect().left - h.getBoundingClientRect().left };
       });
@@ -4354,11 +4368,16 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       const GEOM = () => {
         const svg = document.querySelector("#topopane svg.tv__rails");
         const s = svg.getBoundingClientRect();
+        // The DAG's own box: the grid beside it is not scaled, so it is not
+        // what Fit fits (2026-10-29).
+        const dag = Array.from(svg.querySelectorAll("g.tv__dag"))
+          .map((g) => g.getBoundingClientRect()).filter((b) => b.height > 0);
         const cell = document.querySelector("#topopane td.tvcell--component");
         const c = cell ? cell.getBoundingClientRect() : null;
         const bar = document.querySelector(".topbar").getBoundingClientRect();
         const pane = document.querySelector("#topopane").getBoundingClientRect();
-        return { svgRight: s.right, svgTop: s.top, svgBottom: s.bottom,
+        return { svgRight: s.right, svgTop: Math.min(...dag.map((b) => b.top)),
+                 svgBottom: Math.max(...dag.map((b) => b.bottom)),
                  compLeft: c ? c.left : null, scrollY: window.scrollY,
                  barBottom: bar.bottom, paneLeft: pane.left,
                  innerHeight: window.innerHeight };
@@ -4435,11 +4454,11 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         f.svgTop >= f.barBottom - 14 && f.svgBottom <= f.innerHeight + 1);
       push("[real] ...and horizontally inside its pane",
         fh.sLeft >= fh.hLeft - 1 && fh.sRight <= fh.hRight + 1);
-      push("[real] at the Fit zoom every grid column is inside the frame (no sideways scroll)",
-        await page.evaluate(() => {
-          const h = document.querySelector("#topopane .tv__hscroll");
-          return h.scrollWidth <= h.clientWidth + 1;
-        }));
+      // Since 2026-10-29 Fit scales the DAG only: the grid keeps its own size,
+      // so it is the claim that Fit did not touch it, rather than that it fits.
+      const fitRead = await read();
+      push("[real] at the Fit zoom the grid is at its own scale: its rows keep the pitch they have at zoom 1",
+        fitRead.k < 1 && Math.abs(fitRead.rowHeight - oneK.rowHeight) < 0.5);
       await page.setViewportSize({ width: 1400, height: 900 });
       await page.evaluate(() => window.scrollTo(0, 0));
       await settle(200);
@@ -12683,7 +12702,12 @@ async function testSeamLeaders(browser, label, topologies) {
         .filter((g) => how === "click"
           ? /rail__leader--selected/.test(g.line.getAttribute("class"))
           : /rail__leaderhit--hot/.test(g.h.getAttribute("class")))
-        .map((g) => ({ id: g.id, from: screen(g.line, 0) }));
+        .map((g) => {
+          const n = g.line.getTotalLength();
+          const pts = [];
+          for (let i = 0; i <= 32; i++) pts.push(screen(g.line, n * i / 32));
+          return { id: g.id, from: screen(g.line, 0), pts };
+        });
       const withGridLeader = ends.filter((id) =>
         hits.some((h) => h.getAttribute("data-leader-id") === id));
       const seamLit = [...document.querySelectorAll("svg.seamleaders path.seam__leader--" +
@@ -12716,9 +12740,18 @@ async function testSeamLeaders(browser, label, topologies) {
     const atMark = (p, d) => !!d && Math.abs(p[1] - d.y) <= 2 &&
       Math.hypot(p[0] - d.x, p[1] - d.y) <= d.r + 4;
     const sameIds = (list, ids) => list.map((x) => x.id).sort().join() === ids.slice().sort().join();
+    // The handoff's crossing rule: an edge's two leaders into the DAG never
+    // cross each other (leaders crossing rails is accepted).
+    const segCross = (p1, p2, p3, p4) => {
+      const side = (a, b, c) => Math.sign((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]));
+      return side(p3, p4, p1) * side(p3, p4, p2) < 0 && side(p1, p2, p3) * side(p1, p2, p4) < 0;
+    };
+    const pathsCross = (a, b) => a.slice(1).some((p, i) =>
+      b.slice(1).some((q, j) => segCross(a[i], p, b[j], q)));
     const traceHolds = (t, ends) =>
       t.gridLit.length <= ends.length && sameIds(t.gridLit, t.withGridLeader) &&
       t.gridLit.every((g) => atMark(g.from, t.dots[g.id])) &&
+      !(t.gridLit.length === 2 && pathsCross(t.gridLit[0].pts, t.gridLit[1].pts)) &&
       t.seamLit.length <= ends.length && sameIds(t.seamLit, t.with3d) &&
       t.seamLit.every((l) => atMark(l.from, t.dots[l.id]) &&
         Math.hypot(l.to[0] - t.anchors[l.id][0], l.to[1] - t.anchors[l.id][1]) <= 1);
@@ -12764,7 +12797,8 @@ async function testSeamLeaders(browser, label, topologies) {
       const words = (l) => l.map((x) => x.id).join("+") || "-";
       console.log(`      [${label}] ${how} ${E}: grid ${words(t.gridLit)} of ` +
         `${t.withGridLeader.join("+") || "-"}; 3D ${words(t.seamLit)} of ${t.with3d.join("+") || "-"}` +
-        `; no anchor in the scene: ${t.noAnchor.join("+") || "-"}${held ? "" : " " + JSON.stringify(t)}`);
+        `; no anchor in the scene: ${t.noAnchor.join("+") || "-"}` +
+        `${held ? "" : " " + JSON.stringify(t, (key, v) => key === "pts" ? undefined : v)}`);
       return { held, t };
     };
     const traceRound = async (sequence) => {

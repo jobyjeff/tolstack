@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: high
-status: open
+status: resolved
 area: viewer/topology
 reporter: agent
 audience: strategy
@@ -47,3 +47,14 @@ fit together as written.
 - Fit's both-axis fit and the page jump from the height change (`fitDagTo`).
 
 These could ship alone as a smaller handoff.
+
+## Resolved 2026-10-30
+
+Option 1, in handoff `a_leader_starts_at_the_mark_it_names_on_every_tier`
+(`docs/sessions/lessons/LESSONS_20261030_a_leader_starts_at_the_mark_it_names_on_every_tier.md`).
+`.tv__zoom` is no longer transformed: the DAG is drawn at the zoom in two
+layers of the rails SVG (`g.tv__dag`), the grid and its header stay at 1, and
+`VA.leaderGeometry`'s `zoom` option runs each leader from the scaled dot to
+the unscaled seam. A zoom change repaints the pane (`VA.applyTopoZoom` →
+`topoRezoom`). Fit fits the DAG's lit part; the "every grid column inside the
+frame at Fit" check became "Fit leaves the grid at its own scale".

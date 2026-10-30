@@ -402,18 +402,13 @@ body { display: flex; flex-direction: column; }
   background: var(--panel); border-bottom: 1px solid var(--line);
   pointer-events: auto;
 }
-/* The zoom: one transform on the box holding the head, the rails and the grid
-   (views/topology.js). The sizer carries the scroll extents the transform does
-   not change layout for; the scale's origin is the top-left so a scroll offset
-   and a content coordinate differ by the scale alone. */
+/* The box holding the head, the rails and the grid (views/topology.js). It is
+   never scaled: the DAG's zoom is drawn inside the rails SVG, and the grid and
+   its header stay at the page's own pixels (2026-10-29), so the rails and the
+   jog grip stay plain `position: sticky` at every zoom. The sizer keeps the
+   space a study arrival puts before the drawing. */
 .tv__zoomsizer { position: relative; }
-.tv__zoom { position: relative; transform-origin: 0 0; width: max-content; }
-/* At a scale other than 1 the rails and the jog grip are not sticky -- a scale on
-   an ancestor makes Chrome offset a sticky box by the scroll in the box's own
-   pixels, so they drift (k - 1) of it -- and ride `--tv-shift`, the sideways
-   scroll in the box's pixels, written by VA.syncTopoScroll. */
-.tv__zoom--scaled .tv__rails { position: relative; transform: translateX(var(--tv-shift, 0px)); }
-.tv__zoom--scaled .tvgrip--jog { position: relative; transform: translateX(var(--tv-shift, 0px)); }
+.tv__zoom { position: relative; width: max-content; }
 .tv__scroll--zoomgrab, .tv__scroll--zoomgrab * { cursor: grabbing; }
 .tv__body { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
 /* The rails stay put when the grid is scrolled sideways: a six-column grid is

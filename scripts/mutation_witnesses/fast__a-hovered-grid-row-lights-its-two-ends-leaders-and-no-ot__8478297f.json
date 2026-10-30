@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a hovered grid row lights its two ends' leaders and no other, whichever leaders' seams it starts at",
+  "mutations": [
+    {
+      "contract": "A DAG<->grid leader lights for every edge ending at its node.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The seam rule back: Jeff's second screenshot (three leaders from one hovered row).",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        (leaderEdges[leader.id] || []).map(function (id) { return hotKey(\"edge\", id); }));",
+      "replace": "        leader.beforeEdge ? [hotKey(\"edge\", leader.beforeEdge)] : []);"
+    }
+  ]
+}

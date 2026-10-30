@@ -7158,15 +7158,27 @@
       });
 
     await test("the render puts the header above the first grid row, pushes the " +
-      "body down by what it lacks, and carries the zoom as one transform", function () {
+      "body down by what it lacks, and draws only the DAG at the zoom", function () {
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance", zoom: 0.5 }));
         });
         var positions = VA.lastTopoRender.positions;
         var zoomed = root.querySelector("div.tv__zoom");
         ok(zoomed, "one zoom box");
-        eq(zoomed.style.transform, "scale(0.5)");
+        // 2026-10-29: the box holding the header, the DAG and the grid is
+        // never scaled; the DAG's two layers in the rails SVG carry the zoom,
+        // and the grid and its header stay at 1.
+        eq(zoomed.style.transform || "", "", "the box itself is not scaled");
         eq(zoomed.getAttribute("data-zoom"), "0.5");
+        var layers = all(root, "g.tv__dag");
+        eq(layers.length, 2, "the DAG under the leaders, and its marks over them");
+        layers.forEach(function (g) {
+          ok(/scale\(0\.5\)/.test(g.getAttribute("transform") || ""), "each layer at the zoom");
+        });
+        var railsSvg = root.querySelector("svg.tv__rails");
+        ok(all(root, "path.rail__leader").length > 0 &&
+           all(root, "path.rail__leader").every(function (p) { return p.parentNode === railsSvg; }),
+           "the leaders are drawn in the SVG's own pixels, outside the DAG's layers");
         var head = zoomed.querySelector(".tv__head");
         ok(head, "the header lives in the zoom box with the rails and the rows");
         eq(root.querySelector(".tv__hscroll > .tv__head"), null,
@@ -12320,7 +12332,17 @@
         var s = twoStudies("s1");
         var root = paintGroups(s.proj, s.groups, "both");
         var svg = all(root, "svg.tv__rails")[0];
-        var kids = Array.prototype.slice.call(svg.childNodes);
+        // In document order: the DAG is drawn in layers (g.tv__dag) since its
+        // zoom moved into the SVG, so the order is the descendants', not the
+        // children's.
+        var kids = [];
+        var walk = function (node) {
+          Array.prototype.slice.call(node.childNodes || []).forEach(function (n) {
+            kids.push(n);
+            walk(n);
+          });
+        };
+        walk(svg);
         var last = function (cls) {
           var at = -1;
           kids.forEach(function (n, i) { if (hasClass(n, cls)) at = i; });

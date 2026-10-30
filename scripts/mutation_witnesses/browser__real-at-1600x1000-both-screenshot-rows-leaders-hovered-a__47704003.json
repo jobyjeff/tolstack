@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] at 1600x1000, both screenshot rows' leaders -- hovered and selected -- run from the row to exactly its two ends' dots and on to those dots' anchors in the scene",
+  "mutations": [
+    {
+      "contract": "A hovered row's DAG<->grid leaders are its two ends'.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The seam rule back.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        (leaderEdges[leader.id] || []).map(function (id) { return hotKey(\"edge\", id); }));",
+      "replace": "        leader.beforeEdge ? [hotKey(\"edge\", leader.beforeEdge)] : []);"
+    }
+  ]
+}

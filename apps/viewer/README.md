@@ -1484,32 +1484,39 @@ legibility rule — a bar must stay clickable — and a bar clamped up to it say
 ### Zoom, Fit and the grid header
 
 One scale (`VA.DAG_ZOOM`, `{min, max, step}` — the lightbox's shape) on the
-drawing's container, `.tv__zoom`, which holds the header, the rails SVG and the
-grid rows together so nothing shears; `.tv__zoomsizer` carries the scroll
-extents a transform does not change layout for. The scale is per page state
-(`state.dagZoom`), never stored. The minimum is chosen so the whole walk, in its
-tallest mode, shows in a 900px pane (a test re-derives that off the real model).
+**DAG alone** (2026-10-29, `a_leader_starts_at_the_mark_it_names_on_every_tier`;
+Jeff: zoom the DAG, the grid keeps its own scale). The DAG's drawing sits in two
+layers of the rails SVG (`g.tv__dag`, under and over the leaders) drawn at the
+scale about the DAG block's top-left; the grid, its header and `.tv__zoom`
+around them stay at the page's own pixels. The leaders and the bands are drawn
+in the SVG's own pixels between those layers, from the scaled dot to the
+unscaled seam (`VA.leaderGeometry`'s `zoom`), and the jog zone keeps its width.
+A zoom change repaints the pane at the new scale (`VA.applyTopoZoom` →
+`topoRezoom`). The scale is per page state (`state.dagZoom`), never stored. The
+minimum is chosen so the whole walk, in its tallest mode, shows in a 900px pane
+(a test re-derives that off the real model).
 
 * **Wheel** over the drawing zooms about the pointer; Ctrl/Cmd+wheel (and a
   trackpad pinch) zooms from anywhere over the pane. A plain wheel over the
   grid still scrolls the page — the document is the scroller. A drag on the
   drawing's empty space pans.
-* **Fit** (toolbar, key `0`) zooms to the lit set — a study's chain, a
-  kinematic study's — or the whole walk where nothing is lit, never past a
-  scale of 1, and scrolls it to the top of what is visible, in one step.
+* **Fit** (toolbar, key `0`) zooms the DAG to its lit part — a study's chain,
+  a kinematic study's — or the whole walk where nothing is lit, never past a
+  scale of 1, and scrolls it to the top of what is visible, in one step. The
+  grid beside it is not part of what Fit fits: no scale changes its size.
   Arriving at a study does the same on its own once the paint (or the
   transition) has settled, leaving the sideways scroll where it was.
-* **The leaders across the seam** read the drawing's scale off the rails SVG's
-  painted box (`r.width / drawn.width`), so a zoom changes nothing about where
-  a dot is in the SVG's own pixels (`VA.lastTopoRender.seam`).
+* **The leaders across the seam** read each dot in the rails SVG's own
+  pixels with the zoom already in it (`VA.lastTopoRender.seam`, `VA.seamDots`),
+  and the SVG itself is never scaled.
 * **The grid header** (`.tv__head`) sits directly above the first grid row and
   is held at the top of the visible pane while any grid row is on screen
   (`VA.pinTopoHead`). `position: sticky` cannot do it — its nearest scrollport,
   `.tv__hscroll`, never scrolls vertically — so the pin is written from the
-  scroll events. The same reason, one scale in, makes `.tv__rails` and the jog
-  grip ride `--tv-shift` instead of `position: sticky` at a scale other than 1
-  (`VA.syncTopoScroll`): Chrome offsets a sticky box by the scroll in the box's
-  own pixels, so under a scale the rails drift (k − 1) of it.
+  scroll events. `.tv__rails` and the jog grip are plain `position: sticky`
+  at every zoom: nothing above them is scaled (until 2026-10-29 they rode a
+  `--tv-shift` variable under the shared transform, which Chrome's sticky
+  offset could not survive).
 
 ### The DAG and the grid are centred against each other
 
@@ -1939,7 +1946,11 @@ and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
   whole walk has none, and a node outside the lit set never gets one whatever
   the scene posts. A node whose anchor is `null`, whose anchor is outside the
   scene's visible frame, or whose dot is scrolled out of the DAG's view gets
-  nothing: no leader, no stub.
+  nothing: no leader, no stub. A dot under the pinned grid header is out of
+  view only where the header is painted — its table; over the rails the header
+  is transparent and the dot keeps its leader. A node anchored at `origin` (no
+  mesh installed for its part) is a `null`: its DAG↔grid leader is drawn and
+  its leg into the scene is not, which is the absence it is.
 - **One bend.** A leader runs level out of its dot to half a gutter left of
   the leftmost thing the DAG draws, turns once, and runs straight to the
   anchor. Leaving level with its own row is what keeps it off every lit edge's
@@ -1949,7 +1960,11 @@ and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
 - **One selection, three representations.** `VA.selectedLeaderNodes` — a
   node's own, an edge's two ends — is the rule both the DAG↔grid leaders and
   these read: the selected element's leaders wear the accent, every other
-  leader steps back, and the pane's hover lights them lighter. The scene's
+  leader steps back, and the pane's hover lights them lighter. Hover reads the
+  same rule backwards (`VA.leaderEdgesAt`): a DAG↔grid leader lights for every
+  edge ending at its node, so a hovered row lights its two ends' leaders and
+  no other (until 2026-10-29 it lit the leaders whose seam its row starts at,
+  up to three from nodes the edge does not name). The scene's
   line lights through the `highlight` a kinematic page already posts; a
   selected node is selected in the scene's layer (`model select node`). A pick
   in the scene selects its row in the scene's rail, and the tree it sends back
@@ -1962,8 +1977,13 @@ and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
   own verb (`model lit …` / `model lit all`, `model unlit dim|hide`), each
   only when it changed.
 - **Re-drawn on every anchors message, every pane paint (a respine's frames
-  included), every scroll and every resize** — one `ResizeObserver`, one
-  measurement of the three rects, at most one draw per frame.
+  and a zoom's repaint included), every scroll and every resize** — one
+  `ResizeObserver`, one measurement of the three rects, at most one draw per
+  frame. The page's copy of the anchors is dropped when the scene closes and
+  when its document reloads, so a leader is drawn to the DAG only until the
+  scene posts again — never to a point it no longer draws; on reopen and on
+  `annotate:state` the scene is asked for them (`model anchors`), since an
+  unchanged scene posts nothing of its own accord.
 
 The DAG↔grid leaders stay in the rails SVG: they share that SVG's scroll
 exactly, where an overlay redrawn on a scroll event trails a

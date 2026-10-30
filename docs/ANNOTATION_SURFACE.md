@@ -898,7 +898,9 @@ to 0.1 px, so an unchanged scene posts nothing. Every node of the topology is
 a key; a node is `null` when it is off screen, behind the camera, hidden, or
 has no anchor geometry. An edge is listed only while it is drawn (not hidden
 by `model unlit hide`) and both its ends are on screen. When the layer goes
-down the scene posts the message once with both maps empty. The shell offsets
+down the scene posts the message once with both maps empty. `model anchors`
+posts it at once, unchanged or not, for a shell that dropped its copy (its
+pane reopened, or the scene's state changed). The shell offsets
 by the iframe's measured rect and draws a leader from each lit node's DAG dot
 to its anchor (`apps/viewer/README.md`, "Leaders across the seam"); it posts
 its lit set and its dim-or-hide word whenever either changes, so the

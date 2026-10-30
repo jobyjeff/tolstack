@@ -1691,10 +1691,9 @@
       VA.lastSeamDraw = null;
       return null;
     }
+    // The dots are in the SVG's own pixels with the DAG's zoom already in
+    // them (VA.seamDots), and the SVG itself is never scaled.
     var r = rails.getBoundingClientRect();
-    // The drawing's scale, read off what the browser painted: the dots are in
-    // the SVG's own pixels and the rect is the scaled box (VA.applyTopoZoom).
-    var k = drawn.width > 0 && r.width > 0 ? r.width / drawn.width : 1;
     var f = flyoutFrame.getBoundingClientRect();
     var p = nodes.pane.getBoundingClientRect();
     // The pinned header covers a dot only where it is painted: its table. Over
@@ -1707,7 +1706,7 @@
     var dots = {};
     Object.keys(drawn.seam.dots).forEach(function (id) {
       var d = drawn.seam.dots[id];
-      dots[id] = [r.left + d[0] * k, r.top + d[1] * k];
+      dots[id] = [r.left + d[0], r.top + d[1]];
     });
     var fx = f.left + (flyoutFrame.clientLeft || 0);
     var fy = f.top + (flyoutFrame.clientTop || 0);
@@ -1717,7 +1716,7 @@
       anchors[id] = a ? [fx + a[0], fy + a[1]] : null;
     });
     var geo = VA.seamLeaderGeometry({
-      dots: dots, anchors: anchors, bendX: r.left + drawn.seam.bend * k,
+      dots: dots, anchors: anchors, bendX: r.left + drawn.seam.bend,
       // Inside the pane, inside the window, and not under the pinned header.
       dotClip: { left: p.left, right: p.right, top: Math.max(p.top, 0),
                  bottom: Math.min(p.bottom, bottom) },
@@ -1871,19 +1870,20 @@
     if (to === from) return;
     var before = box.getBoundingClientRect();
     var cy = (clientY - before.top) / from;
-    var left = hscroll.scrollLeft;
     state.dagZoom = to;
+    // A zoom repaints the pane (VA.applyTopoZoom), so the box is re-read.
     VA.applyTopoZoom(nodes.pane, to, true);
-    var after = box.getBoundingClientRect();
+    var after = (zoomBox() || box).getBoundingClientRect();
     // A zoom moves nothing the reader did not (the_wheel_the_column_and_fit_
     // behave). The page's own scroll is never touched: a wheel is the reader's
     // hand on the DRAWING, and a page that slides under it is the page being
     // scrolled by the wheel. Sideways, the grid keeps the content at the pane's
     // left edge -- anchoring on the pointer scrolled the grid UNDER the sticky
-    // rails, which is how COMPONENT came to sit beneath the DAG. Only the
-    // bounded pane, a scrollport of its own, keeps the point under the pointer.
-    scrollDag(left * (to / from) - left,
-      paneScroller() ? after.top + cy * to - clientY : 0);
+    // rails, which is how COMPONENT came to sit beneath the DAG. Since
+    // 2026-10-29 the grid is not scaled at all, so its sideways scroll stays
+    // exactly where it was (the repaint carries it). Only the bounded pane, a
+    // scrollport of its own, keeps the point under the pointer.
+    scrollDag(0, paneScroller() ? after.top + cy * to - clientY : 0);
     VA.pinTopoHead(nodes.pane);
     scheduleSeamDraw();
   }
@@ -1933,11 +1933,14 @@
     var visible = bounded ? nodes.pane.clientHeight
       : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
     var pad = 12;
+    // The DAG's lit span: only the DAG scales (2026-10-29), so the grid
+    // beside it is not part of what a scale can fit.
     var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
-    // Both axes: the DAG's own width must fit the pane too, or Fit leaves the
-    // drawing wider than the box it is meant to fill.
-    if (drawn.width > 0 && hscroll.clientWidth > 0) {
-      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.width));
+    // Both axes: the DAG's own width must fit the pane too, beside the jog
+    // zone, which keeps its width at every zoom.
+    if (drawn.dagWidth > 0 && hscroll.clientWidth > 0) {
+      to = Math.min(to, VA.clampDagZoom(
+        (hscroll.clientWidth - pad - (drawn.zoneWidth || 0)) / drawn.dagWidth));
     }
     // A study's arrival only ever scales DOWN, and only when the band does not
     // fit at the zoom the reader has: a zoom they chose is theirs until the
@@ -1945,10 +1948,16 @@
     if (centre) to = Math.min(to, state.dagZoom);
     state.dagZoom = to;
     VA.applyTopoZoom(nodes.pane, to, true);
+    // A zoom repaints the pane: the box and the span are read off the new one.
+    box = zoomBox();
+    hscroll = paneHscroll();
+    drawn = VA.lastTopoRender;
+    if (!box || !hscroll || !drawn || !drawn.span) return;
     var rect = box.getBoundingClientRect();
+    var spanAt = drawn.span.at(to);
     if (!centre) {
       scrollDag(keepSideways ? 0 : -hscroll.scrollLeft,
-        rect.top + (drawn.span.top - pad) * to - topEdge);
+        rect.top + spanAt.top - pad * to - topEdge);
     } else {
       // Centre the band's own box in the visible window, both axes. The page
       // clamps what it cannot reach (a band near the top of a short drawing),
@@ -1957,7 +1966,7 @@
       var bandOffset = function () {
         var r = box.getBoundingClientRect();
         var dx = 0;
-        var dyBand = r.top + (drawn.span.top + drawn.span.bottom) / 2 * to;
+        var dyBand = r.top + (spanAt.top + spanAt.bottom) / 2;
         var bars = box.querySelectorAll ? box.querySelectorAll("line.rail__bar--on") : [];
         if (bars.length) {
           var x1 = Infinity, x2 = -Infinity, y1 = Infinity, y2 = -Infinity;

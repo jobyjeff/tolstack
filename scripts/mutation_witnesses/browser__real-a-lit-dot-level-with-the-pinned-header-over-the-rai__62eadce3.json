@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] a lit dot level with the pinned header, over the rails, is on screen and keeps its leader into the scene",
+  "mutations": [
+    {
+      "contract": "Only the header's painted table covers a dot.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The whole header box as the cover again: Jeff's first screenshot.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      ? head.querySelector(\".tvheadtable\") : null;",
+      "replace": "      ? head : null;"
+    }
+  ]
+}

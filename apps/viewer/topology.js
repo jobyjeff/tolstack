@@ -3499,6 +3499,17 @@
     var naturalZone = zone.naturalZone;
     var zoneLeft = columnX(columns - 1, metrics, x) + metrics.left;
     var width = x ? x.width : zone.width;
+    // The DAG's zoom (a_leader_starts_at_the_mark_it_names_on_every_tier,
+    // 2026-10-29): the DAG is drawn at `k` about its own top-left -- x from the
+    // SVG's left edge, y from the DAG block's top `y0` -- and the GRID stays at
+    // 1. So a leader's node end is the scaled dot, its grid end the unscaled
+    // seam, and the jog zone between them keeps its own width: everything
+    // below is in the SVG's own (unscaled) pixels, and `width` is where the
+    // grid table starts at this zoom.
+    var zoom = options.zoom || null;
+    var k = zoom && zoom.k > 0 ? zoom.k : 1;
+    var y0 = zoom && typeof zoom.y0 === "number" ? zoom.y0 : 0;
+    var atK = function (px, py) { return [k * px, y0 + k * (py - y0)]; };
     // The zone at whatever width it has THIS frame -- the reader's own drag
     // at rest (viewer_leader_grid_legibility), and the stretch between the
     // two serialisations' zones mid-respine. The pad and the lane pitch scale
@@ -3509,6 +3520,12 @@
     var scale = naturalZone > 0 ? (width - zoneLeft) / naturalZone : zone.scale;
     var pad = metrics.leaderPad * scale;
     var lane = metrics.leaderLane * scale;
+    var zoneWidth = width - zoneLeft;
+    zoneLeft = k * zoneLeft;
+    width = zoneLeft + zoneWidth;
+    var height = k === 1 ? (positions.height || 0)
+      : Math.max(y0 + k * (positions.dagHeight || 0),
+                 (positions.gridOffset || 0) + (positions.gridHeight || 0));
 
     var rowsByLayoutRow = {};
     ((layout && layout.rows) || []).forEach(function (row) {
@@ -3518,10 +3535,12 @@
     var leaders = plan.leaders.map(function (leader, i) {
       var row = rowsByLayoutRow[leader.layoutRow] || { column: 0, branch: false };
       var dotR = row.branch ? metrics.branchDot : metrics.dot;
-      var x1 = columnX(row.column, metrics, x) + dotR + 1.5;
-      var y1 = positions.nodes[leader.id] !== undefined
-        ? positions.nodes[leader.id]
-        : VA.railY(leader.layoutRow, metrics);
+      var end = atK(columnX(row.column, metrics, x) + dotR + 1.5,
+        positions.nodes[leader.id] !== undefined
+          ? positions.nodes[leader.id]
+          : VA.railY(leader.layoutRow, metrics));
+      var x1 = end[0];
+      var y1 = end[1];
       // The grid-side seam: the grid's own row pitch, plus however far the
       // grid block was pushed down to centre it against the DAG (the offset
       // the view applies to the table itself). The pitch never moves with the
@@ -3555,8 +3574,11 @@
       // The reader's own preference, clamped -- not the stretch a transition
       // frame's lanes are spread by, which is `width` minus `zoneLeft`.
       zoneScale: zone.scale, style: angled ? "angled" : "jogged",
+      // The SVG's height at this zoom, and the zoom itself: the DAG's content
+      // is drawn under `translate(0 y0) scale(k) translate(0 -y0)`.
+      height: height, zoom: k, y0: y0,
       leaders: leaders,
-      bands: bandGeometry(leaders, plan, width, positions.height || 0),
+      bands: bandGeometry(leaders, plan, width, height),
     };
   };
 
@@ -3577,33 +3599,38 @@
   // abscissa every leader turns at: half a gutter left of the leftmost thing
   // the DAG draws, so a leader runs out of the rails level and turns once,
   // outside them. `bars` are the lit edges' bars, for VA.seamBarCrossings.
-  VA.seamDots = function (layout, geometry, lit, metrics, x) {
+  VA.seamDots = function (layout, geometry, lit, metrics, x, zoom) {
     metrics = metrics || VA.RAIL_METRICS;
     var out = { dots: {}, bend: 0, bars: [] };
     if (!lit || !geometry) return out;
+    // At the DAG's zoom (VA.leaderGeometry's `zoom`), mapped into the SVG's
+    // own pixels: the DAG is drawn scaled, the overlay is not.
+    var k = zoom && zoom.k > 0 ? zoom.k : 1;
+    var y0 = zoom && typeof zoom.y0 === "number" ? zoom.y0 : 0;
+    var yk = function (y) { return y0 + k * (y - y0); };
     var marks = {};
     var minX = Infinity;
     (geometry.marks || []).forEach(function (mark) {
       if (mark.kind === "node") marks[mark.id] = mark;
       else if (lit.edges && lit.edges[mark.id]) {
-        out.bars.push({ id: mark.id, x: mark.x, y1: mark.y1, y2: mark.y2 });
+        out.bars.push({ id: mark.id, x: k * mark.x, y1: yk(mark.y1), y2: yk(mark.y2) });
       }
       minX = Math.min(minX, mark.x);
     });
     (geometry.rails || []).forEach(function (rail) { minX = Math.min(minX, rail.x); });
-    out.bend = minX === Infinity ? 0 : Math.max(0, minX - metrics.gutter / 2);
+    out.bend = minX === Infinity ? 0 : k * Math.max(0, minX - metrics.gutter / 2);
     var folded = (layout && layout.folded) || {};
     Object.keys(lit.nodes || {}).sort().forEach(function (id) {
       if (!lit.nodes[id]) return;
       var mark = marks[id];
       if (mark) {
         var r = mark.branch ? metrics.branchDot : metrics.dot;
-        out.dots[id] = [mark.x - r - 1.5, mark.y];
+        out.dots[id] = [k * (mark.x - r - 1.5), yk(mark.y)];
         return;
       }
       var into = folded[id];
       var pill = into && marks[into.pill];
-      if (pill) out.dots[id] = [columnX(into.column, metrics, x), pill.y];
+      if (pill) out.dots[id] = [k * columnX(into.column, metrics, x), yk(pill.y)];
     });
     return out;
   };

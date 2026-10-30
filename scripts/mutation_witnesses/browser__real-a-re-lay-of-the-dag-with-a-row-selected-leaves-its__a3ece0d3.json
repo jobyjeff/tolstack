@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] a re-lay of the DAG with a row selected leaves its leaders on its ends' dots and their anchors, both ways",
+  "mutations": [
+    {
+      "contract": "A repaint redraws the leaders across the seam.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The paint hook dropped: the overlay keeps the dots of the layout before the re-lay.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        onPainted: scheduleSeamDraw,",
+      "replace": "        onPainted: null,"
+    }
+  ]
+}

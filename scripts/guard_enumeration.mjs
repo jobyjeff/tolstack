@@ -177,7 +177,10 @@ export const DECLARED_GUARDS = {
   // 2026-10-30 (the_annotator_has_no_front_door): two renamed -- the toolbar's
   // link and the mount-without-a-launcher check now say there is no link. Both
   // carry a spec.
-  fast: { declared: 626, enrollable: 626, names: "731c453e42bc" },
+  // 2026-10-30 (a_leader_starts_at_the_mark_it_names_on_every_tier): +1, a
+  // hovered row lighting its two ends' leaders, and one renamed -- the render
+  // draws only the DAG at the zoom. Both carry a spec.
+  fast: { declared: 627, enrollable: 627, names: "9d0dbd59c71f" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -243,7 +246,12 @@ export const DECLARED_GUARDS = {
   // checkboxes): +2 -- the checkboxes' own check (replacing the four-state one)
   // and Unused leaving the results pane untouched -- one renamed for the
   // contributors' move. Every new name carries a spec.
-  browser: { declared: 767, enrollable: 734, names: "e12884bd63e7" },
+  // 2026-10-30 (a_leader_starts_at_the_mark_it_names_on_every_tier): +5 in the
+  // seam suite (the two screenshot rows at 1600x1000 and 1920x1080, the re-lay,
+  // the pinned header, the reopen) and four renamed (a row's hover lighting its
+  // ends' leaders; the zoom scaling the DAG alone, its zoom-out, and Fit leaving
+  // the grid at its own scale). Every one carries a spec.
+  browser: { declared: 772, enrollable: 739, names: "3e6527da83b9" },
 };
 
 

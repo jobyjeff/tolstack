@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "reopening the scene draws no leader to a point the scene did not post: the anchors held before the close are dropped",
+  "mutations": [
+    {
+      "contract": "Closing and reopening the scene drops the page's copy of its anchors.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The copy kept: the leaders come back to the points held before the close.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "  function forgetSeamAnchors(ask) {\n    seamAnchors = null;",
+      "replace": "  function forgetSeamAnchors(ask) {"
+    }
+  ]
+}

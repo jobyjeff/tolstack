@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] the wheel away from the reader zooms out, and the DAG shrinks with it",
+  "mutations": [
+    {
+      "contract": "The DAG is drawn at the zoom.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The DAG drawn at 1 whatever the zoom.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var dagTransform = leaderGeo.zoom !== 1",
+      "replace": "    var dagTransform = false"
+    }
+  ]
+}
