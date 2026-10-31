@@ -1,15 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
 area: strategy/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.md
 class: stale_prose_reference
-defer_until: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
-needs: agent
-resolution: woke 2026-10-30 -- dag_layout_geometry_tradeoffs completed; re-triage (reconciliation sweep 2026-10-30)
+resolution: superseded by the brief's 2026-10-29 CONSUMED marker -- the 09-30 partial marker quoting the links-only 7 now stands only as history under it (triage 2026-10-30)
 ---
 
 # `BRIEF_20260914_dag_layout_geometry_tradeoffs`'s consumption marker quotes an exact minimum of 7, and the shipped pass reaches 17 on purpose
