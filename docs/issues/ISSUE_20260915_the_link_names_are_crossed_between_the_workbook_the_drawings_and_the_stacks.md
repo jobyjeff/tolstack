@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tolerance_stacks
 audience: strategy
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20260915_stack_fable_audit.md
-strategy: docs/strategy/BRIEF_20260916_link_name_authority.md
 needs: agent
+resolution: triage 2026-10-30: fixed by the_rebuild_says_when_its_inputs_are_absent_and_a_link_is_named_by_its_drawing -- docs/topologies/topology_vpa_pitch_linkage.json parts carry display_name from the title block plus a naming_note (e.g. "Pitch anti-rotation link 212956-005"), ids unchanged; the viewer-fixture lag is staged separately as display_name_reaches_the_viewer_fixtures_and_fixture_drift_is_caught_without_a_projection
 ---
 
 # The link names are crossed between the workbook, the drawings and the stacks

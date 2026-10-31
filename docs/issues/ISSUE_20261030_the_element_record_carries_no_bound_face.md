@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/element-record
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark.md
+class: anchor_not_declared
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # The element record says whether a binding is wanted, not which face is bound

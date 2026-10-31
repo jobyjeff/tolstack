@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: annotate/feature-identity
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
+class: armed_pick_reach
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # An armed pick cannot unbind: the event schema has no retraction

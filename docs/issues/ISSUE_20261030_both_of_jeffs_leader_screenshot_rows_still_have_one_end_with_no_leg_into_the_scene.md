@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: viewer/seam-leaders
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_a_leader_starts_at_the_mark_it_names_on_every_tier.md
+class: absent_feature_posture
+strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
+resolution: triage 2026-10-30: same question as the open origin_posture brief (does an absence show itself); appended as a dated addendum there rather than a new brief
 ---
 
 # Both of Jeff's leader screenshot rows still have one end with no leg into the scene

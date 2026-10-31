@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tests/browser
 reporter: agent
-class: load_sensitive_browser_check
+class: timing_assertion_under_load
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
+defer_until: class:timing_assertion_under_load
+resolution: triage 2026-10-30: low, deferred onto the timing_assertion_under_load program (forge browser_runner_witness_holds_whatever_the_box_does, staged this sweep); reclassed from load_sensitive_browser_check, which had no registry row and names the same shape
 ---
 
 # Four 3D-pane nav gesture checks fail together when the bodies resolve late

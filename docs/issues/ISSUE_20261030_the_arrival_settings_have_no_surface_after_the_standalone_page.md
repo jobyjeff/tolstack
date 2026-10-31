@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: annotate
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261029_the_annotator_has_no_front_door.md
 audience: strategy
+class: setting_without_surface
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # The arrival settings (topology / study / parts) can no longer be changed by a reader

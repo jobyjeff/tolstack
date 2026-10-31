@@ -1,12 +1,12 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260911_viewer_3d_and_card_content_reach.md
 needs: agent
+resolution: superseded by a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark -- the component hover card is gone and the Preview's part picture is the drawing crop by Jeff's 10-29 ruling (apps/viewer/element_record.js partBlock); no surface asks for a mesh render
 ---
 
 # Component cards: a mesh/annotator-rendered thumbnail needs a snapshot verb the annotator does not have

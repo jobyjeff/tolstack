@@ -6,7 +6,9 @@ area: topology/containers
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_the_fastener_stacks_join_the_model.md
-strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
+resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (layout.bodies still holds one span per component block; collapsing base still gives two pills, body:base and body:base#2, pinned in apps/viewer/tests.js); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+class: dag_layout_policy
+strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---
 
 # A body whose parts sit in two components of the walk draws as two containers

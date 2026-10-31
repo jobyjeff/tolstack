@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/debug-probes
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark.md
+class: dead_code_after_retirement
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # Six debug probes and two CSS rules still drive the retired topology hover cards

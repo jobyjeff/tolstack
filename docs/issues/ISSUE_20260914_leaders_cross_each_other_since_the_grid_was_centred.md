@@ -5,8 +5,9 @@ status: triaged
 area: viewer/topology
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
-needs: agent
+resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (a_leader_starts_at_the_mark_it_names_on_every_tier only checked an edge's own two leaders; VA.leaderGeometry's lanes are unchanged and apps/viewer/tests.js still asserts the real leaders cross); reopened for re-triage; triage 2026-10-30: high, staged; the four candidates decided in the handoff (route around, measured against seam-ordered lanes)
+class: layout_proof_outlived_its_premise
+handoff: docs/sessions/HANDOFF_20261030_descending_leaders_take_a_path_that_cannot_cross.md
 ---
 
 # The topology viewer's leader lines cross each other, 16 times on `pitch_system`

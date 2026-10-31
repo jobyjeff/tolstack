@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/browser-tier
 reporter: agent
 class: timing_assertion_under_load
 found_by: docs/sessions/HANDOFF_20261029_a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark.md
+defer_until: class:timing_assertion_under_load
+resolution: triage 2026-10-30: low, deferred onto the timing_assertion_under_load program (forge browser_runner_witness_holds_whatever_the_box_does, staged this sweep)
 ---
 
 # The crop-lightbox launcher-focus check still fails under load after the settled-state fix

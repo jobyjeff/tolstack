@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
+class: raw_diagnostic_in_reader_copy
+handoff: docs/sessions/HANDOFF_20261030_an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed.md
 ---
 
 # Design: an armed pick's failed bind prints the storage error's own text

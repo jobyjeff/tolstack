@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: deferred
 area: viewer/storage
 reporter: agent
-strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 found_by: docs/sessions/completed/HANDOFF_20260909_viewer_http_transport.md
-resolution: NOT resolved -- reverted by the 2026-09-11 triage sweep. The reconciliation sweep advanced this to `resolved` because the `handoff:` back-link named a completed handoff; but `viewer_http_transport` is the handoff that FILED this issue ("Filed rather than fixed: a drawing-checker mount change is out of scope for a tolstack-only handoff"), not one that fixed it. The real disposition is the `strategy:` brief below, still pending. The misleading `handoff:` field has been removed so a later sweep does not re-close it; the provenance is in the body.
+resolution: NOT resolved -- reverted by the 2026-09-11 triage sweep. The reconciliation sweep advanced this to `resolved` because the `handoff:` back-link named a completed handoff; but `viewer_http_transport` is the handoff that FILED this issue ("Filed rather than fixed: a drawing-checker mount change is out of scope for a tolstack-only handoff"), not one that fixed it. The real disposition is the `strategy:` brief below, still pending. The misleading `handoff:` field has been removed so a later sweep does not re-close it; the provenance is in the body.; triage 2026-10-30: brief BRIEF_20260911_served_surface_capability_gaps consumed 2026-10-29 without curing this (the sibling-data-mount candidate in apps/viewer/storage/http.js still has textDir null and drawing-checker mounts no docs/, so capabilities().worksheets is false on the daily surface); reopened for re-triage; triage 2026-10-30: low, deferred by default to a date
+class: served_surface_reach
+defer_until: 2026-11-29
 ---
 
 # Served through drawing-checker's mount, the viewer cannot read a worksheet at all

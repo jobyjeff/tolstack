@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tests/mutation-witness
 class: decayed_witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_the_wheel_the_column_and_fit_behave.md
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # The compact-density Fit witness reddens a different check than the one it declares

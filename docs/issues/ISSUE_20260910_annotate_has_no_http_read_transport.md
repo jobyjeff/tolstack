@@ -1,11 +1,11 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: apps/annotate
 reporter: agent
-strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 handoff: the_scene_pane_is_one_flyout_that_reads_over_http
+resolution: triage 2026-10-30: fixed by the_scene_pane_is_one_flyout_that_reads_over_http -- apps/annotate/storage/http.js reads the served mounts through the viewer's HTTP adapter with no folder grant
 ---
 
 # The annotator has no HTTP read transport — every session needs a folder grant even to look

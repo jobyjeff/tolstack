@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: docs/strategy
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260915_viewer_nav_wedge_and_classic_retirement.md
-strategy: docs/strategy/BRIEF_20260911_viewer_3d_and_card_content_reach.md
 needs: agent
+resolution: superseded by the 2026-10-29 consumption of BRIEF_20260911_viewer_3d_and_card_content_reach (one-shell work, 10-20 to 10-29) -- the brief whose stale argument this flagged is closed; the live loose-stack question stays on ISSUE_20260910_classic_stacks_have_no_3d_launch (reopened 2026-10-30)
 ---
 
 # The 3D-reach brief's decision rests on two facts `viewer_nav_wedge_and_classic_retirement` just retired

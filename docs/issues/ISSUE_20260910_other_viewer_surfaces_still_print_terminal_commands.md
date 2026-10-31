@@ -1,12 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer, apps/annotate
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 needs: agent
+resolution: triage 2026-10-30: fixed by policy_free_brief_residues -- the VA.CONFIG.rebuild command table is gone and apps/viewer/tests.js guards against it; banner/topology missing states now show VA.PROJECTION_BUILT_ELSEWHERE (the ungated-sentence remainder is ISSUE_20260922_the_missing_projection_box_says_not_from_this_page_while_the_rebuild_endpoint_is_live)
 ---
 
 # Other viewer(+annotate) surfaces still print terminal commands into the UI

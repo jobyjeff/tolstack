@@ -6,7 +6,9 @@ area: viewer/leaders across the seam
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_leaders_follow_the_active_study_across_the_seam.md
-strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
+resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without proving this cured (the compact band makes the lit set contiguous, but the landing's centring pad is dropped when the scene flyout opens and nobody re-measured leaders drawn with the scene open); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+class: dag_layout_policy
+strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---
 
 # On the kinematic page most of the lit set's leaders across the seam are out of view at rest

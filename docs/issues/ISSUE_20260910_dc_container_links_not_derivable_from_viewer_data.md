@@ -1,12 +1,14 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: deferred
 area: apps/viewer
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 needs: agent
+resolution: triage 2026-10-30: brief BRIEF_20260911_served_surface_capability_gaps consumed 2026-10-29 without curing this (no container_id in scripts/ or apps/viewer, no drawing-checker resolver route; links still go through VA.runUrl to /run/<run_dir>); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date
+class: cross_repo_link_resolution
+defer_until: 2026-11-13
 ---
 
 # The viewer cannot build drawing-checker `/container/<id>` links — no container id reaches its data

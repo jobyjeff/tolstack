@@ -1,12 +1,14 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: deferred
 area: apps/annotate
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260911_viewer_3d_and_card_content_reach.md
 needs: agent
+resolution: triage 2026-10-30: brief BRIEF_20260911_viewer_3d_and_card_content_reach consumed 2026-10-29 without curing this (the one-shell 3D reach covers model studies only; the two loose thermal-fit stacks are in no topology and apps/viewer/views/stack.js still renders no 3D affordance); reopened for re-triage; triage 2026-10-30: low, deferred by default to a date
+class: served_surface_reach
+defer_until: 2026-11-29
 ---
 
 # Classic (loose) stacks have no 3D launch — the annotator navigates topologies only

@@ -1,15 +1,15 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: deferred
 area: viewer/stack-page
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
 class: layout_measurement_awaits_human_decision
 todo: 20261007T161822_5nv2iw
-resolution: class trigger `class:layout_measurement_awaits_human_decision` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21) ; 2026-10-22 triage: ask failed the two-part task test (a design choice an agent must act on) -- needs/ask dropped, folded into BRIEF_20260916_topology_page_number_reach as an addendum; forge todo 20261007T161822_5nv2iw to be withdrawn
-strategy: docs/strategy/BRIEF_20260916_topology_page_number_reach.md
+resolution: class trigger `class:layout_measurement_awaits_human_decision` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21) ; 2026-10-22 triage: ask failed the two-part task test (a design choice an agent must act on) -- needs/ask dropped, folded into BRIEF_20260916_topology_page_number_reach as an addendum; forge todo 20261007T161822_5nv2iw to be withdrawn; triage 2026-10-30: brief BRIEF_20260916_topology_page_number_reach consumed 2026-10-29 without curing this (the redesign did not touch the loose-stack page, so both questions about its results table stand; still a design choice for a strategy session, not a task for Jeff); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date
+defer_until: 2026-11-13
 ---
 
 # Two layout questions on the stack page's results table need Jeff's reading of the live page

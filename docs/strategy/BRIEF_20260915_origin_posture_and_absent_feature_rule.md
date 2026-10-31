@@ -209,3 +209,19 @@ it, that is the handoff obeying its fence, not a gap it missed.
 
 The sub-gate this brief named (`HANDOFF_20260915_annotate_hosted_page_posture`)
 is in `docs/sessions/completed/`.
+
+## 2026-10-30 triage sweep — a second absence the rule decides: a leader end with no 3D geometry
+
+Source: `docs/issues/ISSUE_20261030_both_of_jeffs_leader_screenshot_rows_still_have_one_end_with_no_leg_into_the_scene.md`.
+After `a_leader_starts_at_the_mark_it_names_on_every_tier` (completed 2026-10-29)
+every leg that is drawn ends at the scene's own anchor — but on both rows Jeff
+photographed (`pitch_plate_flange_to_link_hole`, `gas_spring_mount_flange_to_end_stop`)
+one end has no installed mesh (`piston_rod_end_bore`, `piston_cover_mount_flange_seat`),
+the scene exports `null`, and the shell draws nothing — which is what Jeff's first
+complaint ("the upper line from 2d to 3d is missing entirely") was about. The current
+rule is "no leader, no stub". The issue's options: (1) install meshes for `vpa_piston`
+and the piston-cover parts (closes it for real; may need Jeff's CAD export); (2) a short
+stub at the DAG dot marked "no 3D geometry", which changes the rule; (3) leave it and tell
+Jeff. This is the same question this brief asks — does an absent capability show nothing
+about itself, or state its limit — applied to absent *data* rather than an absent origin
+capability, so whatever this brief decides should decide this too.

@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/topology
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_the_rearrange_animates_and_centres_the_active_study.md
+class: unmeasured_cost
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # The respine tween rebuilds the whole pane on every frame

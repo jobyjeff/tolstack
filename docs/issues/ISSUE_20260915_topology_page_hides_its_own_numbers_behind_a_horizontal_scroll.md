@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
-strategy: docs/strategy/BRIEF_20260916_topology_page_number_reach.md
 needs: agent
+resolution: superseded by the_wheel_the_column_and_fit_behave (one-shell redesign, 10-20 to 10-29) -- the .tvtotals__strip is gone (totals are grid footer rows) and the grid's columns fit the pane at Fit at 1600x1000, pinned by a scrollWidth <= clientWidth check
 ---
 
 # The DAG page's folded totals and its sourcing column are both off-screen at 1600px

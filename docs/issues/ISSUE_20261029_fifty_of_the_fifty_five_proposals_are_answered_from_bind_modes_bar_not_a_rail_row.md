@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: annotate/proposals
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md
+class: proposal_answer_reach
+defer_until: 2026-11-13
+resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program); the armed-pick handoff staged this sweep owns the same annotate files
 ---
 
 # 50 of the 55 proposals are answered from bind mode's bar, not from a rail row

@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: contact-suggestions
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
+class: contact_engine_ignores_end_geometry
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (the class's program has landed)
 ---
 
 # A ball's seat ranks the plate's companion Ø8.520 bore over the Ø7.950 attach bore the topology itself cites

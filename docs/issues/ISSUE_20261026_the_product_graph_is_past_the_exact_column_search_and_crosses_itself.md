@@ -6,7 +6,9 @@ area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
-strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
+resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (the compact band gets a selected study to 0-7 crossings, but the whole walk is still column_order shortest_first and crosses itself when nothing is selected); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+class: dag_layout_policy
+strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---
 
 # The one product graph is past the exact column search, and its DAG crosses itself

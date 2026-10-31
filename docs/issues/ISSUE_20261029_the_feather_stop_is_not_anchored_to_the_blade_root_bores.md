@@ -1,10 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: kinematic study / travel between end stops
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_the_plus72_stop_is_the_travel_datum.md
+class: anchor_not_declared
+defer_until: 2026-11-13
+resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program)
 ---
 
 # The feather stop is not anchored to the blade-root bores: author the chain the declared gap names

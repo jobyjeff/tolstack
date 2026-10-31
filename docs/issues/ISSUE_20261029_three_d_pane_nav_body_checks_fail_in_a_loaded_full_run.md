@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: scripts/run_viewer_browser_tests.mjs (3D pane follows the selection suite)
 reporter: agent
 class: timing_assertion_under_load
 found_by: docs/sessions/active/HANDOFF_20261029_viewer_browser_checks_wait_on_settled_state.md
+defer_until: class:timing_assertion_under_load
+resolution: triage 2026-10-30: low, deferred onto the timing_assertion_under_load program (forge browser_runner_witness_holds_whatever_the_box_does, staged this sweep)
 ---
 
 # "3D pane follows the selection" fails four nav-body sub-checks in a loaded full run

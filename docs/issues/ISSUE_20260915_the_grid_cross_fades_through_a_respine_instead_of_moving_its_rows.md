@@ -5,8 +5,10 @@ status: triaged
 area: viewer/topology
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 needs: agent
+resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (views/topology.js and apps/viewer/README.md still say the grid cross-fades through a respine rather than moving its rows); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+class: dag_layout_policy
+strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---
 
 # The grid cross-fades through a respine; its rows do not move

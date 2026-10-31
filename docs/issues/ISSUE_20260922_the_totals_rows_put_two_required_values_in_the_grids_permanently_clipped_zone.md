@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology-grid
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
-strategy: docs/strategy/BRIEF_20260916_topology_page_number_reach.md
 needs: agent
+resolution: superseded by the_wheel_the_column_and_fit_behave (one-shell redesign, 10-20 to 10-29) -- at Fit the whole 1218px column set, contribution and sourcing included, fits the pane at 1600x1000 (scrollWidth <= clientWidth pinned), so no column is permanently clipped
 ---
 
 # The totals rows put two required values in the grid's permanently clipped zone

@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: contact-suggestions
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
+class: anchor_not_declared
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # The tangential link's plate-end "spherical-bearing centre" has no sphere on the link's mesh, so no face can ever be bound there

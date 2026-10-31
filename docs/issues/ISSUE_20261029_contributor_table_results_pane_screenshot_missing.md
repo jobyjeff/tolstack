@@ -1,9 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer
 reporter: agent
+class: dod_line_not_shown
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # Results-pane screenshot (1600x1000) was a definition-of-done item and is not in the branch

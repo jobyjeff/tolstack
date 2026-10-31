@@ -6,7 +6,9 @@ area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_the_dag_draws_bodies_as_containers_and_joints_as_symbols.md
-strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
+resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (the sub-stack is still four dashed fields over four bodies with a display-only fold; no synthetic edge or own block was chosen); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+class: dag_layout_policy
+strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---
 
 # The travel sub-stack crosses four bodies, so it cannot fold into one bar inside one body
