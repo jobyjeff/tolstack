@@ -51,3 +51,15 @@ suites green.
 into it", `topology height budget`). It failed once in this session (20/21) and passed on its
 next run and in the full run above. It reads no live projection, so the fold cannot reach it.
 The event-or-knob fix shape above still applies to it.
+
+## Measurement 2026-10-30 (triage batch merge, trunk `17e3caf4`, main checkout, projections rebuilt first)
+
+`node scripts/run_viewer_browser_tests.mjs` (1262 s wall, the box shared with
+other sweep workers' suites): **38/40**. `topology file:// respine` 42/44 —
+"deselecting a study animates too, rather than repainting the walk back in" and
+"and the incoming walk is drawn inside the pane in the grow direction too" — and
+`3D pane follows the selection` 28/32 (four nav/scene sub-checks). Re-run with
+`--only`, one suite at a time: the 3D pane suite went 32/32, but **respine stayed
+42/44 on the same two sub-checks** (77 s), so under this sweep's load the
+catchFrame race reproduces in isolation too. Recorded as a known red, not
+routed as a regression.
