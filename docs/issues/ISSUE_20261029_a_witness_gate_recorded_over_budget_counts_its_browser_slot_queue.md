@@ -64,3 +64,18 @@ So this time almost all the overrun was the cap letting its last browser entry
 finish, not the slot queue. All 30 NOT WITNESSED were fast entries where "the
 tier was red before the mutation" (the `display_name` drift again). Three of
 them were witnessed by hand.
+
+## Measurement 2026-10-30 (triage batch merge, main checkout, trunk `17e3caf4`)
+
+    node scripts/run_mutation_witness_tests.mjs --changed-since da9593c4
+
+(`da9593c4` is the pre-merge trunk sha: after the merge `--changed-since master`
+selects nothing.) Shell wall time **1827 s**, recorded `--tier merge`:
+`OVER BUDGET by 0m27s`. Runner clock **29m47s** — the `--budget-min 30` cap held;
+the 27 s is start-up and shadow build outside the runner's clock, so no slot
+queue this time. 180/335 reached, 76/180 witnessed, 155 left to the sweep; the
+104 not witnessed were all "the tier was red before the mutation" (79 `fast`,
+from the `display_name` fixture-drift red; 25 `browser`, the `3D pane follows
+the selection` suite red under load), none a decayed witness. So a capped run
+always lands at ~30 m plus overhead and records over a 30-minute budget: the
+fix above (record the runner's own clock) covers this case too.
