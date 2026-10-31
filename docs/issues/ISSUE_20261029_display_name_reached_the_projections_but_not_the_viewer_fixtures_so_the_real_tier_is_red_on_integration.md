@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: viewer/fixtures
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
+class: fixture_drift
+handoff: docs/sessions/HANDOFF_20261030_display_name_reaches_the_viewer_fixtures_and_fixture_drift_is_caught_without_a_projection.md
 ---
 
 # `display_name` reached the projections but not the viewer fixtures, so the `[real]` tier is red on integration
