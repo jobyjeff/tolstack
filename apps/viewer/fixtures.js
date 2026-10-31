@@ -69,6 +69,8 @@
             schema: "joby.tolerance_stack/stack_definition/v0",
             id: "demo_joint",
             title: "Demo joint",
+            display_name: "Demo joint 217755 grip length",
+            naming_note: "The drawing's name for the joint; the id keeps the short word.",
             description: "Every provenance state in one stack.",
             units: "mm",
             joint: {

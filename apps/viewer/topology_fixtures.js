@@ -149,7 +149,9 @@
             },
             {
               "id": "post",
-              "name": "post"
+              "name": "post",
+              "display_name": "Post 215198-001",
+              "naming_note": "The drawing titles it POST; the id keeps the short word."
             },
             {
               "id": "arm",

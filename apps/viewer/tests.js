@@ -16667,7 +16667,9 @@
                 }
                 var part = index.parts[group.part];
                 ok(part, where + ": the group names a part the topology declares");
-                eq(rendered[i].textContent, part.name, where +
+                // `display_name` (the drawing title block's name) is what the
+                // viewer prints where the topology authors one (VA.componentLabel).
+                eq(rendered[i].textContent, part.display_name || part.name, where +
                   ": the merged cell must print the part's own name");
                 ok(rendered[i].textContent !== group.part, where +
                   ": the merged cell is printing the part ID `" + group.part +
