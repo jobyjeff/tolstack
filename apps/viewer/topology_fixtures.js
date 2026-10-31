@@ -150,8 +150,8 @@
             {
               "id": "post",
               "name": "post",
-              "display_name": "Post 215198-001",
-              "naming_note": "The drawing titles it POST; the id keeps the short word."
+              "display_name": "post",
+              "naming_note": "Carries the key so the fixture has the shape; the label is the same word on purpose, so every pinned label stays put."
             },
             {
               "id": "arm",
@@ -371,6 +371,8 @@
           {
             "id": "post",
             "name": "post",
+            "display_name": "post",
+            "naming_note": "Carries the key so the fixture has the shape; the label is the same word on purpose, so every pinned label stays put.",
             "drawing": null,
             "revision": null,
             "note": null,
