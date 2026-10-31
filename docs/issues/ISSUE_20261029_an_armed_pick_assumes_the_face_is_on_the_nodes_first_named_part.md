@@ -1,14 +1,14 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: annotate/sweep-rail
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
 class: armed_pick_reach
 handoff: docs/sessions/HANDOFF_20261030_an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed.md
-resolution: triage 2026-10-30: strategy options decided in the handoff (option 2, the armed row switches parts; option 1 rejected for now, needs a CAD truth table for 14 nodes)
+resolution: triage 2026-10-30: strategy options decided in the handoff (option 2, the armed row switches parts; option 1 rejected for now, needs a CAD truth table for 14 nodes) -- handoff completed 2026-10-30 -- closed automatically by dispatch when handoff `an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed` moved to completed/; not independently verified.
 ---
 
 # An armed pick assumes the face is on the node's first-named part, and nothing lets the reader switch
