@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: open
 area: mutation-witness
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261029_a_point_exports_its_xyz_against_angle.md
 class: decayed_witness
 defer_until: docs/sessions/HANDOFF_20261030_display_name_reaches_the_viewer_fixtures_and_fixture_drift_is_caught_without_a_projection.md
-resolution: triage 2026-10-30: low; deferred onto the display_name fixture handoff, the shared cause of this sweep's 'tier red before the mutation' witnesses
+resolution: triage 2026-10-30: low; deferred onto the display_name fixture handoff, the shared cause of this sweep's 'tier red before the mutation' witnesses -- woke 2026-10-30 -- display_name_reaches_the_viewer_fixtures_and_fixture_drift_is_caught_without_a_projection completed; re-triage
 ---
 
 # Two viewer browser witnesses are NOT WITNESSED on `integration` itself
