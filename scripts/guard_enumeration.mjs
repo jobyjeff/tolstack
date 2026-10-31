@@ -218,7 +218,7 @@ export const DECLARED_GUARDS = {
   // carries a spec.
   // 2026-10-30 (a_point_exports_its_xyz_against_angle): +1, the export's load
   // order and the run's commit reaching its header. It carries a spec.
-  annotate: { declared: 267, enrollable: 267, names: "d5d4bf9b0003" },
+  annotate: { declared: 269, enrollable: 269, names: "abccfde67f72" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -281,7 +281,7 @@ export const DECLARED_GUARDS = {
   // the tangential link's values, its fixed mount end, the remembered
   // choice). The plate-end values carry a spec; the rest ride the same
   // download and the pin is raised for them.
-  browser: { declared: 792, enrollable: 759, names: "3ceb3ff0bf4a" },
+  browser: { declared: 793, enrollable: 760, names: "270a3fe3d891" },
 };
 
 

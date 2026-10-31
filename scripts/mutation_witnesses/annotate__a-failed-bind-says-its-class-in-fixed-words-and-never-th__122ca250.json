@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a failed bind says its class in fixed words, and never the storage layer's own text",
+  "mutations": [
+    {
+      "contract": "A name collision reads as its own class, not the fallback.",
+      "issue": "docs/sessions/lessons/LESSONS_20261030_an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed.md",
+      "note": "Declared with the guard by handoff an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed (2026-10-30). Sending collisions to the fallback is the lazy classifier.",
+      "file": "apps/annotate/storage/adapter.js",
+      "find": "    if (/already exists/.test(text)) return AA.BIND_FAILURE_CLASSES[2];",
+      "replace": "    if (/already exists/.test(text)) return AA.BIND_FAILURE_CLASSES[3];"
+    }
+  ]
+}

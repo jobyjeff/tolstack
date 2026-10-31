@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] the armed bore switches to its second part: the filter follows, a face on it is pickable, the hub's is not, and the row names the part now armed",
+  "mutations": [
+    {
+      "contract": "Switching parts moves the selection filter to the second part.",
+      "issue": "docs/sessions/lessons/LESSONS_20261030_an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed.md",
+      "note": "Declared with the guard by handoff an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed (2026-10-30). The filter is what makes a part unpickable; the row text alone could change without it.",
+      "file": "apps/annotate/app.js",
+      "find": "  a.shas = [t.sha256];\n  a.partWords",
+      "replace": "  a.shas = [a.parts[0].sha256];\n  a.partWords"
+    }
+  ]
+}

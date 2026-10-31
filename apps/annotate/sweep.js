@@ -1868,6 +1868,11 @@
     cancelTitle: "stop picking and put the scene back (Esc)",
     pickTitle: "pick this feature's face in the 3D view",
     back: "back to the sweep",
+    //: Armed on one of an end's two parts: the line says which, the button
+    //: switches to the other.
+    onPart: "picking on {part}",
+    switchTo: "Pick on {part}",
+    switchTitle: "the face is on the other part of this joint",
     others: { ghost: "ghost others", hide: "hide others" },
     othersTitle: "how the parts you are not picking on are drawn",
   });

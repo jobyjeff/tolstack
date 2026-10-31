@@ -182,6 +182,34 @@
     "Binding is not available here — it writes into a copy of the " +
     "tolerance-stack repository on your own machine.";
 
+  // What a failed bind says, by failure class: the reader gets one fixed
+  // line and the storage layer's own text stays in the console and on hover.
+  AA.BIND_FAILURE_CLASSES = Object.freeze(["noGrant", "readOnly", "collision", "other"]);
+  AA.BIND_FAILURE_WORDS = Object.freeze({
+    noGrant: "folder access was not granted",
+    readOnly: "binding is not available here",
+    collision: "this was just recorded, try again",
+    other: "it could not be saved",
+  });
+
+  // Which class a storage error is: the browser's declined-grant names, the
+  // adapters' own sentences (fsa.js, memory.js, http.js) and a not-ready
+  // state; anything else is "other".
+  AA.classifyBindFailure = function (err) {
+    var name = err && err.name ? String(err.name) : "";
+    var text = err && err.message ? String(err.message) : "";
+    if (name === "AbortError" || name === "NotAllowedError" || name === "SecurityError" ||
+        name === "NotReadyError" || /not granted|declined/.test(text)) return AA.BIND_FAILURE_CLASSES[0];
+    if (text === AA.READ_ONLY_WRITE || /read-only transport/.test(text)) return AA.BIND_FAILURE_CLASSES[1];
+    if (/already exists/.test(text)) return AA.BIND_FAILURE_CLASSES[2];
+    return AA.BIND_FAILURE_CLASSES[3];
+  };
+
+  // "<Verb> failed · <reason>" for a write that threw `err`.
+  AA.bindFailureWords = function (err, verb) {
+    return (verb || "Bind") + " failed · " + AA.BIND_FAILURE_WORDS[AA.classifyBindFailure(err)];
+  };
+
   // The pane's status: a dot and one word in the viewer's pane header, the
   // sentence on hover (handoff the_scene_pane_is_one_flyout_that_reads_over_
   // http, deliverable 2). The shell prints `word` and `sentence` verbatim and

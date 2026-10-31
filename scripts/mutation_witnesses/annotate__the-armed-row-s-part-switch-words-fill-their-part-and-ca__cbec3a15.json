@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the armed row's part switch words fill their part and carry nothing banned",
+  "mutations": [
+    {
+      "contract": "The switch button names the part it switches to.",
+      "issue": "docs/sessions/lessons/LESSONS_20261030_an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed.md",
+      "note": "Declared with the guard by handoff an_armed_pick_can_reach_either_part_and_says_why_a_bind_failed (2026-10-30). A template with no slot leaves two identical buttons.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    switchTo: \"Pick on {part}\",",
+      "replace": "    switchTo: \"Pick on the other part\","
+    }
+  ]
+}

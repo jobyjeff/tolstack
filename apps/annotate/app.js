@@ -2521,6 +2521,14 @@ async function cmdArm(what, direction) {
   // pressed row, and a sweep may have ended in between.
   if (what === "off") return disarmPick("cancel");
   const sweep = sweepState();
+  if (what === "part") {
+    const armed = sweep.armed;
+    if (!armed) throw new Error("arm part needs an armed pick");
+    const i = armed.parts.findIndex((t) => t.partId === direction);
+    if (i === -1) throw new Error("this end has no part \"" + direction + "\" to pick on");
+    switchArmedPart(i);
+    return { armed: true, part: direction, parts: armed.shas };
+  }
   if (what === "others") {
     if (AA.ARM_OTHERS_MODES.indexOf(direction) === -1) {
       throw new Error("arm others takes " + AA.ARM_OTHERS_MODES.join(" or ") + ", got " + JSON.stringify(direction));
@@ -2556,11 +2564,14 @@ async function cmdArm(what, direction) {
   };
   if (sweep.asModelledIndex === null) return refuse(AA.ARMED_PICK_WORDS.noPose);
   const partIds = AA.pickEndPartIds(topology, edge.id, direction);
-  // The FIRST named part with an installed mesh (AA.pickEndPartIds' order).
+  // Every named part with an installed mesh, in AA.pickEndPartIds' order: the
+  // first is armed, and the row offers a switch to the other.
   const targets = [];
   for (const id of partIds) {
     const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
-    if (mesh) { targets.push({ partId: id, sha256: mesh.sha256, mesh }); break; }
+    if (mesh && !targets.some((t) => t.sha256 === mesh.sha256)) {
+      targets.push({ partId: id, sha256: mesh.sha256, mesh });
+    }
   }
   if (!targets.length) return refuse(AA.ARMED_PICK_WORDS.noPart);
 
@@ -2586,22 +2597,47 @@ async function cmdArm(what, direction) {
   sweep.armed = {
     topologyId: topology.id, edgeId: edge.id, direction,
     endName: names[direction] || edge.id,
-    shas: targets.map((t) => t.sha256),
-    partWords: targets.map((t) => AA.partRowWords(t.mesh, state.partNames).text).join(", "),
+    parts: targets, active: 0,
+    shas: [targets[0].sha256],
+    partWords: AA.partRowWords(targets[0].mesh, state.partNames).text,
     others: AA.readArmOthers(prefStore()),
-    line: AA.ARMED_PICK_WORDS.armed,
+    line: "",
     flash: false,
     restore,
   };
+  sweep.armed.line = armedIdleLine(sweep.armed);
   sweep.lastBound = null;
   applyArmDisplay();
   state.scene.setPickFilter(sweep.armed.shas);
-  state.scene.frameOccurrences(anchoredOccurrences(targets));
+  state.scene.frameOccurrences(anchoredOccurrences([targets[0]]));
   // The pre-selection line reads the suggestion engine's fit; classify now.
   for (const t of targets) ensureFaceClasses(t.sha256).catch(() => null);
   renderSweepRail();
   renderDetail();
   return { armed: true, edgeId: edge.id, direction, parts: sweep.armed.shas };
+}
+
+// What the armed row says at rest: the generic line, or -- when the end has
+// two parts to pick on -- which one is armed.
+function armedIdleLine(a) {
+  return a.parts.length > 1 ? AA.armedWords("onPart", { part: a.partWords }) : AA.ARMED_PICK_WORDS.armed;
+}
+
+// Move an armed pick to another of the end's parts: the filter, the solid
+// part, the frame and the row's line follow; the pose and the restore stay.
+function switchArmedPart(i) {
+  const a = state.sweep.armed;
+  a.active = i;
+  const t = a.parts[i];
+  a.shas = [t.sha256];
+  a.partWords = AA.partRowWords(t.mesh, state.partNames).text;
+  state.scene.preselect(null);
+  applyArmDisplay();
+  state.scene.setPickFilter(a.shas);
+  state.scene.frameOccurrences(anchoredOccurrences([t]));
+  a.line = armedIdleLine(a);
+  a.flash = false;
+  renderSweepRail();
 }
 
 // The occurrences of each target ({partId, sha256}) its BODY anchors: a
@@ -2679,12 +2715,26 @@ function setArmedLine(text, flash) {
   if (flash) { void node.offsetWidth; node.classList.add("tree-row__note--flash"); }
 }
 
+// A failed write on a banner surface: the class in words, the raw text on
+// hover and in the console.
+function setWriteFailure(verb, err) {
+  console.error(verb + " failed:", err);
+  setBanner(AA.bindFailureWords(err, verb), "error");
+  el.noticeText.title = err.message;
+}
+
+// The raw storage text, kept behind the armed row's hover.
+function setArmedHover(text) {
+  const row = document.querySelector("#sweep-tree .tree-row--armed");
+  if (row) row.title = text;
+}
+
 function onPreselect(face) {
   const a = state.sweep && state.sweep.armed;
   if (!a) return;
   const classes = face ? state.faceClasses[face.sha256] : null;
   setArmedLine(face ? AA.preselectWords(face.faceId, classes ? classes[face.faceId] : null)
-    : AA.ARMED_PICK_WORDS.armed);
+    : armedIdleLine(a));
 }
 
 // One click while armed (AA.planArmedClick decides; this does).
@@ -2732,8 +2782,10 @@ async function armedClick(pick, other) {
   } catch (err) {
     // The face stays pre-selected and the row says why, in words.
     state.scene.preselect(full);
-    setArmedLine("Bind failed: " + err.message, true);
-    return { action: "failed", error: err.message };
+    console.error("armed bind failed:", err);
+    setArmedLine(AA.bindFailureWords(err), true);
+    setArmedHover(err.message);
+    return { action: "failed", error: err.message, failure: AA.classifyBindFailure(err) };
   }
 }
 
@@ -3017,6 +3069,20 @@ function featureRow(topology, joint, feature) {
       };
     }
     li.appendChild(repick);
+    if (armed && state.sweep.armed.parts.length > 1) {
+      // The end's other part, one click away; the filter follows.
+      const a = state.sweep.armed;
+      const other = a.parts[(a.active + 1) % a.parts.length];
+      const sw = document.createElement("button");
+      sw.className = "tree-row__repick tree-row__switch-part";
+      sw.textContent = AA.armedWords("switchTo", { part: AA.partRowWords(other.mesh, state.partNames).text });
+      sw.title = AA.ARMED_PICK_WORDS.switchTitle;
+      sw.onclick = (ev) => {
+        ev.stopPropagation();
+        railExec(["arm", "part", other.partId]);
+      };
+      li.appendChild(sw);
+    }
     if (armed) {
       // The other-parts toggle names what a press switches TO.
       const others = document.createElement("button");
@@ -4624,7 +4690,7 @@ function buildBindForm(edge, pick, bind, onChoose) {
       state.correcting = null;
       await writeIdentityEvent(filename, event, "Wrote " + filename);
     } catch (err) {
-      setBanner("Bind failed: " + err.message, "error");
+      setWriteFailure("Bind", err);
     }
   };
   form.appendChild(btn);
@@ -4721,7 +4787,7 @@ function buildBindingsBlock(edge, bind, canWrite) {
             await writeIdentityEvent(nextFilename(filenames, slugify(edge.id)), event,
               "Moved the face to " + bind.names[other]);
           } catch (err) {
-            setBanner("Correction failed: " + err.message, "error");
+            setWriteFailure("Correction", err);
           }
         };
         line.appendChild(flip);
@@ -4783,7 +4849,7 @@ function buildProposalRow(edge, bind, row, canWrite) {
         : "Rejected face " + row.face + " for " + row.end);
       await paintProposals();
     } catch (err) {
-      setBanner((verb === "accept" ? "Accept" : "Reject") + " failed: " + err.message, "error");
+      setWriteFailure(verb === "accept" ? "Accept" : "Reject", err);
     }
   };
   for (const [verb, label] of [[AA.ANSWER_VERBS[0], AA.SUGGESTION_ROW_WORDS.accept], [AA.ANSWER_VERBS[1], "Reject"]]) {
@@ -4930,7 +4996,7 @@ function buildOwnerNotInSetFields(edge) {
       renderElementList();
       renderDetail();
     } catch (err) {
-      setBanner("Record failed: " + err.message, "error");
+      setWriteFailure("Record", err);
     }
   };
   form.appendChild(btn);

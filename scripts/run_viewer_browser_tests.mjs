@@ -8173,7 +8173,53 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     push("[real] Pick on hub blade-1 root bearing bore goes to the as-modelled frame with no " +
       "prompt, the hub alone is solid and pickable, and every other part is ghosted faint",
       armedBore.home && armedBore.filter.length === 1 && /hub/.test(armedBore.meshes) &&
-      armedBore.solid && armedBore.othersFaint && armedBore.row === "at the as-modelled pose for picking");
+      armedBore.solid && armedBore.othersFaint && /^picking on /.test(armedBore.row));
+    // The bore is [hub, blade_root]: the row offers the other part, one click
+    // moves the arm, and the ray follows -- the second part's faces can be
+    // hovered and picked and the first part's no longer can.
+    const hubSha = armedBore.filter[0];
+    await page.locator("#sweep-tree .tree-row--armed .tree-row__switch-part").first()
+      .click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((hub) => {
+      const f = window.__scene.pickFilter();
+      return f && f.length === 1 && f[0] !== hub;
+    }, hubSha, { timeout: 15000 }).catch(() => {});
+    const switched = await page.evaluate((hub) => {
+      const s = window.__scene;
+      const a = window.__sweep.armed;
+      const blade = (s.pickFilter() || [])[0];
+      s.scene.updateMatrixWorld();
+      // A screen point on a triangle of `sha` that the unfiltered ray hits as `sha`.
+      const hit = (sha) => {
+        const mesh = s.parts.get(sha);
+        if (!mesh) return null;
+        const p = mesh.geometry.attributes.position.array;
+        const step = Math.max(9, Math.floor(p.length / 9 / 400) * 9);
+        for (let i = 0; i + 8 < p.length; i += step) {
+          const c = [0, 1, 2].map((k) => (p[i + k] + p[i + 3 + k] + p[i + 6 + k]) / 3);
+          const v = s.camera.position.clone().set(c[0], c[1], c[2]).applyMatrix4(mesh.matrixWorld).project(s.camera);
+          if (Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+          const all = s.pick(v.x, v.y, { all: true });
+          if (all && all.sha256 === sha) return v;
+        }
+        return null;
+      };
+      const onBlade = hit(blade);
+      const onHub = hit(hub);
+      return {
+        parts: a.parts.map((t) => t.partId), active: a.partWords, blade,
+        bladePicked: onBlade ? (s.pick(onBlade.x, onBlade.y) || {}).sha256 === blade : null,
+        hubRefused: onHub ? (s.pick(onHub.x, onHub.y) || {}).sha256 !== hub : null,
+        line: (document.querySelector("#sweep-tree .tree-row--armed .tree-row__face") || {}).textContent || "",
+        button: (document.querySelector("#sweep-tree .tree-row--armed .tree-row__switch-part") || {}).textContent || "",
+      };
+    }, hubSha);
+    push("[real] the armed bore switches to its second part: the filter follows, a face on it " +
+      "is pickable, the hub's is not, and the row names the part now armed",
+      switched.parts.length === 2 && switched.blade && switched.blade !== hubSha &&
+      switched.bladePicked === true && switched.hubRefused === true &&
+      /^picking on /.test(switched.line) && switched.line.indexOf(switched.active) !== -1 &&
+      /^Pick on /.test(switched.button));
     await page.evaluate(() => window.AnnotateApp.exec(["arm", "off"]));
 
     // --- re-pick is the jump to bind mode ---------------------------------------

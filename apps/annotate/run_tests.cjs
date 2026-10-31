@@ -884,6 +884,40 @@ check("http: with no folder to grant, a write says so in one plain line", async 
   assertNothingBanned(AA.READ_ONLY_WRITE, "the read-only write line");
 });
 
+check("a failed bind says its class in fixed words, and never the storage layer's own text", () => {
+  const abort = new Error("The user aborted a request."); abort.name = "AbortError";
+  const cases = [
+    [abort, "noGrant", "Bind failed · folder access was not granted"],
+    [new Error("read/write permission was not granted"), "noGrant", "Bind failed · folder access was not granted"],
+    [new Error("re-grant was declined"), "noGrant", "Bind failed · folder access was not granted"],
+    [AA.NotReadyError("needs-regrant"), "noGrant", "Bind failed · folder access was not granted"],
+    [new Error(AA.READ_ONLY_WRITE), "readOnly", "Bind failed · binding is not available here"],
+    [new Error("storage cannot write (read-only transport, or not ready)"), "readOnly",
+      "Bind failed · binding is not available here"],
+    [new Error("feature-identity event 0007_bind_hub.json already exists -- append-only, refusing to overwrite"),
+      "collision", "Bind failed · this was just recorded, try again"],
+    [new Error("disk exploded: C:\\somewhere\\0007.json"), "other", "Bind failed · it could not be saved"],
+    [null, "other", "Bind failed · it could not be saved"],
+  ];
+  for (const [err, cls, words] of cases) {
+    assertEqual(AA.classifyBindFailure(err), cls);
+    assertEqual(AA.bindFailureWords(err), words);
+    if (/\.json|\\|append-only|permission/.test(AA.bindFailureWords(err))) {
+      throw new Error("a bind failure line carries internal text: " + AA.bindFailureWords(err));
+    }
+  }
+  assertEqual(AA.bindFailureWords(abort, "Accept"), "Accept failed · folder access was not granted");
+  assertEqual(Object.keys(AA.BIND_FAILURE_WORDS).sort(), AA.BIND_FAILURE_CLASSES.slice().sort());
+  Object.keys(AA.BIND_FAILURE_WORDS).forEach((k) => assertNothingBanned(AA.BIND_FAILURE_WORDS[k], "bind failure words"));
+});
+
+check("the armed row's part switch words fill their part and carry nothing banned", () => {
+  assertEqual(AA.armedWords("onPart", { part: "hub" }), "picking on hub");
+  assertEqual(AA.armedWords("switchTo", { part: "blade root" }), "Pick on blade root");
+  [AA.ARMED_PICK_WORDS.onPart, AA.ARMED_PICK_WORDS.switchTo, AA.ARMED_PICK_WORDS.switchTitle]
+    .forEach((t) => assertNothingBanned(t, "armed part switch words"));
+});
+
 check("a served origin is read with no grant, hosted or local, and FSA is never booted", async () => {
   for (const hostname of ["tolstack.joby.aero", "127.0.0.1"]) {
     const spy = fsaSpy();
