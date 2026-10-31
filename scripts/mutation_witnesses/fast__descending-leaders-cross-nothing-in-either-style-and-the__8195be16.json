@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "descending leaders cross nothing in either style, and the bands TILE the pane: adjacent bands share one edge and none folds over itself",
+  "mutations": [
+    {
+      "contract": "A descending jogged leader takes its lane in reverse walk order, so its vertical run never cuts a later leader's horizontal one.",
+      "issue": "docs/issues/ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md",
+      "note": "Declared with the guard by handoff descending_leaders_take_a_path_that_cannot_cross (2026-10-30). Lanes back in walk order: the pushed-down demo mechanism crosses in four pairs.",
+      "file": "apps/viewer/topology.js",
+      "find": "      slots[i] = descending[descending.length - 1 - n];",
+      "replace": "      slots[i] = i;"
+    }
+  ]
+}

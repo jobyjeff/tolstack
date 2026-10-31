@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] no two leaders cross on any committed topology, at every density, length mode and leader style, and the bands still tile the pane",
+  "mutations": [
+    {
+      "contract": "A descending jogged leader takes its lane in reverse walk order.",
+      "issue": "docs/issues/ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md",
+      "note": "Declared with the guard by handoff descending_leaders_take_a_path_that_cannot_cross (2026-10-30). Lanes back in walk order: the product model's jogged leaders cross in 207 pairs.",
+      "file": "apps/viewer/topology.js",
+      "find": "      slots[i] = descending[descending.length - 1 - n];",
+      "replace": "      slots[i] = i;"
+    },
+    {
+      "contract": "Every angled leader turns for its seam at the zone's left edge, one x for all of them.",
+      "issue": "docs/issues/ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md",
+      "note": "Declared with the guard by handoff descending_leaders_take_a_path_that_cannot_cross (2026-10-30). Straight from the dot again: a branch node's leader crosses a spine node's, 14 pairs on the product model.",
+      "file": "apps/viewer/topology.js",
+      "find": "      var turnX = Math.max(x1, zoneLeftK);",
+      "replace": "      var turnX = x1;"
+    }
+  ]
+}

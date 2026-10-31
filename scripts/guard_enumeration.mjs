@@ -191,7 +191,14 @@ export const DECLARED_GUARDS = {
   // five builder checks and the live tangential-link check. Five carry a spec;
   // the [real] one reads the main checkout's published run and is the same
   // numbers the browser guard below witnesses, so the pin is raised for it.
-  fast: { declared: 629, enrollable: 629, names: "e9bf5903a629" },
+  // 2026-10-30 (descending_leaders_take_a_path_that_cannot_cross): three
+  // renamed, count unchanged -- the [real] leaders-cross witness turned into
+  // its opposite across every view of every committed topology, the mock
+  // band-tiling check now also asserting no crossings, and the angled-shape
+  // check re-worded for the flat run out of the rails. The two crossing
+  // guards carry a spec each (three mutations); the shape check carried none
+  // under its old name either.
+  fast: { declared: 629, enrollable: 629, names: "23e2bb81be22" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -281,7 +288,11 @@ export const DECLARED_GUARDS = {
   // the tangential link's values, its fixed mount end, the remembered
   // choice). The plate-end values carry a spec; the rest ride the same
   // download and the pin is raised for them.
-  browser: { declared: 792, enrollable: 759, names: "3ceb3ff0bf4a" },
+  // 2026-10-30 (descending_leaders_take_a_path_that_cannot_cross): two
+  // renamed, count unchanged -- the angled path-shape checks (mock and real)
+  // re-worded for the flat run out of the rails. Neither carried a spec under
+  // its old name; the crossing rule itself is witnessed in the fast tier.
+  browser: { declared: 792, enrollable: 759, names: "7256dfc25796" },
 };
 
 
