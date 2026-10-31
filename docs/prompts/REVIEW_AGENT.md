@@ -5360,6 +5360,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       from CSS into geometry, trace the handler down to the paint. Ask for a
       timing, or for a one-per-frame coalesce
       (`ISSUE_20261030_a_wheel_zoom_repaints_the_whole_topology_pane_on_every_wheel_event.md`).
+- [ ] **A coverage set that "asserts its own size" against a counter the same
+      loop computed.** New 2026-10-30 (`descending_leaders_take_a_path_that_cannot_cross`).
+      `configurations === expected` where both come from one iteration can
+      only fail on a throw. The real question is whether each *category* the
+      test claims (here: a kinematic view) was **drawn**, not whether its input
+      list was non-empty: `kinStudies.length > 0` passes while
+      `if (lit) views.push(...)` adds none. Re-derive the configuration count
+      from the projection yourself. The lesson said 540; the tree gives 564
+      (`ISSUE_20261030_the_all_topology_leader_test_does_not_prove_a_kinematic_view_was_drawn.md`).
 
 ## Architectural errors to check
 
