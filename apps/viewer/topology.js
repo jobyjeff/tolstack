@@ -1166,7 +1166,9 @@
   // The two styles differ in the PATH ONLY. Both ends are the page's landed
   // correspondence contract — node-side end on its own dot, grid-side end on
   // its boundary row's seam — so an angled leader is the same two points with
-  // one segment between them instead of three, and the browser tier's
+  // two segments between them instead of three (flat out of the rails, then
+  // one straight run to the seam: VA.leaderGeometry says why the flat run is
+  // there), and the browser tier's
   // CORRESPONDENCE_IN_PAGE passes in either style without being taught about
   // styles at all.
   VA.LEADER_STYLES = {
@@ -1179,8 +1181,8 @@
     angled: {
       label: "angled",
       next: "jogged",
-      title: "Leader lines run as one straight segment from the interface to " +
-        "its seam in the grid. Same two ends, fewer corners to lose.",
+      title: "Leader lines run out of the diagram, then straight to their " +
+        "seam in the grid. Same two ends, fewer corners to lose.",
     },
   };
 
@@ -3452,23 +3454,41 @@
   // pitch, or an edge-length scaling mode), and only these leaders have to
   // know.
   //
-  // Lanes are strictly monotone in walk order, and no lane is ever reused —
-  // the zone is (leaders × lane pitch) wide and that is the price of
-  // legibility.
+  // No lane is ever reused -- the zone is (leaders × lane pitch) wide and that
+  // is the price of legibility -- and no two leaders cross, in either style
+  // (descending_leaders_take_a_path_that_cannot_cross, 2026-10-30). The rule
+  // rests on ONE premise, and the next layout change should check it before
+  // anything else: in walk order the node ends are strictly increasing in y
+  // and the grid seams are non-decreasing (the grid is the walk's edge rows,
+  // in order; the DAG is the walk, in order). Neither "leaders rise" nor
+  // "leaders descend" is assumed -- an earlier proof assumed every leader
+  // rises, and the grid-against-DAG centring (viewer_dag_spine_layout) broke
+  // it four days later: a leader above the centring point descends, and with
+  // lanes in walk order its vertical run cut straight through every later
+  // leader's horizontal run above its seam (207 pairs on the product model).
   //
-  // This rule used to come with a proof that leaders CANNOT cross, and that
-  // proof is no longer sound: it rested on leaders always rising
-  // (structurally `y2 < y1`, the viewer_leader_line_grid lesson's own words),
-  // which stopped being true the day viewer_dag_spine_layout centred the grid
-  // against the DAG and let a leader above the centre descend. Two leaders
-  // cross exactly when `y2[i] >= y1[i+1]`, and on the real pitch_system 16
-  // pairs do -- all of them among the EIGHT leaders that descend, the half
-  // above the centring point; the seven that still rise never cross (the
-  // issue below carries the repro that prints it). Fixing it is a
-  // layout-policy change and therefore not this function's to make unasked:
-  // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md,
-  // with a test in both tiers asserting the crossings are still there so the
-  // day they go away is a loud one.
+  // JOGGED. A rising leader (seam at or above its dot) takes its lane in walk
+  // order; the DESCENDING leaders take theirs in reverse walk order, among the
+  // lane slots their walk positions would have given them. Within each set
+  // that is the classic channel-routing order -- a later leader's horizontal
+  // run stops short of an earlier leader's vertical one -- and across the two
+  // sets the vertical spans are disjoint (a rising leader's span lies wholly
+  // above or below a descending one's, by the premise), so a pair from
+  // different sets can at most touch. A leader whose two ends are level is a
+  // rising one with no vertical run. Which set a leader is in is read off the
+  // drawn ends, so it can change across a zoom or a respine frame; the slots
+  // permute when it does.
+  //
+  // ANGLED. Every leader runs flat out of the rails to the zone's left edge,
+  // then straight to its seam. All the slanted runs then span the SAME x
+  // interval with their ends ordered as the premise orders them, so two of
+  // them can meet only at a shared seam; the flat runs are left of that
+  // interval at distinct heights. A straight line from the dot itself is not
+  // enough: a branch node's dot sits further left than the spine's, and on
+  // the product model 14 pairs crossed.
+  //
+  // Touching is not crossing, and two leaders into one seam (several
+  // interfaces before one edge row) share their last run by design.
   //
   // Pure: same layout, metrics and positions in, same geometry out. The node
   // y comes from the keyed position store (the same number railGeometry gives
@@ -3532,27 +3552,43 @@
       rowsByLayoutRow[row.row] = row;
     });
 
-    var leaders = plan.leaders.map(function (leader, i) {
+    var ends = plan.leaders.map(function (leader) {
       var row = rowsByLayoutRow[leader.layoutRow] || { column: 0, branch: false };
       var dotR = row.branch ? metrics.branchDot : metrics.dot;
       var end = atK(columnX(row.column, metrics, x) + dotR + 1.5,
         positions.nodes[leader.id] !== undefined
           ? positions.nodes[leader.id]
           : VA.railY(leader.layoutRow, metrics));
-      var x1 = end[0];
-      var y1 = end[1];
       // The grid-side seam: the grid's own row pitch, plus however far the
       // grid block was pushed down to centre it against the DAG (the offset
       // the view applies to the table itself). The pitch never moves with the
       // length mode — the grid stays evenly spaced whatever the DAG did.
-      var y2 = (positions.gridOffset || 0) + leader.boundary * metrics.rowHeight;
-      var laneX = k * (zoneLeft + pad + i * lane);
+      return { x1: end[0], y1: end[1],
+               y2: (positions.gridOffset || 0) + leader.boundary * metrics.rowHeight };
+    });
+    // Which lane slot each leader takes (the rule above): its own walk
+    // position, except that the descending leaders hand theirs round in
+    // reverse.
+    var slots = ends.map(function (e, i) { return i; });
+    var descending = slots.filter(function (i) { return ends[i].y2 > ends[i].y1; });
+    descending.forEach(function (i, n) {
+      slots[i] = descending[descending.length - 1 - n];
+    });
+
+    var leaders = plan.leaders.map(function (leader, i) {
+      var x1 = ends[i].x1;
+      var y1 = ends[i].y1;
+      var y2 = ends[i].y2;
+      var laneX = k * (zoneLeft + pad + slots[i] * lane);
+      // Where an angled leader stops running flat and turns for its seam: the
+      // zone's left edge, the same x for every leader (the rule above).
+      var turnX = Math.max(x1, zoneLeftK);
       // The polyline, node end first, grid end last -- the order the browser
       // tier reads the two contract points off (getPointAtLength 0 and total).
       // `points` is what the bands below are built from, so the two styles
       // need no second description of where a leader goes.
       var points = angled
-        ? [[x1, y1], [widthK, y2]]
+        ? [[x1, y1], [turnX, y1], [widthK, y2]]
         : [[x1, y1], [laneX, y1], [laneX, y2], [widthK, y2]];
       return {
         id: leader.id,
@@ -3561,7 +3597,7 @@
         x1: x1, y1: y1, y2: y2, laneX: laneX,
         points: points,
         d: angled
-          ? "M " + x1 + " " + y1 + " L " + widthK + " " + y2
+          ? "M " + x1 + " " + y1 + " H " + turnX + " L " + widthK + " " + y2
           : "M " + x1 + " " + y1 +
             " H " + laneX +
             " V " + y2 +
@@ -3931,18 +3967,16 @@
   // themselves, and that is the whole subtlety of this function.
   //
   // "The region between leader k-1 and leader k" is only a simple region
-  // while the leaders do not cross -- and on the real pitch_system they cross
-  // 16 times. That is not this handoff's doing and not a bug in the bands: a
-  // leader's vertical run in its own lane crosses a LATER leader's horizontal
-  // run whenever its grid-side seam sits at or below that later interface's
-  // dot, which is exactly what the grid-against-DAG centring
-  // (viewer_dag_spine_layout) made possible when it stopped leaders always
-  // rising. Drawn literally, such a band folds over itself and its tint
+  // while the leaders do not cross. They crossed from 2026-09-14 (the grid-
+  // against-DAG centring let leaders descend, and walk-order lanes put a
+  // descending leader's vertical run through later leaders' horizontals) to
+  // 2026-10-30 (descending_leaders_take_a_path_that_cannot_cross, which made
+  // VA.leaderGeometry's paths crossing-free under the premise its comment
+  // states). Drawn literally, a crossing folds a band over itself and its tint
   // doubles where it overlaps its neighbour -- a visible checkerboard right
-  // where the page is meant to be getting MORE legible.
-  // (ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md
-  // tracks the crossings themselves; they are a layout-policy question, which
-  // is the other handoff's fence, not this one's.)
+  // where the page is meant to be getting MORE legible. With no crossings the
+  // clamp below is a no-op; it stays so that a layout change which breaks
+  // that premise pinches a band rather than folding it.
   //
   // So each boundary is clamped to sit at or below the one above it:
   // boundary_k = max(leader_k, boundary_k-1), pointwise in x. The bands then

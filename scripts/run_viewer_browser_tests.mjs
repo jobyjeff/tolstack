@@ -2518,9 +2518,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     if (angledBands.bad.length) console.log("    bands: " + angledBands.bad.slice(0, 5).join(" | "));
     push("the leader-style toggle starts at angled",
       /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()));
-    push("every leader is one straight segment by default",
+    // Flat out of the rails to the zone's edge, then straight to the seam
+    // (descending_leaders_take_a_path_that_cannot_cross: the common turn is
+    // what keeps the slanted runs from crossing).
+    push("every leader runs flat out of the rails, then straight, by default",
       angledBands.leaderPaths.length === 5 &&
-      angledBands.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
+      angledBands.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ H [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
     // The deliverable's own condition: the endpoint checks pass in BOTH
     // styles, because only the path between the two ends changed.
     const angledDrift = await correspondence();
@@ -2571,7 +2574,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("angled leaders in a widened zone correspond too, and the zone " +
       "stayed where the drag left it",
       (await correspondence()).drift.length === 0 &&
-      widenedAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)) &&
+      widenedAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ H [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)) &&
       widenedAngled.svgWidth > joggedBands.svgWidth + 100);
 
     // The ELEMENT column: widening it must reveal more text and change NO
@@ -3325,8 +3328,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // The bands and both leader styles on the REAL pitch_system -- the
       // document Jeff was reading when he said the leaders were near
       // impossible to follow, and the one where the leaders genuinely cross
-      // each other (16 times: ISSUE_20260914_leaders_cross_each_other_since_
-      // the_grid_was_centred.md). 43 rows and 16 leaders is also the only
+      // each other until descending_leaders_take_a_path_that_cannot_cross
+      // (2026-10-30: ISSUE_20260914_leaders_cross_each_other_since_the_grid_
+      // was_centred.md). 43 rows and 16 leaders is also the only
       // case with enough bands for "ride a band across the jog zone" to mean
       // anything.
       const realBands = await page.evaluate(BANDS_IN_PAGE);
@@ -3357,11 +3361,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
       const realAngled = await page.evaluate(BANDS_IN_PAGE);
-      push("[real] and back in angled style, one straight segment each",
+      push("[real] and back in angled style, flat out of the rails then straight",
         (await correspondence()).drift.length === 0 &&
         /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
         realAngled.leaderPaths.length === 61 &&
-        realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
+        realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ H [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
 
       // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
       // reset them -- the rule density and the length modes already follow.

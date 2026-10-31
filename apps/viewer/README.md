@@ -839,17 +839,24 @@ measured in every combination of them.
   a background image over it — because most of `pitch_system`'s rows are
   untraced and a band that lost to provenance would be invisible on the very
   document this was built for.
+* **No two leaders cross, in either style** (2026-10-30,
+  `descending_leaders_take_a_path_that_cannot_cross`). The rule rests on one
+  premise: in walk order the dots go strictly down the page and the seams never
+  go up it. A jogged leader whose seam is above its dot takes its lane in walk
+  order; one whose seam is *below* its dot — every leader above the centring
+  point, since the grid is centred against the DAG — takes its lane in reverse
+  walk order. An angled leader runs flat out of the rails to the jog zone's left
+  edge and turns there for its seam, so every slanted run spans the same width.
+  `VA.leaderGeometry`'s comment carries the argument; a `[real]` test checks the
+  premise and the zero on every view of every committed topology, at every
+  density, length mode and style. The counts before the fix are in that
+  handoff's lesson.
 * **The band boundaries are a running maximum of the leaders, not the leaders
-  themselves.** They differ only where leaders cross each other, which they do:
-  a leader's vertical run passes through a later leader's horizontal run
-  whenever its grid-side seam sits at or below that later interface's dot,
-  which the grid-against-DAG centring made possible when it stopped leaders
-  always rising. Drawn literally, such a band folds over itself and doubles its
-  own tint. Clamped, the bands tile the pane exactly. The crossings themselves
-  are a layout-policy question and are filed rather than fixed:
-  `docs/issues/ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md`.
-* **Angled or jogged**, from the toolbar. **Angled is the default** — one
-  straight segment between the leader's two ends. Jogged is what shipped first:
+  themselves.** With no crossings the two are the same line; the clamp stays so
+  that a layout change which breaks the premise above pinches a band to nothing
+  rather than folding it over itself and doubling its tint.
+* **Angled or jogged**, from the toolbar. **Angled is the default** — flat out
+  of the diagram, then one straight segment to the seam. Jogged is what shipped first:
   out from the dot, down a lane of the leader's own, into the grid. Jeff asked
   for both so he could try them against a real mechanism, and since only the
   path between the ends changes, the endpoint checks pass in either. The

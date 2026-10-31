@@ -4361,6 +4361,41 @@
       return y;
     }
 
+    // Which PAIRS of leaders cross, strictly: a segment of one passes through
+    // the interior of a segment of the other. A touch is not a crossing, and
+    // neither is two leaders sharing the run into one seam (several
+    // interfaces before one edge row) -- both are collinear or meet at an
+    // end, and the orientation test below scores those 0. Read off `points`,
+    // the polyline the bands are built from and the path is written from, so
+    // it is style-blind and lane-blind: it measures what is drawn rather than
+    // re-deriving a rule about lanes.
+    function strictLeaderCrossings(leaders) {
+      var orient = function (a, b, c) {
+        var v = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+        return Math.abs(v) < 1e-9 ? 0 : (v > 0 ? 1 : -1);
+      };
+      var segments = function (leader) {
+        var out = [];
+        for (var i = 1; i < leader.points.length; i++) {
+          out.push([leader.points[i - 1], leader.points[i]]);
+        }
+        return out;
+      };
+      var pairs = [];
+      leaders.forEach(function (a, i) {
+        leaders.slice(i + 1).forEach(function (b) {
+          var hit = segments(a).some(function (s) {
+            return segments(b).some(function (t) {
+              return orient(s[0], s[1], t[0]) * orient(s[0], s[1], t[1]) < 0 &&
+                orient(t[0], t[1], s[0]) * orient(t[0], t[1], s[1]) < 0;
+            });
+          });
+          if (hit) pairs.push(a.id + " x " + b.id);
+        });
+      });
+      return pairs;
+    }
+
     await test("leaderBands cuts the grid into one band per leader plus one, " +
       "alternating, covering every row exactly once", function () {
         var plan = VA.gridPlan(TOPO.layout, TOPO);
@@ -4396,24 +4431,24 @@
         });
       });
 
-    await test("the bands TILE the pane even where the leaders cross: " +
-      "adjacent bands share one edge and no band folds over itself",
-      function () {
-        // The property the running-max clamp exists for, and the ONE
-        // configuration that can see it. Leaders cross each other whenever a
-        // leader's grid-side seam sits at or below the NEXT interface's dot,
-        // which became possible when viewer_dag_spine_layout centred the grid
-        // against the DAG and leaders stopped always rising. Drawn literally,
-        // "the region between two leaders" then folds over itself and doubles
-        // its own tint -- a checkerboard exactly where the page is meant to be
-        // getting more legible. (The crossings themselves are a layout
-        // question, not this one: ISSUE_20260914_leaders_cross_each_other_
-        // since_the_grid_was_centred.md.)
+    await test("descending leaders cross nothing in either style, and the " +
+      "bands TILE the pane: adjacent bands share one edge and none folds over " +
+      "itself", function () {
+        // The configuration that used to cross (ISSUE_20260914_leaders_cross_
+        // each_other_since_the_grid_was_centred.md): a grid pushed far enough
+        // down the DAG that leaders above the centring point DESCEND. With
+        // lanes in walk order, a descending leader's vertical run cut through
+        // every later leader's horizontal run above its seam; with the
+        // descending leaders' lanes handed round in reverse, and every angled
+        // leader's slanted run starting at one x, nothing crosses
+        // (VA.leaderGeometry's comment carries the argument). The bands'
+        // running-max clamp is now a no-op on drawn geometry; it stays as the
+        // guarantee that a future crossing pinches a band rather than folding
+        // it.
         //
-        // The demo mechanism only crosses once the grid is centred against it,
-        // so the centred store is the fixture and the crossing is asserted
-        // first: without that witness this test passes forever on a straight
-        // ladder of leaders and says nothing.
+        // The witness is asserted first -- some leader's seam really is below
+        // a later leader's dot -- or this test passes forever on a straight
+        // ladder of rising leaders and says nothing.
         var M = VA.RAIL_METRICS;
         var plan = VA.gridPlan(TOPO.layout, TOPO);
         var centred = VA.rowPositions(TOPO.layout, TOPO, "uniform", M,
@@ -4421,8 +4456,8 @@
         ok(centred.gridOffset > 1, "the grid really is pushed down");
         // The demo mechanism's own centring only makes the first two leaders
         // TOUCH, so the store is pushed one step further to model the real
-        // pitch_system, whose grid sits ~300px down a 1170px DAG and whose
-        // leaders cross 16 times. Only `gridOffset` moves -- the same knob
+        // product graph, whose grid sits well down its DAG. Only
+        // `gridOffset` moves -- the same knob
         // VA.centreOffsets turns -- and leaderGeometry reads nothing else off
         // a store but that, the node y's and the total height. The [real]
         // tier below checks the shipped projection rather than this model.
@@ -4456,29 +4491,34 @@
                label);
           });
 
-          // The witness: with the grid centred, at least one leader's own
-          // vertical really does run through a later leader's horizontal.
+          // The witness: with the grid pushed down, some descending leader's
+          // seam sits below a LATER leader's dot -- the configuration
+          // walk-order lanes crossed on (the old repro's predicate). Top-
+          // aligned, every leader rises and there is none.
           var jog = VA.leaderGeometry(TOPO.layout, plan, M, positions);
-          var crossings = 0;
+          var wouldCross = 0;
           jog.leaders.forEach(function (a, i) {
             jog.leaders.slice(i + 1).forEach(function (b) {
-              var lo = Math.min(a.y1, a.y2), hi = Math.max(a.y1, a.y2);
-              if (a.laneX >= b.x1 && a.laneX <= b.laneX &&
-                  b.y1 >= lo && b.y1 <= hi) crossings++;
+              if (a.y2 > a.y1 && a.y2 > b.y1) wouldCross++;
             });
           });
           if (positions) {
-            ok(crossings > 0,
-               "the centred fixture must actually contain a crossing, or the " +
-               "clamp above is never exercised");
+            ok(wouldCross > 0,
+               "the pushed-down fixture must hold a descending leader whose " +
+               "seam is below a later dot, or nothing here is exercised");
           } else {
-            eq(crossings, 0, "top-aligned, the leaders still cannot cross");
+            eq(wouldCross, 0, "top-aligned, every leader rises");
           }
+          ["jogged", "angled"].forEach(function (style) {
+            eq(strictLeaderCrossings(VA.leaderGeometry(TOPO.layout, plan, M,
+               positions, { style: style }).leaders), [],
+               (positions ? "pushed down " : "top-aligned ") + style);
+          });
         });
       });
 
-    await test("angled leaders are one straight segment between the SAME two " +
-      "ends the jogged ones have", function () {
+    await test("angled leaders run flat to the zone's edge, then straight, " +
+      "between the SAME two ends the jogged ones have", function () {
         var M = VA.RAIL_METRICS;
         var plan = VA.gridPlan(TOPO.layout, TOPO);
         var jogged = VA.leaderGeometry(TOPO.layout, plan, M);
@@ -4497,9 +4537,12 @@
           eq(leader.y2, twin.y2, leader.id);
           eq(leader.boundary, twin.boundary, leader.id);
           eq(leader.beforeEdge, twin.beforeEdge, leader.id);
+          // Flat out of the rails to the zone's left edge -- one x for every
+          // leader, which is what keeps the slanted runs from crossing -- then
+          // straight to the seam.
           eq(leader.d, "M " + leader.x1 + " " + leader.y1 +
-             " L " + angled.width + " " + leader.y2);
-          eq(leader.points.length, 2, "one segment, not three");
+             " H " + angled.zoneLeft + " L " + angled.width + " " + leader.y2);
+          eq(leader.points.length, 3, "two segments, not three");
           ok(twin.points.length === 4, "the jogged one still jogs");
         });
       });
@@ -6439,10 +6482,10 @@
         angled.forEach(function (leader, i) {
           eq(leader.id, jogged[i].id);
           // The style really changed in the DOM: three orthogonal segments
-          // against one straight one.
+          // against a flat run out of the rails and one straight one.
           ok(/ H .* V .* H /.test(jogged[i].d), "jogged still jogs: " + jogged[i].d);
-          ok(/^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(leader.d),
-             "angled is one segment: " + leader.d);
+          ok(/^M [-\d.]+ [-\d.]+ H [-\d.]+ L [-\d.]+ [-\d.]+$/.test(leader.d),
+             "angled is flat, then one straight segment: " + leader.d);
           // ...and BOTH ends are untouched, which is what keeps the browser
           // tier's endpoint correspondence true in either style.
           eq(leader.x1, jogged[i].x1, leader.id);
@@ -14973,49 +15016,123 @@
             ok(bandClass(rows[12]) !== bandClass(rows[13]));
           });
 
-        await test("[real] pitch_system's leaders really do cross, and the " +
-          "bands still tile the pane in both styles", function () {
-            // The configuration the band clamp exists for, on the real
-            // document rather than on the mock's stand-in: the shipped
-            // pitch_system, fitted and centred the way the page fits and
-            // centres it. Filed as a defect in its own right
-            // (ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_
-            // centred.md) -- it is a layout-policy question, not a band one.
+        // Every page the leaders are drawn on, as the page draws them: each
+        // committed topology's whole walk, each of its chain studies and each
+        // kinematic study on it (the kinematic page is the same pane with its
+        // own lit set), with the unlit part dimmed and hidden. Read once, here,
+        // so the coverage below can assert its own size.
+        var leaderKinematic = await real.readKinematic();
+
+        await test("[real] no two leaders cross on any committed topology, at " +
+          "every density, length mode and leader style, and the bands still " +
+          "tile the pane", function () {
+            // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_
+            // centred.md, fixed by descending_leaders_take_a_path_that_cannot_
+            // cross (2026-10-30). This test asserted the opposite until then:
+            // the product model's leaders crossed in 207 pairs jogged and 14
+            // angled. The rule and the one premise it rests on are in
+            // VA.leaderGeometry's comment; the premise is checked here too, so
+            // a layout change that breaks it fails as THAT rather than as a
+            // crossing count.
             var M = VA.RAIL_METRICS;
-            var layout = VA.spineRight(livePitch.layout);
-            var plan = VA.gridPlan(layout, livePitch);
-            var positions = VA.rowPositions(layout, livePitch, "uniform", M,
-              { budget: 782, plan: plan });
-            ok(positions.gridOffset > 100, "the grid sits well down the DAG");
-
-            var jog = VA.leaderGeometry(layout, plan, M, positions);
-            var crossings = 0;
-            jog.leaders.forEach(function (a, i) {
-              jog.leaders.slice(i + 1).forEach(function (b) {
-                var lo = Math.min(a.y1, a.y2), hi = Math.max(a.y1, a.y2);
-                if (a.laneX >= b.x1 && a.laneX <= b.laneX &&
-                    b.y1 >= lo && b.y1 <= hi) crossings++;
+            var densities = Object.keys(VA.ROW_DENSITIES);
+            var styles = Object.keys(VA.LEADER_STYLES);
+            var modes = Object.keys(VA.EDGE_LENGTH_MODES);
+            var kinStudies = (leaderKinematic && leaderKinematic.studies) || [];
+            var restore = M.rowHeight;
+            var visited = {}, configurations = 0, expected = 0, leadersSeen = 0;
+            var bad = [];
+            try {
+              liveTopos.forEach(function (topoProj) {
+                var views = [{ name: "whole walk", lit: null }];
+                (topoProj.studies || []).forEach(function (study) {
+                  var lit = VA.studyLitSet(study, topoProj);
+                  if (lit) views.push({ name: study.id, lit: lit });
+                });
+                kinStudies.forEach(function (study) {
+                  if (study.topology !== topoProj.id) return;
+                  var lit = VA.kinematicLitSet(study, topoProj);
+                  if (lit) views.push({ name: "kinematic " + study.id, lit: lit });
+                });
+                var shown = [];
+                views.forEach(function (view) {
+                  shown.push({ name: view.name, lit: view.lit, hide: false });
+                  if (view.lit) shown.push({ name: view.name + " (unlit hidden)", lit: view.lit, hide: true });
+                });
+                expected += shown.length * densities.length * modes.length * styles.length;
+                densities.forEach(function (density) {
+                  VA.applyRowDensity(density);
+                  shown.forEach(function (view) {
+                    // The pane's own derivation (views/topology.js's
+                    // renderTopoPane), budget as the issue's repro measured.
+                    var walk = view.lit
+                      ? VA.bandLayout(topoProj.layout, view.lit, view.hide ? { only: true } : null)
+                      : topoProj.layout;
+                    var layout = VA.spineRight(VA.collapseBodies(walk, null, topoProj, view.lit));
+                    var plan = VA.gridPlan(layout, topoProj, view.lit);
+                    modes.forEach(function (mode) {
+                      var positions = VA.rowPositions(layout, topoProj, mode, M,
+                        { budget: 782, plan: plan });
+                      styles.forEach(function (style) {
+                        var label = topoProj.id + " / " + view.name + " / " +
+                          density + " / " + mode + " / " + style;
+                        var geo = VA.leaderGeometry(layout, plan, M, positions,
+                          { style: style });
+                        // The premise: dots strictly descending the page in
+                        // walk order, seams never climbing it.
+                        geo.leaders.forEach(function (leader, i) {
+                          if (i === 0) return;
+                          var prev = geo.leaders[i - 1];
+                          if (!(leader.y1 > prev.y1)) {
+                            bad.push(label + ": " + leader.id + "'s dot is not below " + prev.id + "'s");
+                          }
+                          if (!(leader.y2 >= prev.y2)) {
+                            bad.push(label + ": " + leader.id + "'s seam is above " + prev.id + "'s");
+                          }
+                        });
+                        strictLeaderCrossings(geo.leaders).forEach(function (pair) {
+                          bad.push(label + ": " + pair + " cross");
+                        });
+                        geo.bands.forEach(function (band, i) {
+                          if (i + 1 < geo.bands.length && band.bottom !== geo.bands[i + 1].top) {
+                            bad.push(label + ": bands " + i + " and " + (i + 1) + " have two edges");
+                          }
+                          for (var x = 0; x <= geo.width; x += 4) {
+                            if (profileY(band.bottom, x) < profileY(band.top, x) - 1e-9) {
+                              bad.push(label + ": band " + i + " is inside out at x=" + x);
+                              break;
+                            }
+                          }
+                        });
+                        visited[topoProj.id] = true;
+                        leadersSeen += geo.leaders.length;
+                        configurations++;
+                      });
+                    });
+                  });
+                });
               });
+            } finally {
+              VA.applyRowDensity(Object.keys(VA.ROW_DENSITIES).filter(function (d) {
+                return VA.ROW_DENSITIES[d].rowHeight === restore;
+              })[0]);
+            }
+            eq(bad.slice(0, 10), [], bad.length + " failures, first ten shown");
+            // The coverage asserts its own size: a test that iterated zero
+            // topologies, or skipped a configuration, would pass on nothing.
+            ok(liveTopos.length > 0, "at least one committed topology");
+            eq(Object.keys(visited).sort(),
+               liveTopos.map(function (t) { return t.id; }).sort(),
+               "every committed topology was drawn");
+            liveTopos.forEach(function (t) {
+              ok(/^docs\/topologies\//.test(t.source_file || ""),
+                 t.id + " comes from docs/topologies/");
             });
-            ok(crossings > 0,
-               "pitch_system's leaders cross; if this ever reaches 0 the " +
-               "issue above was fixed and this test should say so");
-
-            ["jogged", "angled"].forEach(function (style) {
-              var geo = VA.leaderGeometry(layout, plan, M, positions,
-                { style: style });
-              geo.bands.forEach(function (band, i) {
-                if (i + 1 < geo.bands.length) {
-                  ok(band.bottom === geo.bands[i + 1].top, style + " band " + i);
-                }
-                for (var x = 0; x <= geo.width; x += 2) {
-                  var top = profileY(band.top, x);
-                  var bottom = profileY(band.bottom, x);
-                  ok(bottom >= top - 1e-9,
-                     style + ": band " + i + " is inside out at x=" + x);
-                }
-              });
-            });
+            ok(expected > 0, "the coverage set is not empty");
+            eq(configurations, expected, "every configuration was checked");
+            ok(leadersSeen > 0, "the configurations drew leaders to check");
+            ok(kinStudies.length > 0,
+               "the kinematic page's studies are in the coverage set");
           });
 
         await test("[real] the blade_root rows no longer open with " +
