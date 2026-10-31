@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_viewer_fixtures_carry_every_key_the_tracked_inputs_carry.py",
+  "expect_red": "test_every_part_key_the_topology_builder_writes_is_on_a_fixture_part",
+  "mutations": [
+    {
+      "contract": "Every Part field the topology builder writes is on some part in apps/viewer/topology_fixtures.js, read with no projection.",
+      "issue": "docs/issues/ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md",
+      "note": "Drops the fixture part's naming_note, the other key the 2026-10-29 handoff added without touching the fixture.",
+      "file": "apps/viewer/topology_fixtures.js",
+      "find": "            \"naming_note\": \"Carries the key so the fixture has the shape; the label is the same word on purpose, so every pinned label stays put.\",\n",
+      "replace": ""
+    }
+  ]
+}
