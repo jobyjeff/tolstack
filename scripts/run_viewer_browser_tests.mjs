@@ -2574,7 +2574,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("angled leaders in a widened zone correspond too, and the zone " +
       "stayed where the drag left it",
       (await correspondence()).drift.length === 0 &&
-      widenedAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)) &&
+      widenedAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ H [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)) &&
       widenedAngled.svgWidth > joggedBands.svgWidth + 100);
 
     // The ELEMENT column: widening it must reveal more text and change NO
