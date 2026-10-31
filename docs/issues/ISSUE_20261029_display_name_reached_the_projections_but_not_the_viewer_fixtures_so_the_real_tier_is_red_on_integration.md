@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: viewer/fixtures
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
 class: fixture_drift
+resolution: "fixtures.js and topology_fixtures.js carry display_name/naming_note; the merged-cell check expects display_name || name (the renderer already printed it); tests/test_viewer_fixtures_carry_every_key_the_tracked_inputs_carry.py guards the class with no projection. The three [real] checks pass against a projection built from this tree in a scratch root."
 handoff: docs/sessions/HANDOFF_20261030_display_name_reaches_the_viewer_fixtures_and_fixture_drift_is_caught_without_a_projection.md
 ---
 

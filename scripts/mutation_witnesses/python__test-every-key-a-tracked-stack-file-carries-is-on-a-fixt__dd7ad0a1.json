@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_viewer_fixtures_carry_every_key_the_tracked_inputs_carry.py",
+  "expect_red": "test_every_key_a_tracked_stack_file_carries_is_on_a_fixture_stack",
+  "mutations": [
+    {
+      "contract": "Every top-level key a tracked stack file carries is on some stack in apps/viewer/fixtures.js, read with no projection.",
+      "issue": "docs/issues/ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md",
+      "note": "Drops the fixture's display_name -- the 2026-10-29 shape: a tracked stack gains a key and the fixture does not follow.",
+      "file": "apps/viewer/fixtures.js",
+      "find": "            display_name: \"Demo joint 217755 grip length\",\n",
+      "replace": ""
+    }
+  ]
+}
