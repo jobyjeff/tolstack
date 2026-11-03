@@ -73,3 +73,7 @@ candidates for a merge-only tier.
 ## Measurement 2026-10-29 (review, a_face_is_picked_the_way_cad_picks_it)
 
 334 s pytest, serial, `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider --durations=15` in the review worktree on the merged tree: `1 failed, 1685 passed, 1 skipped, 2 deselected` (the worktree-only `test_viewer_js_suite` skip). `suite-time record`: inside budget.
+
+## Addendum 2026-11-02 (the_all_topology_leader_test_counts_its_views_by_kind)
+
+Measured 601 s (budget 600 s, over by 1 s) for plain `pytest -q` in a worktree, single-process: this venv has no xdist, so `-n 16 --dist loadfile` is rejected as an unrecognised argument.
