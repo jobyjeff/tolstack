@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology tests
 reporter: agent
 class: guard_cannot_fail
 found_by: docs/sessions/HANDOFF_20261030_descending_leaders_take_a_path_that_cannot_cross.md
 handoff: docs/sessions/HANDOFF_20261102_the_all_topology_leader_test_counts_its_views_by_kind.md
+resolution: handoff completed 2026-11-02 -- closed automatically by dispatch when handoff `the_all_topology_leader_test_counts_its_views_by_kind` moved to completed/; not independently verified.
 ---
 
 # The all-topology leader test does not prove a kinematic view was drawn
