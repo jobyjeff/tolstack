@@ -4,12 +4,12 @@
   "expect_red": "[real] toggling Unused leaves the results pane's DOM identical, its contributor table included",
   "mutations": [
     {
-      "contract": "The contributor table is part of the results pane, not the model's column.",
+      "contract": "The Unused toggle repaints the DAG pane only; the results pane, its contributor table included, is a different component and is never re-rendered by it.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_the_contributor_table_lives_in_the_results_pane_and_groups_are_checkboxes.md",
-      "note": "One component: the table renders with the results.",
-      "file": "apps/viewer/views/kinematic.js",
-      "find": "    root.appendChild(contributorTable(study, VA.findTopology(ctx.topologies, study.topology),\n      decimals, ctx));\n",
-      "replace": ""
+      "note": "REPAIRED 2026-11-02 (decayed_witnesses_are_repaired_or_retired): the old mutation deleted the contributor table from the kinematic view, which reddened the layout check (the kinematic page draws the model in the main column...) and left this one green. This one makes the toggle clobber the results pane, which only this check reads. Re-rendering the page (render()) is NOT a usable mutation: it rebuilds identical HTML.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          ctx.unlitStyle = state.unlitStyle;\n          repaintDag(true);",
+      "replace": "          ctx.unlitStyle = state.unlitStyle;\n          repaintDag(true);\n          nodes.detail.textContent = \"\";"
     }
   ]
 }
