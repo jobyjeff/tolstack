@@ -48,3 +48,10 @@ Re-run alone with `--only`, minutes later, both were green (32/32, 20/20). The
 lightbox check calls `.focus()` directly, so the new `#nav-divider` in the tab
 order is not in its path. Same class: a check that does not wait on settled
 state, and goes red under a contended box.
+
+## Seen again 2026-11-02 (handoff `the_browser_tier_is_green_on_trunk_again`, base `03880aca`)
+
+`--only "3D pane follows the selection (sweep, bind, reload, hover)"` was run **alone**,
+from a worktree with the main checkout's projections: 28/32, and the same four nav-gesture
+sub-checks failed (body disclosure, body checkbox hide and show, part row's second button).
+So under today's load this one reproduces in isolation, too.
