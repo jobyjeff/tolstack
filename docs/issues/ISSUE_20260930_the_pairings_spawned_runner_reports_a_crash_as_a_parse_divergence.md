@@ -6,7 +6,8 @@ area: guards/mutation-witness
 class: silent_failure
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_guard_census_pins_the_set_not_the_count.md
-defer_until: 2026-10-31
+defer_until: class:silent_failure
+resolution: woke 2026-11-02 -- date trigger passed; re-triage. Re-deferred 2026-11-02 (triage) onto class:silent_failure (R9, open).
 ---
 
 # `runTier` discards the child's exit status and stderr, so a crashed fast runner is reported as a `RESULT_LINE` divergence

@@ -6,7 +6,8 @@ area: viewer/dag-layout
 class: unpaired_hand_copy
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_columns_ordered_to_minimise_crossings.md
-defer_until: 2026-10-31
+defer_until: class:unpaired_hand_copy
+resolution: woke 2026-11-02 -- date trigger passed; re-triage. Re-deferred 2026-11-02 (triage) onto class:unpaired_hand_copy (R2, built not done).
 ---
 
 # The README's as-allocated crossing baseline (20 / 12 / 52) is a hand copy of a test literal, and the layout it describes IS derivable

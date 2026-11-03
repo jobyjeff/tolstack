@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/browser-tier
 reporter: agent
 class: timing_assertion_under_load
 found_by: docs/sessions/HANDOFF_20261029_a_leader_starts_at_the_mark_it_names_on_every_tier.md
-defer_until: class:timing_assertion_under_load
-resolution: triage 2026-10-30: low, deferred onto the timing_assertion_under_load program (forge browser_runner_witness_holds_whatever_the_box_does, staged this sweep) -- woke 2026-10-30 -- browser_runner_witness_holds_whatever_the_box_does completed; re-triage
+defer_until: 2026-12-02
+resolution: triage 2026-10-30: low, deferred onto the timing_assertion_under_load program (forge browser_runner_witness_holds_whatever_the_box_does, staged this sweep) -- woke 2026-10-30 -- browser_runner_witness_holds_whatever_the_box_does completed; re-triage | deferred 2026-11-02 (triage) -- low; class timing_assertion_under_load's program (forge browser_runner_witness_holds_whatever_the_box_does) has landed, so a class trigger can no longer wake this; budget 3/3 went to the trunk browser reds, the witness repair and a guard_cannot_fail med. 30-day date; the next tolstack port of the lever should take all four.
 ---
 
 # The crop lightbox's open still times out in a loaded full run

@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: annotate hosted posture (browser tier)
 reporter: agent
 class: browser_tier_red_on_integration
 found_by: docs/sessions/HANDOFF_20261030_descending_leaders_take_a_path_that_cannot_cross.md
+handoff: docs/sessions/HANDOFF_20261102_the_browser_tier_is_green_on_trunk_again.md
 ---
 
 # The hosted annotator's bind press no longer shows the read-only notice

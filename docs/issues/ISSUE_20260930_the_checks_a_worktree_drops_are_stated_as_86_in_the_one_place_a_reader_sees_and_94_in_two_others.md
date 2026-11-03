@@ -6,7 +6,8 @@ area: tests/viewer
 class: unpaired_hand_copy
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_guard_census_pins_the_set_not_the_count.md
-defer_until: 2026-10-31
+defer_until: class:unpaired_hand_copy
+resolution: woke 2026-11-02 -- date trigger passed; re-triage. Re-deferred 2026-11-02 (triage) onto class:unpaired_hand_copy (R2, built not done).
 ---
 
 # How many `[real]` checks a worktree drops is written `~86` in the message a reader gets and `~94` in the two places written today

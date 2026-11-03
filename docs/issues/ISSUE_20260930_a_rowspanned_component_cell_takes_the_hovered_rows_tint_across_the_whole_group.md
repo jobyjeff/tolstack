@@ -6,7 +6,8 @@ area: design
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
 class: unreviewed_design_debt
-defer_until: 2026-10-31
+defer_until: 2026-12-02
+resolution: woke 2026-11-02 -- date trigger passed; re-triage. Re-deferred 2026-11-02 (triage) -- low, class has no program, 30-day date.
 ---
 
 # Design: the merged component cell wears a hovered row's tint across the whole group, so one hot row lights four rows of that column

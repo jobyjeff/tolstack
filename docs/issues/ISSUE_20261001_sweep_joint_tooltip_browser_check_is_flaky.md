@@ -5,8 +5,8 @@ area: apps/annotate
 reporter: agent
 status: deferred
 class: wall_clock_dependence
-defer_until: 2026-11-01
-resolution: deferred 2026-10-02 (triage) -- `low`, deferred by default under the budget rule. Classed wall_clock_dependence: it fails intermittently with no file changed, on a hover/tooltip race. ISO date rather than a class trigger: this sweep measured 283 issues workspace-wide already deferred behind class triggers whose live count the budget rule itself drove below the CLASS_WAKE_THRESHOLD of 3 -- see dispatch/docs/issues/ISSUE_20261002_a_class_defer_trigger_cannot_fire_once_the_budget_rule_has_deferred_the_class.md.
+defer_until: class:wall_clock_dependence
+resolution: deferred 2026-10-02 (triage) -- `low`, deferred by default under the budget rule. Classed wall_clock_dependence: it fails intermittently with no file changed, on a hover/tooltip race. ISO date rather than a class trigger: this sweep measured 283 issues workspace-wide already deferred behind class triggers whose live count the budget rule itself drove below the CLASS_WAKE_THRESHOLD of 3 -- see dispatch/docs/issues/ISSUE_20261002_a_class_defer_trigger_cannot_fire_once_the_budget_rule_has_deferred_the_class.md. | woke 2026-11-02 -- date trigger passed; re-triage. Re-deferred 2026-11-02 (triage) onto class:wall_clock_dependence (R5, open).
 ---
 
 # `run_browser_check.mjs`'s "hovering a joint bead" check is flaky, independent of app.js content

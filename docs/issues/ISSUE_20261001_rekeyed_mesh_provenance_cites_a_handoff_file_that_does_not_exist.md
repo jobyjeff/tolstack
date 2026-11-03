@@ -6,8 +6,8 @@ reporter: agent
 found_by: docs/sessions/HANDOFF_20261001_mesh_store_reconciled_to_the_pure_signature.md
 status: deferred
 class: dangling_provenance_citation
-defer_until: 2026-11-01
-resolution: deferred 2026-10-02 (triage) -- `low`, deferred by default under the budget rule. NOT fixed inline despite being a citation correction: the wrong value lives in gitignored data/meshes/*/provenance.json across many directories, so it is a data migration over shared state, not the one-line tracked-frontmatter fix this sweep did make twice elsewhere. ISO date rather than a class trigger: this sweep measured 283 issues workspace-wide already deferred behind class triggers whose live count the budget rule itself drove below the CLASS_WAKE_THRESHOLD of 3 -- see dispatch/docs/issues/ISSUE_20261002_a_class_defer_trigger_cannot_fire_once_the_budget_rule_has_deferred_the_class.md.
+defer_until: 2026-12-02
+resolution: deferred 2026-10-02 (triage) -- `low`, deferred by default under the budget rule. NOT fixed inline despite being a citation correction: the wrong value lives in gitignored data/meshes/*/provenance.json across many directories, so it is a data migration over shared state, not the one-line tracked-frontmatter fix this sweep did make twice elsewhere. ISO date rather than a class trigger: this sweep measured 283 issues workspace-wide already deferred behind class triggers whose live count the budget rule itself drove below the CLASS_WAKE_THRESHOLD of 3 -- see dispatch/docs/issues/ISSUE_20261002_a_class_defer_trigger_cannot_fire_once_the_budget_rule_has_deferred_the_class.md. | woke 2026-11-02 -- date trigger passed; re-triage. Re-deferred 2026-11-02 (triage) -- low, class has no program, 30-day date.
 ---
 
 # Every rekeyed mesh's `provenance.json` cites a handoff file that was never written

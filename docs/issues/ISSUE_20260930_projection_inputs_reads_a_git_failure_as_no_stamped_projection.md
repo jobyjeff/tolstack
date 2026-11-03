@@ -6,7 +6,8 @@ area: tests/projection-freshness
 class: reason_free_failure_path
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_projection_freshness_pairs_with_the_tree.md
-defer_until: 2026-10-31
+defer_until: 2026-12-02
+resolution: woke 2026-11-02 -- date trigger passed; re-triage. Re-deferred 2026-11-02 (triage) -- low, class has no program, 30-day date.
 ---
 
 # `projectionInputs` returns an empty set when git cannot be asked, and the preflight reads that as "no stamped projection"
