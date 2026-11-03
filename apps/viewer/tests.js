@@ -15040,26 +15040,39 @@
             var modes = Object.keys(VA.EDGE_LENGTH_MODES);
             var kinStudies = (leaderKinematic && leaderKinematic.studies) || [];
             var restore = M.rowHeight;
-            var visited = {}, configurations = 0, expected = 0, leadersSeen = 0;
+            var visited = {}, configurations = 0, leadersSeen = 0;
             var bad = [];
+            // `expected` is derived from the projections' own study lists,
+            // never from the loop that fills `configurations`: every chain
+            // study and every kinematic study on a topology must become a
+            // view (dimmed, and hidden), plus the whole walk once. A null lit
+            // set or a drifted topology id drops a view and so the count.
+            var views_by_kind = { whole: 0, chain: 0, kinematic: 0 };
+            var viewsExpected = 0;
+            var combos = densities.length * modes.length * styles.length;
+            liveTopos.forEach(function (t) {
+              var kinOnT = kinStudies.filter(function (s) { return s.topology === t.id; });
+              viewsExpected += 1 + 2 * ((t.studies || []).length + kinOnT.length);
+            });
+            var expected = viewsExpected * combos;
             try {
               liveTopos.forEach(function (topoProj) {
-                var views = [{ name: "whole walk", lit: null }];
+                var views = [{ name: "whole walk", lit: null, kind: "whole" }];
                 (topoProj.studies || []).forEach(function (study) {
                   var lit = VA.studyLitSet(study, topoProj);
-                  if (lit) views.push({ name: study.id, lit: lit });
+                  if (lit) views.push({ name: study.id, lit: lit, kind: "chain" });
                 });
                 kinStudies.forEach(function (study) {
                   if (study.topology !== topoProj.id) return;
                   var lit = VA.kinematicLitSet(study, topoProj);
-                  if (lit) views.push({ name: "kinematic " + study.id, lit: lit });
+                  if (lit) views.push({ name: "kinematic " + study.id, lit: lit, kind: "kinematic" });
                 });
                 var shown = [];
                 views.forEach(function (view) {
                   shown.push({ name: view.name, lit: view.lit, hide: false });
+                  views_by_kind[view.kind] += view.lit ? 2 : 1;
                   if (view.lit) shown.push({ name: view.name + " (unlit hidden)", lit: view.lit, hide: true });
                 });
-                expected += shown.length * densities.length * modes.length * styles.length;
                 densities.forEach(function (density) {
                   VA.applyRowDensity(density);
                   shown.forEach(function (view) {
@@ -15131,8 +15144,14 @@
             ok(expected > 0, "the coverage set is not empty");
             eq(configurations, expected, "every configuration was checked");
             ok(leadersSeen > 0, "the configurations drew leaders to check");
-            ok(kinStudies.length > 0,
-               "the kinematic page's studies are in the coverage set");
+            // Each kind of page was drawn, not merely present in a projection.
+            ok(views_by_kind.whole > 0, "the whole walk was drawn");
+            ok(views_by_kind.chain > 0, "a chain study's page was drawn");
+            ok(views_by_kind.kinematic > 0, "a kinematic page was drawn");
+            console.log("  leader coverage: " + liveTopos.length + " topologies, " +
+              views_by_kind.whole + " whole + " + views_by_kind.chain + " chain + " +
+              views_by_kind.kinematic + " kinematic views, " + combos +
+              " combinations = " + configurations + " configurations");
           });
 
         await test("[real] the blade_root rows no longer open with " +
