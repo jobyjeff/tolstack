@@ -9919,11 +9919,19 @@ async function testAnnotateHostedPosture(browser, label, topologies) {
           if (!button) return null;
           button.click();
           await new Promise((r) => setTimeout(r, 300));
-          return document.querySelector("#notice-text").textContent.trim();
+          const notice = document.querySelector("#notice-text");
+          return { text: notice.textContent.trim(), title: notice.title };
         });
-        const readOnly = await page.evaluate(() => window.AnnotateApp.READ_ONLY_WRITE);
+        // Since c21a06bb (a failed write says its class in fixed words) the
+        // banner is the read-only class's fixed line and the storage layer's
+        // own sentence, AA.READ_ONLY_WRITE, rides on hover.
+        const expected = await page.evaluate(() => {
+          const AA = window.AnnotateApp;
+          return { text: AA.bindFailureWords(new Error(AA.READ_ONLY_WRITE), "Record"),
+            title: AA.READ_ONLY_WRITE };
+        });
         push("[real] pressing a bind control says, in one line, that binding is not available here",
-          typeof pressed === "string" && pressed.indexOf(readOnly) !== -1);
+          pressed !== null && pressed.text === expected.text && pressed.title === expected.title);
       } finally {
         served.closeAllConnections();
         served.close();
@@ -11514,16 +11522,26 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
   const lerpWidth = (to, from, t) => Number(to.svgWidth) +
     (1 - t) * (Number(from.svgWidth) - Number(to.svgWidth));
 
-  // One frame of a transition in flight, or null if none was ever there.
+  // Click `selector` and return the first frame of the transition it starts,
+  // or null if none was ever there. A build that does not animate finds
+  // nothing to keep, which is the whole point -- a settled-state check passes
+  // just as well on a repaint.
   //
-  // Raced against a 260ms animation on purpose: it is the only way to observe
-  // one from outside the page, so it samples every animation frame for as
-  // long as a respine can possibly last and keeps the first frame it caught.
-  // A build that does not animate finds nothing to keep, which is the whole
-  // point -- a settled-state check passes just as well on a repaint.
-  const catchFrame = () => page.evaluate(async () => {
+  // The click is made INSIDE the page, and every frame is looked at from a
+  // requestAnimationFrame callback registered before the transition's own
+  // step: a study click reaches respine() through the worksheet read, so
+  // frame one is drawn in a task, and this loop's next callback runs ahead of
+  // the step that would draw frame two -- it cannot miss the transition
+  // however long a frame takes. A Playwright click followed by a sampler
+  // could: on the product graph one frame of this pane takes 0.1-1.2 s on
+  // this box, and `click()` only returned once the main thread was free,
+  // sometimes after the transition had settled (2026-11-02: 30/35 on trunk
+  // while the respine animated, traced frame by frame). The deadline is a
+  // ceiling on a wait for an event, not a window anything is raced against.
+  const catchFrame = (selector) => page.evaluate(async (sel) => {
     const VA = window.ViewerApp;
-    const deadline = Date.now() + 3000;
+    document.querySelector(sel).click();
+    const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
       const last = VA.lastTopoRender;
       const ghost = document.querySelector("div.tv__ghost");
@@ -11578,7 +11596,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       await new Promise((r) => requestAnimationFrame(r));
     }
     return null;
-  });
+  }, selector);
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
@@ -11610,11 +11628,9 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     push("[real] the walk is the default layout and it settled clean",
       clean(walk) && walk.rows.length === pitch.edges.length);
 
-    // (1) + (2). The mid-flight probe is raced against a 260ms transition on
-    // purpose -- it is the only way to observe one from outside the page -- so
-    // it samples every frame for as long as a respine can possibly last and
-    // keeps the first one it caught. A build that never animates finds
-    // nothing to keep, which is the failure this check exists for.
+    // (1) + (2). The mid-flight probe (catchFrame) clicks and keeps the first
+    // frame in flight. A build that never animates finds nothing to keep,
+    // which is the failure this check exists for.
     // The chain's own settled width, for the in-flight witness below: the
     // frame in flight has to be drawn at a width strictly between the two
     // serialisations', so both ends have to be known before the click.
@@ -11624,8 +11640,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
     await settled();
 
-    await page.locator(navRow("study", study.id)).click();
-    const inFlight = await catchFrame();
+    const inFlight = await catchFrame(navRow("study", study.id));
     push("[real] a study click puts a real transition in flight — the app " +
       "shell animates the respine rather than repainting it", !!inFlight);
     if (!inFlight) {
@@ -11768,8 +11783,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // passes on a repaint, so each one is caught in flight.
     await page.locator(studyRow).click();
     await settled();
-    await page.locator(walkRow).click();
-    const deselectFrame = await catchFrame();
+    const deselectFrame = await catchFrame(walkRow);
     push("[real] deselecting a study animates too, rather than repainting " +
       "the walk back in", !!deselectFrame &&
       Math.abs(deselectFrame.svgWidth -
@@ -11901,8 +11915,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // (clientWidth - dagWidth - 20), which is not the far end and would make
     // "carried, then clamped" unfalsifiable.
     const parked = await paneBoxes("end");
-    await page.locator(studyRow).click();
-    const scrolledFrame = await catchFrame();
+    const scrolledFrame = await catchFrame(studyRow);
     push("[real] a respine carries the reader's sideways scroll onto the " +
       "FIRST frame rather than rebuilding the pane back at the left edge " +
       "(topology_grid_scroll_and_grips)",
@@ -11944,8 +11957,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
 
     await page.locator(studyRow).click();
     await settled();
-    await page.locator(walkRow).click();
-    const byNavFrame = await catchFrame();
+    const byNavFrame = await catchFrame(walkRow);
     push("[real] and so does DEselecting — the nav's topology row is the " +
       "only other way to re-serialise this page now that the toolbar's " +
       "layout toggle is gone", !!byNavFrame);
