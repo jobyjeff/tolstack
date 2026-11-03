@@ -60,3 +60,24 @@ Both reds were the check, not the product. Neither fix touches `apps/`.
   instrumentation.
 - The repo's pytest has no xdist (`-n` isn't recognised). Run it serially:
   about 6 min here.
+
+## Verification (all from this worktree; main checkout's data and node_modules)
+
+- `--only "annotate hosted posture"`: 15/15 alone, and 15/15 in the full run.
+  `--only "topology file:// respine"`: 44/44 alone, and 44/44 in the full run.
+- Full browser tier (`node scripts/run_viewer_browser_tests.mjs --repo
+  C:/workspace/tolstack`, 1294 s): **39/40**. The one red is
+  `3D pane follows the selection` (31/32, the unbound-row hover check). Run
+  alone it went 28/32 on four *other* sub-checks. That suite isn't in this
+  handoff's scope: the nav-gesture four are already filed
+  (`ISSUE_20261029_four_3d_pane_nav_gesture_checks_…`, addendum added) and
+  the hover flake is filed as
+  `ISSUE_20261102_the_unbound_contributor_row_hover_check_fails_in_a_loaded_full_run.md`.
+- `pytest -q`: 1687 passed, 1 skipped (the bearing re-extraction isn't
+  installed), 1 failed (`test_viewer_js_suite`, the documented worktree red).
+  373 s. `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`:
+  629/629. `node apps/annotate/run_tests.cjs`: 269/269.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since master --repo
+  C:/workspace/tolstack`: 2/2 witnessed, exit 0, 59 s.
+- Projections weren't rebuilt. The tier didn't refuse them, and this diff
+  changes no projection input.
