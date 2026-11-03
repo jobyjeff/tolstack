@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/mutation-witness
 class: decayed_witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_full_registry_leaves_the_merge_gate.md
 defer_until: docs/sessions/HANDOFF_20261030_display_name_reaches_the_viewer_fixtures_and_fixture_drift_is_caught_without_a_projection.md
-resolution: triage 2026-10-29: 30 of the 34 are 'tier red before the mutation', so the unmutated browser tier is the shared cause; the merged trunk's browser red is staged as the_grid_header_rides_its_rows_on_merged_trunk (plus viewer_browser_checks_wait_on_settled_state for the load races); deferred onto that slug so the next sweep re-reads the 34 against a green tier -- woke 2026-10-29 -- the_grid_header_rides_its_rows_on_merged_trunk completed; re-triage; deferred again 2026-10-30 (triage): the 10-30 batch merge's witness run had 104 NOT WITNESSED, every one 'tier red before the mutation' (79 fast from the display_name fixture red, 25 browser from load); the shared cause is the staged display_name fixture handoff, whose completion wakes this to re-read a clean sweep -- woke 2026-10-30 -- display_name_reaches_the_viewer_fixtures_and_fixture_drift_is_caught_without_a_projection completed; re-triage
+resolution: triage 2026-10-29: 30 of the 34 are 'tier red before the mutation', so the unmutated browser tier is the shared cause; the merged trunk's browser red is staged as the_grid_header_rides_its_rows_on_merged_trunk (plus viewer_browser_checks_wait_on_settled_state for the load races); deferred onto that slug so the next sweep re-reads the 34 against a green tier -- woke 2026-10-29 -- the_grid_header_rides_its_rows_on_merged_trunk completed; re-triage; deferred again 2026-10-30 (triage): the 10-30 batch merge's witness run had 104 NOT WITNESSED, every one 'tier red before the mutation' (79 fast from the display_name fixture red, 25 browser from load); the shared cause is the staged display_name fixture handoff, whose completion wakes this to re-read a clean sweep -- woke 2026-10-30 -- display_name_reaches_the_viewer_fixtures_and_fixture_drift_is_caught_without_a_projection completed; re-triage -- handoff completed 2026-11-02 -- closed automatically by dispatch when handoff `decayed_witnesses_are_repaired_or_retired` moved to completed/; not independently verified.
 handoff: docs/sessions/HANDOFF_20261102_decayed_witnesses_are_repaired_or_retired.md
 ---
 
