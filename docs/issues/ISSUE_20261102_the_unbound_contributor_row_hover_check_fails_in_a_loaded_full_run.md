@@ -23,3 +23,12 @@ unbound row, then waits up to 10 s for `__lastHighlight === null`. That is a wal
 ceiling, not an event, and the hover crosses the pane's message seam. The fix shape is
 the class lever: wait on the pane's own highlight message for that row (or poll the
 settled state with no tight ceiling), not on a 10 s window.
+
+## Review note 2026-11-02
+
+The cause above is a hypothesis, not a measurement. The check is a conjunction of
+three things — `cleared` (the 10 s wait), `/no binding/.test(said)` and the banner
+not saying it — and the red run did not record which one was false. A
+`__lastHighlightNote` written after `__lastHighlight` is cleared would fail the
+second conjunct with the first already true, and no ceiling would fix that. Whoever
+picks this up: log the three values on failure first, then choose the fix.

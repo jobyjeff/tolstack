@@ -55,3 +55,18 @@ state, and goes red under a contended box.
 from a worktree with the main checkout's projections: 28/32, and the same four nav-gesture
 sub-checks failed (body disclosure, body checkbox hide and show, part row's second button).
 So under today's load this one reproduces in isolation, too.
+
+## Seen again 2026-11-02 (review of `the_browser_tier_is_green_on_trunk_again`, merged tree at integration `c6e29427` + that branch)
+
+Full browser tier, `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`,
+1205 s, **39/40**. This suite was 31/32 again, but on a **third** different sub-check:
+
+    [real] the type chips in the nav filter the tree, and a second press puts the rows back
+
+(`scripts/run_viewer_browser_tests.mjs` around line 7043.) So across three runs on
+2026-11-02 this one suite failed on three disjoint sets: the four nav gestures (alone),
+the unbound-row hover (`ISSUE_20261102_the_unbound_contributor_row_hover_check_fails_in_a_loaded_full_run.md`,
+full run), and the type chips (this full run). The red rotates between sub-checks
+rather than sticking to one, which points to a shared precondition the suite does not
+wait for (bodies or nav tree not settled) rather than to a defect in any one check.
+Whoever takes this should treat the suite as one problem.

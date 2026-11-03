@@ -5369,6 +5369,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `if (lit) views.push(...)` adds none. Re-derive the configuration count
       from the projection yourself. The lesson said 540; the tree gives 564
       (`ISSUE_20261030_the_all_topology_leader_test_does_not_prove_a_kinematic_view_was_drawn.md`).
+- [ ] **A diff that changes what a banner or notice SAYS: grep the browser tier
+      for every reader of the old words.** New 2026-11-02
+      (`the_browser_tier_is_green_on_trunk_again`). `c21a06bb` moved the
+      annotator's failed-write banner to `AA.bindFailureWords(...)` and put
+      `AA.READ_ONLY_WRITE` on hover. It edited the browser tier too, but missed
+      `annotate hosted posture`'s `#notice-text` substring check, which then sat
+      red on integration and trunk for three days. `git grep -n
+      "<constant>\|#notice-text" scripts/run_viewer_browser_tests.mjs` per
+      changed string, and expect each hit in the diff.
+- [ ] **A transition probe that clicks from Playwright and THEN samples.**
+      Same handoff. `locator.click()` returns only once the main thread is
+      free, and on the product graph one respine frame takes 0.1–1.2 s, so the
+      sampler could start after the transition had settled. The fix is to click
+      inside the `page.evaluate` whose rAF loop samples (`catchFrame(selector)`,
+      `caughtMidFlight`). A new in-flight check written the old way is that
+      race again.
 
 ## Architectural errors to check
 
