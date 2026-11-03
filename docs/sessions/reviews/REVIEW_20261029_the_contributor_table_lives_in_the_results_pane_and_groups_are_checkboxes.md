@@ -1,3 +1,10 @@
+---
+type: review
+handoff: docs/sessions/completed/HANDOFF_20261029_the_contributor_table_lives_in_the_results_pane_and_groups_are_checkboxes.md
+reviewer: agent
+date: 2026-10-29
+verdict: APPROVE
+---
 # REVIEW 2026-10-29 — the_contributor_table_lives_in_the_results_pane_and_groups_are_checkboxes
 
 **Verdict: APPROVE.**

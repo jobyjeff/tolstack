@@ -1,3 +1,10 @@
+---
+type: review
+handoff: docs/sessions/completed/HANDOFF_20261029_the_annotator_has_no_front_door.md
+reviewer: agent
+date: 2026-10-30
+verdict: APPROVE
+---
 # Review — the_annotator_has_no_front_door (2026-10-30)
 
 **Verdict: APPROVE**
