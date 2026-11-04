@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261103_every_study_opens_in_3d_showing_only_its_parts.md
 reviewer: agent
 date: 2026-11-03
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — every_study_opens_in_3d_showing_only_its_parts
@@ -81,3 +81,27 @@ for the node-fs skip; re-run them after the fix.
 Fix B1; run the fast tier with `--repo`, the full browser tier and
 `--changed-since integration` witnesses in the main checkout after
 `scripts/rebuild_projections.ps1`; full `pytest -q` after the pin update.
+
+## Re-run 2026-11-03 (round 2) — APPROVE
+
+Round 1 was REQUEST CHANGES, 1 blocker (B1); it is closed. `be7b7e68` rewrites the
+check onto shim-supported selectors; merged cleanly.
+
+- Fast tier `--repo C:/workspace/tolstack`: **515/516**; the one red is the
+  `[real]` "projection built from this tree" check (main checkout holds trunk's
+  projection) — environmental.
+- Full `pytest -q` in the review worktree, post-merge: **2 failed, 1699 passed, 1
+  skipped, 2 deselected, 46m27s** (contention header lines not captured). Failures:
+  `test_viewer_js_suite_is_green` (no projection in a worktree, by design) and
+  `test_contact_suggestions::...live_projection...` (reads the main checkout's
+  trunk-stale projection, which lacks the already-landed slide-joint edge;
+  unrelated to this diff). Not exercised: the `[real]` viewer tier, the full
+  41-suite browser tier (only the new suite, 8/8, run pre-fix).
+- `--changed-since integration` witnesses: 16/25 witnessed, 12 left to the sweep
+  (30-min cap). Nine NOT WITNESSED, all "tier red before the mutation" (the same
+  stale-projection red; includes guards this diff did not add). Two are this
+  handoff's fast entries -> filed
+  `ISSUE_20261103_two_fast_witnesses_for_the_3d_scope_were_not_shown_in_a_worktree.md`.
+  This handoff's browser witnesses that ran were witnessed.
+- The operator's batch merge must rebuild projections first and run the full
+  browser tier and witnesses in the main checkout (repo CLAUDE.md).
