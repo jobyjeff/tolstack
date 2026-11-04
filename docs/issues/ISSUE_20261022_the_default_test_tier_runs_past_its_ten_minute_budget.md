@@ -96,3 +96,12 @@ venv has no xdist, so `-n 16` was unrecognised): 1477 s, 1685 passed, 3 failed,
 1 skipped, 2 deselected -- over budget by 14m37s. The 3 reds were this branch's
 own (inventory rows, two re-anchored specs; fixed after) plus
 `test_viewer_js_suite` red in a worktree by design.
+
+## Addendum 2026-11-04 (review of the_dag_holds_still_and_the_filter_bar_stays_put)
+
+Measured 761 s (budget 600 s, over by 2m41s) for
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider --durations=10`
+in the review worktree on the merged tree, single-process (no xdist), sharing the
+box with other reviews' browser runs. Result: `2 failed, 1699 passed, 1 skipped,
+2 deselected` (the two checkout-dependent reds). Slowest call 10.6 s, so no
+single test is the pareto; the time is the count.
