@@ -10288,16 +10288,21 @@
           VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPOFIX.topologies[0].id },
             { on3D: function (select) { picked.push(select); } });
         });
-        var rows = all(withControl, ".navtree__row--topology, .navtree__row--study");
+        // The fast tier's DOM shim reads only tag, .class and tag.class, so the
+        // rows are picked by class and filtered by kind here.
+        var rows = all(withControl, ".navtree__row").filter(function (row) {
+          var kind = row.getAttribute("data-nav-kind");
+          return kind === "topology" || kind === "study";
+        });
         ok(rows.length >= 1, "the fixture has at least the topology row");
         rows.forEach(function (row) {
-          eq(all(row, "[data-nav-3d]").length, 1,
+          eq(all(row, ".navtree__3d").length, 1,
             "row " + row.getAttribute("data-nav-id") + " carries the control");
         });
         var without = render(function (r) {
           VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPOFIX.topologies[0].id }, {});
         });
-        eq(all(without, "[data-nav-3d]").length, 0);
+        eq(all(without, ".navtree__3d").length, 0);
       });
 
     // Tags (handoff bodies_and_studies_carry_forge_tags): chips over the study
