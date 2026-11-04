@@ -77,3 +77,11 @@ candidates for a merge-only tier.
 ## Addendum 2026-11-02 (the_all_topology_leader_test_counts_its_views_by_kind)
 
 Measured 601 s (budget 600 s, over by 1 s) for plain `pytest -q` in a worktree, single-process: this venv has no xdist, so `-n 16 --dist loadfile` is rejected as an unrecognised argument.
+
+## 2026-11-03 measurement (the_dag_holds_still_and_the_filter_bar_stays_put)
+
+`venv-win/Scripts/python.exe -m pytest -q` in a worktree, single process (this
+venv has no xdist, so `-n 16` was unrecognised): 1477 s, 1685 passed, 3 failed,
+1 skipped, 2 deselected -- over budget by 14m37s. The 3 reds were this branch's
+own (inventory rows, two re-anchored specs; fixed after) plus
+`test_viewer_js_suite` red in a worktree by design.

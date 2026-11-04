@@ -186,10 +186,10 @@ scripts/
   virtual_clock.mjs            a page clock a script can step (Date.now,
                                performance.now, requestAnimationFrame), so a
                                transition is sampled or filmed at fixed steps
-                               of page time. Imported by the two below.
+                               of page time. Imported by the filmstrip and the browser tier.
                                Added 2026-11-03.
-  filmstrip.mjs                N screenshots of the viewer across one
-                               transition, composited into one PNG with the
+  filmstrip.mjs                screenshots of the viewer across a
+                               transition, composited into a PNG with the
                                per-frame probe beside it; takes the browser
                                slot itself. Run by hand, never by a tier.
                                Added 2026-11-03.
