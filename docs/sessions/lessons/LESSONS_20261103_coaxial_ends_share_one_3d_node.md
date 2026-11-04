@@ -231,3 +231,13 @@ those are data:
   re-author). A junction to the main checkout's inputs is refused by
   dispatch's main-checkout edit guard, because its target names a tracked
   path, so this root uses copies, as the reviewer's did.
+- **The round-2 gate** (`--changed-since integration`, scratch projections):
+  34 of the 38 entries it reached are witnessed, and 25 were left to the
+  sweep by the 30-minute cap. I witnessed the two moved specs separately with
+  `--only`. The 4 not witnessed are all "red before the mutation", and none of
+  those reds is this branch's. Three are fast-tier entries blinded by
+  integration's six `[real]` viewer reds (addendum on
+  `ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md`),
+  and each of the three guards passes unmutated. The fourth is
+  `nothing above produced an uncaught error`, which the nav-chip red blocks as
+  in round 1.
