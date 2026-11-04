@@ -857,18 +857,20 @@
   // the edge — an image placeholder would read as "not built yet" when the
   // truth is "no document to crop".
   var COLUMNS = [
-    { cls: "component", label: "component", width: 150 },
+    { cls: "component", label: "component", width: 120 },
     { cls: "ord", label: "#", width: 38 },
-    { cls: "name", label: "element", width: 220, resizable: true },
+    { cls: "name", label: "element", width: 210, resizable: true },
     { cls: "nominal", label: "nominal", width: 80 },
     { cls: "min", label: "min", width: 80 },
     { cls: "max", label: "max", width: 80 },
     // The sweep's sensitivity on a kinematic page (`coefficient`, signed, in
     // the measure's units per the band's); a chain study's ratio, 1 for an
     // unscaled edge -- so the two kinds of study share one column set
-    // (the_kinematic_grid_is_a_stack_of_sub_stacks).
-    { cls: "sensitivity", label: "sensitivity", width: 90 },
-    { cls: "contribution", label: "contribution", width: 200 },
+    // (the_kinematic_grid_is_a_stack_of_sub_stacks). Its 70px came out of
+  // component, element and contribution, so the table is as wide as it was
+  // and nothing the pane measures moves.
+    { cls: "sensitivity", label: "sensitivity", width: 70 },
+    { cls: "contribution", label: "contribution", width: 170 },
     // 260, not the 200 it was until viewer_study_verdicts_and_gaps: this cell
     // clips rather than wraps (`.tvcell__chipswrap`, topology.css — a <tr>'s
     // height is a floor, so a wrapped chip would grow the row off its leader's
