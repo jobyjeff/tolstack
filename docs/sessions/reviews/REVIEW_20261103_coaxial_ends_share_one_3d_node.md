@@ -4,7 +4,7 @@ handoff: docs/sessions/active/HANDOFF_20261103_coaxial_ends_share_one_3d_node.md
 reviewer: agent
 date: 2026-11-03
 verdict: REQUEST CHANGES
-blockers: 1
+blockers: 2
 ---
 
 # Review 2026-11-03 — coaxial_ends_share_one_3d_node
@@ -89,9 +89,24 @@ conflicts). **Not landed on `integration`**: the verdict is REQUEST CHANGES.
    Add a mutation spec for that check. This changes behaviour and needs a test,
    so it goes back to the author.
 
+2. **The diff turns an existing mock-tier check red and does not update it.**
+   *Location:* `apps/annotate/run_browser_check.mjs`, "the model layer
+   anchors every node of the topology and draws a line for every edge".
+   *What's wrong:* deliverable 3 (an unplaced node draws no line) contradicts
+   the check's own claim. The mock topology has two `origin` nodes (`b`, `d`),
+   so the layer now draws `lines: []`, and the check that passed on trunk
+   fails on the merged tree. The tactical record does not mention this tier.
+   The overlay's risky-subset row for `apps/annotate/` names it for any
+   scene/placement change, because it is the only tier that sees `app.js`'s
+   scene wiring.
+   *Suggested fix:* re-word and re-derive the check the same way the
+   browser-tier twin was changed (an edge is drawn unless an end is unplaced
+   or both ends are one joint). Re-run the mock pass and record it. If the
+   check's name changes, move its mutation spec to the new name.
+
 ### Should-fix
 
-2. **The as-modelled frame still shows a fan of lines out of the assembly
+3. **The as-modelled frame still shows a fan of lines out of the assembly
    origin** (`docs/sessions/shots_20261103_coaxial_ends/after/5_as_modelled.png`
    vs `before/5_as_modelled.png`). The red star and the 15 unplaced fans are
    gone. But the spindle joint now sits at (0, 0, 0) at the as-modelled frame,
@@ -105,19 +120,40 @@ conflicts). **Not landed on `integration`**: the verdict is REQUEST CHANGES.
 
 ### Nits
 
-3. `apps/annotate/run_tests.cjs`, the `[real]` P2 check: the measured-edge
+4. `apps/annotate/run_tests.cjs`, the `[real]` P2 check: the measured-edge
    assertion compares `Object.keys(rows)` against a list *filtered by
    `rows[e]`*. That proves no extra edge was measured, but not that the listed
    ones were. The `rows.pitch_link_length.merge` dereference below it covers
    two of them by throwing.
-4. `VA.lastTopoHot` is a module-global back-reference that each render sets.
+5. `VA.lastTopoHot` is a module-global back-reference that each render sets.
    A scene hover arriving after the pane has re-rendered into another view
    lights detached elements. That is harmless today. Worth a comment if the
    pane ever renders twice.
 
 ## Browser run
 
-(Filled in below once the browser slot frees.)
+- `run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "annotate
+  model in the scene"`: **21/21**. `--only "leaders across the seam"`:
+  **24/24**. These match the tactical record.
+- `node apps/annotate/run_browser_check.mjs` (the mock pass, which the overlay
+  requires for a scene change), on the merged tree: **94/99**. The same run
+  in the main checkout on trunk `388fc436`, which does not have this diff:
+  **96/99**.
+
+  | check | trunk | merged |
+  | --- | --- | --- |
+  | the model layer anchors every node of the topology and draws a line for every edge | pass | **FAIL** |
+  | the mock's bound face moves its node onto the face's fitted point… | FAIL | FAIL |
+  | the anchors message is computed for a drawn frame… | FAIL | FAIL |
+  | the speed control changes reduced-motion playback's rate | FAIL | FAIL |
+  | reduced-motion playback covers (nearly) the same distance… | pass | FAIL |
+
+  The two anchor reds are already filed
+  (`ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration.md`).
+  The two reduced-motion reds look like timing under contention: the speed
+  check is red on trunk too, and nothing in the diff touches playback. I
+  attribute neither to this diff. The first row **is** this diff's (blocker
+  2).
 
 ## Note for the rework / next reviewer
 
