@@ -208,7 +208,13 @@ export const DECLARED_GUARDS = {
   // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +1, the nav's twisty row
   // (a joint end's candidate list mirrored). It carries a spec.
   // (Re-pinned at the review merge onto integration's 631.)
-  fast: { declared: 632, enrollable: 632, names: "b62ed7cba808" },
+  // 2026-11-03 (the_kinematic_grid_is_a_stack_of_sub_stacks): count
+  // unchanged -- the results pane's contributor table is retired, its checks
+  // re-pointed at the grid's stack; the [real] pitch_system tint check carries
+  // no spec (red on integration before any mutation,
+  // ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md).
+  // (Re-pinned at the review merge onto integration's 632.)
+  fast: { declared: 632, enrollable: 632, names: "e445a9a10150" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -320,7 +326,13 @@ export const DECLARED_GUARDS = {
   // radius; the list crossing the seam into the shell's nav. Each carries a
   // spec.
   // (Re-pinned at the review merge onto integration's 801/768, with the_dag_holds_still's +6 on top.)
-  browser: { declared: 815, enrollable: 782, names: "06b175a32136" },
+  // 2026-11-03 (the_kinematic_grid_is_a_stack_of_sub_stacks): +1 -- the
+  // kinematic suite's table checks re-pointed at the grid's stack (the live
+  // stack, the travel fold and the +72 stop in; the six-contributor table and
+  // the travel group row out). Every one carries a spec except the renamed
+  // pitch_system body-tint check, which carried none under its old name.
+  // (Re-pinned at the review merge onto integration's 815/782.)
+  browser: { declared: 816, enrollable: 783, names: "33403beb3174" },
 };
 
 

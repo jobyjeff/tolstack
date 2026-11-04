@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "the kinematic page draws the model and its stack in the main column, and its verdicts, chart and readouts in one column at the top of the right-hand pane",
+  "mutations": [
+    {
+      "contract": "The kinematic page's grid is its stack.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Hands the pane no stack.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        stack: kinematicStack,\n",
+      "replace": "        stack: null,\n"
+    }
+  ]
+}

@@ -513,7 +513,344 @@
       });
     });
     if (!edges.length) return null;
-    return VA.bridgeLitSet(topoProj, VA.litSetOfEdges(topoProj, edges));
+    var lit = VA.bridgeLitSet(topoProj, VA.litSetOfEdges(topoProj, edges));
+    // The order the DAG's band and the grid beside it both read the lit edges
+    // in (VA.bandSides): the stack's chain order, so two adjacent rows are two
+    // connected edges and no leader crosses another to reach its row.
+    lit.order = VA.kinematicStackOrder(study, topoProj, lit);
+    return lit;
+  };
+
+  // --- the stack: rows in chain order, sub-stacks that fold ---------------------
+  //
+  // (the_kinematic_grid_is_a_stack_of_sub_stacks, 2026-11-03.) Jeff: a
+  // kinematic study "would still resolve down to, and could be displayed as,
+  // grid view stacks, where the 'sensitivity' column was derived from the 3d
+  // kinematic model", with the parts that are compared to each other "rolled
+  // up into sub-stacks, potentially shown as collapsible elements".
+  //
+  // THE ORDERING RULE, in one place. The stack reads from the measure's end to
+  // the stops: the linkage terms first, walked along the lit model from the
+  // blade end to the end the stop-position chains start from, then each
+  // stop-position sub-study in `study_refs[]` order, each in its own authored
+  // chain order. The linkage walk is a depth-first walk over the linkage's
+  // edges -- the contributors, the edges they borrow their bands from, and the
+  // joints between them -- started at the node it shares with a stop-position
+  // chain and READ BACKWARDS, so it ends where the next sub-stack begins. At a
+  // branch the shorter side is walked first, so the branch sits where it
+  // leaves the walk and the main line continues after it. Every other lit
+  // edge (a bridge, a closure) follows in the walk's own order. Pure.
+  VA.kinematicStackOrder = function (study, topoProj, lit) {
+    if (!study || !topoProj || !lit) return [];
+    var index = VA.topologyIndex(topoProj);
+    var order = [];
+    var placed = {};
+    var place = function (id) {
+      if (id && lit.edges[id] && !placed[id]) { placed[id] = true; order.push(id); }
+    };
+    var refs = (study.study_refs || []).filter(function (ref) {
+      return !ref.topology || ref.topology === study.topology;
+    });
+    var chainEdges = {};
+    var chainNodes = {};
+    refs.forEach(function (ref) {
+      (ref.children || []).forEach(function (child) {
+        var edge = index.edges[child.edge];
+        if (!edge) return;
+        chainEdges[child.edge] = true;
+        chainNodes[edge.from] = true;
+        chainNodes[edge.to] = true;
+      });
+    });
+    // The linkage's edges: every contributor, its band edge, and every lit
+    // edge the lit set closed over that is not a stop-position term.
+    var linkage = {};
+    allStopRows(study).forEach(function (row) {
+      linkage[row.edge] = true;
+      var source = row.band_source || {};
+      if (source.kind === "dimension_ref" && source.edge &&
+          (!source.topology || source.topology === study.topology)) linkage[source.edge] = true;
+    });
+    // A closure between two stop-position interfaces (the derived gap across
+    // the travel) belongs to the stops, not the linkage.
+    Object.keys(lit.closed || {}).forEach(function (id) {
+      var edge = index.edges[id];
+      if (chainEdges[id] || (edge && chainNodes[edge.from] && chainNodes[edge.to])) return;
+      linkage[id] = true;
+    });
+    var adj = {};
+    (topoProj.edges || []).forEach(function (edge) {
+      if (!linkage[edge.id] || chainEdges[edge.id] || !lit.edges[edge.id]) return;
+      (adj[edge.from] = adj[edge.from] || []).push({ to: edge.to, edge: edge.id });
+      (adj[edge.to] = adj[edge.to] || []).push({ to: edge.from, edge: edge.id });
+    });
+    var reach = function (from, via, seen) {
+      var count = 0;
+      var stack = [from];
+      var nodes = {};
+      nodes[from] = true;
+      while (stack.length) {
+        var at = stack.pop();
+        (adj[at] || []).forEach(function (step) {
+          if (step.edge === via || seen[step.edge] || nodes[step.to]) return;
+          nodes[step.to] = true;
+          count += 1;
+          stack.push(step.to);
+        });
+      }
+      return count;
+    };
+    var walked = [];
+    var seen = {};
+    var walk = function (at) {
+      var steps = (adj[at] || []).filter(function (s) { return !seen[s.edge]; })
+        .map(function (s) { return { step: s, size: reach(s.to, s.edge, seen) }; })
+        .sort(function (a, b) { return a.size - b.size; });
+      steps.forEach(function (entry) {
+        if (seen[entry.step.edge]) return;
+        seen[entry.step.edge] = true;
+        walked.push(entry.step.edge);
+        walk(entry.step.to);
+      });
+    };
+    var ends = Object.keys(adj);
+    var start = ends.filter(function (n) { return chainNodes[n] && adj[n].length === 1; })[0] ||
+      ends.filter(function (n) { return chainNodes[n]; })[0] ||
+      ends.filter(function (n) { return adj[n].length === 1; })[0] || ends[0];
+    if (start !== undefined) walk(start);
+    // A piece of the linkage the walk did not reach, in walk order.
+    (topoProj.edges || []).forEach(function (edge) {
+      if (adj[edge.from] && linkage[edge.id] && !chainEdges[edge.id] && !seen[edge.id] &&
+          lit.edges[edge.id]) {
+        seen[edge.id] = true;
+        walked.push(edge.id);
+      }
+    });
+    walked.reverse().forEach(place);
+    refs.forEach(function (ref) {
+      (ref.children || []).forEach(function (child) { place(child.edge); });
+    });
+    (topoProj.layout && topoProj.layout.rows || []).forEach(function (row) {
+      if (row.kind === "edge") place(row.id);
+    });
+    Object.keys(lit.edges).forEach(place);
+    return order;
+  };
+
+  // How many children a sub-stack may have and still open by default: more
+  // than this folds until the reader opens it.
+  VA.STACK_OPEN_MAX = 3;
+
+  // A sub-stack's open state: the reader's own choice for this study where
+  // there is one (`choices`, {sub-stack id: true | false}), else open when it
+  // is the stack's own level (depth 0: the linkage terms, the stop position)
+  // or has few enough children to read at a glance.
+  VA.subStackOpen = function (choices, id, childCount, depth) {
+    if (choices && Object.prototype.hasOwnProperty.call(choices, id)) return !!choices[id];
+    return !depth || childCount <= VA.STACK_OPEN_MAX;
+  };
+
+  // The reader's fold choices, remembered per kinematic study, as the group
+  // checkboxes are (VA.readGroupKinds). An unreadable store reads as none.
+  VA.SUB_STACK_FOLDS_KEY = "tolstack.viewer.subStackFolds";
+
+  VA.readSubStackFolds = function (store, studyId) {
+    try {
+      var raw = store && store.getItem(VA.SUB_STACK_FOLDS_KEY);
+      var all = raw ? JSON.parse(raw) : {};
+      var mine = all && typeof all === "object" ? all[studyId] : null;
+      var out = {};
+      if (mine && typeof mine === "object" && !Array.isArray(mine)) {
+        Object.keys(mine).forEach(function (k) {
+          if (typeof mine[k] === "boolean") out[k] = mine[k];
+        });
+      }
+      return out;
+    } catch (err) {
+      return {};
+    }
+  };
+
+  VA.writeSubStackFolds = function (store, studyId, choices) {
+    try {
+      if (!store) return;
+      var raw = store.getItem(VA.SUB_STACK_FOLDS_KEY);
+      var all = raw ? JSON.parse(raw) : {};
+      if (!all || typeof all !== "object" || Array.isArray(all)) all = {};
+      all[studyId] = choices || {};
+      store.setItem(VA.SUB_STACK_FOLDS_KEY, JSON.stringify(all));
+    } catch (err) {
+      // A browser that refuses to store it still folds for this session.
+    }
+  };
+
+  // The stack at one stop, as the grid draws it: an entry per row, in the
+  // order VA.kinematicStackOrder puts the edges in.
+  //
+  //   { kind: "sub", id, depth, name, detail, count, open, gap, sensitivity,
+  //     contribution, nominal, min, max, parent }
+  //   { kind: "term", edge, depth, parent, sensitivity, contribution, curve }
+  //
+  // The linkage terms are one sub-stack at depth 0 ("linkage terms at this
+  // pose"); the stop's position is another, holding one nested sub-stack per
+  // sub-study at this stop -- an authored chain with its terms, or a declared
+  // gap with none. `terms` indexes the term entries by edge; `result` is the
+  // stop's own fold, for the grid's foot. Every number is the projection's,
+  // printed at its precision; nothing is added up here.
+  VA.kinematicStack = function (study, topoProj, stopId, decimals, choices) {
+    if (!study || !(study.stops || []).length) return null;
+    var stop = null;
+    (study.stops || []).forEach(function (s) { if (s.id === stopId) stop = s; });
+    stop = stop || study.stops[0];
+    var lit = VA.kinematicLitSet(study, topoProj);
+    var order = (lit && lit.order) || [];
+    var rank = function (edge) {
+      var i = order.indexOf(edge);
+      return i === -1 ? order.length : i;
+    };
+    var unit = VA.kinematicCoefficientUnit(study, { rows: allStopRows(study) });
+    var n = function (v) { return VA.kinematicNumber(v, decimals); };
+    var curves = {};
+    (study.contributors || []).forEach(function (c) { curves[c.edge] = c.by_point || null; });
+    var entries = [];
+    var terms = {};
+    var term = function (row, depth, parent, curve) {
+      var entry = {
+        kind: "term", edge: row.edge, depth: depth, parent: parent,
+        sensitivity: (row.sign < 0 ? "−" : "") + n(row.coefficient),
+        contribution: typeof row.magnitude === "number" ? "±" + n(row.magnitude) : "",
+        muted: row.kind === "zero_sensitivity",
+        // A contributor with no band on file: the gap words, on its chip.
+        flag: row.kind === "gap" ? VA.KINEMATIC_ROW_KINDS.gap.flag : null,
+        // The term's sourcing is its BAND's (a contributor may borrow its band
+        // from another edge), as the projection states it per row.
+        confidence: row.confidence || null,
+        curve: curve || null,
+      };
+      terms[row.edge] = entry;
+      return entry;
+    };
+    var sub = function (spec) {
+      return {
+        kind: "sub", id: spec.id, depth: spec.depth, parent: spec.parent || null,
+        name: spec.name, detail: spec.detail || null, count: spec.count,
+        open: VA.subStackOpen(choices, spec.id, spec.count, spec.depth), gap: !!spec.gap,
+        sensitivity: spec.sensitivity || "", contribution: spec.contribution || "",
+        nominal: spec.nominal || "", min: spec.min || "", max: spec.max || "",
+      };
+    };
+    var linkageFold = subStack(stop, SUB_LINKAGE);
+    var linkageRows = (stop.rows || []).slice().sort(function (a, b) {
+      return rank(a.edge) - rank(b.edge);
+    });
+    var linkageWords = VA.KINEMATIC_SUB_STACK_KINDS[SUB_LINKAGE].words;
+    entries.push(sub({
+      id: SUB_LINKAGE, depth: 0, count: linkageRows.length,
+      name: linkageWords.charAt(0).toUpperCase() + linkageWords.slice(1),
+      detail: linkageRows.length + " terms",
+      contribution: typeof linkageFold.worst_case_half === "number"
+        ? "±" + n(linkageFold.worst_case_half) : "",
+    }));
+    linkageRows.forEach(function (row) {
+      entries.push(term(row, 1, SUB_LINKAGE, curves[row.edge]));
+    });
+    var positionFold = subStack(stop, SUB_POSITION);
+    var groups = (stop.groups || []).filter(function (g) {
+      return !g.topology || g.topology === study.topology;
+    });
+    var positionWords = VA.KINEMATIC_SUB_STACK_KINDS[SUB_POSITION].words;
+    var position = positionFold.position || {};
+    // A stop with no position stack (a study with no stops' chains) has no
+    // header for one.
+    if (groups.length) entries.push(sub({
+      id: SUB_POSITION, depth: 0, count: groups.length,
+      name: positionWords.charAt(0).toUpperCase() + positionWords.slice(1),
+      detail: (positionFold.term_count || 0) + " terms" +
+        (typeof position.worst_case_half === "number"
+          ? " · ±" + VA.fmt(position.worst_case_half) + " mm" : ""),
+      contribution: typeof positionFold.worst_case_half === "number"
+        ? "±" + n(positionFold.worst_case_half) : "",
+    }));
+    var refOf = {};
+    (study.study_refs || []).forEach(function (ref) { refOf[ref.study] = ref; });
+    groups.forEach(function (g) {
+      var ref = refOf[g.study] || {};
+      var total = ref.total || null;
+      var units = ref.units || g.units || "";
+      var gap = !!(ref.gap || g.gap);
+      var kids = (g.children || []).slice().sort(function (a, b) {
+        return rank(a.edge) - rank(b.edge);
+      });
+      var at = "at the " + stopWords(study, stop);
+      entries.push(sub({
+        id: g.study, depth: 1, parent: SUB_POSITION, count: kids.length, gap: gap,
+        name: ref.title || g.title || g.study,
+        detail: gap ? "not yet authored"
+          : total && typeof total.worst_case_half === "number"
+            ? "±" + withUnit(VA.fmt(total.worst_case_half), units) + " → ±" +
+              withUnit(n(g.reach), study.units) + " " + at
+            : null,
+        sensitivity: (g.sign < 0 ? "−" : "") + n(Math.abs(g.entry)),
+        contribution: gap ? "" : "±" + n(g.reach),
+        nominal: total ? VA.fmt(total.nominal) : "",
+        min: total ? VA.fmt(total.worst_case_min) : "",
+        max: total ? VA.fmt(total.worst_case_max) : "",
+      }));
+      kids.forEach(function (child) {
+        var spec = null;
+        (ref.children || []).forEach(function (c) { if (c.edge === child.edge) spec = c; });
+        entries.push(term(child, 2, g.study, spec && spec.by_point));
+      });
+    });
+    var check = null;
+    (study.checks || []).forEach(function (c) { if (c.stop === stop.id) check = c; });
+    var verdict = null;
+    VA.kinematicVerdicts(study, decimals).forEach(function (v) {
+      if (v.stop === stop.id) verdict = v;
+    });
+    return {
+      stop: { id: stop.id, label: stop.label },
+      stops: (study.stops || []).map(function (s) { return { id: s.id, label: s.label }; }),
+      coefficientUnit: unit,
+      units: study.units || null,
+      entries: entries,
+      terms: terms,
+      result: {
+        label: withUnit(measureWords(study), null) + " at the " + stopWords(study, stop),
+        nominal: n(stop.nominal_measure),
+        min: n(stop.worst_case_min),
+        max: n(stop.worst_case_max),
+        contribution: "±" + n(stop.worst_case_half),
+        rss: "RSS ±" + n(stop.rss_half),
+        verdict: verdict,
+        check: check,
+      },
+    };
+  };
+
+  // { sub-stack id: open } for every sub-stack of the stack: the one open
+  // state the DAG's dashed fields and the grid's header rows both read.
+  VA.stackOpenMap = function (stack) {
+    var out = {};
+    ((stack && stack.entries) || []).forEach(function (entry) {
+      if (entry.kind === "sub") out[entry.id] = entry.open;
+    });
+    return out;
+  };
+
+  // Which entries a folded parent hides: every entry under a closed sub-stack,
+  // at any depth. Returns the visible entries, in order.
+  VA.visibleStackEntries = function (stack) {
+    if (!stack) return [];
+    var open = {};
+    var out = [];
+    stack.entries.forEach(function (entry) {
+      var parentOpen = entry.parent === null || entry.parent === undefined ||
+        open[entry.parent] === true;
+      if (entry.kind === "sub") open[entry.id] = parentOpen && entry.open;
+      if (parentOpen) out.push(entry);
+    });
+    return out;
   };
 
   // The page's sub-stacks (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): one per
@@ -988,9 +1325,10 @@
     var datum = chart ? VA.kinematicDatumNote(study) : null;
     if (datum) root.appendChild(VA.el("p", "muted kmchart__note", datum));
 
+    if (ctx.onStackStop && (study.stops || []).length > 1) {
+      root.appendChild(stackStopPicker(study, ctx));
+    }
     root.appendChild(stopReadouts(study, decimals));
-    root.appendChild(contributorTable(study, VA.findTopology(ctx.topologies, study.topology),
-      decimals, ctx));
     root.appendChild(provenance(study));
     return root;
   };
@@ -1074,6 +1412,26 @@
       if (model.range.says) says(model.range.says, "range");
     }
     return table;
+  }
+
+  // Which stop the grid beside the DAG shows its stack at: one quiet button
+  // per stop, the shown one pressed. The grid is the study's one contributor
+  // table (the_kinematic_grid_is_a_stack_of_sub_stacks), so this is the
+  // whole of what the results pane says about its rows.
+  function stackStopPicker(study, ctx) {
+    var box = VA.el("div", "kmstop");
+    box.appendChild(VA.el("span", "muted kmstop__label", "Grid at"));
+    (study.stops || []).forEach(function (stop) {
+      var on = stop.id === ctx.stackStop;
+      var b = VA.el("button", "ghost kmstop__button" + (on ? " kmstop__button--on" : ""),
+        stopWords(study, stop));
+      b.setAttribute("data-stop", stop.id);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.setAttribute("title", stop.label);
+      b.onclick = function () { if (!on) ctx.onStackStop(stop.id); };
+      box.appendChild(b);
+    });
+    return box;
   }
 
   // A cell that opens a citation card on hover, focus or click -- the trigger
@@ -1304,252 +1662,6 @@
     return figure;
   }
 
-  // The one table: a header row of stop groups (each stop's label, and its
-  // summary line under it), a header row of columns, then a row per
-  // contributor. Every stop group is the same three columns.
-  var STOP_COLUMNS = 3;
-
-  function contributorTable(study, topoProj, decimals, ctx) {
-    var model = VA.kinematicTable(study, topoProj, decimals);
-    var wrap = VA.el("div", "kmcontrib");
-    var table = VA.el("table", "kmtable");
-    var groups = VA.el("tr", "kmtable__groups");
-    // The group row's tail cell spans the three columns after the stops.
-    groups.appendChild(VA.el("th", "kmtable__lead"));
-    model.stops.forEach(function (stop) {
-      var th = VA.el("th", "kmtable__stop");
-      th.setAttribute("colspan", String(STOP_COLUMNS));
-      th.setAttribute("data-stop", stop.id);
-      th.appendChild(VA.el("div", "kmtable__stoplabel", stop.label));
-      th.appendChild(VA.el("div", "muted kmtable__stopsum", stop.summary));
-      groups.appendChild(th);
-    });
-    var tail = VA.el("th", "kmtable__tail");
-    tail.setAttribute("colspan", "3");
-    groups.appendChild(tail);
-    var head = VA.el("tr", "kmtable__cols");
-    head.appendChild(VA.el("th", "kmtable__lead", "Contributor"));
-    model.stops.forEach(function (stop) {
-      [["Sign", "num kmtable__first"],
-       [model.coefficientUnit ? "Coefficient, " + model.coefficientUnit : "Coefficient", "num"],
-       [study.units ? "Magnitude, " + study.units : "Magnitude", "num"]]
-        .forEach(function (col) {
-          var th = VA.el("th", col[1], col[0]);
-          th.setAttribute("data-stop", stop.id);
-          head.appendChild(th);
-        });
-    });
-    head.appendChild(VA.el("th", "num kmtable__first",
-      model.bandUnits ? "Band, " + model.bandUnits : "Band"));
-    head.appendChild(VA.el("th", null, "Confidence"));
-    head.appendChild(VA.el("th", null, ""));
-    var thead = VA.el("thead");
-    thead.appendChild(groups);
-    thead.appendChild(head);
-    table.appendChild(thead);
-    var body = VA.el("tbody");
-    // A group ranks among the rows by its reach, as a row does by its own
-    // (a row with no magnitude -- a gap -- last; a declared-gap group after
-    // every row).
-    var groups = (model.groups || []).slice().sort(function (x, y) {
-      return (y.reach === null ? -Infinity : y.reach) - (x.reach === null ? -Infinity : x.reach);
-    });
-    var emitGroup = function (group) {
-      groupRows(study, group, model, topoProj, decimals, ctx)
-        .forEach(function (tr) { body.appendChild(tr); });
-    };
-    model.rows.forEach(function (row) {
-      while (groups.length && groups[0].reach !== null &&
-             (row.reach === null || groups[0].reach > row.reach)) {
-        emitGroup(groups.shift());
-      }
-      body.appendChild(contributorRow(study, row, model, topoProj, decimals, ctx));
-    });
-    groups.forEach(emitGroup);
-    table.appendChild(body);
-    wrap.appendChild(table);
-    return wrap;
-  }
-
-  function isSelectedEdge(ctx, edgeId) {
-    return !!(ctx.selection && ctx.selection.kind === "edge" && ctx.selection.id === edgeId);
-  }
-
-  // A group's rows: its own, then one per term, collapsed until the reader
-  // opens it. A term is the same row a direct contributor is (its link, its
-  // curve, its 3D control), so it carries `kmchild` and not `kmrow`: the page
-  // still says each DIRECT contributor once.
-  function groupRows(study, group, model, topoProj, decimals, ctx) {
-    var tr = VA.el("tr", "kmgroup");
-    tr.setAttribute("data-study", group.id);
-    var nameCell = VA.el("td", "kmrow__name");
-    var toggle = VA.el("button", "ghost kmgroup__toggle", "▸");
-    toggle.setAttribute("aria-expanded", "false");
-    toggle.setAttribute("title", group.title);
-    // Nothing to open under a declared gap: no toggle.
-    if (group.children.length) nameCell.appendChild(toggle);
-    var label = VA.el("span", "kmgroup__name", group.name);
-    label.setAttribute("title", group.title);
-    nameCell.appendChild(label);
-    nameCell.appendChild(VA.el("span", "kmrow__zone", group.zone));
-    tr.appendChild(nameCell);
-    stopCells(tr, study, group, model, decimals, ctx);
-    var band = VA.el("td", "num kmtable__first");
-    if (group.band) {
-      band.textContent = group.band;
-      band.setAttribute("title", group.bandTitle);
-    } else if (group.flag) {
-      band.appendChild(gapTrigger(VA.chip("chip--gap", group.flag, null), study, group,
-                                  topoProj, ctx));
-    }
-    tr.appendChild(band);
-    tr.appendChild(VA.el("td", "kmrow__conf"));
-    tr.appendChild(VA.el("td", "kmrow__3d"));
-
-    // Open or closed is the page's, not this row's: the DAG's sub-stack field
-    // opens and closes with it (VA.kinematicSubStacks). A ctx without the
-    // shared state (a bare test render) keeps the row's own.
-    var shared = !!ctx.onToggleSubStack;
-    var startOpen = !!(ctx.openSubStacks && ctx.openSubStacks[group.id]);
-    var kids = group.children.map(function (child) {
-      var kid = contributorRow(study, child, model, topoProj, decimals, ctx);
-      kid.hidden = !startOpen;
-      return kid;
-    });
-    toggle.setAttribute("aria-expanded", startOpen ? "true" : "false");
-    toggle.textContent = startOpen ? "▾" : "▸";
-    var toggleKids = function () {
-      if (shared) {
-        ctx.onToggleSubStack(group.id);
-        return;
-      }
-      var open = toggle.getAttribute("aria-expanded") !== "true";
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      toggle.textContent = open ? "▾" : "▸";
-      kids.forEach(function (kid) { kid.hidden = !open; });
-    };
-    toggle.onclick = function (event) {
-      if (event && event.stopPropagation) event.stopPropagation();
-      toggleKids();
-    };
-    tr.onclick = toggleKids;
-    return [tr].concat(kids);
-  }
-
-  // The three cells a stop contributes to a row, for every stop in the table.
-  function stopCells(tr, study, row, model, decimals, ctx) {
-    row.cells.forEach(function (cell, s) {
-      var stop = model.stops[s];
-      if (!cell) {
-        for (var k = 0; k < STOP_COLUMNS; k++) tr.appendChild(VA.el("td", k ? "num" : "num kmtable__first"));
-        return;
-      }
-      var muted = cell.muted ? " kmcell--muted" : "";
-      var sign = VA.el("td", "num kmtable__first" + muted, cell.sign);
-      sign.setAttribute("data-stop", stop.id);
-      tr.appendChild(sign);
-      tr.appendChild(coefficientCell(study, row, cell, stop, decimals, muted, ctx));
-      var magnitude = VA.el("td", "num" + muted, cell.magnitude === null ? "" : cell.magnitude);
-      magnitude.setAttribute("data-stop", stop.id);
-      if (cell.flagTitle) magnitude.setAttribute("title", cell.flagTitle);
-      tr.appendChild(magnitude);
-    });
-  }
-
-  function contributorRow(study, row, model, topoProj, decimals, ctx) {
-    var tr = VA.el("tr", (row.child ? "kmchild" : "kmrow") + " kmrow--" + row.kind +
-      (isSelectedEdge(ctx, row.edge) ? " kmrow--selected" : ""));
-    tr.setAttribute("data-edge", row.edge);
-
-    var nameCell = VA.el("td", "kmrow__name");
-    var link = VA.el("a", "kmrow__edge", row.name);
-    // A new tab opens the edge on its rail; a click selects it HERE.
-    link.setAttribute("href", VA.viewerLink({ topology: row.topology, edge: row.edge }));
-    link.setAttribute("title", row.title);
-    link.onclick = function (event) {
-      if (!ctx.onEdge) return;
-      if (event && event.preventDefault) event.preventDefault();
-      ctx.onEdge(row.topology, row.edge);
-    };
-    nameCell.appendChild(link);
-    // The zone's shape, a muted word after the name (its meaning on hover):
-    // a column of its own cost the table the width it needs beside the
-    // preview pane at 1600 wide.
-    var zone = VA.el("span", "kmrow__zone", row.zone);
-    if (row.zoneTitle) zone.setAttribute("title", row.zoneTitle);
-    nameCell.appendChild(zone);
-    tr.appendChild(nameCell);
-
-    stopCells(tr, study, row, model, decimals, ctx);
-
-    var band = VA.el("td", "num kmtable__first");
-    if (row.band) {
-      band.textContent = row.band;
-      if (row.bandTitle) band.setAttribute("title", row.bandTitle);
-    } else if (row.flag) {
-      var chip = VA.chip("chip--gap", row.flag, null);
-      band.appendChild(gapTrigger(chip, study, row, topoProj, ctx));
-    }
-    tr.appendChild(band);
-
-    var confidence = VA.el("td", "kmrow__conf");
-    if (row.confidence) {
-      confidence.appendChild(VA.chip(VA.confidenceClass(row.confidence),
-        VA.CONFIDENCE_LABEL[row.confidence] || row.confidence));
-    }
-    tr.appendChild(confidence);
-    tr.appendChild(threeDCell(row, topoProj, ctx));
-    return tr;
-  }
-
-  // A gap chip opens the card that says what would resolve it
-  // (VA.kinematicGapCard). With no card host, its first line is the tooltip.
-  function gapTrigger(chip, study, row, topoProj, ctx) {
-    var card = VA.kinematicGapCard(study, row, topoProj);
-    if (!ctx.onCardShow) {
-      chip.setAttribute("title", row.flagTitle || "");
-      return chip;
-    }
-    chip.className += " cardtrig";
-    chip.setAttribute("tabindex", "0");
-    var show = function () { ctx.onCardShow(card, chip); };
-    chip.onmouseenter = show;
-    chip.onfocus = show;
-    chip.onclick = function (event) {
-      if (event && event.stopPropagation) event.stopPropagation();
-      show();
-    };
-    return chip;
-  }
-
-  // A coefficient, and on hover or focus its curve across the whole sweep
-  // (VA.kinematicCurve), as a hover card of kind `curve` in the page's one
-  // popover (views/cards.js) -- a fixed-position card, so the table's own
-  // horizontal scroll box cannot clip it. Computed the first time it is asked
-  // for, so a table nobody hovers draws no charts. With no card host (a page
-  // embedding this view without one) the chart is drawn inside the cell.
-  function coefficientCell(study, row, cell, stop, decimals, muted, ctx) {
-    var td = VA.el("td", "num kmcell--coef" + muted);
-    td.setAttribute("data-stop", stop.id);
-    td.appendChild(VA.el("span", "kmcell__value", cell.coefficient));
-    if (cell.flagTitle) td.setAttribute("title", cell.flagTitle);
-    if (!row.curve) return td;
-    td.setAttribute("tabindex", "0");
-    var card = null;
-    var show = function () {
-      if (!card) {
-        var curve = VA.kinematicCurve(study, row, decimals, stop.id);
-        if (!curve) return;
-        card = { kind: "curve", title: row.name, curve: curve };
-        if (!ctx.onCardShow) td.appendChild(VA.kinematicCurveFigure(curve, row.name));
-      }
-      if (ctx.onCardShow) ctx.onCardShow(card, td);
-    };
-    td.onmouseenter = show;
-    td.onfocus = show;
-    return td;
-  }
-
   // The curve as a figure: the frame, zero, the stops (this cell's marked),
   // the line, and its four end values. Read by the hover card too.
   VA.kinematicCurveFigure = function (curve, name) {
@@ -1583,30 +1695,6 @@
     box.appendChild(VA.el("div", "muted kmcurve__axis", curve.xLabel));
     return box;
   };
-
-  // The row's way into the 3D scene: only where its part HAS a mesh to show
-  // (the rule the rail's "attach to 3D" already follows) -- a launch onto an
-  // empty scene is a dead end. The flyout where the mount probe passed, a
-  // new-tab link where it did not.
-  function threeDCell(row, topoProj, ctx) {
-    var cell = VA.el("td", "kmrow__3d");
-    if (!row.part || !VA.partHasMesh(topoProj, row.part)) return cell;
-    var params = { topologyId: row.topology, edgeId: row.edge, part: row.part };
-    if (ctx.annotateMount && ctx.onAttach3d) {
-      var button = VA.el("button", "ghost kmrow__3dbtn", "3D");
-      button.setAttribute("title", "show this contributor's part in the 3D panel");
-      button.onclick = function () { ctx.onAttach3d(params); };
-      cell.appendChild(button);
-    } else {
-      var a = VA.el("a", "kmrow__3dlink", "3D ↗");
-      a.setAttribute("href", VA.annotateLink(params));
-      a.setAttribute("target", "_blank");
-      a.setAttribute("rel", "noopener");
-      a.setAttribute("title", "open this contributor's part in the 3D annotator");
-      cell.appendChild(a);
-    }
-    return cell;
-  }
 
   // Everything about WHERE the numbers came from, behind one fold: the sweep,
   // its own agreement figure, how features were identified, the study's

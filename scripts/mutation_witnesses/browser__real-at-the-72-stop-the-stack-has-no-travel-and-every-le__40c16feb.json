@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] at the +72 stop the stack has no travel, and every leader is on its row",
+  "mutations": [
+    {
+      "contract": "The stop picker changes the stop the grid's stack is shown at.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Ignores the pick.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "onStackStop: function (stopId) { state.kinematicStop = stopId; render(); },",
+      "replace": "onStackStop: function (stopId) { void stopId; render(); },"
+    }
+  ]
+}

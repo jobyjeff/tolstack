@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] hovering a sensitivity shows its curve across the sweep, both signs of the mount height's on its axis",
+  "mutations": [
+    {
+      "contract": "Hovering a sensitivity opens its curve as the page's hover card.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Never hands the card to the host.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "          ctx.onCardShow(curveCard, sensitivity);",
+      "replace": "          if (false) ctx.onCardShow(curveCard, sensitivity);"
+    }
+  ]
+}

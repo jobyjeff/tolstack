@@ -90,6 +90,29 @@
   --rail-halo: rgba(174, 196, 232, .13);
   --tv-hot: rgba(255, 255, 255, .055);
   --tv-lead: rgba(255, 255, 255, .125);
+
+  /* The bodies' tints (the_kinematic_grid_is_a_stack_of_sub_stacks): ONE set,
+     filled into the DAG's body containers (.tv__bodyfield--t*) and painted
+     behind the grid rows of the same body (.tvrow--body-t*), so a row and the
+     field its bar sits in are one colour. Six, cycled by the body's place in
+     the document (VA.BODY_TINTS, VA.bodyTint). Muted hues near the floor of
+     visible, none of them a provenance colour. */
+  --tv-body-0: rgba(140, 160, 200, .075);
+  --tv-body-1: rgba(150, 190, 170, .065);
+  --tv-body-2: rgba(190, 170, 140, .065);
+  --tv-body-3: rgba(170, 150, 200, .07);
+  --tv-body-4: rgba(140, 185, 195, .065);
+  --tv-body-5: rgba(190, 150, 165, .065);
+  /* The grid's structure marks: a hairline between two rows of one body, a
+     heavier rule between bodies and between sub-stacks, and one left rule down
+     a sub-stack's header and rows (dashed for a declared gap). Drawn as inset
+     box-shadows and gradients, never borders: a cell border joins the table's
+     row-height sizing and would move a row off its leader's seam. */
+  --tv-divide-hair: rgba(255, 255, 255, .06);
+  --tv-divide-heavy: #59606f;
+  --tv-divide-heavy-w: 2px;
+  --tv-stack-rule: #9aa1ac;
+  --tv-stack-rule-w: 3px;
 }
 
 /* Everything the drag of a grip should suppress while it is running
@@ -523,12 +546,12 @@ body { display: flex; flex-direction: column; }
    outline. pointer-events off: the field is wayfinding; its NAME is the one
    control (it folds the body). */
 .tv__bodyfield { stroke: rgba(255, 255, 255, .07); stroke-width: 1; pointer-events: none; }
-.tv__bodyfield--t0 { fill: rgba(140, 160, 200, .075); }
-.tv__bodyfield--t1 { fill: rgba(150, 190, 170, .065); }
-.tv__bodyfield--t2 { fill: rgba(190, 170, 140, .065); }
-.tv__bodyfield--t3 { fill: rgba(170, 150, 200, .07); }
-.tv__bodyfield--t4 { fill: rgba(140, 185, 195, .065); }
-.tv__bodyfield--t5 { fill: rgba(190, 150, 165, .065); }
+.tv__bodyfield--t0 { fill: var(--tv-body-0); }
+.tv__bodyfield--t1 { fill: var(--tv-body-1); }
+.tv__bodyfield--t2 { fill: var(--tv-body-2); }
+.tv__bodyfield--t3 { fill: var(--tv-body-3); }
+.tv__bodyfield--t4 { fill: var(--tv-body-4); }
+.tv__bodyfield--t5 { fill: var(--tv-body-5); }
 .tv__bodyfield--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
 .tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
@@ -807,17 +830,54 @@ body { display: flex; flex-direction: column; }
 
    Hover is `background-color` for the same reason: as a shorthand it wiped
    the provenance layer off whichever row the reader was pointing at. */
-.tvrow--band-a { background-color: var(--tv-band-a); }
-.tvrow--band-b { background-color: var(--tv-band-b); }
+.tvrow--body-t0 { background-color: var(--tv-body-0); }
+.tvrow--body-t1 { background-color: var(--tv-body-1); }
+.tvrow--body-t2 { background-color: var(--tv-body-2); }
+.tvrow--body-t3 { background-color: var(--tv-body-3); }
+.tvrow--body-t4 { background-color: var(--tv-body-4); }
+.tvrow--body-t5 { background-color: var(--tv-body-5); }
+/* The divider above a row (VA.gridRowMarks), on its cells. */
+.tvrow--divide-hair > .tvcell { box-shadow: inset 0 1px 0 var(--tv-divide-hair); }
+.tvrow--divide-body > .tvcell, .tvrow--divide-sub > .tvcell {
+  box-shadow: inset 0 var(--tv-divide-heavy-w) 0 var(--tv-divide-heavy);
+}
+/* The sub-stack rule down the row's first cell (a rowspanned component cell
+   spans only rows of one sub-stack: VA.gridPlan breaks its groups at a
+   header), layered over whichever divider the cell already wears. */
+.tvrow--ruled > .tvcell:first-child {
+  background-image: linear-gradient(var(--tv-stack-rule), var(--tv-stack-rule));
+  background-size: var(--tv-stack-rule-w) 100%; background-repeat: no-repeat;
+}
+.tvrow--gapstack > .tvcell:first-child {
+  background-image: repeating-linear-gradient(to bottom,
+    var(--tv-stack-rule) 0 4px, transparent 4px 7px);
+}
+.tvrow--substack { font-size: var(--t-dense); }
+.tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }
+.tvsub__title { font-weight: 600; }
+.tvrow--gapstack .tvsub__title { font-weight: 400; font-style: italic; color: var(--muted); }
+.tvsub__total { font-weight: 600; }
+/* The sourcing legend under the grid: each chip beside what it means. */
+.tvlegend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+  padding: 10px 8px; font-size: var(--t-micro);
+}
+.tvlegend__head { color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.tvlegend__item { display: inline-flex; align-items: center; gap: 6px; }
+.tvcell--curve { cursor: help; }
+/* The results pane's stop picker: which stop the grid's stack is shown at. */
+.kmstop { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+.kmstop__label { font-size: var(--t-micro); }
+.kmstop__button { font-size: var(--t-dense); }
+.kmstop__button--on { color: var(--accent); border-color: var(--accent); }
 /* A row's hover tint is NOT a `:hover` rule any more -- it is `--hot` /
    `--lead`, set by views/topology.js's setHot from the same state that lights
    the DAG. See "one hover state, two surfaces" at the bottom of this file. */
 .tvrow--edge { font-size: var(--t-dense); }
-/* A component group's first row: the seam a leader points at. box-shadow, not
-   border-top — a cell border participates in the table's row-height sizing
-   (this file's own collapsed-border lesson, above) and a shadow never does,
-   so the group line cannot nudge a row off its leader. */
-.tvrow--group-start .tvcell { box-shadow: inset 0 1px 0 var(--line); }
+/* A component group's first row is the seam a leader points at; its line is
+   the divider above it (.tvrow--divide-*, VA.gridRowMarks) since
+   the_kinematic_grid_is_a_stack_of_sub_stacks -- one rule for every row
+   rather than a group line and a divider competing for the same shadow. */
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 /* Same tint the elements table uses: an untraced value has to survive a skim.
    As a background IMAGE (a flat two-stop gradient is the only way CSS spells
@@ -1536,12 +1596,11 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 /* --- the kinematic study page (views/kinematic.js) ----------------------
    the_viewer_shows_a_kinematic_study, 2026-10-20. Since 2026-10-28 the page
    has every study page's shape: the model in the main column, and the
-   results -- name, verdicts, chart, readouts, contributors, provenance -- at
+   results -- name, verdicts, chart, readouts, provenance -- at
    the top of the right-hand pane (`.kmresults`). Type, colour and spacing are the :root
    tokens and nothing else (docs/DESIGN_TYPE_AND_COLOUR.md); the one accent
    is the verdict chip. */
 .kmresults { min-width: 0; }
-.kmcontrib { max-width: 100%; overflow-x: auto; margin-bottom: 14px; }
 .kmhead__title { font-size: var(--t-title); margin: 0 0 8px; }
 /* The pane's results, then the selection's preview under them: separated
    by space and one rule, never a box. */
@@ -1684,48 +1743,6 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 .kmchart__tiprow { display: flex; justify-content: space-between; gap: 14px; }
 .kmchart__tiplabel { color: var(--muted); }
 
-/* One table, a row per contributor and a column group per stop
-   (2026-10-26): the group header carries the stop's name and its summary
-   line, and the first column of every group -- and the band -- opens with a
-   rule, so the groups read as groups without a box around each. */
-.kmcontrib { margin: 0 0 18px; overflow-x: auto; }
-.kmtable { border-collapse: collapse; font-size: var(--t-dense); }
-.kmtable th {
-  text-align: left; color: var(--muted); font-size: var(--t-micro);
-  font-weight: 600; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--line);
-}
-.kmtable th.num { text-align: right; }
-.kmtable td { padding: 3px 10px 3px 0; vertical-align: baseline; }
-.kmtable .kmtable__first { padding-left: 14px; border-left: 1px solid var(--line); }
-/* A stop's name and its summary line are a title and a sentence, not the
-   uppercase micro label a bare th is app-wide (style.css). */
-.kmtable__groups th {
-  border-bottom: none; padding-bottom: 0; vertical-align: bottom;
-  text-transform: none; letter-spacing: normal;
-}
-.kmtable__groups .kmtable__stop { padding-left: 14px; border-left: 1px solid var(--line); }
-.kmtable__stoplabel { color: var(--ink); font-size: var(--t-dense); font-weight: 600; }
-.kmtable__stopsum { font-weight: 400; font-size: var(--t-micro); white-space: normal;
-  font-variant-numeric: tabular-nums; max-width: 22em; }
-/* Column labels wrap under their numbers rather than widen the table. */
-.kmtable__cols th { vertical-align: bottom; white-space: normal; }
-/* A contributor's name wraps at a readable measure, never a word a line, and
-   stays pinned at the left when the table scrolls sideways -- at 1600 wide
-   beside the preview pane the band, confidence and 3D columns are a scroll
-   away, and the row they belong to must not be. */
-.kmrow__name, .kmtable th.kmtable__lead {
-  min-width: 14em; max-width: 22em; position: sticky; left: 0; z-index: 1;
-  background: var(--bg);
-}
-.kmrow__zone { margin-left: 6px; color: var(--muted); font-size: var(--t-micro); }
-/* A contributor that is a study: its row, and its terms indented under it. */
-.kmgroup__toggle { padding: 0 6px 0 0; border: 0; background: none; color: var(--muted); font: inherit; }
-.kmchild .kmrow__name { padding-left: 22px; }
-.kmtable tbody tr:hover { background: #20242c; }
-.kmtable tbody tr { cursor: pointer; }
-.kmrow--selected td { background: #252b36; }
-.kmrow--selected .kmrow__edge { color: var(--accent); }
-.kmcell--muted { color: var(--muted); }
 /* The preview pane's "band in this study" line on a kinematic page: a
    contributor with no value of its own, and the edge whose band it reads. */
 .detail__band { margin: 4px 0 8px; font-size: var(--t-meta); }
@@ -1735,9 +1752,8 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 }
 
 /* A coefficient's curve across the sweep: the hover card's body (the
-   page's one popover, views/cards.js), or drawn in the cell where there is
-   no card host. */
-.kmcell--coef { cursor: help; }
+   page's one popover, views/cards.js), opened from the grid's SENSITIVITY
+   cell on a kinematic page. */
 .kmcurve { text-align: left; white-space: nowrap; font-family: inherit; }
 .kmcurve__title { font-size: var(--t-meta); color: var(--ink); margin-bottom: 2px; }
 .kmcurve__svg { display: block; }
@@ -1748,16 +1764,6 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 .kmcurve__line { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 .kmcurve__tick { fill: var(--muted); font-size: var(--t-micro); }
 .kmcurve__axis { font-size: var(--t-micro); }
-.kmrow__edge { color: var(--ink); text-decoration: none; }
-.kmrow__edge:hover, .kmrow__edge:focus { text-decoration: underline; }
-.kmrow--muted td { color: var(--muted); }
-/* One line: the link's arrow is part of its label, and a wrapped "3D ↗"
-   doubles the row's height at a narrow viewport. */
-.kmrow__3d { text-align: right; white-space: nowrap; }
-.kmrow__3dbtn, .kmrow__3dlink { opacity: 0.5; font-size: var(--t-micro); }
-.kmtable tbody tr:hover .kmrow__3dbtn, .kmtable tbody tr:hover .kmrow__3dlink,
-.kmrow__3dbtn:focus, .kmrow__3dlink:focus { opacity: 1; }
-.kmrow__3dlink { color: var(--ink); text-decoration: none; }
 
 .kmprov { margin-top: 6px; }
 .kmprov__summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }

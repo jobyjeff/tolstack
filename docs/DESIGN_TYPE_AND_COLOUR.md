@@ -25,7 +25,7 @@
 | Row geometry (row height, grip pixels) | `VA.RAIL_METRICS`, `VA.TOPO_GRIP` — **JS**, not CSS | `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs` |
 | The size of a drawn icon | `VA.WARNING_ICON_PX` — **JS**, not a type step | `apps/viewer/tests.js` (the attribute), `scripts/run_viewer_browser_tests.mjs` (the rendered box) |
 | The size of a joint glyph on the DAG | `VA.INTERFACE_GLYPH_PX` (`apps/viewer/interface_glyphs.js`) — **JS**, the same kind of picture | `apps/viewer/tests.js` (the glyphs it places) |
-| The body containers' tints | `apps/viewer/topology.css`, `.tv__bodyfield--t*` — region tints like the leader bands, low chroma and never the accent | — |
+| The body tints, and the grid's dividers and sub-stack rule | `apps/viewer/topology.css` `:root`, `--tv-body-*`, `--tv-divide-*`, `--tv-stack-rule*` — region tints like the leader bands, low chroma and never the accent; the DAG's `.tv__bodyfield--t*` and the grid's `.tvrow--body-t*` read the same tokens | `apps/viewer/tests.js` (a row's tint is its body's) |
 
 **An icon is a picture, and its size is not a step on the scale.** The alert
 mark both apps wear (`VA.warningIcon`, 2026-09-22 -- the nav rail's rows, both
@@ -133,6 +133,18 @@ answer is not obvious from the fill rule alone:
   provenance **hue**, lightened by the same neutral halo as everything else on
   its line rather than recoloured. The declarations and the argument are in
   `apps/viewer/topology.css`'s "one hover state, two surfaces".
+
+**The grid's structure is drawn by background and line weight, never by
+hue** (2026-11-03, the_kinematic_grid_is_a_stack_of_sub_stacks). A grid row's
+background is its rigid body's tint — the same token the DAG's container for
+that body is filled with, so a row and the field its bar sits in read as one
+place — and the only other wash a row may wear is the untraced provenance
+image layered over it. Structure is the line *above* a row: a hairline inside
+one body, the heavier divider between bodies and wherever a sub-stack opens or
+closes, and one left rule down a sub-stack's header and rows (dashed for a
+declared gap). Dividers are inset shadows, never borders, so no mark moves a
+row off its leader's seam. The sourcing legend under the grid names each chip
+in reader words; it adds no colour.
 
 ## Monospace
 

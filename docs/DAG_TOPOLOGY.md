@@ -243,7 +243,7 @@ Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symb
   chain a `study_ref` names is a dashed field around its edges, folded to one
   bar with the study's title and its folded interval (shown, never reused — the
   chain rule enters the sub-study's terms one by one). It opens and closes with
-  the contributor table's group row.
+  the grid's header row for it (the_kinematic_grid_is_a_stack_of_sub_stacks).
 
 ### Joint glyphs
 
@@ -944,9 +944,11 @@ each pairing argued in the contributor's own `note`.
 the driver, and the provenance behind one fold. Since 2026-10-26
 (`the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`) the page
 also draws the topology's model with the study's contributors and the edges
-they borrow a band from lit, the rest dimmed or hidden, and says each
-contributor once, with a column group per stop and its coefficient's curve
-across the sweep on hover; a row selects its edge in place. It reads the projection the
+they borrow a band from lit, the rest dimmed or hidden, and since 2026-11-03
+its grid is the study's stack at one stop: the linkage terms in chain order,
+the stop position's sub-stacks folding under their headers, a sensitivity
+column and its curve across the sweep on hover; a row selects its edge in
+place. It reads the projection the
 builder above writes into the viewer's own projection directory, and adds
 nothing up. `apps/viewer/README.md`, "Kinematic studies — a section of their
 own", is where the page is described; `apps/viewer/views/kinematic.js` is the

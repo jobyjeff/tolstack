@@ -2274,6 +2274,54 @@
         b += 1;
       }
     }
+    if (lit.order && lit.order.length) out.band = VA.orderBand(out.band, lit.order);
+    return out;
+  };
+
+  // The band's rows in a lit set's own ORDER (`lit.order`, edge ids -- a
+  // kinematic study's chain order, VA.kinematicStackOrder) rather than the
+  // walk's, laid out as a walk: each edge after the node it hangs from, and
+  // its other node right after it, so consecutive edges that share a node are
+  // one rail. Where neither end of an edge is placed yet, the end the NEXT
+  // edge does not share goes first, so the chain runs on into its next edge.
+  // An edge the order does not name follows in walk order; a node no edge
+  // reached, last. Pure.
+  VA.orderBand = function (band, order) {
+    var nodes = {};
+    var edges = [];
+    band.forEach(function (row) {
+      if (row.kind === "node") nodes[row.id] = row;
+      else if (row.kind === "edge") edges.push(row);
+    });
+    var rank = {};
+    order.forEach(function (id, i) { if (rank[id] === undefined) rank[id] = i; });
+    var walkAt = {};
+    edges.forEach(function (row, i) { walkAt[row.id] = i; });
+    edges.sort(function (a, b) {
+      var ra = rank[a.id] === undefined ? order.length + walkAt[a.id] : rank[a.id];
+      var rb = rank[b.id] === undefined ? order.length + walkAt[b.id] : rank[b.id];
+      return ra - rb;
+    });
+    var out = [];
+    var placed = {};
+    var put = function (id) {
+      if (id && nodes[id] && !placed[id]) { placed[id] = true; out.push(nodes[id]); }
+    };
+    edges.forEach(function (row, i) {
+      var ends = [row.entered_at, row.left_at];
+      if (!placed[ends[0]] && !placed[ends[1]]) {
+        var next = edges[i + 1];
+        var shared = next && (next.entered_at === ends[0] || next.left_at === ends[0]);
+        if (shared) ends.reverse();
+        put(ends[0]);
+      } else if (!placed[ends[0]] && !nodes[ends[1]]) {
+        put(ends[0]);
+      }
+      out.push(row);
+      put(ends[0]);
+      put(ends[1]);
+    });
+    band.forEach(function (row) { if (row.kind === "node") put(row.id); });
     return out;
   };
 
@@ -2499,9 +2547,15 @@
         options.push(relabel(laid, [0].concat(order)));
       });
     }
-    var walked = VA.hideUnlit(layout, lit);
-    options.push({ rows: walked.rows, rails: walked.rails, links: walked.links,
-                   columns: walked.columns });
+    // A band in a lit set's own order (VA.orderBand) is not the walk's order,
+    // so the walk's columns are no option for it: the grid beside the band
+    // reads its rows in the band's order, and a band drawn in another would
+    // cross every leader.
+    if (!(lit.order && lit.order.length) || !options.length) {
+      var walked = VA.hideUnlit(layout, lit);
+      options.push({ rows: walked.rows, rails: walked.rails, links: walked.links,
+                     columns: walked.columns });
+    }
     var best = null;
     var bestScore = null;
     options.forEach(function (option) {
@@ -3404,6 +3458,45 @@
     var prevPart = null;
     var pendingBoundaryNode = null;   // a non-internal node row since the last edge
 
+    // A kinematic page's stack (VA.kinematicStack): its sub-stack headers are
+    // rows of the plan too, emitted where the stack puts them among the term
+    // rows, and a term under a folded sub-stack has no row (its interfaces'
+    // leaders bind to the next row the grid keeps, as a dropped edge's do).
+    // The DAG's band is in the stack's own order (VA.bandSides), so walking
+    // the layout and walking the stack meet the term edges in the same order.
+    var stack = (focus && focus.stack) || null;
+    var stackAt = {};
+    var stackShown = {};
+    var stackNext = 0;
+    if (stack) {
+      stack.entries.forEach(function (entry, i) {
+        if (entry.kind === "term" && stackAt[entry.edge] === undefined) stackAt[entry.edge] = i;
+      });
+      VA.visibleStackEntries(stack).forEach(function (entry) { stackShown[stackKey(entry)] = true; });
+    }
+    var bindLeaders = function (id) {
+      for (var i = leaders.length - 1; i >= 0; i--) {
+        if (leaders[i].boundary !== rows.length || leaders[i].beforeEdge !== null) break;
+        leaders[i].beforeEdge = id;
+      }
+    };
+    var pushHeader = function (entry) {
+      var id = stackKey(entry);
+      groups.push({ part: null, label: "", title: "", start: rows.length, count: 1,
+                    header: entry });
+      bindLeaders(id);
+      rows.push({ id: id, layoutRow: null, gridRow: rows.length, header: entry,
+                  closes: false });
+      prevPart = undefined;
+    };
+    // Every header the stack puts before entry `until` (exclusive), in order.
+    var flushHeaders = function (until) {
+      for (; stackNext < until; stackNext++) {
+        var entry = stack.entries[stackNext];
+        if (entry.kind === "sub" && stackShown[stackKey(entry)]) pushHeader(entry);
+      }
+    };
+
     ((layout && layout.rows) || []).forEach(function (row) {
       // A collapsed body's pill (VA.collapseBodies) is not an interface: it
       // separates nothing in the grid and has no leader.
@@ -3426,6 +3519,17 @@
       // keeps and a group break still lands where the part really changes.
       if (focusEdges && (!focusEdges[row.id] ||
           (focus.closed && focus.closed[row.id]))) return;
+      var term = null;
+      if (stack) {
+        var at = stackAt[row.id];
+        // A lit edge that is no term of this stop's stack (a band's own edge,
+        // a joint, the other stop's chain) has no row here.
+        if (at === undefined) return;
+        if (at >= stackNext) flushHeaders(at);
+        term = stack.entries[at];
+        if (at >= stackNext) stackNext = at + 1;
+        if (!stackShown[stackKey(term)]) return;
+      }
       var edge = index.edges[row.id] || null;
       var part = edge && edge.part !== undefined ? edge.part : null;
       var breakHere = rows.length === 0 || part !== prevPart ||
@@ -3441,22 +3545,76 @@
         });
       }
       groups[groups.length - 1].count += 1;
-      for (var i = leaders.length - 1; i >= 0; i--) {
-        if (leaders[i].boundary !== rows.length || leaders[i].beforeEdge !== null) break;
-        leaders[i].beforeEdge = row.id;
-      }
+      bindLeaders(row.id);
       rows.push({
         id: row.id,
         layoutRow: row.row,
         gridRow: rows.length,
         closes: row.closes_row !== null && row.closes_row !== undefined,
+        body: row.body === undefined ? null : row.body,
+        term: term,
       });
       prevPart = part;
       pendingBoundaryNode = null;
     });
+    if (stack) flushHeaders(stack.entries.length);
 
     return { rows: rows, groups: groups, leaders: leaders, internal: internal };
   };
+
+  // What each grid row wears, as class names keyed by row id
+  // (the_kinematic_grid_is_a_stack_of_sub_stacks). Jeff, 2026-10-29: "Grid
+  // view itself should have visual indication of sub-stacks, rigid bodies,
+  // etc, accomplished with the line weights/colors of the dividers and/or the
+  // background colors." So:
+  //
+  //   * the row's BODY tint -- `tvrow--body-t<n>`, the same index the DAG's
+  //     container for that body is filled with (VA.bodyTint), so a row and
+  //     the field its bar sits in are one colour; a sub-stack header, which
+  //     is no body's, wears none;
+  //   * the divider ABOVE it -- `tvrow--divide-sub` where a sub-stack starts
+  //     or ends, `tvrow--divide-body` where the body changes, a hairline
+  //     (`tvrow--divide-hair`) between two rows of one body; the first row
+  //     has none.
+  //
+  // The weights and tints are tokens in topology.css's :root. Pure.
+  VA.gridRowMarks = function (plan, topoProj) {
+    var out = {};
+    var prev = null;
+    ((plan && plan.rows) || []).forEach(function (row) {
+      var cls = [];
+      if (row.header) cls.push("tvrow--body-none");
+      else if (row.body !== null && row.body !== undefined) {
+        cls.push("tvrow--body-t" + VA.bodyTint(topoProj, row.body));
+      } else cls.push("tvrow--body-none");
+      if (prev) {
+        var parent = function (r) { return r.term ? r.term.parent : null; };
+        // A header opens a sub-stack; its first row is one block with it; a
+        // row whose sub-stack differs from the row above closes one.
+        if (row.header) {
+          cls.push("tvrow--divide-sub");
+        } else if (prev.header) {
+          cls.push("tvrow--divide-hair");
+        } else if (parent(row) !== parent(prev)) {
+          cls.push("tvrow--divide-sub");
+        } else if (row.body !== prev.body) {
+          cls.push("tvrow--divide-body");
+        } else {
+          cls.push("tvrow--divide-hair");
+        }
+      }
+      if (row.header || (row.term && row.term.parent)) cls.push("tvrow--ruled");
+      out[row.id] = cls.join(" ");
+      prev = row;
+    });
+    return out;
+  };
+
+  // A stack entry's row id: its edge for a term, `sub:<id>` for a header.
+  function stackKey(entry) {
+    return entry.kind === "term" ? entry.edge : "sub:" + entry.id;
+  }
+  VA.stackRowId = stackKey;
 
   // The jogged leader lines, as path strings: from just right of the node's
   // dot, horizontally into the jog zone, vertically down/up the zone's own

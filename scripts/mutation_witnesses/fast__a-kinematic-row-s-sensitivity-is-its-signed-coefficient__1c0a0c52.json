@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic row's SENSITIVITY is its signed coefficient at the stop, its CONTRIBUTION the magnitude, and hovering the sensitivity opens its curve",
+  "mutations": [
+    {
+      "contract": "A term's sensitivity cell prints its signed coefficient.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Prints nothing.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      sensitivity.textContent = term.sensitivity;",
+      "replace": "      sensitivity.textContent = \"\";"
+    },
+    {
+      "contract": "Hovering a sensitivity opens its curve as the page's hover card.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Never hands the card to the host.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "          ctx.onCardShow(curveCard, sensitivity);",
+      "replace": "          if (false) ctx.onCardShow(curveCard, sensitivity);"
+    }
+  ]
+}
