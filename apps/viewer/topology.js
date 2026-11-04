@@ -2746,16 +2746,17 @@
     }
   };
 
-  // Which of a walk's body fields carries the body's name. With nothing lit,
-  // every one: a body is one block per connected piece of the walk, and each
-  // block is named. With a study lit the band splits bodies further
-  // (VA.bandLayout), so a body is named ONCE -- on the first field that holds
-  // a lit row (the band's), else on its first. `fields` is any list of spans
-  // ({body, start, end}) over `rows`; returns booleans parallel to it.
+  // Which of a walk's body fields carries the body's name. A body is ONE
+  // container however many fields the walk splits it into -- one per
+  // connected piece of the walk, and the band splits it further when a study
+  // is lit (VA.bandLayout) -- so it is named once (the_joint_is_the_node_and_
+  // an_edge_says_only_lit_or_unlit): on the first field that holds a lit row
+  // (the band's), else on its first. Its other fields are bridged to that one
+  // (VA.bodyBridges). `fields` is any list of spans ({body, start, end}) over
+  // `rows`; returns booleans parallel to it.
   VA.bodyLabelFields = function (fields, rows, lit) {
     fields = fields || [];
     rows = rows || [];
-    if (!lit) return fields.map(function () { return true; });
     var holdsLit = function (field) {
       if (!lit) return false;
       for (var r = field.start; r <= field.end; r++) {
@@ -2772,10 +2773,45 @@
     return fields.map(function (field, i) { return pick[field.body] === i; });
   };
 
-  // How many muted fills the containers cycle through (topology.css's
-  // `--tv-body-0` ... ). A body's tint is its place in the document's own
-  // `bodies[]`, so it does not change when the walk is hidden or collapsed.
-  VA.BODY_TINTS = 6;
+  // How many muted fills there are (topology.css's `--tv-body-0` ... ). A
+  // body's tint is ASSIGNED, not cycled: its place in the document's own
+  // `bodies[]`, so it does not change when the walk is hidden or collapsed,
+  // and no two of a topology's first sixteen bodies share one. A seventeenth
+  // body would take the first's -- the fast tier pins the live product model
+  // under the count, so that day is a red test rather than a quiet clash.
+  VA.BODY_TINTS = 16;
+
+  // The thin bridges that make a body's fields one container: one between
+  // each pair of consecutive fields of the same body, in walk order, from the
+  // upper field's bottom edge to the lower's top, at an x both share when
+  // they overlap (else an elbow at the gap's middle). `fields` is the
+  // geometry's body rectangles ({body, x1, x2, y1, y2}); returns
+  // [{body, d}] -- a path, drawn in the body's own tint.
+  VA.bodyBridges = function (fields) {
+    var last = {};
+    var out = [];
+    (fields || []).forEach(function (field) {
+      var prev = last[field.body];
+      last[field.body] = field;
+      if (!prev) return;
+      var a = prev.y2 <= field.y1 ? prev : field;
+      var b = a === prev ? field : prev;
+      var lo = Math.max(a.x1, b.x1);
+      var hi = Math.min(a.x2, b.x2);
+      var d;
+      if (hi - lo >= 12) {
+        var x = lo + 8;
+        d = "M " + x + " " + a.y2 + " V " + b.y1;
+      } else {
+        var xa = a.x1 + 8;
+        var xb = b.x1 + 8;
+        var mid = (a.y2 + b.y1) / 2;
+        d = "M " + xa + " " + a.y2 + " V " + mid + " H " + xb + " V " + b.y1;
+      }
+      out.push({ body: field.body, d: d });
+    });
+    return out;
+  };
 
   VA.bodyTint = function (topoProj, bodyId) {
     var bodies = (topoProj && topoProj.bodies) || [];

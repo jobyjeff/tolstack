@@ -94,8 +94,13 @@
   /* The bodies' tints (the_kinematic_grid_is_a_stack_of_sub_stacks): ONE set,
      filled into the DAG's body containers (.tv__bodyfield--t*) and painted
      behind the grid rows of the same body (.tvrow--body-t*), so a row and the
-     field its bar sits in are one colour. Six, cycled by the body's place in
-     the document (VA.BODY_TINTS, VA.bodyTint). Muted hues near the floor of
+     field its bar sits in are one colour. Sixteen
+     (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit), one per
+     body: a body's tint is its place in the document's `bodies[]`
+     (VA.BODY_TINTS, VA.bodyTint), so no two of a topology's first sixteen
+     bodies share one, and a body's container bridge (one body, one container)
+     wears it too. Neighbouring slots sit far apart in hue, since bodies listed
+     together are usually drawn together. Muted hues near the floor of
      visible, none of them a provenance colour. */
   --tv-body-0: rgba(140, 160, 200, .075);
   --tv-body-1: rgba(150, 190, 170, .065);
@@ -103,11 +108,28 @@
   --tv-body-3: rgba(170, 150, 200, .07);
   --tv-body-4: rgba(140, 185, 195, .065);
   --tv-body-5: rgba(190, 150, 165, .065);
+  --tv-body-6: rgba(167, 194, 147, .065);
+  --tv-body-7: rgba(194, 147, 194, .065);
+  --tv-body-8: rgba(194, 194, 147, .06);
+  --tv-body-9: rgba(147, 147, 194, .075);
+  --tv-body-10: rgba(147, 194, 187, .065);
+  --tv-body-11: rgba(194, 159, 147, .065);
+  --tv-body-12: rgba(179, 147, 194, .07);
+  --tv-body-13: rgba(147, 194, 151, .065);
+  --tv-body-14: rgba(147, 175, 194, .07);
+  --tv-body-15: rgba(194, 147, 179, .065);
   /* The grid's structure marks: a hairline between two rows of one body, a
      heavier rule between bodies and between sub-stacks, and one left rule down
      a sub-stack's header and rows (dashed for a declared gap). Drawn as inset
      box-shadows and gradients, never borders: a cell border joins the table's
      row-height sizing and would move a row off its leader's seam. */
+  /* An edge's one ink and its two weights (the_joint_is_the_node_and_an_
+     edge_says_only_lit_or_unlit): lit -- or everything, with nothing lit --
+     and unlit. Neutral, a step under the hover grey, so a bar is the rail it
+     sits on made heavier and claims no hue. */
+  --edge-ink: #b8c0cc;
+  --edge-lit-w: 4px;
+  --edge-unlit-w: 1.5px;
   --tv-divide-hair: rgba(255, 255, 255, .06);
   --tv-divide-heavy: #59606f;
   --tv-divide-heavy-w: 2px;
@@ -498,10 +520,15 @@ body { display: flex; flex-direction: column; }
 .rail__link { fill: none; stroke: var(--rail-even); stroke-width: 2; }
 .rail__link--close { stroke: var(--rail-dim); stroke-dasharray: 3 3; }
 
-/* An edge's bar IS the dimension: a fat segment spanning exactly its row. It
-   wears the citation's confidence, through the same conf-- classes the tables
-   use, so there is one vocabulary and one colour decision. */
-.rail__bar { stroke-width: 5; stroke-linecap: butt; cursor: pointer; }
+/* An edge's bar IS the dimension: a segment spanning exactly its row. It says
+   ONE thing, lit or unlit, and says it by weight -- `--edge-lit-w` for an edge
+   the page lights (every edge, when nothing is lit), `--edge-unlit-w` for the
+   rest -- in one neutral ink, and a gap is dashed. Nothing else rides the
+   stroke (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit): its
+   confidence is the grid's SOURCING chip and its band the grid's MIN/MAX.
+   Hover and selection are the one exception, and they spend width. */
+.rail__bar { stroke: var(--edge-ink); stroke-width: var(--edge-lit-w);
+  stroke-linecap: butt; cursor: pointer; }
 /* The whole-edge hover/click target (deliverable 3, viewer_error_surface_and_
    layout, 2026-09-09): solid and wider than the visible bar, so a dashed
    confidence/gap stroke's own gaps (rail__bar--gap/--derived, both below)
@@ -510,32 +537,37 @@ body { display: flex; flex-direction: column; }
    dash pattern unchanged; `pointer-events: stroke` is what makes a
    `stroke: transparent` line still hoverable/clickable. */
 .rail__barhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
-.rail__bar.conf--traced { stroke: var(--traced); }
-.rail__bar.conf--inferred { stroke: var(--inferred); }
-.rail__bar.conf--untraced { stroke: var(--untraced); }
-.rail__bar.conf--no_source_ref { stroke: var(--nocite); }
-.rail__bar.conf--unknown { stroke: var(--muted); }
 /* A gap crosses between parts and has no lane of its own — dashed, because it
-   is the one edge kind no rail belongs to. A DERIVED gap is the answer a study
-   computes rather than a term in one, so it is hollow as well as dashed. */
+   is the one edge kind no rail belongs to. A derived gap is a gap, and draws as
+   one: that it carries no value is the grid's to say. */
 .rail__bar--gap { stroke-dasharray: 4 3; }
-.rail__bar--derived { stroke: var(--zero); stroke-dasharray: 2 4; stroke-width: 3; }
 
-/* The joint glyphs (interface_glyphs.js): a stroke in the colour of the bar
-   it sits on -- the same conf-- classes -- over a disc of the page's own
-   background so the dashed bar does not run through the drawing. The disc is
-   no target; the glyph carries the edge's card and click. */
+/* A joint node (interface_glyphs.js, VA.nodeJointKinds): the joint's glyph in
+   the node's own ink and fill, through the same states a plain dot has
+   (`rail__node--*` mirrors `rail__dot--*`, below). The shapes read the ink as
+   `currentColor` and the fill by inheritance. The dot under it is unpainted
+   and stays the target, so the glyph takes no pointer. */
+.rail__node { color: var(--rail-odd); fill: var(--panel); stroke-width: 2;
+  pointer-events: none; overflow: visible; }
+.rail__node--branch { color: var(--accent); stroke-width: 2.5; }
+.rail__node--on { color: var(--accent); fill: var(--on); }
+.rail__node--selected { color: var(--accent); stroke-width: 3; }
+.rail__node--off, .rail__node--other-variant { opacity: .28; }
+.rail__node--hot { stroke-width: 3; }
+.rail__node--lead { stroke-width: 3.5; }
+.glyph__ring { fill: inherit; stroke: currentColor; }
+.glyph__solid { fill: currentColor; stroke: none; }
+.glyph__line { fill: none; stroke: currentColor; stroke-linecap: round; }
+.glyph__mask { stroke: none; }
+.rail__dot.rail__dot--joint { fill: transparent; stroke: transparent; }
+
+/* The form mark (interface_glyphs.js's VA.FORM_GLYPH): a muted squiggle
+   beside the node or the bar it is about, never on the stroke. It carries its
+   edge's preview and click. */
 .rail__glyph { fill: none; stroke: var(--muted); stroke-width: 1.4;
   stroke-linecap: round; pointer-events: all; cursor: pointer; overflow: visible; }
-.rail__glyph .glyph__solid { stroke-width: 2.4; }
-.rail__glyph.conf--traced { stroke: var(--traced); }
-.rail__glyph.conf--inferred { stroke: var(--inferred); }
-.rail__glyph.conf--untraced { stroke: var(--untraced); }
-.rail__glyph.conf--no_source_ref { stroke: var(--nocite); }
-.rail__glyph--derived { stroke: var(--zero); }
 .rail__glyph--form { stroke: var(--muted); }
 .rail__glyph--off, .rail__glyph--other-variant { opacity: .28; }
-.rail__glyphbg { fill: var(--bg); stroke: none; pointer-events: none; }
 
 /* A body's container (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a region
    tint like the leader bands, not a mark, so it claims nothing the fill rule
@@ -552,7 +584,22 @@ body { display: flex; flex-direction: column; }
 .tv__bodyfield--t3 { fill: var(--tv-body-3); }
 .tv__bodyfield--t4 { fill: var(--tv-body-4); }
 .tv__bodyfield--t5 { fill: var(--tv-body-5); }
+.tv__bodyfield--t6 { fill: var(--tv-body-6); }
+.tv__bodyfield--t7 { fill: var(--tv-body-7); }
+.tv__bodyfield--t8 { fill: var(--tv-body-8); }
+.tv__bodyfield--t9 { fill: var(--tv-body-9); }
+.tv__bodyfield--t10 { fill: var(--tv-body-10); }
+.tv__bodyfield--t11 { fill: var(--tv-body-11); }
+.tv__bodyfield--t12 { fill: var(--tv-body-12); }
+.tv__bodyfield--t13 { fill: var(--tv-body-13); }
+.tv__bodyfield--t14 { fill: var(--tv-body-14); }
+.tv__bodyfield--t15 { fill: var(--tv-body-15); }
 .tv__bodyfield--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
+/* A body is one container: where the walk splits it into fields, a thin
+   bridge in its own tint (set inline from VA.bodyTint) runs from each field to
+   the next (VA.bodyBridges), and the body is named once. */
+.tv__bodybridge { fill: none; stroke-width: 4; stroke-linecap: butt; pointer-events: none; }
+.tv__bodybridge--flat { stroke: rgba(255, 255, 255, .09); stroke-width: 1; }
 .tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }
@@ -731,7 +778,8 @@ body { display: flex; flex-direction: column; }
    select. Same weight as "off the path" -- one dimming, two reasons. */
 .rail__bar--other-variant, .rail__dot--other-variant { opacity: .28; }
 .tvrow--other-variant { opacity: .5; }
-.rail__bar--on { stroke-width: 7; }
+.rail__bar--on { stroke-width: var(--edge-lit-w); }
+.rail__bar--off { stroke-width: var(--edge-unlit-w); }
 .rail__dot--on { stroke: var(--accent); fill: var(--on); }
 
 /* --- one hover state, two surfaces --------------------------------------
@@ -778,8 +826,8 @@ body { display: flex; flex-direction: column; }
    lightened by the same neutral veil every other lit element wears. That is
    brightness, which is what a pointer is allowed to spend; it is not a second
    hue, and an untraced bar under the pointer is still unmistakably red. */
-.rail__bar--hot { stroke-width: 8; }
-.rail__bar--lead { stroke-width: 10; }
+.rail__bar--hot { stroke-width: 6; }
+.rail__bar--lead { stroke-width: 8; }
 .rail__dot--hot { stroke-width: 3; }
 .rail__dot--lead { stroke-width: 3.5; }
 .rail__leader--hot:not(.rail__leader--selected) { stroke: var(--rail-hot); }
@@ -837,6 +885,16 @@ body { display: flex; flex-direction: column; }
 .tvrow--body-t3 { background-color: var(--tv-body-3); }
 .tvrow--body-t4 { background-color: var(--tv-body-4); }
 .tvrow--body-t5 { background-color: var(--tv-body-5); }
+.tvrow--body-t6 { background-color: var(--tv-body-6); }
+.tvrow--body-t7 { background-color: var(--tv-body-7); }
+.tvrow--body-t8 { background-color: var(--tv-body-8); }
+.tvrow--body-t9 { background-color: var(--tv-body-9); }
+.tvrow--body-t10 { background-color: var(--tv-body-10); }
+.tvrow--body-t11 { background-color: var(--tv-body-11); }
+.tvrow--body-t12 { background-color: var(--tv-body-12); }
+.tvrow--body-t13 { background-color: var(--tv-body-13); }
+.tvrow--body-t14 { background-color: var(--tv-body-14); }
+.tvrow--body-t15 { background-color: var(--tv-body-15); }
 /* The divider above a row (VA.gridRowMarks), on its cells. */
 .tvrow--divide-hair > .tvcell { box-shadow: inset 0 1px 0 var(--tv-divide-hair); }
 .tvrow--divide-body > .tvcell, .tvrow--divide-sub > .tvcell {

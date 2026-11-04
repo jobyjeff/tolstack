@@ -1716,9 +1716,19 @@
     geometry.marks.forEach(function (mark) {
       if (mark.collapsed) pillRows[mark.row] = true;
     });
-    // A body the band split (VA.bandLayout) is several fields and is named
-    // once: on its field in the band.
+    // A body is ONE container: the walk's components and the band
+    // (VA.bandLayout) split it into several fields, and it is named once --
+    // on its field in the band, else its first -- with a thin bridge in its
+    // own tint from each field to the next (VA.bodyBridges).
     var named = VA.bodyLabelFields(geometry.bodies, layout && layout.rows, lit);
+    if (geometry.showBodies !== false) {
+      VA.bodyBridges((geometry.bodies || []).filter(function (field) {
+        return !pillRows[field.start];
+      })).forEach(function (bridge) {
+        under.appendChild(bodyBridge(bridge, ctx,
+          marking && !VA.bodyIsLit(layout && layout.rows, bridge.body, lit)));
+      });
+    }
     // The names go in after the study groups (0c'), so a group's see-through
     // field never sits over the control that folds a body.
     var bodyNames = [];
@@ -1948,14 +1958,19 @@
     var over = dagLayer();
 
     // 3. one mark per row: a bar for an edge (the dimension IS the segment), a
-    //    dot for a node (the interface IS the point).
+    //    dot for a node (the interface IS the point) -- or, for an end of a
+    //    joint, that joint's glyph (VA.nodeJointKinds). A bar says one thing,
+    //    lit or unlit, by its weight, and a gap is dashed: its confidence is
+    //    the grid's SOURCING chip and its band the grid's MIN/MAX
+    //    (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit).
     var formMarks = VA.formMarks(ctx.topoProj);
+    var jointKinds = VA.nodeJointKinds(ctx.topoProj);
+    var pills = {};
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
         var inChain = marking && !!chain[mark.id];
         var classes = ["rail__bar"];
-        if (edge) classes.push(VA.confidenceClass(edge.confidence));
         if (edge && edge.kind === "gap") classes.push("rail__bar--gap");
         if (edge && edge.value_source === "derived") classes.push("rail__bar--derived");
         if (mark.floored) classes.push("rail__bar--floored");
@@ -2016,7 +2031,7 @@
         // dimmed one is the other variant's.
         var barNote = [otherVariant ? VA.OTHER_VARIANT_NOTE : null,
           mark.floored ? VA.FLOORED_RENDER_NOTE : null].filter(Boolean).join(", ");
-        var barHalf = Math.max(3, VA.INTERFACE_GLYPH_PX / 2 + 1);
+        var barHalf = Math.max(3, VA.FORM_GLYPH_PX / 2 + 1);
         labelAt(hotKey("edge", mark.id), mark.x, (y1 + y2) / 2, barHalf,
           recordTitle("edge", mark.id), { note: barNote || null, x1: mark.x - barHalf, x2: mark.x + barHalf, y1: Math.min(y1, y2),
             y2: Math.max(y1, y2) });
@@ -2024,39 +2039,35 @@
         hotHover(hot, hit, hotKey("edge", mark.id));
         over.appendChild(hit);
 
-        // The joint glyph (interface_glyphs.js) at the bar's midpoint, in the
-        // bar's colour, and the form mark for a form element on the bar
-        // itself. Each carries the edge's own hover card and click.
-        var glyphY = (y1 + y2) / 2;
-        var glyphClass = "rail__glyph " +
-          (edge ? VA.confidenceClass(edge.confidence) : "") +
-          (edge && edge.value_source === "derived" ? " rail__glyph--derived" : "") +
-          (marking ? (inChain ? " rail__glyph--on" : " rail__glyph--off") : "") +
-          (otherVariant ? " rail__glyph--other-variant" : "");
-        var glyphs = [];
-        if (edge && edge.interface && VA.INTERFACE_GLYPHS[edge.interface]) {
-          glyphs.push(VA.glyphUse(VA.interfaceGlyphId(edge.interface), mark.x,
-            glyphY, glyphClass));
-        }
+        // A form element's squiggle beside its bar, on the side away from the
+        // grid, as a form modifier's sits beside its node: a fact about the
+        // dimension, so never on the stroke. It carries the edge's own preview
+        // and click.
         if (formMarks.edges[mark.id]) {
-          glyphs.push(VA.glyphUse(VA.FORM_GLYPH_ID, mark.x,
-            glyphs.length ? glyphY + VA.INTERFACE_GLYPH_PX : glyphY, glyphClass));
+          var form = VA.glyphUse(VA.FORM_GLYPH_ID,
+            mark.x - VA.FORM_GLYPH_PX / 2 - 4, (y1 + y2) / 2,
+            "rail__glyph rail__glyph--form" +
+            (marking ? (inChain ? " rail__glyph--on" : " rail__glyph--off") : "") +
+            (otherVariant ? " rail__glyph--other-variant" : ""));
+          fade(form, "edge", mark.id);
+          wire(form, ctx, "edge", mark.id, recordTitle("edge", mark.id));
+          hotHover(hot, form, hotKey("edge", mark.id));
+          over.appendChild(form);
         }
-        glyphs.forEach(function (use) {
-          over.appendChild(fade(VA.svg("circle", "rail__glyphbg", {
-            cx: mark.x,
-            cy: Number(use.getAttribute("y")) + VA.INTERFACE_GLYPH_PX / 2,
-            r: VA.INTERFACE_GLYPH_PX / 2 + 1,
-          }), "edge", mark.id));
-          fade(use, "edge", mark.id);
-          wire(use, ctx, "edge", mark.id, recordTitle("edge", mark.id));
-          hotHover(hot, use, hotKey("edge", mark.id));
-          over.appendChild(use);
-        });
         return;
       }
       if (mark.collapsed) {
-        over.appendChild(collapsedPill(mark, bodiesById, ctx, marking, layout, lit));
+        // A body's pills -- one per block of the walk -- are ONE container:
+        // one group, named on its first, bridged (collapsedPill).
+        var pillGroup = pills[mark.collapsed.body];
+        if (!pillGroup) {
+          pillGroup = pills[mark.collapsed.body] = { g: null, marks: [] };
+          pillGroup.g = collapsedPill(mark, bodiesById, ctx, marking, layout, lit, null);
+          over.appendChild(pillGroup.g);
+        } else {
+          collapsedPill(mark, bodiesById, ctx, marking, layout, lit, pillGroup.g);
+        }
+        pillGroup.marks.push(mark);
         return;
       }
       var node = index.nodes[mark.id];
@@ -2072,32 +2083,60 @@
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
+      // An end of a joint is that joint's glyph. The dot is still drawn under
+      // it, unpainted, as the node's target and its address (data-id): the
+      // glyph is the picture and wears the same state classes, and leads
+      // for the same keys, so hover and selection reach both.
+      var jointKind = jointKinds[mark.id] || null;
+      var dotR = mark.branch ? M.branchDot : M.dot;
+      if (jointKind) {
+        dotClasses.push("rail__dot--joint");
+        dotR = Math.max(dotR, VA.jointNodeTargetR(M));
+      }
       var dotBase = dotClasses.join(" ");
       // The dot leads for its own node AND for every edge that meets there:
       // "hovering a grid row marks that edge's bar, its dots and its leader".
+      var dotLeads = [hotKey("node", mark.id)].concat(
+        (hot.edgesAtNode[mark.id] || []).map(function (edgeId) {
+          return hotKey("edge", edgeId);
+        }));
       var dot = hotRegister(hot, {
         el: fade(VA.svg("circle", dotBase, {
-          cx: mark.x, cy: mark.y, r: mark.branch ? M.branchDot : M.dot,
+          cx: mark.x, cy: mark.y, r: dotR,
         }), "node", mark.id),
         base: dotBase, rail: hot.railOf[hotKey("node", mark.id)],
-        leads: [hotKey("node", mark.id)].concat(
-          (hot.edgesAtNode[mark.id] || []).map(function (edgeId) {
-            return hotKey("edge", edgeId);
-          })),
+        leads: dotLeads,
         hot: "rail__dot--hot", lead: "rail__dot--lead",
       });
       // The dot previews its record on hover, like every mark, and wears the
       // same one-line label (labelAt).
-      labelAt(hotKey("node", mark.id), mark.x, mark.y,
-        mark.branch ? M.branchDot : M.dot, recordTitle("node", mark.id));
+      labelAt(hotKey("node", mark.id), mark.x, mark.y, dotR,
+        recordTitle("node", mark.id));
       wire(dot, ctx, "node", mark.id, recordTitle("node", mark.id));
       hotHover(hot, dot, hotKey("node", mark.id));
       over.appendChild(dot);
+      if (jointKind) {
+        var glyphBase = ["rail__node"].concat(dotClasses.filter(function (c) {
+          return c !== "rail__dot" && c !== "rail__dot--joint";
+        }).map(function (c) { return c.replace("rail__dot--", "rail__node--"); }))
+          .join(" ");
+        var glyph = VA.glyphUse(VA.interfaceGlyphId(jointKind), mark.x, mark.y,
+          glyphBase, M.rowHeight);
+        glyph.setAttribute("data-node-glyph", jointKind);
+        glyph.setAttribute("data-glyph-node", mark.id);
+        glyph.setAttribute("aria-hidden", "true");
+        over.appendChild(hotRegister(hot, {
+          el: fade(glyph, "node", mark.id),
+          base: glyphBase, rail: hot.railOf[hotKey("node", mark.id)],
+          leads: dotLeads,
+          hot: "rail__node--hot", lead: "rail__node--lead",
+        }));
+      }
       // A form modifier's squiggle, beside the face it is on: to the left of
       // the dot, the side away from the grid once the spine is mirrored right.
       if (formMarks.nodes[mark.id]) {
         var adorn = VA.glyphUse(VA.FORM_GLYPH_ID,
-          mark.x - M.dot - VA.INTERFACE_GLYPH_PX / 2 - 1, mark.y,
+          mark.x - dotR - VA.FORM_GLYPH_PX / 2 - 1, mark.y,
           "rail__glyph rail__glyph--form" + (marking && !chainNodes[mark.id]
             ? " rail__glyph--off" : ""));
         adorn.appendChild(svgTitle(VA.FORM_GLYPH.label + ": " +
@@ -2107,6 +2146,19 @@
           }).join(", ")));
         over.appendChild(fade(adorn, "node", mark.id));
       }
+    });
+    // A collapsed body's bridges, between its pills, under its group's names.
+    Object.keys(pills).forEach(function (bodyId) {
+      var group = pills[bodyId];
+      var flat = marking && !VA.bodyIsLit(layout && layout.rows, bodyId, lit);
+      VA.bodyBridges(group.marks.map(function (mark) {
+        var r = M.branchDot;
+        return { body: bodyId, x1: Math.min(mark.x, mark.x2) - r,
+                 x2: Math.max(mark.x, mark.x2) + r,
+                 y1: mark.y - r - 1, y2: mark.y + r + 1 };
+      })).forEach(function (bridge) {
+        group.g.bridges.appendChild(bodyBridge(bridge, ctx, flat));
+      });
     });
     // The sub-stacks' labels (0d.), over every mark: a label is a button the
     // reader can see, so it takes the click wherever it is drawn -- a bar it
@@ -2147,15 +2199,37 @@
     return label;
   }
 
+  // A body's bridge (VA.bodyBridges): a thin stroke in the body's own tint,
+  // or the flat outline's grey when nothing lit is inside it.
+  function bodyBridge(bridge, ctx, flat) {
+    var path = VA.svg("path", "tv__bodybridge" + (flat ? " tv__bodybridge--flat" : ""),
+      { d: bridge.d });
+    if (!flat) {
+      path.setAttribute("style", "stroke: var(--tv-body-" +
+        VA.bodyTint(ctx.topoProj, bridge.body) + ")");
+    }
+    path.setAttribute("data-body-bridge", bridge.body);
+    return path;
+  }
+
   // A collapsed body (VA.collapseBodies): one wide node from the leftmost to
   // the rightmost column its block held, the edges that leave it meeting its
   // rim, and its name and joint count on it -- the count of the places it
-  // meets another body.
-  function collapsedPill(mark, bodiesById, ctx, marking, layout, lit) {
+  // meets another body. A body with a block in two components of the walk
+  // has a pill in each, drawn into ONE group (`into`, the first's) and named
+  // on the first only.
+  function collapsedPill(mark, bodiesById, ctx, marking, layout, lit, into) {
     var info = mark.collapsed;
     var body = bodiesById[info.body] || { id: info.body, name: info.name };
-    var g = VA.svg("g", "tv__pill");
-    g.setAttribute("data-collapsed-body", info.body);
+    var g = into;
+    if (!g) {
+      g = VA.svg("g", "tv__pill");
+      g.setAttribute("data-collapsed-body", info.body);
+      // First, so the bridges drawn into it once every pill is placed sit
+      // under the pills' shapes and the name.
+      g.bridges = VA.svg("g", "tv__pillbridges");
+      g.appendChild(g.bridges);
+    }
     var flat = marking && !VA.bodyIsLit(layout && layout.rows, info.body, lit);
     var r = M.branchDot;
     var x1 = Math.min(mark.x, mark.x2) - r;
@@ -2166,8 +2240,10 @@
         x: x1, y: mark.y - r - 1, width: x2 - x1, height: 2 * r + 2,
         rx: r + 1, ry: r + 1,
       }));
-    g.appendChild(bodyName(body, x1 + 4, mark.y + 3.5, true, ctx,
-      body.name + " · " + info.joints + (info.joints === 1 ? " joint" : " joints")));
+    if (!into) {
+      g.appendChild(bodyName(body, x1 + 4, mark.y + 3.5, true, ctx,
+        body.name + " · " + info.joints + (info.joints === 1 ? " joint" : " joints")));
+    }
     return g;
   }
 
