@@ -146,7 +146,6 @@ try {
     await topo.click();
     await settle(page);
     await page.screenshot({ path: join(OUT, "5_topology.png") });
-    await page.screenshot({ path: join(OUT, "6_topology_full.png"), fullPage: true });
   }
   // What each node draws, for the lesson's census.
   const census = await page.evaluate(() => {

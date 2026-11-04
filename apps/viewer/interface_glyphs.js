@@ -110,11 +110,12 @@
 
   VA.FORM_GLYPH_ID = "glyph-form";
 
-  // How far a joint node's glyph reaches from its centre at the current row
-  // pitch -- its bars' half-width -- which is its target's radius and its
-  // label's obstacle.
+  // A joint node's target radius at the current row pitch: its ring's. The
+  // bars reach a few units further, but a target that wide would cover the
+  // rail on either side of the node, and a rail must keep a point a pointer
+  // can reach between two nodes (the browser tier walks every one).
   VA.jointNodeTargetR = function (metrics) {
-    return metrics.rowHeight * 10 / VA.INTERFACE_GLYPH_PX;
+    return metrics.rowHeight * 7 / VA.INTERFACE_GLYPH_PX;
   };
 
   VA.interfaceGlyphId = function (kind) { return "glyph-" + kind; };
