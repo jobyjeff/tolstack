@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] a study change moves the DAG as one continuous frame: the space before it and the scroll are part of the transition, with no snap at either end, both ways",
+  "mutations": [
+    {
+      "contract": "The space a study arrival puts before the drawing is part of the transition: its first frame wears the pad the reader was looking at and its last wears the one it lands in.",
+      "issue": null,
+      "note": "Declared by handoff the_dag_holds_still_and_the_filter_bar_stays_put (2026-11-03). The transition frames draw with no pad at all, which is the 10-29 landing: the drawing jumps left on the first frame and back to centre on the last.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        ctx.bandPad = { top: lerp(start.pad.top, end.pad.top, e),\n                        left: lerp(start.pad.left, end.pad.left, e) };",
+      "replace": "        ctx.bandPad = null;"
+    }
+  ]
+}

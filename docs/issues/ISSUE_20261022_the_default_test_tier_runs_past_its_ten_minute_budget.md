@@ -88,3 +88,11 @@ in the review worktree on the merged tree, single-process (no xdist). Result:
 run of the same tree, a few hours earlier, took 6 m 14 s. That suggests contention
 on the box rather than suite growth: about 14 python processes were live
 when it finished. Run without `--durations`, so this addendum has no pareto.
+
+## 2026-11-03 measurement (the_dag_holds_still_and_the_filter_bar_stays_put)
+
+`venv-win/Scripts/python.exe -m pytest -q` in a worktree, single process (this
+venv has no xdist, so `-n 16` was unrecognised): 1477 s, 1685 passed, 3 failed,
+1 skipped, 2 deselected -- over budget by 14m37s. The 3 reds were this branch's
+own (inventory rows, two re-anchored specs; fixed after) plus
+`test_viewer_js_suite` red in a worktree by design.

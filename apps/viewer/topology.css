@@ -32,6 +32,14 @@
   --rail-even: #59606f;
   --rail-odd: #7b8494;
   --rail-dim: #333844;
+  /* The ink of a lit leader across the tiers -- DAG to grid (.rail__leader--on)
+     and DAG to 3D (.seam__leader, .seam__end) -- one token for both (Jeff,
+     2026-11-03: "make the leaders ... slightly dimmed"). The edges' own ink is
+     --rail-odd; this is the dimmest ink of the same hue that still holds 3:1
+     against the page background (about 60% of its luminance: a half-luminance
+     ink would read 2.8:1, under the floor). A leader under the pointer or
+     selected is drawn at --rail-hot / the accent, as before. */
+  --leader-ink: #616a79;
   /* The two alternating band tints (viewer_leader_grid_legibility,
      2026-09-14). Jeff: "use alternating fill colors between the leader lines
      (these same colors can be the alternating row background colors)" -- so
@@ -112,12 +120,12 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    viewer_error_surface_and_layout, 2026-09-09): everything else now
    contributes its full height to the document and lets IT scroll (below),
    so this is the only box still capped to the viewport. `position: sticky`
-   pins it under the topbar (47px, the same offset style.css's shared
+   pins it under the topbar (--bar-h, the same offset style.css's shared
    `.detail` rule assumes) as the page scrolls past the banner; `max-height`
    is what makes `overflow-y: auto` actually clip rather than grow. */
 .navtree {
   width: 300px; flex: none; padding: 8px; border-right: 1px solid var(--line);
-  position: sticky; top: 47px; max-height: calc(100vh - 47px);
+  position: sticky; top: var(--bar-h); max-height: calc(100vh - var(--bar-h));
   overflow-y: auto;
 }
 .navtree__list, .navtree__children { list-style: none; margin: 0; padding: 0; }
@@ -270,6 +278,10 @@ details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "
 .tv__toolbar {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel2);
+  /* Pinned under the page bar, so the view filters stay in reach while the page
+     scrolls the DAG and its grid; the grid header pins under THIS
+     (VA.stickyOffsets). Under the bar's own z-index, over the pane's. */
+  position: sticky; top: var(--bar-h); z-index: 4;
 }
 
 /* Quiet controls (design_pass_typography, 2026-09-17). These five are display
@@ -566,7 +578,7 @@ body { display: flex; flex-direction: column; }
   fill: none; stroke: transparent; stroke-width: 10;
   pointer-events: stroke; cursor: pointer;
 }
-.rail__leader--on { stroke: var(--rail-odd); }
+.rail__leader--on { stroke: var(--leader-ink); }
 .rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
 /* Something else is selected: this leader steps back (VA.selectedLeaderNodes,
    the rule the leaders across the seam share). */
@@ -584,11 +596,11 @@ body { display: flex; flex-direction: column; }
   pointer-events: none; z-index: 4; overflow: hidden;
 }
 .seam__leader {
-  fill: none; stroke: var(--rail-odd); stroke-width: 1.5;
+  fill: none; stroke: var(--leader-ink); stroke-width: 1.5;
   stroke-linejoin: round;
 }
 /* Its end on the scene is outlined, like the DAG's own dots. */
-.seam__end { fill: var(--panel); stroke: var(--rail-odd); stroke-width: 1.5; }
+.seam__end { fill: var(--panel); stroke: var(--leader-ink); stroke-width: 1.5; }
 .seam__leader--hot, .seam__end--hot { stroke: var(--rail-hot); stroke-width: 2.5; }
 .seam__leader--selected, .seam__end--selected { stroke: var(--accent); stroke-width: 2; }
 .seam__leader--dim, .seam__end--dim { opacity: .28; }
@@ -1099,7 +1111,7 @@ body { display: flex; flex-direction: column; }
      nowhere to stick within. The shared `.detail` rule (style.css) is the
      stack viewer's and is never edited from here. */
   align-self: flex-start;
-  position: sticky; top: 47px; height: calc(100vh - 47px); overflow-y: auto;
+  position: sticky; top: var(--bar-h); height: calc(100vh - var(--bar-h)); overflow-y: auto;
 }
 .detail__values { margin: 8px 0; }
 .detail__valrow { display: flex; gap: 10px; font-size: var(--t-dense); }
@@ -1165,9 +1177,9 @@ body { display: flex; flex-direction: column; }
    grid the width they had. topology_app.js clamps it per page
    (VA.clampFlyoutWidth) and applies the reader's chosen width. */
 dialog#annotate-flyout {
-  position: sticky; top: 47px; inset: 47px auto auto auto; margin: 0; padding: 0;
+  position: sticky; top: var(--bar-h); inset: var(--bar-h) auto auto auto; margin: 0; padding: 0;
   flex: none; width: min(560px, 40vw);
-  height: calc(100vh - 47px); max-height: calc(100vh - 47px);
+  height: calc(100vh - var(--bar-h)); max-height: calc(100vh - var(--bar-h));
   background: var(--bg); color: var(--ink);
   border: none; box-shadow: none;
   z-index: 3; /* its divider's hit area overhangs the DAG's first pixels */
@@ -1250,8 +1262,8 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    between the nav and the model. A zero-width column of the row, so opening
    nothing moves nothing; the tab straddles the seam. */
 .panehandle {
-  flex: none; width: 0; position: sticky; top: 47px;
-  height: calc(100vh - 47px); align-self: flex-start; z-index: 4;
+  flex: none; width: 0; position: sticky; top: var(--bar-h);
+  height: calc(100vh - var(--bar-h)); align-self: flex-start; z-index: 4;
 }
 .panehandle__tab {
   position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);

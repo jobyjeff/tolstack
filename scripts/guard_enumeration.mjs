@@ -292,8 +292,12 @@ export const DECLARED_GUARDS = {
   // renamed, count unchanged -- the angled path-shape checks (mock and real)
   // re-worded for the flat run out of the rails. Neither carried a spec under
   // its old name; the crossing rule itself is witnessed in the fast tier.
+  // 2026-11-03 (the_dag_holds_still_and_the_filter_bar_stays_put): +6 -- the
+  // study change as one continuous frame, the leaders' one ink on both tiers,
+  // the first row clear at scroll 0, the three bars pinned, a click never
+  // moving the drawing sideways. Every one carries a spec.
   // (Re-pinned at the review merge onto integration's 793/760.)
-  browser: { declared: 793, enrollable: 760, names: "a2fd1dffc6ef" },
+  browser: { declared: 799, enrollable: 766, names: "87cde54b7b3e" },
 };
 
 
