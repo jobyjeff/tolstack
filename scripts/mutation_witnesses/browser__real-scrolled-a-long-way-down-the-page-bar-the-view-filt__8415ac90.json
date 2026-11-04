@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] scrolled a long way down, the page bar, the view filters under it and the grid header under those are all still in place",
+  "mutations": [
+    {
+      "contract": "The view filters are pinned under the page bar, and the grid header pins under them.",
+      "issue": null,
+      "note": "Declared by handoff the_dag_holds_still_and_the_filter_bar_stays_put (2026-11-03). The view filters scroll away with the page, as they did before.",
+      "file": "apps/viewer/topology.css",
+      "find": "  position: sticky; top: var(--bar-h); z-index: 4;\n}",
+      "replace": "  position: static;\n}"
+    }
+  ]
+}

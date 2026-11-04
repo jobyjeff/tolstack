@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] a lit leader between the DAG and the grid rests in the one leader ink -- dimmer than the edges' but still 3:1 against the page -- and a hovered one is drawn brighter than that",
+  "mutations": [
+    {
+      "contract": "A lit leader is drawn in --leader-ink, which is dimmer than the edges' own ink and still 3:1 against the page.",
+      "issue": null,
+      "note": "Declared by handoff the_dag_holds_still_and_the_filter_bar_stays_put (2026-11-03). The leader ink is set to the edges' own ink, so nothing is dimmed.",
+      "file": "apps/viewer/topology.css",
+      "find": "  --leader-ink: #616a79;",
+      "replace": "  --leader-ink: #7b8494;"
+    }
+  ]
+}
