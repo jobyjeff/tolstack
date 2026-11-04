@@ -105,3 +105,11 @@ check onto shim-supported selectors; merged cleanly.
   This handoff's browser witnesses that ran were witnessed.
 - The operator's batch merge must rebuild projections first and run the full
   browser tier and witnesses in the main checkout (repo CLAUDE.md).
+
+**Landing note.** `integration` moved (each_stop_is_its_own_stack) before the
+finishing merge; one conflict, `scripts/guard_enumeration.mjs`: integration's
+fast 629 / browser 793-760 pins vs this handoff's +2 fast / +8 browser. Resolved
+by taking integration's base and adding this handoff's counts (631/631 fast;
+801/768 browser), digests recomputed from the census; `test_mutation_witnesses`
++ `test_architecture_inventory` 54 passed afterwards, fast viewer tier 515/516
+(stale-projection red only). Landed as a fast-forward at `3a0b6a46`; pushed.
