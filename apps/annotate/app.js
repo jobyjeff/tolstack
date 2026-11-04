@@ -3854,7 +3854,8 @@ function applyModelStyle() {
   }
   model.strengths = strengths;
   state.scene.setModelStyle({ strengths, nodes: AA.modelLitNodes(topology, lit),
-    hideUnlit: model.unlit === AA.MODEL_UNLIT_STYLES[1], emphasis: model.emphasis });
+    hideUnlit: model.unlit === AA.MODEL_UNLIT_STYLES[1], emphasis: model.emphasis,
+    emphasisNodes: AA.modelEmphasisNodes(topology, model.emphasis) });
   return strengths;
 }
 

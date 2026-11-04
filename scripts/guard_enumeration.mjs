@@ -231,7 +231,9 @@ export const DECLARED_GUARDS = {
   // the concentric measure, the chaining, the drawn graph, the bound feature
   // and the live P2 pin. Each carries a spec; the P2 pin's three witness the
   // two thresholds from both sides.
-  annotate: { declared: 274, enrollable: 274, names: "a03dab3fcb23" },
+  // Review rework, same day: +1 -- a grid row's emphasis names its edge's two
+  // ends, drawn or not (the joint's internal row lit nothing). It carries a spec.
+  annotate: { declared: 275, enrollable: 275, names: "adc39b202123" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -305,7 +307,10 @@ export const DECLARED_GUARDS = {
   // the every-node and bind-mode checks re-worded for the lines a joint and
   // an unplaced node no longer draw. All seven carry a spec (the two renamed
   // under their new names).
-  browser: { declared: 798, enrollable: 765, names: "136e9c5dde0a" },
+  // Review rework, same day: +1 -- the real pointer on the grid row of an edge
+  // inside the joint, or of one leaving it, emphasises the joint's one 3D dot.
+  // It carries a spec.
+  browser: { declared: 799, enrollable: 766, names: "c8b0e1503f2d" },
 };
 
 

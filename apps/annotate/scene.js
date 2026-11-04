@@ -1774,13 +1774,17 @@ export class AnnotateScene {
   }
 
   // {strengths: {edge id: "full"|"dim"|"hidden"}, nodes: {id: true} | null
-  // (the lit nodes; null is every node), hideUnlit, emphasis: edge id | null}.
+  // (the lit nodes; null is every node), hideUnlit, emphasis: edge id | null,
+  // emphasisNodes: [node id] (the emphasised edge's ends, each resolved to
+  // the dot that stands for it -- so an edge inside a joint, which draws no
+  // line, still lights the joint's dot)}.
   setModelStyle(style) {
     const model = this._model;
     if (!model) return false;
     model.strengths = style.strengths || {};
     model.litNodes = style.nodes || null;
     model.emphasis = style.emphasis || null;
+    model.emphasisNodes = style.emphasisNodes || [];
     model.hideUnlit = !!style.hideUnlit;
     this._applyModelStyle();
     this.requestRender();
@@ -1800,6 +1804,10 @@ export class AnnotateScene {
       if (on) line.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
       else line.material.color.setHex(MODEL_COLORS.line);
       line.material.opacity = strength === "dim" && !on ? MODEL_DIM_OPACITY : 1;
+    }
+    for (const n of model.emphasisNodes || []) {
+      const d = model.dotOf.get(n);
+      if (d) emphasisNodes.add(d);
     }
     const selected = model.selection && model.selection.node
       ? (model.dotOf.get(model.selection.node) || model.selection.node) : null;
@@ -1909,7 +1917,7 @@ export class AnnotateScene {
     const nodes = {};
     for (const [id, dot] of model.dots) {
       nodes[id] = { at: world(dot), visible: dot.visible, opacity: dot.material.opacity,
-        source: dot.userData.source, members: dot.userData.members.slice() };
+        source: dot.userData.source, members: dot.userData.members.slice(), scale: dot.scale.x };
     }
     const lines = {};
     for (const [id, line] of model.lines) {

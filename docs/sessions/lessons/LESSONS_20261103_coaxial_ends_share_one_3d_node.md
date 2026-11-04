@@ -154,3 +154,33 @@ change touches, and the mutation runs for the specs it added.
   unwitnessed entry is `nothing-above-produced-an-uncaught-error`, and the
   reason is a pre-existing red: the nav-chip check is red on the untouched
   integration tree too (addendum on `ISSUE_20261029_four_3d_pane_nav_gesture…`).
+
+## Rework after review (2026-11-03, `REVIEW_20261103_coaxial_ends_share_one_3d_node.md`)
+
+- **The channel I missed was emphasis.** I re-mapped the selection, the focus,
+  the lit set and the anchors message to the joint's dot. I missed the grid
+  row's `highlight`, which the scene read only off a drawn line. So the
+  coaxiality row, the one edge that defines the joint and draws no line, lit
+  nothing in 3D. Now the page passes the emphasised edge's two ends
+  (`AA.modelEmphasisNodes`, read off the topology), and the scene resolves
+  each through `dotOf`. Checked both ways on P2 with the real pointer: the
+  coaxiality row gives joint dot scale 1.8, and a row leaving the joint
+  (`gas_spring_bushing_coaxiality`) gives 1.8. Before the fix the coaxiality
+  row gave 1.
+- **The question to ask of a diff that merges or drops scene elements:** list
+  every channel that names a node or an edge *into* the scene, and resolve
+  each through the merge. The review added it to the overlay.
+- **The grid draws a row more than once, and part of it sits under the
+  pane.** `hub_blade_axis_offset`'s row was not hittable by the pointer. The
+  check aims at the first copy whose centre `elementFromPoint` resolves to the
+  row itself, and it tries each leaving edge until one is reachable.
+- **The mock pass (`apps/annotate/run_browser_check.mjs`) is a tier this
+  change reaches**, and I had not run it. Its every-edge check now works out
+  its expected lines the same way the browser twin does. On this tree it is
+  96/99. The three reds are trunk's own: the two anchor checks
+  (`ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration.md`)
+  and the speed-control check. The review's fourth red, reduced-motion
+  distance, passed here.
+- **The origin fan has an owner now:**
+  `docs/issues/ISSUE_20261103_the_spindle_joint_draws_its_fan_from_the_assembly_origin_at_the_as_modelled_frame.md`
+  (`audience: strategy`, the two shots, three options).
