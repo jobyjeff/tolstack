@@ -713,14 +713,14 @@ product and carries no `joint` of its own. Each study over one of them carries
 its stack's block in the projection (`stack`), so the page shows it with
 the study.
 
-### `topology_vpa_pitch_linkage.json` + nine studies and a kinematic study
+### `topology_vpa_pitch_linkage.json` + ten studies and a kinematic study
 
 **One topology per product, and every study is a subset of it.** This is the
 propeller pitch system's (Jeff, 2026-10-26: "all of the studies are just
 subsets of a single global model representing the actual product"). The
-graph: 35 parts, 74 interfaces, 95 edges, 24 branch points, 26 grounded loops,
+graph: 35 parts, 77 interfaces, 98 edges, 25 branch points, 26 grounded loops,
 17 gap edges. Its studies are the seven pitch-system chains above, the
-end-stop travel below, and the kinematic study ("A kinematic study reads its
+end-stop travel and the feather stop's axial position below, and the kinematic study ("A kinematic study reads its
 sensitivity from a published sweep"); it declares its rigid bodies ("Bodies",
 above).
 
@@ -762,7 +762,7 @@ centre. They were a separate component until the viewer's `[real]` tier showed
 what a disconnected topology does to the rail serialisation; `Topology.cycle_rank`
 counts components rather than assuming one either way.
 
-**The one piece that does carry numbers is the end-stop travel chain** (handoff `the_travel_between_the_end_stops_is_a_study`, 2026-10-16): the two piston heads, the piston cover and the gas-spring mount's stop face, summed by `study_vpa_pitch_linkage_travel_between_end_stops.json`. Since 2026-10-22 every band in it is a drawing's: two dimensions, and two general profile notes banding a mesh-fit nominal (the SOP's "What a term cites when its drawing does not band it"); a third mount edge, 213668-002's datum-A height, is recorded and selected by no study. And `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md` carries the face order, the fits and the signs. It is modelled as a clearance at the second stop, not a contact, because a hard contact is one node and a walk that ended on one would close a ring.
+**The one piece that does carry numbers is the end-stop travel chain** (handoff `the_travel_between_the_end_stops_is_a_study`, 2026-10-16): the two piston heads, the piston cover and the gas-spring mount's stop face, summed by `study_vpa_pitch_linkage_travel_between_end_stops.json`. Its sibling `study_vpa_pitch_linkage_feather_stop_axial_position.json` (2026-11-03) places the feather contact itself, from the tangential link mount's hub face through both mounts and the piston body to its flange on the plate: the feather stop's axial stack in the kinematic study, and with the travel added, the low stop's. Since 2026-10-22 every band in it is a drawing's: two dimensions, and two general profile notes banding a mesh-fit nominal (the SOP's "What a term cites when its drawing does not band it"); a third mount edge, 213668-002's datum-A height, is recorded and selected by no study. And `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md` carries the face order, the fits and the signs. It is modelled as a clearance at the second stop, not a contact, because a hard contact is one node and a walk that ended on one would close a ring.
 
 ---
 
@@ -853,28 +853,40 @@ parameter. A derivative of the output with respect to one input is exactly a
   sub-study's output unit must be the parameter's (the same refusal a band
   gets), and **v0 refuses a `study_ref` that names a kinematic study** — no
   nesting yet. The page shows the group as one collapsed row over its terms.
-- **A `study_ref` on the driver is an x-uncertainty of a stop, never a y-term
-  of the envelope** (Jeff, 2026-10-29, handoff
-  `the_plus72_stop_is_the_travel_datum`). A ref whose `parameter` is the
-  sweep's own driver moves the coordinate the sweep is plotted against, so it
-  says which stops it moves (`applies_to`, stop ids — required on a driver
-  ref, refused on any other) and enters no point's fold: the envelope is the
-  direct contributors' alone. At each stop it names it is an x-interval
-  `x_stop ± h`, its leaves folded once at their own ratios in the driver's
-  unit, and the stop's verdict is the envelope swept over that interval, to
-  first order at the stop's own `J` — the direct terms and the leaves at
-  `|J| ×` their ratio, through the one `fold()`; its worst case is the band's
-  corner, `|J|·h` + the envelope's own half there, so the band the page draws
-  starts at the envelope's edge with no step. **The datum rule:** the stop the
-  driver is measured from (`datum.stop`, where the sweep's driver is 0 —
-  refused at load otherwise) is not moved by a stop-to-stop distance; the
-  blade-pitch study's datum is the +72° feather stop (at rest, gas spring
-  charged, nominal CAD), so the travel between the stops moves the −7° stop
-  only. What locates the datum itself — the chain from the blade-root bores
-  to the feather stop face — is a **declared gap**: a ref with `gap` and
-  `title` and no study behind it, which contributes nothing, leaves every
-  check at the stops it names incomplete, sits on the gap list, and is
-  refused once the study it names exists.
+- **Each stop is its own stack** (Jeff, 2026-11-03, handoff
+  `each_stop_is_its_own_stack`). A stop is a contact pose, and where the
+  mechanism sits when it touches is toleranced like any other dimension, so
+  every stop names its own `axial_stack`: chain studies on the sweep's driver
+  whose terms place the driven part along the driver's axis at that stop's
+  contact, from the ground. The stop's band is one fold: the direct
+  contributors at its sweep point (the **linkage terms at this pose**, the
+  envelope's own fold there) plus each stack leaf at `|J| ×` its ratio, `J`
+  the driver's entry at the stop's nominal (first order). The envelope along
+  the sweep is the linkage terms only; nothing is swept along x. On the
+  blade-pitch study the feather (+72°) stop's stack is
+  `study_vpa_pitch_linkage_feather_stop_axial_position.json` (both mounts,
+  then the piston body from the shoulder the lower head seats on to its flange
+  on the plate) and the low (−7°) stop's is that study plus the travel between
+  the stops, which is where the two piston heads enter (Jeff's ruling the same
+  day: the head stack is referenced from the body's shoulder, so its
+  thicknesses move only the far contact). A leaf both stacks hold is **shared**:
+  the range between the stops (the high stop's measure less the low's) enters
+  every shared term — those and the linkage — once, at the difference of its
+  two weights, so they nearly cancel. A check at a stop with a `bound`
+  (`at_least` / `at_most`) is a one-sided **reach** check on the stop's own
+  measure (S461-261's +70° and −5°). **The datum** (`datum.stop`) keeps one
+  meaning: the pose where the sweep's driver is 0 (refused at load
+  otherwise) — the feather stops touching, by CAD and, since Jeff's note of
+  2026-11-03, by procedure ("During rigging, the actuator's home (zero travel)
+  is reset to the position with the feather direction end stops touching") —
+  and it zeroes nothing. A stack entry may be a **declared gap** (`gap` and
+  `title`, no study behind it): it contributes nothing, leaves every check at
+  its stop incomplete, sits on the gap list, and is refused once the study it
+  names exists — today the blade-root bores to the tangential link mount, at
+  both stops. **Superseded 2026-11-03:** the 2026-10-29 rule
+  (`the_plus72_stop_is_the_travel_datum`) that a driver `study_ref` among the
+  contributors is an x-interval of the stops its `applies_to` names, with the
+  datum stop's interval 0; that form is now refused, naming this handoff.
 
 **The fence is unchanged.** Nothing here solves, perturbs or differentiates a
 mechanism, picks a load path, or calls `traverse()`/`summarize()`/`check_study()`.

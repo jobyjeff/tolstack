@@ -907,7 +907,8 @@ def _load_study_ref(study_id: str, raw: Dict[str, Any], sweep: Sweep,
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: a study_ref needs {STUDY_REF_FIELDS}, "
             f"got {ref!r}")
-    extra = sorted(set(raw) - set(STUDY_REF_CONTRIBUTOR_FIELDS))
+    # `applies_to` is refused by name below, as the retired form it is.
+    extra = sorted(set(raw) - set(STUDY_REF_CONTRIBUTOR_FIELDS) - {"applies_to"})
     if extra:
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is a "
