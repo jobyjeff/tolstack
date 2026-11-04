@@ -733,6 +733,20 @@
     return out;
   };
 
+  // The nodes a grid row's emphasis lights: the edge's two ends, read off
+  // the topology whether or not the edge is drawn. An edge inside a joint
+  // draws no line (coaxial_ends_share_one_3d_node), and its row still lights
+  // the joint's one dot -- the scene resolves each end to the dot that stands
+  // for it, and an unplaced end to nothing.
+  AA.modelEmphasisNodes = function (topology, edgeId) {
+    var out = [];
+    ((topology && topology.edges) || []).forEach(function (e) {
+      if (e.id !== edgeId) return;
+      out.push(e.from, e.to);
+    });
+    return out;
+  };
+
   // The `model` verb's grammar:
   //   model lit <edge> [<edge> ...]   the shell's lit set
   //   model lit all                   nothing emphasised

@@ -5396,6 +5396,17 @@ check("model: the drawn graph is one dot per joint, no line inside a joint, line
   }
 });
 
+check("model: a grid row's emphasis names its edge's two ends, drawn or not", () => {
+  // The coaxiality inside the joint draws no line, and its row must still
+  // light the joint's dot: the scene resolves each end to its dot.
+  assertEqual(AA.modelEmphasisNodes(JOINT_TOPOLOGY, "coax"), ["spindle", "plate"],
+    "an edge inside a joint names its two ends");
+  assertEqual(AA.modelEmphasisNodes(JOINT_TOPOLOGY, "cross"), ["spindle", "hinge"],
+    "an edge leaving the joint names its two ends");
+  assertEqual(AA.modelEmphasisNodes(JOINT_TOPOLOGY, null), [], "nothing emphasised names nothing");
+  assertEqual(AA.modelEmphasisNodes(JOINT_TOPOLOGY, "no_such_edge"), [], "an unknown edge names nothing");
+});
+
 check("model: a bound round face is a feature in the assembly frame; a flat face is none", () => {
   // A quarter turn about Z and a shift: local +X becomes assembly +Y.
   const placement = [0, -1, 0, 10, 1, 0, 0, 20, 0, 0, 1, 30];
@@ -5669,8 +5680,10 @@ if (!SWEEPS_DIR) {
       assertEqual(r2(first.hub_spindle_bore_axis), [0, 0, 32.23], "at the first point (-7 deg): half the slide");
       const rows = {};
       joints.measured.forEach((r) => { rows[r.edge] = r; });
-      assertEqual(Object.keys(rows).sort(), ["gas_spring_bushing_coaxiality", "hub_blade_axis_offset",
-        "hub_to_pitch_plate_spindle_coaxiality", "pitch_link_length", "tan_link_length"].filter((e) => rows[e]).sort(),
+      // Exactly these four: gas_spring_bushing_coaxiality is not measured,
+      // because gas_spring_mount_bushing_bore has no feature on this run.
+      assertEqual(Object.keys(rows).sort(), ["hub_blade_axis_offset",
+        "hub_to_pitch_plate_spindle_coaxiality", "pitch_link_length", "tan_link_length"],
         "the edges with a solver feature at both ends");
       if (rows.pitch_link_length.merge || rows.tan_link_length.merge || rows.hub_blade_axis_offset.merge) {
         throw new Error("a link's two centres, or the spindle and the blade hinge, merged");

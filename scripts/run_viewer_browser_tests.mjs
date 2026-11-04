@@ -12994,6 +12994,60 @@ async function testSeamLeaders(browser, label, topologies) {
       jointHover.drawn.length >= 2 && jointHover.lead.join() === jointHover.drawn.join() &&
       jointHover.rows.length > 0 && jointHover.rows.every((id) => meeting.indexOf(id) !== -1));
     await live.mouse.move(5, 5);
+    // The other way: the real pointer on a grid row lights the ONE 3D dot --
+    // the row of the edge inside the joint (which draws no line) and a row of
+    // an edge leaving it (whose line starts at the joint). Read off the dot's
+    // emphasis scale in the scene.
+    const internal = joint ? (await livePane((w) => w.__model.built.hidden.slice()))
+      .find((id) => topology.edges.some((e) => e.id === id &&
+        joint.members.indexOf(e.from) !== -1 && joint.members.indexOf(e.to) !== -1)) : null;
+    const drawnLines = joint ? await livePane((w) => Object.keys(w.__scene.modelState().lines)) : [];
+    const leavingIds = meeting.filter((id) => drawnLines.indexOf(id) !== -1 && id !== internal);
+    const rowLights = async (edgeId) => {
+      // The real pointer, aimed at the row's first cell that is on screen (a
+      // row is drawn in more than one table; the one in view is the one read).
+      const at = edgeId ? await live.evaluate((id) => {
+        for (const r of document.querySelectorAll(`[data-row-kind="edge"][data-id="${CSS.escape(id)}"]`)) {
+          r.scrollIntoView({ block: "center", inline: "nearest" });
+          const b = r.getBoundingClientRect();
+          if (!b.width || !b.height) continue;
+          const x = b.left + Math.min(20, b.width / 2), y = b.top + b.height / 2;
+          const hit = document.elementFromPoint(x, y);
+          if (hit && hit.closest && hit.closest('[data-row-kind="edge"]') === r) return [x, y];
+        }
+        return null;
+      }, edgeId) : null;
+      if (!at) return { row: false };
+      await live.mouse.move(at[0] - 2, at[1]);
+      await live.mouse.move(at[0], at[1]);
+      await liveUntil((args) => {
+        const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+        const s = w.__scene.modelState();
+        return s && s.nodes[args.id] && s.nodes[args.id].scale > 1;
+      }, { id: joint.id }, 5000);
+      const scale = await livePane((w, id) => w.__scene.modelState().nodes[id].scale, joint.id);
+      await live.mouse.move(5, 5);
+      await liveUntil((id) => {
+        const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+        return w.__scene.modelState().nodes[id].scale === 1;
+      }, joint.id, 5000);
+      return { row: true, scale };
+    };
+    const rowInside = await rowLights(internal);
+    // The first edge leaving the joint whose row is on screen and not under
+    // anything (the pane covers some of the grid).
+    let leaving = null, rowLeaving = { row: false };
+    for (const id of leavingIds) {
+      rowLeaving = await rowLights(id);
+      if (rowLeaving.row) { leaving = id; break; }
+    }
+    console.log(`      [${label}] P2 pointer on a grid row: ${internal || "-"} (inside the joint) -> ` +
+      `${rowInside.row ? "joint dot scale " + rowInside.scale : "no such row"}; ${leaving || "-"} (leaving it) -> ` +
+      `${rowLeaving.row ? "joint dot scale " + rowLeaving.scale : "no such row"}`);
+    push("[real] the pointer on the grid row of an edge inside the joint, or of one leaving it, " +
+      "emphasises the joint's ONE 3D dot",
+      joint && internal === "hub_to_pitch_plate_spindle_coaxiality" && !!leaving &&
+      rowInside.row && rowInside.scale > 1 && rowLeaving.row && rowLeaving.scale > 1);
 
     // --- one trace, three tiers (a_leader_starts_at_the_mark_it_names_on_
     // every_tier, 2026-10-29). Jeff's two screenshots: a selected row whose

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: a grid row's emphasis names its edge's two ends, drawn or not",
+  "mutations": [
+    {
+      "contract": "An emphasised edge names its two ends from the topology.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Naming nothing leaves the joint's internal row lighting no dot in 3D.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      out.push(e.from, e.to);",
+      "replace": ""
+    }
+  ]
+}

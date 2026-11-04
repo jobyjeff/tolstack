@@ -355,7 +355,9 @@
     // with whatever the pointer lights here (topology_app.js).
     hot.onChange = ctx.onHot || null;
     // ...and the way back: the scene's pointer lights marks here
-    // (VA.lightTopoKeys).
+    // (VA.lightTopoKeys). The LAST render's: the pane renders one view at a
+    // time, so a scene hover lights that one; were it ever to render twice,
+    // this would point at whichever rendered last.
     VA.lastTopoHot = hot;
     // The containers the reader has switched on (VA.GROUP_KINDS), every one
     // where nothing was chosen. With the unlit part HIDDEN the walk IS the

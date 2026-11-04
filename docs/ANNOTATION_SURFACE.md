@@ -876,8 +876,12 @@ ladder draws. The joint is drawn as **one dot, in world**, at the mean of its
 ends where each frame puts them (the solver's end off the frame, a bound face
 through its body's pose), so it rides the sweep with the slide. Edges inside a
 joint draw no line; an edge leaving it is a world line from the joint's dot.
-Selecting any member selects the joint's dot and says so. Bind mode has no
-run, so only a committed binding can merge there.
+Selecting any member selects the joint's dot and says so. Every inbound
+channel resolves a member to the joint's dot -- the selection, the focus, the
+lit set, the anchors message and a grid row's emphasis: the row of an edge
+inside the joint draws no line, and it still lights the joint's dot
+(`AA.modelEmphasisNodes`). Bind mode has no run, so only a committed binding
+can merge there.
 
 **The bias is per topology, authored**: `anchor_bias: {bias: "+x", stack:
 "z"}` on the topology document (absent is that default, Jeff's). A value that
