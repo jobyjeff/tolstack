@@ -571,6 +571,12 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("viewer", "KINEMATIC_STUDY_STATUSES",
                "scripts/build_kinematic_projection.py: STUDY_STATUSES",
                _const(_kinematic_projection_module, "STUDY_STATUSES")),
+    Vocabulary("viewer", "KINEMATIC_CHECK_BOUNDS",
+               "tolerance_stack/kinematic.py: CHECK_BOUNDS",
+               _const(_kinematic_module, "CHECK_BOUNDS")),
+    Vocabulary("viewer", "KINEMATIC_SUB_STACK_KINDS",
+               "scripts/build_kinematic_projection.py: SUB_STACK_KINDS",
+               _const(_kinematic_projection_module, "SUB_STACK_KINDS")),
     # --- apps/annotate/binding_state.js ------------------------------------ #
     Vocabulary("annotate", "STACK_KEY_KINDS",
                "tolerance_stack/feature_identity.py: STACK_KEY_KINDS",

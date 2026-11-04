@@ -173,6 +173,12 @@
 
     // scripts/build_kinematic_projection.py: STUDY_STATUSES
     KINEMATIC_STUDY_STATUSES: ["ok", "error"],
+
+    // tolerance_stack/kinematic.py: CHECK_BOUNDS
+    KINEMATIC_CHECK_BOUNDS: ["at_least", "at_most"],
+
+    // scripts/build_kinematic_projection.py: SUB_STACK_KINDS
+    KINEMATIC_SUB_STACK_KINDS: ["linkage", "stop_position"],
   });
 
   root.annotate = namespace("annotate", {
