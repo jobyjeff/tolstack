@@ -6299,6 +6299,11 @@ async function installRealAnnotatorReads(page, seed) {
       P.readPartMeshAliases = async () => seed.aliases;
       P.readKinematicProjection = async () =>
         json("/projections/viewer/kinematic/kinematic_studies.json");
+      // `contact: true`: the contact suggestions on disk whatever the binding
+      // -- a joint end's candidate list reads them.
+      if (seed.contact) {
+        P.readContactSuggestions = async () => json("/projections/feature-identity/contact_suggestions.json");
+      }
       // The synthetic binding, resolved when it is read: faces of the first
       // part the sweep opened, so it is a part that is in the scene.
       const b = seed.binding;
@@ -7639,6 +7644,15 @@ async function openSuggestionPage(browser, url, mode, errors, extra) {
 // damping, so a camera read straight after it is still travelling and a
 // before/after comparison would blame whatever ran next (the 2026-10-29
 // lesson). Two reads a beat apart that agree, or the last read after 5 s.
+// Two camera states the same to well under a micron: a re-render
+// recomputes the position in floating point and need not repeat its last digit.
+function sameCameraState(a, b) {
+  const flat = (c) => (c ? [].concat(c.position || [], c.target || []) : []);
+  const x = flat(a);
+  const y = flat(b);
+  return x.length > 0 && x.length === y.length && x.every((v, i) => Math.abs(v - y[i]) < 1e-6);
+}
+
 async function settledCamera(page) {
   let last = null;
   for (let i = 0; i < 25; i++) {
@@ -7811,7 +7825,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       "occurrence, and the camera stays",
       washed.w && washed.w.faceId === 0 && washed.w.overlays > 0 &&
       washed.w.color === washed.w.preselectColor && washed.w.opacity === washed.w.preselectOpacity &&
-      JSON.stringify(washed.cam) === JSON.stringify(cam));
+      sameCameraState(washed.cam, cam));
     await page.mouse.move(5, 5);
     await page.waitForFunction(() => !window.__scene.washed(), null, { timeout: 5000 }).catch(() => {});
     push("...and leaving the list takes the wash down", await page.evaluate(() => !window.__scene.washed()));
@@ -7914,10 +7928,12 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       }
       return null;
     }, row && row.key);
-    const kids = (opened && opened.rows) || [];
+    // Bind mode's element row (the row found first) names the end above its faces.
+    const heads = ((opened && opened.rows) || []).filter((r) => typeof r.head === "string");
+    const kids = ((opened && opened.rows) || []).filter((r) => typeof r.head !== "string");
     push("...with its candidate disclosure: closed, a toggle from the shell opens it, and the " +
       "mirrored list carries the proposal's reason, its Take, and Pick another face, wrapping",
-      shut && opened && opened.open === true && kids.length === 2 &&
+      shut && opened && opened.open === true && kids.length === 2 && heads.length === 1 &&
       kids[0].sub === "agent suggested · high" && kids[0].wrap === true &&
       JSON.stringify((kids[0].buttons || []).map((b) => b.text)) === JSON.stringify(["Take"]) &&
       kids[1].text === "Pick another face…" && kids[1].activate === true);
@@ -8089,7 +8105,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   page.on("pageerror", (e) => errors.push(String(e)));
   await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
-    aliases: index.aliases,
+    aliases: index.aliases, contact: true,
     binding: { topology: study.topology, edge: "pitch_link_length",
       faces: [["from", 0], ["to", 1]] } });
   const visible = (selector) => page.evaluate((sel) => {
@@ -8286,7 +8302,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       "yellow, and the camera stays",
       !!spindleTop && hubWash.w && hubWash.w.sha256 === spindleTop.sha256 &&
       hubWash.w.faceId === spindleTop.faces[0] && hubWash.w.overlays > 0 &&
-      hubWash.w.color === hubWash.w.preselectColor && JSON.stringify(hubWash.cam) === JSON.stringify(hubCam));
+      hubWash.w.color === hubWash.w.preselectColor && sameCameraState(hubWash.cam, hubCam));
     await page.mouse.move(5, 5);
     await page.locator(HUB_END + " > .tree-row__twisty").first().click({ timeout: 5000 }).catch(() => {});
 
