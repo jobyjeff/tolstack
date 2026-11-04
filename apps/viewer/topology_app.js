@@ -762,6 +762,14 @@
     redrivePaneAfter(respine);
   }
 
+  // A row's 3D control: the row's own selection, then the pane opened on it
+  // (a pane already open is re-driven by the selection itself). Closing the
+  // pane stays the reader's act.
+  function onNav3D(select) {
+    select();
+    if (state.annotateMount && nodes.flyout && !nodes.flyout.open) openPane();
+  }
+
   function onNavKinematicModel(topologyId, runId) {
     var params = { topologyId: topologyId, sweep: runId };
     if (state.annotateMount) {
@@ -1582,6 +1590,7 @@
     // The tree in the nav is the scene's answer about what it is showing,
     // like the head line: gone until the re-driven scene sends its own.
     sceneTree = null;
+    partScopePosted = null;
     renderSceneSlot();
     if (!flyoutFrame) {
       flyoutFrame = document.createElement("iframe");
@@ -1861,6 +1870,10 @@
   // What the scene was last told, so a paint that changed nothing posts nothing.
   var sceneModelPosted = null;
   var sceneSelectPosted = null;
+  // The study-parts filter (`isolate parts …`) last posted. Not reset by the
+  // pane's own state replies (its reply to this command would re-post it
+  // forever): only by a re-drive, whose goto/sweep clears the pane's scope.
+  var partScopePosted = null;
   // The selection the grid was last scrolled to, and the scene tree's last
   // selected row: both act on a CHANGE only.
   var seamScrolledTo = null;
@@ -1977,6 +1990,11 @@
     var model = [VA.sceneLitCommand(pageLitSet()), ["model", "unlit", state.unlitStyle]];
     var key = JSON.stringify(model);
     if (key !== sceneModelPosted && model.every(postToPane)) sceneModelPosted = key;
+    var scope = VA.partScopeCommand(VA.litPartIds(currentTopology(), pageLitSet()));
+    var scopeKey = scope.join(" ");
+    if (state.mode !== "stack" && scopeKey !== partScopePosted && postToPane(scope)) {
+      partScopePosted = scopeKey;
+    }
     var sel = state.selection && state.selection.kind === "node"
       ? ["model", "select", "node", state.selection.id] : ["model", "select", "clear"];
     var selKey = sel.join(" ");
@@ -3012,6 +3030,8 @@
       onStack: onNavStack,
       onKinematic: onNavKinematic,
       onKinematicModel: onNavKinematicModel,
+      // The 3D control on each row: only where the scene is mounted.
+      on3D: state.annotateMount ? onNav3D : null,
       // The study row's consolidated ⚠ opens into the SAME popover node every
       // other hover card on this page uses (viewer_nav_alert_badge_and_angled_
       // default): one node, one placement, one close story. The rail is

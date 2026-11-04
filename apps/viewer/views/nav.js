@@ -85,6 +85,24 @@
     return root;
   };
 
+  // The 3D control every study row wears where the scene is mounted
+  // (handoff every_study_opens_in_3d_showing_only_its_parts): it selects the
+  // row and opens the pane on it, through the row's own handler. Quiet until
+  // the row is hovered or focused; absent where the scene is not served.
+  function threeDControl(row, handlers, select) {
+    if (!handlers || !handlers.on3D) return;
+    var button = VA.el("button", "navtree__3d", "3D");
+    button.setAttribute("type", "button");
+    button.setAttribute("title", "Open in 3D");
+    button.setAttribute("aria-label", "Open in 3D");
+    button.setAttribute("data-nav-3d", "1");
+    button.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      handlers.on3D(select);
+    };
+    row.appendChild(button);
+  }
+
   // The kinematic studies (handoff the_viewer_shows_a_kinematic_study): a
   // section of its own, under one small heading, because a kinematic study is
   // not a chain on a topology's walk and nesting it under the topology row
@@ -115,6 +133,7 @@
         row.setAttribute("data-nav-kind", "kinematic");
         row.setAttribute("data-nav-id", s.id);
         row.onclick = function () { handlers.onKinematic(s.id); };
+        threeDControl(row, handlers, function () { handlers.onKinematic(s.id); });
         var item = VA.el("li", "navtree__item", row);
         if (active) sceneSlot(item, handlers);
         children.appendChild(item);
@@ -151,6 +170,7 @@
     row.setAttribute("data-nav-kind", "topology");
     row.setAttribute("data-nav-id", t.id);
     row.onclick = function () { handlers.onTopology(t.id); };
+    threeDControl(row, handlers, function () { handlers.onTopology(t.id); });
     li.appendChild(row);
     if (inThisTopology && !state.studyId) sceneSlot(li, handlers);
 
@@ -198,6 +218,7 @@
       srow.setAttribute("data-nav-id", s.id);
       srow.setAttribute("data-topology-id", t.id);
       srow.onclick = function () { handlers.onStudy(t.id, s.id); };
+      threeDControl(srow, handlers, function () { handlers.onStudy(t.id, s.id); });
       var item = VA.el("li", "navtree__item", srow);
       if (active) sceneSlot(item, handlers);
       children.appendChild(item);
