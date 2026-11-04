@@ -408,6 +408,12 @@ body {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .an__sweep-summary--warn { color: #d6b45b; }
+/* The model layer's unplaced nodes, counted on the head line (handoff
+   coaxial_ends_share_one_3d_node): metadata, so muted; the names ride the
+   hover. */
+.an__model-unplaced {
+  flex: none; color: #9aa1ab; font-size: var(--t-meta); white-space: nowrap;
+}
 
 .an__sweep-controls { display: flex; align-items: center; gap: 8px; }
 /* Quiet until hover, like every other affordance here. Fixed width so the

@@ -5305,6 +5305,109 @@ check("model: the link ends are read off the run's own geometry features, for li
   assertEqual(AA.modelLinkEnds(null), {}, "no run, no link ends");
 });
 
+// --- a joint is one node (handoff coaxial_ends_share_one_3d_node) ----------
+//
+// Concentric ends of an edge merge: two parallel axes the same line, a point
+// on an axis, two coincident points. Two axes that only cross are two joints.
+
+check("model: concentric ends of an edge are one joint -- coaxial, on the axis, or coincident -- and nothing else is", () => {
+  const z = [0, 0, 1], x = [1, 0, 0];
+  const d = AA.MODEL_JOINT_DISTANCE_MM;
+  const tilt = (deg) => [Math.sin(deg * Math.PI / 180), 0, Math.cos(deg * Math.PI / 180)];
+  const m = (a, b) => AA.modelJointMeasure(a, b).merge;
+  // The distance ALONG the axis is free: the plate slides up the spindle.
+  if (!m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 64.466], axis: z })) throw new Error("coaxial, 64 mm apart, did not merge");
+  if (!m({ point: [0, 0, 0], axis: z }, { point: [d * 0.9, 0, 30], axis: z })) throw new Error("just inside the distance did not merge");
+  if (m({ point: [0, 0, 0], axis: z }, { point: [d * 1.1, 0, 30], axis: z })) throw new Error("just outside the distance merged");
+  if (!m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 10], axis: tilt(AA.MODEL_JOINT_ANGLE_DEG * 0.9) })) {
+    throw new Error("just inside the angle did not merge");
+  }
+  if (m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 0], axis: tilt(AA.MODEL_JOINT_ANGLE_DEG * 1.1) })) {
+    throw new Error("just outside the angle merged");
+  }
+  if (m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 0], axis: x })) throw new Error("two crossing axes merged");
+  if (!m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 50], axis: null })) throw new Error("a point on the axis did not merge");
+  if (!m({ point: [1, 2, 3], axis: null }, { point: [1, 2, 3 + d * 0.9], axis: null })) throw new Error("coincident points did not merge");
+  if (m({ point: [1, 2, 3], axis: null }, { point: [1, 2, 3 + d * 1.1], axis: null })) throw new Error("two points apart merged");
+});
+
+const JOINT_TOPOLOGY = {
+  nodes: [{ id: "spindle" }, { id: "plate" }, { id: "bushing" }, { id: "hinge" }, { id: "far" }, { id: "drawn" }],
+  edges: [
+    { id: "coax", from: "spindle", to: "plate" },
+    { id: "bush", from: "plate", to: "bushing" },
+    { id: "cross", from: "spindle", to: "hinge" },
+    { id: "radius", from: "plate", to: "far" },
+    { id: "section", from: "plate", to: "drawn" },
+  ],
+};
+
+check("model: joints chain across edges, a crossing axis stays its own joint, and a node with no feature never merges", () => {
+  const features = {
+    spindle: { point: [0, 0, 0], axis: [0, 0, 1], from: "solver", joint: "slide", end: "point_a_world" },
+    plate: { point: [0, 0, 64], axis: [0, 0, 1], from: "solver", joint: "slide", end: "point_b_world" },
+    bushing: { point: [0, 0, 70], axis: null, from: "bound" },
+    hinge: { point: [0, 0, 0], axis: [1, 0, 0], from: "solver", joint: "hinge", end: "point_a_world" },
+    far: { point: [80, 0, 64], axis: null, from: "bound" },
+  };
+  const joints = AA.modelJointGroups(JOINT_TOPOLOGY, features);
+  assertEqual(joints.groups.map((g) => [g.id, g.members]), [["spindle", ["spindle", "plate", "bushing"]]],
+    "the spindle, the plate on it and the bushing in it are one joint; the hinge and the far bore are not");
+  assertEqual(joints.of, { spindle: "spindle", plate: "spindle", bushing: "spindle" }, "every member names its joint");
+  assertEqual(joints.measured.map((r) => [r.edge, r.merge]),
+    [["coax", true], ["bush", true], ["cross", false], ["radius", false]],
+    "every edge with a feature at both ends is measured; the drawn-only end is not");
+  // The joint's point: the mean of its ends, each where the frame puts it --
+  // a solver end off the frame, a bound one through its subject's pose.
+  const anchors = { bushing: { subject: "plate_body" } };
+  assertEqual(AA.modelJointWorldPoints(joints, features, anchors, null).spindle, [0, 0, 134 / 3],
+    "as modelled: the mean of the three");
+  const frame = { joints: { slide: { point_a_world: [0, 0, 0], point_b_world: [0, 0, 10] } },
+    poses: { plate_body: { quaternion: [0, 0, 0, 1], translation: [0, 0, -54] } } };
+  assertEqual(AA.modelJointWorldPoints(joints, features, anchors, frame).spindle, [0, 0, 26 / 3],
+    "at a frame: the solver's two ends as it states them, the bushing carried by its body");
+});
+
+check("model: the drawn graph is one dot per joint, no line inside a joint, lines out of it renamed to it, and no unplaced node", () => {
+  const anchors = {
+    spindle: { source: "section", subject: "base", point: [9, 0, 0] },
+    plate: { source: "section", subject: "plate_body", point: [9, 0, 1] },
+    bushing: { source: "bound", subject: "plate_body", point: [0, 0, 70] },
+    hinge: { source: "section", subject: "base", point: [9, 0, 2] },
+    far: { source: "section", subject: "plate_body", point: [80, 0, 64] },
+    drawn: { source: "origin", subject: "plate_body", point: [0, 0, 0], why: AA.MODEL_ORIGIN_WHY.noMesh },
+  };
+  const joints = { groups: [{ id: "spindle", members: ["spindle", "plate", "bushing"] }],
+    of: { spindle: "spindle", plate: "spindle", bushing: "spindle" } };
+  const g = AA.modelDrawnGraph(JOINT_TOPOLOGY, anchors, joints);
+  assertEqual(g.dots, { spindle: { members: ["spindle", "plate", "bushing"] }, hinge: { members: null },
+    far: { members: null } }, "one dot for the joint, one per other placed node, none for the unplaced");
+  assertEqual(g.hidden, ["coax", "bush"], "a coaxiality and a bushing's thickness have no length in 3D");
+  assertEqual(g.lines, { cross: { from: "spindle", to: "hinge", kind: undefined, body: null },
+    radius: { from: "spindle", to: "far", kind: undefined, body: null } },
+    "a line leaving the joint starts at the joint, in world; a line to an unplaced node is not drawn");
+  assertEqual(g.unplaced, ["drawn"], "the unplaced nodes, for the head line's count");
+  assertEqual(AA.modelHoverMessage("spindle", joints.groups[0].members),
+    { type: "annotate:hover", kind: "node", id: "spindle", members: ["spindle", "plate", "bushing"] },
+    "a joint's dot under the pointer names every end it stands for");
+  if (!/3 concentric ends/.test(AA.modelAnchorWords(anchors.plate, joints.groups[0]))) {
+    throw new Error("a joint member's readout does not say it is one joint: " +
+      AA.modelAnchorWords(anchors.plate, joints.groups[0]));
+  }
+});
+
+check("model: a bound round face is a feature in the assembly frame; a flat face is none", () => {
+  // A quarter turn about Z and a shift: local +X becomes assembly +Y.
+  const placement = [0, -1, 0, 10, 1, 0, 0, 20, 0, 0, 1, 30];
+  const bore = AA.modelBoundFeature({ surface: "cylindrical", axisPoint: [1, 0, 0], axis: [1, 0, 0], radius: 4 }, placement);
+  assertEqual([bore.point, bore.axis.map((v) => Math.round(v * 1e12) / 1e12), bore.from],
+    [[10, 21, 30], [0, 1, 0], "bound"], "a bore: its axis point placed, its direction turned");
+  const ball = AA.modelBoundFeature({ surface: "spherical", centre: [0, 0, 5], radius: 6 }, placement);
+  assertEqual([ball.point, ball.axis], [[10, 20, 35], null], "a ball: its centre, no axis");
+  assertEqual(AA.modelBoundFeature({ surface: "planar", point: [0, 0, 0], normal: [0, 0, 1] }, placement), null,
+    "a flat face is a linear stack's, not a joint's");
+});
+
 // --- [real] the published sweep runs ---------------------------------------
 //
 // `data/inbox/linkage-sweeps/` is gitignored and lives only in the main
@@ -5542,6 +5645,39 @@ if (!SWEEPS_DIR) {
       const nodes = link.features.filter((f) => f.kind === "node").map((f) => f.id);
       assertEqual(nodes, ["pitch_link_upper_sphere_centre", "pitch_link_lower_sphere_centre"]);
       console.log("      " + tree.joints.map(AA.sweepJointRowWords).join(" / "));
+    });
+
+    // A joint is one node (handoff coaxial_ends_share_one_3d_node), on the
+    // live run and the live topology: the solver's plate slide makes the
+    // hub's spindle bore and the pitch plate's one joint, and nothing else
+    // on P2 has a feature at both ends of an edge that is concentric. With no
+    // committed binding in the inbox (2026-11-03: 55 proposals, 0 accepted),
+    // the solver is the only feature source, so these are the live merges.
+    check("[real] P2: the spindle coaxiality pair is one joint at the solver's slide axis; the link " +
+      "centres and the hinge stay their own nodes", () => {
+      const art = AA.readSweepArtifact(JSON.parse(fs.readFileSync(path.join(SWEEPS_DIR, P2_FILE), "utf8")));
+      const topo = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "docs", "topologies",
+        "topology_vpa_pitch_linkage.json"), "utf8"));
+      const features = AA.modelSolverFeatures(art);
+      const joints = AA.modelJointGroups(topo, features);
+      const r2 = (p) => p.map((v) => Math.round(v * 100) / 100 + 0);
+      assertEqual(joints.groups.map((g) => g.members),
+        [["hub_spindle_bore_axis", "pitch_plate_spindle_bore_axis"]], "the one merged joint on P2");
+      const asModelled = AA.modelJointWorldPoints(joints, features, {}, null);
+      assertEqual(r2(asModelled.hub_spindle_bore_axis), [0, 0, 0], "as modelled (72 deg, zero travel)");
+      const first = AA.modelJointWorldPoints(joints, features, {}, AA.sweepFrameAt(art, 0));
+      assertEqual(r2(first.hub_spindle_bore_axis), [0, 0, 32.23], "at the first point (-7 deg): half the slide");
+      const rows = {};
+      joints.measured.forEach((r) => { rows[r.edge] = r; });
+      assertEqual(Object.keys(rows).sort(), ["gas_spring_bushing_coaxiality", "hub_blade_axis_offset",
+        "hub_to_pitch_plate_spindle_coaxiality", "pitch_link_length", "tan_link_length"].filter((e) => rows[e]).sort(),
+        "the edges with a solver feature at both ends");
+      if (rows.pitch_link_length.merge || rows.tan_link_length.merge || rows.hub_blade_axis_offset.merge) {
+        throw new Error("a link's two centres, or the spindle and the blade hinge, merged");
+      }
+      console.log("      " + joints.measured.map((r) => r.edge + ": " +
+        (r.angleDeg === null ? "" : r.angleDeg.toFixed(3) + " deg, ") + r.distanceMm.toExponential(3) +
+        " mm" + (r.merge ? " -> one joint" : "")).join(" / "));
     });
   }
 }
