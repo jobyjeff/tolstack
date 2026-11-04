@@ -136,3 +136,21 @@ Worktree throughout; the machine's browser slot was contended by other agents.
 - The first browser check flaked twice on a loaded box (scene read before the
   ghosts finished loading / right after a switch); `scene(ready)` now waits for every
   installed mesh to be open and for the expected solid set.
+
+## Re-run 2026-11-03 (review: REQUEST CHANGES, one blocker)
+
+The reviewer was right: my fast check "every kind of study row wears a 3D control"
+used a comma selector and `[data-nav-3d]`, which the fast tier's DOM shim
+(`apps/viewer/run_tests.cjs`: tag, `.class`, `tag.class` only) cannot evaluate. I
+read "514/515" as "the skipped tier" when it was that check red on its own — the
+count before my tests was 513/513. Rewritten to pick rows by `.navtree__row` and
+filter by `data-nav-kind`, and to count `.navtree__3d`.
+
+Now: `node apps/viewer/run_tests.cjs` 515/515 (node-fs tier skipped, worktree);
+with `--repo C:/workspace/tolstack` 631/631. Full `pytest -q` in the worktree:
+1687 passed, 1 failed (`test_viewer_js_suite`, the worktree-only node-fs skip),
+1 skipped, 5m28s — the two shadow-concurrency failures did not recur. Both fast
+witness entries now WITNESSED (`--repo C:/workspace/tolstack`). Still not run: the
+full 41-suite browser tier, and the "scene is solid on exactly the study's parts"
+witness entry (cut off by the time cap). Lesson: read a fast-tier count against the
+last known total, not against the skip line.
