@@ -1,6 +1,6 @@
 ---
 priority: high
-depends_on: []
+depends_on: [each_stop_is_its_own_stack]
 model: opus
 hitl: false
 ---
@@ -27,15 +27,26 @@ elements in the grid view."* And on 10-29: *"Grid view itself should have
 visual indication of sub-stacks, rigid bodies, etc, accomplished with the line
 weights/colors of the dividers and/or the background colors."*
 
+**Jeff picked mock-up C (2026-11-03):** *"I like option C, and I think that is
+what a kinematic study resolves to. Assuming it fits in a 2d grid like that
+such that it is as simple as summing the final column (sensitivity x value for
+each contributor)."* `C:\workspace\dispatch\docs\strategy\drafts\mockups\dag_iconography\C_stack_of_substacks.svg`
+is the target picture for the grid half; open it first. The sub-stacks are
+what `each_stop_is_its_own_stack` emits: per stop, a *linkage terms at this
+pose* group and a *stop position* group (the axial chain to that stop's
+contact face), plus a total-range result row — not the old single travel
+`study_ref` at −7°.
+
 Baseline: `master` with `the_contributor_table_lives_in_the_results_pane_and_groups_are_checkboxes`
-(10-29) and `the_plus72_stop_is_the_travel_datum` (10-29) landed. Scope:
+(10-29) and **`each_stop_is_its_own_stack` (2026-11-03, this batch — read its
+lesson first; its projection shape is what you render)** landed. Scope:
 `apps/viewer/views/kinematic.js` (the kinematic results table), the grid
 half of `apps/viewer/views/topology.js` (`VA.gridPlan`, the chain-study
 rows) **only where the two tables are made one**, `apps/viewer/topology.css`
 / `style.css` for the new marks, `docs/DESIGN_TYPE_AND_COLOUR.md`,
 `apps/viewer/tests.js`, the browser checks. Do NOT touch the chart
 (`VA.kinematicTravelBands`, `datumNote` — owned this batch by
-`the_stop_shows_where_it_is_and_what_the_chain_adds_there`), the DAG's
+`each_stop_is_its_own_stack`), the DAG's
 glyphs or edge grammar (a later handoff after Jeff picks a mock-up), the pane
 (`apps/annotate/`), or the respine/landing code in `topology_app.js` (owned by
 `the_dag_holds_still_and_the_filter_bar_stays_put`).
