@@ -70,3 +70,14 @@ full run), and the type chips (this full run). The red rotates between sub-check
 rather than sticking to one, which points to a shared precondition the suite does not
 wait for (bodies or nav tree not settled) rather than to a defect in any one check.
 Whoever takes this should treat the suite as one problem.
+
+## Addendum 2026-11-03 (handoff each_stop_is_its_own_stack)
+
+`[real] the type chips in the nav filter the tree, and a second press puts the
+rows back` was red 4 of 4 runs on 2026-11-03 under `--only "3D pane follows the
+selection"`. That held on this branch, and with **integration's own `apps/` and
+`scripts/`** checked out against the main checkout's data. The main checkout's
+runner on master passed it 32/32 the same hour. So it is not this branch's
+diff. It also makes the mutation witness
+`browser__real-the-kinematic-page-reads-nav-scene-dag-results-left__fb0d661d`
+report red-before-mutation on every `--changed-since` run that reaches it.
