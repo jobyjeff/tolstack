@@ -306,6 +306,11 @@ model/study) and the view filter which controls what's actually rendered").
 - **Isolate is a toggle.** The first `isolate`/`ghost` of a run takes a snapshot
   of what was drawn; `isolate off` (or `ghost off`) puts exactly that back.
   Leaving a context draws every open part of the new one and none outside it.
+- **A study's parts are one verb.** The viewer's open pane follows its page with
+  `isolate parts <part…>`: those parts solid, the rest of the installed assembly
+  ghosted (hidden under the unlit word `hide`), the solid set framed; a page
+  with no lit set sends `isolate off`. A study none of whose parts has a mesh
+  says so in the pane's head line. An armed pick still wins while armed.
 - **A view verb never changes the context**, and nothing about the context
   draws a part: a part added to the model is listed, not drawn.
 

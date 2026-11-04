@@ -168,6 +168,13 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    which put the selection colour on every topology row at rest -- the one
    colour this page uses to mean "this, and not the others". */
 .navtree__id { color: var(--muted); font-size: var(--t-micro); }
+/* The 3D control: muted and out of the way until the row is hovered or focused. */
+.navtree__3d {
+  flex: 0 0 auto; margin-left: auto; padding: 0 6px; border: 0; background: none;
+  color: var(--muted); font: inherit; font-size: var(--t-micro); cursor: pointer; opacity: 0;
+}
+.navtree__row:hover .navtree__3d, .navtree__3d:focus-visible, .navtree__row--on .navtree__3d { opacity: 1; }
+.navtree__3d:hover { color: var(--accent); }
 
 /* --- the scene's tree, under the row it is showing (the_shell_seats_the_
    scene_beside_the_model) -----------------------------------------------

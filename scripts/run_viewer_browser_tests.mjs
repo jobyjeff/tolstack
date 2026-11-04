@@ -7333,6 +7333,143 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
   }
 }
 
+// --- every study opens in 3D showing only its parts (handoff every_study_opens_
+// in_3d_showing_only_its_parts) -------------------------------------------------
+//
+// On LIVE data, the pane booted as testThreeDPane boots it. For each study kind
+// the row's own 3D control opens the pane and the scene is read back through the
+// annotator's read-only `scene-view`: the solid set is exactly the parts the
+// page's own rule names for the study (VA.litPartIds, run in the page over the
+// projection), every other installed part is ghosted, and switching studies with
+// the pane open re-filters. The Unused control's hide word hides the ghosts.
+async function testEveryStudyOpensIn3D(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const topology = topologies && (topologies.topologies || [])
+    .find((t) => (t.studies || []).some((s) => s.id === "pitch_link_cotter_hole_clearance"));
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const kin = kinematic && (kinematic.studies || [])[0];
+  if (!topology || !kin) {
+    push("[real] every study opens in 3D (skipped: the topology and kinematic " +
+      "projections are not built -- build them, or pass --repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "real" });
+  const frameOf = () => page.frames().find((f) => f.url().includes("/annotate/"));
+  const run = (cmd) => frameOf().evaluate((c) => window.AnnotateApp.exec(c), cmd);
+  // The scene once it has stopped changing; failures swallowed, never thrown (a
+  // thrown wait carries no check name, and its witness reads as a MISS).
+  // `ready(now)` is the state the check expects; the wait ends when the view is
+  // stable AND ready, or at the bound -- a stale scene read right after a switch
+  // would otherwise pass for the new one.
+  const scene = async (ready) => {
+    let last = "", stable = 0, now = null;
+    const read = (view) => {
+      const names = (rows) => rows.map((r) => r.part || r.sha256).sort();
+      return { open: view.length,
+        solid: names(view.filter((r) => r.visible && !r.ghost)),
+        ghost: names(view.filter((r) => r.visible && r.ghost)),
+        hidden: names(view.filter((r) => !r.visible)) };
+    };
+    for (let i = 0; i < 360 && stable < 3; i++) {
+      let view = [];
+      try { view = await run(["scene-view"]); } catch { view = []; }
+      if (!Array.isArray(view)) view = [];
+      now = read(view);
+      const key = JSON.stringify(view);
+      stable = key === last && view.length >= index.meshes.length &&
+        (!ready || ready(now)) ? stable + 1 : 0;
+      last = key;
+      await page.waitForTimeout(500);
+    }
+    return now;
+  };
+  // The part ids the page's own rule names for a study (kind "topology" = the
+  // whole walk), resolved to installed meshes by the part-mesh alias table.
+  const wanted = async (kind, topoId, studyId) => {
+    const ids = await page.evaluate(({ topologies, kind, topoId, studyId, kin }) => {
+      const VA = window.ViewerApp;
+      const topo = VA.findTopology(topologies, topoId);
+      if (kind === "kinematic") return VA.litPartIds(topo, VA.kinematicLitSet(kin, topo));
+      const study = studyId ? (topo.studies || []).find((s) => s.id === studyId) : null;
+      return VA.litPartIds(topo, study ? VA.studyLitSet(study, topo) : null);
+    }, { topologies, kind, topoId, studyId, kin });
+    // Resolved by the annotator's own rule, in its own frame.
+    const parts = await frameOf().evaluate(({ ids, meshes, aliases }) => ids
+      .map((id) => window.AnnotateApp.resolveMeshIdentifier(meshes, id, aliases))
+      .filter(Boolean).map((m) => m.part_id || m.sha256),
+    { ids, meshes: index.meshes, aliases: index.aliases.aliases || index.aliases });
+    return Array.from(new Set(parts)).sort();
+  };
+  const press3D = async (kind, id) => {
+    const row = page.locator(`[data-nav-kind="${kind}"]${id ? `[data-nav-id="${id}"]` : ""}`).first();
+    await row.hover();
+    const btn = row.locator("[data-nav-3d]");
+    if (await btn.count() !== 1) return false;
+    await btn.click();
+    return true;
+  };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  try {
+    await page.goto(url + "/apps/viewer/topology.html", { waitUntil: "load" });
+    await page.waitForSelector('[data-nav-kind="study"]', { timeout: 30000 });
+
+    const bound = await press3D("study", "pitch_link_cotter_hole_clearance");
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 10000 }).catch(() => null);
+    push("[real] a chain study with bound faces offers 3D, and its row opens the pane",
+      bound && await page.locator("#annotate-flyout").evaluate((n) => n.open));
+    let want = await wanted("study", topology.id, "pitch_link_cotter_hole_clearance");
+    let now = await scene((n) => same(n.solid, want));
+    push("[real] its scene is solid on exactly the study's parts and ghosts the rest",
+      same(now.solid, want) && want.length > 0 && now.ghost.length > 0 && now.hidden.length === 0);
+
+    const kin3D = await press3D("kinematic", kin.id);
+    want = await wanted("kinematic", kin.topology, null);
+    now = await scene((n) => same(n.solid, want));
+    push("[real] a kinematic study offers 3D, and switching to it re-filters the open pane",
+      kin3D && same(now.solid, want) && want.length > 0 && now.ghost.length > 0);
+
+    const none = await press3D("study", "rotor_fastener_grip_u2h");
+    want = await wanted("study", topology.id, "rotor_fastener_grip_u2h");
+    now = await scene((n) => same(n.solid, want));
+    push("[real] a chain study with no bound face offers 3D and draws its own parts solid",
+      none && same(now.solid, want) && want.length > 0 && now.ghost.length > 0);
+
+    const top = await press3D("topology", null);
+    want = await wanted("topology", topology.id, null);
+    now = await scene((n) => same(n.solid, want));
+    push("[real] the topology row offers 3D and draws every one of its parts solid",
+      top && same(now.solid, want) && want.length > 0);
+
+    await run(["model", "unlit", "hide"]);
+    now = await scene((n) => n.ghost.length === 0);
+    push("[real] the Unused control's hide word hides the ghosts entirely",
+      now.ghost.length === 0 && now.hidden.length > 0 && now.solid.length > 0);
+    await run(["model", "unlit", "dim"]);
+
+    await run(["isolate", "parts", "no_such_part_anywhere"]);
+    await page.waitForTimeout(1500);
+    push("[real] a scope with no installed mesh says so in the head line",
+      /no 3D model for these parts yet/.test(await page.locator("#flyout-title").textContent()));
+
+    push("[real] nothing above produced an uncaught error", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 // --- the annotator's rail in sweep mode: the mechanism, inspect only (handoff
 // the_sweep_rail_shows_the_mechanism) ----------------------------------------
 //
@@ -13377,6 +13514,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateFlyout(browser, fileBase, label, topologies)],
       ["3D pane follows the selection (sweep, bind, reload, hover)", (label) =>
         testThreeDPane(browser, fileBase, label, topologies)],
+      ["every study opens in 3D showing only its parts", (label) =>
+        testEveryStudyOpensIn3D(browser, label, topologies)],
       ["annotate rail filter + face deselect", (label) =>
         testAnnotateRail(browser, label)],
       ["annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)", (label) =>

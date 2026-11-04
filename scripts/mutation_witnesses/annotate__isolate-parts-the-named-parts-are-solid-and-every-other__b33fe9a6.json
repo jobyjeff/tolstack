@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "isolate parts: the named parts are solid and every other installed part is ghosted, or hidden under the unlit word hide -- and a scope with no mesh says so in the head line",
+  "mutations": [
+    {
+      "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
+      "issue": null,
+      "note": "Breaks the one place this guard's claim is decided.",
+      "file": "apps/annotate/commands.js",
+      "find": "ghost: hideRest ? [] : rest,",
+      "replace": "ghost: [],"
+    }
+  ]
+}

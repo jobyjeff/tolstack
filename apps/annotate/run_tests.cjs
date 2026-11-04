@@ -1590,6 +1590,19 @@ check("embedState names the mode and the subject in one line -- the run's mechan
     "Binding — Propeller pitch linkage");
   assertEqual(AA.embedState(null, null, null).title, "Binding");
 });
+check("isolate parts: the named parts are solid and every other installed part is ghosted, " +
+  "or hidden under the unlit word hide -- and a scope with no mesh says so in the head line", () => {
+  assertEqual(AA.ISOLATE_PARTS_WORD, "parts");
+  assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], false),
+    { solid: ["b"], ghost: ["a", "c"], hide: [] });
+  assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], true),
+    { solid: ["b"], ghost: [], hide: ["a", "c"] });
+  assertEqual(AA.planPartScope(["a"], ["a"], false), { solid: ["a"], ghost: [], hide: [] });
+  const topology = { id: "t", title: "Linkage" };
+  assertEqual(AA.embedState(null, topology, null, true).title,
+    "Binding — Linkage — no 3D model for these parts yet");
+  assertEqual(AA.embedState(null, topology, null, false).title, "Binding — Linkage");
+});
 // --- the sweep rail shows the mechanism (handoff the_sweep_rail_shows_the_
 // mechanism): the tree, the feature bindings, the stop and the contributors.
 // One synthetic run, small enough to read: a ground body and one moving body,
