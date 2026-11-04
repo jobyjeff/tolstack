@@ -198,7 +198,13 @@ export const DECLARED_GUARDS = {
   // check re-worded for the flat run out of the rails. The two crossing
   // guards carry a spec each (three mutations); the shape check carried none
   // under its old name either.
-  fast: { declared: 629, enrollable: 629, names: "23e2bb81be22" },
+  // 2026-11-03 (each_stop_is_its_own_stack): eight swapped, count unchanged
+  // -- the travel band, the zero x-interval, the x-axis note and the datum
+  // line out; each stop's error bar, a reach bound's tick, the one-line zero
+  // and the readouts' two sub-stacks and range in; four [real] checks
+  // renamed for the per-stop stacks and S461-261. Every new name carries a
+  // spec; the two retired concepts' specs are deleted.
+  fast: { declared: 629, enrollable: 629, names: "fd4f247b65ec" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -293,7 +299,10 @@ export const DECLARED_GUARDS = {
   // re-worded for the flat run out of the rails. Neither carried a spec under
   // its old name; the crossing rule itself is witnessed in the fast tier.
   // (Re-pinned at the review merge onto integration's 793/760.)
-  browser: { declared: 793, enrollable: 760, names: "a2fd1dffc6ef" },
+  // 2026-11-03 (each_stop_is_its_own_stack): two renamed -- the kinematic
+  // plot's check now reads each stop's error bar, and the limit card's
+  // S461-261. Both carry a spec.
+  browser: { declared: 793, enrollable: 760, names: "d5f706a6fc9d" },
 };
 
 

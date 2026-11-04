@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the datum is said in one line under the chart: which stop the sweep's zero is, and nothing else",
+  "mutations": [
+    {
+      "contract": "A study that names a datum says it under the chart.",
+      "issue": null,
+      "note": "Declared with the guard by handoff each_stop_is_its_own_stack (2026-11-03). Drops the line.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (datum) root.appendChild(VA.el(\"p\", \"muted kmchart__note\", datum));\n",
+      "replace": ""
+    }
+  ]
+}
