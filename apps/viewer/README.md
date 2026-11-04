@@ -783,12 +783,15 @@ has twelve parts, which is past any categorical palette's cap regardless. So:
   (`viewer_leader_grid_legibility`, below): two neutral tints, alternating, and
   they are pure white at low alpha precisely so they have no hue to confuse
   with the four above;
-* **an edge's bar wears its citation's confidence**, which makes the rail diagram
-  itself a provenance map — a column of red bars is a mechanism nobody has
-  traced, visible before a single row is read;
-* a `gap` bar is dashed (it crosses between lanes and has no rail of its own) and
-  a **derived** gap is dashed and thin, because it carries no value at all: it is
-  the quantity a study computes;
+* **an edge's bar says only lit or unlit**, by weight, in one neutral ink
+  (2026-11-04, `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`).
+  It used to wear its citation's confidence as well, and band hashes, and the
+  joint glyph sat on it; Jeff read the four channels on one stroke as "a jumbled
+  mess of lines/hashes". Confidence is the grid's SOURCING chip, the band its
+  MIN/MAX, and a joint is drawn as its two end nodes
+  (`docs/DAG_TOPOLOGY.md`, "Joint glyphs — the joint is the node");
+* a `gap` bar is dashed (it crosses between lanes and has no rail of its own),
+  a derived gap included;
 * the selected study's path is the accent, and that is a binary, so it needs no
   palette.
 

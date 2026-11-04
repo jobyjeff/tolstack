@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "every DAG bar is one ink and two weights, and only a gap is dashed",
+  "mutations": [
+    {
+      "contract": "A bar's computed stroke is one ink, whatever kind of edge it is.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "A second ink brought back by a stylesheet rule alone, which no class-name check sees.",
+      "file": "apps/viewer/topology.css",
+      "find": ".rail__bar--gap { stroke-dasharray: 4 3; }",
+      "replace": ".rail__bar--gap { stroke-dasharray: 4 3; stroke: var(--untraced); }"
+    },
+    {
+      "contract": "A lit bar is heavier than an unlit one.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "Lit and unlit the same weight: the one channel an edge has, gone.",
+      "file": "apps/viewer/topology.css",
+      "find": ".rail__bar--off { stroke-width: var(--edge-unlit-w); }",
+      "replace": ".rail__bar--off { stroke-width: var(--edge-lit-w); }"
+    }
+  ]
+}

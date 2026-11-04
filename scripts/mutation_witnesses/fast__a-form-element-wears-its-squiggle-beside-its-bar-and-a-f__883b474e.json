@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a form element wears its squiggle beside its bar and a form modifier beside the face it is on",
+  "mutations": [
+    {
+      "contract": "Only a form ELEMENT is marked beside its bar; a modifier is marked beside its node.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "Carried over from the spec this guard's earlier name had: a modifier also on the bar.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (form.kind === \"element\") out.edges[edge.id] = form;",
+      "replace": "      if (form.kind) out.edges[edge.id] = form;"
+    }
+  ]
+}

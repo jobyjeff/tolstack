@@ -226,7 +226,12 @@ export const DECLARED_GUARDS = {
   // Review rework, 2026-11-04: +2 -- a sub-stack label's placement rule and
   // the [real] check that each label is inside the drawing and over every
   // mark. Both carry a spec.
-  fast: { declared: 635, enrollable: 635, names: "3d3db3631577" },
+  // the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit, 2026-11-04: 0,
+  // five renamed -- the bar's one channel (unenrolled before, a spec now), a
+  // body named once and bridged, a joint's ends as its glyph, the form mark
+  // beside its bar, and the live model's one container per body with the
+  // glyph census. Each carries a spec; the old names' specs are deleted.
+  fast: { declared: 635, enrollable: 635, names: "bd9ce51d79e2" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -371,7 +376,10 @@ export const DECLARED_GUARDS = {
   // (Re-pinned at the merge of integration 8d8baf7a into the handoff branch.)
   // Review rework, 2026-11-04: +1 -- every sub-stack label whole inside the
   // drawing and the topmost hit at its centre, parked or not. It carries a spec.
-  browser: { declared: 823, enrollable: 790, names: "18ec42851d9c" },
+  // the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit, 2026-11-04: 0,
+  // "an untraced bar is stroked in the untraced colour" swapped for "every
+  // DAG bar is one ink and two weights", which carries a spec.
+  browser: { declared: 823, enrollable: 790, names: "b654f387007a" },
 };
 
 

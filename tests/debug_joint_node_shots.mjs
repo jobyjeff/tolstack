@@ -8,6 +8,7 @@
 //   node tests/debug_joint_node_shots.mjs [out-dir] [--hover <css>]
 import { createServer } from "node:http";
 import { mkdir, readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, extname, join, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { takeTheBrowserSlot, launchBrowser, loadPlaywright, closeEveryBrowser } from "../scripts/browser_runner.mjs";
@@ -16,7 +17,10 @@ takeTheBrowserSlot();
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
-const DATA = normalize("C:/workspace/tolstack");
+// This tree's own projection when it has one (built with --data-root here),
+// else the main checkout's.
+const DATA = existsSync(join(REPO, "data", "projections", "viewer", "topologies.json"))
+  ? REPO : normalize("C:/workspace/tolstack");
 const MOCKUP = normalize("C:/workspace/dispatch/docs/strategy/drafts/mockups/dag_iconography/C_stack_of_substacks.svg");
 const OUT = normalize(process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2]
   : join(REPO, "docs", "sessions", "lessons", "shots", "the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit"));
@@ -110,6 +114,16 @@ try {
   await boot(page, base, `?kinematic=${STOPS}`);
   await page.screenshot({ path: join(OUT, "1_kinematic_minus7.png") });
   await rails(page, "1b_kinematic_minus7_dag.png");
+  // A close-up the way a reader gets one: the wheel over the lit spine.
+  const spine = await page.locator("#topopane line.rail__bar--on").first().boundingBox();
+  if (spine) {
+    await page.mouse.move(spine.x + 2, spine.y + 120);
+    for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(120); }
+    await settle(page);
+    await page.screenshot({ path: join(OUT, "1c_kinematic_zoomed.png") });
+    await page.keyboard.press("0");
+    await settle(page);
+  }
   const plus = page.getByRole("button", { name: /\+72/ }).first();
   if (await plus.count()) {
     await plus.click();

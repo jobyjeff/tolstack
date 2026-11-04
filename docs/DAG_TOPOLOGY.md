@@ -154,8 +154,8 @@ in order. A word must reach both.
 `interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance`.
 
 Optional in v0 and refused on a structural edge. What each word draws is the
-table in "Joint glyphs" below; an edge that states none is a plain dash and a
-"contact kind not stated" row on the gap list.
+table in "Joint glyphs" below; a joint that states none leaves its ends plain
+dots and puts a "contact kind not stated" row on the gap list.
 
 `kind` on a form callout is one of `element | modifier`.
 
@@ -232,12 +232,18 @@ Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symb
   Each row carries `body`; `layout.bodies` lists each body's block as
   `{body, start, end, lo, hi}`. Column order still minimises the crossing count
   (`layout_crossings`), over a walk in which each body is contiguous.
-- **Drawn as a container.** A rounded field behind the body's block, the
-  body's name once at its top-left, in a muted fill that cycles per body. A
-  body none of whose edges the current study lights is a flat outline.
+- **Drawn as one container.** A rounded field behind the body's block, in the
+  body's own muted tint — assigned, one per body (`VA.bodyTint`;
+  `docs/DESIGN_TYPE_AND_COLOUR.md` says where the tints live). Where the walk
+  puts a body's parts in two components, or a lit study's band splits it, the
+  body is still one container: its fields are joined by a thin bridge in its
+  tint (`VA.bodyBridges`) and its name is drawn once, on the field in the band
+  or else its first (2026-11-04, `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`).
+  A body none of whose edges the current study lights is a flat outline.
 - **Collapsible.** Clicking a body's name folds it to one wide node with its
   name and its joint-node count; the edges that leave it attach to that node's
-  rim. A node a lit edge outside the body stands on stays drawn. The page
+  rim. A body in two blocks folds to a pill in each — one row per block, since
+  a node id is one row — drawn as one bridged group, named once. A node a lit edge outside the body stands on stays drawn. The page
   remembers each body's state per reader.
 - **A sub-stack is a container inside its body.** On a kinematic page, the
   chain a `study_ref` names is a dashed field around its edges, folded to one
@@ -245,22 +251,34 @@ Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symb
   chain rule enters the sub-study's terms one by one). It opens and closes with
   the grid's header row for it (the_kinematic_grid_is_a_stack_of_sub_stacks).
 
-### Joint glyphs
+### Joint glyphs — the joint is the node
 
-Each gap edge with an `interface` draws its glyph at the middle of its bar, in
-the bar's colour, and the glyph carries the edge's hover card. One SVG
-`<symbol>` per word in `apps/viewer/interface_glyphs.js`, enumerated against
-`INTERFACE_KINDS` by `tests/test_topology_projection.py`.
+Since 2026-11-04 (handoff `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`,
+Jeff's mock-up C) **a node that is an end of a joint edge is drawn as that
+joint's glyph**, in the node's own ink and at the row pitch; every other node is
+the plain dot, and no glyph is drawn on an edge. Both ends of a joint wear its
+glyph. A node at the end of joints of two kinds wears the higher of
+`VA.NODE_GLYPH_PRECEDENCE` (a ball, then a slide, a pin, a thread, flat faces, a
+clearance: a joint that moves says more about the interface than a seat).
+`VA.nodeJointKinds` is the one place that decides it, read off the edges alone,
+since no node declares an interface word. One SVG `<symbol>` per word in
+`apps/viewer/interface_glyphs.js`, enumerated against `INTERFACE_KINDS` by
+`tests/test_topology_projection.py`.
+
+**An edge says only lit or unlit.** A bar is one neutral ink at one of two
+weights — lit (every edge, when nothing is lit) or unlit — and a gap is dashed.
+Nothing else rides the stroke: an edge's confidence is the grid's SOURCING chip
+and its band the grid's MIN/MAX. Hover and selection still spend width.
 
 | `interface` | glyph | one edge that wears it |
 | --- | --- | --- |
-| `planar` | two parallel bars, like a capacitor | none on a committed topology yet: a face-to-face seat is one node, not a gap edge (see "What a hard contact is *not*") |
-| `pin_in_bore` | a dot in a ring | `gas_spring_rod_to_pitch_plate` |
-| `spherical` | a ball in a cup | `pitch_arm_link_joint` |
-| `cylindrical_slide` | a dot in a ring with a double-headed arrow | `hub_to_pitch_plate_spindle_coaxiality` |
-| `thread` | a short helix | none on a committed topology yet |
+| `planar` | one solid bar | none on a committed topology yet: a face-to-face seat is one node, not a gap edge (see "What a hard contact is *not*") |
+| `pin_in_bore` | a ring with its axis through it | `gas_spring_rod_to_pitch_plate` |
+| `spherical` | a ring with a centre dot | `pitch_arm_link_joint` |
+| `cylindrical_slide` | a hollow bar with a double-headed arrow along the slide | `hub_to_pitch_plate_spindle_coaxiality` |
+| `thread` | a hollow block crossed by the flanks | none on a committed topology yet |
 | `clearance` | two bars with a gap between them | `end_stop_clearance` |
-| form `element` | a rough-surface squiggle on the edge's bar | none on a committed topology yet (fixture: `tests/test_topology.py`'s form-rule cases) |
+| form `element` | a rough-surface squiggle beside the edge's bar | none on a committed topology yet (fixture: `tests/test_topology.py`'s form-rule cases) |
 | form `modifier` | the same squiggle beside the node the callout is on | none on a committed topology yet |
 
 linkage's joint types suggest the word: `tolerance_stack/kinematic.py`'s

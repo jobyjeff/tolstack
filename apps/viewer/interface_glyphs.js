@@ -42,14 +42,14 @@
     pin_in_bore: {
       label: "a pin in a bore",
       // a ring with its axis through it
-      shapes: [["circle", { cx: 0, cy: 0, r: 6, "class": RING }],
-               ["line", { x1: -9, y1: 0, x2: 9, y2: 0, "class": LINE }]],
+      shapes: [["circle", { cx: 0, cy: 0, r: 7, "class": RING }],
+               ["line", { x1: -10, y1: 0, x2: 10, y2: 0, "class": LINE }]],
     },
     spherical: {
       label: "a ball joint",
       // a ring with a centre dot
-      shapes: [["circle", { cx: 0, cy: 0, r: 6, "class": RING }],
-               ["circle", { cx: 0, cy: 0, r: 2.2, "class": SOLID }]],
+      shapes: [["circle", { cx: 0, cy: 0, r: 7, "class": RING }],
+               ["circle", { cx: 0, cy: 0, r: 2.4, "class": SOLID }]],
     },
     cylindrical_slide: {
       label: "a slide",
@@ -114,7 +114,7 @@
   // pitch -- its bars' half-width -- which is its target's radius and its
   // label's obstacle.
   VA.jointNodeTargetR = function (metrics) {
-    return metrics.rowHeight * 9 / VA.INTERFACE_GLYPH_PX;
+    return metrics.rowHeight * 10 / VA.INTERFACE_GLYPH_PX;
   };
 
   VA.interfaceGlyphId = function (kind) { return "glyph-" + kind; };

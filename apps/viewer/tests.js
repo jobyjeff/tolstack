@@ -9194,14 +9194,21 @@
         eq(all(root, "path.rail__link").length, TOPO.layout.links.length);
       });
 
-    await test("a bar wears its citation's confidence, so the rails ARE a " +
-      "provenance map", function () {
+    await test("a bar says only lit or unlit: it wears no confidence, a gap is " +
+      "dashed, and the grid's chip is where its sourcing is", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        // The demo mechanism holds one of each on purpose.
-        eq(all(root, "line.conf--untraced").length, 1);
-        eq(all(root, "line.conf--no_source_ref").length, 1);
-        eq(all(root, "line.conf--inferred").length, 1);
-        eq(all(root, "line.conf--traced").length, 2);
+        var bars = all(root, "line.rail__bar");
+        ok(bars.length > 0, "the demo mechanism draws its bars");
+        eq(bars.filter(function (n) {
+          return /(^| )conf--/.test(n.getAttribute("class"));
+        }).length, 0, "no bar carries a confidence class");
+        // The demo mechanism holds one of each confidence on purpose, and the
+        // grid still says every one of them on its chip.
+        eq(all(root, "tr.conf--untraced").length + all(root, "span.conf--untraced").length > 0,
+           true, "the untraced edge is still said, in the grid");
+        eq(bars.filter(function (n) { return hasClass(n, "rail__bar--gap"); }).length,
+           TOPO.edges.filter(function (e) { return e.kind === "gap"; }).length,
+           "every gap is dashed, and nothing else is");
       });
 
     await test("a derived gap says it carries no value, rather than showing an " +
@@ -12195,8 +12202,8 @@
         ok(u[7] < u[1] && u[3] < u[1] && u[5] > u[7], "up: " + up.d);
       });
 
-    await test("a body in several blocks around the band is named once, on the " +
-      "band's field -- and each block folds to a pill of its own", function () {
+    await test("a body in several blocks around the band is one container: named " +
+      "once, on the band's field, bridged block to block", function () {
         var laid = VA.bandLayout(bandWalk(), BAND_LIT);
         var spans = VA.bodySpans(laid.rows);
         var fieldsOf = spans.filter(function (s) { return s.body === "A"; });
@@ -12207,12 +12214,23 @@
         eq(namedA.length, 1, "A is named once");
         eq([namedA[0].start <= 4, namedA[0].end >= 10], [true, true], "on the band's field");
         eq(spans.filter(function (s, i) { return named[i]; }).length, 2, "and C once");
-        eq(VA.bodyLabelFields(spans, laid.rows, null).every(Boolean), true,
-           "with nothing lit every block is named");
+        eq(VA.bodyLabelFields(spans, laid.rows, null).filter(Boolean).length,
+           new Set(spans.map(function (s) { return s.body; })).size,
+           "with nothing lit, still once per body");
+        var rect = function (s) { return { body: s.body, x1: 0, x2: 40, y1: s.start * 10,
+                                           y2: s.end * 10 + 8 }; };
+        var bridges = VA.bodyBridges(spans.map(rect));
+        eq(bridges.filter(function (b) { return b.body === "A"; }).length, fieldsOf.length - 1,
+           "a bridge between each pair of A's fields");
+        eq(bridges.length, spans.length - new Set(spans.map(function (s) {
+          return s.body; })).size, "and none for a body drawn whole");
+        has(bridges[0].d, "M 8 ");
+        // The rows still fold to a pill per block (a node id is one row); the
+        // drawing makes them one container (the [real] collapse check).
         var pills = VA.collapseBodies(laid, { A: true }, null, BAND_LIT).rows
           .filter(function (r) { return r.collapsed; }).map(function (r) { return r.id; });
         eq(pills.length, fieldsOf.length);
-        eq(new Set(pills).size, pills.length, "one id per pill: " + pills.join(", "));
+        eq(new Set(pills).size, pills.length, "one id per pill row: " + pills.join(", "));
       });
 
     // --- bodies as containers, joints as glyphs (2026-10-26) ----------------
@@ -12722,9 +12740,11 @@
         eq(VA.readCollapsedBodies(null, "t"), {});
       });
 
-    await test("every contact kind has one glyph symbol, and the pane draws a " +
-      "gap edge's glyph on its bar in the bar's own colour", function () {
+    await test("every contact kind has one glyph symbol, and a joint's two ends are " +
+      "drawn as its glyph in the node's own ink -- never on the edge", function () {
         eq(Object.keys(VA.INTERFACE_GLYPHS), VA.INTERFACE_KINDS);
+        eq(VA.NODE_GLYPH_PRECEDENCE.slice().sort(), VA.INTERFACE_KINDS.slice().sort(),
+           "the precedence ranks every contact kind once");
         var defs = VA.interfaceGlyphDefs();
         var ids = Array.prototype.map.call(defs.childNodes,
           function (n) { return n.getAttribute("id"); });
@@ -12732,6 +12752,9 @@
         var topo = JSON.parse(JSON.stringify(KIN_TOPOLOGIES.topologies[0]));
         var gap = topo.edges.filter(function (e) { return e.kind === "gap"; })[0];
         gap.interface = "spherical";
+        eq(VA.nodeJointKinds(topo), (function () {
+          var o = {}; o[gap.from] = "spherical"; o[gap.to] = "spherical"; return o;
+        })(), "both ends of the joint, and nothing else");
         var root = render(function (r) {
           VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
                                  selection: null, onSelect: function () {} });
@@ -12739,27 +12762,53 @@
         var uses = all(root, "use").filter(function (u) {
           return u.getAttribute("data-glyph") === VA.interfaceGlyphId("spherical");
         });
-        eq(uses.length, 1, "one glyph, on the one gap edge that states a contact kind");
-        ok(hasClass(uses[0], VA.confidenceClass(gap.confidence)), "in the bar's colour");
+        eq(uses.map(function (u) { return u.getAttribute("data-glyph-node"); }).sort(),
+           [gap.from, gap.to].sort(), "one glyph per end, on its node");
+        ok(uses.every(function (u) {
+          return hasClass(u, "rail__node") && u.getAttribute("data-node-glyph") === "spherical" &&
+            !/conf--/.test(u.getAttribute("class"));
+        }), "in the node's ink, not a confidence colour");
+        eq(all(root, "use").filter(function (u) {
+          return u.getAttribute("data-glyph") !== VA.FORM_GLYPH_ID &&
+            !u.getAttribute("data-node-glyph");
+        }).length, 0, "no glyph on an edge");
+        // The dot under the glyph is the node's target and address.
+        var targets = all(root, "circle.rail__dot").filter(function (n) {
+          return hasClass(n, "rail__dot--joint");
+        });
+        eq(targets.map(function (n) { return n.getAttribute("data-id"); }).sort(),
+           [gap.from, gap.to].sort());
         var picked = [];
         var clicked = render(function (r) {
           VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
             selection: null, onSelect: function (k, id) { picked.push(k + ":" + id); } });
         });
-        all(clicked, "use").filter(function (u) {
-          return u.getAttribute("data-glyph") === VA.interfaceGlyphId("spherical");
+        all(clicked, "circle.rail__dot").filter(function (n) {
+          return n.getAttribute("data-id") === gap.from;
         })[0].onclick();
-        eq(picked, ["edge:" + gap.id], "the glyph selects its edge");
+        eq(picked, ["node:" + gap.from], "a joint node selects its node");
+        // An end of two kinds of joint wears the higher-ranked one.
+        var other = topo.edges.filter(function (e) {
+          return e.id !== gap.id && (e.from === gap.from || e.to === gap.from);
+        })[0];
+        ok(other, "the demo has a second edge at the joint's first end");
+        other.interface = "clearance";
+        eq(VA.nodeJointKinds(topo)[gap.from], "spherical", "a ball outranks a clearance");
         gap.interface = null;
+        eq(VA.nodeJointKinds(topo)[gap.from], "clearance");
+        other.interface = null;
         var none = render(function (r) {
           VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
                                  selection: null, onSelect: function () {} });
         });
-        eq(all(none, "use").length, 0, "no contact kind, no glyph -- the plain dash");
+        eq(all(none, "use").length, 0, "no contact kind, no glyph -- the plain dot");
+        eq(all(none, "circle.rail__dot").filter(function (n) {
+          return hasClass(n, "rail__dot--joint");
+        }).length, 0);
       });
 
-    await test("a form element wears its squiggle on the bar and a form modifier " +
-      "beside the face it is on", function () {
+    await test("a form element wears its squiggle beside its bar and a form " +
+      "modifier beside the face it is on", function () {
         var topo = JSON.parse(JSON.stringify(KIN_TOPOLOGIES.topologies[0]));
         var sized = topo.edges.filter(function (e) {
           return e.kind === "structural" && e.dimension;
@@ -12776,9 +12825,15 @@
         var forms = all(root, "use").filter(function (u) {
           return u.getAttribute("data-glyph") === VA.FORM_GLYPH_ID;
         });
-        eq(forms.length, 2, "one on the bar, one beside the node");
-        eq(forms.filter(function (u) { return hasClass(u, "rail__glyph--form"); }).length, 1,
-           "the modifier's is the node adornment");
+        eq(forms.length, 2, "one beside the bar, one beside the node");
+        eq(forms.map(function (u) { return u.getAttribute("data-id"); })
+          .filter(Boolean), [sized[0].id], "the element's carries its edge");
+        var bar = all(root, "line.rail__bar").filter(function (n) {
+          return n.getAttribute("x1") !== null;
+        })[0];
+        ok(forms.every(function (u) { return hasClass(u, "rail__glyph--form"); }),
+           "both muted, neither in a bar's colour");
+        ok(bar, "the bars are drawn");
         eq(VA.formMarks({ edges: [] }), { edges: {}, nodes: {} });
       });
 
@@ -12825,14 +12880,14 @@
            "contributors and the joint, all at full emphasis");
         eq(all(dim, "tr.tvrow--edge").length, Object.keys(lit.edges).length - 1,
            "the grid lists contributors only: the joint is none");
-        eq(all(dim, "use.rail__glyph--off").length,
-           all(dim, "use.rail__glyph").length - all(dim, "use.rail__glyph--on").length,
-           "a glyph is on or off, by whether its edge is lit");
+        eq(all(dim, "use.rail__node--off").length,
+           all(dim, "use.rail__node").length - all(dim, "use.rail__node--on").length,
+           "a joint node's glyph is on or off, by whether its node is lit");
         var hidden = render(function (r) {
           VA.renderTopoPane(r, Object.assign({}, base, { unlitStyle: "hide" }));
         });
         eq(all(hidden, ".rail__bar--on").length, Object.keys(lit.edges).length);
-        eq(all(hidden, ".rail__glyph--off").length, 0, "no dimmed glyph is drawn hidden");
+        eq(all(hidden, ".rail__node--off").length, 0, "no dimmed glyph is drawn hidden");
         // Two lit pieces with nothing between them are joined through the model.
         var apart = VA.litSetOfEdges(topo, ["base_thickness", "strut_length"]);
         ok(walkComponents(VA.hideUnlit(topo.layout, apart).rows).length > 1,
@@ -17706,6 +17761,13 @@
         var realKinStudy = VA.findKinematicStudy(realKinematic,
           "vpa_pitch_linkage_blade_pitch_at_the_stops");
         var realKinTopologies = await real.readTopologies();
+        // What the stops study's lit nodes draw as (VA.nodeJointKinds): the
+        // value-level pin of "the joint is the node" (2026-11-04). Four ball
+        // joints, both ends of each a ball; the plate's slide, whose other end
+        // (the hub's spindle bore) the study does not light; the -7 deg stop's
+        // clearance, both faces. The +72 deg stop is a plain mating face --
+        // nothing states it `planar` -- and the rest are plain.
+        var LIVE_STOPS_GLYPHS = { spherical: 8, cylindrical_slide: 1, clearance: 2, plain: 11 };
 
         // The numbers the hand-made sheet for the tangential link carried
         // (linkage/data/runs/vpa-pitch-p2-20261016-235852/
@@ -18227,10 +18289,15 @@
                 selection: null, onSelect: function () {},
                 collapsedBodies: { base: true }, onToggleBody: function () {} });
             });
+            // ...drawn as ONE container: one group, two pill shapes, a bridge
+            // between them, the name once.
             var pill = all(root, "g.tv__pill");
-            eq(pill.length, 2);
+            eq(pill.length, 1);
             eq(pill[0].getAttribute("data-collapsed-body"), "base");
             has(pill[0].textContent, base.joint_nodes.length + " joints");
+            eq(all(pill[0], "rect.tv__pill__shape").length, 2, "a shape per block");
+            eq(all(pill[0], "path.tv__bodybridge").length, 1, "bridged");
+            eq(all(pill[0], "text.tv__bodyname").length, 1, "named once");
             eq(all(root, "rect.tv__bodyfield").filter(function (n) {
               return n.getAttribute("data-body") === "base";
             }).length, 0, "a collapsed body has no field of its own");
@@ -18300,10 +18367,15 @@
             ok(all(root, "rect.tv__studyfield").length > 1, "the other studies are drawn too");
           });
 
-        await test("[real] the live product model draws a container per body, " +
-          "named once, and a glyph on every gap edge that states its contact",
+        await test("[real] the live product model draws one container per body, " +
+          "named once and bridged, and every end of a stated joint as its glyph",
           function () {
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            ok(topo.bodies.length <= VA.BODY_TINTS,
+               "no two bodies share a tint: " + topo.bodies.length + " bodies, " +
+               VA.BODY_TINTS + " tints");
+            eq(new Set(topo.bodies.map(function (b) { return VA.bodyTint(topo, b.id); })).size,
+               topo.bodies.length, "each body its own tint");
             var toggled = [];
             var root = render(function (r) {
               VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
@@ -18312,21 +18384,44 @@
             });
             var fields = all(root, "rect.tv__bodyfield");
             eq(fields.length, topo.layout.bodies.length);
+            var bodiesDrawn = new Set(topo.layout.bodies.map(function (b) { return b.body; }));
             var names = all(root, "text.tv__bodyname");
-            // Named once per block: a body with parts in two components of the
-            // walk is two containers (2026-10-27).
+            // One container per body (the_joint_is_the_node_and_an_edge_says_
+            // only_lit_or_unlit): a body with parts in two components of the
+            // walk is two fields, named once and bridged.
             eq(names.map(function (n) { return n.getAttribute("data-body-toggle"); }).sort(),
-               topo.layout.bodies.map(function (b) { return b.body; }).sort(),
-               "each block named once");
+               Array.from(bodiesDrawn).sort(), "each body named once");
+            ok(fields.length > bodiesDrawn.size, "the product model has a body in two blocks");
+            eq(all(root, "path.tv__bodybridge").length, fields.length - bodiesDrawn.size,
+               "a bridge between each body's consecutive fields");
             names[0].onclick();
             eq(toggled, [names[0].getAttribute("data-body-toggle")], "the name folds it");
             var stated = topo.edges.filter(function (e) { return e.interface; });
             ok(stated.length >= 17, "the product model's gap edges state their contacts");
+            var kinds = VA.nodeJointKinds(topo);
             var glyphs = all(root, "use").filter(function (u) {
               return u.getAttribute("data-glyph") !== VA.FORM_GLYPH_ID;
             });
-            eq(glyphs.map(function (u) { return u.getAttribute("data-glyph"); }).sort(),
-               stated.map(function (e) { return VA.interfaceGlyphId(e.interface); }).sort());
+            eq(glyphs.filter(function (u) { return !u.getAttribute("data-node-glyph"); }).length,
+               0, "no glyph on an edge");
+            var drawnNodes = topo.layout.rows.filter(function (r) {
+              return r.kind === "node" && kinds[r.id];
+            });
+            eq(glyphs.map(function (u) {
+              return u.getAttribute("data-glyph-node") + ":" + u.getAttribute("data-node-glyph");
+            }).sort(), drawnNodes.map(function (r) { return r.id + ":" + kinds[r.id]; }).sort(),
+            "each end of a joint is that joint's glyph");
+            // The value-level pin: what the live kinematic study's lit nodes draw.
+            var lit = VA.kinematicLitSet(realKinStudy, topo);
+            var census = {};
+            Object.keys(lit.nodes).forEach(function (id) {
+              var k = kinds[id] || "plain";
+              census[k] = (census[k] || 0) + 1;
+            });
+            var sorted = function (o) {
+              return Object.keys(o).sort().map(function (k) { return k + "=" + o[k]; });
+            };
+            eq(sorted(census), sorted(LIVE_STOPS_GLYPHS), "the stops study's lit nodes, by glyph");
           });
 
         await test("[real] each stop chain is a dashed field inside its bodies " +

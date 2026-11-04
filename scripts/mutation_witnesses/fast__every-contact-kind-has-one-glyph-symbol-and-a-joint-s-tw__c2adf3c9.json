@@ -1,0 +1,31 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every contact kind has one glyph symbol, and a joint's two ends are drawn as its glyph in the node's own ink -- never on the edge",
+  "mutations": [
+    {
+      "contract": "Both ends of a joint edge are drawn as its glyph.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "Only one end: the far node of every joint stays a plain dot.",
+      "file": "apps/viewer/interface_glyphs.js",
+      "find": "      [edge.from, edge.to].forEach(function (id) {",
+      "replace": "      [edge.from].forEach(function (id) {"
+    },
+    {
+      "contract": "A node at joints of two kinds wears the higher-ranked one.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "Inverts the precedence: a clearance would outrank the ball it shares a node with.",
+      "file": "apps/viewer/interface_glyphs.js",
+      "find": "        if (id && (out[id] === undefined || rank[kind] < rank[out[id]])) out[id] = kind;",
+      "replace": "        if (id && (out[id] === undefined || rank[kind] > rank[out[id]])) out[id] = kind;"
+    },
+    {
+      "contract": "A joint node draws its glyph, not the plain dot.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "Draws every node plain: the joint is no longer the node.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      var jointKind = jointKinds[mark.id] || null;",
+      "replace": "      var jointKind = null;"
+    }
+  ]
+}

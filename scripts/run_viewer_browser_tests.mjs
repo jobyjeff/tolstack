@@ -1831,14 +1831,39 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("svg.tv__rails line.rail__bar").count() > 0 &&
       await page.locator("svg.tv__rails path.rail__link").count() > 0);
 
-    // A `class` set with setAttribute on an SVG node is the one thing that
-    // silently does nothing if it is set with `.className` instead, so assert
-    // the COMPUTED stroke rather than the class name.
-    const untracedStroke = await page.locator("line.rail__bar.conf--untraced")
-      .first().evaluate((n) => getComputedStyle(n).stroke);
-    push("an untraced bar is stroked in the untraced colour",
-      untracedStroke && untracedStroke !== "none" &&
-      untracedStroke !== "rgb(0, 0, 0)");
+    // An edge says only lit or unlit (the_joint_is_the_node_and_an_edge_says_
+    // only_lit_or_unlit): every bar one computed ink whatever its citation, a
+    // lit bar measurably heavier than an unlit one, and a dash on a gap only.
+    // COMPUTED styles, not class names -- a class set the wrong way on an SVG
+    // node does nothing, and a stylesheet rule can bring a channel back.
+    const strokes = await page.evaluate(() => {
+      const bars = [...document.querySelectorAll("svg.tv__rails line.rail__bar")];
+      const probe = bars[0];
+      const widthWith = (cls) => {
+        const was = probe.getAttribute("class");
+        probe.setAttribute("class", was + " " + cls);
+        const w = parseFloat(getComputedStyle(probe).strokeWidth);
+        probe.setAttribute("class", was);
+        return w;
+      };
+      return {
+        count: bars.length,
+        inks: [...new Set(bars.map((n) => getComputedStyle(n).stroke))],
+        dashedNonGap: bars.filter((n) => !n.classList.contains("rail__bar--gap") &&
+          getComputedStyle(n).strokeDasharray !== "none").length,
+        plainGap: bars.filter((n) => n.classList.contains("rail__bar--gap") &&
+          getComputedStyle(n).strokeDasharray === "none").length,
+        gaps: bars.filter((n) => n.classList.contains("rail__bar--gap")).length,
+        lit: widthWith("rail__bar--on"), unlit: widthWith("rail__bar--off"),
+      };
+    });
+    push("every DAG bar is one ink and two weights, and only a gap is dashed",
+      strokes.count > 0 && strokes.inks.length === 1 && strokes.inks[0] !== "none" &&
+      strokes.lit > strokes.unlit && strokes.dashedNonGap === 0 &&
+      strokes.gaps > 0 && strokes.plainGap === 0);
+    if (strokes.inks.length !== 1 || !(strokes.lit > strokes.unlit)) {
+      console.log("    bar strokes: " + JSON.stringify(strokes));
+    }
 
     // The merged-row grid and the leaders (viewer_leader_line_grid): the demo
     // mechanism has six edges in six single-edge component groups (every
@@ -2019,7 +2044,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const labels = [...svg.querySelectorAll("text.rail__hoverlabel")];
       const label = labels[0] ? labels[0].getBoundingClientRect() : null;
       const own = svg.querySelector('line.rail__barhit[data-id="base_thickness"]');
-      const marks = [...svg.querySelectorAll("circle.rail__dot, line.rail__bar, use.rail__glyph")]
+      const marks = [...svg.querySelectorAll("circle.rail__dot, line.rail__bar, use.rail__node, use.rail__glyph")]
         .filter((n) => n.getAttribute("data-id") !== "base_thickness" &&
           !(n.tagName === "line" && n.getAttribute("x1") === own.getAttribute("x1") &&
             n.getAttribute("y1") === own.getAttribute("y1")))
@@ -11897,10 +11922,10 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       }
       await page.locator("#density-toggle").click();
       await page.waitForTimeout(200);
-      // The joint symbols on the active study: every glyph on a lit joint is
-      // drawn at full opacity, none of the lit path's glyphs is dimmed.
-      const glyphsDimmed = await page.locator("#topopane use.rail__glyph--on.rail__glyph--off").count();
-      const glyphsLit = await page.locator("#topopane use.rail__glyph--on").count();
+      // The joint symbols on the active study -- since 2026-11-04 the
+      // joint's end nodes: every lit one at full opacity, none dimmed.
+      const glyphsDimmed = await page.locator("#topopane use.rail__node--on.rail__node--off").count();
+      const glyphsLit = await page.locator("#topopane use.rail__node--on").count();
       push("[real] the joints on the lit path wear their symbols at full opacity on the " +
         "active study, and no lit symbol is dimmed", glyphsLit >= 5 && glyphsDimmed === 0);
       const detailBefore = await page.locator("#detail").innerHTML();
@@ -11911,8 +11936,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         "stop picker included", contribBefore === 1 &&
         await page.locator("#detail").innerHTML() === detailBefore);
       const hidden = await litCounts();
-      const hiddenGlyphs = await page.locator("#topopane use.rail__glyph--on").count();
-      const hiddenDimGlyphs = await page.locator("#topopane use.rail__glyph--off").count();
+      const hiddenGlyphs = await page.locator("#topopane use.rail__node--on").count();
+      const hiddenDimGlyphs = await page.locator("#topopane use.rail__node--off").count();
       // One connected drawing: the hidden walk of the very projection the page
       // was handed has one connected component, nodes and edges together.
       const hiddenPieces = await page.evaluate(({ topologies, kinematic, study }) => {

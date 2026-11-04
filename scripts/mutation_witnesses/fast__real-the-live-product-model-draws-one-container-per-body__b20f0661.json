@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the live product model draws one container per body, named once and bridged, and every end of a stated joint as its glyph",
+  "mutations": [
+    {
+      "contract": "No two of the live model's bodies share a tint.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "The six-slot cycle this handoff retired: the lower piston head took the ground's tint.",
+      "file": "apps/viewer/topology.js",
+      "find": "  VA.BODY_TINTS = 16;",
+      "replace": "  VA.BODY_TINTS = 6;"
+    },
+    {
+      "contract": "Every end of a stated joint on the live model is its glyph.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "Drops the glyph wherever the joint is traced: the census and the per-node pairing both move.",
+      "file": "apps/viewer/interface_glyphs.js",
+      "find": "      if (!kind || !VA.INTERFACE_GLYPHS[kind]) return;",
+      "replace": "      if (!kind || !VA.INTERFACE_GLYPHS[kind] || edge.confidence === \"traced\") return;"
+    }
+  ]
+}
