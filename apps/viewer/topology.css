@@ -814,18 +814,19 @@ body { display: flex; flex-direction: column; }
 .tvheadtable, .tvtable { table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 
 .tvrow { cursor: pointer; white-space: nowrap; }
-/* The alternating band a row belongs to (viewer_leader_grid_legibility): the
-   SAME two tints the jog zone's bands are filled with, and the same parity
-   (VA.rowBandParity feeds both).
+/* The rigid body a row belongs to (VA.gridRowMarks): the SAME tint the DAG's
+   container for that body is filled with. (Until
+   the_kinematic_grid_is_a_stack_of_sub_stacks a row wore its jog-zone band's
+   parity instead, VA.rowBandParity; the band polygons still do.)
 
-   The band tint is the row's background COLOUR and a provenance tint is a
+   The body tint is the row's background COLOUR and a provenance tint is a
    background IMAGE, so the two compose instead of one winning -- and that is
    load-bearing rather than clever. The first attempt gave both to
    `background` and let the more specific provenance rule win, which reads
    fine on the demo fixture and is nearly inert on the document this handoff
    exists for: most of `pitch_system`'s rows are untraced, and every one of
    them would have shown no band at all. Layered, an untraced row is still
-   unmistakably untraced AND still says which band it belongs to. The browser
+   unmistakably untraced AND still says which body it belongs to. The browser
    tier measures both layers on every real row.
 
    Hover is `background-color` for the same reason: as a shorthand it wiped

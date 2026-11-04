@@ -916,8 +916,8 @@
     // the measure's units per the band's); a chain study's ratio, 1 for an
     // unscaled edge -- so the two kinds of study share one column set
     // (the_kinematic_grid_is_a_stack_of_sub_stacks). Its 70px came out of
-  // component, element and contribution, so the table is as wide as it was
-  // and nothing the pane measures moves.
+    // component, element and contribution, so the table is as wide as it was
+    // and nothing the pane measures moves.
     { cls: "sensitivity", label: "sensitivity", width: 70 },
     { cls: "contribution", label: "contribution", width: 170 },
     // 260, not the 200 it was until viewer_study_verdicts_and_gaps: this cell
@@ -1666,8 +1666,9 @@
 
     // 0. the alternating bands (viewer_leader_grid_legibility): the region
     //    between two adjacent leaders, tinted in one of two neutral shades by
-    //    parity, and the grid rows that region feeds wear the SAME parity
-    //    (VA.rowBandParity, read by grid() below off the same plan). Drawn
+    //    parity (VA.rowBandParity). The grid rows wear their body's tint
+    //    instead since the_kinematic_grid_is_a_stack_of_sub_stacks
+    //    (VA.gridRowMarks). Drawn
     //    first so everything else sits on top of it, and hit-tested by
     //    nothing -- a band is wayfinding, not a target.
     leaderGeo.bands.forEach(function (band) {
@@ -2398,8 +2399,8 @@
       if (ctx.onCardShow && ctx.kinematicStudy) {
         gapChip.className += " cardtrig";
         gapChip.onmouseenter = function () {
-          ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy, { study: entry.id },
-            ctx.topoProj), gapChip);
+          ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy,
+            { study: entry.id, name: entry.name }, ctx.topoProj), gapChip);
         };
       }
       chips.wrap.appendChild(gapChip);
@@ -2822,8 +2823,8 @@
         if (ctx.onCardShow && ctx.kinematicStudy) {
           noBand.className += " cardtrig";
           noBand.onmouseenter = function () {
-            ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy, { edge: planRow.id },
-              ctx.topoProj), noBand);
+            ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy,
+              { edge: planRow.id, name: fullName }, ctx.topoProj), noBand);
           };
         }
         chips.wrap.appendChild(noBand);
