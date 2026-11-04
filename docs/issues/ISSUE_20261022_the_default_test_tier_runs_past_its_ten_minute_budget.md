@@ -77,3 +77,14 @@ candidates for a merge-only tier.
 ## Addendum 2026-11-02 (the_all_topology_leader_test_counts_its_views_by_kind)
 
 Measured 601 s (budget 600 s, over by 1 s) for plain `pytest -q` in a worktree, single-process: this venv has no xdist, so `-n 16 --dist loadfile` is rejected as an unrecognised argument.
+
+## Addendum 2026-11-03 (review of the_slide_joint_is_the_mounts_bushings_against_the_piston_body)
+
+Measured 1289 s (budget 600 s, over by 11m29s) for
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider`
+in the review worktree on the merged tree, single-process (no xdist). Result:
+`2 failed, 1699 passed, 1 skipped, 2 deselected`. Both reds are checkout-dependent:
+`test_viewer_js_suite` and the contact-suggestions `[real]` pairing. The tactical
+run of the same tree, a few hours earlier, took 6 m 14 s. That suggests contention
+on the box rather than suite growth: about 14 python processes were live
+when it finished. Run without `--durations`, so this addendum has no pareto.

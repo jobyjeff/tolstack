@@ -1638,7 +1638,7 @@
       "part": "gas_spring_mount_213668_002",
       "from": "gas_spring_mount_hub_face",
       "to": "gas_spring_mount_bushing_bore",
-      "note": "No value recorded. What would close it: 213668-002's own drawing, or a fit of the installed `machined_213668` mesh -- the only part of this linkage whose mesh came from a single-part STEP export rather than from the assembly, which is also why that mesh records no placement and a fit of it stands in its own frame."
+      "note": "No value recorded. What would close it: 213668-002's own drawing, or a fit of the installed `machined_213668` mesh -- the only part of this linkage whose mesh came from a single-part STEP export rather than from the assembly. Since 2026-11-03 its sidecar records the assembly occurrence rotorkit's run assembly_extract_20261001T022446Z found for it (identity; frame checked vertex for vertex), so a fit of it is placed like any other part's."
     },
     {
       "id": "hub_spindle_to_gas_spring_mount_face",

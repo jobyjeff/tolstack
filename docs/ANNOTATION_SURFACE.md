@@ -185,8 +185,9 @@ the same 3×4 row-major layout `scripts/fit_bound_features.py` reads — in the
 three times; the pitch arm five. A second occurrence shares the first one's
 geometry and material, so it costs a draw call and a matrix, not a copy.
 
-- **A part with no recorded occurrence** (the standalone `213668-002` STEP, the
-  blade OML) is drawn at its own origin and **says so**, in its panel row and in
+- **A part with no recorded occurrence** (the blade OML; the standalone
+  `213668-002` STEP was the other until 2026-11-03, when its sidecar gained
+  the occurrence rotorkit had recorded) is drawn at its own origin and **says so**, in its panel row and in
   the banner when it is opened: "no position in the assembly — shown at its own
   origin".
 - **A part past the draw cap** (`AA.OCCURRENCE_DRAW_LIMIT`, `sweep.js`) is drawn

@@ -5385,6 +5385,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       inside the `page.evaluate` whose rAF loop samples (`catchFrame(selector)`,
       `caughtMidFlight`). A new in-flight check written the old way is that
       race again.
+- [ ] **A gap edge renamed, added or removed reddens a PYTEST `[real]` test
+      that has no freshness gate.** New 2026-11-03
+      (`the_slide_joint_is_the_mounts_bushings_against_the_piston_body`).
+      `tests/test_contact_suggestions.py::test_real_the_live_projection_has_the_schema_and_a_row_per_gap_edge`
+      pairs the tree's gap edges with the main checkout's projection and
+      checks nothing about which tree built that projection. So it is red on
+      the branch, on your merged tree, and on `integration` until the batch
+      merge rebuild. Charge that red to the missing gate, not to the diff:
+      confirm the diff in the assertion is exactly the renamed edge
+      (`ISSUE_20261103_the_contact_suggestions_real_test_pairs_this_tree_with_a_projection_built_from_another.md`).
+      Same review: a data-only fact about a part (here "213668-002 has no
+      recorded occurrence") lives in topology `note`s and in
+      `docs/ANNOTATION_SURFACE.md` as well as in the README the author fixed.
+      `git grep -n "<part id>\|<drawing no>"` over `docs/` and the topology
+      notes.
 
 ## Architectural errors to check
 
