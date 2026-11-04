@@ -11368,10 +11368,6 @@
       });
     }
 
-    function kinematicRowsOf(root) {
-      return all(root, "tr.kmrow");
-    }
-
     // The kinematic page's grid (the_kinematic_grid_is_a_stack_of_sub_stacks):
     // the topology pane, drawn with the study's lit set and its stack at one
     // stop -- what topology_app.js hands it.

@@ -7223,7 +7223,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     const opened = await until((w) => w.__sweep && w.__sweep.openedBySweep &&
       w.__sweep.openedBySweep.length > 0 && w.__scene &&
       w.__scene.parts.has(w.__sweep.openedBySweep[0]), null, 120000);
-    await page.locator(`tr.kmrow[data-edge="${bound.edge}"]`).first().hover();
+    await page.locator(`#topopane tr.tvrow[data-id="${bound.edge}"]`).first().hover();
     const tinted = opened && await until((w) => !!w.__lastHighlight);
     const face = tinted ? await inPane((w) => {
       const f = w.__lastHighlight;
@@ -7238,7 +7238,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] resting on a bound contributor row tints its face in the " +
       "annotator, in the colour buffer and not just the bookkeeping",
       face && face.sha256 === face.first && face.faceId === 0 && face.painted);
-    await page.locator(`tr.kmrow[data-edge="${unbound.edge}"]`).first().hover();
+    await page.locator(`#topopane tr.tvrow[data-id="${unbound.edge}"]`).first().hover();
     const cleared = await until((w) => w.__lastHighlight === null, null, 10000);
     const said = cleared
       ? await inPane((w) => w.__lastHighlightNote || "") : "";
@@ -7251,7 +7251,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     // (2026-10-26.) The page keeps the study, the pane is not sent a goto,
     // and the selected edge is what the scene highlights once the pointer
     // rests on nothing in particular.
-    await page.locator(`tr.kmrow[data-edge="${bound.edge}"] a.kmrow__edge`).first()
+    await page.locator(`#topopane tr.tvrow[data-id="${bound.edge}"] td.tvcell--name`).first()
       .click({ timeout: 5000 }).catch(() => {});
     await page.mouse.move(5, 5);
     const stillSwept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
@@ -7260,7 +7260,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       "study and the annotator in sweep mode, the edge highlighted",
       stillSwept && /^Sweep — /.test(await headLine()) &&
       await page.locator("div.kmverdict").count() === 2 &&
-      await page.locator(`tr.kmrow--selected[data-edge="${bound.edge}"]`).count() === 1);
+      await page.locator(`#topopane tr.tvrow--selected[data-id="${bound.edge}"]`).count() === 1);
 
     // --- 6. the room the DAG and grid get on a chain study ------------------
     // With the scene at its floor and the results pane beside them, the DAG
@@ -10980,23 +10980,24 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await page.locator("div.kmverdict").count() === 2 &&
       await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops") +
         ".navtree__row--on").count() === 1);
-    // The page every study page is (2026-10-28): the model over its
-    // contributor table in the main column, and the results -- name,
-    // verdicts, chart, readouts -- at the top of the right-hand pane, over
-    // the selection's preview.
+    // The page every study page is (2026-10-28): the model and the grid beside
+    // it in the main column -- the grid IS the study's contributor table, its
+    // stack (the_kinematic_grid_is_a_stack_of_sub_stacks) -- and the results
+    // -- name, verdicts, chart, readouts -- at the top of the right-hand pane,
+    // over the selection's preview.
     const shape = await page.evaluate(() => {
       const box = (sel) => {
         const n = document.querySelector(sel);
         return n ? n.getBoundingClientRect() : null;
       };
-      return { pane: box("#topopane"), table: box("#detail table.kmtable"),
+      return { pane: box("#topopane"), table: box("#topopane table.tvtable"),
         main: box(".tv__main"), detail: box("#detail"),
         verdicts: box("#detail div.kmverdict"), chart: box("#detail figure.kmchart"),
         readouts: box("#detail table.kmreadouts"), preview: box("#detail .detail__preview"),
         results: box("#detail .kmresults") };
     });
-    push("the kinematic page draws the model in the main column, and its verdicts, " +
-      "chart, readouts and contributors in one column at the top of the right-hand pane",
+    push("the kinematic page draws the model and its stack in the main column, and its " +
+      "verdicts, chart and readouts in one column at the top of the right-hand pane",
       await page.locator("#topopane svg.tv__rails").isVisible() &&
       await page.locator("#detail figure.kmchart svg").isVisible() &&
       shape.table && shape.verdicts && shape.chart && shape.readouts && shape.preview &&
@@ -11006,15 +11007,17 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       // pane_replaces_the_hover_popups_and_one_record_backs_every_mark), so
       // the table can run past the Preview's top inside that box: what holds
       // is the order within the results, and the results' box above it.
-      shape.readouts.top < shape.table.top && shape.results &&
-      shape.results.bottom <= shape.preview.top + 1 &&
-      await page.locator(".tv__main table.kmtable").count() === 0 &&
+      shape.results && shape.results.bottom <= shape.preview.top + 1 &&
+      shape.table.right <= shape.detail.left + 8 &&
+      await page.locator("#topopane tr.tvrow--substack").count() > 0 &&
+      await page.locator("table.kmtable").count() === 0 &&
       await page.locator("#kinematicview").count() === 0);
-    // A contributor row names an edge, and pointing at it previews that
-    // edge's record below the results, as its grid row would.
-    const contributor = await page.locator("#detail tr.kmrow[data-edge]").first()
-      .getAttribute("data-edge");
-    await page.locator("#detail tr.kmrow[data-edge]").first().locator("td").first().hover();
+    // A term row of the stack names an edge, and pointing at it previews that
+    // edge's record below the results.
+    const contributor = await page.locator("#topopane tr.tvrow--edge[data-id]").first()
+      .getAttribute("data-id");
+    await page.locator("#topopane tr.tvrow--edge[data-id]").first()
+      .locator("td.tvcell--name").hover();
     push("pointing at a contributor row previews its edge's record",
       await page.waitForFunction((key) => {
         const p = document.querySelector(".detail__preview");
@@ -11069,7 +11072,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         const worst = pts(document.querySelector("#detail polygon.kmchart__worst"));
         const xs = worst.map((p) => p[0]);
         const anchor = document.querySelector(
-          "tr.kmgroup[data-study='vpa_pitch_linkage_hub_to_feather_stop']");
+          "#topopane tr[data-substack='vpa_pitch_linkage_hub_to_feather_stop']");
         const bar = (stop) => {
           const n = document.querySelector(
             `#detail line.kmchart__bar--worst[data-stop='${stop}']`);
@@ -11124,9 +11127,11 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       // four -- and the five joints between lit nodes; since 2026-11-03 the
       // feather chain joins the travel stack to the linkage, so no bridge
       // through the hub is lit), the other seventy-seven dimmed (seventy-six before
-      // the 2026-11-03 slide re-author's edge merged in), the grid
-      // beside them the seventeen contributors, all under verdicts that are
-      // on the first screen.
+      // the 2026-11-03 slide re-author's edge merged in), the grid beside them
+      // the stack at the -7 stop: its six linkage terms, the feather and travel
+      // chains folded under their headers (seventeen edge rows before
+      // the_kinematic_grid_is_a_stack_of_sub_stacks), all under verdicts that
+      // are on the first screen.
       const fold = await page.evaluate(() => {
         const bottoms = [...document.querySelectorAll("div.kmverdict > *")]
           .map((n) => n.getBoundingClientRect().bottom);
@@ -11142,7 +11147,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       push("[real] on the first screen, the verdicts beside the model, the study's " +
         "contributors and the edges they stand on lit and the rest dimmed",
         fold.verdicts < fold.viewport && fold.paneTop < fold.viewport &&
-        dimmed[0] === 22 && dimmed[1] === 77 && dimmed[2] === 17);
+        dimmed[0] === 22 && dimmed[1] === 77 && dimmed[2] === 6 &&
+        await page.locator("#topopane tr.tvrow--substack").count() === 5);
       // The band: the study's rows re-arranged into one band and framed in
       // the bounded pane on arrival, with every leader on its moved dot --
       // and the handoff's measured target, the band in view without a scroll
@@ -11181,11 +11187,11 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       push("[real] the joints on the lit path wear their symbols at full opacity on the " +
         "active study, and no lit symbol is dimmed", glyphsLit >= 5 && glyphsDimmed === 0);
       const detailBefore = await page.locator("#detail").innerHTML();
-      const contribBefore = await page.locator("#detail table.kmtable").count();
+      const contribBefore = await page.locator("#detail div.kmstop").count();
       await page.locator("#unlit-style-toggle").click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(400);
       push("[real] toggling Unused leaves the results pane's DOM identical, its " +
-        "contributor table included", contribBefore === 1 &&
+        "stop picker included", contribBefore === 1 &&
         await page.locator("#detail").innerHTML() === detailBefore);
       const hidden = await litCounts();
       const hiddenGlyphs = await page.locator("#topopane use.rail__glyph--on").count();
@@ -11219,7 +11225,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const restored = await litCounts();
       push("[real] the toolbar's Unused toggle hides the unlit model and brings it back",
         hiddenLabel === "Unused: hidden" &&
-        hidden[0] === 22 && hidden[1] === 0 && hidden[2] === 17 &&
+        hidden[0] === 22 && hidden[1] === 0 && hidden[2] === 6 &&
         restored[0] === 22 && restored[1] === 77);
       push("[real] hidden, the lit model is one connected drawing and the joints' symbols are " +
         "all still there at full opacity", hiddenPieces === 1 &&
@@ -11254,75 +11260,117 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         /-6\.992 deg/.test(tipText) && /±0\.290 deg/.test(tipText) &&
         /RSS/.test(tipText) && /±0\.169 deg/.test(tipText));
 
-      const rows = page.locator("table.kmtable tr.kmrow");
-      const classes = [];
-      for (let i = 0; i < await rows.count(); i++) {
-        classes.push(await rows.nth(i).getAttribute("class"));
-      }
-      // No gap rows since the tangential link cited its drawing (2026-10-26).
-      push("[real] one table says the six contributors once, each a banded term, " +
-        "with a column group per stop",
-        await page.locator("table.kmtable").count() === 1 &&
-        await page.locator("th.kmtable__stop").count() === 2 &&
-        classes.length === 6 &&
-        classes.every((c) => /kmrow--term/.test(c) && !/kmrow--gap/.test(c)) &&
-        !/contributors at/.test(await page.locator("#detail .kmcontrib").innerText()));
+      // The grid is the study's stack at the -7 stop
+      // (the_kinematic_grid_is_a_stack_of_sub_stacks): the six linkage terms
+      // in chain order under their header, then the stop position's three
+      // sub-stacks, a SENSITIVITY column before CONTRIBUTION, every row in
+      // its body's tint, and the sourcing legend under it.
+      const LINKAGE = ["pitch_arm_radius", "pitch_link_length", "pitch_plate_attach_height",
+        "pitch_plate_tan_link_attach_radius", "tan_link_length", "tan_link_mount_height"];
+      const stack = await page.evaluate(() => {
+        const rows = [...document.querySelectorAll("#topopane tr.tvrow")];
+        const bg = (n) => getComputedStyle(n).backgroundColor;
+        return {
+          ids: rows.map((r) => r.getAttribute("data-id")),
+          tints: rows.filter((r) => r.classList.contains("tvrow--edge")).map((r) =>
+            [...r.classList].filter((c) => /^tvrow--body-t/.test(c))[0] || ""),
+          painted: rows.filter((r) => r.classList.contains("tvrow--edge"))
+            .every((r) => bg(r) !== "rgba(0, 0, 0, 0)"),
+          heads: [...document.querySelectorAll("#topopane .tvhead, #topopane th, #topopane [class*='tvhead']")]
+            .map((n) => n.textContent.trim().toLowerCase()),
+          legend: (document.querySelector("#topopane .tvlegend") || {}).textContent || "",
+          travel: (document.querySelector(
+            "#topopane tr[data-substack='vpa_pitch_linkage_travel_between_end_stops']") || {})
+            .textContent || "",
+        };
+      });
+      console.log("      stack rows " + JSON.stringify(stack.ids));
+      push("[real] the grid is the study's stack at the -7 stop: the six linkage terms in " +
+        "chain order, the stop position's sub-stacks after them, each row in its body's tint",
+        JSON.stringify(stack.ids) === JSON.stringify(["sub:linkage"].concat(LINKAGE,
+          ["sub:stop_position", "sub:vpa_pitch_linkage_feather_stop_axial_position",
+           "sub:vpa_pitch_linkage_travel_between_end_stops",
+           "sub:vpa_pitch_linkage_hub_to_feather_stop"])) &&
+        stack.tints.join(" ") ===
+          "tvrow--body-t1 tvrow--body-t3 tvrow--body-t2 tvrow--body-t2 tvrow--body-t4 tvrow--body-t0" &&
+        stack.painted &&
+        /±0\.82 mm → ±1\.417 deg at the −7 deg stop/.test(stack.travel) &&
+        /traced/.test(stack.legend) && /UNTRACED/.test(stack.legend) &&
+        await page.locator("#topopane col.tvcol--sensitivity").count() > 0);
 
-      // The travel between the end stops is one of the low stop's stop chains:
-      // one group row, collapsed, that opens onto its four terms with the
-      // motion ratio's magnitude at the -7 stop as their coefficient (1.728
-      // deg/mm). The feather stop's chain is a second group, in both stops'
-      // stacks; the hub anchor the third, a declared gap with nothing to open.
-      const travelRow = 'tr.kmgroup[data-study="vpa_pitch_linkage_travel_between_end_stops"]';
+      // The travel folds: four children open under its header, the motion
+      // ratio at the -7 stop as their sensitivity (1.728 deg/mm), and the
+      // reader's fold is remembered across a repaint.
+      const travelRow = '#topopane tr[data-substack="vpa_pitch_linkage_travel_between_end_stops"]';
       const TRAVEL_EDGES = ["piston_head_upper_thickness", "piston_head_lower_thickness",
         "gas_spring_mount_flange_to_end_stop", "piston_cover_flange_to_end_stop"];
-      const travelKids = page.locator(TRAVEL_EDGES.map((e) =>
-        `table.kmtable tr.kmchild[data-edge="${e}"]`).join(", "));
-      const closedKids = await page.locator("table.kmtable tr.kmchild").count() === 9 &&
-        await travelKids.count() === 4 && !(await travelKids.first().isVisible());
-      await page.locator(travelRow + " button.kmgroup__toggle").click();
-      const openKids = await travelKids.first().isVisible() && await travelKids.last().isVisible();
-      const kidTexts = await travelKids.allInnerTexts();
-      await page.locator(travelRow + " button.kmgroup__toggle").click();
-      push("[real] the travel study is one group row, collapsed, that opens onto its " +
-        "four terms with the composed coefficients",
-        await page.locator("table.kmtable tr.kmgroup").count() === 3 &&
-        /Travel between end stops/.test(await page.locator(travelRow).innerText()) &&
-        closedKids && openKids && kidTexts.length === 4 &&
+      const travelKids = () => page.locator(TRAVEL_EDGES.map((e) =>
+        `#topopane tr.tvrow[data-id="${e}"]`).join(", "));
+      const closedKids = await travelKids().count() === 0 &&
+        await page.locator(travelRow).getAttribute("aria-expanded") === "false";
+      await page.locator(travelRow + " td.tvcell--name").click();
+      await page.waitForSelector(`#topopane tr.tvrow[data-id="${TRAVEL_EDGES[0]}"]`,
+        { timeout: 5000 }).catch(() => {});
+      const kidTexts = await travelKids().allInnerTexts();
+      const openCorr = await page.evaluate(CORRESPONDENCE_IN_PAGE);
+      const remembered = await page.evaluate(() => {
+        try { return localStorage.getItem("tolstack.viewer.subStackFolds") || ""; } catch (e) { return ""; }
+      });
+      await page.locator(travelRow + " td.tvcell--name").click();
+      await page.waitForTimeout(300);
+      push("[real] the travel is one folded sub-stack that opens onto its four terms " +
+        "with the composed sensitivity, every leader still on its row, and the fold is remembered",
+        closedKids && kidTexts.length === 4 &&
         kidTexts.every((t) => /1\.728/.test(t) && !/1\.249/.test(t)) &&
-        !(await travelKids.first().isVisible()));
+        openCorr.leaders > 0 && openCorr.drift.length === 0 &&
+        /vpa_pitch_linkage_travel_between_end_stops/.test(remembered) &&
+        await travelKids().count() === 0);
 
-      // A coefficient's hover: its curve across P2, in the page's one popover.
+      // A sensitivity's hover: its curve across P2, in the page's one popover.
       // The tangential-link mount height's coefficient changes sign between
       // the stops, so both signs are on the card's axis.
-      await page.locator('tr.kmrow[data-edge="tan_link_mount_height"] ' +
-        'td.kmcell--coef[data-stop="plus72"]').hover();
+      await page.locator('#topopane tr.tvrow[data-id="tan_link_mount_height"] ' +
+        'td.tvcell--sensitivity').hover();
       const curveCard = await page.waitForFunction(() => {
         const pop = document.querySelector("#croppop");
         return pop && pop.style.display === "block" &&
           pop.className.indexOf("hovercard--curve") !== -1 &&
           pop.querySelector("path.kmcurve__line") ? pop.innerText : null;
       }, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => "");
-      push("[real] hovering a coefficient shows its curve across the sweep, both signs " +
+      push("[real] hovering a sensitivity shows its curve across the sweep, both signs " +
         "of the mount height's on its axis",
         /tangential link mount/.test(curveCard) && /\+0\.172/.test(curveCard) &&
         /-0\.241/.test(curveCard));
       await dismissCard(page);
 
+      // The +72 stop: the picker shows the stack there, which has no travel.
+      await page.locator('#detail button.kmstop__button[data-stop="plus72"]').click();
+      await page.waitForTimeout(400);
+      const highIds = await page.locator("#topopane tr.tvrow").evaluateAll((rs) =>
+        rs.map((r) => r.getAttribute("data-id")));
+      const highCorr = await page.evaluate(CORRESPONDENCE_IN_PAGE);
+      push("[real] at the +72 stop the stack has no travel, and every leader is on its row",
+        highIds.indexOf("sub:vpa_pitch_linkage_travel_between_end_stops") === -1 &&
+        highIds.indexOf("pitch_arm_radius") !== -1 &&
+        highCorr.leaders > 0 && highCorr.drift.length === 0);
+      await page.locator('#detail button.kmstop__button[data-stop="minus7"]').click();
+      await page.waitForTimeout(400);
+
       // In place: the page stays the study, the model marks the edge, the
       // preview pane shows it. Waits for the SELECTION in the grid, which a
       // click that left the page would also produce -- so the check reads the
       // page's own head too.
-      await rows.nth(0).locator("a.kmrow__edge").click();
+      await page.locator('#topopane tr.tvrow[data-id="pitch_plate_attach_height"] ' +
+        'td.tvcell--name').click();
       await page.waitForSelector("#topopane tr.tvrow--selected", { timeout: 15000 }).catch(() => {});
-      push("[real] clicking the first contributor selects pitch_plate_attach_height in " +
+      push("[real] clicking a term row selects pitch_plate_attach_height in " +
         "place: the page stays the study, the model marks it, the preview pane shows it",
         await page.locator("div.kmverdict").count() === 2 &&
         await page.locator(navRow("kinematic", STUDY) + ".navtree__row--on").count() === 1 &&
         /pitch-link attachment bore, height/.test(
           await page.locator("#detail").innerText()) &&
-        await page.locator("#topopane tr.tvrow--selected").count() === 1 &&
-        await page.locator('tr.kmrow--selected[data-edge="pitch_plate_attach_height"]').count() === 1);
+        await page.locator('#topopane tr.tvrow--selected[data-id="pitch_plate_attach_height"]')
+          .count() === 1);
 
       await boot("", null);
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -11349,7 +11397,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await page.waitForSelector("div.kmverdict, .banner__notice", { timeout: 15000 });
       push("[real] served over HTTP, the page reads the projection through the same transport",
         await page.locator("div.kmverdict").count() === 2 &&
-        await page.locator("table.kmtable tr.kmrow").count() === 6);
+        await page.locator("#topopane tr.tvrow--edge").count() === 6);
     }
     return reportSuite(label, checks, errors);
   } catch (err) {
@@ -13111,7 +13159,7 @@ async function testSeamLeaders(browser, label, topologies) {
         else window.scrollTo(0, 0);
       });
     };
-    await live.locator(`tr.kmrow[data-edge="${CONTRIBUTOR}"] td.kmrow__name a`).first().click();
+    await live.locator(`#topopane tr.tvrow[data-id="${CONTRIBUTOR}"] td.tvcell--name`).first().click();
     await backToSelection();
     const lit1 = await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;
@@ -13144,7 +13192,7 @@ async function testSeamLeaders(browser, label, topologies) {
 
     // Another contributor, then the pitch link's face picked in the scene --
     // `inspect part`, what a click on the mesh runs -- back to the same state.
-    await live.locator('tr.kmrow[data-edge="pitch_link_length"] td.kmrow__name a').first().click();
+    await live.locator('#topopane tr.tvrow[data-id="pitch_link_length"] td.tvcell--name').first().click();
     await backUp();
     await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;
