@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: meshes/assembly-placement
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
 class: mesh_placement_disagrees_with_the_mechanism
 defer_until: 2026-11-13
-resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program); strategy 2026-11-03: routed to HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body
+resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program); strategy 2026-11-03: routed to HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body; resolved 2026-11-03 by that handoff: 213668-002's sidecar records the assembly occurrence rotorkit's assembly_extract_20261001T022446Z recorded for it (identity, frame checked vertex-for-vertex), so its contact row is no longer no_occurrence; the stroke half is refiled as ISSUE_20261103_the_gas_spring_mesh_sits_at_another_stroke_from_the_plate.md
 handoff: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
 ---
 

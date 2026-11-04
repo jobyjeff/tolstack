@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "each stop's readout says what its worst case is made of, and the range row says what the terms both stops share cancelled to",
+  "mutations": [
+    {
+      "contract": "The readouts carry the range between the stops.",
+      "issue": null,
+      "note": "Declared with the guard by handoff each_stop_is_its_own_stack (2026-11-03). Drops the range row.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      range: VA.kinematicRange(study, decimals),",
+      "replace": "      range: null,"
+    }
+  ]
+}

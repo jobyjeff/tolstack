@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
@@ -34,3 +34,7 @@ Fix: in the `[real]` reproduction, hover the bore's face (after the classes
 resolve), assert the line carries a surface word and an `r … mm`, then `arm
 off`. Never click there, because that suite reads the real inbox. Separately,
 refresh the armed line when `ensureFaceClasses` resolves.
+
+## Resolved 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
+
+The sweep rail's [real] suite, armed on the root bearing bore end as before, now pre-selects a round hub face -- the spindle bore's, because the contact projection names its face id and nothing on disk names the root bearing bore's -- and asserts the armed row reads its class and fitted radius; the armed line is said again when the part's classes land, which closes the race. Hovering a candidate row on the real hub end is a [real] check too.

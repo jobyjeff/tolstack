@@ -3885,6 +3885,32 @@
     return ["model", "lit"].concat(ids.length ? ids : ["all"]);
   };
 
+  // The parts a page's lit set names, as the scene's own `isolate` verb spells
+  // them (handoff every_study_opens_in_3d_showing_only_its_parts): the part of
+  // every lit edge, and -- for a joint, which carries none -- the parts
+  // standing at its two ends. No lit set (the whole topology) lights every
+  // edge, so the topology's parts are all solid. A scope naming no part at all
+  // is `isolate off`, since a scope of nothing would blank the scene. The pane resolves the
+  // ids to meshes and ghosts or hides the rest by the unlit word; nothing here
+  // knows which parts have a mesh.
+  VA.litPartIds = function (topoProj, lit) {
+    var parts = [];
+    var add = function (id) { if (id && parts.indexOf(id) === -1) parts.push(id); };
+    var adjacent = VA.nodeAdjacentParts(topoProj);
+    ((topoProj && topoProj.edges) || []).forEach(function (edge) {
+      if (lit && !(lit.edges && lit.edges[edge.id])) return;
+      if (edge.part) { add(edge.part); return; }
+      [edge.from, edge.to].forEach(function (nodeId) {
+        (adjacent[nodeId] || []).forEach(add);
+      });
+    });
+    return parts;
+  };
+
+  VA.partScopeCommand = function (ids) {
+    return ids && ids.length ? ["isolate", "parts"].concat(ids) : ["isolate", "off"];
+  };
+
   // The jog zone, and therefore the width the SVG hands the grid: ONE owner
   // of the sum, because VA.leaderGeometry above reports it and VA.respineX
   // interpolates it, and a second copy of it is exactly the drift this repo

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a candidate's reason names what the face is to the mating feature, for every relation and pairing the engine emits",
+  "mutations": [
+    {
+      "contract": "The reason names the MATING feature: a bore end's mate is a pin, a pin end's a bore.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Reading the evidence's `bore` side as this end rather than the mate is the one-word slip that reads plausibly either way.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    if (e.bore) return e.bore === mate ? \"bore\" : \"pin\";",
+      "replace": "    if (e.bore) return e.bore === mate ? \"pin\" : \"bore\";"
+    }
+  ]
+}

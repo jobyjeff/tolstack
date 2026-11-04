@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] each live stop is an error bar at its own sweep point -- the linkage at that pose plus its stop position -- and nothing is drawn past the sweep",
+  "mutations": [
+    {
+      "contract": "A reach bound's tick sits at its distance from the stop's own nominal.",
+      "issue": null,
+      "note": "Declared with the guard by handoff each_stop_is_its_own_stack (2026-11-03). Draws the bound at its raw value on a deviation axis.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "                         offset: check.limit.value - stop.nominal_measure } : null,",
+      "replace": "                         offset: check.limit.value } : null,"
+    }
+  ]
+}

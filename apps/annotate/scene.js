@@ -341,6 +341,7 @@ export class AnnotateScene {
     this._pickFilter = null;
     this._preselect = null;
     this._preselectFrame = null;
+    this._wash = null;
     this.renderer.domElement.addEventListener("pointermove", (ev) => {
       if (this._pickFilter) { this._preselectMove(ev); return; }
       this._modelHoverMove(ev);
@@ -558,6 +559,7 @@ export class AnnotateScene {
       this._focus.faces = this._focus.faces.filter((f) => f.sha256 !== sha256);
     }
     if (this._preselect && this._preselect.sha256 === sha256) this._disposePreselect();
+    if (this._wash && this._wash.sha256 === sha256) this._disposeWash();
     for (const repeat of this._repeats.get(sha256) || []) this.scene.remove(repeat);
     this._repeats.delete(sha256);
     this.scene.remove(mesh);
@@ -1216,9 +1218,52 @@ export class AnnotateScene {
   }
 
   _drawPreselect(sha256, faceId) {
+    this._preselect = this._drawWash(sha256, faceId);
+  }
+
+  // A candidate row's hover (handoff a_joint_end_lists_its_candidate_faces_
+  // and_says_why_each_is_there): the pre-selection's own wash and outline, on
+  // a face a LIST names rather than the one under the pointer -- so it asks
+  // for no pick filter, sets no cursor, calls no onPreselect and moves no
+  // camera. Every drawn occurrence of the part; null takes it down. A part
+  // that is not open washes nothing.
+  washFace(face) {
+    const was = this._wash;
+    if (was && face && was.sha256 === face.sha256 && was.faceId === face.faceId) return this.washed();
+    this._disposeWash();
+    if (face && this.parts.has(face.sha256)) this._wash = this._drawWash(face.sha256, face.faceId);
+    this.requestRender();
+    return this.washed();
+  }
+
+  // What the wash draws now, read off the drawn meshes: a harness's view of
+  // "the face is lit", colour and opacity included.
+  washed() {
+    const p = this._wash;
+    if (!p) return null;
+    const fill = p.materials[0];
+    return { sha256: p.sha256, faceId: p.faceId,
+      overlays: p.meshes.filter((m) => m.parent).length,
+      color: fill.color.getHex(), opacity: fill.opacity,
+      preselectColor: PRESELECT_COLOR, preselectOpacity: PRESELECT_OPACITY };
+  }
+
+  _disposeWash() {
+    const p = this._wash;
+    if (!p) return;
+    for (const m of p.meshes) if (m.parent) m.parent.remove(m);
+    p.geometries.forEach((g) => g.dispose());
+    p.materials.forEach((m) => m.dispose());
+    this._wash = null;
+  }
+
+  // The wash and outline for one face, on every drawn occurrence of its part,
+  // or null when the part has no such face. Pre-selection and a candidate
+  // row's hover both draw with this.
+  _drawWash(sha256, faceId) {
     const parent = this.parts.get(sha256);
     const range = parent && parent.userData.faceRanges[faceId];
-    if (!range) return;
+    if (!range) return null;
     const AA = window.AnnotateApp;
     const sub = AA.faceSubGeometry(parent.geometry.attributes.position.array,
       parent.geometry.index.array, parent.userData.faceIdPerTriangle, range, faceId);
@@ -1252,7 +1297,7 @@ export class AnnotateScene {
       node.add(line);
       meshes.push(wash, line);
     }
-    this._preselect = { sha256, faceId, geometries: [fill, outline],
+    return { sha256, faceId, geometries: [fill, outline],
       materials: [fillMaterial, lineMaterial], meshes };
   }
 

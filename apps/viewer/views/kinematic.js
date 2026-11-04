@@ -69,6 +69,18 @@
     error: { failed: true },
   });
 
+  // Which side of its limit a reach check holds a stop on, in reader words.
+  VA.KINEMATIC_CHECK_BOUNDS = VOCAB.table("KINEMATIC_CHECK_BOUNDS", {
+    at_least: { words: "at least" },
+    at_most: { words: "at most" },
+  });
+
+  // The two sub-stacks a stop's band is made of, in reader words.
+  VA.KINEMATIC_SUB_STACK_KINDS = VOCAB.table("KINEMATIC_SUB_STACK_KINDS", {
+    linkage: { words: "linkage at this pose" },
+    stop_position: { words: "stop position" },
+  });
+
   // What a word this page has no branch for must say: loud and named, the
   // VA.unlabelledVerdictText posture, because silence would read as handled.
   VA.unlabelledKinematicText = function (field, value) {
@@ -186,6 +198,19 @@
   // angles) and the stop's (`contextCard`: the requirement that names the
   // operating point, the check's own `context_ref` first, else the stop's).
   // A PASS against a borrowed criterion has to lead to the borrowing.
+  // A limit in reader words: a reach bound says which side of it the stop
+  // must reach ("at least +70 deg", the number as its requirement writes it),
+  // a spread limit its +/-.
+  function limitWords(check, decimals) {
+    var v = check.limit.value;
+    if (check.bound) {
+      var bound = VA.KINEMATIC_CHECK_BOUNDS[check.bound];
+      return (bound ? bound.words : VA.unlabelledKinematicText("bound", check.bound)) +
+        " " + withUnit((v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v), check.limit.units);
+    }
+    return "limit ±" + withUnit(VA.kinematicNumber(v, decimals), check.limit.units);
+  }
+
   VA.kinematicVerdicts = function (study, decimals) {
     var stops = {};
     (study.stops || []).forEach(function (stop) { stops[stop.id] = stop; });
@@ -203,11 +228,10 @@
         scopeChip: row.scopeChip,
         scopeTitle: row.scopeTitle,
         marginText: "margin " + withUnit(
-          VA.kinematicSigned(check.margin, decimals), check.units),
-        limitText: check.limit
-          ? "limit ±" + withUnit(VA.kinematicNumber(check.limit.value, decimals),
-              check.limit.units)
-          : null,
+          VA.kinematicSigned(check.margin, decimals), check.units) +
+          (typeof check.rss_margin === "number"
+            ? " · RSS " + VA.kinematicSigned(check.rss_margin, decimals) : ""),
+        limitText: check.limit ? limitWords(check, decimals) : null,
         limitCard: check.limit ? VA.citationCard(check.limit.source_ref || null) : null,
         contextCard: VA.citationCard(check.context_ref ||
           (stop && stop.context_ref) || null),
@@ -648,67 +672,55 @@
     width: 520, height: 280, left: 52, right: 12, top: 14, bottom: 44,
   });
 
-  // --- a stop whose position is itself a tolerance --------------------------
+  // --- each stop is its own stack ----------------------------------------------
   //
-  // A study that moves the sweep's own driver (the travel between the end
-  // stops, in actuator mm) is where a stop IS, not a term of the envelope
-  // (Jeff, 2026-10-29: the +72 deg stop is the datum, the -7 deg stop carries
-  // the travel). So the builder folds the envelope from the direct
-  // contributors only and gives each stop `x_interval` -- where it is on x,
-  // worst case and RSS -- and `driver_entry`, the slope J there. Across that
-  // interval the deviation is J times the shift plus what the envelope itself
-  // spreads at the stop (`direct`):
-  //
-  //   worst case  a parallelogram, y = J·dx ± d over |dx| <= h, d the
-  //               envelope's own half at the stop -- so it starts at the
-  //               envelope's edge, with no step, and its far corners reach
-  //               |J|·h + d, the stop's swept worst case;
-  //   RSS         the sheared ellipse dx = a·cos t, y = J·a·cos t + b·sin t,
-  //               b the envelope's own RSS half, whose top is
-  //               sqrt((J·a)^2 + b^2) -- the stop's swept RSS half.
-  //
-  // A stop whose interval is zero (the datum, until the chain that anchors it
-  // to the hub is authored) draws nothing. Every number is the projection's;
-  // display only -- nothing here is folded, and the chips read the builder's.
-  VA.kinematicTravelBands = function (study) {
-    var out = [];
-    if (!study) return out;
-    var refs = {};
-    (study.study_refs || []).forEach(function (ref) { refs[ref.study] = ref; });
-    (study.stops || []).forEach(function (stop) {
-      var x = stop.x_interval;
-      if (!x || !(x.worst_case_half > 0) || typeof stop.driver_entry !== "number") return;
-      var direct = stop.direct || {};
-      // The study the interval is drawn as: the first of the stop's offsets
-      // that has terms (a declared gap has none, and spans nothing).
-      var ref = null;
-      (stop.groups || []).forEach(function (group) {
-        var r = refs[group.study];
-        if (!ref && group.x_offset && r && (group.children || []).length) ref = r;
-      });
-      var total = (ref && ref.total) || {};
-      var slope = Math.abs(stop.driver_entry);
-      var h = x.worst_case_half;
-      var a = typeof x.rss_half === "number" ? x.rss_half : 0;
-      var d = direct.worst_case_half;
-      var b = direct.rss_half;
-      out.push({
-        stop: stop.id, study: ref ? ref.study : null,
-        title: ref ? ref.title || ref.study : null,
-        units: (ref && ref.units) || null, centre: stop.driver_value,
-        entry: stop.driver_entry, worstHalf: h, rssHalf: a, direct: d, directRss: b,
-        cornerWorst: slope * h + d,
-        cornerRss: Math.sqrt(slope * a * slope * a + b * b),
-        min: total.worst_case_min, max: total.worst_case_max, nominal: total.nominal,
-      });
+  // A stop is a contact pose, and where the mechanism sits when it touches is
+  // toleranced (Jeff, 2026-11-03, handoff each_stop_is_its_own_stack). So the
+  // builder folds each stop on its own -- the linkage terms at its pose plus
+  // the axial stack to its contact face -- and the chart draws it as a point
+  // at its nominal x with a vertical error bar: worst case thin, RSS heavier
+  // inside it. The envelope along x is the linkage terms only, valid at each
+  // nominal x; nothing is drawn past the sweep's last point. A reach bound is
+  // a tick at its own stop, at the bound's distance from that stop's nominal.
+  // Every number is the projection's; display only -- nothing here is folded.
+  var SUB_LINKAGE = VOCAB.list("KINEMATIC_SUB_STACK_KINDS")[0];
+  var SUB_POSITION = VOCAB.list("KINEMATIC_SUB_STACK_KINDS")[1];
+
+  function subStack(stop, kind) {
+    var hit = null;
+    (stop.sub_stacks || []).forEach(function (s) { if (s.kind === kind) hit = s; });
+    return hit || {};
+  }
+
+  VA.kinematicStopBars = function (study, decimals) {
+    if (!study) return [];
+    var bounds = {};
+    (study.checks || []).forEach(function (check) {
+      if (check.bound && check.limit && typeof check.limit.value === "number") {
+        bounds[check.stop] = check;
+      }
     });
-    return out;
+    return (study.stops || []).map(function (stop) {
+      var linkage = subStack(stop, SUB_LINKAGE);
+      var position = subStack(stop, SUB_POSITION);
+      var check = bounds[stop.id];
+      return {
+        stop: stop.id, label: stop.label, centre: stop.driver_value,
+        nominal: stop.nominal_measure,
+        worstMin: stop.worst_case_min, worstMax: stop.worst_case_max,
+        rssMin: stop.rss_min, rssMax: stop.rss_max,
+        worstHalf: stop.worst_case_half, rssHalf: stop.rss_half,
+        linkageHalf: linkage.worst_case_half, positionHalf: position.worst_case_half,
+        positionTerms: position.term_count || 0,
+        bound: check ? { value: check.limit.value, side: check.bound,
+                         offset: check.limit.value - stop.nominal_measure } : null,
+        pitchText: VA.kinematicNumber(stop.nominal_measure, decimals),
+      };
+    });
   };
 
-  // The study's datum, in one line under the chart: which stop the driver is
-  // measured from and why, which stops carry a travel band and how wide, and
-  // each declared gap that would place the stops further. Null for a study
-  // that names no datum.
+  // The study's datum, in one line under the chart: which stop the sweep's
+  // zero is. Null for a study that names no datum.
   function stopWords(study, stop) {
     var t = stop.target;
     if (typeof t !== "number") return stop.label || stop.id;
@@ -716,31 +728,43 @@
       (study.units ? " " + study.units : "") + " stop";
   }
 
-  VA.kinematicDatumNote = function (study, decimals) {
+  VA.kinematicDatumNote = function (study) {
     var datum = study && study.datum;
     if (!datum || !datum.stop) return null;
-    var stops = {};
-    (study.stops || []).forEach(function (stop) { stops[stop.id] = stop; });
-    var at = stops[datum.stop];
+    var at = null;
+    (study.stops || []).forEach(function (stop) { if (stop.id === datum.stop) at = stop; });
     if (!at) return null;
-    var parts = { datum: stopWords(study, at),
-                  basis: datum.basis || null, carried: [], gaps: [] };
-    VA.kinematicTravelBands(study).forEach(function (band) {
-      parts.carried.push("The " + stopWords(study, stops[band.stop]) + " carries the " +
-        (band.title ? band.title.charAt(0).toLowerCase() + band.title.slice(1) : "travel") +
-        " (±" + withUnit(VA.kinematicNumber(band.worstHalf, decimals), band.units) + ").");
-    });
-    (study.study_refs || []).forEach(function (ref) {
-      if (ref.gap) parts.gaps.push(ref.gap + " — a declared gap.");
-    });
-    return parts;
+    return "Zero travel is the " + stopWords(study, at) +
+      (datum.basis ? ": " + datum.basis : "") + ".";
   };
 
-  // The ruling the datum note names: a repo-relative path, linked only where
-  // the page can reach the repo's documents (tests/test_kinematic.py checks
-  // the file is there).
-  VA.KINEMATIC_TRAVEL_DATUM_ISSUE =
-    "docs/issues/ISSUE_20261028_both_end_stops_carry_the_full_travel_band.md";
+  // The range between the two stops, as a readout row: the builder's
+  // `range` (the high stop's measure less the low's), and what the terms both
+  // stops share cancelled to. Null where the study has no range.
+  VA.kinematicRange = function (study, decimals) {
+    var range = study && study.range;
+    if (!range) return null;
+    var stops = {};
+    (study.stops || []).forEach(function (stop) { stops[stop.id] = stop; });
+    var high = stops[range.high], low = stops[range.low];
+    if (!high || !low) return null;
+    var shared = { count: 0, high: 0, low: 0, left: 0 };
+    (range.cancelled || []).forEach(function (c) {
+      shared.count += c.count; shared.high += c.at_high;
+      shared.low += c.at_low; shared.left += c.residual;
+    });
+    var n = function (v) { return VA.kinematicNumber(v, decimals); };
+    return {
+      cells: ["range", "", n(range.nominal_measure), "±" + n(range.worst_case_half),
+              "±" + n(range.rss_half)],
+      title: stopWords(study, high) + " less " + stopWords(study, low),
+      says: shared.count
+        ? shared.count + " terms both stops share cancel to ±" + n(shared.left) +
+          " (±" + n(shared.high) + " at the " + stopWords(study, high) + ", ±" +
+          n(shared.low) + " at the " + stopWords(study, low) + ")"
+        : null,
+    };
+  };
 
   function niceStep(span, target) {
     var raw = span / Math.max(target, 1);
@@ -769,18 +793,14 @@
     var pw = C.width - C.left - C.right;
     var ph = C.height - C.top - C.bottom;
     var xs = env.map(function (p) { return p.driver_value; });
-    var sweptFrom = Math.min.apply(null, xs);
-    var sweptTo = Math.max.apply(null, xs);
-    // The axis reaches past the sweep to hold every stop's travel band.
-    var travel = VA.kinematicTravelBands(study);
-    travel.forEach(function (t) {
-      xs.push(t.centre - t.worstHalf, t.centre + t.worstHalf);
-    });
     var x0 = Math.min.apply(null, xs);
     var x1 = Math.max.apply(null, xs);
+    var bars = VA.kinematicStopBars(study, decimals);
+    // A spread limit (no `bound`) is a pair of lines across the plot; a reach
+    // bound is its stop's own tick (VA.kinematicStopBars).
     var limits = [];
     (study.checks || []).forEach(function (check) {
-      if (check.limit && typeof check.limit.value === "number" &&
+      if (check.limit && !check.bound && typeof check.limit.value === "number" &&
           limits.indexOf(check.limit.value) === -1) {
         limits.push(check.limit.value);
       }
@@ -790,7 +810,10 @@
       reach = Math.max(reach, Math.abs(p.worst_case_min), Math.abs(p.worst_case_max));
     });
     limits.forEach(function (v) { reach = Math.max(reach, Math.abs(v)); });
-    travel.forEach(function (t) { reach = Math.max(reach, t.cornerWorst); });
+    bars.forEach(function (b) {
+      reach = Math.max(reach, Math.abs(b.worstMin), Math.abs(b.worstMax));
+      if (b.bound) reach = Math.max(reach, Math.abs(b.bound.offset));
+    });
     var y1 = reach * 1.15;
     var y0 = -y1;
     var X = function (v) { return C.left + (v - x0) / ((x1 - x0) || 1) * pw; };
@@ -826,62 +849,20 @@
     var yTicks = ticks(y0, y1, 6);
     var xTicks = ticks(x0, x1, 6);
 
-    // Each travel band's shapes, in plot pixels (VA.kinematicTravelBands says
-    // what they are). A study's band is labelled once, at the stop nearest
-    // the study's own nominal -- where its interval actually lies.
-    var labelled = {};
-    var nearest = {};
-    travel.forEach(function (t, i) {
-      var miss = typeof t.nominal === "number" ? Math.abs(t.centre - t.nominal) : i;
-      if (!(t.study in nearest) || miss < nearest[t.study].miss) {
-        nearest[t.study] = { miss: miss, index: i };
-      }
-    });
-    var ELLIPSE_STEPS = 48;
-    var bands = travel.map(function (t, i) {
-      var c = t.centre, h = t.worstHalf, a = t.rssHalf, J = t.entry;
-      var pt = function (dx, y) { return r2(X(c + dx)) + "," + r2(Y(y)); };
-      var ellipse = [];
-      for (var k = 0; k < ELLIPSE_STEPS; k++) {
-        var s = 2 * Math.PI * k / ELLIPSE_STEPS;
-        ellipse.push(pt(a * Math.cos(s), J * a * Math.cos(s) + t.directRss * Math.sin(s)));
-      }
-      var label = null;
-      if (nearest[t.study].index === i && !labelled[t.study]) {
-        labelled[t.study] = true;
-        var anchorEnd = X(c) > C.left + pw / 2;
-        label = {
-          x: r2(X(c) + (anchorEnd ? -5 : 5)), y: C.top + 26, anchorEnd: anchorEnd,
-          text: t.title + " " + VA.kinematicNumber(t.min, decimals) + "–" +
-            withUnit(VA.kinematicNumber(t.max, decimals), t.units),
-        };
-      }
+    // Each stop's bar, in plot pixels (VA.kinematicStopBars says what it is).
+    var stopBars = bars.map(function (b) {
+      var x = r2(X(b.centre));
+      var anchorEnd = x > C.left + pw / 2;
       return {
-        stop: t.stop, study: t.study,
-        worstFrom: r2(X(c - h)), worstTo: r2(X(c + h)),
-        rssFrom: r2(X(c - a)), rssTo: r2(X(c + a)),
-        worst: [pt(-h, -J * h + t.direct), pt(h, J * h + t.direct),
-                pt(h, J * h - t.direct), pt(-h, -J * h - t.direct)].join(" "),
-        rss: ellipse.join(" "),
-        cornerWorst: t.cornerWorst, cornerRss: t.cornerRss,
-        label: label,
+        stop: b.stop, x: x,
+        worstTop: r2(Y(b.worstMax)), worstBottom: r2(Y(b.worstMin)),
+        rssTop: r2(Y(b.rssMax)), rssBottom: r2(Y(b.rssMin)), zero: r2(Y(0)),
+        bound: b.bound ? r2(Y(b.bound.offset)) : null,
+        label: { x: r2(x + (anchorEnd ? -8 : 8)), y: r2(Y(b.rssMax) - 4),
+                 anchorEnd: anchorEnd,
+                 text: withUnit(b.pitchText, study.units) },
       };
     });
-
-    // The axis says what it spans when the travel study's nominal is not the
-    // sweep's own span (deliverable 3 of the 2026-10-28 handoff): the band is
-    // drawn about the stop the sweep solved, which is a different number.
-    var xNote = "";
-    var spanText = VA.kinematicNumber(sweptTo - sweptFrom, decimals);
-    var noted = travel.filter(function (t) {
-      return typeof t.nominal === "number" &&
-        VA.kinematicNumber(t.nominal, decimals) !== spanText;
-    })[0];
-    if (noted) {
-      xNote = " (swept " + VA.kinematicNumber(sweptFrom, decimals) + "–" +
-        VA.kinematicNumber(sweptTo, decimals) + "; travel study nominal " +
-        VA.kinematicNumber(noted.nominal, decimals) + ")";
-    }
     return {
       width: C.width, height: C.height,
       plot: { left: C.left, top: C.top, width: pw, height: ph },
@@ -910,8 +891,8 @@
         return { id: stop.id, label: stop.label, x: r2(X(stop.driver_value)),
                  anchorEnd: X(stop.driver_value) > C.left + pw / 2 };
       }),
-      bands: bands,
-      xLabel: (driver.label || "driver") + (driver.unit ? ", " + driver.unit : "") + xNote,
+      bars: stopBars,
+      xLabel: (driver.label || "driver") + (driver.unit ? ", " + driver.unit : ""),
       yLabel: measureWords(study) + " from nominal" +
         (study.units ? ", " + study.units : ""),
       points: points,
@@ -1004,8 +985,8 @@
 
     var chart = VA.kinematicChart(study, decimals);
     if (chart) root.appendChild(chartFigure(chart));
-    var datum = chart ? VA.kinematicDatumNote(study, decimals) : null;
-    if (datum) root.appendChild(datumNote(datum, ctx));
+    var datum = chart ? VA.kinematicDatumNote(study) : null;
+    if (datum) root.appendChild(VA.el("p", "muted kmchart__note", datum));
 
     root.appendChild(stopReadouts(study, decimals));
     root.appendChild(contributorTable(study, VA.findTopology(ctx.topologies, study.topology),
@@ -1014,33 +995,12 @@
     return root;
   };
 
-  // One line under the chart: the datum (VA.kinematicDatumNote). "the
-  // datum" links to the ruling where this page can reach the repo's
-  // documents (`ctx.docsHref`); elsewhere it is the same words.
-  function datumNote(parts, ctx) {
-    var line = VA.el("p", "muted kmchart__note");
-    line.appendChild(document.createTextNode("The " + parts.datum + " is "));
-    var href = ctx && typeof ctx.docsHref === "function"
-      ? ctx.docsHref(VA.KINEMATIC_TRAVEL_DATUM_ISSUE) : null;
-    var words = "the datum";
-    if (href) {
-      var a = VA.el("a", "kmchart__notelink", words);
-      a.setAttribute("href", href);
-      a.setAttribute("target", "_blank");
-      a.setAttribute("rel", "noopener");
-      line.appendChild(a);
-    } else {
-      line.appendChild(document.createTextNode(words));
-    }
-    line.appendChild(document.createTextNode(
-      (parts.basis ? " (" + parts.basis + ")" : "") + "." +
-      parts.carried.concat(parts.gaps).map(function (t) { return " " + t; }).join("")));
-    return line;
-  }
-
   // Each stop's readout, one row per stop: where it is on the sweep, the
   // measure there, and both spreads -- the builder's numbers at the
-  // projection's precision. The margin is the verdict's, in the strip above.
+  // projection's precision -- with what the worst case is made of under it
+  // (the linkage at this pose and the stop's position). Then the range
+  // between the stops, and what the terms they share cancelled to. The
+  // margin is the verdict's, in the strip above.
   VA.kinematicStopReadouts = function (study, decimals) {
     var driver = (study.sweep && study.sweep.driver) || {};
     return {
@@ -1051,17 +1011,29 @@
         "worst case", "RSS",
       ],
       rows: (study.stops || []).map(function (stop) {
+        var linkage = subStack(stop, SUB_LINKAGE);
+        var position = subStack(stop, SUB_POSITION);
+        var n = function (v) { return VA.kinematicNumber(v, decimals); };
         return {
           stop: stop.id,
           cells: [
             stop.label,
-            VA.kinematicNumber(stop.driver_value, decimals),
-            VA.kinematicNumber(stop.nominal_measure, decimals),
-            "±" + VA.kinematicNumber(stop.worst_case_half, decimals),
-            "±" + VA.kinematicNumber(stop.rss_half, decimals),
+            n(stop.driver_value),
+            n(stop.nominal_measure),
+            "±" + n(stop.worst_case_half),
+            "±" + n(stop.rss_half),
           ],
+          says: typeof linkage.worst_case_half === "number" &&
+            typeof position.worst_case_half === "number"
+            ? "worst ±" + n(stop.worst_case_half) + " = ±" + n(linkage.worst_case_half) +
+              " (" + VA.KINEMATIC_SUB_STACK_KINDS[SUB_LINKAGE].words + ") + ±" +
+              n(position.worst_case_half) + " (" +
+              VA.KINEMATIC_SUB_STACK_KINDS[SUB_POSITION].words + ", " +
+              (position.term_count || 0) + " terms)"
+            : null,
         };
       }),
+      range: VA.kinematicRange(study, decimals),
     };
   };
 
@@ -1074,6 +1046,14 @@
       head.appendChild(VA.el("th", i ? "kmreadouts__numhead" : null, text));
     });
     table.appendChild(head);
+    var says = function (text, key) {
+      var tr = VA.el("tr", "kmreadouts__says");
+      tr.setAttribute("data-stop", key);
+      var td = VA.el("td", "muted", text);
+      td.setAttribute("colspan", String(model.head.length));
+      tr.appendChild(td);
+      table.appendChild(tr);
+    };
     model.rows.forEach(function (row) {
       var tr = VA.el("tr", "kmreadouts__row");
       tr.setAttribute("data-stop", row.stop);
@@ -1081,7 +1061,18 @@
         tr.appendChild(VA.el("td", i ? "num" : null, text));
       });
       table.appendChild(tr);
+      if (row.says) says(row.says, row.stop);
     });
+    if (model.range) {
+      var tr = VA.el("tr", "kmreadouts__row kmreadouts__range");
+      tr.setAttribute("data-stop", "range");
+      tr.setAttribute("title", model.range.title);
+      model.range.cells.forEach(function (text, i) {
+        tr.appendChild(VA.el("td", i ? "num" : null, text));
+      });
+      table.appendChild(tr);
+      if (model.range.says) says(model.range.says, "range");
+    }
     return table;
   }
 
@@ -1203,36 +1194,8 @@
     yLabel.textContent = chart.yLabel;
     svg.appendChild(yLabel);
 
-    // A stop's travel band on x, under everything: the stop could sit
-    // anywhere across it (VA.kinematicTravelBands).
-    chart.bands.forEach(function (band) {
-      [["worst", band.worstFrom, band.worstTo], ["rss", band.rssFrom, band.rssTo]]
-        .forEach(function (b) {
-          var strip = VA.svg("rect", "kmchart__band kmchart__band--" + b[0],
-            { x: b[1], y: p.top, width: Math.max(0.5, b[2] - b[1]), height: p.height });
-          strip.setAttribute("data-stop", band.stop);
-          svg.appendChild(strip);
-        });
-    });
     svg.appendChild(VA.svg("polygon", "kmchart__worst", { points: chart.worst }));
     svg.appendChild(VA.svg("polygon", "kmchart__rss", { points: chart.rss }));
-    // ...and the envelope carried across it on the stop's own slope.
-    chart.bands.forEach(function (band) {
-      [["worst", band.worst], ["rss", band.rss]].forEach(function (r) {
-        var region = VA.svg("polygon", "kmchart__region kmchart__region--" + r[0],
-          { points: r[1] });
-        region.setAttribute("data-stop", band.stop);
-        svg.appendChild(region);
-      });
-      if (band.label) {
-        var text = VA.svg("text", "kmchart__bandlabel", {
-          x: band.label.x, y: band.label.y,
-          "text-anchor": band.label.anchorEnd ? "end" : "start",
-        });
-        text.textContent = band.label.text;
-        svg.appendChild(text);
-      }
-    });
     svg.appendChild(VA.svg("line", "kmchart__zero",
       { x1: p.left, x2: p.left + p.width, y1: chart.zeroY, y2: chart.zeroY }));
     chart.limits.forEach(function (limit) {
@@ -1255,6 +1218,31 @@
       });
       text.textContent = stop.label;
       svg.appendChild(text);
+    });
+    // Each stop: a point at its nominal x, its worst-case bar and its RSS bar
+    // over it, the reach bound's tick, and its pitch beside the bar's top.
+    chart.bars.forEach(function (bar) {
+      var marks = [
+        VA.svg("line", "kmchart__bar kmchart__bar--worst",
+          { x1: bar.x, x2: bar.x, y1: bar.worstTop, y2: bar.worstBottom }),
+        VA.svg("line", "kmchart__bar kmchart__bar--rss",
+          { x1: bar.x, x2: bar.x, y1: bar.rssTop, y2: bar.rssBottom }),
+        VA.svg("circle", "kmchart__barpoint", { cx: bar.x, cy: bar.zero, r: 3 }),
+      ];
+      [bar.worstTop, bar.worstBottom].forEach(function (y) {
+        marks.push(VA.svg("line", "kmchart__bar kmchart__bar--cap",
+          { x1: bar.x - 4, x2: bar.x + 4, y1: y, y2: y }));
+      });
+      if (bar.bound !== null) {
+        marks.push(VA.svg("line", "kmchart__bound",
+          { x1: bar.x - 9, x2: bar.x + 9, y1: bar.bound, y2: bar.bound }));
+      }
+      var text = VA.svg("text", "kmchart__barlabel", {
+        x: bar.label.x, y: bar.label.y, "text-anchor": bar.label.anchorEnd ? "end" : "start",
+      });
+      text.textContent = bar.label.text;
+      marks.push(text);
+      marks.forEach(function (m) { m.setAttribute("data-stop", bar.stop); svg.appendChild(m); });
     });
     svg.appendChild(VA.svg("rect", "kmchart__frame",
       { x: p.left, y: p.top, width: p.width, height: p.height }));

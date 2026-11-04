@@ -93,6 +93,7 @@ const state = {
   // currently isolated -- null when nothing is. `isolate off` puts the
   // snapshot back, which is what makes Isolate a toggle and not a trap.
   isolation: null, // { restore: [{sha, visible, ghost}], targets: [sha], ghost }
+  partScope: null, // `isolate parts`: { targets: [sha], missing: [id] } -- null when none
   // What the reader added to / took out of the model, on top of what the
   // topology or study puts in it (AA.planContext). Never touched by a view verb.
   contextEdit: { added: [], removed: [] },
@@ -129,6 +130,15 @@ const state = {
   contactSuggestions: null,
   contactRows: { edge: null, rows: [] },
   contactFocus: null,
+  // Which rows have their candidate list open, and which lists show every
+  // row rather than the first AA.CANDIDATES_LISTED (handoff a_joint_end_
+  // lists_its_candidate_faces_and_says_why_each_is_there), by candidateKey.
+  // For the session, in both modes.
+  candidatesOpen: {},
+  candidatesAll: {},
+  // The latest `hover face`/`hover clear`, so a part load in flight cannot
+  // wash a face the pointer has already left.
+  washToken: 0,
   // The model layer (buildModel): whether bind mode draws it, the shell's lit
   // set (undefined until one is posted; null is "nothing emphasised"), what
   // the unlit rest does, the edge `highlight` lit, what `model select` chose,
@@ -301,7 +311,73 @@ function cmdHide(identifier, subject) {
 // deliverable 3's "never a blank scene" is about the case where nothing at
 // all could be shown, not about every miss.
 async function cmdIsolate(...identifiers) {
+  if (identifiers[0] === AA.ISOLATE_PARTS_WORD) return scopeToParts(identifiers.slice(1));
   return isolateOrGhost("isolate", false, identifiers);
+}
+
+// isolate parts <part…> -- the viewer's study filter (handoff every_study_
+// opens_in_3d_showing_only_its_parts): the named parts solid, every other
+// installed part ghosted (hidden under the unlit word `hide`), the solid set
+// framed. Same snapshot and same `isolate off` as isolate; the one difference
+// is that the rest stays drawn. A scope none of whose parts has a mesh draws
+// nothing differently and says so in the head line.
+async function scopeToParts(identifiers) {
+  if (!identifiers.length) throw new Error("isolate parts needs at least one part identifier");
+  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
+  const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
+  const targets = Array.from(new Set(resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256)));
+  state.partScope = { targets, missing };
+  if (!targets.length) {
+    setSceneEmptyState(null, AA.EMBED_NO_MODEL_WORDS);
+    postEmbedState();
+    return { opened: [], missing };
+  }
+  if (!state.isolation) {
+    state.isolation = {
+      restore: state.scene.listOpenParts().map((sha) => ({
+        sha, visible: state.scene.isVisible(sha), ghost: state.scene.isGhosted(sha) })),
+      targets: [], ghost: false,
+    };
+  }
+  state.isolation.targets = targets;
+  state.isolation.ghost = false;
+  const open = state.scene.listOpenParts();
+  for (const sha of targets) if (open.indexOf(sha) === -1) await state.scene.loadPart(sha);
+  setSceneEmptyState(null);
+  applyPartScope();
+  await AA.exec(["camera", "frame", ...targets]);
+  const rest = state.meshList.map((m) => m.sha256).filter((sha) => targets.indexOf(sha) === -1);
+  const loaded = state.scene.listOpenParts();
+  await Promise.all(rest.filter((sha) => loaded.indexOf(sha) === -1)
+    .map((sha) => state.scene.loadPart(sha).catch(() => null)));
+  applyPartScope();
+  postEmbedState();
+  return { opened: targets, missing };
+}
+
+// scene-view -- read-only: every part open in the scene and how it is drawn,
+// so a driver (and the browser tier) can check the scene it asked for.
+function cmdSceneView() {
+  return state.scene.listOpenParts().map((sha) => {
+    const mesh = state.meshList.find((m) => m.sha256 === sha);
+    return { part: (mesh && mesh.part_id) || null, sha256: sha,
+      visible: state.scene.isVisible(sha), ghost: state.scene.isGhosted(sha) };
+  });
+}
+
+// What the scope draws NOW: solid targets, the rest ghost or hidden by the
+// page's unlit word. Re-run when that word changes. An armed pick owns the
+// scene while armed (disarming restores what it found, this scope included).
+function applyPartScope() {
+  const scope = state.partScope;
+  if (!scope || !scope.targets.length) return;
+  if (state.sweep && state.sweep.armed) return;
+  const hideRest = state.model.unlit === AA.MODEL_UNLIT_STYLES[1];
+  const plan = AA.planPartScope(state.scene.listOpenParts(), scope.targets, hideRest);
+  plan.solid.forEach((sha) => { state.scene.setVisible(sha, true); state.scene.setGhost(sha, false); });
+  plan.ghost.forEach((sha) => { state.scene.setVisible(sha, true); state.scene.setGhost(sha, true); });
+  plan.hide.forEach((sha) => state.scene.setVisible(sha, false));
+  renderPartsPanel();
 }
 
 // ghost <part…> -- isolate's translucent twin (handoff study_3d_flyout): show
@@ -319,6 +395,7 @@ async function cmdGhost(...identifiers) {
 function restoreIsolation() {
   const isolation = state.isolation;
   state.isolation = null;
+  state.partScope = null;
   if (isolation) {
     AA.planViewRestore(isolation.restore, state.scene.listOpenParts()).forEach((r) => {
       state.scene.setVisible(r.sha, r.visible);
@@ -333,6 +410,7 @@ function restoreIsolation() {
 async function isolateOrGhost(verb, ghost, identifiers) {
   if (!identifiers.length) throw new Error(verb + " needs at least one part identifier");
   if (identifiers.length === 1 && identifiers[0] === AA.ON_OFF[1]) return restoreIsolation();
+  state.partScope = null;
   const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
   const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
   const targets = resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256);
@@ -397,6 +475,7 @@ function currentContext() {
 function resetContext(keepDrawn) {
   state.contextEdit = { added: [], removed: [] };
   state.isolation = null;
+  state.partScope = null;
   if (!keepDrawn && state.scene) {
     const inModel = currentContext().inModel.map((m) => m.sha256);
     AA.planViewReset(state.scene.listOpenParts(), inModel, state.transparentParts).forEach((r) => {
@@ -2612,8 +2691,16 @@ async function cmdArm(what, direction) {
   applyArmDisplay();
   state.scene.setPickFilter(sweep.armed.shas);
   state.scene.frameOccurrences(anchoredOccurrences([targets[0]]));
-  // The pre-selection line reads the suggestion engine's fit; classify now.
-  for (const t of targets) ensureFaceClasses(t.sha256).catch(() => null);
+  // The pre-selection line reads the suggestion engine's fit; classify now,
+  // and say the face again when the classes land -- a hover that arrived
+  // first read "face N" alone until the pointer moved (ISSUE_20261029_no_
+  // check_hovers_the_real_bore_so_the_dods_class_and_radius_line_is_unwitnessed).
+  for (const t of targets) {
+    ensureFaceClasses(t.sha256).then(() => {
+      const face = state.sweep && state.sweep.armed ? state.scene.preselected() : null;
+      if (face && face.sha256 === t.sha256) onPreselect(face);
+    }).catch(() => null);
+  }
   renderSweepRail();
   renderDetail();
   return { armed: true, edgeId: edge.id, direction, parts: sweep.armed.shas };
@@ -2826,8 +2913,15 @@ function cmdSubjectView(visible, name) {
 // tints nothing into a colour buffer, and an empty answer is ordinary (an
 // unbound feature, a part not opened).
 function cmdHover(what, name, extra) {
-  const sweep = sweepState();
   const target = AA.parseHover(what, name, extra);
+  if (target.kind === "face") return hoverFace(target);
+  if (!target.kind) {
+    state.washToken++;
+    state.scene.washFace(null);
+    window.__lastWash = null;
+    if (!state.sweep) return null;
+  }
+  const sweep = sweepState();
   if (!target.kind) {
     state.scene.clearHover();
     window.__lastHover = null;
@@ -2869,6 +2963,27 @@ function cmdHover(what, name, extra) {
   const shown = state.scene.setHover(spec);
   window.__lastHover = Object.assign({ target }, shown);
   return window.__lastHover;
+}
+
+// hover face <mesh> <face> -- a candidate row's pointer (handoff a_joint_end_
+// lists_its_candidate_faces_and_says_why_each_is_there): the pre-selection's
+// wash on that face, on every drawn occurrence of its part, and the camera
+// where it was. In sweep mode only an open part washes (the mechanism's parts
+// are what is open); in bind mode a part not open yet is opened first and the
+// camera put back. A later hover or `hover clear` wins over a load still in
+// flight. Writes nothing.
+async function hoverFace(target) {
+  const mesh = resolveMeshOrThrow(target.name);
+  const token = ++state.washToken;
+  if (!state.sweep && state.scene.listOpenParts().indexOf(mesh.sha256) === -1) {
+    const camera = state.scene.cameraState();
+    await state.scene.loadPart(mesh.sha256);
+    state.scene.setCameraState(camera);
+    renderPartsPanel();
+    if (token !== state.washToken) return null;
+  }
+  window.__lastWash = state.scene.washFace({ sha256: mesh.sha256, faceId: target.faceId });
+  return window.__lastWash;
 }
 
 // The drawn occurrences of an edge's parts: each part's occurrences on the
@@ -2939,7 +3054,27 @@ function treePartRows(partIds, subject) {
   return list;
 }
 
+// A joint end's row, and -- when the end has an agent's proposal or the
+// contact engine's faces -- the disclosure in front of it that opens its
+// candidate list under it (handoff a_joint_end_lists_its_candidate_faces_
+// and_says_why_each_is_there). The row itself is featureRowBase's.
 function featureRow(topology, joint, feature) {
+  const li = featureRowBase(topology, joint, feature);
+  const via = { edgeId: li.dataset.edge || null, direction: li.dataset.direction || null };
+  const rows = AA.endCandidates(mergedIdentityProjection(), state.contactSuggestions,
+    topology.id, via, state.faceClasses);
+  if (!rows.length) return li;
+  const key = candidateKey(topology.id, via.edgeId, via.direction);
+  li.insertBefore(candidateTwisty(key, renderSweepRail), li.firstChild);
+  if (state.candidatesOpen[key]) {
+    li.appendChild(candidateList(key, [{ edgeId: via.edgeId, direction: via.direction, rows }],
+      () => railExec(["arm", via.edgeId, via.direction]), AA.CANDIDATE_LIST_WORDS.pickOtherTitle,
+      renderSweepRail));
+  }
+  return li;
+}
+
+function featureRowBase(topology, joint, feature) {
   const via = AA.sweepFeatureEdge(topology, feature, joint.features);
   const bindingState = AA.sweepFeatureState(mergedIdentityProjection(),
     state.identityProjection && state.identityProjection.staleness, topology.id, via);
@@ -3115,6 +3250,173 @@ function isArmedRow(topology, via) {
     a.direction === via.direction);
 }
 
+// --- a joint end's candidate list (handoff a_joint_end_lists_its_candidate_
+// faces_and_says_why_each_is_there) ------------------------------------------
+//
+// Jeff, 2026-11-03: "each side of each joint [should] have a collapsible
+// element that lists out all the suggested surfaces, mouse hover causes the
+// surface to hilight in the 3d view and gives a tooltip showing why it is
+// suggested ... and then lets you select any item from the list, or 'select
+// other'". The rows are AA.endCandidates'; this draws them. Every write goes
+// through a verb (`accept`, `take`, `arm`), so a row, the shell's mirror of
+// it and a harness are one path.
+
+// Which list, in which mode: a sweep rail's end and the bind rail's element
+// are different rows of the same edge.
+function candidateKey(topologyId, edgeId, direction) {
+  return [state.sweep ? "sweep" : "bind", topologyId, edgeId, direction || ""].join("|");
+}
+
+// The ▸ in front of a row with a list. A span with a button's role, not a
+// <button>: the row's buttons are its actions at the right (what the shell
+// mirrors as the row's controls), and this is the row's disclosure.
+function candidateTwisty(key, repaint) {
+  const words = AA.CANDIDATE_LIST_WORDS;
+  const open = !!state.candidatesOpen[key];
+  const node = document.createElement("span");
+  node.className = "tree-row__twisty";
+  node.setAttribute("role", "button");
+  node.tabIndex = 0;
+  node.setAttribute("aria-expanded", open ? "true" : "false");
+  node.textContent = open ? "▾" : "▸";
+  node.title = open ? words.close : words.open;
+  const toggle = (ev) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    state.candidatesOpen[key] = !open;
+    repaint();
+  };
+  node.onclick = toggle;
+  node.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") toggle(ev); };
+  return node;
+}
+
+// The open list: per end, its rows (cut at AA.CANDIDATES_LISTED with a
+// "show all n" row past the cut), and "Pick another face…" last. `ends` is
+// [{edgeId, direction, rows, head?}]; a `head` names the end above its rows
+// (bind mode's element row has two). `pickOther(end)` is what that last row
+// runs, `pickTitle` its hover. Clicks stay in the list: the row it hangs
+// under selects on a click of its own.
+function candidateList(key, ends, pickOther, pickTitle, repaint) {
+  const words = AA.CANDIDATE_LIST_WORDS;
+  const list = document.createElement("ul");
+  list.className = "tree-cands";
+  list.onclick = (ev) => ev.stopPropagation();
+  for (const end of ends) {
+    if (end.head) {
+      const head = document.createElement("li");
+      head.className = "tree-cands__head";
+      head.textContent = end.head;
+      head.title = end.head;
+      list.appendChild(head);
+    }
+    const listKey = key + "|" + end.direction;
+    const all = !!state.candidatesAll[listKey] || end.rows.length <= AA.CANDIDATES_LISTED + 1;
+    const shown = all ? end.rows : end.rows.slice(0, AA.CANDIDATES_LISTED);
+    const surest = end.rows.find((r) => r.kind === AA.CANDIDATE_ROW_KINDS[0]) || null;
+    for (const row of shown) list.appendChild(candidateRow(end, row, row === surest));
+    if (!all) {
+      const more = candidateAction(words.more.replace("{n}", String(end.rows.length)), "", () => {
+        state.candidatesAll[listKey] = true;
+        repaint();
+      });
+      more.classList.add("tree-cand--more");
+      list.appendChild(more);
+    }
+    const other = candidateAction(words.pickOther, pickTitle, () => pickOther(end));
+    other.classList.add("tree-cand--other");
+    other.dataset.direction = end.direction;
+    list.appendChild(other);
+  }
+  return list;
+}
+
+// One face on the list: "face 3460 · round · r 47.5 mm", the reason under
+// it in the suggestion colour, the evidence (or who proposed it and why) on
+// hover, and Take at the right. Resting on it washes the face in the scene.
+function candidateRow(end, row, surest) {
+  const words = AA.CANDIDATE_LIST_WORDS;
+  const li = document.createElement("li");
+  li.className = "tree-row tree-cand";
+  li.dataset.kind = row.kind;
+  li.dataset.face = String(row.faceId);
+  const name = AA.candidateRowWords(row);
+  li.title = [name, row.reason, row.detail].filter(Boolean).join("\n");
+  const text = document.createElement("span");
+  text.className = "tree-row__text";
+  const head = document.createElement("span");
+  head.className = "tree-row__name";
+  head.textContent = name;
+  text.appendChild(head);
+  const reason = document.createElement("span");
+  reason.className = "tree-row__face tree-row__face--suggested";
+  reason.textContent = [row.reason, row.bound ? words.bound : null].filter(Boolean).join(" · ");
+  text.appendChild(reason);
+  li.appendChild(text);
+  candidateHover(li, row);
+  if (!row.bound) {
+    const take = document.createElement("button");
+    take.className = "tree-row__repick tree-cand__take";
+    take.textContent = words.take;
+    take.title = words.takeTitle;
+    // The surest proposal is the `accept` verb's own answer; any other face
+    // is a pick (AA.planAnswer accepts a proposal that names it).
+    take.onclick = (ev) => {
+      ev.stopPropagation();
+      railExec(surest ? ["accept", end.edgeId, end.direction]
+        : ["take", end.edgeId, end.direction, row.sha256, String(row.faceId)]);
+    };
+    li.appendChild(take);
+  }
+  return li;
+}
+
+// A list row that does one thing when clicked ("Pick another face…", "show
+// all n"): the row template's name line and nothing else.
+function candidateAction(text, title, act) {
+  const li = document.createElement("li");
+  li.className = "tree-row tree-cand";
+  li.title = title || text;
+  const box = document.createElement("span");
+  box.className = "tree-row__text";
+  const words = document.createElement("span");
+  words.className = "tree-row__name";
+  words.textContent = text;
+  box.appendChild(words);
+  li.appendChild(box);
+  li.onclick = (ev) => {
+    ev.stopPropagation();
+    act();
+  };
+  return li;
+}
+
+// The pointer on a candidate row washes its face, on the pane's own trailing
+// debounce (AA.CANDIDATE_HOVER_DEBOUNCE_MS, the shell's pane-hover value): a
+// pointer running down the list washes the row it stops on, not each one.
+let candidateWashTimer = null;
+function candidateHover(node, row) {
+  node.addEventListener("mouseenter", () => scheduleCandidateWash(row));
+  node.addEventListener("mouseleave", () => scheduleCandidateWash(null));
+}
+
+function scheduleCandidateWash(row) {
+  if (candidateWashTimer !== null) clearTimeout(candidateWashTimer);
+  candidateWashTimer = setTimeout(() => {
+    candidateWashTimer = null;
+    railExec(row ? ["hover", "face", row.sha256, String(row.faceId)] : ["hover", "clear"], null);
+  }, AA.CANDIDATE_HOVER_DEBOUNCE_MS);
+}
+
+// A rebuilt rail drops the rows a pointer could leave, so their wash goes too.
+function clearCandidateWash() {
+  if (candidateWashTimer !== null) clearTimeout(candidateWashTimer);
+  candidateWashTimer = null;
+  state.washToken++;
+  if (state.scene) state.scene.washFace(null);
+  window.__lastWash = null;
+}
+
 
 function contributorsGroup(topology) {
   const sweep = state.sweep;
@@ -3208,6 +3510,7 @@ function renderSweepRail() {
   // pointer never fires its mouseleave: the hover goes with the old rows.
   state.scene.clearHover();
   window.__lastHover = null;
+  clearCandidateWash();
   root.innerHTML = "";
   const tree = sweep.tree;
   const topology = sweepTopology();
@@ -3506,11 +3809,21 @@ async function cmdAccept(edgeId, direction) {
   const toast = AA.armedWords("toast", { end: AA.edgeEndNames(topology, edge)[direction] || direction,
     face: key.face_id, part: mesh ? AA.partRowWords(mesh, state.partNames).text : String(key.source_step_sha256).slice(0, 12) });
   const events = await writeAnswer(plan, edge.id, toast);
+  await answeredAtEnd(topology, edge, direction, { sha256: key.source_step_sha256, faceId: key.face_id },
+    events, toast);
+  return { accepted: proposal.event_id, events: events.map((e) => e.event_id) };
+}
+
+// What follows an answer written at one end, from the rail: in sweep mode the
+// suggestion's light comes down, the face takes the bound tint, the row says
+// "bound · face N" and a toast names the write; in bind mode the proposals
+// are repainted (writeIdentityEvent has already redrawn the list and the bar).
+async function answeredAtEnd(topology, edge, direction, face, events, toast) {
   if (state.sweep) {
     clearSuggestionFocus();
-    state.scene.markFace(key.source_step_sha256, key.face_id, "bound");
+    state.scene.markFace(face.sha256, face.faceId, "bound");
     state.sweep.lastBound = { topologyId: topology.id, edgeId: edge.id, direction,
-      faceId: key.face_id, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
+      faceId: face.faceId, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
     showToast(toast);
     if (isSelectedFeature(topology, { edgeId: edge.id, direction })) {
       cmdInspect(AA.INSPECT_TARGETS[4], edge.id, direction);
@@ -3518,9 +3831,58 @@ async function cmdAccept(edgeId, direction) {
       renderSweepRail();
     }
   } else {
+    showToast(toast);
     await paintProposals();
   }
-  return { accepted: proposal.event_id, events: events.map((e) => e.event_id) };
+}
+
+// take <edge> <from|to> <mesh> <face> -- a candidate row's Take (handoff
+// a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there), in either
+// mode: that face bound at that end. It is an armed click with the face named
+// rather than clicked, planned the same way (AA.planArmedClick, then
+// AA.planAnswer's `pick`): a face an open proposal at the end names accepts
+// that proposal; any other face turns the end's open proposals down and binds
+// this one; the end's one standing binding is superseded; the face already
+// bound there writes nothing. An armed pick is ended first. One write path
+// (writeAnswer).
+async function cmdTake(edgeId, direction, meshId, faceText) {
+  const topology = state.sweep ? sweepTopology() : state.currentTopology;
+  if (!topology) throw new Error("no topology is open, so there is nothing to take");
+  const edge = (topology.edges || []).find((e) => e.id === edgeId);
+  if (!edge) throw new Error("unknown edge \"" + edgeId + "\" in topology \"" + topology.id + "\"");
+  if (AA.DIRECTIONS.indexOf(direction) === -1) {
+    throw new Error("take <edge> takes an end, " + AA.DIRECTIONS.join(" or ") + ", got " + JSON.stringify(direction));
+  }
+  const mesh = resolveMeshOrThrow(meshId);
+  const faceId = parseInt(faceText, 10);
+  if (!isFinite(faceId) || String(faceId) !== String(faceText)) {
+    throw new Error("take needs <edge> <from|to> <mesh> <face id>, got face " + JSON.stringify(faceText));
+  }
+  let face = state.scene.faceRecord(mesh.sha256, faceId);
+  if (!face) {
+    const manifest = await state.storage.readMeshManifest(mesh.sha256);
+    face = manifest && manifest.faces ? manifest.faces[faceId] || null : null;
+  }
+  if (!face) throw new Error("part \"" + meshId + "\" has no face " + faceText);
+  const stackKey = AA.topologyEdgeKey(topology.id, edge.id);
+  const record = AA.findBindingRecord(mergedIdentityProjection(), stackKey);
+  const standing = AA.endBindings(record, direction);
+  const pick = { sha256: mesh.sha256, faceId, record: face };
+  const plan = AA.planArmedClick(pick, null, standing);
+  if (plan.action === AA.ARMED_CLICK_ACTIONS[2]) return { action: plan.action, faceId };
+  if (state.sweep && state.sweep.armed) disarmPick("taken");
+  const answer = AA.planAnswer(AA.ANSWER_VERBS[2], {
+    pick: { geometryKey: AA.geometryKeyOfPick(pick), direction, stackKey },
+    open: AA.endProposals(record, direction),
+    standing,
+  });
+  const toast = AA.armedWords("toast", { end: AA.edgeEndNames(topology, edge)[direction] || direction,
+    face: faceId, part: AA.partRowWords(mesh, state.partNames).text });
+  const events = await writeAnswer(answer, edge.id, toast);
+  await answeredAtEnd(topology, edge, direction, { sha256: mesh.sha256, faceId }, events, toast);
+  return { action: plan.action, faceId, supersedes: answer.supersedes,
+    ratifies: answer.accept ? answer.accept.event_id : null,
+    rejects: answer.reject.map((p) => p.event_id), events: events.map((e) => e.event_id) };
 }
 
 // THE ONE WRITE PATH FOR AN ANSWER (handoff a_rail_row_with_a_proposal_says_
@@ -3929,6 +4291,7 @@ function cmdModel(...args) {
   if (plan.action === AA.MODEL_VERB_ACTIONS[1]) {
     model.unlit = plan.unlit;
     applyModelStyle();
+    applyPartScope();
     return { unlit: plan.unlit };
   }
   const topology = state.currentTopology;
@@ -4010,6 +4373,7 @@ commands.register("show-all", cmdShowAll);
 commands.register("hide-all", cmdHideAll);
 commands.register("context", cmdContext);
 commands.register("isolate", cmdIsolate);
+commands.register("scene-view", cmdSceneView);
 commands.register("camera", cmdCamera);
 commands.register("ghost", cmdGhost);
 commands.register("mark-face", cmdMarkFace);
@@ -4046,6 +4410,7 @@ commands.register("show-body", (name) => cmdSubjectView(true, name));
 commands.register("hide-body", (name) => cmdSubjectView(false, name));
 commands.register("arm", cmdArm);
 commands.register("accept", cmdAccept);
+commands.register("take", cmdTake);
 AA.exec = (input) => commands.exec(input);
 
 // The last arrival, run again -- what ticking an auto-setup box back on does.
@@ -4163,6 +4528,7 @@ function listedEdgeIds() {
 }
 
 function renderElementList() {
+  clearCandidateWash();
   el.elementList.innerHTML = "";
   if (!state.currentTopology) return;
   // A studyless topology lists every edge: with no study to scope it, an empty
@@ -4210,6 +4576,23 @@ function renderElementList() {
     }
     const alerts = AA.elementAlerts(bindingState);
     if (alerts.length) li.appendChild(alertBadge(alerts));
+    // Each end's candidate list, under one disclosure in front of the row
+    // (handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_
+    // there): the element row is the edge, so its list names the end above
+    // each end's faces. "Pick another face…" selects the element -- bind
+    // mode's pick is a click in the scene, and the bar asks which end.
+    const names = AA.edgeEndNames(state.currentTopology, edge);
+    const ends = AA.DIRECTIONS.map((direction) => ({ edgeId, direction, head: names[direction] || direction,
+      rows: AA.endCandidates(identity, state.contactSuggestions, state.currentTopology.id,
+        { edgeId, direction }, state.faceClasses) })).filter((end) => end.rows.length);
+    if (ends.length) {
+      const key = candidateKey(state.currentTopology.id, edgeId, null);
+      li.insertBefore(candidateTwisty(key, renderElementList), li.firstChild);
+      if (state.candidatesOpen[key]) {
+        li.appendChild(candidateList(key, ends, () => railExec(["select-edge", edgeId]),
+          AA.CANDIDATE_LIST_WORDS.pickOtherBind, renderElementList));
+      }
+    }
     li.onclick = () => {
       try {
         // Clicking the row that is already selected DESELECTS it (deliverable
@@ -5318,7 +5701,8 @@ const execQueue = new AA.ExecQueue();
 function postEmbedState() {
   if (window.parent === window) return;
   const message = AA.embedState(state.sweep ? state.sweep.artifact : null,
-    state.currentTopology, state.currentStudy);
+    state.currentTopology, state.currentStudy,
+    !!(state.partScope && !state.partScope.targets.length));
   try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
   postEmbedTree(true);
 }
@@ -5412,7 +5796,7 @@ function railRow(node, parentKey, seen) {
     embedNodes.set(key, { node, ...controls });
     return row;
   }
-  if (node.matches(".an__tree-head, .el-head")) {
+  if (node.matches(".an__tree-head, .el-head, .tree-cands__head")) {
     return { key: railKey(parentKey, node, node.textContent, seen), head: node.textContent };
   }
   if (node.matches("details")) {
@@ -5467,7 +5851,21 @@ function railRow(node, parentKey, seen) {
     if (node.classList.contains("is-scene-hover")) row.sceneHover = true;
     if (node.onclick) row.activate = true;
     const controls = railControls(node, node, row);
-    embedNodes.set(key, { node, hover: node, ...controls });
+    // A row with a candidate list: its disclosure (open or not), and the
+    // list's rows under it when open. A candidate row's words wrap rather
+    // than clip in the shell's narrow rail.
+    const twisty = node.querySelector(":scope > .tree-row__twisty");
+    if (twisty) {
+      row.twisty = twisty.title;
+      row.open = twisty.getAttribute("aria-expanded") === "true";
+    }
+    const list = node.querySelector(":scope > .tree-cands");
+    if (list) {
+      const kids = railRows(list, key, new Map());
+      if (kids.length) row.rows = kids;
+    }
+    if (node.classList.contains("tree-cand")) row.wrap = true;
+    embedNodes.set(key, { node, hover: node, toggle: twisty, ...controls });
     return row;
   }
   if (node.matches(".part-row--head")) {
@@ -5545,7 +5943,9 @@ function railGesture(msg) {
   if (msg.act === acts.enter || msg.act === acts.leave) {
     if (hit.hover) hit.hover.dispatchEvent(new MouseEvent(msg.act === acts.enter ? "mouseenter" : "mouseleave"));
   } else if (msg.act === acts.toggle) {
-    if (hit.toggle) hit.toggle.open = !hit.toggle.open;
+    // A <details> opens itself; a row's candidate disclosure is a control.
+    if (hit.toggle && hit.toggle.matches("details")) hit.toggle.open = !hit.toggle.open;
+    else if (hit.toggle) hit.toggle.click();
   } else if (msg.act === acts.activate) {
     hit.node.click();
   } else if (msg.act === acts.check) {

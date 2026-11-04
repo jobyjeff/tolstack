@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] the hub spindle bore axis end opens to the contact engine's faces, the top-ranked first, each naming its class and radius and why it is there, then show all and Pick another face",
+  "mutations": [
+    {
+      "contract": "A candidate row names its face the way the armed pick does: number, class, fitted radius.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Without the class and radius every row on the hub's list is a bare face number, which is the line the armed pick replaced on 2026-10-29.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return AA.preselectWords(row.faceId, row.surface ? { surface: row.surface, radius: row.radius || 0 } : null);",
+      "replace": "    return AA.preselectWords(row.faceId, null);"
+    }
+  ]
+}

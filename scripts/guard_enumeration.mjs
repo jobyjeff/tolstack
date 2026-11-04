@@ -200,7 +200,18 @@ export const DECLARED_GUARDS = {
   // under its old name either.
   // 2026-11-03 (coaxial_ends_share_one_3d_node): +1, the scene's pointer on a
   // joint lighting every member in the pane. It carries a spec.
-  fast: { declared: 630, enrollable: 630, names: "d962a2a7d2d2" },
+  // 2026-11-03 (each_stop_is_its_own_stack): eight swapped, count unchanged
+  // -- the travel band, the zero x-interval, the x-axis note and the datum
+  // line out; each stop's error bar, a reach bound's tick, the one-line zero
+  // and the readouts' two sub-stacks and range in; four [real] checks
+  // renamed for the per-stop stacks and S461-261, and the live closure check
+  // renamed (one piece, no bridge). Every new name carries a
+  // spec; the two retired concepts' specs are deleted.
+  // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +1, the nav's twisty row
+  // (a joint end's candidate list mirrored). It carries a spec.
+  // (Re-pinned at the review merge onto integration's 631.)
+  // (Re-pinned at the coaxial_ends_share_one_3d_node review merge onto integration's 632: 633.)
+  fast: { declared: 633, enrollable: 633, names: "9e395966ce0f" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -233,7 +244,12 @@ export const DECLARED_GUARDS = {
   // two thresholds from both sides.
   // Review rework, same day: +1 -- a grid row's emphasis names its edge's two
   // ends, drawn or not (the joint's internal row lit nothing). It carries a spec.
-  annotate: { declared: 275, enrollable: 275, names: "adc39b202123" },
+  // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +4, the end's candidate
+  // list, its reasons, `hover face` and the [real] 55-of-55 reach. Each
+  // carries a spec.
+  // (Re-pinned at the review merge onto integration's 270.)
+  // (Re-pinned at the coaxial_ends_share_one_3d_node review merge onto integration's 274: 280.)
+  annotate: { declared: 280, enrollable: 280, names: "33e447c665d1" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -310,7 +326,17 @@ export const DECLARED_GUARDS = {
   // Review rework, same day: +1 -- the real pointer on the grid row of an edge
   // inside the joint, or of one leaving it, emphasises the joint's one 3D dot.
   // It carries a spec.
-  browser: { declared: 799, enrollable: 766, names: "c8b0e1503f2d" },
+  // 2026-11-03 (each_stop_is_its_own_stack): two renamed -- the kinematic
+  // plot's check now reads each stop's error bar, and the limit card's
+  // S461-261. Both carry a spec.
+  // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +8 -- the mock list, its
+  // hover wash, the wash coming down and Take; the hub spindle end's real
+  // list and wash; the armed row naming a real round face's class and
+  // radius; the list crossing the seam into the shell's nav. Each carries a
+  // spec.
+  // (Re-pinned at the review merge onto integration's 801/768.)
+  // (Re-pinned at the coaxial_ends_share_one_3d_node review merge onto integration's 809/776: 815/782.)
+  browser: { declared: 815, enrollable: 782, names: "e86365b74807" },
 };
 
 

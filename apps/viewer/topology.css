@@ -168,6 +168,13 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    which put the selection colour on every topology row at rest -- the one
    colour this page uses to mean "this, and not the others". */
 .navtree__id { color: var(--muted); font-size: var(--t-micro); }
+/* The 3D control: muted and out of the way until the row is hovered or focused. */
+.navtree__3d {
+  flex: 0 0 auto; margin-left: auto; padding: 0 6px; border: 0; background: none;
+  color: var(--muted); font: inherit; font-size: var(--t-micro); cursor: pointer; opacity: 0;
+}
+.navtree__row:hover .navtree__3d, .navtree__3d:focus-visible, .navtree__row--on .navtree__3d { opacity: 1; }
+.navtree__3d:hover { color: var(--accent); }
 
 /* --- the scene's tree, under the row it is showing (the_shell_seats_the_
    scene_beside_the_model) -----------------------------------------------
@@ -231,6 +238,14 @@ details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "
 .navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenetext { flex-basis: 100%; }
 .navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenebtn:first-of-type { margin-left: auto; }
 .navtree__scenealert { flex: none; color: var(--inferred); display: inline-flex; }
+/* A joint end's candidate disclosure, in front of its row, and the
+   candidate rows under it, whose words wrap rather than clip (handoff
+   a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there). */
+.navtree__scenetwisty { flex: none; width: 12px; padding: 0; font: inherit; color: var(--muted);
+  background: none; border: 0; cursor: pointer; }
+.navtree__scenetwisty:hover, .navtree__scenetwisty:focus-visible { color: var(--ink); }
+.navtree__scenerow--wrap .navtree__scenename,
+.navtree__scenerow--wrap .navtree__scenesub { white-space: normal; overflow-wrap: anywhere; }
 
 /* --- the one status icon a row may wear ------------------------------------
    (viewer_nav_verdict_into_alert_and_icon, 2026-09-22. Jeff, on the rail as
@@ -1614,6 +1629,10 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 }
 .kmreadouts td { padding: 3px 10px 3px 0; vertical-align: baseline; }
 .kmreadouts .num, .kmreadouts .kmreadouts__numhead { text-align: right; }
+/* What a stop's worst case is made of, under its row: muted, one line, the
+   row above it tight against it. The range row is set off by space alone. */
+.kmreadouts__says td { padding-top: 0; font-size: var(--t-meta); }
+.kmreadouts__range td { padding-top: 8px; }
 
 /* The envelope chart. The SVG keeps its own pixel size up to the column's
    width and scales DOWN only, so its text lands at the token sizes below
@@ -1628,17 +1647,15 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
    (docs/DESIGN_TYPE_AND_COLOUR.md), and a band is data at rest. */
 .kmchart__worst { fill: var(--ink); fill-opacity: 0.1; }
 .kmchart__rss { fill: var(--ink); fill-opacity: 0.22; }
-/* A stop's travel band: on x, the same two fills at a lower alpha; across
-   it, the envelope carried on the stop's slope at the envelope's own. */
-.kmchart__band--worst { fill: var(--ink); fill-opacity: 0.05; }
-.kmchart__band--rss { fill: var(--ink); fill-opacity: 0.08; }
-/* Outlined: on a product-length axis the band is a few pixels wide, and
-   its slope is the point of drawing it. */
-.kmchart__region--worst { fill: var(--ink); fill-opacity: 0.1; stroke: var(--ink); stroke-opacity: 0.45; }
-.kmchart__region--rss { fill: var(--ink); fill-opacity: 0.22; stroke: var(--ink); stroke-opacity: 0.3; }
-.kmchart__bandlabel { fill: var(--muted); font-size: var(--t-micro); }
+/* A stop: a point at its nominal x with its worst-case bar thin and its RSS
+   bar heavier over it, in ink; the reach bound's tick dashed like a limit. */
+.kmchart__bar { stroke: var(--ink); }
+.kmchart__bar--worst, .kmchart__bar--cap { stroke-width: 1.5; }
+.kmchart__bar--rss { stroke-width: 5; stroke-opacity: 0.6; }
+.kmchart__barpoint { fill: var(--ink); }
+.kmchart__bound { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 2; opacity: 0.7; }
+.kmchart__barlabel { fill: var(--ink); font-size: var(--t-micro); }
 .kmchart__note { margin: 0 0 12px; font-size: var(--t-meta); }
-.kmchart__notelink { color: inherit; }
 .kmchart__zero { stroke: var(--ink); stroke-width: 1.5; }
 .kmchart__limit { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 6 4; opacity: 0.7; }
 .kmchart__limitlabel { fill: var(--muted); font-size: var(--t-micro); }

@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: annotate/proposals
 reporter: agent
 audience: strategy
@@ -45,3 +45,7 @@ Options for a strategy session:
    edges with an open proposal, so the 62 others are not in the way.
 3. Leave bind mode on the bar; the ratifying pass happens from the topology
    row with Accept / Reject only.
+
+## Resolved 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
+
+Every open proposal is now a candidate row: each bind-mode element row opens to both ends' lists, and the topology row lists every edge, so 55/55 are reachable from a rail row and answered there with Take (re-measured by the annotate [real] check). The kinematic rail still lists joint ends only, so it reaches the 5 on its joints.

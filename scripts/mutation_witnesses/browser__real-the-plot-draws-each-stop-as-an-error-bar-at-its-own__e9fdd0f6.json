@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the plot draws each stop as an error bar at its own sweep point, its pitch beside it, and no wedge past the sweep, under one line naming the zero",
+  "mutations": [
+    {
+      "contract": "Each stop's marks say which stop they are.",
+      "issue": null,
+      "note": "Declared with the guard by handoff each_stop_is_its_own_stack (2026-11-03). Draws the bars without their stop.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      marks.forEach(function (m) { m.setAttribute(\"data-stop\", bar.stop); svg.appendChild(m); });",
+      "replace": "      marks.forEach(function (m) { svg.appendChild(m); });"
+    }
+  ]
+}
