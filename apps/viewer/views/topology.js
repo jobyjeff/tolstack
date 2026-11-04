@@ -306,7 +306,10 @@
     // the chain's rows and the leaders run only to chain nodes, while the
     // rails above keep every node and edge of the walk. The DAG holds the
     // context; the table holds the sum.
-    var plan = VA.gridPlan(layout, topoProj, lit);
+    // A kinematic page's grid is its stack at one stop (VA.kinematicStack):
+    // the same plan, with the stack's sub-stack headers among the rows.
+    var plan = VA.gridPlan(layout, topoProj,
+      lit && ctx.stack ? Object.assign({}, lit, { stack: ctx.stack }) : lit);
     // The keyed position store (viewer_edge_length_scaling): every dot and
     // bar's y, computed ONCE per render and addressed by id, under whichever
     // length mode is on. Both geometry passes below read this same store, so
@@ -860,6 +863,11 @@
     { cls: "nominal", label: "nominal", width: 80 },
     { cls: "min", label: "min", width: 80 },
     { cls: "max", label: "max", width: 80 },
+    // The sweep's sensitivity on a kinematic page (`coefficient`, signed, in
+    // the measure's units per the band's); a chain study's ratio, 1 for an
+    // unscaled edge -- so the two kinds of study share one column set
+    // (the_kinematic_grid_is_a_stack_of_sub_stacks).
+    { cls: "sensitivity", label: "sensitivity", width: 90 },
     { cls: "contribution", label: "contribution", width: 200 },
     // 260, not the 200 it was until viewer_study_verdicts_and_gaps: this cell
     // clips rather than wraps (`.tvcell__chipswrap`, topology.css — a <tr>'s
@@ -2217,15 +2225,19 @@
     table.style.width = tableWidth() + "px";
     table.appendChild(colgroup());
     var tbody = VA.el("tbody");
-    // Which of the two neutral tints each row wears -- off the SAME bands the
-    // SVG's own band polygons came from (VA.rowBandParity), so a row and the
-    // band feeding it cannot be given two different answers.
-    var bandParity = VA.rowBandParity(plan);
+    // What each row wears (VA.gridRowMarks): its body's tint, the same one
+    // the DAG's container for that body is filled with, and the divider
+    // above it -- a hairline inside a body, a heavier rule between bodies and
+    // between sub-stacks.
+    var marks = VA.gridRowMarks(plan, ctx.topoProj);
     plan.groups.forEach(function (group) {
       for (var i = 0; i < group.count; i++) {
         var planRow = plan.rows[group.start + i];
-        tbody.appendChild(fade(edgeRow(planRow, group, i === 0, index, chain,
-          marking, ctx, bandParity[planRow.id], hot), "edge", planRow.id));
+        var row = group.header
+          ? subStackRow(planRow, ctx, marks[planRow.id], hot)
+          : edgeRow(planRow, group, i === 0, index, chain, marking, ctx,
+                    marks[planRow.id], hot);
+        tbody.appendChild(fade(row, "edge", planRow.id));
       }
     });
     table.appendChild(tbody);
@@ -2234,11 +2246,132 @@
     // total of, in the same columns. Only where a study is actually
     // emphasized -- the whole-walk view has no chain and therefore no total,
     // and a study that refuses to sum has its refusal instead
-    // (VA.renderTopoTotals's error block).
-    var foot = totalsFoot(marking ? ctx.study : null);
+    // (VA.renderTopoTotals's error block). A kinematic page's is its stop's.
+    var foot = ctx.stack ? stackFoot(ctx.stack)
+      : totalsFoot(marking ? ctx.study : null);
     if (foot) table.appendChild(foot);
     box.appendChild(table);
+    // What the sourcing chips say, under the rows they mark: below the last
+    // row, so no leader's seam moves.
+    if (plan.rows.length && marking) box.appendChild(sourcingLegend());
     return box;
+  }
+
+  // The sourcing legend: each confidence chip beside the words it means
+  // (VA.CONFIDENCE_WORDS), and the one row tint that is not a body's.
+  function sourcingLegend() {
+    var strip = VA.el("div", "tvlegend");
+    strip.appendChild(VA.el("span", "tvlegend__head", "sourcing"));
+    VA.CONFIDENCES.forEach(function (c) {
+      var item = VA.el("span", "tvlegend__item");
+      item.appendChild(VA.chip(VA.confidenceClass(c), VA.CONFIDENCE_LABEL[c],
+        VA.CONFIDENCE_WORDS[c]));
+      item.appendChild(VA.el("span", "muted", VA.CONFIDENCE_WORDS[c]));
+      strip.appendChild(item);
+    });
+    strip.appendChild(VA.el("span", "muted tvlegend__tint",
+      "a row's tint is its rigid body; a red wash marks an untraced value"));
+    return strip;
+  }
+
+  // A sub-stack's header row (VA.kinematicStack's `sub` entry): ▸ or ▾, its
+  // name and what it folds to, its own total in its own units, its
+  // sensitivity and what it contributes here. A click opens or closes it, on
+  // the page's one fold state (`ctx.onToggleSubStack`), which the DAG's
+  // dashed field for the same sub-study reads too.
+  function subStackRow(planRow, ctx, mark, hot) {
+    var entry = planRow.header;
+    var el = baseRow("substack", ctx, planRow.id);
+    el.className += " tvrow--depth-" + entry.depth + (entry.gap ? " tvrow--gapstack" : "") +
+      (mark ? " " + mark : "");
+    el.setAttribute("data-substack", entry.id);
+    var foldable = entry.count > 0 && !!ctx.onToggleSubStack;
+    var toggle = function () { if (foldable) ctx.onToggleSubStack(entry.id, !entry.open); };
+    el.onclick = toggle;
+    var name = VA.el("td", "tvcell tvcell--name tvsub__name");
+    name.setAttribute("colspan", "3");
+    name.style.paddingLeft = (8 + 14 * entry.depth) + "px";
+    if (entry.count > 0) {
+      var caret = VA.el("span", "tvsub__caret", entry.open ? "▾" : "▸");
+      name.appendChild(caret);
+      el.setAttribute("aria-expanded", entry.open ? "true" : "false");
+    }
+    name.appendChild(VA.el("span", "tvsub__title", entry.name));
+    if (entry.detail) name.appendChild(VA.el("span", "muted tvsub__detail", " · " + entry.detail));
+    name.setAttribute("title", entry.name + (entry.detail ? " · " + entry.detail : ""));
+    el.appendChild(name);
+    el.appendChild(VA.el("td", "tvcell tvcell--nominal num", entry.nominal));
+    el.appendChild(VA.el("td", "tvcell tvcell--min num", entry.min));
+    el.appendChild(VA.el("td", "tvcell tvcell--max num", entry.max));
+    el.appendChild(VA.el("td", "tvcell tvcell--sensitivity num", entry.sensitivity));
+    el.appendChild(VA.el("td", "tvcell tvcell--contribution num tvsub__total",
+      entry.contribution));
+    var chips = chipsCell("chips");
+    if (entry.gap) {
+      // The gap's chip opens the card that says what would resolve it
+      // (VA.kinematicGapCard).
+      var gapChip = VA.chip("chip--gap", "gap", entry.detail);
+      if (ctx.onCardShow && ctx.kinematicStudy) {
+        gapChip.className += " cardtrig";
+        gapChip.onmouseenter = function () {
+          ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy, { study: entry.id },
+            ctx.topoProj), gapChip);
+        };
+      }
+      chips.wrap.appendChild(gapChip);
+    }
+    el.appendChild(chips.cell);
+    el.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("aria-label", entry.name);
+    el.onkeydown = function (event) {
+      if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+      if (event.preventDefault) event.preventDefault();
+      toggle();
+    };
+    return el;
+  }
+
+  // A kinematic stack's foot: the stop's own fold under the rows it folds,
+  // then its verdict -- the chain foot's two blocks, from the projection's
+  // own numbers (VA.kinematicStack's `result`).
+  function stackFoot(stack) {
+    var r = stack.result;
+    var foot = VA.el("tfoot", "tvfoot");
+    var total = footRow("tvtotal--worst_case", 1, "totals");
+    var label = VA.el("td", "tvcell tvcell--name tvtotal__label", r.label);
+    label.setAttribute("title", r.label + " · " + r.rss);
+    total.appendChild(label);
+    total.appendChild(VA.el("td", "tvcell tvcell--nominal num", r.nominal));
+    total.appendChild(VA.el("td", "tvcell tvcell--min num"));
+    total.appendChild(VA.el("td", "tvcell tvcell--max num"));
+    total.appendChild(VA.el("td", "tvcell tvcell--sensitivity num"));
+    total.appendChild(VA.el("td", "tvcell tvcell--contribution num",
+      r.contribution + " " + (stack.units || "") + " · " + r.rss));
+    total.appendChild(VA.el("td", "tvcell tvcell--chips"));
+    total.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    foot.appendChild(total);
+    var v = r.verdict;
+    if (v) {
+      var tr = footRow("tvtotal--margin", 1, "verdict");
+      var cell = VA.el("td", "tvcell tvcell--name tvtotal__label");
+      cell.appendChild(verdictChip({ state: v.verdict, word: v.verdict, title: v.title,
+                                     incomplete: v.incomplete }));
+      cell.appendChild(VA.el("span", "tvtotal__check", v.label || v.stopLabel));
+      cell.setAttribute("title", v.label || v.stopLabel);
+      tr.appendChild(cell);
+      var margin = VA.el("td", "tvcell num tvtotal__margin", v.marginText);
+      margin.setAttribute("colspan", "4");
+      tr.appendChild(margin);
+      tr.appendChild(VA.el("td", "tvcell tvcell--contribution num tvtotal__criterion",
+        v.limitText || ""));
+      var chips = chipsCell("chips");
+      if (v.scopeChip) chips.wrap.appendChild(VA.chip("chip--budget", v.scopeChip, v.scopeTitle));
+      tr.appendChild(chips.cell);
+      tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+      foot.appendChild(tr);
+    }
+    return foot;
   }
 
   // --- the totals: footer rows of the contributions grid -------------------
@@ -2311,6 +2444,7 @@
     tr.appendChild(VA.el("td", "tvcell tvcell--nominal num", total.center));
     tr.appendChild(VA.el("td", "tvcell tvcell--min num", total.min));
     tr.appendChild(VA.el("td", "tvcell tvcell--max num", total.max));
+    tr.appendChild(VA.el("td", "tvcell tvcell--sensitivity num"));
     tr.appendChild(VA.el("td", "tvcell tvcell--contribution num",
       total.half + " " + total.units));
     tr.appendChild(VA.el("td", "tvcell tvcell--chips"));
@@ -2347,7 +2481,7 @@
     label.setAttribute("title", row.label);
     tr.appendChild(label);
     var margin = VA.el("td", "tvcell num tvtotal__margin", row.marginValue);
-    margin.setAttribute("colspan", "3");
+    margin.setAttribute("colspan", "4");
     margin.setAttribute("title", row.marginText);
     tr.appendChild(margin);
     tr.appendChild(VA.el("td", "tvcell tvcell--contribution num tvtotal__criterion",
@@ -2365,7 +2499,7 @@
     var tr = footRow("tvtotal--margin tvtotal--nocriterion", 1, "verdict");
     var label = VA.el("td", "tvcell tvtotal__label",
       verdict ? verdict.word : "");
-    label.setAttribute("colspan", "5");
+    label.setAttribute("colspan", "6");
     if (verdict) label.setAttribute("title", verdict.title);
     tr.appendChild(label);
     tr.appendChild(VA.el("td", "tvcell tvcell--chips"));
@@ -2437,17 +2571,18 @@
     return cell;
   }
 
-  function edgeRow(planRow, group, first, index, chain, marking, ctx, bandParity,
+  function edgeRow(planRow, group, first, index, chain, marking, ctx, mark,
                    hot) {
     var edge = index.edges[planRow.id];
     var hit = chain[planRow.id];
+    var term = planRow.term || null;
     var el = baseRow("edge", ctx, planRow.id);
-    // The alternating band this row belongs to (viewer_leader_grid_legibility).
-    // A neutral tint and deliberately the WEAKEST background rule on the row:
-    // an untraced or uncited row's provenance tint (.tvrow--edge.conf--*,
-    // topology.css) is more specific and still wins, because provenance
-    // outranks wayfinding on this page.
-    el.className += " tvrow--band-" + (bandParity ? "b" : "a");
+    // The row's body tint and its divider (VA.gridRowMarks). The body's tint
+    // is the row's background COLOUR, the weakest rule on it: an untraced or
+    // uncited row's provenance wash (.tvrow--edge.conf--*, topology.css) is
+    // an IMAGE layered over it, so both still show.
+    if (mark) el.className += " " + mark;
+    if (term) el.className += " tvrow--depth-" + term.depth;
     if (first) el.className += " tvrow--group-start";
     if (edge) el.className += " " + VA.confidenceClass(edge.confidence);
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
@@ -2499,6 +2634,8 @@
       : fullName;
     var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : shownName);
     if (!valueOnly && shownName !== fullName) nameCell.setAttribute("title", fullName);
+    // A term of a sub-stack indents one step per level under its header.
+    if (term) nameCell.style.paddingLeft = (8 + 14 * term.depth) + "px";
     el.appendChild(nameCell);
 
     // The value cell, decomposed into three (deliverable 2): the old combined
@@ -2514,8 +2651,43 @@
     el.appendChild(VA.el("td", "tvcell tvcell--max num",
       values ? VA.fmt(values.max) : ""));
 
+    // The sensitivity: a kinematic term's sweep coefficient, a chain row's
+    // signed ratio -- one column, both kinds of study.
+    var sensitivity = VA.el("td", "tvcell tvcell--sensitivity num");
+    if (term) {
+      sensitivity.textContent = term.sensitivity;
+      if (ctx.stack && ctx.stack.coefficientUnit) {
+        sensitivity.setAttribute("title", ctx.stack.coefficientUnit);
+      }
+      if (term.muted) sensitivity.className += " muted";
+      // ...and on hover, its curve across the whole sweep (VA.kinematicCurve),
+      // in the page's one popover. Drawn the first time it is asked for.
+      if (term.curve && ctx.onCardShow && ctx.kinematicStudy) {
+        var curveCard = null;
+        sensitivity.className += " tvcell--curve";
+        sensitivity.onmouseenter = function () {
+          if (!curveCard) {
+            var curve = VA.kinematicCurve(ctx.kinematicStudy, { curve: term.curve },
+              ctx.decimals, ctx.stack.stop.id);
+            if (!curve) return;
+            curveCard = { kind: "curve", title: fullName, curve: curve };
+          }
+          ctx.onCardShow(curveCard, sensitivity);
+        };
+      }
+    } else if (hit) {
+      sensitivity.textContent = (hit.contribution.sign < 0 ? "−" : "") +
+        VA.fmt(hit.contribution.ratio);
+    }
+    el.appendChild(sensitivity);
+
     var contribution = VA.el("td", "tvcell tvcell--contribution num");
-    if (hit) {
+    if (term) {
+      contribution.textContent = term.contribution +
+        (term.contribution && ctx.stack.units ? " " + ctx.stack.units : "");
+      contribution.setAttribute("title", "this term's worst-case share of the measure at the " +
+        ctx.stack.stop.label + ": its band times its sensitivity");
+    } else if (hit) {
       contribution.appendChild(VA.el("span", "tvrow__weight",
         VA.contributionWeightText(hit.contribution)));
       contribution.appendChild(VA.el("span", null,
@@ -2548,12 +2720,26 @@
       // one hover away on this same row.
       var confChip = VA.chip(VA.confidenceClass(edge.confidence),
         edge.confidence === null ? "no value"
-          : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence));
+          : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence),
+        VA.CONFIDENCE_WORDS[edge.confidence] || null);
       var sourceRef = edge.dimension && edge.dimension.source_ref;
       chips.wrap.appendChild(VA.markGeneralNote(confChip, sourceRef));
       if (edge.kind === "gap") {
         chips.wrap.appendChild(VA.chip("chip--gap", "gap",
           "its two interfaces share no part — a real distance across a clearance"));
+      }
+      // A kinematic term with no band on file says so, and its chip opens the
+      // card that names what would resolve it (VA.kinematicGapCard).
+      if (term && term.flag) {
+        var noBand = VA.chip("chip--gap", term.flag, null);
+        if (ctx.onCardShow && ctx.kinematicStudy) {
+          noBand.className += " cardtrig";
+          noBand.onmouseenter = function () {
+            ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy, { edge: planRow.id },
+              ctx.topoProj), noBand);
+          };
+        }
+        chips.wrap.appendChild(noBand);
       }
       if (edge.value_source === "derived") {
         chips.wrap.appendChild(VA.chip("chip--derived", "DERIVED",

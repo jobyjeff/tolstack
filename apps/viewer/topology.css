@@ -82,6 +82,29 @@
   --rail-halo: rgba(174, 196, 232, .13);
   --tv-hot: rgba(255, 255, 255, .055);
   --tv-lead: rgba(255, 255, 255, .125);
+
+  /* The bodies' tints (the_kinematic_grid_is_a_stack_of_sub_stacks): ONE set,
+     filled into the DAG's body containers (.tv__bodyfield--t*) and painted
+     behind the grid rows of the same body (.tvrow--body-t*), so a row and the
+     field its bar sits in are one colour. Six, cycled by the body's place in
+     the document (VA.BODY_TINTS, VA.bodyTint). Muted hues near the floor of
+     visible, none of them a provenance colour. */
+  --tv-body-0: rgba(140, 160, 200, .075);
+  --tv-body-1: rgba(150, 190, 170, .065);
+  --tv-body-2: rgba(190, 170, 140, .065);
+  --tv-body-3: rgba(170, 150, 200, .07);
+  --tv-body-4: rgba(140, 185, 195, .065);
+  --tv-body-5: rgba(190, 150, 165, .065);
+  /* The grid's structure marks: a hairline between two rows of one body, a
+     heavier rule between bodies and between sub-stacks, and one left rule down
+     a sub-stack's header and rows (dashed for a declared gap). Drawn as inset
+     box-shadows and gradients, never borders: a cell border joins the table's
+     row-height sizing and would move a row off its leader's seam. */
+  --tv-divide-hair: rgba(255, 255, 255, .06);
+  --tv-divide-heavy: #59606f;
+  --tv-divide-heavy-w: 2px;
+  --tv-stack-rule: #9aa1ac;
+  --tv-stack-rule-w: 3px;
 }
 
 /* Everything the drag of a grip should suppress while it is running
@@ -496,12 +519,12 @@ body { display: flex; flex-direction: column; }
    outline. pointer-events off: the field is wayfinding; its NAME is the one
    control (it folds the body). */
 .tv__bodyfield { stroke: rgba(255, 255, 255, .07); stroke-width: 1; pointer-events: none; }
-.tv__bodyfield--t0 { fill: rgba(140, 160, 200, .075); }
-.tv__bodyfield--t1 { fill: rgba(150, 190, 170, .065); }
-.tv__bodyfield--t2 { fill: rgba(190, 170, 140, .065); }
-.tv__bodyfield--t3 { fill: rgba(170, 150, 200, .07); }
-.tv__bodyfield--t4 { fill: rgba(140, 185, 195, .065); }
-.tv__bodyfield--t5 { fill: rgba(190, 150, 165, .065); }
+.tv__bodyfield--t0 { fill: var(--tv-body-0); }
+.tv__bodyfield--t1 { fill: var(--tv-body-1); }
+.tv__bodyfield--t2 { fill: var(--tv-body-2); }
+.tv__bodyfield--t3 { fill: var(--tv-body-3); }
+.tv__bodyfield--t4 { fill: var(--tv-body-4); }
+.tv__bodyfield--t5 { fill: var(--tv-body-5); }
 .tv__bodyfield--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
 .tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
@@ -780,17 +803,54 @@ body { display: flex; flex-direction: column; }
 
    Hover is `background-color` for the same reason: as a shorthand it wiped
    the provenance layer off whichever row the reader was pointing at. */
-.tvrow--band-a { background-color: var(--tv-band-a); }
-.tvrow--band-b { background-color: var(--tv-band-b); }
+.tvrow--body-t0 { background-color: var(--tv-body-0); }
+.tvrow--body-t1 { background-color: var(--tv-body-1); }
+.tvrow--body-t2 { background-color: var(--tv-body-2); }
+.tvrow--body-t3 { background-color: var(--tv-body-3); }
+.tvrow--body-t4 { background-color: var(--tv-body-4); }
+.tvrow--body-t5 { background-color: var(--tv-body-5); }
+/* The divider above a row (VA.gridRowMarks), on its cells. */
+.tvrow--divide-hair > .tvcell { box-shadow: inset 0 1px 0 var(--tv-divide-hair); }
+.tvrow--divide-body > .tvcell, .tvrow--divide-sub > .tvcell {
+  box-shadow: inset 0 var(--tv-divide-heavy-w) 0 var(--tv-divide-heavy);
+}
+/* The sub-stack rule down the row's first cell (a rowspanned component cell
+   spans only rows of one sub-stack: VA.gridPlan breaks its groups at a
+   header), layered over whichever divider the cell already wears. */
+.tvrow--ruled > .tvcell:first-child {
+  background-image: linear-gradient(var(--tv-stack-rule), var(--tv-stack-rule));
+  background-size: var(--tv-stack-rule-w) 100%; background-repeat: no-repeat;
+}
+.tvrow--gapstack > .tvcell:first-child {
+  background-image: repeating-linear-gradient(to bottom,
+    var(--tv-stack-rule) 0 4px, transparent 4px 7px);
+}
+.tvrow--substack { font-size: var(--t-dense); }
+.tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }
+.tvsub__title { font-weight: 600; }
+.tvrow--gapstack .tvsub__title { font-weight: 400; font-style: italic; color: var(--muted); }
+.tvsub__total { font-weight: 600; }
+/* The sourcing legend under the grid: each chip beside what it means. */
+.tvlegend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+  padding: 10px 8px; font-size: var(--t-micro);
+}
+.tvlegend__head { color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.tvlegend__item { display: inline-flex; align-items: center; gap: 6px; }
+.tvcell--curve { cursor: help; }
+/* The results pane's stop picker: which stop the grid's stack is shown at. */
+.kmstop { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+.kmstop__label { font-size: var(--t-micro); }
+.kmstop__button { font-size: var(--t-dense); }
+.kmstop__button--on { color: var(--accent); border-color: var(--accent); }
 /* A row's hover tint is NOT a `:hover` rule any more -- it is `--hot` /
    `--lead`, set by views/topology.js's setHot from the same state that lights
    the DAG. See "one hover state, two surfaces" at the bottom of this file. */
 .tvrow--edge { font-size: var(--t-dense); }
-/* A component group's first row: the seam a leader points at. box-shadow, not
-   border-top — a cell border participates in the table's row-height sizing
-   (this file's own collapsed-border lesson, above) and a shadow never does,
-   so the group line cannot nudge a row off its leader. */
-.tvrow--group-start .tvcell { box-shadow: inset 0 1px 0 var(--line); }
+/* A component group's first row is the seam a leader points at; its line is
+   the divider above it (.tvrow--divide-*, VA.gridRowMarks) since
+   the_kinematic_grid_is_a_stack_of_sub_stacks -- one rule for every row
+   rather than a group line and a divider competing for the same shadow. */
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 /* Same tint the elements table uses: an untraced value has to survive a skim.
    As a background IMAGE (a flat two-stop gradient is the only way CSS spells

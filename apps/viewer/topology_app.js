@@ -70,11 +70,9 @@
     // across every page that has a lit set: a chain study and a kinematic
     // study alike.
     unlitStyle: VA.DEFAULT_UNLIT_STYLE,
-    // Which of a kinematic page's sub-stacks are open ({sub-study id: true},
-    // VA.kinematicSubStacks): the DAG's dashed field and the contributor
-    // table's group row read and write this one map, so they open and close
-    // together. In-session, like the unlit style.
-    openSubStacks: {},
+    // Which stop a kinematic page's grid shows its stack at (a stop id), or
+    // null for the study's first. In-session, like the unlit style.
+    kinematicStop: null,
     // How far the jog zone has been dragged open, as a multiple of its own
     // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
     // a pixel width precisely BECAUSE it outlives the topology it was set on:
@@ -606,6 +604,7 @@
   // kinematic study's own (VA.kinematicLitSet).
   function selectKinematic(studyId) {
     var study = VA.findKinematicStudy(state.kinematic, studyId);
+    if (state.kinematicId !== studyId) state.kinematicStop = null;
     state.mode = "kinematic";
     state.kinematicId = studyId;
     state.topologyId = study ? study.topology : null;
@@ -1295,21 +1294,6 @@
   var PREVIEW_KEEPERS = "[data-row-kind], .rail__leaderhit, button, a, input, select, " +
     "label, summary, th, [role=\"button\"], [role=\"separator\"], .tvgrip, tr";
   function wirePreviewRelease() {
-    // A kinematic study's contributor row names an edge too, so pointing at
-    // one previews that edge's record like its grid row and its bar do.
-    // Delegated: the rows are rebuilt by every paint of the results.
-    if (nodes.detail && nodes.detail.addEventListener) {
-      nodes.detail.addEventListener("mouseover", function (event) {
-        var row = event.target && event.target.closest
-          ? event.target.closest("tr.kmrow[data-edge], tr.kmchild[data-edge]") : null;
-        var key = row ? VA.elementKey("edge", row.getAttribute("data-edge")) : null;
-        if (key && !(preview && preview.records[key])) key = null;
-        if (key !== resultsHotKey) setPreviewHot("results", key);
-      });
-      nodes.detail.addEventListener("mouseleave", function () {
-        if (resultsHotKey) setPreviewHot("results", null);
-      });
-    }
     if (!nodes.pane || !nodes.pane.addEventListener) return;
     var down = null;
     nodes.pane.addEventListener("pointerdown", function (event) {
@@ -1794,7 +1778,7 @@
 
   function paneHoverTarget(node) {
     var row = node && node.closest
-      ? node.closest('tr.kmrow[data-edge], [data-row-kind="edge"][data-id]') : null;
+      ? node.closest('[data-row-kind="edge"][data-id]') : null;
     if (!row) return null;
     var edge = row.getAttribute("data-edge");
     if (edge) {
@@ -2681,6 +2665,11 @@
     // right-hand pane (2026-10-28). A study whose topology the projection does
     // not carry has no model to draw.
     var showDag = showTopology || (showKinematic && !!topoProj);
+    var kinematicStack = showKinematic && topoProj
+      ? VA.kinematicStack(kinematicStudy, topoProj, state.kinematicStop,
+          state.kinematic && state.kinematic.display_decimals,
+          VA.readSubStackFolds(widthStore(), state.kinematicId))
+      : null;
 
     nodes.toolbar.style.display = showDag ? "" : "none";
     nodes.topojoint.style.display = showTopology ? "" : "none";
@@ -2761,7 +2750,12 @@
         },
         subStacks: showKinematic ? VA.kinematicSubStacks(kinematicStudy,
           state.kinematic && state.kinematic.display_decimals) : null,
-        openSubStacks: state.openSubStacks,
+        // The kinematic page's grid: its stack at the chosen stop
+        // (VA.kinematicStack), folded as this reader left it. The DAG's dashed
+        // field for a sub-study and the grid's header row for it read the one
+        // open state (`openSubStacks`, off the stack) and write the one store.
+        stack: kinematicStack,
+        openSubStacks: VA.stackOpenMap(kinematicStack),
         onToggleSubStack: toggleSubStack,
         // The same config the stack pane and the popovers get: since the
         // preview pane started rendering the crop's links through the shared
@@ -2926,8 +2920,10 @@
           topologies: state.topologies,
           selection: state.selection,
           onEdge: onKinematicEdge,
-          openSubStacks: state.openSubStacks,
-          onToggleSubStack: toggleSubStack,
+          // Which stop the grid's stack is shown at, and the control that
+          // picks it.
+          stackStop: kinematicStack ? kinematicStack.stop.id : null,
+          onStackStop: function (stopId) { state.kinematicStop = stopId; render(); },
           annotateMount: state.annotateMount,
           onAttach3d: launchAnnotate,
           onCardShow: showCard,
@@ -3070,10 +3066,20 @@
   }
 
   // A kinematic page's sub-stack opened or closed, from the DAG's label or the
-  // table's group row: one map, one repaint, both surfaces follow.
-  function toggleSubStack(id) {
-    if (state.openSubStacks[id]) delete state.openSubStacks[id];
-    else state.openSubStacks[id] = true;
+  // grid's header row: the reader's choice for this study, remembered
+  // (VA.writeSubStackFolds), one repaint, both surfaces follow. `open` is the
+  // state asked for; absent, the opposite of what the page shows now.
+  function toggleSubStack(id, open) {
+    var study = VA.findKinematicStudy(state.kinematic, state.kinematicId);
+    if (!study) return;
+    var choices = VA.readSubStackFolds(widthStore(), study.id);
+    if (open === undefined) {
+      var shown = VA.stackOpenMap(VA.kinematicStack(study, currentTopology(),
+        state.kinematicStop, state.kinematic && state.kinematic.display_decimals, choices));
+      open = !shown[id];
+    }
+    choices[id] = !!open;
+    VA.writeSubStackFolds(widthStore(), study.id, choices);
     render();
   }
 

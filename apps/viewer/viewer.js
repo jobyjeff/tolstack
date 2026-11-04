@@ -84,6 +84,17 @@
     no_source_ref: "NO CITATION",
   });
 
+  // What each confidence chip means, in a reader's words: the grid's sourcing
+  // legend prints these beside the chips, and a chip's own hover says the same
+  // (the_kinematic_grid_is_a_stack_of_sub_stacks). Keyed by the same generated
+  // vocabulary, so a fifth confidence refuses to load until it has words.
+  VA.CONFIDENCE_WORDS = VOCAB.table("CONFIDENCES", {
+    traced: "read off a released drawing, datasheet or requirement",
+    inferred: "cited, but derived rather than read off the document",
+    untraced: "no document behind it yet; it is on the gap list",
+    no_source_ref: "no citation at all",
+  });
+
   // The confidences that mean *nothing readable stands behind this number*: it
   // traces to no drawing or datasheet, or carries no citation at all. The loud
   // pair, on purpose -- Jeff reviews sourcing as much as arithmetic, and an
