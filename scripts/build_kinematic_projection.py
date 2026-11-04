@@ -7,9 +7,10 @@ tolerance sensitivities; this script runs it over every
 * ``<data-root>/projections/viewer/kinematic/kinematic_studies.json``
   (schema ``joby.tolerance_stack/kinematic_projection/v0``) -- per study the
   envelope (every point's driver value, nominal measure, worst case and RSS,
-  the direct contributors only), each named stop's swept total, the envelope
-  there (``direct``) and where the stop is on x (``x_interval``), its ranked
-  contributor table, every contributor's coefficient
+  the direct contributors only), each named stop's own fold -- the linkage
+  terms at its pose plus its axial stack (``sub_stacks``) -- its ranked
+  contributor table, the range between two stops (``range``), every
+  contributor's coefficient
   at every point (``contributors[].by_point[]``), the check results, the
   sweep's ``run_id`` / ``pipeline_commit`` /
   ``max_finite_difference_disagreement``, and the gap rows with the drawings
@@ -108,8 +109,11 @@ from tolerance_stack.kinematic import (  # noqa: E402
     PointResult,
     check_at_stop,
     envelope,
+    RANGE_TERM_KINDS,
     fold_at_stop,
     load_kinematic_study,
+    range_between_stops,
+    rss_check_at_stop,
     study_ref_group,
 )
 
@@ -193,27 +197,40 @@ def project_point(point: PointResult) -> Dict[str, Any]:
     }
 
 
-def project_stop(study, sweep, stop) -> Dict[str, Any]:
-    """One stop: its verdict's interval at the top level, and what it is made of.
+#: The two sub-stacks every stop's band is made of, in the order they are
+#: projected. **This tuple is the definition**: ``linkage`` -- the direct
+#: contributors at the stop's pose (the envelope's own fold there);
+#: ``stop_position`` -- the stop's axial stack, the chain to its contact face,
+#: at the driver's Jacobian entry there.
+SUB_STACK_KINDS = ("linkage", "stop_position")
 
-    The top-level interval fields are the stop's **swept** fold
-    (``kinematic.fold_at_stop``: the envelope there swept over the stop's own
-    x-interval) -- what its check reads and its readout prints. ``direct`` is
-    the envelope's own interval at the stop's point (the same row as
-    ``envelope[index]``); ``x_interval`` is where the stop is, in the driver's
-    unit, about its driver value, and ``driver_entry`` the Jacobian entry that
-    turns it into degrees there. ``groups`` are the study_refs reaching this
-    stop, each leaf a term of the one fold, never the sub-study's interval;
-    a group with ``x_offset`` is a ref on the driver that moves this stop.
+
+def project_stop(study, sweep, stop) -> Dict[str, Any]:
+    """One stop: its fold at the top level, and the two sub-stacks it is made of.
+
+    The top-level interval fields are the stop's own fold
+    (``kinematic.fold_at_stop``: the linkage terms at its pose plus its axial
+    stack) -- what its check reads and its readout prints. ``sub_stacks``
+    splits it: the ``linkage`` sub-stack is the envelope's own interval at the
+    stop's point (the same row as ``envelope[index]``), the ``stop_position``
+    sub-stack the axial stack's leaves in the measure's unit, with
+    ``position`` (the same leaves in the driver's unit) and ``driver_entry``
+    (the slope that turns one into the other). ``groups`` are the study_refs
+    reaching this stop, each leaf a term of the one fold, never the
+    sub-study's interval; a leaf another stop's stack also holds carries
+    ``shared_with_other_stop``.
     """
     at_stop = fold_at_stop(study, sweep, stop.id)
-    point = at_stop.point
-    offset_groups = []
-    for group in at_stop.offset.groups:
+    point, stack = at_stop.point, at_stop.stack
+    stack_groups = []
+    for group in stack.groups:
         projected = group.as_dict()
-        projected["x_offset"] = True
+        projected["stop_position"] = True
         projected["gap"] = group.ref.gap
-        offset_groups.append(projected)
+        for child in projected["children"]:
+            child["shared_with_other_stop"] = child["edge"] in stack.shared
+        stack_groups.append(projected)
+    stack_terms = sum(len(g.ref.terms) for g in stack.groups)
     return {
         "id": stop.id,
         "label": stop.label,
@@ -221,12 +238,51 @@ def project_stop(study, sweep, stop) -> Dict[str, Any]:
         "context_ref": stop.context_ref,
         **project_point(point),
         **rounded(at_stop.interval.as_dict()),
-        "direct": rounded(point.interval.as_dict()),
-        "x_interval": rounded(at_stop.offset.interval.as_dict()),
-        "driver_entry": at_stop.offset.entry,
+        "driver_entry": stack.entry,
         "gap_count": point.gap_count,
         "rows": [row.as_dict() for row in point.rows],
-        "groups": [group.as_dict() for group in point.groups] + offset_groups,
+        "groups": [group.as_dict() for group in point.groups] + stack_groups,
+        "sub_stacks": [
+            {"kind": SUB_STACK_KINDS[0], "term_count": sum(1 for r in point.rows if r.term),
+             **rounded(point.interval.as_dict())},
+            {"kind": SUB_STACK_KINDS[1], "term_count": stack_terms,
+             "studies": [g.ref.study_id for g in stack.groups],
+             "shared": list(stack.shared),
+             "position": rounded(stack.position.as_dict()),
+             **rounded(stack.interval.as_dict())},
+        ],
+    }
+
+
+def project_range(study, sweep) -> Optional[Dict[str, Any]]:
+    """The range between a two-stop study's stops, or ``None``.
+
+    ``nominal_measure`` is the two sweep nominals' difference; the interval fields
+    are the range's variation; ``terms`` says, per physical term, what it
+    reaches at each stop and what is left of it in the range (``magnitude``),
+    and ``cancelled`` sums that per kind for the terms the two stops share.
+    """
+    result = range_between_stops(study, sweep)
+    if result is None:
+        return None
+    cancelled = []
+    for kind in RANGE_TERM_KINDS:
+        shared = [t for t in result.terms if t.kind == kind and t.shared]
+        if shared:
+            cancelled.append({
+                "kind": kind, "count": len(shared),
+                "at_high": sum(t.as_dict()["at_high"] for t in shared),
+                "at_low": sum(t.as_dict()["at_low"] for t in shared),
+                "residual": sum(t.magnitude for t in shared)})
+    return {
+        "high": result.high.stop.id, "low": result.low.stop.id,
+        **rounded(result.interval.as_dict()),
+        # The sweep's own nominals' difference, beside the variation fold
+        # (whose `nominal` is the 0.0 its bands are authored about).
+        "nominal_measure": result.nominal.nominal,
+        "terms": [t.as_dict() for t in result.terms],
+        "cancelled": cancelled,
+        "complete": not (result.high.open_refs or result.low.open_refs),
     }
 
 
@@ -255,9 +311,10 @@ def project_study_refs(study, sweep, points: Sequence[PointResult]) -> List[Dict
 
     ``completeness`` is the sub-study's own, derived there; ``total`` is its
     own published interval, carried to be read beside the result and never
-    folded here. A ref on the driver (``applies_to``) enters no point's fold;
-    its leaves' coefficients here are what they WOULD be at each point, the
-    curve a hover reads, and are folded only at the stops it applies to.
+    folded here. A ref in a stop's axial stack (``stops``) enters no point's
+    fold; its leaves' coefficients here are what they WOULD be at each point,
+    the curve a hover reads, and are folded only at the stops whose stack
+    holds it.
     A declared gap (``gap``) has no leaves and no ``total``.
     """
     out = []
@@ -277,7 +334,7 @@ def project_study_refs(study, sweep, points: Sequence[PointResult]) -> List[Dict
             "study": ref.study_id, "topology": ref.topology, "title": ref.title,
             "parameter": ref.parameter, "units": ref.units, "note": ref.note,
             "source_file": ref.source_file, "completeness": ref.completeness,
-            "applies_to": list(ref.applies_to), "gap": ref.gap,
+            "stops": list(ref.stops), "gap": ref.gap,
             "total": rounded(ref.total.as_dict()) if ref.total is not None else None,
             "entries": [{"index": p.index, "entry": g.entry, "sign": g.sign}
                         for p, g in zip(points, groups)],
@@ -355,7 +412,7 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path,
                  "drawings": gap_drawings(raw_topology, c.edge, drawing_names)}
                 for c in study.contributors if c.is_gap]
     gap_rows += [{"edge": None, "study": r.study_id, "title": r.title, "gap": r.gap,
-                  "applies_to": list(r.applies_to), "band_source": {"kind": "gap"},
+                  "stops": list(r.stops), "band_source": {"kind": "gap"},
                   "drawings": []}
                  for r in study.study_refs if r.gap]
     bands = [c.dimension for c in study.contributors if c.dimension is not None]
@@ -364,8 +421,11 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path,
     for spec in study.checks:
         projected = rounded_check(check_at_stop(study, sweep, spec["check_id"]))
         counts = count_confidence(bands)
+        rss = rss_check_at_stop(study, sweep, spec["check_id"])
         projected.update({"stop": spec["configuration"]["stop"],
                           "limit": spec.get("limit"),
+                          "bound": spec.get("bound"),
+                          "rss_margin": rounded({"m": rss.min})["m"],
                           "context_ref": spec.get("context_ref"),
                           "input_confidence": counts,
                           "worst_confidence": worst_confidence(counts)})
@@ -386,6 +446,7 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path,
         "gap_rows": gap_rows,
         "envelope": [project_point(p) for p in points],
         "stops": [project_stop(study, sweep, s) for s in study.stops],
+        "range": project_range(study, sweep),
         "contributors": project_contributors(study, points),
         "study_refs": project_study_refs(study, sweep, points),
         "checks": checks,
@@ -620,11 +681,20 @@ def render_svg(row: Dict[str, Any], tokens: Dict[str, str]) -> str:
     pw, ph = W - left - right, H - top - bottom
     env = row["envelope"]
     units = row.get("units") or ""
-    limits = sorted({float(c["limit"]["value"]) for c in row["checks"] if c.get("limit")})
+    # A spread limit (no `bound`) is drawn as +/- lines; a reach bound is a
+    # tick at its own stop, where its distance from that stop's nominal lies.
+    limits = sorted({float(c["limit"]["value"]) for c in row["checks"]
+                     if c.get("limit") and not c.get("bound")})
+    stops = {s["id"]: s for s in row["stops"]}
+    bounds = [(stops[c["stop"]], float(c["limit"]["value"]) - stops[c["stop"]]["nominal_measure"])
+              for c in row["checks"] if c.get("limit") and c.get("bound")]
     xs = [p["driver_value"] for p in env]
     x0, x1 = min(xs), max(xs)
     reach = max([abs(p["worst_case_min"]) for p in env]
-                + [abs(p["worst_case_max"]) for p in env] + limits + [1e-9])
+                + [abs(p["worst_case_max"]) for p in env] + limits
+                + [abs(s["worst_case_min"]) for s in row["stops"]]
+                + [abs(s["worst_case_max"]) for s in row["stops"]]
+                + [abs(dy) for _, dy in bounds] + [1e-9])
     y1 = reach * 1.15
     y0 = -y1
 
@@ -694,19 +764,25 @@ def render_svg(row: Dict[str, Any], tokens: Dict[str, str]) -> str:
         dx = 6 if anchor == "start" else -6
         out.append(f'<line x1="{x:.2f}" x2="{x:.2f}" y1="{top}" y2="{top + ph}" '
                    f'stroke="{t["--muted"]}" stroke-width="1"/>')
-        # The dots sit on the envelope (the stop's direct interval); the label
-        # prints the stop's swept total, which a travel band can widen.
-        direct = stop.get("direct") or stop
-        label_y = Y(direct["worst_case_max"]) - 26
-        for edge in ("worst_case_max", "worst_case_min"):
-            out.append(f'<circle cx="{x:.2f}" cy="{Y(direct[edge]):.2f}" r="3.5" '
-                       f'fill="{t["--ink"]}"/>')
+        # The stop is a point at its nominal x with a vertical error bar: worst
+        # case thin, RSS heavier inside it -- the stop's own fold, not the
+        # envelope's, which holds the linkage terms only.
+        label_y = Y(stop["worst_case_max"]) - 26
+        out.append(f'<line x1="{x:.2f}" x2="{x:.2f}" y1="{Y(stop["worst_case_min"]):.2f}" '
+                   f'y2="{Y(stop["worst_case_max"]):.2f}" stroke="{t["--ink"]}" stroke-width="1.5"/>')
+        out.append(f'<line x1="{x:.2f}" x2="{x:.2f}" y1="{Y(stop["rss_min"]):.2f}" '
+                   f'y2="{Y(stop["rss_max"]):.2f}" stroke="{t["--ink"]}" stroke-width="4"/>')
+        out.append(f'<circle cx="{x:.2f}" cy="{Y(0):.2f}" r="3.5" fill="{t["--ink"]}"/>')
         out.append(f'<text x="{x + dx:.2f}" y="{label_y:.2f}" text-anchor="{anchor}" '
                    f'fill="{t["--ink"]}" font-size="{t["--t-meta"]}">'
                    f'{_esc(stop["label"])}</text>')
         out.append(f'<text x="{x + dx:.2f}" y="{label_y + 15:.2f}" text-anchor="{anchor}" '
                    f'fill="{t["--muted"]}" font-size="{t["--t-micro"]}">'
                    f'±{stop["worst_case_half"]:.3f} worst · ±{stop["rss_half"]:.3f} RSS</text>')
+    for stop, dy in bounds:
+        x = X(stop["driver_value"])
+        out.append(f'<line x1="{x - 10:.2f}" x2="{x + 10:.2f}" y1="{Y(dy):.2f}" y2="{Y(dy):.2f}" '
+                   f'stroke="{t["--fail"]}" stroke-width="1.5" stroke-dasharray="3 2"/>')
     out.append(f'<rect x="{left}" y="{top}" width="{pw}" height="{ph}" fill="none" '
                f'stroke="{t["--line"]}"/>')
     out.append("</svg>")

@@ -926,7 +926,7 @@
         "gas_spring_mount_213668_002"
       ],
       "kind": "mating_surface",
-      "note": "The feather (72 deg) hard stop and the datum of the end-stop analysis: the lower head's lower face resting on the mount's end-stop surface. Settled 2026-10-20 against Jeff's section of the gas spring at 72 deg (docs/sessions/shots_20261020_strategy_stop_face/): the head stack sits at the bottom, on the mount's face, and the gap that is the travel is ABOVE the heads, up to the cover's internal shoulder. Until then this node read 'against the cover end stop'; the cover owns the other stop, not this one. 214699-002 A gives this face a flatness callout (0.05) and a parallelism callout, and no length. On the mesh, face 7 of `asm217755_214699_002` (normal -Z, z 234.169 in the part frame) is a plain plane: fit residual 0. The mount side is face 1080 of `machined_213668`."
+      "note": "The feather (72 deg) hard stop and the datum of the end-stop analysis: the lower head's lower face resting on the mount's end-stop surface. Settled 2026-10-20 against Jeff's section of the gas spring at 72 deg (docs/sessions/shots_20261020_strategy_stop_face/): the head stack sits at the bottom, on the mount's face, and the gap that is the travel is ABOVE the heads, up to the cover's internal shoulder. Until then this node read 'against the cover end stop'; the cover owns the other stop, not this one. 214699-002 A gives this face a flatness callout (0.05) and a parallelism callout, and no length. On the mesh, face 7 of `asm217755_214699_002` (normal -Z, z 234.169 in the part frame) is a plain plane: fit residual 0. The mount side is face 1080 of `machined_213668`. Since 2026-11-03 (handoff each_stop_is_its_own_stack, Jeff's ruling the same day) this face is also where the lower head seats on the piston body's shoulder, one plane (the worksheet's face order); that seat is its own interface, `piston_body_head_seat`, one flatness away, so at the feather stop the plate sits the body's shoulder-to-flange length above the mount's end-stop surface and the two heads' thicknesses do not enter."
     },
     {
       "id": "piston_heads_seat",
@@ -1308,6 +1308,34 @@
       "parts": ["bolt_nas6404u13d"],
       "kind": "datum_feature",
       "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a). Not a mate: it is where the thread run-out begins."
+    },
+    {
+      "id": "piston_body_top_face",
+      "name": "piston body top face, inside the upper head's recess",
+      "parts": [
+        "gas_spring_piston_214700_002"
+      ],
+      "kind": "datum_feature",
+      "note": "The body's +Z end face (face 1 of `asm217755_214700_002`, part Z 239.169), 0.100 below the upper head's recess floor, so it touches nothing (the worksheet's face order). It is here because 214700-002 A dimensions the body from it: 113.67 to the flange and 5.00 +/-0.05 to the shoulder."
+    },
+    {
+      "id": "piston_body_plate_flange",
+      "name": "piston body flange face (214700-002 datum A), bolted to the pitch plate",
+      "parts": [
+        "gas_spring_piston_214700_002"
+      ],
+      "kind": "datum_feature",
+      "note": "The face the piston body bolts to the pitch plate with (5X 4.900 holes in VIEW C-C of 214700-002 A; the flange face is datum A). A datum feature of the body, not an interface with the plate: no edge here dimensions the plate from it, and the body is one rigid body with the plate (`bodies`). On the mesh, face 109 of `asm217755_214700_002` (-Z, part Z 125.500). The plate's own geometry from here to its link hole is a linkage term of the kinematic study (pitch_plate_attach_height), not part of a stop's axial stack."
+    },
+    {
+      "id": "piston_body_head_seat",
+      "name": "lower piston head lower face on the piston body's shoulder",
+      "parts": [
+        "piston_head_lower_214699_002",
+        "gas_spring_piston_214700_002"
+      ],
+      "kind": "mating_surface",
+      "note": "The lower head seats on the body's shoulder (face 168 of `asm217755_214700_002`, +Z, part Z 234.169) with the same lower face it rests on the mount with at the feather stop (`endstop_feather_contact`): two interfaces on one face, whose offset is that face's flatness (`piston_head_lower_face_flatness`). Added 2026-11-03, handoff each_stop_is_its_own_stack."
     }
   ],
   "edges": [
@@ -1912,7 +1940,7 @@
       "name": "gas-spring mount datum A to its top face, the feather-direction stop",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
-      "from": "gas_spring_mount_hub_face",
+      "from": "tan_link_mount_gas_spring_seat",
       "to": "endstop_feather_contact",
       "dimension": {
         "id": "gas_spring_mount_datum_a_to_end_stop",
@@ -1964,7 +1992,7 @@
           "note": "Read by eye off the run's `page_1.png`, SECTION C-C, on 2026-10-22: the run extracted no dimensions (drawing-checker/docs/issues/ISSUE_20261022_the_gas_spring_mount_run_extracted_no_dimensions_from_sheets_that_print_many.md). Datum A is the part's wide base face (the flatness 0.1 frame on the side view carries it); this edge reads that face as `gas_spring_mount_hub_face`, the face the mount bolts to the hub by, which is a reading of the views and not a callout. The top face is where the feather-direction end stop hits (Jeff, forge note 20261020T171900_km22z6 (2026-10-20)). Recorded as a fact of the part, NOT a term of the end-stop travel study: Jeff, forge note 20261020T171900_km22z6 (2026-10-20), 'One option would be to add another tolerance from A-datum to piston cover mount flange, this would improve the absolute flat pitch end stop accuracy but lengthen the stack for total travel. Probably better to directly constrain the 8.667mm dimension since total travel is what is controlled in the ATS.'"
         }
       },
-      "note": "A real dimension of 213668-002 that no study selects. It closes a ring with the mount's other two edges (base face to cover seat, which carries no value, and cover seat to end stop), so a study that selected all three would be refused, which is correct: they are one part's three faces, and the travel chain wants only the cover-seat-to-stop length."
+      "note": "A real dimension of 213668-002: datum A, the mount's base face, to its top face, where the feather-direction stop hits (Jeff). Re-anchored 2026-11-03 (handoff each_stop_is_its_own_stack) from `gas_spring_mount_hub_face` to `tan_link_mount_gas_spring_seat`: the mount's datum A seats on the tangential link mount (Jeff, 2026-11-03: 'if the hub (blade root bore to tan link mount surface) or tan link mount thickness changes, then both housing end stops move the same amount'), which is the face `tan_link_mount_overall_height` reaches, so the feather stop's axial stack can walk from the hub through both mounts. The face is the same mount face it was, so a binding of this edge's `from` end is unchanged. `gas_spring_mount_hub_face` still says the mount bolts to the hub (the pre-2026-10 reading); that node is the open question, not this edge. The travel chain does not select this edge: it wants only the cover-seat-to-stop length."
     },
     {
       "id": "hub_lower_to_top_bearing_flange",
@@ -3092,6 +3120,126 @@
       "from": "bushing_far_face",
       "to": "shank_full_dia_end_vpa_out",
       "note": "A DERIVED gap: it carries no dimension because it is the quantity a study computes, not one that is measured. Study `vpa_output_shank_out` names it in `closes`. Negative at the minimum means the thread run-out is pulled inside the joint; positive at the maximum means full-diameter shank protrudes past the nut face -- the referenced stack's own guidance."
+    },
+    {
+      "id": "piston_body_shoulder_to_top",
+      "name": "piston body shoulder to top face",
+      "kind": "structural",
+      "part": "gas_spring_piston_214700_002",
+      "from": "piston_body_head_seat",
+      "to": "piston_body_top_face",
+      "note": "Authored in +Z. The shoulder the lower head seats on (`piston_body_head_seat`) to the body's top face. Mesh: 239.169 - 234.169 = 5.000, the callout's nominal.",
+      "dimension": {
+        "id": "piston_body_shoulder_to_top",
+        "name": "piston body shoulder to top face",
+        "nominal": 5.0,
+        "min": 4.95,
+        "max": 5.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "214700-002-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": null,
+          "view": "SECTION A-A",
+          "callout": "5.00 ±0.05",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214700-002-A.pdf",
+            "sha256": "795b557ed1fa29123f3fb785274e19efb3a66ee580361d206bf56e970775d9f2",
+            "runs": [
+              {
+                "run_id": "20260904_181232_214700-002-A",
+                "ts": "2026-09-05T01:12:55.159701+00:00"
+              }
+            ],
+            "note": "Read 2026-11-03 off the run's page_2.png render (SECTION A-A), handoff each_stop_is_its_own_stack; the run recorded the sheet's notes and no dimensions, so the callout was read by eye."
+          },
+          "confidence": "traced",
+          "note": "214700-002 A sheet 2, SECTION A-A: 5.00 ±0.05 between the step at the body's +Z end and its end face -- a dimension with its own tolerance."
+        }
+      }
+    },
+    {
+      "id": "piston_body_flange_to_top",
+      "name": "piston body flange to top face",
+      "kind": "structural",
+      "part": "gas_spring_piston_214700_002",
+      "from": "piston_body_plate_flange",
+      "to": "piston_body_top_face",
+      "note": "Authored in +Z: the flange face on the plate (datum A) to the top face. Mesh: 239.169 - 125.500 = 113.669, the callout's 113.67. The same printed 113.67 that the legacy `piston_length` edge (vpa_piston, between the pitch-system era's nodes, about 0) cites; that edge is not on this chain, and the pair is filed (docs/issues/ISSUE_20261103_the_piston_body_113_67_is_cited_by_two_edges.md).",
+      "dimension": {
+        "id": "piston_body_flange_to_top",
+        "name": "piston body flange to top face",
+        "nominal": 113.67,
+        "min": 113.57,
+        "max": 113.77,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "214700-002-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": null,
+          "view": "SECTION A-A",
+          "callout": "113.67 (no tolerance printed); sheet 1 general-tolerance block X.XX = ±0.10",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214700-002-A.pdf",
+            "sha256": "795b557ed1fa29123f3fb785274e19efb3a66ee580361d206bf56e970775d9f2",
+            "runs": [
+              {
+                "run_id": "20260904_181232_214700-002-A",
+                "ts": "2026-09-05T01:12:55.159701+00:00"
+              }
+            ],
+            "note": "Read 2026-11-03 off the run's page_2.png render (SECTION A-A), handoff each_stop_is_its_own_stack; the run recorded the sheet's notes and no dimensions, so the callout was read by eye."
+          },
+          "confidence": "inferred",
+          "note": "The overall length is printed with no tolerance of its own, so the sheet's general-tolerance block for a two-place callout applies -- the same derivation, and the same `inferred`, as `piston_length` (SOP CONFIDENCES: derived from something traced, the derivation written down)."
+        }
+      }
+    },
+    {
+      "id": "piston_head_lower_face_flatness",
+      "name": "lower piston head lower face, mount contact to body seat",
+      "kind": "structural",
+      "part": "piston_head_lower_214699_002",
+      "from": "endstop_feather_contact",
+      "to": "piston_body_head_seat",
+      "note": "Nominally zero: one face of the lower head carries both contacts. The face's flatness bounds how far the region resting on the mount and the region seated on the body's shoulder can sit apart, read as +/-w/2 like a profile zone (the SOP's 'What a term cites when its drawing does not band it').",
+      "dimension": {
+        "id": "piston_head_lower_face_flatness",
+        "name": "lower piston head lower face flatness, as an offset",
+        "nominal": 0.0,
+        "min": -0.025,
+        "max": 0.025,
+        "plus_minus": 0.025,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "214699-002",
+          "revision": "A",
+          "sheet": 1,
+          "zone": null,
+          "view": "SECTION A-A",
+          "callout": "⏥0.05",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214699-002-A.pdf",
+            "sha256": "3960b56f05d0450e6b971c2c7a31fafb126ce965a9f64623a6cd82ccf9e21a6d",
+            "runs": [
+              {
+                "run_id": "20261020_134300_214699-002-A",
+                "ts": "2026-10-20T20:43:13.096539+00:00"
+              }
+            ],
+            "note": "The run's own run_meta.json records this sha256 as its input, and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-20). Read-only: nothing was written into drawing-checker."
+          },
+          "confidence": "inferred",
+          "note": "drawing-checker run 20261020_134300_214699-002-A, `214699-002_A_p01.json`, fcf, view_id `214699-002-A.pdf::p1`, bbox [347.02, 563.9, 394.61, 580.05], raw `⏥0.05`: the flatness of the lower face. A form tolerance, not a length, so the offset it allows between two regions of the face is a reading: +/-0.025, half the zone, hence `inferred`."
+        }
+      }
     }
   ],
   "notes": [
@@ -3108,6 +3256,6 @@
     "(pitch_system) LOAD CASES have no home in v0, and the ring-gear branch is where that bites: per the brief it participates cyclically and follows along for pure collective, so a collective study should exclude it and a cyclic study should not. Today that distinction lives in which edges a human puts in `selection`, which works and is unlabelled. If it needs a name, a study-level `configuration` block (the stack schema already has one on checks) is the cheap shape.",
     "(pitch_system) WHAT THIS TOPOLOGY CANNOT REPRODUCE, stated so nobody assumes it can. The source sheet applies a diameter-MMC weighting factor built from the two blade-root bearing radii to three of its rows (17, 19, 20), and derives its largest single contributor (row 68, gas-spring bushing tipping backlash, 0.72 deg) from a radial clearance and two lever arms. Neither is expressible with one ratio per edge. That is a schema finding, not an oversight: it says the next transform kind is a weight computed from `properties`, and it says the brief's 'the pitch-system L2 case should be able to represent that workbook's structure' is true of the structure and not yet true of the arithmetic.",
     "(pitch_system) The full 43-row import of that workbook is deliberately NOT done. The brief calls it 'a sanity check of the schema, not a required import', and it has served as one: the four findings above all came out of trying. What is here is the brief's named structure carrying a representative band per edge.",
-    "The graph: 35 parts, 76 interfaces, 96 edges, 23 branch points, 25 grounded loops, 17 gap edges. Five components: the mechanism, and the four fastener grip stacks folded in on 2026-10-27, each a bolt's own grip loop with no edge to the mechanism."
+    "The graph: 35 parts, 79 interfaces, 99 edges, 24 branch points, 25 grounded loops, 17 gap edges. Five components: the mechanism, and the four fastener grip stacks folded in on 2026-10-27, each a bolt's own grip loop with no edge to the mechanism."
   ]
 }
