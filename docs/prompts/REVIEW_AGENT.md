@@ -5400,6 +5400,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `docs/ANNOTATION_SURFACE.md` as well as in the README the author fixed.
       `git grep -n "<part id>\|<drawing no>"` over `docs/` and the topology
       notes.
+- [ ] **A topology or builder change whose review leaves the viewer `[real]`
+      tier "for the batch-merge rebuild" puts `integration` red, and the next
+      review is the first to see it.** New 2026-11-03
+      (`a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there`). The
+      slide re-author's review listed the viewer and annotate `[real]` tiers
+      under "Not run". Built into a scratch root, that tier was **623/629** on
+      `integration` alone: four layout pins, one node declaring a part no
+      incident edge carries, and fixture drift
+      (`ISSUE_20261103_the_slide_re_author_leaves_six_viewer_real_checks_red_on_integration.md`).
+      The scratch-root recipe under "The two traps" costs about ten minutes, and
+      a `docs/topologies/` diff should not merge without it. When **your**
+      merged tree is red there, re-run the same tier from a
+      `git archive integration` export against the same scratch root before
+      you charge the reds to the diff.
 
 ## Architectural errors to check
 

@@ -83,3 +83,10 @@ fix above (record the runner's own clock) covers this case too.
 ## Addendum 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
 
 `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack`, from the handoff worktree: 2684 s wall as recorded (`suite-time record`: OVER BUDGET by 14m44s), of which the runner itself reports `38/50 witnessed, 50/57 reached in 30m32s; 7 left to the sweep` -- the rest was the queue behind two other agents holding the browser slot. 12 NOT WITNESSED were one suite red with no mutation applied ("3D pane follows the selection"); the one left-over spec of this handoff was re-checked with `--only`: witnessed.
+
+## Addendum 2026-11-03 (review of a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
+
+Measured 2934 s wall for `--changed-since integration` against a scratch root.
+The runner reports `51/57 reached in 29m55s`. The difference, about 19 min, is
+the queue for the browser slot behind this review's own browser tier. It was
+recorded as 18m54s over budget.
