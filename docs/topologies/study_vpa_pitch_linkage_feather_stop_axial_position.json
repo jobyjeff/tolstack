@@ -1,0 +1,28 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "vpa_pitch_linkage_feather_stop_axial_position",
+  "title": "Plate position at the feather stop",
+  "description": "Where the pitch plate's piston-body flange sits along the spindle axis when the pitch system rests on the feather (+72 deg) hard stop, from the tangential link mount's hub face: the tangential link mount's height, the gas-spring mount's datum A to its end-stop surface, the lower head's lower face to the body's shoulder, and the body from its shoulder to its flange. Its band is what a stop-position term of the blade-pitch study reads; its nominal total is not a coordinate (two of its edges are authored about 0).",
+  "topology": "vpa_pitch_linkage",
+  "from": "tan_link_mount_hub_face",
+  "to": "piston_body_plate_flange",
+  "selection": [
+    "tan_link_mount_overall_height",
+    "gas_spring_mount_datum_a_to_end_stop",
+    "piston_head_lower_face_flatness",
+    "piston_body_shoulder_to_top",
+    "piston_body_flange_to_top"
+  ],
+  "no_checks_reason": "A position along the spindle axis has no requirement of its own: S461-261 bounds the blade pitch this position produces, and the blade-pitch study checks that, at the stop, with this study's terms inside it.",
+  "provenance": {
+    "authored_by": "handoff each_stop_is_its_own_stack, 2026-11-03",
+    "structure_source": "Jeff, 2026-11-03: 'if the hub (blade root bore to tan link mount surface) or tan link mount thickness changes, then both housing end stops move the same amount ... Because we agreed that the hard datum was the feather end stops contacting, all of that should fall out of the kinematic tolerance stack.' Which faces carry the contact: Jeff's ruling of 2026-11-03 (asked in this handoff's session) that the heads move the plate at the low stop and not at the feather stop, because the lower head's lower face seats on the piston body's shoulder in the plane it rests on the mount with (docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md, section 2).",
+    "ground": "The tangential link mount's hub face. The hub between it and the blade-root bearing bores is not authored: it is the declared gap `vpa_pitch_linkage_hub_to_feather_stop` beside this study in both stops' axial stacks.",
+    "worksheet": "docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md"
+  },
+  "notes": [
+    "The walk, in +Z from the hub: tan_link_mount_overall_height (215198 79.00 +/-0.10, authored seat -> hub face, so walked against), gas_spring_mount_datum_a_to_end_stop (213668-002 76.86 +/-0.10, with), piston_head_lower_face_flatness (214699-002 flatness 0.05 as +/-0.025, with), piston_body_shoulder_to_top (214700-002 5.00 +/-0.05, with) and piston_body_flange_to_top (214700-002 113.67, general tolerance +/-0.10, walked against: down from the top to the flange).",
+    "Left out, with reasons. gas_spring_mount_position (213668-002's position frame read as +/-0.1) is named in the handoff's ground chain, but its own citation says which feature that frame controls is not establishable, and it ends on `gas_spring_mount_flange`, which no face of this walk reaches: a stub, so the walk would refuse it. The two piston heads' thicknesses are not here: at the feather stop the head stack's reference is the body's shoulder, so they move only the far stop's contact (the travel study, which the low stop's axial stack adds to this one).",
+    "Variation is what is read. tan_link_mount_overall_height is authored about 0 (the pitch-system era's convention), so this study's nominal total is not the flange's Z coordinate. Every band here is symmetric, so a walk sign changes no magnitude."
+  ]
+}
