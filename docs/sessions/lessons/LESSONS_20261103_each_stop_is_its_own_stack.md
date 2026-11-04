@@ -219,7 +219,7 @@ too, and is gitignored.
 ## Verification record
 
 Run from this worktree, on the committed tree. The data tiers ran against the
-scratch root `C:\workspace	olstack\data\scratch\each_stop`. Topology,
+scratch root `C:\workspace\tolstack\data\scratch\each_stop`. Topology,
 viewer, crops (drawing-checker's venv) and kinematic projections were rebuilt
 there from this branch BEFORE the tiers. `inbox/`, `meshes/`, four projection
 dirs, `node_modules` and `venv-win` were read-only junctions, and the
