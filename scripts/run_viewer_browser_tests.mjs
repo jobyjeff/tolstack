@@ -6669,6 +6669,16 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
     await shot("1_sweep_frame_1.png");
     await exec(["seek", "#40"]);
     await shot("2_sweep_frame_41.png");
+    // ...and the as-modelled frame, where the spindle joint sits at the
+    // assembly origin (coaxial_ends_share_one_3d_node's before/after pair).
+    if (MODEL_SCENE_SHOTS) {
+      const asModelled = await inPane((w) => w.AnnotateApp.sweepAsModelledIndex(w.__sweep.artifact));
+      if (asModelled !== null) {
+        await exec(["seek", "#" + asModelled]);
+        await shot("5_as_modelled.png");
+        await exec(["seek", "#0"]);
+      }
+    }
 
     // --- 4. the lit set, and the shell's dim-or-hide word -------------------
     // Embedded, the shell speaks first: it posts its own lit set when the
@@ -12935,13 +12945,15 @@ async function testSeamLeaders(browser, label, topologies) {
         const e = p.getPointAtLength(p.getTotalLength());
         ends[id] = [e.x, e.y];
       }
-      return { ends, leaders: draw ? draw.leaders.map((l) => l.id) : [] };
+      // The members the DAG lights (a dot a leader starts from).
+      const lit = members.filter((id) => VA.lastTopoRender.seam.dots[id]);
+      return { ends, lit, leaders: draw ? draw.leaders.map((l) => l.id) : [] };
     }, joint ? joint.members : []);
     const fanEnds = Object.values(fan.ends);
     console.log(`      [${label}] P2 joint ${joint ? joint.members.join(" + ") : "-"}: leaders from ` +
       `${Object.keys(fan.ends).join(", ") || "-"} end at ${fanEnds.map((e) => e.map((v) => v.toFixed(1)).join(",")).join(" / ")}`);
-    push("[real] on P2 every lit member of the spindle joint that has a leader ends it at the ONE 3D dot",
-      joint && fanEnds.length >= 1 &&
+    push("[real] on P2 every lit member of the spindle joint has a leader, and every one ends at the ONE 3D dot",
+      joint && fanEnds.length >= 2 && fanEnds.length === fan.lit.length &&
       fanEnds.every((e) => Math.hypot(e[0] - fanEnds[0][0], e[1] - fanEnds[0][1]) <= 1));
     // The real pointer on the joint's dot.
     const aimJoint = joint ? await live.evaluate((id) => {

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] the spindle coaxiality pair is ONE dot in the scene, with no line between its ends",
+  "mutations": [
+    {
+      "contract": "The scene merges on the run's own joint features.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "A layer that never reads the solver's features merges nothing on P2.",
+      "file": "apps/annotate/app.js",
+      "find": "  const joints = AA.modelJointGroups(topology, features);",
+      "replace": "  const joints = AA.modelJointGroups(topology, {});"
+    }
+  ]
+}

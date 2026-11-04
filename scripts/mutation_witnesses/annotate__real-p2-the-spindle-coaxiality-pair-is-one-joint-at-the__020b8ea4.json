@@ -1,0 +1,31 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "[real] P2: the spindle coaxiality pair is one joint at the solver's slide axis; the link centres and the hinge stay their own nodes",
+  "mutations": [
+    {
+      "contract": "The distance threshold admits the solver's own slide.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Too tight: the spindle pair (4.7e-24 mm off axis on P2) stops merging.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "  AA.MODEL_JOINT_DISTANCE_MM = 1; // mm, a point off an axis or off a point",
+      "replace": "  AA.MODEL_JOINT_DISTANCE_MM = 1e-30; // mm, a point off an axis or off a point"
+    },
+    {
+      "contract": "The distance threshold keeps the link centres apart.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Too loose: the tangential link's two centres (61.5 mm) and the pitch link's (106 mm) merge.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "  AA.MODEL_JOINT_DISTANCE_MM = 1; // mm, a point off an axis or off a point",
+      "replace": "  AA.MODEL_JOINT_DISTANCE_MM = 200; // mm, a point off an axis or off a point"
+    },
+    {
+      "contract": "The angle threshold keeps crossing axes apart.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Too loose: the spindle and the blade hinge (90 deg, both through the origin) merge.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "  AA.MODEL_JOINT_ANGLE_DEG = 2;   // degrees between two axes",
+      "replace": "  AA.MODEL_JOINT_ANGLE_DEG = 91;   // degrees between two axes"
+    }
+  ]
+}
