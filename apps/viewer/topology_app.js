@@ -770,18 +770,6 @@
     }
   }
 
-  // A contributor row on the kinematic page selects its edge IN PLACE
-  // (2026-10-26): the page stays the kinematic study, the DAG beside it
-  // marks the edge, and the preview pane shows its citation and crop. The
-  // row's own href is still the `?topology=<id>&edge=<id>` deep link, for a
-  // reader who opens it in a new tab. With the 3D pane open the scene stays
-  // in sweep mode and the edge is highlighted there (followSelection).
-  function onKinematicEdge(topologyId, edgeId) {
-    if (topologyId !== state.topologyId) return;
-    hideCrop();
-    selectElement("edge", edgeId);
-  }
-
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
   // pure) owns VA.RAIL_METRICS.rowHeight, which the inline row heights and
   // the SVG geometry already read live; this is the other of the "three
@@ -2919,7 +2907,6 @@
           study: kinematicStudy,
           topologies: state.topologies,
           selection: state.selection,
-          onEdge: onKinematicEdge,
           // Which stop the grid's stack is shown at, and the control that
           // picks it.
           stackStop: kinematicStack ? kinematicStack.stop.id : null,
