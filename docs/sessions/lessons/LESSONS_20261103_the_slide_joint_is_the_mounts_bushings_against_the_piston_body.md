@@ -211,3 +211,27 @@ The studies' "bushing tipping" notes are still true and were left alone.
   They need the shared projections, and this branch did not write them. The
   one `[real]` pin this change moves (169→172 layout rows) was updated from
   the Python replica above.
+
+## Screenshots
+
+`docs/sessions/shots_20261103_the_slide_joint_is_the_mounts_bushings/` was
+taken by `tests/debug_slide_joint_shots.mjs` against the live server on
+8000. That server runs trunk's code and projections over the main checkout's
+data, so it already sees the mount's new sidecar. The four shots:
+
+- `1_kinematic_study_scene.png`: the kinematic study with the 3D pane open.
+- `2_base_body_rows.png`: the rows of the `base` body.
+- `3_mount_isolated.png`: **213668-002 drawn**, alone, at its recorded
+  occurrence, inside the linkage's joint lines at the hub seat. Before this
+  session it was drawn nowhere.
+- `4_joints.png`: meant to show the open joints group. The chip toggled and
+  the list did not open.
+
+What the shots cannot show yet:
+
+- **The rail's hub row reading "hub spindle bore axis".** The live
+  projection is trunk's. It appears after merge and
+  `scripts/rebuild_projections.ps1`.
+- **The slide listed with its ends on 213668-002 and 214700-002.** This also
+  waits on linkage
+  (`ISSUE_20261103_linkages_plate_slide_still_joins_the_hub_and_the_plate.md`).
