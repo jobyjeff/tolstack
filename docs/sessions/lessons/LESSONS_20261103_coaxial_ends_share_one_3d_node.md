@@ -134,3 +134,23 @@ blade node has a feature to merge on. I left it and recorded it in the issue.
 
 Recorded in the completion report: the full suite, the browser suites this
 change touches, and the mutation runs for the specs it added.
+
+### The record
+
+- `node apps/annotate/run_tests.cjs` (worktree; reads the main checkout's
+  runs): 274/274.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`: 630/630.
+- Browser, `--only "annotate model in the scene"`: 21/21. Browser,
+  `--only "leaders across the seam"`: 24/24.
+- `venv-win pytest -q` (worktree, single-process): 1687 passed, 1 failed,
+  1 skipped, 1192 s. The failure is the expected worktree-only
+  `test_viewer_js_suite` red, and its tier is green with `--repo`. That is
+  over the 10-minute budget, and I added an addendum to the open
+  `ISSUE_20261022_the_default_test_tier…`.
+- `run_mutation_witness_tests.mjs --changed-since integration`: 38 of the 39
+  entries it reached are witnessed, including every spec this change added
+  that the 30-minute cap reached. The cap left 19 to the sweep, among them
+  two of the new seam specs; I ran those suites green, unmutated. The one
+  unwitnessed entry is `nothing-above-produced-an-uncaught-error`, and the
+  reason is a pre-existing red: the nav-chip check is red on the untouched
+  integration tree too (addendum on `ISSUE_20261029_four_3d_pane_nav_gesture…`).
