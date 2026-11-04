@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_the_plus72_stop_is_the_travel_datum.md
 class: prose_budget_overrun
 defer_until: 2026-11-13
-resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program); strategy 2026-11-03: routed to HANDOFF_20261103_each_stop_is_its_own_stack (the stop-window handoff was withdrawn the same day after Jeff's ruling)
+resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program); strategy 2026-11-03: routed to HANDOFF_20261103_each_stop_is_its_own_stack (the stop-window handoff was withdrawn the same day after Jeff's ruling) -- handoff completed 2026-11-03 -- closed automatically by dispatch when handoff `each_stop_is_its_own_stack` moved to completed/; not independently verified.
 handoff: docs/sessions/HANDOFF_20261103_each_stop_is_its_own_stack.md
 ---
 
