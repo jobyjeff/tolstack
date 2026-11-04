@@ -218,4 +218,36 @@ too, and is gitignored.
 
 ## Verification record
 
-(filled in below, from the runs' own output)
+Run from this worktree, on the committed tree. The data tiers ran against the
+scratch root `C:\workspace	olstack\data\scratch\each_stop`. Topology,
+viewer, crops (drawing-checker's venv) and kinematic projections were rebuilt
+there from this branch BEFORE the tiers. `inbox/`, `meshes/`, four projection
+dirs, `node_modules` and `venv-win` were read-only junctions, and the
+worktree's `docs/` was junctioned in. The root was removed at hand-back.
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider`
+  (single process, worktree): **1710 passed, 1 failed, 1 skipped, 2
+  deselected, 521 s**. Recorded with `suite-time record`, inside budget. The
+  failure is `test_viewer_js_suite_is_green`, the deliberate worktree red: its
+  node-fs tier needs `data/`, and that tier ran green below. I did not capture
+  the skip's reason. On 10-29 the skips were data-state skips.
+  `tests/test_kinematic.py` passes 84/84 on its own.
+- `node apps/viewer/run_tests.cjs --repo <scratch>`: **629/629**, `[real]`
+  tier included, projection paired with this tree. Without `--repo`:
+  513/513 with the node-fs tier skipped (no `data/` here).
+- `node scripts/run_viewer_browser_tests.mjs --repo <scratch> --only kinematic`:
+  **23/23** sub-checks, 1/1 suite. It is not the full browser tier, which is
+  merge-only.
+- `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration`:
+  **38/42 witnessed, 42/42 reached, 0 left to the sweep, 17m01s.**
+  - Two misses were the bridge mutations: `b7c53705#2` and `77e291b1`. The
+    live lit set is one piece now, so I retired them. The fixture guard
+    `0ac42284` still witnesses the bridge. `b7c53705`'s guard was renamed
+    `a0befb01`, and re-run with `--only` it is WITNESSED.
+  - `bd169900` aborted on a pre-existing top-level
+    `realKinStudy.sweep.run_id` read. That is fixed, and re-run with
+    `--only` it is WITNESSED.
+  - `fb0d661d` is red-before-mutation. Its suite's nav-chip sub-check is red
+    on integration's own code too, so it is not this branch's. The addendum is
+    on `ISSUE_20261029_four_3d_pane_nav_gesture_checks_fail_together_when_the_bodies_resolve_late.md`.
+- `node apps/annotate/run_tests.cjs`: **269/269**.
