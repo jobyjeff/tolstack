@@ -1,13 +1,14 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: triaged
 area: meshes/assembly-placement
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_the_contact_engine_asks_the_ends_what_shape_they_are.md
 class: mesh_placement_disagrees_with_the_mechanism
 defer_until: 2026-11-13
-resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program)
+resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program); strategy 2026-11-03: routed to HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body
+handoff: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
 ---
 
 # The gas spring sits 51.54 mm from the plate it is pinned to, and its mount records no assembly placement

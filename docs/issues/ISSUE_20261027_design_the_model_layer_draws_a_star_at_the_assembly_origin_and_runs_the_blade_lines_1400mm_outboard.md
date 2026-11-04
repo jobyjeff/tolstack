@@ -1,14 +1,15 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: triaged
 area: design
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_the_model_is_drawn_in_the_scene.md
 class: unreviewed_design_debt
 defer_until: 2026-11-26
-resolution: deferred 2026-10-27 (triage) -- low by default
+resolution: deferred 2026-10-27 (triage) -- low by default; strategy 2026-11-03: routed to HANDOFF_20261103_coaxial_ends_share_one_3d_node
+handoff: docs/sessions/HANDOFF_20261103_coaxial_ends_share_one_3d_node.md
 ---
 
 # Design: the model layer draws a star at the assembly origin and runs the blade's lines ~1.4 m outboard
