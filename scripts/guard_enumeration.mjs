@@ -202,9 +202,10 @@ export const DECLARED_GUARDS = {
   // -- the travel band, the zero x-interval, the x-axis note and the datum
   // line out; each stop's error bar, a reach bound's tick, the one-line zero
   // and the readouts' two sub-stacks and range in; four [real] checks
-  // renamed for the per-stop stacks and S461-261. Every new name carries a
+  // renamed for the per-stop stacks and S461-261, and the live closure check
+  // renamed (one piece, no bridge). Every new name carries a
   // spec; the two retired concepts' specs are deleted.
-  fast: { declared: 629, enrollable: 629, names: "fd4f247b65ec" },
+  fast: { declared: 629, enrollable: 629, names: "ebcbec67c796" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

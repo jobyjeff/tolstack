@@ -17559,8 +17559,10 @@
         // The numbers the hand-made sheet for the tangential link carried
         // (linkage/data/runs/vpa-pitch-p2-20261016-235852/
         // tan_link_attachment_xyz.csv), reproduced from the published run.
+        // Read through a missing study rather than past it, so a projection
+        // without it fails the checks that name it instead of aborting here.
         var p2Path = "data/projections/viewer/kinematic/sweeps/" +
-          realKinStudy.sweep.run_id + ".json";
+          (realKinStudy ? realKinStudy.sweep.run_id : "no-study") + ".json";
         if (!nodeFs.io.exists(p2Path)) {
           skip("[real] point export reproduces the tangential-link sheet",
                "no published run at " + nodeFs.root + "/" + p2Path);
@@ -17752,8 +17754,8 @@
         var FEATHER_STUDY = "vpa_pitch_linkage_feather_stop_axial_position";
 
         await test("[real] the closure lights exactly the gap edges between two lit nodes " +
-          "on the real study -- five, derived from the projection -- the bridge joins its " +
-          "two pieces through the hub, and no row of the grid is either", function () {
+          "on the real study -- five, derived from the projection -- the lit set is one " +
+          "piece with no bridge, and no row of the grid is either", function () {
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var lit = VA.kinematicLitSet(realKinStudy, topo);
             var index = VA.topologyIndex(topo);

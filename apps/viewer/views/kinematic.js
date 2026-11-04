@@ -858,7 +858,7 @@
         worstTop: r2(Y(b.worstMax)), worstBottom: r2(Y(b.worstMin)),
         rssTop: r2(Y(b.rssMax)), rssBottom: r2(Y(b.rssMin)), zero: r2(Y(0)),
         bound: b.bound ? r2(Y(b.bound.offset)) : null,
-        label: { x: r2(x + (anchorEnd ? -8 : 8)), y: r2(Y(b.worstMax) + 4),
+        label: { x: r2(x + (anchorEnd ? -8 : 8)), y: r2(Y(b.rssMax) - 4),
                  anchorEnd: anchorEnd,
                  text: withUnit(b.pitchText, study.units) },
       };
