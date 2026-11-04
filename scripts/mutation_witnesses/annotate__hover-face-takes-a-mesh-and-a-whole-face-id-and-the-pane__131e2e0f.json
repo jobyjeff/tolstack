@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "hover face takes a mesh and a whole face id, and the pane's candidate debounce is the shell's pane-hover value",
+  "mutations": [
+    {
+      "contract": "`hover face <mesh> <face>` carries the face it washes.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Dropping the parsed face id leaves a verb that validates and then washes nothing.",
+      "file": "apps/annotate/commands.js",
+      "find": "      out.faceId = faceId;",
+      "replace": "      void faceId;"
+    }
+  ]
+}

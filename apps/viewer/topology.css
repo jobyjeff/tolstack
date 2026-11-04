@@ -231,6 +231,14 @@ details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "
 .navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenetext { flex-basis: 100%; }
 .navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenebtn:first-of-type { margin-left: auto; }
 .navtree__scenealert { flex: none; color: var(--inferred); display: inline-flex; }
+/* A joint end's candidate disclosure, in front of its row, and the
+   candidate rows under it, whose words wrap rather than clip (handoff
+   a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there). */
+.navtree__scenetwisty { flex: none; width: 12px; padding: 0; font: inherit; color: var(--muted);
+  background: none; border: 0; cursor: pointer; }
+.navtree__scenetwisty:hover, .navtree__scenetwisty:focus-visible { color: var(--ink); }
+.navtree__scenerow--wrap .navtree__scenename,
+.navtree__scenerow--wrap .navtree__scenesub { white-space: normal; overflow-wrap: anywhere; }
 
 /* --- the one status icon a row may wear ------------------------------------
    (viewer_nav_verdict_into_alert_and_icon, 2026-09-22. Jeff, on the rail as

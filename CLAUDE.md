@@ -75,7 +75,10 @@ traced ratio" — never restate the rule elsewhere).
   "Proposals"). Since 2026-10-29 a joint end's Pick in sweep mode arms a
   CAD-style pick — isolate, filter, pre-select, click binds — and its gesture
   table is the one statement of how a face is picked
-  (`docs/ANNOTATION_SURFACE.md`, "Picking a face — the gestures").
+  (`docs/ANNOTATION_SURFACE.md`, "Picking a face — the gestures"). Since
+  2026-11-03 every end with a proposal or contact faces opens to that list,
+  each face saying why it is there, and any one can be taken from it (same
+  table, "Taking a suggested face").
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

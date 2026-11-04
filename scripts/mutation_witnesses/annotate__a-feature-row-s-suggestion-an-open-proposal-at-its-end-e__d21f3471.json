@@ -6,10 +6,10 @@
     {
       "contract": "A candidates end lights the contact engine's TOP-ranked face, whatever order the projection lists them in.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
-      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Taking the first-listed candidate lights a lower-ranked face.",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Taking the first-listed candidate lights a lower-ranked face. Re-anchored 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): the sort moved into AA.endContactFaces, which the suggestion now reads.",
       "file": "apps/annotate/sweep.js",
-      "find": "    var top = candidates.slice().sort(function (a, b) { return a.rank - b.rank; })[0];",
-      "replace": "    var top = candidates[0];"
+      "find": "    candidates.slice().sort(function (a, b) { return a.rank - b.rank; }).forEach(function (c) {",
+      "replace": "    candidates.forEach(function (c) {"
     }
   ]
 }

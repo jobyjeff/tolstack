@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "the twisty opens the end's candidate list: one row per face in rank order, each saying why it is there, then Pick another face",
+  "mutations": [
+    {
+      "contract": "Each candidate row says why it is there, on the row.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Without the reason line the list is face numbers -- the count Jeff could not act on, longer.",
+      "file": "apps/annotate/app.js",
+      "find": "  reason.textContent = [row.reason, row.bound ? words.bound : null].filter(Boolean).join(\" · \");",
+      "replace": "  reason.textContent = \"\";"
+    }
+  ]
+}

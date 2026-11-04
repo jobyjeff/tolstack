@@ -88,3 +88,7 @@ in the review worktree on the merged tree, single-process (no xdist). Result:
 run of the same tree, a few hours earlier, took 6 m 14 s. That suggests contention
 on the box rather than suite growth: about 14 python processes were live
 when it finished. Run without `--durations`, so this addendum has no pareto.
+
+## Addendum 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
+
+Measured 784 s (budget 600 s, over by 3m04s), serial, `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs -p no:cacheprovider` in the handoff worktree, while two other agents held the browser slot and ran their own tiers on the box: `2 failed, 1686 passed, 1 skipped, 2 deselected` (the worktree-only `test_viewer_js_suite` red, and one witness anchor since re-anchored). No `--durations` was taken on this run. This handoff added no Python test.
