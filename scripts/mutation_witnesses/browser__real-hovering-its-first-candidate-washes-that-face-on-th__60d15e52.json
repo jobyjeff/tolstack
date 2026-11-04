@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] hovering its first candidate washes that face on the hub in the pre-selection's yellow, and the camera stays",
+  "mutations": [
+    {
+      "contract": "A candidate row's wash needs no armed pick.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Gating the wash on a pick filter, as pre-selection is gated, is the natural reuse and is Jeff's report exactly: nothing lights until a pick is armed.",
+      "file": "apps/annotate/scene.js",
+      "find": "    if (face && this.parts.has(face.sha256)) this._wash = this._drawWash(face.sha256, face.faceId);",
+      "replace": "    if (face && this._pickFilter && this.parts.has(face.sha256)) this._wash = this._drawWash(face.sha256, face.faceId);"
+    }
+  ]
+}

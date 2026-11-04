@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "the leaders across the seam rest in the same dimmed ink as the DAG's own, and the one under the pointer is drawn brighter than that",
+  "mutations": [
+    {
+      "contract": "The DAG-to-3D leaders rest in the same --leader-ink as the DAG-to-grid ones; a hovered one is brighter.",
+      "issue": null,
+      "note": "Declared by handoff the_dag_holds_still_and_the_filter_bar_stays_put (2026-11-03). The seam leaders keep the edges' own ink, so the two tiers disagree.",
+      "file": "apps/viewer/topology.css",
+      "find": "  fill: none; stroke: var(--leader-ink); stroke-width: 1.5;\n  stroke-linejoin: round;\n}\n/* Its end on the scene",
+      "replace": "  fill: none; stroke: var(--rail-odd); stroke-width: 1.5;\n  stroke-linejoin: round;\n}\n/* Its end on the scene"
+    }
+  ]
+}

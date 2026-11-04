@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an end's candidate list: the proposal first, then the engine's faces in rank order, each face once, with why it is there and the one already bound marked",
+  "mutations": [
+    {
+      "contract": "A face is on an end's list once, however many ranked pairs share it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Jeff's 'claims to have 10 candidates' was ten pairs over the pitch plate end's two faces. Without the de-duplication the list and its count are pairs again.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        var key = side.sha256 + \"|\" + faceId;\n        if (seen[key]) return;",
+      "replace": "        var key = side.sha256 + \"|\" + faceId;"
+    }
+  ]
+}

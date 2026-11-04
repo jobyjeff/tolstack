@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] no unplaced node is drawn: no dot for one, none at the assembly origin, and the head line counts them",
+  "mutations": [
+    {
+      "contract": "A node with no anchor geometry draws nothing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "The 10-26 behaviour: every unplaced node a dot at the assembly origin.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (!AA.modelPlaced(a)) { if (a) unplaced.push(n.id); return; }",
+      "replace": "      if (!a) return;"
+    }
+  ]
+}

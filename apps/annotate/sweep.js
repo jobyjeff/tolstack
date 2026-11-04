@@ -1494,19 +1494,136 @@
     var open = AA.endProposals(record, via.direction);
     if (open.length) return { kind: AA.SUGGESTION_KINDS[0], proposals: open };
     if (!via.direction) return null;
+    var faces = AA.endContactFaces(contactDoc, topologyId, via);
+    if (!faces.length) return null;
+    // `n` is the FACES at this end, not the ranked pairs: ten pairs sharing
+    // this end's two faces are two faces to choose between (Jeff, 2026-11-03,
+    // on a pitch plate end that "claimed 10 candidates").
+    return { kind: AA.SUGGESTION_KINDS[1], n: faces.length,
+      face: { sha256: faces[0].sha256, faceId: faces[0].faceId } };
+  };
+
+  // The contact engine's faces at ONE end of an edge, one per face, in the
+  // order of the best-ranked pair each appears in (a pair's own face order
+  // within it): [{sha256, faceId, surface, radius, reason, detail, rank}].
+  // `reason` is AA.candidateReason's, `detail` the pair's evidence in words.
+  AA.endContactFaces = function (contactDoc, topologyId, via) {
+    if (!via || !via.edgeId || !via.direction) return [];
     var row = null;
     ((contactDoc && contactDoc.topologies) || []).forEach(function (t) {
       if (t.id !== topologyId) return;
       (t.edges || []).forEach(function (r) { if (r.edge === via.edgeId) row = r; });
     });
     var candidates = (row && row.status === "ok" && row.candidates) || [];
-    if (!candidates.length) return null;
-    var top = candidates.slice().sort(function (a, b) { return a.rank - b.rank; })[0];
-    var side = top[via.direction] || {};
-    var face = side.sha256 && (side.faces || []).length
-      ? { sha256: side.sha256, faceId: side.faces[0] } : null;
-    return { kind: AA.SUGGESTION_KINDS[1], n: candidates.length, face: face };
+    var out = [];
+    var seen = {};
+    candidates.slice().sort(function (a, b) { return a.rank - b.rank; }).forEach(function (c) {
+      var side = c[via.direction] || {};
+      if (!side.sha256) return;
+      (side.faces || []).forEach(function (faceId) {
+        var key = side.sha256 + "|" + faceId;
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push({ sha256: side.sha256, faceId: faceId, surface: side.surface || null,
+          radius: AA.candidateRadius(c, via.direction),
+          reason: AA.candidateReason(row, c, via.direction),
+          detail: contactDetail(row.pairing, c), rank: c.rank });
+      });
+    });
+    return out;
   };
+
+  // A pair's evidence in words, or null when the row carries too little of it
+  // to say (AA.describeContact reads numbers the engine always writes; a
+  // hand-made row may not) -- the face is still listed, with its reason.
+  function contactDetail(pairing, candidate) {
+    var e = candidate.evidence || {};
+    var numbers = ["gap_mm", "clearance_mm", "axis_offset_mm", "end_mm", "seat_gap_mm", "centre_mm"];
+    if (!numbers.some(function (k) { return typeof e[k] === "number"; })) return null;
+    return AA.describeContact(pairing, candidate);
+  }
+
+  //: The two kinds of row on an end's candidate list, in list order.
+  AA.CANDIDATE_ROW_KINDS = Object.freeze(["proposed", "contact"]);
+
+  // An end's candidate list (handoff a_joint_end_lists_its_candidate_faces_
+  // and_says_why_each_is_there): the agent's open proposals at the end,
+  // surest first, then the contact engine's faces (AA.endContactFaces). A
+  // face is listed once -- a proposed face the engine also ranked is the
+  // proposal's row, carrying the engine's reason in its detail. Each row:
+  //
+  //   {kind, sha256, faceId, surface, radius, reason, detail, bound,
+  //    proposal (kind proposed), confidence (kind proposed), rank (contact)}
+  //
+  // `bound` is the face the end already has standing. `faceClasses` (the
+  // annotator's per-mesh classes, optional) gives a proposed face its
+  // radius. [] for an edge feature: a candidate is a face at ONE end.
+  AA.endCandidates = function (identityProjection, contactDoc, topologyId, via, faceClasses) {
+    if (!via || !via.edgeId || !via.direction) return [];
+    var record = AA.findBindingRecord(identityProjection, AA.topologyEdgeKey(topologyId, via.edgeId));
+    var standing = AA.endBindings(record, via.direction).map(function (b) {
+      var g = b.geometry_key || {};
+      return g.source_step_sha256 + "|" + g.face_id;
+    });
+    var contact = AA.endContactFaces(contactDoc, topologyId, via);
+    var byKey = {};
+    contact.forEach(function (f) { byKey[f.sha256 + "|" + f.faceId] = f; });
+    var out = [];
+    var seen = {};
+    AA.endProposals(record, via.direction).forEach(function (p) {
+      var g = p.geometry_key || {};
+      var key = g.source_step_sha256 + "|" + g.face_id;
+      if (seen[key]) return;
+      seen[key] = true;
+      var cls = faceClasses && faceClasses[g.source_step_sha256]
+        ? faceClasses[g.source_step_sha256][g.face_id] : null;
+      var also = byKey[key];
+      out.push({ kind: AA.CANDIDATE_ROW_KINDS[0], sha256: g.source_step_sha256, faceId: g.face_id,
+        surface: p.surface_class || (cls && cls.surface) || null,
+        radius: cls && cls.radius > 0 ? cls.radius : (also ? also.radius : null),
+        reason: AA.CANDIDATE_PROPOSED_REASON + " · " + p.confidence,
+        detail: AA.proposalHoverText({ actor: AA.actorWords(p.recorded_by),
+          confidence: p.confidence, basis: p.basis || "" }) +
+          (also && also.reason ? "\n" + also.reason + ": " + also.detail : ""),
+        proposal: p, confidence: p.confidence, bound: standing.indexOf(key) !== -1 });
+    });
+    contact.forEach(function (f) {
+      var key = f.sha256 + "|" + f.faceId;
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push({ kind: AA.CANDIDATE_ROW_KINDS[1], sha256: f.sha256, faceId: f.faceId,
+        surface: f.surface, radius: f.radius, reason: f.reason, detail: f.detail, rank: f.rank,
+        bound: standing.indexOf(key) !== -1 });
+    });
+    return out;
+  };
+
+  // A candidate row's first line: "face 3460 · round · r 47.5 mm" -- the
+  // pre-selection's own words, so the list and the armed pick name a face
+  // the same way.
+  AA.candidateRowWords = function (row) {
+    return AA.preselectWords(row.faceId, row.surface ? { surface: row.surface, radius: row.radius || 0 } : null);
+  };
+
+  //: The candidate list's own words. `takeTitle` is the Take button's hover;
+  //: `pickOther` is the row that ends every list and arms the pick there.
+  //: `more` is the row under a list cut at AA.CANDIDATES_LISTED.
+  AA.CANDIDATE_LIST_WORDS = Object.freeze({
+    open: "show the suggested faces",
+    close: "hide the suggested faces",
+    take: "Take",
+    takeTitle: "bind this face at this end",
+    bound: "bound",
+    pickOther: "Pick another face…",
+    pickOtherTitle: "pick any face of this end's part in the 3D view",
+    pickOtherBind: "select this element, then click a face in the 3D view",
+    more: "show all {n}",
+  });
+  //: How many candidate rows an open list shows before "show all n".
+  AA.CANDIDATES_LISTED = 8;
+  //: The pane's hover debounce on a candidate row, in ms: apps/viewer's
+  //: VA.PANE_HOVER_DEBOUNCE_MS, paired by run_tests.cjs.
+  AA.CANDIDATE_HOVER_DEBOUNCE_MS = 150;
 
   // The row's line for a suggestion, in AA.SUGGESTION_ROW_WORDS.
   AA.suggestionWords = function (suggestion) {

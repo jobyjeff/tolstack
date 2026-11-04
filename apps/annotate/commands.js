@@ -474,6 +474,31 @@
     };
   };
 
+  // `isolate parts <part…>` (handoff every_study_opens_in_3d_showing_only_its_
+  // parts): the viewer's one command for "this study's parts". The word that
+  // follows `isolate` and turns it from the panel's hide-the-rest into a
+  // scope: the named parts solid, every other installed part ghosted -- or
+  // hidden, when the page's unlit word says hide. `isolate off` undoes it,
+  // the same snapshot as every other isolate.
+  AA.ISOLATE_PARTS_WORD = "parts";
+
+  // Pure: which installed parts a scope draws how. `all` is every installed
+  // mesh's sha256, `targets` the scope's. The rest are `ghost`ed, or `hide`n
+  // when `hideRest`. No scene, no three.js.
+  AA.planPartScope = function (all, targets, hideRest) {
+    var solid = {};
+    (targets || []).forEach(function (s) { solid[s] = true; });
+    var rest = (all || []).filter(function (s) { return !solid[s]; });
+    return {
+      solid: (targets || []).slice(),
+      ghost: hideRest ? [] : rest,
+      hide: hideRest ? rest : [],
+    };
+  };
+
+  // The head line's words for a scope none of whose parts has a mesh.
+  AA.EMBED_NO_MODEL_WORDS = "no 3D model for these parts yet";
+
   // --- context and view: the parts panel's two filters ------------------------
   //
   // (handoff a_context_filter_and_a_view_filter, 2026-10-14.) Jeff: "there
@@ -1132,7 +1157,9 @@
   // `study` are the rail's current ones or null. The subject is the run's
   // mechanism in words in sweep mode (the sweep bar's own name for it), the
   // study's title -- or the topology's, with no study -- in bind mode.
-  AA.embedState = function (sweep, topology, study) {
+  // `noModel`: the parts the study names have no installed mesh, which the
+  // head line says in AA.EMBED_NO_MODEL_WORDS instead of leaving a bare scene.
+  AA.embedState = function (sweep, topology, study, noModel) {
     var mode = sweep ? "sweep" : "bind";
     var subject = null;
     if (sweep) {
@@ -1148,7 +1175,8 @@
       topology: (sweep && sweep.topologyId) || (topology && topology.id) || null,
       study: !sweep && study ? study.id : null,
       run: sweep ? sweep.runId : null,
-      title: subject ? AA.EMBED_MODE_WORDS[mode] + " — " + subject : AA.EMBED_MODE_WORDS[mode],
+      title: (subject ? AA.EMBED_MODE_WORDS[mode] + " — " + subject : AA.EMBED_MODE_WORDS[mode]) +
+        (noModel ? " — " + AA.EMBED_NO_MODEL_WORDS : ""),
     };
   };
 
@@ -1244,7 +1272,11 @@
   // the_rail_and_the_scene_point_at_each_other, deliverable 1). One lighter
   // tint for all of them, drawn OVER the part rather than into its colours, so
   // a hover can never take a picked face's tint down with it. Writes nothing.
-  AA.HOVER_TARGETS = Object.freeze(["body", "part", "joint", "feature", "contributor", "clear"]);
+  //
+  // hover face <mesh> <face id> -- a joint end's candidate row (handoff
+  // a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): that one
+  // face in the pre-selection's wash, in either mode. `clear` takes it down too.
+  AA.HOVER_TARGETS = Object.freeze(["body", "part", "joint", "feature", "contributor", "face", "clear"]);
   AA.parseHover = function (what, name, extra) {
     if (AA.HOVER_TARGETS.indexOf(what) === -1) {
       throw new Error("hover takes " + AA.HOVER_TARGETS.join(", ") + ", got " + JSON.stringify(what));
@@ -1259,6 +1291,13 @@
           ", got " + JSON.stringify(extra));
       }
       out.direction = extra === undefined ? null : extra;
+    }
+    if (what === "face") {
+      var faceId = parseInt(extra, 10);
+      if (!isFinite(faceId) || String(faceId) !== String(extra)) {
+        throw new Error("hover face needs <mesh> <face id>, got face " + JSON.stringify(extra));
+      }
+      out.faceId = faceId;
     }
     return out;
   };

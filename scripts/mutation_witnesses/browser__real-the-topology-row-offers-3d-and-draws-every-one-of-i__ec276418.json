@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "every study opens in 3D showing only its parts",
+  "expect_red": "[real] the topology row offers 3D and draws every one of its parts solid",
+  "mutations": [
+    {
+      "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
+      "issue": null,
+      "note": "Breaks the one place this guard's claim is decided.",
+      "file": "apps/viewer/topology.js",
+      "find": "if (lit && !(lit.edges && lit.edges[edge.id])) return;",
+      "replace": "if (!(lit && lit.edges && lit.edges[edge.id])) return;"
+    }
+  ]
+}

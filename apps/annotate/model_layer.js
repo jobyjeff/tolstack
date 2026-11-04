@@ -29,8 +29,11 @@
 //            up the stack axis across the cut's height in stack order, so a
 //            part's linear stack reads as a ladder on its +X side.
 //   origin   no geometry at all (no mesh installed, or the section plane
-//            cuts nothing): the body's own frame origin, and the surface
-//            says so.
+//            cuts nothing): UNPLACED -- no dot and no line is drawn
+//            (AA.modelDrawnGraph), and the bar's head line counts them.
+//
+// And then, over the anchors: ends that are one JOINT -- concentric features
+// on either side of an edge -- are drawn as one node (AA.modelJointGroups).
 (function (AA) {
   "use strict";
 
@@ -49,8 +52,11 @@
 
   // What a selected node's anchor says, in one line: where it came from, and
   // -- for a ladder rung -- that its height is its place in the stack.
-  AA.modelAnchorWords = function (anchor) {
+  AA.modelAnchorWords = function (anchor, joint) {
     if (!anchor) return null;
+    if (joint && joint.members && joint.members.length > 1) {
+      return "one joint: " + joint.members.length + " concentric ends share this node";
+    }
     var words = AA.MODEL_ANCHOR_SOURCE_WORDS[anchor.source];
     if (anchor.source === AA.MODEL_ANCHOR_SOURCES[3] && anchor.why) words += " (" + anchor.why + ")";
     if (anchor.rung) words += ", rung " + (anchor.rung[0] + 1) + " of " + anchor.rung[1] + " in stack order";
@@ -401,6 +407,247 @@
     return out;
   };
 
+  // --- a joint is one node (handoff coaxial_ends_share_one_3d_node) ---------
+  //
+  // Jeff's ruling (2026-11-03): a joint whose features are concentric -- a
+  // bore and the bushing in it, a spindle and the plate that slides on it, a
+  // ball and the seat it turns in -- is ONE node in the scene. Its internal
+  // components (a bushing's thickness, a clearance to a fastener, a
+  // coaxiality) are 2D-only edges: they have no length to show in 3D. Edges
+  // leaving the joint attach to the one node.
+  //
+  // Only a FEATURE can merge, never a drawing placement: a node has feature
+  // geometry when the solver places it (a run's joint end: a point, and the
+  // joint's axis when it has one) or a committed binding names a round face
+  // (a bore's axis, a ball's centre). A section rung or a body origin is a
+  // place to draw and says nothing about where the feature is, so it never
+  // merges. A flat face does not merge either: a stack of flat faces round a
+  // bolt or up the hub is a linear stack, which is what the ladder draws.
+  //
+  // Two ends of ONE edge merge when (both measured in the as-modelled frame):
+  //   axis + axis    the axes are parallel within MODEL_JOINT_ANGLE_DEG and
+  //                  each axis point is within MODEL_JOINT_DISTANCE_MM of the
+  //                  other's axis line (coaxial: the distance ALONG the axis
+  //                  is free -- the plate slides 64 mm up the spindle);
+  //   axis + point   the point is within MODEL_JOINT_DISTANCE_MM of the axis;
+  //   point + point  the two are within MODEL_JOINT_DISTANCE_MM (coincident).
+  // Merges chain across edges (a bushing in a bearing in a bore), but never
+  // into a group holding an axis that is not parallel to the incoming one: two
+  // axes that only cross at a point (the spindle and the blade's pitch axis,
+  // both through the assembly origin) are two joints.
+  //
+  // The two thresholds and the P2 measurements that set them are in
+  // docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md.
+  AA.MODEL_JOINT_ANGLE_DEG = 2;   // degrees between two axes
+  AA.MODEL_JOINT_DISTANCE_MM = 1; // mm, a point off an axis or off a point
+
+  var vsub = function (a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; };
+  var vdot = function (a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; };
+  var vnorm = function (a) { return Math.sqrt(vdot(a, a)); };
+  var vunit = function (a) { var n = vnorm(a); return n > 0 ? [a[0] / n, a[1] / n, a[2] / n] : null; };
+  // A point's distance from the line through `at` along unit `dir`.
+  var offAxis = function (p, at, dir) {
+    var d = vsub(p, at);
+    var along = vdot(d, dir);
+    return vnorm([d[0] - dir[0] * along, d[1] - dir[1] * along, d[2] - dir[2] * along]);
+  };
+
+  // The solver's features, from the run's as-modelled frame (where every
+  // pose is identity, so a joint end's world point IS its as-modelled one):
+  // {node id: {point, axis | null, joint, end, from: "solver"}}. A node the
+  // run names at two joints (the actuator repeats the plate slide's ends)
+  // keeps the first. A run with no feature joins, or no as-modelled frame,
+  // places nothing.
+  AA.modelSolverFeatures = function (artifact) {
+    var out = {};
+    var index = artifact && artifact.points && artifact.points.length
+      ? AA.sweepAsModelledIndex(artifact) : null;
+    if (index === null || index === undefined) return out;
+    var frame = AA.sweepFrameAt(artifact, index);
+    ((artifact && artifact.features) || []).forEach(function (f) {
+      if (!f || !f.node || typeof f.label !== "string" || out[f.node]) return;
+      var m = /^([^.]+)\.point_([ab])\[/.exec(f.label);
+      if (!m) return;
+      var joint = frame.joints && frame.joints[m[1]];
+      var end = m[2] === "a" ? AA.SWEEP_JOINT_ENDS[0] : AA.SWEEP_JOINT_ENDS[1];
+      if (!joint || !joint[end]) return;
+      out[f.node] = { point: joint[end].slice(), axis: joint.axis_world ? vunit(joint.axis_world) : null,
+        joint: m[1], end: end, from: "solver" };
+    });
+    return out;
+  };
+
+  // A bound face's feature, in the as-modelled assembly frame: a bore's axis
+  // (its axis point, and its direction turned by the placement), a ball's
+  // centre. A flat face, or a face the classifier could not read, is none.
+  AA.modelBoundFeature = function (face, placement) {
+    var p = placement && placement.length === 12 ? placement : AA.IDENTITY_PLACEMENT;
+    if (!face) return null;
+    if (face.surface === "cylindrical" && face.axisPoint && face.axis) {
+      var a = face.axis;
+      var axis = vunit([p[0] * a[0] + p[1] * a[1] + p[2] * a[2],
+        p[4] * a[0] + p[5] * a[1] + p[6] * a[2], p[8] * a[0] + p[9] * a[1] + p[10] * a[2]]);
+      return { point: AA.applyPlacement(p, face.axisPoint), axis: axis, radius: face.radius || null,
+        from: "bound" };
+    }
+    if (face.surface === "spherical" && face.centre) {
+      return { point: AA.applyPlacement(p, face.centre), axis: null, radius: face.radius || null,
+        from: "bound" };
+    }
+    return null;
+  };
+
+  // Two features measured against each other: {angleDeg, distanceMm, merge}.
+  // `angleDeg` is null unless both have an axis.
+  AA.modelJointMeasure = function (a, b) {
+    var angle = null, distance;
+    if (a.axis && b.axis) {
+      var c = Math.min(1, Math.abs(vdot(a.axis, b.axis)));
+      angle = Math.acos(c) * 180 / Math.PI;
+      distance = Math.max(offAxis(b.point, a.point, a.axis), offAxis(a.point, b.point, b.axis));
+    } else if (a.axis || b.axis) {
+      distance = a.axis ? offAxis(b.point, a.point, a.axis) : offAxis(a.point, b.point, b.axis);
+    } else {
+      distance = vnorm(vsub(a.point, b.point));
+    }
+    var merge = distance <= AA.MODEL_JOINT_DISTANCE_MM &&
+      (angle === null || angle <= AA.MODEL_JOINT_ANGLE_DEG);
+    return { angleDeg: angle, distanceMm: distance, merge: merge };
+  };
+
+  // The joints: {groups: [{id, members, axis}], of: {node id: group id},
+  // measured: [{edge, from, to, angleDeg, distanceMm, merge}]}. A group's id
+  // is its first member in the topology's own node order; a node in no
+  // group is in `of` as nothing. `measured` is every edge whose two ends both
+  // have a feature -- what the lesson's calibration table is read off.
+  AA.modelJointGroups = function (topology, features) {
+    var feats = features || {};
+    var rank = {};
+    ((topology && topology.nodes) || []).forEach(function (n, i) { rank[n.id] = i; });
+    var parent = {};
+    var axisOf = {};
+    var find = function (k) {
+      while (parent[k] !== k) { parent[k] = parent[parent[k]]; k = parent[k]; }
+      return k;
+    };
+    var root = function (id) {
+      if (parent[id] === undefined) { parent[id] = id; axisOf[id] = feats[id].axis || null; }
+      return find(id);
+    };
+    var measured = [];
+    ((topology && topology.edges) || []).forEach(function (e) {
+      var a = feats[e.from], b = feats[e.to];
+      if (!a || !b || e.from === e.to) return;
+      var m = AA.modelJointMeasure(a, b);
+      measured.push({ edge: e.id, from: e.from, to: e.to, angleDeg: m.angleDeg,
+        distanceMm: m.distanceMm, merge: m.merge });
+      if (!m.merge) return;
+      var ra = root(e.from), rb = root(e.to);
+      if (ra === rb) return;
+      var xa = axisOf[ra], xb = axisOf[rb];
+      // Two joints that only cross at a point stay two.
+      if (xa && xb && Math.acos(Math.min(1, Math.abs(vdot(xa, xb)))) * 180 / Math.PI >
+          AA.MODEL_JOINT_ANGLE_DEG) return;
+      var keep = (rank[ra] || 0) <= (rank[rb] || 0) ? ra : rb;
+      var drop = keep === ra ? rb : ra;
+      parent[drop] = keep;
+      axisOf[keep] = axisOf[keep] || axisOf[drop];
+    });
+    var members = {};
+    Object.keys(parent).forEach(function (id) {
+      (members[find(id)] = members[find(id)] || []).push(id);
+    });
+    var groups = [];
+    var of = {};
+    Object.keys(members).forEach(function (r) {
+      var list = members[r].sort(function (x, y) { return (rank[x] || 0) - (rank[y] || 0); });
+      if (list.length < 2) return;
+      var group = { id: list[0], members: list, axis: axisOf[r] };
+      groups.push(group);
+      list.forEach(function (id) { of[id] = group.id; });
+    });
+    groups.sort(function (x, y) { return (rank[x.id] || 0) - (rank[y.id] || 0); });
+    return { groups: groups, of: of, measured: measured };
+  };
+
+  // One frame's world point per joint: the mean of its members' feature
+  // points, each where the frame puts it -- a solver end read off the frame
+  // unchanged, a bound face through its node's subject pose. Members of one
+  // joint are concentric, so the mean is on their common axis (or at their
+  // common centre). With no frame (bind mode) every point is as-modelled.
+  // `anchors` supplies each member's subject. {group id: [x, y, z]}.
+  AA.modelJointWorldPoints = function (joints, features, anchors, frame) {
+    var out = {};
+    ((joints && joints.groups) || []).forEach(function (g) {
+      var sum = [0, 0, 0], n = 0;
+      g.members.forEach(function (id) {
+        var f = features[id];
+        if (!f) return;
+        var p = null;
+        if (f.from === "solver" && frame && frame.joints) {
+          var j = frame.joints[f.joint];
+          p = j && j[f.end] ? j[f.end] : null;
+        } else {
+          var subject = anchors && anchors[id] ? anchors[id].subject : null;
+          var pose = frame && subject
+            ? ((frame.links && frame.links[subject]) || (frame.poses && frame.poses[subject]) || null)
+            : null;
+          p = pose ? AA.applyPlacement(AA.poseToPlacement(pose), f.point) : f.point;
+        }
+        if (!p) return;
+        sum[0] += p[0]; sum[1] += p[1]; sum[2] += p[2]; n++;
+      });
+      out[g.id] = n ? [sum[0] / n, sum[1] / n, sum[2] / n] : null;
+    });
+    return out;
+  };
+
+  // A node is PLACED when it has anchor geometry: every source but `origin`.
+  // An unplaced node draws no dot and no line (it used to sit at its body's
+  // frame origin -- the assembly origin, for every body here -- and every
+  // edge touching one fanned out of the hub's centre).
+  AA.modelPlaced = function (anchor) {
+    return !!anchor && anchor.source !== AA.MODEL_ANCHOR_SOURCES[3];
+  };
+
+  // What the scene draws, from the anchors and the joints: one dot per
+  // placed node that is in no joint, one per joint (keyed by the joint's id,
+  // listing its members), and a line per edge whose two ends are placed and
+  // are not the same joint -- with its ends renamed to the joints they meet.
+  // A line touching a joint is a world line (body null): a joint's point is
+  // the mean of ends that may ride different bodies. `unplaced` is the ids
+  // with no anchor geometry, in node order.
+  // Returns {dots: {id: {members: [ids] | null}}, lines: {edge id: {from, to,
+  // kind, body}}, hidden: [edge ids internal to a joint], unplaced: [ids]}.
+  AA.modelDrawnGraph = function (topology, anchors, joints) {
+    var of = (joints && joints.of) || {};
+    var dots = {};
+    var unplaced = [];
+    var groupOf = {};
+    ((joints && joints.groups) || []).forEach(function (g) { groupOf[g.id] = g; });
+    // In node order: a joint's dot where its first member stands.
+    ((topology && topology.nodes) || []).forEach(function (n) {
+      if (groupOf[n.id]) { dots[n.id] = { members: groupOf[n.id].members.slice() }; return; }
+      if (of[n.id]) return;
+      var a = anchors[n.id];
+      if (!AA.modelPlaced(a)) { if (a) unplaced.push(n.id); return; }
+      dots[n.id] = { members: null };
+    });
+    var base = AA.modelEdgeLines(topology, anchors);
+    var lines = {};
+    var hidden = [];
+    Object.keys(base).forEach(function (id) {
+      var line = base[id];
+      var from = of[line.from] || line.from, to = of[line.to] || line.to;
+      if (!dots[from] || !dots[to]) return;
+      if (from === to) { hidden.push(id); return; }
+      // A joint's id is its first member's, so ask membership, not renaming.
+      var joined = !!(of[line.from] || of[line.to]);
+      lines[id] = { from: from, to: to, kind: line.kind, body: joined ? null : line.body };
+    });
+    return { dots: dots, lines: lines, hidden: hidden, unplaced: unplaced };
+  };
+
   // The hollow markers: an agent's proposed point per node, beside the anchor
   // the node actually has -- {node id: {subject, point}}. A node anchored at
   // a solver joint or at a binding already has its answer and gets none; a
@@ -486,6 +733,20 @@
     return out;
   };
 
+  // The nodes a grid row's emphasis lights: the edge's two ends, read off
+  // the topology whether or not the edge is drawn. An edge inside a joint
+  // draws no line (coaxial_ends_share_one_3d_node), and its row still lights
+  // the joint's one dot -- the scene resolves each end to the dot that stands
+  // for it, and an unplaced end to nothing.
+  AA.modelEmphasisNodes = function (topology, edgeId) {
+    var out = [];
+    ((topology && topology.edges) || []).forEach(function (e) {
+      if (e.id !== edgeId) return;
+      out.push(e.from, e.to);
+    });
+    return out;
+  };
+
   // The `model` verb's grammar:
   //   model lit <edge> [<edge> ...]   the shell's lit set
   //   model lit all                   nothing emphasised
@@ -541,9 +802,13 @@
   // and VA.SCENE_PICK_MESSAGE by the literal both tiers assert.
   AA.HOVER_MESSAGE = "annotate:hover";
   AA.PICK_MESSAGE = "annotate:pick";
-  AA.modelHoverMessage = function (nodeId) {
-    return { type: AA.HOVER_MESSAGE, kind: nodeId ? AA.MODEL_SELECT_KINDS[0] : null,
-             id: nodeId || null };
+  // A joint's dot stands for several nodes: `members` lists them all (the
+  // joint's own id first), so the shell lights every one; absent otherwise.
+  AA.modelHoverMessage = function (nodeId, members) {
+    var out = { type: AA.HOVER_MESSAGE, kind: nodeId ? AA.MODEL_SELECT_KINDS[0] : null,
+                id: nodeId || null };
+    if (nodeId && members && members.length > 1) out.members = members.slice();
+    return out;
   };
   AA.modelPickMessage = function (nodeId) {
     return { type: AA.PICK_MESSAGE, kind: AA.MODEL_SELECT_KINDS[0], id: nodeId };

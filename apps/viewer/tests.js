@@ -329,6 +329,45 @@
         eq(rows[1].getAttribute("data-suggestion"), null);
       });
 
+    await test("a joint end with a candidate list mirrors as a row with a twisty in front: the " +
+      "twisty toggles, the row still selects, the list shows only when open, and its words wrap",
+      function () {
+        var sent = [];
+        var send = function (key, act, index) {
+          sent.push(index === undefined ? key + " " + act : key + " " + act + " " + index);
+        };
+        var stop = { preventDefault: function () {}, stopPropagation: function () {} };
+        var slot = document.createElement("div");
+        VA.renderSceneTree(slot, { rows: [
+          { key: "e", text: "hub spindle bore axis", sub: "candidates · 2", suggestion: true,
+            activate: true, twisty: "hide the suggested faces", open: true, buttons: [{ text: "Pick", title: "" }],
+            rows: [
+              { key: "e/c", text: "face 3460 · round · r 47.5 mm", sub: "coaxial with the mating pin",
+                suggestion: true, wrap: true, buttons: [{ text: "Take", title: "bind this face at this end" }] },
+              { key: "e/o", text: "Pick another face…", activate: true, wrap: true },
+            ] },
+          { key: "f", text: "pitch plate spindle bore axis", sub: "suggested · high", suggestion: true,
+            activate: true, twisty: "show the suggested faces", open: false },
+        ] }, { send: send });
+        var twisties = slot.querySelectorAll("button.navtree__scenetwisty");
+        eq(twisties.length, 2);
+        eq(twisties[0].getAttribute("aria-expanded"), "true");
+        eq(twisties[1].getAttribute("aria-expanded"), "false");
+        eq(slot.querySelectorAll("details").length, 0, "a twisty row is not a <details>: its click selects");
+        var lines = slot.querySelectorAll("div.navtree__scenerow");
+        eq(lines.length, 4, "the open list's two rows, under the first end only");
+        ok(lines[1].classList.contains("navtree__scenerow--wrap"));
+        ok(!lines[0].classList.contains("navtree__scenerow--wrap"));
+        twisties[0].onclick(stop);
+        lines[0].click();
+        lines[1].querySelector("button.navtree__scenebtn").onclick(stop);
+        lines[1].onmouseenter();
+        lines[2].click();
+        twisties[1].onclick(stop);
+        eq(sent.join(" | "), ["e toggle", "e activate", "e/c button 0", "e/c enter",
+          "e/o activate", "f toggle"].join(" | "));
+      });
+
     await test("annotateExecCommands mirrors annotateLink param for param -- " +
       "the already-open flyout runs the same vocabulary the boot URL does",
       function () {
@@ -383,6 +422,27 @@
         eq(VA.annotateLink(VA.annotateParamsFor(study)),
           "../annotate/index.html?topology=t&study=s");
         eq(VA.annotateExecCommands(VA.annotateParamsFor(study)), [["goto", "t", "", "s"]]);
+      });
+
+    await test("the study's parts are one command: lit edges' parts, a joint's two ends' parts, " +
+      "no lit set is the whole topology, and no part at all is isolate off", function () {
+        var topo = {
+          nodes: [{ id: "n1" }, { id: "n2" }, { id: "n3" }],
+          edges: [
+            { id: "a", part: "link", from: "n1", to: "n2" },
+            { id: "joint", part: null, kind: "gap", from: "n2", to: "n3" },
+            { id: "b", part: "arm", from: "n3", to: "n3" },
+            { id: "c", part: "hub", from: "n1", to: "n1" },
+          ],
+        };
+        var lit = { edges: { a: true, joint: true }, nodes: {} };
+        eq(VA.litPartIds(topo, lit), ["link", "arm"]);
+        eq(VA.litPartIds(topo, { edges: { a: true }, nodes: {} }), ["link"]);
+        eq(VA.litPartIds(topo, null), ["link", "arm", "hub"]);
+        eq(VA.partScopeCommand(["link", "arm"]), ["isolate", "parts", "link", "arm"]);
+        eq(VA.partScopeCommand([]), ["isolate", "off"]);
+        eq(VA.partScopeCommand(null), ["isolate", "off"]);
+        eq(VA.partScopeCommand(VA.litPartIds({ nodes: [], edges: [] }, null)), ["isolate", "off"]);
       });
 
     await test("a hover posts highlight on its edge and clear off it, at most a few " +
@@ -6999,6 +7059,36 @@
         ok(nothingLit(root));
       });
 
+    await test("the scene's pointer on a joint lights every node it stands for here " +
+      "-- their dots and their rows -- and the pane's own pointer wins", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var dots = all(root, "circle.rail__dot").filter(function (dot) {
+          return !hasClass(dot, "rail__dot--branch");
+        });
+        var a = dots[1], b = dots[2];
+        var ids = [a.getAttribute("data-id"), b.getAttribute("data-id")];
+        // Each dot hovered alone, for what the two together must light.
+        var alone = ids.map(function (id, i) {
+          (i ? b : a).onmouseenter({});
+          var lit = litState(root);
+          (i ? b : a).onmouseleave({});
+          return lit;
+        });
+        eq(VA.lightTopoKeys(ids.map(function (id) { return "node|" + id; })), 2);
+        var both = litState(root);
+        eq(both.leadDots.slice().sort(), alone[0].leadDots.concat(alone[1].leadDots).sort(),
+          "both members' dots lead");
+        var rows = {};
+        alone[0].leadRows.concat(alone[1].leadRows).forEach(function (id) { rows[id] = true; });
+        eq(both.leadRows.slice().sort(), Object.keys(rows).sort(), "and every row meeting either");
+        // The pane's pointer arrives: it owns the state, and the scene's word waits.
+        a.onmouseenter({});
+        eq(VA.lightTopoKeys(["node|" + ids[1]]), 0, "the pane's own hover is not overridden");
+        a.onmouseleave({});
+        VA.lightTopoKeys(null);
+        ok(nothingLit(root), "the scene's pointer leaving clears it");
+      });
+
     await test("hover emphasis is keyed by element, so it survives the " +
       "respine's column renumbering", function () {
         // The one trap this whole mechanism was written around: the drawn
@@ -7377,9 +7467,9 @@
         // budget 0 is what the fast tier's DOM shim measures (no viewport),
         // so these are the same two stores renderTopoPane builds below.
         from: VA.rowPositions(walk, TOPO, mode || "uniform", M,
-          { budget: 0, plan: walkPlan }),
+          { budget: 0, plan: walkPlan, inset: VA.DAG_FIT.topInset }),
         to: VA.rowPositions(chainLayout, TOPO, mode || "uniform", M,
-          { budget: 0, plan: chainPlan }),
+          { budget: 0, plan: chainPlan, inset: VA.DAG_FIT.topInset }),
       };
     }
 
@@ -10272,6 +10362,31 @@
            "no surface says \"classic\" anywhere (deliverable 4)");
       });
 
+    await test("every kind of study row wears a 3D control where the scene is mounted, and none " +
+      "where it is not", function () {
+        var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
+        var picked = [];
+        var withControl = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPOFIX.topologies[0].id },
+            { on3D: function (select) { picked.push(select); } });
+        });
+        // The fast tier's DOM shim reads only tag, .class and tag.class, so the
+        // rows are picked by class and filtered by kind here.
+        var rows = all(withControl, ".navtree__row").filter(function (row) {
+          var kind = row.getAttribute("data-nav-kind");
+          return kind === "topology" || kind === "study";
+        });
+        ok(rows.length >= 1, "the fixture has at least the topology row");
+        rows.forEach(function (row) {
+          eq(all(row, ".navtree__3d").length, 1,
+            "row " + row.getAttribute("data-nav-id") + " carries the control");
+        });
+        var without = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPOFIX.topologies[0].id }, {});
+        });
+        eq(all(without, ".navtree__3d").length, 0);
+      });
+
     // Tags (handoff bodies_and_studies_carry_forge_tags): chips over the study
     // list, OR within an axis and AND across, and a variant tag dimming the
     // other variant's parts. Synthetic tags on a copy -- the demo projection
@@ -12495,6 +12610,11 @@
         eq([states[edge.from], states[other]], ["", S[1]], "hover is the lighter emphasis");
         states = VA.seamLeaderStates(ids, null, "edge|" + edge.id, index);
         eq([states[edge.from], states[edge.to], states[other]], [S[1], S[1], ""]);
+        // A joint's one 3D dot (coaxial_ends_share_one_3d_node) stands for
+        // several nodes: the scene's hover is a LIST, and lights each one.
+        states = VA.seamLeaderStates(ids, null, ["node|" + edge.from, "node|" + other], index);
+        eq([states[edge.from], states[edge.to], states[other]], [S[1], "", S[1]],
+          "a joint's members all light");
         // The DAG↔grid leaders read the same rule.
         var study = topoStudy("demo_base_to_tip");
         var picked = study.selection.map(function (id) { return index.edges[id]; })
@@ -14587,9 +14707,11 @@
               ok(Math.max.apply(null, Object.keys(lengths).map(Number)) >
                  floor, mode + ": something is drawn above the floor");
             });
-            ok(VA.DAG_ZOOM.min * tallest <= 900,
+            // 900px less what the page pins at its top: the page bar and the view
+            // filters, which wrap to two rows in a narrow column (~150px).
+            ok(VA.DAG_ZOOM.min * tallest <= 900 - 150,
                "the zoom minimum " + VA.DAG_ZOOM.min + " must show the tallest " +
-               "walk (" + tallest + "px) in 900px");
+               "walk (" + tallest + "px) in 900px under the pinned bars");
           });
 
         await test("[real] a topology's own joint block renders its assembly " +

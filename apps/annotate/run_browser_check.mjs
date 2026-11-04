@@ -474,16 +474,27 @@ async function checkEverything(browser, base) {
     const sources = {};
     for (const [id, a] of Object.entries((built && built.anchors) || {})) sources[id] = a.source;
     const drawn = window.__scene.modelState();
+    // What the layer must draw, worked from the mock's own topology
+    // (coaxial_ends_share_one_3d_node): an edge is drawn unless an end is
+    // unplaced or both ends are one joint.
+    const unplaced = (built && built.unplaced) || [];
+    const jointOf = (built && built.joints && built.joints.of) || {};
+    const want = topology.edges.filter((e) => unplaced.indexOf(e.from) === -1 &&
+      unplaced.indexOf(e.to) === -1 && !(jointOf[e.from] && jointOf[e.from] === jointOf[e.to]));
     return { sources, nodes: topology.nodes.map((n) => n.id),
       lines: drawn ? Object.keys(drawn.lines).sort() : null,
-      edges: topology.edges.map((e) => e.id).sort(),
+      edges: want.map((e) => e.id).sort(), unplaced: unplaced.slice().sort(),
+      dots: drawn ? Object.keys(drawn.nodes).sort() : null,
       c: built && built.anchors.c ? built.anchors.c.point : null,
       dotC: drawn && drawn.nodes.c ? drawn.nodes.c.at : null,
       message: window.__lastAnchors };
   });
-  check("the model layer anchors every node of the topology and draws a line for every edge",
+  check("the model layer anchors every node of the topology and draws a line for every edge " +
+    "except one inside a joint or one touching an unplaced node",
     Object.keys(model.sources).sort().join() === model.nodes.slice().sort().join() &&
-    JSON.stringify(model.lines) === JSON.stringify(model.edges), JSON.stringify(model));
+    JSON.stringify(model.lines) === JSON.stringify(model.edges) &&
+    model.unplaced.join() === model.nodes.filter((id) => model.sources[id] === "origin").sort().join() &&
+    model.dots && model.dots.every((id) => model.unplaced.indexOf(id) === -1), JSON.stringify(model));
   // The mock's one committed binding is demo_edge_untraced's `to` end, on the
   // triangle's face 0 -- so node c anchors on that flat face's centroid, and
   // the mock's nodes name no part, so every other node has no geometry.

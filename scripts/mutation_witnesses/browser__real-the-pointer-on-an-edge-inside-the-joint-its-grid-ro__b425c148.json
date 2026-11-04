@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] the pointer on an edge inside the joint (its grid row, or its DAG bar where the study gives it none) and on the grid row of one leaving it emphasises the joint's ONE 3D dot",
+  "mutations": [
+    {
+      "contract": "The scene resolves an emphasised edge's ends to the dot that stands for each.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "The review's finding: emphasis read only off drawn lines, so the coaxiality row (no line) lit nothing.",
+      "file": "apps/annotate/scene.js",
+      "find": "      if (d) emphasisNodes.add(d);",
+      "replace": ""
+    },
+    {
+      "contract": "The page passes the emphasised edge's ends to the scene.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Without them the scene has only the edge id, and an edge inside a joint has no line to read it off.",
+      "file": "apps/annotate/app.js",
+      "find": "    emphasisNodes: AA.modelEmphasisNodes(topology, model.emphasis) });",
+      "replace": "    emphasisNodes: [] });"
+    }
+  ]
+}

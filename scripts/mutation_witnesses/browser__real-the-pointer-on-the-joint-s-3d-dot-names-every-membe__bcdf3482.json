@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] the pointer on the joint's 3D dot names every member, and lights each one's DAG dot and grid rows",
+  "mutations": [
+    {
+      "contract": "A joint's dot under the pointer names every member.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Naming only the joint's own id lights one of its two DAG dots.",
+      "file": "apps/annotate/app.js",
+      "find": "    postToShell(AA.modelHoverMessage(nodeId, joint ? joint.members : null));",
+      "replace": "    postToShell(AA.modelHoverMessage(nodeId, null));"
+    }
+  ]
+}

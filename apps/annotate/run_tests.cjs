@@ -1467,6 +1467,91 @@ check("a feature row's suggestion: an open proposal at its end, else the contact
   assertEqual(AA.endSuggestion(identity, contact, "rail_topo", { edgeId: "rod_len", direction: "from" }), null);
 });
 
+// --- a joint end's candidate list (a_joint_end_lists_its_candidate_faces_and_
+// says_why_each_is_there) -----------------------------------------------------
+const CAND_CONTACT = { topologies: [{ id: "rail_topo", edges: [{ edge: "rod_len", status: "ok",
+  pairing: "cylinder_in_cylinder", candidates: [
+    // Listed out of rank order, and sharing the `to` end's faces: ten pairs
+    // over one mating bore are that bore's faces, once each.
+    { rank: 2, relation: "coaxial", from: { sha256: PROPOSAL_SHA, surface: "cylindrical", faces: [8, 7] },
+      to: { sha256: "b", surface: "cylindrical", faces: [3, 4] },
+      evidence: { axis_offset_mm: 0.01, angle_deg: 0, from_radius_mm: 6, to_radius_mm: 9 } },
+    { rank: 1, relation: "contact", from: { sha256: PROPOSAL_SHA, surface: "cylindrical", faces: [5] },
+      to: { sha256: "b", surface: "cylindrical", faces: [3, 4] },
+      evidence: { bore: "to", pin_radius_mm: 4.99, bore_radius_mm: 5, clearance_mm: 0.01,
+        axial_overlap_mm: 2 } },
+  ] }] }] };
+
+check("an end's candidate list: the proposal first, then the engine's faces in rank order, " +
+  "each face once, with why it is there and the one already bound marked", () => {
+  const record = AA.addEventToRecord(emptyRow(), PROPOSAL);
+  const identity = { stack_keys: [record] };
+  const from = AA.endCandidates(identity, CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "from" });
+  assertEqual(from.map((r) => [r.kind, r.faceId]), [["proposed", 7], ["contact", 5], ["contact", 8]],
+    "face 7 is the proposal's row, not a second contact row");
+  assertEqual(from[0].reason, "agent suggested · high");
+  assertEqual(from[0].proposal.event_id, PROPOSAL.event_id);
+  assertEqual(/coaxial with the mating round face/.test(from[0].detail), true,
+    "the engine's reason for a proposed face it also ranked rides on the proposal's hover");
+  assertEqual(from[1].reason, "fits the mating bore");
+  assertEqual(from[1].radius, 4.99);
+  assertEqual(AA.candidateRowWords(from[1]), "face 5 · round · r " + AA.formatSweepNumber(4.99, "mm") + " mm");
+  const to = AA.endCandidates(identity, CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "to" });
+  assertEqual(to.map((r) => [r.faceId, r.reason]), [[3, "fits the mating pin"], [4, "fits the mating pin"]]);
+  assertEqual(AA.suggestionWords(AA.endSuggestion(identity, CAND_CONTACT, "rail_topo",
+    { edgeId: "rod_len", direction: "to" })), "candidates · 2", "the closed row counts faces, not pairs");
+  assertEqual(AA.endCandidates(identity, CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: null }), [],
+    "an edge feature has no one end to list");
+  // Bound: the list stays, the standing face is marked, and the proposal is gone.
+  AA.addEventToRecord(record, AA.buildBoundEvent({ eventId: "b1", seq: 2, createdAt: "2026-11-03T00:00:00Z",
+    recordedBy: "annotate-app:jeff", stackKey: PROPOSAL.stack_key, direction: "from",
+    geometryKey: { sourceStepSha256: PROPOSAL_SHA, faceId: 5, areaNative2: 1, centroidNative: [0, 0, 0] } }));
+  const bound = AA.endCandidates(identity, CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "from" });
+  assertEqual(bound.filter((r) => r.bound).map((r) => r.faceId), [5]);
+});
+
+check("a candidate's reason names what the face is to the mating feature, for every relation " +
+  "and pairing the engine emits", () => {
+  const say = (pairing, relation, evidence, direction, mateSurface) => AA.candidateReason(
+    { pairing }, { relation, evidence, from: { surface: "planar" }, to: { surface: mateSurface || "planar" } },
+    direction || "from");
+  assertEqual(say("plane_on_plane", "contact", {}), "coincident with the mating face");
+  assertEqual(say("cylinder_in_cylinder", "contact", { bore: "from" }), "fits the mating pin");
+  assertEqual(say("cylinder_in_cylinder", "coaxial", { bore: "to" }), "coaxial with the mating bore");
+  assertEqual(say("cylinder_in_cylinder", "coaxial", {}, "from", "cylindrical"), "coaxial with the mating round face");
+  assertEqual(say("ball_in_seat", "contact", { ball: "from", seat: "spherical" }), "seated against the mating race");
+  assertEqual(say("ball_in_seat", "contact", { ball: "from", seat: "cylindrical" }), "seated against the mating bore");
+  assertEqual(say("ball_in_seat", "contact", { ball: "to", seat: "planar" }), "seated against the mating ball");
+  assertEqual(say("plane_across_axis", "across", { plane: "from" }), "square to the mating axis");
+  assertEqual(say("plane_across_axis", "across", { plane: "to" }), "square to the mating face");
+  assertEqual(AA.candidateReason({ pairing: "plane_on_plane" }, { relation: "parallel", evidence: {} }, "from"),
+    null, "a relation the engine does not emit says nothing rather than a guess");
+  // The radius is the end's own: the bore's for the bore end, the ball's for the ball.
+  assertEqual(AA.candidateRadius({ evidence: { bore: "to", bore_radius_mm: 5, pin_radius_mm: 4 } }, "to"), 5);
+  assertEqual(AA.candidateRadius({ evidence: { bore: "to", bore_radius_mm: 5, pin_radius_mm: 4 } }, "from"), 4);
+  assertEqual(AA.candidateRadius({ evidence: { ball: "from", ball_radius_mm: 5.1, seat_radius_mm: 5.2 } }, "to"), 5.2);
+  assertEqual(AA.candidateRadius({ evidence: { plane: "from", cylinder_radius_mm: 3 } }, "from"), null);
+  assertEqual(AA.candidateRadius({ evidence: { from_radius_mm: 6 } }, "from"), 6);
+  // Reader words only: no engine field name on the list.
+  for (const words of [AA.CANDIDATE_RELATION_REASONS, AA.CANDIDATE_CONTACT_REASONS]) {
+    for (const k of Object.keys(words)) {
+      if (words[k] && /_|evidence|relation|pairing|rank/.test(words[k])) throw new Error("engine word in " + words[k]);
+    }
+  }
+});
+
+check("hover face takes a mesh and a whole face id, and the pane's candidate debounce is the " +
+  "shell's pane-hover value", () => {
+  assertEqual(AA.parseHover("face", "hub", "3460"), { kind: "face", name: "hub", faceId: 3460 });
+  let threw = 0;
+  try { AA.parseHover("face", "hub"); } catch (_) { threw++; }
+  try { AA.parseHover("face", "hub", "3.5"); } catch (_) { threw++; }
+  assertEqual(threw, 2);
+  const viewer = fs.readFileSync(path.join(here, "..", "viewer", "viewer.js"), "utf8");
+  const m = /VA\.PANE_HOVER_DEBOUNCE_MS = (\d+);/.exec(viewer);
+  assertEqual(m && Number(m[1]), AA.CANDIDATE_HOVER_DEBOUNCE_MS);
+});
+
 check("a node feature's state is ITS end's: a proposal at the other end leaves it unbound", () => {
   const record = AA.addEventToRecord(emptyRow(), PROPOSAL);
   const identity = { stack_keys: [record] };
@@ -1589,6 +1674,19 @@ check("embedState names the mode and the subject in one line -- the run's mechan
   assertEqual(AA.embedState(null, topology, null).title,
     "Binding — Propeller pitch linkage");
   assertEqual(AA.embedState(null, null, null).title, "Binding");
+});
+check("isolate parts: the named parts are solid and every other installed part is ghosted, " +
+  "or hidden under the unlit word hide -- and a scope with no mesh says so in the head line", () => {
+  assertEqual(AA.ISOLATE_PARTS_WORD, "parts");
+  assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], false),
+    { solid: ["b"], ghost: ["a", "c"], hide: [] });
+  assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], true),
+    { solid: ["b"], ghost: [], hide: ["a", "c"] });
+  assertEqual(AA.planPartScope(["a"], ["a"], false), { solid: ["a"], ghost: [], hide: [] });
+  const topology = { id: "t", title: "Linkage" };
+  assertEqual(AA.embedState(null, topology, null, true).title,
+    "Binding — Linkage — no 3D model for these parts yet");
+  assertEqual(AA.embedState(null, topology, null, false).title, "Binding — Linkage");
 });
 // --- the sweep rail shows the mechanism (handoff the_sweep_rail_shows_the_
 // mechanism): the tree, the feature bindings, the stop and the contributors.
@@ -5305,6 +5403,120 @@ check("model: the link ends are read off the run's own geometry features, for li
   assertEqual(AA.modelLinkEnds(null), {}, "no run, no link ends");
 });
 
+// --- a joint is one node (handoff coaxial_ends_share_one_3d_node) ----------
+//
+// Concentric ends of an edge merge: two parallel axes the same line, a point
+// on an axis, two coincident points. Two axes that only cross are two joints.
+
+check("model: concentric ends of an edge are one joint -- coaxial, on the axis, or coincident -- and nothing else is", () => {
+  const z = [0, 0, 1], x = [1, 0, 0];
+  const d = AA.MODEL_JOINT_DISTANCE_MM;
+  const tilt = (deg) => [Math.sin(deg * Math.PI / 180), 0, Math.cos(deg * Math.PI / 180)];
+  const m = (a, b) => AA.modelJointMeasure(a, b).merge;
+  // The distance ALONG the axis is free: the plate slides up the spindle.
+  if (!m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 64.466], axis: z })) throw new Error("coaxial, 64 mm apart, did not merge");
+  if (!m({ point: [0, 0, 0], axis: z }, { point: [d * 0.9, 0, 30], axis: z })) throw new Error("just inside the distance did not merge");
+  if (m({ point: [0, 0, 0], axis: z }, { point: [d * 1.1, 0, 30], axis: z })) throw new Error("just outside the distance merged");
+  if (!m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 10], axis: tilt(AA.MODEL_JOINT_ANGLE_DEG * 0.9) })) {
+    throw new Error("just inside the angle did not merge");
+  }
+  if (m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 0], axis: tilt(AA.MODEL_JOINT_ANGLE_DEG * 1.1) })) {
+    throw new Error("just outside the angle merged");
+  }
+  if (m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 0], axis: x })) throw new Error("two crossing axes merged");
+  if (!m({ point: [0, 0, 0], axis: z }, { point: [0, 0, 50], axis: null })) throw new Error("a point on the axis did not merge");
+  if (!m({ point: [1, 2, 3], axis: null }, { point: [1, 2, 3 + d * 0.9], axis: null })) throw new Error("coincident points did not merge");
+  if (m({ point: [1, 2, 3], axis: null }, { point: [1, 2, 3 + d * 1.1], axis: null })) throw new Error("two points apart merged");
+});
+
+const JOINT_TOPOLOGY = {
+  nodes: [{ id: "spindle" }, { id: "plate" }, { id: "bushing" }, { id: "hinge" }, { id: "far" }, { id: "drawn" }],
+  edges: [
+    { id: "coax", from: "spindle", to: "plate" },
+    { id: "bush", from: "plate", to: "bushing" },
+    { id: "cross", from: "spindle", to: "hinge" },
+    { id: "radius", from: "plate", to: "far" },
+    { id: "section", from: "plate", to: "drawn" },
+  ],
+};
+
+check("model: joints chain across edges, a crossing axis stays its own joint, and a node with no feature never merges", () => {
+  const features = {
+    spindle: { point: [0, 0, 0], axis: [0, 0, 1], from: "solver", joint: "slide", end: "point_a_world" },
+    plate: { point: [0, 0, 64], axis: [0, 0, 1], from: "solver", joint: "slide", end: "point_b_world" },
+    bushing: { point: [0, 0, 70], axis: null, from: "bound" },
+    hinge: { point: [0, 0, 0], axis: [1, 0, 0], from: "solver", joint: "hinge", end: "point_a_world" },
+    far: { point: [80, 0, 64], axis: null, from: "bound" },
+  };
+  const joints = AA.modelJointGroups(JOINT_TOPOLOGY, features);
+  assertEqual(joints.groups.map((g) => [g.id, g.members]), [["spindle", ["spindle", "plate", "bushing"]]],
+    "the spindle, the plate on it and the bushing in it are one joint; the hinge and the far bore are not");
+  assertEqual(joints.of, { spindle: "spindle", plate: "spindle", bushing: "spindle" }, "every member names its joint");
+  assertEqual(joints.measured.map((r) => [r.edge, r.merge]),
+    [["coax", true], ["bush", true], ["cross", false], ["radius", false]],
+    "every edge with a feature at both ends is measured; the drawn-only end is not");
+  // The joint's point: the mean of its ends, each where the frame puts it --
+  // a solver end off the frame, a bound one through its subject's pose.
+  const anchors = { bushing: { subject: "plate_body" } };
+  assertEqual(AA.modelJointWorldPoints(joints, features, anchors, null).spindle, [0, 0, 134 / 3],
+    "as modelled: the mean of the three");
+  const frame = { joints: { slide: { point_a_world: [0, 0, 0], point_b_world: [0, 0, 10] } },
+    poses: { plate_body: { quaternion: [0, 0, 0, 1], translation: [0, 0, -54] } } };
+  assertEqual(AA.modelJointWorldPoints(joints, features, anchors, frame).spindle, [0, 0, 26 / 3],
+    "at a frame: the solver's two ends as it states them, the bushing carried by its body");
+});
+
+check("model: the drawn graph is one dot per joint, no line inside a joint, lines out of it renamed to it, and no unplaced node", () => {
+  const anchors = {
+    spindle: { source: "section", subject: "base", point: [9, 0, 0] },
+    plate: { source: "section", subject: "plate_body", point: [9, 0, 1] },
+    bushing: { source: "bound", subject: "plate_body", point: [0, 0, 70] },
+    hinge: { source: "section", subject: "base", point: [9, 0, 2] },
+    far: { source: "section", subject: "plate_body", point: [80, 0, 64] },
+    drawn: { source: "origin", subject: "plate_body", point: [0, 0, 0], why: AA.MODEL_ORIGIN_WHY.noMesh },
+  };
+  const joints = { groups: [{ id: "spindle", members: ["spindle", "plate", "bushing"] }],
+    of: { spindle: "spindle", plate: "spindle", bushing: "spindle" } };
+  const g = AA.modelDrawnGraph(JOINT_TOPOLOGY, anchors, joints);
+  assertEqual(g.dots, { spindle: { members: ["spindle", "plate", "bushing"] }, hinge: { members: null },
+    far: { members: null } }, "one dot for the joint, one per other placed node, none for the unplaced");
+  assertEqual(g.hidden, ["coax", "bush"], "a coaxiality and a bushing's thickness have no length in 3D");
+  assertEqual(g.lines, { cross: { from: "spindle", to: "hinge", kind: undefined, body: null },
+    radius: { from: "spindle", to: "far", kind: undefined, body: null } },
+    "a line leaving the joint starts at the joint, in world; a line to an unplaced node is not drawn");
+  assertEqual(g.unplaced, ["drawn"], "the unplaced nodes, for the head line's count");
+  assertEqual(AA.modelHoverMessage("spindle", joints.groups[0].members),
+    { type: "annotate:hover", kind: "node", id: "spindle", members: ["spindle", "plate", "bushing"] },
+    "a joint's dot under the pointer names every end it stands for");
+  if (!/3 concentric ends/.test(AA.modelAnchorWords(anchors.plate, joints.groups[0]))) {
+    throw new Error("a joint member's readout does not say it is one joint: " +
+      AA.modelAnchorWords(anchors.plate, joints.groups[0]));
+  }
+});
+
+check("model: a grid row's emphasis names its edge's two ends, drawn or not", () => {
+  // The coaxiality inside the joint draws no line, and its row must still
+  // light the joint's dot: the scene resolves each end to its dot.
+  assertEqual(AA.modelEmphasisNodes(JOINT_TOPOLOGY, "coax"), ["spindle", "plate"],
+    "an edge inside a joint names its two ends");
+  assertEqual(AA.modelEmphasisNodes(JOINT_TOPOLOGY, "cross"), ["spindle", "hinge"],
+    "an edge leaving the joint names its two ends");
+  assertEqual(AA.modelEmphasisNodes(JOINT_TOPOLOGY, null), [], "nothing emphasised names nothing");
+  assertEqual(AA.modelEmphasisNodes(JOINT_TOPOLOGY, "no_such_edge"), [], "an unknown edge names nothing");
+});
+
+check("model: a bound round face is a feature in the assembly frame; a flat face is none", () => {
+  // A quarter turn about Z and a shift: local +X becomes assembly +Y.
+  const placement = [0, -1, 0, 10, 1, 0, 0, 20, 0, 0, 1, 30];
+  const bore = AA.modelBoundFeature({ surface: "cylindrical", axisPoint: [1, 0, 0], axis: [1, 0, 0], radius: 4 }, placement);
+  assertEqual([bore.point, bore.axis.map((v) => Math.round(v * 1e12) / 1e12), bore.from],
+    [[10, 21, 30], [0, 1, 0], "bound"], "a bore: its axis point placed, its direction turned");
+  const ball = AA.modelBoundFeature({ surface: "spherical", centre: [0, 0, 5], radius: 6 }, placement);
+  assertEqual([ball.point, ball.axis], [[10, 20, 35], null], "a ball: its centre, no axis");
+  assertEqual(AA.modelBoundFeature({ surface: "planar", point: [0, 0, 0], normal: [0, 0, 1] }, placement), null,
+    "a flat face is a linear stack's, not a joint's");
+});
+
 // --- [real] the published sweep runs ---------------------------------------
 //
 // `data/inbox/linkage-sweeps/` is gitignored and lives only in the main
@@ -5543,6 +5755,41 @@ if (!SWEEPS_DIR) {
       assertEqual(nodes, ["pitch_link_upper_sphere_centre", "pitch_link_lower_sphere_centre"]);
       console.log("      " + tree.joints.map(AA.sweepJointRowWords).join(" / "));
     });
+
+    // A joint is one node (handoff coaxial_ends_share_one_3d_node), on the
+    // live run and the live topology: the solver's plate slide makes the
+    // hub's spindle bore and the pitch plate's one joint, and nothing else
+    // on P2 has a feature at both ends of an edge that is concentric. With no
+    // committed binding in the inbox (2026-11-03: 55 proposals, 0 accepted),
+    // the solver is the only feature source, so these are the live merges.
+    check("[real] P2: the spindle coaxiality pair is one joint at the solver's slide axis; the link " +
+      "centres and the hinge stay their own nodes", () => {
+      const art = AA.readSweepArtifact(JSON.parse(fs.readFileSync(path.join(SWEEPS_DIR, P2_FILE), "utf8")));
+      const topo = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "docs", "topologies",
+        "topology_vpa_pitch_linkage.json"), "utf8"));
+      const features = AA.modelSolverFeatures(art);
+      const joints = AA.modelJointGroups(topo, features);
+      const r2 = (p) => p.map((v) => Math.round(v * 100) / 100 + 0);
+      assertEqual(joints.groups.map((g) => g.members),
+        [["hub_spindle_bore_axis", "pitch_plate_spindle_bore_axis"]], "the one merged joint on P2");
+      const asModelled = AA.modelJointWorldPoints(joints, features, {}, null);
+      assertEqual(r2(asModelled.hub_spindle_bore_axis), [0, 0, 0], "as modelled (72 deg, zero travel)");
+      const first = AA.modelJointWorldPoints(joints, features, {}, AA.sweepFrameAt(art, 0));
+      assertEqual(r2(first.hub_spindle_bore_axis), [0, 0, 32.23], "at the first point (-7 deg): half the slide");
+      const rows = {};
+      joints.measured.forEach((r) => { rows[r.edge] = r; });
+      // Exactly these four: gas_spring_bushing_coaxiality is not measured,
+      // because gas_spring_mount_bushing_bore has no feature on this run.
+      assertEqual(Object.keys(rows).sort(), ["hub_blade_axis_offset",
+        "hub_to_pitch_plate_spindle_coaxiality", "pitch_link_length", "tan_link_length"],
+        "the edges with a solver feature at both ends");
+      if (rows.pitch_link_length.merge || rows.tan_link_length.merge || rows.hub_blade_axis_offset.merge) {
+        throw new Error("a link's two centres, or the spindle and the blade hinge, merged");
+      }
+      console.log("      " + joints.measured.map((r) => r.edge + ": " +
+        (r.angleDeg === null ? "" : r.angleDeg.toFixed(3) + " deg, ") + r.distanceMm.toExponential(3) +
+        " mm" + (r.merge ? " -> one joint" : "")).join(" / "));
+    });
   }
 }
 
@@ -5686,6 +5933,57 @@ if (!realMeshesDir) {
         console.log("      (no real study names gas_spring_mount_213668_002 -- " +
           "the alias-resolution leg of this check found nothing to resolve)");
       }
+    });
+  }
+
+  // Every open proposal is a candidate row on some end the bind rail lists
+  // (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): the
+  // topology-level rail lists every edge, and each edge's row opens to both
+  // ends' lists. Re-measured on every run against the projection on disk.
+  const realContactPath = [
+    path.join(here, "..", "..", "data", "projections", "feature-identity", "contact_suggestions.json"),
+    "C:\\workspace\\tolstack\\data\\projections\\feature-identity\\contact_suggestions.json",
+  ].find((p) => fs.existsSync(p));
+  if (!realProjectionPath || !realBindingsPath || !realContactPath) {
+    console.log("SKIP  [real] every open proposal is a candidate row -- the viewer, feature-identity " +
+      "or contact projection is not on disk (gitignored, main checkout only)");
+  } else {
+    check("[real] every open proposal is a candidate row on an end of some edge, and every " +
+      "candidate row says why it is there", () => {
+      const projection = JSON.parse(fs.readFileSync(realProjectionPath, "utf8"));
+      const identity = JSON.parse(fs.readFileSync(realBindingsPath, "utf8"));
+      const contact = JSON.parse(fs.readFileSync(realContactPath, "utf8"));
+      let open = 0;
+      let reached = 0;
+      let rows = 0;
+      let contactRows = 0;
+      for (const topology of projection.topologies) {
+        const lists = {};
+        for (const edge of topology.edges || []) {
+          for (const direction of AA.DIRECTIONS) {
+            const list = AA.endCandidates(identity, contact, topology.id, { edgeId: edge.id, direction });
+            lists[edge.id + "|" + direction] = list;
+            rows += list.length;
+            for (const r of list) {
+              if (r.kind === AA.CANDIDATE_ROW_KINDS[1]) contactRows++;
+              if (!r.reason) throw new Error(`${edge.id} ${direction} face ${r.faceId}: no stateable reason`);
+            }
+          }
+        }
+        for (const row of identity.stack_keys || []) {
+          const k = row.stack_key || {};
+          if (k.kind !== "topology_edge" || k.topology_id !== topology.id) continue;
+          for (const p of row.proposals || []) {
+            open++;
+            const list = lists[k.edge_id + "|" + p.direction] || [];
+            if (list.some((r) => r.proposal && r.proposal.event_id === p.event_id)) reached++;
+          }
+        }
+      }
+      console.log(`      ${reached}/${open} open proposals are candidate rows; ${rows} rows, ` +
+        `${contactRows} of them the contact engine's`);
+      if (!open) throw new Error("no open proposal on disk -- the check would pass vacuously");
+      assertEqual(reached, open);
     });
   }
 }

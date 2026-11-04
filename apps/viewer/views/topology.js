@@ -317,7 +317,7 @@
     // went when the mode stretched it. `fit` is the viewport it normalizes
     // into (viewer_dag_spine_layout) — measured here because this is the one
     // place that holds both the pane and the plan.
-    var fit = { plan: plan };
+    var fit = { plan: plan, inset: VA.DAG_FIT.topInset };
     var positions = VA.rowPositions(layout, topoProj,
       ctx.edgeLengthMode || "uniform", M, fit);
     // Mid-respine (viewer_study_respine_animation): the frame is drawn from
@@ -357,6 +357,11 @@
     // The page's own listener for the leaders across the seam, which light
     // with whatever the pointer lights here (topology_app.js).
     hot.onChange = ctx.onHot || null;
+    // ...and the way back: the scene's pointer lights marks here
+    // (VA.lightTopoKeys). The LAST render's: the pane renders one view at a
+    // time, so a scene hover lights that one; were it ever to render twice,
+    // this would point at whichever rendered last.
+    VA.lastTopoHot = hot;
     // The containers the reader has switched on (VA.GROUP_KINDS), every one
     // where nothing was chosen. With the unlit part HIDDEN the walk IS the
     // selected study's band, so its group is the only one left.
@@ -643,6 +648,16 @@
   //   opts  the clock, the motion preference and the error sink, injected so
   //         the fast tier can drive a whole transition frame by frame with no
   //         browser: { raf, now, duration, reduced, onError }.
+  //         And `landing`, the page's own part of an arrival (the_dag_holds_
+  //         still_and_the_filter_bar_stays_put): the frame the reader sees is
+  //         the DAG plus the space the page puts before it and where the page
+  //         is scrolled, so a transition that moved only the DAG left the rest
+  //         to snap -- the space dropped on the first frame and came back on the
+  //         last. `landing.target()` is called once, with the TARGET laid out at
+  //         rest in `root` and the outgoing pane already in the ghost, so the
+  //         page can measure where it will land; `landing.frame(e)` is called
+  //         before each frame's render (e = 1 on the settled one) to set the
+  //         ctx's pad, and `landing.placed(e)` after it to place the scroll.
   //
   // `onError` is not optional decoration. Every other path into a render on
   // this page goes through topology_app.js's one try/catch (the 2026-09-09
@@ -673,23 +688,32 @@
     var now = opts.now || function () { return Date.now(); };
     var raf = opts.raf || nextFrame;
     var ghost = ghostOf(root);
+    var landing = opts.landing || null;
+    if (landing) {
+      VA.renderTopoPane(root, ctx);
+      landing.target();
+    }
     var start = now();
     var handle = { cancel: function () { handle.cancelled = true; }, cancelled: false };
     var step = function () {
       if (handle.cancelled) return;
       var t = duration > 0 ? (now() - start) / duration : 1;
       var settling = !(t < 1);
+      var e = 1;
       // The settled frame gets no tween argument at all, so the ghost is not
       // re-appended and every number in the DOM is the target's own.
       if (settling) {
         handle.done = true;
       } else {
+        e = VA.respineEase(t);
         ctx.tween = { positions: previous, columns: from.columns,
                       floor: from.floor, width: from.width, links: from.links,
-                      e: VA.respineEase(t), ghost: ghost };
+                      e: e, ghost: ghost };
       }
       try {
+        if (landing) landing.frame(e);
         VA.renderTopoPane(root, ctx);
+        if (landing) landing.placed(e);
       } catch (err) {
         handle.cancelled = true;
         if (opts.onError) opts.onError(err);
@@ -811,15 +835,40 @@
     return Math.max(0, Math.min(visibleTop - naturalTop, room));
   };
 
+  // What the page pins at its top, as two heights (style.css's --bar-h and
+  // --filter-h are written from these, so CSS and JS read one measurement):
+  // the page bar, and the view filters under it where the page has any.
+  VA.stickyOffsets = function () {
+    if (typeof document === "undefined" || !document.querySelector) {
+      return { bar: 0, filter: 0, top: 0 };
+    }
+    var height = function (node) {
+      return node && node.getBoundingClientRect ? node.getBoundingClientRect().height : 0;
+    };
+    var bar = height(document.querySelector(".topbar"));
+    var tool = document.querySelector(".tv__toolbar");
+    var filter = tool && tool.childNodes && tool.childNodes.length ? height(tool) : 0;
+    return { bar: bar, filter: filter, top: bar + filter };
+  };
+
+  VA.syncStickyOffsets = function () {
+    var o = VA.stickyOffsets();
+    var root = typeof document !== "undefined" ? document.documentElement : null;
+    if (root && root.style && root.style.setProperty && o.bar > 0) {
+      root.style.setProperty("--bar-h", o.bar + "px");
+      root.style.setProperty("--filter-h", o.filter + "px");
+    }
+    return o;
+  };
+
   // The top of what the reader can see of the drawing, in viewport pixels: the
-  // bounded pane's own top, otherwise the sticky page bar's bottom.
+  // bounded pane's own top, otherwise under everything the page pins -- the bar
+  // and the view filters.
   function visibleTop(root) {
     if (root.classList && root.classList.contains("tv__scroll--bounded")) {
       return root.getBoundingClientRect().top;
     }
-    var bar = typeof document !== "undefined" && document.querySelector
-      ? document.querySelector(".topbar") : null;
-    return bar && bar.getBoundingClientRect ? bar.getBoundingClientRect().bottom : 0;
+    return VA.stickyOffsets().top;
   }
 
   VA.pinTopoHead = function (root) {
@@ -1488,6 +1537,35 @@
       light(entry, [entry.hot, entry.lead].filter(Boolean).join(" "));
     });
   }
+
+  // The scene's pointer, lighting this pane (coaxial_ends_share_one_3d_node):
+  // every key's line and lead marks at once -- a joint's one 3D dot stands
+  // for several nodes -- or none. The pane's own pointer wins: while it holds
+  // the state this does nothing, and it tells no listener (the scene is
+  // where the pointer is). Returns how many keys it lit.
+  VA.lightTopoKeys = function (keys) {
+    var hot = VA.lastTopoHot;
+    if (!hot || hot.on) return 0;
+    while (hot.marked.length) {
+      var was = hot.marked.pop();
+      was.el.setAttribute("class", was.base);
+    }
+    var list = keys || [];
+    var light = function (entry, extra) {
+      entry.el.setAttribute("class", entry.base + " " + extra);
+      hot.marked.push(entry);
+    };
+    list.forEach(function (key) {
+      var railId = hot.railOf[key];
+      (railId ? hot.rail[railId] || [] : []).forEach(function (entry) { light(entry, entry.hot); });
+    });
+    list.forEach(function (key) {
+      (hot.lead[key] || []).forEach(function (entry) {
+        light(entry, [entry.hot, entry.lead].filter(Boolean).join(" "));
+      });
+    });
+    return list.length;
+  };
 
   // Hover and keyboard focus drive the same state, and leaving clears it only
   // if this element is still the one holding it: moving the pointer from a bar
