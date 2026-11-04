@@ -7232,7 +7232,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     const opened = await until((w) => w.__sweep && w.__sweep.openedBySweep &&
       w.__sweep.openedBySweep.length > 0 && w.__scene &&
       w.__scene.parts.has(w.__sweep.openedBySweep[0]), null, 120000);
-    await page.locator(`#topopane tr.tvrow[data-id="${bound.edge}"]`).first().hover();
+    await clearPoint(page, `#topopane tr.tvrow[data-id="${bound.edge}"] td.tvcell--name`, "hover");
     const tinted = opened && await until((w) => !!w.__lastHighlight);
     const face = tinted ? await inPane((w) => {
       const f = w.__lastHighlight;
@@ -7247,7 +7247,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] resting on a bound contributor row tints its face in the " +
       "annotator, in the colour buffer and not just the bookkeeping",
       face && face.sha256 === face.first && face.faceId === 0 && face.painted);
-    await page.locator(`#topopane tr.tvrow[data-id="${unbound.edge}"]`).first().hover();
+    await clearPoint(page, `#topopane tr.tvrow[data-id="${unbound.edge}"] td.tvcell--name`, "hover");
     const cleared = await until((w) => w.__lastHighlight === null, null, 10000);
     const said = cleared
       ? await inPane((w) => w.__lastHighlightNote || "") : "";
@@ -7260,8 +7260,8 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     // (2026-10-26.) The page keeps the study, the pane is not sent a goto,
     // and the selected edge is what the scene highlights once the pointer
     // rests on nothing in particular.
-    await page.locator(`#topopane tr.tvrow[data-id="${bound.edge}"] td.tvcell--name`).first()
-      .click({ timeout: 5000 }).catch(() => {});
+    await clearPoint(page, `#topopane tr.tvrow[data-id="${bound.edge}"] td.tvcell--name`, "click")
+      .catch(() => {});
     await page.mouse.move(5, 5);
     const stillSwept = await until((w, run) => w.__sweep && w.__sweep.artifact &&
       w.__sweep.artifact.runId === run && !!w.__lastHighlight, study.sweep.run_id, 15000);
@@ -12940,7 +12940,12 @@ async function testSeamLeaders(browser, label, topologies) {
     // what is on screen -- the dot's own circle, the scene's own last
     // message (__lastAnchors) plus the iframe's rect -- never from the copies
     // the page draws from, so a stale copy cannot agree with itself.
-    const TRACE_EDGES = ["pitch_plate_flange_to_link_hole", "gas_spring_mount_flange_to_end_stop"];
+    // Two term rows the stack shows at its default stop. Jeff's own two rows
+    // (pitch_plate_flange_to_link_hole, gas_spring_mount_flange_to_end_stop)
+    // have none since the_kinematic_grid_is_a_stack_of_sub_stacks: the first
+    // is a band's own edge, read on its contributor's row, the second a term
+    // folded under the travel.
+    const TRACE_EDGES = ["pitch_link_length", "tan_link_length"];
     const traceMeasure = (arg) => live.evaluate(({ ends, how }) => {
       const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
       const screen = (path, at) => {
@@ -13167,7 +13172,7 @@ async function testSeamLeaders(browser, label, topologies) {
         else window.scrollTo(0, 0);
       });
     };
-    await live.locator(`#topopane tr.tvrow[data-id="${CONTRIBUTOR}"] td.tvcell--name`).first().click();
+    await clearPoint(live, `#topopane tr.tvrow[data-id="${CONTRIBUTOR}"] td.tvcell--name`, "click");
     await backToSelection();
     const lit1 = await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;
@@ -13200,7 +13205,7 @@ async function testSeamLeaders(browser, label, topologies) {
 
     // Another contributor, then the pitch link's face picked in the scene --
     // `inspect part`, what a click on the mesh runs -- back to the same state.
-    await live.locator('#topopane tr.tvrow[data-id="pitch_link_length"] td.tvcell--name').first().click();
+    await clearPoint(live, '#topopane tr.tvrow[data-id="pitch_link_length"] td.tvcell--name', "click");
     await backUp();
     await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;

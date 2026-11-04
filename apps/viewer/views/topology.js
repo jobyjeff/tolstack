@@ -2263,6 +2263,10 @@
   // (VA.CONFIDENCE_WORDS), and the one row tint that is not a body's.
   function sourcingLegend() {
     var strip = VA.el("div", "tvlegend");
+    // As wide as the table above it, never wider: a wrapping strip in the
+    // pane's shrink-to-fit box would otherwise lay out at its one-line width
+    // and widen the pane's sideways scroll.
+    strip.style.width = tableWidth() + "px";
     strip.appendChild(VA.el("span", "tvlegend__head", "sourcing"));
     VA.CONFIDENCES.forEach(function (c) {
       var item = VA.el("span", "tvlegend__item");
