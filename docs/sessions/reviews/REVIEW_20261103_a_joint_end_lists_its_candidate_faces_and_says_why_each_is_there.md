@@ -111,9 +111,9 @@ export to attribute the reds.
 
 ## Housekeeping
 
-The lesson asks that `C:workspace	olstackdatascratchndidate_list` (the tactical session's) be
-deleted after review. It has no junctions, and I left it for its owner or triage. I removed my own
-`data/scratch/review_candidate_list/` (junctions removed with `rmdir` first) and the
-worktree's `node_modules` junction before finishing.
-area. Deleting them is outside this review's inline authority over another
-session's files, so they are left for triage's found-dirt sweep.
+The tactical lesson asks that its scratch root,
+`data/scratch/candidate_list/` in the main checkout, be deleted after review.
+It holds no junctions. I left it for its owner or for triage, because it is
+another session's output. I removed my own `data/scratch/review_candidate_list/`
+before finishing (its junctions first, with `rmdir`), and the worktree's
+`node_modules` junction.
