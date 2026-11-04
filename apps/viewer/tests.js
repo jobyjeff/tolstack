@@ -329,6 +329,45 @@
         eq(rows[1].getAttribute("data-suggestion"), null);
       });
 
+    await test("a joint end with a candidate list mirrors as a row with a twisty in front: the " +
+      "twisty toggles, the row still selects, the list shows only when open, and its words wrap",
+      function () {
+        var sent = [];
+        var send = function (key, act, index) {
+          sent.push(index === undefined ? key + " " + act : key + " " + act + " " + index);
+        };
+        var stop = { preventDefault: function () {}, stopPropagation: function () {} };
+        var slot = document.createElement("div");
+        VA.renderSceneTree(slot, { rows: [
+          { key: "e", text: "hub spindle bore axis", sub: "candidates · 2", suggestion: true,
+            activate: true, twisty: "hide the suggested faces", open: true, buttons: [{ text: "Pick", title: "" }],
+            rows: [
+              { key: "e/c", text: "face 3460 · round · r 47.5 mm", sub: "coaxial with the mating pin",
+                suggestion: true, wrap: true, buttons: [{ text: "Take", title: "bind this face at this end" }] },
+              { key: "e/o", text: "Pick another face…", activate: true, wrap: true },
+            ] },
+          { key: "f", text: "pitch plate spindle bore axis", sub: "suggested · high", suggestion: true,
+            activate: true, twisty: "show the suggested faces", open: false },
+        ] }, { send: send });
+        var twisties = slot.querySelectorAll("button.navtree__scenetwisty");
+        eq(twisties.length, 2);
+        eq(twisties[0].getAttribute("aria-expanded"), "true");
+        eq(twisties[1].getAttribute("aria-expanded"), "false");
+        eq(slot.querySelectorAll("details").length, 0, "a twisty row is not a <details>: its click selects");
+        var lines = slot.querySelectorAll("div.navtree__scenerow");
+        eq(lines.length, 4, "the open list's two rows, under the first end only");
+        ok(lines[1].classList.contains("navtree__scenerow--wrap"));
+        ok(!lines[0].classList.contains("navtree__scenerow--wrap"));
+        twisties[0].onclick(stop);
+        lines[0].click();
+        lines[1].querySelector("button.navtree__scenebtn").onclick(stop);
+        lines[1].onmouseenter();
+        lines[2].click();
+        twisties[1].onclick(stop);
+        eq(sent.join(" | "), ["e toggle", "e activate", "e/c button 0", "e/c enter",
+          "e/o activate", "f toggle"].join(" | "));
+      });
+
     await test("annotateExecCommands mirrors annotateLink param for param -- " +
       "the already-open flyout runs the same vocabulary the boot URL does",
       function () {

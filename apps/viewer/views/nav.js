@@ -347,13 +347,32 @@
     }
     var line = VA.el("div", "navtree__scenerow" +
       (row.selected ? " navtree__scenerow--on" : "") +
-      (row.sceneHover ? " navtree__scenerow--hot" : ""));
+      (row.sceneHover ? " navtree__scenerow--hot" : "") +
+      (row.wrap ? " navtree__scenerow--wrap" : ""));
     line.setAttribute("data-scene-key", row.key);
     if (row.attention) line.setAttribute("data-attention", "true");
     // A suggestion line (the annotator says which rows carry one) is drawn in
     // the suggestion colour.
     if (row.suggestion) line.setAttribute("data-suggestion", "true");
     if (row.title) line.setAttribute("title", row.title);
+    if (typeof row.twisty === "string") {
+      // A row with its own disclosure in front of it -- a joint end's
+      // candidate list (handoff a_joint_end_lists_its_candidate_faces_and_
+      // says_why_each_is_there): the row's click is still the row's (it
+      // selects), and only the twisty opens and closes the list under it.
+      var twisty = VA.el("button", "navtree__scenetwisty", row.open ? "▾" : "▸");
+      twisty.setAttribute("aria-expanded", row.open ? "true" : "false");
+      twisty.setAttribute("data-scene-part", "twisty");
+      if (row.twisty) twisty.setAttribute("title", row.twisty);
+      twisty.onclick = function (event) {
+        if (event) {
+          if (event.preventDefault) event.preventDefault();
+          if (event.stopPropagation) event.stopPropagation();
+        }
+        send(row.key, VA.SCENE_ACTS.toggle);
+      };
+      line.appendChild(twisty);
+    }
     var text = VA.el("span", "navtree__scenetext");
     text.appendChild(VA.el("span", "navtree__scenename", row.text));
     if (row.sub) text.appendChild(VA.el("span", "navtree__scenesub", row.sub));
@@ -372,7 +391,7 @@
     line.onmouseenter = function () { send(row.key, VA.SCENE_ACTS.enter); };
     line.onmouseleave = function () { send(row.key, VA.SCENE_ACTS.leave); };
 
-    if (typeof row.open === "boolean") {
+    if (typeof row.open === "boolean" && typeof row.twisty !== "string") {
       // A disclosure. Its open state is the annotator's (a joint opening is
       // that joint selected), so a click asks for the toggle and the reply
       // redraws it; the native toggle is not taken.
@@ -406,6 +425,7 @@
       line.onblur = function () { send(row.key, VA.SCENE_ACTS.leave); };
     }
     li.appendChild(line);
+    if (row.open && row.rows && row.rows.length) li.appendChild(sceneList(row.rows, send));
     return li;
   }
 
