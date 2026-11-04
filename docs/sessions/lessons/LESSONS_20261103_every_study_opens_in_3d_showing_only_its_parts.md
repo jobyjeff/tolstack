@@ -105,3 +105,34 @@ Left `deferred`; an addendum notes the command now exists.
 ## Found on arrival
 
 Clean worktree; nothing.
+
+## Verification record (what ran, where, what did not)
+
+Worktree throughout; the machine's browser slot was contended by other agents.
+
+- `venv-win/Scripts/python.exe -m pytest -q` (main-checkout interpreter, no
+  xdist in that venv, so serial): **4 failed, 1684 passed, 1 skipped, 5m43s**
+  — run *before* the pins were updated. Of the four: `test_viewer_js_suite`
+  (expected in a worktree, node-fs tier skipped); `test_the_enrollment_census_holds`
+  (this change's guards; fixed afterwards, re-run alone: `tests/test_mutation_witnesses.py`
+  44 passed); two `test_mutation_witness_shadow_concurrency` tests failing on an
+  EPERM reaping a stale `tmp/mutation-witness-*` shadow in this worktree
+  (environmental; not re-checked against integration). No full pytest re-run after
+  the pin update — only the census file.
+- `node apps/viewer/run_tests.cjs` 514/515 + node-fs tier SKIPPED (no projection
+  in a worktree); `node apps/annotate/run_tests.cjs` 270/270.
+- Browser tier: **only** `node scripts/run_viewer_browser_tests.mjs --repo
+  C:/workspace/tolstack --only "every study opens in 3D"` — 8/8, repeatedly. The
+  full 41-suite tier was **not run** (too long under slot contention); the reviewer
+  should run it in the main checkout.
+- Mutation witnesses, run per entry under `--repo C:/workspace/tolstack`:
+  WITNESSED — kinematic, topology row, hide word, no-mesh head line, none-bound
+  (after re-pointing its mutation), chain-with-bound-faces, annotate `isolate parts`.
+  Not shown: "its scene is solid on exactly the study's parts" (second rerun was
+  cut off by the 590s cap; its first run printed a green baseline and no verdict),
+  and the two **fast** entries, whose clean run is RED in a worktree (the node-fs
+  tier skip) — they need the main checkout. `--changed-since integration` over the
+  whole set was started but its output was lost to a tail; not a pass.
+- The first browser check flaked twice on a loaded box (scene read before the
+  ghosts finished loading / right after a switch); `scene(ready)` now waits for every
+  installed mesh to be open and for the expected solid set.

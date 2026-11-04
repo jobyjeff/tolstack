@@ -7378,7 +7378,7 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
         ghost: names(view.filter((r) => r.visible && r.ghost)),
         hidden: names(view.filter((r) => !r.visible)) };
     };
-    for (let i = 0; i < 360 && stable < 3; i++) {
+    for (let i = 0; i < 150 && stable < 3; i++) {
       let view = [];
       try { view = await run(["scene-view"]); } catch { view = []; }
       if (!Array.isArray(view)) view = [];

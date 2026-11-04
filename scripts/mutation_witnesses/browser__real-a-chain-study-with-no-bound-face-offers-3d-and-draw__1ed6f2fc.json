@@ -6,10 +6,10 @@
     {
       "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
       "issue": null,
-      "note": "Breaks the one place this guard's claim is decided.",
-      "file": "apps/viewer/topology.js",
-      "find": "if (edge.part) { add(edge.part); return; }",
-      "replace": "if (edge.part) { return; }"
+      "note": "Keeps one solid part of a multi-part study: the two-part grip study stops matching the page's own part set.",
+      "file": "apps/annotate/app.js",
+      "find": "const targets = Array.from(new Set(resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256)));",
+      "replace": "const targets = Array.from(new Set(resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256))).slice(0, 1);"
     }
   ]
 }
