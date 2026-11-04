@@ -267,6 +267,33 @@ linkage's joint types suggest the word: `tolerance_stack/kinematic.py`'s
 `LINKAGE_JOINT_INTERFACES` maps each one, and an authored edge at a swept joint
 that disagrees with it fails `tests/test_topology.py`.
 
+## Which face an end is
+
+A node may declare `face`: `{"part": <one of its parts>, "surface": <a
+fitted surface class>}` (`NODE_FACE_FIELDS`; the classes are
+`feature_geometry.FITTED_SURFACE_CLASSES`). Added 2026-11-03 (handoff
+`the_slide_joint_is_the_mounts_bushings_against_the_piston_body`). Without
+it, an end is bound on the part its node names first, and its class is
+guessed from the words in its name. Jeff's pick on the pitch plate's
+"spindle bore" lit a plate with no bore on it: the feature is a broken
+pilot *boss*.
+
+- **Where it is declared, it answers first.** `scripts/build_contact_suggestions.py`
+  takes the part and the class from it. `scripts/propose_bindings.py`
+  refuses a face on any other part, or of any other class.
+  `feature_geometry.end_surface_class(..., declared)` reports `where:
+  "declared"`.
+- **The part is one of the node's own.** A rigid body's other members are
+  not candidates. A face that belongs to hardware the node's part only holds
+  (a bushing in a groove) is bound on the holding part. The hardware is
+  named in `hardware_ref`, an id in `docs/tolerance_stacks/hardware_entries.json`
+  (the SOP's Step 4 convention). `tests/test_topology.py` resolves it.
+- **Declared on the ends that needed it**: the slide's two ends, the plate's
+  boss axis and the plate's pilot. Every other node still answers by its
+  words.
+- Both fields reach the topology projection's node rows. The annotator does
+  not read them yet.
+
 ## Tags
 
 A body and a study may carry `tags`: `{axis: value}`, one value per axis, on the
@@ -718,7 +745,7 @@ the study.
 **One topology per product, and every study is a subset of it.** This is the
 propeller pitch system's (Jeff, 2026-10-26: "all of the studies are just
 subsets of a single global model representing the actual product"). The
-graph: 35 parts, 74 interfaces, 95 edges, 24 branch points, 26 grounded loops,
+graph: 35 parts, 76 interfaces, 96 edges, 23 branch points, 25 grounded loops,
 17 gap edges. Its studies are the seven pitch-system chains above, the
 end-stop travel below, and the kinematic study ("A kinematic study reads its
 sensitivity from a published sweep"); it declares its rigid bodies ("Bodies",

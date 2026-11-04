@@ -17784,7 +17784,8 @@
             var lit = VA.kinematicLitSet(realKinStudy, topo);
             eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [21, 21]);
             var hidden = VA.hideUnlit(topo.layout, lit);
-            eq([topo.layout.rows.length, topo.layout.columns], [169, 11]);
+            // 172 since the 2026-11-03 slide re-author (two nodes, one edge net).
+            eq([topo.layout.rows.length, topo.layout.columns], [172, 11]);
             eq([hidden.rows.length, hidden.columns], [HIDDEN_ROWS, HIDDEN_COLUMNS]);
             eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 13,
                "every lit contributor is a grid row in the hidden walk too; a joint is none");

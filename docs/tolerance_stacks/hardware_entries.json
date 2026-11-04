@@ -1,15 +1,15 @@
 {
   "schema": "joby.tolerance_stack/hardware_entry/v0",
-  "description": "Seed of the fastener-library stream (DRAFT_tolerance_stack_mvp groundwork item 1), now also holding vendor bearings under Joby source-control drawings. Every entry carries a `values_source` saying where its numbers came from -- a source_ref-shaped dict, mandatory unless `values_status` is `not_transcribed`, in which case it is explicitly null. It stays filled after a promotion to `library`, because where the inline numbers came from is still true and useful once they are a cross-check rather than the source. READ IT BEFORE REUSING A BAND: five of the 29 entries transcribe the 260729 workbook (with parts-list nomenclature corroborating some nominals), which makes those numbers UNUSABLE as a source in a from-scratch stack -- citing the entry instead of the xlsx launders the same untraced value (SOP Step 5b, trap 17). NINETEEN entries are traced and safe to reuse: the thirteen NAS bolts, whose grips and ±.010 bands are printed on sheet 3 of `NAS6403-NAS6420 Rev 4.pdf` in the spec pile -- NAS6403U11D, whose values the spec library now owns (`values_status: library`), NAS6403U13H, NAS6403U14D and NAS6404U13D, re-sourced 2026-08-10 by handoff fastener_citations_and_confidence, and NAS6403U2H through NAS6403U10H (nine dash numbers, added 2026-08-25 by handoff fastener_stack_shadow for the rotor balance-mass bolt's grip-selection family); 214589-002 / 214588-002, traced to their own source-control drawings, where the drawing IS the controlling document for the vendor part and prints its limits directly; the two RBC spherical bearings MS14101-3 / MS14103-3 and the two NAS77 flanged bushings NAS77A3-015A / NAS77A4-015A, added 2026-09-15 by handoff stack_fable_audit, whose widths and bands are printed in the RBC catalogs already in the spec pile (the ENTRY values are traced to those pages; which JOINT carries each part is a separate, weaker claim graded on each citing stack element). Four entries are `not_transcribed` with `values_source: null`. That the workbook-transcribed count fell from eight to five in one sitting is the finding worth carrying: those three bolts were re-sourceable from the day NAS6403-NAS6420 Rev 4.pdf landed in `data/inbox/specs/`, and nothing in the repo noticed that a new document had made an existing gap closable. That last clause stopped being true on 2026-08-13 (spec_pile_gap_join): `tests/debug_report_spec_pile_gaps.py` now joins every gap in this file and in the stack files against the pile, range-aware, and prints both the candidates and the documents still missing. Run it from the MAIN checkout -- the pile is gitignored, so in a worktree it skips loudly rather than reporting that nothing matches. Counts in this paragraph are asserted by tests/test_tolerance_stack.py::test_hardware_entry_values_source_counts_match_the_description, because a count written in prose goes stale silently -- as this one already did once. `library_ref` is the slot a real library entry drops into; when it is filled, `values_status` becomes `library` and the inline numbers become a cross-check rather than the source. Added 2026-08-25 (handoff fastener_stack_shadow): one new washer entry, MS21299C3 -- parts-list nominal only, MS21299 still absent from the pile, so it is inferred, not traced, the same gap MS21299C4K already carries.",
+  "description": "Seed of the fastener-library stream (DRAFT_tolerance_stack_mvp groundwork item 1), now also holding vendor bearings under Joby source-control drawings. Every entry carries a `values_source` saying where its numbers came from -- a source_ref-shaped dict, mandatory unless `values_status` is `not_transcribed`, in which case it is explicitly null. It stays filled after a promotion to `library`, because where the inline numbers came from is still true and useful once they are a cross-check rather than the source. READ IT BEFORE REUSING A BAND: five of the 30 entries transcribe the 260729 workbook (with parts-list nomenclature corroborating some nominals), which makes those numbers UNUSABLE as a source in a from-scratch stack -- citing the entry instead of the xlsx launders the same untraced value (SOP Step 5b, trap 17). NINETEEN entries are traced and safe to reuse: the thirteen NAS bolts, whose grips and ±.010 bands are printed on sheet 3 of `NAS6403-NAS6420 Rev 4.pdf` in the spec pile -- NAS6403U11D, whose values the spec library now owns (`values_status: library`), NAS6403U13H, NAS6403U14D and NAS6404U13D, re-sourced 2026-08-10 by handoff fastener_citations_and_confidence, and NAS6403U2H through NAS6403U10H (nine dash numbers, added 2026-08-25 by handoff fastener_stack_shadow for the rotor balance-mass bolt's grip-selection family); 214589-002 / 214588-002, traced to their own source-control drawings, where the drawing IS the controlling document for the vendor part and prints its limits directly; the two RBC spherical bearings MS14101-3 / MS14103-3 and the two NAS77 flanged bushings NAS77A3-015A / NAS77A4-015A, added 2026-09-15 by handoff stack_fable_audit, whose widths and bands are printed in the RBC catalogs already in the spec pile (the ENTRY values are traced to those pages; which JOINT carries each part is a separate, weaker claim graded on each citing stack element). Five entries are `not_transcribed` with `values_source: null` -- the fifth, GR04WB328AT11 (added 2026-11-03), is the gas-spring mount's Slydring bushing pair, named by a topology node rather than a stack element. That the workbook-transcribed count fell from eight to five in one sitting is the finding worth carrying: those three bolts were re-sourceable from the day NAS6403-NAS6420 Rev 4.pdf landed in `data/inbox/specs/`, and nothing in the repo noticed that a new document had made an existing gap closable. That last clause stopped being true on 2026-08-13 (spec_pile_gap_join): `tests/debug_report_spec_pile_gaps.py` now joins every gap in this file and in the stack files against the pile, range-aware, and prints both the candidates and the documents still missing. Run it from the MAIN checkout -- the pile is gitignored, so in a worktree it skips loudly rather than reporting that nothing matches. Counts in this paragraph are asserted by tests/test_tolerance_stack.py::test_hardware_entry_values_source_counts_match_the_description, because a count written in prose goes stale silently -- as this one already did once. `library_ref` is the slot a real library entry drops into; when it is filled, `values_status` becomes `library` and the inline numbers become a cross-check rather than the source. Added 2026-08-25 (handoff fastener_stack_shadow): one new washer entry, MS21299C3 -- parts-list nominal only, MS21299 still absent from the pile, so it is inferred, not traced, the same gap MS21299C4K already carries.",
   "claims": [
-    {"metric": "hardware_entry_count", "count": "total", "value": "29"},
+    {"metric": "hardware_entry_count", "count": "total", "value": "30"},
     {"metric": "hardware_entry_count", "count": "workbook", "value": "5"},
     {"metric": "hardware_entry_count", "count": "traced", "value": "19"},
     {"metric": "hardware_entry_count", "count": "nas_bolts", "value": "13"},
     {"metric": "hardware_entry_count", "count": "drawing", "value": "2"},
-    {"metric": "hardware_entry_count", "count": "not_transcribed", "value": "4"},
+    {"metric": "hardware_entry_count", "count": "not_transcribed", "value": "5"},
     {"metric": "hardware_entry_count", "count": "library", "value": "1"},
-    {"metric": "hardware_entry_count", "count": "not_library", "value": "28"},
+    {"metric": "hardware_entry_count", "count": "not_library", "value": "29"},
     {"metric": "hardware_entry_count", "count": "inline", "value": "24"}
   ],
   "provenance": {
@@ -1170,6 +1170,33 @@
       "gaps": [
         "Same trailing-'A' coating question as NAS77A3-015A.",
         "The barrel length (.150 ±.005) is transcribed and UNUSED: the VPA stack has no bore-depth path, so nothing folds it yet. Recorded so a later bore-side check does not re-read the page."
+      ]
+    },
+    {
+      "id": "GR04WB328AT11",
+      "standard": "Trelleborg Slydring",
+      "dash": "GR04WB328AT11",
+      "class": "bushing_wear_ring",
+      "values_status": "not_transcribed",
+      "library_ref": null,
+      "values_source": null,
+      "used_by": [],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 45,
+        "qty": 2,
+        "nomenclature": "TRELLEBORG SLYDRING, SIZE -328, TURCON T11",
+        "balloons": [
+          {
+            "sheet": 6,
+            "view": "DETAIL W"
+          }
+        ]
+      },
+      "gaps": [
+        "Added 2026-11-03 (handoff the_slide_joint_is_the_mounts_bushings_against_the_piston_body): the two bushings in the gas-spring mount 213668-002 that the piston body 214700-002 slides in (Jeff, forge note 20261103T165357_43vf96). Referenced by a TOPOLOGY node, not a stack element -- topology_vpa_pitch_linkage.json's `gas_spring_mount_bushing_bore` carries `hardware_ref` -- which is why `used_by` (stack elements only) is empty.",
+        "No values at all: there is no Slydring datasheet in data/inbox/specs/, so the ring's ID, radial wall, width and their bands are unsourced. The ID band is half of the slide's radial clearance, and that clearance is what the source workbook's 'gas-spring bushing tipping' term (0.72 deg) is made of."
       ]
     }
   ]

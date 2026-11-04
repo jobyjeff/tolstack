@@ -143,7 +143,13 @@ mesh installed so far is at the medium deflection tier (0.1 mm; each
 directory's `provenance.json` carries its own `tessellation_tier` and
 `linear_deflection_mm`, which is the authority). Two came from single-part
 STEP exports — `blade_oml` and `machined_213668`, rotorkit `integration` @
-`0bcbca0`, run `tessellate_20260906T204904Z`. The rest are products extracted
+`0bcbca0`, run `tessellate_20260906T204904Z`. Since 2026-11-03
+`machined_213668`'s sidecar also carries an `extraction` block of kind
+`xcaf_product_validation`: the assembly occurrence that rotorkit's
+`assembly_extract_20261001T022446Z` recorded for 213668-002, with
+`placement_source` naming the run and the vertex check that showed the two
+frames are one. The run did not install it because the face table matched
+this mesh. The rest are products extracted
 from
 `217755-001 A.1 PROPULSION ASSEMBLY, PROPELLER, CW Released.stp` by runs
 `assembly_extract_20260914T233035Z` and `assembly_extract_20260915T002725Z`,
