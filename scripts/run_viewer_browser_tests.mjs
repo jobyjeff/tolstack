@@ -7885,6 +7885,42 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     push("the shell's mirror carries the row's suggestion line, marked as a suggestion, " +
       "selectable, and not amber", row && row.suggestion === true && row.activate === true &&
       !row.attention);
+    // The candidate list crosses the seam: the row carries its twisty closed,
+    // a toggle gesture from the shell opens it, and the next tree carries the
+    // list's rows with their reason, Take, and Pick another face.
+    const shut = row && typeof row.twisty === "string" && row.open === false && !row.rows;
+    if (row) {
+      await page.evaluate((key) => {
+        const frame = document.querySelector("iframe");
+        frame.contentWindow.postMessage({ type: "annotate:rail", key, act: "toggle" }, location.origin);
+      }, row.key);
+    }
+    await page.waitForFunction((key) => window.__trees.some((t) => {
+      const find = (rows) => (rows || []).some((r) => (r.key === key && r.open) || find(r.rows));
+      return find(t.rows);
+    }), row && row.key, { timeout: 10000 }).catch(() => {});
+    const opened = await page.evaluate((key) => {
+      const find = (rows) => {
+        for (const r of rows || []) {
+          if (r.key === key) return r;
+          const k = find(r.rows);
+          if (k) return k;
+        }
+        return null;
+      };
+      for (let i = window.__trees.length - 1; i >= 0; i--) {
+        const hit = find(window.__trees[i].rows);
+        if (hit) return hit;
+      }
+      return null;
+    }, row && row.key);
+    const kids = (opened && opened.rows) || [];
+    push("...with its candidate disclosure: closed, a toggle from the shell opens it, and the " +
+      "mirrored list carries the proposal's reason, its Take, and Pick another face, wrapping",
+      shut && opened && opened.open === true && kids.length === 2 &&
+      kids[0].sub === "agent suggested · high" && kids[0].wrap === true &&
+      JSON.stringify((kids[0].buttons || []).map((b) => b.text)) === JSON.stringify(["Take"]) &&
+      kids[1].text === "Pick another face…" && kids[1].activate === true);
   } catch (err) {
     await page.close();
     server.close();

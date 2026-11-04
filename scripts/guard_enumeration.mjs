@@ -298,11 +298,12 @@ export const DECLARED_GUARDS = {
   // re-worded for the flat run out of the rails. Neither carried a spec under
   // its old name; the crossing rule itself is witnessed in the fast tier.
   // (Re-pinned at the review merge onto integration's 793/760.)
-  // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +7 -- the mock list, its
+  // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +8 -- the mock list, its
   // hover wash, the wash coming down and Take; the hub spindle end's real
   // list and wash; the armed row naming a real round face's class and
-  // radius. Each carries a spec.
-  browser: { declared: 800, enrollable: 767, names: "c3acce16fbe4" },
+  // radius; the list crossing the seam into the shell's nav. Each carries a
+  // spec.
+  browser: { declared: 801, enrollable: 768, names: "2497a1d4f2cf" },
 };
 
 

@@ -77,3 +77,7 @@ candidates for a merge-only tier.
 ## Addendum 2026-11-02 (the_all_topology_leader_test_counts_its_views_by_kind)
 
 Measured 601 s (budget 600 s, over by 1 s) for plain `pytest -q` in a worktree, single-process: this venv has no xdist, so `-n 16 --dist loadfile` is rejected as an unrecognised argument.
+
+## Addendum 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
+
+Measured 784 s (budget 600 s, over by 3m04s), serial, `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs -p no:cacheprovider` in the handoff worktree, while two other agents held the browser slot and ran their own tiers on the box: `2 failed, 1686 passed, 1 skipped, 2 deselected` (the worktree-only `test_viewer_js_suite` red, and one witness anchor since re-anchored). No `--durations` was taken on this run. This handoff added no Python test.
