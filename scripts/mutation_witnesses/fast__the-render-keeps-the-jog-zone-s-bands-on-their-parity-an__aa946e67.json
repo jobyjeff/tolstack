@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the RENDER keeps the jog zone's bands on their parity and tints each grid row with its body's own tint, the one its DAG container is filled with",
+  "mutations": [
+    {
+      "contract": "A grid row wears its body's tint and its divider.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the row's marks.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (mark) el.className += \" \" + mark;\n    if (term)",
+      "replace": "    if (false) el.className += \" \" + mark;\n    if (term)"
+    }
+  ]
+}

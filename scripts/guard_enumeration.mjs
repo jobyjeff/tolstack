@@ -205,7 +205,18 @@ export const DECLARED_GUARDS = {
   // renamed for the per-stop stacks and S461-261, and the live closure check
   // renamed (one piece, no bridge). Every new name carries a
   // spec; the two retired concepts' specs are deleted.
-  fast: { declared: 629, enrollable: 629, names: "ebcbec67c796" },
+  // 2026-11-03 (the_kinematic_grid_is_a_stack_of_sub_stacks): count
+  // unchanged -- the results pane's contributor table is retired, so its
+  // checks are re-pointed at the grid's stack (the fold, the page shape, the
+  // row's selection, SENSITIVITY and its curve, the gap sub-stack, the live
+  // stack and its DAG field), the 3D-button check is gone with the button,
+  // a [real] check for the opened travel is in, and the two row-tint checks
+  // read the body's tint where they read the band parity. Every new name
+  // carries a spec except the [real] pitch_system tint check, which is red
+  // on integration before any mutation (its band pins,
+  // ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md);
+  // the retired names' specs are deleted.
+  fast: { declared: 629, enrollable: 629, names: "a43445b1b06c" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -303,7 +314,14 @@ export const DECLARED_GUARDS = {
   // 2026-11-03 (each_stop_is_its_own_stack): two renamed -- the kinematic
   // plot's check now reads each stop's error bar, and the limit card's
   // S461-261. Both carry a spec.
-  browser: { declared: 793, enrollable: 760, names: "d5f706a6fc9d" },
+  // 2026-11-03 (the_kinematic_grid_is_a_stack_of_sub_stacks): +1 -- the
+  // kinematic suite's table checks re-pointed at the grid's stack: the page
+  // shape, Unused leaving the results pane (its stop picker) untouched, the
+  // clicked term row and the sensitivity's curve renamed; the six-contributor
+  // table and the travel group row out; the live stack, the travel fold and
+  // the +72 stop in. Every one carries a spec, and two re-anchored with the
+  // code they mutate.
+  browser: { declared: 794, enrollable: 761, names: "7e068cd9fb07" },
 };
 
 

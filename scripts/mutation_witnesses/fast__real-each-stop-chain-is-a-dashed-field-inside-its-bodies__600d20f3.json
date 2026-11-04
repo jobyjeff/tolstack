@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] each stop chain is a dashed field inside its bodies that folds and opens with the grid's header row for it",
+  "mutations": [
+    {
+      "contract": "A header's click asks for the other fold state.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Asks for the state it already has.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "ctx.onToggleSubStack(entry.id, !entry.open); };",
+      "replace": "ctx.onToggleSubStack(entry.id, entry.open); };"
+    }
+  ]
+}

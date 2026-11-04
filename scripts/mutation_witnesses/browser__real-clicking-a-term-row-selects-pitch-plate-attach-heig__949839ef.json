@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] clicking a term row selects pitch_plate_attach_height in place: the page stays the study, the model marks it, the preview pane shows it",
+  "mutations": [
+    {
+      "contract": "A grid row wears the page's selection.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Never marks it.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (isSelected(ctx, \"edge\", planRow.id)) el.className += \" tvrow--selected\";",
+      "replace": "    if (false) el.className += \" tvrow--selected\";"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] opened, the travel's four terms follow its header in its own chain order, a step in; at the +72 stop the travel is no term",
+  "mutations": [
+    {
+      "contract": "A sub-study's terms follow its header in the stack's order.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Reverses them.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      var kids = (g.children || []).slice().sort(function (a, b) {\n        return rank(a.edge) - rank(b.edge);",
+      "replace": "      var kids = (g.children || []).slice().sort(function (a, b) {\n        return rank(b.edge) - rank(a.edge);"
+    }
+  ]
+}

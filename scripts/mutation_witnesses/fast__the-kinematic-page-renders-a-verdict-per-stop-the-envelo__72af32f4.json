@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the kinematic page renders a verdict per stop, the envelope chart and the stop the grid is shown at -- and no table of its own",
+  "mutations": [
+    {
+      "contract": "The page draws its envelope chart.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the chart. Carried over from the guard's earlier name.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (chart) root.appendChild(chartFigure(chart));\n",
+      "replace": ""
+    },
+    {
+      "contract": "The results pane offers the stop the grid's stack is shown at.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the picker.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      root.appendChild(stackStopPicker(study, ctx));",
+      "replace": "      void stackStopPicker;"
+    }
+  ]
+}

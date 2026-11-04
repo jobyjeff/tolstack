@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a declared gap is a gap sub-stack: a dashed header with no terms, 'not yet authored' and no total, last in the stop's position",
+  "mutations": [
+    {
+      "contract": "A declared gap's header is dashed.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Draws it as any sub-stack.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "(entry.gap ? \" tvrow--gapstack\" : \"\")",
+      "replace": "(\"\")"
+    }
+  ]
+}

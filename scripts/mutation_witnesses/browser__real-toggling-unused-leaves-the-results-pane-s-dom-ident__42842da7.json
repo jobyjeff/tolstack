@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] toggling Unused leaves the results pane's DOM identical, its stop picker included",
+  "mutations": [
+    {
+      "contract": "Toggling Unused repaints the model alone.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Repaints the results too. Carried over from the guard's earlier name.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          ctx.unlitStyle = state.unlitStyle;\n          repaintDag(true);",
+      "replace": "          ctx.unlitStyle = state.unlitStyle;\n          render();"
+    }
+  ]
+}

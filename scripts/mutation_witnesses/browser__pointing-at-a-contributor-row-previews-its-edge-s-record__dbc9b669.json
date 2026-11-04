@@ -6,10 +6,10 @@
     {
       "contract": "A kinematic contributor row previews its edge's record, as its grid row does.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). The results pane's hover no longer reaches the Preview.",
-      "file": "apps/viewer/topology_app.js",
-      "find": "        if (key !== resultsHotKey) setPreviewHot(\"results\", key);",
-      "replace": "        /* mutated: contributor rows do not preview */"
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). The results pane's hover no longer reaches the Preview. Re-anchored by the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03): the contributor rows are the grid's, whose hover is the pane's own.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    hotHover(hot, el, hotKey(\"edge\", planRow.id));\n    return nameRow(el, ctx, \"edge\", planRow.id, fullName);",
+      "replace": "    return nameRow(el, ctx, \"edge\", planRow.id, fullName);"
     }
   ]
 }
