@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] a click on a node, an edge, a sub-stack's label or a grid row never moves the drawing sideways -- its scroll and the space before it stay exactly as they were, parked or not",
+  "mutations": [
+    {
+      "contract": "A paint that is not a study change leaves the space before the drawing where it was, so a click never moves the frame.",
+      "issue": null,
+      "note": "Declared by handoff the_dag_holds_still_and_the_filter_bar_stays_put (2026-11-03). Every paint drops the landing's pad, so any click that repaints the pane shifts the drawing sideways.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (serialisation() !== paintedSerialisation) { state.bandPad = null; state.landed = false; }",
+      "replace": "    { state.bandPad = null; state.landed = false; }"
+    }
+  ]
+}

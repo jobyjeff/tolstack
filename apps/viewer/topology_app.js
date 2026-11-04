@@ -762,6 +762,14 @@
     redrivePaneAfter(respine);
   }
 
+  // A row's 3D control: the row's own selection, then the pane opened on it
+  // (a pane already open is re-driven by the selection itself). Closing the
+  // pane stays the reader's act.
+  function onNav3D(select) {
+    select();
+    if (state.annotateMount && nodes.flyout && !nodes.flyout.open) openPane();
+  }
+
   function onNavKinematicModel(topologyId, runId) {
     var params = { topologyId: topologyId, sweep: runId };
     if (state.annotateMount) {
@@ -1582,6 +1590,7 @@
     // The tree in the nav is the scene's answer about what it is showing,
     // like the head line: gone until the re-driven scene sends its own.
     sceneTree = null;
+    partScopePosted = null;
     renderSceneSlot();
     if (!flyoutFrame) {
       flyoutFrame = document.createElement("iframe");
@@ -1871,6 +1880,10 @@
   // What the scene was last told, so a paint that changed nothing posts nothing.
   var sceneModelPosted = null;
   var sceneSelectPosted = null;
+  // The study-parts filter (`isolate parts …`) last posted. Not reset by the
+  // pane's own state replies (its reply to this command would re-post it
+  // forever): only by a re-drive, whose goto/sweep clears the pane's scope.
+  var partScopePosted = null;
   // The selection the grid was last scrolled to, and the scene tree's last
   // selected row: both act on a CHANGE only.
   var seamScrolledTo = null;
@@ -1987,6 +2000,11 @@
     var model = [VA.sceneLitCommand(pageLitSet()), ["model", "unlit", state.unlitStyle]];
     var key = JSON.stringify(model);
     if (key !== sceneModelPosted && model.every(postToPane)) sceneModelPosted = key;
+    var scope = VA.partScopeCommand(VA.litPartIds(currentTopology(), pageLitSet()));
+    var scopeKey = scope.join(" ");
+    if (state.mode !== "stack" && scopeKey !== partScopePosted && postToPane(scope)) {
+      partScopePosted = scopeKey;
+    }
     var sel = state.selection && state.selection.kind === "node"
       ? ["model", "select", "node", state.selection.id] : ["model", "select", "clear"];
     var selKey = sel.join(" ");
@@ -2161,15 +2179,110 @@
     }
   }
 
+  // --- the landing as a frame (the_dag_holds_still_and_the_filter_bar_stays_put)
+  //
+  // What the reader sees of a study arrival is the DAG, the space put before it
+  // (bandPad) and where the page is scrolled. The transition used to move only
+  // the DAG: the pad was dropped on its first frame and the landing put it and
+  // the scroll back on its last, which is the snap left, the move, the snap
+  // back. So the landing is measured on the TARGET layout before the transition
+  // starts (VA.animateTopoPane's `landing`), and the pad and the scroll are
+  // interpolated with the transition: one continuous frame start to end.
+  function dagScrollY() {
+    var bounded = paneScroller();
+    if (bounded) return bounded.scrollTop;
+    return typeof window !== "undefined" ? (window.scrollY || 0) : 0;
+  }
+
+  function setDagScroll(y) {
+    var bounded = paneScroller();
+    if (bounded) bounded.scrollTop = y;
+    else if (typeof window !== "undefined" && window.scrollTo) window.scrollTo(window.scrollX || 0, y);
+  }
+
+  // The frame on screen right now, read off the drawing itself: its pad is what
+  // the sizer wears (not state.bandPad, which a transition in flight already
+  // holds at its target), its scroll is where the reader is.
+  function dagFrame() {
+    var box = zoomBox();
+    var sizer = box && box.parentNode;
+    var hs = paneHscroll();
+    var px = function (v) { return parseFloat(v) || 0; };
+    return {
+      pad: { top: sizer && sizer.style ? px(sizer.style.marginTop) : 0,
+             left: sizer && sizer.style ? px(sizer.style.marginLeft) : 0 },
+      scrollX: hs ? hs.scrollLeft : 0,
+      scrollY: dagScrollY(),
+    };
+  }
+
+  // The landing the arrival ends in, worked out on the target laid out at rest:
+  // the very landing fitDagTo does, run once, early. The frame the transition
+  // starts from is put back afterwards.
+  function measureLanding(start, lit) {
+    var hs = paneHscroll();
+    // A reader parked sideways stays parked (fitDagTo's own rule).
+    if (hs) hs.scrollLeft = start.scrollX;
+    var end = { pad: { top: 0, left: 0 }, scrollX: start.scrollX, scrollY: null };
+    if (lit) {
+      fitDagTo(true, true);
+      var pad = state.bandPad || { top: 0, left: 0 };
+      hs = paneHscroll();
+      end = { pad: { top: pad.top || 0, left: pad.left || 0 },
+              scrollX: hs ? hs.scrollLeft : 0, scrollY: dagScrollY() };
+      setDagScroll(start.scrollY);
+    }
+    if (hs) hs.scrollLeft = start.scrollX;
+    return end;
+  }
+
+  function lerp(a, b, e) { return a + (b - a) * e; }
+
+  // The hooks VA.animateTopoPane calls (`landing`). `ctx` is this paint's own:
+  // the pad goes on it before each frame, the scroll is placed after it.
+  function landingHooks(ctx, start, lit) {
+    var end = null;
+    var hooks = {
+      target: function () {
+        end = measureLanding(start, lit);
+        // fitDagTo may have scaled the drawing down to fit the band.
+        ctx.zoom = state.dagZoom;
+        tweenLanded = true;
+        pendingLanding = hooks;
+      },
+      frame: function (e) {
+        ctx.bandPad = { top: lerp(start.pad.top, end.pad.top, e),
+                        left: lerp(start.pad.left, end.pad.left, e) };
+      },
+      placed: function (e) {
+        var hs = paneHscroll();
+        if (hs) {
+          hs.scrollLeft = lerp(start.scrollX, end.scrollX, e);
+          // The ghost shows the same window as the live pane over it.
+          var ghost = nodes.pane.querySelector ? nodes.pane.querySelector(".tv__ghost .tv__hscroll") : null;
+          if (ghost) ghost.scrollLeft = hs.scrollLeft;
+        }
+        if (end.scrollY !== null) setDagScroll(lerp(start.scrollY, end.scrollY, e));
+        if (e >= 1 && pendingLanding === hooks) pendingLanding = null;
+      },
+      // A paint that is not a transition cut this one short: the scroll goes
+      // where the landing was going (the pad already did, through state).
+      finish: function () { if (end) hooks.placed(1); },
+    };
+    return hooks;
+  }
+  var pendingLanding = null;
+  // Set when this paint's transition has taken the landing on itself.
+  var tweenLanded = false;
+
   function fitDagTo(keepSideways, centre) {
     var box = zoomBox();
     var hscroll = paneHscroll();
     var drawn = VA.lastTopoRender;
     if (!box || !hscroll || !drawn || !drawn.span || !box.getBoundingClientRect) return;
     var bounded = paneScroller();
-    var bar = typeof document !== "undefined" ? document.querySelector(".topbar") : null;
     var topEdge = bounded ? nodes.pane.getBoundingClientRect().top
-      : (bar ? bar.getBoundingClientRect().bottom : 0);
+      : VA.stickyOffsets().top;
     var visible = bounded ? nodes.pane.clientHeight
       : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
     var pad = 12;
@@ -2652,9 +2765,20 @@
     // painted over by the next frame of a state the page has already left.
     // Claimed rather than read, so a respine that never reaches the pane (a
     // paint in stack mode) does not leave one armed for a later one.
-    if (respineHandle) { respineHandle.cancel(); respineHandle = null; }
     var respineStart = respineFrom;
     respineFrom = null;
+    // The frame the reader is looking at, before anything below changes it: a
+    // transition starts from it (a pad of its own, not state.bandPad).
+    var startFrame = respineStart ? dagFrame() : null;
+    if (respineHandle) {
+      respineHandle.cancel();
+      respineHandle = null;
+      // Cut short by something that is not itself a transition: the landing
+      // still happens. Cut short by another transition, that one starts from
+      // the frame on screen instead.
+      if (pendingLanding && !respineStart) pendingLanding.finish();
+      pendingLanding = null;
+    }
     if (serialisation() !== paintedSerialisation) { state.bandPad = null; state.landed = false; }
 
     VA.renderBanner(nodes.banner, bannerState(), {
@@ -2891,8 +3015,12 @@
         // other render on this page uses: a frame runs off a rAF callback,
         // outside render()'s try/catch, so without this it would be an
         // unhandled error with the pane frozen mid-transition.
-        respineHandle = VA.animateTopoPane(nodes.pane, ctx, respineStart,
-          { onError: renderCrash });
+        var arrives = ctx.lit || VA.studyLitSet(ctx.study, topoProj);
+        tweenLanded = false;
+        respineHandle = VA.animateTopoPane(nodes.pane, ctx, respineStart, {
+          onError: renderCrash,
+          landing: landingHooks(ctx, startFrame, !!arrives),
+        });
       } else {
         VA.renderTopoPane(nodes.pane, ctx);
       }
@@ -2900,10 +3028,11 @@
       // and the band is then framed (Fit) once the transition has settled:
       // the point of the band is that the whole study is on screen without
       // scrolling. Any other paint leaves the reader's zoom alone.
-      if (serialisation() !== paintedSerialisation &&
+      if (serialisation() !== paintedSerialisation && !tweenLanded &&
           (ctx.lit || VA.studyLitSet(ctx.study, topoProj))) {
         landingPending = true;
       }
+      tweenLanded = false;
       // Landing waits for a settled layout: a transition's own onSettled, or
       // the first paint that is not mid-transition (a repaint that cancels the
       // tween leaves the settled layout, and the landing must not be lost
@@ -2981,6 +3110,8 @@
 
     VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
 
+    VA.syncStickyOffsets();
+
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays
     // the target's throughout one.
@@ -3022,6 +3153,8 @@
       onStack: onNavStack,
       onKinematic: onNavKinematic,
       onKinematicModel: onNavKinematicModel,
+      // The 3D control on each row: only where the scene is mounted.
+      on3D: state.annotateMount ? onNav3D : null,
       // The study row's consolidated ⚠ opens into the SAME popover node every
       // other hover card on this page uses (viewer_nav_alert_badge_and_angled_
       // default): one node, one placement, one close story. The rail is

@@ -114,6 +114,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from tolerance_stack.feature_geometry import FITTED_SURFACE_CLASSES
 from tolerance_stack.stack import (
     ELEMENT_ROLES,
     CheckResult,
@@ -148,6 +149,17 @@ SCHEMA_STUDY = "joby.tolerance_stack/study/v0"
 #: word is carried anyway rather than derived silently, for the reason
 #: :data:`EDGE_KINDS` is -- see the comment beside that check.
 NODE_KINDS = ("mating_surface", "datum_feature")
+
+#: The keys of a node's ``face``: which of its parts the bindable face is on,
+#: and the surface class that face is (one of
+#: :data:`~tolerance_stack.feature_geometry.FITTED_SURFACE_CLASSES`). Added
+#: 2026-11-03 (handoff ``the_slide_joint_is_the_mounts_bushings_against_the_piston_body``)
+#: because a rigid body's end was picked on whichever part its node named
+#: first and classed by the words in its name: the pitch plate's "spindle bore"
+#: is a broken pilot BOSS, and Jeff's pick lit the plate with no bore on it.
+#: Optional; where it is declared, it -- not the name -- answers both
+#: questions (``docs/DAG_TOPOLOGY.md``, "Which face an end is").
+NODE_FACE_FIELDS = ("part", "surface")
 
 #: What an edge is, and it is **checkable, not declarative**:
 #:
@@ -378,6 +390,14 @@ class Node:
     kind: str = "mating_surface"     # one of NODE_KINDS, above -- and checked
     source_ref: Optional[SourceRef] = None
     note: Optional[str] = None
+    #: ``{part, surface}`` (:data:`NODE_FACE_FIELDS`): which part's face this
+    #: interface is bound on, and its surface class. ``None`` = not declared.
+    face: Optional[Dict[str, str]] = None
+    #: The standard part the face belongs to where the node's part only holds
+    #: it (a bushing in a bore): an id in
+    #: ``docs/tolerance_stacks/hardware_entries.json``, the SOP's Step 4
+    #: convention, resolved by ``tests/test_topology.py``.
+    hardware_ref: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.kind not in NODE_KINDS:
@@ -403,6 +423,35 @@ class Node:
                 f"node {self.id!r}: kind {self.kind!r} disagrees with its parts "
                 f"{list(self.parts)} -- {len(self.parts)} part(s) makes this a "
                 f"{expected!r}")
+        if self.face is not None:
+            self._check_face()
+
+    @property
+    def face_part(self) -> str:
+        """The part whose face this interface is bound on: the declared
+        ``face.part``, else the first part it names."""
+        return self.face["part"] if self.face else self.parts[0]
+
+    @property
+    def face_surface(self) -> Optional[str]:
+        """The declared surface class, or ``None`` (the name's words decide)."""
+        return self.face["surface"] if self.face else None
+
+    def _check_face(self) -> None:
+        face = self.face
+        if not isinstance(face, dict) or sorted(face) != sorted(NODE_FACE_FIELDS):
+            raise TopologyError(
+                f"node {self.id!r}: face must carry exactly {list(NODE_FACE_FIELDS)}, "
+                f"got {face!r}")
+        object.__setattr__(self, "face", dict(face))
+        if face["part"] not in self.parts:
+            raise TopologyError(
+                f"node {self.id!r}: face is on part {face['part']!r}, which is not "
+                f"one of the interface's parts {list(self.parts)}")
+        if face["surface"] not in FITTED_SURFACE_CLASSES:
+            raise TopologyError(
+                f"node {self.id!r}: face surface must be one of "
+                f"{FITTED_SURFACE_CLASSES}, got {face['surface']!r}")
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Node":

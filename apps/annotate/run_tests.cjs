@@ -1467,6 +1467,91 @@ check("a feature row's suggestion: an open proposal at its end, else the contact
   assertEqual(AA.endSuggestion(identity, contact, "rail_topo", { edgeId: "rod_len", direction: "from" }), null);
 });
 
+// --- a joint end's candidate list (a_joint_end_lists_its_candidate_faces_and_
+// says_why_each_is_there) -----------------------------------------------------
+const CAND_CONTACT = { topologies: [{ id: "rail_topo", edges: [{ edge: "rod_len", status: "ok",
+  pairing: "cylinder_in_cylinder", candidates: [
+    // Listed out of rank order, and sharing the `to` end's faces: ten pairs
+    // over one mating bore are that bore's faces, once each.
+    { rank: 2, relation: "coaxial", from: { sha256: PROPOSAL_SHA, surface: "cylindrical", faces: [8, 7] },
+      to: { sha256: "b", surface: "cylindrical", faces: [3, 4] },
+      evidence: { axis_offset_mm: 0.01, angle_deg: 0, from_radius_mm: 6, to_radius_mm: 9 } },
+    { rank: 1, relation: "contact", from: { sha256: PROPOSAL_SHA, surface: "cylindrical", faces: [5] },
+      to: { sha256: "b", surface: "cylindrical", faces: [3, 4] },
+      evidence: { bore: "to", pin_radius_mm: 4.99, bore_radius_mm: 5, clearance_mm: 0.01,
+        axial_overlap_mm: 2 } },
+  ] }] }] };
+
+check("an end's candidate list: the proposal first, then the engine's faces in rank order, " +
+  "each face once, with why it is there and the one already bound marked", () => {
+  const record = AA.addEventToRecord(emptyRow(), PROPOSAL);
+  const identity = { stack_keys: [record] };
+  const from = AA.endCandidates(identity, CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "from" });
+  assertEqual(from.map((r) => [r.kind, r.faceId]), [["proposed", 7], ["contact", 5], ["contact", 8]],
+    "face 7 is the proposal's row, not a second contact row");
+  assertEqual(from[0].reason, "agent suggested · high");
+  assertEqual(from[0].proposal.event_id, PROPOSAL.event_id);
+  assertEqual(/coaxial with the mating round face/.test(from[0].detail), true,
+    "the engine's reason for a proposed face it also ranked rides on the proposal's hover");
+  assertEqual(from[1].reason, "fits the mating bore");
+  assertEqual(from[1].radius, 4.99);
+  assertEqual(AA.candidateRowWords(from[1]), "face 5 · round · r " + AA.formatSweepNumber(4.99, "mm") + " mm");
+  const to = AA.endCandidates(identity, CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "to" });
+  assertEqual(to.map((r) => [r.faceId, r.reason]), [[3, "fits the mating pin"], [4, "fits the mating pin"]]);
+  assertEqual(AA.suggestionWords(AA.endSuggestion(identity, CAND_CONTACT, "rail_topo",
+    { edgeId: "rod_len", direction: "to" })), "candidates · 2", "the closed row counts faces, not pairs");
+  assertEqual(AA.endCandidates(identity, CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: null }), [],
+    "an edge feature has no one end to list");
+  // Bound: the list stays, the standing face is marked, and the proposal is gone.
+  AA.addEventToRecord(record, AA.buildBoundEvent({ eventId: "b1", seq: 2, createdAt: "2026-11-03T00:00:00Z",
+    recordedBy: "annotate-app:jeff", stackKey: PROPOSAL.stack_key, direction: "from",
+    geometryKey: { sourceStepSha256: PROPOSAL_SHA, faceId: 5, areaNative2: 1, centroidNative: [0, 0, 0] } }));
+  const bound = AA.endCandidates(identity, CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "from" });
+  assertEqual(bound.filter((r) => r.bound).map((r) => r.faceId), [5]);
+});
+
+check("a candidate's reason names what the face is to the mating feature, for every relation " +
+  "and pairing the engine emits", () => {
+  const say = (pairing, relation, evidence, direction, mateSurface) => AA.candidateReason(
+    { pairing }, { relation, evidence, from: { surface: "planar" }, to: { surface: mateSurface || "planar" } },
+    direction || "from");
+  assertEqual(say("plane_on_plane", "contact", {}), "coincident with the mating face");
+  assertEqual(say("cylinder_in_cylinder", "contact", { bore: "from" }), "fits the mating pin");
+  assertEqual(say("cylinder_in_cylinder", "coaxial", { bore: "to" }), "coaxial with the mating bore");
+  assertEqual(say("cylinder_in_cylinder", "coaxial", {}, "from", "cylindrical"), "coaxial with the mating round face");
+  assertEqual(say("ball_in_seat", "contact", { ball: "from", seat: "spherical" }), "seated against the mating race");
+  assertEqual(say("ball_in_seat", "contact", { ball: "from", seat: "cylindrical" }), "seated against the mating bore");
+  assertEqual(say("ball_in_seat", "contact", { ball: "to", seat: "planar" }), "seated against the mating ball");
+  assertEqual(say("plane_across_axis", "across", { plane: "from" }), "square to the mating axis");
+  assertEqual(say("plane_across_axis", "across", { plane: "to" }), "square to the mating face");
+  assertEqual(AA.candidateReason({ pairing: "plane_on_plane" }, { relation: "parallel", evidence: {} }, "from"),
+    null, "a relation the engine does not emit says nothing rather than a guess");
+  // The radius is the end's own: the bore's for the bore end, the ball's for the ball.
+  assertEqual(AA.candidateRadius({ evidence: { bore: "to", bore_radius_mm: 5, pin_radius_mm: 4 } }, "to"), 5);
+  assertEqual(AA.candidateRadius({ evidence: { bore: "to", bore_radius_mm: 5, pin_radius_mm: 4 } }, "from"), 4);
+  assertEqual(AA.candidateRadius({ evidence: { ball: "from", ball_radius_mm: 5.1, seat_radius_mm: 5.2 } }, "to"), 5.2);
+  assertEqual(AA.candidateRadius({ evidence: { plane: "from", cylinder_radius_mm: 3 } }, "from"), null);
+  assertEqual(AA.candidateRadius({ evidence: { from_radius_mm: 6 } }, "from"), 6);
+  // Reader words only: no engine field name on the list.
+  for (const words of [AA.CANDIDATE_RELATION_REASONS, AA.CANDIDATE_CONTACT_REASONS]) {
+    for (const k of Object.keys(words)) {
+      if (words[k] && /_|evidence|relation|pairing|rank/.test(words[k])) throw new Error("engine word in " + words[k]);
+    }
+  }
+});
+
+check("hover face takes a mesh and a whole face id, and the pane's candidate debounce is the " +
+  "shell's pane-hover value", () => {
+  assertEqual(AA.parseHover("face", "hub", "3460"), { kind: "face", name: "hub", faceId: 3460 });
+  let threw = 0;
+  try { AA.parseHover("face", "hub"); } catch (_) { threw++; }
+  try { AA.parseHover("face", "hub", "3.5"); } catch (_) { threw++; }
+  assertEqual(threw, 2);
+  const viewer = fs.readFileSync(path.join(here, "..", "viewer", "viewer.js"), "utf8");
+  const m = /VA\.PANE_HOVER_DEBOUNCE_MS = (\d+);/.exec(viewer);
+  assertEqual(m && Number(m[1]), AA.CANDIDATE_HOVER_DEBOUNCE_MS);
+});
+
 check("a node feature's state is ITS end's: a proposal at the other end leaves it unbound", () => {
   const record = AA.addEventToRecord(emptyRow(), PROPOSAL);
   const identity = { stack_keys: [record] };
@@ -1589,6 +1674,19 @@ check("embedState names the mode and the subject in one line -- the run's mechan
   assertEqual(AA.embedState(null, topology, null).title,
     "Binding — Propeller pitch linkage");
   assertEqual(AA.embedState(null, null, null).title, "Binding");
+});
+check("isolate parts: the named parts are solid and every other installed part is ghosted, " +
+  "or hidden under the unlit word hide -- and a scope with no mesh says so in the head line", () => {
+  assertEqual(AA.ISOLATE_PARTS_WORD, "parts");
+  assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], false),
+    { solid: ["b"], ghost: ["a", "c"], hide: [] });
+  assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], true),
+    { solid: ["b"], ghost: [], hide: ["a", "c"] });
+  assertEqual(AA.planPartScope(["a"], ["a"], false), { solid: ["a"], ghost: [], hide: [] });
+  const topology = { id: "t", title: "Linkage" };
+  assertEqual(AA.embedState(null, topology, null, true).title,
+    "Binding — Linkage — no 3D model for these parts yet");
+  assertEqual(AA.embedState(null, topology, null, false).title, "Binding — Linkage");
 });
 // --- the sweep rail shows the mechanism (handoff the_sweep_rail_shows_the_
 // mechanism): the tree, the feature bindings, the stop and the contributors.
@@ -5835,6 +5933,57 @@ if (!realMeshesDir) {
         console.log("      (no real study names gas_spring_mount_213668_002 -- " +
           "the alias-resolution leg of this check found nothing to resolve)");
       }
+    });
+  }
+
+  // Every open proposal is a candidate row on some end the bind rail lists
+  // (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): the
+  // topology-level rail lists every edge, and each edge's row opens to both
+  // ends' lists. Re-measured on every run against the projection on disk.
+  const realContactPath = [
+    path.join(here, "..", "..", "data", "projections", "feature-identity", "contact_suggestions.json"),
+    "C:\\workspace\\tolstack\\data\\projections\\feature-identity\\contact_suggestions.json",
+  ].find((p) => fs.existsSync(p));
+  if (!realProjectionPath || !realBindingsPath || !realContactPath) {
+    console.log("SKIP  [real] every open proposal is a candidate row -- the viewer, feature-identity " +
+      "or contact projection is not on disk (gitignored, main checkout only)");
+  } else {
+    check("[real] every open proposal is a candidate row on an end of some edge, and every " +
+      "candidate row says why it is there", () => {
+      const projection = JSON.parse(fs.readFileSync(realProjectionPath, "utf8"));
+      const identity = JSON.parse(fs.readFileSync(realBindingsPath, "utf8"));
+      const contact = JSON.parse(fs.readFileSync(realContactPath, "utf8"));
+      let open = 0;
+      let reached = 0;
+      let rows = 0;
+      let contactRows = 0;
+      for (const topology of projection.topologies) {
+        const lists = {};
+        for (const edge of topology.edges || []) {
+          for (const direction of AA.DIRECTIONS) {
+            const list = AA.endCandidates(identity, contact, topology.id, { edgeId: edge.id, direction });
+            lists[edge.id + "|" + direction] = list;
+            rows += list.length;
+            for (const r of list) {
+              if (r.kind === AA.CANDIDATE_ROW_KINDS[1]) contactRows++;
+              if (!r.reason) throw new Error(`${edge.id} ${direction} face ${r.faceId}: no stateable reason`);
+            }
+          }
+        }
+        for (const row of identity.stack_keys || []) {
+          const k = row.stack_key || {};
+          if (k.kind !== "topology_edge" || k.topology_id !== topology.id) continue;
+          for (const p of row.proposals || []) {
+            open++;
+            const list = lists[k.edge_id + "|" + p.direction] || [];
+            if (list.some((r) => r.proposal && r.proposal.event_id === p.event_id)) reached++;
+          }
+        }
+      }
+      console.log(`      ${reached}/${open} open proposals are candidate rows; ${rows} rows, ` +
+        `${contactRows} of them the contact engine's`);
+      if (!open) throw new Error("no open proposal on disk -- the check would pass vacuously");
+      assertEqual(reached, open);
     });
   }
 }

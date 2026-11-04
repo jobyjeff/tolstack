@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the study's parts are one command: lit edges' parts, a joint's two ends' parts, no lit set is the whole topology, and no part at all is isolate off",
+  "mutations": [
+    {
+      "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
+      "issue": null,
+      "note": "Breaks the one place this guard's claim is decided.",
+      "file": "apps/viewer/topology.js",
+      "find": "if (lit && !(lit.edges && lit.edges[edge.id])) return;",
+      "replace": "if (false) return;"
+    }
+  ]
+}

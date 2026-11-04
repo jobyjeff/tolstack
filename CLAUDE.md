@@ -75,7 +75,10 @@ traced ratio" — never restate the rule elsewhere).
   "Proposals"). Since 2026-10-29 a joint end's Pick in sweep mode arms a
   CAD-style pick — isolate, filter, pre-select, click binds — and its gesture
   table is the one statement of how a face is picked
-  (`docs/ANNOTATION_SURFACE.md`, "Picking a face — the gestures").
+  (`docs/ANNOTATION_SURFACE.md`, "Picking a face — the gestures"). Since
+  2026-11-03 every end with a proposal or contact faces opens to that list,
+  each face saying why it is there, and any one can be taken from it (same
+  table, "Taking a suggested face").
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's
@@ -225,6 +228,19 @@ Know these before you write code; each has a test standing on it.
   not "gone"); past 60s it prints `BROWSER LEFT RUNNING` naming the pids
   (2026-10-22, `the_kill_witness_fix_is_ported_from_drawing_checker`). A scratch script that drives a browser gets
   the same by importing that helper.
+- **A handoff that changes what the viewer draws, or how it moves, ends with an
+  exploratory click-around on the real projection — before its definition-of-done
+  checks, not instead of them (2026-11-03,
+  `the_dag_holds_still_and_the_filter_bar_stays_put`).** Click every kind of thing
+  the change touched, scroll, zoom, hover, and look at what the page does that the
+  handoff did not ask about; keep the screenshots in the lesson's shots folder
+  (`docs/sessions/lessons/shots/<slug>/`). A transition is filmed, not
+  screenshotted once: `node scripts/filmstrip.mjs --help` composites N frames of
+  fixed page-time steps into one PNG (the page's clock is stepped, so the frames
+  are exactly that far apart on any machine). Claude reads images, not video — the
+  filmstrip is the video — and reviewers read the shots. The sideways snap and the
+  clipped first row of that handoff were invisible to a suite that asserted only
+  where things ended up; Jeff found both by using the page.
 - **Never generate synthetic load on this workstation** — no CPU burners,
   memory hogs or fork loops, not even to reproduce contention. It runs Jeff's
   live work and every other agent; reason about contention or use a timing

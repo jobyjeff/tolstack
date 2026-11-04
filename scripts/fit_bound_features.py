@@ -69,8 +69,11 @@ is the one rotorkit has already disambiguated, so the count was 1 for exactly
 the solids that needed it to be 2 (found in review, 2026-09-30).
 
 A mesh with no ``extraction`` block at all (a single-part STEP export --
-``blade_oml``, ``machined_213668``) has no occurrence to report, and says so
-rather than quietly emitting its local frame as if it were the assembly's.
+``blade_oml``) has no occurrence to report, and says so rather than quietly
+emitting its local frame as if it were the assembly's. ``machined_213668`` was
+the other until 2026-11-03: its sidecar now carries the occurrence rotorkit's
+run ``assembly_extract_20261001T022446Z`` recorded for 213668-002 and did not
+install (``extraction.placement_source`` says how its frame was checked).
 
 Usage -- from the MAIN checkout, where ``data/`` is::
 

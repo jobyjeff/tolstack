@@ -37,6 +37,16 @@
      this file and topology.css; the TABLES never take it, because a column of
      numbers narrowed to a measure is worse than a long line. */
   --measure: 72ch;
+  /* WHAT IS PINNED AT THE TOP OF THE PAGE, declared once (the_dag_holds_still_
+     and_the_filter_bar_stays_put). The stack, top down: the page bar, the view
+     filters under it (topology.css's `.tv__toolbar`), then the grid header the
+     pane pins under both. Every `position: sticky` box that starts under the
+     bar reads --bar-h, and JS reads the same two numbers
+     (VA.stickyOffsets), so there is no second 47. The values here are the
+     fallback; topology_app.js writes the MEASURED heights over them, because
+     the bar is taller on a page with more buttons in it. */
+  --bar-h: 47px;
+  --filter-h: 0px;
   --bg: #16181d; --panel: #1e2128; --panel2: #12141a; --ink: #e6e8ec;
   --muted: #9aa1ac; --accent: #6ea8fe; --on: #2b6cb0; --line: #2b2f38;
   /* The provenance palette. These three are the whole point of the app, so
@@ -681,8 +691,8 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    unclamped, the export-provenance block, and the crop rendered inline. */
 .detail {
   width: 520px; flex: none; border-left: 1px solid var(--line); background: var(--panel2);
-  padding: 12px 16px 60px; position: sticky; top: 47px;
-  max-height: calc(100vh - 47px); overflow: auto; font-size: var(--t-dense);
+  padding: 12px 16px 60px; position: sticky; top: var(--bar-h);
+  max-height: calc(100vh - var(--bar-h)); overflow: auto; font-size: var(--t-dense);
 }
 .detail__head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 /* The pane's TITLE, and the other job the `h3` element does here (see the

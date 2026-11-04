@@ -1238,6 +1238,8 @@ def project_node(topology: Topology, node: Node, branch_nodes: Sequence[str]
         "name": node.name,
         "kind": node.kind,
         "parts": list(node.parts),
+        "face": dict(node.face) if node.face else None,
+        "hardware_ref": node.hardware_ref,
         "note": node.note,
         "source_ref": as_plain(node.source_ref),
         "confidence": node.source_ref.confidence if node.source_ref else None,

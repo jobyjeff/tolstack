@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "each stop is a point at its nominal x with a worst-case bar and a heavier RSS bar over it, its pitch beside it, and nothing is drawn past the sweep",
+  "mutations": [
+    {
+      "contract": "A stop's bar spans the stop's own worst case, not its RSS band.",
+      "issue": null,
+      "note": "Declared with the guard by handoff each_stop_is_its_own_stack (2026-11-03). Draws the worst-case bar at the RSS ends.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        worstMin: stop.worst_case_min, worstMax: stop.worst_case_max,",
+      "replace": "        worstMin: stop.rss_min, worstMax: stop.rss_max,"
+    }
+  ]
+}

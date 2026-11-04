@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "hovering a candidate row washes that face in the pre-selection's yellow, on every drawn occurrence, and the camera stays",
+  "mutations": [
+    {
+      "contract": "Resting on a candidate row lights its face in the 3D pane.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Jeff's 'nothing is visibly hilighted' is exactly this wire cut: the row is there and the pointer on it does nothing.",
+      "file": "apps/annotate/app.js",
+      "find": "    railExec(row ? [\"hover\", \"face\", row.sha256, String(row.faceId)] : [\"hover\", \"clear\"], null);",
+      "replace": "    railExec([\"hover\", \"clear\"], null);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a reach bound is a tick at its own stop, and the verdict says which side of it the stop must reach, with the RSS margin beside the worst-case one",
+  "mutations": [
+    {
+      "contract": "A reach bound draws no +/- lines across the plot.",
+      "issue": null,
+      "note": "Declared with the guard by handoff each_stop_is_its_own_stack (2026-11-03). Draws every limited check as a spread limit.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      if (check.limit && !check.bound && typeof check.limit.value === \"number\" &&",
+      "replace": "      if (check.limit && typeof check.limit.value === \"number\" &&"
+    }
+  ]
+}

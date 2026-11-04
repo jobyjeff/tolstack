@@ -8,7 +8,7 @@
       "issue": null,
       "note": "Declared with the guard by handoff the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances (2026-10-28). Fits against the viewport's top, so the lit set's top edge lands under the topbar. (Fitting to twice the window left the pointer on an edge and its hover card over the Fit button, which aborted the suite.)",
       "file": "apps/viewer/topology_app.js",
-      "find": "      : (bar ? bar.getBoundingClientRect().bottom : 0);",
+      "find": "      : VA.stickyOffsets().top;",
       "replace": "      : 0;"
     }
   ]
