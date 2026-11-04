@@ -14924,9 +14924,11 @@
             // vpa_pitch_linkage and this became the one product graph, and
             // again the same day when the walk went body-major
             // (the_dag_draws_bodies_as_containers_and_joints_as_symbols).
+            // 62 since the piston body joined the feather stop's chain
+            // (2026-11-03, each_stop_is_its_own_stack).
             var plan = VA.gridPlan(livePitch.layout, livePitch);
-            eq(plan.leaders.length, 61);
-            eq(plan.groups.length, 71);
+            eq(plan.leaders.length, 62);
+            eq(plan.groups.length, 73);
             // The walk opens at the hub spindle bore, a boundary, so its first
             // hub run is one row. The label is the part's NAME
             // (VA.componentLabel); `part` is still the id it is keyed by.
@@ -14971,19 +14973,20 @@
             var layout = VA.spineRight(livePitch.layout);
             var plan = VA.gridPlan(layout, livePitch);
             var bands = VA.leaderBands(plan);
-            eq(bands.length, 62, "61 leaders cut the grid into 62 bands");
+            eq(bands.length, 63, "62 leaders cut the grid into 63 bands");
             // The product graph's own band boundaries, as grid row indices
             // (re-measured 2026-10-26 for the fold and again for the
-            // body-major walk). 59 edge rows; the first leader points at row
+            // body-major walk, and 2026-11-03 when the piston body joined the
+            // feather stop's chain). 59 edge rows; the first leader points at row
             // 0, so the first band is empty, and several bands carry more
             // than one row.
             eq(bands.map(function (b) { return b.startRow + "-" + b.endRow; }).join(" "),
-               "0-0 0-1 1-2 2-3 3-4 4-5 5-7 7-8 8-12 12-13 13-14 14-15 15-16 " +
-               "16-17 17-19 19-20 20-21 21-22 22-23 23-24 24-25 25-27 27-29 " +
-               "29-30 30-31 31-33 33-38 38-39 39-40 40-44 44-45 45-47 47-50 " +
-               "50-52 52-53 53-55 55-56 56-57 57-59 59-60 60-61 61-62 62-63 " +
-               "63-64 64-65 65-69 69-70 70-71 71-72 72-81 81-82 82-83 83-84 " +
-               "84-87 87-88 88-89 89-90 90-91 91-92 92-93 93-94 94-95");
+               "0-0 0-1 1-2 2-3 3-4 4-5 5-6 6-7 7-8 8-9 9-13 13-14 14-15 15-16 " +
+               "16-18 18-19 19-20 20-21 21-22 22-23 23-25 25-27 27-30 30-31 " +
+               "31-32 32-34 34-38 38-39 39-40 40-44 44-45 45-47 47-50 50-52 " +
+               "52-53 53-55 55-56 56-57 57-58 58-62 62-63 63-64 64-65 65-66 " +
+               "66-67 67-68 68-72 72-73 73-74 74-75 75-84 84-85 85-86 86-87 " +
+               "87-90 90-91 91-92 92-93 93-94 94-95 95-96 96-97 97-98");
 
             var root = render(function (r) {
               VA.renderTopoPane(r, {
@@ -15014,13 +15017,13 @@
             });
             // Non-vacuous: a run of rows in one band, and neighbours that
             // differ -- a page that tinted every row the same would pass a
-            // parity check written any less carefully. Rows 8-11 are one
-            // band; rows 12 and 13 are the next two.
-            eq(bandClass(rows[8]), bandClass(rows[9]));
-            eq(bandClass(rows[8]), bandClass(rows[11]));
-            ok(bandClass(rows[11]) !== bandClass(rows[12]),
+            // parity check written any less carefully. Rows 9-12 are one
+            // band; rows 13 and 14 are the next two.
+            eq(bandClass(rows[9]), bandClass(rows[10]));
+            eq(bandClass(rows[9]), bandClass(rows[12]));
+            ok(bandClass(rows[12]) !== bandClass(rows[13]),
                "the band changes where a leader points");
-            ok(bandClass(rows[12]) !== bandClass(rows[13]));
+            ok(bandClass(rows[13]) !== bandClass(rows[14]));
           });
 
         // Every page the leaders are drawn on, as the page draws them: each
@@ -15534,11 +15537,12 @@
             };
             var before = crossings(livePitch.layout);
             var after = crossings(VA.spineRight(livePitch.layout));
-            // 68 on the product graph with the four fastener stacks in it
-            // (2026-10-27); 35 before them, since its walk went body-major
+            // 65 since the piston body joined the feather stop's chain
+            // (2026-11-03); 68 on the product graph with the four fastener
+            // stacks in it (2026-10-27); 35 before them, since its walk went body-major
             // (2026-10-26; 138 after the fold and before it, 43 on the
             // pitch_system document alone).
-            eq(before.spine, 68, "spine leaders crossed 68 rails as projected");
+            eq(before.spine, 65, "spine leaders crossed 65 rails as projected");
             eq(after.spine, 0, "right-justified, they cross none");
             ok(after.total < before.total,
                "total crossings " + after.total + " vs " + before.total);
@@ -15564,15 +15568,17 @@
           // Nineteen since the 2026-10-26 fold put the pitch system's five and
           // the linkage's twelve in one graph (two more where they meet).
           // 24 since the four fastener stacks joined (2026-10-27).
-          ok(livePitch.branch_nodes.length === 24,
-             "expected 24 branch points, got " + livePitch.branch_nodes.length);
+          // 25 since the gas-spring mount's datum A seats on the tangential
+          // link mount (2026-11-03, each_stop_is_its_own_stack).
+          ok(livePitch.branch_nodes.length === 25,
+             "expected 25 branch points, got " + livePitch.branch_nodes.length);
           var root = render(function (r) {
             VA.renderTopoPane(r, {
               topoProj: livePitch, study: null, crops: realCrops,
               selection: null, onSelect: function () {},
             });
           });
-          eq(all(root, "circle.rail__dot--branch").length, 24);
+          eq(all(root, "circle.rail__dot--branch").length, 25);
         });
 
         await test("[real] the ring gear's cyclic-only branch is visibly a branch",
@@ -17588,30 +17594,57 @@
             eq(realKinematic.studies.length, 1);
             ok(realKinStudy, "the blade-pitch study is in the live projection");
             eq(realKinStudy.status, "ok");
+            // Since each_stop_is_its_own_stack (2026-11-03): one-sided reach
+            // against S461-261 -- the feather stop at least +70, the low stop
+            // at most -5 -- with the RSS margin beside the worst-case one.
             eq(realKinStudy.checks.map(function (c) {
-              return [c.stop, c.verdict, VA.kinematicNumber(c.margin, 3)];
-            }), [["minus7", "marginal", "-1.207"], ["plus72", "pass", "0.185"]]);
-            // The travel between the end stops is an x-interval of the -7
-            // stop only (the +72 stop is the datum, 2026-10-29): its four
-            // terms scaled by the motion ratio there. The hub anchor is a
-            // declared gap at both stops, with no terms.
-            eq(realKinStudy.study_ref_count, 2);
-            eq(realKinStudy.study_refs.map(function (r) { return [r.study, r.applies_to]; }),
-               [["vpa_pitch_linkage_travel_between_end_stops", ["minus7"]],
-                ["vpa_pitch_linkage_hub_to_feather_stop", ["plus72", "minus7"]]]);
+              return [c.stop, c.bound, c.limit.value, c.verdict,
+                      VA.kinematicNumber(c.margin, 3), VA.kinematicNumber(c.rss_margin, 3)];
+            }), [["plus72", "at_least", 70, "pass", "1.217", "1.718"],
+                 ["minus7", "at_most", -5, "marginal", "-0.363", "0.958"]]);
+            // Each stop is its own stack: the feather chain is in both stops'
+            // axial stacks, the travel in the low stop's only (that is where
+            // the two heads are), and the hub anchor a declared gap at both.
+            eq(realKinStudy.study_ref_count, 3);
+            eq(realKinStudy.study_refs.map(function (r) { return [r.study, r.stops]; }),
+               [["vpa_pitch_linkage_feather_stop_axial_position", ["minus7", "plus72"]],
+                ["vpa_pitch_linkage_travel_between_end_stops", ["minus7"]],
+                ["vpa_pitch_linkage_hub_to_feather_stop", ["minus7", "plus72"]]]);
+            var feather = function (k) {
+              return ["vpa_pitch_linkage_feather_stop_axial_position",
+                [["tan_link_mount_overall_height", 1, k],
+                 ["gas_spring_mount_datum_a_to_end_stop", -1, k],
+                 ["piston_head_lower_face_flatness", -1, k],
+                 ["piston_body_shoulder_to_top", -1, k],
+                 ["piston_body_flange_to_top", 1, k]]];
+            };
             eq(realKinStudy.stops.map(function (s) {
               return [s.id, s.groups.map(function (g) {
                 return [g.study, g.children.map(function (c) {
                   return [c.edge, c.sign, VA.kinematicNumber(c.coefficient, 3)];
                 })];
               })];
-            }), [["minus7", [["vpa_pitch_linkage_travel_between_end_stops",
+            }), [["minus7", [feather("1.728"),
+                              ["vpa_pitch_linkage_travel_between_end_stops",
                                [["piston_head_upper_thickness", 1, "1.728"],
                                 ["piston_head_lower_thickness", 1, "1.728"],
                                 ["gas_spring_mount_flange_to_end_stop", 1, "1.728"],
                                 ["piston_cover_flange_to_end_stop", -1, "1.728"]]],
                               ["vpa_pitch_linkage_hub_to_feather_stop", []]]],
-                 ["plus72", [["vpa_pitch_linkage_hub_to_feather_stop", []]]]]);
+                 ["plus72", [feather("1.249"), ["vpa_pitch_linkage_hub_to_feather_stop", []]]]]);
+            // Each stop's band, split: the linkage at its pose + its position.
+            eq(realKinStudy.stops.map(function (s) {
+              return [s.id, VA.kinematicNumber(s.worst_case_half, 3)].concat(
+                s.sub_stacks.map(function (k) {
+                  return [k.kind, VA.kinematicNumber(k.worst_case_half, 3), k.term_count];
+                }));
+            }), [["minus7", "2.355", ["linkage", "0.290", 6], ["stop_position", "2.065", 9]],
+                 ["plus72", "0.784", ["linkage", "0.315", 6], ["stop_position", "0.468", 5]]]);
+            var range = realKinStudy.range;
+            eq([range.high, range.low, VA.kinematicNumber(range.nominal_measure, 3),
+                VA.kinematicNumber(range.worst_case_half, 3),
+                VA.kinematicNumber(range.rss_half, 3)],
+               ["plus72", "minus7", "78.992", "1.730", "0.977"]);
             eq(realKinStudy.gap_rows.map(function (g) { return g.study || g.edge; }),
                ["vpa_pitch_linkage_hub_to_feather_stop"]);
             // Both former gap rows carry a drawing's band since handoff
@@ -17625,46 +17658,50 @@
             eq(minus7.rows[0].edge, "pitch_plate_attach_height");
           });
 
-        await test("[real] the live -7 deg stop is drawn as a travel band whose far-edge " +
-          "envelope corner is its swept worst case, 1.707 deg, starting at the envelope's " +
-          "own half-width, and the +72 datum draws none", function () {
+        await test("[real] each live stop is an error bar at its own sweep point -- the " +
+          "linkage at that pose plus its stop position -- and nothing is drawn past the sweep",
+          function () {
             var decimals = realKinematic.display_decimals;
             var chart = VA.kinematicChart(realKinStudy, decimals);
             var stops = {};
             realKinStudy.stops.forEach(function (s) { stops[s.id] = s; });
-            eq(chart.bands.map(function (b) { return b.stop; }), ["minus7"]);
-            var minus7 = chart.bands[0];
-            eq(VA.kinematicNumber(minus7.cornerWorst, decimals), "1.707");
-            // Within the projection's rounding: the corner is made of three
-            // rounded figures (J, the x half, the envelope's half), the stop's
-            // total is one, each to INTERVAL_DECIMALS (six) places.
-            ok(Math.abs(minus7.cornerWorst - stops.minus7.worst_case_half) < 5e-6,
-               "the corner is the stop's own swept worst case, " + minus7.cornerWorst);
-            ok(Math.abs(minus7.cornerRss - stops.minus7.rss_half) < 5e-6, "RSS too");
-            // No step where the band joins the envelope: its half-height at
-            // the stop is the envelope's own half there, 0.290.
-            var envelopeHalf = realKinStudy.envelope[stops.minus7.index].worst_case_half;
-            eq(VA.kinematicNumber(envelopeHalf, decimals), "0.290");
-            var direct = VA.kinematicTravelBands(realKinStudy)[0].direct;
-            ok(Math.abs(direct - envelopeHalf) < 1e-12,
-               "direct " + direct + " vs the envelope's " + envelopeHalf);
-            eq(VA.kinematicNumber(stops.plus72.worst_case_half, decimals), "0.315");
-            eq(stops.plus72.x_interval.worst_case_half, 0);
-            // What the chips print is what the corner reaches.
-            var verdict = VA.kinematicVerdicts(realKinStudy, decimals)[0];
-            eq(verdict.marginText, "margin " +
-               VA.kinematicSigned(0.5 - minus7.cornerWorst, decimals) + " deg");
-            var ys = polygonYs(minus7.worst).map(function (py) { return chartYValue(chart, py); });
-            eq(VA.kinematicNumber(Math.max.apply(null, ys), 2), "1.71");
-            eq(chart.bands.filter(function (b) { return b.label; }).map(function (b) {
-              return [b.stop, b.label.text];
-            }), [["minus7", "Travel between end stops 63.620–65.260 mm"]]);
-            var note = VA.kinematicDatumNote(realKinStudy, decimals);
-            eq([note.datum, note.carried, note.gaps],
-               ["+72 deg stop", ["The −7 deg stop carries the travel between end stops (±0.820 mm)."],
-                ["Neither stop is yet anchored to the blade-root bores — a declared gap."]]);
-            eq(chart.xLabel,
-               "actuator travel, mm (swept 0.000–64.466; travel study nominal 64.440)");
+            eq(chart.bars.map(function (b) { return [b.stop, b.label.text]; }),
+               [["minus7", "-6.992 deg"], ["plus72", "72.001 deg"]]);
+            chart.bars.forEach(function (bar) {
+              var stop = stops[bar.stop];
+              eq(bar.x, chart.points[stop.index].x, bar.stop + " sits at its sweep point");
+              ok(Math.abs(chartYValue(chart, bar.worstTop) - stop.worst_case_max) < 0.005,
+                 bar.stop + "'s bar reaches its own worst case");
+              ok(bar.worstTop < chart.points[stop.index].worstTop,
+                 bar.stop + "'s bar is taller than the linkage envelope at its pose");
+              ok(Math.abs(chartYValue(chart, bar.bound) -
+                          ((bar.stop === "plus72" ? 70 : -5) - stop.nominal_measure)) < 0.005,
+                 bar.stop + "'s reach bound is drawn where S461-261 puts it");
+            });
+            // The envelope stays the linkage terms': its half at -7 is 0.290.
+            eq(VA.kinematicNumber(realKinStudy.envelope[stops.minus7.index].worst_case_half,
+               decimals), "0.290");
+            eq(chart.limits, []);
+            eq(chart.xLabel, "actuator travel, mm");
+            eq(VA.kinematicDatumNote(realKinStudy),
+               "Zero travel is the +72 deg stop: the feather stops touching.");
+            var verdicts = VA.kinematicVerdicts(realKinStudy, decimals);
+            eq(verdicts.map(function (v) { return [v.limitText, v.marginText]; }),
+               [["at least +70 deg", "margin +1.217 deg · RSS +1.718"],
+                ["at most −5 deg", "margin -0.363 deg · RSS +0.958"]]);
+            var readouts = VA.kinematicStopReadouts(realKinStudy, decimals);
+            eq(readouts.rows.map(function (r) { return r.says; }),
+               ["worst ±2.355 = ±0.290 (linkage at this pose) + ±2.065 (stop position, 9 terms)",
+                "worst ±0.784 = ±0.315 (linkage at this pose) + ±0.468 (stop position, 5 terms)"]);
+            eq(readouts.range.cells, ["range", "", "78.992", "±1.730", "±0.977"]);
+            eq(readouts.range.says, "11 terms both stops share cancel to ±0.313 " +
+               "(±0.784 at the +72 deg stop, ±0.938 at the −7 deg stop)");
+            var root = render(function (r) {
+              r.appendChild(VA.renderKinematicResults(VA.el("section"), {
+                kinematic: realKinematic, study: realKinStudy, topologies: realKinTopologies }));
+            });
+            eq(all(root, "polygon.kmchart__region").length, 0, "no wedge");
+            eq(all(root, "line.kmchart__bar--worst").length, 2);
           });
 
         await test("[real] the kinematic page renders the live study: two verdicts, " +
@@ -17686,14 +17723,16 @@
             eq(rows[0].getAttribute("data-edge"), "pitch_plate_attach_height");
             has(rows[0].textContent, "0.156");
             has(rows[0].textContent, "0.149");
-            // The travel study is ONE group row, collapsed, over its four
-            // terms; the hub anchor a second, a declared gap with none.
+            // The travel study and the feather stop's chain are ONE group row
+            // each, collapsed, over their four and five terms; the hub anchor
+            // a third, a declared gap with none.
             eq(all(root, "tr.kmgroup").map(function (tr) { return tr.getAttribute("data-study"); }),
-               ["vpa_pitch_linkage_travel_between_end_stops", "vpa_pitch_linkage_hub_to_feather_stop"]);
+               ["vpa_pitch_linkage_travel_between_end_stops", "vpa_pitch_linkage_feather_stop_axial_position",
+                "vpa_pitch_linkage_hub_to_feather_stop"]);
             has(all(root, "tr.kmgroup")[0].textContent, "Travel between end stops");
-            eq(all(all(root, "tr.kmgroup")[1], "span.chip--gap").length, 1);
+            eq(all(all(root, "tr.kmgroup")[2], "span.chip--gap").length, 1);
             var travel = all(root, "tr.kmchild");
-            eq(travel.length, 4);
+            eq(travel.length, 9);
             ok(travel.every(function (t) { return t.hidden === true; }), "collapsed by default");
             bannedIn(viewerAuthoredText(root), "[real] kinematic page");
           });
@@ -17701,12 +17740,16 @@
         // The joints the closure lights on the real study: the gap edges whose
         // two nodes are both lit by the contributors alone (the_lit_set_closes_
         // over_its_joints). Derived from the projection here, then pinned.
-        var HIDDEN_ROWS = 42, HIDDEN_COLUMNS = 8;  // was 32 x 7 with no joint lit
+        // 44 since the feather stop's chain lit the piston body (2026-11-03);
+        // 42 before it, 32 x 7 with no joint lit.
+        var HIDDEN_ROWS = 44, HIDDEN_COLUMNS = 8;
         var LIVE_JOINTS = ["pitch_arm_link_joint", "pitch_plate_link_joint",
           "tan_link_mount_joint", "tan_link_plate_joint", "travel_between_end_stops"];
 
-        var LIVE_BRIDGE = ["gas_spring_mount_datum_a_to_end_stop",
-          "hub_spindle_to_gas_spring_mount_face", "hub_to_pitch_plate_spindle_coaxiality"];
+        // No bridge since 2026-11-03: the feather stop's chain joins the
+        // mounts to the piston body, so the lit set is one piece without one.
+        var LIVE_BRIDGE = [];
+        var FEATHER_STUDY = "vpa_pitch_linkage_feather_stop_axial_position";
 
         await test("[real] the closure lights exactly the gap edges between two lit nodes " +
           "on the real study -- five, derived from the projection -- the bridge joins its " +
@@ -17727,20 +17770,22 @@
               ok(lit.edges[id] && index.edges[id].kind === "gap", id + " is a lit joint");
             });
             eq(Object.keys(lit.closed).sort(), derived.concat(LIVE_BRIDGE).sort(),
-               "closed = the five joints and the three-edge bridge");
+               "closed = the five joints, and no bridge");
             var gridIds = VA.gridPlan(topo.layout, topo, lit).rows.map(function (r) { return r.id; });
             eq(gridIds.filter(function (id) { return lit.closed[id]; }), [],
                "neither a joint nor a bridge edge carries a grid row");
-            eq(gridIds.length, 13, "the grid is the thirteen contributors and borrowed bands");
+            eq(gridIds.length, 17, "the grid is the seventeen contributors and borrowed bands");
           });
 
         await test("[real] the live study lights its six contributors, the three " +
-          "edges they borrow a band from and the travel study's four, and every direct " +
+          "edges they borrow a band from and its two stop chains' nine, and every direct " +
           "one has a coefficient curve", function () {
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var lit = VA.kinematicLitSet(realKinStudy, topo);
             eq(Object.keys(lit.edges).sort(), [
-              "gas_spring_mount_flange_to_end_stop", "piston_cover_flange_to_end_stop",
+              "gas_spring_mount_datum_a_to_end_stop", "gas_spring_mount_flange_to_end_stop",
+              "piston_body_flange_to_top", "piston_body_shoulder_to_top",
+              "piston_cover_flange_to_end_stop", "piston_head_lower_face_flatness",
               "piston_head_lower_thickness", "piston_head_upper_thickness",
               "pitch_arm_link_hole_to_clocking_hole", "pitch_arm_radius",
               "pitch_link_length", "pitch_plate_attach_height",
@@ -17759,13 +17804,13 @@
             }).length, 0);
           });
 
-        await test("[real] each live stop's verdict leads to S461-607 and the note " +
-          "that says it was borrowed, and its stop to S461-241", function () {
+        await test("[real] each live stop's verdict leads to S461-261, the bare minimum " +
+          "at each end of travel, and its stop to S461-241", function () {
             var verdicts = VA.kinematicVerdicts(realKinStudy, realKinematic.display_decimals);
             eq(verdicts.length, 2);
             verdicts.forEach(function (v) {
-              has(v.limitCard.title, "cell S461-607");
-              has(v.limitCard.note, "closest available numeric acceptance criterion");
+              has(v.limitCard.title, "cell S461-261");
+              has(v.limitCard.note, "bare minimum");
               has(v.contextCard.title, "cell S461-241");
             });
             var shown = [];
@@ -17776,7 +17821,7 @@
             });
             all(root, "span.kmverdict__limit").forEach(function (s) { s.onmouseenter(); });
             eq(shown.length, 2);
-            shown.forEach(function (title) { has(title, "S461-607"); });
+            shown.forEach(function (title) { has(title, "S461-261"); });
           });
 
         await test("[real] every live walk's rails and links re-derive from its rows, " +
@@ -17789,11 +17834,11 @@
             });
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var lit = VA.kinematicLitSet(realKinStudy, topo);
-            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [21, 21]);
+            eq([Object.keys(lit.edges).length, Object.keys(lit.nodes).length], [22, 22]);
             var hidden = VA.hideUnlit(topo.layout, lit);
-            eq([topo.layout.rows.length, topo.layout.columns], [169, 11]);
+            eq([topo.layout.rows.length, topo.layout.columns], [175, 14]);
             eq([hidden.rows.length, hidden.columns], [HIDDEN_ROWS, HIDDEN_COLUMNS]);
-            eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 13,
+            eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 17,
                "every lit contributor is a grid row in the hidden walk too; a joint is none");
             var parts = walkComponents(hidden.rows);
             eq(parts.length, 1, "the hidden walk is one connected drawing: " +
@@ -17827,7 +17872,9 @@
             // the plate has its mechanism block and three grip-stack blocks,
             // and the hub, both links and the VPA piston one more each
             // (ISSUE_20261027_a_body_with_parts_in_two_components_is_two_containers.md).
-            var EXTRA_BLOCKS = { pitch_plate: 3, base: 1, pitch_link: 1,
+            // Since 2026-11-03 the piston body (a plate part, reached from the
+            // head stack its shoulder seats) is a fourth extra plate block.
+            var EXTRA_BLOCKS = { pitch_plate: 4, base: 1, pitch_link: 1,
                                  tan_link: 1, vpa_piston: 1 };
             eq(topo.bodies.map(function (b) { return per[b.id] || 0; }),
                topo.bodies.map(function (b) { return 1 + (EXTRA_BLOCKS[b.id] || 0); }),
@@ -18030,13 +18077,13 @@
                stated.map(function (e) { return VA.interfaceGlyphId(e.interface); }).sort());
           });
 
-        await test("[real] the travel sub-stack is a dashed field inside its bodies " +
+        await test("[real] each stop chain is a dashed field inside its bodies " +
           "that folds and opens with the contributor table's group row", function () {
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var subs = VA.kinematicSubStacks(realKinStudy, realKinematic.display_decimals);
-            eq(subs.length, 1);
+            eq(subs.map(function (k) { return [k.id, k.edges.length]; }),
+               [[FEATHER_STUDY, 5], ["vpa_pitch_linkage_travel_between_end_stops", 4]]);
             var sub = subs[0];
-            eq(sub.edges.length, 4);
             ok(/ to /.test(sub.interval), "its folded interval, shown");
             var opened = [];
             var paint = function (open) {
@@ -18051,15 +18098,16 @@
               });
             };
             var closed = paint(false);
-            eq(all(closed, "rect.tv__substack").length, 4, "a field round each of its bars");
+            eq(all(closed, "rect.tv__substack").length, 9, "a field round each of their bars");
             var label = all(closed, "text.tv__substackname");
-            eq(label.length, 1, "named once");
+            eq(label.length, 2, "each named once");
             has(label[0].textContent, sub.title);
             has(label[0].textContent, sub.interval);
-            eq(all(closed, ".rail__bar--folded").length, 4, "closed, its bars are one fold");
+            eq(all(closed, ".rail__bar--folded").length, 9, "closed, each one's bars are one fold");
             label[0].onclick();
             eq(opened, [sub.id]);
-            eq(all(paint(true), ".rail__bar--folded").length, 0, "open, they are its edges");
+            eq(all(paint(true), ".rail__bar--folded").length, 4,
+               "this one open, its bars are its edges; the travel's stay folded");
             // The table's group row reads and writes the same state.
             var o = {};
             o[sub.id] = true;
@@ -18068,7 +18116,10 @@
                 topologies: realKinTopologies, selection: null,
                 openSubStacks: o, onToggleSubStack: function (id) { opened.push(id); } });
             });
-            var toggle = all(table, "button.kmgroup__toggle")[0];
+            var row = all(table, "tr.kmgroup").filter(function (tr) {
+              return tr.getAttribute("data-study") === sub.id;
+            })[0];
+            var toggle = all(row, "button.kmgroup__toggle")[0];
             eq(toggle.getAttribute("aria-expanded"), "true", "open in both places");
             toggle.onclick({ stopPropagation: function () {} });
             eq(opened, [sub.id, sub.id], "and the row closes it through the same state");
