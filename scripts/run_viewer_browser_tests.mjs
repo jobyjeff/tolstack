@@ -11234,8 +11234,9 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         return pop && pop.style.display === "block" &&
           pop.className.indexOf("hovercard--citation") !== -1 ? pop.innerText : null;
       }, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => "");
+      // The card shows the note's lead sentence; the rest is behind its fold.
       push("[real] hovering a stop's limit opens its citation card, S461-261 and its note",
-        /S461-261/.test(limitCard) && /bare minimum/.test(limitCard));
+        /S461-261/.test(limitCard) && /Blade Pitch Control Range/.test(limitCard));
       await dismissCard(page);
 
       // The first sweep point is the -7 deg stop; its strip is at the chart's
