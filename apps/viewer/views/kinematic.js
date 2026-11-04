@@ -722,6 +722,9 @@
         muted: row.kind === "zero_sensitivity",
         // A contributor with no band on file: the gap words, on its chip.
         flag: row.kind === "gap" ? VA.KINEMATIC_ROW_KINDS.gap.flag : null,
+        // The term's sourcing is its BAND's (a contributor may borrow its band
+        // from another edge), as the projection states it per row.
+        confidence: row.confidence || null,
         curve: curve || null,
       };
       terms[row.edge] = entry;

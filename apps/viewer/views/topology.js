@@ -2584,7 +2584,10 @@
     if (mark) el.className += " " + mark;
     if (term) el.className += " tvrow--depth-" + term.depth;
     if (first) el.className += " tvrow--group-start";
-    if (edge) el.className += " " + VA.confidenceClass(edge.confidence);
+    // A kinematic term's sourcing is its band's (VA.kinematicStack's
+    // `confidence`); every other row's is its edge's own.
+    var confidence = term && term.confidence ? term.confidence : edge ? edge.confidence : null;
+    if (edge) el.className += " " + VA.confidenceClass(confidence);
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
     if (edge && edge.zero_width) el.className += " tvrow--zero-width";
@@ -2718,10 +2721,10 @@
       // The row's statement about its citation. It opened the citation's
       // hover card until 2026-10-30; the full reference is the Preview's now,
       // one hover away on this same row.
-      var confChip = VA.chip(VA.confidenceClass(edge.confidence),
-        edge.confidence === null ? "no value"
-          : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence),
-        VA.CONFIDENCE_WORDS[edge.confidence] || null);
+      var confChip = VA.chip(VA.confidenceClass(confidence),
+        confidence === null ? "no value"
+          : (VA.CONFIDENCE_LABEL[confidence] || confidence),
+        VA.CONFIDENCE_WORDS[confidence] || null);
       var sourceRef = edge.dimension && edge.dimension.source_ref;
       chips.wrap.appendChild(VA.markGeneralNote(confChip, sourceRef));
       if (edge.kind === "gap") {

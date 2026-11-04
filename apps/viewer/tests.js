@@ -14986,8 +14986,8 @@
             gapGroups.forEach(function (g) { eq(g.label, VA.GAP_COMPONENT_LABEL); });
           });
 
-        await test("[real] on pitch_system, a rendered row's band tint is its " +
-          "own leader band's, value for value", function () {
+        await test("[real] on pitch_system, a band polygon wears its own leader band's " +
+          "parity and a rendered row its own body's tint, value for value", function () {
             // The deliverable's own claim, on the document it was asked for:
             // "the band BETWEEN two adjacent leaders and the grid rows that
             // band feeds share one alternating tint". Measured as the two
@@ -15024,30 +15024,26 @@
             var rows = all(root, "tr.tvrow");
             eq(rows.length, plan.rows.length);
 
-            // Row i's tint IS the tint of the band whose row range contains
-            // it -- read off the DOM on both sides, so a renderer that tinted
-            // the rows from anything else (row index parity, group index)
-            // fails here.
-            var bandClass = function (node) {
-              return hasClass(node, "rail__band--b") ||
-                     hasClass(node, "tvrow--band-b") ? 1 : 0;
-            };
+            // The band polygons keep their parity; each ROW wears its body's
+            // tint since the_kinematic_grid_is_a_stack_of_sub_stacks -- the
+            // index the DAG's container for that body is filled with -- read
+            // off the DOM, so a renderer that tinted rows from anything else
+            // (the band, the row index, the group) fails here.
             bands.forEach(function (band, i) {
-              eq(bandClass(drawn[i]), band.parity, "band " + i);
-              for (var r = band.startRow; r < band.endRow; r++) {
-                eq(bandClass(rows[r]), band.parity,
-                   "row " + r + " (" + rows[r].getAttribute("data-id") + ")");
-              }
+              eq(hasClass(drawn[i], "rail__band--b") ? 1 : 0, band.parity, "band " + i);
             });
-            // Non-vacuous: a run of rows in one band, and neighbours that
-            // differ -- a page that tinted every row the same would pass a
-            // parity check written any less carefully. Rows 9-12 are one
-            // band; rows 13 and 14 are the next two.
-            eq(bandClass(rows[9]), bandClass(rows[10]));
-            eq(bandClass(rows[9]), bandClass(rows[12]));
-            ok(bandClass(rows[12]) !== bandClass(rows[13]),
-               "the band changes where a leader points");
-            ok(bandClass(rows[13]) !== bandClass(rows[14]));
+            var tints = {};
+            rows.forEach(function (row, r) {
+              var body = plan.rows[r].body;
+              var want = body === null ? "tvrow--body-none"
+                : "tvrow--body-t" + VA.bodyTint(livePitch, body);
+              ok(hasClass(row, want), "row " + r + " (" + row.getAttribute("data-id") + ") " + want);
+              ok(!hasClass(row, "tvrow--band-a") && !hasClass(row, "tvrow--band-b"),
+                 "row " + r + " wears no band parity");
+              tints[want] = true;
+            });
+            // Non-vacuous: the product model's rows are in several bodies.
+            ok(Object.keys(tints).length >= 4, "rows of several bodies, several tints");
           });
 
         // Every page the leaders are drawn on, as the page draws them: each
@@ -17730,37 +17726,134 @@
             eq(all(root, "line.kmchart__bar--worst").length, 2);
           });
 
-        await test("[real] the kinematic page renders the live study: two verdicts, " +
-          "one table of six contributors said once, none of them a gap", function () {
-            var root = render(function (r) {
-              var ctx = { kinematic: realKinematic, study: realKinStudy,
-                topologies: realKinTopologies };
-              r.appendChild(VA.renderKinematicResults(VA.el("section"), ctx));
+        // The live study's grid (the_kinematic_grid_is_a_stack_of_sub_stacks):
+        // the topology pane as topology_app.js paints it on the kinematic page.
+        function realKinGrid(stopId, choices) {
+          var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+          var stack = VA.kinematicStack(realKinStudy, topo, stopId,
+            realKinematic.display_decimals, choices || {});
+          var root = render(function (r) {
+            VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
+              selection: null, onSelect: function () {},
+              lit: VA.kinematicLitSet(realKinStudy, topo), stack: stack,
+              kinematicStudy: realKinStudy, decimals: realKinematic.display_decimals,
+              subStacks: VA.kinematicSubStacks(realKinStudy, realKinematic.display_decimals),
+              openSubStacks: VA.stackOpenMap(stack), onToggleSubStack: function () {} });
+          });
+          return { root: root, stack: stack, topo: topo, rows: all(root, "tr.tvrow") };
+        }
+        var TRAVEL_STUDY = "vpa_pitch_linkage_travel_between_end_stops";
+
+        await test("[real] the live study's grid is its stack at the -7 stop: the six " +
+          "linkage terms in chain order, the travel folded with what it contributes, " +
+          "the gap after it, and each row in its body's tint", function () {
+            var g = realKinGrid(null);
+            eq(g.stack.stop.id, "minus7", "the first stop by default");
+            // The ordering rule (VA.kinematicStackOrder): blade end to mount,
+            // then the stop position's sub-studies in study_refs[] order.
+            eq(rowIds(g.rows),
+               ["sub:linkage", "pitch_arm_radius", "pitch_link_length",
+                "pitch_plate_attach_height", "pitch_plate_tan_link_attach_radius",
+                "tan_link_length", "tan_link_mount_height",
+                "sub:stop_position", "sub:vpa_pitch_linkage_feather_stop_axial_position",
+                "sub:" + TRAVEL_STUDY,
+                "sub:vpa_pitch_linkage_hub_to_feather_stop"]);
+            // Two adjacent linkage rows are two connected edges: each pair
+            // shares an interface, or is joined by one lit joint.
+            var index = VA.topologyIndex(g.topo);
+            var lit = VA.kinematicLitSet(realKinStudy, g.topo);
+            var ends = function (id) { return [index.edges[id].from, index.edges[id].to]; };
+            var linked = function (a, b) {
+              var A = ends(a), B = ends(b);
+              if (A.some(function (n) { return B.indexOf(n) !== -1; })) return true;
+              return Object.keys(lit.edges).some(function (j) {
+                var J = ends(j);
+                return J.some(function (n) { return A.indexOf(n) !== -1; }) &&
+                  J.some(function (n) { return B.indexOf(n) !== -1; });
+              }) || Object.keys(lit.edges).some(function (band) {
+                var M = ends(band);
+                return M.some(function (n) { return A.indexOf(n) !== -1 || B.indexOf(n) !== -1; }) &&
+                  Object.keys(lit.edges).some(function (j) {
+                    var J = ends(j);
+                    return J.some(function (n) { return M.indexOf(n) !== -1; }) &&
+                      J.some(function (n) { return A.indexOf(n) !== -1 || B.indexOf(n) !== -1; });
+                  });
+              });
+            };
+            var linkage = rowIds(g.rows).slice(1, 7);
+            for (var k = 0; k + 1 < linkage.length; k++) {
+              ok(linked(linkage[k], linkage[k + 1]), linkage[k] + " meets " + linkage[k + 1]);
+            }
+            // The folded travel: its own total in mm, what it contributes here.
+            var travel = g.rows.filter(function (r) {
+              return r.getAttribute("data-substack") === TRAVEL_STUDY;
+            })[0];
+            eq(travel.getAttribute("aria-expanded"), "false", "four terms: folded");
+            has(travel.textContent, "Travel between end stops");
+            has(travel.textContent, "±0.82 mm → ±1.417 deg at the −7 deg stop");
+            eq(travel.querySelector("td.tvcell--sensitivity").textContent, "−1.728");
+            eq(travel.querySelector("td.tvcell--contribution").textContent, "±1.417");
+            eq([travel.querySelector("td.tvcell--nominal").textContent,
+                travel.querySelector("td.tvcell--min").textContent,
+                travel.querySelector("td.tvcell--max").textContent],
+               ["64.44", "63.62", "65.26"]);
+            var gap = g.rows[g.rows.length - 1];
+            ok(hasClass(gap, "tvrow--gapstack"), "the declared gap, dashed, last");
+            has(gap.textContent, "not yet authored");
+            // Each term row wears its body's tint -- the DAG container's index.
+            eq(g.rows.slice(1, 7).map(function (r) {
+              return r.className.split(" ").filter(function (c) {
+                return /^tvrow--body-/.test(c);
+              }).join(" ");
+            }), ["tvrow--body-t1", "tvrow--body-t3", "tvrow--body-t2", "tvrow--body-t2",
+                 "tvrow--body-t4", "tvrow--body-t0"]);
+            eq(VA.bodyTint(g.topo, "blade"), 1);
+            ok(hasClass(g.rows[0], "tvrow--body-none"), "a header is no body's");
+            ok(hasClass(g.rows[7], "tvrow--divide-sub"), "a heavier rule opens a sub-stack");
+            ok(hasClass(g.rows[4], "tvrow--divide-hair"), "a hairline inside one body");
+            ok(hasClass(g.rows[5], "tvrow--divide-body"), "a heavier rule between bodies");
+            // Sensitivity, contribution, the stop's fold and verdict at the foot.
+            var arm = g.rows[1];
+            // Its band is borrowed from the arm's hole-to-hole edge, and the
+            // chip says that band's sourcing, not the swept edge's "no value".
+            ok(hasClass(arm, "conf--untraced"), "the term wears its band's confidence");
+            eq(arm.querySelector("td.tvcell--sensitivity").textContent, "1.574");
+            eq(arm.querySelector("td.tvcell--contribution").textContent, "±0.024 deg");
+            var foot = all(g.root, "tr.tvtotal");
+            has(foot[0].textContent, "blade pitch at the −7 deg stop");
+            has(foot[0].textContent, "±2.355 deg · RSS ±1.034");
+            has(foot[1].textContent, "margin -0.363 deg");
+            has(foot[1].textContent, "at most −5 deg");
+            // The sourcing legend names every chip.
+            eq(all(all(g.root, "div.tvlegend")[0], "span.chip").length, VA.CONFIDENCES.length);
+            bannedIn(viewerAuthoredText(g.root), "[real] kinematic grid");
+            // The results pane draws no table of its own.
+            var results = render(function (r) {
+              r.appendChild(VA.renderKinematicResults(VA.el("section"), {
+                kinematic: realKinematic, study: realKinStudy, topologies: realKinTopologies,
+                stackStop: "minus7", onStackStop: function () {} }));
             });
-            eq(all(root, "div.kmverdict").length, 2);
-            eq(all(root, "table.kmtable").length, 1);
-            eq(all(root, "th.kmtable__stop").map(function (g) {
-              return g.getAttribute("data-stop");
-            }), ["minus7", "plus72"]);
-            var rows = all(root, "tr.kmrow");
-            eq(rows.length, 6);
-            eq(rows.map(function (r) { return hasClass(r, "kmrow--gap"); }),
-               [false, false, false, false, false, false]);
-            eq(rows[0].getAttribute("data-edge"), "pitch_plate_attach_height");
-            has(rows[0].textContent, "0.156");
-            has(rows[0].textContent, "0.149");
-            // The travel study and the feather stop's chain are ONE group row
-            // each, collapsed, over their four and five terms; the hub anchor
-            // a third, a declared gap with none.
-            eq(all(root, "tr.kmgroup").map(function (tr) { return tr.getAttribute("data-study"); }),
-               ["vpa_pitch_linkage_travel_between_end_stops", "vpa_pitch_linkage_feather_stop_axial_position",
-                "vpa_pitch_linkage_hub_to_feather_stop"]);
-            has(all(root, "tr.kmgroup")[0].textContent, "Travel between end stops");
-            eq(all(all(root, "tr.kmgroup")[2], "span.chip--gap").length, 1);
-            var travel = all(root, "tr.kmchild");
-            eq(travel.length, 9);
-            ok(travel.every(function (t) { return t.hidden === true; }), "collapsed by default");
-            bannedIn(viewerAuthoredText(root), "[real] kinematic page");
+            eq(all(results, "div.kmverdict").length, 2);
+            eq(all(results, "table.kmtable").length, 0);
+            eq(all(results, "button.kmstop__button").length, 2);
+          });
+
+        await test("[real] opened, the travel's four terms follow its header in its own " +
+          "chain order, a step in; at the +72 stop the travel is no term", function () {
+            var choices = {};
+            choices[TRAVEL_STUDY] = true;
+            var g = realKinGrid("minus7", choices);
+            var ids = rowIds(g.rows);
+            var at = ids.indexOf("sub:" + TRAVEL_STUDY);
+            eq(ids.slice(at + 1, at + 5),
+               ["piston_head_upper_thickness", "piston_head_lower_thickness",
+                "gas_spring_mount_flange_to_end_stop", "piston_cover_flange_to_end_stop"]);
+            eq(g.rows[at].getAttribute("aria-expanded"), "true");
+            eq(g.rows[at + 1].querySelector("td.tvcell--contribution").textContent, "±0.432 deg");
+            ok(hasClass(g.rows[at + 1], "tvrow--depth-2"), "a step in under a nested header");
+            var high = realKinGrid("plus72");
+            eq(rowIds(high.rows).indexOf("sub:" + TRAVEL_STUDY), -1);
+            has(all(high.root, "tr.tvtotal")[1].textContent, "at least +70 deg");
           });
 
         // The joints the closure lights on the real study: the gap edges whose
@@ -18106,7 +18199,7 @@
           });
 
         await test("[real] each stop chain is a dashed field inside its bodies " +
-          "that folds and opens with the contributor table's group row", function () {
+          "that folds and opens with the grid's header row for it", function () {
             var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
             var subs = VA.kinematicSubStacks(realKinStudy, realKinematic.display_decimals);
             eq(subs.map(function (k) { return [k.id, k.edges.length]; }),
@@ -18136,21 +18229,25 @@
             eq(opened, [sub.id]);
             eq(all(paint(true), ".rail__bar--folded").length, 4,
                "this one open, its bars are its edges; the travel's stay folded");
-            // The table's group row reads and writes the same state.
-            var o = {};
-            o[sub.id] = true;
-            var table = render(function (r) {
-              VA.renderKinematicResults(r, { kinematic: realKinematic, study: realKinStudy,
-                topologies: realKinTopologies, selection: null,
-                openSubStacks: o, onToggleSubStack: function (id) { opened.push(id); } });
+            // The grid's header row reads the same state and writes through it.
+            var choices = {};
+            choices[sub.id] = true;
+            var stack = VA.kinematicStack(realKinStudy, topo, "minus7",
+              realKinematic.display_decimals, choices);
+            eq(VA.stackOpenMap(stack)[sub.id], true, "open in both places");
+            var grid = render(function (r) {
+              VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
+                selection: null, onSelect: function () {},
+                lit: VA.kinematicLitSet(realKinStudy, topo), stack: stack,
+                subStacks: subs, openSubStacks: VA.stackOpenMap(stack),
+                onToggleSubStack: function (id, want) { opened.push([id, want]); } });
             });
-            var row = all(table, "tr.kmgroup").filter(function (tr) {
-              return tr.getAttribute("data-study") === sub.id;
+            var row = all(grid, "tr.tvrow").filter(function (tr) {
+              return tr.getAttribute("data-substack") === sub.id;
             })[0];
-            var toggle = all(row, "button.kmgroup__toggle")[0];
-            eq(toggle.getAttribute("aria-expanded"), "true", "open in both places");
-            toggle.onclick({ stopPropagation: function () {} });
-            eq(opened, [sub.id, sub.id], "and the row closes it through the same state");
+            eq(row.getAttribute("aria-expanded"), "true");
+            row.onclick();
+            eq(opened[1], [sub.id, false], "and the row closes it through the same state");
           });
 
         await test("[real] every contributor names an edge the topology projection " +
