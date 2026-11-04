@@ -1106,40 +1106,45 @@ const BANDS_IN_PAGE = () => {
     }
   });
   if (fills[0] === fills[1]) bad.push("both band tints resolve to one colour");
-  // Every row's own background COLOUR, against the band its rows belong to.
-  // Every row, provenance or not: the band tint is the colour and a
-  // provenance tint is a background IMAGE layered over it, precisely so that
-  // an untraced row shows both. Measuring the colour therefore sees the band
-  // on all 24 of pitch_system's rows, 20 of which are untraced -- and if the
-  // two rules ever go back to competing for one `background`, 20 of them lose
-  // their band and this goes red.
-  const byParity = { 0: new Set(), 1: new Set() };
+  // Every row's own background COLOUR, against its BODY's tint
+  // (the_kinematic_grid_is_a_stack_of_sub_stacks): rows of one body paint one
+  // colour, rows of two bodies two, and a row of no body none. The untraced
+  // wash is a background IMAGE layered over it, so an untraced row shows both
+  // -- and if the two rules ever go back to competing for one `background`,
+  // the untraced rows lose their body and this goes red.
+  const byTint = {};
   let tinted = 0;
   let provenanceLayers = 0;
-  for (const row of rows) {
-    const id = row.getAttribute("data-id");
-    const p = parity[id];
-    if (p === undefined) { bad.push(`row ${id} is in no band`); continue; }
-    byParity[p].add(getComputedStyle(row).backgroundColor);
+  plan.rows.forEach((planRow, r) => {
+    const row = rows[r];
+    if (!row) { bad.push(`plan row ${planRow.id} has no <tr>`); return; }
+    const want = planRow.body === null || planRow.body === undefined ? "tvrow--body-none"
+      : "tvrow--body-t" + VA.bodyTint(proj, planRow.body);
+    if (!row.classList.contains(want)) bad.push(`row ${planRow.id} does not wear ${want}`);
+    if (row.classList.contains("tvrow--band-a") || row.classList.contains("tvrow--band-b")) {
+      bad.push(`row ${planRow.id} still wears a band parity`);
+    }
+    const colour = getComputedStyle(row).backgroundColor;
+    (byTint[want] = byTint[want] || new Set()).add(colour);
+    if (want === "tvrow--body-none" && colour !== "rgba(0, 0, 0, 0)") {
+      bad.push(`row ${planRow.id} is in no body and still painted ${colour}`);
+    }
     tinted++;
     const provenance = /conf--untraced|conf--no_source_ref/
       .test(row.getAttribute("class") || "");
     const image = getComputedStyle(row).backgroundImage;
     if (provenance && (!image || image === "none")) {
-      bad.push(`untraced row ${id} lost its provenance tint to the band`);
+      bad.push(`untraced row ${planRow.id} lost its provenance tint to its body's`);
     }
     if (provenance) provenanceLayers++;
-  }
-  for (const p of [0, 1]) {
-    if (byParity[p].size > 1) {
-      bad.push(`parity ${p} rows painted ${byParity[p].size} different backgrounds`);
-    }
-  }
-  const zero = Array.from(byParity[0])[0];
-  const one = Array.from(byParity[1])[0];
-  if (zero !== undefined && one !== undefined && zero === one) {
-    bad.push("both row tints resolve to one colour");
-  }
+  });
+  const colours = {};
+  Object.keys(byTint).forEach((k) => {
+    if (byTint[k].size > 1) bad.push(`${k} rows painted ${byTint[k].size} different backgrounds`);
+    const c = Array.from(byTint[k])[0];
+    if (k !== "tvrow--body-none" && colours[c]) bad.push(`${k} and ${colours[c]} resolve to one colour`);
+    colours[c] = k;
+  });
   return {
     bad, tinted, provenanceLayers, bands: bands.length, drawn: drawn.length,
     svgWidth: document.querySelector("svg.tv__rails").getBoundingClientRect().width,
@@ -3338,7 +3343,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // case with enough bands for "ride a band across the jog zone" to mean
       // anything.
       const realBands = await page.evaluate(BANDS_IN_PAGE);
-      push("[real] pitch_system's rows and bands are tinted from one parity, " +
+      push("[real] pitch_system's bands are tinted by parity and its rows by their body, " +
         "and its untraced rows keep their provenance tint as well",
         // 62 bands off 61 leaders since the four fastener stacks joined
         // (2026-10-27); 39 off 38 before them, 17 off 16 on the

@@ -320,8 +320,9 @@ export const DECLARED_GUARDS = {
   // clicked term row and the sensitivity's curve renamed; the six-contributor
   // table and the travel group row out; the live stack, the travel fold and
   // the +72 stop in. Every one carries a spec, and two re-anchored with the
-  // code they mutate.
-  browser: { declared: 794, enrollable: 761, names: "7e068cd9fb07" },
+  // code they mutate. And one renamed for the rows' body tint (pitch_system's
+  // bands and rows), which carried no spec under its old name either.
+  browser: { declared: 794, enrollable: 761, names: "82130339ef40" },
 };
 
 
