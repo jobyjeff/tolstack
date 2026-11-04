@@ -177,3 +177,95 @@ and the topology fixture drift. They are already filed as
 One of them is the pitch_system row-tint check, which I re-pointed at the
 body rule. Its own assertions run only after the band pins that are red
 upstream, so it carries no spec yet (`guard_enumeration.mjs` says so).
+
+## Two late fixes the browser tier found
+
+- **Width.** At first SENSITIVITY was +90px. That widened the grid, and a
+  sticky rails SVG then covered row centres: "SVG intercepts pointer events"
+  in three suites, and the jog-zone and respine width pins moved. Its 70px
+  now comes out of component (150→120), element (220→210) and contribution
+  (200→170), so the table is as wide as it was.
+- **The legend widened the pane.** A wrapping flex strip in the pane's
+  shrink-to-fit box lays out at its one-line width. Its width is now pinned
+  to the table's. Before that, the respine's scroll clamp check went red,
+  with pane content 1896 → 2106 px instead of → 1554.
+- Grid-row pointer actions in the browser tier go through `clearPoint`, not
+  `locator.hover()`/`.click()`. The seam trace reads `pitch_link_length` and
+  `tan_link_length`. Jeff's two 10-29 rows have no grid row any more (a
+  band's own edge, and a folded travel term).
+
+## Screenshots
+
+`shots_20261103_the_kinematic_grid_is_a_stack_of_sub_stacks/`, at
+1600×1000 full page, against the scratch build:
+
+- `1_folded`: −7 stop, travel folded;
+- `2_travel_open`;
+- `3_plus72`: the picker at +72, no travel;
+- `6_chain_study`: `pitch_link_cotter_hole_clearance`, the same row builder.
+
+`4_`/`5_` are viewport crops of the grid taken before the width and
+band-confidence fixes. Their rows read the same, but the columns are 20px
+off the final ones.
+
+## Verification record
+
+Run from this worktree on the committed tree, against the scratch root
+`C:\workspace\tolstack\data\scratch\kin_grid\root`. Topology, viewer, part
+names, contact suggestions, crops (drawing-checker's venv) and kinematic
+projections were rebuilt there from this branch BEFORE the tiers.
+
+- **pytest:** `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider -rs`
+  (single process; this venv has no xdist), worktree, **1722 passed, 2
+  failed, 1 skipped, 2 deselected, 383 s**. Recorded with `suite-time
+  record`, inside budget.
+  - `test_viewer_js_suite_is_green` is the deliberate worktree red (no
+    `data/`).
+  - `test_real_the_live_projection_has_the_schema_and_a_row_per_gap_edge`
+    reads the main checkout's stale contact-suggestions projection
+    (`ISSUE_20261103_the_contact_suggestions_real_test_pairs_this_tree_with_a_projection_built_from_another.md`).
+    This branch changes no Python.
+  - The skip is the pitch-link bearing re-extraction not installed.
+- **Fast tier:** `node apps/viewer/run_tests.cjs --repo <scratch>`:
+  **623/629**, `[real]` tier included, projection paired with this tree. The
+  6 reds are the same 6 that fail on the base commit `dde0ecd6` against the
+  same projection (`ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md`).
+  Without `--repo`: 512/512, node-fs tier skipped.
+- **Browser tier:** `node scripts/run_viewer_browser_tests.mjs --repo <scratch>`.
+  The full run gave 32/40 suites, 25 min, and it predates the width and
+  legend fixes. After the fixes I reran the six red suites on HEAD and on the
+  base commit (base `apps/viewer` + runner checked out, then restored):
+  - **kinematic study page:** 24/24 PASS. This is the suite this handoff
+    rewrote.
+  - **respine:** 44/44 PASS.
+  - **topology file://:** 201/205. The same 4 fail on base: pitch_system's
+    62-band pin, both leader styles, and the 61-leader zone. The re-pointed
+    body-tint assertion reported no `bad` rows.
+  - **DAG zoom:** 34/35. The same one fails on base.
+  - **3D pane follows:** 28/32. The same 4 nav-body checks fail on base.
+  - **leaders across the seam:** 20/22. The same two trace checks fail on
+    base (no scene anchor).
+  - **real render path** and **crop lightbox:** both ABORT on base with the
+    same click timeout.
+
+  Nothing red on HEAD is green on base.
+- **Mutation witnesses:** `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration`:
+  **20/68 witnessed, 68/69 reached, 1 left to the sweep (budget), 30m09s.**
+  - The 29 fast entries are all "red before the mutation", because of the 6
+    pre-existing fast reds. So I witnessed this branch's 9 fast specs by hand
+    instead: apply each mutation, run the fast tier, look for `FAIL <its
+    guard>`. **12/12 mutations witnessed**, after the travel spec was
+    re-pointed at the nested depth. Its first mutation reversed a sort the
+    grid does not read, because the grid walks the band's order.
+  - The new browser specs were witnessed in the gate's run: the live stack,
+    the travel fold, the curve, the +72 stop, the clicked row, and the page
+    shape.
+  - `toggling Unused` stayed green under its mutation, so it was re-pointed
+    at the stop picker and has not been re-run.
+  - `the nav's kinematic row brings the page back` (a pre-existing spec)
+    reddened the page-shape check instead of its own. I did not resolve it;
+    `--only` on it is the next step.
+- `node apps/annotate/run_tests.cjs`: not run. This branch does not touch
+  `apps/annotate/`.
+
+The scratch root and its junctions are removed at hand-back.
