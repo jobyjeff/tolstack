@@ -314,7 +314,7 @@
     // went when the mode stretched it. `fit` is the viewport it normalizes
     // into (viewer_dag_spine_layout) — measured here because this is the one
     // place that holds both the pane and the plan.
-    var fit = { plan: plan };
+    var fit = { plan: plan, inset: VA.DAG_FIT.topInset };
     var positions = VA.rowPositions(layout, topoProj,
       ctx.edgeLengthMode || "uniform", M, fit);
     // Mid-respine (viewer_study_respine_animation): the frame is drawn from
@@ -827,15 +827,40 @@
     return Math.max(0, Math.min(visibleTop - naturalTop, room));
   };
 
+  // What the page pins at its top, as two heights (style.css's --bar-h and
+  // --filter-h are written from these, so CSS and JS read one measurement):
+  // the page bar, and the view filters under it where the page has any.
+  VA.stickyOffsets = function () {
+    if (typeof document === "undefined" || !document.querySelector) {
+      return { bar: 0, filter: 0, top: 0 };
+    }
+    var height = function (node) {
+      return node && node.getBoundingClientRect ? node.getBoundingClientRect().height : 0;
+    };
+    var bar = height(document.querySelector(".topbar"));
+    var tool = document.querySelector(".tv__toolbar");
+    var filter = tool && tool.childNodes && tool.childNodes.length ? height(tool) : 0;
+    return { bar: bar, filter: filter, top: bar + filter };
+  };
+
+  VA.syncStickyOffsets = function () {
+    var o = VA.stickyOffsets();
+    var root = typeof document !== "undefined" ? document.documentElement : null;
+    if (root && root.style && root.style.setProperty && o.bar > 0) {
+      root.style.setProperty("--bar-h", o.bar + "px");
+      root.style.setProperty("--filter-h", o.filter + "px");
+    }
+    return o;
+  };
+
   // The top of what the reader can see of the drawing, in viewport pixels: the
-  // bounded pane's own top, otherwise the sticky page bar's bottom.
+  // bounded pane's own top, otherwise under everything the page pins -- the bar
+  // and the view filters.
   function visibleTop(root) {
     if (root.classList && root.classList.contains("tv__scroll--bounded")) {
       return root.getBoundingClientRect().top;
     }
-    var bar = typeof document !== "undefined" && document.querySelector
-      ? document.querySelector(".topbar") : null;
-    return bar && bar.getBoundingClientRect ? bar.getBoundingClientRect().bottom : 0;
+    return VA.stickyOffsets().top;
   }
 
   VA.pinTopoHead = function (root) {

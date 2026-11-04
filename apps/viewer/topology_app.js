@@ -2248,9 +2248,8 @@
     var drawn = VA.lastTopoRender;
     if (!box || !hscroll || !drawn || !drawn.span || !box.getBoundingClientRect) return;
     var bounded = paneScroller();
-    var bar = typeof document !== "undefined" ? document.querySelector(".topbar") : null;
     var topEdge = bounded ? nodes.pane.getBoundingClientRect().top
-      : (bar ? bar.getBoundingClientRect().bottom : 0);
+      : VA.stickyOffsets().top;
     var visible = bounded ? nodes.pane.clientHeight
       : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
     var pad = 12;
@@ -3077,6 +3076,8 @@
     }
 
     VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
+
+    VA.syncStickyOffsets();
 
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays

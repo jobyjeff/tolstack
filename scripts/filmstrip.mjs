@@ -11,6 +11,7 @@ import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { launchBrowser, loadPlaywright, takeTheBrowserSlot } from "./browser_runner.mjs";
+import { CLOCK } from "./virtual_clock.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
@@ -188,38 +189,6 @@ const BUILTINS = {
   },
 };
 
-
-// The page's clock, steerable. Installed before the page's own scripts run, and
-// a pass-through until freeze(): the scenario's setup and click use real time
-// (Playwright's own actionability checks wait on animation frames), and only the
-// filmed part is stepped.
-const CLOCK = () => {
-  const realNow = Date.now.bind(Date);
-  const realPerf = performance.now.bind(performance);
-  const realRaf = window.requestAnimationFrame.bind(window);
-  let frozen = false, date = 0, perf = 0, queue = [], id = 1000000;
-  Date.now = () => (frozen ? date : realNow());
-  performance.now = () => (frozen ? perf : realPerf());
-  window.requestAnimationFrame = (fn) => {
-    if (!frozen) return realRaf(fn);
-    queue.push([++id, fn]);
-    return id;
-  };
-  window.cancelAnimationFrame = ((real) => (n) => {
-    queue = queue.filter(([i]) => i !== n);
-    return real(n);
-  })(window.cancelAnimationFrame.bind(window));
-  window.__clock = {
-    freeze() { date = realNow(); perf = realPerf(); frozen = true; },
-    // One animation frame, `ms` of page time after the last.
-    step(ms) {
-      date += ms; perf += ms;
-      const due = queue; queue = [];
-      for (const [, fn] of due) fn(perf);
-    },
-    thaw() { frozen = false; for (const [, fn] of queue) realRaf(fn); queue = []; },
-  };
-};
 
 // --- the composite ---------------------------------------------------------------
 
