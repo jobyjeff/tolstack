@@ -198,7 +198,9 @@ export const DECLARED_GUARDS = {
   // check re-worded for the flat run out of the rails. The two crossing
   // guards carry a spec each (three mutations); the shape check carried none
   // under its old name either.
-  fast: { declared: 629, enrollable: 629, names: "23e2bb81be22" },
+  // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +1, the nav's twisty row
+  // (a joint end's candidate list mirrored). It carries a spec.
+  fast: { declared: 630, enrollable: 630, names: "acdb9fb3512b" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -225,7 +227,10 @@ export const DECLARED_GUARDS = {
   // carries a spec.
   // 2026-10-30 (a_point_exports_its_xyz_against_angle): +1, the export's load
   // order and the run's commit reaching its header. It carries a spec.
-  annotate: { declared: 269, enrollable: 269, names: "abccfde67f72" },
+  // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +4, the end's candidate
+  // list, its reasons, `hover face` and the [real] 55-of-55 reach. Each
+  // carries a spec.
+  annotate: { declared: 273, enrollable: 273, names: "703e2d350098" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -293,7 +298,11 @@ export const DECLARED_GUARDS = {
   // re-worded for the flat run out of the rails. Neither carried a spec under
   // its old name; the crossing rule itself is witnessed in the fast tier.
   // (Re-pinned at the review merge onto integration's 793/760.)
-  browser: { declared: 793, enrollable: 760, names: "a2fd1dffc6ef" },
+  // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +7 -- the mock list, its
+  // hover wash, the wash coming down and Take; the hub spindle end's real
+  // list and wash; the armed row naming a real round face's class and
+  // radius. Each carries a spec.
+  browser: { declared: 800, enrollable: 767, names: "c3acce16fbe4" },
 };
 
 

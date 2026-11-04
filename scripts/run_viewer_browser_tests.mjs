@@ -7622,7 +7622,7 @@ async function openSuggestionPage(browser, url, mode, errors, extra) {
             edge: "demo_edge_traced", status: "ok", pairing: "plane_on_plane",
             from: { node: "a" }, to: { node: "b" }, ambiguous_with: [],
             candidates: [1, 2, 3].map((rank) => ({ rank, relation: "contact", score: rank,
-              from: { sha256: v.demoSha, surface: "planar", faces: [rank === 1 ? 1 : 0] },
+              from: { sha256: v.demoSha, surface: "planar", faces: [[1, 0, 2][rank - 1]] },
               to: { sha256: "1".repeat(63), surface: "planar", faces: [0] },
               evidence: {}, box: { min: [0, 0, 0], max: [1, 1, 1] } })),
           }] });
@@ -7633,6 +7633,21 @@ async function openSuggestionPage(browser, url, mode, errors, extra) {
   }, mode);
   await page.goto(url + "?embedded=1&mock=1" + (extra || ""), { waitUntil: "load" });
   return page;
+}
+
+// The scene's camera once it has stopped moving: a selection frames with
+// damping, so a camera read straight after it is still travelling and a
+// before/after comparison would blame whatever ran next (the 2026-10-29
+// lesson). Two reads a beat apart that agree, or the last read after 5 s.
+async function settledCamera(page) {
+  let last = null;
+  for (let i = 0; i < 25; i++) {
+    const now = JSON.stringify(await page.evaluate(() => window.__scene.cameraState()));
+    if (now === last) return JSON.parse(now);
+    last = now;
+    await page.waitForTimeout(200);
+  }
+  return JSON.parse(last);
 }
 
 async function testAnnotateRailSuggestion(browser, label, topologies) {
@@ -7772,6 +7787,48 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     push("selecting it outlines the top-ranked face at this end, dashed, not filled",
       !lit.focus.solid && lit.focus.faces.length === 1 && lit.focus.faces[0].faceId === 1 &&
       lit.focus.faces[0].drawn > 0 && lit.focus.node === null);
+
+    // a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there: the
+    // row's twisty opens its list; a row's hover washes its face; Take binds it.
+    await page.locator(ROW + " > .tree-row__twisty").click();
+    await page.waitForSelector(ROW + " .tree-cands .tree-cand", { timeout: 5000 });
+    const list = await page.evaluate((sel) => Array.from(
+      document.querySelectorAll(sel + " .tree-cands > li")).map((li) => ({
+      name: (li.querySelector(".tree-row__name") || {}).textContent || "",
+      reason: (li.querySelector(".tree-row__face") || {}).textContent || "",
+      title: li.title, take: !!li.querySelector(".tree-cand__take") })), ROW);
+    push("the twisty opens the end's candidate list: one row per face in rank order, each saying " +
+      "why it is there, then Pick another face",
+      list.length === 4 && list.slice(0, 3).map((r) => r.name).join() === "face 1 · flat,face 0 · flat,face 2 · flat" &&
+      list.slice(0, 3).every((r) => r.reason === "coincident with the mating face" && r.take &&
+        r.title.indexOf("coincident with the mating face") !== -1) &&
+      list[3].name === "Pick another face…" && !list[3].take);
+    const cam = await settledCamera(page);
+    await page.locator(ROW + ' .tree-cand[data-face="0"]').hover();
+    await page.waitForFunction(() => window.__scene.washed(), null, { timeout: 5000 }).catch(() => {});
+    const washed = await page.evaluate(() => ({ w: window.__scene.washed(), cam: window.__scene.cameraState() }));
+    push("hovering a candidate row washes that face in the pre-selection's yellow, on every drawn " +
+      "occurrence, and the camera stays",
+      washed.w && washed.w.faceId === 0 && washed.w.overlays > 0 &&
+      washed.w.color === washed.w.preselectColor && washed.w.opacity === washed.w.preselectOpacity &&
+      JSON.stringify(washed.cam) === JSON.stringify(cam));
+    await page.mouse.move(5, 5);
+    await page.waitForFunction(() => !window.__scene.washed(), null, { timeout: 5000 }).catch(() => {});
+    push("...and leaving the list takes the wash down", await page.evaluate(() => !window.__scene.washed()));
+    await page.locator(ROW + ' .tree-cand[data-face="0"]').hover();
+    await page.locator(ROW + ' .tree-cand[data-face="0"] .tree-cand__take').click();
+    await page.waitForFunction(() => (window.__mockWrites || []).length > 0, null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((sel) => {
+      const n = document.querySelector(sel + " > .tree-row__text > .tree-row__face");
+      return n && /^bound/.test(n.textContent);
+    }, ROW, { timeout: 5000 }).catch(() => {});
+    const taken = await read(page);
+    const te = (taken.writes[0] || {}).event || {};
+    push("Take writes one `bound` event for that face at that end, as the reviewer, and the row " +
+      "reads bound · face N",
+      taken.writes.length === 1 && te.verdict === "bound" && te.direction === "from" &&
+      te.geometry_key.face_id === 0 && !te.ratifies && te.recorded_by === "annotate-app:jeff" &&
+      taken.line === "bound · face 0");
   } catch (err) {
     await page.close();
     server.close();
@@ -8150,6 +8207,53 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       afterGap.parts === beforeGap.parts && afterGap.rows === beforeGap.rows &&
       afterGap.note.indexOf("names no part") !== -1);
 
+    // --- a joint end lists its candidate faces (a_joint_end_lists_its_
+    // candidate_faces_and_says_why_each_is_there) -----------------------------
+    // Jeff's end: the hub spindle bore axis. Its twisty opens the contact
+    // engine's faces, each with why it is there; resting on the first washes
+    // that face on the hub in the pre-selection's yellow. Hover only -- this
+    // page reads the real inbox, so nothing here is taken.
+    let realContact = null;
+    try {
+      realContact = JSON.parse(await readFile(join(DATA_REPO, "data", "projections",
+        "feature-identity", "contact_suggestions.json"), "utf8"));
+    } catch { realContact = null; }
+    const spindleRow = ((realContact && realContact.topologies) || []).flatMap((t) => t.edges || [])
+      .find((r) => r.edge === GAP_EDGE && r.status === "ok");
+    const spindleTop = spindleRow && spindleRow.candidates.slice().sort((a, b) => a.rank - b.rank)[0].from;
+    const HUB_END = `#sweep-tree .tree-row[data-edge="${GAP_EDGE}"][data-direction="from"]`;
+    await page.evaluate((sel) => {
+      const r = document.querySelector(sel);
+      for (let d = r && r.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+    }, HUB_END);
+    await page.locator(HUB_END + " > .tree-row__twisty").first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector(HUB_END + " .tree-cands .tree-cand[data-face]", { timeout: 15000 }).catch(() => {});
+    const hubList = await page.evaluate((sel) => Array.from(
+      document.querySelectorAll(sel + " .tree-cands > .tree-cand")).map((li) => ({
+      face: li.dataset.face || null,
+      name: (li.querySelector(".tree-row__name") || {}).textContent || "",
+      reason: (li.querySelector(".tree-row__face") || {}).textContent || "" })), HUB_END);
+    const listed = hubList.filter((r) => r.face !== null);
+    console.log(`    hub spindle bore axis: ${listed.length} candidate rows listed, ` +
+      `${hubList.length - listed.length} action rows`);
+    push("[real] the hub spindle bore axis end opens to the contact engine's faces, the top-ranked " +
+      "first, each naming its class and radius and why it is there, then show all and Pick another face",
+      !!spindleTop && listed.length > 0 && Number(listed[0].face) === spindleTop.faces[0] &&
+      listed.every((r) => /^face \d+ · round · r [0-9.]+ mm$/.test(r.name) &&
+        /^coaxial with the mating |^fits the mating /.test(r.reason)) &&
+      hubList[hubList.length - 1].name === "Pick another face…");
+    const hubCam = await settledCamera(page);
+    await page.locator(HUB_END + " .tree-cands > .tree-cand[data-face]").first().hover({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__scene.washed(), null, { timeout: 15000 }).catch(() => {});
+    const hubWash = await page.evaluate(() => ({ w: window.__scene.washed(), cam: window.__scene.cameraState() }));
+    push("[real] hovering its first candidate washes that face on the hub in the pre-selection's " +
+      "yellow, and the camera stays",
+      !!spindleTop && hubWash.w && hubWash.w.sha256 === spindleTop.sha256 &&
+      hubWash.w.faceId === spindleTop.faces[0] && hubWash.w.overlays > 0 &&
+      hubWash.w.color === hubWash.w.preselectColor && JSON.stringify(hubWash.cam) === JSON.stringify(hubCam));
+    await page.mouse.move(5, 5);
+    await page.locator(HUB_END + " > .tree-row__twisty").first().click({ timeout: 5000 }).catch(() => {});
+
     // --- Jeff's reproduction: a joint end's Pick arms on its own part ----------
     // a_face_is_picked_the_way_cad_picks_it: Pick on `hub blade-1 root bearing
     // bore` goes to the as-modelled frame with no prompt, the hub alone is
@@ -8178,6 +8282,25 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       "prompt, the hub alone is solid and pickable, and every other part is ghosted faint",
       armedBore.home && armedBore.filter.length === 1 && /hub/.test(armedBore.meshes) &&
       armedBore.solid && armedBore.othersFaint && /^picking on /.test(armedBore.row));
+    // A face pre-selected while armed is named with its class and radius once
+    // the hub's classes land, whether the pointer arrived first or not
+    // (ISSUE_20261029_no_check_hovers_the_real_bore_so_the_dods_class_and_
+    // radius_line_is_unwitnessed). The face is the hub's round spindle bore,
+    // off the contact projection; `preselect` is the pointer's own drawing
+    // and callback, without a raycast to aim.
+    if (spindleTop && spindleTop.sha256 === armedBore.filter[0]) {
+      await page.evaluate((f) => window.__scene.preselect({ sha256: f.sha256, faceId: f.faces[0] }), spindleTop);
+    }
+    await page.waitForFunction(() => /^face \d+ · round · r [0-9.]+ mm$/.test(
+      (document.querySelector("#sweep-tree .tree-row--armed .tree-row__face") || {}).textContent || ""),
+    null, { timeout: 30000 }).catch(() => {});
+    const preLine = await page.evaluate(() =>
+      (document.querySelector("#sweep-tree .tree-row--armed .tree-row__face") || {}).textContent || "");
+    push("[real] a round hub face pre-selected while armed reads its number, its class and its " +
+      "fitted radius on the armed row",
+      !!spindleTop && preLine === "face " + spindleTop.faces[0] + " · round · r " + preLine.split(" · r ")[1] &&
+      /^face \d+ · round · r [0-9.]+ mm$/.test(preLine));
+    await page.evaluate(() => window.__scene.preselect(null));
     // The bore is [hub, blade_root]: the row offers the other part, one click
     // moves the arm, and the ray follows -- the second part's faces can be
     // hovered and picked and the first part's no longer can.

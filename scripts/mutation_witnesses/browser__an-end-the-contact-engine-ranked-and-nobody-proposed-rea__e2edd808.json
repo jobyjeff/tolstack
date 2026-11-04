@@ -8,7 +8,7 @@
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
       "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without it the row reads \"no face bound\" and the engine's ranking is invisible.",
       "file": "apps/annotate/sweep.js",
-      "find": "    if (!candidates.length) return null;",
+      "find": "    if (!faces.length) return null;",
       "replace": "    return null;"
     }
   ]

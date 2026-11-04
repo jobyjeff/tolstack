@@ -661,6 +661,24 @@ table is the one statement of the gestures.**
 | **Accept** on a selected suggested row | binds the suggested face (`accept`) |
 | **Pick a different face** on a selected suggested row | arms the pick as **Pick** does; the click then turns the suggestion down and binds the face clicked |
 
+**Taking a suggested face (2026-11-03).** Handoff
+`a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there`, after Jeff
+found two ends claiming "10 candidates" with nothing lit and no sign of the
+agent's pass. Every end with an agent's proposal or the contact engine's faces
+lists them, on the kinematic rail, on bind mode's element rows (both ends,
+each under its name) and in the shell's mirror of either.
+
+| gesture | what it does |
+|---|---|
+| **▸** in front of an end's row (an element's row, in bind mode) | opens the end's candidate list under the row; **▾** closes it. The row's own click still selects it. Closed, the row keeps its one line: "suggested · high", "candidates · n" (n is the faces listed, not the ranked pairs), "bound · face N" |
+| the list | the agent's proposals first ("agent suggested · high"), then the contact engine's faces in rank order, one row per face, each "face N · <class> · r X mm" over why it is there — "coaxial with the mating bore", "coincident with the mating face", "fits the mating pin", "seated against the mating race", "square to the mating axis" (`AA.CANDIDATE_RELATION_REASONS`, `AA.CANDIDATE_CONTACT_REASONS`). Hover a row for the evidence, or who proposed it and why. The face already bound reads "· bound". A list longer than `AA.CANDIDATES_LISTED` is cut there, with a "show all n" row |
+| hover a candidate row | washes that face in the pre-selection's yellow wash and outline on every drawn occurrence of its part (`hover face`); the camera stays. Leaving clears it. The pane debounces it as the shell's pane hover does |
+| **Take** on a candidate row | binds that face at that end (`take`; the surest proposal's own row runs `accept`): a face an open proposal names ratifies it, any other face writes `rejected` for each open proposal at the end, then `bound`, superseding the end's one standing binding. A toast names the write and the row reads "bound · face N" |
+| **Pick another face…** (last row) | arms the pick on that end, as **Pick** does. In bind mode it selects the element: the pick there is a click in the scene, and the bar asks which end |
+
+The engine states only the relations above: it has no "parallel" relation, so
+no row says one. Every candidate row on the real projection has a reason.
+
 - **Which part.** The end node's first-named part with an installed 3D model
   (`AA.pickEndPartIds`), else the edge's. Two-part interfaces named
   "<first part's face> against <second part>" list the face's part first, and
@@ -788,7 +806,8 @@ does. The rail row is the surface, in both modes and in the shell's mirror:
 - **The row says so.** A joint end whose key has an open proposal reads
   **"suggested · high"** (or medium) in place of "no face bound", in the
   suggestion colour, with who proposed it and the basis on hover. An end the
-  contact engine ranked and nobody proposed reads **"candidates · n"**. A
+  contact engine ranked and nobody proposed reads **"candidates · n"**, n the
+  distinct faces at that end (since 2026-11-03; it counted ranked pairs). A
   bound end reads as bound (bound wins, as the fold says), and a proposal at
   the *other* end of an edge is not a suggestion at this one. Its state is
   `proposed`, which raises no alert. Bind mode's element row (one row per

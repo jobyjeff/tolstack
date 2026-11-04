@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a joint end with a candidate list mirrors as a row with a twisty in front: the twisty toggles, the row still selects, the list shows only when open, and its words wrap",
+  "mutations": [
+    {
+      "contract": "In the shell's nav a joint end with a list keeps its own click (select) and opens the list only from the twisty in front of it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Drawing a twisty row as the ordinary <details> disclosure is the natural-looking shape and takes the row's select away: a click on the end would only open its list.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (typeof row.open === \"boolean\" && typeof row.twisty !== \"string\") {",
+      "replace": "    if (typeof row.open === \"boolean\") {"
+    }
+  ]
+}
