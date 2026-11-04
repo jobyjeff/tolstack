@@ -314,3 +314,37 @@ labels could not be clicked once the drawing was scrolled sideways.
   aims its wheel at y = 200, but the drawing now starts at 269. Measured with
   integration's own viewer code and runner against the same projection: the
   same red. Filed as `ISSUE_20261104_the_first_row_zoom_check_wheels_above_the_drawing.md`.
+
+### Rework verification record
+
+The scratch root was `C:\workspace\tolstack\data\scratch\kin_grid_rework\root`,
+laid out as before. All five projection families and the crops were built
+from `a9d6f72c` (the merge plus the cherry-pick) before any tier ran. It is
+removed at hand-back.
+
+- **Fast tier:** **629/635**. The 6 reds are the filed ones
+  (`ISSUE_20261103_the_slide_re_author_left_six…`), and both new checks pass.
+- **Browser tier**, one suite at a time with `--only`:
+  - **the DAG zoom:** 40/41. The blocker's click check passes, with a label
+    clicked both parked and not, and the new label check passes. The one red
+    is the first-row check, which is also red on integration's own code
+    (issue above).
+  - **kinematic study page:** 24/24.
+  - **respine:** 44/44.
+  - **leaders across the seam:** 26/26.
+  - **topology file://:** 201/205. These are the four the review's table
+    marks pre-existing.
+- **pytest**, single process: **1722 passed, 2 failed, 1 skipped, 410.9 s**.
+  The 2 are the worktree red (`test_viewer_js_suite`) and the filed
+  contact-suggestions `[real]` test. The review's risky subset: 359 passed.
+- **Mutation witnesses:**
+  - `--changed-since integration`, with nothing else touching the worktree:
+    **24/72 witnessed, 72/81 reached, 9 left to the sweep (budget),
+    29m18s**. Every fast entry is "red before the mutation" (the 6 reds). So
+    is every entry in the DAG zoom suite (the first-row red) and in the 3D
+    pane suite (its own pre-existing reds). The nav spec reddens another
+    check, as filed.
+  - **By hand,** for the specs this rework adds: the 3 fast mutations are
+    **3/3 witnessed**. The 2 browser mutations are **2/2 witnessed**: apply
+    each, run `--only "the DAG zoom"`, look for the check's own FAIL line.
+    Under both, the review's click check goes red too.
