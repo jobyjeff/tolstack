@@ -223,7 +223,10 @@ export const DECLARED_GUARDS = {
   // ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md);
   // the retired names' specs are deleted.
   // (Re-pinned at the merge of integration 8d8baf7a into the handoff branch.)
-  fast: { declared: 633, enrollable: 633, names: "c18d10cf1ca5" },
+  // Review rework, 2026-11-04: +2 -- a sub-stack label's placement rule and
+  // the [real] check that each label is inside the drawing and over every
+  // mark. Both carry a spec.
+  fast: { declared: 635, enrollable: 635, names: "3d3db3631577" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -366,7 +369,9 @@ export const DECLARED_GUARDS = {
   // code they mutate. And one renamed for the rows' body tint (pitch_system's
   // bands and rows), which carried no spec under its old name either.
   // (Re-pinned at the merge of integration 8d8baf7a into the handoff branch.)
-  browser: { declared: 822, enrollable: 789, names: "acabb75e3ed9" },
+  // Review rework, 2026-11-04: +1 -- every sub-stack label whole inside the
+  // drawing and the topmost hit at its centre, parked or not. It carries a spec.
+  browser: { declared: 823, enrollable: 790, names: "18ec42851d9c" },
 };
 
 

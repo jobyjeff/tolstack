@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] every sub-stack label is drawn whole inside the drawing and is the topmost hit at its centre, parked or not -- no leader or bar takes the click meant for the fold",
+  "mutations": [
+    {
+      "contract": "A sub-stack's DAG label wins the click over the leaders' and the bars' hit strips (review of the_kinematic_grid_is_a_stack_of_sub_stacks, 2026-11-04).",
+      "issue": null,
+      "note": "The labels go back under the leaders, where a leader's hit strip lay over the label's centre on the live page.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "subStackLabels.forEach(function (node) { over.appendChild(node); });",
+      "replace": "subStackLabels.forEach(function (node) { under.appendChild(node); });"
+    },
+    {
+      "contract": "A sub-stack's DAG label is drawn whole inside the drawing (review of the_kinematic_grid_is_a_stack_of_sub_stacks, 2026-11-04).",
+      "issue": null,
+      "note": "The label always starts beside its bar, so on the live page it runs past the SVG's clipped right edge.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "if (barX + g + w <= limit - 2) return",
+      "replace": "if (true) return"
+    }
+  ]
+}
