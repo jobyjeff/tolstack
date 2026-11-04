@@ -43,6 +43,15 @@ The last two are not pins:
   `ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures…`.
   Regenerate the fixture (its header says how).
 
+**Why `high`: a red fast tier disarms the fast half of the mutation-witness
+tier for every merge after it.** The same review's
+`run_mutation_witness_tests.mjs --changed-since integration` on the merged
+tree reported every one of its 23 `fast__` entries `NOT WITNESSED (the tier
+was red before the mutation, so nothing was proved)`. That included the
+handoff's own new guards. Only the `python__` and `browser__` entries could
+witness. Until these six are green, no review can witness a fast guard on
+`integration`.
+
 `each_stop_is_its_own_stack` was landed on top of this without fixing it
 (file-don't-fix: none of the six is that handoff's). Its own branch was
 629/629 against its own base.
