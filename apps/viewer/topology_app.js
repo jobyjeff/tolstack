@@ -2228,7 +2228,12 @@
       },
       placed: function (e) {
         var hs = paneHscroll();
-        if (hs) hs.scrollLeft = lerp(start.scrollX, end.scrollX, e);
+        if (hs) {
+          hs.scrollLeft = lerp(start.scrollX, end.scrollX, e);
+          // The ghost shows the same window as the live pane over it.
+          var ghost = nodes.pane.querySelector ? nodes.pane.querySelector(".tv__ghost .tv__hscroll") : null;
+          if (ghost) ghost.scrollLeft = hs.scrollLeft;
+        }
         if (end.scrollY !== null) setDagScroll(lerp(start.scrollY, end.scrollY, e));
         if (e >= 1 && pendingLanding === hooks) pendingLanding = null;
       },
