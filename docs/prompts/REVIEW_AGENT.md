@@ -5432,6 +5432,35 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       merged tree is red there, re-run the same tier from a
       `git archive integration` export against the same scratch root before
       you charge the reds to the diff.
+- [ ] **A retired view's helper, re-called from a new site with a hand-built
+      stub.** New 2026-11-04 (`the_kinematic_grid_is_a_stack_of_sub_stacks`,
+      should-fix, fixed inline). The retired `kmtable` passed whole rows to
+      `VA.kinematicGapCard`. The grid now passes `{ edge }` / `{ study }`, and
+      the card reads `row.name` for its title, so the card silently lost the
+      line naming its row. `if (card.title)` hides the gap, and no tier pins the
+      card's text. When a diff moves a helper's call site, list every field the
+      helper reads off its argument (`grep -n 'row\.' <helper>`) and check that
+      the new call supplies each one.
+- [ ] **Don't swap files into your worktree while one of your own tiers is
+      still reading it.** New 2026-11-04 (same review). To get an
+      `integration` baseline I checked `integration`'s `apps/viewer` and runner
+      out into the review worktree, ran the suites, and restored them. A
+      witness run I had started minutes earlier (`run_mutation_witness_tests.mjs`)
+      was still running there. This handoff's own specs reported "the mutation
+      no longer describes a place in the tree", and the run had to be thrown
+      away. Take the baseline from a `git archive integration` scratch export
+      (the entry above), or wait until every background tier has exited before
+      a checkout swap.
+- [ ] **A handoff that reorders the DAG's band can bury a click target under a
+      leader's hit strip, and only the merged tree shows it.** New 2026-11-04
+      (same review, the blocker). `VA.orderBand` rerouted the leaders. In the
+      DAG-zoom suite's "parked" pass, `elementFromPoint` at the centre of the
+      "Travel between end stops" sub-stack label returned
+      `path.rail__leaderhit`, and the label was unclickable. The check that saw
+      it (`afbdb3e7`) landed after the handoff was cut. When a diff moves
+      leaders or band order, read the "clicked N: …" line of that suite on the
+      MERGED tree. A label missing from the parked list is a hit-test defect,
+      not a flaky count.
 
 ## Architectural errors to check
 
