@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261103_the_kinematic_grid_is_a_stack_of_sub_stacks.md
 reviewer: agent
 date: 2026-11-04
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_kinematic_grid_is_a_stack_of_sub_stacks
@@ -189,3 +189,94 @@ builders. The fast tier's freshness line pairs every projection with `120913aa`.
 3. Re-run the kinematic, topology, respine and seam suites.
 4. Run the witnesses with `--changed-since integration`, and nothing else
    touching the worktree meanwhile.
+
+## Re-run 2026-11-04 (round 2) — APPROVE
+
+**Verdict: APPROVE, 0 blockers.** The rework (`38a4866a`, `e7251b6c`, `b7dbdf70`
+on top of the author's merge of `integration` `8d8baf7a`) fixes the blocker at
+its cause, and every guard it adds is witnessed.
+
+### The merges
+
+`integration` had moved on to `d7e1b034` (the `coaxial_ends_share_one_3d_node`
+landing and a master sync). I merged it into the review branch first
+(`99aa5de8`), then the handoff (`445f9eb2`).
+
+- `docs/prompts/REVIEW_AGENT.md`: this review's three overlay entries and
+  `integration`'s flake entry both kept.
+- `scripts/guard_enumeration.mjs`, both merges: both sides' comments kept and
+  the pins re-derived with `--json`. After the second merge the handoff's own
+  pins (fast 635, browser 823/790) match the merged tree exactly, no orphans.
+
+### The fix
+
+Round 1's probe saw two hit-test losers. The rework found two causes, and both
+are fixed:
+
+- **A label ran past the SVG's clipped right edge,** so half of it was neither
+  drawn nor clickable. That is the `DIV.tv__body` hit. `VA.subStackLabelPlacement`
+  puts a label right of its bar when it fits, and otherwise end-anchors it at
+  the drawing's edge, so the real text width decides where it starts.
+- **The drawn half lay under the leaders' hit strips.** The labels are now
+  appended to `over` after every mark, below the hover label.
+
+The trade-off: along a label's one 9px line, a bar it crosses gives its click
+to the label. The code comment says so, and it is the right way round for a
+visible button.
+
+### Tests, on the merged tree
+
+Scratch root `C:\workspace\tolstack\data\scratch\review_kin_grid_r2\root`. Its
+inputs are copies, not junctions. All six projection families and the crops
+were built from `445f9eb2` before any tier ran.
+
+- **Fast tier:** **629/635**. The six reds are the filed ones
+  (`ISSUE_20261103_the_slide_re_author_left_six…`). Both new label checks pass.
+- **pytest risky subset** (the same 11 files as round 1): **359 passed**.
+- **Browser tier, full run:**
+  - **the DAG zoom: 41/41.** `clicked 6` covers a sub-stack label both
+    parked and not. The new label check saw both labels in both passes, with
+    no BAD entry.
+  - kinematic study page 24/24, respine 44/44, leaders across the seam 26/26.
+  - Red or aborted: topology file:// and http 201/205, the 3D pane 30/32,
+    the scene pane over HTTP 8/9, and the real-render-path and crop-lightbox
+    aborts. These are the same suites as round 1's pre-existing table, and
+    the FAIL lines are the same named checks.
+- **Mutation witnesses, `--changed-since integration`,** with nothing else
+  touching the worktree: **24/65 witnessed, 65/81 reached, 16 left to the
+  sweep (budget), 31m10s**.
+  - The blocker's own click-check spec
+    (`browser__real-a-click-on-a-node-an-edge-a-sub-stack-s-label-or-a__b7738695`)
+    is **WITNESSED**.
+  - Every not-witnessed entry is one of three known cases: a fast entry
+    blinded by the six filed reds; an entry in the 3D pane suite blinded by
+    that suite's own pre-existing reds; or the nav-row spec "another check
+    reddened", already filed by this handoff.
+- **The rework's own specs, which the gate could not prove:**
+  - The browser label spec `…54c25710` was left to the sweep by the budget.
+    `--only`: **2/2 witnessed**.
+  - The three fast mutations can't be gated while the fast tier is red at
+    baseline. By hand (apply, run the fast tier, diff against its six
+    baseline reds, restore): **3/3 witnessed**. Each reddened its own declared
+    check. The rule mutation also reddened the `[real]` check that stands on
+    it. The worktree was clean afterwards.
+
+### Nits (not blocking)
+
+- **The new browser check's floor is loose.**
+  `labelsSeen.filter(not below).length >= 2` counts across both passes, so
+  one label seen twice meets it. This run saw both labels in both passes
+  (4 entries), so nothing hides today. A per-label floor would say "every
+  label, in both passes" outright.
+- **The first-row zoom check is green on this tree.** The rework's issue
+  `ISSUE_20261104_the_first_row_zoom_check_wheels_above_the_drawing.md`
+  measured it red at `8d8baf7a`. On `445f9eb2` (integration `d7e1b034`) the
+  DAG zoom suite is 41/41, that check included. Its aim is still a fixed
+  `y = 200`, so the fragility it names is real. I added an addendum to the
+  issue rather than closing it.
+
+### Merge
+
+Merged into `integration` as pre-authorized by the seed. Not merged into
+master. The board move (`active/` → `completed/`) is left to the operator, as
+it was for `coaxial_ends_share_one_3d_node`.

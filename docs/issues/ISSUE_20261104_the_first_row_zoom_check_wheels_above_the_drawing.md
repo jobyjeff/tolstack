@@ -32,3 +32,12 @@ top has moved down since then, which this check reads but does not aim by.
 **Fix shape:** aim from the drawing's own box, for example
 `y = Math.max(pinnedBottom, svg.top) + 60`, not from a fixed 200. Then
 re-witness the check's spec, if it has one.
+
+> **Addendum 2026-11-04 (review round 2 of the_kinematic_grid_is_a_stack_of_sub_stacks).**
+> On the review merge `445f9eb2` (integration `d7e1b034` plus the rework),
+> with every projection rebuilt from it, the DAG zoom suite ran 41/41, this
+> check included. The red measured above at `8d8baf7a` did not reproduce
+> here. The check still aims at a fixed `y = max(pinnedBottom + 60, 200)`
+> rather than the drawing's own box, so it turns red again whenever the
+> drawing's top moves past its aim. The fix shape stands; the priority
+> could drop.
