@@ -1,13 +1,14 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: triaged
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
 class: dod_line_not_shown
 defer_until: 2026-11-29
-resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
+resolution: triage 2026-10-30: low, deferred by default to a date (class has no program); strategy 2026-11-03: routed to HANDOFF_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there
+handoff: docs/sessions/HANDOFF_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md
 ---
 
 # No check hovers the real bore, so the DoD's "class and radius in the state line" is unwitnessed end to end

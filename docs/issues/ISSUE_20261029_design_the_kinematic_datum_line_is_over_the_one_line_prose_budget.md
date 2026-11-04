@@ -1,13 +1,14 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: triaged
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261029_the_plus72_stop_is_the_travel_datum.md
 class: prose_budget_overrun
 defer_until: 2026-11-13
-resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program)
+resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program); strategy 2026-11-03: routed to HANDOFF_20261103_the_stop_shows_where_it_is_and_what_the_chain_adds_there
+handoff: docs/sessions/HANDOFF_20261103_the_stop_shows_where_it_is_and_what_the_chain_adds_there.md
 ---
 
 # Design: the kinematic chart's datum line is over the one-line prose budget
