@@ -11123,7 +11123,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       // stop chains stand on -- the feather stop's five and the travel's
       // four -- and the five joints between lit nodes; since 2026-11-03 the
       // feather chain joins the travel stack to the linkage, so no bridge
-      // through the hub is lit), the other seventy-six dimmed, the grid
+      // through the hub is lit), the other seventy-seven dimmed (seventy-six before
+      // the 2026-11-03 slide re-author's edge merged in), the grid
       // beside them the seventeen contributors, all under verdicts that are
       // on the first screen.
       const fold = await page.evaluate(() => {
@@ -11141,7 +11142,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       push("[real] on the first screen, the verdicts beside the model, the study's " +
         "contributors and the edges they stand on lit and the rest dimmed",
         fold.verdicts < fold.viewport && fold.paneTop < fold.viewport &&
-        dimmed[0] === 22 && dimmed[1] === 76 && dimmed[2] === 17);
+        dimmed[0] === 22 && dimmed[1] === 77 && dimmed[2] === 17);
       // The band: the study's rows re-arranged into one band and framed in
       // the bounded pane on arrival, with every leader on its moved dot --
       // and the handoff's measured target, the band in view without a scroll
@@ -11219,7 +11220,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       push("[real] the toolbar's Unused toggle hides the unlit model and brings it back",
         hiddenLabel === "Unused: hidden" &&
         hidden[0] === 22 && hidden[1] === 0 && hidden[2] === 17 &&
-        restored[0] === 22 && restored[1] === 76);
+        restored[0] === 22 && restored[1] === 77);
       push("[real] hidden, the lit model is one connected drawing and the joints' symbols are " +
         "all still there at full opacity", hiddenPieces === 1 &&
         hiddenGlyphs === glyphsLit && hiddenDimGlyphs === 0);
