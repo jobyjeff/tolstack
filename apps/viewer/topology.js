@@ -1243,7 +1243,14 @@
   //: `headHeight` is `.tv__head`'s own CSS height (topology.css): the column
   //: header sits INSIDE the pane and is not part of the DAG. A test pairs the
   //: two so the stylesheet cannot drift from this number.
-  VA.DAG_FIT = { headHeight: 26 };
+  //: `topInset` is the room the DAG's first row needs ABOVE it: a group's field
+  //: starts 2px above its first slot and its title sits above that, so a drawing
+  //: that began at y = 0 had them cut off by the SVG's own edge at scroll 0
+  //: (Jeff, 2026-11-03: "the top of the dag looks clipped"). The layout store
+  //: shifts both blocks down by it, so the DAG, the grid and every leader between
+  //: them keep their relation. It is drawn at the zoom the reader has, so it is
+  //: sized for the widest one.
+  VA.DAG_FIT = { headHeight: 26, topInset: 24 };
 
   // --- zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale) -----------
   //
@@ -1495,6 +1502,8 @@
     var plan = fit && fit.plan;
     var gridHeight = (plan ? plan.rows.length : 0) * metrics.rowHeight;
     var centre = VA.centreOffsets(rows, heights, plan, metrics);
+    centre = { dag: centre.dag + VA.DAG_FIT.topInset,
+               grid: centre.grid + (plan ? VA.DAG_FIT.topInset : 0) };
 
     var out = {
       mode: scaled ? mode : "uniform",

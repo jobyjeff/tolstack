@@ -640,6 +640,16 @@
   //   opts  the clock, the motion preference and the error sink, injected so
   //         the fast tier can drive a whole transition frame by frame with no
   //         browser: { raf, now, duration, reduced, onError }.
+  //         And `landing`, the page's own part of an arrival (the_dag_holds_
+  //         still_and_the_filter_bar_stays_put): the frame the reader sees is
+  //         the DAG plus the space the page puts before it and where the page
+  //         is scrolled, so a transition that moved only the DAG left the rest
+  //         to snap -- the space dropped on the first frame and came back on the
+  //         last. `landing.target()` is called once, with the TARGET laid out at
+  //         rest in `root` and the outgoing pane already in the ghost, so the
+  //         page can measure where it will land; `landing.frame(e)` is called
+  //         before each frame's render (e = 1 on the settled one) to set the
+  //         ctx's pad, and `landing.placed(e)` after it to place the scroll.
   //
   // `onError` is not optional decoration. Every other path into a render on
   // this page goes through topology_app.js's one try/catch (the 2026-09-09
@@ -670,23 +680,32 @@
     var now = opts.now || function () { return Date.now(); };
     var raf = opts.raf || nextFrame;
     var ghost = ghostOf(root);
+    var landing = opts.landing || null;
+    if (landing) {
+      VA.renderTopoPane(root, ctx);
+      landing.target();
+    }
     var start = now();
     var handle = { cancel: function () { handle.cancelled = true; }, cancelled: false };
     var step = function () {
       if (handle.cancelled) return;
       var t = duration > 0 ? (now() - start) / duration : 1;
       var settling = !(t < 1);
+      var e = 1;
       // The settled frame gets no tween argument at all, so the ghost is not
       // re-appended and every number in the DOM is the target's own.
       if (settling) {
         handle.done = true;
       } else {
+        e = VA.respineEase(t);
         ctx.tween = { positions: previous, columns: from.columns,
                       floor: from.floor, width: from.width, links: from.links,
-                      e: VA.respineEase(t), ghost: ghost };
+                      e: e, ghost: ghost };
       }
       try {
+        if (landing) landing.frame(e);
         VA.renderTopoPane(root, ctx);
+        if (landing) landing.placed(e);
       } catch (err) {
         handle.cancelled = true;
         if (opts.onError) opts.onError(err);
