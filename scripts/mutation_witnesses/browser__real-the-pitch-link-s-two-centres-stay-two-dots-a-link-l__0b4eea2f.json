@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] the pitch link's two centres stay two dots, a link length apart",
+  "mutations": [
+    {
+      "contract": "The distance threshold keeps the linkage mount points distinct.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "A threshold past a link length folds the link into one dot.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "  AA.MODEL_JOINT_DISTANCE_MM = 1; // mm, a point off an axis or off a point",
+      "replace": "  AA.MODEL_JOINT_DISTANCE_MM = 200; // mm, a point off an axis or off a point"
+    }
+  ]
+}

@@ -854,7 +854,30 @@ binding, a stack or a fitted nominal.
    ladder on its +X side. **A rung's height is its place in the stack, not
    where its feature is**; selecting the node says so.
 4. **No anchor geometry** — the part has no mesh, or the plane cuts nothing:
-   the body's frame origin, the warn colour, and `null` in the anchors message.
+   the node is **unplaced**. Since 2026-11-03 it draws **no dot and no line**
+   (it used to sit at its body's frame origin — the assembly origin, for every
+   body here — with every edge touching it fanned out of the hub's centre);
+   it is `null` in the anchors message, and the bar's head line counts the
+   unplaced nodes, their names one hover away.
+
+**A joint is one node** (2026-11-03, handoff `coaxial_ends_share_one_3d_node`;
+Jeff: *"just let the entire joint be represented with a single node and split
+the components up … in the 2d DAG"*). Over the anchors, `AA.modelJointGroups`
+merges the two ends of an edge when their **features** are concentric — two
+parallel axes on one line, a centre on an axis, two coincident centres, within
+`AA.MODEL_JOINT_ANGLE_DEG` and `AA.MODEL_JOINT_DISTANCE_MM`. Merges chain
+across edges, but never fold two axes that only cross into one joint. A
+feature is something that places a feature, never a drawing placement: a
+run's joint end (`geometry.features` naming a node at `<joint>.point_a/b`,
+with the joint's axis when it has one) or a committed binding's round face (a
+bore's axis, a ball's centre). A section rung or an unplaced node never merges,
+and nor does a flat face: a stack of flat faces is a linear stack, which the
+ladder draws. The joint is drawn as **one dot, in world**, at the mean of its
+ends where each frame puts them (the solver's end off the frame, a bound face
+through its body's pose), so it rides the sweep with the slide. Edges inside a
+joint draw no line; an edge leaving it is a world line from the joint's dot.
+Selecting any member selects the joint's dot and says so. Bind mode has no
+run, so only a committed binding can merge there.
 
 **The bias is per topology, authored**: `anchor_bias: {bias: "+x", stack:
 "z"}` on the topology document (absent is that default, Jeff's). A value that
@@ -892,6 +915,7 @@ its +X anchor.
 | scene → shell | `{type: "annotate:tree", mode, chips, rows}` | the rail's rendered rows changed, or an announced verb completed |
 | scene → shell | `{type: "annotate:status", word, tone, sentence}` | at boot, and whenever what it can read or write changes (a folder granted at the first bind); the pane header's dot and word (`AA.PANE_STATUS`) |
 | scene → shell | `{type: "annotate:anchors", nodes: {<node id>: [x, y] \| null}, edges: {<edge id>: [[x, y], [x, y]]}}` | after a drawn frame whose anchors moved — a camera change or a sweep frame — so at most once per animation frame |
+| scene → shell | `{type: "annotate:hover", kind, id, members?}` | the pointer reaches or leaves a model dot; `members` lists every node a joint's dot stands for, and the shell lights each one's DAG dot, grid rows and leader |
 
 `annotate:anchors` is in **CSS pixels of the iframe's own viewport**, rounded
 to 0.1 px, so an unchanged scene posts nothing. Every node of the topology is

@@ -267,6 +267,22 @@ linkage's joint types suggest the word: `tolerance_stack/kinematic.py`'s
 `LINKAGE_JOINT_INTERFACES` maps each one, and an authored edge at a swept joint
 that disagrees with it fails `tests/test_topology.py`.
 
+### The same graph in 3D: a joint is one node
+
+Since 2026-11-03 (handoff `coaxial_ends_share_one_3d_node`, Jeff's ruling).
+The scene draws this graph on its parts (`docs/ANNOTATION_SURFACE.md`, "The
+model in the scene"), and there **a joint is one 3D node**: when the two ends
+of an edge are concentric features — a spindle and the plate that slides on
+it, a bore and the bushing in it, a ball and its seat — the scene draws one
+dot for all of them, and the edges between them (a bushing's thickness, a
+clearance to a fastener, a coaxiality) are **2D-only**: they have no length
+to show, and the DAG and the grid keep them apart exactly as before. Edges
+leaving the joint attach to its one dot, and every member's 2D node leads to
+it. **A node with nothing to place it on is absent from the scene, never drawn
+at the origin**; the scene's head line counts them. Which features count as
+concentric, and the two thresholds that decide it, are
+`apps/annotate/model_layer.js`'s (`AA.modelJointGroups`).
+
 ## Tags
 
 A body and a study may carry `tags`: `{axis: value}`, one value per axis, on the

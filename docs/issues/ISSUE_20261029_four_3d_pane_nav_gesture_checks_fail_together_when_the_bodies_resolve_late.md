@@ -70,3 +70,14 @@ full run), and the type chips (this full run). The red rotates between sub-check
 rather than sticking to one, which points to a shared precondition the suite does not
 wait for (bodies or nav tree not settled) rather than to a defect in any one check.
 Whoever takes this should treat the suite as one problem.
+
+## Addendum 2026-11-03 (coaxial_ends_share_one_3d_node)
+
+This reproduced on the untouched integration tree (`f88fdaac`), run alone:
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "3D pane follows the selection"`
+gave `31/32`, and the only red was `[real] the type chips in the nav filter
+the tree, and a second press puts the rows back`. Because of it, the
+`--changed-since` gate cannot witness
+`browser__real-nothing-above-produced-an-uncaught-error__62500dca`: the
+tier is red before any mutation, so the gate skips that entry as unproven.
+The 11-03 branch does not touch the nav chips.

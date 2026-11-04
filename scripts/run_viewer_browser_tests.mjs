@@ -6456,13 +6456,52 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
           boundsX: a.section ? m.parts[a.part].section.bounds[0] : null, why: a.why || null };
       }
       return { anchors, lines: Object.keys(drawn.lines), drawnLines: drawn.lines, stick,
-        sources: w.AnnotateApp.MODEL_ANCHOR_SOURCES };
-    }) || { anchors: {}, lines: [], drawnLines: {}, stick: {}, sources: [] };
+        sources: w.AnnotateApp.MODEL_ANCHOR_SOURCES, dots: drawn.nodes,
+        joints: m.joints.groups, hidden: m.hidden, unplaced: m.unplaced,
+        unplacedWords: w.__modelUnplaced,
+        headLine: (w.document.querySelector(".an__model-unplaced") || {}).textContent || null };
+    }) || { anchors: {}, lines: [], drawnLines: {}, stick: {}, sources: [], dots: {}, joints: [],
+      hidden: [], unplaced: [], unplacedWords: null, headLine: null };
     const nodeIds = topology.nodes.map((n) => n.id);
     const edgeIds = topology.edges.map((e) => e.id);
-    push("[real] every node of the merged model has an anchor and every edge a line",
+    // What the scene must draw, worked from the projection's own topology:
+    // an edge is drawn unless an end is unplaced or both ends are one joint.
+    const jointOf = {};
+    for (const g of facts.joints) for (const id of g.members) jointOf[id] = g.id;
+    const unplacedSet = new Set(facts.unplaced);
+    const wantLines = edgeIds.filter((id) => {
+      const e = topology.edges.find((x) => x.id === id);
+      if (unplacedSet.has(e.from) || unplacedSet.has(e.to)) return false;
+      return !(jointOf[e.from] && jointOf[e.from] === jointOf[e.to]);
+    });
+    push("[real] every node of the merged model has an anchor, and every edge is a line except " +
+      "one inside a joint or one touching an unplaced node",
       nodeIds.every((id) => facts.anchors[id]) && Object.keys(facts.anchors).length === nodeIds.length &&
-      edgeIds.every((id) => facts.lines.indexOf(id) !== -1) && facts.lines.length === edgeIds.length);
+      facts.lines.slice().sort().join() === wantLines.slice().sort().join() &&
+      facts.hidden.every((id) => facts.lines.indexOf(id) === -1));
+
+    // --- 1b. a joint is one node (coaxial_ends_share_one_3d_node) ------------
+    // The solver's plate slide makes the two spindle bores one joint; the
+    // link centres stay apart; nothing is drawn at the assembly origin.
+    const spindle = facts.joints.find((g) => g.members.indexOf("hub_spindle_bore_axis") !== -1);
+    console.log(`      [${label}] joints: ` + facts.joints.map((g) => g.members.join(" + ")).join("; ") +
+      `; hidden inside them: ${facts.hidden.join(", ") || "-"}; unplaced: ${facts.unplaced.length}`);
+    push("[real] the spindle coaxiality pair is ONE dot in the scene, with no line between its ends",
+      spindle && spindle.members.join() === "hub_spindle_bore_axis,pitch_plate_spindle_bore_axis" &&
+      facts.dots[spindle.id] && facts.dots[spindle.id].members.join() === spindle.members.join() &&
+      !facts.dots.pitch_plate_spindle_bore_axis &&
+      facts.hidden.indexOf("hub_to_pitch_plate_spindle_coaxiality") !== -1);
+    const lower = facts.dots.pitch_link_lower_sphere_centre, upper = facts.dots.pitch_link_upper_sphere_centre;
+    push("[real] the pitch link's two centres stay two dots, a link length apart",
+      lower && upper && Math.hypot(lower.at[0] - upper.at[0], lower.at[1] - upper.at[1],
+        lower.at[2] - upper.at[2]) > 50);
+    const atOrigin = Object.entries(facts.dots).filter(([id, d]) => d.visible && id !== (spindle && spindle.id) &&
+      Math.hypot(d.at[0], d.at[1], d.at[2]) < 1e-6).map(([id]) => id);
+    push("[real] no unplaced node is drawn: no dot for one, none at the assembly origin, and the head " +
+      "line counts them",
+      facts.unplaced.length > 0 && facts.unplaced.every((id) => !facts.dots[id]) && atOrigin.length === 0 &&
+      facts.headLine === facts.unplaced.length + " nodes not placed" &&
+      facts.unplacedWords && facts.unplacedWords.title.split("; ").length === facts.unplaced.length);
     const bySource = {};
     for (const [id, a] of Object.entries(facts.anchors)) (bySource[a.source] = bySource[a.source] || []).push(id);
     console.log(`      [${label}] anchors by source: ` + Object.keys(bySource).map((s) =>
@@ -6539,6 +6578,9 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
       onScreen.length > 0 && onScreen.every(([x, y]) => x >= 0 && y >= 0 &&
         x <= shellSide.w + 1 && y <= shellSide.h + 1) &&
       (bySource.origin || []).every((id) => shellSide.last.nodes[id] === null) &&
+      // A joint's members are one point: the shell's leaders fan in to it.
+      (!spindle || spindle.members.every((id) => JSON.stringify(shellSide.last.nodes[id]) ===
+        JSON.stringify(shellSide.last.nodes[spindle.id]))) &&
       projected && projected.top > 0 && projected.sent &&
       Math.abs(projected.sent[0] - projected.at[0]) <= 0.1 &&
       Math.abs(projected.sent[1] - projected.at[1]) <= 0.1);
@@ -6609,7 +6651,9 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
           home: [a.point, b.point] };
       };
       const gap = drawn.lines.pitch_arm_link_joint;
-      return { plate: edge("pitch_plate_attach_height"), arm: edge("pitch_arm_radius"),
+      // A pitch-plate structural line that touches no joint: the spindle's
+      // own lines are world lines now (coaxial_ends_share_one_3d_node).
+      return { plate: edge("washer_nas1149v0332"), arm: edge("pitch_arm_radius"),
         gap: { ends: gap.ends, from: drawn.nodes.pitch_arm_link_bore.at,
           to: drawn.nodes.pitch_link_lower_sphere_centre.at } };
     });
@@ -6625,6 +6669,16 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
     await shot("1_sweep_frame_1.png");
     await exec(["seek", "#40"]);
     await shot("2_sweep_frame_41.png");
+    // ...and the as-modelled frame, where the spindle joint sits at the
+    // assembly origin (coaxial_ends_share_one_3d_node's before/after pair).
+    if (MODEL_SCENE_SHOTS) {
+      const asModelled = await inPane((w) => w.AnnotateApp.sweepAsModelledIndex(w.__sweep.artifact));
+      if (asModelled !== null) {
+        await exec(["seek", "#" + asModelled]);
+        await shot("5_as_modelled.png");
+        await exec(["seek", "#0"]);
+      }
+    }
 
     // --- 4. the lit set, and the shell's dim-or-hide word -------------------
     // Embedded, the shell speaks first: it posts its own lit set when the
@@ -6759,8 +6813,12 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
         lines: Object.keys(w.__scene.modelState().lines).length };
     }) : null;
     push("[real] bind mode draws the whole model at the as-modelled pose, with no solver joint " +
-      "points to read",
-      bind && bind.n === nodeIds.length && bind.joint === 0 && bind.lines === edgeIds.length);
+      "points to read (so no solver joint to merge on, and no binding in the inbox to merge on either)",
+      bind && bind.n === nodeIds.length && bind.joint === 0 &&
+      bind.lines === edgeIds.filter((id) => {
+        const e = topology.edges.find((x) => x.id === id);
+        return !unplacedSet.has(e.from) && !unplacedSet.has(e.to);
+      }).length);
     // The picture wants the parts the model is drawn on: bind mode opens none
     // by itself, so the study's own are shown and framed first.
     if (MODEL_SCENE_SHOTS) {
@@ -12868,6 +12926,74 @@ async function testSeamLeaders(browser, label, topologies) {
       JSON.stringify(lm.ids.slice().sort()) === JSON.stringify(lm.expected));
     push("[real] no leader across the seam runs through a lit edge's bar", built && lm.barCrossings === 0);
     await shot("1_kinematic_study_leaders.png");
+
+    // --- a joint is one 3D node (coaxial_ends_share_one_3d_node) -----------
+    // Every member of the spindle joint leads to the one dot (fan-in), and
+    // the real pointer on that dot lights every member here: their DAG dots
+    // and the rows of the edges that meet them.
+    const joint = await livePane((w) => {
+      const g = w.__model.built.joints.groups.find((x) => x.members.indexOf("hub_spindle_bore_axis") !== -1);
+      return g ? { id: g.id, members: g.members } : null;
+    });
+    const fan = await live.evaluate((members) => {
+      const VA = window.ViewerApp;
+      const draw = VA.lastSeamDraw;
+      const ends = {};
+      for (const p of document.querySelectorAll("svg.seamleaders path.seam__leader")) {
+        const id = p.getAttribute("data-node-id");
+        if (members.indexOf(id) === -1) continue;
+        const e = p.getPointAtLength(p.getTotalLength());
+        ends[id] = [e.x, e.y];
+      }
+      // The members the DAG lights (a dot a leader starts from).
+      const lit = members.filter((id) => VA.lastTopoRender.seam.dots[id]);
+      return { ends, lit, leaders: draw ? draw.leaders.map((l) => l.id) : [] };
+    }, joint ? joint.members : []);
+    const fanEnds = Object.values(fan.ends);
+    console.log(`      [${label}] P2 joint ${joint ? joint.members.join(" + ") : "-"}: leaders from ` +
+      `${Object.keys(fan.ends).join(", ") || "-"} end at ${fanEnds.map((e) => e.map((v) => v.toFixed(1)).join(",")).join(" / ")}`);
+    push("[real] on P2 every lit member of the spindle joint has a leader, and every one ends at the ONE 3D dot",
+      joint && fanEnds.length >= 2 && fanEnds.length === fan.lit.length &&
+      fanEnds.every((e) => Math.hypot(e[0] - fanEnds[0][0], e[1] - fanEnds[0][1]) <= 1));
+    // The real pointer on the joint's dot.
+    const aimJoint = joint ? await live.evaluate((id) => {
+      const frame = document.querySelector("#annotate-flyout iframe");
+      const fr = frame.getBoundingClientRect();
+      const a = ((frame.contentWindow.__lastAnchors || {}).nodes || {})[id];
+      return a ? [fr.left + frame.clientLeft + a[0], fr.top + frame.clientTop + a[1]] : null;
+    }, joint.id) : null;
+    let jointHover = null;
+    if (aimJoint) {
+      await live.mouse.move(aimJoint[0] - 3, aimJoint[1] - 3);
+      await live.mouse.move(aimJoint[0], aimJoint[1]);
+      await liveUntil((id) => {
+        const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+        const m = w.__shellMessages && w.__shellMessages["annotate:hover"];
+        return m && m.id === id;
+      }, joint.id, 10000);
+      jointHover = await live.evaluate((members) => {
+        const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+        const m = w.__shellMessages["annotate:hover"];
+        const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
+        const lead = members.filter((id) =>
+          rails.querySelector(`circle.rail__dot--lead[data-id="${CSS.escape(id)}"]`));
+        const drawn = members.filter((id) => rails.querySelector(`circle[data-id="${CSS.escape(id)}"]`));
+        const rows = [...document.querySelectorAll("#topopane tr.tvrow--lead")].map((r) => r.getAttribute("data-id"));
+        return { message: m, lead, drawn, rows };
+      }, joint.members);
+    }
+    const meeting = joint ? topology.edges.filter((e) => joint.members.indexOf(e.from) !== -1 ||
+      joint.members.indexOf(e.to) !== -1).map((e) => e.id) : [];
+    console.log(`      [${label}] P2 pointer on the joint: ${jointHover ? JSON.stringify(jointHover.message) : "-"}; ` +
+      `DAG dots lit ${jointHover ? jointHover.lead.join(", ") : "-"} of ${jointHover ? jointHover.drawn.join(", ") : "-"}; ` +
+      `rows lit ${jointHover ? jointHover.rows.length : 0}`);
+    push("[real] the pointer on the joint's 3D dot names every member, and lights each one's DAG dot " +
+      "and grid rows",
+      jointHover && jointHover.message.members &&
+      jointHover.message.members.join() === joint.members.join() &&
+      jointHover.drawn.length >= 2 && jointHover.lead.join() === jointHover.drawn.join() &&
+      jointHover.rows.length > 0 && jointHover.rows.every((id) => meeting.indexOf(id) !== -1));
+    await live.mouse.move(5, 5);
 
     // --- one trace, three tiers (a_leader_starts_at_the_mark_it_names_on_
     // every_tier, 2026-10-29). Jeff's two screenshots: a selected row whose
