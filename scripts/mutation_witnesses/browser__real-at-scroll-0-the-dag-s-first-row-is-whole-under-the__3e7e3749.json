@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] at scroll 0 the DAG's first row is whole under the pinned bars -- nothing of it is cut off by the drawing's own edge or sits under the bars -- at Fit, at the wheel's maximum and back",
+  "mutations": [
+    {
+      "contract": "The DAG's first row, its group field and its title included, is fully inside the drawing at scroll 0, at every zoom.",
+      "issue": null,
+      "note": "Declared by handoff the_dag_holds_still_and_the_filter_bar_stays_put (2026-11-03). No room is left above the first row, so its group field and title are cut off by the SVG's own edge.",
+      "file": "apps/viewer/topology.js",
+      "find": "VA.DAG_FIT = { headHeight: 26, topInset: 24 };",
+      "replace": "VA.DAG_FIT = { headHeight: 26, topInset: 0 };"
+    }
+  ]
+}

@@ -1243,19 +1243,28 @@
   //: `headHeight` is `.tv__head`'s own CSS height (topology.css): the column
   //: header sits INSIDE the pane and is not part of the DAG. A test pairs the
   //: two so the stylesheet cannot drift from this number.
-  VA.DAG_FIT = { headHeight: 26 };
+  //: `topInset` is the room the DAG's first row needs ABOVE it: a group's field
+  //: starts 2px above its first slot and its title sits above that, so a drawing
+  //: that began at y = 0 had them cut off by the SVG's own edge at scroll 0
+  //: (Jeff, 2026-11-03: "the top of the dag looks clipped"). The layout store
+  //: shifts both blocks down by it (`fit.inset`, which the pane passes and a test
+  //: of the classic pitch does not), so the DAG, the grid and every leader
+  //: between them keep their relation. It is drawn at the zoom the reader has,
+  //: so it is sized for the widest one.
+  VA.DAG_FIT = { headHeight: 26, topInset: 24 };
 
   // --- zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale) -----------
   //
   // One scale on the DAG's drawing container (rails, body fields and grid rows
   // together, so nothing shears). The same `{min, max, step}` shape as the
   // crop lightbox's VA.LIGHTBOX_ZOOM. `min` is chosen so the WHOLE product
-  // walk fits a 900px-high pane in its tallest mode (tolerance width, 5510px
-  // at the comfortable density: 0.15 x 5510 = 826); a test re-derives that off
-  // the real model so a taller walk fails here instead of being unreachable.
+  // walk fits a 900px-high window in its tallest mode (tolerance width, at the
+  // comfortable density) UNDER what the page pins at its top -- the bar and
+  // the view filters; a test re-derives that off the real model so a taller
+  // walk fails here instead of being unreachable.
   // `max` 2 is where the 26px rows are 52px and the text is large enough for
   // anything a reader zooms in for. `step` is one wheel notch's factor.
-  VA.DAG_ZOOM = { min: 0.15, max: 2, step: 1.15 };
+  VA.DAG_ZOOM = { min: 0.12, max: 2, step: 1.15 };
 
   VA.clampDagZoom = function (scale) {
     var n = Number(scale);
@@ -1495,6 +1504,10 @@
     var plan = fit && fit.plan;
     var gridHeight = (plan ? plan.rows.length : 0) * metrics.rowHeight;
     var centre = VA.centreOffsets(rows, heights, plan, metrics);
+    // The pane asks for the room above the first row (VA.DAG_FIT.topInset) by
+    // naming it on `fit`; a caller that does not gets the classic store.
+    var inset = (fit && fit.inset) || 0;
+    centre = { dag: centre.dag + inset, grid: centre.grid + (plan ? inset : 0) };
 
     var out = {
       mode: scaled ? mode : "uniform",

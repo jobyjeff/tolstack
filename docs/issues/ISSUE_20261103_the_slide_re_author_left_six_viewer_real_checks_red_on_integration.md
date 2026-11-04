@@ -55,3 +55,17 @@ witness. Until these six are green, no review can witness a fast guard on
 `each_stop_is_its_own_stack` was landed on top of this without fixing it
 (file-don't-fix: none of the six is that handoff's). Its own branch was
 629/629 against its own base.
+
+## Addendum 2026-11-04 (coaxial_ends_share_one_3d_node, round 2): the six reds blind the fast-tier witnesses
+
+With the `[real]` tier armed by projections rebuilt from the merged tree (the
+main checkout's is refused as built from an older tree), the viewer fast tier
+is `627/633`. These same six checks are the only reds. So
+`run_mutation_witness_tests.mjs --changed-since integration` reports every
+fast-tier entry it reaches as NOT WITNESSED ("the tier was red before the
+mutation"). On that branch the entries were
+`fast__hovering-a-mark-on-either-tier-reports-its-one-key-draws__594a769a`,
+`fast__one-selection-lights-its-leaders-on-both-overlays-a-node__9e0c6dde`
+and `fast__the-scene-s-pointer-on-a-joint-lights-every-node-it-stan__7a922e8e`.
+All three guards pass unmutated in that run. Until these six are fixed, no
+branch touching `apps/viewer/` can witness a fast-tier entry on the gate.

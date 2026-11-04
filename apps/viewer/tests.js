@@ -7454,9 +7454,9 @@
         // budget 0 is what the fast tier's DOM shim measures (no viewport),
         // so these are the same two stores renderTopoPane builds below.
         from: VA.rowPositions(walk, TOPO, mode || "uniform", M,
-          { budget: 0, plan: walkPlan }),
+          { budget: 0, plan: walkPlan, inset: VA.DAG_FIT.topInset }),
         to: VA.rowPositions(chainLayout, TOPO, mode || "uniform", M,
-          { budget: 0, plan: chainPlan }),
+          { budget: 0, plan: chainPlan, inset: VA.DAG_FIT.topInset }),
       };
     }
 
@@ -14687,9 +14687,11 @@
               ok(Math.max.apply(null, Object.keys(lengths).map(Number)) >
                  floor, mode + ": something is drawn above the floor");
             });
-            ok(VA.DAG_ZOOM.min * tallest <= 900,
+            // 900px less what the page pins at its top: the page bar and the view
+            // filters, which wrap to two rows in a narrow column (~150px).
+            ok(VA.DAG_ZOOM.min * tallest <= 900 - 150,
                "the zoom minimum " + VA.DAG_ZOOM.min + " must show the tallest " +
-               "walk (" + tallest + "px) in 900px");
+               "walk (" + tallest + "px) in 900px under the pinned bars");
           });
 
         await test("[real] a topology's own joint block renders its assembly " +

@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
-  "expect_red": "[real] the pointer on the grid row of an edge inside the joint, or of one leaving it, emphasises the joint's ONE 3D dot",
+  "expect_red": "[real] the pointer on an edge inside the joint (its grid row, or its DAG bar where the study gives it none) and on the grid row of one leaving it emphasises the joint's ONE 3D dot",
   "mutations": [
     {
       "contract": "The scene resolves an emphasised edge's ends to the dot that stands for each.",

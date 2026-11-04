@@ -100,6 +100,23 @@ run of the same tree, a few hours earlier, took 6 m 14 s. That suggests contenti
 on the box rather than suite growth: about 14 python processes were live
 when it finished. Run without `--durations`, so this addendum has no pareto.
 
+## 2026-11-03 measurement (the_dag_holds_still_and_the_filter_bar_stays_put)
+
+`venv-win/Scripts/python.exe -m pytest -q` in a worktree, single process (this
+venv has no xdist, so `-n 16` was unrecognised): 1477 s, 1685 passed, 3 failed,
+1 skipped, 2 deselected -- over budget by 14m37s. The 3 reds were this branch's
+own (inventory rows, two re-anchored specs; fixed after) plus
+`test_viewer_js_suite` red in a worktree by design.
+
+## Addendum 2026-11-04 (review of the_dag_holds_still_and_the_filter_bar_stays_put)
+
+Measured 761 s (budget 600 s, over by 2m41s) for
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider --durations=10`
+in the review worktree on the merged tree, single-process (no xdist), sharing the
+box with other reviews' browser runs. Result: `2 failed, 1699 passed, 1 skipped,
+2 deselected` (the two checkout-dependent reds). Slowest call 10.6 s, so no
+single test is the pareto; the time is the count.
+
 ## Addendum 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
 
 Measured 784 s (budget 600 s, over by 3m04s), serial, `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs -p no:cacheprovider` in the handoff worktree, while two other agents held the browser slot and ran their own tiers on the box: `2 failed, 1686 passed, 1 skipped, 2 deselected` (the worktree-only `test_viewer_js_suite` red, and one witness anchor since re-anchored). No `--durations` was taken on this run. This handoff added no Python test.
