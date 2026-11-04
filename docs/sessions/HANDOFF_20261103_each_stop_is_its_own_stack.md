@@ -86,16 +86,45 @@ and reads the per-stop groups you emit) and do not touch `apps/annotate/`.
    `applies_to` word goes from "which stops a travel ref moves" to the study
    field that names each stop's axial stack; refuse a stop with no stack.
 4. **Three result rows.** Pitch at the feather stop (nominal 72.0 from the
-   sweep, ± worst, ± RSS, vs S461-607 ±0.5), pitch at the low stop (−7.0, the
-   same), and **total pitch range** = feather − low: 79.0 ± the fold of the
-   terms that *differ* between the stacks (shared ground terms enter with
-   J(+72) − J(−7), so they nearly cancel; state the residual). Jeff's "70–74"
-   is this row's reader.
+   sweep, ± worst, ± RSS, **reach check ≥ +70°**, item 7), pitch at the low
+   stop (−7.0, the same, **reach check ≤ −5°**), and **total pitch range** =
+   feather − low: 79.0 ± the fold of the terms that *differ* between the
+   stacks (shared ground terms enter with J(+72) − J(−7), so they nearly
+   cancel; state the residual). The two reach rows are the verdict; the
+   range row is secondary (Jeff, 2026-11-03).
 5. **No `x_interval`, no swept band.** The projection's per-stop block drops
    `x_interval`/`direct`-as-envelope and carries `groups[]` = the linkage
    terms group and the axial stack group (each child with `coefficient`,
    `magnitude`, `confidence`), plus `shared_with_other_stop: true` on the
    ground terms.
+6. **The zero is set at rigging, for every build.** Jeff, 2026-11-03: *"During
+   rigging, the actuator's home (zero travel) is reset to the position with
+   the feather direction end stops touching. So for any given permutation of
+   a build, that will always be what defines zero travel."* So the datum is a
+   contact pose by procedure as well as by CAD; write that sentence, with the
+   date, into the `datum.note` and the DAG_TOPOLOGY paragraph. It changes no
+   arithmetic: the permutations are what the stacks fold.
+7. **The checks are one-sided reach, against the right clause.** Jeff: *"More
+   important than the total pitch range … is actually the absolute blade angle
+   at each hard stop, specifically there is a bare minimum at both ends of
+   travel. I think it's -5 to 70."* It is **S461-261** (Blade Pitch Control
+   Range, `c_status: draft`): *"The propeller pitch angle shall be controlled
+   between -5° and +70° in all operating conditions."*
+   (`C:\workspace\tolstack\data\inbox\requirements\S461_equipmentrequirements_20260906.json`).
+   Per stop the check is: feather stop worst-case **minimum** pitch ≥ +70°;
+   low stop worst-case **maximum** pitch ≤ −5°; margin = the distance to the
+   bound, signed; RSS reported beside it. The stop *targets* stay cited to
+   S461-241 (−7° / +72°). **Remove the ±0.5° check from this study:**
+   S461-607 reads *"The pitch angle of each blade in a propeller assembly
+   shall not exceed +/-0.5 degrees of the mean pitch of the blades"* — a
+   blade-to-blade spread within one propeller, not a stop's position; it has
+   been applied to the stops since `the_travel_between_the_end_stops_is_a_study`
+   (2026-10-16). File an issue (`type: bug`, `audience: strategy`,
+   `found_by:` this handoff) saying so and naming the right home: a
+   blade-to-blade variation study over the per-blade link tolerances, which
+   does not exist yet. The total-range row (item 4) stays as a secondary
+   figure with no check of its own unless a clause bounds it (S461-744's
+   note gives 73° as a nominal, not a bound).
 
 ## Deliverables
 
@@ -121,9 +150,11 @@ and reads the per-stop groups you emit) and do not touch `apps/annotate/`.
 ## Definition of done
 
 - `venv-win/Scripts/python.exe -m pytest -q` green; value-level pins on the
-  live study for both stops' worst/RSS halves, the three result rows, and
-  the refusal of the old `applies_to` form. Record the before/after table
-  (10-29 figures: −7° 1.707 / +72° 0.315) in the lesson.
+  live study for both stops' worst/RSS halves, the three result rows, the
+  two reach margins against S461-261, and the refusal of the old
+  `applies_to` form. Record the before/after table (10-29 figures: −7° 1.707
+  / +72° 0.315, both against the misapplied ±0.5) in the lesson, and the
+  S461-607 issue's path.
 - `http://127.0.0.1:8000/tolstack/viewer/` → Kinematic studies → Blade pitch
   at the end stops: the chart shows two error bars and no wedge; the
   readouts carry both terms; a total-range row exists. Screenshot in the
