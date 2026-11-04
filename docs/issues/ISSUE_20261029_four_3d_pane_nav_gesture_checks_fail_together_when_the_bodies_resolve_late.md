@@ -70,3 +70,7 @@ full run), and the type chips (this full run). The red rotates between sub-check
 rather than sticking to one, which points to a shared precondition the suite does not
 wait for (bodies or nav tree not settled) rather than to a defect in any one check.
 Whoever takes this should treat the suite as one problem.
+
+## Addendum 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
+
+Three runs of "3D pane follows the selection" against the main checkout's data, each red on a different set: in this handoff's full browser run 31/32 (the type-chips check); alone on this branch 27/32 (the body disclosure, the body checkbox twice, the part row's second button, the unbound contributor hover); alone on a `git archive integration` export, without this handoff, 30/32 (the type chips and the unbound contributor hover). So integration is red on this suite without this change, and the set moves from run to run.

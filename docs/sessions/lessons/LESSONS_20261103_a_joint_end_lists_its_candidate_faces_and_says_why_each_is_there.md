@@ -113,6 +113,42 @@ Counts on the real projection:
   its mock fixture three distinct faces instead of renaming the guard. The
   de-duplication is pinned in the fast tier, where it is cheap.
 
+## Real-data proof on a scratch root (the DoD's Take)
+
+A scratch Playwright script (not tracked; it took the browser slot through
+`scripts/browser_runner.mjs`) ran the pane on P2
+(`?embedded=1&sweep=vpa-pitch-p2-20261016-235852&kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops`).
+Reads went to the real projections and meshes. Writes went to the memory
+adapter, so the real inbox was never written. The embedded rail is laid out
+unseen, for the shell to mirror. For the screenshots only, the script showed
+it at 330 px with an injected style.
+
+1. The hub spindle bore axis end reads `candidates · 26`
+   (`…_1_closed.png`). Its ▸ opens 8 rows, then "show all 26", then "Pick
+   another face…". The first row is "face 3460 · round · r 47.5000 mm" over
+   "coaxial with the mating pin".
+2. Resting on that row washed face 3460 of the hub yellow (`washed()`:
+   `0xffd84d`, opacity 0.6, 2 overlays). The camera did not move
+   (`…_2_open_hover.png`).
+3. **Take** wrote one `bound` event (direction `from`, face 3460, no
+   `ratifies`: the end had no proposal), and the row reads `bound · face 3460`
+   (`…_3_after_take.png`).
+4. That event was saved as `0058_…` into a copy of the 57-event inbox at
+   `C:\workspace\tolstack\data\scratch\candidate_list\data\inbox\feature-identity\`,
+   and `scripts/build_feature_identity_projection.py --data-root <scratch>`
+   folded it: `1 bound … 57 proposed`, the hub edge bound at `from` face 3460,
+   and the pitch plate end's proposal (face 439) still open.
+
+The screenshots are the pane's own rail, not the shell's nav. The browser
+tier's "…with its candidate disclosure…" check covers the mirror: it opens a
+list through a toggle gesture from a page embedding the pane. I did not drive
+the shell at `:8000`, because its writes go over HTTP to the real inbox. I
+could not junction `data/meshes` into the scratch root: the main-checkout edit
+guard refused it, because the directory holds a tracked file. The fold ran
+without meshes and says so ("inputs absent"), which only skips the staleness
+re-check. **Delete `C:\workspace\tolstack\data\scratch\candidate_list\`
+after the review.** It has no junctions, so a plain delete is safe.
+
 ## Shell-mirror selectors added (`railRow`, `apps/annotate/app.js`)
 
 - `.tree-cands__head` joins the heading selectors (`.an__tree-head, .el-head`).
