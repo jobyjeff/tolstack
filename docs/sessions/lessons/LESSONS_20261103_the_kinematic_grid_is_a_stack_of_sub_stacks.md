@@ -260,11 +260,11 @@ projections were rebuilt there from this branch BEFORE the tiers.
   - The new browser specs were witnessed in the gate's run: the live stack,
     the travel fold, the curve, the +72 stop, the clicked row, and the page
     shape.
-  - `toggling Unused` stayed green under its mutation, so it was re-pointed
-    at the stop picker and has not been re-run.
+  - `toggling Unused` stayed green under its first mutation. Re-pointed
+    at the stop picker and re-run with `--only`: **WITNESSED**.
   - `the nav's kinematic row brings the page back` (a pre-existing spec)
-    reddened the page-shape check instead of its own. I did not resolve it;
-    `--only` on it is the next step.
+    reddens the page-shape check instead of its own, also with `--only`.
+    Filed as `docs/issues/ISSUE_20261104_the_nav_kinematic_row_witness_reddens_the_page_shape_check_not_its_own.md`.
 - `node apps/annotate/run_tests.cjs`: not run. This branch does not touch
   `apps/annotate/`.
 
