@@ -4,12 +4,12 @@
   "expect_red": "[real] toggling Unused leaves the results pane's DOM identical, its stop picker included",
   "mutations": [
     {
-      "contract": "Toggling Unused repaints the model alone.",
+      "contract": "The results pane offers the stop picker, and Unused leaves it as it was.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Repaints the results too. Carried over from the guard's earlier name.",
-      "file": "apps/viewer/topology_app.js",
-      "find": "          ctx.unlitStyle = state.unlitStyle;\n          repaintDag(true);",
-      "replace": "          ctx.unlitStyle = state.unlitStyle;\n          render();"
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the picker. (A full repaint in place of the DAG-only one rebuilds an identical results pane, so it is no mutation this check can see.)",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      root.appendChild(stackStopPicker(study, ctx));",
+      "replace": "      void stackStopPicker;"
     }
   ]
 }

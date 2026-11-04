@@ -4,12 +4,12 @@
   "expect_red": "[real] opened, the travel's four terms follow its header in its own chain order, a step in; at the +72 stop the travel is no term",
   "mutations": [
     {
-      "contract": "A sub-study's terms follow its header in the stack's order.",
+      "contract": "A nested sub-stack's terms sit a step in under its header.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Reverses them.",
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Puts them at the outer level. (Their ORDER is the band's, which the grid walks, so reversing the stack's own sort is invisible.)",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "      var kids = (g.children || []).slice().sort(function (a, b) {\n        return rank(a.edge) - rank(b.edge);",
-      "replace": "      var kids = (g.children || []).slice().sort(function (a, b) {\n        return rank(b.edge) - rank(a.edge);"
+      "find": "        entries.push(term(child, 2, g.study, spec && spec.by_point));",
+      "replace": "        entries.push(term(child, 1, g.study, spec && spec.by_point));"
     }
   ]
 }
