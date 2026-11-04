@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] each stop chain's label is drawn inside the drawing and over every mark, so no leader or bar takes the click meant for the fold",
+  "mutations": [
+    {
+      "contract": "A sub-stack's DAG label wins the click over the leaders' and the bars' hit strips (review of the_kinematic_grid_is_a_stack_of_sub_stacks, 2026-11-04).",
+      "issue": null,
+      "note": "The labels go back under the leaders, where a leader's hit strip took the click.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "subStackLabels.forEach(function (node) { over.appendChild(node); });",
+      "replace": "subStackLabels.forEach(function (node) { under.appendChild(node); });"
+    },
+    {
+      "contract": "A sub-stack's DAG label is drawn whole inside the drawing (review of the_kinematic_grid_is_a_stack_of_sub_stacks, 2026-11-04).",
+      "issue": null,
+      "note": "The label is placed against a drawing twice as wide as the SVG, so it runs past the clip.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "VA.subStackLabelPlacement(top.x, text.length, width / (leaderGeo.zoom || 1))",
+      "replace": "VA.subStackLabelPlacement(top.x, text.length, 2 * width / (leaderGeo.zoom || 1))"
+    }
+  ]
+}

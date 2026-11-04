@@ -4783,6 +4783,8 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       ];
       const moved = [];
       const clickedOn = [];
+      const labelsSeen = [];
+      const labelsBad = [];
       for (const parked of [false, true]) {
         await page.evaluate((p) => {
           const hs = Array.from(document.querySelectorAll("#topopane .tv__hscroll"))
@@ -4791,6 +4793,30 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
           window.scrollTo(0, 0);
         }, parked);
         await settle(300);
+        // Every sub-stack label is wholly inside the drawing (the SVG clips at
+        // its right edge) and, where it is in the window, the topmost hit at
+        // its centre -- no leader's or bar's hit strip lies over it.
+        const labels = await page.evaluate(() => {
+          const svg = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          return [...document.querySelectorAll("#topopane svg.tv__rails text[data-substack-toggle]")]
+            .map((n) => {
+              const r = n.getBoundingClientRect();
+              const y = r.top + r.height / 2;
+              const inWindow = y > 4 && y < window.innerHeight - 4;
+              const hit = inWindow ? document.elementFromPoint(r.left + r.width / 2, y) : null;
+              return { id: n.getAttribute("data-substack-toggle"), inWindow,
+                inside: r.left >= svg.left - 0.5 && r.right <= svg.right + 0.5,
+                top: !inWindow || hit === n || n.contains(hit),
+                hit: hit ? hit.tagName + "." + (hit.getAttribute("class") || "") : null };
+            });
+        });
+        for (const l of labels) {
+          labelsSeen.push(l.id + (parked ? " (parked)" : "") + (l.inWindow ? "" : " (below)"));
+          if (!l.inside || !l.top) {
+            labelsBad.push(`${l.id}${parked ? " (parked)" : ""}: ` +
+              (l.inside ? "" : "past the drawing's edge ") + (l.top ? "" : "under " + l.hit));
+          }
+        }
         for (const [what, sel] of clicks) {
           const at = await page.evaluate(visiblePointOn, sel);
           if (!at) continue;
@@ -4813,6 +4839,11 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         "sideways -- its scroll and the space before it stay exactly as they were, parked or not",
         moved.length === 0 && clickedOn.filter((c) => !/parked/.test(c)).length >= 3 &&
         clickedOn.filter((c) => /parked/.test(c)).length >= 3);
+      console.log(`      sub-stack labels: ${labelsSeen.join(", ")}` +
+        (labelsBad.length ? " -- BAD: " + labelsBad.join("; ") : ""));
+      push("[real] every sub-stack label is drawn whole inside the drawing and is the topmost hit at " +
+        "its centre, parked or not -- no leader or bar takes the click meant for the fold",
+        labelsSeen.filter((s) => !/below/.test(s)).length >= 2 && labelsBad.length === 0);
       await page.evaluate(() => window.scrollTo(0, 0));
     }
 

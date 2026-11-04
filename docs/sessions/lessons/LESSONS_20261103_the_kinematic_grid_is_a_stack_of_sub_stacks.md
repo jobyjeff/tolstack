@@ -269,3 +269,82 @@ projections were rebuilt there from this branch BEFORE the tiers.
   `apps/annotate/`.
 
 The scratch root and its junctions are removed at hand-back.
+
+## Review rework (2026-11-04)
+
+The review (`docs/sessions/reviews/REVIEW_20261104_the_kinematic_grid_is_a_stack_of_sub_stacks.md`,
+REQUEST CHANGES, 1 blocker) found that on the merged tree the DAG's sub-stack
+labels could not be clicked once the drawing was scrolled sideways.
+
+- **Merged** integration `8d8baf7a` (it had moved past the review's
+  `0816cccf`). The one conflict was `guard_enumeration.mjs`'s pins. I kept
+  both sides' comments and re-derived the counts with `--json`: fast 633,
+  browser 822/789, which is integration's 821/788 plus this branch's +1.
+  Cherry-picked the review's inline fixes (`98010a83`: the gap card names its
+  row; two stale band-parity comments; a comment indent).
+- **Cause, measured** with a probe on the live page at 1400×900. It was two
+  defects, and the first one is there at scroll 0 too:
+  - Each label ran past the SVG's right edge, at 596–785 against an SVG
+    ending at 684. `svg.tv__rails`'s `clip-path` clips there, so half of
+    each label was neither drawn nor hit-testable, and the text was cut off
+    on screen. The cause is this branch's band reorder: it puts the
+    sub-stacks' bars in the right-hand columns, and a label 290 DAG units
+    long starting at x = 285 cannot fit in a drawing 420 units wide.
+  - The half that was drawn lay under `path.rail__leaderhit`, because the
+    labels were drawn in `under`, below the leaders.
+- **Fix:**
+  - `VA.subStackLabelPlacement` puts a label just right of its bar when an
+    estimate says it fits (`HOVER_LABEL_METRICS.charPx`, which runs about
+    20% generous at this size). Otherwise it end-anchors the label
+    (`text-anchor: end`) at the drawing's right edge, so the real text width
+    decides where it starts.
+  - The labels are drawn after the marks and under the hover label. A label
+    is a visible button, so it takes the click wherever it is drawn. Once
+    end-anchored it crosses another column's bar, and an intermediate
+    version that drew it under the marks lost its centre to a
+    `rail__barhit`.
+  - The existing halo keeps it legible over the rails it crosses.
+- **New guards:** the rule (fast), the label's layer and bounds on the live
+  drawing (fast `[real]`), and a browser check in the DAG zoom suite: every
+  label is whole inside the drawing and is the topmost hit at its centre,
+  parked or not. The click check's count floor could also be met by a grid
+  row, so it was not a direct witness. Each carries a spec.
+- **The first-row zoom check is red on integration too.**
+  `[real] at scroll 0 the DAG's first row is whole under the pinned bars …`
+  aims its wheel at y = 200, but the drawing now starts at 269. Measured with
+  integration's own viewer code and runner against the same projection: the
+  same red. Filed as `ISSUE_20261104_the_first_row_zoom_check_wheels_above_the_drawing.md`.
+
+### Rework verification record
+
+The scratch root was `C:\workspace\tolstack\data\scratch\kin_grid_rework\root`,
+laid out as before. All five projection families and the crops were built
+from `a9d6f72c` (the merge plus the cherry-pick) before any tier ran. It is
+removed at hand-back.
+
+- **Fast tier:** **629/635**. The 6 reds are the filed ones
+  (`ISSUE_20261103_the_slide_re_author_left_six…`), and both new checks pass.
+- **Browser tier**, one suite at a time with `--only`:
+  - **the DAG zoom:** 40/41. The blocker's click check passes, with a label
+    clicked both parked and not, and the new label check passes. The one red
+    is the first-row check, which is also red on integration's own code
+    (issue above).
+  - **kinematic study page:** 24/24.
+  - **respine:** 44/44.
+  - **leaders across the seam:** 26/26.
+  - **topology file://:** 201/205. These are the four the review's table
+    marks pre-existing.
+- **pytest**, single process: **1722 passed, 2 failed, 1 skipped, 410.9 s**.
+  The 2 are the worktree red (`test_viewer_js_suite`) and the filed
+  contact-suggestions `[real]` test. The review's risky subset: 359 passed.
+- **Mutation witnesses:**
+  - `--changed-since integration`, with nothing else touching the worktree:
+    **24/72 witnessed, 72/81 reached, 9 left to the sweep (budget),
+    29m18s**. Every fast entry is "red before the mutation" (the 6 reds). So
+    is every entry in the DAG zoom suite (the first-row red) and in the 3D
+    pane suite (its own pre-existing reds). The nav spec reddens another
+    check, as filed.
+  - **By hand,** for the specs this rework adds: the 3 fast mutations are
+    **3/3 witnessed**. The 2 browser mutations are **2/2 witnessed**: apply
+    each, run `--only "the DAG zoom"`, look for the check's own FAIL line.
+    Under both, the review's click check goes red too.

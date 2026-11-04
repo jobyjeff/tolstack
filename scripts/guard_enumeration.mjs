@@ -212,12 +212,21 @@ export const DECLARED_GUARDS = {
   // joint lighting every member in the pane. It carries a spec.
   // (Re-pinned at the merge of integration 0816cccf into the handoff branch.)
   // 2026-11-03 (the_kinematic_grid_is_a_stack_of_sub_stacks): count
-  // unchanged -- the results pane's contributor table is retired, its checks
-  // re-pointed at the grid's stack; the [real] pitch_system tint check carries
-  // no spec (red on integration before any mutation,
-  // ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md).
-  // (Re-pinned at the review merge onto integration's 632.)
-  fast: { declared: 633, enrollable: 633, names: "c18d10cf1ca5" },
+  // unchanged -- the results pane's contributor table is retired, so its
+  // checks are re-pointed at the grid's stack (the fold, the page shape, the
+  // row's selection, SENSITIVITY and its curve, the gap sub-stack, the live
+  // stack and its DAG field), the 3D-button check is gone with the button,
+  // a [real] check for the opened travel is in, and the two row-tint checks
+  // read the body's tint where they read the band parity. Every new name
+  // carries a spec except the [real] pitch_system tint check, which is red
+  // on integration before any mutation (its band pins,
+  // ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md);
+  // the retired names' specs are deleted.
+  // (Re-pinned at the merge of integration 8d8baf7a into the handoff branch.)
+  // Review rework, 2026-11-04: +2 -- a sub-stack label's placement rule and
+  // the [real] check that each label is inside the drawing and over every
+  // mark. Both carry a spec.
+  fast: { declared: 635, enrollable: 635, names: "3d3db3631577" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -352,12 +361,17 @@ export const DECLARED_GUARDS = {
   // by rule after the slide re-author retired the names they read. Both specs
   // moved to the new names.
   // 2026-11-03 (the_kinematic_grid_is_a_stack_of_sub_stacks): +1 -- the
-  // kinematic suite's table checks re-pointed at the grid's stack (the live
-  // stack, the travel fold and the +72 stop in; the six-contributor table and
-  // the travel group row out). Every one carries a spec except the renamed
-  // pitch_system body-tint check, which carried none under its old name.
-  // (Re-pinned at the review merge onto integration's 815/782.)
-  browser: { declared: 822, enrollable: 789, names: "acabb75e3ed9" },
+  // kinematic suite's table checks re-pointed at the grid's stack: the page
+  // shape, Unused leaving the results pane (its stop picker) untouched, the
+  // clicked term row and the sensitivity's curve renamed; the six-contributor
+  // table and the travel group row out; the live stack, the travel fold and
+  // the +72 stop in. Every one carries a spec, and two re-anchored with the
+  // code they mutate. And one renamed for the rows' body tint (pitch_system's
+  // bands and rows), which carried no spec under its old name either.
+  // (Re-pinned at the merge of integration 8d8baf7a into the handoff branch.)
+  // Review rework, 2026-11-04: +1 -- every sub-stack label whole inside the
+  // drawing and the topmost hit at its centre, parked or not. It carries a spec.
+  browser: { declared: 823, enrollable: 790, names: "18ec42851d9c" },
 };
 
 
