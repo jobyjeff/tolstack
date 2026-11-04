@@ -13572,33 +13572,19 @@ async function testSeamLeaders(browser, label, topologies) {
     await shot("1_kinematic_study_leaders.png");
 
     // --- a joint is one 3D node (coaxial_ends_share_one_3d_node) -----------
-    // Every member of the spindle joint leads to the one dot (fan-in), and
-    // the real pointer on that dot lights every member here: their DAG dots
-    // and the rows of the edges that meet them.
+    // Every subject here is chosen by rule, never by name: the study's lit
+    // set and the topology's edge ids are data, and the slide re-author
+    // (2026-11-03) retired the names the first cut of these checks used. The
+    // joint is the run's first merged group; its own row is a hidden edge
+    // with both ends in it; a row leaving it is any drawn edge with one end in
+    // it. The real pointer on the joint's dot lights every member here (their
+    // DAG dots and the rows of the edges that meet them), and the real pointer
+    // on either kind of row lights the one dot -- and, on the joint's own row,
+    // every member's leader ends at it (fan-in).
     const joint = await livePane((w) => {
-      const g = w.__model.built.joints.groups.find((x) => x.members.indexOf("hub_spindle_bore_axis") !== -1);
+      const g = w.__model.built.joints.groups.find((x) => x.members.length >= 2);
       return g ? { id: g.id, members: g.members } : null;
     });
-    const fan = await live.evaluate((members) => {
-      const VA = window.ViewerApp;
-      const draw = VA.lastSeamDraw;
-      const ends = {};
-      for (const p of document.querySelectorAll("svg.seamleaders path.seam__leader")) {
-        const id = p.getAttribute("data-node-id");
-        if (members.indexOf(id) === -1) continue;
-        const e = p.getPointAtLength(p.getTotalLength());
-        ends[id] = [e.x, e.y];
-      }
-      // The members the DAG lights (a dot a leader starts from).
-      const lit = members.filter((id) => VA.lastTopoRender.seam.dots[id]);
-      return { ends, lit, leaders: draw ? draw.leaders.map((l) => l.id) : [] };
-    }, joint ? joint.members : []);
-    const fanEnds = Object.values(fan.ends);
-    console.log(`      [${label}] P2 joint ${joint ? joint.members.join(" + ") : "-"}: leaders from ` +
-      `${Object.keys(fan.ends).join(", ") || "-"} end at ${fanEnds.map((e) => e.map((v) => v.toFixed(1)).join(",")).join(" / ")}`);
-    push("[real] on P2 every lit member of the spindle joint has a leader, and every one ends at the ONE 3D dot",
-      joint && fanEnds.length >= 2 && fanEnds.length === fan.lit.length &&
-      fanEnds.every((e) => Math.hypot(e[0] - fanEnds[0][0], e[1] - fanEnds[0][1]) <= 1));
     // The real pointer on the joint's dot.
     const aimJoint = joint ? await live.evaluate((id) => {
       const frame = document.querySelector("#annotate-flyout iframe");
@@ -13642,26 +13628,69 @@ async function testSeamLeaders(browser, label, topologies) {
     // the row of the edge inside the joint (which draws no line) and a row of
     // an edge leaving it (whose line starts at the joint). Read off the dot's
     // emphasis scale in the scene.
-    const internal = joint ? (await livePane((w) => w.__model.built.hidden.slice()))
-      .find((id) => topology.edges.some((e) => e.id === id &&
-        joint.members.indexOf(e.from) !== -1 && joint.members.indexOf(e.to) !== -1)) : null;
+    const inJoint = (id) => !!joint && joint.members.indexOf(id) !== -1;
+    const hiddenEdges = joint ? await livePane((w) => w.__model.built.hidden.slice()) : [];
+    const internalIds = topology.edges.filter((e) => hiddenEdges.indexOf(e.id) !== -1 &&
+      inJoint(e.from) && inJoint(e.to)).map((e) => e.id);
     const drawnLines = joint ? await livePane((w) => Object.keys(w.__scene.modelState().lines)) : [];
-    const leavingIds = meeting.filter((id) => drawnLines.indexOf(id) !== -1 && id !== internal);
-    const rowLights = async (edgeId) => {
-      // The real pointer, aimed at the row's first cell that is on screen (a
-      // row is drawn in more than one table; the one in view is the one read).
-      const at = edgeId ? await live.evaluate((id) => {
-        for (const r of document.querySelectorAll(`[data-row-kind="edge"][data-id="${CSS.escape(id)}"]`)) {
-          r.scrollIntoView({ block: "center", inline: "nearest" });
-          const b = r.getBoundingClientRect();
-          if (!b.width || !b.height) continue;
-          const x = b.left + Math.min(20, b.width / 2), y = b.top + b.height / 2;
-          const hit = document.elementFromPoint(x, y);
-          if (hit && hit.closest && hit.closest('[data-row-kind="edge"]') === r) return [x, y];
+    const leavingIds = topology.edges.filter((e) => drawnLines.indexOf(e.id) !== -1 &&
+      inJoint(e.from) !== inJoint(e.to)).map((e) => e.id);
+    // A point of the edge's 2D mark that is the mark itself: its GRID row
+    // when the page's study gives it one, else its DAG bar. The grid rows only
+    // the study's edges (VA.gridPlan's focus), and on P2 the re-authored study
+    // leaves the spindle coaxiality out -- so the joint's own edge has a bar
+    // and no row there, and the bar's hover posts the same `highlight` a row's
+    // does. A row is preferred and the result says which was hit. The sticky
+    // rails (and their leaders) sit over a row's left part and the Preview
+    // over another, so the mark is tried at three scroll positions and sampled
+    // across, and the first point whose hit target is the mark is aimed at.
+    const aimRow = (edgeId) => live.evaluate(async (E) => {
+      const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const row = document.querySelector(`#topopane .tv__hscroll tr.tvrow[data-id="${CSS.escape(E)}"]`);
+      if (!row) {
+        const marks = [...document.querySelectorAll(
+          `#topopane .tv__hscroll svg.tv__rails [data-row-kind="edge"][data-id="${CSS.escape(E)}"]`)];
+        for (const block of ["center", "start", "end"]) {
+          for (const m of marks) {
+            m.scrollIntoView({ block, inline: "nearest" });
+            await frame();
+            const b = m.getBoundingClientRect();
+            const pane = document.querySelector("#topopane").getBoundingClientRect();
+            for (let i = 0; i <= 8; i++) {
+              for (const fy of [0.5, 0.25, 0.75]) {
+                const x = b.left + b.width * i / 8, y = b.top + b.height * fy;
+                if (y < Math.max(pane.top, 0) || y > Math.min(pane.bottom, innerHeight)) continue;
+                const hit = document.elementFromPoint(x, y);
+                const on = hit && hit.closest && hit.closest('[data-row-kind="edge"]');
+                if (on && on.getAttribute("data-id") === E) return { at: [x, y], mark: "bar" };
+              }
+            }
+          }
         }
         return null;
-      }, edgeId) : null;
-      if (!at) return { row: false };
+      }
+      for (const block of ["center", "start", "end"]) {
+        row.scrollIntoView({ block, inline: "nearest" });
+        await frame();
+        const r = row.getBoundingClientRect();
+        const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails").getBoundingClientRect();
+        const pane = document.querySelector("#topopane").getBoundingClientRect();
+        const y = r.top + r.height / 2;
+        if (!r.height || y < Math.max(pane.top, 0) || y > Math.min(pane.bottom, innerHeight)) continue;
+        const left = Math.max(r.left, rails.right) + 2, right = Math.min(r.right, pane.right, innerWidth) - 2;
+        for (let i = 0; i <= 16 && right > left; i++) {
+          const x = left + (right - left) * i / 16;
+          const hit = document.elementFromPoint(x, y);
+          if (hit && hit.closest && hit.closest("tr.tvrow") === row) return { at: [x, y], mark: "row" };
+        }
+      }
+      return null;
+    }, edgeId);
+    const rowLights = async (edgeId) => {
+      await live.mouse.move(5, 5);
+      const aim = await aimRow(edgeId);
+      if (!aim) return { row: false };
+      const at = aim.at;
       await live.mouse.move(at[0] - 2, at[1]);
       await live.mouse.move(at[0], at[1]);
       await liveUntil((args) => {
@@ -13675,23 +13704,84 @@ async function testSeamLeaders(browser, label, topologies) {
         const w = document.querySelector("#annotate-flyout iframe").contentWindow;
         return w.__scene.modelState().nodes[id].scale === 1;
       }, joint.id, 5000);
-      return { row: true, scale };
+      return { row: true, scale, mark: aim.mark };
     };
-    const rowInside = await rowLights(internal);
-    // The first edge leaving the joint whose row is on screen and not under
-    // anything (the pane covers some of the grid).
-    let leaving = null, rowLeaving = { row: false };
-    for (const id of leavingIds) {
-      rowLeaving = await rowLights(id);
-      if (rowLeaving.row) { leaving = id; break; }
+    // The first mark of each kind the pointer can reach (a leaving edge by
+    // its grid row only: that is the direction the DoD names).
+    const firstReachable = async (ids, rowOnly) => {
+      for (const id of ids) {
+        const r = await rowLights(id);
+        if (r.row && (!rowOnly || r.mark === "row")) return { id, ...r };
+      }
+      return { id: null, row: false };
+    };
+    const rowInside = joint ? await firstReachable(internalIds) : { id: null, row: false };
+    const rowLeaving = joint ? await firstReachable(leavingIds, true) : { id: null, row: false };
+    console.log(`      [${label}] P2 pointer on an edge's 2D mark: ${rowInside.id || "-"} (inside the joint, of ` +
+      `${internalIds.join(", ") || "-"}; its ${rowInside.mark || "-"}) -> ` +
+      `${rowInside.row ? "joint dot scale " + rowInside.scale : "no mark reached"}; ` +
+      `${rowLeaving.id || "-"} (leaving it, of ${leavingIds.length}; its ${rowLeaving.mark || "-"}) -> ` +
+      `${rowLeaving.row ? "joint dot scale " + rowLeaving.scale : "no mark reached"}`);
+    push("[real] the pointer on an edge inside the joint (its grid row, or its DAG bar where the study " +
+      "gives it none) and on the grid row of one leaving it emphasises the joint's ONE 3D dot",
+      joint && internalIds.length > 0 && leavingIds.length > 0 &&
+      rowInside.row && rowInside.scale > 1 &&
+      rowLeaving.row && rowLeaving.mark === "row" && rowLeaving.scale > 1);
+    // Fan-in, by rule rather than by what one study happens to light. A
+    // leader across the seam is drawn for the LIT set only (VA.seamDots:
+    // "if every single element in the model were connected it would
+    // probably be way too busy to interpret", Jeff, 2026-10-26), and since
+    // the slide re-author P2's study lights the plate's end of the spindle
+    // joint and not the hub's. So: every member is posted in the anchors
+    // message at the joint's one point, lit or not (the fan-in itself, and
+    // what the leaders are drawn from), and every member the study does light
+    // has a leader ending there -- each member's DAG dot scrolled into view in
+    // turn, since a leader needs its dot on screen and the members' dots need
+    // not be on screen together.
+    // Each member's reading is taken with the dot read in the SAME task: the
+    // scroll that brings a DAG dot into view scrolls the page too, and moves
+    // the scene's iframe with it.
+    const fan = { ends: {}, lit: [], posted: {}, dots: {}, dot: null };
+    if (joint) {
+      await live.mouse.move(5, 5);
+      for (const m of joint.members) {
+        await live.evaluate((id) => {
+          const c = document.querySelector(`#topopane .tv__hscroll svg.tv__rails circle[data-row-kind="node"][data-id="${CSS.escape(id)}"]`);
+          if (c) c.scrollIntoView({ block: "center", inline: "nearest" });
+        }, m);
+        await liveSettle();
+        const read = await live.evaluate(({ id, joint }) => {
+          const VA = window.ViewerApp;
+          const p = document.querySelector(`svg.seamleaders path.seam__leader[data-node-id="${CSS.escape(id)}"]`);
+          const end = p ? (() => {
+            const q = p.getPointAtLength(p.getTotalLength());
+            const t = p.getScreenCTM();
+            return [t.a * q.x + t.c * q.y + t.e, t.b * q.x + t.d * q.y + t.f];
+          })() : null;
+          const frame = document.querySelector("#annotate-flyout iframe");
+          const fr = frame.getBoundingClientRect();
+          const sent = (frame.contentWindow.__lastAnchors || {}).nodes || {};
+          const page = (a) => a ? [fr.left + frame.clientLeft + a[0], fr.top + frame.clientTop + a[1]] : null;
+          return { end, lit: !!(VA.lastTopoRender && VA.lastTopoRender.seam && VA.lastTopoRender.seam.dots[id]),
+            posted: page(sent[id]), dot: page(sent[joint]) };
+        }, { id: m, joint: joint.id });
+        fan.ends[m] = read.end;
+        fan.posted[m] = read.posted;
+        fan.dots[m] = read.dot;
+        if (read.lit) fan.lit.push(m);
+        fan.dot = fan.dot || read.dot;
+      }
     }
-    console.log(`      [${label}] P2 pointer on a grid row: ${internal || "-"} (inside the joint) -> ` +
-      `${rowInside.row ? "joint dot scale " + rowInside.scale : "no such row"}; ${leaving || "-"} (leaving it) -> ` +
-      `${rowLeaving.row ? "joint dot scale " + rowLeaving.scale : "no such row"}`);
-    push("[real] the pointer on the grid row of an edge inside the joint, or of one leaving it, " +
-      "emphasises the joint's ONE 3D dot",
-      joint && internal === "hub_to_pitch_plate_spindle_coaxiality" && !!leaving &&
-      rowInside.row && rowInside.scale > 1 && rowLeaving.row && rowLeaving.scale > 1);
+    const near = (a, b) => !!a && !!b && Math.hypot(a[0] - b[0], a[1] - b[1]) <= 1;
+    const fmt = (p) => p ? p.map((v) => v.toFixed(1)).join(",") : "-";
+    console.log(`      [${label}] P2 joint ${joint ? joint.members.join(" + ") : "-"}: ` +
+      `posted ${joint ? joint.members.map((m) => m + " " + fmt(fan.posted[m]) + " (dot " + fmt(fan.dots[m]) + ")").join(", ") : "-"}; ` +
+      `lit ${fan.lit.join(", ") || "-"}, whose leaders end at ${fan.lit.map((m) => fmt(fan.ends[m])).join(" / ") || "-"}`);
+    push("[real] on P2 every member of the joint is posted at the ONE 3D dot, and every member the " +
+      "study lights has a leader ending there",
+      !!joint && joint.members.length >= 2 && !!fan.dot &&
+      joint.members.every((m) => near(fan.posted[m], fan.dots[m])) &&
+      fan.lit.length >= 1 && fan.lit.every((m) => near(fan.ends[m], fan.dots[m])));
 
     // --- one trace, three tiers (a_leader_starts_at_the_mark_it_names_on_
     // every_tier, 2026-10-29). Jeff's two screenshots: a selected row whose
@@ -13753,6 +13843,10 @@ async function testSeamLeaders(browser, label, topologies) {
         !(band && d.x >= band.left && d.x <= band.right && d.y >= band.top && d.y <= band.bottom);
       const onScene = (a) => a && a[0] >= fr.left && a[0] <= fr.right &&
         a[1] >= Math.max(fr.top, 0) && a[1] <= Math.min(fr.bottom, innerHeight);
+      // An end the scene does not place (no anchor geometry: it posts null,
+      // coaxial_ends_share_one_3d_node) has no leg into the scene -- its
+      // leader stops at the seam -- so it is not owed one here; `noAnchor`
+      // names it in the log.
       const with3d = ends.filter((id) => onScene(anchors[id]) && shown(dots[id]));
       return { gridLit, withGridLeader, seamLit, with3d, dots, anchors,
         noAnchor: ends.filter((id) => !sent[id]) };

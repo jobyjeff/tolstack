@@ -340,7 +340,12 @@ export const DECLARED_GUARDS = {
   // inside the joint, or of one leaving it, emphasises the joint's one 3D dot.
   // It carries a spec.
   // (Re-pinned at the merge of integration 0816cccf into the handoff branch.)
-  browser: { declared: 821, enrollable: 788, names: "02b5aa057706" },
+  // Round 2 of its review, 2026-11-04: two renamed, count unchanged -- the
+  // joint's fan-in (every member posted at the one dot; every LIT member's
+  // leader ends there) and the pointer on the joint's edges, both re-derived
+  // by rule after the slide re-author retired the names they read. Both specs
+  // moved to the new names.
+  browser: { declared: 821, enrollable: 788, names: "077f198fedb9" },
 };
 
 

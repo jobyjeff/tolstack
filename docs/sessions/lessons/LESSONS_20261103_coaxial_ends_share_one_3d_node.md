@@ -184,3 +184,50 @@ change touches, and the mutation runs for the specs it added.
 - **The origin fan has an owner now:**
   `docs/issues/ISSUE_20261103_the_spindle_joint_draws_its_fan_from_the_assembly_origin_at_the_as_modelled_frame.md`
   (`audience: strategy`, the two shots, three options).
+
+## Round 2 (2026-11-04): the slide re-author retired the names my checks read
+
+Merged onto `integration` (`0816cccf`), the leaders suite lost my two P2
+joint checks. `the_slide_joint_is_the_mounts_bushings_against_the_piston_body`
+re-authored the topology and the study after this branch was cut. Both checks
+picked their subjects by **name** or by **what the study lit**, and both of
+those are data:
+
+- **The leaving row** was `gas_spring_bushing_coaxiality`, which is gone
+  (renamed and re-ended). Now the joint is the run's first merged group, its
+  own edge is any hidden edge with both ends in it, and a leaving edge is any
+  drawn edge with one end in it. On P2 that gives 1 internal edge and 7
+  leaving ones. The pointer reached `pitch_plate_attach_height`'s grid row:
+  joint dot scale 1.8.
+- **The joint's own edge has no grid row on this page.** The grid rows only
+  the study's edges (`VA.gridPlan`'s focus), and the re-authored study leaves
+  the spindle coaxiality out. My round-1 "row" hover had in fact landed on
+  the edge's **DAG glyph**: `[data-row-kind="edge"][data-id]` matches the
+  DAG's bar and glyph as well as the row. The check now aims at the real row
+  (`.tv__hscroll tr.tvrow`) when there is one, and at the DAG bar when there
+  isn't. It says which it hit, and a leaving edge must be hit through its row.
+  Both post the same `highlight`.
+- **Fan-in.** A leader across the seam is drawn for the lit set only
+  (`VA.seamDots`, Jeff's rule), and the study now lights the plate's end of
+  the joint and not the hub's. So a two-leader fan can't appear on this page,
+  whatever is selected. The check is now: every member is posted in the
+  anchors message at the joint's one point, lit or not, and every lit member's
+  leader ends there. On P2: both members posted at the dot, and
+  `pitch_plate_spindle_bore_axis`'s leader ends on it to 0.0 px.
+- **A measuring trap:** `scrollIntoView` on a DAG dot scrolls the page as
+  well, which moves the scene's iframe. A dot read in one task can't be
+  compared with a point read after another scroll, so each member is compared
+  with the dot read in the same task.
+- **The two older trace checks** (`at 1600x1000, both screenshot rows'
+  leaders…`, `a re-lay of the DAG with a row selected…`) already encode the
+  unplaced-end rule: `with3d` leaves out an end with no anchor, so its leader
+  stops at the seam and the check doesn't expect one. They pass on this
+  merged tree with projections rebuilt from it. The reviewer's red on them was
+  measured against projections built from `211f2235`. I added a comment there
+  that states the rule, and changed no logic.
+- **Projections for the `[real]` tiers** were built from this merged tree
+  into `C:\workspace\tolstack\data\scratch\coaxial_ends_rework\` (copies of
+  `inbox` and `meshes`; the main checkout's projection predates the
+  re-author). A junction to the main checkout's inputs is refused by
+  dispatch's main-checkout edit guard, because its target names a tracked
+  path, so this root uses copies, as the reviewer's did.
