@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261103_coaxial_ends_share_one_3d_node.md
 reviewer: agent
 date: 2026-11-03
-verdict: REQUEST CHANGES (round 2)
-blockers: 1
+verdict: APPROVE (round 3)
+blockers: 0
 ---
 
 # Review 2026-11-03 — coaxial_ends_share_one_3d_node
@@ -244,3 +244,90 @@ checkout's projection predates the slide-joint re-author.
 The scratch root `data/scratch/review_coaxial_ends/` (projections built from
 `211f2235`) is left in place for the next round. Rebuild it after merging
 `integration` again, because `integration` has moved since (`0816cccf`).
+
+## Re-run 2026-11-04 (round 3) — APPROVE
+
+Rework: `ca8b98d1` (the joint's leader checks pick their subjects by rule) and
+`52ce3df5` (lesson and issue addenda), on top of the author's own merge of
+`integration` `0816cccf` (`1453a13b`). I merged the branch into the review
+branch as `03cc7e60`. The one conflict, the guard pins, I resolved to the
+branch's side, which already carries `0816cccf`. Re-measured on the merged
+tree: fast `633/633 9e395966ce0f`, annotate `280/280 33e447c665d1`, browser
+`821/788 077f198fedb9`, equal to the declared pins. `integration` has not
+moved since (`0816cccf` is in `HEAD`). I grepped for conflict markers: none.
+I rebuilt the projections from the merged tree into the scratch root
+`data/scratch/review_coaxial_ends/`.
+
+### Round-2 blocker: resolved
+
+- **Fan-in.** It is now two claims. First, every member of the joint is
+  posted at the joint's one point, lit or not. Second, every member the study
+  lights has a leader that ends there. On P2 both members were posted at the
+  dot, to 0.0 px, and the lit member (`pitch_plate_spindle_bore_axis`) has a
+  leader that ends on it. Narrowing the leader half to the lit set is correct,
+  not a weakening: `VA.seamDots` draws leaders for the lit set only, by
+  Jeff's rule, and the posted half still covers the merge for every member.
+- **Inside and leaving.** The joint is the run's first merged group. Its own
+  edge is any hidden edge with both ends in the joint, and a leaving edge is
+  any drawn edge with exactly one end in it. No names are used.
+  `hub_to_pitch_plate_spindle_coaxiality` has no grid row on this study, so
+  the pointer was on its DAG bar, which the check accepts and logs. That gave
+  scale 1.8. `pitch_plate_attach_height` was reached through its grid row (1
+  of 7 leaving edges), which the check requires for a leaving edge. That also
+  gave scale 1.8. The author's finding stands: the round-1 "row" hover had
+  landed on the DAG glyph, because `[data-row-kind="edge"]` matches the bar,
+  the glyph and the row.
+- **The two older trace checks** pass with only a comment added. Each hovered
+  or selected row shows two grid leaders and one 3D leg, the placed end's:
+  `pitch_plate_flange_to_link_hole` gives `3D pitch_plate_link_attach_bore`
+  and leaves `piston_rod_end_bore` at the seam;
+  `gas_spring_mount_flange_to_end_stop` gives `3D endstop_feather_contact`.
+  The re-lay gives "grid 2, 3D 1; back: grid 2, 3D 1". The rule "a leader to
+  an unplaced end stops at the seam" is what `with3d` already encodes, and
+  the new comment states it. My round-2 red on these two checks was measured
+  against an older `integration` tip, and I did not isolate it further.
+  Against `0816cccf` they are green.
+
+### Results (merged tree `03cc7e60`, scratch projections)
+
+| run | result |
+| --- | --- |
+| `apps/annotate/run_tests.cjs` | 280/280 |
+| `apps/viewer/run_tests.cjs --repo <scratch>` | 627/633: the same six reds `integration` has (`ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md`) |
+| full `pytest -q` | 1722 passed, 2 failed (the known worktree-only `test_viewer_js_suite` and `test_contact_suggestions` `[real]`), 500 s under browser contention |
+| browser `leaders across the seam` | 26/26 on the re-run. The first run was 25/26 on the flake below |
+| witness gate `--changed-since integration` | 30 WITNESSED, 29 left to the sweep (budget). Of the 5 NOT WITNESSED, 3 are fast-tier entries blinded by the six reds (as the author reported) and 1 is `nothing above produced an uncaught error` (the nav-chip red, as in rounds 1 and 2). The fifth is `a synthetic binding moves exactly one node…` ("another check reddened"), which was WITNESSED on its `--only` re-run |
+| witness `--only` `[real] the pointer on an edge inside the joint…` (#1, #2) | WITNESSED, WITNESSED |
+| witness `--only` `[real] on P2 every member of the joint is posted…` | WITNESSED on the third try. The first two clean runs were red on flakes elsewhere in the suite: the scene-tree pick check, then `...and at 1920x1080, after the window grew under them` |
+
+### A flake that predates this branch (filed)
+
+`a row the scene marks selected (a pick there) selects its element here…` was
+red in 2 of 5 runs on the merged tree, and in **1 of 4 runs on `integration`
+alone** (a detached `0816cccf` worktree, same scratch projections). So this
+branch did not cause it. I filed
+`ISSUE_20261104_the_scene_tree_pick_leaders_check_is_flaky.md` with the likely
+race. `drawnAfter` resolves on any draw after the post, not on a draw that
+carries the selection. This branch's added `scheduleSeamDraw()` on every scene
+hover message may raise the rate without causing the red.
+
+A doc-scan subset I re-ran before committing turned up one more
+`integration` red, which I filed as
+`ISSUE_20261104_a_lesson_screenshot_name_overflows_max_path_in_the_shadow_concurrency_test.md`.
+`test_mutation_witness_shadow_concurrency.py::test_two_different_repo_roots_both_still_succeed`
+failed when a copied path ran to 263 characters. The path comes from two
+lesson screenshots that `4c0b7c62` put on `integration`, plus pytest's temp
+directory. It passed in the full run earlier the same day.
+
+### Nits (not blocking)
+
+- `joint` is "the first group with two or more members". That is right while
+  P2 has one merged group. A second merged group would make the choice depend
+  on order. When one appears, pick the group by rule, for example one that has
+  a hidden edge and a drawn leaving edge.
+
+### Landing
+
+The inline-fix boundary was not needed: there are no reviewer edits to the
+diff. The only edits are this report, the overlay entry and the filed issue.
+Landed into `integration` by fast-forward from this review branch, and pushed.

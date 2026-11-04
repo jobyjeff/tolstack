@@ -5443,6 +5443,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       merged tree is red there, re-run the same tier from a
       `git archive integration` export against the same scratch root before
       you charge the reds to the diff.
+- [ ] **A browser witness that reports "the tier was red before the
+      mutation", or "another check reddened", may be measuring a flake, not a
+      decay.** New 2026-11-04 (`coaxial_ends_share_one_3d_node`, round 3). A
+      witness's clean run is one run of the whole suite, so any intermittent
+      sub-check in that suite can blind every entry in it. On that round the
+      gate reported a model-layer spec "another check reddened" and the
+      branch's own fan-in spec "red before the mutation". Each was WITNESSED on
+      a plain `--only` re-run. The red in the second case was
+      `a row the scene marks selected…`, which was red in 1 of 4 runs on
+      `integration` alone
+      (`ISSUE_20261104_the_scene_tree_pick_leaders_check_is_flaky.md`). So
+      re-run a not-witnessed browser entry with `--only` once, and read
+      **which** sub-check was red in its clean run, before you charge a decay
+      to the diff. If the same sub-check is red again, measure its rate on
+      `integration` alone, as the entry above says.
 
 ## Architectural errors to check
 
