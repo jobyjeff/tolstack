@@ -173,3 +173,19 @@ after the review.** It has no junctions, so a plain delete is safe.
   framing has stopped damping (`settledCamera` in the browser runner).
 - The mock contact fixture's faces are `planar`, so its rows read
   "face 1 · flat", not "face 1".
+
+## Verification record
+
+I ran everything from the handoff worktree, reading the main checkout's data
+(`--repo C:/workspace/tolstack`, or the `[real]` paths' main-checkout
+fallback). For the browser runs, `node_modules` was a junction to the main
+checkout's, and I removed it before hand-back. Every wall time was recorded
+with `dispatch suite-time record`.
+
+| tier | result | wall |
+|---|---|---:|
+| `node apps/annotate/run_tests.cjs` | 273/273, `[real]` 55/55 reach included | — |
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | 630/630, node-fs `[real]` tier run (the bare worktree run skips it by design: 514/514 + 1 tier skipped) | — |
+| `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs -p no:cacheprovider` (serial: no xdist in the venv) | 1686 passed, 1 skipped, 2 failed, 2 deselected. The failures: `test_viewer_js_suite` (the documented worktree red, covered by the row above) and one witness anchor that my nav change made ambiguous (`fast__the-scene-s-tree-under-the-study-row…`). I re-anchored it, and `tests/test_mutation_witnesses.py` is now 44/44. The skip is the pitch-link bearing re-extraction | 784 s, over the 10-min budget by 3m04s under shared load; appended to `ISSUE_20261022_the_default_test_tier_runs_past_its_ten_minute_budget.md` |
+| `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | 39/40. The one red is "3D pane follows the selection": the type-chips check this run, and a different set on each rerun. A `git archive integration` export without this change is red on the same suite (30/32). Appended to `ISSUE_20261029_four_3d_pane_nav_gesture_checks_fail_together_when_the_bodies_resolve_late.md`. The two suites this change touches, run alone: rail suggestion 19/19, sweep rail 24/24 | 1346 s |
+| `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack` | `38/50 witnessed, 50/57 reached in 30m32s; 7 left to the sweep`. All 12 NOT WITNESSED are entries of the "3D pane follows the selection" suite, red with no mutation applied (above). Every one of this handoff's 13 new specs, and the 3 it re-anchored, is WITNESSED. The one the budget cap left over was re-checked with `--only`: witnessed | 2684 s, including ~14 min of browser-slot queue; appended to `ISSUE_20261029_a_witness_gate_recorded_over_budget_counts_its_browser_slot_queue.md` |
