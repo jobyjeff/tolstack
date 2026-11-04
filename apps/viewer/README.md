@@ -399,7 +399,7 @@ has not been built.
   `geometry.features[]` name it, newest first by timestamp.
 - **A study row** opens the study's page (`views/kinematic.js`), the shape
   every study page has (2026-10-28, `the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances`):
-  **the model** and one contributor table in the main column, and the
+  **the model** and its stack (the grid beside it) in the main column, and the
   **results** at the top of the right-hand pane, above the selection's preview
   — the study's name, the verdict per stop (the chain studies' own verdict
   chip and words, its margin and the limit it is judged against, and `BUDGET`
@@ -424,20 +424,34 @@ has not been built.
   results' move, 2026-10-28), and **Fit** brings the lit set into the window.
   The toolbar's **Unused** toggle hides the unlit part instead (see "Studies"
   below).
-- **A contributor that is a study** (2026-10-26, `a_contributor_may_be_a_study`) is
-  one **group row** in the same table, collapsed until opened, and under it the
-  study's own terms as ordinary rows: each term's coefficient is the sweep's
-  sensitivity to the study's parameter times the term's own, folded by the
-  builder. The group's band is the study's own total, shown for reading and never
-  added; the DAG lights the terms' edges too.
-- **Rows reached from the page select in place.** A click on a contributor —
+- **The grid is the study's stack** (2026-11-03,
+  `the_kinematic_grid_is_a_stack_of_sub_stacks`). The grid beside the DAG is
+  the study's one contributor table, the same rows and columns a chain study's
+  grid has, at ONE stop at a time (**Grid at** in the results pane picks it;
+  the first stop by default). It reads as a stack: a **Linkage at this pose**
+  header over the direct terms, then **Stop position** over one sub-stack per
+  sub-study at that stop — an authored chain, or a declared gap (dashed, "not
+  yet authored", no total). A sub-stack's header carries its own total in its
+  own units and what it contributes here (`±0.82 mm → ±1.417 deg at the −7 deg
+  stop`); one with more than three terms is folded until opened (▸/▾), and the
+  reader's choice is remembered per study. The DAG's dashed field for the same
+  sub-study opens and closes with it. Rows follow the chain, not the reach:
+  `VA.kinematicStackOrder` is the one ordering rule, and the DAG's lit band is
+  drawn in the same order, so two adjacent rows are two connected edges and
+  every leader lands on its own row. **SENSITIVITY** (the signed coefficient
+  at that stop, deg/mm; a chain row's ratio) sits before **CONTRIBUTION** (±
+  deg). Each row wears its rigid body's tint — the DAG container's — with a
+  hairline inside a body and a heavier rule between bodies and sub-stacks, and
+  a legend under the grid says what each sourcing chip means. The stop's own
+  fold and its verdict are the grid's foot.
+- **Rows reached from the page select in place.** A click on a term row —
   or on anything in the DAG — selects that edge here: the page stays the
   study, the DAG marks the edge, and the preview pane shows its citation and
-  crop. Where a contributor has no value of its own and borrows its band from
-  another edge, the pane names that edge as **band in this study**, one click
-  from its citation. The row's `href` is still the edge's own
-  `?topology=…&edge=…` link, for a reader who opens it in a new tab, and
-  `?kinematic=…&edge=…` opens the study with the edge already selected.
+  crop (and its 3D attach, where the part has a mesh). Where a contributor has
+  no value of its own and borrows its band from another edge, the pane names
+  that edge as **band in this study**, one click from its citation, and the
+  row's sourcing chip is that band's. `?kinematic=…&edge=…` opens the study
+  with the edge already selected.
 - **The envelope chart** is drawn live from `envelope[]` as inline SVG, in the
   `:root` type and colour tokens. x is the sweep's driver; y is the
   **deviation from nominal**, on an axis symmetric about zero that always
@@ -462,25 +476,10 @@ has not been built.
   plot reads the nearest sweep point: the driver, the measure there, ± worst
   case, ± RSS, each with its unit. The SVG the builder writes beside the JSON
   is its evidence file and is not embedded.
-- **One contributor table, a contributor said once.** The same features are
-  the contributors at every blade angle; what the sweep changes is their
-  coefficients. So a row is one contributor — the topology's own edge name
-  (its id on hover) with its zone after it — and a **column group per stop**
-  carries that stop's sign, coefficient and magnitude, under a group header
-  with the stop's name and its summary line (the measure there, ± worst case,
-  ± RSS). The band, the confidence and the 3D control follow. Rows are
-  ordered by the larger of their stop magnitudes; a row with no band sorts
-  last. Every number is at the precision the projection states
-  (`display_decimals`, set in Python), with every unit in a column header. A
-  cell with no effect at that stop is muted. The contributor's name stays
-  pinned at the left when the table scrolls sideways, which it does beside the
-  preview pane on a narrow window. Where the edge's part has a mesh, a quiet
-  **3D** control opens it in the 3D panel (or the annotator in a new tab,
-  where the panel cannot be served).
-- **A coefficient's hover is its curve across the sweep**: the signed
+- **A sensitivity's hover is its curve across the sweep**: the signed
   coefficient at every sweep point (the projection's
   `contributors[].by_point[]`) against the driver, zero drawn, the stops
-  marked and this cell's stop emphasized — so a coefficient that changes sign
+  marked and the grid's stop emphasized — so a coefficient that changes sign
   between the stops is visible rather than a sentence somewhere. It opens as
   the page's one hover card (kind `curve`), which no table scroll box can
   clip.
