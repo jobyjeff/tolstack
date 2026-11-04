@@ -117,3 +117,26 @@ It holds no junctions. I left it for its owner or for triage, because it is
 another session's output. I removed my own `data/scratch/review_candidate_list/`
 before finishing (its junctions first, with `rmdir`), and the worktree's
 `node_modules` junction.
+
+## Landing: `integration` moved during the review
+
+When I came to fast-forward, `integration` had moved to `dde0ecd6`
+(`each_stop_is_its_own_stack` approved and landed). I merged it into the
+review branch. Two conflicts, both resolved:
+
+- `docs/issues/ISSUE_20261029_four_3d_pane_nav_gesture_checks…md`: two dated
+  addenda, mine and each_stop's. I kept both.
+- `scripts/guard_enumeration.mjs`: `DECLARED_GUARDS` `fast` and `browser`.
+  each_stop swapped eight fast guards (count unchanged at 629) and renamed two
+  browser guards (793/760). This handoff adds +1 fast and +8 browser. The
+  resolution keeps both comment blocks and pins `fast 630/630` and
+  `browser 801/768`, with the name digests recomputed from the merged tree
+  (`5a17e779acfd`, `35a2f9e55371`). `annotate` is untouched by integration
+  (273). `tests/test_mutation_witnesses.py`: 44 passed.
+
+Re-run after that merge: annotate fast tier 273/273, viewer fast tier
+514/514 (worktree, node-fs `[real]` tier skipped), and a pytest subset of
+427 passed (vocab ×2, feature_identity, viewer readme/deep-link,
+app_type_scale, tolerance_stack, provenance, claims_registry,
+architecture_inventory, topology_projection). The scratch-root `[real]`, browser and
+witness runs above were measured before each_stop arrived, on `38eecafe`.

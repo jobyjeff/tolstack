@@ -80,3 +80,8 @@ the mutation)`. That includes guards that have nothing to do with topology
 (the review's `--changed-since integration` run: `fast__a-joint-end-with-a-candidate-list-mirrors-as-a-row-with__d442f0db`
 and three neighbours). The gate cannot prove any viewer fast guard until this
 issue is fixed.
+
+**Measured at `integration` = `d9eb2196`.** `each_stop_is_its_own_stack` landed
+on `integration` after that, bringing layout pins and witness changes for the
+piston body's chain. Before acting on this issue, re-measure on the current
+tip with a fresh scratch-root build. Some of the six may already be closed.

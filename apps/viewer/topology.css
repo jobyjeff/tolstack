@@ -1622,6 +1622,10 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 }
 .kmreadouts td { padding: 3px 10px 3px 0; vertical-align: baseline; }
 .kmreadouts .num, .kmreadouts .kmreadouts__numhead { text-align: right; }
+/* What a stop's worst case is made of, under its row: muted, one line, the
+   row above it tight against it. The range row is set off by space alone. */
+.kmreadouts__says td { padding-top: 0; font-size: var(--t-meta); }
+.kmreadouts__range td { padding-top: 8px; }
 
 /* The envelope chart. The SVG keeps its own pixel size up to the column's
    width and scales DOWN only, so its text lands at the token sizes below
@@ -1636,17 +1640,15 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
    (docs/DESIGN_TYPE_AND_COLOUR.md), and a band is data at rest. */
 .kmchart__worst { fill: var(--ink); fill-opacity: 0.1; }
 .kmchart__rss { fill: var(--ink); fill-opacity: 0.22; }
-/* A stop's travel band: on x, the same two fills at a lower alpha; across
-   it, the envelope carried on the stop's slope at the envelope's own. */
-.kmchart__band--worst { fill: var(--ink); fill-opacity: 0.05; }
-.kmchart__band--rss { fill: var(--ink); fill-opacity: 0.08; }
-/* Outlined: on a product-length axis the band is a few pixels wide, and
-   its slope is the point of drawing it. */
-.kmchart__region--worst { fill: var(--ink); fill-opacity: 0.1; stroke: var(--ink); stroke-opacity: 0.45; }
-.kmchart__region--rss { fill: var(--ink); fill-opacity: 0.22; stroke: var(--ink); stroke-opacity: 0.3; }
-.kmchart__bandlabel { fill: var(--muted); font-size: var(--t-micro); }
+/* A stop: a point at its nominal x with its worst-case bar thin and its RSS
+   bar heavier over it, in ink; the reach bound's tick dashed like a limit. */
+.kmchart__bar { stroke: var(--ink); }
+.kmchart__bar--worst, .kmchart__bar--cap { stroke-width: 1.5; }
+.kmchart__bar--rss { stroke-width: 5; stroke-opacity: 0.6; }
+.kmchart__barpoint { fill: var(--ink); }
+.kmchart__bound { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 2; opacity: 0.7; }
+.kmchart__barlabel { fill: var(--ink); font-size: var(--t-micro); }
 .kmchart__note { margin: 0 0 12px; font-size: var(--t-meta); }
-.kmchart__notelink { color: inherit; }
 .kmchart__zero { stroke: var(--ink); stroke-width: 1.5; }
 .kmchart__limit { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 6 4; opacity: 0.7; }
 .kmchart__limitlabel { fill: var(--muted); font-size: var(--t-micro); }
