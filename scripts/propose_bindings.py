@@ -171,17 +171,21 @@ def check(proposal: Proposal, ctx: Context, planned: Sequence[fi.FeatureIdentity
     if face is None:
         raise Refused("unknown_sha", f"mesh {proposal.sha256[:12]} has no face {proposal.face_id}")
 
+    # A declared face names the one part it is on; otherwise any part the
+    # interface names will do.
+    end_parts = [node.face_part] if node.face else list(node.parts or [])
     meshes_for_end = {m["sha256"] for m in (btp.resolve_mesh(ctx.meshes, part, ctx.aliases)
-                                            for part in (node.parts or [])) if m}
+                                            for part in end_parts) if m}
     if proposal.sha256 not in meshes_for_end:
         raise Refused("wrong_part", f"face {proposal.face_id} is on mesh {proposal.sha256[:12]}, and "
-                      f"{node_id!r} is an interface of {list(node.parts or [])}")
+                      f"{node_id!r}'s face is on {end_parts}")
 
     surface = ctx.surface_class(proposal.sha256, proposal.face_id)
-    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id)
+    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id, node.face_surface)
     if rule and surface != rule["surface"]:
+        why = f"the word {rule['word']!r}" if rule["word"] else "its declared face"
         raise Refused("wrong_shape", f"{node_id!r} asks for a {rule['surface']} face "
-                      f"(the word {rule['word']!r}), and face {proposal.face_id} is {surface}")
+                      f"({why}), and face {proposal.face_id} is {surface}")
 
     key = fi.StackKey(kind="topology_edge", topology_id=proposal.topology, edge_id=proposal.edge)
     record = ctx.projection.for_stack_key(key)

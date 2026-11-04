@@ -2331,3 +2331,120 @@ def test_which_body_an_element_is_in_on_the_product_model():
         topology.joint_nodes("pitch_link"))
     # Every body meets another somewhere: the model is one component.
     assert all(topology.joint_nodes(b.id) for b in topology.bodies)
+
+
+# --------------------------------------------------------------------------- #
+# the pitch plate's slide is the mount's bushings on the piston body, and an   #
+# end may declare which face it is (2026-11-03,                                #
+# the_slide_joint_is_the_mounts_bushings_against_the_piston_body)              #
+# --------------------------------------------------------------------------- #
+
+from tolerance_stack import feature_geometry as fg  # noqa: E402
+from tolerance_stack.topology import NODE_FACE_FIELDS  # noqa: E402
+
+
+def test_the_pitch_plate_slide_is_the_mounts_bushings_on_the_piston_body():
+    """Jeff, 2026-11-03: the slide's two surfaces are the gas-spring mount's
+    bushings (GR04WB328AT11) and the piston body's OD -- not the hub spindle."""
+    topology = load_topology(LINKAGE_TOPOLOGY)
+    edge = topology.edge("pitch_plate_slide_bushings_to_piston_body")
+    assert (edge.kind, edge.interface) == ("gap", "cylindrical_slide")
+    assert (edge.from_node, edge.to_node) == ("gas_spring_mount_bushing_bore",
+                                              "gas_spring_piston_body_od")
+    bushing = topology.node(edge.from_node)
+    assert bushing.parts == ("gas_spring_mount_213668_002",)
+    assert bushing.hardware_ref == "GR04WB328AT11"
+    assert bushing.face == {"part": "gas_spring_mount_213668_002", "surface": "cylindrical"}
+    piston = topology.node(edge.to_node)
+    assert piston.parts == ("gas_spring_piston_214700_002",)
+    assert piston.face == {"part": "gas_spring_piston_214700_002", "surface": "cylindrical"}
+    # The two ends sit on ground and on the plate's rigid body.
+    assert topology.body_of("gas_spring_mount_213668_002").id == "base"
+    assert topology.body_of("gas_spring_piston_214700_002").id == "pitch_plate"
+    # The joint Jeff said does not exist is gone, and no study selects it (the
+    # topology's own notes keep its id as history).
+    assert "gas_spring_bushing_coaxiality" not in {e.id for e in topology.edges}
+    stale = [p.name for p in TOPOLOGIES_DIR.glob("*study_*.json")
+             if "gas_spring_bushing_coaxiality" in p.read_text(encoding="utf-8")]
+    assert stale == []
+
+
+def test_the_hub_node_says_one_thing_and_keeps_its_edges():
+    topology = load_topology(LINKAGE_TOPOLOGY)
+    hub = topology.node("hub_spindle_bore_axis")
+    assert hub.name == "hub spindle bore axis"
+    assert hub.parts == ("hub",)
+    coaxial = topology.edge("hub_to_pitch_plate_spindle_coaxiality")
+    assert (coaxial.from_node, coaxial.to_node) == ("hub_spindle_bore_axis",
+                                                    "pitch_plate_spindle_bore_axis")
+    assert {e.id for e in topology.incident("hub_spindle_bore_axis")} == {
+        "hub_blade_axis_offset", "hub_to_pitch_plate_spindle_coaxiality",
+        "hub_spindle_to_gas_spring_mount_face", "hub_spindle_to_tan_link_mount_face"}
+
+
+def test_the_pitch_plate_end_declares_its_face_is_the_plates_boss():
+    """Jeff, 2026-11-03: the plate's tabs make a broken 41.04 boss that pilots
+    into the piston's 41.072 ID -- the face is on the plate, and cylindrical,
+    though the node's name no longer carries a word that says so."""
+    topology = load_topology(LINKAGE_TOPOLOGY)
+    plate = topology.node("pitch_plate_spindle_bore_axis")
+    assert plate.face == {"part": "pitch_plate_215177_001", "surface": "cylindrical"}
+    assert fg.required_surface_class(plate.name) is None
+    pilot = topology.node("pitch_plate_pilot_in_piston_id")
+    assert pilot.parts == ("pitch_plate_215177_001", "gas_spring_piston_214700_002")
+    assert pilot.face["part"] == "pitch_plate_215177_001"
+    link = topology.edge("piston_body_id_datum_to_od")
+    assert (link.kind, link.part) == ("structural", "gas_spring_piston_214700_002")
+    assert (link.from_node, link.to_node) == ("pitch_plate_pilot_in_piston_id",
+                                              "gas_spring_piston_body_od")
+
+
+def test_a_declared_face_answers_before_the_name_and_names_one_of_the_nodes_parts():
+    assert NODE_FACE_FIELDS == ("part", "surface")
+    node = Node(id="n", name="something with no shape word", parts=("a", "b"),
+                face={"part": "b", "surface": "planar"})
+    assert (node.face_part, node.face_surface) == ("b", "planar")
+    undeclared = Node(id="m", name="a bore", parts=("a", "b"))
+    assert (undeclared.face_part, undeclared.face_surface) == ("a", None)
+    assert fg.end_surface_class("a bore", "a bore", "planar")["surface"] == "planar"
+    assert fg.end_surface_class("a bore", "a bore", "planar")["where"] == "declared"
+    assert fg.end_surface_class("a bore", "a bore")["surface"] == "cylindrical"
+    with pytest.raises(TopologyError, match="not one of the interface's parts"):
+        Node(id="n", name="n", parts=("a",), kind="datum_feature",
+             face={"part": "c", "surface": "planar"})
+    with pytest.raises(TopologyError, match="face surface must be one of"):
+        Node(id="n", name="n", parts=("a",), kind="datum_feature",
+             face={"part": "a", "surface": "other"})
+    with pytest.raises(TopologyError, match="face must carry exactly"):
+        Node(id="n", name="n", parts=("a",), kind="datum_feature", face={"part": "a"})
+
+
+def test_every_node_hardware_ref_resolves_to_a_hardware_entry():
+    """The SOP's Step 4 convention, held for topology nodes as for stack elements."""
+    entries = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    ids = {e["id"] for e in entries["entries"]}
+    refs = {(path.name, node.id, node.hardware_ref)
+            for path in sorted(TOPOLOGIES_DIR.glob("topology_*.json"))
+            for node in load_topology(path).nodes if node.hardware_ref}
+    assert refs, "no node carries a hardware_ref -- the guard would be vacuous"
+    assert [r for r in refs if r[2] not in ids] == []
+
+
+def test_the_contact_builder_and_the_proposer_read_a_declared_face():
+    """Both ask the node, not its first-named part or its words."""
+    import sys
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import build_contact_suggestions as bcs
+
+    class Store:
+        provenance: dict = {}
+
+        def resolve(self, part):
+            return {"sha256": "s-" + part, "part_id": part}
+
+    topology = load_topology(LINKAGE_TOPOLOGY)
+    edge = topology.edge("hub_to_pitch_plate_spindle_coaxiality")
+    end = bcs._end(topology, edge, "pitch_plate_spindle_bore_axis", Store())
+    assert (end["part"], end["asks"]) == ("pitch_plate_215177_001", "cylindrical")
+    source = (REPO_ROOT / "scripts" / "propose_bindings.py").read_text(encoding="utf-8")
+    assert "node.face_surface" in source and "node.face_part" in source

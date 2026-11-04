@@ -1413,13 +1413,14 @@ def test_a_topology_with_no_bodies_walks_exactly_as_before(topologies):
 def test_the_product_models_crossings_and_width_are_pinned():
     """The merged model's layout: 122 crossings on 18 columns before the
     2026-10-26 body-major walk, 109 (16/43/50) on 11 after it, and since the
-    four fastener stacks joined (2026-10-27) the numbers below: the stacks add
-    rail rows, not width. The README's ``layout_crossings`` claim declares the
+    four fastener stacks joined (2026-10-27) 16/81/62: the stacks add rail
+    rows, not width. The 2026-11-03 slide re-author (the joint moved off the
+    hub onto the mount's bushings and the piston body) gave the numbers below. The README's ``layout_crossings`` claim declares the
     same three and the claims registry re-derives them."""
     topology = load_topology(TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json")
     layout = B.serialize_topology(topology)
     counts = B.layout_crossings(layout)
-    assert counts == {"branch": 16, "close": 81, "leader": 62}
+    assert counts == {"branch": 16, "close": 68, "leader": 52}
     assert layout.columns == 11
     assert layout.column_order == "shortest_first"
 
