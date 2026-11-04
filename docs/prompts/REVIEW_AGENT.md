@@ -5385,6 +5385,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       inside the `page.evaluate` whose rAF loop samples (`catchFrame(selector)`,
       `caughtMidFlight`). A new in-flight check written the old way is that
       race again.
+- [ ] **A diff that MERGES or DROPS scene elements re-maps some of the
+      channels that address them by id, not all.** New 2026-11-03
+      (`REVIEW_20261103_coaxial_ends_share_one_3d_node`): joint members were
+      re-mapped for selection, focus, the lit set and the anchors message
+      (`dotOf`, `members`), but `model.emphasis` — the edge id a grid row's
+      hover posts as `highlight` — still resolves only through `model.lines`,
+      so the joint's own internal edge row lights nothing in 3D. List every
+      inbound channel (`setModelStyle`'s `nodes`/`emphasis`, `setModelSelection`,
+      `_focus`, `highlight`, `modelScreenPoints`) and ask of each what it does
+      with a merged or dropped id.
 
 ## Architectural errors to check
 
