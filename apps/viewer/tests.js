@@ -7059,6 +7059,36 @@
         ok(nothingLit(root));
       });
 
+    await test("the scene's pointer on a joint lights every node it stands for here " +
+      "-- their dots and their rows -- and the pane's own pointer wins", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var dots = all(root, "circle.rail__dot").filter(function (dot) {
+          return !hasClass(dot, "rail__dot--branch");
+        });
+        var a = dots[1], b = dots[2];
+        var ids = [a.getAttribute("data-id"), b.getAttribute("data-id")];
+        // Each dot hovered alone, for what the two together must light.
+        var alone = ids.map(function (id, i) {
+          (i ? b : a).onmouseenter({});
+          var lit = litState(root);
+          (i ? b : a).onmouseleave({});
+          return lit;
+        });
+        eq(VA.lightTopoKeys(ids.map(function (id) { return "node|" + id; })), 2);
+        var both = litState(root);
+        eq(both.leadDots.slice().sort(), alone[0].leadDots.concat(alone[1].leadDots).sort(),
+          "both members' dots lead");
+        var rows = {};
+        alone[0].leadRows.concat(alone[1].leadRows).forEach(function (id) { rows[id] = true; });
+        eq(both.leadRows.slice().sort(), Object.keys(rows).sort(), "and every row meeting either");
+        // The pane's pointer arrives: it owns the state, and the scene's word waits.
+        a.onmouseenter({});
+        eq(VA.lightTopoKeys(["node|" + ids[1]]), 0, "the pane's own hover is not overridden");
+        a.onmouseleave({});
+        VA.lightTopoKeys(null);
+        ok(nothingLit(root), "the scene's pointer leaving clears it");
+      });
+
     await test("hover emphasis is keyed by element, so it survives the " +
       "respine's column renumbering", function () {
         // The one trap this whole mechanism was written around: the drawn
@@ -12580,6 +12610,11 @@
         eq([states[edge.from], states[other]], ["", S[1]], "hover is the lighter emphasis");
         states = VA.seamLeaderStates(ids, null, "edge|" + edge.id, index);
         eq([states[edge.from], states[edge.to], states[other]], [S[1], S[1], ""]);
+        // A joint's one 3D dot (coaxial_ends_share_one_3d_node) stands for
+        // several nodes: the scene's hover is a LIST, and lights each one.
+        states = VA.seamLeaderStates(ids, null, ["node|" + edge.from, "node|" + other], index);
+        eq([states[edge.from], states[edge.to], states[other]], [S[1], "", S[1]],
+          "a joint's members all light");
         // The DAG↔grid leaders read the same rule.
         var study = topoStudy("demo_base_to_tip");
         var picked = study.selection.map(function (id) { return index.edges[id]; })

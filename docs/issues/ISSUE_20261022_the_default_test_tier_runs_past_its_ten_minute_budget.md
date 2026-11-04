@@ -78,6 +78,17 @@ candidates for a merge-only tier.
 
 Measured 601 s (budget 600 s, over by 1 s) for plain `pytest -q` in a worktree, single-process: this venv has no xdist, so `-n 16 --dist loadfile` is rejected as an unrecognised argument.
 
+## Addendum 2026-11-03 (coaxial_ends_share_one_3d_node)
+
+Measured 1192 s against a 600 s budget, so 9m52s over. Command: plain
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`, run in a
+worktree, single-process (still no xdist). Result: `1 failed, 1687 passed,
+1 skipped, 2 deselected`, and the one failure is the worktree-only
+`test_viewer_js_suite`. The box was not idle: this session's own browser runs
+had just finished, and other agents were live. So treat the doubling over
+11-02 as contention until a quiet re-measure says otherwise. I took no
+`--durations` this run.
+
 ## Addendum 2026-11-03 (review of the_slide_joint_is_the_mounts_bushings_against_the_piston_body)
 
 Measured 1289 s (budget 600 s, over by 11m29s) for

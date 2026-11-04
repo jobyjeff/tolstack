@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
+  "expect_red": "[real] on P2 every member of the joint is posted at the ONE 3D dot, and every member the study lights has a leader ending there",
+  "mutations": [
+    {
+      "contract": "Every member of a joint is posted at the joint's one point.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Posting only the joint's own id leaves the other member with no leader.",
+      "file": "apps/annotate/scene.js",
+      "find": "      for (const m of dot.userData.members) out[m] = at ? at.slice() : null;",
+      "replace": "      out[dot.userData.members[0]] = at;"
+    }
+  ]
+}

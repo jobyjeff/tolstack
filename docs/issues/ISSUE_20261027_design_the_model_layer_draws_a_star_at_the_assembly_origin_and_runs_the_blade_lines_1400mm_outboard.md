@@ -1,14 +1,14 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: design
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_the_model_is_drawn_in_the_scene.md
 class: unreviewed_design_debt
 defer_until: 2026-11-26
-resolution: deferred 2026-10-27 (triage) -- low by default; strategy 2026-11-03: routed to HANDOFF_20261103_coaxial_ends_share_one_3d_node
+resolution: deferred 2026-10-27 (triage) -- low by default; strategy 2026-11-03: routed to HANDOFF_20261103_coaxial_ends_share_one_3d_node; resolved 2026-11-03 by that handoff -- item 1 by option (a) taken further (no dot and no line for an unplaced node, counted on the head line), item 2 left as is and recorded
 handoff: docs/sessions/HANDOFF_20261103_coaxial_ends_share_one_3d_node.md
 ---
 
@@ -44,3 +44,19 @@ cap for item 2.
   points (for the blade, the root end).
 - (c) Let the topology author override a part's anchor region the same way
   `anchor_bias` is authored.
+
+## Resolution (2026-11-03, `coaxial_ends_share_one_3d_node`)
+
+1. **The star is gone.** A node with no anchor geometry now draws no dot and
+   no line; the bar's head line says "15 nodes not placed" on P2 (the
+   fastener stacks added eight to the seven listed above), with the names on
+   hover. Before/after:
+   `docs/sessions/shots_20261103_coaxial_ends/{before,after}/`. What remains
+   at the origin at the as-modelled frame is the **spindle joint** -- the hub
+   and pitch-plate spindle bores, merged into one node at the solver's slide
+   axis -- which is a real joint and sits there honestly (at -7 deg it is
+   32 mm up the axis).
+2. **The blade's anchors stay mid-span.** Option (b) -- bounding the section
+   search to a window round the body's joint points -- is a change to how
+   every section anchor is cut, not a cheap add-on, and nothing on the blade
+   has a feature to merge on. Left as is; the lesson records it.

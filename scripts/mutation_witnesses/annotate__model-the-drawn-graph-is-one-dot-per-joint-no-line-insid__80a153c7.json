@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: the drawn graph is one dot per joint, no line inside a joint, lines out of it renamed to it, and no unplaced node",
+  "mutations": [
+    {
+      "contract": "An edge inside a joint has no length in 3D and is not drawn.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Without the clause the coaxiality is drawn as a line from the joint to itself.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (from === to) { hidden.push(id); return; }",
+      "replace": ""
+    },
+    {
+      "contract": "A line touching a joint is a world line.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "A joint's first member keeps its id, so a renaming test misses it and the line stays in one body's frame.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      var joined = !!(of[line.from] || of[line.to]);",
+      "replace": "      var joined = from !== line.from || to !== line.to;"
+    }
+  ]
+}

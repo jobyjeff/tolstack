@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: a bound round face is a feature in the assembly frame; a flat face is none",
+  "mutations": [
+    {
+      "contract": "A bore's axis is turned by its placement.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "An axis left in the part's own frame is the wrong direction in the assembly.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      var axis = vunit([p[0] * a[0] + p[1] * a[1] + p[2] * a[2],",
+      "replace": "      var axis = vunit([a[0], a[1], a[2]]); var unturned = ([p[0] * a[0] + p[1] * a[1] + p[2] * a[2],"
+    }
+  ]
+}

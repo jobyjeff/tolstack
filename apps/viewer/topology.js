@@ -3991,14 +3991,18 @@
   // The dot a leader ends in on the scene, in CSS pixels: a picture, like
   // VA.INTERFACE_GLYPH_PX, not a type step.
   VA.SEAM_END_RADIUS = 2.5;
+  //
+  // `hotKey` may also be a LIST of keys: the scene's pointer on a joint's one
+  // dot (coaxial_ends_share_one_3d_node) stands for every node the joint
+  // merged, and lights each one's leader.
   VA.seamLeaderStates = function (ids, selection, hotKey, index) {
     var selected = VA.selectedLeaderNodes(selection, index);
     var hot = {};
-    if (hotKey) {
-      var cut = hotKey.indexOf("|");
-      hot = VA.selectedLeaderNodes({ kind: hotKey.slice(0, cut), id: hotKey.slice(cut + 1) },
-        index);
-    }
+    (Array.isArray(hotKey) ? hotKey : (hotKey ? [hotKey] : [])).forEach(function (key) {
+      var cut = key.indexOf("|");
+      var lit = VA.selectedLeaderNodes({ kind: key.slice(0, cut), id: key.slice(cut + 1) }, index);
+      Object.keys(lit).forEach(function (id) { hot[id] = true; });
+    });
     var out = {};
     (ids || []).forEach(function (id) {
       out[id] = selected[id] ? VA.SEAM_LEADER_STATES[0]

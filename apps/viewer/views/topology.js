@@ -357,6 +357,11 @@
     // The page's own listener for the leaders across the seam, which light
     // with whatever the pointer lights here (topology_app.js).
     hot.onChange = ctx.onHot || null;
+    // ...and the way back: the scene's pointer lights marks here
+    // (VA.lightTopoKeys). The LAST render's: the pane renders one view at a
+    // time, so a scene hover lights that one; were it ever to render twice,
+    // this would point at whichever rendered last.
+    VA.lastTopoHot = hot;
     // The containers the reader has switched on (VA.GROUP_KINDS), every one
     // where nothing was chosen. With the unlit part HIDDEN the walk IS the
     // selected study's band, so its group is the only one left.
@@ -1532,6 +1537,35 @@
       light(entry, [entry.hot, entry.lead].filter(Boolean).join(" "));
     });
   }
+
+  // The scene's pointer, lighting this pane (coaxial_ends_share_one_3d_node):
+  // every key's line and lead marks at once -- a joint's one 3D dot stands
+  // for several nodes -- or none. The pane's own pointer wins: while it holds
+  // the state this does nothing, and it tells no listener (the scene is
+  // where the pointer is). Returns how many keys it lit.
+  VA.lightTopoKeys = function (keys) {
+    var hot = VA.lastTopoHot;
+    if (!hot || hot.on) return 0;
+    while (hot.marked.length) {
+      var was = hot.marked.pop();
+      was.el.setAttribute("class", was.base);
+    }
+    var list = keys || [];
+    var light = function (entry, extra) {
+      entry.el.setAttribute("class", entry.base + " " + extra);
+      hot.marked.push(entry);
+    };
+    list.forEach(function (key) {
+      var railId = hot.railOf[key];
+      (railId ? hot.rail[railId] || [] : []).forEach(function (entry) { light(entry, entry.hot); });
+    });
+    list.forEach(function (key) {
+      (hot.lead[key] || []).forEach(function (entry) {
+        light(entry, [entry.hot, entry.lead].filter(Boolean).join(" "));
+      });
+    });
+    return list.length;
+  };
 
   // Hover and keyboard focus drive the same state, and leaving clears it only
   // if this element is still the one holding it: moving the pointer from a bar

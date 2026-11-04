@@ -2034,6 +2034,7 @@ function renderSweepBar() {
   who.textContent = AA.sweepSummaryParts(sweep.artifact,
     { mechanism: !picking }).join(" · ");
   summary.appendChild(who);
+  summary.appendChild(modelUnplacedSpan());
   if (sweep.artifact.notConverged) who.classList.add("an__sweep-summary--warn");
   if (folded) {
     const figures = document.createElement("span");
@@ -2056,6 +2057,7 @@ function renderSweepBar() {
     window.SweepExport.renderControl(summary, sweepExportSource);
   }
   el.detail.appendChild(summary);
+  paintModelUnplaced();
 
   if (folded) {
     el.detail.appendChild(buildSweepGate());
@@ -4026,7 +4028,11 @@ async function modelPartInfo(topology, partId, bias, occurrences, sweep) {
 // anchors), or -- for the hollow markers beside them -- the open `proposals`,
 // which never move an anchor. One reader, so a proposed point is where the
 // node WOULD sit once accepted, by the same fit and the same occurrence.
-async function modelBoundPoints(topology, parts, occurrences, list) {
+//
+// `features`, when given, is filled with each bound node's round-face feature
+// (AA.modelBoundFeature: a bore's axis, a ball's centre) -- what decides which
+// ends are one joint. A flat face anchors a point and is no feature.
+async function modelBoundPoints(topology, parts, occurrences, list, features) {
   const which = list || "bindings";
   const identity = mergedIdentityProjection();
   const homes = AA.modelNodeHomes(topology);
@@ -4051,6 +4057,8 @@ async function modelBoundPoints(topology, parts, occurrences, list) {
       const placement = home.sha256 === sha ? home.placement
         : (((occurrences.byMesh[sha] || [])[0] || {}).placement || null);
       out[node.id] = AA.applyPlacement(placement || AA.IDENTITY_PLACEMENT, local);
+      const feature = features ? AA.modelBoundFeature(face, placement) : null;
+      if (feature) features[node.id] = feature;
     }
   }
   return out;
@@ -4067,6 +4075,7 @@ async function buildModel() {
   if (!state.scene || !modelOn() || !topology || !(topology.nodes || []).length) {
     model.built = null;
     if (state.scene) state.scene.setModel(null);
+    paintModelUnplaced();
     postModelAnchors(true);
     return null;
   }
@@ -4079,24 +4088,41 @@ async function buildModel() {
     parts[part.id] = await modelPartInfo(topology, part.id, bias, occurrences, sweep);
     if (generation !== model.generation) return null;
   }
-  const bound = await modelBoundPoints(topology, parts, occurrences);
+  const boundFeatures = {};
+  const bound = await modelBoundPoints(topology, parts, occurrences, "bindings", boundFeatures);
   if (generation !== model.generation || state.sweep !== sweep) return null;
   const anchors = AA.modelAnchors({ topology, bias, parts, bound,
     linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {} });
-  const lines = AA.modelEdgeLines(topology, anchors);
+  // A joint is one node (coaxial_ends_share_one_3d_node): the solver's own
+  // features win over a binding's, as its joint point wins the anchor.
+  const features = Object.assign({}, boundFeatures, sweep ? AA.modelSolverFeatures(sweep.artifact) : {});
+  const joints = AA.modelJointGroups(topology, features);
+  const graph = AA.modelDrawnGraph(topology, anchors, joints);
+  const lines = graph.lines;
   const proposedPoints = await modelBoundPoints(topology, parts, occurrences, "proposals");
   if (generation !== model.generation || state.sweep !== sweep) return null;
   const proposed = AA.modelProposedAnchors(anchors, proposedPoints);
   // `bodies`: whether the run's anchoring had resolved when this was built --
   // before it, a moving part's anchor sits on its first recorded occurrence.
-  model.built = { topologyId: topology.id, bias, parts, anchors, lines, proposed,
+  model.built = { topologyId: topology.id, bias, parts, anchors, lines, proposed, features, joints,
+    hidden: graph.hidden, unplaced: graph.unplaced,
     runId: sweep ? sweep.artifact.runId : null, bodies: !!(sweep && sweep.bodies.length) };
+  // One dot per drawn node: a joint's in world (its ends may ride different
+  // bodies), at its as-modelled point until the first frame places it.
+  const jointAt = AA.modelJointWorldPoints(joints, features, anchors, null);
   const nodes = {};
-  for (const [id, a] of Object.entries(anchors)) {
-    nodes[id] = { source: a.source, subject: a.subject, point: a.point,
-      exported: a.source !== AA.MODEL_ANCHOR_SOURCES[3] };
+  for (const [id, dot] of Object.entries(graph.dots)) {
+    if (dot.members) {
+      const first = features[dot.members[0]];
+      nodes[id] = { source: first && first.from === "solver" ? AA.MODEL_ANCHOR_SOURCES[0] : AA.MODEL_ANCHOR_SOURCES[1],
+        subject: null, point: jointAt[id], exported: true, members: dot.members, world: true };
+      continue;
+    }
+    const a = anchors[id];
+    nodes[id] = { source: a.source, subject: a.subject, point: a.point, exported: true };
   }
   state.scene.setModel({ nodes, lines, proposed });
+  paintModelUnplaced();
   state.scene.setModelVisible(true);
   applyModelFrame();
   applyModelStyle();
@@ -4105,13 +4131,48 @@ async function buildModel() {
   return model.built;
 }
 
+// The nodes the layer could not place, counted on the bar's head line: they
+// draw no dot and no line, so the count is where a reader learns they exist.
+// Every name rides the hover. Nothing when every node is placed, or with the
+// layer off.
+function modelUnplacedWords() {
+  const built = state.model.built;
+  const ids = built ? built.unplaced : [];
+  if (!ids.length) return null;
+  const topology = state.currentTopology;
+  const names = ids.map((id) => {
+    const node = ((topology && topology.nodes) || []).find((n) => n.id === id);
+    return (node && node.name) || AA.measureLabel(id);
+  });
+  return { text: ids.length + " node" + (ids.length === 1 ? "" : "s") + " not placed",
+    title: "no 3D model to place them on: " + names.join("; ") };
+}
+
+function paintModelUnplaced() {
+  const words = modelUnplacedWords();
+  for (const span of el.detail.querySelectorAll(".an__model-unplaced")) {
+    span.textContent = words ? words.text : "";
+    span.title = words ? words.title : "";
+    span.hidden = !words;
+  }
+  window.__modelUnplaced = words;
+}
+
+function modelUnplacedSpan() {
+  const span = document.createElement("span");
+  span.className = "an__model-unplaced";
+  span.hidden = true;
+  return span;
+}
+
 // The frame's world points and the subjects' poses -- every sweep frame,
 // and once at the as-modelled pose in bind mode.
 function applyModelFrame() {
   const built = state.model.built;
   if (!built) return null;
   const frame = state.sweep ? state.sweep.frame : null;
-  const world = AA.modelWorldPoints(built.anchors, frame);
+  const world = Object.assign(AA.modelWorldPoints(built.anchors, frame),
+    AA.modelJointWorldPoints(built.joints, built.features, built.anchors, frame));
   const subjects = {};
   for (const a of Object.values(built.anchors)) {
     const s = a.subject || "";
@@ -4155,7 +4216,8 @@ function applyModelStyle() {
   }
   model.strengths = strengths;
   state.scene.setModelStyle({ strengths, nodes: AA.modelLitNodes(topology, lit),
-    hideUnlit: model.unlit === AA.MODEL_UNLIT_STYLES[1], emphasis: model.emphasis });
+    hideUnlit: model.unlit === AA.MODEL_UNLIT_STYLES[1], emphasis: model.emphasis,
+    emphasisNodes: AA.modelEmphasisNodes(topology, model.emphasis) });
   return strengths;
 }
 
@@ -4185,8 +4247,11 @@ function applyModelSelection() {
   if (!sel) { state.scene.setModelSelection(null); return null; }
   if (sel.kind === AA.MODEL_SELECT_KINDS[0]) {
     const anchor = anchors[sel.id];
+    // A joint's node is its ends' shared feature, not a section: nothing to
+    // show for why it is there beyond the node itself.
+    const joint = model.built.joints.of[sel.id];
     state.scene.setModelSelection(Object.assign({ node: sel.id, subject: anchor ? anchor.subject : null },
-      modelSectionDrawing(anchor)));
+      joint ? {} : modelSectionDrawing(anchor)));
     return sel;
   }
   const topology = state.currentTopology;
@@ -4240,8 +4305,9 @@ function cmdModel(...args) {
   applyModelSelection();
   const anchor = plan.select && plan.select.kind === AA.MODEL_SELECT_KINDS[0] && model.built
     ? model.built.anchors[plan.select.id] : null;
+  const joint = anchor && model.built.joints.groups.find((g) => g.id === model.built.joints.of[plan.select.id]);
   window.__lastModelSelection = plan.select ? Object.assign({}, plan.select,
-    anchor ? { source: anchor.source, words: AA.modelAnchorWords(anchor) } : {}) : null;
+    anchor ? { source: anchor.source, words: AA.modelAnchorWords(anchor, joint) } : {}) : null;
   return window.__lastModelSelection;
 }
 
@@ -4267,6 +4333,8 @@ function postModelAnchors(cleared) {
     if (!model.built) return;
     const screen = state.scene.modelScreenPoints();
     if (!screen) return;
+    // Every node is a key: one the layer could not place has no dot, and is null.
+    for (const id of Object.keys(model.built.anchors)) if (!(id in screen)) screen[id] = null;
     message = AA.modelAnchorsMessage(model.built.lines, screen, model.strengths);
   }
   const text = JSON.stringify(message);
@@ -4741,8 +4809,10 @@ function renderDetail() {
   };
   const bind = refreshBindStep();
   line.appendChild(task);
+  line.appendChild(modelUnplacedSpan());
   line.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
   el.detail.appendChild(line);
+  paintModelUnplaced();
 
   const work = document.createElement("div");
   work.className = "an__detail-work";
@@ -6108,7 +6178,12 @@ async function main() {
     postToShell(AA.modelPickMessage(nodeId));
   };
   // ...and the anchor under the pointer, which the shell previews.
-  state.scene.onModelHover = (nodeId) => postToShell(AA.modelHoverMessage(nodeId));
+  // A joint's dot names every end it stands for, so the shell lights them all.
+  state.scene.onModelHover = (nodeId) => {
+    const built = state.model.built;
+    const joint = nodeId && built ? built.joints.groups.find((g) => g.id === nodeId) : null;
+    postToShell(AA.modelHoverMessage(nodeId, joint ? joint.members : null));
+  };
   Object.defineProperty(window, "__model", { get: () => state.model });
   // The same read-only convention, for sweep mode: a harness (and the
   // screenshot pass) can ask where the scrubber is and what frame rate the

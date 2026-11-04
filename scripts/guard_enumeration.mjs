@@ -208,13 +208,16 @@ export const DECLARED_GUARDS = {
   // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +1, the nav's twisty row
   // (a joint end's candidate list mirrored). It carries a spec.
   // (Re-pinned at the review merge onto integration's 631.)
+  // 2026-11-03 (coaxial_ends_share_one_3d_node): +1, the scene's pointer on a
+  // joint lighting every member in the pane. It carries a spec.
+  // (Re-pinned at the merge of integration 0816cccf into the handoff branch.)
   // 2026-11-03 (the_kinematic_grid_is_a_stack_of_sub_stacks): count
   // unchanged -- the results pane's contributor table is retired, its checks
   // re-pointed at the grid's stack; the [real] pitch_system tint check carries
   // no spec (red on integration before any mutation,
   // ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md).
   // (Re-pinned at the review merge onto integration's 632.)
-  fast: { declared: 632, enrollable: 632, names: "e445a9a10150" },
+  fast: { declared: 633, enrollable: 633, names: "c18d10cf1ca5" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -245,7 +248,14 @@ export const DECLARED_GUARDS = {
   // list, its reasons, `hover face` and the [real] 55-of-55 reach. Each
   // carries a spec.
   // (Re-pinned at the review merge onto integration's 270.)
-  annotate: { declared: 274, enrollable: 274, names: "4a12842a300e" },
+  // 2026-11-03 (coaxial_ends_share_one_3d_node): +5 -- a joint is one node:
+  // the concentric measure, the chaining, the drawn graph, the bound feature
+  // and the live P2 pin. Each carries a spec; the P2 pin's three witness the
+  // two thresholds from both sides.
+  // Review rework, same day: +1 -- a grid row's emphasis names its edge's two
+  // ends, drawn or not (the joint's internal row lit nothing). It carries a spec.
+  // (Re-pinned at the merge of integration 0816cccf into the handoff branch.)
+  annotate: { declared: 280, enrollable: 280, names: "33e447c665d1" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -326,13 +336,28 @@ export const DECLARED_GUARDS = {
   // radius; the list crossing the seam into the shell's nav. Each carries a
   // spec.
   // (Re-pinned at the review merge onto integration's 801/768, with the_dag_holds_still's +6 on top.)
+  // 2026-11-03 (coaxial_ends_share_one_3d_node): +5 and two renamed -- the
+  // spindle joint as one dot, the link centres staying two, no unplaced node
+  // drawn, the fan-in of the joint's leaders and the pointer on the joint;
+  // the every-node and bind-mode checks re-worded for the lines a joint and
+  // an unplaced node no longer draw. All seven carry a spec (the two renamed
+  // under their new names).
+  // Review rework, same day: +1 -- the real pointer on the grid row of an edge
+  // inside the joint, or of one leaving it, emphasises the joint's one 3D dot.
+  // It carries a spec.
+  // (Re-pinned at the merge of integration 0816cccf into the handoff branch.)
+  // Round 2 of its review, 2026-11-04: two renamed, count unchanged -- the
+  // joint's fan-in (every member posted at the one dot; every LIT member's
+  // leader ends there) and the pointer on the joint's edges, both re-derived
+  // by rule after the slide re-author retired the names they read. Both specs
+  // moved to the new names.
   // 2026-11-03 (the_kinematic_grid_is_a_stack_of_sub_stacks): +1 -- the
   // kinematic suite's table checks re-pointed at the grid's stack (the live
   // stack, the travel fold and the +72 stop in; the six-contributor table and
   // the travel group row out). Every one carries a spec except the renamed
   // pitch_system body-tint check, which carried none under its old name.
   // (Re-pinned at the review merge onto integration's 815/782.)
-  browser: { declared: 816, enrollable: 783, names: "33403beb3174" },
+  browser: { declared: 822, enrollable: 789, names: "acabb75e3ed9" },
 };
 
 

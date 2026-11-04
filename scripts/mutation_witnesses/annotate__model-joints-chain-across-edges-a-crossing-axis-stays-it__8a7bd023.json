@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: joints chain across edges, a crossing axis stays its own joint, and a node with no feature never merges",
+  "mutations": [
+    {
+      "contract": "Only an edge whose ends measure concentric joins two nodes.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "Every measured edge merging is the whole failure: a radius and a crossing hinge folded into the spindle.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (!m.merge) return;",
+      "replace": "      if (false) return;"
+    }
+  ]
+}

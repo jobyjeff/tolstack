@@ -1668,6 +1668,14 @@
       // freezes it (or lets it go, the scene's own second-click rule).
       if (msg && msg.type === VA.SCENE_HOVER_MESSAGE) {
         setPreviewHot("scene", msg.kind && msg.id ? VA.elementKey(msg.kind, msg.id) : null);
+        // Every node the dot stands for -- a joint's several, or the one --
+        // lit on the DAG, in the grid and along its leader.
+        sceneHot = msg.kind && msg.id
+          ? (Array.isArray(msg.members) && msg.members.length ? msg.members : [msg.id])
+              .map(function (id) { return VA.elementKey(msg.kind, id); })
+          : null;
+        if (VA.lightTopoKeys) VA.lightTopoKeys(sceneHot);
+        scheduleSeamDraw();
         return;
       }
       if (msg && msg.type === VA.SCENE_PICK_MESSAGE) {
@@ -1839,6 +1847,8 @@
   var seamDraws = 0;
   // The pane's hover key (`node|<id>`, `edge|<id>`), for the lighter emphasis.
   var paneHot = null;
+  // ...and the scene's: the keys of every node its hovered dot stands for.
+  var sceneHot = null;
   // What the scene was last told, so a paint that changed nothing posts nothing.
   var sceneModelPosted = null;
   var sceneSelectPosted = null;
@@ -1940,7 +1950,7 @@
                     bottom: Math.min(f.bottom, bottom) },
     });
     var states = VA.seamLeaderStates(geo.leaders.map(function (l) { return l.id; }),
-      state.selection, paneHot, VA.topologyIndex(topoProj));
+      state.selection, paneHot || sceneHot, VA.topologyIndex(topoProj));
     VA.renderSeamLeaders(svg, geo, states);
     seamDraws++;
     // For a harness: what was drawn, and what it cost.

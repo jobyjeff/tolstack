@@ -5403,6 +5403,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       inside the `page.evaluate` whose rAF loop samples (`catchFrame(selector)`,
       `caughtMidFlight`). A new in-flight check written the old way is that
       race again.
+- [ ] **A diff that MERGES or DROPS scene elements re-maps some of the
+      channels that address them by id, not all.** New 2026-11-03
+      (`REVIEW_20261103_coaxial_ends_share_one_3d_node`): joint members were
+      re-mapped for selection, focus, the lit set and the anchors message
+      (`dotOf`, `members`), but `model.emphasis` — the edge id a grid row's
+      hover posts as `highlight` — still resolves only through `model.lines`,
+      so the joint's own internal edge row lights nothing in 3D. List every
+      inbound channel (`setModelStyle`'s `nodes`/`emphasis`, `setModelSelection`,
+      `_focus`, `highlight`, `modelScreenPoints`) and ask of each what it does
+      with a merged or dropped id.
+
 - [ ] **A gap edge renamed, added or removed reddens a PYTEST `[real]` test
       that has no freshness gate.** New 2026-11-03
       (`the_slide_joint_is_the_mounts_bushings_against_the_piston_body`).
@@ -5461,6 +5472,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       leaders or band order, read the "clicked N: …" line of that suite on the
       MERGED tree. A label missing from the parked list is a hit-test defect,
       not a flaky count.
+- [ ] **A browser witness that reports "the tier was red before the
+      mutation", or "another check reddened", may be measuring a flake, not a
+      decay.** New 2026-11-04 (`coaxial_ends_share_one_3d_node`, round 3). A
+      witness's clean run is one run of the whole suite, so any intermittent
+      sub-check in that suite can blind every entry in it. On that round the
+      gate reported a model-layer spec "another check reddened" and the
+      branch's own fan-in spec "red before the mutation". Each was WITNESSED on
+      a plain `--only` re-run. The red in the second case was
+      `a row the scene marks selected…`, which was red in 1 of 4 runs on
+      `integration` alone
+      (`ISSUE_20261104_the_scene_tree_pick_leaders_check_is_flaky.md`). So
+      re-run a not-witnessed browser entry with `--only` once, and read
+      **which** sub-check was red in its clean run, before you charge a decay
+      to the diff. If the same sub-check is red again, measure its rate on
+      `integration` alone, as the entry above says.
 
 ## Architectural errors to check
 
