@@ -1284,13 +1284,12 @@
     },
     {
       "id": "piston_body_plate_flange",
-      "name": "piston body flange (214700-002 datum A) on the pitch plate",
+      "name": "piston body flange face (214700-002 datum A), bolted to the pitch plate",
       "parts": [
-        "gas_spring_piston_214700_002",
-        "pitch_plate_215177_001"
+        "gas_spring_piston_214700_002"
       ],
-      "kind": "mating_surface",
-      "note": "Where the piston body bolts to the pitch plate (5X 4.900 holes in VIEW C-C of 214700-002 A; the flange face is datum A). On the mesh, face 109 of `asm217755_214700_002` (-Z, part Z 125.500). The plate's own geometry from here to its link hole is a linkage term of the kinematic study (pitch_plate_attach_height), not part of a stop's axial stack."
+      "kind": "datum_feature",
+      "note": "The face the piston body bolts to the pitch plate with (5X 4.900 holes in VIEW C-C of 214700-002 A; the flange face is datum A). A datum feature of the body, not an interface with the plate: no edge here dimensions the plate from it, and the body is one rigid body with the plate (`bodies`). On the mesh, face 109 of `asm217755_214700_002` (-Z, part Z 125.500). The plate's own geometry from here to its link hole is a linkage term of the kinematic study (pitch_plate_attach_height), not part of a stop's axial stack."
     },
     {
       "id": "piston_body_head_seat",
