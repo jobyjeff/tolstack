@@ -207,7 +207,8 @@ export const DECLARED_GUARDS = {
   // spec; the two retired concepts' specs are deleted.
   // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +1, the nav's twisty row
   // (a joint end's candidate list mirrored). It carries a spec.
-  fast: { declared: 630, enrollable: 630, names: "5a17e779acfd" },
+  // (Re-pinned at the review merge onto integration's 631.)
+  fast: { declared: 632, enrollable: 632, names: "b62ed7cba808" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -237,7 +238,8 @@ export const DECLARED_GUARDS = {
   // 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): +4, the end's candidate
   // list, its reasons, `hover face` and the [real] 55-of-55 reach. Each
   // carries a spec.
-  annotate: { declared: 273, enrollable: 273, names: "703e2d350098" },
+  // (Re-pinned at the review merge onto integration's 270.)
+  annotate: { declared: 274, enrollable: 274, names: "4a12842a300e" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -313,7 +315,8 @@ export const DECLARED_GUARDS = {
   // list and wash; the armed row naming a real round face's class and
   // radius; the list crossing the seam into the shell's nav. Each carries a
   // spec.
-  browser: { declared: 801, enrollable: 768, names: "35a2f9e55371" },
+  // (Re-pinned at the review merge onto integration's 801/768.)
+  browser: { declared: 809, enrollable: 776, names: "b67ffc627973" },
 };
 
 

@@ -424,6 +424,27 @@
         eq(VA.annotateExecCommands(VA.annotateParamsFor(study)), [["goto", "t", "", "s"]]);
       });
 
+    await test("the study's parts are one command: lit edges' parts, a joint's two ends' parts, " +
+      "no lit set is the whole topology, and no part at all is isolate off", function () {
+        var topo = {
+          nodes: [{ id: "n1" }, { id: "n2" }, { id: "n3" }],
+          edges: [
+            { id: "a", part: "link", from: "n1", to: "n2" },
+            { id: "joint", part: null, kind: "gap", from: "n2", to: "n3" },
+            { id: "b", part: "arm", from: "n3", to: "n3" },
+            { id: "c", part: "hub", from: "n1", to: "n1" },
+          ],
+        };
+        var lit = { edges: { a: true, joint: true }, nodes: {} };
+        eq(VA.litPartIds(topo, lit), ["link", "arm"]);
+        eq(VA.litPartIds(topo, { edges: { a: true }, nodes: {} }), ["link"]);
+        eq(VA.litPartIds(topo, null), ["link", "arm", "hub"]);
+        eq(VA.partScopeCommand(["link", "arm"]), ["isolate", "parts", "link", "arm"]);
+        eq(VA.partScopeCommand([]), ["isolate", "off"]);
+        eq(VA.partScopeCommand(null), ["isolate", "off"]);
+        eq(VA.partScopeCommand(VA.litPartIds({ nodes: [], edges: [] }, null)), ["isolate", "off"]);
+      });
+
     await test("a hover posts highlight on its edge and clear off it, at most a few " +
       "messages a second", function () {
         eq(VA.annotateHighlightCommand("t", "e"), ["highlight", "t", "e"]);
@@ -10296,6 +10317,31 @@
            "a stack no topology re-expresses is still a leaf");
         eq(root.textContent.toLowerCase().indexOf("classic"), -1,
            "no surface says \"classic\" anywhere (deliverable 4)");
+      });
+
+    await test("every kind of study row wears a 3D control where the scene is mounted, and none " +
+      "where it is not", function () {
+        var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
+        var picked = [];
+        var withControl = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPOFIX.topologies[0].id },
+            { on3D: function (select) { picked.push(select); } });
+        });
+        // The fast tier's DOM shim reads only tag, .class and tag.class, so the
+        // rows are picked by class and filtered by kind here.
+        var rows = all(withControl, ".navtree__row").filter(function (row) {
+          var kind = row.getAttribute("data-nav-kind");
+          return kind === "topology" || kind === "study";
+        });
+        ok(rows.length >= 1, "the fixture has at least the topology row");
+        rows.forEach(function (row) {
+          eq(all(row, ".navtree__3d").length, 1,
+            "row " + row.getAttribute("data-nav-id") + " carries the control");
+        });
+        var without = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPOFIX.topologies[0].id }, {});
+        });
+        eq(all(without, ".navtree__3d").length, 0);
       });
 
     // Tags (handoff bodies_and_studies_carry_forge_tags): chips over the study

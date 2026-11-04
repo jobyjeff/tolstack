@@ -93,6 +93,7 @@ const state = {
   // currently isolated -- null when nothing is. `isolate off` puts the
   // snapshot back, which is what makes Isolate a toggle and not a trap.
   isolation: null, // { restore: [{sha, visible, ghost}], targets: [sha], ghost }
+  partScope: null, // `isolate parts`: { targets: [sha], missing: [id] } -- null when none
   // What the reader added to / took out of the model, on top of what the
   // topology or study puts in it (AA.planContext). Never touched by a view verb.
   contextEdit: { added: [], removed: [] },
@@ -310,7 +311,73 @@ function cmdHide(identifier, subject) {
 // deliverable 3's "never a blank scene" is about the case where nothing at
 // all could be shown, not about every miss.
 async function cmdIsolate(...identifiers) {
+  if (identifiers[0] === AA.ISOLATE_PARTS_WORD) return scopeToParts(identifiers.slice(1));
   return isolateOrGhost("isolate", false, identifiers);
+}
+
+// isolate parts <part…> -- the viewer's study filter (handoff every_study_
+// opens_in_3d_showing_only_its_parts): the named parts solid, every other
+// installed part ghosted (hidden under the unlit word `hide`), the solid set
+// framed. Same snapshot and same `isolate off` as isolate; the one difference
+// is that the rest stays drawn. A scope none of whose parts has a mesh draws
+// nothing differently and says so in the head line.
+async function scopeToParts(identifiers) {
+  if (!identifiers.length) throw new Error("isolate parts needs at least one part identifier");
+  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
+  const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
+  const targets = Array.from(new Set(resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256)));
+  state.partScope = { targets, missing };
+  if (!targets.length) {
+    setSceneEmptyState(null, AA.EMBED_NO_MODEL_WORDS);
+    postEmbedState();
+    return { opened: [], missing };
+  }
+  if (!state.isolation) {
+    state.isolation = {
+      restore: state.scene.listOpenParts().map((sha) => ({
+        sha, visible: state.scene.isVisible(sha), ghost: state.scene.isGhosted(sha) })),
+      targets: [], ghost: false,
+    };
+  }
+  state.isolation.targets = targets;
+  state.isolation.ghost = false;
+  const open = state.scene.listOpenParts();
+  for (const sha of targets) if (open.indexOf(sha) === -1) await state.scene.loadPart(sha);
+  setSceneEmptyState(null);
+  applyPartScope();
+  await AA.exec(["camera", "frame", ...targets]);
+  const rest = state.meshList.map((m) => m.sha256).filter((sha) => targets.indexOf(sha) === -1);
+  const loaded = state.scene.listOpenParts();
+  await Promise.all(rest.filter((sha) => loaded.indexOf(sha) === -1)
+    .map((sha) => state.scene.loadPart(sha).catch(() => null)));
+  applyPartScope();
+  postEmbedState();
+  return { opened: targets, missing };
+}
+
+// scene-view -- read-only: every part open in the scene and how it is drawn,
+// so a driver (and the browser tier) can check the scene it asked for.
+function cmdSceneView() {
+  return state.scene.listOpenParts().map((sha) => {
+    const mesh = state.meshList.find((m) => m.sha256 === sha);
+    return { part: (mesh && mesh.part_id) || null, sha256: sha,
+      visible: state.scene.isVisible(sha), ghost: state.scene.isGhosted(sha) };
+  });
+}
+
+// What the scope draws NOW: solid targets, the rest ghost or hidden by the
+// page's unlit word. Re-run when that word changes. An armed pick owns the
+// scene while armed (disarming restores what it found, this scope included).
+function applyPartScope() {
+  const scope = state.partScope;
+  if (!scope || !scope.targets.length) return;
+  if (state.sweep && state.sweep.armed) return;
+  const hideRest = state.model.unlit === AA.MODEL_UNLIT_STYLES[1];
+  const plan = AA.planPartScope(state.scene.listOpenParts(), scope.targets, hideRest);
+  plan.solid.forEach((sha) => { state.scene.setVisible(sha, true); state.scene.setGhost(sha, false); });
+  plan.ghost.forEach((sha) => { state.scene.setVisible(sha, true); state.scene.setGhost(sha, true); });
+  plan.hide.forEach((sha) => state.scene.setVisible(sha, false));
+  renderPartsPanel();
 }
 
 // ghost <part…> -- isolate's translucent twin (handoff study_3d_flyout): show
@@ -328,6 +395,7 @@ async function cmdGhost(...identifiers) {
 function restoreIsolation() {
   const isolation = state.isolation;
   state.isolation = null;
+  state.partScope = null;
   if (isolation) {
     AA.planViewRestore(isolation.restore, state.scene.listOpenParts()).forEach((r) => {
       state.scene.setVisible(r.sha, r.visible);
@@ -342,6 +410,7 @@ function restoreIsolation() {
 async function isolateOrGhost(verb, ghost, identifiers) {
   if (!identifiers.length) throw new Error(verb + " needs at least one part identifier");
   if (identifiers.length === 1 && identifiers[0] === AA.ON_OFF[1]) return restoreIsolation();
+  state.partScope = null;
   const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
   const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
   const targets = resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256);
@@ -406,6 +475,7 @@ function currentContext() {
 function resetContext(keepDrawn) {
   state.contextEdit = { added: [], removed: [] };
   state.isolation = null;
+  state.partScope = null;
   if (!keepDrawn && state.scene) {
     const inModel = currentContext().inModel.map((m) => m.sha256);
     AA.planViewReset(state.scene.listOpenParts(), inModel, state.transparentParts).forEach((r) => {
@@ -4156,6 +4226,7 @@ function cmdModel(...args) {
   if (plan.action === AA.MODEL_VERB_ACTIONS[1]) {
     model.unlit = plan.unlit;
     applyModelStyle();
+    applyPartScope();
     return { unlit: plan.unlit };
   }
   const topology = state.currentTopology;
@@ -4234,6 +4305,7 @@ commands.register("show-all", cmdShowAll);
 commands.register("hide-all", cmdHideAll);
 commands.register("context", cmdContext);
 commands.register("isolate", cmdIsolate);
+commands.register("scene-view", cmdSceneView);
 commands.register("camera", cmdCamera);
 commands.register("ghost", cmdGhost);
 commands.register("mark-face", cmdMarkFace);
@@ -5559,7 +5631,8 @@ const execQueue = new AA.ExecQueue();
 function postEmbedState() {
   if (window.parent === window) return;
   const message = AA.embedState(state.sweep ? state.sweep.artifact : null,
-    state.currentTopology, state.currentStudy);
+    state.currentTopology, state.currentStudy,
+    !!(state.partScope && !state.partScope.targets.length));
   try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
   postEmbedTree(true);
 }

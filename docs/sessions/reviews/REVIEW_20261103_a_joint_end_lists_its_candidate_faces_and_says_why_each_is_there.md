@@ -140,3 +140,13 @@ Re-run after that merge: annotate fast tier 273/273, viewer fast tier
 app_type_scale, tolerance_stack, provenance, claims_registry,
 architecture_inventory, topology_projection). The scratch-root `[real]`, browser and
 witness runs above were measured before each_stop arrived, on `38eecafe`.
+
+Then `integration` moved once more, to `7762f6ea`
+(`every_study_opens_in_3d_showing_only_its_parts`). I merged it again. The
+one conflict was `DECLARED_GUARDS` once more. Integration's pins were fast
+631, annotate 270 and browser 801/768. This handoff adds +1, +4 and +8, so
+the census measured **fast 632, annotate 274, browser 809/776**. That is
+exactly the sum, so no guard was lost in the merge. The name digests were
+recomputed. Re-run after that: `test_mutation_witnesses.py` 44 passed,
+annotate fast 274/274, viewer fast 516/516 (worktree, `[real]` tier skipped),
+pytest subset 360 passed.

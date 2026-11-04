@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "every study opens in 3D showing only its parts",
+  "expect_red": "[real] a scope with no installed mesh says so in the head line",
+  "mutations": [
+    {
+      "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
+      "issue": null,
+      "note": "Breaks the one place this guard's claim is decided.",
+      "file": "apps/annotate/commands.js",
+      "find": "(noModel ? \" — \" + AA.EMBED_NO_MODEL_WORDS : \"\")",
+      "replace": "\"\""
+    }
+  ]
+}
