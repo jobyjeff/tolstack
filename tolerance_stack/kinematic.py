@@ -100,36 +100,45 @@ term that is untraced there is untraced here. v0 refuses a ``study_ref`` that
 names a kinematic study (no nesting). ``docs/DAG_TOPOLOGY.md``, "A kinematic
 study reads its sensitivity from a published sweep".
 
-A ``study_ref`` on the driver is where a stop IS, not a term of the envelope
----------------------------------------------------------------------------
+Each stop is its own stack: the linkage there, plus the chain to its contact
+------------------------------------------------------------------------------
 
-A ``study_ref`` whose ``parameter`` is the sweep's own driver
-(``mechanism.driver.parameter``) moves the coordinate the sweep is plotted
-against, so it is an **x-uncertainty of a stop**, never a y-term of the
-envelope (Jeff, 2026-10-29, handoff ``the_plus72_stop_is_the_travel_datum``).
-Such a ref must say which stops it moves (``applies_to``, ids from
-``stops[]``; required, so which stop carries a stop-to-stop distance can never
-again be left to a reading), and it does three things and no others:
+A stop is a **contact pose**, and where the mechanism sits when it touches is
+itself toleranced (Jeff, 2026-11-03, handoff ``each_stop_is_its_own_stack``,
+superseding the 2026-10-29 rule that made the +72 deg stop a zero-error datum
+and the stop-to-stop travel an x-interval of the -7 deg stop only). So every
+stop names its own **axial stack** (``stops[].axial_stack``): a list of chain
+studies (``study/v0``), each a ``study_ref`` on the sweep's **driver**, whose
+terms together are where the driven part sits along the driver's axis at that
+stop's contact, from the ground. At the stop:
 
-* it is **left out of every point's fold** (:func:`fold_at`): the envelope is
-  the direct contributors' alone, so its half-width at a stop is the direct
-  half there and the band drawn across the stop joins it without a step;
-* at each stop it applies to, it is an x-interval ``x_stop +/- h``
-  (:class:`StopOffset`; ``h`` its leaves' worst-case half in the driver's
-  unit, folded once over the leaves at their own ratios -- the RSS half is
-  the same fold's);
-* the stop's verdict is the envelope **swept over that interval**, to first
-  order at the stop's own Jacobian entry ``J``: the direct terms and the
-  ref's leaves at ``|J| x`` their ratio, through the one :func:`fold`
-  (:func:`fold_at_stop`). Its worst case is the envelope's upper edge at the
-  interval's corner, ``|J| h`` + the direct half.
+* the stop's pitch band is one fold (:func:`fold_at_stop`): the direct
+  contributors at the stop's sweep point -- the **linkage terms at this pose**,
+  exactly :func:`fold_at` there -- plus every leaf of the stop's axial stack at
+  ``|J| x`` its ratio, ``J`` the measure's Jacobian entry for the driver at the
+  stop's nominal (first order; the chain rule written as terms, as for any
+  ``study_ref``). The axial terms enter no other point's fold, and nothing is
+  swept along x;
+* a leaf whose edge is in another stop's stack too is **shared**: the same
+  physical dimension moves both stops, so in the range between the two stops
+  (:func:`range_between_stops`) it enters once, with the difference of the two
+  stops' entries -- and the same holds for every linkage term;
+* a ``study_ref`` on the driver anywhere else -- among ``contributors`` --
+  is refused, naming that handoff, and so is the retired ``applies_to``; a
+  stop with no axial stack is refused in a study that has a ``datum`` or
+  whose other stops have one.
 
-The stop the driver is measured from is the **datum** (``datum.stop``): the
-sweep's driver is 0 there (refused at load if it is not), and a stop-to-stop
-distance does not move it. A ref may also be a **declared gap** (``gap``,
-with its own ``title``): the chain that would locate a stop is not authored
-yet, so the ref contributes no leaves and every check at a stop it applies to
-is incomplete, naming it.
+A stack entry may be a **declared gap** (``gap``, with its own ``title``): the
+chain that would locate the stop is not authored yet, so it contributes no
+leaves and every check at that stop is incomplete, naming it.
+
+The **datum** (``datum.stop``) keeps one meaning only: the pose where the
+sweep's driver is 0 (refused at load if it is not). It zeroes nothing.
+
+A check at a stop is a one-sided **reach** check when it says ``bound``
+(:data:`CHECK_BOUNDS`): the stop's own measure -- the sweep's nominal there
+plus the fold -- must reach at least (``at_least``) or at most (``at_most``)
+the limit, and the margin is the signed worst-case distance to it.
 
 Which feature a label is
 ------------------------
@@ -304,11 +313,23 @@ LINKAGE_JOINT_INTERFACES: Dict[str, Optional[str]] = {
 #: The keys a ``study_ref`` names. **This tuple is the definition.**
 STUDY_REF_FIELDS = ("topology", "study_id", "parameter")
 
-#: The fields a ``study_ref`` contributor carries beside its ``study_ref``.
-#: ``applies_to`` is required exactly when the ref is on the sweep's driver
-#: (which stops it moves) and refused otherwise; ``gap`` and ``title`` declare
-#: a chain study that is not authored yet (both, or neither).
-STUDY_REF_CONTRIBUTOR_FIELDS = ("study_ref", "applies_to", "gap", "title", "note")
+#: The fields a ``study_ref`` entry carries beside its ``study_ref`` -- a
+#: contributor's, or an entry of a stop's ``axial_stack``. ``gap`` and
+#: ``title`` declare a chain study that is not authored yet (both, or neither).
+STUDY_REF_CONTRIBUTOR_FIELDS = ("study_ref", "gap", "title", "note")
+
+#: The handoff that moved a driver ``study_ref`` from ``contributors`` (with
+#: ``applies_to``) into each stop's ``axial_stack``; the refusal of the old
+#: form names it, so an author who meets it can read why.
+STOP_STACK_HANDOFF = "each_stop_is_its_own_stack"
+
+#: Which side of its limit a reach check holds a stop's measure on.
+#: **This tuple is the definition.** ``at_least`` -- the stop's worst-case
+#: minimum must be >= the limit (S461-261's +70 deg at the feather stop);
+#: ``at_most`` -- its worst-case maximum must be <= the limit (-5 deg at the
+#: low stop). A check with a ``limit`` and no ``bound`` is a budget on the
+#: stop's spread (the limit less the folded variation), the older shape.
+CHECK_BOUNDS = ("at_least", "at_most")
 
 #: The file patterns a ``study_ref``'s ``study_id`` is looked for under, in the
 #: topologies directory: a chain study (what a ref may name) and a kinematic
@@ -540,10 +561,11 @@ class StudyRef:
     here. ``total`` is the sub-study's own published interval, kept to be shown
     beside the result and never read by an arithmetic step.
 
-    ``applies_to`` is non-empty exactly when ``parameter`` is the sweep's
-    driver: the ref is then part of a :class:`StopOffset` of those stops and
-    never a term of a point's fold. ``gap`` is set for a declared gap -- a
-    chain study not authored yet: no ``terms``, no ``total``, never complete.
+    ``stops`` names the stops whose ``axial_stack`` holds this ref (derived
+    at load, never authored): such a ref is on the sweep's driver, enters
+    those stops' folds and never a point's. ``gap`` is set for a declared gap
+    -- a chain study not authored yet: no ``terms``, no ``total``, never
+    complete.
     """
 
     topology: str
@@ -556,13 +578,13 @@ class StudyRef:
     total: Optional[Interval]
     note: Optional[str] = None
     source_file: Optional[str] = None
-    applies_to: Tuple[str, ...] = ()
+    stops: Tuple[str, ...] = ()
     gap: Optional[str] = None
 
     @property
-    def is_stop_offset(self) -> bool:
-        """Whether this ref moves where a stop is (it is on the driver)."""
-        return bool(self.applies_to)
+    def in_stop_stack(self) -> bool:
+        """Whether this ref is part of a stop's axial stack (it is on the driver)."""
+        return bool(self.stops)
 
 
 @dataclass(frozen=True)
@@ -571,12 +593,15 @@ class Stop:
 
     ``target`` is the measure value the stop is nearest to (S461-241's -7 and
     +72, for blade pitch); the point is chosen at load by :func:`stop_index`.
+    ``axial_stack`` is where the driven part sits at this stop's contact: the
+    chain studies on the driver, in document order (module docstring).
     """
 
     id: str
     label: str
     target: float
     context_ref: Optional[Dict[str, Any]] = None
+    axial_stack: Tuple["StudyRef", ...] = ()
 
 
 @dataclass
@@ -600,12 +625,8 @@ class KinematicStudy:
 
     @property
     def point_refs(self) -> List[StudyRef]:
-        """The refs folded at every point: those NOT on the driver."""
-        return [r for r in self.study_refs if not r.is_stop_offset]
-
-    def offset_refs(self, stop_id: str) -> List[StudyRef]:
-        """The driver refs that move stop ``stop_id``, in document order."""
-        return [r for r in self.study_refs if stop_id in r.applies_to]
+        """The refs folded at every point: those in no stop's axial stack."""
+        return [r for r in self.study_refs if not r.in_stop_stack]
 
     def stop(self, stop_id: str) -> Stop:
         for stop in self.stops:
@@ -851,57 +872,56 @@ def _study_file(study_id: str, topologies_dir: Path) -> Tuple[Path, Dict[str, An
     return found[0]
 
 
-def _applies_to(study_id: str, raw: Dict[str, Any], ref: Dict[str, Any],
-                sweep: Sweep, stop_ids: Sequence[str]) -> Tuple[str, ...]:
-    """A ref's ``applies_to``: required on the driver, refused off it."""
+def _check_ref_place(study_id: str, raw: Dict[str, Any], ref: Dict[str, Any],
+                     sweep: Sweep, stop_id: Optional[str]) -> None:
+    """A driver ref belongs in a stop's ``axial_stack``, every other ref among
+    the contributors; ``applies_to`` is the retired spelling of the first."""
     on_driver = ref["parameter"] == sweep.driver.get("parameter")
-    given = raw.get("applies_to")
-    if not on_driver:
-        if given is not None:
-            raise KinematicStudyError(
-                f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is on "
-                f"{ref['parameter']!r}, not the sweep's driver, so it is a term at "
-                f"every point and moves no stop; `applies_to` is a driver ref's")
-        return ()
-    if not isinstance(given, list) or not given:
+    if "applies_to" in raw:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} carries "
+            f"`applies_to`, the form retired by handoff {STOP_STACK_HANDOFF!r}: a "
+            f"chain that places a stop goes in that stop's `axial_stack`, and every "
+            f"stop has one")
+    if stop_id is None and on_driver:
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is on the "
-            f"sweep's driver {ref['parameter']!r}, so it moves where a stop is and "
-            f"must say which: `applies_to` is required, a non-empty list of stop "
-            f"ids from {list(stop_ids)}")
-    unknown = [s for s in given if s not in stop_ids]
-    if unknown or len(set(given)) != len(given):
+            f"sweep's driver {ref['parameter']!r}, so it says where a stop is, not a "
+            f"term of every point; since handoff {STOP_STACK_HANDOFF!r} it goes in "
+            f"the `axial_stack` of each stop it places")
+    if stop_id is not None and not on_driver:
         raise KinematicStudyError(
-            f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} "
-            f"applies_to {given!r} "
-            + (f"names no stop {unknown!r}" if unknown else "lists a stop twice")
-            + f"; the stops are {list(stop_ids)}")
-    return tuple(given)
+            f"kinematic study {study_id!r}: stop {stop_id!r}'s axial_stack names "
+            f"study_ref {ref['study_id']!r} on {ref['parameter']!r}; an axial stack "
+            f"is where the driven part sits, so every entry is on the sweep's "
+            f"driver {sweep.driver.get('parameter')!r}")
 
 
 def _load_study_ref(study_id: str, raw: Dict[str, Any], sweep: Sweep,
                     topologies_dir: Path, cache: Dict[str, Topology],
-                    stop_ids: Sequence[str] = ()) -> StudyRef:
-    """Resolve one ``study_ref`` contributor to the sub-study's signed terms."""
+                    stop_id: Optional[str] = None) -> StudyRef:
+    """Resolve one ``study_ref`` -- a contributor, or an entry of stop
+    ``stop_id``'s axial stack -- to the sub-study's signed terms."""
     ref = raw["study_ref"]
     if not isinstance(ref, dict) or any(not ref.get(k) for k in STUDY_REF_FIELDS):
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: a study_ref needs {STUDY_REF_FIELDS}, "
             f"got {ref!r}")
-    extra = sorted(set(raw) - set(STUDY_REF_CONTRIBUTOR_FIELDS))
+    # `applies_to` is refused by name below, as the retired form it is.
+    extra = sorted(set(raw) - set(STUDY_REF_CONTRIBUTOR_FIELDS) - {"applies_to"})
     if extra:
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: study_ref {ref['study_id']!r} is a "
             f"contributor by itself -- it carries no edge, parameters or band of "
             f"its own; its terms are the sub-study's (it has {extra})")
     sweep.parameter_index(ref["parameter"])
-    applies_to = _applies_to(study_id, raw, ref, sweep, stop_ids)
+    _check_ref_place(study_id, raw, ref, sweep, stop_id)
     if bool(raw.get("gap")) != bool(raw.get("title")):
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: study_ref {ref['study_id']!r}: a declared "
             f"gap carries both `gap` (why) and `title` (what it is), or neither")
     if raw.get("gap"):
-        return _gap_study_ref(study_id, raw, ref, sweep, topologies_dir, applies_to)
+        return _gap_study_ref(study_id, raw, ref, sweep, topologies_dir)
     path, data = _study_file(ref["study_id"], topologies_dir)
     if data.get("schema") == SCHEMA_KINEMATIC_STUDY:
         nested = any("study_ref" in c for c in data.get("contributors") or ())
@@ -934,12 +954,11 @@ def _load_study_ref(study_id: str, raw: Dict[str, Any], sweep: Sweep,
         topology=ref["topology"], study_id=sub.id, parameter=ref["parameter"],
         title=sub.title, units=result.units, terms=terms,
         completeness=result.completeness(), total=result.interval,
-        note=raw.get("note"), source_file=path.name, applies_to=applies_to)
+        note=raw.get("note"), source_file=path.name)
 
 
 def _gap_study_ref(study_id: str, raw: Dict[str, Any], ref: Dict[str, Any],
-                   sweep: Sweep, topologies_dir: Path,
-                   applies_to: Tuple[str, ...]) -> StudyRef:
+                   sweep: Sweep, topologies_dir: Path) -> StudyRef:
     """A declared gap: the chain study a ref names is not authored yet.
 
     Refused once the study exists, so a gap cannot outlive the chain that
@@ -962,8 +981,7 @@ def _gap_study_ref(study_id: str, raw: Dict[str, Any], ref: Dict[str, Any],
         topology=ref["topology"], study_id=ref["study_id"], parameter=ref["parameter"],
         title=raw["title"], units=units or "", terms=(),
         completeness={"complete": False, "reason": reason, "open_terms": []},
-        total=None, note=raw.get("note"), source_file=None,
-        applies_to=applies_to, gap=raw["gap"])
+        total=None, note=raw.get("note"), source_file=None, gap=raw["gap"])
 
 
 def load_kinematic_study(path: str | Path, data_root: str | Path,
@@ -1004,22 +1022,19 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
             f"sweep {sweep.run_id!r}'s measures with a sensitivity table "
             f"({sorted(sweep.jacobian)})")
 
-    stops = [Stop(id=s["id"], label=s.get("label", s["id"]), target=float(s["target"]),
-                  context_ref=s.get("context_ref"))
-             for s in data.get("stops") or []]
-    stop_ids = [s.id for s in stops]
     cache: Dict[str, Topology] = {}
     topology = _topology(data["topology"], tdir, cache)
-    contributors: List[Contributor] = []
     study_refs: List[StudyRef] = []
+    stops = _load_stops(study_id, data, sweep, tdir, cache, study_refs)
+    contributors: List[Contributor] = []
     seen = set()
     for raw in data.get("contributors") or []:
         if "study_ref" in raw:
-            study_ref = _load_study_ref(study_id, raw, sweep, tdir, cache, stop_ids)
+            study_ref = _load_study_ref(study_id, raw, sweep, tdir, cache)
             if study_ref.study_id in {r.study_id for r in study_refs}:
                 raise KinematicStudyError(
                     f"kinematic study {study_id!r}: study_ref {study_ref.study_id!r} "
-                    f"is a contributor twice")
+                    f"is a contributor twice, or a contributor and a stop's stack")
             study_refs.append(study_ref)
             continue
         contributor = Contributor(
@@ -1067,6 +1082,49 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
         stop_id = (spec.get("configuration") or {}).get("stop")
         study.stop(stop_id)          # a check is applied AT a named stop
     return study, sweep
+
+
+def _load_stops(study_id: str, data: Dict[str, Any], sweep: Sweep, tdir: Path,
+                cache: Dict[str, Topology], study_refs: List[StudyRef]) -> List[Stop]:
+    """The stops, each with its axial stack resolved.
+
+    A chain named by two stops' stacks is ONE :class:`StudyRef` (appended to
+    ``study_refs`` once, its ``stops`` naming both): that identity is what
+    makes its terms shared. Every stop has a stack, or none does in a study
+    with no ``datum`` (a study of a sweep whose stops are not contacts).
+    """
+    by_id: Dict[str, StudyRef] = {}
+    stops: List[Stop] = []
+    for raw_stop in data.get("stops") or []:
+        refs: List[StudyRef] = []
+        for raw in raw_stop.get("axial_stack") or ():
+            if not isinstance(raw, dict) or "study_ref" not in raw:
+                raise KinematicStudyError(
+                    f"kinematic study {study_id!r}: stop {raw_stop['id']!r}'s "
+                    f"axial_stack entry {raw!r} is not a study_ref")
+            ref = _load_study_ref(study_id, raw, sweep, tdir, cache, raw_stop["id"])
+            if ref.study_id in {r.study_id for r in refs}:
+                raise KinematicStudyError(
+                    f"kinematic study {study_id!r}: stop {raw_stop['id']!r} names "
+                    f"study_ref {ref.study_id!r} twice in its axial_stack")
+            if ref.study_id in by_id:
+                ref = by_id[ref.study_id]
+            else:
+                by_id[ref.study_id] = ref
+                study_refs.append(ref)
+            ref.stops = ref.stops + (raw_stop["id"],)
+            refs.append(ref)
+        stops.append(Stop(id=raw_stop["id"], label=raw_stop.get("label", raw_stop["id"]),
+                          target=float(raw_stop["target"]),
+                          context_ref=raw_stop.get("context_ref"), axial_stack=tuple(refs)))
+    bare = [s.id for s in stops if not s.axial_stack]
+    if bare and (data.get("datum") or len(bare) < len(stops)):
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: stop(s) {bare} have no `axial_stack`. A "
+            f"stop is a contact pose, and where the mechanism sits there is "
+            f"toleranced like any other dimension (handoff {STOP_STACK_HANDOFF!r}): "
+            f"name the chain to its contact face, or a declared gap")
+    return stops
 
 
 def _check_datum(study: KinematicStudy, sweep: Sweep) -> None:
@@ -1306,83 +1364,210 @@ def stop_index(study: KinematicStudy, sweep: Sweep, stop_id: str) -> int:
 
 
 @dataclass(frozen=True)
-class StopOffset:
-    """Where a stop is, as an x-interval: the driver refs that move it.
+class StopStack:
+    """Where the driven part sits at one stop's contact: its axial stack.
 
-    ``interval`` is the refs' leaves folded once at their own ratios, in the
-    driver's unit, about the stop's own driver value (variation only): its
-    worst-case half is ``h``, its RSS half the RSS figure's. ``entry`` is the
-    measure's Jacobian entry for the driver at the stop, ``groups`` the leaves
-    at ``|entry| x`` their ratios (:func:`study_ref_group`). No leaves: a zero
-    interval, and nothing is drawn.
+    ``entry`` is the measure's Jacobian entry for the driver at the stop's
+    nominal point (``J``); ``groups`` are the stack's chain studies with their
+    leaves at ``|J| x`` their ratios (:func:`study_ref_group`), in the stop's
+    own order. ``position`` is the leaves folded once at their own ratios, in
+    the driver's unit (mm): how far the contact pose itself may move.
+    ``shared`` names the leaf edges another stop's stack also holds.
     """
 
     stop: str
     entry: float
     refs: Tuple[StudyRef, ...]
     groups: Tuple[GroupRow, ...]
-    interval: Interval
+    position: Interval
+    shared: Tuple[str, ...] = ()
+
+    @property
+    def interval(self) -> Interval:
+        """The stack's own part of the stop's pitch band: its leaves in degrees."""
+        return fold([c.term for g in self.groups for c in g.children if c.term is not None])
 
 
 @dataclass(frozen=True)
 class StopResult:
-    """A stop: the envelope there (direct only), its offset, and the swept fold."""
+    """A stop: the linkage at its pose, its axial stack, and the one fold of both."""
 
     stop: Stop
     point: PointResult
-    offset: StopOffset
+    stack: StopStack
     interval: Interval
 
     @property
     def open_refs(self) -> List[StudyRef]:
-        """The refs reaching this stop (offset or per-point) that are open."""
-        return [r for r in (*self.offset.refs, *(g.ref for g in self.point.groups))
+        """The refs reaching this stop (its stack or per-point) that are open."""
+        return [r for r in (*self.stack.refs, *(g.ref for g in self.point.groups))
                 if not r.completeness["complete"]]
 
 
-def stop_offset(study: KinematicStudy, sweep: Sweep, stop_id: str) -> StopOffset:
-    """The x-interval of stop ``stop_id`` (:class:`StopOffset`)."""
-    point = stop_index(study, sweep, stop_id)
-    refs = tuple(study.offset_refs(stop_id))
+def _driver_entry(study: KinematicStudy, sweep: Sweep, point: int) -> float:
     parameter = sweep.driver.get("parameter")
-    entry = (sweep.entries(study.measure, (parameter,), point)[0]
-             if parameter in sweep.parameters else 0.0)
-    return StopOffset(
-        stop=stop_id, entry=entry, refs=refs,
-        groups=tuple(study_ref_group(ref, entry) for ref in refs),
-        interval=fold([Term(sub.dimension, sub.sign, sub.ratio)
-                       for ref in refs for sub in ref.terms]))
+    return (sweep.entries(study.measure, (parameter,), point)[0]
+            if parameter in sweep.parameters else 0.0)
+
+
+def _stack_edges(stop: Stop) -> List[str]:
+    return [t.edge for ref in stop.axial_stack for t in ref.terms]
+
+
+def stop_stack(study: KinematicStudy, sweep: Sweep, stop_id: str) -> StopStack:
+    """Stop ``stop_id``'s axial stack at its own pose (:class:`StopStack`)."""
+    stop = study.stop(stop_id)
+    entry = _driver_entry(study, sweep, stop_index(study, sweep, stop_id))
+    elsewhere = {e for other in study.stops if other.id != stop_id
+                 for e in _stack_edges(other)}
+    return StopStack(
+        stop=stop_id, entry=entry, refs=stop.axial_stack,
+        groups=tuple(study_ref_group(ref, entry) for ref in stop.axial_stack),
+        position=fold([Term(sub.dimension, sub.sign, sub.ratio)
+                       for ref in stop.axial_stack for sub in ref.terms]),
+        shared=tuple(e for e in _stack_edges(stop) if e in elsewhere))
 
 
 def fold_at_stop(study: KinematicStudy, sweep: Sweep, stop_id: str) -> StopResult:
-    """The envelope at a stop, swept over the stop's own x-interval.
+    """A stop's band: the linkage terms at its pose plus its axial stack, one fold.
 
-    To first order at the stop's Jacobian entry: the direct terms of
-    :func:`fold_at` and the offset's leaves at ``|J| x`` their ratios, through
-    the one :func:`fold`. With no offset it is the point's own interval.
+    The direct terms are :func:`fold_at`'s at the stop's point; the stack's
+    leaves enter at ``|J| x`` their ratios, ``J`` the driver's entry there
+    (first order, at the stop's nominal driver value).
     """
     point = fold_at(study, sweep, stop_index(study, sweep, stop_id))
-    offset = stop_offset(study, sweep, stop_id)
+    stack = stop_stack(study, sweep, stop_id)
     terms = [r.term for r in point.rows if r.term is not None]
-    terms += [c.term for g in (*point.groups, *offset.groups)
+    terms += [c.term for g in (*point.groups, *stack.groups)
               for c in g.children if c.term is not None]
-    return StopResult(stop=study.stop(stop_id), point=point, offset=offset,
+    return StopResult(stop=study.stop(stop_id), point=point, stack=stack,
                       interval=fold(terms))
+
+
+@dataclass(frozen=True)
+class RangeTerm:
+    """One physical term of the range between two stops.
+
+    ``high``/``low`` are its signed weights at the two stops (``0.0`` where it
+    is not in that stop's fold) -- for a band the Jacobian-chained entry, for a
+    sphere the norm of its entries; ``coefficient`` is its weight in the range,
+    the high stop's less the low stop's (for a sphere, the norm of the entry
+    difference). ``shared`` -- it is in both stops' folds, so it cancels to
+    that difference.
+    """
+
+    edge: str
+    kind: str
+    high: float
+    low: float
+    coefficient: float
+    half: float
+    shared: bool
+    term: Optional[Term]
+
+    @property
+    def magnitude(self) -> float:
+        return abs(self.coefficient) * self.half
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {"edge": self.edge, "kind": self.kind, "shared": self.shared,
+                "at_high": abs(self.high) * self.half, "at_low": abs(self.low) * self.half,
+                "coefficient": self.coefficient, "magnitude": self.magnitude}
+
+
+#: What a range term is: a linkage contributor at both poses, or a leaf of a
+#: stop's axial stack. **This tuple is the definition.**
+RANGE_TERM_KINDS = ("linkage", "stop_position")
+
+
+@dataclass(frozen=True)
+class RangeResult:
+    """The range between the two stops: the high stop's measure less the low's.
+
+    ``interval`` is variation only (each physical term once, at the difference
+    of its two weights); ``nominal`` is the two sweep nominals' difference,
+    folded as two constants so no value is combined outside :func:`fold`.
+    """
+
+    high: StopResult
+    low: StopResult
+    nominal: Interval
+    interval: Interval
+    terms: Tuple[RangeTerm, ...]
+
+
+def range_between_stops(study: KinematicStudy, sweep: Sweep) -> Optional[RangeResult]:
+    """The range between a two-stop study's stops (``None`` with any other count).
+
+    The same build reaches both stops, so a dimension in both folds is one
+    variate: it enters once, weighted by the difference of its two weights --
+    which is why the shared terms nearly cancel where the two poses' slopes
+    are alike. A term in one stop's fold only enters at that stop's weight.
+    """
+    if len(study.stops) != 2:
+        return None
+    lo_stop, hi_stop = sorted(study.stops, key=lambda s: s.target)
+    high = fold_at_stop(study, sweep, hi_stop.id)
+    low = fold_at_stop(study, sweep, lo_stop.id)
+    terms: List[RangeTerm] = []
+    for contributor in study.contributors:
+        if contributor.dimension is None:
+            continue
+        e_hi = sweep.entries(study.measure, contributor.parameters, high.point.index)
+        e_lo = sweep.entries(study.measure, contributor.parameters, low.point.index)
+        diff = tuple(h - l for h, l in zip(e_hi, e_lo))
+        sign, coefficient = zone_coefficient(contributor.zone, diff)
+        terms.append(RangeTerm(
+            edge=contributor.edge, kind=RANGE_TERM_KINDS[0],
+            high=zone_coefficient(contributor.zone, e_hi)[1],
+            low=zone_coefficient(contributor.zone, e_lo)[1],
+            coefficient=sign * coefficient, half=contributor.dimension.half_range,
+            shared=True,
+            term=Term(contributor.dimension, sign, coefficient) if coefficient else None))
+    weights: Dict[str, Dict[str, Any]] = {}
+    for result, key in ((high, "high"), (low, "low")):
+        for kind, groups in ((RANGE_TERM_KINDS[0], result.point.groups),
+                             (RANGE_TERM_KINDS[1], result.stack.groups)):
+            for group in groups:
+                for child in group.children:
+                    slot = weights.setdefault(child.sub.edge, {
+                        "sub": child.sub, "kind": kind, "high": 0.0, "low": 0.0})
+                    slot[key] = group.entry * child.sub.sign * child.sub.ratio
+    for edge, slot in weights.items():
+        sign, coefficient = zone_coefficient("band", (slot["high"] - slot["low"],))
+        both = slot["high"] != 0.0 and slot["low"] != 0.0
+        terms.append(RangeTerm(
+            edge=edge, kind=slot["kind"], high=slot["high"], low=slot["low"],
+            coefficient=sign * coefficient, half=slot["sub"].dimension.half_range,
+            shared=both,
+            term=Term(slot["sub"].dimension, sign, coefficient) if coefficient else None))
+    nominal = fold([
+        Term(Dimension(id=f"{hi_stop.id}__nominal", name=hi_stop.label,
+                       nominal=high.point.nominal, min=high.point.nominal,
+                       max=high.point.nominal), 1),
+        Term(Dimension(id=f"{lo_stop.id}__nominal", name=lo_stop.label,
+                       nominal=low.point.nominal, min=low.point.nominal,
+                       max=low.point.nominal), -1)])
+    return RangeResult(high=high, low=low, nominal=nominal,
+                       interval=fold([t.term for t in terms if t.term is not None]),
+                       terms=tuple(terms))
 
 
 def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckResult:
     """One authored check, applied at its named stop.
 
-    The same two shapes ``topology.check_study`` has, and the same fold: with a
-    ``limit``, exactly two terms -- the limit ``+1``, the stop's own total
-    ``-1`` -- through ``fold()``; without one, the stop's interval unchanged.
-    Never applied to the whole sweep at once: a budget is a statement about one
-    configuration, and the envelope is many.
+    Three shapes, one fold. With a ``limit`` and a ``bound``
+    (:data:`CHECK_BOUNDS`), a **reach** check on the stop's own measure: the
+    sweep's nominal there (a constant), the stop's folded variation and the
+    limit, through ``fold()`` -- ``at_least`` is nominal + variation - limit,
+    ``at_most`` is limit - nominal - variation, so the margin is the signed
+    worst-case distance to the bound either way. With a ``limit`` and no
+    ``bound``, the topology's shape: the limit ``+1`` less the stop's variation
+    ``-1``, a budget on its spread. Without a limit, the stop's interval
+    unchanged. Never applied to the whole sweep at once: a budget is a
+    statement about one configuration, and the envelope is many.
     """
-    spec = next((c for c in study.checks if c.get("check_id") == check_id), None)
-    if spec is None:
-        raise KinematicStudyError(f"kinematic study {study.id!r} has no check {check_id!r}")
-    at_stop = fold_at_stop(study, sweep, spec["configuration"]["stop"])
+    spec, at_stop = _check_spec(study, sweep, check_id)
     point = at_stop.point
     units = sweep.units.get(study.measure)
     open_refs = at_stop.open_refs
@@ -1390,16 +1575,8 @@ def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckRe
     if limit is None:
         interval = at_stop.interval
     else:
-        limit_dim = Dimension(
-            id=f"{check_id}__limit", name=spec.get("label", check_id),
-            nominal=float(limit["value"]), min=float(limit["value"]),
-            max=float(limit["value"]),
-            source_ref=SourceRef.from_dict(limit["source_ref"]))
-        total_dim = Dimension(
-            id=f"{check_id}__stop_total", name=f"{study.id} at {point.index}",
-            nominal=at_stop.interval.nominal, min=at_stop.interval.min,
-            max=at_stop.interval.max)
-        interval = fold([Term(limit_dim, sign=1), Term(total_dim, sign=-1)])
+        interval = _check_fold(study, spec, at_stop, at_stop.interval.min,
+                               at_stop.interval.max)
         units = limit.get("units", units)
     return CheckResult(
         check_id=spec["check_id"],
@@ -1414,3 +1591,61 @@ def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckRe
             f"{r.study_id} (a study_ref on {r.parameter}): {r.completeness['reason']}"
             for r in open_refs),
     )
+
+
+def rss_check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> Interval:
+    """The same check with the stop's RSS band in place of its worst case.
+
+    Its ``min`` is the RSS margin a reader sees beside the worst-case one:
+    the stop's ``rss_min``/``rss_max`` enter the check's one fold exactly where
+    :func:`check_at_stop` puts the worst-case ends.
+    """
+    spec, at_stop = _check_spec(study, sweep, check_id)
+    if spec.get("limit") is None:
+        return at_stop.interval
+    return _check_fold(study, spec, at_stop, at_stop.interval.rss_min,
+                       at_stop.interval.rss_max)
+
+
+def _check_spec(study: KinematicStudy, sweep: Sweep,
+                check_id: str) -> Tuple[Dict[str, Any], StopResult]:
+    spec = next((c for c in study.checks if c.get("check_id") == check_id), None)
+    if spec is None:
+        raise KinematicStudyError(f"kinematic study {study.id!r} has no check {check_id!r}")
+    bound = spec.get("bound")
+    if bound is not None and bound not in CHECK_BOUNDS:
+        raise KinematicStudyError(
+            f"kinematic study {study.id!r}: check {check_id!r} has bound {bound!r}; "
+            f"a bound is one of {CHECK_BOUNDS}")
+    if bound is not None and spec.get("limit") is None:
+        raise KinematicStudyError(
+            f"kinematic study {study.id!r}: check {check_id!r} has a bound and no limit")
+    return spec, fold_at_stop(study, sweep, spec["configuration"]["stop"])
+
+
+def _check_fold(study: KinematicStudy, spec: Dict[str, Any], at_stop: StopResult,
+                low: float, high: float) -> Interval:
+    """A limited check's one fold, with the stop's band given as ``low``..``high``.
+
+    No ``bound``: the limit less the band (a budget on its spread). A
+    ``bound``: the sweep's nominal at the stop and the band, on the side the
+    bound names, against the limit.
+    """
+    check_id, limit, point = spec["check_id"], spec["limit"], at_stop.point
+    limit_dim = Dimension(
+        id=f"{check_id}__limit", name=spec.get("label", check_id),
+        nominal=float(limit["value"]), min=float(limit["value"]),
+        max=float(limit["value"]),
+        source_ref=SourceRef.from_dict(limit["source_ref"]))
+    total_dim = Dimension(
+        id=f"{check_id}__stop_total", name=f"{study.id} at {point.index}",
+        nominal=at_stop.interval.nominal, min=low, max=high)
+    bound = spec.get("bound")
+    if bound is None:
+        return fold([Term(limit_dim, sign=1), Term(total_dim, sign=-1)])
+    nominal_dim = Dimension(
+        id=f"{check_id}__nominal", name=f"{study.id} nominal at {point.index}",
+        nominal=point.nominal, min=point.nominal, max=point.nominal)
+    side = 1 if bound == CHECK_BOUNDS[0] else -1
+    return fold([Term(nominal_dim, sign=side), Term(total_dim, sign=side),
+                 Term(limit_dim, sign=-side)])

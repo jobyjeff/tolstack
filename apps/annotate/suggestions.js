@@ -630,6 +630,78 @@
     return words + ", off by " + mm(e.centre_mm);
   };
 
+  // --- why a face is on a joint end's list ---------------------------------
+  //
+  // Handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there
+  // (2026-11-03). Each face on an end's candidate list says what it is to the
+  // MATING feature at the edge's other end, in a reader's words and never an
+  // engine field: "coaxial with the mating bore", "coincident with the mating
+  // face". Keyed by the generated relation and pairing vocabularies, so a
+  // relation or a pairing Python adds without words here throws at load. A
+  // `contact` is said by what touches (the pairing); the other two relations
+  // say themselves. The engine has no "parallel" relation, so nothing here
+  // can say one.
+  AA.CANDIDATE_RELATION_REASONS = VOCAB.table("CONTACT_RELATIONS", {
+    contact: null,
+    coaxial: "coaxial with the mating {mate}",
+    across: "square to the mating {mate}",
+  });
+  AA.CANDIDATE_CONTACT_REASONS = VOCAB.table("CONTACT_PAIRING_KINDS", {
+    plane_on_plane: "coincident with the mating {mate}",
+    cylinder_in_cylinder: "fits the mating {mate}",
+    ball_in_seat: "seated against the mating {mate}",
+    plane_across_axis: "square to the mating {mate}",
+  });
+  //: An agent's proposal, on the same list.
+  AA.CANDIDATE_PROPOSED_REASON = "agent suggested";
+  // The mating feature, named by what the evidence says it is -- the bore of
+  // a pin in a bore, the seat a ball sits in -- else by its surface.
+  AA.CANDIDATE_SEAT_NOUNS = VOCAB.table("CONTACT_SEAT_SURFACES", {
+    spherical: "race",
+    cylindrical: "bore",
+    planar: "flat",
+  });
+  AA.CANDIDATE_SURFACE_NOUNS = VOCAB.table("SURFACE_CLASSES", {
+    planar: "face",
+    cylindrical: "round face",
+    spherical: "ball-shaped face",
+    other: "face",
+  });
+
+  function mateNoun(candidate, direction) {
+    var mate = direction === "from" ? "to" : "from";
+    var e = candidate.evidence || {};
+    if (e.ball) return e.ball === mate ? "ball" : AA.CANDIDATE_SEAT_NOUNS[e.seat];
+    if (e.bore) return e.bore === mate ? "bore" : "pin";
+    if (e.plane) return e.plane === mate ? "face" : "axis";
+    var side = candidate[mate] || {};
+    return AA.CANDIDATE_SURFACE_NOUNS[side.surface] || AA.CANDIDATE_SURFACE_NOUNS.other;
+  }
+
+  // Why `candidate` (one ranked pair of the contact row `row`) puts its face
+  // at `direction` on that end's list, or null when the engine says nothing
+  // this table can state.
+  AA.candidateReason = function (row, candidate, direction) {
+    if (!row || !candidate) return null;
+    var template = candidate.relation === "contact"
+      ? AA.CANDIDATE_CONTACT_REASONS[row.pairing] : AA.CANDIDATE_RELATION_REASONS[candidate.relation];
+    if (!template) return null;
+    return template.split("{mate}").join(mateNoun(candidate, direction));
+  };
+
+  // The radius the engine fitted to the face group at `direction`, in mm, or
+  // null: a bore's or a pin's, a ball's or its seat's, a cylinder a flat is
+  // across. Evidence for a rank, read off a mesh -- never a value.
+  AA.candidateRadius = function (candidate, direction) {
+    var e = (candidate && candidate.evidence) || {};
+    var r = null;
+    if (e.bore) r = e.bore === direction ? e.bore_radius_mm : e.pin_radius_mm;
+    else if (e.ball) r = e.ball === direction ? e.ball_radius_mm : e.seat_radius_mm;
+    else if (e.plane) r = e.plane === direction ? null : e.cylinder_radius_mm;
+    else r = e[direction + "_radius_mm"];
+    return typeof r === "number" && isFinite(r) && r > 0 ? r : null;
+  };
+
   // The faces to colour for one candidate: [{sha256, faceId}], both ends.
   AA.contactFaces = function (candidate) {
     var out = [];

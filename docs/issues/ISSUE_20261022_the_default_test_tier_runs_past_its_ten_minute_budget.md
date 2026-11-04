@@ -105,3 +105,18 @@ in the review worktree on the merged tree, single-process (no xdist), sharing th
 box with other reviews' browser runs. Result: `2 failed, 1699 passed, 1 skipped,
 2 deselected` (the two checkout-dependent reds). Slowest call 10.6 s, so no
 single test is the pareto; the time is the count.
+
+## Addendum 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
+
+Measured 784 s (budget 600 s, over by 3m04s), serial, `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs -p no:cacheprovider` in the handoff worktree, while two other agents held the browser slot and ran their own tiers on the box: `2 failed, 1686 passed, 1 skipped, 2 deselected` (the worktree-only `test_viewer_js_suite` red, and one witness anchor since re-anchored). No `--durations` was taken on this run. This handoff added no Python test.
+
+## Addendum 2026-11-03 (review of a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there)
+
+Measured 3963 s (budget 600 s, over by 56m03s), serial (no xdist), with
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider -rf`
+in the review worktree on the merged tree. Result: `2 failed, 1699 passed, 1 skipped, 2 deselected`.
+Both reds depend on the checkout: `test_viewer_js_suite`, and the contact-suggestions
+`[real]` pairing. This run shared the box with this review's own browser tier
+and its mutation-witness gate, both of them under the browser slot, so most
+of the hour is contention and not suite growth. The suite prints no
+contention header lines. No `--durations` was taken.

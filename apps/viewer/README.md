@@ -252,8 +252,8 @@ of the part cannot disagree about it. An adjacent edge with no part is a
 **clearance**, named (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped, and there
 is never a crop *of the interface itself*: an interface is a location, not a
 value. The pane printed the authored `parts` list until handoff
-`surfaces_that_state_something_false`, which is 35 of the
-74 live nodes answering differently hovered and clicked — one surface and one
+`surfaces_that_state_something_false`, which is 36 of the
+77 live nodes answering differently hovered and clicked — one surface and one
 record now.
 
 A part with no drawing of its own is identified by the documents its own rows
@@ -714,8 +714,8 @@ re-derived from the committed document on every run:
 metric: layout_crossings
 topology: vpa_pitch_linkage
 branch: 16
-close: 68
-leader: 52
+close: 70
+leader: 50
 ```
 
 **The spine draws on the RIGHT**, hard against the jog zone, with branches
@@ -726,11 +726,11 @@ business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the one
-committed topology, leader-vs-rail crossings went **162 → 30**, zero of the
+committed topology, leader-vs-rail crossings went **223 → 22**, zero of the
 one to zero; on `vpa_pitch_linkage`, the product graph since the 2026-10-26
 fold (and with the four fastener stacks in it since 2026-10-27, when the
 before-and-after were 125 → 25 over its mechanism alone), that one
-topology's total moves 162 → 30. Both
+topology's total moves 223 → 22. Both
 sides of those are measured at the column order above, so the before-side is a
 counterfactual — and where it is zero it is the two mechanisms together, not the
 mirror alone: `order_columns` minimises leader crossings counted *towards column 0*,
@@ -747,7 +747,7 @@ Three shapes come out of it, and all three are in the projection:
 * **column reuse** — a column is freed when its branch ends and the next
   allocation may take it, so a column holds a *list* of disjoint rail spans
   rather than one extent. Re-measured live, 2026-09-30: reuse **fires**, on
-  one topology. Rail allocations over columns, per committed topology: 58 over 11 for
+  one topology. Rail allocations over columns, per committed topology: 59 over 14 for
   `vpa_pitch_linkage`, where some columns carry more than one disjoint span (37
   over 11 before the four fastener stacks folded in on 2026-10-27, when they were
   3 over 3, 10 over 10, 2 over 2 and 2 over 2 as topologies of their own; 23
@@ -1529,7 +1529,7 @@ its length wherever the big dimensions are, so on
 `vpa_pitch_linkage` 2026-10-26) under tolerance width all five leaders live in the
 top 236px of a 691px DAG and centring the heights would make every one of them
 jog *further*. Centring the leader span is what minimises the largest jog,
-which is the thing the change is for: `vpa_pitch_linkage`'s max jog 1911px → 949px,
+which is the thing the change is for: `vpa_pitch_linkage`'s max jog 1989px → 988px,
 and every topology × mode pair on the shelf improves.
 
 A leader can therefore now **descend** left-to-right, where before it always
@@ -1578,9 +1578,9 @@ live corpus (before the band). Taking
 `pitch_system_gas_spring_branch`, over the product graph:
 
 * the **jog zone narrows** as leaders drop, and the pane width with it — the
-  pane goes **606 → 270px**;
+  pane goes **672 → 330px**;
 * the **grid block travels**, because a shorter table re-centres against a DAG
-  of unchanged height — `gridOffset` goes **962 → 624px**;
+  of unchanged height — `gridOffset` goes **1001 → 715px**;
 * the grid **cross-fades** between two different row sets, as it always did.
 
 Every committed study moves at least one of those, which the `[real]` tier
@@ -1607,7 +1607,7 @@ things are worth knowing about it:
 * **x cannot go through the store either, so the drawn LAYOUT is what is
   interpolated.** Which column a row lands on is a claim about the graph, the
   two serialisations disagree about how many columns there are (`vpa_pitch_linkage`'s
-  walk needs **11 columns**, while every one of its study chains is linear and
+  walk needs **14 columns**, while every one of its study chains is linear and
   needs **1**), and a rail belongs to a *column* rather than to an element, so
   there is nothing to pair the two frames' rails on. What the two frames do
   agree about is **depth from the spine** — both are right-justified, so the

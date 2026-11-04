@@ -6,10 +6,10 @@
     {
       "contract": "A disclosure in the nav's scene tree asks the annotator for the toggle; the open state is the annotator's.",
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
-      "note": "A copy-paste of the row's own activate line is the likeliest slip: it would select a joint instead of opening it.",
+      "note": "A copy-paste of the row's own activate line is the likeliest slip: it would select a joint instead of opening it. Re-anchored 2026-11-03 (a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): the twisty row sends a toggle too, so the anchor carries the summary's own preventDefault line.",
       "file": "apps/viewer/views/nav.js",
-      "find": "        send(row.key, VA.SCENE_ACTS.toggle);",
-      "replace": "        send(row.key, VA.SCENE_ACTS.activate);"
+      "find": "        if (event && event.preventDefault) event.preventDefault();\n        send(row.key, VA.SCENE_ACTS.toggle);",
+      "replace": "        if (event && event.preventDefault) event.preventDefault();\n        send(row.key, VA.SCENE_ACTS.activate);"
     }
   ]
 }

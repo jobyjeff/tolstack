@@ -5208,6 +5208,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md`).
       A skipped `[real]` line in a review record is not a pass. Arm the tier,
       or say it was not run.
+      **Third sighting 2026-11-03:** the slide re-author's node `face` field,
+      plus four layout pins and a node declaring a part no incident edge
+      carries — six reds, found by the *next* review
+      (`ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md`).
+      To tell an inherited red from your merge's: `git archive integration`
+      into a `%TEMP%` dir, `git init` + one commit there (the freshness check
+      needs a git tree), junction `data/inbox`, `data/meshes`, `venv-win`,
+      `node_modules`, build the four projections, run `run_tests.cjs --repo`.
+- [ ] **A merge conflict in a layout or graph-count pin: re-derive it from the
+      MERGED topology, never take a side.** New 2026-11-03
+      (`each_stop_is_its_own_stack` over the slide re-author): both branches
+      re-pinned crossings / columns / rows / the graph sentence for their own
+      edits, and the merged graph matched neither (16/70/50 on 14 columns, 178
+      rows, 79 interfaces vs the sides' 16/68/52 on 11 and 20/97/50 on 14).
+      `B.layout_crossings(B.serialize_topology(load_topology(...)))` and
+      `tests/test_topology.py::_COUNTABLES` give the numbers in one call; the
+      non-conflicting `[real]` pins (leaders, bands, forks, README totals) move
+      too, so run the tier after.
 - [ ] **An annotator heuristic justified by a universal claim about the
       topology's wording.** New 2026-10-29 (`a_face_is_picked_the_way_cad_picks_it`).
       `AA.pickEndPartIds` arms the node's `parts[0]` on the strength of "all 35
@@ -5400,6 +5418,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `docs/ANNOTATION_SURFACE.md` as well as in the README the author fixed.
       `git grep -n "<part id>\|<drawing no>"` over `docs/` and the topology
       notes.
+- [ ] **A topology or builder change whose review leaves the viewer `[real]`
+      tier "for the batch-merge rebuild" puts `integration` red, and the next
+      review is the first to see it.** New 2026-11-03
+      (`a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there`). The
+      slide re-author's review listed the viewer and annotate `[real]` tiers
+      under "Not run". Built into a scratch root, that tier was **623/629** on
+      `integration` alone: four layout pins, one node declaring a part no
+      incident edge carries, and fixture drift
+      (`ISSUE_20261103_the_slide_re_author_leaves_six_viewer_real_checks_red_on_integration.md`).
+      The scratch-root recipe under "The two traps" costs about ten minutes, and
+      a `docs/topologies/` diff should not merge without it. When **your**
+      merged tree is red there, re-run the same tier from a
+      `git archive integration` export against the same scratch root before
+      you charge the reds to the diff.
 
 ## Architectural errors to check
 

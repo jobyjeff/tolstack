@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "...with its candidate disclosure: closed, a toggle from the shell opens it, and the mirrored list carries the proposal's reason, its Take, and Pick another face, wrapping",
+  "mutations": [
+    {
+      "contract": "The shell's nav receives an open candidate list's rows.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). The 10-29 lesson's class: a row shape the mirror's selectors do not read is invisible in the shell, however right the pane looks.",
+      "file": "apps/annotate/app.js",
+      "find": "      const kids = railRows(list, key, new Map());\n      if (kids.length) row.rows = kids;",
+      "replace": "      const kids = [];\n      if (kids.length) row.rows = kids;"
+    }
+  ]
+}
