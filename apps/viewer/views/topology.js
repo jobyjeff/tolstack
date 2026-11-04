@@ -1781,8 +1781,11 @@
     //     title and folded interval once, at the topmost. CLOSED, the bars
     //     inside are drawn as one muted fold (`rail__bar--folded`) and the
     //     label stands for them; OPEN, they wear their own colours. The label
-    //     opens and closes it, and the contributor table's group row with it.
+    //     opens and closes it, and the grid's sub-stack header with it. The
+    //     labels are drawn after the marks (3., below), so neither a leader's
+    //     wide hit strip nor a bar's takes the click meant for the fold.
     var folded = {};
+    var subStackLabels = [];
     (ctx.subStacks || []).forEach(function (sub) {
       var open = !!(ctx.openSubStacks && ctx.openSubStacks[sub.id]);
       var marks = geometry.marks.filter(function (mark) {
@@ -1799,9 +1802,12 @@
         under.appendChild(field);
       });
       var top = marks.reduce(function (a, b) { return b.y1 < a.y1 ? b : a; });
-      var label = VA.svg("text", "tv__substackname", { x: top.x + 10, y: top.y1 + 9 });
-      label.textContent = (open ? "▾ " : "▸ ") + sub.title +
-        (sub.interval ? " · " + sub.interval : "");
+      var text = (open ? "▾ " : "▸ ") + sub.title + (sub.interval ? " · " + sub.interval : "");
+      var at = VA.subStackLabelPlacement(top.x, text.length, width / (leaderGeo.zoom || 1));
+      var label = VA.svg("text", "tv__substackname", { x: at.x, y: top.y1 + 9 });
+      if (at.anchor === "end") label.setAttribute("text-anchor", "end");
+      label.setAttribute("data-label-side", at.side);
+      label.textContent = text;
       label.appendChild(svgTitle(sub.title + (sub.interval ? ", " + sub.interval : "") +
         " — its terms enter one by one; this total is shown, never added"));
       label.setAttribute("data-substack-toggle", sub.id);
@@ -1816,7 +1822,7 @@
           toggle();
         }
       };
-      under.appendChild(label);
+      subStackLabels.push(label);
     });
 
     // 1. the rails themselves: continuous, neutral, alternating shade by column
@@ -2102,6 +2108,10 @@
         over.appendChild(fade(adorn, "node", mark.id));
       }
     });
+    // The sub-stacks' labels (0d.), over every mark: a label is a button the
+    // reader can see, so it takes the click wherever it is drawn -- a bar it
+    // crosses is still reachable above and below its one line.
+    subStackLabels.forEach(function (node) { over.appendChild(node); });
     // The hover label's layer, last and therefore on top of every mark; in
     // the DAG's own units, so its bounds are the drawing's box at this zoom.
     var labelLayer = VA.svg("g", "rail__hoverlabels");
@@ -2284,6 +2294,20 @@
       if (!best || c.hits < best.hits) best = c;
     });
     return best;
+  };
+
+  // Where a sub-stack's label starts, in DAG units: just right of its topmost
+  // bar when it fits before `limit` (the drawing's right edge; the SVG clips
+  // there, and a clipped half is neither drawn nor clickable), else ending at
+  // that edge -- `text-anchor: end`, so the label's real width, not this
+  // estimate, decides where it starts. The estimate (HOVER_LABEL_METRICS's
+  // generous charPx) only picks the side.
+  VA.SUB_STACK_LABEL_GAP = 10;
+  VA.subStackLabelPlacement = function (barX, chars, limit) {
+    var g = VA.SUB_STACK_LABEL_GAP;
+    var w = chars * VA.HOVER_LABEL_METRICS.charPx;
+    if (barX + g + w <= limit - 2) return { x: barX + g, anchor: "start", side: "right" };
+    return { x: limit - 2, anchor: "end", side: "edge" };
   };
 
   // --- the grid ------------------------------------------------------------

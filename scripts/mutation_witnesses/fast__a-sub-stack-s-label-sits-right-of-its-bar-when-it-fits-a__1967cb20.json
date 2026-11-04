@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a sub-stack's label sits right of its bar when it fits, and otherwise ends at the drawing's right edge, never past it",
+  "mutations": [
+    {
+      "contract": "A sub-stack's DAG label is drawn whole inside the drawing, so all of it can be read and clicked (review of the_kinematic_grid_is_a_stack_of_sub_stacks, 2026-11-04).",
+      "issue": null,
+      "note": "The label always starts beside its bar, however far past the drawing's right edge that runs -- the defect the review found.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "if (barX + g + w <= limit - 2) return",
+      "replace": "if (true) return"
+    }
+  ]
+}

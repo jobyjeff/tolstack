@@ -8915,6 +8915,19 @@
         eq(selected.length, 5);
       });
 
+    await test("a sub-stack's label sits right of its bar when it fits, and " +
+      "otherwise ends at the drawing's right edge, never past it", function () {
+        var w = VA.HOVER_LABEL_METRICS.charPx;
+        var g = VA.SUB_STACK_LABEL_GAP;
+        eq(VA.subStackLabelPlacement(100, 20, 400),
+           { x: 100 + g, anchor: "start", side: "right" }, "room for it: beside the bar");
+        // One character more than the room right of the bar: it ends at the edge.
+        var room = Math.floor((400 - 2 - 100 - g) / w);
+        eq(VA.subStackLabelPlacement(100, room, 400).side, "right");
+        eq(VA.subStackLabelPlacement(100, room + 1, 400),
+           { x: 398, anchor: "end", side: "edge" }, "no room: anchored at the edge");
+      });
+
     await test("the hover label goes where no other mark is, and keeps a " +
       "picture fact when it must cut the name", function () {
         var anchor = { x: 100, y: 50, r: 4 };
@@ -18366,6 +18379,41 @@
             eq(row.getAttribute("aria-expanded"), "true");
             row.onclick();
             eq(opened[1], [sub.id, false], "and the row closes it through the same state");
+          });
+
+        await test("[real] each stop chain's label is drawn inside the drawing and " +
+          "over every mark, so no leader or bar takes the click meant for the fold", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var subs = VA.kinematicSubStacks(realKinStudy, realKinematic.display_decimals);
+            var root = render(function (r) {
+              VA.renderTopoPane(r, { topoProj: topo, study: null, crops: realCrops,
+                selection: null, onSelect: function () {},
+                lit: VA.kinematicLitSet(realKinStudy, topo),
+                subStacks: subs, openSubStacks: {}, onToggleSubStack: function () {} });
+            });
+            var svg = all(root, "svg.tv__rails")[0];
+            var labels = all(root, "text.tv__substackname");
+            eq(labels.length, 2);
+            var layers = all(svg, "g.tv__dag");
+            var top = layers[layers.length - 1];
+            labels.forEach(function (label) {
+              var layer = label.parentNode;
+              ok(layer === top, label.textContent + ": in the last layer, the marks' own");
+              var kids = Array.prototype.slice.call(layer.childNodes);
+              var marks = kids.filter(function (n) {
+                return /\brail__(bar|barhit|dot)\b/.test(n.getAttribute && n.getAttribute("class") || "");
+              });
+              ok(marks.length > 0, "the layer holds the marks");
+              ok(kids.indexOf(label) > kids.indexOf(marks[marks.length - 1]),
+                 label.textContent + ": after the last mark");
+              var m = /scale\(([^)]+)\)/.exec(layer.getAttribute("transform") || "");
+              var limit = Number(svg.getAttribute("width")) / (m ? Number(m[1]) : 1);
+              var x = Number(label.getAttribute("x"));
+              var end = label.getAttribute("text-anchor") === "end"
+                ? x : x + label.textContent.length * VA.HOVER_LABEL_METRICS.charPx;
+              ok(end <= limit - 2 + 1e-9, label.textContent + ": ends at " + end +
+                 ", inside the drawing's " + limit);
+            });
           });
 
         await test("[real] every contributor names an edge the topology projection " +
