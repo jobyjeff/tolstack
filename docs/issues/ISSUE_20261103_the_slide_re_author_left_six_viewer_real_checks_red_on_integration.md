@@ -6,7 +6,7 @@ area: viewer/[real] tier
 reporter: agent
 class: integration_red_real_tier
 found_by: docs/sessions/HANDOFF_20261103_each_stop_is_its_own_stack.md
-resolution: closed 2026-11-04 (triage): duplicate of ISSUE_20261103_the_slide_re_author_leaves_six_viewer_real_checks_red_on_integration.md, which carries the handoff
+resolution: closed 2026-11-04 (triage): duplicate of ISSUE_20261103_the_slide_re_author_leaves_six_viewer_real_checks_red_on_integration.md, which carries the handoff and is resolved by the_viewer_real_tier_follows_the_slide_re_author (c511273a, d3a7afae)
 ---
 
 # The slide re-author left six viewer `[real]` checks red on integration
