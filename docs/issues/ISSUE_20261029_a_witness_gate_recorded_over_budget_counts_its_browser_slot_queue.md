@@ -90,3 +90,15 @@ Measured 2934 s wall for `--changed-since integration` against a scratch root.
 The runner reports `51/57 reached in 29m55s`. The difference, about 19 min, is
 the queue for the browser slot behind this review's own browser tier. It was
 recorded as 18m54s over budget.
+
+## Measurement 2026-11-04 (triage batch merge, main checkout, trunk `3062127c`)
+
+    node scripts/run_mutation_witness_tests.mjs --changed-since d7d2f4aacb79a9e2576fe8b5d84bd8c10e4706ba
+
+(`d7d2f4aa` is the pre-merge trunk sha.) Shell wall time **1877 s**, recorded `--tier merge`:
+`OVER BUDGET by 1m17s`. The runner's clock read **30m33s**: `60/165 witnessed, 165/302 reached;
+137 left to the sweep`. It ran concurrently with the full browser tier, so part of that is the slot
+queue. The 105 not witnessed were all "the tier was red before the mutation", from the viewer fast
+tier's six `[real]` reds (routed to `HANDOFF_20261104_the_viewer_real_tier_follows_the_slide_re_author`)
+and the `3D pane follows the selection` red. None of them is a decayed witness. This is the same
+shape as before: a capped run lands at about 30 m plus overhead.
