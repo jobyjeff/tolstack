@@ -7711,14 +7711,30 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     push("[real] resting on a bound contributor row tints its face in the " +
       "annotator, in the colour buffer and not just the bookkeeping",
       face && face.sha256 === face.first && face.faceId === 0 && face.painted);
+    // Waited for on THIS row's highlight having run in the pane, never on
+    // any null: leaving the bound row posts `highlight clear` first (the
+    // scroll that brings the next row into view moves the page under the
+    // pointer), which nulls __lastHighlight and writes no note -- so a null
+    // seen before the unbound row's own command arrives read an empty note
+    // (red in a loaded full run, 2026-11-02). The note is cleared first, and
+    // only a highlight for an edge with nothing to tint writes one naming it.
+    await inPane((w) => { w.__lastHighlightNote = null; return true; });
     await clearPoint(page, `#topopane tr.tvrow[data-id="${unbound.edge}"] td.tvcell--name`, "hover");
-    const cleared = await until((w) => w.__lastHighlight === null, null, 10000);
+    const cleared = await until((w, edge) => w.__lastHighlight === null &&
+      typeof w.__lastHighlightNote === "string" && w.__lastHighlightNote.indexOf(edge) !== -1,
+    unbound.edge, 20000);
     const said = cleared
       ? await inPane((w) => w.__lastHighlightNote || "") : "";
     const banner = await inPane((w) => w.document.querySelector("#notice-text").textContent);
+    const unboundHeld = cleared && /no binding/.test(said) && !/no binding/.test(banner || "");
+    if (!unboundHeld) {
+      console.log(`      [${label}] DIAG unbound row ${unbound.edge}: cleared ${cleared}; said ` +
+        `${JSON.stringify(said)}; banner ${JSON.stringify(banner)}; now ` +
+        JSON.stringify(await inPane((w) => ({ highlight: w.__lastHighlight,
+          note: w.__lastHighlightNote || null }))));
+    }
     push("[real] resting on a contributor row with no binding tints nothing, and the " +
-      "annotator says so in its console line rather than its banner",
-      cleared && /no binding/.test(said) && !/no binding/.test(banner || ""));
+      "annotator says so in its console line rather than its banner", unboundHeld);
 
     // --- 5. a row CLICK selects in place: the scene stays in the sweep -------
     // (2026-10-26.) The page keeps the study, the pane is not sent a goto,
@@ -9645,6 +9661,32 @@ async function testAnnotateRail(browser, label) {
     //      import), and the aim is CONFIRMED with the scene's own raycaster
     //      before anything is clicked -- otherwise a bad aim would report
     //      itself as "deselect is broken".
+    //   3. The scene SETTLED before it is aimed at. The aim below is a
+    //      projection through the camera onto the canvas's rect; anything
+    //      that moves either between the aim and the click (a ResizeObserver
+    //      resize after the top bar's line changed, a frame not yet drawn)
+    //      sends a real click somewhere the check never confirmed. So the
+    //      canvas's rect, its drawing buffer, the camera's aspect and the
+    //      render loop's dirty flag must agree across consecutive frames
+    //      first -- a barrier, not a longer ceiling after the click (red at
+    //      a 15 s ceiling, 2026-11-05).
+    const sceneStill = () => page.waitForFunction(() => {
+      const scene = window.__scene;
+      const canvas = document.querySelector("#canvas-host canvas");
+      const host = document.querySelector("#canvas-host");
+      if (!scene || !canvas || !host) return false;
+      const r = canvas.getBoundingClientRect();
+      const dpr = scene.renderer.getPixelRatio();
+      const key = JSON.stringify([r.left, r.top, r.width, r.height, canvas.width, canvas.height,
+        scene.camera.aspect]);
+      const fits = Math.abs(r.width - host.clientWidth) <= 1 && Math.abs(r.height - host.clientHeight) <= 1 &&
+        Math.abs(canvas.width - Math.floor(host.clientWidth * dpr)) <= 1 &&
+        Math.abs(scene.camera.aspect - host.clientWidth / host.clientHeight) < 1e-6;
+      const same = window.__sceneStillKey === key;
+      window.__sceneStillKey = key;
+      return fits && same && !scene.dirty;
+    }, null, { timeout: 15000, polling: "raf" }).then(() => true, () => false);
+    await sceneStill();
     const hit = await page.evaluate((s) => {
       const scene = window.__scene;
       const mesh = scene.parts.get(s);
@@ -9686,9 +9728,27 @@ async function testAnnotateRail(browser, label) {
         for (let i = 0; i < base.length; i++) if (live[i] !== base[i]) return true;
         return false;
       }, sha, { timeout: 15000, polling: 100 }).catch(() => {});
-      push("a real click on the face tints it",
-        await tinted() &&
-        (await page.evaluate(() => window.__scene.highlightedFace())) !== null);
+      const tintHeld = await tinted() &&
+        (await page.evaluate(() => window.__scene.highlightedFace())) !== null;
+      if (!tintHeld) {
+        console.log(`      [${label}] DIAG face click: aimed ${JSON.stringify(hit)}; now ` +
+          JSON.stringify(await page.evaluate(([s, at]) => {
+            const scene = window.__scene;
+            const canvas = document.querySelector("#canvas-host canvas");
+            const r = canvas.getBoundingClientRect();
+            const top = document.elementFromPoint(at.x, at.y);
+            return { tinted: (() => {
+              const mesh = scene.parts.get(s);
+              const live = mesh.geometry.attributes.color.array;
+              const base = mesh.userData.baseColors;
+              for (let i = 0; i < base.length; i++) if (live[i] !== base[i]) return true;
+              return false;
+            })(), face: scene.highlightedFace(), canvas: [r.left, r.top, r.width, r.height],
+            buffer: [canvas.width, canvas.height], aspect: scene.camera.aspect,
+            camera: scene.camera.position.toArray(), top: top && (top.id || top.tagName) };
+          }, [sha, hit])));
+      }
+      push("a real click on the face tints it", tintHeld);
       await page.mouse.click(hit.x, hit.y);
       push("clicking the SAME face again toggles it off -- Jeff's own gesture " +
         "after a mis-click",
@@ -13317,6 +13377,15 @@ async function testSeamLeaders(browser, label, topologies) {
     (window.ViewerApp.lastSeamDraw && window.ViewerApp.lastSeamDraw.draws) || 0);
   const drawnAfter = (n) => until((n) => window.ViewerApp.lastSeamDraw &&
     window.ViewerApp.lastSeamDraw.draws > n, n, 10000);
+  // The overlay drawing `state` on every one of `ids`, read off the drawn
+  // paths. A hover, a click or a pick changes the page's state first and the
+  // overlay a frame later, and other triggers draw in between -- so "any draw
+  // since the gesture" can be one that read the state before it (1 red in 4
+  // on bare integration, 2026-11-04). This waits for the drawing itself.
+  const seamShows = (ids, state) => until(({ ids, state }) => ids.every((id) => {
+    const p = document.querySelector(`svg.seamleaders path.seam__leader[data-node-id="${CSS.escape(id)}"]`);
+    return !!p && p.classList.contains("seam__leader--" + state);
+  }), { ids, state }, 15000);
   // Every leader on the overlay, its two ends read off the drawn path, beside
   // the two rects and the DAG ends the pane published.
   const measure = () => page.evaluate(() => {
@@ -13440,9 +13509,8 @@ async function testSeamLeaders(browser, label, topologies) {
     const stateOf = (m, id) => (m.paths.find((p) => p.id === id) || {}).cls || "";
     let hovered = false;
     if (first) {
-      const beforeHover = await draws();
       await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().hover();
-      hovered = await drawnAfter(beforeHover);
+      hovered = await seamShows([first.from, first.to], S[1]);
       m = await measure();
     }
     push("hovering a grid row lights its two ends' leaders across the seam, lighter than a selection",
@@ -13473,10 +13541,9 @@ async function testSeamLeaders(browser, label, topologies) {
     // Selection: a grid row click lights the triple and dims the rest.
     let clicked = false;
     if (first) {
-      const beforeClick = await draws();
       await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().click();
       await settled();
-      clicked = await drawnAfter(beforeClick);
+      clicked = await seamShows([first.from, first.to], S[0]);
       m = await measure();
     }
     const ends = first ? [first.from, first.to] : [];
@@ -13491,19 +13558,24 @@ async function testSeamLeaders(browser, label, topologies) {
     // the page selects the element the row names -- the same state a click makes.
     let picked = false;
     if (second) {
-      const beforePick = await draws();
       await fromPane({ type: "annotate:tree", mode: "bind", chips: [],
         rows: [{ key: "#sweep-tree/group=contributors/edge=" + second.id, text: second.id,
           selected: true }] });
       picked = await until((id) => !!document.querySelector(
         `#topopane .tv__hscroll tr.tvrow--selected[data-id="${id}"]`), second.id, 10000);
-      await drawnAfter(beforePick);
+      await settled();
+      await seamShows([second.from, second.to], S[0]);
       m = await measure();
     }
+    const pickHeld = picked && [second.from, second.to].every((id) =>
+      stateOf(m, id).indexOf("seam__leader--" + S[0]) !== -1);
+    if (!pickHeld) {
+      console.log(`      [${label}] DIAG scene-tree pick: picked ${picked}; ends ` +
+        `${second && [second.from, second.to].map((id) => id + "=" + JSON.stringify(stateOf(m, id))).join(", ")}; ` +
+        `draws ${m.draw && m.draw.draws}; states ${JSON.stringify(m.draw && m.draw.states)}`);
+    }
     push("a row the scene marks selected (a pick there) selects its element here, lighting the " +
-      "same leaders a click on its grid row does",
-      picked && [second.from, second.to].every((id) =>
-        stateOf(m, id).indexOf("seam__leader--" + S[0]) !== -1));
+      "same leaders a click on its grid row does", pickHeld);
 
     // The scene is told the page's lit set and the dim-or-hide word.
     const told = await until(() => {
@@ -13674,16 +13746,28 @@ async function testSeamLeaders(browser, label, topologies) {
       lit: Object.keys(VA.lastTopoRender.seam.dots).sort(), grid,
       paths: document.querySelectorAll("svg.seamleaders path.seam__leader").length };
   });
-  // What liveMeasure compares: the scene's last anchor message against the
-  // DAG's last draw. Settled when three reads 150ms apart agree on both, under
-  // a deadline of seconds -- a fixed pause measured while the scene was still
+  // What liveMeasure and traceMeasure compare: the scene's last anchor
+  // message against the DAG's last draw -- which leaders, in which state
+  // (hot, selected, dim), from where the rails and the scene's frame are on
+  // screen. Settled when three reads 150ms apart agree on all of it, under a
+  // deadline of seconds -- a fixed pause measured while the scene was still
   // projecting anchors (red 3 in 3 in a loaded witness baseline, 2026-10-28).
+  // The states and the two rects joined the anchors and ids on 2026-11-05:
+  // a hover or click reaches the overlay a frame after the row, and a scroll
+  // moves both rects, and none of that changed the two it read before.
   const liveSettle = async (deadline = 30000) => {
     const read = () => live.evaluate(() => {
       const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
       const d = window.ViewerApp.lastSeamDraw;
+      const rect = (n) => {
+        if (!n) return null;
+        const r = n.getBoundingClientRect();
+        return [r.left, r.top, r.width, r.height];
+      };
       return JSON.stringify({ a: (w && w.__lastAnchors) || null,
-        l: d ? d.leaders.map((x) => x.id) : null });
+        l: d ? d.leaders.map((x) => x.id) : null, s: d ? d.states : null,
+        r: rect(document.querySelector("#topopane .tv__hscroll svg.tv__rails")),
+        f: rect(document.querySelector("#annotate-flyout iframe")) });
     });
     const end = Date.now() + deadline;
     let last = null, same = 0;
@@ -14022,13 +14106,18 @@ async function testSeamLeaders(browser, label, topologies) {
     };
     const pathsCross = (a, b) => a.slice(1).some((p, i) =>
       b.slice(1).some((q, j) => segCross(a[i], p, b[j], q)));
-    const traceHolds = (t, ends) =>
-      t.gridLit.length <= ends.length && sameIds(t.gridLit, t.withGridLeader) &&
-      t.gridLit.every((g) => atMark(g.from, t.dots[g.id])) &&
-      !(t.gridLit.length === 2 && pathsCross(t.gridLit[0].pts, t.gridLit[1].pts)) &&
-      t.seamLit.length <= ends.length && sameIds(t.seamLit, t.with3d) &&
-      t.seamLit.every((l) => atMark(l.from, t.dots[l.id]) &&
-        Math.hypot(l.to[0] - t.anchors[l.id][0], l.to[1] - t.anchors[l.id][1]) <= 1);
+    // Each clause of the trace rule by name, so a red names the one that broke.
+    const traceFaults = (t, ends) => [
+      ["grid count", t.gridLit.length <= ends.length],
+      ["grid ids", sameIds(t.gridLit, t.withGridLeader)],
+      ["grid at dot", t.gridLit.every((g) => atMark(g.from, t.dots[g.id]))],
+      ["grid uncrossed", !(t.gridLit.length === 2 && pathsCross(t.gridLit[0].pts, t.gridLit[1].pts))],
+      ["3D count", t.seamLit.length <= ends.length],
+      ["3D ids", sameIds(t.seamLit, t.with3d)],
+      ["3D ends", t.seamLit.every((l) => atMark(l.from, t.dots[l.id]) &&
+        Math.hypot(l.to[0] - t.anchors[l.id][0], l.to[1] - t.anchors[l.id][1]) <= 1)],
+    ].filter(([, ok]) => !ok).map(([name]) => name);
+    const traceHolds = (t, ends) => traceFaults(t, ends).length === 0;
     const traceCase = async (E, how) => {
       const edge = topology.edges.find((e) => e.id === E);
       const ends = [edge.from, edge.to];
@@ -14065,14 +14154,16 @@ async function testSeamLeaders(browser, label, topologies) {
       const lit = await liveUntil(({ E, how }) => !!document.querySelector(how === "click"
         ? `#topopane .tv__hscroll tr.tvrow--selected[data-id="${E}"]`
         : `#topopane .tv__hscroll tr.tvrow--lead[data-id="${E}"]`), { E, how }, 15000);
-      await liveSettle();
+      const calm = await liveSettle();
       const t = await traceMeasure({ ends, how });
       const held = !!at && lit && traceHolds(t, ends);
       const words = (l) => l.map((x) => x.id).join("+") || "-";
       console.log(`      [${label}] ${how} ${E}: grid ${words(t.gridLit)} of ` +
         `${t.withGridLeader.join("+") || "-"}; 3D ${words(t.seamLit)} of ${t.with3d.join("+") || "-"}` +
         `; no anchor in the scene: ${t.noAnchor.join("+") || "-"}` +
-        `${held ? "" : " " + JSON.stringify(t, (key, v) => key === "pts" ? undefined : v)}`);
+        `${held ? "" : " DIAG aimed " + JSON.stringify(at) + ", lit " + lit + ", settled " + calm +
+          ", broke " + JSON.stringify(traceFaults(t, ends)) + " " +
+          JSON.stringify(t, (key, v) => key === "pts" ? undefined : v)}`);
       return { held, t };
     };
     const traceRound = async (sequence) => {
