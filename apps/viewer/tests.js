@@ -3007,35 +3007,6 @@
       eq(all(plain, ".worksheet__note").length, 0);
     });
 
-    // The honesty guard that stood in for this feature, narrowed to the case the
-    // projection's ARCHETYPE_LOADERS cannot close: an archetype with no loader.
-    // "no checks" would be false and reassuring; say what is actually true.
-    // (originally review/stack_viewer_v0, 2026-08-06)
-    await test("an archetype with no loader says so instead of 'no checks'", function () {
-      var base = FIXTURE.results.stacks[0];
-      var generated = JSON.parse(JSON.stringify(base));
-      generated.checks = [];
-      generated.archetype = "some_future_archetype";
-      generated.checks_generated_not_rendered = true;
-      var root = render(function (r) { VA.renderStack(r, generated, CROPS, {}); });
-      has(root.textContent, "This stack has checks");
-      has(root.textContent, "some_future_archetype");
-      has(root.textContent, VA.PROJECTION_BUILT_ELSEWHERE);
-      // No fixture or live projection reaches this arm, so the shared ban
-      // list has never seen its text: scan it from its own domain.
-      surfaceIsClean(root, "the stack page's no-loader arm",
-                     schemaFieldNames({ stacks: [DEMO, GEN] }), null);
-      ok(root.textContent.indexOf("ARCHETYPE_LOADERS") === -1 &&
-         root.textContent.indexOf("build_viewer_projection") === -1 &&
-         root.textContent.indexOf("NO LOADER") === -1,
-         "the arm must not print a constant or a script name");
-
-      var plain = JSON.parse(JSON.stringify(base));
-      plain.checks = [];
-      var plainRoot = render(function (r) { VA.renderStack(r, plain, CROPS, {}); });
-      has(plainRoot.textContent, "no checks");
-    });
-
     // --- crop popover -------------------------------------------------------
 
     // The PDF link only renders where the ORIGIN can follow one
@@ -5063,6 +5034,39 @@
            where + " prints the internal id `" + id + "`: " + text);
       });
     }
+
+    // Below surfaceIsClean, not beside the worksheet tests it used to sit with:
+    // the scan reads BANNED_IN_RENDERED_TEXT and VERBATIM_PROSE_CLASSES, `var`s
+    // assigned above this point, and a test run before them read both as
+    // undefined and threw before the scan ran (0fdcfa77 added the scan there).
+    // The honesty guard that stood in for this feature, narrowed to the case the
+    // projection's ARCHETYPE_LOADERS cannot close: an archetype with no loader.
+    // "no checks" would be false and reassuring; say what is actually true.
+    // (originally review/stack_viewer_v0, 2026-08-06)
+    await test("an archetype with no loader says so instead of 'no checks'", function () {
+      var base = FIXTURE.results.stacks[0];
+      var generated = JSON.parse(JSON.stringify(base));
+      generated.checks = [];
+      generated.archetype = "some_future_archetype";
+      generated.checks_generated_not_rendered = true;
+      var root = render(function (r) { VA.renderStack(r, generated, CROPS, {}); });
+      has(root.textContent, "This stack has checks");
+      has(root.textContent, "some_future_archetype");
+      has(root.textContent, VA.PROJECTION_BUILT_ELSEWHERE);
+      // No fixture or live projection reaches this arm, so the shared ban
+      // list has never seen its text: scan it from its own domain.
+      surfaceIsClean(root, "the stack page's no-loader arm",
+                     schemaFieldNames({ stacks: [DEMO, GEN] }), null);
+      ok(root.textContent.indexOf("ARCHETYPE_LOADERS") === -1 &&
+         root.textContent.indexOf("build_viewer_projection") === -1 &&
+         root.textContent.indexOf("NO LOADER") === -1,
+         "the arm must not print a constant or a script name");
+
+      var plain = JSON.parse(JSON.stringify(base));
+      plain.checks = [];
+      var plainRoot = render(function (r) { VA.renderStack(r, plain, CROPS, {}); });
+      has(plainRoot.textContent, "no checks");
+    });
 
     await test("the component label is the part's own name, and an id is what " +
       "it is keyed by -- never what is printed", function () {
