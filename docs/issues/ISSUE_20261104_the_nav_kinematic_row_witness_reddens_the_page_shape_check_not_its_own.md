@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tests/mutation-witnesses
 class: decayed_witness
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261103_the_kinematic_grid_is_a_stack_of_sub_stacks.md
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # The nav-kinematic-row witness reddens the page-shape check, not its own

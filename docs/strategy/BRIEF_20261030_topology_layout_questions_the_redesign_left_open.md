@@ -53,3 +53,19 @@ issue is the verifier's).
   being *out of view*. Read that handoff's lesson before deciding 4.
 - The stack page's results-table width (two `layout_measurement_awaits_human_decision`
   issues, 2026-09-23) is a different page and stays deferred on its own.
+
+## 2026-11-05 triage sweep — two more layout questions (Q7, Q8), both filed `audience: strategy`
+
+7. **At 1600×1000 the rails leave the grid a 59px slit** —
+   `docs/issues/ISSUE_20261104_at_1600_wide_the_product_graphs_rails_leave_the_grid_a_59px_slit.md`.
+   `svg.tv__rails` grew from 606px (11-02) to 678px (`6d23015d`, `682a89b6`) inside a 737px `.tv__hscroll`, so
+   with the Preview pane open only the merged COMPONENT cell shows beside the rails, and that cell's
+   click selects nothing. At the browser tier's own size, no grid row can be clicked. The question is
+   what gives at narrow widths: the rails scroll, the pane collapses, the jog zone narrows, or the grid
+   gets a minimum width. This is the same "what the DAG gives up" family as Q1/Q3/Q5.
+8. **At the as-modelled frame the spindle joint draws its fan from the assembly origin** —
+   `docs/issues/ISSUE_20261103_the_spindle_joint_draws_its_fan_from_the_assembly_origin_at_the_as_modelled_frame.md`.
+   Since `coaxial_ends_share_one_3d_node` the only live joint on P2 is placed at the mean of the
+   solver's two slide ends, which is (0,0,0) at 72° and zero travel. Its eight world lines then run
+   from the origin and read as the old star of unplaced nodes. The joint is true; the question is how a
+   joint at the datum should be drawn so it does not read as "unplaced".

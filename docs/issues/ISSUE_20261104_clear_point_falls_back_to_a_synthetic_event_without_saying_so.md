@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer browser tier
 reporter: agent
 class: guard_cannot_fail
 found_by: docs/sessions/HANDOFF_20261104_the_browser_tier_reds_left_after_the_slide_re_author.md
+defer_until: 2026-11-19
+resolution: triage 2026-11-05: med beyond BUDGET=3 (3 staged: the seam/rail settled-state class, the annotator declared face, the one-band cylinder fit), deferred 14d; class row has no landed program, so a date; a test-only finding with no dated wrong outcome, unstageable under the 10-27 guard rule
 ---
 
 # clearPoint falls back to a synthetic event without saying so, so a grid row no pointer can reach still passes

@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261103_each_stop_is_its_own_stack.md
+class: design_polish
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # Design: the kinematic chart's stop error bars sit on the plot frame

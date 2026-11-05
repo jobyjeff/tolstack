@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tests/browser (3D pane suite)
 reporter: agent
 class: timing_assertion_under_load
 found_by: docs/sessions/HANDOFF_20261102_the_browser_tier_is_green_on_trunk_again.md
+handoff: docs/sessions/HANDOFF_20261105_the_seam_and_rail_checks_wait_on_settled_state.md
 ---
 
 # The unbound contributor-row hover check fails in a loaded full run and passes alone

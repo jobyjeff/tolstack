@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests/propose_bindings
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
+class: guard_reads_prose
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # The proposer's declared-face refusals are tested only by a source grep

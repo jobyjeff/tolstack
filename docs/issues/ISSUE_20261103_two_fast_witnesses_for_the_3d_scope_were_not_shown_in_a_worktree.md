@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/witnesses
 reporter: agent
 class: unmeasured_cost
 found_by: docs/sessions/reviews/REVIEW_20261103_every_study_opens_in_3d_showing_only_its_parts.md
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # Two fast mutation witnesses from every_study_opens_in_3d were not shown at review

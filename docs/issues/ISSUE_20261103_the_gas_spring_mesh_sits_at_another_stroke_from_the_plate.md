@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: meshes/assembly-placement
 reporter: agent
 class: mesh_placement_disagrees_with_the_mechanism
 found_by: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
+defer_until: 2026-11-19
+resolution: triage 2026-11-05: med beyond BUDGET=3 (3 staged: the seam/rail settled-state class, the annotator declared face, the one-band cylinder fit), deferred 14d; class row has no landed program, so a date; needs the PMF200521 mesh's stroke or an as-modelled STEP -- a CAD fact for a strategy session to ask Jeff, not a todo
 ---
 
 # The gas spring's mesh sits 51.54 mm from the plate it is pinned to

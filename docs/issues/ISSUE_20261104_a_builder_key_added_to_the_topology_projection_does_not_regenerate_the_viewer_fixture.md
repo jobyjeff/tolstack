@@ -1,12 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/fixtures
 reporter: agent
 audience: strategy
 class: fixture_drift
 found_by: docs/sessions/HANDOFF_20261104_the_viewer_real_tier_follows_the_slide_re_author.md
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # A key added to the topology projection's nodes leaves `topology_fixtures.js` behind (third time)

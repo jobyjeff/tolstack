@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: topology/vpa_pitch_linkage
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261104_the_viewer_real_tier_follows_the_slide_re_author.md
+class: topology_authoring_gap
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # The pitch plate's boss and the piston's ID datum are not joined by any edge

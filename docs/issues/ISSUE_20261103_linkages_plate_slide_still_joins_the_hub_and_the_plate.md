@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: linkage/feature-joins
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
+handoff: linkage/docs/sessions/HANDOFF_20261105_plate_slide_names_the_bushings_and_the_piston_body.md
+resolution: triage 2026-11-05: below the brief bar (item 1 is a linkage re-point with an obvious decomposition; item 2's recommendation is carried to the tolstack follow-up that handoff files)
 ---
 
 # linkage's `plate_slide` still joins the hub and the plate, so the rail lists the slide on the wrong parts

@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: annotate/model-layer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20261103_coaxial_ends_share_one_3d_node.md
+strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
+resolution: triage 2026-11-05: folded into the layout brief as an addendum (Q7/Q8) rather than a new brief
 ---
 
 # At the as-modelled frame the spindle joint draws its fan of lines from the assembly origin, and it reads as the old star

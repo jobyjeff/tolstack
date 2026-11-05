@@ -1,11 +1,12 @@
 ---
 type: bug
-priority: medium
-status: open
+priority: med
+status: triaged
 area: browser TRUTH tier / leaders across the seam
 reporter: agent
 class: timing_assertion_under_load
 found_by: docs/sessions/reviews/REVIEW_20261103_coaxial_ends_share_one_3d_node.md
+handoff: docs/sessions/HANDOFF_20261105_the_seam_and_rail_checks_wait_on_settled_state.md
 ---
 
 # The scene-tree pick check in "leaders across the seam" is flaky

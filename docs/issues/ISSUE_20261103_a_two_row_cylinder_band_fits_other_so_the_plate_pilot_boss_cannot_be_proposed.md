@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: feature_geometry/fit
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
+handoff: docs/sessions/HANDOFF_20261105_a_two_row_cylinder_band_fits_as_a_cylinder.md
 ---
 
 # A two-row cylinder band fits `other`, so the plate's pilot boss cannot be proposed

@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: annotate/model-layer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261103_coaxial_ends_share_one_3d_node.md
+class: coaxial_node_merge
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # One bearing node stands for two instances, so in 3D it would join only one of the pitch link's two ends

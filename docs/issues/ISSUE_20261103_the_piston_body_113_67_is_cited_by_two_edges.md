@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: topology / vpa_pitch_linkage
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261103_each_stop_is_its_own_stack.md
+class: one_fact_written_twice
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # The gas-spring mount's base face and the piston body's length are each stated twice in vpa_pitch_linkage

@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: .gitignore / dispatch bridge-test-inputs
 reporter: agent
 class: found_dirt
 found_by: docs/sessions/HANDOFF_20261104_the_browser_tier_reds_left_after_the_slide_re_author.md
+resolution: fixed inline 2026-11-05 (triage): .gitignore venv-win/ -> venv-win (1dce46ad), applied workspace-wide incl. forge's template/gitignore and dispatch's .venv; git check-ignore now matches the bridged link
 ---
 
 # The `venv-win` link that `bridge-test-inputs` makes is not ignored, so it gets committed

@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: kinematic study / correlated terms
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261103_each_stop_is_its_own_stack.md
+class: stack_term_double_count
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # One drawing band, 215198's 79.00 ±0.10, enters each stop twice as two independent terms

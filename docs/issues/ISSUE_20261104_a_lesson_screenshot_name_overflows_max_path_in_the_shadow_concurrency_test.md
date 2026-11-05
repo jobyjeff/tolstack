@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tests / mutation-witness shadow
 reporter: agent
 class: unbounded_path_length
 found_by: docs/sessions/reviews/REVIEW_20261103_coaxial_ends_share_one_3d_node.md
+defer_until: 2026-12-05
+resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
 ---
 
 # A lesson screenshot's name overflows MAX_PATH in the shadow-concurrency test

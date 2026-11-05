@@ -1,13 +1,12 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: resolved
 area: repo/.gitignore
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_dag_draws_bodies_as_containers_and_joints_as_symbols.md
 class: ignore_pattern_misses_a_symlink
-defer_until: 2026-11-26
-resolution: deferred 2026-10-27 (triage) -- low by default
+resolution: fixed inline 2026-11-05 (triage): .gitignore venv-win/ -> venv-win (1dce46ad), applied workspace-wide incl. forge's template/gitignore and dispatch's .venv; git check-ignore now matches the bridged link
 ---
 
 # `.gitignore`'s `venv-win/` misses the symlink `dispatch bridge-test-inputs` leaves
