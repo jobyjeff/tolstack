@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md
+handoff: docs/sessions/HANDOFF_20261104_the_browser_tier_reds_left_after_the_slide_re_author.md
+resolution: triage 2026-11-04: staged
 ---
 
 # Three browser suites are red on the base commit with a projection built from it

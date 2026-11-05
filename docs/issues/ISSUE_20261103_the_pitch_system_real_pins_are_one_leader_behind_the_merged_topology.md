@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/real-tier
 reporter: agent
 audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20261103_the_dag_holds_still_and_the_filter_bar_stays_put.md
+handoff: docs/sessions/HANDOFF_20261104_the_viewer_real_tier_follows_the_slide_re_author.md
+resolution: triage 2026-11-04: staged; its browser-tier half is in the_browser_tier_reds_left_after_the_slide_re_author
 ---
 
 # The viewer's `[real]` pitch_system pins read one leader behind `integration`'s topology, and two browser suites cannot click a row a leader hit covers
