@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: annotate/sweep-rail
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
 handoff: docs/sessions/HANDOFF_20261105_the_annotator_reads_a_nodes_declared_face.md
+resolution: handoff completed 2026-11-05 -- closed automatically by dispatch when handoff `the_annotator_reads_a_nodes_declared_face` moved to completed/; not independently verified.
 ---
 
 # The annotator does not read a node's declared `face`
