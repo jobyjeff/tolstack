@@ -1,12 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md
 handoff: docs/sessions/HANDOFF_20261104_the_browser_tier_reds_left_after_the_slide_re_author.md
-resolution: triage 2026-11-04: staged
+resolution: resolved 2026-11-04 by handoff the_browser_tier_reds_left_after_the_slide_re_author -- real render path 11/11, 3D pane 32/32, scene pane over HTTP 9/9, each run alone on a projection built from the branch tree; all three were the check (a row click scrolled the row sideways under the sticky rails; the sweep checks waited on openedBySweep, which 4c0b7c62's isolate-parts scope leaves empty)
 ---
 
 # Three browser suites are red on the base commit with a projection built from it

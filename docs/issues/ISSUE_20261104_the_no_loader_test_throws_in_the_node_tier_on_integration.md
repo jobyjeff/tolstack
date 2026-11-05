@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: medium
-status: open
+status: resolved
+resolution: resolved 2026-11-04 by handoff the_browser_tier_reds_left_after_the_slide_re_author -- the test ran surfaceIsClean before the var-assigned ban list and prose-class list it reads (both undefined); moved below them unchanged, node apps/viewer/run_tests.cjs 635/635
 area: apps/viewer/tests.js
 reporter: agent
 class: integration_red_node_tier
