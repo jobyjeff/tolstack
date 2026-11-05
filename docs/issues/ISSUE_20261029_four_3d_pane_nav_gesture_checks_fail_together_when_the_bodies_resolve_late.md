@@ -109,3 +109,16 @@ issue's own failure predates `4c0b7c62`, and two green runs cannot clear a
 flake, so it stays open. `clearPoint`'s sideways scroll was also put back (its
 grid-row hover had been falling back to a synthetic `dispatchEvent` at 1600
 wide), and that may have been part of this too. That part is unmeasured.
+
+## Addendum 2026-11-04 (review of the_browser_tier_reds_left_after_the_slide_re_author)
+
+Seen again after the `sweep.anchored` fix, so that fix did not clear this
+issue. In the mutation-witness gate's clean run of `3D pane follows the
+selection`, the suite was 31/32. The red sub-check was `[real] clicking a
+contributor row in the nav selects it in the scene, and the row shows it
+selected`, and it took both of the suite's selected entries down with it
+(`…a-reload-reopens-the-pane…09a1cf0a`, `…closing-the-scene-gives-its-column…e81a258d`).
+
+The suite was 32/32 in three other runs: `--only`, inside a full 41/41
+browser run (1409 s), and in each entry's `--only` re-run, where both were
+WITNESSED. The red run overlapped a full browser-tier run on the box.

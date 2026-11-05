@@ -5496,6 +5496,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       inline). When a channel goes, grep the whole stylesheet and the tests'
       message strings for its old words (`provenance`, `conf--`, the removed
       class names), not just the rule it was on.
+- [ ] **A browser check that clicks a grid row with `locator.click()`, or that
+      re-pins a layout count the fast tier already pins.** New 2026-11-04
+      (`the_browser_tier_reds_left_after_the_slide_re_author`). Playwright
+      scrolls a row wider than `.tv__hscroll` sideways, so it slides under the
+      sticky `svg.tv__rails`, and the click times out. Go through `clearPoint`
+      on a cell (it puts the sideways scroll back) instead. Its
+      `dispatchEvent` fallback is silent, though
+      (`ISSUE_20261104_clear_point_falls_back_to_a_synthetic_event_without_saying_so.md`).
+      Leader and band literals in the browser tier went stale twice in one day
+      while the fast tier moved. Compare what is drawn with `VA.gridPlan`, and
+      leave the number to the fast tier.
 
 ## Architectural errors to check
 
