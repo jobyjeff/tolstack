@@ -15142,10 +15142,14 @@
             // again the same day when the walk went body-major
             // (the_dag_draws_bodies_as_containers_and_joints_as_symbols).
             // 62 since the piston body joined the feather stop's chain
-            // (2026-11-03, each_stop_is_its_own_stack).
+            // (2026-11-03, each_stop_is_its_own_stack). 63 and 74 groups since the
+            // slide joint re-author (b4b641db, 2026-11-03: two nodes and an edge
+            // net, a longer walk) -- the pin was one landing behind, and only the
+            // README's crossings were updated then
+            // (the_viewer_real_tier_follows_the_slide_re_author).
             var plan = VA.gridPlan(livePitch.layout, livePitch);
-            eq(plan.leaders.length, 62);
-            eq(plan.groups.length, 73);
+            eq(plan.leaders.length, 63);
+            eq(plan.groups.length, 74);
             // The walk opens at the hub spindle bore, a boundary, so its first
             // hub run is one row. The label is the part's NAME
             // (VA.componentLabel); `part` is still the id it is keyed by.
@@ -15190,20 +15194,21 @@
             var layout = VA.spineRight(livePitch.layout);
             var plan = VA.gridPlan(layout, livePitch);
             var bands = VA.leaderBands(plan);
-            eq(bands.length, 63, "62 leaders cut the grid into 63 bands");
+            eq(bands.length, 64, "63 leaders cut the grid into 64 bands");
             // The product graph's own band boundaries, as grid row indices
             // (re-measured 2026-10-26 for the fold and again for the
             // body-major walk, and 2026-11-03 when the piston body joined the
-            // feather stop's chain). 59 edge rows; the first leader points at row
+            // feather stop's chain, and 2026-11-04 after b4b641db's slide re-author,
+            // whose bands this string had not followed). The first leader points at row
             // 0, so the first band is empty, and several bands carry more
             // than one row.
             eq(bands.map(function (b) { return b.startRow + "-" + b.endRow; }).join(" "),
                "0-0 0-1 1-2 2-3 3-4 4-5 5-6 6-7 7-8 8-9 9-13 13-14 14-15 15-16 " +
-               "16-18 18-19 19-20 20-21 21-22 22-23 23-25 25-27 27-30 30-31 " +
-               "31-32 32-34 34-38 38-39 39-40 40-44 44-45 45-47 47-50 50-52 " +
-               "52-53 53-55 55-56 56-57 57-58 58-62 62-63 63-64 64-65 65-66 " +
-               "66-67 67-68 68-72 72-73 73-74 74-75 75-84 84-85 85-86 86-87 " +
-               "87-90 90-91 91-92 92-93 93-94 94-95 95-96 96-97 97-98");
+               "16-18 18-19 19-20 20-21 21-22 22-23 23-25 25-27 27-30 30-31 31-32 " +
+               "32-34 34-38 38-39 39-40 40-44 44-45 45-47 47-50 50-52 52-53 53-55 " +
+               "55-56 56-57 57-58 58-62 62-63 63-64 64-65 65-66 66-67 67-68 68-69 " +
+               "69-73 73-74 74-75 75-76 76-85 85-86 86-87 87-88 88-91 91-92 92-93 " +
+               "93-94 94-95 95-96 96-97 97-98 98-99");
 
             var root = render(function (r) {
               VA.renderTopoPane(r, {
@@ -15783,15 +15788,18 @@
           // 24 since the four fastener stacks joined (2026-10-27).
           // 25 since the gas-spring mount's datum A seats on the tangential
           // link mount (2026-11-03, each_stop_is_its_own_stack).
-          ok(livePitch.branch_nodes.length === 25,
-             "expected 25 branch points, got " + livePitch.branch_nodes.length);
+          // 24 since the slide joint moved onto the piston body's OD and the gas
+          // spring's installed length re-pointed to its flange, which took the mount
+          // bushing bore out of the gas spring's fork (b4b641db, 2026-11-03).
+          ok(livePitch.branch_nodes.length === 24,
+             "expected 24 branch points, got " + livePitch.branch_nodes.length);
           var root = render(function (r) {
             VA.renderTopoPane(r, {
               topoProj: livePitch, study: null, crops: realCrops,
               selection: null, onSelect: function () {},
             });
           });
-          eq(all(root, "circle.rail__dot--branch").length, 25);
+          eq(all(root, "circle.rail__dot--branch").length, 24);
         });
 
         await test("[real] the ring gear's cyclic-only branch is visibly a branch",

@@ -2391,8 +2391,12 @@ def test_the_pitch_plate_end_declares_its_face_is_the_plates_boss():
     assert plate.face == {"part": "pitch_plate_215177_001", "surface": "cylindrical"}
     assert fg.required_surface_class(plate.name) is None
     pilot = topology.node("pitch_plate_pilot_in_piston_id")
-    assert pilot.parts == ("pitch_plate_215177_001", "gas_spring_piston_214700_002")
-    assert pilot.face["part"] == "pitch_plate_215177_001"
+    # The pilot node is the piston's ID datum alone (2026-11-04): declared as the
+    # plate's and the piston's, no edge incident on it carried the plate, which
+    # the viewer's [real] declared-parts check refuses. The plate's side of the
+    # pilot is `pitch_plate_spindle_bore_axis` above.
+    assert pilot.parts == ("gas_spring_piston_214700_002",)
+    assert pilot.face["part"] == "gas_spring_piston_214700_002"
     link = topology.edge("piston_body_id_datum_to_od")
     assert (link.kind, link.part) == ("structural", "gas_spring_piston_214700_002")
     assert (link.from_node, link.to_node) == ("pitch_plate_pilot_in_piston_id",

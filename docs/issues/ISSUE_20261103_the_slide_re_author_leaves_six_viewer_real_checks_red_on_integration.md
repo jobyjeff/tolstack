@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md
 class: fixture_drift
 handoff: docs/sessions/HANDOFF_20261104_the_viewer_real_tier_follows_the_slide_re_author.md
-resolution: triage 2026-11-04: staged with the batch merge (merged with these six red)
+resolution: resolved 2026-11-04 by handoff the_viewer_real_tier_follows_the_slide_re_author (commits c511273a, d3a7afae): viewer run_tests 635/635 against projections built from the branch tree; pins and README numbers were stale (b4b641db), the pilot node declared a part no edge carried, the fixture lacked node face/hardware_ref
 ---
 
 # The slide re-author leaves six viewer `[real]` checks red on integration

@@ -252,8 +252,8 @@ of the part cannot disagree about it. An adjacent edge with no part is a
 **clearance**, named (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped, and there
 is never a crop *of the interface itself*: an interface is a location, not a
 value. The pane printed the authored `parts` list until handoff
-`surfaces_that_state_something_false`, which is 36 of the
-77 live nodes answering differently hovered and clicked — one surface and one
+`surfaces_that_state_something_false`, which is 37 of the
+79 live nodes answering differently hovered and clicked — one surface and one
 record now.
 
 A part with no drawing of its own is identified by the documents its own rows
@@ -725,11 +725,11 @@ business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the one
-committed topology, leader-vs-rail crossings went **223 → 22**, zero of the
+committed topology, leader-vs-rail crossings went **219 → 22**, zero of the
 one to zero; on `vpa_pitch_linkage`, the product graph since the 2026-10-26
 fold (and with the four fastener stacks in it since 2026-10-27, when the
 before-and-after were 125 → 25 over its mechanism alone), that one
-topology's total moves 223 → 22. Both
+topology's total moves 219 → 22. Both
 sides of those are measured at the column order above, so the before-side is a
 counterfactual — and where it is zero it is the two mechanisms together, not the
 mirror alone: `order_columns` minimises leader crossings counted *towards column 0*,
@@ -1531,7 +1531,7 @@ its length wherever the big dimensions are, so on
 `vpa_pitch_linkage` 2026-10-26) under tolerance width all five leaders live in the
 top 236px of a 691px DAG and centring the heights would make every one of them
 jog *further*. Centring the leader span is what minimises the largest jog,
-which is the thing the change is for: `vpa_pitch_linkage`'s max jog 1989px → 988px,
+which is the thing the change is for: `vpa_pitch_linkage`'s max jog 2041px → 1014px,
 and every topology × mode pair on the shelf improves.
 
 A leader can therefore now **descend** left-to-right, where before it always
@@ -1580,9 +1580,9 @@ live corpus (before the band). Taking
 `pitch_system_gas_spring_branch`, over the product graph:
 
 * the **jog zone narrows** as leaders drop, and the pane width with it — the
-  pane goes **672 → 330px**;
+  pane goes **678 → 330px**;
 * the **grid block travels**, because a shorter table re-centres against a DAG
-  of unchanged height — `gridOffset` goes **1001 → 715px**;
+  of unchanged height — `gridOffset` goes **1027 → 715px**;
 * the grid **cross-fades** between two different row sets, as it always did.
 
 Every committed study moves at least one of those, which the `[real]` tier
