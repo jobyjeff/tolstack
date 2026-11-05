@@ -35,6 +35,12 @@ events 0058-0062. Face 439 is proposed for the same five, as 0051-0055, not
 only for the coaxiality edge 0055 above.
 
 Both are `high`, so the annotator lists the older one, 439, first on each.
-Accepting 487 on an edge turns 439 down for that edge in the same click.
-That needs no separate Reject. The contact engine's top candidate on the
-coaxiality edge is already 487/521.
+Two ways to clear it on an edge:
+
+- In the end's armed pick, click face 487. That binds 487 and turns every
+  other open proposal at that end down in the same click
+  (`AA.planAnswer`'s pick path).
+- Use the rail's Accept on the 487 row. That binds 487 but rejects nothing,
+  so 439 still needs its own Reject.
+
+The contact engine's top candidate on the coaxiality edge is already 487/521.
