@@ -816,12 +816,9 @@
       // `thermal_fit` renders above.
       section.appendChild(stackProj.checks_generated_not_rendered
         ? VA.el("p", "check__warn",
-            "This stack declares archetype \"" + (stackProj.archetype || "?") +
-            "\", whose checks are GENERATED from its own block rather than " +
-            "authored in the file — and the projection has NO LOADER for that " +
-            "archetype, so there are none here to render. This is NOT a stack " +
-            "without checks. Add the archetype's loader to ARCHETYPE_LOADERS in " +
-            "scripts\\build_viewer_projection.py and rebuild.")
+            "This stack has checks, generated from its \"" +
+            (stackProj.archetype || "?") + "\" block; this page cannot show " +
+            "them yet. " + VA.PROJECTION_BUILT_ELSEWHERE)
         : VA.el("p", "muted", "no checks"));
     }
 

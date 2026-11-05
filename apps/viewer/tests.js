@@ -3018,10 +3018,17 @@
       generated.archetype = "some_future_archetype";
       generated.checks_generated_not_rendered = true;
       var root = render(function (r) { VA.renderStack(r, generated, CROPS, {}); });
-      has(root.textContent, "GENERATED");
+      has(root.textContent, "This stack has checks");
       has(root.textContent, "some_future_archetype");
-      has(root.textContent, "NOT a stack without checks");
-      has(root.textContent, "ARCHETYPE_LOADERS");
+      has(root.textContent, VA.PROJECTION_BUILT_ELSEWHERE);
+      // No fixture or live projection reaches this arm, so the shared ban
+      // list has never seen its text: scan it from its own domain.
+      surfaceIsClean(root, "the stack page's no-loader arm",
+                     schemaFieldNames({ stacks: [DEMO, GEN] }), null);
+      ok(root.textContent.indexOf("ARCHETYPE_LOADERS") === -1 &&
+         root.textContent.indexOf("build_viewer_projection") === -1 &&
+         root.textContent.indexOf("NO LOADER") === -1,
+         "the arm must not print a constant or a script name");
 
       var plain = JSON.parse(JSON.stringify(base));
       plain.checks = [];
