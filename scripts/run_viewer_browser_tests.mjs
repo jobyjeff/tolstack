@@ -1050,8 +1050,9 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
 // back out of the render.
 // A real pointer on `selector`, at a point the browser says is that element's
 // own -- not under a leader's hit path, a rail or the sticky top bar. On the
-// product graph (a 4394px page, 61 leaders) `locator.click()` is refused by the
-// leader that happens to cross the cell, so the point is found rather than
+// product graph (a page thousands of pixels tall, every leader crossing it)
+// `locator.click()` is refused by the leader that happens to cross the cell,
+// so the point is found rather than
 // assumed, the way `railPoint` does for a rail.
 //
 // Vertically only, then sideways the way a reader would. `scrollIntoView`
@@ -1089,9 +1090,9 @@ async function clearPoint(page, selector, action) {
     return own();
   }, selector);
   if (!point) {
-    // Every point of the cell is under some leader's 14px hit stroke (61 of
-    // them cross a 4394px page): hand the element the event itself, which
-    // is what the handlers on it listen for.
+    // Every point of the cell is under some leader's 14px hit stroke (the
+    // product graph's leaders cross the whole page): hand the element the
+    // event itself, which is what the handlers on it listen for.
     await page.locator(selector).dispatchEvent(action === "click" ? "click" : "mouseenter");
     return;
   }

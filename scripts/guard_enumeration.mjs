@@ -379,6 +379,10 @@ export const DECLARED_GUARDS = {
   // the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit, 2026-11-04: 0,
   // "an untraced bar is stroked in the untraced colour" swapped for "every
   // DAG bar is one ink and two weights", which carries a spec.
+  // the_browser_tier_reds_left_after_the_slide_re_author, 2026-11-04: 0, one
+  // renamed -- "the jog zone is measured against the product graph's own 61
+  // leaders" lost its literal when the count moved to the plan; it carried no
+  // spec under its old name either. (Comment added at review.)
   browser: { declared: 823, enrollable: 790, names: "b45bdce52115" },
 };
 
