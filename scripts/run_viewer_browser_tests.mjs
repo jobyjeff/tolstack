@@ -1053,19 +1053,40 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
 // product graph (a 4394px page, 61 leaders) `locator.click()` is refused by the
 // leader that happens to cross the cell, so the point is found rather than
 // assumed, the way `railPoint` does for a rail.
+//
+// Vertically only, then sideways the way a reader would. `scrollIntoView`
+// alone also scrolls the grid's `.tv__hscroll` to bring a row wider than the
+// pane into view, and the rails are `position: sticky; left: 0` (topology.css)
+// -- so the cell slides UNDER them and every point of it is the rails'. With
+// the product graph's rails at 678px of a 737px pane (1600x1000, preview
+// open), that is where Playwright's own `click()` landed too. So the grid's
+// sideways scroll is put back, and only if the cell is still covered is the
+// grid scrolled until the cell starts just right of the rails, which is what a
+// reader does to reach a column the pane does not show.
 async function clearPoint(page, selector, action) {
   const point = await page.evaluate((selector) => {
     const node = document.querySelector(selector);
     if (!node) return null;
-    node.scrollIntoView({ block: "center" });
-    const box = node.getBoundingClientRect();
-    for (let y = box.top + 2; y < box.bottom - 1; y += 2) {
-      for (let x = box.left + 2; x < box.right - 1; x += 6) {
-        const hit = document.elementFromPoint(x, y);
-        if (hit && (hit === node || node.contains(hit))) return { x, y };
+    const own = () => {
+      const box = node.getBoundingClientRect();
+      for (let y = box.top + 2; y < box.bottom - 1; y += 2) {
+        for (let x = box.left + 2; x < box.right - 1; x += 6) {
+          const hit = document.elementFromPoint(x, y);
+          if (hit && (hit === node || node.contains(hit))) return { x, y };
+        }
       }
-    }
-    return null;
+      return null;
+    };
+    const hscroll = node.closest(".tv__hscroll");
+    const left = hscroll ? hscroll.scrollLeft : 0;
+    node.scrollIntoView({ block: "center" });
+    if (hscroll) hscroll.scrollLeft = left;
+    const found = own();
+    const rails = hscroll && hscroll.querySelector("svg.tv__rails");
+    if (found || !rails) return found;
+    hscroll.scrollLeft += node.getBoundingClientRect().left -
+      rails.getBoundingClientRect().right;
+    return own();
   }, selector);
   if (!point) {
     // Every point of the cell is under some leader's 14px hit stroke (61 of
@@ -5266,7 +5287,7 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       const row = `tr.tvrow[data-id="${paneRow.edge}"]`;
       await page.locator(navRow("topology", paneRow.topology)).click();
       await page.waitForSelector(row, { timeout: 5000 });
-      await page.locator(row).click();
+      await clearPoint(page, `${row} td.tvcell--name`, "click");
       await page.waitForFunction(
         (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
         paneRow.companion, { timeout: 5000 }).catch(() => {});
@@ -5276,7 +5297,7 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       const trigger = `tr.tvrow[data-id="${cardRow.edge}"]`;
       await page.locator(navRow("topology", cardRow.topology)).click();
       await page.waitForSelector(trigger, { timeout: 5000 });
-      await page.locator(trigger).locator("td.tvcell--nominal").hover();
+      await clearPoint(page, `${trigger} td.tvcell--nominal`, "hover");
       await page.waitForFunction((key) => {
         const p = document.querySelector(".detail__preview");
         return p && p.getAttribute("data-preview-key") === key;
@@ -6678,7 +6699,12 @@ async function installRealAnnotatorReads(page, seed) {
         P.readContactSuggestions = async () => json("/projections/feature-identity/contact_suggestions.json");
       }
       // The synthetic binding, resolved when it is read: faces of the first
-      // part the sweep opened, so it is a part that is in the scene.
+      // part the sweep placed, so it is a part that is in the scene. Placed,
+      // not opened: since 4c0b7c62 the page's `isolate parts` scope loads the
+      // whole installed assembly, usually before the sweep reaches its open
+      // loop, and a part already open is not one the sweep opened -- so
+      // `openedBySweep` (what leaving the sweep unloads) is empty on a real
+      // run, and a binding keyed on it named nothing.
       const b = seed.binding;
       // `binding: "real"`: the feature-identity projection and the contact
       // suggestions on disk, as built -- an agent's open proposals included.
@@ -6698,7 +6724,7 @@ async function installRealAnnotatorReads(page, seed) {
       P.readFeatureIdentityProjection = async () => ({
         get stack_keys() {
           const sweep = window.__sweep;
-          const sha = sweep && sweep.openedBySweep && sweep.openedBySweep[0];
+          const sha = sweep && sweep.anchored && sweep.anchored[0];
           return sha ? [{
             stack_key: { kind: "topology_edge", topology_id: b.topology, edge_id: b.edge },
             bindings: b.faces.map(([direction, faceId], i) => Object.assign(
@@ -7656,9 +7682,11 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       reopened && chosen > 0 && Math.abs(reopened.width - chosen) <= 1);
 
     // --- 4. hover crosses the seam ------------------------------------------
-    const opened = await until((w) => w.__sweep && w.__sweep.openedBySweep &&
-      w.__sweep.openedBySweep.length > 0 && w.__scene &&
-      w.__scene.parts.has(w.__sweep.openedBySweep[0]), null, 120000);
+    // The sweep's first PLACED part, in the scene (see the synthetic binding in
+    // installRealAnnotatorReads for why placed and not opened).
+    const opened = await until((w) => w.__sweep && w.__sweep.anchored &&
+      w.__sweep.anchored.length > 0 && w.__scene &&
+      w.__scene.parts.has(w.__sweep.anchored[0]), null, 120000);
     await clearPoint(page, `#topopane tr.tvrow[data-id="${bound.edge}"] td.tvcell--name`, "hover");
     const tinted = opened && await until((w) => !!w.__lastHighlight);
     const face = tinted ? await inPane((w) => {
@@ -7668,7 +7696,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       const live = mesh.geometry.attributes.color.array;
       const base = mesh.userData.baseColors;
       return { sha256: f.sha256, faceId: f.faceId,
-        first: w.__sweep.openedBySweep[0],
+        first: w.__sweep.anchored[0],
         painted: live[at] !== base[at] || live[at + 1] !== base[at + 1] || live[at + 2] !== base[at + 2] };
     }) : null;
     push("[real] resting on a bound contributor row tints its face in the " +
@@ -7743,8 +7771,8 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
       await page.waitForSelector("div.kmverdict", { timeout: 30000 });
       await page.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
-      await until((w) => w.__sweep && w.__sweep.openedBySweep && w.__sweep.openedBySweep.length > 0,
-        null, 120000);
+      await until((w) => w.__sweep && w.__sweep.anchored && w.__sweep.anchored.length > 0 &&
+        w.__sweep.anchored.every((sha) => w.__scene && w.__scene.parts.has(sha)), null, 120000);
       await page.waitForSelector('.navtree__scene [data-scene-key^="#sweep-tree/edge="]',
         { timeout: 15000 }).catch(() => {});
       await page.waitForTimeout(1500);
@@ -10385,7 +10413,12 @@ async function testScenePaneOverHttp(browser, label) {
     const runId = study.sweep.run_id;
     const swept = await until((w, r) => w.__sweep && w.__sweep.artifact &&
       w.__sweep.artifact.runId === r && w.__sweep.bodies && w.__sweep.bodies.length > 0 &&
-      w.__sweep.openedBySweep && w.__sweep.openedBySweep.length > 0, runId, 180000);
+      // Every part the sweep placed is in the scene, its mesh read over HTTP.
+      // Not `openedBySweep`: since 4c0b7c62 the page's `isolate parts` scope
+      // usually loads them first, and a part already open is not one the
+      // sweep opened (installRealAnnotatorReads's synthetic binding says more).
+      w.__sweep.anchored && w.__sweep.anchored.length > 0 &&
+      w.__sweep.anchored.every((sha) => w.__scene && w.__scene.parts.has(sha)), runId, 180000);
     const served = await inPane((w) => w.document.body.classList.contains("an--served"));
     push("[real] with no folder grant, the pane reads the run and the meshes over HTTP " +
       "and shows the mechanism -- on the HTTP transport, not the mock and not a folder",
@@ -10808,7 +10841,7 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
     await page.locator(navRow("topology", target.topology)).click();
     const row = `tr.tvrow[data-id="${target.edge}"]`;
     await page.waitForSelector(row, { timeout: 10000 });
-    await page.locator(row).click();
+    await clearPoint(page, `${row} td.tvcell--name`, "click");
 
     // 1. the affordance is really on the page, on the real crop.
     const paneLauncher = page.locator("#detail button.cropfig__launch");
