@@ -95,6 +95,11 @@
 // it (ISSUE_20261026_topology_fixtures_lack_the_tags_fields_so_the_real_
 // fixture_pairing_is_red_on_integration.md): the top-level `variant_axis` the
 // builder writes, and each study's `tags: {}`.
+//
+// The ninth (the_viewer_real_tier_follows_the_slide_re_author, 2026-11-04), all
+// shape and no number: every projected node's `face` and `hardware_ref`
+// (`null` -- the demo declares neither; the builder writes `null` for an
+// undeclared one), added to the builder by b4b641db.
 
 (function (VA) {
   "use strict";
@@ -407,7 +412,9 @@
             "source_ref": null,
             "confidence": null,
             "degree": 1,
-            "branch": false
+            "branch": false,
+            "face": null,
+            "hardware_ref": null
           },
           {
             "id": "base_post_seat",
@@ -421,7 +428,9 @@
             "source_ref": null,
             "confidence": null,
             "degree": 3,
-            "branch": true
+            "branch": true,
+            "face": null,
+            "hardware_ref": null
           },
           {
             "id": "post_arm_pin",
@@ -435,7 +444,9 @@
             "source_ref": null,
             "confidence": null,
             "degree": 2,
-            "branch": false
+            "branch": false,
+            "face": null,
+            "hardware_ref": null
           },
           {
             "id": "arm_tip",
@@ -448,7 +459,9 @@
             "source_ref": null,
             "confidence": null,
             "degree": 2,
-            "branch": false
+            "branch": false,
+            "face": null,
+            "hardware_ref": null
           },
           {
             "id": "post_strut_bushing",
@@ -462,7 +475,9 @@
             "source_ref": null,
             "confidence": null,
             "degree": 2,
-            "branch": false
+            "branch": false,
+            "face": null,
+            "hardware_ref": null
           },
           {
             "id": "strut_end",
@@ -475,7 +490,9 @@
             "source_ref": null,
             "confidence": null,
             "degree": 2,
-            "branch": false
+            "branch": false,
+            "face": null,
+            "hardware_ref": null
           }
         ],
         "edges": [

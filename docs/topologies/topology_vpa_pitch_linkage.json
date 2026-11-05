@@ -1575,6 +1575,15 @@
       "note": "No value recorded. How far the OD that rides the bushings is from coaxial with the ID datum the plate pilots into -- the piston body's own link between the plate and the slide. What would close it: 214700-002's drawing."
     },
     {
+      "id": "pitch_plate_boss_axis_to_pilot",
+      "name": "pitch plate boss axis to its pilot boss face, coaxiality",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "pitch_plate_spindle_bore_axis",
+      "to": "pitch_plate_pilot_in_piston_id",
+      "note": "No value recorded. The plate's own link between its central axis and the broken boss that pilots into the piston body's ID datum: both are on the plate, so the plate carries this edge and the pilot interface is incident on a plate edge as well as on the piston's. Added 2026-11-04 (the_viewer_real_tier_follows_the_slide_re_author): the node declared the plate but only the piston's `piston_body_id_datum_to_od` touched it. What would close it: 215177-001's drawing callout for the boss against its datum."
+    },
+    {
       "id": "gas_spring_rod_to_pitch_plate",
       "name": "gas-spring rod-end bore to pitch plate gas-spring bore",
       "kind": "gap",
