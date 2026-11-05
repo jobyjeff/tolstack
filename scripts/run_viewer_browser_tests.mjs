@@ -1168,6 +1168,10 @@ const BANDS_IN_PAGE = () => {
   });
   return {
     bad, tinted, provenanceLayers, bands: bands.length, drawn: drawn.length,
+    // The plan's own leader count, so a check compares what is drawn with what
+    // the layout asks for. The number itself is the fast tier's to pin
+    // (apps/viewer/tests.js, "[real]" leaders/bands, which d3a7afae moved).
+    leaders: plan.leaders.length,
     svgWidth: document.querySelector("svg.tv__rails").getBoundingClientRect().width,
     rowHeights: rows.map((r) => Math.round(r.getBoundingClientRect().height * 100) / 100),
     nameWidth: Math.round(document.querySelector("td.tvcell--name")
@@ -3391,11 +3395,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const realBands = await page.evaluate(BANDS_IN_PAGE);
       push("[real] pitch_system's bands are tinted by parity and its rows by their body, " +
         "and its untraced rows keep their provenance tint as well",
-        // 62 bands off 61 leaders since the four fastener stacks joined
-        // (2026-10-27); 39 off 38 before them, 17 off 16 on the
-        // pitch_system document alone.
-        realBands.bad.length === 0 && realBands.bands === 62 &&
-        realBands.drawn === 62 &&
+        // One band more than the plan has leaders, every one drawn. These
+        // were literals (62 bands off 61 leaders) and went stale twice in a
+        // day -- 6d23015d took the graph to 62 leaders and b4b641db to 63 --
+        // while the fast tier, which pins the count off the same projection,
+        // was moved. So the count is read from the plan and pinned there once.
+        realBands.bad.length === 0 && realBands.leaders > 0 &&
+        realBands.bands === realBands.leaders + 1 &&
+        realBands.drawn === realBands.bands &&
         realBands.tinted === realBands.rowHeights.length &&
         // A floor, not a share: 21 of the product graph's 59 rows are
         // untraced since the 2026-10-26 fold (20 of pitch_system's 24 were).
@@ -3410,7 +3417,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] pitch_system's jogged leaders still land on every dot and seam",
         (await correspondence()).drift.length === 0 &&
         realJogged.bad.length === 0 &&
-        realJogged.leaderPaths.length === 61 &&
+        realJogged.leaderPaths.length === realJogged.leaders &&
         realJogged.leaderPaths.every((d) => / H .* V .* H /.test(d)));
       if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
       await page.locator("#leader-style-toggle").click();
@@ -3419,7 +3426,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] and back in angled style, flat out of the rails then straight",
         (await correspondence()).drift.length === 0 &&
         /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
-        realAngled.leaderPaths.length === 61 &&
+        realAngled.leaderPaths.length === realAngled.leaders &&
         realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ H [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
 
       // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
@@ -3434,8 +3441,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // state module survives the fixture swap and re-boot this tier does --
       // which is itself the preference behaving. What is asserted is that the
       // scale is re-derived against THIS topology's own leaders.
-      push("[real] the jog zone is measured against the product graph's own 61 leaders",
-        before.leaders === 61 && before.scale >= 1);
+      push("[real] the jog zone is measured against the product graph's own leaders",
+        before.topologyId === "vpa_pitch_linkage" &&
+        before.leaders === realAngled.leaders && before.scale >= 1);
       // The grips ride the grid's header, which sits above the first grid row
       // now and not at the top of the pane: bring it on screen first.
       await page.locator(".tvgrip--jog").evaluate((n) => n.scrollIntoView({ block: "center" }));
