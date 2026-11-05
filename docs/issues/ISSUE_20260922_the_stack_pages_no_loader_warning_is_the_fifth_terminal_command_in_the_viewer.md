@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: triaged
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
 class: guard_cannot_fail
-defer_until: 2026-11-04
-resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: deferred to 2026-11-04 -- med beyond this sweep's budget of 3; class program landed, so not re-deferrable onto it
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: deferred to 2026-11-04 -- med beyond this sweep's budget of 3; class program landed, so not re-deferrable onto it | woke 2026-11-04 -- date trigger passed; re-triage | triage 2026-11-04: staged (a reader-facing surface fix, picked over the guard-only members)
+handoff: docs/sessions/HANDOFF_20261104_the_no_loader_warning_speaks_to_the_reader.md
 ---
 
 # The stack page's no-loader warning is a fifth terminal command in the viewer, on a branch no tier reaches

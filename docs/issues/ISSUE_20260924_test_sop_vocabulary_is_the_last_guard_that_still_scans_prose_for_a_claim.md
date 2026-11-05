@@ -6,8 +6,8 @@ area: tests/doc-scans
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260924_claims_registry_guards_read_declarations_not_prose.md
 class: guard_reads_prose
-defer_until: 2026-11-04
-resolution: woke 2026-10-17 -- R3 completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: deferred to 2026-11-04 -- med beyond this sweep's budget of 3; class program landed, so not re-deferrable onto it
+defer_until: 2026-11-18
+resolution: woke 2026-10-17 -- R3 completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: deferred to 2026-11-04 -- med beyond this sweep's budget of 3; class program landed, so not re-deferrable onto it | woke 2026-11-04 -- date trigger passed; re-triage | re-deferred 2026-11-04 (triage): med beyond this sweep's budget of 3; class has no program or its program already landed, so a date
 ---
 
 # `tests/test_sop_vocabulary.py` is the last guard in the repo that still scans free prose for a claim, and it carries a third copy of the corpus scope logic
