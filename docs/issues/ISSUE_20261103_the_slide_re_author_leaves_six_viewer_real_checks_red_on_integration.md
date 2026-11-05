@@ -87,3 +87,14 @@ issue is fixed.
 on `integration` after that, bringing layout pins and witness changes for the
 piston body's chain. Before acting on this issue, re-measure on the current
 tip with a fresh scratch-root build. Some of the six may already be closed.
+
+## Addendum 2026-11-04 — the browser tier section
+
+Resolved by `the_browser_tier_reds_left_after_the_slide_re_author`. The full
+browser run on that branch's tree scored 39/41, and the two reds were the
+in-browser copy of the no-loader test, fixed in the same branch (2/2 when re-run).
+Of the suites this section names: topology ×2 205/205, real render path 11/11,
+crop lightbox passes, kinematic study page 24/24, 3D pane 32/32. The bisect asked
+for above is in that branch's lesson. The click timeouts come from `6d23015d`
+plus `682a89b6`, and the 3D pane reds from `4c0b7c62`. The slide re-author
+alone caused neither.

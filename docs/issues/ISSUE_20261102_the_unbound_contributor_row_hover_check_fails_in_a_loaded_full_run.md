@@ -32,3 +32,16 @@ not saying it — and the red run did not record which one was false. A
 `__lastHighlightNote` written after `__lastHighlight` is cleared would fail the
 second conjunct with the first already true, and no ceiling would fix that. Whoever
 picks this up: log the three values on failure first, then choose the fix.
+
+## Addendum 2026-11-04 (the_browser_tier_reds_left_after_the_slide_re_author)
+
+One cause of the 3D pane suite's moving reds since 11-03 is now known and
+fixed, and it is not this issue's. `4c0b7c62`'s `isolate parts` scope loads
+the whole assembly, usually before the sweep's open loop, so `openedBySweep`
+came out empty or not depending on which side won. The synthetic binding and
+the hover/click checks keyed on it. They now read `sweep.anchored`. After that
+fix the suite was 32/32 alone and 32/32 inside a full run (1425 s). This
+issue's own failure predates `4c0b7c62`, and two green runs cannot clear a
+flake, so it stays open. `clearPoint`'s sideways scroll was also put back (its
+grid-row hover had been falling back to a synthetic `dispatchEvent` at 1600
+wide), and that may have been part of this too. That part is unmeasured.

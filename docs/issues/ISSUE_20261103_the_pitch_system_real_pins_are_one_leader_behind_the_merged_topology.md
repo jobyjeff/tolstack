@@ -35,3 +35,17 @@ fixtures were not moved for. Not investigated here.
 **Consequence:** the `[real]` tiers cannot discriminate a regression on `integration` for
 these suites, and a reviewer has to run a baseline to read them (this review did). The
 branch's own new guards ran on the real projection and passed.
+
+## Addendum 2026-11-04 — the browser half
+
+Resolved by `the_browser_tier_reds_left_after_the_slide_re_author`, measured on a
+projection built from that branch's tree. **topology ×2:** the browser tier kept
+its own literals (61 leaders, 62 bands), which `6d23015d` and then `b4b641db`
+made stale. The four checks now compare what is drawn against `VA.gridPlan`'s
+own leader count, and the fast tier keeps the one pin on the number. Both
+suites are 205/205. **real render path / crop lightbox:** a row `click()`
+scrolled the row sideways under the sticky rails (678px of a 737px pane since
+`6d23015d`/`682a89b6`). The leader hit-area is not wrong. They now click the
+ELEMENT cell through `clearPoint`, which keeps the grid beside the rails: 11/11,
+and the crop lightbox passes. The reader-facing half is filed as
+`ISSUE_20261104_at_1600_wide_the_product_graphs_rails_leave_the_grid_a_59px_slit.md`.
