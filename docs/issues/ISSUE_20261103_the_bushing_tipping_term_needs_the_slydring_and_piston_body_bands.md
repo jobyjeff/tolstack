@@ -7,6 +7,7 @@ reporter: agent
 needs: jeff
 ask: Drop the Trelleborg Slydring GR04WB328AT11 datasheet and drawing 214700-002 into the tolstack inbox
 found_by: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
+todo: 20261104T184024_w6ayv7
 ---
 
 # The gas-spring bushing tipping term needs the Slydring's ID band and the piston body's OD band

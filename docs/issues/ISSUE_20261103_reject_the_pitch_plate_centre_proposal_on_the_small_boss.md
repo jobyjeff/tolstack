@@ -7,6 +7,7 @@ reporter: agent
 needs: jeff
 ask: In the annotator, reject the proposed pitch plate centre face (face 439): it is the small r 16.5 boss, not the 41.04 pilot
 found_by: docs/sessions/HANDOFF_20261103_the_slide_joint_is_the_mounts_bushings_against_the_piston_body.md
+todo: 20261104T184024_t8xbuq
 ---
 
 # Reject proposal 0055 (the plate's r 16.5 boss) on the hub-to-plate coaxiality
