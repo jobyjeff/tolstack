@@ -7459,17 +7459,65 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     // Held, not sampled: a rail rebuild just after the hover clears it for a
     // moment and the row under the pointer sends `enter` again -- leaving
     // during that moment would read the rebuild's clear as the leave's.
+    //
+    // And re-entered, not just waited for: the rebuild replaces the row under
+    // a pointer that has not moved, and the new row hears `enter` only on the
+    // pointer's next move -- which, under load, can be seconds away, so a
+    // wait alone read the light as down while the pointer still rested on the
+    // row (held false, 1 run in 4 beside a pytest run, 2026-11-05). The
+    // pointer stays on the row and steps a pixel whenever the light is out,
+    // until three reads 150ms apart find it on. That is the reader's resting
+    // hand; the leave below is asserted exactly as before.
     await page.waitForTimeout(800);
-    const held = await until((w) => !!w.__lastHover, null, 5000);
-    const lastChip = await page.locator(`${studyItem} .navtree__scenechip`).last().boundingBox();
+    const heldRow = page.locator(sceneRow("#sweep-tree/body=" + bodyName)).first();
+    const holdLight = async (deadline = 15000) => {
+      const end = Date.now() + deadline;
+      let on = 0, step = 0;
+      while (Date.now() < end) {
+        on = await inPane((w) => !!w.__lastHover) ? on + 1 : 0;
+        if (on >= 3) return true;
+        if (on === 0) {
+          const box = await heldRow.boundingBox().catch(() => null);
+          if (box) {
+            step = 1 - step;
+            await page.mouse.move(box.x + box.width / 2 + step, box.y + box.height / 2);
+          }
+        }
+        await page.waitForTimeout(150);
+      }
+      return false;
+    };
+    const held = await holdLight();
+    // The spot to leave onto, measured once it is on screen and still: the
+    // rebuild that drops the light also re-renders the chip bar, and a box
+    // read during it came back null (2 runs in 5 beside a pytest run), which
+    // left the pointer on the row.
+    let lastChip = null;
+    {
+      const end = Date.now() + 15000;
+      let prev = null;
+      while (Date.now() < end) {
+        const box = await page.locator(`${studyItem} .navtree__scenechip`).last()
+          .boundingBox({ timeout: 1000 }).catch(() => null);
+        if (box && prev && JSON.stringify(box) === JSON.stringify(prev)) { lastChip = box; break; }
+        prev = box;
+        await page.waitForTimeout(150);
+      }
+    }
     if (lastChip) await page.mouse.move(lastChip.x + lastChip.width + 6, lastChip.y + lastChip.height / 2);
     const leftOnto = await page.evaluate(([x, y]) => {
       const hit = document.elementFromPoint(x, y);
       return hit ? hit.className : null;
     }, lastChip ? [lastChip.x + lastChip.width + 6, lastChip.y + lastChip.height / 2] : [0, 0]);
-    push("[real] ...and leaving it takes the light down",
-      held && leftOnto === "navtree__scenechips" &&
-      await until((w) => w.__lastHover === null, null, 10000));
+    const letGo = held && leftOnto === "navtree__scenechips" &&
+      await until((w) => w.__lastHover === null, null, 10000);
+    if (!letGo) {
+      console.log(`      [${label}] DIAG leaving the body row: held ${held}; left onto ` +
+        `${JSON.stringify(leftOnto)}; chip ${JSON.stringify(lastChip)} of ` +
+        `${await page.locator(`${studyItem} .navtree__scenechip`).count()}; now ` +
+        JSON.stringify(await inPane((w) => w.__lastHover || null)));
+    }
+    push("[real] ...and leaving it takes the light down", letGo);
 
     // A click on a contributor row in the nav selects it in the scene, and the
     // scene's answer marks the row.
@@ -7520,13 +7568,18 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     // gestures_are_named_once_and_each_witnessed): a disclosure's `toggle`, a
     // row checkbox's `check` and a row button above index 0. Each is read back
     // from the annotator, which owns the answer, not from the nav's own copy.
-    const bodyRow = await page.evaluate(() => {
+    // The row is waited for, not looked up once: a body's checkbox stays
+    // disabled until the sweep's bodies resolve (anchorSweepBodies, not
+    // awaited by anything here), and when they resolved late the one lookup
+    // came back null and the four checks below went red as one
+    // (ISSUE_20261029_four_3d_pane_nav_gesture_checks_fail_together_...).
+    const bodyRow = await page.waitForFunction(() => {
       const rows = Array.from(document.querySelectorAll(
         '.navtree__scene [data-scene-key^="#sweep-tree/body="]'))
         .filter((n) => n.getAttribute("data-scene-key").indexOf("/", "#sweep-tree/body=".length) === -1)
         .filter((n) => n.closest("details") && n.querySelector('[data-scene-part="check"]:not(:disabled)'));
       return rows.length ? rows[0].getAttribute("data-scene-key") : null;
-    });
+    }, null, { timeout: 60000, polling: 100 }).then((h) => h.jsonValue(), () => null);
     const bodyName2 = bodyRow ? bodyRow.slice("#sweep-tree/body=".length) : null;
     const navOpen = () => page.locator(sceneRow(bodyRow)).evaluate((n) => n.closest("details").open);
     const railOpen = () => inPane((w, name) => {
