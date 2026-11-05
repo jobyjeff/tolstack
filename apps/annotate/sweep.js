@@ -2032,6 +2032,9 @@
     var node = nodes.filter(function (n) { return n.id === nodeId; })[0];
     var own = [];
     function add(list, id) { if (id && list.indexOf(id) === -1) list.push(id); }
+    // A part the node DECLARES its face on (`face.part`) is armed alone: the
+    // first-named-part order below is a convention, the declaration is not.
+    if (node && node.face && node.face.part) return [node.face.part];
     if (node) { add(own, node.part); (node.parts || []).forEach(function (id) { add(own, id); }); }
     var edgeParts = [];
     add(edgeParts, edge.part);

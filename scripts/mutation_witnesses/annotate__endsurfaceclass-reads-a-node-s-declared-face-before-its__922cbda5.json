@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "endSurfaceClass reads a node's declared face before its words; an undeclared node keeps the words",
+  "mutations": [
+    {
+      "contract": "A node's declared face.surface classes its end before any word of its name does, so an end named with no shape word still colours its suggestions.",
+      "issue": "docs/issues/ISSUE_20261103_the_annotator_does_not_read_a_nodes_declared_face.md",
+      "note": "Dropping the declared branch is the shipped defect: pitch_plate_spindle_bore_axis, declared cylindrical, classed as nothing.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    if (declared) return { where: \"declared\", surface: declared, rule: null, says: null, word: null };\n",
+      "replace": ""
+    }
+  ]
+}

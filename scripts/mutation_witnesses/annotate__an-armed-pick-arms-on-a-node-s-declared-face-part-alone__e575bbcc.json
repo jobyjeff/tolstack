@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an armed pick arms on a node's declared face part alone, ahead of its named parts",
+  "mutations": [
+    {
+      "contract": "A node that declares face.part arms its pick on that part alone; the first-named-part order is only the fallback for a node that declares nothing.",
+      "issue": "docs/issues/ISSUE_20261103_the_annotator_does_not_read_a_nodes_declared_face.md",
+      "note": "Deleting the early return is the shipped defect: the pick armed on the first-named part, the guess the proposers had already stopped making.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (node && node.face && node.face.part) return [node.face.part];\n",
+      "replace": ""
+    }
+  ]
+}

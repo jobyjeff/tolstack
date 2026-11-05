@@ -141,7 +141,13 @@
   // name that spans them ("cotter-hole centreline to bolt point") cannot tell
   // them apart. `where` says which of the two answered, so a reader-facing
   // line can name the right thing.
+  //
+  // A node's DECLARED face (`face.surface`) answers before any word does, as
+  // `feature_geometry.end_surface_class` does: the words are a guess at the
+  // shape and the declaration is the author saying it.
   AA.endSurfaceClass = function (edge, node) {
+    var declared = node && node.face && node.face.surface;
+    if (declared) return { where: "declared", surface: declared, rule: null, says: null, word: null };
     var fromNode = node ? AA.requiredSurfaceClass(node.name || node.id) : null;
     if (fromNode) return Object.assign({ where: "interface" }, fromNode);
     var fromEdge = edge ? AA.requiredSurfaceClass(edge.name || edge.id) : null;

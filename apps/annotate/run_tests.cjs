@@ -2014,6 +2014,18 @@ check("an armed pick's parts are the end node's own, in the order it names them,
   assertEqual(AA.pickEndPartIds(topology, "nope", "to"), []);
 });
 
+check("an armed pick arms on a node's declared face part alone, ahead of its named parts", () => {
+  const topology = {
+    nodes: [
+      { id: "slot", parts: ["gas_spring", "pitch_plate"], face: { part: "pitch_plate", surface: "cylindrical" } },
+      { id: "other", parts: ["gas_spring", "pitch_plate"] },
+    ],
+    edges: [{ id: "e", part: "pitch_plate", from: "slot", to: "other" }],
+  };
+  assertEqual(AA.pickEndPartIds(topology, "e", "from"), ["pitch_plate"]);
+  assertEqual(AA.pickEndPartIds(topology, "e", "to"), ["gas_spring", "pitch_plate"], "undeclared: unchanged");
+});
+
 check("one click while armed: empty space keeps the arm, another part is refused, the bound " +
   "face is not written twice, any other face binds and a re-pick supersedes", () => {
   const acts = AA.ARMED_CLICK_ACTIONS;
@@ -3500,6 +3512,21 @@ check("endSurfaceClass asks the INTERFACE first: one dimension's two ends can " 
   assertEqual(AA.endSurfaceClass(edge, null).where, "dimension",
     "a nameless interface did not fall back to the dimension");
   assertEqual(AA.endSurfaceClass(null, null), null, "nothing answered something");
+});
+
+check("endSurfaceClass reads a node's declared face before its words; an undeclared node keeps the words", () => {
+  const edge = { id: "e", name: "link hole to pivot" };
+  const boss = { id: "pitch_plate_spindle_bore_axis", name: "pitch plate pilot boss axis",
+    face: { part: "pitch_plate", surface: "cylindrical" } };
+  assertEqual(AA.requiredSurfaceClass(boss.name), null, "the worked name must carry no shape word");
+  const got = AA.endSurfaceClass(edge, boss);
+  assertEqual(got.surface, "cylindrical");
+  assertEqual(got.where, "declared");
+  const overruled = { id: "n", name: "bolt-head bearing face", face: { part: "p", surface: "cylindrical" } };
+  assertEqual(AA.endSurfaceClass(edge, overruled).surface, "cylindrical", "a word overruled the declaration");
+  assertEqual(AA.endSurfaceClass(edge, { id: "n", name: "bolt-head bearing face" }).where, "interface");
+  assertEqual(AA.endSurfaceClass(edge, { id: "n", name: "pilot boss axis" }).where, "dimension",
+    "undeclared, wordless: the dimension answers as before");
 });
 
 check("the narrowing stages and the relations they may assert are one table, " +

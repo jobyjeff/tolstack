@@ -269,7 +269,7 @@ export const DECLARED_GUARDS = {
   // Review rework, same day: +1 -- a grid row's emphasis names its edge's two
   // ends, drawn or not (the joint's internal row lit nothing). It carries a spec.
   // (Re-pinned at the merge of integration 0816cccf into the handoff branch.)
-  annotate: { declared: 280, enrollable: 280, names: "33e447c665d1" },
+  annotate: { declared: 282, enrollable: 282, names: "6ff76cc127e5" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
