@@ -171,3 +171,24 @@ classifier, three JS checks, their witness specs and the annotate guard pin
 
 The refinement runs on about 4.8k faces. The whole-store fit went from 86 s
 to 113 s, and the `[real]` pairing test slows by the same share.
+
+## Verification record
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs --durations=15`
+  in the worktree: **1727 passed, 1 skipped, 1 failed, 417 s** (inside budget,
+  recorded). The failure is `test_viewer_js_suite`, the documented worktree
+  red: no `data/projections/viewer` here. The skip is the pre-existing
+  `test_fit_bound_features.py:424`, a bearing re-extraction that is not
+  installed. Every `[real]` feature-geometry test ran against the main
+  checkout's meshes, including the two-reader pairing over every installed
+  face (101 s).
+- `node apps/annotate/run_tests.cjs`: 285/285.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack`:
+  5/5 witnessed, 3m14s.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`: 517/518. The
+  `[real]` tier refuses, correctly, because the main checkout's viewer
+  projections were built from b58f8ed2, and this branch changes
+  `feature_geometry.py` and the topology JSON. Viewer projections are rebuilt
+  only in the main checkout, so that tier and the browser TRUTH tier are the
+  merge's, after `scripts/rebuild_projections.ps1`. They were **not run
+  here**.
