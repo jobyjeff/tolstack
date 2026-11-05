@@ -5487,6 +5487,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       **which** sub-check was red in its clean run, before you charge a decay
       to the diff. If the same sub-check is red again, measure its rate on
       `integration` alone, as the entry above says.
+- [ ] **A retired visual channel lives on in the comments around it.** New
+      2026-11-04 (`the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`):
+      the diff took confidence colour off the DAG bar and rewrote the bar's
+      own rule comment, but three neighbouring `topology.css` comments still
+      said the bar "keeps its provenance HUE", "carries every provenance
+      colour" and "an untraced bar … is still unmistakably red" (fixed
+      inline). When a channel goes, grep the whole stylesheet and the tests'
+      message strings for its old words (`provenance`, `conf--`, the removed
+      class names), not just the rule it was on.
 
 ## Architectural errors to check
 

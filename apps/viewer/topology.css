@@ -531,10 +531,9 @@ body { display: flex; flex-direction: column; }
   stroke-linecap: butt; cursor: pointer; }
 /* The whole-edge hover/click target (deliverable 3, viewer_error_surface_and_
    layout, 2026-09-09): solid and wider than the visible bar, so a dashed
-   confidence/gap stroke's own gaps (rail__bar--gap/--derived, both below)
-   never leave a real portion of the edge's length unresponsive. Invisible on
-   purpose -- the visible bar above still carries every provenance colour and
-   dash pattern unchanged; `pointer-events: stroke` is what makes a
+   gap stroke's own gaps (rail__bar--gap, below) never leave a real portion
+   of the edge's length unresponsive. Invisible on purpose -- the visible bar
+   above keeps its one ink, its weight and its dash unchanged; `pointer-events: stroke` is what makes a
    `stroke: transparent` line still hoverable/clickable. */
 .rail__barhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
 /* A gap crosses between parts and has no lane of its own — dashed, because it
@@ -816,16 +815,16 @@ body { display: flex; flex-direction: column; }
 
 .rail--hot { stroke: var(--rail-hot); stroke-width: 3; }
 .rail__link--hot { stroke: var(--rail-hot); stroke-width: 3; }
-/* The bar keeps its provenance HUE and its dash pattern; what moves is the
-   weight. `--on` (a selected chain) is 7, so hot sits above it and lead above
-   that, and a selected bar under the pointer still reads as both.
+/* The bar keeps its one ink and its dash pattern; what moves is the
+   weight. `--on` (a lit edge) is `--edge-lit-w`, so hot sits above it and lead
+   above that, and a lit bar under the pointer still reads as both.
 
    Its halo (`.rail__barhit--hot`, above) is painted OVER it -- the hit path
    has to sit on top of the bar or a dashed stroke's own off-intervals would
    go unhoverable, which is the whole reason it exists -- so a hot bar is also
    lightened by the same neutral veil every other lit element wears. That is
    brightness, which is what a pointer is allowed to spend; it is not a second
-   hue, and an untraced bar under the pointer is still unmistakably red. */
+   hue. */
 .rail__bar--hot { stroke-width: 6; }
 .rail__bar--lead { stroke-width: 8; }
 .rail__dot--hot { stroke-width: 3; }
