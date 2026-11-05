@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a ONE-BAND cylinder whose facets tilt past cylinderAxisDeg is a cylinder by its nodes, at its own radius and axis",
+  "mutations": [
+    {
+      "contract": "A face whose facets fail cylinderAxisDeg, and which the sphere refuses, is a cylinder when its NODES sit on one: a facet's normal tilts by its own chord sagitta, which the deflection sets, while the nodes are on the surface exactly. Without the node test the pitch plate's Ø41.04 pilot boss (faces 487/521) is `other` and cannot be proposed.",
+      "issue": null,
+      "note": "The mutation drops the node test and hands back the sphere's verdict, which is the classifier as it stood until 2026-11-05: the face falls to the sphere branch and is refused there with the band reason.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "      return cylinderByNodes(faceId, vs, centroid, axis, worst, tol) || verdict;\n",
+      "replace": "      return verdict;\n"
+    }
+  ]
+}

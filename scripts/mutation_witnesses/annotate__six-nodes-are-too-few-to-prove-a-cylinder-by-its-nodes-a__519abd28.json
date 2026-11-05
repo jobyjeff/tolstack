@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "six nodes are too few to prove a cylinder by its nodes alone",
+  "mutations": [
+    {
+      "contract": "A cylinder has five degrees of freedom, so six nodes sit on SOME cylinder to almost nothing whatever surface they came from. The node test needs cylinderNodeMinVertices nodes, enough to over-determine one, before an exact fit means anything.",
+      "issue": null,
+      "note": "The mutation deletes the node-count gate; a six-node band then fits exactly and answers cylindrical on a fit that could not have failed.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "    if (vs.length < tol.cylinderNodeMinVertices) return null;\n",
+      "replace": ""
+    }
+  ]
+}
