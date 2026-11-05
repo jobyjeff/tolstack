@@ -826,17 +826,16 @@
     },
     {
       "id": "pitch_plate_pilot_in_piston_id",
-      "name": "pitch plate pilot boss in the piston body's ID datum",
+      "name": "piston body ID datum -- the bore the pitch plate's pilot boss sits in",
       "parts": [
-        "pitch_plate_215177_001",
         "gas_spring_piston_214700_002"
       ],
-      "kind": "mating_surface",
+      "kind": "datum_feature",
       "face": {
-        "part": "pitch_plate_215177_001",
+        "part": "gas_spring_piston_214700_002",
         "surface": "cylindrical"
       },
-      "note": "Where the plate pilots into the piston body, inside the `pitch_plate` body (the two are bolted together, 5X). Jeff, 2026-11-03: the plate's broken 41.04 mm boss (both sides of both tabs) against the piston's 41.072 mm ID datum. Mesh: plate faces 487/521 (r 20.520, fit `other`) inside piston faces 33/34 (concave r 20.536)."
+      "note": "The piston body's ID datum, which the plate's broken 41.04 mm boss (both sides of both tabs; `pitch_plate_spindle_bore_axis`) pilots into -- Jeff, 2026-11-03: the boss against the piston's 41.072 mm ID datum, the two bolted together 5X. A datum feature of the piston alone since 2026-11-04: it was authored as a mating surface of the plate and the piston, but no edge incident on it was the plate's, so the plate was a part it declared and nothing carried (the viewer's `[real]` check on declared parts, the_viewer_real_tier_follows_the_slide_re_author). The plate's side of the pilot is the boss node; an edge between the two would be the pilot clearance, and it is not authored because it closes a loop the layout pays for (close crossings 70 -> 89 when tried). Mesh: piston faces 33/34 (concave r 20.536), inside the plate's faces 487/521 (r 20.520, fit `other`). The id keeps its old word because tests and issues name it."
     },
     {
       "id": "tan_link_mount_bore",
@@ -1573,15 +1572,6 @@
       "from": "pitch_plate_pilot_in_piston_id",
       "to": "gas_spring_piston_body_od",
       "note": "No value recorded. How far the OD that rides the bushings is from coaxial with the ID datum the plate pilots into -- the piston body's own link between the plate and the slide. What would close it: 214700-002's drawing."
-    },
-    {
-      "id": "pitch_plate_boss_axis_to_pilot",
-      "name": "pitch plate boss axis to its pilot boss face, coaxiality",
-      "kind": "structural",
-      "part": "pitch_plate_215177_001",
-      "from": "pitch_plate_spindle_bore_axis",
-      "to": "pitch_plate_pilot_in_piston_id",
-      "note": "No value recorded. The plate's own link between its central axis and the broken boss that pilots into the piston body's ID datum: both are on the plate, so the plate carries this edge and the pilot interface is incident on a plate edge as well as on the piston's. Added 2026-11-04 (the_viewer_real_tier_follows_the_slide_re_author): the node declared the plate but only the piston's `piston_body_id_datum_to_od` touched it. What would close it: 215177-001's drawing callout for the boss against its datum."
     },
     {
       "id": "gas_spring_rod_to_pitch_plate",

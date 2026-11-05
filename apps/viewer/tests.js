@@ -15137,8 +15137,8 @@
             // 62 since the piston body joined the feather stop's chain
             // (2026-11-03, each_stop_is_its_own_stack).
             var plan = VA.gridPlan(livePitch.layout, livePitch);
-            eq(plan.leaders.length, 64);
-            eq(plan.groups.length, 74);
+            eq(plan.leaders.length, 62);
+            eq(plan.groups.length, 73);
             // The walk opens at the hub spindle bore, a boundary, so its first
             // hub run is one row. The label is the part's NAME
             // (VA.componentLabel); `part` is still the id it is keyed by.
@@ -15161,14 +15161,14 @@
               if (g.part) runsPerPart[g.part] = (runsPerPart[g.part] || 0) + 1;
             });
             eq(runsPerPart.hub, 7);
-            eq(runsPerPart.pitch_plate_215177_001, 9);
+            eq(runsPerPart.pitch_plate_215177_001, 8);
             eq(runsPerPart.gas_spring, 2);
             eq(runsPerPart.blade_root, 2);
             // Every gap is its own group, in gap words -- and two gaps walked
             // one after the other (a bearing's centre and the joint it is) are
             // one run.
             var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
-            eq(gapGroups.length, 12);
+            eq(gapGroups.length, 13);
             gapGroups.forEach(function (g) { eq(g.label, VA.GAP_COMPONENT_LABEL); });
           });
 
@@ -15183,22 +15183,20 @@
             var layout = VA.spineRight(livePitch.layout);
             var plan = VA.gridPlan(layout, livePitch);
             var bands = VA.leaderBands(plan);
-            eq(bands.length, 65, "64 leaders cut the grid into 65 bands");
+            eq(bands.length, 63, "62 leaders cut the grid into 63 bands");
             // The product graph's own band boundaries, as grid row indices
             // (re-measured 2026-10-26 for the fold and again for the
             // body-major walk, and 2026-11-03 when the piston body joined the
-            // feather stop's chain, and 2026-11-04 when the pitch plate gained its edge
-            // to its pilot boss, the_viewer_real_tier_follows_the_slide_re_author).
-            // The first leader points at row
+            // feather stop's chain). 59 edge rows; the first leader points at row
             // 0, so the first band is empty, and several bands carry more
             // than one row.
             eq(bands.map(function (b) { return b.startRow + "-" + b.endRow; }).join(" "),
                "0-0 0-1 1-2 2-3 3-4 4-5 5-6 6-7 7-8 8-9 9-13 13-14 14-15 15-16 " +
-               "16-18 18-19 19-20 20-21 21-22 22-23 23-24 24-25 25-27 27-29 29-33 " +
-               "33-34 34-35 35-37 37-41 41-42 42-43 43-47 47-48 48-50 50-53 53-55 " +
-               "55-56 56-58 58-59 59-60 60-61 61-64 64-65 65-66 66-67 67-68 68-69 " +
-               "69-70 70-74 74-75 75-76 76-77 77-86 86-87 87-88 88-89 89-92 92-93 " +
-               "93-94 94-95 95-96 96-97 97-98 98-99 99-100");
+               "16-18 18-19 19-20 20-21 21-22 22-23 23-25 25-27 27-30 30-31 " +
+               "31-32 32-34 34-38 38-39 39-40 40-44 44-45 45-47 47-50 50-52 " +
+               "52-53 53-55 55-56 56-57 57-58 58-62 62-63 63-64 64-65 65-66 " +
+               "66-67 67-68 68-72 72-73 73-74 74-75 75-84 84-85 85-86 86-87 " +
+               "87-90 90-91 91-92 92-93 93-94 94-95 95-96 96-97 97-98");
 
             var root = render(function (r) {
               VA.renderTopoPane(r, {
@@ -15745,13 +15743,12 @@
             };
             var before = crossings(livePitch.layout);
             var after = crossings(VA.spineRight(livePitch.layout));
-            // 60 since the pitch plate gained its edge to its pilot boss
-            // (2026-11-04, the_viewer_real_tier_follows_the_slide_re_author); 65 since the piston body joined the feather stop's chain
+            // 65 since the piston body joined the feather stop's chain
             // (2026-11-03); 68 on the product graph with the four fastener
             // stacks in it (2026-10-27); 35 before them, since its walk went body-major
             // (2026-10-26; 138 after the fold and before it, 43 on the
             // pitch_system document alone).
-            eq(before.spine, 60, "spine leaders crossed 60 rails as projected");
+            eq(before.spine, 65, "spine leaders crossed 65 rails as projected");
             eq(after.spine, 0, "right-justified, they cross none");
             ok(after.total < before.total,
                "total crossings " + after.total + " vs " + before.total);
@@ -15779,18 +15776,15 @@
           // 24 since the four fastener stacks joined (2026-10-27).
           // 25 since the gas-spring mount's datum A seats on the tangential
           // link mount (2026-11-03, each_stop_is_its_own_stack).
-          // 24 since the slide joint moved onto the piston body's OD and the gas
-          // spring's installed length re-pointed to its flange, which took the mount
-          // bushing bore out of the gas spring's fork (b4b641db, 2026-11-03).
-          ok(livePitch.branch_nodes.length === 24,
-             "expected 24 branch points, got " + livePitch.branch_nodes.length);
+          ok(livePitch.branch_nodes.length === 25,
+             "expected 25 branch points, got " + livePitch.branch_nodes.length);
           var root = render(function (r) {
             VA.renderTopoPane(r, {
               topoProj: livePitch, study: null, crops: realCrops,
               selection: null, onSelect: function () {},
             });
           });
-          eq(all(root, "circle.rail__dot--branch").length, 24);
+          eq(all(root, "circle.rail__dot--branch").length, 25);
         });
 
         await test("[real] the ring gear's cyclic-only branch is visibly a branch",
@@ -18060,9 +18054,7 @@
         // over_its_joints). Derived from the projection here, then pinned.
         // 44 since the feather stop's chain lit the piston body (2026-11-03);
         // 42 before it, 32 x 7 with no joint lit.
-        // 9 columns since the pitch plate gained its edge to its pilot boss
-        // (2026-11-04, the_viewer_real_tier_follows_the_slide_re_author); 8 before.
-        var HIDDEN_ROWS = 44, HIDDEN_COLUMNS = 9;
+        var HIDDEN_ROWS = 44, HIDDEN_COLUMNS = 8;
         var LIVE_JOINTS = ["pitch_arm_link_joint", "pitch_plate_link_joint",
           "tan_link_mount_joint", "tan_link_plate_joint", "travel_between_end_stops"];
 
@@ -18158,9 +18150,7 @@
             var hidden = VA.hideUnlit(topo.layout, lit);
             // 178 rows on 14 columns since the 2026-11-03 slide re-author (two nodes,
             // one edge net) and the feather stop's piston-body chain (three nodes, three edges).
-            // 179 rows on 13 columns since the pitch plate's edge to its pilot boss
-            // (2026-11-04, the_viewer_real_tier_follows_the_slide_re_author).
-            eq([topo.layout.rows.length, topo.layout.columns], [179, 13]);
+            eq([topo.layout.rows.length, topo.layout.columns], [178, 14]);
             eq([hidden.rows.length, hidden.columns], [HIDDEN_ROWS, HIDDEN_COLUMNS]);
             eq(VA.gridPlan(VA.spineRight(hidden), topo, lit).rows.length, 17,
                "every lit contributor is a grid row in the hidden walk too; a joint is none");
@@ -18197,11 +18187,8 @@
             // and the hub, both links and the VPA piston one more each
             // (ISSUE_20261027_a_body_with_parts_in_two_components_is_two_containers.md).
             // Since 2026-11-03 the piston body (a plate part, reached from the
-            // head stack its shoulder seats) was a fourth extra plate block;
-            // since 2026-11-04 the plate's edge to its pilot boss joins that
-            // run to the plate's own, so it is three
-            // (the_viewer_real_tier_follows_the_slide_re_author).
-            var EXTRA_BLOCKS = { pitch_plate: 3, base: 1, pitch_link: 1,
+            // head stack its shoulder seats) is a fourth extra plate block.
+            var EXTRA_BLOCKS = { pitch_plate: 4, base: 1, pitch_link: 1,
                                  tan_link: 1, vpa_piston: 1 };
             eq(topo.bodies.map(function (b) { return per[b.id] || 0; }),
                topo.bodies.map(function (b) { return 1 + (EXTRA_BLOCKS[b.id] || 0); }),
