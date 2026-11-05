@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "Take writes one `bound` event for that face at that end, as the reviewer, and the row reads bound · face N",
+  "mutations": [
+    {
+      "contract": "Take binds the face its own row names.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). An off-by-one face id binds the neighbouring face, which is a real face of the same part and reads as a successful bind.",
+      "file": "apps/annotate/app.js",
+      "find": ": [\"take\", end.edgeId, end.direction, row.sha256, String(row.faceId)]);",
+      "replace": ": [\"take\", end.edgeId, end.direction, row.sha256, String(row.faceId + 1)]);"
+    }
+  ]
+}

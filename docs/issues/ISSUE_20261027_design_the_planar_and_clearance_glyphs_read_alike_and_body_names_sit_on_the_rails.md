@@ -32,3 +32,11 @@ Neither blocks anything.
    container's one identifying text, and it loses to whatever crosses its
    corner. Options: give the label a backing pill in the container's own tint,
    or move it into the gutter left of the field's first column.
+
+## Addendum 2026-11-04 (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit)
+
+Item 1 is answered by that handoff. Joint glyphs are now drawn as the nodes,
+following mock-up C. `planar` is one solid bar and `clearance` is two bars
+with a gap between them, at the row pitch (`apps/viewer/interface_glyphs.js`).
+Item 2, a body's name drawn over rails and dots, is unchanged. The name is now
+drawn once per body, so there are fewer labels to collide.

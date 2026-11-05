@@ -154,8 +154,8 @@ in order. A word must reach both.
 `interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance`.
 
 Optional in v0 and refused on a structural edge. What each word draws is the
-table in "Joint glyphs" below; an edge that states none is a plain dash and a
-"contact kind not stated" row on the gap list.
+table in "Joint glyphs" below; a joint that states none leaves its ends plain
+dots and puts a "contact kind not stated" row on the gap list.
 
 `kind` on a form callout is one of `element | modifier`.
 
@@ -232,40 +232,101 @@ Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symb
   Each row carries `body`; `layout.bodies` lists each body's block as
   `{body, start, end, lo, hi}`. Column order still minimises the crossing count
   (`layout_crossings`), over a walk in which each body is contiguous.
-- **Drawn as a container.** A rounded field behind the body's block, the
-  body's name once at its top-left, in a muted fill that cycles per body. A
-  body none of whose edges the current study lights is a flat outline.
+- **Drawn as one container.** A rounded field behind the body's block, in the
+  body's own muted tint — assigned, one per body (`VA.bodyTint`;
+  `docs/DESIGN_TYPE_AND_COLOUR.md` says where the tints live). Where the walk
+  puts a body's parts in two components, or a lit study's band splits it, the
+  body is still one container: its fields are joined by a thin bridge in its
+  tint (`VA.bodyBridges`) and its name is drawn once, on the field in the band
+  or else its first (2026-11-04, `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`).
+  A body none of whose edges the current study lights is a flat outline.
 - **Collapsible.** Clicking a body's name folds it to one wide node with its
   name and its joint-node count; the edges that leave it attach to that node's
-  rim. A node a lit edge outside the body stands on stays drawn. The page
+  rim. A body in two blocks folds to a pill in each — one row per block, since
+  a node id is one row — drawn as one bridged group, named once. A node a lit edge outside the body stands on stays drawn. The page
   remembers each body's state per reader.
 - **A sub-stack is a container inside its body.** On a kinematic page, the
   chain a `study_ref` names is a dashed field around its edges, folded to one
   bar with the study's title and its folded interval (shown, never reused — the
   chain rule enters the sub-study's terms one by one). It opens and closes with
-  the contributor table's group row.
+  the grid's header row for it (the_kinematic_grid_is_a_stack_of_sub_stacks).
 
-### Joint glyphs
+### Joint glyphs — the joint is the node
 
-Each gap edge with an `interface` draws its glyph at the middle of its bar, in
-the bar's colour, and the glyph carries the edge's hover card. One SVG
-`<symbol>` per word in `apps/viewer/interface_glyphs.js`, enumerated against
-`INTERFACE_KINDS` by `tests/test_topology_projection.py`.
+Since 2026-11-04 (handoff `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`,
+Jeff's mock-up C) **a node that is an end of a joint edge is drawn as that
+joint's glyph**, in the node's own ink and at the row pitch; every other node is
+the plain dot, and no glyph is drawn on an edge. Both ends of a joint wear its
+glyph. A node at the end of joints of two kinds wears the higher of
+`VA.NODE_GLYPH_PRECEDENCE` (a ball, then a slide, a pin, a thread, flat faces, a
+clearance: a joint that moves says more about the interface than a seat).
+`VA.nodeJointKinds` is the one place that decides it, read off the edges alone,
+since no node declares an interface word. One SVG `<symbol>` per word in
+`apps/viewer/interface_glyphs.js`, enumerated against `INTERFACE_KINDS` by
+`tests/test_topology_projection.py`.
+
+**An edge says only lit or unlit.** A bar is one neutral ink at one of two
+weights — lit (every edge, when nothing is lit) or unlit — and a gap is dashed.
+Nothing else rides the stroke: an edge's confidence is the grid's SOURCING chip
+and its band the grid's MIN/MAX. Hover and selection still spend width.
 
 | `interface` | glyph | one edge that wears it |
 | --- | --- | --- |
-| `planar` | two parallel bars, like a capacitor | none on a committed topology yet: a face-to-face seat is one node, not a gap edge (see "What a hard contact is *not*") |
-| `pin_in_bore` | a dot in a ring | `gas_spring_rod_to_pitch_plate` |
-| `spherical` | a ball in a cup | `pitch_arm_link_joint` |
-| `cylindrical_slide` | a dot in a ring with a double-headed arrow | `hub_to_pitch_plate_spindle_coaxiality` |
-| `thread` | a short helix | none on a committed topology yet |
+| `planar` | one solid bar | none on a committed topology yet: a face-to-face seat is one node, not a gap edge (see "What a hard contact is *not*") |
+| `pin_in_bore` | a ring with its axis through it | `gas_spring_rod_to_pitch_plate` |
+| `spherical` | a ring with a centre dot | `pitch_arm_link_joint` |
+| `cylindrical_slide` | a hollow bar with a double-headed arrow along the slide | `hub_to_pitch_plate_spindle_coaxiality` |
+| `thread` | a hollow block crossed by the flanks | none on a committed topology yet |
 | `clearance` | two bars with a gap between them | `end_stop_clearance` |
-| form `element` | a rough-surface squiggle on the edge's bar | none on a committed topology yet (fixture: `tests/test_topology.py`'s form-rule cases) |
+| form `element` | a rough-surface squiggle beside the edge's bar | none on a committed topology yet (fixture: `tests/test_topology.py`'s form-rule cases) |
 | form `modifier` | the same squiggle beside the node the callout is on | none on a committed topology yet |
 
 linkage's joint types suggest the word: `tolerance_stack/kinematic.py`'s
 `LINKAGE_JOINT_INTERFACES` maps each one, and an authored edge at a swept joint
 that disagrees with it fails `tests/test_topology.py`.
+
+### The same graph in 3D: a joint is one node
+
+Since 2026-11-03 (handoff `coaxial_ends_share_one_3d_node`, Jeff's ruling).
+The scene draws this graph on its parts (`docs/ANNOTATION_SURFACE.md`, "The
+model in the scene"), and there **a joint is one 3D node**: when the two ends
+of an edge are concentric features — a spindle and the plate that slides on
+it, a bore and the bushing in it, a ball and its seat — the scene draws one
+dot for all of them, and the edges between them (a bushing's thickness, a
+clearance to a fastener, a coaxiality) are **2D-only**: they have no length
+to show, and the DAG and the grid keep them apart exactly as before. Edges
+leaving the joint attach to its one dot, and every member's 2D node leads to
+it. **A node with nothing to place it on is absent from the scene, never drawn
+at the origin**; the scene's head line counts them. Which features count as
+concentric, and the two thresholds that decide it, are
+`apps/annotate/model_layer.js`'s (`AA.modelJointGroups`).
+
+## Which face an end is
+
+A node may declare `face`: `{"part": <one of its parts>, "surface": <a
+fitted surface class>}` (`NODE_FACE_FIELDS`; the classes are
+`feature_geometry.FITTED_SURFACE_CLASSES`). Added 2026-11-03 (handoff
+`the_slide_joint_is_the_mounts_bushings_against_the_piston_body`). Without
+it, an end is bound on the part its node names first, and its class is
+guessed from the words in its name. Jeff's pick on the pitch plate's
+"spindle bore" lit a plate with no bore on it: the feature is a broken
+pilot *boss*.
+
+- **Where it is declared, it answers first.** `scripts/build_contact_suggestions.py`
+  takes the part and the class from it. `scripts/propose_bindings.py`
+  refuses a face on any other part, or of any other class.
+  `feature_geometry.end_surface_class(..., declared)` reports `where:
+  "declared"`.
+- **The part is one of the node's own.** A rigid body's other members are
+  not candidates. A face that belongs to hardware the node's part only holds
+  (a bushing in a groove) is bound on the holding part. The hardware is
+  named in `hardware_ref`, an id in `docs/tolerance_stacks/hardware_entries.json`
+  (the SOP's Step 4 convention). `tests/test_topology.py` resolves it.
+- **Declared on the ends that needed it**: the slide's two ends, the plate's
+  boss axis and the plate's pilot. Every other node still answers by its
+  words.
+- Both fields reach the topology projection's node rows. The annotator does
+  not read them yet.
 
 ## Tags
 
@@ -713,14 +774,14 @@ product and carries no `joint` of its own. Each study over one of them carries
 its stack's block in the projection (`stack`), so the page shows it with
 the study.
 
-### `topology_vpa_pitch_linkage.json` + nine studies and a kinematic study
+### `topology_vpa_pitch_linkage.json` + ten studies and a kinematic study
 
 **One topology per product, and every study is a subset of it.** This is the
 propeller pitch system's (Jeff, 2026-10-26: "all of the studies are just
 subsets of a single global model representing the actual product"). The
-graph: 35 parts, 74 interfaces, 95 edges, 24 branch points, 26 grounded loops,
+graph: 35 parts, 79 interfaces, 99 edges, 24 branch points, 25 grounded loops,
 17 gap edges. Its studies are the seven pitch-system chains above, the
-end-stop travel below, and the kinematic study ("A kinematic study reads its
+end-stop travel and the feather stop's axial position below, and the kinematic study ("A kinematic study reads its
 sensitivity from a published sweep"); it declares its rigid bodies ("Bodies",
 above).
 
@@ -762,7 +823,7 @@ centre. They were a separate component until the viewer's `[real]` tier showed
 what a disconnected topology does to the rail serialisation; `Topology.cycle_rank`
 counts components rather than assuming one either way.
 
-**The one piece that does carry numbers is the end-stop travel chain** (handoff `the_travel_between_the_end_stops_is_a_study`, 2026-10-16): the two piston heads, the piston cover and the gas-spring mount's stop face, summed by `study_vpa_pitch_linkage_travel_between_end_stops.json`. Since 2026-10-22 every band in it is a drawing's: two dimensions, and two general profile notes banding a mesh-fit nominal (the SOP's "What a term cites when its drawing does not band it"); a third mount edge, 213668-002's datum-A height, is recorded and selected by no study. And `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md` carries the face order, the fits and the signs. It is modelled as a clearance at the second stop, not a contact, because a hard contact is one node and a walk that ended on one would close a ring.
+**The one piece that does carry numbers is the end-stop travel chain** (handoff `the_travel_between_the_end_stops_is_a_study`, 2026-10-16): the two piston heads, the piston cover and the gas-spring mount's stop face, summed by `study_vpa_pitch_linkage_travel_between_end_stops.json`. Its sibling `study_vpa_pitch_linkage_feather_stop_axial_position.json` (2026-11-03) places the feather contact itself, from the tangential link mount's hub face through both mounts and the piston body to its flange on the plate: the feather stop's axial stack in the kinematic study, and with the travel added, the low stop's. Since 2026-10-22 every band in it is a drawing's: two dimensions, and two general profile notes banding a mesh-fit nominal (the SOP's "What a term cites when its drawing does not band it"); a third mount edge, 213668-002's datum-A height, is recorded and selected by no study. And `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md` carries the face order, the fits and the signs. It is modelled as a clearance at the second stop, not a contact, because a hard contact is one node and a walk that ended on one would close a ring.
 
 ---
 
@@ -853,28 +914,40 @@ parameter. A derivative of the output with respect to one input is exactly a
   sub-study's output unit must be the parameter's (the same refusal a band
   gets), and **v0 refuses a `study_ref` that names a kinematic study** — no
   nesting yet. The page shows the group as one collapsed row over its terms.
-- **A `study_ref` on the driver is an x-uncertainty of a stop, never a y-term
-  of the envelope** (Jeff, 2026-10-29, handoff
-  `the_plus72_stop_is_the_travel_datum`). A ref whose `parameter` is the
-  sweep's own driver moves the coordinate the sweep is plotted against, so it
-  says which stops it moves (`applies_to`, stop ids — required on a driver
-  ref, refused on any other) and enters no point's fold: the envelope is the
-  direct contributors' alone. At each stop it names it is an x-interval
-  `x_stop ± h`, its leaves folded once at their own ratios in the driver's
-  unit, and the stop's verdict is the envelope swept over that interval, to
-  first order at the stop's own `J` — the direct terms and the leaves at
-  `|J| ×` their ratio, through the one `fold()`; its worst case is the band's
-  corner, `|J|·h` + the envelope's own half there, so the band the page draws
-  starts at the envelope's edge with no step. **The datum rule:** the stop the
-  driver is measured from (`datum.stop`, where the sweep's driver is 0 —
-  refused at load otherwise) is not moved by a stop-to-stop distance; the
-  blade-pitch study's datum is the +72° feather stop (at rest, gas spring
-  charged, nominal CAD), so the travel between the stops moves the −7° stop
-  only. What locates the datum itself — the chain from the blade-root bores
-  to the feather stop face — is a **declared gap**: a ref with `gap` and
-  `title` and no study behind it, which contributes nothing, leaves every
-  check at the stops it names incomplete, sits on the gap list, and is
-  refused once the study it names exists.
+- **Each stop is its own stack** (Jeff, 2026-11-03, handoff
+  `each_stop_is_its_own_stack`). A stop is a contact pose, and where the
+  mechanism sits when it touches is toleranced like any other dimension, so
+  every stop names its own `axial_stack`: chain studies on the sweep's driver
+  whose terms place the driven part along the driver's axis at that stop's
+  contact, from the ground. The stop's band is one fold: the direct
+  contributors at its sweep point (the **linkage terms at this pose**, the
+  envelope's own fold there) plus each stack leaf at `|J| ×` its ratio, `J`
+  the driver's entry at the stop's nominal (first order). The envelope along
+  the sweep is the linkage terms only; nothing is swept along x. On the
+  blade-pitch study the feather (+72°) stop's stack is
+  `study_vpa_pitch_linkage_feather_stop_axial_position.json` (both mounts,
+  then the piston body from the shoulder the lower head seats on to its flange
+  on the plate) and the low (−7°) stop's is that study plus the travel between
+  the stops, which is where the two piston heads enter (Jeff's ruling the same
+  day: the head stack is referenced from the body's shoulder, so its
+  thicknesses move only the far contact). A leaf both stacks hold is **shared**:
+  the range between the stops (the high stop's measure less the low's) enters
+  every shared term — those and the linkage — once, at the difference of its
+  two weights, so they nearly cancel. A check at a stop with a `bound`
+  (`at_least` / `at_most`) is a one-sided **reach** check on the stop's own
+  measure (S461-261's +70° and −5°). **The datum** (`datum.stop`) keeps one
+  meaning: the pose where the sweep's driver is 0 (refused at load
+  otherwise) — the feather stops touching, by CAD and, since Jeff's note of
+  2026-11-03, by procedure ("During rigging, the actuator's home (zero travel)
+  is reset to the position with the feather direction end stops touching") —
+  and it zeroes nothing. A stack entry may be a **declared gap** (`gap` and
+  `title`, no study behind it): it contributes nothing, leaves every check at
+  its stop incomplete, sits on the gap list, and is refused once the study it
+  names exists — today the blade-root bores to the tangential link mount, at
+  both stops. **Superseded 2026-11-03:** the 2026-10-29 rule
+  (`the_plus72_stop_is_the_travel_datum`) that a driver `study_ref` among the
+  contributors is an x-interval of the stops its `applies_to` names, with the
+  datum stop's interval 0; that form is now refused, naming this handoff.
 
 **The fence is unchanged.** Nothing here solves, perturbs or differentiates a
 mechanism, picks a load path, or calls `traverse()`/`summarize()`/`check_study()`.
@@ -905,9 +978,11 @@ each pairing argued in the contributor's own `note`.
 the driver, and the provenance behind one fold. Since 2026-10-26
 (`the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`) the page
 also draws the topology's model with the study's contributors and the edges
-they borrow a band from lit, the rest dimmed or hidden, and says each
-contributor once, with a column group per stop and its coefficient's curve
-across the sweep on hover; a row selects its edge in place. It reads the projection the
+they borrow a band from lit, the rest dimmed or hidden, and since 2026-11-03
+its grid is the study's stack at one stop: the linkage terms in chain order,
+the stop position's sub-stacks folding under their headers, a sensitivity
+column and its curve across the sweep on hover; a row selects its edge in
+place. It reads the projection the
 builder above writes into the viewer's own projection directory, and adds
 nothing up. `apps/viewer/README.md`, "Kinematic studies — a section of their
 own", is where the page is described; `apps/viewer/views/kinematic.js` is the

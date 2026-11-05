@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: concentric ends of an edge are one joint -- coaxial, on the axis, or coincident -- and nothing else is",
+  "mutations": [
+    {
+      "contract": "Two features merge only within the distance threshold.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "A threshold read a fifth loose: the just-outside case merges.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "    var merge = distance <= AA.MODEL_JOINT_DISTANCE_MM &&",
+      "replace": "    var merge = distance <= AA.MODEL_JOINT_DISTANCE_MM * 1.2 &&"
+    },
+    {
+      "contract": "Two axes merge only within the angle threshold.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
+      "note": "An angle test that admits crossing axes: the spindle and the blade hinge would be one joint.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      (angle === null || angle <= AA.MODEL_JOINT_ANGLE_DEG);",
+      "replace": "      (angle === null || angle <= 90);"
+    }
+  ]
+}

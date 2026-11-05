@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic grid row is its edge's: a click hands the edge to the page, and the row wears the selection the page has",
+  "mutations": [
+    {
+      "contract": "A grid row wears the page's selection.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Never marks it.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (isSelected(ctx, \"edge\", planRow.id)) el.className += \" tvrow--selected\";",
+      "replace": "    if (false) el.className += \" tvrow--selected\";"
+    }
+  ]
+}

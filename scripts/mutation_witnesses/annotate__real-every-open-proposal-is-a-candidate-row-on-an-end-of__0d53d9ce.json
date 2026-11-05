@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "[real] every open proposal is a candidate row on an end of some edge, and every candidate row says why it is there",
+  "mutations": [
+    {
+      "contract": "Every open proposal on disk is reachable as a candidate row (the handoff's 55/55).",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). A list of contact faces only is what the contact engine alone would give, and it reaches 5 of the 55 the way the 2026-10-29 rail did.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    AA.endProposals(record, via.direction).forEach(function (p) {",
+      "replace": "    [].forEach(function (p) {"
+    }
+  ]
+}

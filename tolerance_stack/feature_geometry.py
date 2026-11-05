@@ -154,12 +154,18 @@ def required_surface_class(text: Optional[str]) -> Optional[Dict[str, str]]:
     return None
 
 
-def end_surface_class(edge_name: Optional[str], node_name: Optional[str]) -> Optional[Dict[str, str]]:
+def end_surface_class(edge_name: Optional[str], node_name: Optional[str],
+                      declared: Optional[str] = None) -> Optional[Dict[str, str]]:
     """The class for ONE END of a dimension -- ``AA.endSurfaceClass``.
 
-    The interface's own name is asked first and the dimension's second, because
+    A class the node DECLARES (its ``face.surface``, ``tolerance_stack.topology``
+    ``NODE_FACE_FIELDS``) answers before any word does: the words are a guess at
+    the shape, the declaration is the author saying it. Otherwise the
+    interface's own name is asked first and the dimension's second, because
     the thing being bound IS the interface; ``where`` says which answered.
     """
+    if declared:
+        return {"surface": declared, "rule": None, "word": None, "where": "declared"}
     found = required_surface_class(node_name)
     if found:
         return dict(found, where="interface")

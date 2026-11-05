@@ -341,6 +341,7 @@ export class AnnotateScene {
     this._pickFilter = null;
     this._preselect = null;
     this._preselectFrame = null;
+    this._wash = null;
     this.renderer.domElement.addEventListener("pointermove", (ev) => {
       if (this._pickFilter) { this._preselectMove(ev); return; }
       this._modelHoverMove(ev);
@@ -558,6 +559,7 @@ export class AnnotateScene {
       this._focus.faces = this._focus.faces.filter((f) => f.sha256 !== sha256);
     }
     if (this._preselect && this._preselect.sha256 === sha256) this._disposePreselect();
+    if (this._wash && this._wash.sha256 === sha256) this._disposeWash();
     for (const repeat of this._repeats.get(sha256) || []) this.scene.remove(repeat);
     this._repeats.delete(sha256);
     this.scene.remove(mesh);
@@ -1216,9 +1218,52 @@ export class AnnotateScene {
   }
 
   _drawPreselect(sha256, faceId) {
+    this._preselect = this._drawWash(sha256, faceId);
+  }
+
+  // A candidate row's hover (handoff a_joint_end_lists_its_candidate_faces_
+  // and_says_why_each_is_there): the pre-selection's own wash and outline, on
+  // a face a LIST names rather than the one under the pointer -- so it asks
+  // for no pick filter, sets no cursor, calls no onPreselect and moves no
+  // camera. Every drawn occurrence of the part; null takes it down. A part
+  // that is not open washes nothing.
+  washFace(face) {
+    const was = this._wash;
+    if (was && face && was.sha256 === face.sha256 && was.faceId === face.faceId) return this.washed();
+    this._disposeWash();
+    if (face && this.parts.has(face.sha256)) this._wash = this._drawWash(face.sha256, face.faceId);
+    this.requestRender();
+    return this.washed();
+  }
+
+  // What the wash draws now, read off the drawn meshes: a harness's view of
+  // "the face is lit", colour and opacity included.
+  washed() {
+    const p = this._wash;
+    if (!p) return null;
+    const fill = p.materials[0];
+    return { sha256: p.sha256, faceId: p.faceId,
+      overlays: p.meshes.filter((m) => m.parent).length,
+      color: fill.color.getHex(), opacity: fill.opacity,
+      preselectColor: PRESELECT_COLOR, preselectOpacity: PRESELECT_OPACITY };
+  }
+
+  _disposeWash() {
+    const p = this._wash;
+    if (!p) return;
+    for (const m of p.meshes) if (m.parent) m.parent.remove(m);
+    p.geometries.forEach((g) => g.dispose());
+    p.materials.forEach((m) => m.dispose());
+    this._wash = null;
+  }
+
+  // The wash and outline for one face, on every drawn occurrence of its part,
+  // or null when the part has no such face. Pre-selection and a candidate
+  // row's hover both draw with this.
+  _drawWash(sha256, faceId) {
     const parent = this.parts.get(sha256);
     const range = parent && parent.userData.faceRanges[faceId];
-    if (!range) return;
+    if (!range) return null;
     const AA = window.AnnotateApp;
     const sub = AA.faceSubGeometry(parent.geometry.attributes.position.array,
       parent.geometry.index.array, parent.userData.faceIdPerTriangle, range, faceId);
@@ -1252,7 +1297,7 @@ export class AnnotateScene {
       node.add(line);
       meshes.push(wash, line);
     }
-    this._preselect = { sha256, faceId, geometries: [fill, outline],
+    return { sha256, faceId, geometries: [fill, outline],
       materials: [fillMaterial, lineMaterial], meshes };
   }
 
@@ -1653,8 +1698,11 @@ export class AnnotateScene {
   // the graph is read against, and a line hidden inside the hub it describes
   // is a line nobody reads.
 
-  // `model` is {nodes: {id: {source, subject, point, exported}}, lines: {id:
-  // {from, to, body}}}, or null to take the layer down.
+  // `model` is {nodes: {id: {source, subject, point, exported, members?,
+  // world?}}, lines: {id: {from, to, body}}}, or null to take the layer down.
+  // A JOINT's dot (coaxial_ends_share_one_3d_node) lists the nodes it stands
+  // for in `members` and lives in world (`world`): every member id resolves
+  // to it -- for a selection, a lit node, a focus and the anchors message.
   setModel(model) {
     this._disposeModel();
     this.requestRender();
@@ -1674,6 +1722,7 @@ export class AnnotateScene {
     };
     const dotGeometry = new THREE.SphereGeometry(MODEL_NODE_RADIUS, 12, 8);
     const dots = new Map();
+    const dotOf = new Map();
     for (const [id, node] of Object.entries(model.nodes)) {
       const material = new THREE.MeshBasicMaterial({
         color: MODEL_COLORS[node.source] || MODEL_COLORS.line,
@@ -1683,8 +1732,10 @@ export class AnnotateScene {
       dot.renderOrder = MODEL_RENDER_ORDER + 1;
       // A world dot is re-placed per frame; a body dot sits at its
       // as-modelled point inside its body's group.
-      const inBody = node.source !== "joint";
-      dot.userData = { modelNode: id, inBody, exported: !!node.exported, source: node.source };
+      const inBody = node.source !== "joint" && !node.world;
+      const members = node.members && node.members.length ? node.members.slice() : [id];
+      dot.userData = { modelNode: id, inBody, exported: !!node.exported, source: node.source, members };
+      for (const m of members) dotOf.set(m, id);
       if (inBody) dot.position.fromArray(node.point);
       groupOf(inBody ? (node.subject || "") : null).add(dot);
       dots.set(id, dot);
@@ -1725,7 +1776,7 @@ export class AnnotateScene {
       proposed.set(id, ring);
     }
     this.scene.add(root);
-    this._model = { root, groups, dots, lines, dotGeometry, proposed, proposedGeometry,
+    this._model = { root, groups, dots, dotOf, lines, dotGeometry, proposed, proposedGeometry,
       selection: null, strengths: {} };
     this._applyFocusMarker();
     return true;
@@ -1768,13 +1819,17 @@ export class AnnotateScene {
   }
 
   // {strengths: {edge id: "full"|"dim"|"hidden"}, nodes: {id: true} | null
-  // (the lit nodes; null is every node), hideUnlit, emphasis: edge id | null}.
+  // (the lit nodes; null is every node), hideUnlit, emphasis: edge id | null,
+  // emphasisNodes: [node id] (the emphasised edge's ends, each resolved to
+  // the dot that stands for it -- so an edge inside a joint, which draws no
+  // line, still lights the joint's dot)}.
   setModelStyle(style) {
     const model = this._model;
     if (!model) return false;
     model.strengths = style.strengths || {};
     model.litNodes = style.nodes || null;
     model.emphasis = style.emphasis || null;
+    model.emphasisNodes = style.emphasisNodes || [];
     model.hideUnlit = !!style.hideUnlit;
     this._applyModelStyle();
     this.requestRender();
@@ -1795,15 +1850,23 @@ export class AnnotateScene {
       else line.material.color.setHex(MODEL_COLORS.line);
       line.material.opacity = strength === "dim" && !on ? MODEL_DIM_OPACITY : 1;
     }
-    const selected = model.selection && model.selection.node;
+    for (const n of model.emphasisNodes || []) {
+      const d = model.dotOf.get(n);
+      if (d) emphasisNodes.add(d);
+    }
+    const selected = model.selection && model.selection.node
+      ? (model.dotOf.get(model.selection.node) || model.selection.node) : null;
+    const focusDot = this._focus && this._focus.node
+      ? (model.dotOf.get(this._focus.node) || this._focus.node) : null;
     for (const [id, dot] of model.dots) {
       const live = dot.userData.inBody || dot.userData.live;
-      const lit = !model.litNodes || model.litNodes[id];
+      // A joint is lit when any end it stands for is.
+      const lit = !model.litNodes || dot.userData.members.some((m) => model.litNodes[m]);
       // An unlit node goes with its lines when the rest of the model is hidden.
       const hidden = !lit && model.hideUnlit && !emphasisNodes.has(id);
       dot.visible = !!live && !hidden;
       dot.material.opacity = lit || emphasisNodes.has(id) ? 1 : MODEL_DIM_OPACITY;
-      const focused = !!this._focus && this._focus.node === id && !model.proposed.has(id);
+      const focused = focusDot === id && !model.proposed.has(this._focus.node);
       const on = id === selected || emphasisNodes.has(id);
       dot.scale.setScalar(focused ? FOCUS_MARKER_SCALE : (on ? SWEEP_EMPHASIS_SCALE : 1));
       if (id === selected) dot.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
@@ -1899,7 +1962,7 @@ export class AnnotateScene {
     const nodes = {};
     for (const [id, dot] of model.dots) {
       nodes[id] = { at: world(dot), visible: dot.visible, opacity: dot.material.opacity,
-        source: dot.userData.source };
+        source: dot.userData.source, members: dot.userData.members.slice(), scale: dot.scale.x };
     }
     const lines = {};
     for (const [id, line] of model.lines) {
@@ -1954,8 +2017,10 @@ export class AnnotateScene {
   // Every exported node's dot in CSS pixels of THIS PAGE's viewport -- the
   // canvas's own offset added, because embedded the canvas sits under the
   // bars, and the shell measures the iframe, not the canvas -- or null when
-  // it is behind the camera, outside the view, hidden, or has no anchor
-  // geometry.
+  // it is behind the camera, outside the view, or hidden. Keyed by NODE: a
+  // joint's one dot is every member's point, so the shell's leaders fan in
+  // to it. A node with no dot (no anchor geometry) is not a key here; the
+  // app adds it as null.
   modelScreenPoints() {
     const model = this._model;
     if (!model || !model.root.visible) return null;
@@ -1966,11 +2031,15 @@ export class AnnotateScene {
     const w = rect.width, h = rect.height;
     const out = {};
     const v = new THREE.Vector3();
-    for (const [id, dot] of model.dots) {
-      if (!dot.userData.exported || !dot.visible) { out[id] = null; continue; }
-      dot.getWorldPosition(v).project(this.camera);
-      if (v.z < -1 || v.z > 1 || v.x < -1 || v.x > 1 || v.y < -1 || v.y > 1) { out[id] = null; continue; }
-      out[id] = [rect.left + (v.x + 1) / 2 * w, rect.top + (1 - v.y) / 2 * h];
+    for (const [, dot] of model.dots) {
+      let at = null;
+      if (dot.userData.exported && dot.visible) {
+        dot.getWorldPosition(v).project(this.camera);
+        if (!(v.z < -1 || v.z > 1 || v.x < -1 || v.x > 1 || v.y < -1 || v.y > 1)) {
+          at = [rect.left + (v.x + 1) / 2 * w, rect.top + (1 - v.y) / 2 * h];
+        }
+      }
+      for (const m of dot.userData.members) out[m] = at ? at.slice() : null;
     }
     return out;
   }

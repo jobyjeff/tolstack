@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the closure lights exactly the gap edges between two lit nodes on the real study -- five, derived from the projection -- the lit set is one piece with no bridge, and no row of the grid is either",
+  "mutations": [
+    {
+      "contract": "A gap edge whose two end nodes are both lit is lit: the real kinematic study lights its five joints.",
+      "issue": null,
+      "note": "the_lit_set_closes_over_its_joints (2026-10-28). The closure is switched off; no joint is lit and nothing is named closed. Renamed 2026-11-03 (each_stop_is_its_own_stack): the feather stop's chain joins the lit set into one piece, so the bridge mutation is retired here; fast__a-joint-between-two-lit-nodes-is-lit-by-closure-it-draws__0ac42284 still witnesses the bridge on its fixture.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (edge.kind === \"gap\" && !lit.edges[edge.id] &&",
+      "replace": "      if (false && !lit.edges[edge.id] &&"
+    }
+  ]
+}

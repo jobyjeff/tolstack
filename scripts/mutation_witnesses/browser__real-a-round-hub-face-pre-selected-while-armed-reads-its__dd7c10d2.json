@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] a round hub face pre-selected while armed reads its number, its class and its fitted radius on the armed row",
+  "mutations": [
+    {
+      "contract": "The armed row names a pre-selected real face with its class and radius.",
+      "issue": "docs/issues/ISSUE_20261029_no_check_hovers_the_real_bore_so_the_dods_class_and_radius_line_is_unwitnessed.md",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). The mock triangle has no curved face, so until this check the class-and-radius line was unit-tested on hand-made input only. Reading no classes is the shape a lost classification takes.",
+      "file": "apps/annotate/app.js",
+      "find": "  setArmedLine(face ? AA.preselectWords(face.faceId, classes ? classes[face.faceId] : null)",
+      "replace": "  setArmedLine(face ? AA.preselectWords(face.faceId, null)"
+    }
+  ]
+}

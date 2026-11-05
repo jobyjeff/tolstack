@@ -1,0 +1,31 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a body in several blocks around the band is one container: named once, on the band's field, bridged block to block",
+  "mutations": [
+    {
+      "contract": "A body split into several fields is named once, lit or not.",
+      "issue": "docs/issues/ISSUE_20261027_a_body_with_parts_in_two_components_is_two_containers.md",
+      "note": "Names every block again, the two-containers picture this handoff retired.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return fields.map(function (field, i) { return pick[field.body] === i; });",
+      "replace": "    return fields.map(function () { return true; });"
+    },
+    {
+      "contract": "Consecutive fields of one body are joined by a bridge.",
+      "issue": "docs/issues/ISSUE_20261027_a_body_with_parts_in_two_components_is_two_containers.md",
+      "note": "No bridge at all: the fields read as separate containers.",
+      "file": "apps/viewer/topology.js",
+      "find": "      var prev = last[field.body];\n      last[field.body] = field;\n      if (!prev) return;",
+      "replace": "      var prev = null;\n      last[field.body] = field;\n      if (!prev) return;"
+    },
+    {
+      "contract": "Each folded block still has a row id of its own.",
+      "issue": "docs/issues/ISSUE_20261027_a_body_with_parts_in_two_components_is_two_containers.md",
+      "note": "Two rows with one id: the row is one node, so two blocks cannot share it.",
+      "file": "apps/viewer/topology.js",
+      "find": "      span.pill = \"body:\" + span.body + (nth[span.body] > 1 ? \"#\" + nth[span.body] : \"\");",
+      "replace": "      span.pill = \"body:\" + span.body;"
+    }
+  ]
+}

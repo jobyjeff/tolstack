@@ -32,6 +32,14 @@
   --rail-even: #59606f;
   --rail-odd: #7b8494;
   --rail-dim: #333844;
+  /* The ink of a lit leader across the tiers -- DAG to grid (.rail__leader--on)
+     and DAG to 3D (.seam__leader, .seam__end) -- one token for both (Jeff,
+     2026-11-03: "make the leaders ... slightly dimmed"). The edges' own ink is
+     --rail-odd; this is the dimmest ink of the same hue that still holds 3:1
+     against the page background (about 60% of its luminance: a half-luminance
+     ink would read 2.8:1, under the floor). A leader under the pointer or
+     selected is drawn at --rail-hot / the accent, as before. */
+  --leader-ink: #616a79;
   /* The two alternating band tints (viewer_leader_grid_legibility,
      2026-09-14). Jeff: "use alternating fill colors between the leader lines
      (these same colors can be the alternating row background colors)" -- so
@@ -82,6 +90,51 @@
   --rail-halo: rgba(174, 196, 232, .13);
   --tv-hot: rgba(255, 255, 255, .055);
   --tv-lead: rgba(255, 255, 255, .125);
+
+  /* The bodies' tints (the_kinematic_grid_is_a_stack_of_sub_stacks): ONE set,
+     filled into the DAG's body containers (.tv__bodyfield--t*) and painted
+     behind the grid rows of the same body (.tvrow--body-t*), so a row and the
+     field its bar sits in are one colour. Sixteen
+     (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit), one per
+     body: a body's tint is its place in the document's `bodies[]`
+     (VA.BODY_TINTS, VA.bodyTint), so no two of a topology's first sixteen
+     bodies share one, and a body's container bridge (one body, one container)
+     wears it too. Neighbouring slots sit far apart in hue, since bodies listed
+     together are usually drawn together. Muted hues near the floor of
+     visible, none of them a provenance colour. */
+  --tv-body-0: rgba(140, 160, 200, .075);
+  --tv-body-1: rgba(150, 190, 170, .065);
+  --tv-body-2: rgba(190, 170, 140, .065);
+  --tv-body-3: rgba(170, 150, 200, .07);
+  --tv-body-4: rgba(140, 185, 195, .065);
+  --tv-body-5: rgba(190, 150, 165, .065);
+  --tv-body-6: rgba(167, 194, 147, .065);
+  --tv-body-7: rgba(194, 147, 194, .065);
+  --tv-body-8: rgba(194, 194, 147, .06);
+  --tv-body-9: rgba(147, 147, 194, .075);
+  --tv-body-10: rgba(147, 194, 187, .065);
+  --tv-body-11: rgba(194, 159, 147, .065);
+  --tv-body-12: rgba(179, 147, 194, .07);
+  --tv-body-13: rgba(147, 194, 151, .065);
+  --tv-body-14: rgba(147, 175, 194, .07);
+  --tv-body-15: rgba(194, 147, 179, .065);
+  /* The grid's structure marks: a hairline between two rows of one body, a
+     heavier rule between bodies and between sub-stacks, and one left rule down
+     a sub-stack's header and rows (dashed for a declared gap). Drawn as inset
+     box-shadows and gradients, never borders: a cell border joins the table's
+     row-height sizing and would move a row off its leader's seam. */
+  /* An edge's one ink and its two weights (the_joint_is_the_node_and_an_
+     edge_says_only_lit_or_unlit): lit -- or everything, with nothing lit --
+     and unlit. Neutral, a step under the hover grey, so a bar is the rail it
+     sits on made heavier and claims no hue. */
+  --edge-ink: #b8c0cc;
+  --edge-lit-w: 4px;
+  --edge-unlit-w: 1.5px;
+  --tv-divide-hair: rgba(255, 255, 255, .06);
+  --tv-divide-heavy: #59606f;
+  --tv-divide-heavy-w: 2px;
+  --tv-stack-rule: #9aa1ac;
+  --tv-stack-rule-w: 3px;
 }
 
 /* Everything the drag of a grip should suppress while it is running
@@ -112,12 +165,12 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    viewer_error_surface_and_layout, 2026-09-09): everything else now
    contributes its full height to the document and lets IT scroll (below),
    so this is the only box still capped to the viewport. `position: sticky`
-   pins it under the topbar (47px, the same offset style.css's shared
+   pins it under the topbar (--bar-h, the same offset style.css's shared
    `.detail` rule assumes) as the page scrolls past the banner; `max-height`
    is what makes `overflow-y: auto` actually clip rather than grow. */
 .navtree {
   width: 300px; flex: none; padding: 8px; border-right: 1px solid var(--line);
-  position: sticky; top: 47px; max-height: calc(100vh - 47px);
+  position: sticky; top: var(--bar-h); max-height: calc(100vh - var(--bar-h));
   overflow-y: auto;
 }
 .navtree__list, .navtree__children { list-style: none; margin: 0; padding: 0; }
@@ -168,6 +221,13 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    which put the selection colour on every topology row at rest -- the one
    colour this page uses to mean "this, and not the others". */
 .navtree__id { color: var(--muted); font-size: var(--t-micro); }
+/* The 3D control: muted and out of the way until the row is hovered or focused. */
+.navtree__3d {
+  flex: 0 0 auto; margin-left: auto; padding: 0 6px; border: 0; background: none;
+  color: var(--muted); font: inherit; font-size: var(--t-micro); cursor: pointer; opacity: 0;
+}
+.navtree__row:hover .navtree__3d, .navtree__3d:focus-visible, .navtree__row--on .navtree__3d { opacity: 1; }
+.navtree__3d:hover { color: var(--accent); }
 
 /* --- the scene's tree, under the row it is showing (the_shell_seats_the_
    scene_beside_the_model) -----------------------------------------------
@@ -231,6 +291,14 @@ details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "
 .navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenetext { flex-basis: 100%; }
 .navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenebtn:first-of-type { margin-left: auto; }
 .navtree__scenealert { flex: none; color: var(--inferred); display: inline-flex; }
+/* A joint end's candidate disclosure, in front of its row, and the
+   candidate rows under it, whose words wrap rather than clip (handoff
+   a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there). */
+.navtree__scenetwisty { flex: none; width: 12px; padding: 0; font: inherit; color: var(--muted);
+  background: none; border: 0; cursor: pointer; }
+.navtree__scenetwisty:hover, .navtree__scenetwisty:focus-visible { color: var(--ink); }
+.navtree__scenerow--wrap .navtree__scenename,
+.navtree__scenerow--wrap .navtree__scenesub { white-space: normal; overflow-wrap: anywhere; }
 
 /* --- the one status icon a row may wear ------------------------------------
    (viewer_nav_verdict_into_alert_and_icon, 2026-09-22. Jeff, on the rail as
@@ -270,6 +338,10 @@ details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "
 .tv__toolbar {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel2);
+  /* Pinned under the page bar, so the view filters stay in reach while the page
+     scrolls the DAG and its grid; the grid header pins under THIS
+     (VA.stickyOffsets). Under the bar's own z-index, over the pane's. */
+  position: sticky; top: var(--bar-h); z-index: 4;
 }
 
 /* Quiet controls (design_pass_typography, 2026-09-17). These five are display
@@ -448,44 +520,53 @@ body { display: flex; flex-direction: column; }
 .rail__link { fill: none; stroke: var(--rail-even); stroke-width: 2; }
 .rail__link--close { stroke: var(--rail-dim); stroke-dasharray: 3 3; }
 
-/* An edge's bar IS the dimension: a fat segment spanning exactly its row. It
-   wears the citation's confidence, through the same conf-- classes the tables
-   use, so there is one vocabulary and one colour decision. */
-.rail__bar { stroke-width: 5; stroke-linecap: butt; cursor: pointer; }
+/* An edge's bar IS the dimension: a segment spanning exactly its row. It says
+   ONE thing, lit or unlit, and says it by weight -- `--edge-lit-w` for an edge
+   the page lights (every edge, when nothing is lit), `--edge-unlit-w` for the
+   rest -- in one neutral ink, and a gap is dashed. Nothing else rides the
+   stroke (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit): its
+   confidence is the grid's SOURCING chip and its band the grid's MIN/MAX.
+   Hover and selection are the one exception, and they spend width. */
+.rail__bar { stroke: var(--edge-ink); stroke-width: var(--edge-lit-w);
+  stroke-linecap: butt; cursor: pointer; }
 /* The whole-edge hover/click target (deliverable 3, viewer_error_surface_and_
    layout, 2026-09-09): solid and wider than the visible bar, so a dashed
-   confidence/gap stroke's own gaps (rail__bar--gap/--derived, both below)
-   never leave a real portion of the edge's length unresponsive. Invisible on
-   purpose -- the visible bar above still carries every provenance colour and
-   dash pattern unchanged; `pointer-events: stroke` is what makes a
+   gap stroke's own gaps (rail__bar--gap, below) never leave a real portion
+   of the edge's length unresponsive. Invisible on purpose -- the visible bar
+   above keeps its one ink, its weight and its dash unchanged; `pointer-events: stroke` is what makes a
    `stroke: transparent` line still hoverable/clickable. */
 .rail__barhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
-.rail__bar.conf--traced { stroke: var(--traced); }
-.rail__bar.conf--inferred { stroke: var(--inferred); }
-.rail__bar.conf--untraced { stroke: var(--untraced); }
-.rail__bar.conf--no_source_ref { stroke: var(--nocite); }
-.rail__bar.conf--unknown { stroke: var(--muted); }
 /* A gap crosses between parts and has no lane of its own — dashed, because it
-   is the one edge kind no rail belongs to. A DERIVED gap is the answer a study
-   computes rather than a term in one, so it is hollow as well as dashed. */
+   is the one edge kind no rail belongs to. A derived gap is a gap, and draws as
+   one: that it carries no value is the grid's to say. */
 .rail__bar--gap { stroke-dasharray: 4 3; }
-.rail__bar--derived { stroke: var(--zero); stroke-dasharray: 2 4; stroke-width: 3; }
 
-/* The joint glyphs (interface_glyphs.js): a stroke in the colour of the bar
-   it sits on -- the same conf-- classes -- over a disc of the page's own
-   background so the dashed bar does not run through the drawing. The disc is
-   no target; the glyph carries the edge's card and click. */
+/* A joint node (interface_glyphs.js, VA.nodeJointKinds): the joint's glyph in
+   the node's own ink and fill, through the same states a plain dot has
+   (`rail__node--*` mirrors `rail__dot--*`, below). The shapes read the ink as
+   `currentColor` and the fill by inheritance. The dot under it is unpainted
+   and stays the target, so the glyph takes no pointer. */
+.rail__node { color: var(--rail-odd); fill: var(--panel); stroke-width: 2;
+  pointer-events: none; overflow: visible; }
+.rail__node--branch { color: var(--accent); stroke-width: 2.5; }
+.rail__node--on { color: var(--accent); fill: var(--on); }
+.rail__node--selected { color: var(--accent); stroke-width: 3; }
+.rail__node--off, .rail__node--other-variant { opacity: .28; }
+.rail__node--hot { stroke-width: 3; }
+.rail__node--lead { stroke-width: 3.5; }
+.glyph__ring { fill: inherit; stroke: currentColor; }
+.glyph__solid { fill: currentColor; stroke: none; }
+.glyph__line { fill: none; stroke: currentColor; stroke-linecap: round; }
+.glyph__mask { stroke: none; }
+.rail__dot.rail__dot--joint { fill: transparent; stroke: transparent; }
+
+/* The form mark (interface_glyphs.js's VA.FORM_GLYPH): a muted squiggle
+   beside the node or the bar it is about, never on the stroke. It carries its
+   edge's preview and click. */
 .rail__glyph { fill: none; stroke: var(--muted); stroke-width: 1.4;
   stroke-linecap: round; pointer-events: all; cursor: pointer; overflow: visible; }
-.rail__glyph .glyph__solid { stroke-width: 2.4; }
-.rail__glyph.conf--traced { stroke: var(--traced); }
-.rail__glyph.conf--inferred { stroke: var(--inferred); }
-.rail__glyph.conf--untraced { stroke: var(--untraced); }
-.rail__glyph.conf--no_source_ref { stroke: var(--nocite); }
-.rail__glyph--derived { stroke: var(--zero); }
 .rail__glyph--form { stroke: var(--muted); }
 .rail__glyph--off, .rail__glyph--other-variant { opacity: .28; }
-.rail__glyphbg { fill: var(--bg); stroke: none; pointer-events: none; }
 
 /* A body's container (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a region
    tint like the leader bands, not a mark, so it claims nothing the fill rule
@@ -496,13 +577,28 @@ body { display: flex; flex-direction: column; }
    outline. pointer-events off: the field is wayfinding; its NAME is the one
    control (it folds the body). */
 .tv__bodyfield { stroke: rgba(255, 255, 255, .07); stroke-width: 1; pointer-events: none; }
-.tv__bodyfield--t0 { fill: rgba(140, 160, 200, .075); }
-.tv__bodyfield--t1 { fill: rgba(150, 190, 170, .065); }
-.tv__bodyfield--t2 { fill: rgba(190, 170, 140, .065); }
-.tv__bodyfield--t3 { fill: rgba(170, 150, 200, .07); }
-.tv__bodyfield--t4 { fill: rgba(140, 185, 195, .065); }
-.tv__bodyfield--t5 { fill: rgba(190, 150, 165, .065); }
+.tv__bodyfield--t0 { fill: var(--tv-body-0); }
+.tv__bodyfield--t1 { fill: var(--tv-body-1); }
+.tv__bodyfield--t2 { fill: var(--tv-body-2); }
+.tv__bodyfield--t3 { fill: var(--tv-body-3); }
+.tv__bodyfield--t4 { fill: var(--tv-body-4); }
+.tv__bodyfield--t5 { fill: var(--tv-body-5); }
+.tv__bodyfield--t6 { fill: var(--tv-body-6); }
+.tv__bodyfield--t7 { fill: var(--tv-body-7); }
+.tv__bodyfield--t8 { fill: var(--tv-body-8); }
+.tv__bodyfield--t9 { fill: var(--tv-body-9); }
+.tv__bodyfield--t10 { fill: var(--tv-body-10); }
+.tv__bodyfield--t11 { fill: var(--tv-body-11); }
+.tv__bodyfield--t12 { fill: var(--tv-body-12); }
+.tv__bodyfield--t13 { fill: var(--tv-body-13); }
+.tv__bodyfield--t14 { fill: var(--tv-body-14); }
+.tv__bodyfield--t15 { fill: var(--tv-body-15); }
 .tv__bodyfield--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
+/* A body is one container: where the walk splits it into fields, a thin
+   bridge in its own tint (set inline from VA.bodyTint) runs from each field to
+   the next (VA.bodyBridges), and the body is named once. */
+.tv__bodybridge { fill: none; stroke-width: 4; stroke-linecap: butt; pointer-events: none; }
+.tv__bodybridge--flat { stroke: rgba(255, 255, 255, .09); stroke-width: 1; }
 .tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }
@@ -566,7 +662,7 @@ body { display: flex; flex-direction: column; }
   fill: none; stroke: transparent; stroke-width: 10;
   pointer-events: stroke; cursor: pointer;
 }
-.rail__leader--on { stroke: var(--rail-odd); }
+.rail__leader--on { stroke: var(--leader-ink); }
 .rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
 /* Something else is selected: this leader steps back (VA.selectedLeaderNodes,
    the rule the leaders across the seam share). */
@@ -584,11 +680,11 @@ body { display: flex; flex-direction: column; }
   pointer-events: none; z-index: 4; overflow: hidden;
 }
 .seam__leader {
-  fill: none; stroke: var(--rail-odd); stroke-width: 1.5;
+  fill: none; stroke: var(--leader-ink); stroke-width: 1.5;
   stroke-linejoin: round;
 }
 /* Its end on the scene is outlined, like the DAG's own dots. */
-.seam__end { fill: var(--panel); stroke: var(--rail-odd); stroke-width: 1.5; }
+.seam__end { fill: var(--panel); stroke: var(--leader-ink); stroke-width: 1.5; }
 .seam__leader--hot, .seam__end--hot { stroke: var(--rail-hot); stroke-width: 2.5; }
 .seam__leader--selected, .seam__end--selected { stroke: var(--accent); stroke-width: 2; }
 .seam__leader--dim, .seam__end--dim { opacity: .28; }
@@ -681,7 +777,8 @@ body { display: flex; flex-direction: column; }
    select. Same weight as "off the path" -- one dimming, two reasons. */
 .rail__bar--other-variant, .rail__dot--other-variant { opacity: .28; }
 .tvrow--other-variant { opacity: .5; }
-.rail__bar--on { stroke-width: 7; }
+.rail__bar--on { stroke-width: var(--edge-lit-w); }
+.rail__bar--off { stroke-width: var(--edge-unlit-w); }
 .rail__dot--on { stroke: var(--accent); fill: var(--on); }
 
 /* --- one hover state, two surfaces --------------------------------------
@@ -718,18 +815,18 @@ body { display: flex; flex-direction: column; }
 
 .rail--hot { stroke: var(--rail-hot); stroke-width: 3; }
 .rail__link--hot { stroke: var(--rail-hot); stroke-width: 3; }
-/* The bar keeps its provenance HUE and its dash pattern; what moves is the
-   weight. `--on` (a selected chain) is 7, so hot sits above it and lead above
-   that, and a selected bar under the pointer still reads as both.
+/* The bar keeps its one ink and its dash pattern; what moves is the
+   weight. `--on` (a lit edge) is `--edge-lit-w`, so hot sits above it and lead
+   above that, and a lit bar under the pointer still reads as both.
 
    Its halo (`.rail__barhit--hot`, above) is painted OVER it -- the hit path
    has to sit on top of the bar or a dashed stroke's own off-intervals would
    go unhoverable, which is the whole reason it exists -- so a hot bar is also
    lightened by the same neutral veil every other lit element wears. That is
    brightness, which is what a pointer is allowed to spend; it is not a second
-   hue, and an untraced bar under the pointer is still unmistakably red. */
-.rail__bar--hot { stroke-width: 8; }
-.rail__bar--lead { stroke-width: 10; }
+   hue. */
+.rail__bar--hot { stroke-width: 6; }
+.rail__bar--lead { stroke-width: 8; }
 .rail__dot--hot { stroke-width: 3; }
 .rail__dot--lead { stroke-width: 3.5; }
 .rail__leader--hot:not(.rail__leader--selected) { stroke: var(--rail-hot); }
@@ -764,33 +861,81 @@ body { display: flex; flex-direction: column; }
 .tvheadtable, .tvtable { table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 
 .tvrow { cursor: pointer; white-space: nowrap; }
-/* The alternating band a row belongs to (viewer_leader_grid_legibility): the
-   SAME two tints the jog zone's bands are filled with, and the same parity
-   (VA.rowBandParity feeds both).
+/* The rigid body a row belongs to (VA.gridRowMarks): the SAME tint the DAG's
+   container for that body is filled with. (Until
+   the_kinematic_grid_is_a_stack_of_sub_stacks a row wore its jog-zone band's
+   parity instead, VA.rowBandParity; the band polygons still do.)
 
-   The band tint is the row's background COLOUR and a provenance tint is a
+   The body tint is the row's background COLOUR and a provenance tint is a
    background IMAGE, so the two compose instead of one winning -- and that is
    load-bearing rather than clever. The first attempt gave both to
    `background` and let the more specific provenance rule win, which reads
    fine on the demo fixture and is nearly inert on the document this handoff
    exists for: most of `pitch_system`'s rows are untraced, and every one of
    them would have shown no band at all. Layered, an untraced row is still
-   unmistakably untraced AND still says which band it belongs to. The browser
+   unmistakably untraced AND still says which body it belongs to. The browser
    tier measures both layers on every real row.
 
    Hover is `background-color` for the same reason: as a shorthand it wiped
    the provenance layer off whichever row the reader was pointing at. */
-.tvrow--band-a { background-color: var(--tv-band-a); }
-.tvrow--band-b { background-color: var(--tv-band-b); }
+.tvrow--body-t0 { background-color: var(--tv-body-0); }
+.tvrow--body-t1 { background-color: var(--tv-body-1); }
+.tvrow--body-t2 { background-color: var(--tv-body-2); }
+.tvrow--body-t3 { background-color: var(--tv-body-3); }
+.tvrow--body-t4 { background-color: var(--tv-body-4); }
+.tvrow--body-t5 { background-color: var(--tv-body-5); }
+.tvrow--body-t6 { background-color: var(--tv-body-6); }
+.tvrow--body-t7 { background-color: var(--tv-body-7); }
+.tvrow--body-t8 { background-color: var(--tv-body-8); }
+.tvrow--body-t9 { background-color: var(--tv-body-9); }
+.tvrow--body-t10 { background-color: var(--tv-body-10); }
+.tvrow--body-t11 { background-color: var(--tv-body-11); }
+.tvrow--body-t12 { background-color: var(--tv-body-12); }
+.tvrow--body-t13 { background-color: var(--tv-body-13); }
+.tvrow--body-t14 { background-color: var(--tv-body-14); }
+.tvrow--body-t15 { background-color: var(--tv-body-15); }
+/* The divider above a row (VA.gridRowMarks), on its cells. */
+.tvrow--divide-hair > .tvcell { box-shadow: inset 0 1px 0 var(--tv-divide-hair); }
+.tvrow--divide-body > .tvcell, .tvrow--divide-sub > .tvcell {
+  box-shadow: inset 0 var(--tv-divide-heavy-w) 0 var(--tv-divide-heavy);
+}
+/* The sub-stack rule down the row's first cell (a rowspanned component cell
+   spans only rows of one sub-stack: VA.gridPlan breaks its groups at a
+   header), layered over whichever divider the cell already wears. */
+.tvrow--ruled > .tvcell:first-child {
+  background-image: linear-gradient(var(--tv-stack-rule), var(--tv-stack-rule));
+  background-size: var(--tv-stack-rule-w) 100%; background-repeat: no-repeat;
+}
+.tvrow--gapstack > .tvcell:first-child {
+  background-image: repeating-linear-gradient(to bottom,
+    var(--tv-stack-rule) 0 4px, transparent 4px 7px);
+}
+.tvrow--substack { font-size: var(--t-dense); }
+.tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }
+.tvsub__title { font-weight: 600; }
+.tvrow--gapstack .tvsub__title { font-weight: 400; font-style: italic; color: var(--muted); }
+.tvsub__total { font-weight: 600; }
+/* The sourcing legend under the grid: each chip beside what it means. */
+.tvlegend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+  padding: 10px 8px; font-size: var(--t-micro);
+}
+.tvlegend__head { color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.tvlegend__item { display: inline-flex; align-items: center; gap: 6px; }
+.tvcell--curve { cursor: help; }
+/* The results pane's stop picker: which stop the grid's stack is shown at. */
+.kmstop { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+.kmstop__label { font-size: var(--t-micro); }
+.kmstop__button { font-size: var(--t-dense); }
+.kmstop__button--on { color: var(--accent); border-color: var(--accent); }
 /* A row's hover tint is NOT a `:hover` rule any more -- it is `--hot` /
    `--lead`, set by views/topology.js's setHot from the same state that lights
    the DAG. See "one hover state, two surfaces" at the bottom of this file. */
 .tvrow--edge { font-size: var(--t-dense); }
-/* A component group's first row: the seam a leader points at. box-shadow, not
-   border-top — a cell border participates in the table's row-height sizing
-   (this file's own collapsed-border lesson, above) and a shadow never does,
-   so the group line cannot nudge a row off its leader. */
-.tvrow--group-start .tvcell { box-shadow: inset 0 1px 0 var(--line); }
+/* A component group's first row is the seam a leader points at; its line is
+   the divider above it (.tvrow--divide-*, VA.gridRowMarks) since
+   the_kinematic_grid_is_a_stack_of_sub_stacks -- one rule for every row
+   rather than a group line and a divider competing for the same shadow. */
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 /* Same tint the elements table uses: an untraced value has to survive a skim.
    As a background IMAGE (a flat two-stop gradient is the only way CSS spells
@@ -1099,7 +1244,7 @@ body { display: flex; flex-direction: column; }
      nowhere to stick within. The shared `.detail` rule (style.css) is the
      stack viewer's and is never edited from here. */
   align-self: flex-start;
-  position: sticky; top: 47px; height: calc(100vh - 47px); overflow-y: auto;
+  position: sticky; top: var(--bar-h); height: calc(100vh - var(--bar-h)); overflow-y: auto;
 }
 .detail__values { margin: 8px 0; }
 .detail__valrow { display: flex; gap: 10px; font-size: var(--t-dense); }
@@ -1165,9 +1310,9 @@ body { display: flex; flex-direction: column; }
    grid the width they had. topology_app.js clamps it per page
    (VA.clampFlyoutWidth) and applies the reader's chosen width. */
 dialog#annotate-flyout {
-  position: sticky; top: 47px; inset: 47px auto auto auto; margin: 0; padding: 0;
+  position: sticky; top: var(--bar-h); inset: var(--bar-h) auto auto auto; margin: 0; padding: 0;
   flex: none; width: min(560px, 40vw);
-  height: calc(100vh - 47px); max-height: calc(100vh - 47px);
+  height: calc(100vh - var(--bar-h)); max-height: calc(100vh - var(--bar-h));
   background: var(--bg); color: var(--ink);
   border: none; box-shadow: none;
   z-index: 3; /* its divider's hit area overhangs the DAG's first pixels */
@@ -1250,8 +1395,8 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    between the nav and the model. A zero-width column of the row, so opening
    nothing moves nothing; the tab straddles the seam. */
 .panehandle {
-  flex: none; width: 0; position: sticky; top: 47px;
-  height: calc(100vh - 47px); align-self: flex-start; z-index: 4;
+  flex: none; width: 0; position: sticky; top: var(--bar-h);
+  height: calc(100vh - var(--bar-h)); align-self: flex-start; z-index: 4;
 }
 .panehandle__tab {
   position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
@@ -1509,12 +1654,11 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 /* --- the kinematic study page (views/kinematic.js) ----------------------
    the_viewer_shows_a_kinematic_study, 2026-10-20. Since 2026-10-28 the page
    has every study page's shape: the model in the main column, and the
-   results -- name, verdicts, chart, readouts, contributors, provenance -- at
+   results -- name, verdicts, chart, readouts, provenance -- at
    the top of the right-hand pane (`.kmresults`). Type, colour and spacing are the :root
    tokens and nothing else (docs/DESIGN_TYPE_AND_COLOUR.md); the one accent
    is the verdict chip. */
 .kmresults { min-width: 0; }
-.kmcontrib { max-width: 100%; overflow-x: auto; margin-bottom: 14px; }
 .kmhead__title { font-size: var(--t-title); margin: 0 0 8px; }
 /* The pane's results, then the selection's preview under them: separated
    by space and one rule, never a box. */
@@ -1614,6 +1758,10 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 }
 .kmreadouts td { padding: 3px 10px 3px 0; vertical-align: baseline; }
 .kmreadouts .num, .kmreadouts .kmreadouts__numhead { text-align: right; }
+/* What a stop's worst case is made of, under its row: muted, one line, the
+   row above it tight against it. The range row is set off by space alone. */
+.kmreadouts__says td { padding-top: 0; font-size: var(--t-meta); }
+.kmreadouts__range td { padding-top: 8px; }
 
 /* The envelope chart. The SVG keeps its own pixel size up to the column's
    width and scales DOWN only, so its text lands at the token sizes below
@@ -1628,17 +1776,15 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
    (docs/DESIGN_TYPE_AND_COLOUR.md), and a band is data at rest. */
 .kmchart__worst { fill: var(--ink); fill-opacity: 0.1; }
 .kmchart__rss { fill: var(--ink); fill-opacity: 0.22; }
-/* A stop's travel band: on x, the same two fills at a lower alpha; across
-   it, the envelope carried on the stop's slope at the envelope's own. */
-.kmchart__band--worst { fill: var(--ink); fill-opacity: 0.05; }
-.kmchart__band--rss { fill: var(--ink); fill-opacity: 0.08; }
-/* Outlined: on a product-length axis the band is a few pixels wide, and
-   its slope is the point of drawing it. */
-.kmchart__region--worst { fill: var(--ink); fill-opacity: 0.1; stroke: var(--ink); stroke-opacity: 0.45; }
-.kmchart__region--rss { fill: var(--ink); fill-opacity: 0.22; stroke: var(--ink); stroke-opacity: 0.3; }
-.kmchart__bandlabel { fill: var(--muted); font-size: var(--t-micro); }
+/* A stop: a point at its nominal x with its worst-case bar thin and its RSS
+   bar heavier over it, in ink; the reach bound's tick dashed like a limit. */
+.kmchart__bar { stroke: var(--ink); }
+.kmchart__bar--worst, .kmchart__bar--cap { stroke-width: 1.5; }
+.kmchart__bar--rss { stroke-width: 5; stroke-opacity: 0.6; }
+.kmchart__barpoint { fill: var(--ink); }
+.kmchart__bound { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 2; opacity: 0.7; }
+.kmchart__barlabel { fill: var(--ink); font-size: var(--t-micro); }
 .kmchart__note { margin: 0 0 12px; font-size: var(--t-meta); }
-.kmchart__notelink { color: inherit; }
 .kmchart__zero { stroke: var(--ink); stroke-width: 1.5; }
 .kmchart__limit { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 6 4; opacity: 0.7; }
 .kmchart__limitlabel { fill: var(--muted); font-size: var(--t-micro); }
@@ -1655,48 +1801,6 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 .kmchart__tiprow { display: flex; justify-content: space-between; gap: 14px; }
 .kmchart__tiplabel { color: var(--muted); }
 
-/* One table, a row per contributor and a column group per stop
-   (2026-10-26): the group header carries the stop's name and its summary
-   line, and the first column of every group -- and the band -- opens with a
-   rule, so the groups read as groups without a box around each. */
-.kmcontrib { margin: 0 0 18px; overflow-x: auto; }
-.kmtable { border-collapse: collapse; font-size: var(--t-dense); }
-.kmtable th {
-  text-align: left; color: var(--muted); font-size: var(--t-micro);
-  font-weight: 600; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--line);
-}
-.kmtable th.num { text-align: right; }
-.kmtable td { padding: 3px 10px 3px 0; vertical-align: baseline; }
-.kmtable .kmtable__first { padding-left: 14px; border-left: 1px solid var(--line); }
-/* A stop's name and its summary line are a title and a sentence, not the
-   uppercase micro label a bare th is app-wide (style.css). */
-.kmtable__groups th {
-  border-bottom: none; padding-bottom: 0; vertical-align: bottom;
-  text-transform: none; letter-spacing: normal;
-}
-.kmtable__groups .kmtable__stop { padding-left: 14px; border-left: 1px solid var(--line); }
-.kmtable__stoplabel { color: var(--ink); font-size: var(--t-dense); font-weight: 600; }
-.kmtable__stopsum { font-weight: 400; font-size: var(--t-micro); white-space: normal;
-  font-variant-numeric: tabular-nums; max-width: 22em; }
-/* Column labels wrap under their numbers rather than widen the table. */
-.kmtable__cols th { vertical-align: bottom; white-space: normal; }
-/* A contributor's name wraps at a readable measure, never a word a line, and
-   stays pinned at the left when the table scrolls sideways -- at 1600 wide
-   beside the preview pane the band, confidence and 3D columns are a scroll
-   away, and the row they belong to must not be. */
-.kmrow__name, .kmtable th.kmtable__lead {
-  min-width: 14em; max-width: 22em; position: sticky; left: 0; z-index: 1;
-  background: var(--bg);
-}
-.kmrow__zone { margin-left: 6px; color: var(--muted); font-size: var(--t-micro); }
-/* A contributor that is a study: its row, and its terms indented under it. */
-.kmgroup__toggle { padding: 0 6px 0 0; border: 0; background: none; color: var(--muted); font: inherit; }
-.kmchild .kmrow__name { padding-left: 22px; }
-.kmtable tbody tr:hover { background: #20242c; }
-.kmtable tbody tr { cursor: pointer; }
-.kmrow--selected td { background: #252b36; }
-.kmrow--selected .kmrow__edge { color: var(--accent); }
-.kmcell--muted { color: var(--muted); }
 /* The preview pane's "band in this study" line on a kinematic page: a
    contributor with no value of its own, and the edge whose band it reads. */
 .detail__band { margin: 4px 0 8px; font-size: var(--t-meta); }
@@ -1706,9 +1810,8 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 }
 
 /* A coefficient's curve across the sweep: the hover card's body (the
-   page's one popover, views/cards.js), or drawn in the cell where there is
-   no card host. */
-.kmcell--coef { cursor: help; }
+   page's one popover, views/cards.js), opened from the grid's SENSITIVITY
+   cell on a kinematic page. */
 .kmcurve { text-align: left; white-space: nowrap; font-family: inherit; }
 .kmcurve__title { font-size: var(--t-meta); color: var(--ink); margin-bottom: 2px; }
 .kmcurve__svg { display: block; }
@@ -1719,16 +1822,6 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 .kmcurve__line { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 .kmcurve__tick { fill: var(--muted); font-size: var(--t-micro); }
 .kmcurve__axis { font-size: var(--t-micro); }
-.kmrow__edge { color: var(--ink); text-decoration: none; }
-.kmrow__edge:hover, .kmrow__edge:focus { text-decoration: underline; }
-.kmrow--muted td { color: var(--muted); }
-/* One line: the link's arrow is part of its label, and a wrapped "3D ↗"
-   doubles the row's height at a narrow viewport. */
-.kmrow__3d { text-align: right; white-space: nowrap; }
-.kmrow__3dbtn, .kmrow__3dlink { opacity: 0.5; font-size: var(--t-micro); }
-.kmtable tbody tr:hover .kmrow__3dbtn, .kmtable tbody tr:hover .kmrow__3dlink,
-.kmrow__3dbtn:focus, .kmrow__3dlink:focus { opacity: 1; }
-.kmrow__3dlink { color: var(--ink); text-decoration: none; }
 
 .kmprov { margin-top: 6px; }
 .kmprov__summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }

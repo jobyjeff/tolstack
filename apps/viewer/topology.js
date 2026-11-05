@@ -1243,19 +1243,28 @@
   //: `headHeight` is `.tv__head`'s own CSS height (topology.css): the column
   //: header sits INSIDE the pane and is not part of the DAG. A test pairs the
   //: two so the stylesheet cannot drift from this number.
-  VA.DAG_FIT = { headHeight: 26 };
+  //: `topInset` is the room the DAG's first row needs ABOVE it: a group's field
+  //: starts 2px above its first slot and its title sits above that, so a drawing
+  //: that began at y = 0 had them cut off by the SVG's own edge at scroll 0
+  //: (Jeff, 2026-11-03: "the top of the dag looks clipped"). The layout store
+  //: shifts both blocks down by it (`fit.inset`, which the pane passes and a test
+  //: of the classic pitch does not), so the DAG, the grid and every leader
+  //: between them keep their relation. It is drawn at the zoom the reader has,
+  //: so it is sized for the widest one.
+  VA.DAG_FIT = { headHeight: 26, topInset: 24 };
 
   // --- zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale) -----------
   //
   // One scale on the DAG's drawing container (rails, body fields and grid rows
   // together, so nothing shears). The same `{min, max, step}` shape as the
   // crop lightbox's VA.LIGHTBOX_ZOOM. `min` is chosen so the WHOLE product
-  // walk fits a 900px-high pane in its tallest mode (tolerance width, 5510px
-  // at the comfortable density: 0.15 x 5510 = 826); a test re-derives that off
-  // the real model so a taller walk fails here instead of being unreachable.
+  // walk fits a 900px-high window in its tallest mode (tolerance width, at the
+  // comfortable density) UNDER what the page pins at its top -- the bar and
+  // the view filters; a test re-derives that off the real model so a taller
+  // walk fails here instead of being unreachable.
   // `max` 2 is where the 26px rows are 52px and the text is large enough for
   // anything a reader zooms in for. `step` is one wheel notch's factor.
-  VA.DAG_ZOOM = { min: 0.15, max: 2, step: 1.15 };
+  VA.DAG_ZOOM = { min: 0.12, max: 2, step: 1.15 };
 
   VA.clampDagZoom = function (scale) {
     var n = Number(scale);
@@ -1495,6 +1504,10 @@
     var plan = fit && fit.plan;
     var gridHeight = (plan ? plan.rows.length : 0) * metrics.rowHeight;
     var centre = VA.centreOffsets(rows, heights, plan, metrics);
+    // The pane asks for the room above the first row (VA.DAG_FIT.topInset) by
+    // naming it on `fit`; a caller that does not gets the classic store.
+    var inset = (fit && fit.inset) || 0;
+    centre = { dag: centre.dag + inset, grid: centre.grid + (plan ? inset : 0) };
 
     var out = {
       mode: scaled ? mode : "uniform",
@@ -2261,6 +2274,54 @@
         b += 1;
       }
     }
+    if (lit.order && lit.order.length) out.band = VA.orderBand(out.band, lit.order);
+    return out;
+  };
+
+  // The band's rows in a lit set's own ORDER (`lit.order`, edge ids -- a
+  // kinematic study's chain order, VA.kinematicStackOrder) rather than the
+  // walk's, laid out as a walk: each edge after the node it hangs from, and
+  // its other node right after it, so consecutive edges that share a node are
+  // one rail. Where neither end of an edge is placed yet, the end the NEXT
+  // edge does not share goes first, so the chain runs on into its next edge.
+  // An edge the order does not name follows in walk order; a node no edge
+  // reached, last. Pure.
+  VA.orderBand = function (band, order) {
+    var nodes = {};
+    var edges = [];
+    band.forEach(function (row) {
+      if (row.kind === "node") nodes[row.id] = row;
+      else if (row.kind === "edge") edges.push(row);
+    });
+    var rank = {};
+    order.forEach(function (id, i) { if (rank[id] === undefined) rank[id] = i; });
+    var walkAt = {};
+    edges.forEach(function (row, i) { walkAt[row.id] = i; });
+    edges.sort(function (a, b) {
+      var ra = rank[a.id] === undefined ? order.length + walkAt[a.id] : rank[a.id];
+      var rb = rank[b.id] === undefined ? order.length + walkAt[b.id] : rank[b.id];
+      return ra - rb;
+    });
+    var out = [];
+    var placed = {};
+    var put = function (id) {
+      if (id && nodes[id] && !placed[id]) { placed[id] = true; out.push(nodes[id]); }
+    };
+    edges.forEach(function (row, i) {
+      var ends = [row.entered_at, row.left_at];
+      if (!placed[ends[0]] && !placed[ends[1]]) {
+        var next = edges[i + 1];
+        var shared = next && (next.entered_at === ends[0] || next.left_at === ends[0]);
+        if (shared) ends.reverse();
+        put(ends[0]);
+      } else if (!placed[ends[0]] && !nodes[ends[1]]) {
+        put(ends[0]);
+      }
+      out.push(row);
+      put(ends[0]);
+      put(ends[1]);
+    });
+    band.forEach(function (row) { if (row.kind === "node") put(row.id); });
     return out;
   };
 
@@ -2486,9 +2547,15 @@
         options.push(relabel(laid, [0].concat(order)));
       });
     }
-    var walked = VA.hideUnlit(layout, lit);
-    options.push({ rows: walked.rows, rails: walked.rails, links: walked.links,
-                   columns: walked.columns });
+    // A band in a lit set's own order (VA.orderBand) is not the walk's order,
+    // so the walk's columns are no option for it: the grid beside the band
+    // reads its rows in the band's order, and a band drawn in another would
+    // cross every leader.
+    if (!(lit.order && lit.order.length) || !options.length) {
+      var walked = VA.hideUnlit(layout, lit);
+      options.push({ rows: walked.rows, rails: walked.rails, links: walked.links,
+                     columns: walked.columns });
+    }
     var best = null;
     var bestScore = null;
     options.forEach(function (option) {
@@ -2679,16 +2746,17 @@
     }
   };
 
-  // Which of a walk's body fields carries the body's name. With nothing lit,
-  // every one: a body is one block per connected piece of the walk, and each
-  // block is named. With a study lit the band splits bodies further
-  // (VA.bandLayout), so a body is named ONCE -- on the first field that holds
-  // a lit row (the band's), else on its first. `fields` is any list of spans
-  // ({body, start, end}) over `rows`; returns booleans parallel to it.
+  // Which of a walk's body fields carries the body's name. A body is ONE
+  // container however many fields the walk splits it into -- one per
+  // connected piece of the walk, and the band splits it further when a study
+  // is lit (VA.bandLayout) -- so it is named once (the_joint_is_the_node_and_
+  // an_edge_says_only_lit_or_unlit): on the first field that holds a lit row
+  // (the band's), else on its first. Its other fields are bridged to that one
+  // (VA.bodyBridges). `fields` is any list of spans ({body, start, end}) over
+  // `rows`; returns booleans parallel to it.
   VA.bodyLabelFields = function (fields, rows, lit) {
     fields = fields || [];
     rows = rows || [];
-    if (!lit) return fields.map(function () { return true; });
     var holdsLit = function (field) {
       if (!lit) return false;
       for (var r = field.start; r <= field.end; r++) {
@@ -2705,10 +2773,45 @@
     return fields.map(function (field, i) { return pick[field.body] === i; });
   };
 
-  // How many muted fills the containers cycle through (topology.css's
-  // `--tv-body-0` ... ). A body's tint is its place in the document's own
-  // `bodies[]`, so it does not change when the walk is hidden or collapsed.
-  VA.BODY_TINTS = 6;
+  // How many muted fills there are (topology.css's `--tv-body-0` ... ). A
+  // body's tint is ASSIGNED, not cycled: its place in the document's own
+  // `bodies[]`, so it does not change when the walk is hidden or collapsed,
+  // and no two of a topology's first sixteen bodies share one. A seventeenth
+  // body would take the first's -- the fast tier pins the live product model
+  // under the count, so that day is a red test rather than a quiet clash.
+  VA.BODY_TINTS = 16;
+
+  // The thin bridges that make a body's fields one container: one between
+  // each pair of consecutive fields of the same body, in walk order, from the
+  // upper field's bottom edge to the lower's top, at an x both share when
+  // they overlap (else an elbow at the gap's middle). `fields` is the
+  // geometry's body rectangles ({body, x1, x2, y1, y2}); returns
+  // [{body, d}] -- a path, drawn in the body's own tint.
+  VA.bodyBridges = function (fields) {
+    var last = {};
+    var out = [];
+    (fields || []).forEach(function (field) {
+      var prev = last[field.body];
+      last[field.body] = field;
+      if (!prev) return;
+      var a = prev.y2 <= field.y1 ? prev : field;
+      var b = a === prev ? field : prev;
+      var lo = Math.max(a.x1, b.x1);
+      var hi = Math.min(a.x2, b.x2);
+      var d;
+      if (hi - lo >= 12) {
+        var x = lo + 8;
+        d = "M " + x + " " + a.y2 + " V " + b.y1;
+      } else {
+        var xa = a.x1 + 8;
+        var xb = b.x1 + 8;
+        var mid = (a.y2 + b.y1) / 2;
+        d = "M " + xa + " " + a.y2 + " V " + mid + " H " + xb + " V " + b.y1;
+      }
+      out.push({ body: field.body, d: d });
+    });
+    return out;
+  };
 
   VA.bodyTint = function (topoProj, bodyId) {
     var bodies = (topoProj && topoProj.bodies) || [];
@@ -3391,6 +3494,45 @@
     var prevPart = null;
     var pendingBoundaryNode = null;   // a non-internal node row since the last edge
 
+    // A kinematic page's stack (VA.kinematicStack): its sub-stack headers are
+    // rows of the plan too, emitted where the stack puts them among the term
+    // rows, and a term under a folded sub-stack has no row (its interfaces'
+    // leaders bind to the next row the grid keeps, as a dropped edge's do).
+    // The DAG's band is in the stack's own order (VA.bandSides), so walking
+    // the layout and walking the stack meet the term edges in the same order.
+    var stack = (focus && focus.stack) || null;
+    var stackAt = {};
+    var stackShown = {};
+    var stackNext = 0;
+    if (stack) {
+      stack.entries.forEach(function (entry, i) {
+        if (entry.kind === "term" && stackAt[entry.edge] === undefined) stackAt[entry.edge] = i;
+      });
+      VA.visibleStackEntries(stack).forEach(function (entry) { stackShown[stackKey(entry)] = true; });
+    }
+    var bindLeaders = function (id) {
+      for (var i = leaders.length - 1; i >= 0; i--) {
+        if (leaders[i].boundary !== rows.length || leaders[i].beforeEdge !== null) break;
+        leaders[i].beforeEdge = id;
+      }
+    };
+    var pushHeader = function (entry) {
+      var id = stackKey(entry);
+      groups.push({ part: null, label: "", title: "", start: rows.length, count: 1,
+                    header: entry });
+      bindLeaders(id);
+      rows.push({ id: id, layoutRow: null, gridRow: rows.length, header: entry,
+                  closes: false });
+      prevPart = undefined;
+    };
+    // Every header the stack puts before entry `until` (exclusive), in order.
+    var flushHeaders = function (until) {
+      for (; stackNext < until; stackNext++) {
+        var entry = stack.entries[stackNext];
+        if (entry.kind === "sub" && stackShown[stackKey(entry)]) pushHeader(entry);
+      }
+    };
+
     ((layout && layout.rows) || []).forEach(function (row) {
       // A collapsed body's pill (VA.collapseBodies) is not an interface: it
       // separates nothing in the grid and has no leader.
@@ -3413,6 +3555,17 @@
       // keeps and a group break still lands where the part really changes.
       if (focusEdges && (!focusEdges[row.id] ||
           (focus.closed && focus.closed[row.id]))) return;
+      var term = null;
+      if (stack) {
+        var at = stackAt[row.id];
+        // A lit edge that is no term of this stop's stack (a band's own edge,
+        // a joint, the other stop's chain) has no row here.
+        if (at === undefined) return;
+        if (at >= stackNext) flushHeaders(at);
+        term = stack.entries[at];
+        if (at >= stackNext) stackNext = at + 1;
+        if (!stackShown[stackKey(term)]) return;
+      }
       var edge = index.edges[row.id] || null;
       var part = edge && edge.part !== undefined ? edge.part : null;
       var breakHere = rows.length === 0 || part !== prevPart ||
@@ -3428,22 +3581,76 @@
         });
       }
       groups[groups.length - 1].count += 1;
-      for (var i = leaders.length - 1; i >= 0; i--) {
-        if (leaders[i].boundary !== rows.length || leaders[i].beforeEdge !== null) break;
-        leaders[i].beforeEdge = row.id;
-      }
+      bindLeaders(row.id);
       rows.push({
         id: row.id,
         layoutRow: row.row,
         gridRow: rows.length,
         closes: row.closes_row !== null && row.closes_row !== undefined,
+        body: row.body === undefined ? null : row.body,
+        term: term,
       });
       prevPart = part;
       pendingBoundaryNode = null;
     });
+    if (stack) flushHeaders(stack.entries.length);
 
     return { rows: rows, groups: groups, leaders: leaders, internal: internal };
   };
+
+  // What each grid row wears, as class names keyed by row id
+  // (the_kinematic_grid_is_a_stack_of_sub_stacks). Jeff, 2026-10-29: "Grid
+  // view itself should have visual indication of sub-stacks, rigid bodies,
+  // etc, accomplished with the line weights/colors of the dividers and/or the
+  // background colors." So:
+  //
+  //   * the row's BODY tint -- `tvrow--body-t<n>`, the same index the DAG's
+  //     container for that body is filled with (VA.bodyTint), so a row and
+  //     the field its bar sits in are one colour; a sub-stack header, which
+  //     is no body's, wears none;
+  //   * the divider ABOVE it -- `tvrow--divide-sub` where a sub-stack starts
+  //     or ends, `tvrow--divide-body` where the body changes, a hairline
+  //     (`tvrow--divide-hair`) between two rows of one body; the first row
+  //     has none.
+  //
+  // The weights and tints are tokens in topology.css's :root. Pure.
+  VA.gridRowMarks = function (plan, topoProj) {
+    var out = {};
+    var prev = null;
+    ((plan && plan.rows) || []).forEach(function (row) {
+      var cls = [];
+      if (row.header) cls.push("tvrow--body-none");
+      else if (row.body !== null && row.body !== undefined) {
+        cls.push("tvrow--body-t" + VA.bodyTint(topoProj, row.body));
+      } else cls.push("tvrow--body-none");
+      if (prev) {
+        var parent = function (r) { return r.term ? r.term.parent : null; };
+        // A header opens a sub-stack; its first row is one block with it; a
+        // row whose sub-stack differs from the row above closes one.
+        if (row.header) {
+          cls.push("tvrow--divide-sub");
+        } else if (prev.header) {
+          cls.push("tvrow--divide-hair");
+        } else if (parent(row) !== parent(prev)) {
+          cls.push("tvrow--divide-sub");
+        } else if (row.body !== prev.body) {
+          cls.push("tvrow--divide-body");
+        } else {
+          cls.push("tvrow--divide-hair");
+        }
+      }
+      if (row.header || (row.term && row.term.parent)) cls.push("tvrow--ruled");
+      out[row.id] = cls.join(" ");
+      prev = row;
+    });
+    return out;
+  };
+
+  // A stack entry's row id: its edge for a term, `sub:<id>` for a header.
+  function stackKey(entry) {
+    return entry.kind === "term" ? entry.edge : "sub:" + entry.id;
+  }
+  VA.stackRowId = stackKey;
 
   // The jogged leader lines, as path strings: from just right of the node's
   // dot, horizontally into the jog zone, vertically down/up the zone's own
@@ -3820,14 +4027,18 @@
   // The dot a leader ends in on the scene, in CSS pixels: a picture, like
   // VA.INTERFACE_GLYPH_PX, not a type step.
   VA.SEAM_END_RADIUS = 2.5;
+  //
+  // `hotKey` may also be a LIST of keys: the scene's pointer on a joint's one
+  // dot (coaxial_ends_share_one_3d_node) stands for every node the joint
+  // merged, and lights each one's leader.
   VA.seamLeaderStates = function (ids, selection, hotKey, index) {
     var selected = VA.selectedLeaderNodes(selection, index);
     var hot = {};
-    if (hotKey) {
-      var cut = hotKey.indexOf("|");
-      hot = VA.selectedLeaderNodes({ kind: hotKey.slice(0, cut), id: hotKey.slice(cut + 1) },
-        index);
-    }
+    (Array.isArray(hotKey) ? hotKey : (hotKey ? [hotKey] : [])).forEach(function (key) {
+      var cut = key.indexOf("|");
+      var lit = VA.selectedLeaderNodes({ kind: key.slice(0, cut), id: key.slice(cut + 1) }, index);
+      Object.keys(lit).forEach(function (id) { hot[id] = true; });
+    });
     var out = {};
     (ids || []).forEach(function (id) {
       out[id] = selected[id] ? VA.SEAM_LEADER_STATES[0]
@@ -3879,6 +4090,32 @@
       return lit.edges[id];
     }).sort() : [];
     return ["model", "lit"].concat(ids.length ? ids : ["all"]);
+  };
+
+  // The parts a page's lit set names, as the scene's own `isolate` verb spells
+  // them (handoff every_study_opens_in_3d_showing_only_its_parts): the part of
+  // every lit edge, and -- for a joint, which carries none -- the parts
+  // standing at its two ends. No lit set (the whole topology) lights every
+  // edge, so the topology's parts are all solid. A scope naming no part at all
+  // is `isolate off`, since a scope of nothing would blank the scene. The pane resolves the
+  // ids to meshes and ghosts or hides the rest by the unlit word; nothing here
+  // knows which parts have a mesh.
+  VA.litPartIds = function (topoProj, lit) {
+    var parts = [];
+    var add = function (id) { if (id && parts.indexOf(id) === -1) parts.push(id); };
+    var adjacent = VA.nodeAdjacentParts(topoProj);
+    ((topoProj && topoProj.edges) || []).forEach(function (edge) {
+      if (lit && !(lit.edges && lit.edges[edge.id])) return;
+      if (edge.part) { add(edge.part); return; }
+      [edge.from, edge.to].forEach(function (nodeId) {
+        (adjacent[nodeId] || []).forEach(add);
+      });
+    });
+    return parts;
+  };
+
+  VA.partScopeCommand = function (ids) {
+    return ids && ids.length ? ["isolate", "parts"].concat(ids) : ["isolate", "off"];
   };
 
   // The jog zone, and therefore the width the SVG hands the grid: ONE owner

@@ -2959,7 +2959,7 @@ def test_hardware_entry_values_source_counts_match_the_description():
     """
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     entries = data["entries"]
-    assert len(entries) == 29
+    assert len(entries) == 30
     counted = {}
     for entry in entries:
         src = entry.get("values_source") or {}
@@ -2975,7 +2975,7 @@ def test_hardware_entry_values_source_counts_match_the_description():
         ("library", "spec"): 1,        # NAS6403U11D, promoted by spec_library_v0
         ("inline", "drawing"): 2,      # 214589-002, 214588-002 -- source control drawings
         ("inline", "parts_list"): 1,   # MS21299C3, added 2026-08-25 (rotor_fastener_length)
-        ("not_transcribed", None): 4,
+        ("not_transcribed", None): 5,  # GR04WB328AT11 added 2026-11-03
     }
     # traced-ness is a property of values_source, not of values_status: the three
     # bolts re-sourced by `fastener_citations_and_confidence` are `traced` and
@@ -2993,8 +2993,8 @@ def test_hardware_entry_values_source_counts_match_the_description():
                       "NAS6403U10H",
                       "MS14101-3", "MS14103-3", "NAS77A3-015A", "NAS77A4-015A"}
     text = data["description"]
-    for phrase in ("five of the 29", "NINETEEN entries are traced",
-                   "Four entries are `not_transcribed`"):
+    for phrase in ("five of the 30", "NINETEEN entries are traced",
+                   "Five entries are `not_transcribed`"):
         assert phrase in text, f"description no longer says {phrase!r}"
 
 

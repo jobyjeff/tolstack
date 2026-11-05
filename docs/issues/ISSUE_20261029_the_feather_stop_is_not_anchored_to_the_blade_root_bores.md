@@ -48,3 +48,15 @@ each other along the z-axis actually shifts the blade angle."*
   contributor in the same change, and its leaves enter both stops' x-intervals.
 - Every value cites a drawing callout or is an explicit gap (the repo's rule);
   the hub and blade-root bore drawings are what has to be read.
+
+## Addendum 2026-11-03 (handoff each_stop_is_its_own_stack)
+
+The gap is now shorter. Each stop's axial stack begins at the tangential link
+mount's hub face (`study_vpa_pitch_linkage_feather_stop_axial_position.json`:
+both mounts, then the piston body from the shoulder the lower head seats on to
+its flange), and the low stop's adds the travel. What is still not authored is
+the hub between that face and the blade-root bearing bores, so the declared gap
+`vpa_pitch_linkage_hub_to_feather_stop` is retitled "Blade-root bores to the tan
+link mount" and sits in both stops' `axial_stack`. A chain that closes it should
+end on `tan_link_mount_hub_face`; the loader refuses the gap once a study with
+that id exists.

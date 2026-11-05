@@ -6,10 +6,10 @@
     {
       "contract": "Reading over HTTP, the pane shows neither the top bar nor the banner; the header strip carries what they said.",
       "issue": "docs/sessions/active/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md",
-      "note": "The top bar's transport sentence wrapping at 400px is half of what made the pane scroll.",
+      "note": "The top bar's transport sentence wrapping at 400px is half of what made the pane scroll. REPAIRED 2026-11-02: the mutation used to drop the .topbar half of the rule, but the guard reads only #banner and #connect-btn, and app.js hides the Connect button itself when served, so the tier stayed green; it now drops the #banner half, which only this check reads.",
       "file": "apps/annotate/style.css",
       "find": "body.an--embedded #banner,\nbody.an--embedded.an--served .topbar { display: none; }",
-      "replace": "body.an--embedded #banner { display: none; }"
+      "replace": "body.an--embedded.an--served .topbar { display: none; }"
     }
   ]
 }

@@ -1,13 +1,12 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: resolved
 area: tests/mutation-witnesses (browser, 3D pane suite)
 class: decayed_witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
-defer_until: 2026-11-12
-resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | resolved 2026-11-02 by decayed_witnesses_are_repaired_or_retired: expect_red re-pointed at the first check that reddens (the second fix shape); the null-safety shape is not done
 ---
 
 # The contributor-row highlight witness aborts its suite before reaching its check

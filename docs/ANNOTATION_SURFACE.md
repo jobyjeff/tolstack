@@ -185,8 +185,9 @@ the same 3×4 row-major layout `scripts/fit_bound_features.py` reads — in the
 three times; the pitch arm five. A second occurrence shares the first one's
 geometry and material, so it costs a draw call and a matrix, not a copy.
 
-- **A part with no recorded occurrence** (the standalone `213668-002` STEP, the
-  blade OML) is drawn at its own origin and **says so**, in its panel row and in
+- **A part with no recorded occurrence** (the blade OML; the standalone
+  `213668-002` STEP was the other until 2026-11-03, when its sidecar gained
+  the occurrence rotorkit had recorded) is drawn at its own origin and **says so**, in its panel row and in
   the banner when it is opened: "no position in the assembly — shown at its own
   origin".
 - **A part past the draw cap** (`AA.OCCURRENCE_DRAW_LIMIT`, `sweep.js`) is drawn
@@ -306,6 +307,11 @@ model/study) and the view filter which controls what's actually rendered").
 - **Isolate is a toggle.** The first `isolate`/`ghost` of a run takes a snapshot
   of what was drawn; `isolate off` (or `ghost off`) puts exactly that back.
   Leaving a context draws every open part of the new one and none outside it.
+- **A study's parts are one verb.** The viewer's open pane follows its page with
+  `isolate parts <part…>`: those parts solid, the rest of the installed assembly
+  ghosted (hidden under the unlit word `hide`), the solid set framed; a page
+  with no lit set sends `isolate off`. A study none of whose parts has a mesh
+  says so in the pane's head line. An armed pick still wins while armed.
 - **A view verb never changes the context**, and nothing about the context
   draws a part: a part added to the model is listed, not drawn.
 
@@ -661,6 +667,24 @@ table is the one statement of the gestures.**
 | **Accept** on a selected suggested row | binds the suggested face (`accept`) |
 | **Pick a different face** on a selected suggested row | arms the pick as **Pick** does; the click then turns the suggestion down and binds the face clicked |
 
+**Taking a suggested face (2026-11-03).** Handoff
+`a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there`, after Jeff
+found two ends claiming "10 candidates" with nothing lit and no sign of the
+agent's pass. Every end with an agent's proposal or the contact engine's faces
+lists them, on the kinematic rail, on bind mode's element rows (both ends,
+each under its name) and in the shell's mirror of either.
+
+| gesture | what it does |
+|---|---|
+| **▸** in front of an end's row (an element's row, in bind mode) | opens the end's candidate list under the row; **▾** closes it. The row's own click still selects it. Closed, the row keeps its one line: "suggested · high", "candidates · n" (n is the faces listed, not the ranked pairs), "bound · face N" |
+| the list | the agent's proposals first ("agent suggested · high"), then the contact engine's faces in rank order, one row per face, each "face N · <class> · r X mm" over why it is there — "coaxial with the mating bore", "coincident with the mating face", "fits the mating pin", "seated against the mating race", "square to the mating axis" (`AA.CANDIDATE_RELATION_REASONS`, `AA.CANDIDATE_CONTACT_REASONS`). Hover a row for the evidence, or who proposed it and why. The face already bound reads "· bound". A list longer than `AA.CANDIDATES_LISTED` is cut there, with a "show all n" row |
+| hover a candidate row | washes that face in the pre-selection's yellow wash and outline on every drawn occurrence of its part (`hover face`); the camera stays. Leaving clears it. The pane debounces it as the shell's pane hover does |
+| **Take** on a candidate row | binds that face at that end (`take`; the surest proposal's own row runs `accept`): a face an open proposal names ratifies it, any other face writes `rejected` for each open proposal at the end, then `bound`, superseding the end's one standing binding. A toast names the write and the row reads "bound · face N" |
+| **Pick another face…** (last row) | arms the pick on that end, as **Pick** does. In bind mode it selects the element: the pick there is a click in the scene, and the bar asks which end |
+
+The engine states only the relations above: it has no "parallel" relation, so
+no row says one. Every candidate row on the real projection has a reason.
+
 - **Which part.** The end node's first-named part with an installed 3D model
   (`AA.pickEndPartIds`), else the edge's. Two-part interfaces named
   "<first part's face> against <second part>" list the face's part first, and
@@ -788,7 +812,8 @@ does. The rail row is the surface, in both modes and in the shell's mirror:
 - **The row says so.** A joint end whose key has an open proposal reads
   **"suggested · high"** (or medium) in place of "no face bound", in the
   suggestion colour, with who proposed it and the basis on hover. An end the
-  contact engine ranked and nobody proposed reads **"candidates · n"**. A
+  contact engine ranked and nobody proposed reads **"candidates · n"**, n the
+  distinct faces at that end (since 2026-11-03; it counted ranked pairs). A
   bound end reads as bound (bound wins, as the fold says), and a proposal at
   the *other* end of an edge is not a suggestion at this one. Its state is
   `proposed`, which raises no alert. Bind mode's element row (one row per
@@ -854,7 +879,34 @@ binding, a stack or a fitted nominal.
    ladder on its +X side. **A rung's height is its place in the stack, not
    where its feature is**; selecting the node says so.
 4. **No anchor geometry** — the part has no mesh, or the plane cuts nothing:
-   the body's frame origin, the warn colour, and `null` in the anchors message.
+   the node is **unplaced**. Since 2026-11-03 it draws **no dot and no line**
+   (it used to sit at its body's frame origin — the assembly origin, for every
+   body here — with every edge touching it fanned out of the hub's centre);
+   it is `null` in the anchors message, and the bar's head line counts the
+   unplaced nodes, their names one hover away.
+
+**A joint is one node** (2026-11-03, handoff `coaxial_ends_share_one_3d_node`;
+Jeff: *"just let the entire joint be represented with a single node and split
+the components up … in the 2d DAG"*). Over the anchors, `AA.modelJointGroups`
+merges the two ends of an edge when their **features** are concentric — two
+parallel axes on one line, a centre on an axis, two coincident centres, within
+`AA.MODEL_JOINT_ANGLE_DEG` and `AA.MODEL_JOINT_DISTANCE_MM`. Merges chain
+across edges, but never fold two axes that only cross into one joint. A
+feature is something that places a feature, never a drawing placement: a
+run's joint end (`geometry.features` naming a node at `<joint>.point_a/b`,
+with the joint's axis when it has one) or a committed binding's round face (a
+bore's axis, a ball's centre). A section rung or an unplaced node never merges,
+and nor does a flat face: a stack of flat faces is a linear stack, which the
+ladder draws. The joint is drawn as **one dot, in world**, at the mean of its
+ends where each frame puts them (the solver's end off the frame, a bound face
+through its body's pose), so it rides the sweep with the slide. Edges inside a
+joint draw no line; an edge leaving it is a world line from the joint's dot.
+Selecting any member selects the joint's dot and says so. Every inbound
+channel resolves a member to the joint's dot -- the selection, the focus, the
+lit set, the anchors message and a grid row's emphasis: the row of an edge
+inside the joint draws no line, and it still lights the joint's dot
+(`AA.modelEmphasisNodes`). Bind mode has no run, so only a committed binding
+can merge there.
 
 **The bias is per topology, authored**: `anchor_bias: {bias: "+x", stack:
 "z"}` on the topology document (absent is that default, Jeff's). A value that
@@ -892,6 +944,7 @@ its +X anchor.
 | scene → shell | `{type: "annotate:tree", mode, chips, rows}` | the rail's rendered rows changed, or an announced verb completed |
 | scene → shell | `{type: "annotate:status", word, tone, sentence}` | at boot, and whenever what it can read or write changes (a folder granted at the first bind); the pane header's dot and word (`AA.PANE_STATUS`) |
 | scene → shell | `{type: "annotate:anchors", nodes: {<node id>: [x, y] \| null}, edges: {<edge id>: [[x, y], [x, y]]}}` | after a drawn frame whose anchors moved — a camera change or a sweep frame — so at most once per animation frame |
+| scene → shell | `{type: "annotate:hover", kind, id, members?}` | the pointer reaches or leaves a model dot; `members` lists every node a joint's dot stands for, and the shell lights each one's DAG dot, grid rows and leader |
 
 `annotate:anchors` is in **CSS pixels of the iframe's own viewport**, rounded
 to 0.1 px, so an unchanged scene posts nothing. Every node of the topology is

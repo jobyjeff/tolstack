@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the travel is one folded sub-stack that opens onto its four terms with the composed sensitivity, every leader still on its row, and the fold is remembered",
+  "mutations": [
+    {
+      "contract": "A reader's fold is remembered per study.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Stores nothing.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      store.setItem(VA.SUB_STACK_FOLDS_KEY, JSON.stringify(all));",
+      "replace": "      void all;"
+    },
+    {
+      "contract": "A folded term's interfaces still lead to a row.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Gives a header row no seam to bind.",
+      "file": "apps/viewer/topology.js",
+      "find": "      bindLeaders(id);\n      rows.push({ id: id, layoutRow: null,",
+      "replace": "      rows.push({ id: id, layoutRow: null,"
+    }
+  ]
+}

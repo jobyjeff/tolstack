@@ -37,3 +37,16 @@ a limit on this chain. Options, for a strategy session:
 
 Recommendation: 2 first -- it decides whether the term belongs under this limit,
 and nothing else here can.
+
+## Addendum 2026-11-03 (handoff each_stop_is_its_own_stack)
+
+Re-modelled. The travel's four terms now enter the low stop only, as part of its
+axial stack (the plate at the low stop = the plate at the feather stop + the
+travel), and the feather stop carries its own chain (mounts and piston body). The
+±0.5 S461-607 check this issue weighed the budget against is gone: it was a
+blade-to-blade limit, filed as
+`ISSUE_20261103_s461_607_is_a_blade_to_blade_limit_not_a_stop_position_check.md`.
+The checks are one-sided reach against S461-261: +72 stop ±0.784 worst, margin
++1.217 (`pass`); −7 stop ±2.355 worst, margin −0.363 (`marginal`), of which the
+travel is still the largest share (1.417 deg, the mount's general-note ±0.5 alone
+0.864).

@@ -306,7 +306,10 @@
     // the chain's rows and the leaders run only to chain nodes, while the
     // rails above keep every node and edge of the walk. The DAG holds the
     // context; the table holds the sum.
-    var plan = VA.gridPlan(layout, topoProj, lit);
+    // A kinematic page's grid is its stack at one stop (VA.kinematicStack):
+    // the same plan, with the stack's sub-stack headers among the rows.
+    var plan = VA.gridPlan(layout, topoProj,
+      lit && ctx.stack ? Object.assign({}, lit, { stack: ctx.stack }) : lit);
     // The keyed position store (viewer_edge_length_scaling): every dot and
     // bar's y, computed ONCE per render and addressed by id, under whichever
     // length mode is on. Both geometry passes below read this same store, so
@@ -314,7 +317,7 @@
     // went when the mode stretched it. `fit` is the viewport it normalizes
     // into (viewer_dag_spine_layout) — measured here because this is the one
     // place that holds both the pane and the plan.
-    var fit = { plan: plan };
+    var fit = { plan: plan, inset: VA.DAG_FIT.topInset };
     var positions = VA.rowPositions(layout, topoProj,
       ctx.edgeLengthMode || "uniform", M, fit);
     // Mid-respine (viewer_study_respine_animation): the frame is drawn from
@@ -354,6 +357,11 @@
     // The page's own listener for the leaders across the seam, which light
     // with whatever the pointer lights here (topology_app.js).
     hot.onChange = ctx.onHot || null;
+    // ...and the way back: the scene's pointer lights marks here
+    // (VA.lightTopoKeys). The LAST render's: the pane renders one view at a
+    // time, so a scene hover lights that one; were it ever to render twice,
+    // this would point at whichever rendered last.
+    VA.lastTopoHot = hot;
     // The containers the reader has switched on (VA.GROUP_KINDS), every one
     // where nothing was chosen. With the unlit part HIDDEN the walk IS the
     // selected study's band, so its group is the only one left.
@@ -640,6 +648,16 @@
   //   opts  the clock, the motion preference and the error sink, injected so
   //         the fast tier can drive a whole transition frame by frame with no
   //         browser: { raf, now, duration, reduced, onError }.
+  //         And `landing`, the page's own part of an arrival (the_dag_holds_
+  //         still_and_the_filter_bar_stays_put): the frame the reader sees is
+  //         the DAG plus the space the page puts before it and where the page
+  //         is scrolled, so a transition that moved only the DAG left the rest
+  //         to snap -- the space dropped on the first frame and came back on the
+  //         last. `landing.target()` is called once, with the TARGET laid out at
+  //         rest in `root` and the outgoing pane already in the ghost, so the
+  //         page can measure where it will land; `landing.frame(e)` is called
+  //         before each frame's render (e = 1 on the settled one) to set the
+  //         ctx's pad, and `landing.placed(e)` after it to place the scroll.
   //
   // `onError` is not optional decoration. Every other path into a render on
   // this page goes through topology_app.js's one try/catch (the 2026-09-09
@@ -670,23 +688,32 @@
     var now = opts.now || function () { return Date.now(); };
     var raf = opts.raf || nextFrame;
     var ghost = ghostOf(root);
+    var landing = opts.landing || null;
+    if (landing) {
+      VA.renderTopoPane(root, ctx);
+      landing.target();
+    }
     var start = now();
     var handle = { cancel: function () { handle.cancelled = true; }, cancelled: false };
     var step = function () {
       if (handle.cancelled) return;
       var t = duration > 0 ? (now() - start) / duration : 1;
       var settling = !(t < 1);
+      var e = 1;
       // The settled frame gets no tween argument at all, so the ghost is not
       // re-appended and every number in the DOM is the target's own.
       if (settling) {
         handle.done = true;
       } else {
+        e = VA.respineEase(t);
         ctx.tween = { positions: previous, columns: from.columns,
                       floor: from.floor, width: from.width, links: from.links,
-                      e: VA.respineEase(t), ghost: ghost };
+                      e: e, ghost: ghost };
       }
       try {
+        if (landing) landing.frame(e);
         VA.renderTopoPane(root, ctx);
+        if (landing) landing.placed(e);
       } catch (err) {
         handle.cancelled = true;
         if (opts.onError) opts.onError(err);
@@ -808,15 +835,40 @@
     return Math.max(0, Math.min(visibleTop - naturalTop, room));
   };
 
+  // What the page pins at its top, as two heights (style.css's --bar-h and
+  // --filter-h are written from these, so CSS and JS read one measurement):
+  // the page bar, and the view filters under it where the page has any.
+  VA.stickyOffsets = function () {
+    if (typeof document === "undefined" || !document.querySelector) {
+      return { bar: 0, filter: 0, top: 0 };
+    }
+    var height = function (node) {
+      return node && node.getBoundingClientRect ? node.getBoundingClientRect().height : 0;
+    };
+    var bar = height(document.querySelector(".topbar"));
+    var tool = document.querySelector(".tv__toolbar");
+    var filter = tool && tool.childNodes && tool.childNodes.length ? height(tool) : 0;
+    return { bar: bar, filter: filter, top: bar + filter };
+  };
+
+  VA.syncStickyOffsets = function () {
+    var o = VA.stickyOffsets();
+    var root = typeof document !== "undefined" ? document.documentElement : null;
+    if (root && root.style && root.style.setProperty && o.bar > 0) {
+      root.style.setProperty("--bar-h", o.bar + "px");
+      root.style.setProperty("--filter-h", o.filter + "px");
+    }
+    return o;
+  };
+
   // The top of what the reader can see of the drawing, in viewport pixels: the
-  // bounded pane's own top, otherwise the sticky page bar's bottom.
+  // bounded pane's own top, otherwise under everything the page pins -- the bar
+  // and the view filters.
   function visibleTop(root) {
     if (root.classList && root.classList.contains("tv__scroll--bounded")) {
       return root.getBoundingClientRect().top;
     }
-    var bar = typeof document !== "undefined" && document.querySelector
-      ? document.querySelector(".topbar") : null;
-    return bar && bar.getBoundingClientRect ? bar.getBoundingClientRect().bottom : 0;
+    return VA.stickyOffsets().top;
   }
 
   VA.pinTopoHead = function (root) {
@@ -854,13 +906,20 @@
   // the edge — an image placeholder would read as "not built yet" when the
   // truth is "no document to crop".
   var COLUMNS = [
-    { cls: "component", label: "component", width: 150 },
+    { cls: "component", label: "component", width: 120 },
     { cls: "ord", label: "#", width: 38 },
-    { cls: "name", label: "element", width: 220, resizable: true },
+    { cls: "name", label: "element", width: 210, resizable: true },
     { cls: "nominal", label: "nominal", width: 80 },
     { cls: "min", label: "min", width: 80 },
     { cls: "max", label: "max", width: 80 },
-    { cls: "contribution", label: "contribution", width: 200 },
+    // The sweep's sensitivity on a kinematic page (`coefficient`, signed, in
+    // the measure's units per the band's); a chain study's ratio, 1 for an
+    // unscaled edge -- so the two kinds of study share one column set
+    // (the_kinematic_grid_is_a_stack_of_sub_stacks). Its 70px came out of
+    // component, element and contribution, so the table is as wide as it was
+    // and nothing the pane measures moves.
+    { cls: "sensitivity", label: "sensitivity", width: 70 },
+    { cls: "contribution", label: "contribution", width: 170 },
     // 260, not the 200 it was until viewer_study_verdicts_and_gaps: this cell
     // clips rather than wraps (`.tvcell__chipswrap`, topology.css — a <tr>'s
     // height is a floor, so a wrapped chip would grow the row off its leader's
@@ -1479,6 +1538,35 @@
     });
   }
 
+  // The scene's pointer, lighting this pane (coaxial_ends_share_one_3d_node):
+  // every key's line and lead marks at once -- a joint's one 3D dot stands
+  // for several nodes -- or none. The pane's own pointer wins: while it holds
+  // the state this does nothing, and it tells no listener (the scene is
+  // where the pointer is). Returns how many keys it lit.
+  VA.lightTopoKeys = function (keys) {
+    var hot = VA.lastTopoHot;
+    if (!hot || hot.on) return 0;
+    while (hot.marked.length) {
+      var was = hot.marked.pop();
+      was.el.setAttribute("class", was.base);
+    }
+    var list = keys || [];
+    var light = function (entry, extra) {
+      entry.el.setAttribute("class", entry.base + " " + extra);
+      hot.marked.push(entry);
+    };
+    list.forEach(function (key) {
+      var railId = hot.railOf[key];
+      (railId ? hot.rail[railId] || [] : []).forEach(function (entry) { light(entry, entry.hot); });
+    });
+    list.forEach(function (key) {
+      (hot.lead[key] || []).forEach(function (entry) {
+        light(entry, [entry.hot, entry.lead].filter(Boolean).join(" "));
+      });
+    });
+    return list.length;
+  };
+
   // Hover and keyboard focus drive the same state, and leaving clears it only
   // if this element is still the one holding it: moving the pointer from a bar
   // onto the rail under it fires the new element's `mouseenter` and the old
@@ -1578,8 +1666,9 @@
 
     // 0. the alternating bands (viewer_leader_grid_legibility): the region
     //    between two adjacent leaders, tinted in one of two neutral shades by
-    //    parity, and the grid rows that region feeds wear the SAME parity
-    //    (VA.rowBandParity, read by grid() below off the same plan). Drawn
+    //    parity (VA.rowBandParity). The grid rows wear their body's tint
+    //    instead since the_kinematic_grid_is_a_stack_of_sub_stacks
+    //    (VA.gridRowMarks). Drawn
     //    first so everything else sits on top of it, and hit-tested by
     //    nothing -- a band is wayfinding, not a target.
     leaderGeo.bands.forEach(function (band) {
@@ -1627,9 +1716,19 @@
     geometry.marks.forEach(function (mark) {
       if (mark.collapsed) pillRows[mark.row] = true;
     });
-    // A body the band split (VA.bandLayout) is several fields and is named
-    // once: on its field in the band.
+    // A body is ONE container: the walk's components and the band
+    // (VA.bandLayout) split it into several fields, and it is named once --
+    // on its field in the band, else its first -- with a thin bridge in its
+    // own tint from each field to the next (VA.bodyBridges).
     var named = VA.bodyLabelFields(geometry.bodies, layout && layout.rows, lit);
+    if (geometry.showBodies !== false) {
+      VA.bodyBridges((geometry.bodies || []).filter(function (field) {
+        return !pillRows[field.start];
+      })).forEach(function (bridge) {
+        under.appendChild(bodyBridge(bridge, ctx,
+          marking && !VA.bodyIsLit(layout && layout.rows, bridge.body, lit)));
+      });
+    }
     // The names go in after the study groups (0c'), so a group's see-through
     // field never sits over the control that folds a body.
     var bodyNames = [];
@@ -1692,8 +1791,11 @@
     //     title and folded interval once, at the topmost. CLOSED, the bars
     //     inside are drawn as one muted fold (`rail__bar--folded`) and the
     //     label stands for them; OPEN, they wear their own colours. The label
-    //     opens and closes it, and the contributor table's group row with it.
+    //     opens and closes it, and the grid's sub-stack header with it. The
+    //     labels are drawn after the marks (3., below), so neither a leader's
+    //     wide hit strip nor a bar's takes the click meant for the fold.
     var folded = {};
+    var subStackLabels = [];
     (ctx.subStacks || []).forEach(function (sub) {
       var open = !!(ctx.openSubStacks && ctx.openSubStacks[sub.id]);
       var marks = geometry.marks.filter(function (mark) {
@@ -1710,9 +1812,12 @@
         under.appendChild(field);
       });
       var top = marks.reduce(function (a, b) { return b.y1 < a.y1 ? b : a; });
-      var label = VA.svg("text", "tv__substackname", { x: top.x + 10, y: top.y1 + 9 });
-      label.textContent = (open ? "▾ " : "▸ ") + sub.title +
-        (sub.interval ? " · " + sub.interval : "");
+      var text = (open ? "▾ " : "▸ ") + sub.title + (sub.interval ? " · " + sub.interval : "");
+      var at = VA.subStackLabelPlacement(top.x, text.length, width / (leaderGeo.zoom || 1));
+      var label = VA.svg("text", "tv__substackname", { x: at.x, y: top.y1 + 9 });
+      if (at.anchor === "end") label.setAttribute("text-anchor", "end");
+      label.setAttribute("data-label-side", at.side);
+      label.textContent = text;
       label.appendChild(svgTitle(sub.title + (sub.interval ? ", " + sub.interval : "") +
         " — its terms enter one by one; this total is shown, never added"));
       label.setAttribute("data-substack-toggle", sub.id);
@@ -1727,7 +1832,7 @@
           toggle();
         }
       };
-      under.appendChild(label);
+      subStackLabels.push(label);
     });
 
     // 1. the rails themselves: continuous, neutral, alternating shade by column
@@ -1853,14 +1958,19 @@
     var over = dagLayer();
 
     // 3. one mark per row: a bar for an edge (the dimension IS the segment), a
-    //    dot for a node (the interface IS the point).
+    //    dot for a node (the interface IS the point) -- or, for an end of a
+    //    joint, that joint's glyph (VA.nodeJointKinds). A bar says one thing,
+    //    lit or unlit, by its weight, and a gap is dashed: its confidence is
+    //    the grid's SOURCING chip and its band the grid's MIN/MAX
+    //    (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit).
     var formMarks = VA.formMarks(ctx.topoProj);
+    var jointKinds = VA.nodeJointKinds(ctx.topoProj);
+    var pills = {};
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
         var inChain = marking && !!chain[mark.id];
         var classes = ["rail__bar"];
-        if (edge) classes.push(VA.confidenceClass(edge.confidence));
         if (edge && edge.kind === "gap") classes.push("rail__bar--gap");
         if (edge && edge.value_source === "derived") classes.push("rail__bar--derived");
         if (mark.floored) classes.push("rail__bar--floored");
@@ -1921,7 +2031,7 @@
         // dimmed one is the other variant's.
         var barNote = [otherVariant ? VA.OTHER_VARIANT_NOTE : null,
           mark.floored ? VA.FLOORED_RENDER_NOTE : null].filter(Boolean).join(", ");
-        var barHalf = Math.max(3, VA.INTERFACE_GLYPH_PX / 2 + 1);
+        var barHalf = Math.max(3, VA.FORM_GLYPH_PX / 2 + 1);
         labelAt(hotKey("edge", mark.id), mark.x, (y1 + y2) / 2, barHalf,
           recordTitle("edge", mark.id), { note: barNote || null, x1: mark.x - barHalf, x2: mark.x + barHalf, y1: Math.min(y1, y2),
             y2: Math.max(y1, y2) });
@@ -1929,39 +2039,35 @@
         hotHover(hot, hit, hotKey("edge", mark.id));
         over.appendChild(hit);
 
-        // The joint glyph (interface_glyphs.js) at the bar's midpoint, in the
-        // bar's colour, and the form mark for a form element on the bar
-        // itself. Each carries the edge's own hover card and click.
-        var glyphY = (y1 + y2) / 2;
-        var glyphClass = "rail__glyph " +
-          (edge ? VA.confidenceClass(edge.confidence) : "") +
-          (edge && edge.value_source === "derived" ? " rail__glyph--derived" : "") +
-          (marking ? (inChain ? " rail__glyph--on" : " rail__glyph--off") : "") +
-          (otherVariant ? " rail__glyph--other-variant" : "");
-        var glyphs = [];
-        if (edge && edge.interface && VA.INTERFACE_GLYPHS[edge.interface]) {
-          glyphs.push(VA.glyphUse(VA.interfaceGlyphId(edge.interface), mark.x,
-            glyphY, glyphClass));
-        }
+        // A form element's squiggle beside its bar, on the side away from the
+        // grid, as a form modifier's sits beside its node: a fact about the
+        // dimension, so never on the stroke. It carries the edge's own preview
+        // and click.
         if (formMarks.edges[mark.id]) {
-          glyphs.push(VA.glyphUse(VA.FORM_GLYPH_ID, mark.x,
-            glyphs.length ? glyphY + VA.INTERFACE_GLYPH_PX : glyphY, glyphClass));
+          var form = VA.glyphUse(VA.FORM_GLYPH_ID,
+            mark.x - VA.FORM_GLYPH_PX / 2 - 4, (y1 + y2) / 2,
+            "rail__glyph rail__glyph--form" +
+            (marking ? (inChain ? " rail__glyph--on" : " rail__glyph--off") : "") +
+            (otherVariant ? " rail__glyph--other-variant" : ""));
+          fade(form, "edge", mark.id);
+          wire(form, ctx, "edge", mark.id, recordTitle("edge", mark.id));
+          hotHover(hot, form, hotKey("edge", mark.id));
+          over.appendChild(form);
         }
-        glyphs.forEach(function (use) {
-          over.appendChild(fade(VA.svg("circle", "rail__glyphbg", {
-            cx: mark.x,
-            cy: Number(use.getAttribute("y")) + VA.INTERFACE_GLYPH_PX / 2,
-            r: VA.INTERFACE_GLYPH_PX / 2 + 1,
-          }), "edge", mark.id));
-          fade(use, "edge", mark.id);
-          wire(use, ctx, "edge", mark.id, recordTitle("edge", mark.id));
-          hotHover(hot, use, hotKey("edge", mark.id));
-          over.appendChild(use);
-        });
         return;
       }
       if (mark.collapsed) {
-        over.appendChild(collapsedPill(mark, bodiesById, ctx, marking, layout, lit));
+        // A body's pills -- one per block of the walk -- are ONE container:
+        // one group, named on its first, bridged (collapsedPill).
+        var pillGroup = pills[mark.collapsed.body];
+        if (!pillGroup) {
+          pillGroup = pills[mark.collapsed.body] = { g: null, marks: [] };
+          pillGroup.g = collapsedPill(mark, bodiesById, ctx, marking, layout, lit, null);
+          over.appendChild(pillGroup.g);
+        } else {
+          collapsedPill(mark, bodiesById, ctx, marking, layout, lit, pillGroup.g);
+        }
+        pillGroup.marks.push(mark);
         return;
       }
       var node = index.nodes[mark.id];
@@ -1977,32 +2083,60 @@
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
+      // An end of a joint is that joint's glyph. The dot is still drawn under
+      // it, unpainted, as the node's target and its address (data-id): the
+      // glyph is the picture and wears the same state classes, and leads
+      // for the same keys, so hover and selection reach both.
+      var jointKind = jointKinds[mark.id] || null;
+      var dotR = mark.branch ? M.branchDot : M.dot;
+      if (jointKind) {
+        dotClasses.push("rail__dot--joint");
+        dotR = Math.max(dotR, VA.jointNodeTargetR(M));
+      }
       var dotBase = dotClasses.join(" ");
       // The dot leads for its own node AND for every edge that meets there:
       // "hovering a grid row marks that edge's bar, its dots and its leader".
+      var dotLeads = [hotKey("node", mark.id)].concat(
+        (hot.edgesAtNode[mark.id] || []).map(function (edgeId) {
+          return hotKey("edge", edgeId);
+        }));
       var dot = hotRegister(hot, {
         el: fade(VA.svg("circle", dotBase, {
-          cx: mark.x, cy: mark.y, r: mark.branch ? M.branchDot : M.dot,
+          cx: mark.x, cy: mark.y, r: dotR,
         }), "node", mark.id),
         base: dotBase, rail: hot.railOf[hotKey("node", mark.id)],
-        leads: [hotKey("node", mark.id)].concat(
-          (hot.edgesAtNode[mark.id] || []).map(function (edgeId) {
-            return hotKey("edge", edgeId);
-          })),
+        leads: dotLeads,
         hot: "rail__dot--hot", lead: "rail__dot--lead",
       });
       // The dot previews its record on hover, like every mark, and wears the
       // same one-line label (labelAt).
-      labelAt(hotKey("node", mark.id), mark.x, mark.y,
-        mark.branch ? M.branchDot : M.dot, recordTitle("node", mark.id));
+      labelAt(hotKey("node", mark.id), mark.x, mark.y, dotR,
+        recordTitle("node", mark.id));
       wire(dot, ctx, "node", mark.id, recordTitle("node", mark.id));
       hotHover(hot, dot, hotKey("node", mark.id));
       over.appendChild(dot);
+      if (jointKind) {
+        var glyphBase = ["rail__node"].concat(dotClasses.filter(function (c) {
+          return c !== "rail__dot" && c !== "rail__dot--joint";
+        }).map(function (c) { return c.replace("rail__dot--", "rail__node--"); }))
+          .join(" ");
+        var glyph = VA.glyphUse(VA.interfaceGlyphId(jointKind), mark.x, mark.y,
+          glyphBase, M.rowHeight);
+        glyph.setAttribute("data-node-glyph", jointKind);
+        glyph.setAttribute("data-glyph-node", mark.id);
+        glyph.setAttribute("aria-hidden", "true");
+        over.appendChild(hotRegister(hot, {
+          el: fade(glyph, "node", mark.id),
+          base: glyphBase, rail: hot.railOf[hotKey("node", mark.id)],
+          leads: dotLeads,
+          hot: "rail__node--hot", lead: "rail__node--lead",
+        }));
+      }
       // A form modifier's squiggle, beside the face it is on: to the left of
       // the dot, the side away from the grid once the spine is mirrored right.
       if (formMarks.nodes[mark.id]) {
         var adorn = VA.glyphUse(VA.FORM_GLYPH_ID,
-          mark.x - M.dot - VA.INTERFACE_GLYPH_PX / 2 - 1, mark.y,
+          mark.x - dotR - VA.FORM_GLYPH_PX / 2 - 1, mark.y,
           "rail__glyph rail__glyph--form" + (marking && !chainNodes[mark.id]
             ? " rail__glyph--off" : ""));
         adorn.appendChild(svgTitle(VA.FORM_GLYPH.label + ": " +
@@ -2013,6 +2147,23 @@
         over.appendChild(fade(adorn, "node", mark.id));
       }
     });
+    // A collapsed body's bridges, between its pills, under its group's names.
+    Object.keys(pills).forEach(function (bodyId) {
+      var group = pills[bodyId];
+      var flat = marking && !VA.bodyIsLit(layout && layout.rows, bodyId, lit);
+      VA.bodyBridges(group.marks.map(function (mark) {
+        var r = M.branchDot;
+        return { body: bodyId, x1: Math.min(mark.x, mark.x2) - r,
+                 x2: Math.max(mark.x, mark.x2) + r,
+                 y1: mark.y - r - 1, y2: mark.y + r + 1 };
+      })).forEach(function (bridge) {
+        group.g.bridges.appendChild(bodyBridge(bridge, ctx, flat));
+      });
+    });
+    // The sub-stacks' labels (0d.), over every mark: a label is a button the
+    // reader can see, so it takes the click wherever it is drawn -- a bar it
+    // crosses is still reachable above and below its one line.
+    subStackLabels.forEach(function (node) { over.appendChild(node); });
     // The hover label's layer, last and therefore on top of every mark; in
     // the DAG's own units, so its bounds are the drawing's box at this zoom.
     var labelLayer = VA.svg("g", "rail__hoverlabels");
@@ -2048,15 +2199,37 @@
     return label;
   }
 
+  // A body's bridge (VA.bodyBridges): a thin stroke in the body's own tint,
+  // or the flat outline's grey when nothing lit is inside it.
+  function bodyBridge(bridge, ctx, flat) {
+    var path = VA.svg("path", "tv__bodybridge" + (flat ? " tv__bodybridge--flat" : ""),
+      { d: bridge.d });
+    if (!flat) {
+      path.setAttribute("style", "stroke: var(--tv-body-" +
+        VA.bodyTint(ctx.topoProj, bridge.body) + ")");
+    }
+    path.setAttribute("data-body-bridge", bridge.body);
+    return path;
+  }
+
   // A collapsed body (VA.collapseBodies): one wide node from the leftmost to
   // the rightmost column its block held, the edges that leave it meeting its
   // rim, and its name and joint count on it -- the count of the places it
-  // meets another body.
-  function collapsedPill(mark, bodiesById, ctx, marking, layout, lit) {
+  // meets another body. A body with a block in two components of the walk
+  // has a pill in each, drawn into ONE group (`into`, the first's) and named
+  // on the first only.
+  function collapsedPill(mark, bodiesById, ctx, marking, layout, lit, into) {
     var info = mark.collapsed;
     var body = bodiesById[info.body] || { id: info.body, name: info.name };
-    var g = VA.svg("g", "tv__pill");
-    g.setAttribute("data-collapsed-body", info.body);
+    var g = into;
+    if (!g) {
+      g = VA.svg("g", "tv__pill");
+      g.setAttribute("data-collapsed-body", info.body);
+      // First, so the bridges drawn into it once every pill is placed sit
+      // under the pills' shapes and the name.
+      g.bridges = VA.svg("g", "tv__pillbridges");
+      g.appendChild(g.bridges);
+    }
     var flat = marking && !VA.bodyIsLit(layout && layout.rows, info.body, lit);
     var r = M.branchDot;
     var x1 = Math.min(mark.x, mark.x2) - r;
@@ -2067,8 +2240,10 @@
         x: x1, y: mark.y - r - 1, width: x2 - x1, height: 2 * r + 2,
         rx: r + 1, ry: r + 1,
       }));
-    g.appendChild(bodyName(body, x1 + 4, mark.y + 3.5, true, ctx,
-      body.name + " · " + info.joints + (info.joints === 1 ? " joint" : " joints")));
+    if (!into) {
+      g.appendChild(bodyName(body, x1 + 4, mark.y + 3.5, true, ctx,
+        body.name + " · " + info.joints + (info.joints === 1 ? " joint" : " joints")));
+    }
     return g;
   }
 
@@ -2197,6 +2372,20 @@
     return best;
   };
 
+  // Where a sub-stack's label starts, in DAG units: just right of its topmost
+  // bar when it fits before `limit` (the drawing's right edge; the SVG clips
+  // there, and a clipped half is neither drawn nor clickable), else ending at
+  // that edge -- `text-anchor: end`, so the label's real width, not this
+  // estimate, decides where it starts. The estimate (HOVER_LABEL_METRICS's
+  // generous charPx) only picks the side.
+  VA.SUB_STACK_LABEL_GAP = 10;
+  VA.subStackLabelPlacement = function (barX, chars, limit) {
+    var g = VA.SUB_STACK_LABEL_GAP;
+    var w = chars * VA.HOVER_LABEL_METRICS.charPx;
+    if (barX + g + w <= limit - 2) return { x: barX + g, anchor: "start", side: "right" };
+    return { x: limit - 2, anchor: "end", side: "edge" };
+  };
+
   // --- the grid ------------------------------------------------------------
   // --- the grid ------------------------------------------------------------
 
@@ -2217,15 +2406,19 @@
     table.style.width = tableWidth() + "px";
     table.appendChild(colgroup());
     var tbody = VA.el("tbody");
-    // Which of the two neutral tints each row wears -- off the SAME bands the
-    // SVG's own band polygons came from (VA.rowBandParity), so a row and the
-    // band feeding it cannot be given two different answers.
-    var bandParity = VA.rowBandParity(plan);
+    // What each row wears (VA.gridRowMarks): its body's tint, the same one
+    // the DAG's container for that body is filled with, and the divider
+    // above it -- a hairline inside a body, a heavier rule between bodies and
+    // between sub-stacks.
+    var marks = VA.gridRowMarks(plan, ctx.topoProj);
     plan.groups.forEach(function (group) {
       for (var i = 0; i < group.count; i++) {
         var planRow = plan.rows[group.start + i];
-        tbody.appendChild(fade(edgeRow(planRow, group, i === 0, index, chain,
-          marking, ctx, bandParity[planRow.id], hot), "edge", planRow.id));
+        var row = group.header
+          ? subStackRow(planRow, ctx, marks[planRow.id], hot)
+          : edgeRow(planRow, group, i === 0, index, chain, marking, ctx,
+                    marks[planRow.id], hot);
+        tbody.appendChild(fade(row, "edge", planRow.id));
       }
     });
     table.appendChild(tbody);
@@ -2234,11 +2427,136 @@
     // total of, in the same columns. Only where a study is actually
     // emphasized -- the whole-walk view has no chain and therefore no total,
     // and a study that refuses to sum has its refusal instead
-    // (VA.renderTopoTotals's error block).
-    var foot = totalsFoot(marking ? ctx.study : null);
+    // (VA.renderTopoTotals's error block). A kinematic page's is its stop's.
+    var foot = ctx.stack ? stackFoot(ctx.stack)
+      : totalsFoot(marking ? ctx.study : null);
     if (foot) table.appendChild(foot);
     box.appendChild(table);
+    // What the sourcing chips say, under the rows they mark: below the last
+    // row, so no leader's seam moves.
+    if (plan.rows.length && marking) box.appendChild(sourcingLegend());
     return box;
+  }
+
+  // The sourcing legend: each confidence chip beside the words it means
+  // (VA.CONFIDENCE_WORDS), and the one row tint that is not a body's.
+  function sourcingLegend() {
+    var strip = VA.el("div", "tvlegend");
+    // As wide as the table above it, never wider: a wrapping strip in the
+    // pane's shrink-to-fit box would otherwise lay out at its one-line width
+    // and widen the pane's sideways scroll.
+    strip.style.width = tableWidth() + "px";
+    strip.appendChild(VA.el("span", "tvlegend__head", "sourcing"));
+    VA.CONFIDENCES.forEach(function (c) {
+      var item = VA.el("span", "tvlegend__item");
+      item.appendChild(VA.chip(VA.confidenceClass(c), VA.CONFIDENCE_LABEL[c],
+        VA.CONFIDENCE_WORDS[c]));
+      item.appendChild(VA.el("span", "muted", VA.CONFIDENCE_WORDS[c]));
+      strip.appendChild(item);
+    });
+    strip.appendChild(VA.el("span", "muted tvlegend__tint",
+      "a row's tint is its rigid body; a red wash marks an untraced value"));
+    return strip;
+  }
+
+  // A sub-stack's header row (VA.kinematicStack's `sub` entry): ▸ or ▾, its
+  // name and what it folds to, its own total in its own units, its
+  // sensitivity and what it contributes here. A click opens or closes it, on
+  // the page's one fold state (`ctx.onToggleSubStack`), which the DAG's
+  // dashed field for the same sub-study reads too.
+  function subStackRow(planRow, ctx, mark, hot) {
+    var entry = planRow.header;
+    var el = baseRow("substack", ctx, planRow.id);
+    el.className += " tvrow--depth-" + entry.depth + (entry.gap ? " tvrow--gapstack" : "") +
+      (mark ? " " + mark : "");
+    el.setAttribute("data-substack", entry.id);
+    var foldable = entry.count > 0 && !!ctx.onToggleSubStack;
+    var toggle = function () { if (foldable) ctx.onToggleSubStack(entry.id, !entry.open); };
+    el.onclick = toggle;
+    var name = VA.el("td", "tvcell tvcell--name tvsub__name");
+    name.setAttribute("colspan", "3");
+    name.style.paddingLeft = (8 + 14 * entry.depth) + "px";
+    if (entry.count > 0) {
+      var caret = VA.el("span", "tvsub__caret", entry.open ? "▾" : "▸");
+      name.appendChild(caret);
+      el.setAttribute("aria-expanded", entry.open ? "true" : "false");
+    }
+    name.appendChild(VA.el("span", "tvsub__title", entry.name));
+    if (entry.detail) name.appendChild(VA.el("span", "muted tvsub__detail", " · " + entry.detail));
+    name.setAttribute("title", entry.name + (entry.detail ? " · " + entry.detail : ""));
+    el.appendChild(name);
+    el.appendChild(VA.el("td", "tvcell tvcell--nominal num", entry.nominal));
+    el.appendChild(VA.el("td", "tvcell tvcell--min num", entry.min));
+    el.appendChild(VA.el("td", "tvcell tvcell--max num", entry.max));
+    el.appendChild(VA.el("td", "tvcell tvcell--sensitivity num", entry.sensitivity));
+    el.appendChild(VA.el("td", "tvcell tvcell--contribution num tvsub__total",
+      entry.contribution));
+    var chips = chipsCell("chips");
+    if (entry.gap) {
+      // The gap's chip opens the card that says what would resolve it
+      // (VA.kinematicGapCard).
+      var gapChip = VA.chip("chip--gap", "gap", entry.detail);
+      if (ctx.onCardShow && ctx.kinematicStudy) {
+        gapChip.className += " cardtrig";
+        gapChip.onmouseenter = function () {
+          ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy,
+            { study: entry.id, name: entry.name }, ctx.topoProj), gapChip);
+        };
+      }
+      chips.wrap.appendChild(gapChip);
+    }
+    el.appendChild(chips.cell);
+    el.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("aria-label", entry.name);
+    el.onkeydown = function (event) {
+      if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+      if (event.preventDefault) event.preventDefault();
+      toggle();
+    };
+    return el;
+  }
+
+  // A kinematic stack's foot: the stop's own fold under the rows it folds,
+  // then its verdict -- the chain foot's two blocks, from the projection's
+  // own numbers (VA.kinematicStack's `result`).
+  function stackFoot(stack) {
+    var r = stack.result;
+    var foot = VA.el("tfoot", "tvfoot");
+    var total = footRow("tvtotal--worst_case", 1, "totals");
+    var label = VA.el("td", "tvcell tvcell--name tvtotal__label", r.label);
+    label.setAttribute("title", r.label + " · " + r.rss);
+    total.appendChild(label);
+    total.appendChild(VA.el("td", "tvcell tvcell--nominal num", r.nominal));
+    total.appendChild(VA.el("td", "tvcell tvcell--min num"));
+    total.appendChild(VA.el("td", "tvcell tvcell--max num"));
+    total.appendChild(VA.el("td", "tvcell tvcell--sensitivity num"));
+    total.appendChild(VA.el("td", "tvcell tvcell--contribution num",
+      r.contribution + " " + (stack.units || "") + " · " + r.rss));
+    total.appendChild(VA.el("td", "tvcell tvcell--chips"));
+    total.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    foot.appendChild(total);
+    var v = r.verdict;
+    if (v) {
+      var tr = footRow("tvtotal--margin", 1, "verdict");
+      var cell = VA.el("td", "tvcell tvcell--name tvtotal__label");
+      cell.appendChild(verdictChip({ state: v.verdict, word: v.verdict, title: v.title,
+                                     incomplete: v.incomplete }));
+      cell.appendChild(VA.el("span", "tvtotal__check", v.label || v.stopLabel));
+      cell.setAttribute("title", v.label || v.stopLabel);
+      tr.appendChild(cell);
+      var margin = VA.el("td", "tvcell num tvtotal__margin", v.marginText);
+      margin.setAttribute("colspan", "4");
+      tr.appendChild(margin);
+      tr.appendChild(VA.el("td", "tvcell tvcell--contribution num tvtotal__criterion",
+        v.limitText || ""));
+      var chips = chipsCell("chips");
+      if (v.scopeChip) chips.wrap.appendChild(VA.chip("chip--budget", v.scopeChip, v.scopeTitle));
+      tr.appendChild(chips.cell);
+      tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+      foot.appendChild(tr);
+    }
+    return foot;
   }
 
   // --- the totals: footer rows of the contributions grid -------------------
@@ -2311,6 +2629,7 @@
     tr.appendChild(VA.el("td", "tvcell tvcell--nominal num", total.center));
     tr.appendChild(VA.el("td", "tvcell tvcell--min num", total.min));
     tr.appendChild(VA.el("td", "tvcell tvcell--max num", total.max));
+    tr.appendChild(VA.el("td", "tvcell tvcell--sensitivity num"));
     tr.appendChild(VA.el("td", "tvcell tvcell--contribution num",
       total.half + " " + total.units));
     tr.appendChild(VA.el("td", "tvcell tvcell--chips"));
@@ -2347,7 +2666,7 @@
     label.setAttribute("title", row.label);
     tr.appendChild(label);
     var margin = VA.el("td", "tvcell num tvtotal__margin", row.marginValue);
-    margin.setAttribute("colspan", "3");
+    margin.setAttribute("colspan", "4");
     margin.setAttribute("title", row.marginText);
     tr.appendChild(margin);
     tr.appendChild(VA.el("td", "tvcell tvcell--contribution num tvtotal__criterion",
@@ -2365,7 +2684,7 @@
     var tr = footRow("tvtotal--margin tvtotal--nocriterion", 1, "verdict");
     var label = VA.el("td", "tvcell tvtotal__label",
       verdict ? verdict.word : "");
-    label.setAttribute("colspan", "5");
+    label.setAttribute("colspan", "6");
     if (verdict) label.setAttribute("title", verdict.title);
     tr.appendChild(label);
     tr.appendChild(VA.el("td", "tvcell tvcell--chips"));
@@ -2437,19 +2756,23 @@
     return cell;
   }
 
-  function edgeRow(planRow, group, first, index, chain, marking, ctx, bandParity,
+  function edgeRow(planRow, group, first, index, chain, marking, ctx, mark,
                    hot) {
     var edge = index.edges[planRow.id];
     var hit = chain[planRow.id];
+    var term = planRow.term || null;
     var el = baseRow("edge", ctx, planRow.id);
-    // The alternating band this row belongs to (viewer_leader_grid_legibility).
-    // A neutral tint and deliberately the WEAKEST background rule on the row:
-    // an untraced or uncited row's provenance tint (.tvrow--edge.conf--*,
-    // topology.css) is more specific and still wins, because provenance
-    // outranks wayfinding on this page.
-    el.className += " tvrow--band-" + (bandParity ? "b" : "a");
+    // The row's body tint and its divider (VA.gridRowMarks). The body's tint
+    // is the row's background COLOUR, the weakest rule on it: an untraced or
+    // uncited row's provenance wash (.tvrow--edge.conf--*, topology.css) is
+    // an IMAGE layered over it, so both still show.
+    if (mark) el.className += " " + mark;
+    if (term) el.className += " tvrow--depth-" + term.depth;
     if (first) el.className += " tvrow--group-start";
-    if (edge) el.className += " " + VA.confidenceClass(edge.confidence);
+    // A kinematic term's sourcing is its band's (VA.kinematicStack's
+    // `confidence`); every other row's is its edge's own.
+    var confidence = term && term.confidence ? term.confidence : edge ? edge.confidence : null;
+    if (edge) el.className += " " + VA.confidenceClass(confidence);
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
     if (edge && edge.zero_width) el.className += " tvrow--zero-width";
@@ -2499,6 +2822,8 @@
       : fullName;
     var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : shownName);
     if (!valueOnly && shownName !== fullName) nameCell.setAttribute("title", fullName);
+    // A term of a sub-stack indents one step per level under its header.
+    if (term) nameCell.style.paddingLeft = (8 + 14 * term.depth) + "px";
     el.appendChild(nameCell);
 
     // The value cell, decomposed into three (deliverable 2): the old combined
@@ -2514,8 +2839,43 @@
     el.appendChild(VA.el("td", "tvcell tvcell--max num",
       values ? VA.fmt(values.max) : ""));
 
+    // The sensitivity: a kinematic term's sweep coefficient, a chain row's
+    // signed ratio -- one column, both kinds of study.
+    var sensitivity = VA.el("td", "tvcell tvcell--sensitivity num");
+    if (term) {
+      sensitivity.textContent = term.sensitivity;
+      if (ctx.stack && ctx.stack.coefficientUnit) {
+        sensitivity.setAttribute("title", ctx.stack.coefficientUnit);
+      }
+      if (term.muted) sensitivity.className += " muted";
+      // ...and on hover, its curve across the whole sweep (VA.kinematicCurve),
+      // in the page's one popover. Drawn the first time it is asked for.
+      if (term.curve && ctx.onCardShow && ctx.kinematicStudy) {
+        var curveCard = null;
+        sensitivity.className += " tvcell--curve";
+        sensitivity.onmouseenter = function () {
+          if (!curveCard) {
+            var curve = VA.kinematicCurve(ctx.kinematicStudy, { curve: term.curve },
+              ctx.decimals, ctx.stack.stop.id);
+            if (!curve) return;
+            curveCard = { kind: "curve", title: fullName, curve: curve };
+          }
+          ctx.onCardShow(curveCard, sensitivity);
+        };
+      }
+    } else if (hit) {
+      sensitivity.textContent = (hit.contribution.sign < 0 ? "−" : "") +
+        VA.fmt(hit.contribution.ratio);
+    }
+    el.appendChild(sensitivity);
+
     var contribution = VA.el("td", "tvcell tvcell--contribution num");
-    if (hit) {
+    if (term) {
+      contribution.textContent = term.contribution +
+        (term.contribution && ctx.stack.units ? " " + ctx.stack.units : "");
+      contribution.setAttribute("title", "this term's worst-case share of the measure at the " +
+        ctx.stack.stop.label + ": its band times its sensitivity");
+    } else if (hit) {
       contribution.appendChild(VA.el("span", "tvrow__weight",
         VA.contributionWeightText(hit.contribution)));
       contribution.appendChild(VA.el("span", null,
@@ -2546,14 +2906,28 @@
       // The row's statement about its citation. It opened the citation's
       // hover card until 2026-10-30; the full reference is the Preview's now,
       // one hover away on this same row.
-      var confChip = VA.chip(VA.confidenceClass(edge.confidence),
-        edge.confidence === null ? "no value"
-          : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence));
+      var confChip = VA.chip(VA.confidenceClass(confidence),
+        confidence === null ? "no value"
+          : (VA.CONFIDENCE_LABEL[confidence] || confidence),
+        VA.CONFIDENCE_WORDS[confidence] || null);
       var sourceRef = edge.dimension && edge.dimension.source_ref;
       chips.wrap.appendChild(VA.markGeneralNote(confChip, sourceRef));
       if (edge.kind === "gap") {
         chips.wrap.appendChild(VA.chip("chip--gap", "gap",
           "its two interfaces share no part — a real distance across a clearance"));
+      }
+      // A kinematic term with no band on file says so, and its chip opens the
+      // card that names what would resolve it (VA.kinematicGapCard).
+      if (term && term.flag) {
+        var noBand = VA.chip("chip--gap", term.flag, null);
+        if (ctx.onCardShow && ctx.kinematicStudy) {
+          noBand.className += " cardtrig";
+          noBand.onmouseenter = function () {
+            ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy,
+              { edge: planRow.id, name: fullName }, ctx.topoProj), noBand);
+          };
+        }
+        chips.wrap.appendChild(noBand);
       }
       if (edge.value_source === "derived") {
         chips.wrap.appendChild(VA.chip("chip--derived", "DERIVED",
@@ -2991,10 +3365,10 @@
     // reads -- NOT the document's own `parts` list. In the parts' own names.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 35 of the 74 live nodes the same dot answered differently
+    // false, and on 36 of the 77 live nodes the same dot answered differently
     // hovered and clicked. (That is the STRING count, which is what "answered
     // differently" means; 28 is the smaller count of nodes that differ as a
-    // SET. The other 7 name the same two parts in the opposite order --
+    // SET. The other 8 name the same two parts in the opposite order --
     // authoring order against first-seen-edge order -- and a reader looking at
     // two orders of two names is still reading two different answers. Every
     // digit in this paragraph, and the README's copy of the first sentence,

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every kind of study row wears a 3D control where the scene is mounted, and none where it is not",
+  "mutations": [
+    {
+      "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
+      "issue": null,
+      "note": "Breaks the one place this guard's claim is decided.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "if (!handlers || !handlers.on3D) return;",
+      "replace": "return;"
+    }
+  ]
+}

@@ -34,3 +34,18 @@ change has the DAG drawn (dots and bars on screen, never an emptied pane), with
 a mutation spec that reddens it. The per-frame rebuild itself (all churned ids)
 stays; patching in place remains open here for strategy (it needs the hover
 registries and handlers, which hold element refs, reworked).
+
+## Addendum 2026-11-02 (review of `the_browser_tier_is_green_on_trunk_again`)
+
+The condition the recommendation above names — "unless frame cost shows up on the
+large real topology" — has now been measured. That handoff traced one study click
+on the product graph (`vpa_pitch_linkage`, 106 walk rows) by wrapping
+`VA.animateTopoPane` / `VA.renderTopoPane` in the page: each tween frame took
+**0.1–1.2 s** on this workstation, against a 260 ms `VA.RESPINE.duration`. So in
+the shipped transition a reader sees frame 1 (t ≈ 0) and then the settled frame —
+the animation exists, but on the real graph it is close to a repaint with a
+cross-fade start. Caveat: the box was loaded at the time (other agents' runs), so
+treat the range as an upper envelope rather than a profile. The browser check that
+witnesses "a study click animates" was made immune to this on that branch, so
+nothing in the suite will now notice if frame cost grows further. Source:
+`docs/sessions/lessons/LESSONS_20261102_the_browser_tier_is_green_on_trunk_again.md`.

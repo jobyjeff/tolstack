@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the live product model draws one container per body, named once and bridged, and every end of a stated joint as its glyph",
+  "mutations": [
+    {
+      "contract": "No two of the live model's bodies share a tint.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "The six-slot cycle this handoff retired: the lower piston head took the ground's tint.",
+      "file": "apps/viewer/topology.js",
+      "find": "  VA.BODY_TINTS = 16;",
+      "replace": "  VA.BODY_TINTS = 6;"
+    },
+    {
+      "contract": "On the live model, a node at joints of two kinds wears the higher-ranked one: a sphere centre that is also a bearing's pin end is a ball.",
+      "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
+      "note": "Inverts the precedence; the stops study's census moves four ball ends to pins. (A first draft dropped traced joints, which no live gap edge is, so it changed nothing.)",
+      "file": "apps/viewer/interface_glyphs.js",
+      "find": "        if (id && (out[id] === undefined || rank[kind] < rank[out[id]])) out[id] = kind;",
+      "replace": "        if (id && (out[id] === undefined || rank[kind] > rank[out[id]])) out[id] = kind;"
+    }
+  ]
+}

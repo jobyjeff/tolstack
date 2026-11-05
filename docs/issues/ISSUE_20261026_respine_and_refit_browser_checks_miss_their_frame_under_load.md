@@ -63,3 +63,11 @@ other sweep workers' suites): **38/40**. `topology file:// respine` 42/44 —
 42/44 on the same two sub-checks** (77 s), so under this sweep's load the
 catchFrame race reproduces in isolation too. Recorded as a known red, not
 routed as a regression.
+
+## Addendum 2026-11-02 (handoff `the_browser_tier_is_green_on_trunk_again`)
+
+The `[real]` respine half is fixed at the root on that branch. `catchFrame` now clicks
+inside `page.evaluate` and checks after every animation frame, so its rAF callback runs
+ahead of the transition's second frame. It cannot miss frame 1, however slow a frame is
+(measured at 0.1–1.2 s on the product graph). Results: 44/44 alone and 44/44 inside a
+full 39/40 tier run. The `[mock]` re-fit check is still open, and it is not touched there.

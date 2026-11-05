@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a sub-stack's header folds its terms: one with more than three folds until opened, the stack's own level never does, and a reader's choice wins",
+  "mutations": [
+    {
+      "contract": "A folded sub-stack's terms have no row.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Never folds.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      if (entry.kind === \"sub\") open[entry.id] = parentOpen && entry.open;",
+      "replace": "      if (entry.kind === \"sub\") open[entry.id] = parentOpen;"
+    }
+  ]
+}

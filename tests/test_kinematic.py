@@ -25,6 +25,7 @@ from tolerance_stack.kinematic import (
     PARAMETER_KINDS,
     ROW_KINDS,
     KinematicStudyError,
+    STOP_STACK_HANDOFF,
     check_at_stop,
     contributor_term,
     envelope,
@@ -32,6 +33,8 @@ from tolerance_stack.kinematic import (
     fold_at_stop,
     load_kinematic_study,
     parameter_unit,
+    range_between_stops,
+    rss_check_at_stop,
     stop_index,
     zone_coefficient,
 )
@@ -456,17 +459,16 @@ def test_the_builder_projects_the_fixture_and_draws_its_plot():
 # 8. [real] the first study against P2                                        #
 # --------------------------------------------------------------------------- #
 
-#: Per stop: index, nominal blade pitch, the envelope's own worst-case and RSS
-#: halves there (the six direct contributors), the stop's SWEPT worst-case and
-#: RSS halves (the envelope swept over the stop's x-interval), the S461-607
-#: margin and verdict, and the direct contributors' ranked table as (edge,
-#: kind, sign, coefficient). Since the_plus72_stop_is_the_travel_datum
-#: (2026-10-29) the +72 stop is the datum and the travel between the stops
-#: moves the -7 stop only: -7 is unchanged at 1.707/0.985/-1.207, +72 went
-#: from 1.339/0.721/-0.839 (the travel's whole band at both stops) to its
-#: direct 0.315/0.169/+0.185.
+#: Per stop: index, nominal blade pitch, the linkage terms' worst-case and RSS
+#: halves there (the six direct contributors -- the envelope's own fold), the
+#: stop's own worst-case and RSS halves (the linkage plus its axial stack), the
+#: S461-261 reach margin and verdict, and the direct contributors' ranked table
+#: as (edge, kind, sign, coefficient). Since each_stop_is_its_own_stack
+#: (2026-11-03) every stop carries the chain to its own contact face, and the
+#: check is one-sided reach: from the 10-29 figures (-7: 1.707/0.985, margin
+#: -1.207 against the misapplied +/-0.5; +72: 0.315/0.169, +0.185) to these.
 REAL = {
-    "minus7": (0, -6.992, (0.290, 0.169), (1.707, 0.985), -1.207, "marginal", [
+    "minus7": (0, -6.992, (0.290, 0.169), (2.355, 1.034), -0.363, "marginal", [
         ("pitch_plate_attach_height", "term", -1, 1.555),
         ("pitch_link_length", "term", 1, 1.574),
         ("pitch_plate_tan_link_attach_radius", "term", 1, 0.311),
@@ -474,7 +476,7 @@ REAL = {
         ("tan_link_mount_height", "term", 1, 0.172),
         ("tan_link_length", "term", 1, 0.311),
     ]),
-    "plus72": (79, 72.001, (0.315, 0.169), (0.315, 0.169), 0.185, "pass", [
+    "plus72": (79, 72.001, (0.315, 0.169), (0.784, 0.283), 1.217, "pass", [
         ("pitch_plate_attach_height", "term", -1, 1.489),
         ("pitch_plate_tan_link_attach_radius", "term", 1, 0.487),
         ("pitch_link_length", "term", 1, 1.542),
@@ -484,26 +486,55 @@ REAL = {
     ]),
 }
 
+#: Per stop: the axial stack's own halves in degrees, its position halves in
+#: mm (worst, RSS), J there, and the RSS reach margin beside the worst one.
+REAL_STACKS = {
+    "minus7": ((2.065, 1.020), (1.195, 0.590), -1.728, 0.958),
+    "plus72": ((0.468, 0.227), (0.375, 0.182), -1.249, 1.718),
+}
+
+#: The feather stop's axial stack, in walk order: (edge, sign, half-band mm).
+FEATHER_STACK = [
+    ("tan_link_mount_overall_height", -1, 0.1),
+    ("gas_spring_mount_datum_a_to_end_stop", 1, 0.1),
+    ("piston_head_lower_face_flatness", 1, 0.025),
+    ("piston_body_shoulder_to_top", 1, 0.05),
+    ("piston_body_flange_to_top", -1, 0.1),
+]
+
 
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
 @pytest.mark.parametrize("stop", sorted(REAL))
 def test_real_the_first_study_pins_both_stops_against_p2(stop):
     study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
-    index, nominal, direct, swept, margin, verdict, table = REAL[stop]
+    index, nominal, linkage, total, margin, verdict, table = REAL[stop]
     assert stop_index(study, sweep, stop) == index
     result = fold_at(study, sweep, index)
     assert round(result.nominal, 3) == nominal
     assert (round(result.interval.worst_case_half, 3),
-            round(result.interval.rss_half, 3)) == direct
+            round(result.interval.rss_half, 3)) == linkage
     assert result.gap_count == 0
     assert result.groups == ()
     assert [(r.contributor.edge, r.kind, r.sign, round(r.coefficient, 3))
             for r in result.rows] == table
     at_stop = fold_at_stop(study, sweep, stop)
+    assert at_stop.point.interval == result.interval
     assert (round(at_stop.interval.worst_case_half, 3),
-            round(at_stop.interval.rss_half, 3)) == swept
-    check = check_at_stop(study, sweep, f"s461_607_margin_at_{stop}")
+            round(at_stop.interval.rss_half, 3)) == total
+    stack, position, entry, rss_margin = REAL_STACKS[stop]
+    assert (round(at_stop.stack.interval.worst_case_half, 3),
+            round(at_stop.stack.interval.rss_half, 3)) == stack
+    assert (round(at_stop.stack.position.worst_case_half, 3),
+            round(at_stop.stack.position.rss_half, 3)) == position
+    assert round(at_stop.stack.entry, 3) == entry
+    # worst case is the two sub-stacks' sum; RSS is one quadrature over both
+    assert at_stop.interval.worst_case_half == pytest.approx(
+        result.interval.worst_case_half + at_stop.stack.interval.worst_case_half, abs=1e-12)
+    assert at_stop.interval.rss_half == pytest.approx(math.hypot(
+        result.interval.rss_half, at_stop.stack.interval.rss_half), abs=1e-12)
+    check = check_at_stop(study, sweep, f"s461_261_reach_at_{stop}")
     assert round(check.margin, 3) == margin
+    assert round(rss_check_at_stop(study, sweep, check.check_id).min, 3) == rss_margin
     assert (check.verdict, check.verdict_scope) == (verdict, "budget")
     assert check.complete is False
     assert any("vpa_pitch_linkage_hub_to_feather_stop" in t
@@ -511,30 +542,81 @@ def test_real_the_first_study_pins_both_stops_against_p2(stop):
 
 
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
-def test_real_the_plus72_stop_is_the_datum_and_the_travel_moves_the_minus7_stop_only():
-    """The datum is where the driver is 0; the travel's x-interval sits at -7
-    only (+/-0.82 mm worst case, +/-0.5616 RSS); the hub anchor is a declared
-    gap at both stops, with no band; and the -7 swept worst case is |J| x h
-    plus the envelope's own half there -- the corner of the band drawn."""
+def test_real_the_reach_checks_are_one_sided_against_s461_261():
+    """+72: worst-case MINIMUM pitch >= +70; -7: worst-case MAXIMUM <= -5. The
+    margin is the signed distance to the bound, read off the stop's own pitch
+    (the sweep's nominal plus the fold), and S461-607 is checked nowhere."""
+    study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    assert {(c["check_id"], c["bound"], c["limit"]["value"], c["limit"]["source_ref"]["cell"])
+            for c in study.checks} == {
+        ("s461_261_reach_at_plus72", "at_least", 70, "S461-261"),
+        ("s461_261_reach_at_minus7", "at_most", -5, "S461-261")}
+    assert "S461-607" not in json.dumps(study.checks)
+    for stop, sign, limit in (("plus72", 1, 70.0), ("minus7", -1, -5.0)):
+        at_stop = fold_at_stop(study, sweep, stop)
+        edge = at_stop.interval.min if sign > 0 else at_stop.interval.max
+        expected = sign * (at_stop.point.nominal + edge - limit)
+        assert check_at_stop(study, sweep, f"s461_261_reach_at_{stop}").margin == (
+            pytest.approx(expected, abs=1e-12))
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_each_stop_carries_the_chain_to_its_own_contact_face():
+    """The feather stop's stack is the mounts and the piston body (no head);
+    the low stop's is the same chain plus the travel, where the heads are
+    (Jeff, 2026-11-03); the hub anchor is a declared gap at both. The feather
+    chain is one ref shared by both stops, so its terms are the shared ones.
+    The datum is still where the driver is 0, and zeroes nothing."""
     study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
     assert study.datum["stop"] == "plus72"
     assert sweep.driver_values[stop_index(study, sweep, "plus72")] == 0.0
-    travel, anchor = study.study_refs
-    assert (travel.applies_to, anchor.applies_to) == (("minus7",), ("plus72", "minus7"))
+    feather, travel, anchor = study.study_refs
+    assert [r.study_id for r in study.stop("plus72").axial_stack] == [
+        feather.study_id, anchor.study_id]
+    assert [r.study_id for r in study.stop("minus7").axial_stack] == [
+        feather.study_id, travel.study_id, anchor.study_id]
+    assert feather.study_id == "vpa_pitch_linkage_feather_stop_axial_position"
+    assert travel.study_id == "vpa_pitch_linkage_travel_between_end_stops"
+    assert (feather.stops, travel.stops, anchor.stops) == (
+        ("minus7", "plus72"), ("minus7",), ("minus7", "plus72"))
+    assert [(t.edge, t.sign, round(t.dimension.half_range, 3)) for t in feather.terms] == (
+        FEATHER_STACK)
+    assert feather.completeness["complete"] is True
+    assert not {t.edge for t in feather.terms} & {
+        "piston_head_lower_thickness", "piston_head_upper_thickness"}
     assert (anchor.gap is not None, anchor.terms, anchor.total) == (True, (), None)
-    minus7 = fold_at_stop(study, sweep, "minus7")
-    plus72 = fold_at_stop(study, sweep, "plus72")
-    assert (round(minus7.offset.interval.worst_case_half, 3),
-            round(minus7.offset.interval.rss_half, 4)) == (0.82, 0.5616)
-    assert (plus72.offset.interval.worst_case_half, plus72.offset.interval.rss_half) == (0, 0)
-    assert [g.ref.study_id for g in plus72.offset.groups] == [anchor.study_id]
-    assert plus72.interval == plus72.point.interval
-    assert minus7.interval.worst_case_half == pytest.approx(
-        abs(minus7.offset.entry) * minus7.offset.interval.worst_case_half
-        + minus7.point.interval.worst_case_half, abs=1e-12)
-    assert minus7.interval.rss_half == pytest.approx(math.hypot(
-        minus7.offset.entry * minus7.offset.interval.rss_half,
-        minus7.point.interval.rss_half), abs=1e-12)
+    for stop in ("plus72", "minus7"):
+        assert fold_at_stop(study, sweep, stop).stack.shared == tuple(e for e, *_ in FEATHER_STACK)
+    assert study.point_refs == []
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_the_range_between_the_stops_cancels_what_both_stops_share():
+    """Feather less low: 72.001 - (-6.992) = 78.992 nominal, +/-1.730 worst
+    case, +/-0.977 RSS. The shared terms -- the feather stack's five and the
+    six linkage terms -- enter once at the difference of their two weights;
+    the travel's four remain at the low stop's."""
+    study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    result = range_between_stops(study, sweep)
+    assert (result.high.stop.id, result.low.stop.id) == ("plus72", "minus7")
+    assert round(result.nominal.nominal, 3) == 78.992
+    assert (round(result.interval.worst_case_half, 3),
+            round(result.interval.rss_half, 3)) == (1.730, 0.977)
+    by_kind = {}
+    for t in result.terms:
+        by_kind.setdefault((t.kind, t.shared), []).append(t)
+    assert len(by_kind[("linkage", True)]) == 6
+    assert [t.edge for t in by_kind[("stop_position", True)]] == [e for e, *_ in FEATHER_STACK]
+    assert [t.edge for t in by_kind[("stop_position", False)]] == [
+        t.edge for t in study.stop("minus7").axial_stack[1].terms]
+    shared = by_kind[("stop_position", True)]
+    assert round(sum(abs(t.high) * t.half for t in shared), 3) == 0.468
+    assert round(sum(abs(t.low) * t.half for t in shared), 3) == 0.648
+    assert round(sum(t.magnitude for t in shared), 3) == 0.180
+    for t in shared:
+        assert t.coefficient == pytest.approx(t.high - t.low, abs=1e-12)
+    for t in by_kind[("stop_position", False)]:
+        assert t.coefficient == pytest.approx(-t.low, abs=1e-12)
 
 
 def gap_claims_naming_a_banded_contributor(excluded_terms, term_edges):
@@ -896,12 +978,14 @@ CHAIN_STUDY = {
 }
 
 
-def copy_fixture_with_a_chain(tmp_path, driver_unit=None, applies_to=("low", "high"),
-                              ref_edit=None):
+def copy_fixture_with_a_chain(tmp_path, driver_unit=None, stacks=("low", "high"),
+                              ref_edit=None, as_contributor=False):
     """A fixture copy whose sweep carries a driver column, whose topology carries
-    the two-term chain, and whose study has a ``study_ref`` on ``drive.value``
-    (the driver) moving the stops ``applies_to`` (``None``: the field left out).
-    ``ref_edit`` edits the ref contributor before it is written."""
+    the two-term chain, and whose study puts a ``study_ref`` on ``drive.value``
+    (the driver) into the ``axial_stack`` of each stop in ``stacks`` (the
+    others get a declared gap, so every stop has a stack). ``as_contributor``
+    puts the ref among the contributors instead. ``ref_edit`` edits the ref
+    before it is written."""
 
     def sweep_edit(data):
         data["sensitivity"]["parameters"].append("drive.value")
@@ -913,11 +997,14 @@ def copy_fixture_with_a_chain(tmp_path, driver_unit=None, applies_to=("low", "hi
     def study_edit(data):
         ref = {"study_ref": {
             "topology": "kin_fixture", "study_id": "fixture_chain", "parameter": "drive.value"}}
-        if applies_to is not None:
-            ref["applies_to"] = list(applies_to)
         if ref_edit is not None:
             ref_edit(ref)
-        data["contributors"].append(ref)
+        if as_contributor:
+            data["contributors"].append(ref)
+            return
+        for stop in data["stops"]:
+            stop["axial_stack"] = [ref] if stop["id"] in stacks else [dict(
+                FIXTURE_UNPLACED)]
 
     study_path, data_root, topologies = copy_fixture(
         tmp_path, study_edit=study_edit, sweep_edit=sweep_edit)
@@ -937,13 +1024,19 @@ def copy_fixture_with_a_chain(tmp_path, driver_unit=None, applies_to=("low", "hi
     return study_path, data_root, topologies
 
 
+#: The declared gap a stop with no chain of its own carries in these fixtures.
+FIXTURE_UNPLACED = {
+    "study_ref": {"topology": "kin_fixture", "study_id": "fixture_unplaced",
+                  "parameter": "drive.value"},
+    "title": "Fixture unplaced", "gap": "This stop's contact is not authored"}
+
 #: The fixture's stops: id -> sweep point.
 FIXTURE_STOPS = {"low": 1, "high": 2}
 
 
-def test_a_driver_study_ref_enters_no_points_fold(tmp_path):
-    """A ref on the driver is where a stop is, never a term of the envelope:
-    every point folds the direct contributors alone, to the hand values."""
+def test_a_stack_study_ref_enters_no_points_fold(tmp_path):
+    """A ref in a stop's axial stack is where that stop is, never a term of the
+    envelope: every point folds the direct contributors alone, to the hand values."""
     study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
     for point in range(3):
         result = fold_at(study, sweep, point)
@@ -953,13 +1046,13 @@ def test_a_driver_study_ref_enters_no_points_fold(tmp_path):
 
 
 def test_a_study_ref_enters_its_terms_scaled_by_the_jacobian_with_signs_multiplied(tmp_path):
-    """At each stop it applies to, parent coefficient k = |J|; the leaves are
-    k x 1 each, and the sign is sign(J) x the term's own sign (link_back is
-    walked against)."""
+    """At each stop whose stack holds it, parent coefficient k = |J|; the leaves
+    are k x 1 each, and the sign is sign(J) x the term's own sign (link_back is
+    walked against). One ref, named by both stops."""
     study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
     (ref,) = study.study_refs
     assert (ref.study_id, ref.parameter, ref.units) == ("fixture_chain", "drive.value", "mm")
-    assert ref.applies_to == ("low", "high")
+    assert ref.stops == ("low", "high")
     assert [t.edge for t in ref.terms] == ["link_length", "link_back"]
     assert [t.sign for t in ref.terms] == [1, -1]
     back = ref.terms[1]
@@ -970,21 +1063,23 @@ def test_a_study_ref_enters_its_terms_scaled_by_the_jacobian_with_signs_multipli
     assert back.dimension.source_ref is back.source.source_ref
     for stop, point in FIXTURE_STOPS.items():
         j = DRIVE_J[point]
-        offset = fold_at_stop(study, sweep, stop).offset
-        (group,) = offset.groups
-        assert offset.entry == group.entry == j
+        stack = fold_at_stop(study, sweep, stop).stack
+        (group,) = stack.groups
+        assert group.ref is ref
+        assert stack.entry == group.entry == j
         assert [c.coefficient for c in group.children] == pytest.approx([abs(j), abs(j)])
         own = (1 if j > 0 else -1)
         assert [c.sign for c in group.children] == [own * 1, own * -1]
+        assert stack.shared == ("link_length", "link_back")
 
 
-def test_a_stops_x_interval_is_its_refs_leaves_folded_once_in_the_drivers_unit(tmp_path):
+def test_a_stops_position_is_its_stacks_leaves_folded_once_in_the_drivers_unit(tmp_path):
     """link_length (-0.1..+0.3, ratio 1, +1) and link_back (-0.2..+0.4 about
-    zero, ratio 1, walked against): x worst case [-0.1 - 0.4, 0.3 + 0.2] =
-    [-0.5, +0.5], half 0.5; RSS half sqrt(0.2^2 + 0.3^2) -- in mm, no J."""
+    zero, ratio 1, walked against): position worst case [-0.1 - 0.4, 0.3 +
+    0.2] = [-0.5, +0.5], half 0.5; RSS half sqrt(0.2^2 + 0.3^2) -- in mm, no J."""
     study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
     for stop in FIXTURE_STOPS:
-        x = fold_at_stop(study, sweep, stop).offset.interval
+        x = fold_at_stop(study, sweep, stop).stack.position
         assert (x.min, x.max) == (pytest.approx(-0.5), pytest.approx(0.5))
         assert x.rss_half == pytest.approx(math.sqrt(0.2 ** 2 + 0.3 ** 2))
 
@@ -997,17 +1092,19 @@ def test_worst_case_is_the_sum_over_leaves_and_rss_is_one_quadrature(tmp_path):
     = 0.75 each way about a centre of 1.5 x 0.1 - 1.5 x 0.1 = 0; RSS one
     quadrature over ALL FOUR terms."""
     study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
-    interval = fold_at_stop(study, sweep, "low").interval
+    at_stop = fold_at_stop(study, sweep, "low")
+    interval = at_stop.interval
     assert interval.min == pytest.approx(-0.34 - 0.75)
     assert interval.max == pytest.approx(0.14 + 0.75)
     assert interval.rss_center == pytest.approx(-0.1)
     assert interval.rss_half == pytest.approx(
         math.sqrt(0.2 ** 2 + 0.04 ** 2 + (1.5 * 0.2) ** 2 + (1.5 * 0.3) ** 2))
+    assert at_stop.stack.interval.worst_case_half == pytest.approx(0.75)
 
 
-def test_the_swept_worst_case_is_the_slope_times_the_x_half_plus_the_direct_half(tmp_path):
-    """The corner of the band the chart draws: |J| x h + the envelope's own
-    half at the stop, at both stops (J = 1.5 and -2.0, h = 0.5)."""
+def test_a_stops_band_is_the_linkage_there_plus_its_stack_at_the_slope(tmp_path):
+    """|J| x the position half + the linkage half at the stop, at both stops
+    (J = 1.5 and -2.0, half 0.5)."""
     study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
     for stop, point in FIXTURE_STOPS.items():
         at_stop = fold_at_stop(study, sweep, stop)
@@ -1017,56 +1114,147 @@ def test_the_swept_worst_case_is_the_slope_times_the_x_half_plus_the_direct_half
             abs(DRIVE_J[point]) * 0.5 + direct)
 
 
-def test_a_stop_the_ref_does_not_apply_to_is_its_envelope_unchanged(tmp_path):
-    """applies_to ["high"]: the low stop has no x-interval and its verdict is
-    the envelope's own interval there; the high stop still carries it."""
-    study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path, applies_to=["high"]))
+def test_a_stop_whose_stack_is_a_gap_is_its_linkage_band_and_incomplete(tmp_path):
+    """stacks ["high"]: the low stop's stack is a declared gap, so its band is
+    the linkage terms' own there and its check is incomplete, naming the gap;
+    the high stop still carries the chain, now in its stack alone."""
+    study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path, stacks=["high"]))
     low = fold_at_stop(study, sweep, "low")
-    assert (low.offset.refs, low.offset.groups) == ((), ())
-    assert low.offset.interval.worst_case_half == 0.0
+    assert [r.study_id for r in low.stack.refs] == ["fixture_unplaced"]
+    assert low.stack.position.worst_case_half == 0.0
     assert low.interval == low.point.interval
+    assert low.stack.shared == ()
     check = check_at_stop(study, sweep, "low_margin")
     assert check.margin == pytest.approx(0.5 - HAND[1][1])      # the limit less the max
-    assert check.complete is True
-    assert fold_at_stop(study, sweep, "high").offset.interval.worst_case_half == pytest.approx(0.5)
+    assert check.complete is False
+    assert any("fixture_unplaced" in t for t in check.excluded_terms)
+    high = fold_at_stop(study, sweep, "high")
+    assert high.stack.position.worst_case_half == pytest.approx(0.5)
+    assert high.stack.shared == ()
 
 
-def test_a_driver_study_ref_without_applies_to_is_refused(tmp_path):
-    with pytest.raises(KinematicStudyError, match="`applies_to` is required"):
-        load_kinematic_study(*copy_fixture_with_a_chain(tmp_path, applies_to=None))
-    with pytest.raises(KinematicStudyError, match="`applies_to` is required"):
-        load_kinematic_study(*copy_fixture_with_a_chain(tmp_path / "empty", applies_to=[]))
+def test_the_retired_applies_to_form_is_refused_naming_the_handoff(tmp_path):
+    """The 2026-10-29 shape -- a driver ref among the contributors, saying which
+    stops it moves -- is refused, and the message names the handoff that moved
+    it into each stop's axial stack."""
+    def old_form(ref):
+        ref["applies_to"] = ["low"]
+    with pytest.raises(KinematicStudyError, match="`applies_to`, the form retired by handoff"
+                       ) as refusal:
+        load_kinematic_study(*copy_fixture_with_a_chain(
+            tmp_path, ref_edit=old_form, as_contributor=True))
+    assert STOP_STACK_HANDOFF == "each_stop_is_its_own_stack"
+    assert STOP_STACK_HANDOFF in str(refusal.value)
+    with pytest.raises(KinematicStudyError, match="it goes in the `axial_stack` of each stop"):
+        load_kinematic_study(*copy_fixture_with_a_chain(tmp_path / "bare", as_contributor=True))
+    with pytest.raises(KinematicStudyError, match="form retired by handoff"):
+        load_kinematic_study(*copy_fixture_with_a_chain(tmp_path / "stacked", ref_edit=old_form))
 
 
-def test_applies_to_naming_an_unknown_stop_or_a_stop_twice_is_refused(tmp_path):
-    with pytest.raises(KinematicStudyError, match=r"names no stop \['middle'\]"):
-        load_kinematic_study(*copy_fixture_with_a_chain(tmp_path, applies_to=["low", "middle"]))
-    with pytest.raises(KinematicStudyError, match="lists a stop twice"):
-        load_kinematic_study(*copy_fixture_with_a_chain(tmp_path / "twice",
-                                                        applies_to=["low", "low"]))
+def test_a_stop_with_no_stack_is_refused_beside_one_that_has_one(tmp_path):
+    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
+    data = json.loads(study_path.read_text(encoding="utf-8"))
+    del data["stops"][1]["axial_stack"]
+    study_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(KinematicStudyError, match=r"stop\(s\) \['high'\] have no `axial_stack`"):
+        load_kinematic_study(study_path, data_root, topologies)
 
 
-def test_applies_to_on_a_ref_that_is_not_on_the_driver_is_refused(tmp_path):
-    """A ref on a geometry parameter is a term at every point; it moves no stop."""
+def test_a_stop_with_no_stack_is_refused_in_a_study_with_a_datum(tmp_path):
+    def datum(data):
+        data["datum"] = {"stop": "low", "basis": "fixture"}
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=datum)
+    with pytest.raises(KinematicStudyError, match=r"have no `axial_stack`"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_a_stack_ref_off_the_driver_or_named_twice_is_refused(tmp_path):
     def on_length(ref):
         ref["study_ref"]["parameter"] = "link.length"
-    with pytest.raises(KinematicStudyError, match="not the sweep's driver"):
+    with pytest.raises(KinematicStudyError, match="every entry is on the sweep's driver"):
         load_kinematic_study(*copy_fixture_with_a_chain(tmp_path, ref_edit=on_length))
+    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path / "twice")
+    data = json.loads(study_path.read_text(encoding="utf-8"))
+    data["stops"][0]["axial_stack"].append(data["stops"][0]["axial_stack"][0])
+    study_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(KinematicStudyError, match="twice in its axial_stack"):
+        load_kinematic_study(study_path, data_root, topologies)
 
 
 def test_a_ref_off_the_driver_still_folds_at_every_point(tmp_path):
-    """No applies_to, on link.length (J = 2, -1, 0.5): the leaves enter every
-    point's fold at |J| -- the chain rule as a y-term, unchanged."""
+    """Among the contributors, on link.length (J = 2, -1, 0.5): the leaves enter
+    every point's fold at |J| -- the chain rule as a y-term, unchanged."""
     def on_length(ref):
         ref["study_ref"]["parameter"] = "link.length"
     study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(
-        tmp_path, applies_to=None, ref_edit=on_length))
+        tmp_path, ref_edit=on_length, as_contributor=True))
     for point, j in enumerate((2.0, -1.0, 0.5)):
         result = fold_at(study, sweep, point)
         (group,) = result.groups
         assert group.entry == j
         assert result.interval.worst_case_half == pytest.approx(
             (HAND[point][1] - HAND[point][0]) / 2 + abs(j) * 0.5)
+
+
+def test_the_range_enters_a_shared_term_once_at_the_difference_of_its_weights(tmp_path):
+    """high (point 2) less low (point 1), by hand. Nominal 30.2 - 9.6 = 20.6.
+    The linkage: link_length's J goes -1 -> 0.5, a difference of 1.5 on a 0.2
+    half-band (0.3); the sphere's entries (0,0,2) -> (2,4,4) differ by (2,4,2),
+    norm sqrt(24), on r = 0.02. The stack's two leaves are in both stops:
+    link_length's weight goes 1.5 -> -2.0 (difference -3.5, on 0.2) and
+    link_back's -1.5 -> 2.0 (3.5, on 0.3). Worst half 0.3 + sqrt(24) x 0.02 +
+    0.7 + 1.05; the stack's leaves would have reached 0.75 at low and 1.0 at
+    high if the range had added the two stops instead."""
+    study, sweep = load_kinematic_study(*copy_fixture_with_a_chain(tmp_path))
+    result = range_between_stops(study, sweep)
+    assert (result.high.stop.id, result.low.stop.id) == ("high", "low")
+    assert result.nominal.nominal == pytest.approx(20.6)
+    assert result.interval.nominal == pytest.approx(0.0, abs=1e-12)
+    assert result.interval.worst_case_half == pytest.approx(
+        0.3 + math.sqrt(24) * 0.02 + 0.7 + 1.05)
+    leaves = [t for t in result.terms if t.kind == "stop_position"]
+    assert [(t.edge, t.shared) for t in leaves] == [("link_length", True), ("link_back", True)]
+    assert [t.coefficient for t in leaves] == pytest.approx([-3.5, 3.5])
+    assert [round(abs(t.high) * t.half, 6) for t in leaves] == [0.4, 0.6]
+    assert [round(abs(t.low) * t.half, 6) for t in leaves] == [0.3, 0.45]
+
+
+def test_the_range_is_none_unless_the_study_has_two_stops(tmp_path):
+    study, sweep = load_fixture()
+    assert range_between_stops(study, sweep) is not None
+    def three(data):
+        data["stops"].append({"id": "mid", "label": "mid", "target": 20.0})
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=three)
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    assert range_between_stops(study, sweep) is None
+
+
+def test_a_reach_check_reads_the_stops_own_measure_on_the_side_its_bound_names(tmp_path):
+    """The low stop: nominal 9.6, fold [-0.34, 0.14]. at_least 9.0 -> 9.6 -
+    0.34 - 9.0 = 0.26; at_most 9.5 -> 9.5 - 9.6 - 0.14 = -0.24 (nominal
+    already past it: fail). RSS beside: half sqrt(0.2^2 + 0.04^2) about -0.1."""
+    rss = math.sqrt(0.2 ** 2 + 0.04 ** 2)
+
+    def reach(bound, value):
+        def edit(data):
+            data["checks"][0]["bound"] = bound
+            data["checks"][0]["limit"]["value"] = value
+        return edit
+    for bound, value, margin, rss_margin, verdict in (
+            ("at_least", 9.0, 0.26, 9.6 - 0.1 - rss - 9.0, "pass"),
+            ("at_most", 9.5, -0.24, 9.5 - 9.6 + 0.1 - rss, "fail")):
+        study_path, data_root, topologies = copy_fixture(
+            tmp_path / bound, study_edit=reach(bound, value))
+        study, sweep = load_kinematic_study(study_path, data_root, topologies)
+        check = check_at_stop(study, sweep, "low_margin")
+        assert check.margin == pytest.approx(margin)
+        assert check.verdict == verdict
+        assert rss_check_at_stop(study, sweep, "low_margin").min == pytest.approx(rss_margin)
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path / "bad", study_edit=reach("above", 9.0))
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    with pytest.raises(KinematicStudyError, match="a bound is one of"):
+        check_at_stop(study, sweep, "low_margin")
 
 
 def gap_ref(ref):
@@ -1081,7 +1269,7 @@ def test_a_declared_gap_ref_has_no_band_and_leaves_every_stop_it_reaches_incompl
     assert (ref.study_id, ref.title, ref.terms, ref.total, ref.units) == (
         "fixture_anchor", "Fixture anchor", (), None, "mm")
     low = fold_at_stop(study, sweep, "low")
-    assert low.offset.interval.worst_case_half == 0.0
+    assert low.stack.position.worst_case_half == 0.0
     assert low.interval == low.point.interval
     check = check_at_stop(study, sweep, "low_margin")
     assert check.complete is False
@@ -1109,7 +1297,10 @@ def test_a_datum_stop_is_where_the_driver_is_zero(tmp_path):
     """The fixture's low stop sits at drive 5.0, so it cannot be the datum."""
     def datum(data):
         data["datum"] = {"stop": "low", "basis": "fixture"}
-    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=datum)
+    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
+    data = json.loads(study_path.read_text(encoding="utf-8"))
+    datum(data)
+    study_path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(KinematicStudyError, match="datum stop 'low' sits at driver 5.0"):
         load_kinematic_study(study_path, data_root, topologies)
 
@@ -1129,7 +1320,7 @@ def test_the_chain_rule_differs_from_the_folded_interval_routes_by_a_stated_amou
     assert ref.total.worst_case_half == pytest.approx(0.5)
     assert ref.total.rss_half == pytest.approx(math.sqrt(0.2 ** 2 + 0.3 ** 2))
     at_stop = fold_at_stop(study, sweep, "low")
-    (group,) = at_stop.offset.groups
+    (group,) = at_stop.stack.groups
     assert group.reach == pytest.approx(1.5 * ref.total.worst_case_half)
     chain_rss = math.sqrt(sum((c.coefficient * c.sub.dimension.half_range) ** 2
                               for c in group.children))
@@ -1147,7 +1338,7 @@ def test_a_zero_sensitivity_parameter_enters_no_leaf(tmp_path):
     run.write_text(json.dumps(data), encoding="utf-8")
     study, sweep = load_kinematic_study(study_path, data_root, topologies)
     result = fold_at_stop(study, sweep, "low")
-    assert [c["kind"] for c in result.offset.groups[0].as_dict()["children"]] == (
+    assert [c["kind"] for c in result.stack.groups[0].as_dict()["children"]] == (
         ["zero_sensitivity"] * 2)
     assert result.interval.max == pytest.approx(HAND[1][1])      # the direct fold alone
 
@@ -1163,33 +1354,32 @@ def test_a_study_ref_names_the_unit_mismatch_in_the_existing_words(tmp_path):
 
 
 def test_a_study_ref_on_a_label_the_sweep_lacks_is_refused_naming_it(tmp_path):
-    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
-    data = json.loads(study_path.read_text(encoding="utf-8"))
-    data["contributors"][-1]["study_ref"]["parameter"] = "actuator.nope"
-    study_path.write_text(json.dumps(data), encoding="utf-8")
+    def nope(ref):
+        ref["study_ref"]["parameter"] = "actuator.nope"
     with pytest.raises(KinematicStudyError, match="actuator.nope"):
-        load_kinematic_study(study_path, data_root, topologies)
+        load_kinematic_study(*copy_fixture_with_a_chain(tmp_path, ref_edit=nope))
 
 
 def test_a_study_ref_that_names_a_study_holding_a_study_ref_is_refused_as_nesting(tmp_path):
     study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
     inner = json.loads(study_path.read_text(encoding="utf-8"))
     inner["id"] = "inner"
+    inner["contributors"].append(inner["stops"][0]["axial_stack"][0] | {
+        "study_ref": inner["stops"][0]["axial_stack"][0]["study_ref"] | {
+            "parameter": "link.length"}})
     (topologies / "kinematic_study_inner.json").write_text(json.dumps(inner), encoding="utf-8")
     outer = json.loads(study_path.read_text(encoding="utf-8"))
-    outer["contributors"][-1]["study_ref"]["study_id"] = "inner"
+    outer["stops"][0]["axial_stack"][0]["study_ref"]["study_id"] = "inner"
     study_path.write_text(json.dumps(outer), encoding="utf-8")
     with pytest.raises(KinematicStudyError, match="nested study_refs are not supported in v0"):
         load_kinematic_study(study_path, data_root, topologies)
 
 
 def test_a_study_ref_with_an_edge_of_its_own_is_refused(tmp_path):
-    study_path, data_root, topologies = copy_fixture_with_a_chain(tmp_path)
-    data = json.loads(study_path.read_text(encoding="utf-8"))
-    data["contributors"][-1]["edge"] = "link_length"
-    study_path.write_text(json.dumps(data), encoding="utf-8")
+    def edged(ref):
+        ref["edge"] = "link_length"
     with pytest.raises(KinematicStudyError, match="carries no edge, parameters or band"):
-        load_kinematic_study(study_path, data_root, topologies)
+        load_kinematic_study(*copy_fixture_with_a_chain(tmp_path, ref_edit=edged))
 
 
 def test_a_check_is_incomplete_while_a_study_ref_leaf_is_open_and_says_which(tmp_path):
@@ -1215,18 +1405,25 @@ def test_the_projection_carries_the_group_and_every_leaf_at_every_point(tmp_path
     assert [c["edge"] for c in ref["children"]] == ["link_length", "link_back"]
     assert {len(c["by_point"]) for c in ref["children"]} == {3}
     assert [e["entry"] for e in ref["entries"]] == DRIVE_J
-    assert ref["applies_to"] == ["low", "high"] and ref["gap"] is None
+    assert ref["stops"] == ["low", "high"] and ref["gap"] is None
+    assert "x_interval" not in json.dumps(row) and "applies_to" not in json.dumps(row)
     for stop in row["stops"]:
         (group,) = stop["groups"]
         assert group["study"] == "fixture_chain" and len(group["children"]) == 2
-        assert group["x_offset"] is True
+        assert group["stop_position"] is True
+        assert [c["shared_with_other_stop"] for c in group["children"]] == [True, True]
         assert group["entry"] == stop["driver_entry"] == DRIVE_J[stop["index"]]
-        # the envelope is the direct fold; the stop's own fields are the swept one
+        linkage, position = stop["sub_stacks"]
+        assert (linkage["kind"], position["kind"]) == builder.SUB_STACK_KINDS
         envelope_row = row["envelope"][stop["index"]]
-        assert stop["direct"]["worst_case_half"] == envelope_row["worst_case_half"]
-        assert stop["x_interval"]["worst_case_half"] == pytest.approx(0.5)
+        assert linkage["worst_case_half"] == envelope_row["worst_case_half"]
+        assert position["position"]["worst_case_half"] == pytest.approx(0.5)
+        assert position["shared"] == ["link_length", "link_back"]
         assert stop["worst_case_half"] == pytest.approx(
-            abs(DRIVE_J[stop["index"]]) * 0.5 + envelope_row["worst_case_half"], abs=1e-6)
+            linkage["worst_case_half"] + position["worst_case_half"], abs=1e-6)
+    assert row["range"]["high"] == "high" and row["range"]["nominal_measure"] == pytest.approx(
+        20.6)
+    assert [c["kind"] for c in row["range"]["cancelled"]] == ["linkage", "stop_position"]
 
 
 def test_the_projection_puts_a_declared_gap_ref_on_the_gap_list(tmp_path):
@@ -1236,7 +1433,7 @@ def test_the_projection_puts_a_declared_gap_ref_on_the_gap_list(tmp_path):
     assert row["status"] == "ok", row["error"]
     gaps = [g for g in row["gap_rows"] if g.get("study")]
     assert gaps == [{"edge": None, "study": "fixture_anchor", "title": "Fixture anchor",
-                     "gap": "Neither stop is anchored yet", "applies_to": ["low", "high"],
+                     "gap": "Neither stop is anchored yet", "stops": ["low", "high"],
                      "band_source": {"kind": "gap"}, "drawings": []}]
     assert row["gap_count"] == len(row["gap_rows"])
     (ref,) = row["study_refs"]
@@ -1244,7 +1441,7 @@ def test_the_projection_puts_a_declared_gap_ref_on_the_gap_list(tmp_path):
         None, [], "Neither stop is anchored yet")
     for stop in row["stops"]:
         (group,) = stop["groups"]
-        assert (group["gap"], group["children"], group["x_offset"]) == (
+        assert (group["gap"], group["children"], group["stop_position"]) == (
             "Neither stop is anchored yet", [], True)
 
 
@@ -1255,26 +1452,24 @@ def test_the_projection_puts_a_declared_gap_ref_on_the_gap_list(tmp_path):
                            ("gas_spring_mount_flange_to_end_stop", 1, 1.728, 0.864),
                            ("piston_cover_flange_to_end_stop", -1, 1.728, 0.035)]),
 ])
-def test_real_the_travel_study_enters_the_blade_pitch_study_by_its_terms(
+def test_real_the_travel_study_enters_the_low_stop_by_its_terms(
         stop, index, entry, children):
-    """The motion ratio at the stop the travel moves and the four leaves it
-    scales; the totals it moved are pinned in REAL above. (At +72, the datum,
-    it does not enter: the 1.249 deg/mm leaves it carried there until
-    2026-10-29 counted the stop-to-stop distance a second time.)"""
+    """The motion ratio at the low stop and the travel's four leaves it scales:
+    the low stop's contact is the feather contact moved by the travel. The
+    feather stop's stack does not hold it."""
     study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
-    ref = study.study_refs[0]
-    assert (ref.study_id, ref.parameter, ref.units) == (
-        "vpa_pitch_linkage_travel_between_end_stops", "actuator.value", "mm")
+    ref = next(r for r in study.study_refs
+               if r.study_id == "vpa_pitch_linkage_travel_between_end_stops")
+    assert (ref.parameter, ref.units, ref.stops) == ("actuator.value", "mm", ("minus7",))
     assert stop_index(study, sweep, stop) == index
-    group = fold_at_stop(study, sweep, stop).offset.groups[0]
+    group = fold_at_stop(study, sweep, stop).stack.groups[1]
     assert group.ref is ref
     assert round(group.entry, 3) == entry
     assert [(c.sub.edge, c.sign, round(c.coefficient, 3), round(c.magnitude, 3))
             for c in group.children] == children
     assert ref.completeness["open_terms"] == []
     assert round(group.reach, 3) == round(abs(entry) * ref.total.worst_case_half, 3)
-    assert not any("end-stop location" in term
-                   for spec in study.checks for term in spec.get("excluded_terms", ()))
+    assert ref not in study.stop("plus72").axial_stack
 
 
 def test_a_band_about_nominal_keeps_its_asymmetry_and_its_citation(tmp_path):
@@ -1380,24 +1575,3 @@ def test_the_annotators_config_names_the_read_set_the_builder_writes():
     assert line("contactSuggestions",
                 ("data",) + builder.CONTACT_SUGGESTIONS_PROJECTION.parts) in annotate
     assert f'"{builder.MESH_ALIASES_NAME}"]' in annotate
-
-
-def test_the_open_question_the_kinematic_chart_links_to_is_on_file():
-    """The kinematic chart's datum line links to the issue that records the
-    ruling on which stop is the datum (views/kinematic.js's
-    VA.KINEMATIC_TRAVEL_DATUM_ISSUE). A link to a
-    renamed or missing file is a dead end on a reader's page."""
-    import re  # noqa: PLC0415
-
-    issues = REPO_ROOT / "docs" / "issues"
-    if not any(issues.iterdir()):
-        # The mutation-witness shadow carries docs/issues/ empty on purpose
-        # (scripts/run_mutation_witness_tests.mjs, SHADOW_EMPTY_DIRS); a
-        # checkout never has it empty. Without this the whole python tier of
-        # this file is red in every shadow and none of its witnesses can run.
-        pytest.skip("docs/issues/ is empty: the mutation-witness shadow tree")
-    view = (REPO_ROOT / "apps" / "viewer" / "views" / "kinematic.js").read_text(
-        encoding="utf-8")
-    found = re.search(r'VA\.KINEMATIC_TRAVEL_DATUM_ISSUE =\s*"([^"]+)"', view)
-    assert found, "the constant is not declared where the test looks for it"
-    assert (REPO_ROOT / found.group(1)).is_file(), found.group(1)

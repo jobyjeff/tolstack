@@ -5208,6 +5208,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md`).
       A skipped `[real]` line in a review record is not a pass. Arm the tier,
       or say it was not run.
+      **Third sighting 2026-11-03:** the slide re-author's node `face` field,
+      plus four layout pins and a node declaring a part no incident edge
+      carries — six reds, found by the *next* review
+      (`ISSUE_20261103_the_slide_re_author_left_six_viewer_real_checks_red_on_integration.md`).
+      To tell an inherited red from your merge's: `git archive integration`
+      into a `%TEMP%` dir, `git init` + one commit there (the freshness check
+      needs a git tree), junction `data/inbox`, `data/meshes`, `venv-win`,
+      `node_modules`, build the four projections, run `run_tests.cjs --repo`.
+- [ ] **A merge conflict in a layout or graph-count pin: re-derive it from the
+      MERGED topology, never take a side.** New 2026-11-03
+      (`each_stop_is_its_own_stack` over the slide re-author): both branches
+      re-pinned crossings / columns / rows / the graph sentence for their own
+      edits, and the merged graph matched neither (16/70/50 on 14 columns, 178
+      rows, 79 interfaces vs the sides' 16/68/52 on 11 and 20/97/50 on 14).
+      `B.layout_crossings(B.serialize_topology(load_topology(...)))` and
+      `tests/test_topology.py::_COUNTABLES` give the numbers in one call; the
+      non-conflicting `[real]` pins (leaders, bands, forks, README totals) move
+      too, so run the tier after.
 - [ ] **An annotator heuristic justified by a universal claim about the
       topology's wording.** New 2026-10-29 (`a_face_is_picked_the_way_cad_picks_it`).
       `AA.pickEndPartIds` arms the node's `parts[0]` on the strength of "all 35
@@ -5369,6 +5387,115 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `if (lit) views.push(...)` adds none. Re-derive the configuration count
       from the projection yourself. The lesson said 540; the tree gives 564
       (`ISSUE_20261030_the_all_topology_leader_test_does_not_prove_a_kinematic_view_was_drawn.md`).
+- [ ] **A diff that changes what a banner or notice SAYS: grep the browser tier
+      for every reader of the old words.** New 2026-11-02
+      (`the_browser_tier_is_green_on_trunk_again`). `c21a06bb` moved the
+      annotator's failed-write banner to `AA.bindFailureWords(...)` and put
+      `AA.READ_ONLY_WRITE` on hover. It edited the browser tier too, but missed
+      `annotate hosted posture`'s `#notice-text` substring check, which then sat
+      red on integration and trunk for three days. `git grep -n
+      "<constant>\|#notice-text" scripts/run_viewer_browser_tests.mjs` per
+      changed string, and expect each hit in the diff.
+- [ ] **A transition probe that clicks from Playwright and THEN samples.**
+      Same handoff. `locator.click()` returns only once the main thread is
+      free, and on the product graph one respine frame takes 0.1–1.2 s, so the
+      sampler could start after the transition had settled. The fix is to click
+      inside the `page.evaluate` whose rAF loop samples (`catchFrame(selector)`,
+      `caughtMidFlight`). A new in-flight check written the old way is that
+      race again.
+- [ ] **A diff that MERGES or DROPS scene elements re-maps some of the
+      channels that address them by id, not all.** New 2026-11-03
+      (`REVIEW_20261103_coaxial_ends_share_one_3d_node`): joint members were
+      re-mapped for selection, focus, the lit set and the anchors message
+      (`dotOf`, `members`), but `model.emphasis` — the edge id a grid row's
+      hover posts as `highlight` — still resolves only through `model.lines`,
+      so the joint's own internal edge row lights nothing in 3D. List every
+      inbound channel (`setModelStyle`'s `nodes`/`emphasis`, `setModelSelection`,
+      `_focus`, `highlight`, `modelScreenPoints`) and ask of each what it does
+      with a merged or dropped id.
+
+- [ ] **A gap edge renamed, added or removed reddens a PYTEST `[real]` test
+      that has no freshness gate.** New 2026-11-03
+      (`the_slide_joint_is_the_mounts_bushings_against_the_piston_body`).
+      `tests/test_contact_suggestions.py::test_real_the_live_projection_has_the_schema_and_a_row_per_gap_edge`
+      pairs the tree's gap edges with the main checkout's projection and
+      checks nothing about which tree built that projection. So it is red on
+      the branch, on your merged tree, and on `integration` until the batch
+      merge rebuild. Charge that red to the missing gate, not to the diff:
+      confirm the diff in the assertion is exactly the renamed edge
+      (`ISSUE_20261103_the_contact_suggestions_real_test_pairs_this_tree_with_a_projection_built_from_another.md`).
+      Same review: a data-only fact about a part (here "213668-002 has no
+      recorded occurrence") lives in topology `note`s and in
+      `docs/ANNOTATION_SURFACE.md` as well as in the README the author fixed.
+      `git grep -n "<part id>\|<drawing no>"` over `docs/` and the topology
+      notes.
+- [ ] **A topology or builder change whose review leaves the viewer `[real]`
+      tier "for the batch-merge rebuild" puts `integration` red, and the next
+      review is the first to see it.** New 2026-11-03
+      (`a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there`). The
+      slide re-author's review listed the viewer and annotate `[real]` tiers
+      under "Not run". Built into a scratch root, that tier was **623/629** on
+      `integration` alone: four layout pins, one node declaring a part no
+      incident edge carries, and fixture drift
+      (`ISSUE_20261103_the_slide_re_author_leaves_six_viewer_real_checks_red_on_integration.md`).
+      The scratch-root recipe under "The two traps" costs about ten minutes, and
+      a `docs/topologies/` diff should not merge without it. When **your**
+      merged tree is red there, re-run the same tier from a
+      `git archive integration` export against the same scratch root before
+      you charge the reds to the diff.
+- [ ] **A retired view's helper, re-called from a new site with a hand-built
+      stub.** New 2026-11-04 (`the_kinematic_grid_is_a_stack_of_sub_stacks`,
+      should-fix, fixed inline). The retired `kmtable` passed whole rows to
+      `VA.kinematicGapCard`. The grid now passes `{ edge }` / `{ study }`, and
+      the card reads `row.name` for its title, so the card silently lost the
+      line naming its row. `if (card.title)` hides the gap, and no tier pins the
+      card's text. When a diff moves a helper's call site, list every field the
+      helper reads off its argument (`grep -n 'row\.' <helper>`) and check that
+      the new call supplies each one.
+- [ ] **Don't swap files into your worktree while one of your own tiers is
+      still reading it.** New 2026-11-04 (same review). To get an
+      `integration` baseline I checked `integration`'s `apps/viewer` and runner
+      out into the review worktree, ran the suites, and restored them. A
+      witness run I had started minutes earlier (`run_mutation_witness_tests.mjs`)
+      was still running there. This handoff's own specs reported "the mutation
+      no longer describes a place in the tree", and the run had to be thrown
+      away. Take the baseline from a `git archive integration` scratch export
+      (the entry above), or wait until every background tier has exited before
+      a checkout swap.
+- [ ] **A handoff that reorders the DAG's band can bury a click target under a
+      leader's hit strip, and only the merged tree shows it.** New 2026-11-04
+      (same review, the blocker). `VA.orderBand` rerouted the leaders. In the
+      DAG-zoom suite's "parked" pass, `elementFromPoint` at the centre of the
+      "Travel between end stops" sub-stack label returned
+      `path.rail__leaderhit`, and the label was unclickable. The check that saw
+      it (`afbdb3e7`) landed after the handoff was cut. When a diff moves
+      leaders or band order, read the "clicked N: …" line of that suite on the
+      MERGED tree. A label missing from the parked list is a hit-test defect,
+      not a flaky count.
+- [ ] **A browser witness that reports "the tier was red before the
+      mutation", or "another check reddened", may be measuring a flake, not a
+      decay.** New 2026-11-04 (`coaxial_ends_share_one_3d_node`, round 3). A
+      witness's clean run is one run of the whole suite, so any intermittent
+      sub-check in that suite can blind every entry in it. On that round the
+      gate reported a model-layer spec "another check reddened" and the
+      branch's own fan-in spec "red before the mutation". Each was WITNESSED on
+      a plain `--only` re-run. The red in the second case was
+      `a row the scene marks selected…`, which was red in 1 of 4 runs on
+      `integration` alone
+      (`ISSUE_20261104_the_scene_tree_pick_leaders_check_is_flaky.md`). So
+      re-run a not-witnessed browser entry with `--only` once, and read
+      **which** sub-check was red in its clean run, before you charge a decay
+      to the diff. If the same sub-check is red again, measure its rate on
+      `integration` alone, as the entry above says.
+- [ ] **A retired visual channel lives on in the comments around it.** New
+      2026-11-04 (`the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`):
+      the diff took confidence colour off the DAG bar and rewrote the bar's
+      own rule comment, but three neighbouring `topology.css` comments still
+      said the bar "keeps its provenance HUE", "carries every provenance
+      colour" and "an untraced bar … is still unmistakably red" (fixed
+      inline). When a channel goes, grep the whole stylesheet and the tests'
+      message strings for its old words (`provenance`, `conf--`, the removed
+      class names), not just the rule it was on.
 
 ## Architectural errors to check
 

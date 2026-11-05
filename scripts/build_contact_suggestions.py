@@ -166,9 +166,9 @@ def _end(topology, edge, node_id: str, store: Store) -> Dict[str, Any]:
     ``scripts/propose_bindings.py`` calls it, so a candidate's face on this end
     is never one that script would refuse for its shape."""
     node = next(n for n in topology.nodes if n.id == node_id)
-    part = node.parts[0] if node.parts else None
+    part = node.face_part if node.parts else None
     mesh = store.resolve(part)
-    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id)
+    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id, node.face_surface)
     row: Dict[str, Any] = {"node": node_id, "part": part, "mesh": None,
                            "asks": rule["surface"] if rule else None}
     if mesh:
