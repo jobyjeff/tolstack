@@ -4716,7 +4716,12 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
               td.classList.contains("num") || td.classList.contains("tvcell--part") ||
               !(td.getAttribute("title") || (td.querySelector("[title]") || {}).title))
               .map((td) => `${td.className.replace(/^tvcell /, "")} ${JSON.stringify(td.textContent.trim())} ` +
-                `${td.scrollWidth}/${td.clientWidth}`) };
+                `${td.scrollWidth}/${td.clientWidth}`)
+              // A header word is never cut either: it names the column.
+              .concat([...document.querySelectorAll("#topopane th")]
+                .filter((th) => th.scrollWidth > th.clientWidth + 0.5)
+                .map((th) => `header ${JSON.stringify(th.textContent.trim())} ` +
+                  `${th.scrollWidth}/${th.clientWidth}`)) };
         });
         cells += r.n;
         r.bad.forEach((b) => clipped.push(`${id}: ${b}`));

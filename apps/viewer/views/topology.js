@@ -1319,8 +1319,9 @@
     // The sweep's sensitivity on a kinematic page (`coefficient`, signed, in
     // the measure's units per the band's); a chain study's ratio, 1 for an
     // unscaled edge -- so the two kinds of study share one column set
-    // (the_kinematic_grid_is_a_stack_of_sub_stacks).
-    { cls: "sensitivity", label: "sensitivity", width: 76 },
+    // (the_kinematic_grid_is_a_stack_of_sub_stacks). Its header word, set in
+    // the header's capitals, is the column's widest text.
+    { cls: "sensitivity", label: "sensitivity", width: 92 },
     // A chain row prints its weight and its signed band, and a stack's total
     // its fold and its RSS (`±2.355 deg · RSS ±1.034`). The longest is a
     // kinematic term's `+ 1.953125 × -0.029297 … 0.029297 deg`, 264px.
