@@ -180,18 +180,27 @@ try {
   // shot shows its stub, its rail and its leader lighting (the first pin on
   // the page was an unlit one, and its hover showed nothing). The pointer
   // goes to the pin's own centre, and what lit is recorded.
+  // The kinematic band visits the pitch plate twice, so it is two blocks
+  // there (ISSUE_20261106_a_part_the_kinematic_stack_visits_twice_is_two_
+  // blocks.md): the one with a lit rail-side pin is the one shot, marked
+  // `data-shot` for the crop.
   const target = await page.evaluate(() => {
-    const block = document.querySelector('rect.tv__block[data-block="pitch_plate_215177_001"]');
-    if (!block) return null;
-    const bb = block.getBoundingClientRect();
-    const pins = Array.from(document.querySelectorAll("circle.rail__dot--pin.rail__dot--on"))
-      .filter((c) => !c.closest(".tv__ghost"))
-      .map((c) => ({ id: c.getAttribute("data-id"), b: c.getBoundingClientRect() }))
-      .filter(({ b }) => b.top >= bb.top && b.bottom <= bb.bottom &&
-        Math.abs((b.left + b.right) / 2 - bb.left) < 3);
-    if (!pins.length) return null;
-    const { id, b } = pins[0];
-    return { id, x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, leftPins: pins.length };
+    const blocks = Array.from(document.querySelectorAll(
+      'rect.tv__block[data-block="pitch_plate_215177_001"]')).filter((r) => !r.closest(".tv__ghost"));
+    for (const block of blocks) {
+      const bb = block.getBoundingClientRect();
+      const pins = Array.from(document.querySelectorAll("circle.rail__dot--pin.rail__dot--on"))
+        .filter((c) => !c.closest(".tv__ghost"))
+        .map((c) => ({ id: c.getAttribute("data-id"), b: c.getBoundingClientRect() }))
+        .filter(({ b }) => b.top >= bb.top && b.bottom <= bb.bottom &&
+          Math.abs((b.left + b.right) / 2 - bb.left) < 3);
+      if (!pins.length) continue;
+      block.setAttribute("data-shot", "1");
+      const { id, b } = pins[0];
+      return { id, x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, leftPins: pins.length,
+               blocks: blocks.length };
+    }
+    return null;
   });
   record.hover = target;
   if (target) {
@@ -204,7 +213,7 @@ try {
       bars: document.querySelectorAll("#topopane .rail__bar--hot, #topopane .rail__bar--lead").length,
       rows: document.querySelectorAll("#topopane tr.tvrow--hot, #topopane tr[class*='--lead']").length,
     }));
-    await dagShot(page, "pitch_plate_block_hover_pin.png", 'rect.tv__block[data-block="pitch_plate_215177_001"]');
+    await dagShot(page, "pitch_plate_block_hover_pin.png", "rect.tv__block[data-shot]");
     await page.mouse.move(5, 5);
   }
   // A scaled length mode: lengths win over the aspect band.
