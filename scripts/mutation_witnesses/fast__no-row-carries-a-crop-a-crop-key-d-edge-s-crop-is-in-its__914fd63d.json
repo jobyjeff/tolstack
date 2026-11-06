@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "no row carries a crop: a crop-key'd edge's crop is in its Preview, and an edge with no key says why there",
+  "mutations": [
+    {
+      "contract": "A row's crop is in its Preview.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). The Preview stops drawing the crop figure.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    box.appendChild(VA.cropFigure(entry, image, \"detail__crop-img\"));",
+      "replace": ""
+    }
+  ]
+}

@@ -237,8 +237,17 @@ export const DECLARED_GUARDS = {
   // marks, the remembered view settings and the width, the view popover, the
   // sourcing legend's named tints, and the scene's tint verb from the page.
   // Each carries a spec. (Re-measured at the review merge on integration's
-  // 632: 642.)
-  fast: { declared: 644, enrollable: 644, names: "243199eb9d55" },
+  // 632: 642.)  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: +2. Three added -- the brackets nest, a part's number and
+  // description are two columns, every row's part cell selects its row; the
+  // two crop-thumbnail guards became one (no row carries a crop; its crop is
+  // in the Preview). Renamed: the row-tint render check, the jog grip's seam,
+  // the bar's one channel, the gap row's mark and the live study's grid. Each
+  // carries a spec; the old names' specs are deleted.
+  // Merged with integration (review round 2, 2026-11-06): 644 + 2 - 1 -- the
+  // sourcing legend's named tints is retired with its spec, since no grid row
+  // wears a tint for it to name.
+  fast: { declared: 645, enrollable: 645, names: "f5bb10e43e69" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -414,8 +423,21 @@ export const DECLARED_GUARDS = {
   // the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
-  // the overlay on the bars and survives a reload. Each carries a spec.
-  browser: { declared: 836, enrollable: 803, names: "db826d6de861" },
+  // the overlay on the bars and survives a reload. Each carries a spec.  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: -1. Three crop-on-the-row checks became one (no grid row
+  // draws a crop) and one more went (an edge with no crop key's empty cell);
+  // one added -- at 1600x1000 every row's part cell takes the click. The
+  // sticky-rails checks are inverted and renamed (the rails scroll with the
+  // grid now), as are the row-tint, component-cell, thumbnail and stack
+  // checks. A study's landing keeps the band inside the pane rather than
+  // centring it sideways, so its two landing checks are renamed. The
+  // part-cell check, both scroll checks, the stack check and both landing
+  // checks carry a spec; the sticky spec is deleted.
+  // Merged with integration (review round 2, 2026-11-06): 836 - 1, then +2 --
+  // no grid number and no part number clips, totals rows included; a pane
+  // narrowed with no repaint takes its zoom box's floor with it. Each carries
+  // a spec.
+  browser: { declared: 837, enrollable: 804, names: "2888e79c1f21" },
 };
 
 

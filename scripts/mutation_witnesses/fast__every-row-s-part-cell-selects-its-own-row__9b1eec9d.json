@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every row's part cell selects its own row",
+  "mutations": [
+    {
+      "contract": "A row's part cell is part of the row and passes its click on.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Gives the cell the click-swallowing handler the merged COMPONENT cell had.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var number = VA.el(\"td\", \"tvcell tvcell--part\", words ? words.number : \"\");",
+      "replace": "    var number = VA.el(\"td\", \"tvcell tvcell--part\", words ? words.number : \"\");\n    number.onclick = function (e) { if (e && e.stopPropagation) e.stopPropagation(); };"
+    }
+  ]
+}

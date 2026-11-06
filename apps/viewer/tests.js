@@ -4327,10 +4327,14 @@
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ topoProj: mini }));
         });
-        var cells = all(root, "td.tvcell--component");
-        eq(cells.length, 1);
-        eq(cells[0].getAttribute("rowspan"), "2");
+        // One PART/DESCRIPTION pair per row, the words on the group's first
+        // row only (the_grid_fits_the_screen_and_its_brackets_say_what_nests_
+        // in_what): every row's part cell is its own, so it selects its row.
+        var cells = all(root, "td.tvcell--description");
+        eq(cells.length, 2);
+        eq(cells[0].getAttribute("rowspan"), null);
         eq(cells[0].textContent, "one part");
+        eq(cells[1].textContent, "");
         eq(all(root, "path.rail__leader").length, 0);
       });
 
@@ -5361,14 +5365,12 @@
         });
         ok(pictures >= 3, "the walk must not be vacuous: " + pictures +
            " pictures over " + surfaces.length + " surfaces");
-        // The grid's inline thumbnail is the one crop image on this page that
-        // is NOT a cropFigure, and it deliberately carries no launcher of its
-        // own: pointing at its row previews the crop in the Preview, whose
-        // figure has one. Stated here so the decision is pinned rather than
-        // remembered.
+        // The grid shows no crop at all since 2026-11-05 (the_grid_fits_the_
+        // screen_and_its_brackets_say_what_nests_in_what: Jeff, "the crops are
+        // way too small to even see what's going on anyways"): pointing at a
+        // row previews its crop in the Preview, whose figure has a launcher.
         var grid = surfaces[0][1];
-        ok(all(grid, "img.tvthumb").length >= 1,
-           "the grid must still render inline thumbnails");
+        eq(all(grid, "img").length, 0, "the grid draws no crop image");
         eq(all(grid, "button.cropfig__launch").length, 0);
       });
 
@@ -6399,8 +6401,8 @@
     // cannot see it. Each of these dies under a one-line revert of its own
     // wiring.
 
-    await test("the RENDER keeps the jog zone's bands on their parity and tints each grid " +
-      "row with its body's own tint, the one its DAG container is filled with", function () {
+    await test("the RENDER keeps the jog zone's bands on their parity, and a grid row " +
+      "wears no tint: its body is a bracket, drawn from VA.gridBraces", function () {
         // The demo declares no bodies, so this copy puts its first half in one
         // and the rest in another.
         var topo = JSON.parse(JSON.stringify(TOPO));
@@ -6423,29 +6425,27 @@
              "band " + i + " wears its own parity");
         });
 
-        // The grid rows wear their BODY's tint (the_kinematic_grid_is_a_stack_
-        // of_sub_stacks): the index VA.bodyTint gives the DAG's container for
-        // that body, and the marks VA.gridRowMarks computes, nothing else.
-        var marks = VA.gridRowMarks(plan, topo);
+        // No row wears a tint (the_grid_fits_the_screen_and_its_brackets_say_
+        // what_nests_in_what): a body that holds more than one part is a
+        // bracket over its rows, one pair of caps per VA.gridBraces entry.
+        var model = VA.gridBraces(plan, {});
         var rows = all(root, "tr.tvrow");
         eq(rows.length, plan.rows.length);
-        var tints = {};
         rows.forEach(function (row, i) {
-          var id = row.getAttribute("data-id");
-          var planRow = plan.rows[i];
-          eq(planRow.id, id, "the rows are the plan's, in order");
-          var want = planRow.body === null ? "tvrow--body-none"
-            : "tvrow--body-t" + VA.bodyTint(topo, planRow.body);
-          ok(hasClass(row, want), id + " wears " + want);
-          marks[id].split(" ").forEach(function (cls) { ok(hasClass(row, cls), id + " " + cls); });
-          ok(!hasClass(row, "tvrow--band-a") && !hasClass(row, "tvrow--band-b"),
-             id + ": a row's tint is its body's, never the band parity's");
-          tints[want] = true;
+          eq(plan.rows[i].id, row.getAttribute("data-id"), "the rows are the plan's, in order");
+          ok(!/tvrow--body-|tvrow--divide-|tvrow--band-|conf--/.test(row.className),
+             row.getAttribute("data-id") + " wears no tint: " + row.className);
         });
-        // Non-vacuity: more than one body's tint is on screen.
-        ok(Object.keys(tints).length > 1, "rows of different bodies wear different tints");
-        ok(all(root, "tr.tvrow--divide-body").length > 0, "a heavier rule where the body changes");
-        // ...and a body's tint is the DAG container's: one token per index.
+        var bodies = model.braces.filter(function (b) { return b.kind === "body"; });
+        ok(bodies.length > 0, "a body of several parts is bracketed");
+        var caps = all(root, "div.tvbrace");
+        eq(caps.length, 2 * model.braces.length, "two caps per bracket");
+        bodies.forEach(function (body) {
+          eq(caps.filter(function (c) {
+            return c.getAttribute("data-brace") === body.id && hasClass(c, "tvbrace--body");
+          }).length, 2, body.id + " has its two caps");
+        });
+        // ...and a body's tint is still the DAG container's: one token per index.
         eq(VA.bodyTint(topo, "back"), 1);
       });
 
@@ -6582,23 +6582,18 @@
     // is drawn is arithmetic and not a constant. The two functions below are
     // that arithmetic; the browser tier drags the real grips at the real pane
     // widths, which is the claim these cannot make.
-    await test("the jog grip rides the seam, clamped into the pane when the " +
-      "DAG is wider than the pane shows", function () {
+    await test("the jog grip rides the seam, wherever the pane is: the seam " +
+      "scrolls with the strip, so there is nothing to clamp it into", function () {
         var G = VA.TOPO_GRIP;
-        // The plain case: the seam, less the hairline's own offset inside the
-        // grip, so the hairline lands ON the boundary.
+        // The seam, less the hairline's own offset inside the grip, so the
+        // hairline lands ON the boundary -- at every pane width, since the
+        // rails stopped being sticky (the_grid_fits_the_screen_and_its_
+        // brackets_say_what_nests_in_what) and a seam off the pane's right
+        // edge is reached by scrolling, like the rest of the strip.
         eq(VA.jogGripInset(316, 868), 316 - G.half);
-        // No layout to clamp against (the DOM shim) reads as "do not clamp".
         eq(VA.jogGripInset(316, 0), 316 - G.half);
-        eq(VA.jogGripInset(316, undefined), 316 - G.half);
-        // A pane narrower than the DAG: pinned one grip's width clear of the
-        // ELEMENT grip's own right-hand pin, so the two never stack.
-        eq(VA.jogGripInset(316, 298), 298 - 2 * G.width);
-        ok(VA.jogGripInset(316, 298) <
-           VA.columnGripLeft(316 + 408, 0, 298) - G.width + 1,
-           "the jog grip stays left of the column grip's pin");
-        // ...and never off the pane's own left edge, however narrow it gets.
-        eq(VA.jogGripInset(316, 4), 0);
+        eq(VA.jogGripInset(316, 298), 316 - G.half);
+        eq(VA.jogGripInset(316, 4), 316 - G.half);
       });
 
     await test("a column grip rides its own boundary while that boundary is " +
@@ -6744,7 +6739,8 @@
             var cols = widths(root, "table");
             eq(cols[0], cols[1], "the two tables' <col> widths cannot disagree");
             eq(cols[0], VA.TOPO_COLUMNS.map(function (c) { return c.width + "px"; }));
-            eq(cols[0][2], expected + "px", "the ELEMENT column");
+            eq(cols[0][VA.TOPO_COLUMNS.indexOf(VA.topoColumn("name"))], expected + "px",
+               "the ELEMENT column");
             var total = VA.TOPO_COLUMNS.reduce(function (s, c) { return s + c.width; }, 0);
             tables.forEach(function (t) { eq(t.style.width, total + "px"); });
           };
@@ -8511,24 +8507,73 @@
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         eq(all(root, "table.tvtable").length, 1);
         eq(all(root, "tr.tvrow").length, TOPO.edges.length);
-        // Real headers (deliverable 2): <th>, not a styled div — and the
-        // merged component column is the leftmost of them.
-        eq(all(root, "th.tvcell--component").length, 1);
-        has(all(root, "th.tvcell--component")[0].textContent, "component");
+        // Real headers (deliverable 2): <th>, not a styled div -- PART and
+        // DESCRIPTION the leftmost of them, in that order.
+        var heads = all(root, "th.tvcell");
+        eq(heads.length, VA.TOPO_COLUMNS.length);
+        ok(hasClass(heads[0], "tvcell--part") && hasClass(heads[1], "tvcell--description"),
+           "PART, then DESCRIPTION");
+        has(heads[0].textContent, "part");
+        has(heads[1].textContent, "description");
         eq(all(root, "th.tvcell--nominal").length, 1);
         has(all(root, "th.tvcell--nominal")[0].textContent, "nominal");
         eq(all(root, "th.tvcell--min").length, 1);
         eq(all(root, "th.tvcell--max").length, 1);
-        // One merged cell per group, each spanning its own count.
-        var cells = all(root, "td.tvcell--component");
-        eq(cells.length, 6);
+        // Every row has its own pair; the words are on a part's first row.
+        eq(all(root, "td.tvcell--part").length, TOPO.edges.length);
+        var said = all(root, "td.tvcell--description").filter(function (c) {
+          return c.textContent;
+        });
+        eq(said.length, 6);
         // Human names, never part ids (Jeff, 2026-09-15: "2nd line
         // bolt_nas6403u11d appears to be some type of internal id that is
         // meaningless to user ... replace these with a concise human friendly
         // name").
-        eq(cells.map(function (c) { return c.textContent; }),
+        eq(said.map(function (c) { return c.textContent; }),
           ["base plate", "post", "arm", VA.GAP_COMPONENT_LABEL,
            "parallel strut", "post"]);
+      });
+
+    await test("a part's number and its description are two columns, out of the " +
+      "part record, whichever way round its name puts them", function () {
+        // Jeff, 2026-11-05: "half of the Component column start with
+        // PN/Description, and the other half are Description/PN".
+        eq(VA.partColumns({ id: "m", name: "213668-002 gas-spring mount", drawing: "213668-002" }),
+          { number: "213668-002", description: "gas-spring mount" });
+        eq(VA.partColumns({ id: "l", name: "pitch link assembly", drawing: "213862-002",
+                            display_name: "Pitch link 213862-002" }),
+          { number: "213862-002", description: "Pitch link" });
+        // The record wins where the name's title block names another drawing
+        // (the installation's 215177-001, the detail's 215735).
+        eq(VA.partColumns({ id: "p", name: "pitch plate", drawing: "215177-001",
+                            display_name: "Pitch plate 215735-001/-002" }),
+          { number: "215177-001", description: "Pitch plate" });
+        eq(VA.partColumns({ id: "b", name: "NAS6403U11D hex-head bolt" }),
+          { number: "NAS6403U11D", description: "hex-head bolt" });
+        // No number in the name: the drawing's, else none.
+        eq(VA.partColumns({ id: "a", name: "pitch arm", drawing: "215071-001" }),
+          { number: "215071-001", description: "pitch arm" });
+        eq(VA.partColumns({ id: "g", name: "gas spring" }),
+          { number: "", description: "gas spring" });
+        eq(VA.partColumns(null), { number: "", description: VA.GAP_COMPONENT_LABEL });
+      });
+
+    await test("every row's part cell selects its own row", function () {
+        var picked = [];
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ onSelect: function (kind, id) {
+            picked.push(kind + ":" + id);
+          } }));
+        });
+        var rows = all(root, "tr.tvrow--edge");
+        ok(rows.length > 1);
+        rows.forEach(function (row) {
+          var cell = row.querySelector("td.tvcell--part");
+          ok(cell, row.getAttribute("data-id") + " has a part cell");
+          ok(!cell.onclick, "the cell does not swallow its row's click");
+          row.onclick();
+        });
+        eq(picked, rows.map(function (r) { return "edge:" + r.getAttribute("data-id"); }));
       });
 
     await test("the value cell is decomposed into nominal / min / max columns, " +
@@ -8546,68 +8591,34 @@
         eq(derived.querySelector("td.tvcell--nominal").textContent, "");
       });
 
-    await test("a thumbnail sits on the row for every crop-key'd edge, " +
-      "and on no others", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        function rowFor(id) {
-          return all(root, "tr.tvrow").filter(function (n) {
-            return n.getAttribute("data-id") === id;
-          })[0];
-        }
-        // demo_joint/plate resolves, /washer is unresolvable, /eye predates the
-        // crops fixture (no-entry) — all three still earn a trigger, because a
-        // crop_key is what decides whether one is offered, not its status.
-        has(rowFor("base_thickness").querySelector("span.crop-trigger--resolved")
-          .textContent, "drawing crop");
-        has(rowFor("post_height").querySelector("span.crop-trigger--unresolvable")
-          .textContent, "no crop");
-        ok(rowFor("strut_length").querySelector("span.crop-trigger--no-entry"),
-          "a crops.json older than the stack still gets a trigger, saying so");
-        // No crop_key at all (authored inline, or a derived gap): no trigger —
-        // showing one would read as a stale index rather than what it is.
-        eq(rowFor("arm_pin_to_tip").querySelector("span.crop-trigger"), null);
-        eq(rowFor("post_bushing_offset").querySelector("span.crop-trigger"), null);
-        eq(rowFor("tip_to_strut_end").querySelector("span.crop-trigger"), null);
-      });
-
-    await test("a fetched crop upgrades its cell to the actual thumbnail " +
-      "image; an unfetched or unresolved one never shows a placeholder",
-      function () {
-        // The resolved demo crop's PNG, pre-fetched the way topology_app.js's
-        // ensureThumbImages caches it (png path -> { url }).
+    await test("no row carries a crop: a crop-key'd edge's crop is in its " +
+      "Preview, and an edge with no key says why there", function () {
+        // Jeff, 2026-11-05: "the crops are way too small to even see what's
+        // going on anyways" -- the CROP column left the grid
+        // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
         var entry = VA.cropFor(TOPOCROPS, "demo_joint", "plate");
-        eq(entry.status, "resolved");
         var images = {};
         images[entry.png] = { url: "blob:demo" };
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ cropImages: images }));
         });
-        function rowFor(id) {
-          return all(root, "tr.tvrow").filter(function (n) {
-            return n.getAttribute("data-id") === id;
-          })[0];
-        }
-        var thumb = rowFor("base_thickness")
-          .querySelector("span.crop-trigger--thumb");
-        ok(thumb, "the resolved+fetched crop renders as a thumbnail trigger");
-        var img = thumb.querySelector("img.tvthumb");
-        ok(img, "and the thumbnail is the actual image");
-        eq(img.getAttribute("src"), "blob:demo");
-        // Unresolvable stays the stateful text button — a thumbnail-shaped
-        // placeholder would read as "not built yet", which is a different fact.
-        var washer = rowFor("post_height").querySelector("span.crop-trigger");
-        eq(washer.querySelector("img"), null);
-        has(washer.textContent, "no crop");
-        // Resolved but NOT fetched (no cache entry): still the text button,
-        // never a broken <img>.
-        var cold = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ cropImages: {} }));
-        });
-        var coldTrigger = all(cold, "tr.tvrow").filter(function (n) {
-          return n.getAttribute("data-id") === "base_thickness";
-        })[0].querySelector("span.crop-trigger--resolved");
-        eq(coldTrigger.querySelector("img"), null);
-        has(coldTrigger.textContent, "drawing crop");
+        eq(all(root, "td.tvcell--crop").length, 0);
+        eq(all(root, "span.crop-trigger").length, 0);
+        eq(all(root, "img").length, 0);
+        var pane = function (id) {
+          return render(function (r) {
+            VA.renderTopoDetail(r, topoCtx({ cropImages: images,
+              selection: { kind: "edge", id: id } }));
+          });
+        };
+        var plate = pane("base_thickness");
+        var crop = all(plate, "div.detail__crop--resolved");
+        ok(crop.length === 1, "the resolved crop");
+        eq(all(crop[0], "img")[0].getAttribute("src"), "blob:demo");
+        ok(all(pane("post_height"), "div.detail__crop--unresolvable").length === 1,
+           "an unresolvable crop says so");
+        ok(all(pane("arm_pin_to_tip"), "div.detail__crop--no-key").length === 1,
+           "an edge with no crop key says why");
       });
 
     // --- is there a 3D model of this part? (annotate_affordances_flyout_and_
@@ -9178,7 +9189,7 @@
       });
 
     await test("a bar says only lit or unlit: it wears no confidence, a gap is " +
-      "dashed, and the grid's chip is where its sourcing is", function () {
+      "dashed, and the grid's mark is where its sourcing is", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var bars = all(root, "line.rail__bar");
         ok(bars.length > 0, "the demo mechanism draws its bars");
@@ -9186,9 +9197,9 @@
           return /(^| )conf--/.test(n.getAttribute("class"));
         }).length, 0, "no bar carries a confidence class");
         // The demo mechanism holds one of each confidence on purpose, and the
-        // grid still says every one of them on its chip.
-        eq(all(root, "tr.conf--untraced").length + all(root, "span.conf--untraced").length > 0,
-           true, "the untraced edge is still said, in the grid");
+        // grid still says the untraced one, on its row's mark.
+        ok(all(root, "span.tvmark--untraced").length > 0,
+           "the untraced edge is still said, in the grid");
         eq(bars.filter(function (n) { return hasClass(n, "rail__bar--gap"); }).length,
            TOPO.edges.filter(function (e) { return e.kind === "gap"; }).length,
            "every gap is dashed, and nothing else is");
@@ -9199,9 +9210,17 @@
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var derived = all(root, "tr.tvrow--derived");
         eq(derived.length, 1);
-        has(derived[0].textContent, "DERIVED");
-        has(derived[0].textContent, "no value");
+        // On the row: its mark says it has no value, its description that it
+        // is a clearance; DERIVED is said in its Preview, with the rest.
+        var mark = derived[0].querySelector("span.tvmark");
+        ok(mark && hasClass(mark, "tvmark--no_value"), "the row's mark is no-value");
+        has(mark.getAttribute("title"), "no value");
         has(derived[0].textContent, "across a clearance");
+        var pane = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: derived[0].getAttribute("data-id") } }));
+        });
+        has(pane.textContent, "DERIVED");
         eq(all(root, "line.rail__bar--derived").length, 1);
       });
 
@@ -11369,7 +11388,7 @@
       });
 
     await test("edge-value-only mode hides an edge row's own label and moves " +
-      "it to the row's title, leaving the component column untouched", function () {
+      "it to the row's title, leaving the part columns untouched", function () {
         var index = VA.topologyIndex(TOPO);
         var edge = index.edges.base_thickness;
         ok(edge, "fixture must declare base_thickness");
@@ -11386,7 +11405,7 @@
         eq(edgeRow.getAttribute("title"), edge.name);
         // The merged component cell is grouping, not an edge label — the
         // toggle never touches it.
-        eq(edgeRow.querySelector("td.tvcell--component").textContent, "base plate");
+        eq(edgeRow.querySelector("td.tvcell--description").textContent, "base plate");
 
         // A row the projection cannot resolve still states its own diagnostic
         // regardless of mode -- that text is never redundant and must not be
@@ -11858,7 +11877,7 @@
         eq(cols.indexOf("sensitivity") + 1, cols.indexOf("contribution"));
       });
 
-    await test("a gap row's chip opens a card naming what to read for its band, " +
+    await test("a gap row's mark opens a card naming what to read for its band, " +
       "and whether a copy is on file", function () {
         var model = VA.kinematicTable(KIN_STUDY, KIN_TOPOLOGIES.topologies[0], 3);
         var post = model.rows[3];
@@ -11880,13 +11899,14 @@
         var g = kinematicGrid(drawn,
           { onCardShow: function (c, trigger) { shown.push([c, trigger]); } });
         var gapRow = g.rows.filter(function (r) { return r.getAttribute("data-id") === "post_height"; })[0];
-        var chip = all(gapRow, "span.chip--gap").filter(function (c) {
-          return c.textContent === VA.KINEMATIC_ROW_KINDS.gap.flag;
+        var chip = all(gapRow, "span.tvmark").filter(function (c) {
+          return c.getAttribute("title") === VA.KINEMATIC_ROW_KINDS.gap.flag;
         })[0];
-        ok(hasClass(chip, "cardtrig"), "the gap chip is a card trigger");
+        ok(chip && hasClass(chip, "tvmark--no_value"), "the row's mark says it has no band");
+        ok(hasClass(chip, "cardtrig"), "the gap mark is a card trigger");
         chip.onmouseenter();
         eq(shown[0][0].kind, "gap");
-        ok(shown[0][1] === chip, "the card is placed against its chip");
+        ok(shown[0][1] === chip, "the card is placed against its mark");
         var rendered = render(function (r) {
           VA.renderHoverCard(r, shown[0][0], {}, VA.CONFIG, null, null);
         });
@@ -12671,24 +12691,6 @@
           .some(function (o) { return o.value === "contribution"; }), "kinematic page");
       });
 
-    await test("the sourcing legend names every tint the grid's rows wear: the washes " +
-      "a row wears and each body's tint by its name", function () {
-        var proj = twoBodyProjection();
-        proj.edges[0].confidence = "untraced";
-        var plan = { rows: [{ id: "eA", body: "A" }, { id: "eB", body: "B" },
-                            { id: "h", header: {} }, { id: "eB2", body: "B" }] };
-        eq(VA.gridLegendTints(plan, proj), [
-          { wash: "untraced", label: "untraced row" },
-          { body: "A", tint: 0, label: "body a" },
-          { body: "B", tint: 1, label: "body b" }]);
-        eq(VA.gridLegendTints({ rows: [] }, proj), []);
-        var root = paintGroups(proj, [], null, { lit: VA.litSetOfEdges(proj, ["eA", "eB"]) });
-        var legend = all(root, "div.tvlegend")[0];
-        ok(legend, "a lit page has its legend");
-        eq(all(legend, "span.tvlegend__swatch").length, 3, "the wash and both bodies");
-        eq(legend.textContent.indexOf("wash"), -1, "no unnamed wash");
-      });
-
     await test("the scene is told each part's body colour in its own model verb", function () {
       var proj = twoBodyProjection();
       eq(VA.sceneTintCommand(proj, function (i) { return ["#112233", "#AABBCC"][i]; }),
@@ -13438,6 +13440,63 @@
         eq([bare.range, bare.rows[0].says], [null, null]);
       });
 
+    await test("the brackets nest: the study holds its sub-stacks, a sub-stack the ones " +
+      "inside it, and each is inset one level further than what holds it", function () {
+        // A hand-made plan in the shape VA.gridPlan hands a kinematic stack:
+        // two top-level sub-stacks, the second holding a nested one, a body of
+        // two parts inside the nested one, and a lone part.
+        var head = function (id, depth, parent, gap) {
+          return { id: "sub:" + id, header: { id: id, depth: depth, parent: parent, gap: !!gap } };
+        };
+        var term = function (id, parent, body) {
+          return { id: id, body: body, term: { parent: parent, depth: 1 } };
+        };
+        var rows = [
+          head("linkage", 0, null), term("a", "linkage", "arm"), term("b", "linkage", "link"),
+          head("position", 0, null), head("feather", 1, "position"),
+          term("c", "feather", "mount"), term("d", "feather", "mount"),
+          term("e", "feather", "mount"), head("anchor", 1, "position", true),
+        ];
+        var groups = [
+          { start: 0, count: 1, header: rows[0].header }, { start: 1, count: 1, part: "arm" },
+          { start: 2, count: 1, part: "link" }, { start: 3, count: 1, header: rows[3].header },
+          { start: 4, count: 1, header: rows[4].header }, { start: 5, count: 2, part: "mount_a" },
+          { start: 7, count: 1, part: "mount_b" }, { start: 8, count: 1, header: rows[8].header },
+        ];
+        var model = VA.gridBraces({ rows: rows, groups: groups }, { study: "kinematic", foot: 2 });
+        var by = {};
+        model.braces.forEach(function (b) { by[b.id] = b; });
+        eq([by.study.level, by.study.start, by.study.end], [0, 0, 10], "the study holds its foot");
+        eq([by.linkage.kind, by.linkage.level, by.linkage.start, by.linkage.end],
+           ["kinematic", 1, 0, 2]);
+        eq([by.position.level, by.position.start, by.position.end], [1, 3, 8]);
+        eq([by.feather.kind, by.feather.level, by.feather.start, by.feather.end],
+           ["chain", 2, 4, 7]);
+        eq([by.anchor.gap, by.anchor.level, by.anchor.start, by.anchor.end], [true, 2, 8, 8]);
+        // The mount body spans two parts, so it is bracketed; a one-part body
+        // is not, and its part boundary is a rule.
+        eq([by.mount.kind, by.mount.level, by.mount.start, by.mount.end], ["body", 3, 5, 7]);
+        eq(by.arm, undefined);
+        eq(model.rules, [{ row: 2, level: 2 }, { row: 7, level: 4 }]);
+        eq(model.braces.map(function (b) { return b.level; }),
+           model.braces.map(function (b) { return b.level; }).slice().sort(),
+           "outermost first");
+        eq(model.cover[6], 4, "a row inside the body sits inside four brackets");
+        // The pixels: an outer bracket is wider than every bracket it holds,
+        // and a cap's curl stays out of a row's text.
+        var geo = VA.braceGeometry(model, 26, 900);
+        var top = function (id) {
+          return geo.caps.filter(function (c) { return c.id === id && c.side === "top"; })[0];
+        };
+        ok(top("study").width > top("position").width &&
+           top("position").width > top("feather").width &&
+           top("feather").width > top("mount").width, "wider the further out");
+        ok(top("study").left < top("linkage").left, "inset one level");
+        ok(top("linkage").top > top("study").top, "two caps on one edge step apart");
+        ok(geo.curl <= (26 - VA.GRID_BRACE.text) / 2, "the curl clears a row's text");
+        ok(VA.braceGeometry(model, 16, 900).curl >= 2, "and is still a curl at compact");
+      });
+
     await test("a declared gap is a gap sub-stack: a dashed header with no terms, " +
       "'not yet authored' and no total, last in the stop's position", function () {
         var study = kinStackStudy({ gap: true });
@@ -13456,7 +13515,11 @@
         ok(row, "its row is drawn");
         ok(hasClass(row, "tvrow--gapstack"), "dashed");
         eq(row.getAttribute("aria-expanded"), null, "nothing to open");
-        eq(all(row, "span.chip--gap").length, 1);
+        eq(all(row, "span.tvmark--no_value").length, 1, "its mark says nothing is authored");
+        // ...and its bracket is dashed.
+        eq(all(g.root, "div.tvbrace--gap").filter(function (c) {
+          return c.getAttribute("data-brace") === "demo_anchor";
+        }).length, 2);
         eq(g.rows[g.rows.length - 1].getAttribute("data-substack"), "demo_anchor", "last");
         eq(VA.kinematicSubStacks(study, 3).map(function (s) { return s.id; }), ["demo_position"],
            "a gap spans no edges, so it draws no sub-stack on the DAG");
@@ -15352,19 +15415,21 @@
               rows.forEach(function (row, i) {
                 eq(row.getAttribute("data-id"), edgeOrder[i]);
               });
-              // Every non-internal node has its leader on screen; every group
-              // has its merged cell, spanning exactly its own rows.
+              // Every non-internal node has its leader on screen; every row
+              // has its own part cells, the words on its group's first row.
               eq(all(root, "path.rail__leader").length, plan.leaders.length,
                  topoProj.id);
-              var cells = all(root, "td.tvcell--component");
-              eq(cells.length, plan.groups.length, topoProj.id);
-              var spanned = 0;
-              cells.forEach(function (cell, i) {
-                var span = cell.getAttribute("rowspan");
-                eq(span === null ? 1 : Number(span), plan.groups[i].count);
-                spanned += plan.groups[i].count;
+              var cells = all(root, "td.tvcell--description");
+              eq(cells.length, topoProj.edges.length, topoProj.id);
+              var said = 0;
+              plan.groups.forEach(function (group) {
+                for (var k = 0; k < group.count; k++) {
+                  eq(cells[group.start + k].textContent !== "", k === 0,
+                     topoProj.id + " row " + (group.start + k));
+                }
+                said += 1;
               });
-              eq(spanned, topoProj.edges.length, topoProj.id);
+              eq(said, plan.groups.length, topoProj.id);
               // Nothing rendered as "the topology does not declare this id".
               eq(root.textContent.indexOf("does not declare"), -1, topoProj.id);
             });
@@ -15470,26 +15535,26 @@
             var rows = all(root, "tr.tvrow");
             eq(rows.length, plan.rows.length);
 
-            // The band polygons keep their parity; each ROW wears its body's
-            // tint since the_kinematic_grid_is_a_stack_of_sub_stacks -- the
-            // index the DAG's container for that body is filled with -- read
-            // off the DOM, so a renderer that tinted rows from anything else
-            // (the band, the row index, the group) fails here.
+            // The band polygons keep their parity; a ROW wears no tint since
+            // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what:
+            // a body of more than one part is a bracket over its rows.
             bands.forEach(function (band, i) {
               eq(hasClass(drawn[i], "rail__band--b") ? 1 : 0, band.parity, "band " + i);
             });
-            var tints = {};
             rows.forEach(function (row, r) {
-              var body = plan.rows[r].body;
-              var want = body === null ? "tvrow--body-none"
-                : "tvrow--body-t" + VA.bodyTint(livePitch, body);
-              ok(hasClass(row, want), "row " + r + " (" + row.getAttribute("data-id") + ") " + want);
-              ok(!hasClass(row, "tvrow--band-a") && !hasClass(row, "tvrow--band-b"),
-                 "row " + r + " wears no band parity");
-              tints[want] = true;
+              ok(!/tvrow--body-|tvrow--divide-|tvrow--band-|conf--/.test(row.className),
+                 "row " + r + " (" + row.getAttribute("data-id") + ") wears no tint");
             });
-            // Non-vacuous: the product model's rows are in several bodies.
-            ok(Object.keys(tints).length >= 4, "rows of several bodies, several tints");
+            var bodies = VA.gridBraces(plan, {}).braces.filter(function (b) {
+              return b.kind === "body";
+            });
+            // Non-vacuous: the product model has bodies of several parts.
+            ok(bodies.length >= 2, "bodies of several parts, bracketed: " + bodies.length);
+            bodies.forEach(function (b) {
+              eq(all(root, "div.tvbrace--body").filter(function (c) {
+                return c.getAttribute("data-brace") === b.id;
+              }).length >= 2, true, b.id + " is drawn");
+            });
           });
 
         // Every page the leaders are drawn on, as the page draws them: each
@@ -16597,14 +16662,19 @@
                 selection: null, onSelect: function () {},
               });
             });
-            var flagged = all(root, ".tvflag--unverified");
+            // One mark per row since the_grid_fits_the_screen_and_its_brackets_
+            // say_what_nests_in_what, in the state's colour, its words on hover.
+            var flagged = all(root, "span.tvmark--untraced").concat(
+              all(root, "span.tvmark--no_source_ref"));
             var unverified = livePitch.edges.filter(function (e) {
               return VA.needsAnnotation(e.confidence);
             });
             ok(unverified.length >= 1, "pitch_system has unverified edges");
             eq(flagged.length, unverified.length,
-               "one badge per unverified row, no more and no fewer");
-            has(root.textContent, VA.ATTENTION.unverified.text);
+               "one mark per unverified row, no more and no fewer");
+            flagged.forEach(function (m) {
+              ok(m.getAttribute("title"), "the mark's words are on its hover");
+            });
           });
 
         // The OTHER half of VA.edgeAttention, and it had nothing standing on
@@ -16630,9 +16700,11 @@
                 selection: null, onSelect: function () {},
               });
             });
-            eq(all(root, ".tvflag--no_tolerance").length, zeroWidth.length,
-               "one badge per zero-width row, no more and no fewer");
-            has(root.textContent, VA.ATTENTION.no_tolerance.text);
+            // The mark's words say it whatever the row's worst state is.
+            eq(all(root, "span.tvmark").filter(function (m) {
+              return (m.getAttribute("title") || "").indexOf(VA.ATTENTION.no_tolerance.text) !== -1;
+            }).length, zeroWidth.length,
+               "one zero-width word per zero-width row, no more and no fewer");
           });
 
         await test("[real] selecting a study marks its chain on the real rails",
@@ -17219,8 +17291,10 @@
                   onSelect: function () {},
                 });
               });
-              var rendered = all(root, "td.tvcell--component");
-              eq(rendered.length, plan.groups.length, topoProj.id);
+              var described = all(root, "td.tvcell--description");
+              var numbered = all(root, "td.tvcell--part");
+              var rendered = plan.groups.map(function (g) { return described[g.start]; });
+              eq(described.length, topoProj.edges.length, topoProj.id);
               plan.groups.forEach(function (group, i) {
                 var where = topoProj.id + "/group " + i;
                 if (group.part === null) {
@@ -17231,8 +17305,17 @@
                 ok(part, where + ": the group names a part the topology declares");
                 // `display_name` (the drawing title block's name) is what the
                 // viewer prints where the topology authors one (VA.componentLabel).
-                eq(rendered[i].textContent, part.display_name || part.name, where +
-                  ": the merged cell must print the part's own name");
+                // PART and DESCRIPTION are the part's name split in two
+                // (VA.partColumns): put back together they are that name, or
+                // its drawing number and that name.
+                var words = VA.partColumns(part);
+                eq(rendered[i].textContent, words.description, where);
+                eq(numbered[group.start].textContent, words.number, where);
+                var whole = part.display_name || part.name;
+                ok(whole.indexOf(words.description) !== -1 &&
+                   (!words.number || whole.indexOf(words.number) !== -1 ||
+                    words.number === part.drawing), where +
+                  ": the two columns must be the part's own name and number");
                 ok(rendered[i].textContent !== group.part, where +
                   ": the merged cell is printing the part ID `" + group.part +
                   "`, which is what Jeff's 2026-09-15 review was about");
@@ -18126,7 +18209,7 @@
 
         await test("[real] the live study's grid is its stack at the -7 stop: the six " +
           "linkage terms in chain order, the travel folded with what it contributes, " +
-          "the gap after it, and each row in its body's tint", function () {
+          "the gap after it, each in its own bracket and no row tinted", function () {
             var g = realKinGrid(null);
             eq(g.stack.stop.id, "minus7", "the first stop by default");
             // The ordering rule (VA.kinematicStackOrder): blade end to mount,
@@ -18180,23 +18263,26 @@
             var gap = g.rows[g.rows.length - 1];
             ok(hasClass(gap, "tvrow--gapstack"), "the declared gap, dashed, last");
             has(gap.textContent, "not yet authored");
-            // Each term row wears its body's tint -- the DAG container's index.
-            eq(g.rows.slice(1, 7).map(function (r) {
-              return r.className.split(" ").filter(function (c) {
-                return /^tvrow--body-/.test(c);
-              }).join(" ");
-            }), ["tvrow--body-t1", "tvrow--body-t3", "tvrow--body-t2", "tvrow--body-t2",
-                 "tvrow--body-t4", "tvrow--body-t0"]);
+            // No row is tinted; the study, each sub-stack and each body of
+            // more than one part is a bracket (VA.gridBraces).
+            g.rows.forEach(function (r) {
+              ok(!/tvrow--body-|tvrow--divide-|conf--/.test(r.className), r.className);
+            });
+            var drawnBraces = {};
+            all(g.root, "div.tvbrace").forEach(function (c) {
+              drawnBraces[c.getAttribute("data-brace")] = true;
+            });
+            ["study", "linkage", "stop_position", "vpa_pitch_linkage_feather_stop_axial_position",
+             TRAVEL_STUDY, "vpa_pitch_linkage_hub_to_feather_stop"].forEach(function (id) {
+              ok(drawnBraces[id], id + " is bracketed");
+            });
             eq(VA.bodyTint(g.topo, "blade"), 1);
-            ok(hasClass(g.rows[0], "tvrow--body-none"), "a header is no body's");
-            ok(hasClass(g.rows[7], "tvrow--divide-sub"), "a heavier rule opens a sub-stack");
-            ok(hasClass(g.rows[4], "tvrow--divide-hair"), "a hairline inside one body");
-            ok(hasClass(g.rows[5], "tvrow--divide-body"), "a heavier rule between bodies");
             // Sensitivity, contribution, the stop's fold and verdict at the foot.
             var arm = g.rows[1];
             // Its band is borrowed from the arm's hole-to-hole edge, and the
             // chip says that band's sourcing, not the swept edge's "no value".
-            ok(hasClass(arm, "conf--untraced"), "the term wears its band's confidence");
+            ok(all(arm, "span.tvmark--untraced").length === 1,
+               "the term's mark is its band's confidence");
             eq(arm.querySelector("td.tvcell--sensitivity").textContent, "1.574");
             eq(arm.querySelector("td.tvcell--contribution").textContent, "±0.024 deg");
             var foot = all(g.root, "tr.tvtotal");
@@ -18204,8 +18290,9 @@
             has(foot[0].textContent, "±2.355 deg · RSS ±1.034");
             has(foot[1].textContent, "margin -0.363 deg");
             has(foot[1].textContent, "at most −5 deg");
-            // The sourcing legend names every chip.
-            eq(all(all(g.root, "div.tvlegend")[0], "span.chip").length, VA.CONFIDENCES.length);
+            // The sourcing legend names every mark, and what no mark means.
+            eq(all(all(g.root, "div.tvlegend")[0], "span.tvmark").length, VA.SOURCING_MARKS.length);
+            has(all(g.root, "div.tvlegend")[0].textContent, "no mark");
             bannedIn(viewerAuthoredText(g.root), "[real] kinematic grid");
             // The results pane draws no table of its own.
             var results = render(function (r) {
