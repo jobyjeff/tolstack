@@ -57,6 +57,8 @@ async function setView(page, setting, value) {
     const select = document.querySelector(`select[data-view-setting="${s}"]`);
     select.value = v;
     select.onchange();
+    const menu = document.getElementById("dag-view");
+    if (menu) menu.removeAttribute("open");
   }, [setting, value]);
   await settle(page);
 }
@@ -110,17 +112,26 @@ async function measure(page) {
   });
 }
 
-// The rails SVG's on-screen box, clipped to the viewport's height.
+// The rails SVG: clipped to what the page lights (plus room for its labels),
+// or to the first `height` px when nothing is.
 async function dagShot(page, name, height = 1000) {
   const box = await page.evaluate((h) => {
     const live = Array.from(document.querySelectorAll("#topopane .tv__hscroll"))
       .filter((n) => !n.closest(".tv__ghost"))[0];
-    const s = live.querySelector("svg.tv__rails").getBoundingClientRect();
-    return { x: Math.max(0, s.left), y: Math.max(0, s.top) + window.scrollY,
-             width: Math.min(s.width, 1600), height: h };
+    const svg = live.querySelector("svg.tv__rails");
+    const s = svg.getBoundingClientRect();
+    const on = Array.from(svg.querySelectorAll(".rail__bar--on, .rail__dot--on"))
+      .map((n) => n.getBoundingClientRect());
+    const top = on.length ? Math.min(...on.map((b) => b.top)) - 30 : Math.max(0, s.top);
+    const bottom = on.length ? Math.max(...on.map((b) => b.bottom)) + 30 : top + h;
+    return { x: Math.max(0, s.left) + window.scrollX, y: Math.max(0, top) + window.scrollY,
+             width: Math.min(s.width, 1600), height: Math.max(40, bottom - top) };
   }, height);
   await page.screenshot({ path: join(OUT, name), clip: box, fullPage: true });
 }
+
+// The zoom's floor, plus a hair: a wheel step can land just above it.
+const window_floor = () => 0.125;
 
 const { chromium } = await loadPlaywright();
 let browser = null;
@@ -133,7 +144,7 @@ const base = `http://127.0.0.1:${server.address().port}`;
 await mkdir(OUT, { recursive: true });
 const record = { data: DATA, widths: {}, zoom: {} };
 try {
-  const page = await browser.newPage({ viewport: { width: 1600, height: 1100 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1100 }, deviceScaleFactor: 2 });
   page.on("pageerror", (e) => console.log("pageerror:", e.message));
   await page.goto(`${base}/apps/viewer/topology.html?kinematic=${STOPS}`, { waitUntil: "load" });
   await page.evaluate(() => { try { localStorage.clear(); } catch {} });
@@ -146,18 +157,21 @@ try {
     await setView(page, "graphWidth", w);
     record.widths[w] = await measure(page);
     await page.screenshot({ path: join(OUT, `1_width_${w}.png`) });
+    await dagShot(page, `1_width_${w}_dag.png`);
   }
   // 2. each overlay, at medium.
   await setView(page, "graphWidth", "medium");
   for (const scheme of ["none", "body", "part", "interface", "sourcing", "contribution"]) {
     await setView(page, "colourBy", scheme);
     await page.screenshot({ path: join(OUT, `2_colour_${scheme}.png`) });
+    await dagShot(page, `2_colour_${scheme}_dag.png`);
   }
   // 3. the group fill, off / parts / all, with the body overlay.
   await setView(page, "colourBy", "body");
   for (const fill of ["off", "parts", "all"]) {
     await setView(page, "groupFill", fill);
     await page.screenshot({ path: join(OUT, `3_fill_${fill}.png`) });
+    await dagShot(page, `3_fill_${fill}_dag.png`);
   }
   await setView(page, "groupFill", "off");
   await setView(page, "colourBy", "none");
@@ -170,10 +184,21 @@ try {
   await settle(page);
   record.zoom.fitted = (await measure(page)).zoom;
   await dagShot(page, "4_gap_fitted.png");
+  // ...and out to the zoom's floor (VA.DAG_ZOOM.min), the smallest a reader
+  // can see it.
+  const svgBox = await page.locator("#topopane svg.tv__rails").first().boundingBox();
+  await page.mouse.move(svgBox.x + 40, svgBox.y + 200);
+  for (let i = 0; i < 40 && (await measure(page)).zoom > window_floor(); i++) {
+    await page.mouse.wheel(0, 240);
+    await page.waitForTimeout(60);
+  }
+  await settle(page);
+  record.zoom.floor = (await measure(page)).zoom;
+  await dagShot(page, "4_gap_floor.png");
   const gap = await page.locator("#topopane line.rail__bar--gap").first().boundingBox();
   if (gap) {
     await page.mouse.move(gap.x + 1, gap.y + gap.height / 2);
-    for (let i = 0; i < 40 && (await measure(page)).zoom < 1; i++) {
+    for (let i = 0; i < 80 && (await measure(page)).zoom < 1; i++) {
       await page.mouse.wheel(0, -240);
       await page.waitForTimeout(60);
     }
@@ -181,8 +206,10 @@ try {
     record.zoom.close = (await measure(page)).zoom;
     const again = await page.locator("#topopane line.rail__bar--gap").first().boundingBox();
     if (again) {
-      await page.screenshot({ path: join(OUT, "4_gap_zoom1.png"), clip: {
-        x: Math.max(0, again.x - 200), y: Math.max(0, again.y - 150), width: 500, height: 400 } });
+      const scroll = await page.evaluate(() => [window.scrollX, window.scrollY]);
+      await page.screenshot({ path: join(OUT, "4_gap_zoom1.png"), fullPage: true, clip: {
+        x: Math.max(0, again.x - 200) + scroll[0], y: Math.max(0, again.y - 150) + scroll[1],
+        width: 500, height: 400 } });
     }
   }
 
