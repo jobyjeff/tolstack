@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: resolved
 area: annotate/sweep-rail
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_a_face_is_picked_the_way_cad_picks_it.md
 class: armed_pick_reach
 handoff: docs/sessions/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
-resolution: strategy 2026-11-05: routed into HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked (Jeff's note 20261105T164140_sm8hkc)
+resolution: strategy 2026-11-05: routed into HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked (Jeff's note 20261105T164140_sm8hkc) -- handoff completed 2026-11-06 -- closed automatically by dispatch when handoff `the_rail_holds_still_and_takes_the_face_jeff_picked` moved to completed/; not independently verified.
 ---
 
 # An edge feature's and a contributor's Pick still leave sweep mode for bind mode

@@ -88,6 +88,11 @@
     // either -- one inconsistent preference would be the surprise, not the
     // feature.
     jogZoneScale: 1,
+    // The DAG's view settings -- colour overlay, group fill, graph width
+    // (VA.readDagView, topology.js) -- remembered across sessions in one
+    // store entry, read at boot. Display preferences: selectTopology() never
+    // resets them.
+    dagView: Object.assign({}, VA.DAG_VIEW_DEFAULTS),
     // How wide the right preview pane is, in px, or null for "whatever
     // topology.css declares" (Jeff, 2026-09-15: "the right preview pane is
     // resizable. It's too narrow"). The ONE preference on this page that
@@ -219,6 +224,8 @@
       paneHandle: document.getElementById("pane-handle"),
     };
     applyDensity();
+    state.dagView = VA.readDagView(widthStore());
+    VA.applyGraphWidth(state.dagView.graphWidth);
     state.detailWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
     wireDetailDivider();
@@ -1670,6 +1677,9 @@
       if (event.origin !== window.location.origin) return;
       var msg = event.data;
       if (msg && msg.type === "annotate:tree") {
+        // A tree after none -- the pane opened, or a scene re-driven -- is an
+        // arrival, revealed once; every later tree is a refresh.
+        if (!sceneTree) sceneRevealPending = true;
         sceneTree = msg;
         renderSceneSlot();
         followScenePick(msg);
@@ -1727,6 +1737,12 @@
   // what a row says and what it does are both the annotator's, and this page
   // keeps no copy of either. The type chips' state is the annotator's too.
   var sceneTree = null;
+  // Set when a tree ARRIVES (renderSceneSlot reveals its row once, then
+  // clears it). Not "the slot was empty": every render() rebuilds the nav,
+  // and with it an empty slot, so that test re-scrolled the nav to the study
+  // row on any click that touched the page's state -- the rail that "jumps to
+  // a random scroll location" (Jeff, 2026-11-05).
+  var sceneRevealPending = false;
 
   function sceneRail(key, act, index) {
     if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;
@@ -1750,9 +1766,11 @@
       ? nodes.navtree.querySelector(".navtree__scene") : null;
     if (!slot) return;
     var focus = sceneFocus(slot);
-    var wasEmpty = !slot.childNodes || !slot.childNodes.length;
     VA.renderSceneTree(slot, sceneTree, { send: sceneRail });
-    if (wasEmpty && sceneTree) revealSceneRow(slot);
+    if (sceneRevealPending && sceneTree) {
+      sceneRevealPending = false;
+      revealSceneRow(slot);
+    }
     if (!focus) return;
     var rows = slot.querySelectorAll("[data-scene-key]");
     for (var i = 0; i < rows.length; i++) {
@@ -1765,8 +1783,9 @@
   }
 
   // The tree arriving under a row the nav has scrolled away from brings
-  // that row up to the top of the nav, once per arrival -- never on a
-  // refresh, which would yank the reader's own scrolling back.
+  // that row up to the top of the nav, once per arrival (sceneRevealPending)
+  // -- never on a refresh or a nav rebuild, which would yank the reader's own
+  // scrolling back.
   function revealSceneRow(slot) {
     var nav = nodes.navtree;
     var row = slot.parentNode && slot.parentNode.firstChild;
@@ -1978,9 +1997,24 @@
   // verb), and a selected node is selected in its layer too -- an edge is
   // highlighted through the `highlight` a kinematic page already posts
   // (followSelection). Each only when it changed, and only to a loaded scene.
+  // A body's DAG ink as "#rrggbb", off topology.css's `--tv-body-ink-<n>`
+  // (VA.sceneTintCommand); null where the page has no computed style.
+  function bodyInk(tint) {
+    try {
+      var v = window.getComputedStyle(document.documentElement)
+        .getPropertyValue("--tv-body-ink-" + tint);
+      return v ? v.trim() : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
   function syncSceneModel() {
     if (!nodes.flyout || !nodes.flyout.open || !flyoutLoaded) return;
-    var model = [VA.sceneLitCommand(pageLitSet()), ["model", "unlit", state.unlitStyle]];
+    // ...and each part in its body's DAG ink, so one palette is seen in the
+    // DAG, the grid and the scene.
+    var model = [VA.sceneLitCommand(pageLitSet()), ["model", "unlit", state.unlitStyle],
+      VA.sceneTintCommand(currentTopology(), bodyInk)];
     var key = JSON.stringify(model);
     if (key !== sceneModelPosted && model.every(postToPane)) sceneModelPosted = key;
     var scope = VA.partScopeCommand(VA.litPartIds(currentTopology(), pageLitSet()));
@@ -2946,8 +2980,19 @@
       // this topology, else every kind. Every study of the topology has a
       // group to offer; the pane filters them by kind.
       var groupKinds = topoProj ? VA.readGroupKinds(widthStore(), topoProj.id) : null;
+      // The colour overlay's inputs beyond the topology: a kinematic page's
+      // contribution per edge at its stop (VA.kinematicContributions).
+      var overlayOptions = {
+        contributions: showKinematic
+          ? VA.kinematicContributions(kinematicStudy, state.kinematicStop) : null,
+        units: kinematicStudy ? kinematicStudy.units || null : null,
+      };
       var ctx = {
         groupKinds: groupKinds,
+        colourBy: state.dagView.colourBy,
+        groupFill: state.dagView.groupFill,
+        contributions: overlayOptions.contributions,
+        contributionUnits: overlayOptions.units,
         studyGroups: topoProj
           ? VA.studyGroups(topoProj, state.kinematic,
               showKinematic ? state.kinematicId : state.studyId) : [],
@@ -3037,6 +3082,23 @@
       };
       var toolbarHandlers = {
         groupKinds: groupKinds,
+        // The view popover (VA.COLOUR_SCHEMES, VA.GROUP_FILLS,
+        // VA.GRAPH_WIDTHS) and the overlay's key beside it.
+        dagView: Object.assign({}, state.dagView, {
+          schemes: VA.availableColourSchemes(overlayOptions),
+          legend: VA.dagOverlay(state.dagView.colourBy, topoProj, overlayOptions).legend,
+        }),
+        // Every setting re-renders: the width moves the leaders and the
+        // grid's seam, the overlay its key. The popover is put back open.
+        onDagView: function (setting, value) {
+          state.dagView[setting] = value;
+          VA.writeDagView(widthStore(), state.dagView);
+          if (setting === "graphWidth") VA.applyGraphWidth(value);
+          render();
+          var menu = typeof document !== "undefined" && document.getElementById &&
+            document.getElementById("dag-view");
+          if (menu && menu.setAttribute) menu.setAttribute("open", "");
+        },
         // One kind's checkbox: the pane repaints, nothing else on the page
         // depends on which containers are drawn.
         onGroupKind: function (kind, on) {

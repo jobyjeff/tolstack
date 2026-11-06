@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a joint end's part is its node's part on the end's body, else the part on that body one topology edge away; nothing on the body is null",
+  "mutations": [
+    {
+      "contract": "A joint end is named by its own node's part where that part rides on the end's body.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md",
+      "note": "Dropping the own-part answer leaves only the across-an-edge fallback, which names nothing for n_bot.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (own) return own;\n",
+      "replace": "      if (own) return null;\n"
+    }
+  ]
+}

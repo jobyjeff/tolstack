@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] the pitch link assembly 213862-002 is one row, under Bodies in the link's own body row, and no joint lists a part",
+  "mutations": [
+    {
+      "contract": "The Bodies group lists every subject the run moves, links included.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md",
+      "note": "Listing tree.bodies alone drops the link's body row, so 213862-002 is under no body.",
+      "file": "apps/annotate/app.js",
+      "find": "  const subjects = AA.sweepTreeSubjects(tree);\n",
+      "replace": "  const subjects = tree.bodies;\n"
+    }
+  ]
+}

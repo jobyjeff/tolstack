@@ -6,10 +6,10 @@
     {
       "contract": "A bind is confirmed by a toast naming it.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
-      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Confirmation after the click is half of Jeff's complaint.",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Confirmation after the click is half of Jeff's complaint. Re-anchored 2026-11-05 (the_rail_holds_still_and_takes_the_face_jeff_picked): an armed click's toast is now answeredAtEnd's, the rail Take's own path.",
       "file": "apps/annotate/app.js",
-      "find": "    showToast(toast);\n    renderSweepRail();",
-      "replace": "    renderSweepRail();"
+      "find": "    showToast(toast);\n    const next = nextEndToPick(topology, edge, direction);",
+      "replace": "    const next = nextEndToPick(topology, edge, direction);"
     }
   ]
 }
