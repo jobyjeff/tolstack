@@ -100,3 +100,9 @@ design: no projection), two `shadow_concurrency` lock tests and one more that fa
 on the pre-change tree (EPERM reaping a stale `tmp/mutation-witness-*`), and the two
 mutation-witness census/anchor failures this change caused — both fixed afterwards (anchor +
 census tests re-run green, 43 passed). Not re-run in full after those fixes.
+
+## Re-run after REQUEST CHANGES (same day)
+
+- Browser tier against the scratch root: green, including "the DAG zoom, Fit and the grid header" 41/41 and "annotate flyout" 41/41. Fixes were in the runner, not the product: the continuity sampler now runs 80 frames (past `VA.RESPINE.fitDuration`), the continuity metric judges the worst step against the path length walked (a two-leg path is not monotone), and the flyout-close check waits for the pane to settle (closing now glides).
+- Witnesses (`--changed-since integration`): 13/15 witnessed. `1dd72346` stayed green because its mutation cleared the root, which made the next hook throw and the failure path settled the transition in the same task; it now drops the dots, and reads WITNESSED alone. `09a1cf0a` was red before the mutation on a flaky sub-check (different one each time; 32/32 in the full tier and in two isolated runs): filed as `ISSUE_20261105_3d_pane_follows_selection_suite_flakes_under_the_witness_runner.md`, left to the sweep. `1139260e` was left to the sweep by the budget.
+- Frame count: the "after" wall-clock count is still not provable on this contended box (paint alone costs ~500 ms/frame); the engine's own work is ~25 ms/frame, so on a quiet box ≥30 frames in 700 ms is expected but is not measured here. Say so, not a number.

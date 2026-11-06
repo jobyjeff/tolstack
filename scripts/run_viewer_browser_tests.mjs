@@ -4107,7 +4107,10 @@ const FRAME_PROBE = () => {
 // frames, which a frozen clock never delivers), and each sample follows exactly
 // `ms` of page time after the last -- so "no jump between two frames" is a fact
 // about the page and not a race against how fast this machine draws.
-async function sampleTransition(page, selector, { frames = 40, ms = 20 } = {}) {
+// `frames` runs past VA.RESPINE.fitDuration (the longest transition) at `ms` a
+// step, so a tween that is still going at the last sample is a failure of the
+// tween and not of the sampling.
+async function sampleTransition(page, selector, { frames = 80, ms = 20 } = {}) {
   await page.evaluate(CLOCK);
   await page.evaluate(() => window.__clock.freeze());
   const before = await page.evaluate(FRAME_PROBE);
@@ -4153,13 +4156,19 @@ function judgeContinuity({ before, samples }) {
   if (moving.some((f) => f.padLeft < lo || f.padLeft > hi)) {
     problems.push(`pad left the segment ${S}..${E}`);
   }
+  // A transition that pulls back before it goes in travels OUT and back, so its
+  // net travel can be near zero: a step is judged against the whole path walked.
   const steps = (key, floor) => {
     const run = [...moving, last];
-    const travel = Math.abs(run[run.length - 1][key] - run[0][key]);
+    let path = 0;
     let worst = 0;
-    for (let i = 1; i < run.length; i++) worst = Math.max(worst, Math.abs(run[i][key] - run[i - 1][key]));
-    return worst > Math.max(floor, 0.5 * travel)
-      ? `${key} took ${worst.toFixed(0)}px of ${travel.toFixed(0)} in one frame` : null;
+    for (let i = 1; i < run.length; i++) {
+      const d = Math.abs(run[i][key] - run[i - 1][key]);
+      path += d;
+      worst = Math.max(worst, d);
+    }
+    return worst > Math.max(floor, 0.5 * path)
+      ? `${key} took ${worst.toFixed(0)}px of ${path.toFixed(0)} in one frame` : null;
   };
   problems.push(...[steps("bandCx", 12), steps("scrollY", 40)].filter(Boolean));
   if (Math.abs(moving[0].scrollY - before.scrollY) > 60) {
@@ -6303,6 +6312,10 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     await page.waitForFunction(
       () => !document.body.classList.contains("flyout-open"),
       null, { timeout: 5000 }).catch(() => {});
+    // Closing glides the drawing back to where the band was centred for the
+    // restored width (the same transition a study change takes), so the page is
+    // measured once that has landed.
+    await paneSettled();
     const paneClosed = await page.locator("#topopane").boundingBox();
     const railsClosed = await rails();
     push("closing the flyout puts the page back exactly -- the nav rail, the " +
