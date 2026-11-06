@@ -164,3 +164,64 @@ this tree, so the `[real]` tier refuses it.
   suite's two inherited reds. The DAG-zoom suite's entries were red because of the
   tolerance-width check, fixed afterwards and green on its own; those entries were not
   re-run.
+
+## Review round 1: Pause did not pause
+
+`REVIEW_20261106_the_grid_and_the_dag_move_with_the_mechanism.md` found it: the play
+button's handler read `ctx.playing`, a flag fixed when the page rendered. Play starts
+without a render and relabels the button in place (`VA.syncPoseControl`), so the second
+click still sent "play", `startPlay()` returned early, and the sweep kept cycling. The
+fast test clicked the button once; nothing clicked it twice.
+
+**The fix has two layers.** The button reads its own `aria-pressed`, which
+`syncPoseControl` keeps live (`views/kinematic.js`). The page's `onPlay` toggles on its
+own `posePlay` and not only on the argument it is sent (`topology_app.js`). Either layer
+alone stops the bug. The general lesson: **a control that is synced in place must not
+read a flag captured at render time**. The flag is right at the first click and wrong at
+the second.
+
+Tests:
+
+- The fast pose-control test now relabels the button with a frame of play and clicks it
+  again: `played == [true, false]`.
+- Two new `[real]` browser guards in "the DAG zoom, Fit and the grid header" on the real
+  study: Play moves the pose and relabels itself Pause; a second click says Play again
+  and the pose holds. The log line from the run was
+  `play/pause: -7.0 -> 10.5 (Pause) -> 12.9 (Play) -> 12.9`. Each guard carries a spec,
+  and the browser census pin rose by 2 (838 / 805).
+- The pause spec mutates the page's layer. Reverting only the button is no mutation the
+  browser check can see, because the page's layer still pauses. The spec's note says so.
+
+### Verification record, round 1 (tip `e075c83b`)
+
+Same scratch root as above, with its `docs` junction and the worktree's `node_modules`
+junction re-added for the runs and removed afterwards.
+
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/gridpose`:
+  **653/653**, no tier skipped. (The review's 648/653 were the five worksheet checks,
+  red because the scratch root's `docs` junction had been removed after round 0.)
+- Browser, `--only "the DAG zoom, Fit and the grid header"`: **43/43**, in 355 s.
+- Witnesses, `--only` on each of the five DAG-zoom entries `--changed-since` reaches,
+  which is what the review asked for:
+  - `f0dc4129` (pause): **WITNESSED**
+  - `9bd6a7b3` (play): **WITNESSED**
+  - `63389417` (groups): **WITNESSED**
+  - `30676e29` (scrolled header): **WITNESSED**
+  - `68054cae` (no box of its own): **WITNESSED**
+
+  That took 1771 s including waits for the slot. One earlier attempt at this loop was
+  stopped and re-run because its output filter dropped the verdict lines.
+- `node scripts/run_mutation_witness_tests.mjs --repo …/gridpose --changed-since
+  integration`: **35/49 witnessed, 49/63 reached in 31m14s, 14 left to the sweep**
+  (budget), exit 0.
+  - Every fast entry is witnessed.
+  - The 14 NOT WITNESSED are all in "kinematic study page (deep link, chart hover,
+    contributors, no projection)", red before any mutation because of the two inherited
+    checks in `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
+    Nothing is proved about them either way until that issue is fixed.
+  - Four of the DAG-zoom entries fell past the cap in this run. They are the ones
+    witnessed by `--only` above.
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` in this worktree, at
+  the tip: 434 s, **1730 passed, 1 skipped, 1 failed**. The failure is
+  `test_viewer_js_suite_is_green`, red by design in a worktree. Recorded with
+  `dispatch suite-time record`: inside budget.
