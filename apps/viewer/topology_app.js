@@ -2261,10 +2261,12 @@
     // The DAG's lit span: only the DAG scales (2026-10-29), so the grid
     // beside it is not part of what a scale can fit.
     var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
-    // Both axes: the DAG's own width must fit the pane too, or Fit leaves the
-    // drawing wider than the box it is meant to fill.
+    // Both axes: the DAG's own width must fit the pane too, less the grid's
+    // floor beside it (VA.dagFitWidth), or Fit leaves the drawing wider than
+    // the box it is meant to fill and the grid a slit.
     if (drawn.dagWidth > 0 && hscroll.clientWidth > 0) {
-      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.dagWidth));
+      to = Math.min(to, VA.clampDagZoom(
+        (VA.dagFitWidth(hscroll.clientWidth) - pad) / drawn.dagWidth));
     }
     // A study's arrival only ever scales DOWN, and only when the band does not
     // fit at the zoom the reader has: a zoom they chose is theirs until the

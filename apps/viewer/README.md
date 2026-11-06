@@ -440,17 +440,22 @@ has not been built.
   drawn in the same order, so two adjacent rows are two connected edges and
   every leader lands on its own row. **SENSITIVITY** (the signed coefficient
   at that stop, deg/mm; a chain row's ratio) sits before **CONTRIBUTION** (±
-  deg). Each row wears its rigid body's tint — the DAG container's — with a
-  hairline inside a body and a heavier rule between bodies and sub-stacks, and
-  a legend under the grid says what each sourcing chip means. The stop's own
-  fold and its verdict are the grid's foot.
+  deg). The grouping is drawn as brackets: thin rounded caps over a group's
+  first row and under its last, inset a step per level, so the study holds
+  its sub-stacks, a sub-stack the ones inside it, and a rigid body of more
+  than one part its parts; a part boundary inside a group is a plain rule.
+  **PART** (the number) and **DESCRIPTION** are two columns, said on a part's
+  first row. Sourcing is one small mark per row in its state's colour (none
+  for a traced value); a legend under the grid names every mark, and the
+  row's Preview has the citation, the note and the crop. The stop's own fold
+  and its verdict are the grid's foot.
 - **Rows reached from the page select in place.** A click on a term row —
   or on anything in the DAG — selects that edge here: the page stays the
   study, the DAG marks the edge, and the preview pane shows its citation and
   crop (and its 3D attach, where the part has a mesh). Where a contributor has
   no value of its own and borrows its band from another edge, the pane names
   that edge as **band in this study**, one click from its citation, and the
-  row's sourcing chip is that band's. `?kinematic=…&edge=…` opens the study
+  row's sourcing mark is that band's. `?kinematic=…&edge=…` opens the study
   with the edge already selected.
 - **The envelope chart** is drawn live from `envelope[]` as inline SVG, in the
   `:root` type and colour tokens. x is the sweep's driver; y is the

@@ -15187,19 +15187,21 @@
               rows.forEach(function (row, i) {
                 eq(row.getAttribute("data-id"), edgeOrder[i]);
               });
-              // Every non-internal node has its leader on screen; every group
-              // has its merged cell, spanning exactly its own rows.
+              // Every non-internal node has its leader on screen; every row
+              // has its own part cells, the words on its group's first row.
               eq(all(root, "path.rail__leader").length, plan.leaders.length,
                  topoProj.id);
-              var cells = all(root, "td.tvcell--component");
-              eq(cells.length, plan.groups.length, topoProj.id);
-              var spanned = 0;
-              cells.forEach(function (cell, i) {
-                var span = cell.getAttribute("rowspan");
-                eq(span === null ? 1 : Number(span), plan.groups[i].count);
-                spanned += plan.groups[i].count;
+              var cells = all(root, "td.tvcell--description");
+              eq(cells.length, topoProj.edges.length, topoProj.id);
+              var said = 0;
+              plan.groups.forEach(function (group) {
+                for (var k = 0; k < group.count; k++) {
+                  eq(cells[group.start + k].textContent !== "", k === 0,
+                     topoProj.id + " row " + (group.start + k));
+                }
+                said += 1;
               });
-              eq(spanned, topoProj.edges.length, topoProj.id);
+              eq(said, plan.groups.length, topoProj.id);
               // Nothing rendered as "the topology does not declare this id".
               eq(root.textContent.indexOf("does not declare"), -1, topoProj.id);
             });
@@ -15305,26 +15307,26 @@
             var rows = all(root, "tr.tvrow");
             eq(rows.length, plan.rows.length);
 
-            // The band polygons keep their parity; each ROW wears its body's
-            // tint since the_kinematic_grid_is_a_stack_of_sub_stacks -- the
-            // index the DAG's container for that body is filled with -- read
-            // off the DOM, so a renderer that tinted rows from anything else
-            // (the band, the row index, the group) fails here.
+            // The band polygons keep their parity; a ROW wears no tint since
+            // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what:
+            // a body of more than one part is a bracket over its rows.
             bands.forEach(function (band, i) {
               eq(hasClass(drawn[i], "rail__band--b") ? 1 : 0, band.parity, "band " + i);
             });
-            var tints = {};
             rows.forEach(function (row, r) {
-              var body = plan.rows[r].body;
-              var want = body === null ? "tvrow--body-none"
-                : "tvrow--body-t" + VA.bodyTint(livePitch, body);
-              ok(hasClass(row, want), "row " + r + " (" + row.getAttribute("data-id") + ") " + want);
-              ok(!hasClass(row, "tvrow--band-a") && !hasClass(row, "tvrow--band-b"),
-                 "row " + r + " wears no band parity");
-              tints[want] = true;
+              ok(!/tvrow--body-|tvrow--divide-|tvrow--band-|conf--/.test(row.className),
+                 "row " + r + " (" + row.getAttribute("data-id") + ") wears no tint");
             });
-            // Non-vacuous: the product model's rows are in several bodies.
-            ok(Object.keys(tints).length >= 4, "rows of several bodies, several tints");
+            var bodies = VA.gridBraces(plan, {}).braces.filter(function (b) {
+              return b.kind === "body";
+            });
+            // Non-vacuous: the product model has bodies of several parts.
+            ok(bodies.length >= 2, "bodies of several parts, bracketed: " + bodies.length);
+            bodies.forEach(function (b) {
+              eq(all(root, "div.tvbrace--body").filter(function (c) {
+                return c.getAttribute("data-brace") === b.id;
+              }).length >= 2, true, b.id + " is drawn");
+            });
           });
 
         // Every page the leaders are drawn on, as the page draws them: each
@@ -17110,8 +17112,10 @@
                   onSelect: function () {},
                 });
               });
-              var rendered = all(root, "td.tvcell--component");
-              eq(rendered.length, plan.groups.length, topoProj.id);
+              var described = all(root, "td.tvcell--description");
+              var numbered = all(root, "td.tvcell--part");
+              var rendered = plan.groups.map(function (g) { return described[g.start]; });
+              eq(described.length, topoProj.edges.length, topoProj.id);
               plan.groups.forEach(function (group, i) {
                 var where = topoProj.id + "/group " + i;
                 if (group.part === null) {
@@ -17122,8 +17126,17 @@
                 ok(part, where + ": the group names a part the topology declares");
                 // `display_name` (the drawing title block's name) is what the
                 // viewer prints where the topology authors one (VA.componentLabel).
-                eq(rendered[i].textContent, part.display_name || part.name, where +
-                  ": the merged cell must print the part's own name");
+                // PART and DESCRIPTION are the part's name split in two
+                // (VA.partColumns): put back together they are that name, or
+                // its drawing number and that name.
+                var words = VA.partColumns(part);
+                eq(rendered[i].textContent, words.description, where);
+                eq(numbered[group.start].textContent, words.number, where);
+                var whole = part.display_name || part.name;
+                ok(whole.indexOf(words.description) !== -1 &&
+                   (!words.number || whole.indexOf(words.number) !== -1 ||
+                    words.number === part.drawing), where +
+                  ": the two columns must be the part's own name and number");
                 ok(rendered[i].textContent !== group.part, where +
                   ": the merged cell is printing the part ID `" + group.part +
                   "`, which is what Jeff's 2026-09-15 review was about");
@@ -18037,7 +18050,7 @@
 
         await test("[real] the live study's grid is its stack at the -7 stop: the six " +
           "linkage terms in chain order, the travel folded with what it contributes, " +
-          "the gap after it, and each row in its body's tint", function () {
+          "the gap after it, each in its own bracket and no row tinted", function () {
             var g = realKinGrid(null);
             eq(g.stack.stop.id, "minus7", "the first stop by default");
             // The ordering rule (VA.kinematicStackOrder): blade end to mount,
@@ -18091,23 +18104,26 @@
             var gap = g.rows[g.rows.length - 1];
             ok(hasClass(gap, "tvrow--gapstack"), "the declared gap, dashed, last");
             has(gap.textContent, "not yet authored");
-            // Each term row wears its body's tint -- the DAG container's index.
-            eq(g.rows.slice(1, 7).map(function (r) {
-              return r.className.split(" ").filter(function (c) {
-                return /^tvrow--body-/.test(c);
-              }).join(" ");
-            }), ["tvrow--body-t1", "tvrow--body-t3", "tvrow--body-t2", "tvrow--body-t2",
-                 "tvrow--body-t4", "tvrow--body-t0"]);
+            // No row is tinted; the study, each sub-stack and each body of
+            // more than one part is a bracket (VA.gridBraces).
+            g.rows.forEach(function (r) {
+              ok(!/tvrow--body-|tvrow--divide-|conf--/.test(r.className), r.className);
+            });
+            var drawnBraces = {};
+            all(g.root, "div.tvbrace").forEach(function (c) {
+              drawnBraces[c.getAttribute("data-brace")] = true;
+            });
+            ["study", "linkage", "stop_position", "vpa_pitch_linkage_feather_stop_axial_position",
+             TRAVEL_STUDY, "vpa_pitch_linkage_hub_to_feather_stop"].forEach(function (id) {
+              ok(drawnBraces[id], id + " is bracketed");
+            });
             eq(VA.bodyTint(g.topo, "blade"), 1);
-            ok(hasClass(g.rows[0], "tvrow--body-none"), "a header is no body's");
-            ok(hasClass(g.rows[7], "tvrow--divide-sub"), "a heavier rule opens a sub-stack");
-            ok(hasClass(g.rows[4], "tvrow--divide-hair"), "a hairline inside one body");
-            ok(hasClass(g.rows[5], "tvrow--divide-body"), "a heavier rule between bodies");
             // Sensitivity, contribution, the stop's fold and verdict at the foot.
             var arm = g.rows[1];
             // Its band is borrowed from the arm's hole-to-hole edge, and the
             // chip says that band's sourcing, not the swept edge's "no value".
-            ok(hasClass(arm, "conf--untraced"), "the term wears its band's confidence");
+            ok(all(arm, "span.tvmark--untraced").length === 1,
+               "the term's mark is its band's confidence");
             eq(arm.querySelector("td.tvcell--sensitivity").textContent, "1.574");
             eq(arm.querySelector("td.tvcell--contribution").textContent, "±0.024 deg");
             var foot = all(g.root, "tr.tvtotal");
@@ -18115,8 +18131,9 @@
             has(foot[0].textContent, "±2.355 deg · RSS ±1.034");
             has(foot[1].textContent, "margin -0.363 deg");
             has(foot[1].textContent, "at most −5 deg");
-            // The sourcing legend names every chip.
-            eq(all(all(g.root, "div.tvlegend")[0], "span.chip").length, VA.CONFIDENCES.length);
+            // The sourcing legend names every mark, and what no mark means.
+            eq(all(all(g.root, "div.tvlegend")[0], "span.tvmark").length, VA.SOURCING_MARKS.length);
+            has(all(g.root, "div.tvlegend")[0].textContent, "no mark");
             bannedIn(viewerAuthoredText(g.root), "[real] kinematic grid");
             // The results pane draws no table of its own.
             var results = render(function (r) {

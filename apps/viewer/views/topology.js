@@ -900,7 +900,7 @@
   // The width budget (the_grid_fits_the_screen_and_its_brackets_say_what_
   // nests_in_what). Jeff, 2026-11-05: "the table is too wide to fit on screen
   // even on my 4k monitor, the sourcing and crop columns are obscured when the
-  // 3d and/or preview panel has reasonable size". It was 1218px; it is 936.
+  // 3d and/or preview panel has reasonable size". It was 1218px; it is 960.
   // The crop column left for the Preview (where the crop is legible), the
   // pill cluster became one icon, and the number columns are as wide as the
   // longest number this repo prints (`−32.185`) at the meta size.
@@ -912,8 +912,9 @@
   // said on a part's first row only, and the brackets
   // (VA.gridBraces) carry the grouping.
   var COLUMNS = [
-    { cls: "part", label: "part", width: 86 },
-    { cls: "description", label: "description", width: 150 },
+    // Wide enough for `213668-002` inside four brackets' indent.
+    { cls: "part", label: "part", width: 100 },
+    { cls: "description", label: "description", width: 140 },
     { cls: "ord", label: "#", width: 30 },
     { cls: "name", label: "element", width: 220, resizable: true },
     { cls: "nominal", label: "nominal", width: 68 },
@@ -925,8 +926,8 @@
     // (the_kinematic_grid_is_a_stack_of_sub_stacks).
     { cls: "sensitivity", label: "sensitivity", width: 76 },
     // A chain row prints its weight and its signed band (`×1 −0.1 … 0.1 mm`),
-    // the widest thing in the row's numbers.
-    { cls: "contribution", label: "contribution", width: 140 },
+    // and a stack's total its fold and its RSS (`±2.355 deg · RSS ±1.034`).
+    { cls: "contribution", label: "contribution", width: 160 },
     // One mark, no words (VA.rowSourcingMark); its header is the mark too.
     { cls: "sourcing", label: "", title: "sourcing", width: 30 },
   ];
@@ -945,6 +946,28 @@
   // and the mutator below is deliberately general anyway: a second resizable
   // column is a flag, not a mechanism.
   VA.TOPO_COLUMNS = COLUMNS;
+
+  // What Fit leaves the grid beside the DAG (deliverable 5: "at 1600 px wide
+  // with the preview open, every row's part and element ... are clickable"):
+  // PART, DESCRIPTION, # and ELEMENT, read off the array so a widened ELEMENT
+  // widens the floor. Fit scales the drawing down to leave it, never below
+  // `minShare` of the pane; past that the strip scrolls sideways.
+  VA.TOPO_GRID_FLOOR = {
+    columns: ["part", "description", "ord", "name"],
+    minShare: 0.35,
+    width: function () {
+      return COLUMNS.filter(function (c) {
+        return VA.TOPO_GRID_FLOOR.columns.indexOf(c.cls) !== -1;
+      }).reduce(function (sum, c) { return sum + c.width; }, 0);
+    },
+  };
+
+  // The width Fit may give the DAG in a pane `paneWidth` wide.
+  VA.dagFitWidth = function (paneWidth) {
+    if (!(paneWidth > 0)) return paneWidth;
+    return Math.max(paneWidth - VA.TOPO_GRID_FLOOR.width(),
+                    paneWidth * VA.TOPO_GRID_FLOOR.minShare);
+  };
   VA.TOPO_COLUMN_WIDTH = { min: 80, max: 900 };
 
   // --- the preview pane's width (Jeff, 2026-09-15: "it's too narrow") -------
