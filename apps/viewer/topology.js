@@ -3926,22 +3926,27 @@
   // The PART and DESCRIPTION columns (deliverable 2), out of the part record.
   // Jeff, 2026-11-05: "half of the Component column start with
   // PN/Description, and the other half are Description/PN ... consider making
-  // them two separate columns." The number is the part-number token in the
-  // part's own name (`213668-002 gas-spring mount`, `Pitch plate
-  // 215735-001/-002`, `NAS6403U11D hex-head bolt`), else its drawing number;
-  // the description is the name with that token taken out. A part with
-  // neither has no number -- absent is absent -- and a gap has no part.
+  // them two separate columns." The number is the record's: the part's
+  // `drawing`, else the part-number token in its own name
+  // (`NAS6403U11D hex-head bolt`). The description is the name with its
+  // part-number token taken out, whichever way round the name puts it. The
+  // two can differ: the pitch plate's record is the installation 215177-001
+  // and its title-block name is the detail's (`Pitch plate 215735-001/-002`),
+  // so the row says 215177-001 and the cell's title keeps the whole name. A
+  // part with neither has no number -- absent is absent -- and a gap has no
+  // part.
   var PART_NUMBER = /\b(\d{6}-\d{3}(?:\/-\d{3})*|(?:NAS|MS|AN)\d[A-Z0-9-]*)\b/;
 
   VA.partColumns = function (part) {
     if (!part) return { number: "", description: VA.GAP_COMPONENT_LABEL };
     var label = VA.componentLabel(part);
     var hit = PART_NUMBER.exec(label);
-    if (!hit) return { number: part.drawing || "", description: label };
+    var number = part.drawing || (hit ? hit[0] : "");
+    if (!hit) return { number: number, description: label };
     var rest = (label.slice(0, hit.index) + " " + label.slice(hit.index + hit[0].length))
       .replace(/\(\s*\)/g, "").replace(/\s+/g, " ").trim()
       .replace(/^[,·\-\s]+|[,·\-\s]+$/g, "");
-    return { number: hit[0], description: rest || label };
+    return { number: number, description: rest || label };
   };
 
   // A stack entry's row id: its edge for a term, `sub:<id>` for a header.

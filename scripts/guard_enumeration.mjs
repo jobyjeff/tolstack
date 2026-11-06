@@ -433,8 +433,11 @@ export const DECLARED_GUARDS = {
   // centring it sideways, so its two landing checks are renamed. The
   // part-cell check, both scroll checks, the stack check and both landing
   // checks carry a spec; the sticky spec is deleted.
-  // Merged with integration (review round 2, 2026-11-06): 836 - 1.
-  browser: { declared: 835, enrollable: 802, names: "d3094610f661" },
+  // Merged with integration (review round 2, 2026-11-06): 836 - 1, then +2 --
+  // no grid number and no part number clips, totals rows included; a pane
+  // narrowed with no repaint takes its zoom box's floor with it. Each carries
+  // a spec.
+  browser: { declared: 837, enrollable: 804, names: "2888e79c1f21" },
 };
 
 

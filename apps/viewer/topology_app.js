@@ -2558,7 +2558,12 @@
       scheduleSeamDraw();
     }, true);
     if (typeof ResizeObserver === "function") {
-      var observer = new ResizeObserver(scheduleSeamDraw);
+      var observer = new ResizeObserver(function () {
+        // The pane's width moved with no repaint (the 3D pane opened or
+        // closed, a divider dragged): its zoom box's floor moves with it.
+        if (nodes.pane) VA.sizeTopoZoomBox(nodes.pane);
+        scheduleSeamDraw();
+      });
       [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {
         if (n) observer.observe(n);
       });

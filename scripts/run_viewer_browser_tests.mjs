@@ -4684,6 +4684,77 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     push("[real] and Fit still brings the lit set into the window in that mode",
       kinTol.litTop >= kinTol.paneTop - 2 && kinTol.litBottom <= kinTol.paneBottom + 2);
 
+    // --- no number clips (the_grid_fits_the_screen_and_its_brackets_say_what_
+    // nests_in_what, review round 1: its first width budget was measured on
+    // member rows only and cut the M10 grip's RSS total to `-13.735…` with
+    // nothing on hover). On the studies whose totals and part numbers are the
+    // longest the projection prints: no number cell and no part cell
+    // overflows, and any cell that does carries its whole text as a title.
+    {
+      const CLIP_STUDIES = [["study", "rotor_fastener_grip_u10h"],
+        ["study", "vpa_pitch_linkage_feather_stop_axial_position"],
+        ["kinematic", "vpa_pitch_linkage_blade_pitch_at_the_stops"]];
+      const clipped = [];
+      let cells = 0;
+      for (const [kind, id] of CLIP_STUDIES) {
+        await page.locator(navRow(kind, id)).first().click();
+        await settle(1800);
+        for (let i = 0; i < 6; i++) {
+          const opened = await page.evaluate(() => {
+            const shut = [...document.querySelectorAll("#topopane .tvsub__caret")]
+              .filter((c) => c.textContent === "▸");
+            shut.forEach((c) => c.click());
+            return shut.length;
+          });
+          if (!opened) break;
+          await settle(900);
+        }
+        const r = await page.evaluate(() => {
+          const tds = [...document.querySelectorAll("#topopane table.tvtable td")];
+          return { n: tds.filter((td) => td.textContent.trim()).length,
+            bad: tds.filter((td) => td.scrollWidth > td.clientWidth + 0.5).filter((td) =>
+              td.classList.contains("num") || td.classList.contains("tvcell--part") ||
+              !(td.getAttribute("title") || (td.querySelector("[title]") || {}).title))
+              .map((td) => `${td.className.replace(/^tvcell /, "")} ${JSON.stringify(td.textContent.trim())} ` +
+                `${td.scrollWidth}/${td.clientWidth}`) };
+        });
+        cells += r.n;
+        r.bad.forEach((b) => clipped.push(`${id}: ${b}`));
+      }
+      console.log(`      clipping: ${cells} cells on ${CLIP_STUDIES.length} studies; ` +
+        `clipped without a title, or a number: ${clipped.length ? clipped.join("; ") : "none"}`);
+      push("[real] no grid number and no part number clips, totals rows included, and a cell " +
+        "that does clip says its whole text on hover",
+        cells > 100 && clipped.length === 0);
+
+      // The pane narrows with no repaint -- what opening the 3D pane does --
+      // and its zoom box's floor narrows with it: a floor left at the old
+      // width was 560px of sideways scroll at 3840 with nothing in it.
+      const floor = async () => page.evaluate(() => {
+        const pane = document.querySelector("#topopane");
+        const zoom = pane.querySelector(".tv__zoom");
+        return { pane: pane.clientWidth, floor: parseFloat(zoom.style.minWidth) || 0 };
+      });
+      const wide = await floor();
+      await page.evaluate((w) => {
+        document.querySelector("#topopane").style.maxWidth = w + "px";
+      }, Math.round(wide.pane * 0.6));
+      await settle(400);
+      const narrow = await floor();
+      await page.evaluate(() => { document.querySelector("#topopane").style.maxWidth = ""; });
+      await settle(400);
+      const back = await floor();
+      console.log(`      zoom box floor: ${wide.floor} in ${wide.pane}; narrowed ${narrow.floor} in ` +
+        `${narrow.pane}; back ${back.floor} in ${back.pane}`);
+      push("[real] the pane narrowed with no repaint takes its zoom box's floor with it, and back",
+        narrow.pane < wide.pane - 50 && Math.abs(narrow.floor - narrow.pane) <= 1 &&
+        Math.abs(back.floor - back.pane) <= 1 && Math.abs(wide.floor - wide.pane) <= 1);
+      await page.locator(navRow("kinematic", "vpa_pitch_linkage_blade_pitch_at_the_stops")).first().click();
+      await settle(1800);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await settle(300);
+    }
+
     // --- the DAG holds still (the_dag_holds_still_and_the_filter_bar_stays_put) --
     // On the real projection, from the kinematic page this suite is on: a study
     // change and the way back, each sampled at fixed steps of page time.

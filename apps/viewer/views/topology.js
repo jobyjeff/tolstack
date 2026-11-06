@@ -1161,6 +1161,19 @@
     }
   };
 
+  // The zoom box is at least as wide as the pane, so a narrow drawing still
+  // lays out across it. Measured now, not at the last paint: opening the 3D
+  // pane narrows this one without a repaint, and a floor left at the old
+  // width is that much phantom sideways scroll
+  // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what, 560px
+  // at 3840 with the 3D pane open).
+  VA.sizeTopoZoomBox = function (root) {
+    var zoomed = root && root.querySelector ? root.querySelector(".tv__zoom") : null;
+    if (!zoomed) return;
+    var paneWidth = typeof root.clientWidth === "number" ? root.clientWidth : 0;
+    zoomed.style.minWidth = paneWidth > 0 ? paneWidth + "px" : "100%";
+  };
+
   // One scale onto a painted pane. The DAG is drawn at its zoom (railsSvg),
   // so a scale the pane was not painted at repaints it (`topoRezoom`, set by
   // renderTopoPane); one it was painted at only records itself and re-syncs
@@ -1176,8 +1189,7 @@
       return k;
     }
     zoomed.setAttribute("data-zoom", String(k));
-    var paneWidth = typeof root.clientWidth === "number" ? root.clientWidth : 0;
-    zoomed.style.minWidth = paneWidth > 0 ? paneWidth + "px" : "100%";
+    VA.sizeTopoZoomBox(root);
     VA.syncTopoScroll(root);
     if (!skipPin) VA.pinTopoHead(root);
     return k;
@@ -1292,23 +1304,27 @@
   // said on a part's first row only, and the brackets
   // (VA.gridBraces) carry the grouping.
   var COLUMNS = [
-    // Wide enough for `213668-002` inside four brackets' indent.
-    { cls: "part", label: "part", width: 100 },
+    // Each width is measured against the longest thing its column prints on
+    // the real projection, in a totals row (dense, bold) as well as a member
+    // row: a number never clips, and words clip only with their hover title.
+    // `NAS1149V0332H` inside its brackets' indent is 109px.
+    { cls: "part", label: "part", width: 112 },
     { cls: "description", label: "description", width: 140 },
     { cls: "ord", label: "#", width: 30 },
     { cls: "name", label: "element", width: 220, resizable: true },
-    { cls: "nominal", label: "nominal", width: 68 },
-    { cls: "min", label: "min", width: 68 },
-    { cls: "max", label: "max", width: 68 },
+    // A totals row's RSS bound, `-13.735566` (the M10 grip), is 82px.
+    { cls: "nominal", label: "nominal", width: 84 },
+    { cls: "min", label: "min", width: 84 },
+    { cls: "max", label: "max", width: 84 },
     // The sweep's sensitivity on a kinematic page (`coefficient`, signed, in
     // the measure's units per the band's); a chain study's ratio, 1 for an
     // unscaled edge -- so the two kinds of study share one column set
     // (the_kinematic_grid_is_a_stack_of_sub_stacks).
     { cls: "sensitivity", label: "sensitivity", width: 76 },
-    // A chain row prints its weight and its signed band
-    // (`+ 1.67 × −0.0835 … 0.0835 mm`), and a stack's total its fold and its
-    // RSS (`±2.355 deg · RSS ±1.034`).
-    { cls: "contribution", label: "contribution", width: 200 },
+    // A chain row prints its weight and its signed band, and a stack's total
+    // its fold and its RSS (`±2.355 deg · RSS ±1.034`). The longest is a
+    // kinematic term's `+ 1.953125 × -0.029297 … 0.029297 deg`, 264px.
+    { cls: "contribution", label: "contribution", width: 270 },
     // One mark, no words (VA.rowSourcingMark); its header is the mark too.
     { cls: "sourcing", label: "", title: "sourcing", width: 30 },
   ];
@@ -3166,12 +3182,18 @@
     var label = VA.el("td", "tvcell tvcell--name tvtotal__label", total.label);
     label.setAttribute("title", total.title);
     tr.appendChild(label);
-    tr.appendChild(VA.el("td", "tvcell tvcell--nominal num", total.center));
-    tr.appendChild(VA.el("td", "tvcell tvcell--min num", total.min));
-    tr.appendChild(VA.el("td", "tvcell tvcell--max num", total.max));
-    tr.appendChild(VA.el("td", "tvcell tvcell--sensitivity num"));
-    tr.appendChild(VA.el("td", "tvcell tvcell--contribution num",
-      total.half + " " + total.units));
+    // Each number carries itself as its title: the columns are measured to
+    // hold every total, and a total wider than that is still readable whole.
+    var num = function (cls, text) {
+      var cell = VA.el("td", "tvcell tvcell--" + cls + " num", text);
+      if (text) cell.setAttribute("title", text);
+      tr.appendChild(cell);
+    };
+    num("nominal", total.center);
+    num("min", total.min);
+    num("max", total.max);
+    num("sensitivity", "");
+    num("contribution", total.half + " " + total.units);
     tr.appendChild(sourcingCell(null));
     return tr;
   }

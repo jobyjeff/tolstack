@@ -8543,9 +8543,11 @@
         eq(VA.partColumns({ id: "l", name: "pitch link assembly", drawing: "213862-002",
                             display_name: "Pitch link 213862-002" }),
           { number: "213862-002", description: "Pitch link" });
+        // The record wins where the name's title block names another drawing
+        // (the installation's 215177-001, the detail's 215735).
         eq(VA.partColumns({ id: "p", name: "pitch plate", drawing: "215177-001",
                             display_name: "Pitch plate 215735-001/-002" }),
-          { number: "215735-001/-002", description: "Pitch plate" });
+          { number: "215177-001", description: "Pitch plate" });
         eq(VA.partColumns({ id: "b", name: "NAS6403U11D hex-head bolt" }),
           { number: "NAS6403U11D", description: "hex-head bolt" });
         // No number in the name: the drawing's, else none.
