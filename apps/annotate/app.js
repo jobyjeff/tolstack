@@ -5994,8 +5994,8 @@ function railRow(node, parentKey, seen) {
     const words = summary ? (railText(summary, ".an__tree-text") || summary.textContent) : "";
     const key = railKey(parentKey, node, words, seen);
     const row = { key, text: words, title: summary ? summary.title : "", open: node.open };
-    railLookInto(node, row);
     if (node.classList.contains("selected")) row.selected = true;
+    railLookInto(node, row);
     const controls = summary ? railControls(node, summary, row) : {};
     embedNodes.set(key, { node, hover: summary, toggle: node, ...controls });
     const kids = [];

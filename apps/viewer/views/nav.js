@@ -404,10 +404,15 @@
       // candidate list (handoff a_joint_end_lists_its_candidate_faces_and_
       // says_why_each_is_there): the row's click is still the row's (it
       // selects), and only the twisty opens and closes the list under it.
-      var twisty = VA.el("button", "navtree__scenetwisty", row.open ? "▾" : "▸");
+      // The chevron is drawn by the stylesheet, the same as a disclosure's,
+      // so the button carries its words as its name rather than a glyph.
+      var twisty = VA.el("button", "navtree__scenetwisty");
       twisty.setAttribute("aria-expanded", row.open ? "true" : "false");
       twisty.setAttribute("data-scene-part", "twisty");
-      if (row.twisty) twisty.setAttribute("title", row.twisty);
+      if (row.twisty) {
+        twisty.setAttribute("title", row.twisty);
+        twisty.setAttribute("aria-label", row.twisty);
+      }
       twisty.onclick = function (event) {
         if (event) {
           if (event.preventDefault) event.preventDefault();
