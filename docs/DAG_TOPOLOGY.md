@@ -296,6 +296,10 @@ and the page re-arranges what it draws (`apps/viewer/topology.js`).
   has a height of its own, in walk order, so the leaders' one premise
   (`VA.leaderGeometry`) holds. A chord is a curve from pin to pin inside the
   block. A block's width follows its pin count (`VA.BLOCK_ASPECT`).
+- **Its body is its part's.** A block is on the body the topology's `bodies`
+  give its part (`VA.bodyOfPart`), and that body's field is widened to wrap
+  it. Its first row's body is not used: a contact face's row is on its first
+  listed part's body, which can be the other part's.
 - **Length modes.** Uniform, a chord takes no height and a block is near
   square. Scaled, two pins a chord joins are the chord's drawn length apart,
   so the block stretches and the aspect gives: the length is the claim, the

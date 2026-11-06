@@ -2227,6 +2227,7 @@
         height: Math.max(0, block.y2 - block.y1), rx: 3, ry: 3,
       });
       rect.setAttribute("data-block", block.part);
+      if (block.body !== undefined) rect.setAttribute("data-block-body", block.body);
       rect.setAttribute("aria-label", (part && part.name) || block.part);
       under.appendChild(rect);
       if (fillMode !== "off") {
@@ -2588,6 +2589,8 @@
       var node = index.nodes[mark.id];
       var dotClasses = ["rail__dot"];
       if (mark.branch) dotClasses.push("rail__dot--branch");
+      // A hook for the browser tier's blocks suite, not a style: a pin is
+      // drawn as any other dot, and no stylesheet rule names this class.
       if (mark.pin) dotClasses.push("rail__dot--pin");
       if (node && node.kind === "datum_feature") dotClasses.push("rail__dot--datum");
       if (marking) dotClasses.push(chainNodes[mark.id] ? "rail__dot--on" : "rail__dot--off");

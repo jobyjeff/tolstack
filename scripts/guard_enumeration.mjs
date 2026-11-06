@@ -455,7 +455,10 @@ export const DECLARED_GUARDS = {
   // row (a constant true, printed only when the projections are absent) has
   // none, like every other suite's.
   // (Re-measured on the merge with integration's 837, review round 1: 844.)
-  browser: { declared: 844, enrollable: 811, names: "33af543ac6a7" },
+  // Review round 1 (REQUEST CHANGES, block body): +2 in "parts as blocks" --
+  // every block inside its own body's field, and the grid's room at 1600
+  // beside the strip. Each carries a spec.
+  browser: { declared: 846, enrollable: 813, names: "6c284c4bfeb1" },
 };
 
 

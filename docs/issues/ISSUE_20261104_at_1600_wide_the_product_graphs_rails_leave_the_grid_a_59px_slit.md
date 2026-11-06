@@ -83,3 +83,37 @@ way a study arrival is framed:
   re-measuring.
 - **Option 2.** Leave it as it is: the whole walk is a map, and Fit is one
   key away.
+
+## Update 2026-11-06: the blocks close the slit
+
+Measured by
+`a_part_with_many_interfaces_is_drawn_as_a_component_with_pins`'s round-1
+rework. The projection was built from that branch merged with `integration`
+(`94087400`), at 1600×1000 with the Preview open. The pane was 737px wide
+both ways.
+
+| page | drawing | `svg.tv__rails` | grid table's left edge | part cells in the pane |
+| --- | --- | ---: | ---: | ---: |
+| whole walk | rails | 678 | 979 | 0/99 |
+| whole walk | blocks | 870 | 1171 | 0/99 |
+| kinematic | rails | 310 | 611 | 6/6 |
+| kinematic | blocks | 404 | 705 | 6/6 |
+| cotter hole | rails | 336 | 637 | 7/7 |
+| cotter hole | blocks | 528 | 829 | 7/7 |
+
+The pane's right edge is at 1038:
+- **On the rails**, the whole walk opens with 59 px of grid at rest.
+- **With blocks** (the page's default since 2026-11-06), the strip beside the
+  spine adds the widest block plus a gutter, 192 px on this walk. The grid
+  then starts 133 px past the pane's edge, and the walk opens with no grid on
+  screen at all.
+- **The studies** keep every part cell in the pane on both drawings.
+
+On the rails, the whole walk counts 0/99 although 59 px of each part cell
+shows. The count asks for the whole cell inside the pane. The browser tier's "parts as
+blocks" suite now holds the study pages' part cells at 1600, and holds no
+number or part cell clipped on all three pages. It does not hold the whole
+walk's part cells, because they are outside the pane on the rails too.
+
+Option 1 above (fit the whole walk on its first paint) would fix both
+drawings, and blocks make it more pressing.

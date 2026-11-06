@@ -4204,9 +4204,11 @@ function visiblePointOn(selector) {
 // other suite here holds on the rails, held on the blocks: every grid row has
 // its mark and every leader starts on its dot (CORRESPONDENCE_IN_PAGE), every
 // joint end wears its glyph, the lit set is drawn and on screen at landing,
-// every block is inside the aspect band, a part is one block on the walk, and
-// a pin is the thing under the pointer at its own centre.
-const BLOCKS_IN_PAGE = () => {
+// every block is inside the aspect band, a part is one block on the walk,
+// every pin on screen is the thing under the pointer at its own centre, every
+// block sits inside its own body's field, and at 1600 the grid keeps its room
+// beside the strip (review round 1 of the handoff added the last two).
+const BLOCKS_IN_PAGE = (bodyOfPart) => {
   const VA = window.ViewerApp;
   const svg = Array.from(document.querySelectorAll("#topopane svg.tv__rails"))
     .filter((n) => !n.closest(".tv__ghost"))[0];
@@ -4230,16 +4232,58 @@ const BLOCKS_IN_PAGE = () => {
     const b = c.getBoundingClientRect();
     return b.top > top + 4 && b.bottom < window.innerHeight - 4 && b.left > 0;
   });
-  let pinHit = null;
-  if (pins.length) {
-    const b = pins[0].getBoundingClientRect();
+  // Every one of them, not the first: a chord's hit path over a pin is
+  // what this caught once, and that was a pin further down.
+  const pinMissed = pins.map((pin) => {
+    const b = pin.getBoundingClientRect();
     const at = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
-    pinHit = { id: pins[0].getAttribute("data-id"),
-               at: at ? (at.getAttribute("data-id") || at.getAttribute("data-glyph-node")) : null };
-  }
+    const id = pin.getAttribute("data-id");
+    const hit = at ? (at.getAttribute("data-id") || at.getAttribute("data-glyph-node")) : null;
+    return hit === id ? null : `${id} under ${hit}`;
+  }).filter(Boolean);
+  // Every block of a part a body carries sits inside that body's field --
+  // the body the topology's `bodies` give the part (`bodyOfPart`, read in
+  // Node off the projection), not the one the page says: a contact face's
+  // row is on its first listed part's body, and the block once wore that.
+  const num = (n, a) => Number(n.getAttribute(a));
+  const box = (n) => ({ x1: num(n, "x"), y1: num(n, "y"),
+                        x2: num(n, "x") + num(n, "width"), y2: num(n, "y") + num(n, "height") });
+  const fields = Array.from(svg.querySelectorAll("rect.tv__bodyfield"))
+    .map((f) => Object.assign(box(f), { body: f.getAttribute("data-body") }));
+  const carried = Array.from(svg.querySelectorAll("rect.tv__block"))
+    .map((r) => ({ part: r.getAttribute("data-block"), drawn: r.getAttribute("data-block-body"),
+                   b: box(r) }))
+    .filter(({ part }) => bodyOfPart[part] !== undefined);
+  const unwrapped = carried
+    .filter(({ part, drawn, b }) => drawn !== bodyOfPart[part] ||
+      !fields.some((f) => f.body === bodyOfPart[part] && f.x1 <= b.x1 + 0.5 &&
+        f.x2 >= b.x2 - 0.5 && f.y1 <= b.y1 + 0.5 && f.y2 >= b.y2 - 0.5))
+    .map(({ part, drawn }) => `${part} (${bodyOfPart[part]}, drawn as ${drawn})`);
+  const bodied = carried.length;
+  // The room the grid keeps at this width with the strip beside the rails:
+  // no sideways scroll, no number or part cell clipped, and every row's part
+  // cell inside the pane and, where it is on screen, what the pointer finds.
+  const scroller = document.querySelector("#topopane .tv__hscroll");
+  const paneBox = scroller.getBoundingClientRect();
+  const sideways = scroller.scrollWidth - scroller.clientWidth;
+  const tds = Array.from(document.querySelectorAll("#topopane table.tvtable td"));
+  const clipped = tds.filter((td) => (td.classList.contains("num") ||
+    td.classList.contains("tvcell--part")) && td.scrollWidth > td.clientWidth + 0.5)
+    .map((td) => JSON.stringify(td.textContent.trim()));
+  const partCells = Array.from(document.querySelectorAll("#topopane tr.tvrow td.tvcell--part"));
+  const partMissed = partCells.filter((td) => {
+    const b = td.getBoundingClientRect();
+    if (b.left < paneBox.left - 0.5 || b.right > paneBox.right + 0.5) return true;
+    if (b.top < top || b.bottom > window.innerHeight) return false;
+    const hit = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+    return !hit || hit.closest("tr") !== td.closest("tr");
+  }).map((td) => td.closest("tr").getAttribute("data-id"));
   return { blocks, glyphs, jointDots, litBars, edgeRows,
-           lit: lit.length, litOnScreen, pins: pins.length, pinHit,
-           pinCount: svg.querySelectorAll("circle.rail__dot--pin").length };
+           lit: lit.length, litOnScreen, pins: pins.length, pinMissed,
+           pinCount: svg.querySelectorAll("circle.rail__dot--pin").length,
+           bodied, unwrapped,
+           room: { width: window.innerWidth, sideways, clipped, cells: tds.length,
+                   partCells: partCells.length, partMissed } };
 };
 
 async function testPartsAsBlocks(browser, fileBase, label, realProjection, realCrops) {
@@ -4260,7 +4304,15 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
-  const read = () => page.evaluate(BLOCKS_IN_PAGE);
+  // Every page here is on vpa_pitch_linkage: its parts' bodies, the first
+  // body listing a part (VA.bodyOfPart's rule).
+  const bodyOfPart = {};
+  (((realProjection && realProjection.topologies) || [])
+    .filter((t) => t.id === "vpa_pitch_linkage")[0] || { bodies: [] }).bodies
+    .forEach((body) => (body.parts || []).forEach((part) => {
+      if (bodyOfPart[part] === undefined) bodyOfPart[part] = body.id;
+    }));
+  const read = () => page.evaluate(BLOCKS_IN_PAGE, bodyOfPart);
   const settled = () => page.waitForFunction(
     () => window.ViewerApp.lastTopoRender && !window.ViewerApp.lastTopoRender.tweening,
     null, { timeout: 15000 });
@@ -4294,14 +4346,16 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
     const kin = await read();
     const kinDrift = (await correspondence()).drift;
     console.log(`      kinematic: ${kin.blocks.length} blocks, ${kin.pinCount} pins, ` +
-      `${kin.litOnScreen}/${kin.lit} lit marks on screen, pin ${JSON.stringify(kin.pinHit)}`);
+      `${kin.litOnScreen}/${kin.lit} lit marks on screen, ${kin.pins - kin.pinMissed.length}/` +
+      `${kin.pins} pins on screen are under the pointer` +
+      (kin.pinMissed.length ? " -- " + kin.pinMissed.join(", ") : ""));
     push("[real] kinematic page, as blocks: its blocks and pins are drawn, every grid " +
       "row has its mark, every leader starts on its dot and every joint end wears its glyph",
       kin.blocks.length > 0 && kin.pinCount > 0 && kinDrift.length === 0 && glyphsOnJoints(kin));
     push("[real] ...the lit set lands on screen and every block is inside the aspect band",
       kin.litOnScreen > 0 && band(kin));
     push("[real] ...a pin is what the pointer finds at its own centre",
-      kin.pinHit && kin.pinHit.at === kin.pinHit.id);
+      kin.pins > 0 && kin.pinMissed.length === 0);
 
     await page.locator(navRow("study", "pitch_link_cotter_hole_clearance")).first().click();
     await page.waitForSelector("tr.tvrow", { timeout: 10000 });
@@ -4325,6 +4379,32 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
     const walk = await read();
     const parts = walk.blocks.map((b) => b.part);
     console.log(`      whole walk: ${walk.blocks.length} blocks over ${new Set(parts).size} parts`);
+    // A block inside its own body's field, on all three pages. And the
+    // grid's room at 1600 beside the strip, held to the rails' own contract
+    // (the grid suite's part-cell check): on a study, every row's part cell
+    // in the pane and under the pointer, and on no page a number or part
+    // cell clipped. Sideways scroll is not asked about -- the 737px pane at
+    // 1600 scrolls on the rails too -- and nor are the whole walk's part
+    // cells, which open outside the pane on the rails as well
+    // (ISSUE_20261104_at_1600_wide_the_product_graphs_rails_leave_the_grid_a_
+    // 59px_slit.md; the strip widens that walk's DAG by 192px).
+    const pages = [["kinematic", kin], ["cotter hole", chain], ["whole walk", walk]];
+    pages.forEach(([name, r]) => console.log(`      ${name}: ${r.bodied - r.unwrapped.length}/` +
+      `${r.bodied} blocks inside their body's field` +
+      (r.unwrapped.length ? " -- " + r.unwrapped.join(", ") : "") +
+      `; at ${r.room.width} wide: sideways ${r.room.sideways}px, ${r.room.clipped.length}/` +
+      `${r.room.cells} cells clipped, ${r.room.partCells - r.room.partMissed.length}/` +
+      `${r.room.partCells} part cells in the pane and under the pointer` +
+      (r.room.partMissed.length && r !== walk ? " -- " + r.room.partMissed.join(", ") : "")));
+    push("[real] on the kinematic page, the chain study and the whole walk, as blocks, " +
+      "every block sits inside its own body's field",
+      pages.every(([, r]) => r.bodied > 0 && r.unwrapped.length === 0));
+    push("[real] ...and at 1600 wide the grid keeps its room beside the strip: on " +
+      "both studies every row's part cell is in the pane and what the pointer finds " +
+      "there, and on no page is a number or part cell clipped",
+      pages.every(([, r]) => r.room.width === 1600 && r.room.clipped.length === 0 &&
+        r.room.cells > 0) &&
+      [kin, chain].every((r) => r.room.partCells > 0 && r.room.partMissed.length === 0));
     push("[real] the whole walk, as blocks: a part is one block, every grid row has its " +
       "mark, every leader starts on its dot, every block is inside the aspect band, and " +
       "nothing threw",
