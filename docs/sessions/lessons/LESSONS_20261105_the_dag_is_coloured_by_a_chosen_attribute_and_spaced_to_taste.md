@@ -282,3 +282,46 @@ Everything below ran in **this worktree**, with the declared inputs bridged
   mutation were witnessed. The one miss is the pre-existing decay filed
   above. The two anchors re-pointed after that run were witnessed with
   `--only`, in 3m03s and 3m18s.
+
+## Review round 1 (2026-11-05): the page wiring is now pinned
+
+The review (`REVIEW_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md`)
+blocked on one finding: every new guard tested a pure helper, and nothing
+tested that the page calls them. The 3D tint, the remembered view settings
+and the live width could each be deleted in one line with every tier green.
+
+**The lesson:** for every new pure helper, also mutate the line on the page
+that calls it. A pure helper's test witnesses the helper, never its call
+site.
+
+Fixed in `708645f4`:
+
+- **Three browser checks on the real kinematic page**, each with a spec:
+  - **3D tint:** the shell's `model tint` word equals `VA.sceneTintCommand`
+    over the page's own `--tv-body-ink-*`. Each tinted part's
+    `partBaseColor` differs from its palette colour, one body's parts share
+    one colour, and different body inks give different colours. 23 tinted
+    parts across 8 bodies.
+  - **Graph width:** picking `wide` in View widens the unscaled DAG (420 →
+    706), and it is still 706 after a reload.
+  - **Colour by:** picking `body` puts `.ovl` on the bars and shows the key,
+    and both are still there after a reload.
+  - The two store-backed checks mutate both halves of the store latch
+    (write and read). Browser pin: 823 → 826 declared, 790 → 793
+    enrollable.
+- **`gridLegendTints`** moved above `gridRowMarks`'s comment. The comment's
+  body-tint bullet no longer says a container is filled.
+- **Nits left as they were:** the popover's document listener copies the
+  Groups pattern, and the second `dagOverlay` call per paint is cheap.
+
+**Verified:**
+
+- `node apps/viewer/run_tests.cjs`: 645/645.
+- `pytest tests/test_mutation_witnesses.py`: 44/44.
+- Browser `--only "kinematic study page"`: 26/26 sub-checks, 985 s
+  (including the slot wait).
+- Browser `--only "annotate model in the scene"`: 22/22 sub-checks, 68 s.
+- `run_mutation_witness_tests.mjs --only` on each new spec: 2/2, 3/3 and
+  3/3 witnessed. That is 8 of 8 mutations.
+- **Not re-run this round:** the full browser tier and the full pytest
+  suite. Round 2's review runs them on the merged tree.
