@@ -347,7 +347,7 @@
           eq(r.childNodes[1].className, "navtree__scenemark");
         });
         var part = rows[1];
-        var kids = part.childNodes.map(function (n) { return n.className; });
+        var kids = Array.prototype.map.call(part.childNodes, function (n) { return n.className; });
         eq(kids.slice(-2).join(" "), "navtree__sceneacts navtree__scenecheck",
           "the buttons are one group and the checkbox is the row's last control");
         eq(part.querySelector("span.navtree__sceneacts").querySelectorAll("button.navtree__scenebtn").length, 2);
