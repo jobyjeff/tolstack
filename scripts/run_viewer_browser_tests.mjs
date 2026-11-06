@@ -1057,9 +1057,8 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
 //
 // Vertically only, then sideways the way a reader would: the grid's sideways
 // scroll is put back, and only if the cell is still not the browser's at any
-// point is the strip scrolled until the cell starts just inside the pane's
-// left edge, which is what a reader does to reach a column the pane does not
-// show. (Until the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_
+// point is the strip scrolled, as little as brings the cell in, which is what
+// a reader does to reach a column the pane does not show. (Until the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_
 // what the rails were sticky and the cell was scrolled to just right of
 // them; the rails scroll with the grid now.)
 async function clearPoint(page, selector, action) {
@@ -1082,8 +1081,10 @@ async function clearPoint(page, selector, action) {
     if (hscroll) hscroll.scrollLeft = left;
     const found = own();
     if (found || !hscroll) return found;
-    hscroll.scrollLeft += node.getBoundingClientRect().left -
-      hscroll.getBoundingClientRect().left - 8;
+    // As little as it takes to bring the cell's first 40px in, so as much of
+    // the drawing as can stays on screen beside it.
+    const edge = hscroll.getBoundingClientRect().right - 8;
+    hscroll.scrollLeft += Math.max(0, node.getBoundingClientRect().left + 40 - edge);
     return own();
   }, selector);
   if (!point) {
@@ -14007,7 +14008,12 @@ async function testSeamLeaders(browser, label, topologies) {
         return null;
       }
       for (const block of ["center", "start", "end"]) {
+        // Vertically only: the rails scroll with the grid, and a sideways
+        // scroll to a wide row takes the dots the leaders start from with it.
+        const strip = row.closest(".tv__hscroll");
+        const keep = strip ? strip.scrollLeft : 0;
         row.scrollIntoView({ block, inline: "nearest" });
+        if (strip) strip.scrollLeft = keep;
         await frame();
         const r = row.getBoundingClientRect();
         const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails").getBoundingClientRect();
@@ -14226,7 +14232,12 @@ async function testSeamLeaders(browser, label, topologies) {
       // rails, where a pointer lands on a leader rather than on the row.
       await live.evaluate((E) => {
         const row = document.querySelector(`#topopane .tv__hscroll tr.tvrow[data-id="${E}"]`);
-        if (row) row.scrollIntoView({ block: "center" });
+        if (!row) return;
+        // Vertically only (the rails scroll with the grid; see above).
+        const strip = row.closest(".tv__hscroll");
+        const keep = strip ? strip.scrollLeft : 0;
+        row.scrollIntoView({ block: "center" });
+        if (strip) strip.scrollLeft = keep;
       }, E);
       // Read where it is once it has stopped moving (two frames agree).
       await liveUntil((E) => {
@@ -14368,8 +14379,11 @@ async function testSeamLeaders(browser, label, topologies) {
       await live.mouse.move(800, 20);
       await live.evaluate(() => {
         const row = document.querySelector("#topopane .tv__hscroll tr.tvrow--selected");
+        const strip = row && row.closest(".tv__hscroll");
+        const keep = strip ? strip.scrollLeft : 0;
         if (row) row.scrollIntoView({ block: "center" });
         else window.scrollTo(0, 0);
+        if (strip) strip.scrollLeft = keep;
       });
     };
     await clearPoint(live, `#topopane tr.tvrow[data-id="${CONTRIBUTOR}"] td.tvcell--name`, "click");

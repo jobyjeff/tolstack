@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: med
-status: resolved
+status: open
 area: tests
 reporter: agent
 class: suite_over_budget
@@ -130,3 +130,22 @@ Both reds depend on the checkout: `test_viewer_js_suite`, and the contact-sugges
 and its mutation-witness gate, both of them under the browser slot, so most
 of the hour is contention and not suite growth. The suite prints no
 contention header lines. No `--durations` was taken.
+
+## Reopened 2026-11-05 (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what)
+
+One record over budget: **4033 s (67 min)** against 10 min, `OVER BUDGET by
+57m13s`. Command:
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider`,
+run single-process in the worktree (`-n 16 --dist loadfile` is refused here:
+no xdist). Result: 1721 passed, 7 failed, 1 skipped.
+
+This is almost certainly queueing, not test cost. The output sat at 23 dots
+for most of the hour while four agents' browser runs, mine among them, held
+the machine's one browser slot. The pytest tests that start Chrome ask for
+the `browser_slot` fixture and wait their turn, and the wall clock counts the
+wait. The same morning's batch-merge candidate measured 503 s. I did not pass
+`--durations=15`, so I have no per-test pareto for this run. The class matches
+`ISSUE_20261029_a_witness_gate_recorded_over_budget_counts_its_browser_slot_queue.md`
+(the witness gate): a recorded wall time that includes the slot queue cannot
+tell a slow suite from a busy machine.
+
