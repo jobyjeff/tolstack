@@ -79,3 +79,24 @@ proof; rerun with `--interval 30`.
 - Browser TRUTH tier and `run_mutation_witness_tests.mjs --changed-since` were **not run**
   (need the main checkout and a fresh projection). Tests that pin the removed per-frame
   mechanism were rewritten (the throwing-frame test now throws from `onPainted`).
+
+## Witness bookkeeping
+
+Two fast guards added and enrolled (`fast__…291035c6`, `fast__…47ccfc6f`; pin 635 → 637).
+Five specs whose anchors named the removed per-frame code were re-pointed at the keyframe
+tween (`1dd72346`, `124b830a`, `9f6ba52e`, `2014a8df`; `e93b7a99` still resolves since Fit now
+reads `viewport()`). `tests/test_mutation_witnesses.py` anchor + census tests pass. **Not
+proved WITNESSED:** `--only` on the new/re-pointed entries reports "tier was red before the
+mutation" here because the main checkout's projection is stale for this tree — rerun
+`node scripts/run_mutation_witness_tests.mjs --changed-since master` in the main checkout after
+rebuilding projections (the merge's job).
+
+## Full-suite record
+
+`C:\workspace\tolstack\venv-win\Scripts\python.exe -m pytest -q` in this worktree, 663 s
+(over the 10 min budget — pre-existing size, not measured against a baseline here):
+1723 passed, 1 skipped, 5 failed. Failures: `test_viewer_js_suite_is_green` (worktree, by
+design: no projection), two `shadow_concurrency` lock tests and one more that fail the same way
+on the pre-change tree (EPERM reaping a stale `tmp/mutation-witness-*`), and the two
+mutation-witness census/anchor failures this change caused — both fixed afterwards (anchor +
+census tests re-run green, 43 passed). Not re-run in full after those fixes.
