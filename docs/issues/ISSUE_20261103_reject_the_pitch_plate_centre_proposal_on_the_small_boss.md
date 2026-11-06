@@ -26,3 +26,21 @@ the annotator.
 No replacement is proposed. Faces 487/521 fit `other`, so a proposal on them
 is refused for shape
 (`ISSUE_20261103_a_two_row_cylinder_band_fits_other_so_the_plate_pilot_boss_cannot_be_proposed.md`).
+
+## Addendum 2026-11-05 (a_two_row_cylinder_band_fits_as_a_cylinder)
+
+Faces 487/521 fit `cylindrical` now (r 20.520 about Z), and face 487 is
+proposed (`high`) for all five edges whose end is the pilot-boss node, as
+events 0058-0062. Face 439 is proposed for the same five, as 0051-0055, not
+only for the coaxiality edge 0055 above.
+
+Both are `high`, so the annotator lists the older one, 439, first on each.
+Two ways to clear it on an edge:
+
+- In the end's armed pick, click face 487. That binds 487 and turns every
+  other open proposal at that end down in the same click
+  (`AA.planAnswer`'s pick path).
+- Use the rail's Accept on the 487 row. That binds 487 but rejects nothing,
+  so 439 still needs its own Reject.
+
+The contact engine's top candidate on the coaxiality edge is already 487/521.

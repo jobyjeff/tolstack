@@ -98,6 +98,19 @@
     // degrees -- the first value tried -- refused 700 real cylindrical walls
     // and fillets whose axis the coaxial test then had no trouble with.
     cylinderMinArcDeg: 10.0,
+    // A face whose facet normals FAIL cylinderAxisDeg can still be a cylinder:
+    // short fan triangles at a trimmed boundary tilt off the axis by their own
+    // chord sagitta, which the deflection sets, while the NODES are on the
+    // surface exactly. So once the sphere has refused such a face, the
+    // cylinder is asked again of the nodes alone (AA.refineCylinder), and it
+    // answers only when they sit on it to this many units of the face's own
+    // float32 resolution (|p|max * 2^-23) -- a count, so still no length.
+    // Measured, and argued, at tolerance_stack/feature_geometry.py's
+    // cylinder_node_ulps.
+    cylinderNodeUlps: 3.0,
+    // ...over enough nodes to over-determine a cylinder's five degrees of
+    // freedom.
+    cylinderNodeMinVertices: 8,
     // A triangle this much smaller than its face's largest is a sliver at a
     // trimmed boundary. It still carries its (tiny) area weight, but it is not
     // allowed to fail a normal-direction check on its own.
@@ -588,12 +601,15 @@
     // --- cylindrical --------------------------------------------------------
     if (!axis) return other(faceId, "no axis could be read");
     if (worst.axisDeg > tol.cylinderAxisDeg) {
-      // Not a plane and not a cylinder. A sphere is the last shape asked, and
-      // this is the only branch that reaches it: a sphere's facet normals span
-      // two dimensions, so there is no axis they all stand perpendicular to.
-      // Asking it any earlier would let a band of quads answer "sphere" for a
-      // bore -- AA.FITTED_SURFACE_CLASSES carries that measurement.
-      return sphereOrOther(faceId, vs, acc, extent, tol);
+      // Not a plane and not a cylinder by its facets. A sphere is asked next,
+      // and this is the only branch that reaches it: a sphere's facet normals
+      // span two dimensions, so there is no axis they all stand perpendicular
+      // to. Asking it any earlier would let a band of quads answer "sphere"
+      // for a bore -- AA.FITTED_SURFACE_CLASSES carries that measurement. It
+      // answers FIRST, so no sphere becomes a cylinder by the node test after.
+      var verdict = sphereOrOther(faceId, vs, acc, extent, tol);
+      if (verdict.surface === "spherical") return verdict;
+      return cylinderByNodes(faceId, vs, centroid, axis, worst, tol) || verdict;
     }
     // Project the vertices into the plane perpendicular to the axis and fit a
     // circle. The basis is arbitrary but must be stable: build it off the
@@ -641,6 +657,122 @@
       arcDeg: arc,
       axisSpreadDeg: worst.axisDeg,
       radialError: radial / fit.r,
+    };
+  }
+
+  // A cylinder about `axis` through the points: project into the plane
+  // perpendicular to it and fit a circle. The same projection the cylindrical
+  // branch above makes inline, as tolerance_stack/feature_geometry.py's
+  // fit_cylinder; null when the cross-section does not fit a circle.
+  function cylinderAbout(vs, centroid, axis) {
+    axis = unit(axis);
+    if (!(norm(axis) > 0)) return null;
+    var seed = (Math.abs(axis[0]) <= Math.abs(axis[1]) && Math.abs(axis[0]) <= Math.abs(axis[2]))
+      ? [1, 0, 0]
+      : (Math.abs(axis[1]) <= Math.abs(axis[2]) ? [0, 1, 0] : [0, 0, 1]);
+    var u = unit(cross(axis, seed));
+    var v = unit(cross(axis, u));
+    var xs = [], ys = [];
+    for (var q = 0; q < vs.length; q++) {
+      var rel = sub(vs[q], centroid);
+      xs.push(dot(rel, u)); ys.push(dot(rel, v));
+    }
+    var fit = AA.fitCircle2(xs, ys);
+    if (!fit || !(fit.r > 0)) return null;
+    var radial = 0, angles = [];
+    for (var s = 0; s < xs.length; s++) {
+      var dx = xs[s] - fit.cx, dy = ys[s] - fit.cy;
+      var err = Math.abs(Math.sqrt(dx * dx + dy * dy) - fit.r);
+      if (err > radial) radial = err;
+      angles.push(Math.atan2(dy, dx));
+    }
+    return {
+      axis: axis, u: u, v: v, cx: fit.cx, cy: fit.cy, radius: fit.r,
+      axisPoint: [
+        centroid[0] + u[0] * fit.cx + v[0] * fit.cy,
+        centroid[1] + u[1] * fit.cx + v[1] * fit.cy,
+        centroid[2] + u[2] * fit.cx + v[2] * fit.cy,
+      ],
+      maxResidual: radial, arcDeg: AA.angularSpreadDeg(angles),
+    };
+  }
+
+  // At most this many Gauss-Newton steps; tolerance_stack/feature_geometry.py's
+  // CYLINDER_REFINE_STEPS, and not a threshold -- the best step is kept.
+  var CYLINDER_REFINE_STEPS = 6;
+
+  // The cylinder through the VERTICES, starting from `axis` and tilting it
+  // until the nodes sit at one radius -- feature_geometry.py's refine_cylinder,
+  // step for step: one linearised solve in the centre, the radius and two
+  // small tilts of the axis, then a fresh circle fit about the tilted axis,
+  // keeping the step with the smallest worst residual. The facet axis is
+  // tilted by deflection-set chord sagitta; the nodes are on the surface.
+  // Exported so a test can refine points it built by hand.
+  AA.refineCylinder = function (vs, centroid, axis) {
+    var best = cylinderAbout(vs, centroid, axis);
+    var current = best;
+    for (var step = 0; step < CYLINDER_REFINE_STEPS && current; step++) {
+      var a = current.axis, u = current.u, v = current.v;
+      var cx = current.cx, cy = current.cy, r = current.radius;
+      var jtj = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      var jtd = [0, 0, 0, 0, 0];
+      for (var k = 0; k < vs.length; k++) {
+        var rel = sub(vs[k], centroid);
+        var dx = dot(rel, u) - cx, dy = dot(rel, v) - cy, h = dot(rel, a);
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (!(dist > 0)) continue;
+        var ex = dx / dist, ey = dy / dist;
+        var row = [-ex, -ey, -1, -ex * h, -ey * h];
+        var d = dist - r;
+        for (var i = 0; i < 5; i++) {
+          jtd[i] -= row[i] * d;
+          for (var j = i; j < 5; j++) jtj[i][j] += row[i] * row[j];
+        }
+      }
+      for (var i2 = 0; i2 < 5; i2++) {
+        for (var j2 = 0; j2 < i2; j2++) jtj[i2][j2] = jtj[j2][i2];
+      }
+      var delta = AA.solveLinear(jtj, jtd);
+      if (!delta) break;
+      var tilted = unit([a[0] + delta[3] * u[0] + delta[4] * v[0],
+                         a[1] + delta[3] * u[1] + delta[4] * v[1],
+                         a[2] + delta[3] * u[2] + delta[4] * v[2]]);
+      current = cylinderAbout(vs, centroid, tilted);
+      if (current && current.maxResidual < best.maxResidual) best = current;
+      if (Math.sqrt(delta[3] * delta[3] + delta[4] * delta[4]) < 1e-12) break;
+    }
+    return best;
+  };
+
+  // One unit of float32 resolution at magnitude 1 -- what cylinderNodeUlps
+  // counts in (feature_geometry.py's FLOAT32_RESOLUTION).
+  var FLOAT32_RESOLUTION = Math.pow(2, -23);
+
+  // Asked only of a face whose facets failed cylinderAxisDeg and whose sphere
+  // was refused: the cylinder its NODES sit on, or null, in which case the
+  // face keeps the sphere's reason.
+  function cylinderByNodes(faceId, vs, centroid, axis, worst, tol) {
+    if (vs.length < tol.cylinderNodeMinVertices) return null;
+    // The facet axis's own cylinder passes the ordinary radial test first, so
+    // the facet-normal test is the only one this ever overrides.
+    var facet = cylinderAbout(vs, centroid, axis);
+    if (!facet || facet.maxResidual > tol.cylinderRadialFraction * facet.radius) return null;
+    var fit = AA.refineCylinder(vs, centroid, axis);
+    if (!fit) return null;
+    var magnitude = 0;
+    for (var i = 0; i < vs.length; i++) {
+      for (var c = 0; c < 3; c++) magnitude = Math.max(magnitude, Math.abs(vs[i][c]));
+    }
+    if (fit.maxResidual > tol.cylinderNodeUlps * magnitude * FLOAT32_RESOLUTION) return null;
+    if (fit.arcDeg < tol.cylinderMinArcDeg) return null;
+    return {
+      faceId: faceId, surface: "cylindrical",
+      axis: fit.axis,
+      axisPoint: fit.axisPoint,
+      radius: fit.radius,
+      arcDeg: fit.arcDeg,
+      axisSpreadDeg: worst.axisDeg,
+      radialError: fit.maxResidual / fit.radius,
     };
   }
 

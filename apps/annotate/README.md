@@ -288,7 +288,11 @@ parallel and vertices that lie in one plane; a cylinder is facet normals that
 all lie in one plane (so the direction they never point in is the axis) plus
 vertices at one radius over a wide enough arc to place that axis; a sphere is
 vertices at one radius from one centre, on a face that is a *patch* rather than
-a single band. Everything else is **other**, which is a first-class answer and
+a single band. A face whose facets miss the cylinder's plane (short triangles
+at a trimmed edge tilt by degrees) and that is no sphere is still a cylinder
+when its *nodes* sit on one to the float32 resolution of its coordinates —
+the nodes are on the surface exactly, the facets only approximately
+(`feature_geometry.py`'s `cylinder_node_ulps`). Everything else is **other**, which is a first-class answer and
 not a near miss: a cone, a torus, a fillet along a curved edge and a swept blade
 surface all land there, and a face there is suggested for nothing.
 
