@@ -52,7 +52,10 @@ traced ratio" — never restate the rule elsewhere).
   natural-looking next feature. Since 2026-10-26 there is **one topology per
   product** (`topology_vpa_pitch_linkage.json`; `pitch_system` was folded into
   it) and every study is a subset of it; which parts move as one rigid body is
-  declared on it — `docs/DAG_TOPOLOGY.md`, "Bodies".
+  declared on it — `docs/DAG_TOPOLOGY.md`, "Bodies". Since 2026-11-06 the page
+  draws a part with two or more interfaces as one block with its interfaces as
+  pins, re-arranging only what it draws (same file, "A part with many
+  interfaces is a block with pins").
 - **A stack element or topology edge whose physical feature is unresolved** →
   `docs/ANNOTATION_SURFACE.md`. The select-and-tag surface (2026-09-06):
   `apps/annotate/` is the shell's embedded 3D pane and has no page of its own

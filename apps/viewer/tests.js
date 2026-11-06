@@ -15842,6 +15842,33 @@
             });
           });
 
+        await test("[real] drawn as blocks, every committed topology's whole walk is one " +
+          "block per part, each inside the aspect band, crossing itself no more than the " +
+          "builder's walk does", function () {
+            var M = VA.RAIL_METRICS;
+            liveTopos.forEach(function (topoProj) {
+              var pins = VA.partPins(topoProj);
+              var layout = VA.blockLayout(VA.gatherParts(topoProj.layout, topoProj), topoProj);
+              var parts = (layout.blocks || []).map(function (b) { return b.part; });
+              eq(parts.length, new Set(parts).size, topoProj.id + ": a part is one block");
+              eq(parts.slice().sort(), Object.keys(pins.blocks).sort(),
+                 topoProj.id + ": every part with two faces or more is a block");
+              var drawn = VA.blockLayout(VA.spineRight(VA.gatherParts(topoProj.layout, topoProj)),
+                                         topoProj);
+              var geo = VA.railGeometry(drawn, M, VA.rowPositions(drawn, topoProj, "uniform", M),
+                                        { topoProj: topoProj });
+              geo.blocks.forEach(function (b) {
+                var ratio = (b.x2 - b.x1) / (b.y2 - b.y1);
+                ok(ratio >= VA.BLOCK_ASPECT.min && ratio <= VA.BLOCK_ASPECT.max,
+                   topoProj.id + " " + b.part + ": " + ratio.toFixed(2));
+              });
+              var before = VA.layoutCrossings(topoProj.layout).total;
+              var after = VA.layoutCrossings(layout).total;
+              ok(after <= before, topoProj.id + ": " + after + " crossings drawn as blocks, " +
+                 before + " on the builder's walk");
+            });
+          });
+
         await test("[real] every committed topology draws its spine on the " +
           "rightmost rail, with its branches extending left", function () {
             liveTopos.forEach(function (topoProj) {

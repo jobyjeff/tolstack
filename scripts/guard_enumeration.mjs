@@ -239,12 +239,12 @@ export const DECLARED_GUARDS = {
   // Each carries a spec. (Re-measured at the review merge on integration's
   // 632: 642.)
   // a_part_with_many_interfaces_is_drawn_as_a_component_with_pins, 2026-11-06:
-  // +8, one renamed -- a part's pins and chords, the gathered walk, a block's
+  // +9, one renamed -- the live model's blocks, a part's pins and chords, the gathered walk, a block's
   // sides and aspect, the cut at a split chord, the scaled pin spacing, a
   // pin's leader, the crossing count's inner pins and the page's blocks; the
   // view popover offers four settings now. Each carries a spec; the old
   // name's spec is deleted.
-  fast: { declared: 650, enrollable: 650, names: "d048bf818d90" },
+  fast: { declared: 651, enrollable: 651, names: "d6745e66a606" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

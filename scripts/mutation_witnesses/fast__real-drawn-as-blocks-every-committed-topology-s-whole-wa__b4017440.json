@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] drawn as blocks, every committed topology's whole walk is one block per part, each inside the aspect band, crossing itself no more than the builder's walk does",
+  "mutations": [
+    {
+      "contract": "Every block on the live model is inside the aspect band.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). A block a third as wide as it is tall: below 1:2 on every pin count.",
+      "file": "apps/viewer/topology.js",
+      "find": "  VA.BLOCK_ASPECT = { min: 0.5, max: 2, target: 0.55 };",
+      "replace": "  VA.BLOCK_ASPECT = { min: 0.5, max: 2, target: 0.3 };"
+    }
+  ]
+}
