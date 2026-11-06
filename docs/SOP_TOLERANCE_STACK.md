@@ -379,7 +379,7 @@ gains a `display_name` and a one-line `naming_note` recording the crossing
 link" is the drawing's PITCH LINK). The id keeps whatever it was committed as,
 because deep links, crop keys, binding keys and projection keys stand on it;
 the viewer prints `display_name` and carries the id in the tooltip.
-
+
 **An element's `name` is the span, in the part's own words** (2026-11-05). The
 same rule for every stack element and topology edge, and the reason the cell and
 its hover show one string:
