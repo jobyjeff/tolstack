@@ -2139,6 +2139,11 @@
     // unlit stay weight; no overlay is the one neutral ink.
     var overlay = ctx.overlay || { edges: {}, nodes: {} };
     var pills = {};
+    // A block's chords (VA.railGeometry's `chord`) end ON their pins, so they
+    // go in a layer of their own under every dot: a chord's wide hit path
+    // would otherwise take the pointer off the pin it lands on.
+    var chords = VA.svg("g", "tv__chords");
+    over.appendChild(chords);
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
@@ -2172,7 +2177,7 @@
           leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
           hot: "rail__bar--hot", lead: "rail__bar--lead",
         });
-        over.appendChild(bar);
+        (mark.chord ? chords : over).appendChild(bar);
 
         // A floored bar (scaled modes only) wears a drafting-style break
         // across its middle: this length is the minimum render length, not a
@@ -2215,7 +2220,7 @@
             y2: Math.max(y1, y2) });
         wire(hit, ctx, "edge", mark.id, recordTitle("edge", mark.id));
         hotHover(hot, hit, hotKey("edge", mark.id));
-        over.appendChild(hit);
+        (mark.chord ? chords : over).appendChild(hit);
 
         // A form element's squiggle beside its bar, on the side away from the
         // grid, as a form modifier's sits beside its node: a fact about the
