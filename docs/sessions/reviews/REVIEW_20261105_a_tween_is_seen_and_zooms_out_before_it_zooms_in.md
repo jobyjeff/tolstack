@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261105_a_tween_is_seen_and_zooms_out_before_it_zooms_in.md
 reviewer: agent
 date: 2026-11-05
-verdict: REQUEST CHANGES (round 2)
-blockers: 1
+verdict: APPROVE (round 3)
+blockers: 0
 ---
 
 # Review — a_tween_is_seen_and_zooms_out_before_it_zooms_in
@@ -94,3 +94,12 @@ framed once the re-arrange settles". The new keyframe engine runs `landing.targe
 and it exits the witness tier non-zero. Repoint the spec at the line that now carries the
 arrival landing (or retire it with a stated reason, if the guard is covered by another entry), and
 show it WITNESSED with `--only`.
+
+## Re-run 2026-11-06 (round 3) — APPROVE
+
+`f4eac9b2` re-points `1139260e` at `if (!known) end = measureLanding(start, lit);` — merged, and
+`--only` reads **WITNESSED** (1/1, 2m53s) on the merged tree. No other change in the round (spec +
+lesson line). Standing non-blocking items: the "after" frame count is unmeasured (re-measure on a
+quiet box); nine witness entries were unprovable here because the DAG-zoom and kinematic browser
+suites are red on `integration` itself — rerun `--changed-since` at the batch merge once those are
+fixed.
