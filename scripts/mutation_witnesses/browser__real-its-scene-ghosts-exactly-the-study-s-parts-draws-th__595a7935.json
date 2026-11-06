@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "every study opens in 3D showing only its parts",
+  "expect_red": "[real] its scene ghosts exactly the study's parts, draws the rest faint and nothing solid",
+  "mutations": [
+    {
+      "contract": "Every part is translucent until an action names it, and a hidden body draws nothing (handoff everything_in_3d_is_transparent_until_an_action_needs_a_face).",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md",
+      "note": "Renamed from the guard every_study_opens_in_3d_showing_only_its_parts declared (its scene was solid then) by handoff everything_in_3d_is_transparent_until_an_action_needs_a_face. The parts the study does not cite stop being distinguishable from the ones it does.",
+      "file": "apps/annotate/app.js",
+      "find": "if (scope && scope.targets.length && scope.targets.indexOf(sha) === -1) return AA.PART_LOOKS[2];",
+      "replace": "if (scope && scope.targets.length && scope.targets.indexOf(sha) === -1) return AA.PART_LOOKS[1];"
+    }
+  ]
+}

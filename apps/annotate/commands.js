@@ -477,23 +477,69 @@
   // `isolate parts <part…>` (handoff every_study_opens_in_3d_showing_only_its_
   // parts): the viewer's one command for "this study's parts". The word that
   // follows `isolate` and turns it from the panel's hide-the-rest into a
-  // scope: the named parts solid, every other installed part ghosted -- or
+  // scope: the named parts ghost, every other installed part faint -- or
   // hidden, when the page's unlit word says hide. `isolate off` undoes it,
   // the same snapshot as every other isolate.
   AA.ISOLATE_PARTS_WORD = "parts";
 
-  // Pure: which installed parts a scope draws how. `all` is every installed
-  // mesh's sha256, `targets` the scope's. The rest are `ghost`ed, or `hide`n
-  // when `hideRest`. No scene, no three.js.
+  // How a drawn part looks (handoff everything_in_3d_is_transparent_until_an_
+  // action_needs_a_face). Jeff, 2026-11-05: "Everything should be transparent
+  // by default, and any time you try to perform an action such as binding a
+  // face it should hide and/or dim anything in the view that is irrelevant."
+  //
+  //   solid  an action names it -- the part being picked on, the face being
+  //          selected, the edge a grid row is about. Never a resting look.
+  //   ghost  at rest, every part a study draws; during an action, the parts
+  //          next to what it names (the other end of the edge).
+  //   faint  everything else: at rest the parts no study cites, during an
+  //          action the parts it is not about.
+  //
+  // scene.js's PART_LOOK_OPACITY gives each its opacity; app.js's lookOf is
+  // the one place that decides which a part has.
+  AA.PART_LOOKS = Object.freeze(["solid", "ghost", "faint"]);
+
+  // Pure: which installed parts a scope draws how, at rest. `all` is every
+  // installed mesh's sha256, `targets` the scope's. The targets are `ghost`;
+  // the rest `faint`, or `hide`n when `hideRest`. Nothing is solid: a study
+  // is a scope, not an action. No scene, no three.js.
   AA.planPartScope = function (all, targets, hideRest) {
-    var solid = {};
-    (targets || []).forEach(function (s) { solid[s] = true; });
-    var rest = (all || []).filter(function (s) { return !solid[s]; });
+    var cited = {};
+    (targets || []).forEach(function (s) { cited[s] = true; });
+    var rest = (all || []).filter(function (s) { return !cited[s]; });
     return {
-      solid: (targets || []).slice(),
-      ghost: hideRest ? [] : rest,
+      ghost: (targets || []).slice(),
+      faint: hideRest ? [] : rest,
       hide: hideRest ? rest : [],
     };
+  };
+
+  // Pure: every open part's look while an action is in view -- `about` (the
+  // parts it names) solid, `near` (their neighbours) ghost, the rest faint.
+  // A part in both lists is about. { sha256: look }.
+  AA.planActionLooks = function (open, about, near) {
+    var out = {};
+    (open || []).forEach(function (sha) {
+      out[sha] = (about || []).indexOf(sha) !== -1 ? AA.PART_LOOKS[0]
+        : (near || []).indexOf(sha) !== -1 ? AA.PART_LOOKS[1] : AA.PART_LOOKS[2];
+    });
+    return out;
+  };
+
+  // Pure: do two recorded occurrence keys lie on one assembly path -- the same
+  // occurrence, or one installed inside the other? A key is the occurrence's
+  // instance path through the assembly ("217755-001/prd-e-03300520.1/
+  // 215175-001.1"), so a detail drawn inside an installation has the
+  // installation's key as a whole-segment prefix. Sibling instances
+  // ("…/213862-002.1" and "…/213862-002.12") never overlap.
+  AA.assemblyPathsOverlap = function (a, b) {
+    if (a == null || b == null) return false;
+    a = String(a); b = String(b);
+    if (a === b) return true;
+    var inside = function (inner, outer) {
+      return inner.length > outer.length && inner.charAt(outer.length) === "/" &&
+        inner.slice(0, outer.length) === outer;
+    };
+    return inside(a, b) || inside(b, a);
   };
 
   // The head line's words for a scope none of whose parts has a mesh.

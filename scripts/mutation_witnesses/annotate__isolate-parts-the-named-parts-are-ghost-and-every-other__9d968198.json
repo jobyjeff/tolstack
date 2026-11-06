@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "isolate parts: the named parts are ghost and every other installed part faint, or hidden under the unlit word hide, and none is solid -- and a scope with no mesh says so in the head line",
+  "mutations": [
+    {
+      "contract": "Every part is translucent until an action names it, and a hidden body draws nothing (handoff everything_in_3d_is_transparent_until_an_action_needs_a_face).",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md",
+      "note": "Declared with the guard by handoff everything_in_3d_is_transparent_until_an_action_needs_a_face (2026-11-05). The study's uncited parts vanish from the plan.",
+      "file": "apps/annotate/commands.js",
+      "find": "faint: hideRest ? [] : rest,",
+      "replace": "faint: [],"
+    }
+  ]
+}

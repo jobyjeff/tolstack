@@ -1,0 +1,33 @@
+---
+type: chore
+priority: med
+status: open
+area: tests
+reporter: agent
+class: suite_over_budget
+found_by: docs/sessions/HANDOFF_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md
+---
+
+# The default test tier ran 18 m 46 s on a worktree (budget 10 min)
+
+Measured 2026-11-05 from the worktree of handoff
+`everything_in_3d_is_transparent_until_an_action_needs_a_face`:
+
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs` —
+`1 failed, 1727 passed, 1 skipped, 2 deselected in 1125.48s`. Recorded with
+`dispatch suite-time record` (OVER BUDGET by 8m46s). The one failure is the
+documented worktree red (`tests/test_viewer_js_suite.py`, its `[real]` tier).
+
+Two things this measurement does **not** settle, stated so nobody over-reads it:
+
+- The run **overlapped** a full browser-tier run on the same box (and both
+  queue on the one browser slot where a test asks for `browser_slot`), so some
+  of the wall time is contention, not the suite.
+- It was run without `--durations=15` and the venv has no `pytest-xdist`, so
+  the documented `-n 16 --dist loadfile` spelling is not available here
+  (`unrecognized arguments: -n --dist`). The earlier
+  `ISSUE_20261022_the_default_test_tier_runs_past_its_ten_minute_budget.md`
+  is resolved; whether its fix assumed xdist is the first thing to check.
+
+Next step: one run alone, `-q --durations=15`, on a quiet box, and start from
+that pareto.
