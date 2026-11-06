@@ -3317,6 +3317,7 @@
     }
     var blocks = [];
     var mark = {};
+    var bodyOf = VA.bodyOfPart(topoProj);
     runs.forEach(function (run) {
       var pinRows = [];
       for (var r = run.start; r <= run.end; r++) {
@@ -3324,7 +3325,10 @@
       }
       if (pinRows.length < VA.BLOCK_MIN_PINS) return;
       var i = blocks.length;
-      var block = { part: run.part, body: rows[run.start].body, start: run.start,
+      // The block's body is its part's, never its first row's: a contact
+      // face's row is on its first listed part's body, and VA.partPins may
+      // have given that face to the other part.
+      var block = { part: run.part, body: bodyOf[run.part], start: run.start,
                     end: run.end, pins: pinRows.length, left: 0, right: 0 };
       pinRows.forEach(function (row) {
         var side = pins.outside[row.id] ? "left" : "right";
@@ -3926,7 +3930,13 @@
                x2: x2,
                y1: top + inset, y2: bottom - inset };
     };
-    out.bodies = VA.bodySpans(rows).map(function (span) {
+    // A block's rows are on its body for the fields, whatever body a contact
+    // face's row carries, so the field around a block is its own body's.
+    var bodyRows = rows.map(function (row) {
+      var b = row.pin ? out.blocks[row.pin.block] : row.chord ? out.blocks[row.chord.block] : null;
+      return b && row.body !== b.body ? assign(row, { body: b.body }) : row;
+    });
+    out.bodies = VA.bodySpans(bodyRows).map(function (span) {
       var f = field(span, pad, 1);
       f.body = span.body;
       return f;

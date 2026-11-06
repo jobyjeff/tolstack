@@ -15869,6 +15869,51 @@
             });
           });
 
+        await test("[real] drawn as blocks, every block wears its part's body and that " +
+          "body's field wraps it, on the whole walk and on every study's band", function () {
+            // The pane's own derivation (views/topology.js's renderTopoPane).
+            // A contact face's row is on its first listed part's body, and
+            // the pitch plate's first pin is the hydraulic brake's face.
+            var M = VA.RAIL_METRICS;
+            var kinStudies = (leaderKinematic && leaderKinematic.studies) || [];
+            var checked = 0;
+            liveTopos.forEach(function (topoProj) {
+              var bodyOf = VA.bodyOfPart(topoProj);
+              var views = [{ name: "whole walk", lit: null }];
+              (topoProj.studies || []).forEach(function (study) {
+                var lit = VA.studyLitSet(study, topoProj);
+                if (lit) views.push({ name: study.id, lit: lit });
+              });
+              kinStudies.forEach(function (study) {
+                if (study.topology !== topoProj.id) return;
+                var lit = VA.kinematicLitSet(study, topoProj);
+                if (lit) views.push({ name: "kinematic " + study.id, lit: lit });
+              });
+              views.forEach(function (view) {
+                var gathered = VA.gatherParts(topoProj.layout, topoProj);
+                var walk = view.lit ? VA.blockColumns(VA.bandLayout(gathered, view.lit), topoProj,
+                                                      view.lit)
+                                    : gathered;
+                var drawn = VA.blockLayout(
+                  VA.spineRight(VA.collapseBodies(walk, null, topoProj, view.lit)), topoProj);
+                var geo = VA.railGeometry(drawn, M, VA.rowPositions(drawn, topoProj, "uniform", M),
+                                          { topoProj: topoProj });
+                geo.blocks.forEach(function (b) {
+                  var where = topoProj.id + " " + view.name + " " + b.part;
+                  eq(b.body, bodyOf[b.part], where + ": the block's body is its part's");
+                  if (b.body === undefined) return;
+                  var wraps = geo.bodies.some(function (f) {
+                    return f.body === b.body && f.x1 <= b.x1 && f.x2 >= b.x2 &&
+                           f.y1 <= b.y1 && f.y2 >= b.y2;
+                  });
+                  ok(wraps, where + ": a " + b.body + " field wraps the block");
+                  checked += 1;
+                });
+              });
+            });
+            ok(checked > 0, "some block is wrapped");
+          });
+
         await test("[real] every committed topology draws its spine on the " +
           "rightmost rail, with its branches extending left", function () {
             liveTopos.forEach(function (topoProj) {
