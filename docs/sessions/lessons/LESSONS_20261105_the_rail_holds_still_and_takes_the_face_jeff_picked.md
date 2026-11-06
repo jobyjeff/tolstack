@@ -53,3 +53,79 @@ with its list open (face 104, the agent's proposal).
   worktrees carry a symlink to the main checkout's, and `.gitignore`'s
   `node_modules/` (a directory pattern) does not hide a symlink, so it shows as
   `??`. I linked it for the runs and removed it before handing back.
+
+## Shots
+
+In `shots/the_rail_holds_still_and_takes_the_face_jeff_picked/`:
+
+- `rail_walk.png` and `rail_walk.json`: the DoD filmstrip, filmed in real time
+  (`node scripts/filmstrip.mjs --scenario tests/debug_rail_walk_scenario.mjs --real-time
+  --frames 8 --interval 2500 --columns 4 --width 2800 --viewport 1200x850`).
+  Frames: the tan-link joint expanded (#2), the upper end's list open (#3–#4),
+  the upper end bound and the lower end's list open and selected (#5), both
+  ends bound (#6–#8). The probe reads `navtree.scrollTop` = 836 in every frame.
+  Frames land about 5 s apart under load, not at the 2.5 s asked for, because
+  screenshots are slow.
+- `01…04_*.png`: the walk on the study's run (`-20261016-235852`), after the fixes.
+- `p2_20261105/`: the same walk on `?sweep=vpa-pitch-p2-20261105-204957`. The
+  plate slide's row reads `213668-002 slide 214700-002` (deliverable 6). On
+  this run the pane also says the study's contributors are left out, because
+  the study folded the other run (the re-point issue).
+
+## Sites this change reaches, and does not
+
+- Reached: the sweep rail in the annotator and the shell's nav mirror of it
+  (one tree, so both). The armed-pick framing and the armed click's
+  aftermath, which now go through `answeredAtEnd` like Take and Accept.
+- Not reached: bind mode's element rows. They list edges, not joints, and
+  their two-end preselect is the documented `AA.planBindChoices` rule. The DAG
+  hover and grid row words: filed. Contributor-row Pick: filed.
+
+## Verification record
+
+- `node apps/annotate/run_tests.cjs`: 288/288 (worktree; its `[real]` tier
+  read the main checkout's sweeps).
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` (worktree),
+  final run: 1727 passed, 1 skipped, 1 failed in 517 s. The failure is
+  `tests/test_viewer_js_suite.py`, the worktree's deliberate red (no
+  projection here). With `--repo C:/workspace/tolstack` the node-fs tier still
+  refuses, because the shared projections were built from master `eb3059ff`,
+  which this branch (cut from integration) does not contain. I did not
+  overwrite them, so the viewer's node-fs `[real]` tier is **not run** here.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`
+  (worktree, `node_modules` linked): 40/42 suites, both failures mine:
+  the nav's body count (5 now, links included) and the hover of the removed
+  length row. After re-pointing them, both suites re-ran green alone (32/32,
+  20/20), and the new suite passed 7/7. Wall time 3144 s including about 27 min
+  queued for the slot, so the run itself was about 1494 s. I recorded 1494 s as
+  the merge tier (inside budget).
+- `node apps/annotate/run_browser_check.mjs`: 96/99. Two failures are the
+  deferred `ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration.md`.
+  The third is the reduced-motion speed check, index 0 at both speeds in a
+  500 ms window under load, filed as
+  `ISSUE_20261105_the_annotate_speed_control_check_reads_index_0_at_both_speeds_under_load.md`.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack`:
+  32/34 witnessed, 2 left to the sweep (budget). The two NOT WITNESSED had a red
+  baseline on another sub-check ("clicking a contributor row in the nav
+  selects it in the scene"), which was green in both of my runs of that suite.
+  Re-run alone with `--only`: see the re-run note below.
+- Witness re-anchors (the code they mutate moved in this change): the node
+  state rule (`a0a3ee06`), the armed click's bound line (`19661b4f`) and toast
+  (`5f7cb274`), the Bodies loop (`47d32ced`), and re-pick onto the
+  contributor's Pick (`3b5f73c2`).
+
+## Found on arrival
+
+Nothing: `git status` was clean in the worktree, and the main checkout was clean
+each time I touched it. My one mistake there was a `--data-root` without its
+`data/`: it wrote a stray `C:\workspace\tolstack\projections\`, and I removed
+it within the minute. I made it, it was regenerable, and nothing else wrote
+there.
+
+Re-run note: both, with `--only`
+(`browser__real-embedded-the-annotator-shows-neither-its-rail-nor-i__7d7ba955`,
+`browser__real-nothing-above-produced-an-uncaught-error__62500dca`), came back
+**WITNESSED** (2m53s, 3m13s). So all 34 entries the diff reached are witnessed.
+The contributor-row click went red once on an unmutated baseline under load and
+was green in every other run. It is not filed: one sighting, and no cause I could
+show.
