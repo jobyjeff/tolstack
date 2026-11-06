@@ -272,7 +272,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-05 (a_two_row_cylinder_band_fits_as_a_cylinder): +3 -- a one-band
   // cylinder is a cylinder by its nodes, a one-band sphere is still refused,
   // and six nodes are too few. Each carries a spec.
-  annotate: { declared: 285, enrollable: 285, names: "7770fccde7f3" },
+  // 2026-11-05 (the_rail_holds_still_and_takes_the_face_jeff_picked): +3 -- a
+  // joint end's part, a run's links as bodies, and an edge feature not listed
+  // as a joint's third row. Each carries a spec.
+  annotate: { declared: 288, enrollable: 288, names: "a52aeae91042" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -386,7 +389,11 @@ export const DECLARED_GUARDS = {
   // renamed -- "the jog zone is measured against the product graph's own 61
   // leaders" lost its literal when the count moved to the plan; it carried no
   // spec under its old name either. (Comment added at review.)
-  browser: { declared: 823, enrollable: 790, names: "b45bdce52115" },
+  // the_rail_holds_still_and_takes_the_face_jeff_picked, 2026-11-05: +7 --
+  // the "annotate rail holds still" suite. Six carry a spec; its skip row (a
+  // constant true, printed only when the projections are absent) has none,
+  // like every other suite's.
+  browser: { declared: 830, enrollable: 797, names: "c5fec86498ce" },
 };
 
 

@@ -8338,6 +8338,178 @@ async function settledCamera(page) {
   return JSON.parse(last);
 }
 
+// --- the rail holds still and takes the face Jeff picked (2026-11-05) -------
+//
+// Jeff's second walk of the rail, on REAL data, in the shell as he opens it:
+// the kinematic study's page, its 3D pane, the rail mirrored in the nav. The
+// annotator reads the projections on disk (`binding: "real"`, the agent's
+// open proposals included) and writes to the memory adapter, never a folder.
+// Bodies live under Bodies (a link is one), a joint row names its two parts
+// and lists only its ends, an end's Pick frames the occurrence the run poses,
+// and a Take keeps the nav where it was and opens the partner end's list.
+async function testAnnotateRailHoldsStill(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const STUDY = "vpa_pitch_linkage_blade_pitch_at_the_stops";
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === STUDY);
+  const index = await realDataIndexForTheAnnotator();
+  const identity = existsSync(join(DATA_REPO, "data", "projections", "feature-identity", "bindings.json"));
+  if (!study || !topologies || !identity || index.runs.indexOf(study.sweep.run_id) === -1) {
+    push("[real] the rail holds still (skipped: the kinematic, topology or feature-identity " +
+      "projection, or the study's run, is not on disk)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  // Short enough that the nav scrolls with the scene's tree in it.
+  const page = await browser.newPage({ viewport: { width: 1600, height: 760 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  // Waits are swallowed and read as a named check's failure, never thrown.
+  const until = async (fn, arg, timeout = 30000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) =>
+        !!new Function("arg", "return (" + src + ")(arg);")(arg),
+      { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch { return false; }
+  };
+  // The nav's mirrored rows: key, words, state, and where each sits.
+  const nav = () => page.evaluate(() => {
+    const box = document.getElementById("navtree");
+    const top = box.getBoundingClientRect().top;
+    return { scrollTop: box.scrollTop, rows: Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
+      .map((n) => ({ key: n.getAttribute("data-scene-key"),
+        text: (n.querySelector(".navtree__scenename") || n).textContent,
+        top: Math.round(n.getBoundingClientRect().top - top),
+        on: n.classList.contains("navtree__scenerow--on"),
+        attention: n.getAttribute("data-attention") === "true",
+        open: (n.querySelector(":scope > .navtree__scenetwisty") || { getAttribute: () => null }).getAttribute("aria-expanded"),
+        buttons: Array.from(n.querySelectorAll(":scope > .navtree__scenebtn")).map((b) => b.textContent) })) };
+  });
+  const rowOf = (rows, re) => rows.find((r) => re.test(r.key)) || null;
+  const click = (key, sel) => page.evaluate(([k, sel]) => {
+    const row = Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
+      .find((n) => n.getAttribute("data-scene-key") === k);
+    const hit = row && (sel ? row.querySelector(sel) : row);
+    if (hit) hit.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    return !!hit;
+  }, [key, sel || null]);
+  const listed = (re) => until((src) => Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
+    .some((n) => new RegExp(src).test(n.getAttribute("data-scene-key")) && /face=/.test(n.getAttribute("data-scene-key"))),
+  re.source);
+  const UPPER = /^#sweep-tree\/joint=pitch_link\/direction=to,edge=pitch_link_length,feature=pitch_link_upper_sphere_centre/;
+  const LOWER = /^#sweep-tree\/joint=pitch_link\/direction=from,edge=pitch_link_length,feature=pitch_link_lower_sphere_centre/;
+  const JOINT = /^#sweep-tree\/joint=pitch_link$/;
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 });
+    await page.locator("#pane-handle").click();
+    await until(() => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').length >= 5,
+      null, 120000);
+    // The bodies resolved: the pitch link's own body row has its parts.
+    await until(() => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/body=pitch_link/"]').length >= 2,
+      null, 120000);
+
+    // --- bodies live under Bodies -------------------------------------------
+    const rail = await inPane((w) => ({
+      inBodies: Array.from(w.document.querySelectorAll('#sweep-tree [data-group="bodies"] [data-body="pitch_link"] .part-row__label'))
+        .filter((n) => /^213862-002/.test(n.textContent)).length,
+      anywhere: Array.from(w.document.querySelectorAll("#sweep-tree .part-row__label"))
+        .filter((n) => /^213862-002/.test(n.textContent)).length,
+      underJoints: w.document.querySelectorAll('#sweep-tree [data-group="joints"] .part-row').length,
+    }));
+    push("[real] the pitch link assembly 213862-002 is one row, under Bodies in the link's own body " +
+      "row, and no joint lists a part",
+      rail && rail.inBodies === 1 && rail.anywhere === 1 && rail.underJoints === 0);
+
+    // --- a joint row names its parts and lists only its ends ---------------
+    let at = await nav();
+    const words = rowOf(at.rows, JOINT);
+    push("[real] the pitch link's joint row names the two parts it joins: 215177-001 ball-ended link 215071-001",
+      words && words.text === "215177-001 ball-ended link 215071-001");
+    push("[real] no joint lists the pitch link's or the tangential link's length as a third row",
+      !at.rows.some((r) => /^#sweep-tree\/joint=[^/]+\/.*feature=(pitch|tan)_link_length/.test(r.key)));
+
+    // --- the camera frames the occurrence the run poses -------------------
+    await inPane((w) => { w.AnnotateApp.exec(["arm", "pitch_link_length", "to"]); });
+    const armed = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return w.__sweep && w.__sweep.armed;
+    }, null, 15000);
+    const framed = armed ? await inPane((w) => {
+      const s = w.__scene;
+      const sha = w.__sweep.armed.shas[0];
+      const posed = (w.__sweep.occurrences.pitch_link || []).filter((o) => o.sha256 === sha).map((o) => o.key);
+      const mesh = s.parts.get(sha);
+      const dist = s._occurrenceNodes(sha).map((node) => ({ key: node.userData.key,
+        d: mesh.geometry.boundingBox.clone().applyMatrix4(node.matrix)
+          .getCenter(s.camera.position.clone()).distanceTo(s.controls.target) }));
+      const mine = dist.filter((x) => posed.indexOf(x.key) !== -1);
+      const others = dist.filter((x) => posed.indexOf(x.key) === -1);
+      return { posed: posed.length, drawn: dist.length,
+        near: mine.length === 1 && others.length > 0 && others.every((o) => mine[0].d < o.d) };
+    }) : null;
+    push("[real] a Pick on the pitch link's end frames the pitch link the run poses (blade 1's), " +
+      "not the copies on the other blades",
+      framed && framed.posed === 1 && framed.drawn > 1 && framed.near);
+    await inPane((w) => { w.AnnotateApp.exec(["arm", "off"]); });
+    await until(() => !document.querySelector("#annotate-flyout iframe").contentWindow.__sweep.armed);
+
+    // --- a Take keeps the nav still and opens the partner end -------------
+    at = await nav();
+    await click(rowOf(at.rows, JOINT).key, ".navtree__scenetext");
+    await until(() => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/joint=pitch_link/direction="]').length === 2);
+    at = await nav();
+    const upper = rowOf(at.rows, UPPER);
+    if (upper) await click(upper.key, ".navtree__scenetwisty");
+    await listed(UPPER);
+    // The joint row near the top of the nav, scrolled there by hand.
+    await page.evaluate((src) => {
+      const box = document.getElementById("navtree");
+      const row = Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
+        .find((n) => new RegExp(src).test(n.getAttribute("data-scene-key")));
+      box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - 60;
+    }, JOINT.source);
+    await page.waitForTimeout(300);
+    const before = await nav();
+    const take = before.rows.find((r) => UPPER.test(r.key) && /face=/.test(r.key) && r.buttons.indexOf("Take") !== -1);
+    if (take) await click(take.key, ".navtree__scenebtn");
+    await until(() => (document.querySelector("#annotate-flyout iframe").contentWindow.__mockWrites || []).length > 0);
+    await listed(LOWER);
+    await page.waitForTimeout(1500);
+    const after = await nav();
+    const jointBefore = rowOf(before.rows, JOINT);
+    const jointAfter = rowOf(after.rows, JOINT);
+    push("[real] a Take keeps the nav's scroll, and the joint row stays where it was on screen",
+      !!take && before.scrollTop > 0 && Math.abs(after.scrollTop - before.scrollTop) <= 1 &&
+      jointAfter && Math.abs(jointAfter.top - jointBefore.top) <= 1);
+    const lower = rowOf(after.rows, LOWER);
+    const lowerFaces = after.rows.filter((r) => LOWER.test(r.key) && /face=/.test(r.key) && r.buttons.indexOf("Take") !== -1);
+    const stillSweep = await inPane((w) => !!w.__sweep && !w.__sweep.armed && !!w.document.getElementById("sweep-tree"));
+    push("[real] after one end is taken the other end's candidate list is open and selected, still " +
+      "suggested, and no edge-feature row is listed",
+      !!take && lower && lower.open === "true" && lower.on && !lower.attention && lowerFaces.length > 0 &&
+      !after.rows.some((r) => /feature=pitch_link_length/.test(r.key)) && stillSweep);
+    push("[real] nothing above produced an uncaught error", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 async function testAnnotateRailSuggestion(browser, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -14619,6 +14791,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateArmedPick(browser, label)],
       ["annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)", (label) =>
         testAnnotateRailSuggestion(browser, label, topologies)],
+      ["annotate rail holds still (bodies under Bodies, joint words, framing, the second face)", (label) =>
+        testAnnotateRailHoldsStill(browser, label, topologies)],
       ["annotate rail and scene (hover, pick, per-body visibility, type chips, gap alerts)", (label) =>
         testAnnotateRailAndScene(browser, label, topologies)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>

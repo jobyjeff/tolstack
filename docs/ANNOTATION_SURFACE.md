@@ -642,6 +642,33 @@ flow on that edge, where an edge's two ends are chosen by name. The tree
 is built on entering sweep mode and removed on leaving it, so the bind-mode
 rail is node for node what it was before the tree existed.
 
+**Bodies, links and joint rows (2026-11-05).** Handoff
+`the_rail_holds_still_and_takes_the_face_jeff_picked`, after Jeff's second walk
+of the rail:
+
+- **A link is a body.** Each two-force member in `links[]` (the pitch link, the
+  tangential link) is a row under **bodies**, after the bodies, named by its
+  joint, with its parts (`AA.sweepTreeSubjects`). Under a joint there are only
+  its ends and their candidate faces. A pick on a link end frames the
+  occurrence the run poses (blade 1's pitch link), not every copy of the link.
+- **A joint row names the two parts it joins**: `<part> <joint word> <part>`,
+  e.g. `213668-002 slide 214700-002` (`AA.sweepJointRowWords`). An end's part
+  is the part of its declared node that sits on that end's body. For a node on
+  neither body (a link's own ball centre), it is the part on that body one
+  topology edge away (`AA.sweepJointEndParts`).
+- **Two ends, two rows, no third.** A joint does not list an edge feature when
+  both of that edge's ends are already rows of the joint
+  (`AA.sweepJointRowFeatures`). The pitch link's length is picked as its two
+  sphere centres, in place, and never through a row whose Pick leaves the sweep.
+- **The second face follows the first.** After a Take, an Accept or an armed
+  click at one end, the edge's other end opens its candidate list, selected,
+  if it is a row of the same joint and still has no face. An end whose
+  partner is bound keeps its own suggestion: it stays "suggested", not
+  "unbound".
+- **The rail keeps its place.** The shell reveals the study row once, when the
+  scene's tree arrives. A rebuild of the nav or of the tree leaves the scroll
+  where the reader put it.
+
 ### Picking a face — the gestures (2026-10-29)
 
 Handoff `a_face_is_picked_the_way_cad_picks_it`, from Jeff trying to bind a
@@ -697,7 +724,10 @@ no row says one. Every candidate row on the real projection has a reason.
 - **Not built:** unbinding. A second click on the bound face would retract it,
   but the event schema has no retraction (`docs/issues/ISSUE_20261029_an_armed_
   pick_cannot_unbind_because_the_event_schema_has_no_retraction.md`). An edge
-  feature's Pick (two ends, no default between them) still jumps to bind mode.
+  feature's Pick (two ends, no default between them) still jumps to bind mode
+  where one is listed. Since 2026-11-05 no live joint lists one, but a
+  contributor's Pick still jumps
+  (`docs/issues/ISSUE_20261105_a_contributor_rows_pick_still_leaves_sweep_mode_for_bind_mode.md`).
 
 **One row template.** A rail row is the name, one state line under it, then
 its actions at the right — at every frame and in either mode. A refused Pick
