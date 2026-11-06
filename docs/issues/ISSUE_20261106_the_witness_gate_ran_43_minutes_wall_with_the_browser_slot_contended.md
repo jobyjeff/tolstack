@@ -39,3 +39,23 @@ Top entries by the runner's own per-spec timing (seconds, spec):
 25s browser__real-the-whole-walk-as-blocks-a-part-is-one-block-every__c72cbb66
 24s fast__the-overlay-s-ink-rides-on-the-bar-the-dot-and-the-glyph__e6cb016b
 ```
+
+## Update 2026-11-06 (review round 1 rework)
+
+Both suites were recorded over budget again, and pytest joins this issue.
+
+- **Witness gate**, `--changed-since integration`, on the merged tree:
+  - "46/48 witnessed, 48/52 reached in 30m35s; 4 left to the sweep", with
+    1868 s of wall time, recorded **over budget by 1m08s**.
+  - The cap held, and the four it left are browser entries.
+  - The two not witnessed were both mutations of
+    `fast__the-selected-study-s-group-is-drawn-last-and-a-step-stro__ddfb64d3`,
+    reported as "the tier was red before the mutation". Re-run alone with
+    `--only` straight afterwards, it was **WITNESSED in 1m02s**. The cause
+    of the red clean run was not found.
+- **Full `pytest -q`**:
+  - **1733 passed in 750 s**, recorded **over budget by 2m30s**, on a box
+    other worktrees were also using.
+  - An earlier run in this rework took 1109 s (over by 8m29s). It overlapped
+    this worktree's own browser tier and a fast tier slowed by a `[real]`
+    check, since made cheaper (the lesson's round-1 gotchas).

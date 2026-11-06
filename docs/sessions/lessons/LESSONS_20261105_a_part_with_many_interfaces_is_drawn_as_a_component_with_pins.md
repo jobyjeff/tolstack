@@ -330,3 +330,159 @@ checkout for the browser runs and removed afterwards.
     all in the two suites above with pre-existing reds.
   - The re-pointed hidden-band spec was left to the sweep by the cap, then
     witnessed with `--only`, in 2m55s.
+
+## Review round 1 (REQUEST CHANGES): what changed
+
+The review (`REVIEW_20261106_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md`,
+on the review branch) had one blocker, three should-fixes and two nits.
+`integration` was re-merged first (at `ad4bae87`). The one conflict was the
+guard pins again; both sides' comments were kept, and the pins were
+re-measured on the merged tree, not taken from either side.
+
+- **Blocker: a block wore its first row's body.** Fixed in `VA.blockLayout`:
+  a block's body is now `VA.bodyOfPart(topoProj)[part]`. `VA.railGeometry`
+  puts a block's rows on that body for the fields only (`bodyRows`), so its
+  own body's field is the one widened round it. The rows themselves keep
+  their body, so the grid, which is fenced, sees nothing change.
+- **The new `[real]` check found a second defect.** "Every block wears its
+  part's body and that body's field wraps it", run on the whole walk and on
+  every study's band. On the cotter-hole band the pitch plate's block sits
+  directly above another block:
+  - `rowPositions`'s `pinBeyond` took the next block's first pin for one of
+    its own, so the last pin gave up its bottom margin;
+  - the block's rect then ran 13 px past its body's field (y2 2131 against
+    2118).
+  - `pinBeyond` now walks only its own block's rows. The check's spec
+    witnesses both mutations.
+  - The check lays each band without the column search
+    (`VA.blockColumns`). The rows alone decide the body and the margins, and
+    with the search the check took the fast tier from 29 s to 85 s.
+- **Should-fix 2: the blocks suite grew to eight checks.**
+  - **Every block inside its own body's field**, on the kinematic page, the
+    chain study and the whole walk. The expected body is computed in Node
+    from the projection's `bodies`. A first version compared against the
+    page's own `data-block-body` and was NOT WITNESSED: with the old defect
+    back, the page widens the wrong body's field round the block and agrees
+    with itself.
+  - **The grid's room at 1600 beside the strip.** This is held to the rails'
+    own contract (the grid suite's part-cell check):
+    - on both studies, every row's part cell is in the pane and is what the
+      pointer finds;
+    - on no page is a number or part cell clipped.
+    - Sideways scroll and the whole walk's part cells are not asked about:
+      both fail on the rails too (table below).
+  - **The pin check now tests every pin on screen**, not the first (the
+    nit): 13/13 on the kinematic page.
+- **Should-fix 3: the hover shot shows a hover.**
+  - The kinematic band draws the pitch plate as two blocks (the Q5 case), and
+    the script had taken the first, which is unlit.
+  - It now hovers a lit rail-side pin, `pitch_plate_link_attach_bore`, at its
+    centre and records what lit: 2 rails, 2 stubs, 1 leader, 1 bar, 1 grid
+    row.
+  - `pitch_plate_block_hover_pin.png` shows the stub, rail and leader lit,
+    with the "pitch plate and gas-spring piston" field round the block.
+- **Should-fix 4: filed**,
+  `ISSUE_20261106_a_rail_side_pins_leader_crosses_its_own_blocks_chords.md`,
+  with the two ways out.
+- **Nit: `rail__dot--pin`** now carries a comment saying it is a test hook,
+  not a style.
+
+### The grid's room at 1600, rails against blocks
+
+Measured with a 1600×1000 viewport and the Preview open. The pane is 737 px
+wide, and its right edge is at 1038.
+
+| page | drawing | DAG width | grid's left edge | part cells in the pane |
+| --- | --- | ---: | ---: | ---: |
+| whole walk | rails | 678 | 979 | 0/99 |
+| whole walk | blocks | 870 | 1171 | 0/99 |
+| kinematic | rails | 310 | 611 | 6/6 |
+| kinematic | blocks | 404 | 705 | 6/6 |
+| cotter hole | rails | 336 | 637 | 7/7 |
+| cotter hole | blocks | 528 | 829 | 7/7 |
+
+The blocks close the whole walk's 59 px slit entirely: at rest the grid
+starts 133 px past the pane's edge. That is appended to
+`ISSUE_20261104_at_1600_wide_the_product_graphs_rails_leave_the_grid_a_59px_slit.md`,
+whose option 1 (fit the whole walk on its first paint) fixes both drawings.
+
+### Shots retaken
+
+Every shot was retaken on the merged tree with both fixes in
+(`tests/debug_block_shots.mjs`). The aspect band holds: 0.55–0.57 on every
+page. The drawn crossings moved by one or two:
+
+| page | link × rail before | after |
+| --- | ---: | ---: |
+| walk (blocks) | 34 | 33 |
+| kinematic (blocks) | 32 | 30 |
+| grip U10H (blocks) | 48 | 50 |
+| cotter (blocks) | 32 | 33 |
+
+Stub × rail and leader × chord are unchanged: 48/11 on the walk and 7/3 on
+the kinematic page. The whole-walk shot is the one the review read the
+blocker from. In it the pitch plate block now sits inside "pitch plate and
+gas-spring piston", and the hydraulic-brake field above it stays narrow.
+
+### Gotchas (round 1)
+
+- **`tests/test_mutation_witness_shadow_concurrency.py` is a timing budget
+  on the fast tier.**
+  - Its tests run `--only fast__a-ready-banner` (a clean run and a mutated
+    run of the whole fast tier) under a 120 s timeout.
+  - A `[real]` check costing 55 s took that entry to 185 s, and four tests
+    went red as timeouts, with nothing pointing at the check.
+  - Time the fast tier after adding a `[real]` check that loops over every
+    study.
+- **A check that compares a page with itself witnesses nothing.** Compare
+  against a value derived in Node from the projection.
+- **`sed -i` over `scripts/mutation_witnesses/*.json` rewrites every file's
+  line endings**, including the ones it changes nothing in, and git then
+  shows ~300 modified specs. Restrict the glob to the files you mean, or
+  restore the rest with `git checkout --`.
+
+## Verification record, review round 1 (2026-11-06)
+
+All runs were in this worktree, on the branch merged with `integration`
+(`ad4bae87`).
+- The inputs were bridged with `dispatch bridge-test-inputs`, and all six
+  were already present.
+- The projections were rebuilt here by `scripts/rebuild_projections.ps1`
+  from the clean merge commit `94087400`. The commits after it change only
+  the viewer, tests, docs and specs, none of which the builders read.
+- `node_modules` was junctioned in from the main checkout for the browser
+  runs and removed afterwards.
+
+Results:
+- **`node apps/viewer/run_tests.cjs`: 656/656** in 29 s, `[real]` armed.
+- **`node apps/annotate/run_tests.cjs`: 292/292.**
+- **Full `pytest -q -p no:cacheprovider`: 1733 passed, 1 skipped,
+  2 deselected, in 750 s**, recorded over budget and added to the budget
+  issue.
+  - An earlier full run in the rework was 3 failed / 1730 passed in 1109 s,
+    all three fixed or explained before the final run:
+    - the round-1 specs cited the review report, which is not in this tree;
+      they now cite this lesson;
+    - two shadow-concurrency tests timed out on the slow `[real]` check
+      (gotchas above);
+    - the long-path test that failed when re-run alone is
+      `ISSUE_20261104_a_lesson_screenshot_name_overflows_max_path_in_the_shadow_concurrency_test.md`.
+      It passed in the final run.
+- **`node scripts/run_viewer_browser_tests.mjs --repo <this worktree>`:
+  42/43 suites in 1544 s**, recorded over budget.
+  - The one red is "kinematic study page", two checks, the pre-existing and
+    filed
+    `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
+  - The served-mode, annotate, 3D-pane and typography suites the review saw
+    red (13 suites, unattributed) were green here, so there was nothing to
+    file. "parts as blocks" is 8/8.
+- **`node scripts/run_mutation_witness_tests.mjs --changed-since integration`:
+  46/48 witnessed, 48/52 reached in 30m35s, 4 left to the sweep (budget)**,
+  in 1868 s of wall time.
+  - The two not witnessed are one fast entry's two mutations, red before the
+    mutation. That entry was then WITNESSED alone with `--only`.
+  - Every spec this round added was witnessed with `--only`:
+    - the block-body `[real]` check, both mutations (after the check was
+      made cheaper);
+    - the body-field browser check;
+    - the room browser check.
