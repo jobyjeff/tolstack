@@ -16490,14 +16490,19 @@
                 selection: null, onSelect: function () {},
               });
             });
-            var flagged = all(root, ".tvflag--unverified");
+            // One mark per row since the_grid_fits_the_screen_and_its_brackets_
+            // say_what_nests_in_what, in the state's colour, its words on hover.
+            var flagged = all(root, "span.tvmark--untraced").concat(
+              all(root, "span.tvmark--no_source_ref"));
             var unverified = livePitch.edges.filter(function (e) {
               return VA.needsAnnotation(e.confidence);
             });
             ok(unverified.length >= 1, "pitch_system has unverified edges");
             eq(flagged.length, unverified.length,
-               "one badge per unverified row, no more and no fewer");
-            has(root.textContent, VA.ATTENTION.unverified.text);
+               "one mark per unverified row, no more and no fewer");
+            flagged.forEach(function (m) {
+              ok(m.getAttribute("title"), "the mark's words are on its hover");
+            });
           });
 
         // The OTHER half of VA.edgeAttention, and it had nothing standing on
@@ -16523,9 +16528,11 @@
                 selection: null, onSelect: function () {},
               });
             });
-            eq(all(root, ".tvflag--no_tolerance").length, zeroWidth.length,
-               "one badge per zero-width row, no more and no fewer");
-            has(root.textContent, VA.ATTENTION.no_tolerance.text);
+            // The mark's words say it whatever the row's worst state is.
+            eq(all(root, "span.tvmark").filter(function (m) {
+              return (m.getAttribute("title") || "").indexOf(VA.ATTENTION.no_tolerance.text) !== -1;
+            }).length, zeroWidth.length,
+               "one zero-width word per zero-width row, no more and no fewer");
           });
 
         await test("[real] selecting a study marks its chain on the real rails",

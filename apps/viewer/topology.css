@@ -890,7 +890,6 @@ body { display: flex; flex-direction: column; }
 .tvbrace--body { color: var(--group-body, var(--muted)); }
 .tvbrace__rule {
   position: absolute; height: 0; border-top: 1px solid var(--group-part, var(--line));
-  opacity: .55;
 }
 .tvrow--substack { font-size: var(--t-dense); }
 .tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }

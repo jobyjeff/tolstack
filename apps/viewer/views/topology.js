@@ -900,7 +900,7 @@
   // The width budget (the_grid_fits_the_screen_and_its_brackets_say_what_
   // nests_in_what). Jeff, 2026-11-05: "the table is too wide to fit on screen
   // even on my 4k monitor, the sourcing and crop columns are obscured when the
-  // 3d and/or preview panel has reasonable size". It was 1218px; it is 960.
+  // 3d and/or preview panel has reasonable size". It was 1218px; it is 1000.
   // The crop column left for the Preview (where the crop is legible), the
   // pill cluster became one icon, and the number columns are as wide as the
   // longest number this repo prints (`−32.185`) at the meta size.
@@ -925,9 +925,10 @@
     // unscaled edge -- so the two kinds of study share one column set
     // (the_kinematic_grid_is_a_stack_of_sub_stacks).
     { cls: "sensitivity", label: "sensitivity", width: 76 },
-    // A chain row prints its weight and its signed band (`×1 −0.1 … 0.1 mm`),
-    // and a stack's total its fold and its RSS (`±2.355 deg · RSS ±1.034`).
-    { cls: "contribution", label: "contribution", width: 160 },
+    // A chain row prints its weight and its signed band
+    // (`+ 1.67 × −0.0835 … 0.0835 mm`), and a stack's total its fold and its
+    // RSS (`±2.355 deg · RSS ±1.034`).
+    { cls: "contribution", label: "contribution", width: 200 },
     // One mark, no words (VA.rowSourcingMark); its header is the mark too.
     { cls: "sourcing", label: "", title: "sourcing", width: 30 },
   ];
