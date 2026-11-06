@@ -122,3 +122,15 @@ distance…`) are red on an `integration` baseline extracted with `git archive`
 and run the same way — not this branch's. The first two are
 `docs/issues/ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration.md`
 (deferred); the third is filed by this handoff.
+
+### The suite record (2026-11-05, this worktree, `node_modules` junctioned from the main checkout)
+
+| tier | command | result | wall |
+|---|---|---|---|
+| annotate fast | `node apps/annotate/run_tests.cjs --repo C:/workspace/tolstack` | 287/287 | — |
+| viewer fast | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | 517/518, 1 tier skipped; the red is the worktree-expected "projection … built from this tree" | — |
+| viewer browser | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | 39/41 suites; both reds fixed and re-run `--only`, 1/1 each | 23m10s (merge tier, in budget) |
+| annotate browser | `node apps/annotate/run_browser_check.mjs --repo C:/workspace/tolstack` | 95–96/99; the reds are the anchors pair and the flaky reduced-motion pair, red on the integration baseline too | — |
+| pytest | `venv-win/Scripts/python.exe -m pytest -q -rs` | 1 failed (worktree `test_viewer_js_suite`), 1727 passed, 1 skipped (`test_fit_bound_features.py`: no re-extraction), 2 deselected | 18m46s, over budget, filed |
+| witnesses | `--changed-since integration` | 30/31 witnessed, 31/44 reached in 30m35s; the miss (`fdd87e25`) repaired, 1/1 | 30m35s |
+| witnesses | `--only`, each of this handoff's new specs the cap left | 9/9 witnessed (`bcc9633c`, `46bc0a52`, `ec12317f`, `595a7935`, `a6150ca8`, `f4e238b2` ×2, `a602fb0f`, `b2c04d05`) | ~38 min |
