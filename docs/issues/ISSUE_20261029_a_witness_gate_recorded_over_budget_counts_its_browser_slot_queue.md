@@ -102,3 +102,12 @@ queue. The 105 not witnessed were all "the tier was red before the mutation", fr
 tier's six `[real]` reds (routed to `HANDOFF_20261104_the_viewer_real_tier_follows_the_slide_re_author`)
 and the `3D pane follows the selection` red. None of them is a decayed witness. This is the same
 shape as before: a capped run lands at about 30 m plus overhead.
+
+## Addendum 2026-11-05 (review of the_rail_holds_still_and_takes_the_face_jeff_picked)
+
+`node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack`,
+review worktree, post-merge: 1863 s wall (recorded, `OVER BUDGET by 1m03s`). The runner's own line:
+`31/31 witnessed, 31/36 reached in 30m13s; 5 left to the sweep`, exit 0. The ~1 min is slot
+queueing and the entry that was running when the cap fell. A pytest run on the same box was parked on
+`test_browser_runner.py`'s Chrome test for the slot over the same window. Same shape as above: a
+capped run lands at about 30 m plus overhead.

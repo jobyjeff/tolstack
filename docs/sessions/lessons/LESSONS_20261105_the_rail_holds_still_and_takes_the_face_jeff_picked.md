@@ -92,6 +92,16 @@ In `shots/the_rail_holds_still_and_takes_the_face_jeff_picked/`:
   refuses, because the shared projections were built from master `eb3059ff`,
   which this branch (cut from integration) does not contain. I did not
   overwrite them, so the viewer's node-fs `[real]` tier is **not run** here.
+
+  > **Review correction, 2026-11-05.** One shared projection *was* rebuilt
+  > from this branch: `data/projections/viewer/kinematic/kinematic_studies.json`
+  > (and `annotate.json` beside it) carries `head_sha` `ee7ccf3c`,
+  > `branch: handoff/the_rail_holds_still_and_takes_the_face_jeff_picked`,
+  > `repo_root` this worktree, built 2026-11-06T05:51Z. Its study still folds
+  > `-20261016-235852` (status `ok`), so nothing it serves changed meaning, but
+  > the sentence above reads as "no shared projection was written", and the
+  > next `scripts/rebuild_projections.ps1` from the main checkout is what puts
+  > it back on a trunk-built tree.
 - `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`
   (worktree, `node_modules` linked): 40/42 suites, both failures mine:
   the nav's body count (5 now, links included) and the hover of the removed

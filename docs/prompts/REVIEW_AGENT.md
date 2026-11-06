@@ -5528,6 +5528,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Leader and band literals in the browser tier went stale twice in one day
       while the fast tier moved. Compare what is drawn with `VA.gridPlan`, and
       leave the number to the fast tier.
+- [ ] **A sweep-rail fix made only in `apps/annotate/`, when Jeff reads the rail
+      in the shell's nav.** New 2026-11-05
+      (`the_rail_holds_still_and_takes_the_face_jeff_picked`). Embedded, the
+      annotator hides its own `.an__rail`; the rows Jeff clicks are the
+      viewer's mirror (`topology_app.js` `renderSceneSlot` →
+      `VA.renderSceneTree`), and `render()` rebuilds that slot on every state
+      change. The scroll jump lived there, not in `renderSweepRail`. For any
+      rail behaviour (scroll, open state, attention colour), ask which
+      surface the browser check drives: the `[real]` shell check
+      (`?kinematic=` + `#pane-handle`) is the one that sees what Jeff sees; a
+      check on `.an__rail` in the bare annotator is not.
 
 ## Architectural errors to check
 

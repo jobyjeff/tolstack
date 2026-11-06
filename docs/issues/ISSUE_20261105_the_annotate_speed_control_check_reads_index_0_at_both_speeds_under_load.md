@@ -5,7 +5,7 @@ status: open
 area: annotate/browser-check
 reporter: agent
 class: load_sensitive_check
-found_by: docs/sessions/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
+found_by: docs/sessions/active/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
 ---
 
 # The annotate speed-control check reads index 0 at both speeds under load
