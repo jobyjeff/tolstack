@@ -684,49 +684,348 @@
       VA.renderTopoPane(root, ctx);
       return null;
     }
-    var duration = opts.duration === undefined ? VA.RESPINE.duration : opts.duration;
     var now = opts.now || function () { return Date.now(); };
     var raf = opts.raf || nextFrame;
-    var ghost = ghostOf(root);
+    // A landing that is not a study change has no outgoing picture to fade:
+    // the same rows, drawn again at another scale and place.
+    var ghost = opts.ghost === false ? null : ghostOf(root);
     var landing = opts.landing || null;
     if (landing) {
       VA.renderTopoPane(root, ctx);
       landing.target();
     }
-    var start = now();
+    var zoomFrom = landing && from.zoom ? from.zoom : ctx.zoom;
+    var zoomTo = ctx.zoom;
+    // Fit, then focus: a landing may name a scale at which BOTH the picture
+    // it leaves and the one it arrives at are in view, and the camera pulls
+    // back to it before it goes in (`landing.waypoint`, the page's: only it
+    // knows the window). The tween is then two segments with a keyframe
+    // between them, otherwise one.
+    var fitZoom = landing && landing.waypoint
+      ? landing.waypoint(from, zoomFrom, zoomTo) : null;
+    var keys = [{ e: 0, zoom: zoomFrom }];
+    if (fitZoom) keys.push({ e: VA.RESPINE.fitAt, zoom: fitZoom, mid: true });
+    keys.push({ e: 1, zoom: zoomTo });
+    var duration = opts.duration === undefined
+      ? (fitZoom ? VA.RESPINE.fitDuration : VA.RESPINE.duration)
+      : opts.duration;
+    var seg = function (t) {
+      // Which segment time t falls in, and how far through it, eased.
+      if (keys.length === 2) return { k: 0, u: VA.respineEase(t) };
+      var cut = VA.RESPINE.fitShare;
+      return t < cut ? { k: 0, u: VA.respineEase(t / cut) }
+                     : { k: 1, u: VA.respineEase((t - cut) / (1 - cut)) };
+    };
+    var tweenOf = function (key, withGhost) {
+      return { positions: previous, columns: from.columns, floor: from.floor,
+               width: from.width, links: from.links, e: key.e,
+               ghost: withGhost ? ghost : null };
+    };
+    var frameOf = function (w) {
+      return { k: w.k, u: w.u,
+               e: keys[w.k].e + (keys[w.k + 1].e - keys[w.k].e) * w.u };
+    };
     var handle = { cancel: function () { handle.cancelled = true; }, cancelled: false };
-    var step = function () {
-      if (handle.cancelled) return;
-      var t = duration > 0 ? (now() - start) / duration : 1;
-      var settling = !(t < 1);
-      var e = 1;
-      // The settled frame gets no tween argument at all, so the ghost is not
-      // re-appended and every number in the DOM is the target's own.
-      if (settling) {
-        handle.done = true;
-      } else {
-        e = VA.respineEase(t);
-        ctx.tween = { positions: previous, columns: from.columns,
-                      floor: from.floor, width: from.width, links: from.links,
-                      e: e, ghost: ghost };
-      }
+    var fail = function (err) {
+      handle.cancelled = true;
+      if (opts.onError) opts.onError(err);
+    };
+    // The settled frame: a plain render with no tween argument at all, so the
+    // ghost is gone and every number in the DOM is the target's own.
+    var settle = function () {
+      handle.done = true;
+      var w = { k: keys.length - 2, u: 1 };
+      ctx.zoom = zoomTo;
       try {
-        if (landing) landing.frame(e);
+        if (landing) landing.frame(1, w);
         VA.renderTopoPane(root, ctx);
-        if (landing) landing.placed(e);
+        if (landing) landing.placed(1, w);
       } catch (err) {
-        handle.cancelled = true;
-        if (opts.onError) opts.onError(err);
+        fail(err);
         return;
       } finally {
         delete ctx.tween;
       }
-      if (!settling) raf(step);
-      else if (handle.onSettled) handle.onSettled();
+      if (handle.onSettled) handle.onSettled();
     };
-    step();
+    handle.finish = function () {
+      if (handle.cancelled || handle.done) return;
+      handle.cancelled = true;
+      settle();
+    };
+
+    // Keyframes: the pane rendered once at each, its numbers kept. Every frame
+    // between two of them is then the live nodes' own attributes eased from
+    // one set to the next -- no node is built, so a frame costs what moving
+    // a thousand marks costs and not what drawing them does (measured: three
+    // rebuilt frames in a 260 ms transition, the rest of the time spent
+    // laying the rebuild out).
+    var snaps = [];
+    var drawn = [];
+    try {
+      // The live pane is the one rendered last, so it is what stays on
+      // screen: the keyframes run from the target back to the outgoing
+      // picture.
+      for (var i = keys.length - 1; i >= 0; i--) {
+        var key = keys[i];
+        ctx.zoom = key.zoom;
+        if (landing) {
+          landing.frame(key.e, { k: Math.min(i, keys.length - 2),
+                                 u: i === keys.length - 1 ? 1 : 0 });
+        }
+        if (i === keys.length - 1) delete ctx.tween;
+        else ctx.tween = tweenOf(key, i === 0);
+        VA.renderTopoPane(root, ctx);
+        drawn[i] = VA.lastTopoRender;
+        snaps[i] = takeSnapshot(root);
+        if (key.mid && landing && landing.midRendered) landing.midRendered();
+      }
+    } catch (err) {
+      fail(err);
+      return handle;
+    } finally {
+      delete ctx.tween;
+    }
+    var plan = pairSnapshots(snaps);
+    if (!plan) {
+      // The keyframes do not share a structure: fall back to rebuilding
+      // every frame, which is slower and always right.
+      return legacyFrames();
+    }
+    var final = drawn[drawn.length - 1];
+    var start = now();
+    var paint = function (w) {
+      var f = frameOf(w);
+      applySnapshotPlan(plan, w.k, w.u);
+      // What the next transition continues from is the picture on screen.
+      VA.lastTopoRender = blendDrawn(drawn[w.k], drawn[w.k + 1], w.u,
+        previous, final.positions, f.e);
+      if (ghost) ghost.style.opacity = String(1 - f.e);
+      if (landing) {
+        landing.frame(f.e, w);
+        applyBandPad(root, ctx.bandPad);
+        landing.placed(f.e, w);
+      }
+      VA.pinTopoHead(root);
+      if (ctx.onPainted) ctx.onPainted();
+    };
+    var step = function () {
+      if (handle.cancelled) return;
+      var t = duration > 0 ? (now() - start) / duration : 1;
+      if (!(t < 1)) { settle(); return; }
+      try {
+        paint(seg(t));
+      } catch (err) {
+        fail(err);
+        return;
+      }
+      raf(step);
+    };
+    // Frame 0 is the outgoing picture, drawn before anything yields to the
+    // browser, so a click never flashes an intermediate state.
+    try {
+      paint({ k: 0, u: 0 });
+    } catch (err) {
+      fail(err);
+      return handle;
+    }
+    raf(step);
     return handle;
+
+    // The slow path: every frame a full render, as every transition was
+    // before the keyframes. Kept for a set of renders that cannot be paired.
+    function legacyFrames() {
+      var t0 = now();
+      var legacyStep = function () {
+        if (handle.cancelled) return;
+        var t = duration > 0 ? (now() - t0) / duration : 1;
+        if (!(t < 1)) { settle(); return; }
+        var w = seg(t);
+        var f = frameOf(w);
+        ctx.tween = tweenOf({ e: f.e }, true);
+        ctx.zoom = zoomFrom + (zoomTo - zoomFrom) * f.e;
+        try {
+          if (landing) landing.frame(f.e, w);
+          VA.renderTopoPane(root, ctx);
+          if (landing) landing.placed(f.e, w);
+        } catch (err) {
+          fail(err);
+          return;
+        } finally {
+          delete ctx.tween;
+        }
+        raf(legacyStep);
+      };
+      legacyStep();
+      return handle;
+    }
   };
+
+  // --- the keyframe tween's mechanics ---------------------------------------
+
+  // The inline style properties a tween may move, besides every attribute: the
+  // rest of a node (its class, its text, its handlers) is the target's and
+  // does not change mid-flight.
+  var STYLE_PROPS = ["opacity", "top", "left", "width", "height", "marginTop",
+    "marginLeft", "paddingTop", "paddingLeft", "minWidth"];
+  var NUMBER = /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi;
+
+  function attributeNames(node) {
+    var a = node.attributes;
+    if (!a) return [];
+    if (typeof a.length === "number" && a.length > 0 && a[0] && a[0].name !== undefined) {
+      var out = [];
+      for (var i = 0; i < a.length; i++) out.push(a[i].name);
+      return out;
+    }
+    return Object.keys(a);
+  }
+
+  // Every element under the live pane's scroller, in document order, with the
+  // attributes and the style properties the tween may move.
+  function takeSnapshot(root) {
+    var scroller = root.querySelector(".tv__hscroll");
+    var nodes = [];
+    var walk = function (n) {
+      var kids = n.childNodes || [];
+      for (var i = 0; i < kids.length; i++) {
+        var c = kids[i];
+        if (c.nodeType !== 1) continue;
+        var attrs = {};
+        var names = attributeNames(c);
+        for (var j = 0; j < names.length; j++) {
+          if (names[j] === "style") continue;
+          attrs[names[j]] = String(c.getAttribute(names[j]));
+        }
+        var style = {};
+        if (c.style) {
+          for (var s = 0; s < STYLE_PROPS.length; s++) {
+            var v = c.style[STYLE_PROPS[s]];
+            if (v !== undefined && v !== null && v !== "") style[STYLE_PROPS[s]] = String(v);
+          }
+        }
+        nodes.push({ node: c, tag: c.tagName, attrs: attrs, style: style });
+        walk(c);
+      }
+    };
+    if (scroller) walk(scroller);
+    return nodes;
+  }
+
+  // "12.5px" -> { t: "\0px", n: [12.5] }: the numbers a value is made of and
+  // the text around them. Two values interpolate when their text is the same.
+  function tokens(value) {
+    var n = [];
+    var t = String(value).replace(NUMBER, function (m) { n.push(parseFloat(m)); return "\u0000"; });
+    return { t: t, n: n };
+  }
+
+  function formatNumber(x) {
+    var r = Math.round(x * 1000) / 1000;
+    return String(r === 0 ? 0 : r);
+  }
+
+  function interpolated(a, b, u) {
+    var i = 0;
+    return a.t.replace(/\u0000/g, function () {
+      var x = a.n[i] + (b.n[i] - a.n[i]) * u;
+      i++;
+      return formatNumber(x);
+    });
+  }
+
+  // For each moving property of each node, its values at every keyframe.
+  // Returns null when the keyframes are not the same picture structurally.
+  function pairSnapshots(snaps) {
+    var base = snaps[0];
+    for (var s = 1; s < snaps.length; s++) {
+      if (snaps[s].length !== base.length) return null;
+      for (var i = 0; i < base.length; i++) {
+        if (snaps[s][i].tag !== base[i].tag) return null;
+      }
+    }
+    var entries = [];
+    var add = function (i, kind, name, absent) {
+      var vals = [];
+      for (var s = 0; s < snaps.length; s++) {
+        var bag = kind === "attr" ? snaps[s][i].attrs : snaps[s][i].style;
+        var v = bag[name];
+        if (v === undefined) {
+          if (absent === null) return;
+          v = absent;
+        }
+        vals.push(tokens(v));
+      }
+      var changes = false;
+      for (var k = 1; k < vals.length; k++) {
+        if (vals[k].t !== vals[0].t || vals[k].n.length !== vals[0].n.length) return;
+        for (var m = 0; m < vals[0].n.length; m++) {
+          if (vals[k].n[m] !== vals[0].n[m]) changes = true;
+        }
+      }
+      if (changes) entries.push({ node: base[i].node, kind: kind, name: name, vals: vals });
+    };
+    for (var n = 0; n < base.length; n++) {
+      var seen = {};
+      var styled = {};
+      for (var q = 0; q < snaps.length; q++) {
+        Object.keys(snaps[q][n].attrs).forEach(function (key) { seen[key] = true; });
+        Object.keys(snaps[q][n].style).forEach(function (key) { styled[key] = true; });
+      }
+      Object.keys(seen).forEach(function (key) { add(n, "attr", key, null); });
+      Object.keys(styled).forEach(function (key) {
+        add(n, "style", key, key === "opacity" ? "1" : null);
+      });
+    }
+    return entries;
+  }
+
+  function applySnapshotPlan(entries, k, u) {
+    for (var i = 0; i < entries.length; i++) {
+      var en = entries[i];
+      var text = interpolated(en.vals[k], en.vals[k + 1], u);
+      if (en.kind === "attr") en.node.setAttribute(en.name, text);
+      else en.node.style[en.name] = text;
+    }
+  }
+
+  // The space put before the drawing, on the node that wears it.
+  function applyBandPad(root, pad) {
+    var sizer = root.querySelector ? root.querySelector(".tv__zoomsizer") : null;
+    if (!sizer || !sizer.style) return;
+    sizer.style.marginTop = pad && pad.top > 0 ? pad.top + "px" : "";
+    sizer.style.marginLeft = pad && pad.left > 0 ? pad.left + "px" : "";
+  }
+
+  function blendValue(a, b, u) {
+    if (typeof a === "number" && typeof b === "number") return a + (b - a) * u;
+    if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
+      return b.map(function (x, i) { return blendValue(a[i], x, u); });
+    }
+    if (a && b && typeof a === "object" && typeof b === "object" &&
+        !Array.isArray(a) && !Array.isArray(b)) {
+      var out = {};
+      Object.keys(b).forEach(function (key) {
+        out[key] = key in a ? blendValue(a[key], b[key], u) : b[key];
+      });
+      return out;
+    }
+    return b;
+  }
+
+  // What the pane drew at frame `u` of a segment, in the shape the next paint
+  // reads (VA.lastTopoRender): the scalars and maps blended between the two
+  // keyframes' own, and the position store re-derived at the frame's overall
+  // progress so an interruption continues from this picture.
+  function blendDrawn(a, b, u, previous, target, e) {
+    var out = Object.assign({}, b);
+    ["columns", "floor", "width", "zoom", "links", "seam"].forEach(function (key) {
+      if (a[key] !== undefined && b[key] !== undefined) out[key] = blendValue(a[key], b[key], u);
+    });
+    out.positions = VA.tweenPositions(previous, target, e);
+    out.tweening = true;
+    return out;
+  }
 
   // The outgoing paint, re-parented into an inert overlay rather than
   // re-drawn or cloned.

@@ -8,7 +8,7 @@
       "issue": null,
       "note": "Declared by handoff the_dag_holds_still_and_the_filter_bar_stays_put (2026-11-03). The transition frames draw with no pad at all, which is the 10-29 landing: the drawing jumps left on the first frame and back to centre on the last.",
       "file": "apps/viewer/topology_app.js",
-      "find": "        ctx.bandPad = { top: lerp(start.pad.top, end.pad.top, e),\n                        left: lerp(start.pad.left, end.pad.left, e) };",
+      "find": "        ctx.bandPad = { top: lerp(l[0].pad.top, l[1].pad.top, u),\n                        left: lerp(l[0].pad.left, l[1].pad.left, u) };",
       "replace": "        ctx.bandPad = null;"
     }
   ]

@@ -8394,34 +8394,108 @@
         var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var from = VA.lastTopoRender;
-        var real = VA.renderTopoPane;
         var caught = [];
         var clock = 0;
         var queue = [];
-        var frames = 0;
+        // The first frame paints; the second one -- running off the
+        // animation callback, outside every try/catch this page has -- blows
+        // up.
+        var armed = false;
+        studyCtx.onPainted = function () {
+          if (armed) throw new Error("seeded frame failure");
+        };
+        VA.animateTopoPane(root, studyCtx, from, {
+          now: function () { return clock; },
+          raf: function (fn) { queue.push(fn); },
+          duration: 100, reduced: false,
+          onError: function (err) { caught.push(String(err.message)); },
+        });
+        eq(queue.length, 1);
+        armed = true;
+        clock = 50;
+        queue.shift()();
+        eq(caught, ["seeded frame failure"]);
+        eq(queue.length, 0, "and it stops asking for frames");
+      });
+
+    await test("the frames between keyframes move the live nodes and build " +
+      "none: a transition is three renders and a settle, whatever its length",
+      function () {
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = VA.lastTopoRender;
+        var clock = 0;
+        var queue = [];
+        var builds = 0;
+        var real = VA.renderTopoPane;
+        var handle;
         try {
-          VA.renderTopoPane = function (r, c) {
-            frames++;
-            // The first frame paints; the second one — running off the
-            // animation callback, outside every try/catch this page has —
-            // blows up.
-            if (frames > 1) throw new Error("seeded frame failure");
-            return real(r, c);
-          };
-          VA.animateTopoPane(root, studyCtx, from, {
+          VA.renderTopoPane = function (r, c) { builds++; return real(r, c); };
+          handle = VA.animateTopoPane(root, studyCtx, from, {
             now: function () { return clock; },
             raf: function (fn) { queue.push(fn); },
-            duration: 100, reduced: false,
-            onError: function (err) { caught.push(String(err.message)); },
+            duration: 1000, reduced: false,
           });
-          eq(queue.length, 1);
-          clock = 50;
+          var afterSetup = builds;
+          var bar = root.querySelector("line.rail__barhit");
+          var ys = function () {
+            return all(root, "line.rail__barhit").map(function (n) {
+              return n.getAttribute("y1");
+            }).join(",");
+          };
+          var seen = [ys()];
+          for (var t = 100; t < 1000; t += 100) {
+            clock = t;
+            queue.shift()();
+            seen.push(ys());
+          }
+          eq(builds, afterSetup, "nine frames, no render among them");
+          ok(root.querySelector("line.rail__barhit") === bar,
+             "the same node moved");
+          ok(seen.filter(function (v, i) { return seen.indexOf(v) === i; }).length > 4,
+             "and it moved a step each frame: " + seen);
+          clock = 1000;
           queue.shift()();
+          eq(builds, afterSetup + 1, "the settled frame is the one plain render");
         } finally {
           VA.renderTopoPane = real;
         }
-        eq(caught, ["seeded frame failure"]);
-        eq(queue.length, 0, "and it stops asking for frames");
+        ok(handle.done, "and the handle says it landed");
+      });
+
+    await test("a landing that names a pulled-back scale runs two legs: out " +
+      "to it first, then in to the arrival", function () {
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = VA.lastTopoRender;
+        var clock = 0;
+        var queue = [];
+        var zooms = [];
+        var legs = [];
+        var landing = {
+          target: function () { studyCtx.zoom = 0.8; },
+          waypoint: function () { return 0.3; },
+          frame: function () {},
+          placed: function (e, w) {
+            legs.push(w.k);
+            zooms.push(VA.lastTopoRender.zoom);
+          },
+        };
+        VA.animateTopoPane(root, studyCtx, from, {
+          now: function () { return clock; },
+          raf: function (fn) { queue.push(fn); },
+          reduced: false, landing: landing,
+        });
+        var total = VA.RESPINE.fitDuration;
+        for (var t = total / 20; t < total && queue.length; t += total / 20) {
+          clock = t;
+          queue.shift()();
+        }
+        ok(Math.min.apply(null, zooms) < 0.35, "the scale went out to the fit: " + zooms);
+        ok(legs.indexOf(0) !== -1 && legs.indexOf(1) !== -1, "both legs ran: " + legs);
+        var low = zooms.indexOf(Math.min.apply(null, zooms));
+        ok(zooms[0] > 0.9 && zooms[zooms.length - 1] > zooms[low] + 0.2,
+           "it started in, went out, and came back in: " + zooms);
       });
 
     await test("prefers-reduced-motion jumps to the end state: one render, " +
