@@ -1666,6 +1666,9 @@
       if (event.origin !== window.location.origin) return;
       var msg = event.data;
       if (msg && msg.type === "annotate:tree") {
+        // A tree after none -- the pane opened, or a scene re-driven -- is an
+        // arrival, revealed once; every later tree is a refresh.
+        if (!sceneTree) sceneRevealPending = true;
         sceneTree = msg;
         renderSceneSlot();
         followScenePick(msg);
@@ -1723,6 +1726,12 @@
   // what a row says and what it does are both the annotator's, and this page
   // keeps no copy of either. The type chips' state is the annotator's too.
   var sceneTree = null;
+  // Set when a tree ARRIVES (renderSceneSlot reveals its row once, then
+  // clears it). Not "the slot was empty": every render() rebuilds the nav,
+  // and with it an empty slot, so that test re-scrolled the nav to the study
+  // row on any click that touched the page's state -- the rail that "jumps to
+  // a random scroll location" (Jeff, 2026-11-05).
+  var sceneRevealPending = false;
 
   function sceneRail(key, act, index) {
     if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;
@@ -1746,9 +1755,11 @@
       ? nodes.navtree.querySelector(".navtree__scene") : null;
     if (!slot) return;
     var focus = sceneFocus(slot);
-    var wasEmpty = !slot.childNodes || !slot.childNodes.length;
     VA.renderSceneTree(slot, sceneTree, { send: sceneRail });
-    if (wasEmpty && sceneTree) revealSceneRow(slot);
+    if (sceneRevealPending && sceneTree) {
+      sceneRevealPending = false;
+      revealSceneRow(slot);
+    }
     if (!focus) return;
     var rows = slot.querySelectorAll("[data-scene-key]");
     for (var i = 0; i < rows.length; i++) {
@@ -1761,8 +1772,9 @@
   }
 
   // The tree arriving under a row the nav has scrolled away from brings
-  // that row up to the top of the nav, once per arrival -- never on a
-  // refresh, which would yank the reader's own scrolling back.
+  // that row up to the top of the nav, once per arrival (sceneRevealPending)
+  // -- never on a refresh or a nav rebuild, which would yank the reader's own
+  // scrolling back.
   function revealSceneRow(slot) {
     var nav = nodes.navtree;
     var row = slot.parentNode && slot.parentNode.firstChild;

@@ -1,0 +1,74 @@
+[
+ {
+  "t": 0,
+  "scrollTop": 836,
+  "ends": [
+   "pitch_link_upper_sphere_centre,state=proposed",
+   "pitch_link_lower_sphere_centre,state=proposed"
+  ],
+  "faces": 0
+ },
+ {
+  "t": 2609,
+  "scrollTop": 836,
+  "ends": [
+   "pitch_link_upper_sphere_centre,state=proposed",
+   "pitch_link_lower_sphere_centre,state=proposed"
+  ],
+  "faces": 0
+ },
+ {
+  "t": 7921,
+  "scrollTop": 836,
+  "ends": [
+   "pitch_link_upper_sphere_centre,state=proposed",
+   "pitch_link_lower_sphere_centre,state=proposed"
+  ],
+  "faces": 1
+ },
+ {
+  "t": 12779,
+  "scrollTop": 836,
+  "ends": [
+   "pitch_link_upper_sphere_centre,state=proposed",
+   "pitch_link_lower_sphere_centre,state=proposed"
+  ],
+  "faces": 1
+ },
+ {
+  "t": 17449,
+  "scrollTop": 836,
+  "ends": [
+   "pitch_link_upper_sphere_centre,state=bound",
+   "pitch_link_lower_sphere_centre,state=bound"
+  ],
+  "faces": 0
+ },
+ {
+  "t": 23489,
+  "scrollTop": 836,
+  "ends": [
+   "pitch_link_upper_sphere_centre,state=bound",
+   "pitch_link_lower_sphere_centre,state=bound"
+  ],
+  "faces": 0
+ },
+ {
+  "t": 26398,
+  "scrollTop": 836,
+  "ends": [
+   "pitch_link_upper_sphere_centre,state=bound",
+   "pitch_link_lower_sphere_centre,state=bound"
+  ],
+  "faces": 0
+ },
+ {
+  "t": 27057,
+  "scrollTop": 836,
+  "ends": [
+   "pitch_link_upper_sphere_centre,state=bound",
+   "pitch_link_lower_sphere_centre,state=bound"
+  ],
+  "faces": 0
+ }
+]

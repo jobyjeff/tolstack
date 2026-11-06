@@ -283,9 +283,12 @@ export const DECLARED_GUARDS = {
   // +2 -- an action is looks (about solid, near ghost, rest faint), and two
   // occurrence keys overlap on one assembly path; the isolate-parts guard
   // renamed (its parts are ghost, not solid). Each carries a spec.
+  // 2026-11-05 (the_rail_holds_still_and_takes_the_face_jeff_picked): +3 -- a
+  // joint end's part, a run's links as bodies, and an edge feature not listed
+  // as a joint's third row. Each carries a spec.
   // 2026-11-05 (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste):
   // +1 -- the model verb's tint action. It carries a spec.
-  annotate: { declared: 288, enrollable: 288, names: "2e6dd59585f3" },
+  annotate: { declared: 291, enrollable: 291, names: "d4a34457b11a" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -404,11 +407,15 @@ export const DECLARED_GUARDS = {
   // body draws nothing on any part, and ticking it brings every copy back;
   // five renamed (a study ghosts its parts, the armed pick keeps its
   // neighbours ghost). Each carries a spec.
+  // the_rail_holds_still_and_takes_the_face_jeff_picked, 2026-11-05: +7 --
+  // the "annotate rail holds still" suite. Six carry a spec; its skip row (a
+  // constant true, printed only when the projections are absent) has none,
+  // like every other suite's.
   // the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
   // the overlay on the bars and survives a reload. Each carries a spec.
-  browser: { declared: 829, enrollable: 796, names: "138128052db2" },
+  browser: { declared: 836, enrollable: 803, names: "db826d6de861" },
 };
 
 

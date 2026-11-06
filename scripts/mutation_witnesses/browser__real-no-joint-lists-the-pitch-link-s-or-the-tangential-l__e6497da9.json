@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] no joint lists the pitch link's or the tangential link's length as a third row",
+  "mutations": [
+    {
+      "contract": "The rail draws a joint's rows through AA.sweepJointRowFeatures.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md",
+      "note": "Iterating every feature lists the length rows again.",
+      "file": "apps/annotate/app.js",
+      "find": "      for (const feature of AA.sweepJointRowFeatures(topology, joint)) {\n",
+      "replace": "      for (const feature of joint.features) {\n"
+    }
+  ]
+}

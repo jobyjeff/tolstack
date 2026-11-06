@@ -47,3 +47,16 @@ at the time. Without that queue the run is ~7.3 min. Next largest:
 So the first question for whoever takes this is whether a slot wait should
 count against the default tier's budget at all (cf.
 `ISSUE_20261029_a_witness_gate_recorded_over_budget_counts_its_browser_slot_queue.md`).
+
+## Addendum 2026-11-05 (review of the_rail_holds_still_and_takes_the_face_jeff_picked)
+
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`, review
+worktree, post-merge: `1 failed, 1729 passed, 1 skipped, 2 deselected in 4209.57s` (the failure is
+the worktree's deliberate `test_viewer_js_suite` red). Recorded `OVER BUDGET by 60m10s`. Nearly all
+of it is one wait: the run sat at test 24,
+`tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[signal-False]`, for about
+55 min while the browser slot went to two other sessions and then to this review's own annotate
+browser suites and witness gate. Once it had the slot, the rest ran in roughly 15 min. No
+`--durations` was taken. This repo's conftest prints no `concurrent pytest processes` /
+`full-suite lock` header, so the record has none to quote. Same question as above: should a slot
+wait count against this tier?
