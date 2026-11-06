@@ -1579,7 +1579,16 @@
   //: is not waiting for the answer, long enough that the eye can follow a row
   //: from where it was to where it went -- which is the whole point of
   //: animating it at all rather than repainting.
-  VA.RESPINE = { duration: 260 };
+  //: `fitDuration` is a landing that pulls the camera back to take in where it
+  //: was and where it is going before it goes in (fit, then focus); `fitShare`
+  //: is how much of it the pulling back takes and `fitAt` how far through the
+  //: respine the drawing is when the camera is furthest out; `fitSlack` is how
+  //: much smaller than the lower of the two scales the pulled-back one must be
+  //: before it is worth a phase of its own. Chosen by eye on
+  //: `node scripts/filmstrip.mjs`: long enough that each of the two moves is a
+  //: movement and not a jump, short enough that a click is not a wait.
+  VA.RESPINE = { duration: 700, fitDuration: 1100, fitShare: 0.45, fitAt: 0.5,
+                 fitSlack: 0.02 };
 
   // Ease-in-out cubic, clamped to [0, 1]. Eased once by the caller and handed
   // to everything below as a plain fraction, so the tween, the fades and the
