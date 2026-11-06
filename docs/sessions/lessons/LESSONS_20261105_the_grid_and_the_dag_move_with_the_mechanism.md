@@ -133,8 +133,34 @@ before every exploratory command; WIP commits are cheap here.
 
 ## Verification record
 
-See the completion report. In short: the viewer fast tier and the `[real]` tier ran against
-a projection built from this branch into `C:\workspace\tolstack\data\scratch\gridpose\`
-(junctions to the main checkout's inbox, meshes, runs and sessions; `docs` junctioned to
-this worktree). The kinematic browser suite ran against the same root, with `node_modules`
-junctioned in.
+All runs used projections built from this branch into
+`C:\workspace	olstack\data\scratch\gridpose\` (gitignored). That root junctions the
+main checkout's `inbox`, `meshes`, `runs` and `sessions`, and the builders ran with
+`--data-root` and `--allow-older-tree`. The main checkout's own projection is stale for
+this tree, so the `[real]` tier refuses it.
+
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/gridpose`:
+  **653/653**, no tier skipped.
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` in this worktree: 852 s,
+  **1728 passed, 1 skipped, 3 failed**. The failures:
+  - `test_viewer_js_suite_is_green`: red by design in a worktree, because there is no
+    projection.
+  - two witness checks (a rotted anchor, and a lesson that was not written yet). Both are
+    fixed, and `tests/test_mutation_witnesses.py` passes on its own.
+
+  The run was over the 10-minute budget. The measurement is appended to the open
+  `suite_over_budget` issue.
+- Browser, `--only "kinematic"`: 24/26. The two reds are
+  `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`,
+  red on integration before this branch.
+- Browser, `--only "the DAG zoom, Fit and the grid header"`: 41/41, after this branch
+  fixed its tolerance-width check. The page now opens in contribution mode, so the check
+  cycles the toggle by its label.
+- Browser, `--only "3D pane follows the selection"`: 32/32.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration`: 32/51
+  witnessed, 9 left to the sweep by the 30-minute budget. **Every fast entry is
+  witnessed**, including the ten new specs. All 19 unwitnessed entries are browser
+  entries whose tier "was red before the mutation". Most of those are the kinematic
+  suite's two inherited reds. The DAG-zoom suite's entries were red because of the
+  tolerance-width check, fixed afterwards and green on its own; those entries were not
+  re-run.
