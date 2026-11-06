@@ -2290,12 +2290,17 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           mid(hs.left, hs.right),
         dy: mid(Math.min(...bars.map((b) => b.top)), Math.max(...bars.map((b) => b.bottom))) -
           mid(top, window.innerHeight),
+        inside: bars.every((b) => b.left >= hs.left - 1 && b.right <= hs.right + 1),
         scrollY: window.scrollY, mutations: window.__respineMutations,
       };
     });
     console.log("      landing: " + JSON.stringify(landed));
-    push("a study arrival lands with the active band centred in the window, within 4 px",
-      landed.bars > 0 && Math.abs(landed.dx) <= 4 && Math.abs(landed.dy) <= 4);
+    // Sideways the band is only kept inside the pane, never centred: centring
+    // put space before the drawing, which pushed the grid right by as much
+    // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
+    push("a study arrival lands with the active band centred in the window's height, " +
+      "within 4 px, and inside the pane sideways",
+      landed.bars > 0 && landed.inside && Math.abs(landed.dy) <= 4);
     const churn = landed.mutations.removedIds.filter((id) => landed.mutations.addedIds.includes(id));
     console.log(`      transition churn: ${churn.length} ids removed and re-added of ` +
       `${landed.mutations.removedIds.length} removed`);
@@ -2317,12 +2322,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const hs = document.querySelector("#topopane .tv__hscroll").getBoundingClientRect();
       const mid = (a, b) => (a + b) / 2;
       return { bars: bars.length, ghost: document.querySelectorAll("#topopane .tv__ghost").length,
-        dx: mid(Math.min(...bars.map((b) => b.left)), Math.max(...bars.map((b) => b.right))) -
-          mid(hs.left, hs.right) };
+        inside: bars.every((b) => b.left >= hs.left - 1 && b.right <= hs.right + 1),
+        dy: mid(Math.min(...bars.map((b) => b.top)), Math.max(...bars.map((b) => b.bottom))) -
+          mid(window.__pinnedBottom(), window.innerHeight) };
     });
     await page.emulateMedia({ reducedMotion: "no-preference" });
-    push("with reduced motion the band still lands centred, with no ghost of the old layout",
-      reduced.bars > 0 && reduced.ghost === 0 && Math.abs(reduced.dx) <= 4);
+    push("with reduced motion the band still lands centred in the window's height and inside " +
+      "the pane, with no ghost of the old layout",
+      reduced.bars > 0 && reduced.ghost === 0 && reduced.inside && Math.abs(reduced.dy) <= 4);
     await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
@@ -12224,9 +12231,12 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
           }, id);
           if (!at.ok) { missed.push(id + " (covered)"); continue; }
           await page.mouse.click(at.x, at.y);
+          // FROZEN, not just previewed: a hover alone previews the row, and
+          // the claim is that the click lands on it.
           const kept = await page.waitForFunction((id) => {
             const p = document.querySelector(".detail__preview");
-            return !!p && p.getAttribute("data-preview-key") === "edge|" + id;
+            return !!p && p.getAttribute("data-preview-key") === "edge|" + id &&
+              p.getAttribute("data-preview-state") === "frozen";
           }, id, { timeout: 5000 }).then(() => true).catch(() => false);
           if (!kept) missed.push(id + " (no preview)");
         }
@@ -12620,6 +12630,15 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
 
     const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
     const study = pitch.studies.find((s) => s.status === "ok" && s.layout);
+    // One round trip first. A study's arrival scales the DAG down to leave
+    // the grid its floor beside it (VA.dagFitWidth, the_grid_fits_the_screen_
+    // and_its_brackets_say_what_nests_in_what), and an arrival only ever
+    // scales down, so from the second visit on the zoom holds still and the
+    // walk measured here is the one every transition below starts from.
+    await page.locator(navRow("study", study.id)).click();
+    await settled();
+    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+    await settled();
     const walk = await geometry();
     push("[real] the walk is the default layout and it settled clean",
       clean(walk) && walk.rows.length === pitch.edges.length);

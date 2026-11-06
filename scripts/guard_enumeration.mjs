@@ -399,9 +399,11 @@ export const DECLARED_GUARDS = {
   // one added -- at 1600x1000 every row's part cell takes the click. The
   // sticky-rails checks are inverted and renamed (the rails scroll with the
   // grid now), as are the row-tint, component-cell, thumbnail and stack
-  // checks. The part-cell check, both scroll checks and the stack check carry
-  // a spec; the sticky spec is deleted.
-  browser: { declared: 822, enrollable: 789, names: "1b85d74248f0" },
+  // checks. A study's landing keeps the band inside the pane rather than
+  // centring it sideways, so its two landing checks are renamed. The
+  // part-cell check, both scroll checks, the stack check and both landing
+  // checks carry a spec; the sticky spec is deleted.
+  browser: { declared: 822, enrollable: 789, names: "ea50f849c5d2" },
 };
 
 

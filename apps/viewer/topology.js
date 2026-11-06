@@ -3732,8 +3732,8 @@
     // own citation says: that is the first thing to know about it.
     var key = null;
     if (noBand) key = "no_value";
-    else if (confidence === "untraced" || confidence === "no_source_ref" ||
-        confidence === "inferred") key = confidence;
+    // A confidence that has a mark of its own wears it (`traced` has none).
+    else if (VA.SOURCING_MARKS.indexOf(confidence) !== -1) key = confidence;
     else if (confidence === null || confidence === undefined) key = "no_value";
     else if (edge && edge.zero_width) key = "no_tolerance";
     if (!key) return null;
