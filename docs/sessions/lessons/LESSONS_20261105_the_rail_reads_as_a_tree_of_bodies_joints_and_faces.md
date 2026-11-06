@@ -238,3 +238,26 @@ rule bodies were not. What changed:
 - **The side-by-side shot is delivered.** The grid branch landed and is
   merged here, and at 2560 wide the grid has room for its rows:
   `07_rail_beside_grid_2560.png`.
+
+### Rework verification (2026-11-06, from the worktree, on b71f62e2)
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` gave
+  `1 failed, 1733 passed, 1 skipped, 2 deselected in 437.11s` (wall 438 s,
+  recorded as `default`, inside budget). The one failure is the worktree's
+  `tests/test_viewer_js_suite.py`, as before.
+- `node apps/viewer/run_tests.cjs` gave 529/529 (node-fs tier skipped in the
+  worktree). `node apps/annotate/run_tests.cjs` gave 294/294.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack
+  --only "annotate rail holds still"` gave 14/14 on the final code. The full
+  browser tier was not re-run. The only browser suite this rework touched is
+  that one, and the merged-in integration changes are integration's own.
+- Each of the seven new specs was WITNESSED with `node
+  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only
+  <spec>`. The kinds and isolate specs were witnessed on the final code. The
+  other five were witnessed before the null-safety and isolate edits, which
+  touched neither their checks' conditions nor their mutations' anchors.
+- The `--changed-since integration` gate was not re-run on the rework. The
+  reviewer's post-merge run covers it.
+- Guard pins after merging integration: fast 646, annotate 294, browser
+  844/811 (`b7f1ad953414`).
+- The `node_modules` junction was removed again before hand-back.
