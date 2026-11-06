@@ -2991,6 +2991,7 @@
         groupKinds: groupKinds,
         colourBy: state.dagView.colourBy,
         groupFill: state.dagView.groupFill,
+        partDrawing: state.dagView.partDrawing,
         contributions: overlayOptions.contributions,
         contributionUnits: overlayOptions.units,
         studyGroups: topoProj

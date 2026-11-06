@@ -238,7 +238,15 @@ export const DECLARED_GUARDS = {
   // sourcing legend's named tints, and the scene's tint verb from the page.
   // Each carries a spec. (Re-measured at the review merge on integration's
   // 632: 642.)
-  fast: { declared: 644, enrollable: 644, names: "243199eb9d55" },
+  // a_part_with_many_interfaces_is_drawn_as_a_component_with_pins, 2026-11-06:
+  // +9, one renamed -- the live model's blocks, a part's pins and chords, the gathered walk, a block's
+  // sides and aspect, the cut at a split chord, the scaled pin spacing, a
+  // pin's leader, the crossing count's inner pins and the page's blocks; the
+  // view popover offers four settings now. Each carries a spec; the old
+  // name's spec is deleted.
+  // (Re-pinned at the review merge onto integration's 644 -- the tween
+  // handoff's +2 landed underneath: 653.)
+  fast: { declared: 653, enrollable: 653, names: "53645de7f814" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -415,7 +423,11 @@ export const DECLARED_GUARDS = {
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
   // the overlay on the bars and survives a reload. Each carries a spec.
-  browser: { declared: 836, enrollable: 803, names: "db826d6de861" },
+  // a_part_with_many_interfaces_is_drawn_as_a_component_with_pins,
+  // 2026-11-06: +7 -- the "parts as blocks" suite. Six carry a spec; its skip
+  // row (a constant true, printed only when the projections are absent) has
+  // none, like every other suite's.
+  browser: { declared: 843, enrollable: 810, names: "35759520f6b2" },
 };
 
 

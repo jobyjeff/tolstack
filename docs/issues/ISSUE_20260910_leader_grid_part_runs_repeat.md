@@ -39,3 +39,15 @@ on a later branch gets a merged row per visit" (apps/viewer/tests.js) and
 discussed in `docs/sessions/lessons/LESSONS_20260910_viewer_leader_line_grid.md`.
 The staged `viewer_hover_cards_and_deep_links` handoff already owns rich hover
 on the component cell, so this may fold into it.
+
+## Addendum 2026-11-06 (a_part_with_many_interfaces_is_drawn_as_a_component_with_pins)
+
+With Parts: Blocks, the page's default, each part with two or more faces is
+gathered into one run of the drawn walk (`VA.gatherParts`). The grid is built
+off the drawn walk, so on the whole walk and on chain studies a block part has
+one merged component cell. The `[real]` check "drawn as blocks, every
+committed topology's whole walk is one block per part…" holds this on the
+live model. It does **not** reach a kinematic page, whose band keeps the
+stack's own order: `docs/issues/ISSUE_20261106_a_part_the_kinematic_stack_visits_twice_is_two_blocks.md`.
+It also does not reach the On the rails drawing, which is the builder's walk
+unchanged. Status left for triage. Lesson: `docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md`.

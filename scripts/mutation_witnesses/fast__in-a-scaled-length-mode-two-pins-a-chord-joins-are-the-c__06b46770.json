@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "in a scaled length mode two pins a chord joins are the chord's own length apart, and the block stretches for it",
+  "mutations": [
+    {
+      "contract": "Scaled, a pin gives up its half row beside a chord.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The pin keeps its half row, so two pins are the chord plus a row apart.",
+      "file": "apps/viewer/topology.js",
+      "find": "        var above = scaled && prev && prev.chord ? 0 : half;",
+      "replace": "        var above = half;"
+    }
+  ]
+}

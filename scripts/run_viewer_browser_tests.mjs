@@ -4203,6 +4203,148 @@ function visiblePointOn(selector) {
   return null;
 }
 
+// --- parts as blocks (a_part_with_many_interfaces_is_drawn_as_a_component_
+// with_pins, 2026-11-06) -----------------------------------------------------
+//
+// The page's default drawing, on the real model: the kinematic page, a chain
+// study and the whole walk, each with Parts: Blocks. The contracts every
+// other suite here holds on the rails, held on the blocks: every grid row has
+// its mark and every leader starts on its dot (CORRESPONDENCE_IN_PAGE), every
+// joint end wears its glyph, the lit set is drawn and on screen at landing,
+// every block is inside the aspect band, a part is one block on the walk, and
+// a pin is the thing under the pointer at its own centre.
+const BLOCKS_IN_PAGE = () => {
+  const VA = window.ViewerApp;
+  const svg = Array.from(document.querySelectorAll("#topopane svg.tv__rails"))
+    .filter((n) => !n.closest(".tv__ghost"))[0];
+  const blocks = Array.from(svg.querySelectorAll("rect.tv__block")).map((r) => ({
+    part: r.getAttribute("data-block"),
+    ratio: Number(r.getAttribute("width")) / Number(r.getAttribute("height")),
+  }));
+  const glyphs = Array.from(svg.querySelectorAll("use[data-glyph-node]"))
+    .map((u) => u.getAttribute("data-glyph-node"));
+  const jointDots = Array.from(svg.querySelectorAll("circle.rail__dot--joint"))
+    .map((c) => c.getAttribute("data-id"));
+  const litBars = svg.querySelectorAll(".rail__bar.rail__bar--on").length;
+  const edgeRows = Array.from(document.querySelectorAll("tr.tvrow"))
+    .filter((r) => r.getAttribute("data-row-kind") !== "substack").length;
+  const lit = Array.from(svg.querySelectorAll(".rail__bar--on, .rail__dot--on"))
+    .map((n) => n.getBoundingClientRect());
+  const top = window.__pinnedBottom();
+  const litOnScreen = lit.filter((b) => b.bottom > top && b.top < window.innerHeight).length;
+  // A pin, at its own centre, is what the pointer finds there.
+  const pins = Array.from(svg.querySelectorAll("circle.rail__dot--pin")).filter((c) => {
+    const b = c.getBoundingClientRect();
+    return b.top > top + 4 && b.bottom < window.innerHeight - 4 && b.left > 0;
+  });
+  let pinHit = null;
+  if (pins.length) {
+    const b = pins[0].getBoundingClientRect();
+    const at = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+    pinHit = { id: pins[0].getAttribute("data-id"),
+               at: at ? (at.getAttribute("data-id") || at.getAttribute("data-glyph-node")) : null };
+  }
+  return { blocks, glyphs, jointDots, litBars, edgeRows,
+           lit: lit.length, litOnScreen, pins: pins.length, pinHit,
+           pinCount: svg.querySelectorAll("circle.rail__dot--pin").length };
+};
+
+async function testPartsAsBlocks(browser, fileBase, label, realProjection, realCrops) {
+  const realResults = await readProjection("results.json");
+  const realKinematic = await readProjection("kinematic/kinematic_studies.json");
+  const page = await browser.newPage({ viewport: TOPO_VIEWPORT });
+  // After the runner's own "start on the rails": this suite is the blocks'.
+  await page.addInitScript(() => {
+    try {
+      const key = "tolstack.viewer.dagView";
+      const view = JSON.parse(localStorage.getItem(key) || "{}") || {};
+      view.partDrawing = "blocks";
+      localStorage.setItem(key, JSON.stringify(view));
+    } catch (e) { /* no storage: the app's default, which is blocks */ }
+  });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
+  const read = () => page.evaluate(BLOCKS_IN_PAGE);
+  const settled = () => page.waitForFunction(
+    () => window.ViewerApp.lastTopoRender && !window.ViewerApp.lastTopoRender.tweening,
+    null, { timeout: 15000 });
+  try {
+    if (!realProjection || !realResults || !realKinematic) {
+      push("[real] parts as blocks (skipped: the projections are not built -- " +
+        "build them, or pass --repo <a root built from this tree>)", true);
+      return reportSuite(label, checks, errors);
+    }
+    await page.goto(fileBase + "/topology.html?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops",
+      { waitUntil: "load" });
+    await page.evaluate(({ topologies, results, crops, kinematic }) => {
+      const VA = window.ViewerApp;
+      const Fake = function () {
+        return new VA.MemoryAdapter({ startState: VA.STATE.READY, topologies,
+          results, crops, kinematic, images: {}, texts: {} });
+      };
+      Fake.isSupported = () => true;
+      VA.FsaAdapter = Fake;
+      VA.bootTopology();
+    }, { topologies: realProjection, results: realResults, crops: realCrops,
+         kinematic: realKinematic });
+    await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 });
+    await settled();
+    await page.waitForTimeout(600);
+    const band = (r) => r.blocks.every((b) =>
+      b.ratio >= 0.5 && b.ratio <= 2);
+    const glyphsOnJoints = (r) => r.jointDots.length > 0 &&
+      r.jointDots.every((id) => r.glyphs.indexOf(id) !== -1);
+
+    const kin = await read();
+    const kinDrift = (await correspondence()).drift;
+    console.log(`      kinematic: ${kin.blocks.length} blocks, ${kin.pinCount} pins, ` +
+      `${kin.litOnScreen}/${kin.lit} lit marks on screen, pin ${JSON.stringify(kin.pinHit)}`);
+    push("[real] kinematic page, as blocks: its blocks and pins are drawn, every grid " +
+      "row has its mark, every leader starts on its dot and every joint end wears its glyph",
+      kin.blocks.length > 0 && kin.pinCount > 0 && kinDrift.length === 0 && glyphsOnJoints(kin));
+    push("[real] ...the lit set lands on screen and every block is inside the aspect band",
+      kin.litOnScreen > 0 && band(kin));
+    push("[real] ...a pin is what the pointer finds at its own centre",
+      kin.pinHit && kin.pinHit.at === kin.pinHit.id);
+
+    await page.locator(navRow("study", "pitch_link_cotter_hole_clearance")).first().click();
+    await page.waitForSelector("tr.tvrow", { timeout: 10000 });
+    await settled();
+    await page.waitForTimeout(400);
+    const chain = await read();
+    const chainDrift = (await correspondence()).drift;
+    console.log(`      cotter hole: ${chain.blocks.length} blocks, ${chain.litBars} lit bars ` +
+      `for ${chain.edgeRows} grid rows, ${chain.litOnScreen}/${chain.lit} lit on screen`);
+    push("[real] a chain study, as blocks: every grid row has its mark, every leader " +
+      "starts on its dot and every joint end wears its glyph",
+      chain.blocks.length > 0 && chainDrift.length === 0 && glyphsOnJoints(chain));
+    push("[real] ...every chain edge is drawn lit, a bar or a chord, one per grid row, on " +
+      "screen at landing, and every block is inside the aspect band",
+      chain.litBars === chain.edgeRows && chain.edgeRows > 0 && chain.litOnScreen > 0 &&
+      band(chain));
+
+    await page.locator(navRow("topology", "vpa_pitch_linkage")).first().click();
+    await settled();
+    await page.waitForTimeout(400);
+    const walk = await read();
+    const parts = walk.blocks.map((b) => b.part);
+    console.log(`      whole walk: ${walk.blocks.length} blocks over ${new Set(parts).size} parts`);
+    push("[real] the whole walk, as blocks: a part is one block, every grid row has its " +
+      "mark, every leader starts on its dot, every block is inside the aspect band, and " +
+      "nothing threw",
+      parts.length > 0 && new Set(parts).size === parts.length &&
+      (await correspondence()).drift.length === 0 && band(walk) && errors.length === 0);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 async function testDagZoom(browser, fileBase, label, realProjection, realCrops) {
   const realResults = await readProjection("results.json");
   const realKinematic = await readProjection("kinematic/kinematic_studies.json");
@@ -14901,6 +15043,22 @@ async function testAnnotateRenderOnDemand(browser, label) {
     const newPage = browser.newPage.bind(browser);
     browser.newPage = async (...args) => {
       const page = await newPage(...args);
+      // Every suite here was written against the walk ON ITS RAILS: a row's
+      // own height, a bar as a line on its column, the DAG's width. The app's
+      // default since 2026-11-06 is Parts: Blocks (VA.PART_DRAWINGS), which
+      // re-arranges what the DAG draws, so a page starts on the rails unless
+      // the reader -- a suite -- chose otherwise, and the blocks have a suite
+      // of their own ("parts as blocks"), which picks them.
+      await page.addInitScript(() => {
+        try {
+          const key = "tolstack.viewer.dagView";
+          const view = JSON.parse(localStorage.getItem(key) || "{}") || {};
+          if (!view.partDrawing) {
+            view.partDrawing = window.__partDrawing || "rails";
+            localStorage.setItem(key, JSON.stringify(view));
+          }
+        } catch (e) { /* a page with no storage draws the app's default */ }
+      });
       // The bottom of everything the page pins at its top -- the page bar and
       // the view filters under it -- measured off the DOM, not asked of the
       // app: the line a pinned grid header, a Fit and a landing are all
@@ -14968,6 +15126,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testHeightBudget(browser, fileBase, label, topologies, crops)],
       ["the DAG zoom, Fit and the grid header", (label) =>
         testDagZoom(browser, fileBase, label, topologies, crops)],
+      ["parts as blocks", (label) =>
+        testPartsAsBlocks(browser, fileBase, label, topologies, crops)],
       ["topology file:// respine", (label) =>
         testRespine(browser, fileBase, label, topologies, crops)],
       ["render crash shows the banner", (label) =>

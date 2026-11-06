@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the page draws a block per component only when it asks for blocks: its rect, its chords as curves and its pins' stubs",
+  "mutations": [
+    {
+      "contract": "The page draws blocks when it asks for them.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The render never marks the blocks: the walk is gathered but drawn on its rails.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (blocks) layout = VA.blockLayout(layout, topoProj);",
+      "replace": "    if (false) layout = VA.blockLayout(layout, topoProj);"
+    }
+  ]
+}

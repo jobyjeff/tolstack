@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part's pins are its faces, a contact face is the pin of the part with more faces, and its edges between two of its own pins are its chords",
+  "mutations": [
+    {
+      "contract": "A contact face is the pin of the part with more faces.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The first-listed part always wins, so the washer takes the plate's contact face.",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (best === null || count[p] > count[best]) best = p;",
+      "replace": "        if (best === null) best = p;"
+    }
+  ]
+}

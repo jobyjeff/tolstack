@@ -57,3 +57,14 @@ curves onto the leaders, which is the line a reader follows to the grid. The
 option list above is still open; "collapse each body" now exists (click a
 body's name), and a per-term weighting of the objective is the obvious next
 lever. Still `column_order: shortest_first` -- a local minimum, not a proof.
+
+## Addendum 2026-11-06 (a_part_with_many_interfaces_is_drawn_as_a_component_with_pins)
+
+With Parts: Blocks, the page re-lays the gathered walk and searches its
+columns on the drawn crossing count (`VA.gatherParts`, `VA.blockColumns`).
+The search is local: every swap and every single-column move, the trunk's
+column included. Whole walk: 16/70/50 = 136 → 17/29/74 = 120. Kinematic page:
+188 → 113. Shank-out: 136 → 127. Cotter hole: 140 → 124. The U10H grip budget
+goes 136 → 162 (`docs/issues/ISSUE_20261106_the_u10h_grip_budget_crosses_itself_more_as_blocks_than_on_the_rails.md`).
+The builder's `layout_crossings` and its column order are unchanged, and
+they are what On the rails draws. Table in `docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md`. Status left for triage.

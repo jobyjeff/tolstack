@@ -6,10 +6,10 @@
     {
       "contract": "A rail bar's hover previews its edge's record; a bar with no hit path fails by name and does not abort the suite.",
       "issue": "docs/issues/ISSUE_20261021_hoverrailbar_throws_so_a_bar_with_no_hit_path_aborts_the_topology_suite.md",
-      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Re-anchored from 'hovering the DAG's own bar opens the edge card with the crop body' (the edge card retired 2026-10-30). Renames the bar hit path's class at both its sites, so hoverRailBar finds nothing to aim at and the check fails by name. (Dropping the hit path's hover alone is masked: the joint glyph at the bar's midpoint previews the same edge.)",
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Re-anchored from 'hovering the DAG's own bar opens the edge card with the crop body' (the edge card retired 2026-10-30). Renames the bar hit path's class at both its sites, so hoverRailBar finds nothing to aim at and the check fails by name. (Dropping the hit path's hover alone is masked: the joint glyph at the bar's midpoint previews the same edge.) Re-pointed 2026-11-06 (a_part_with_many_interfaces_is_drawn_as_a_component_with_pins): the hit path is built by the bar's shape helper now, a line on its column or a block's chord.",
       "file": "apps/viewer/views/topology.js",
-      "find": "el: fade(VA.svg(\"line\", \"rail__barhit\",\n            { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), \"edge\", mark.id),\n          base: \"rail__barhit\",",
-      "replace": "el: fade(VA.svg(\"line\", \"rail__barhit_renamed\",\n            { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), \"edge\", mark.id),\n          base: \"rail__barhit_renamed\","
+      "find": "el: fade(barShape(\"rail__barhit\", \"rail__barhit--chord\"), \"edge\", mark.id),\n          base: \"rail__barhit\",",
+      "replace": "el: fade(barShape(\"rail__barhit_renamed\", \"rail__barhit--chord\"), \"edge\", mark.id),\n          base: \"rail__barhit_renamed\","
     }
   ]
 }

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a block holds only its pins and the chords between them: a chord whose other pin is elsewhere cuts the run and keeps its rail",
+  "mutations": [
+    {
+      "contract": "A run is cut at a chord whose other pin is not in it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). No cut: the chord is drawn as a chord with one end nowhere, and its rail is dropped.",
+      "file": "apps/viewer/topology.js",
+      "find": "          if (rows[e].kind === \"edge\" && lands(run, e) < 2) {",
+      "replace": "          if (false) {"
+    }
+  ]
+}

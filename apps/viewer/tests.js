@@ -12264,6 +12264,215 @@
       };
     }
 
+    // --- a part with many interfaces is a block with pins (2026-11-06) -------
+    //
+    // Part P's three faces p1..p3, visited twice by the walk: p1-p2, then away
+    // through a gap to Q, then back to p3. The contact face c is on P and on a
+    // one-face washer W; it is P's pin, because P has more faces.
+    function splitPartProjection() {
+      var node = function (id, parts) {
+        return { id: id, name: id, kind: "datum_feature", parts: parts };
+      };
+      var edge = function (id, from, to, part, kind) {
+        return { id: id, name: id, from: from, to: to, part: part || null,
+                 kind: kind || "structural", interface: null, dimension: null };
+      };
+      var order = [
+        { kind: "node", id: "p1" }, { kind: "edge", id: "e1", entered_at: "p1", left_at: "p2" },
+        { kind: "node", id: "p2" }, { kind: "edge", id: "g", entered_at: "p2", left_at: "q1" },
+        { kind: "node", id: "q1" }, { kind: "edge", id: "eq", entered_at: "q1", left_at: "q2" },
+        { kind: "node", id: "q2" }, { kind: "edge", id: "g2", entered_at: "q2", left_at: "p3" },
+        { kind: "node", id: "p3" }, { kind: "edge", id: "e3", entered_at: "p3", left_at: "c" },
+        { kind: "node", id: "c" }, { kind: "edge", id: "ew", entered_at: "c", left_at: "w1" },
+        { kind: "node", id: "w1" },
+      ].map(function (row) {
+        return Object.assign({ column: 0, branch: false, body: "B", closes_row: null,
+                               closes_column: null }, row);
+      });
+      var laid = VA.layWalk(order);
+      return {
+        id: "split", parts: [{ id: "P", name: "plate" }, { id: "Q", name: "link" },
+                             { id: "W", name: "washer" }],
+        nodes: [node("p1", ["P"]), node("p2", ["P"]), node("p3", ["P"]),
+                node("c", ["W", "P"]), node("q1", ["Q"]), node("q2", ["Q"]),
+                node("w1", ["W"])],
+        edges: [edge("e1", "p1", "p2", "P"), edge("g", "p2", "q1", null, "gap"),
+                edge("eq", "q1", "q2", "Q"), edge("g2", "q2", "p3", null, "gap"),
+                edge("e3", "p3", "c", "P"), edge("ew", "c", "w1", "W")],
+        bodies: [{ id: "B", name: "body", kind: "body", parts: ["P", "Q", "W"],
+                   joint_nodes: [] }],
+        layout: { columns: laid.columns, column_order: "exact", rows: laid.rows,
+                  rails: laid.rails, links: laid.links, bodies: [] },
+        studies: [],
+      };
+    }
+
+    await test("a part's pins are its faces, a contact face is the pin of the part with " +
+      "more faces, and its edges between two of its own pins are its chords", function () {
+        var pins = VA.partPins(splitPartProjection());
+        eq(pins.owner, { p1: "P", p2: "P", p3: "P", c: "P", q1: "Q", q2: "Q" });
+        eq(Object.keys(pins.blocks).sort(), ["P", "Q"], "the one-face washer is no block");
+        eq(pins.chords, { e1: "P", eq: "Q", e3: "P" });
+        eq(pins.outside, { p1: false, p2: true, p3: true, c: true, q1: true, q2: true },
+           "a pin is outside-facing when anything but its own chords meets it");
+      });
+
+    await test("a part the walk visits twice is gathered into one run, every row " +
+      "once, and the result is still a walk", function () {
+        var proj = splitPartProjection();
+        var before = VA.blockLayout(proj.layout, proj);
+        eq(before.blocks.map(function (b) { return b.part; }), ["P", "Q", "P"],
+           "laid as the builder walked it, P is two runs");
+        var gathered = VA.gatherParts(proj.layout, proj);
+        eq(gathered.rows.map(function (r) { return r.id; }),
+           ["p1", "e1", "p2", "p3", "e3", "c", "g", "q1", "eq", "q2", "g2", "ew", "w1"]);
+        eq(gathered.rows.map(function (r) { return r.row; }),
+           gathered.rows.map(function (r, i) { return i; }), "renumbered");
+        var at = {};
+        gathered.rows.forEach(function (r) { if (r.kind === "node") at[r.id] = r.row; });
+        ok(gathered.rows.every(function (r) {
+          return r.kind !== "edge" || Math.min(at[r.entered_at], at[r.left_at]) < r.row;
+        }), "every edge hangs from a node above it");
+        eq(VA.blockLayout(gathered, proj).blocks.map(function (b) { return b.part; }), ["P", "Q"]);
+        ok(VA.gatherParts(proj.layout, proj) === gathered, "one walk, laid once");
+      });
+
+    await test("a block's pins are on its sides, one height each in walk order, inside " +
+      "the aspect band; a chord runs pin to pin and a rail-side pin is joined to its column",
+      function () {
+        var proj = splitPartProjection();
+        var layout = VA.blockLayout(VA.spineRight(VA.gatherParts(proj.layout, proj)), proj);
+        var M = VA.RAIL_METRICS;
+        var positions = VA.rowPositions(layout, proj, "uniform", M);
+        var geo = VA.railGeometry(layout, M, positions, { topoProj: proj });
+        eq(geo.blocks.length, 2);
+        geo.blocks.forEach(function (b) {
+          var ratio = (b.x2 - b.x1) / (b.y2 - b.y1);
+          ok(ratio >= VA.BLOCK_ASPECT.min && ratio <= VA.BLOCK_ASPECT.max,
+             b.part + " is " + ratio.toFixed(2) + " wide per unit high");
+        });
+        var pins = geo.marks.filter(function (m) { return m.pin; });
+        eq(pins.map(function (m) { return m.id; }), ["p1", "p2", "p3", "c", "q1", "q2"]);
+        pins.forEach(function (m) {
+          var b = geo.blocks[m.block];
+          eq(m.x, m.pin === "left" ? b.x1 : b.x2, m.id + " is on its side");
+          ok(m.y > b.y1 && m.y < b.y2, m.id + " is within its block's height");
+        });
+        eq(pins.filter(function (m) { return m.pin === "right"; }).map(function (m) { return m.id; }),
+           ["p1"], "only the face nothing else meets faces away from the rails");
+        var ys = geo.marks.filter(function (m) { return m.kind === "node"; })
+          .map(function (m) { return m.y; });
+        ok(ys.every(function (y, i) { return i === 0 || y > ys[i - 1]; }),
+           "every node its own height, in walk order -- the leaders' premise");
+        var byId = {};
+        geo.marks.forEach(function (m) { byId[m.kind + "|" + m.id] = m; });
+        var chord = byId["edge|e1"].chord;
+        ok(chord && chord.d.indexOf("M " + byId["node|p1"].x + " " + byId["node|p1"].y) === 0,
+           "the chord leaves p1");
+        ok(/ (\S+) (\S+)$/.exec(chord.d)[0].trim() === byId["node|p2"].x + " " + byId["node|p2"].y,
+           "and lands on p2");
+        ok(!layout.rails.some(function (r) {
+          return layout.rows[r.start].id === "p1" && layout.rows[r.end].id === "p2";
+        }), "a chord has no rail");
+        var stubs = {};
+        geo.stubs.forEach(function (s) { stubs[s.id] = s; });
+        ok(stubs.p2 && stubs.p2.x2 === byId["node|p2"].x && stubs.p2.y === byId["node|p2"].y,
+           "p2's rails reach it along a stub");
+        ok(!stubs.p1, "an inner pin has none");
+        ok(geo.width >= geo.blocks[0].x2, "the drawing is as wide as its strip");
+      });
+
+    await test("a block holds only its pins and the chords between them: a chord whose " +
+      "other pin is elsewhere cuts the run and keeps its rail", function () {
+        var proj = splitPartProjection();
+        var rows = VA.gatherParts(proj.layout, proj).rows.slice();
+        var c = rows.filter(function (r) { return r.id === "c"; })[0];
+        rows.splice(rows.indexOf(c), 1);
+        var ew = rows.filter(function (r) { return r.id === "ew"; })[0];
+        rows.splice(rows.indexOf(ew), 0, c);
+        var laid = VA.layWalk(rows);
+        var layout = VA.blockLayout({ columns: laid.columns, rows: laid.rows, rails: laid.rails,
+                                      links: laid.links }, proj);
+        var p = layout.blocks.filter(function (b) { return b.part === "P"; });
+        eq(p.length, 1);
+        eq(p[0].pins, 3, "p1, p2 and p3; c is elsewhere");
+        var e3 = layout.rows.filter(function (r) { return r.id === "e3"; })[0];
+        ok(!e3.chord, "e3 is a bar on its column");
+        ok(layout.rails.some(function (r) { return r.end === e3.row || r.start === e3.row ||
+          (r.start < e3.row && r.end > e3.row); }), "with its rail");
+        ok(e3.row < p[0].start || e3.row > p[0].end, "outside the block");
+      });
+
+    await test("in a scaled length mode two pins a chord joins are the chord's own length " +
+      "apart, and the block stretches for it", function () {
+        var proj = splitPartProjection();
+        proj.edges.forEach(function (e) {
+          e.dimension = { nominal: 0, min: -0.1, max: 0.1 };
+        });
+        proj.edges[0].dimension = { nominal: 0, min: -1, max: 1 };
+        var layout = VA.blockLayout(VA.spineRight(VA.gatherParts(proj.layout, proj)), proj);
+        var M = VA.RAIL_METRICS;
+        var positions = VA.rowPositions(layout, proj, "tolerance", M);
+        eq(positions.nodes.p2 - positions.nodes.p1, positions.edges.e1.length,
+           "p1 to p2 is e1's drawn length");
+        var uniform = VA.rowPositions(layout, proj, "uniform", M);
+        ok(uniform.nodes.p2 - uniform.nodes.p1 < positions.nodes.p2 - positions.nodes.p1);
+        eq(uniform.edges.e1.length, 0, "uniform, a chord takes no height of its own");
+      });
+
+    await test("a leader leaves a block's pin, and the jog zone starts past the strip", function () {
+      var proj = splitPartProjection();
+      var layout = VA.blockLayout(VA.spineRight(VA.gatherParts(proj.layout, proj)), proj);
+      var M = VA.RAIL_METRICS;
+      var plan = VA.gridPlan(layout, proj, null);
+      var positions = VA.rowPositions(layout, proj, "uniform", M, { plan: plan });
+      var geo = VA.railGeometry(layout, M, positions, { topoProj: proj });
+      var leaders = VA.leaderGeometry(layout, plan, M, positions, {});
+      var mark = {};
+      geo.marks.forEach(function (m) { if (m.kind === "node") mark[m.id] = m; });
+      ok(leaders.leaders.length > 0);
+      leaders.leaders.forEach(function (l) {
+        var m = mark[l.id];
+        eq(l.x1, m.x + (m.branch ? M.branchDot : M.dot) + 1.5, l.id + " starts at its dot");
+        eq(l.y1, m.y);
+      });
+      var strip = Math.max.apply(null, geo.blocks.map(function (b) { return b.x2; }));
+      ok(leaders.zoneLeft > strip, "the zone is right of every block");
+    });
+
+    await test("the crossing count leaves out a block's inner pins, which draw nothing " +
+      "across a rail", function () {
+        var layout = {
+          columns: 2,
+          rows: [{ row: 0, kind: "node", id: "n", column: 1, pin: { side: "right" } }],
+          rails: [{ column: 0, start: 0, end: 0 }], links: [],
+        };
+        eq(VA.layoutCrossings(layout).leader, 0);
+        layout.rows[0].pin.side = "left";
+        eq(VA.layoutCrossings(layout).leader, 1);
+      });
+
+    await test("the page draws a block per component only when it asks for blocks: its " +
+      "rect, its chords as curves and its pins' stubs", function () {
+        var proj = splitPartProjection();
+        var paint = function (drawing) {
+          return render(function (r) {
+            VA.renderTopoPane(r, { topoProj: proj, study: null, crops: null, selection: null,
+                                   onSelect: function () {}, partDrawing: drawing });
+          });
+        };
+        var blocks = paint("blocks");
+        eq(all(blocks, "rect.tv__block").map(function (n) {
+          return n.getAttribute("data-block");
+        }), ["P", "Q"]);
+        eq(all(blocks, "path.rail__bar--chord").length, 3, "e1, e3 and eq");
+        ok(all(blocks, "path.rail__stub").length > 0);
+        ok(all(blocks, "circle.rail__dot--pin").length === 6);
+        var rails = paint(undefined);
+        eq(all(rails, "rect.tv__block").length, 0, "no setting is the walk on its rails");
+        eq(all(rails, "path.rail__bar--chord").length, 0);
+      });
+
     await test("a body's container is every run of rows tagged with it, as wide " +
       "as the columns those rows use", function () {
         var layout = twoBodyLayout();
@@ -12605,12 +12814,14 @@
         var store = { getItem: function (k) { return k in data ? data[k] : null; },
                       setItem: function (k, v) { data[k] = String(v); } };
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "never chosen");
-        var chosen = { colourBy: "sourcing", groupFill: "parts", graphWidth: "wide" };
+        var chosen = { colourBy: "sourcing", groupFill: "parts", graphWidth: "wide",
+                       partDrawing: "rails" };
         VA.writeDagView(store, chosen);
         eq(VA.readDagView(store), chosen);
         data[VA.DAG_VIEW_KEY] = JSON.stringify({ colourBy: "rainbow", groupFill: "parts",
-                                                 graphWidth: "huge" });
-        eq(VA.readDagView(store), { colourBy: "none", groupFill: "parts", graphWidth: "narrow" });
+                                                 graphWidth: "huge", partDrawing: "boxes" });
+        eq(VA.readDagView(store), { colourBy: "none", groupFill: "parts", graphWidth: "narrow",
+                                    partDrawing: "blocks" });
         data[VA.DAG_VIEW_KEY] = "{not json";
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS);
         eq(VA.readDagView(null), VA.DAG_VIEW_DEFAULTS);
@@ -12640,7 +12851,7 @@
         }
       });
 
-    await test("the view popover offers the three settings over their own tables and " +
+    await test("the view popover offers the four settings over their own tables and " +
       "reports a change; the overlay's key is beside it, and absent with none", function () {
         var proj = twoBodyProjection();
         var seen = [];
@@ -12648,6 +12859,7 @@
           return render(function (r) {
             VA.renderTopoToolbar(r, { mode: "topology", topologyId: proj.id, studyId: null }, proj, {
               dagView: { colourBy: colourBy, groupFill: "off", graphWidth: "narrow",
+                         partDrawing: "blocks",
                          schemes: VA.availableColourSchemes(options),
                          legend: VA.dagOverlay(colourBy, proj, options).legend },
               onDagView: function (k, v) { seen.push([k, v]); },
@@ -12657,11 +12869,12 @@
         var tb = toolbar("body", null);
         var selects = all(tb, "select");
         eq(selects.map(function (n) { return n.getAttribute("data-view-setting"); }),
-           ["colourBy", "groupFill", "graphWidth"]);
+           ["colourBy", "groupFill", "graphWidth", "partDrawing"]);
         eq(all(selects[0], "option").map(function (o) { return o.value; }),
            VA.availableColourSchemes(null).map(function (s) { return s.id; }));
         eq(all(selects[1], "option").map(function (o) { return o.value; }), VA.GROUP_FILL_ORDER);
         eq(all(selects[2], "option").map(function (o) { return o.value; }), VA.GRAPH_WIDTH_ORDER);
+        eq(all(selects[3], "option").map(function (o) { return o.value; }), VA.PART_DRAWING_ORDER);
         selects[2].value = "wide";
         selects[2].onchange();
         eq(seen, [["graphWidth", "wide"]]);
@@ -15700,6 +15913,33 @@
                lengths.filter(function (l) { return l.floored; }).length);
             all(root, "tr.tvrow").forEach(function (row) {
               eq(row.style.height, M.rowHeight + "px");
+            });
+          });
+
+        await test("[real] drawn as blocks, every committed topology's whole walk is one " +
+          "block per part, each inside the aspect band, crossing itself no more than the " +
+          "builder's walk does", function () {
+            var M = VA.RAIL_METRICS;
+            liveTopos.forEach(function (topoProj) {
+              var pins = VA.partPins(topoProj);
+              var layout = VA.blockLayout(VA.gatherParts(topoProj.layout, topoProj), topoProj);
+              var parts = (layout.blocks || []).map(function (b) { return b.part; });
+              eq(parts.length, new Set(parts).size, topoProj.id + ": a part is one block");
+              eq(parts.slice().sort(), Object.keys(pins.blocks).sort(),
+                 topoProj.id + ": every part with two faces or more is a block");
+              var drawn = VA.blockLayout(VA.spineRight(VA.gatherParts(topoProj.layout, topoProj)),
+                                         topoProj);
+              var geo = VA.railGeometry(drawn, M, VA.rowPositions(drawn, topoProj, "uniform", M),
+                                        { topoProj: topoProj });
+              geo.blocks.forEach(function (b) {
+                var ratio = (b.x2 - b.x1) / (b.y2 - b.y1);
+                ok(ratio >= VA.BLOCK_ASPECT.min && ratio <= VA.BLOCK_ASPECT.max,
+                   topoProj.id + " " + b.part + ": " + ratio.toFixed(2));
+              });
+              var before = VA.layoutCrossings(topoProj.layout).total;
+              var after = VA.layoutCrossings(layout).total;
+              ok(after <= before, topoProj.id + ": " + after + " crossings drawn as blocks, " +
+                 before + " on the builder's walk");
             });
           });
 

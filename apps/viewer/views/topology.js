@@ -252,6 +252,9 @@
     picker("graphWidth", "Graph width", VA.GRAPH_WIDTH_ORDER.map(function (id) {
       return { id: id, label: VA.GRAPH_WIDTHS[id].label };
     }));
+    picker("partDrawing", "Parts", VA.PART_DRAWING_ORDER.map(function (id) {
+      return { id: id, label: VA.PART_DRAWINGS[id].label };
+    }));
     menu.appendChild(list);
     var away = function (e) {
       if (!menu.isConnected) { document.removeEventListener("click", away); return; }
@@ -362,11 +365,21 @@
     // Collapsed bodies (VA.collapseBodies) fold AFTER the re-arrange, so a
     // body the study does not reach is simply gone when hidden and a pill
     // stands only for what is drawn; the mirror runs last, as it always has.
+    // A part with many interfaces is one component (VA.gatherParts): its
+    // rows are gathered into one run of the walk before anything else
+    // re-arranges it, and drawn as a block with pins (VA.blockLayout) after.
+    // Only when the page asks for blocks (VA.PART_DRAWINGS).
+    var blocks = ctx.partDrawing === "blocks";
+    var gathered = blocks ? VA.gatherParts(topoProj.layout, topoProj) : topoProj.layout;
     var walk = marking
-      ? VA.bandLayout(topoProj.layout, lit, hiding ? { only: true } : null)
-      : topoProj.layout;
+      ? VA.bandLayout(gathered, lit, hiding ? { only: true } : null)
+      : gathered;
+    // The band re-lays the gathered walk, so its columns are searched again
+    // for what the blocks will draw (VA.blockColumns).
+    if (blocks && marking) walk = VA.blockColumns(walk, topoProj, lit);
     var layout = VA.spineRight(VA.collapseBodies(
       walk, ctx.collapsedBodies || null, topoProj, lit));
+    if (blocks) layout = VA.blockLayout(layout, topoProj);
     // The chain's ordinals and contributions, for the grid's # and
     // contribution columns: a chain study's own, empty on a kinematic page,
     // whose contributions are its own table's business.
@@ -2169,6 +2182,26 @@
       });
     }
 
+    // 0c'''. the blocks (VA.blockLayout): a part with many interfaces is one
+    //        component, its pins on its sides. Drawn whatever the Groups
+    //        popover says -- a block is the part itself, not a grouping of
+    //        it -- and filled with the parts when the group fill asks.
+    (geometry.blocks || []).forEach(function (block) {
+      var flat = marking && !VA.bodyIsLit(layout && layout.rows, block.body, lit);
+      var part = index.parts[block.part];
+      var rect = VA.svg("rect", "tv__block" + (flat ? " tv__block--flat" : ""), {
+        x: block.x1, y: block.y1, width: Math.max(0, block.x2 - block.x1),
+        height: Math.max(0, block.y2 - block.y1), rx: 3, ry: 3,
+      });
+      rect.setAttribute("data-block", block.part);
+      rect.setAttribute("aria-label", (part && part.name) || block.part);
+      under.appendChild(rect);
+      if (fillMode !== "off") {
+        fillRect(block, "tv__groupfill--part tv__fill--t" + VA.bodyTint(ctx.topoProj, block.body) +
+          (flat ? " tv__groupfill--flat" : ""), 3);
+      }
+    });
+
     // 0c'. the study groups (a_study_is_a_translucent_group_on_the_dag): a
     //      see-through field per run of a study's rows, over the bodies and
     //      under every mark, in the study kind's hue. It wraps the body field
@@ -2299,6 +2332,16 @@
         rail: railId, hot: "rail__hit--hot",
       }), railId));
     });
+    // A block's rail-side pin and the column its rails reach it on, joined
+    // level (VA.railGeometry's stubs): the pin's own wire, part of its rail.
+    (geometry.stubs || []).forEach(function (stub) {
+      var railId = hot.railOf[hotKey("node", stub.id)];
+      var base = "rail rail__stub";
+      under.appendChild(hotRegister(hot, {
+        el: fade(VA.svg("path", base, { d: stub.d }), "node", stub.id),
+        base: base, rail: railId, hot: "rail--hot",
+      }));
+    });
 
     // 2. the fan-outs and the loop closures. A link is the one drawn thing the
     //    unfold above does NOT cover: it belongs to a pair of columns, and a
@@ -2395,6 +2438,11 @@
     // unlit stay weight; no overlay is the one neutral ink.
     var overlay = ctx.overlay || { edges: {}, nodes: {} };
     var pills = {};
+    // A block's chords (VA.railGeometry's `chord`) end ON their pins, so they
+    // go in a layer of their own under every dot: a chord's wide hit path
+    // would otherwise take the pointer off the pin it lands on.
+    var chords = VA.svg("g", "tv__chords");
+    over.appendChild(chords);
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
@@ -2415,15 +2463,20 @@
         var y1 = mark.y1;
         var y2 = mark.y2;
         var barBase = classes.join(" ");
+        // A chord inside a block (VA.railGeometry's `chord`) is its curve,
+        // pin to pin; every other bar is the straight segment on its column.
+        var barShape = function (cls, chordCls) {
+          return mark.chord
+            ? VA.svg("path", cls + " " + chordCls, { d: mark.chord.d })
+            : VA.svg("line", cls, { x1: mark.x, y1: y1, x2: mark.x, y2: y2 });
+        };
         var bar = hotRegister(hot, {
-          el: fade(VA.svg("line", barBase, {
-            x1: mark.x, y1: y1, x2: mark.x, y2: y2,
-          }), "edge", mark.id),
+          el: fade(barShape(barBase, "rail__bar--chord"), "edge", mark.id),
           base: barBase, rail: hot.railOf[hotKey("edge", mark.id)],
           leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
           hot: "rail__bar--hot", lead: "rail__bar--lead",
         });
-        over.appendChild(bar);
+        (mark.chord ? chords : over).appendChild(bar);
 
         // A floored bar (scaled modes only) wears a drafting-style break
         // across its middle: this length is the minimum render length, not a
@@ -2447,8 +2500,7 @@
         // above is untouched, still thin and still dashed where confidence
         // or value_source says it should be.
         var hit = hotRegister(hot, {
-          el: fade(VA.svg("line", "rail__barhit",
-            { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), "edge", mark.id),
+          el: fade(barShape("rail__barhit", "rail__barhit--chord"), "edge", mark.id),
           base: "rail__barhit", rail: hot.railOf[hotKey("edge", mark.id)],
           leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
           hot: "rail__barhit--hot",
@@ -2467,7 +2519,7 @@
             y2: Math.max(y1, y2) });
         wire(hit, ctx, "edge", mark.id, recordTitle("edge", mark.id));
         hotHover(hot, hit, hotKey("edge", mark.id));
-        over.appendChild(hit);
+        (mark.chord ? chords : over).appendChild(hit);
 
         // A form element's squiggle beside its bar, on the side away from the
         // grid, as a form modifier's sits beside its node: a fact about the
@@ -2503,6 +2555,7 @@
       var node = index.nodes[mark.id];
       var dotClasses = ["rail__dot"];
       if (mark.branch) dotClasses.push("rail__dot--branch");
+      if (mark.pin) dotClasses.push("rail__dot--pin");
       if (node && node.kind === "datum_feature") dotClasses.push("rail__dot--datum");
       if (marking) dotClasses.push(chainNodes[mark.id] ? "rail__dot--on" : "rail__dot--off");
       // Dimmed only when every part meeting here belongs to the other variant.

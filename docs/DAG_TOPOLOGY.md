@@ -257,6 +257,42 @@ Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symb
   chain rule enters the sub-study's terms one by one). It opens and closes with
   the grid's header row for it (the_kinematic_grid_is_a_stack_of_sub_stacks).
 
+### A part with many interfaces is a block with pins
+
+Since 2026-11-06 (handoff `a_part_with_many_interfaces_is_drawn_as_a_component_with_pins`;
+Jeff: "model the part in the dag similar to a component in a circuit diagram,
+as a rectangle with nodes along the perimeter for each interface"). Display
+only: the projection's walk, its columns and `layout_crossings` are untouched,
+and the page re-arranges what it draws (`apps/viewer/topology.js`).
+
+- **Pins.** A node on one part is that part's pin. A contact face on two parts
+  is a pin of the one with more faces (the pitch plate, not the washer on it),
+  the first listed on a tie. A part with two pins or more is a **block**; its
+  edges between two of its own pins are its **chords** (`VA.partPins`).
+- **One part, one run.** The page gathers each block part's pins and chords to
+  where the walk first reaches the part and re-lays the walk
+  (`VA.gatherParts`), without the chords, which need no column. So a part the
+  depth-first walk visited three times is drawn once. The grid is built off
+  the drawn walk, as it always was, so its rows and the leaders follow; a
+  kinematic page's band keeps its stack order, and a part that order visits
+  twice is two blocks there.
+- **Drawn in a strip.** Each run is a rectangle right of the spine
+  (`VA.blockLayout`, `VA.railGeometry`'s `blocks`). A pin anything else meets
+  is on the block's rail side, joined level to the column its rails reach it
+  on (a stub); a pin only its own chords meet is on the far side. Every pin
+  has a height of its own, in walk order, so the leaders' one premise
+  (`VA.leaderGeometry`) holds. A chord is a curve from pin to pin inside the
+  block. A block's width follows its pin count (`VA.BLOCK_ASPECT`).
+- **Length modes.** Uniform, a chord takes no height and a block is near
+  square. Scaled, two pins a chord joins are the chord's drawn length apart,
+  so the block stretches and the aspect gives: the length is the claim, the
+  shape is a convenience.
+- **Columns.** The re-laid walk's columns, and a band's, are searched for the
+  fewest crossings the blocks will draw (`VA.blockColumns`), every column the
+  trunk's included.
+- **A View setting** (`VA.PART_DRAWINGS`): Blocks, or On the rails (the walk
+  exactly as the builder laid it).
+
 ### Joint glyphs — the joint is the node
 
 Since 2026-11-04 (handoff `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`,

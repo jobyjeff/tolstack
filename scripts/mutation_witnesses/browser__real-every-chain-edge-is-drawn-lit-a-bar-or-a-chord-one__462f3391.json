@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "parts as blocks",
+  "expect_red": "[real] ...every chain edge is drawn lit, a bar or a chord, one per grid row, on screen at landing, and every block is inside the aspect band",
+  "mutations": [
+    {
+      "contract": "A chord wears its bar's classes.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). A chord keeps only its own class, so a lit chord does not read as lit.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "            ? VA.svg(\"path\", cls + \" \" + chordCls, { d: mark.chord.d })",
+      "replace": "            ? VA.svg(\"path\", chordCls, { d: mark.chord.d })"
+    }
+  ]
+}
