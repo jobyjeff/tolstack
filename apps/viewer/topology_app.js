@@ -3167,7 +3167,8 @@
           render();
         },
         // Edge-length scaling (viewer_edge_length_scaling): cycle through the
-        // three modes in VA.EDGE_LENGTH_MODES' own `next` order. Same
+        // modes in VA.EDGE_LENGTH_MODES' own `next` order (VA.nextEdgeLengthMode skips
+        // contribution on a page with no lengths to draw). Same
         // reasoning as density again — WHICH rows are on screen never
         // changes, only how tall the DAG's slots are — so render(), not
         // rewind().

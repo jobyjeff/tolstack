@@ -179,6 +179,7 @@ function poseProbe() {
     sensitivity: text(term + " td.tvcell--sensitivity"),
     contribution: text(term + " td.tvcell--contribution"),
     total: text("#topopane tr.tvtotal--worst_case td.tvcell--contribution"),
+    gridTop: q("#topopane div.tv__rows") ? q("#topopane div.tv__rows").getBoundingClientRect().top : null,
     bars: Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
       .slice(0, 4).map((b) => Number(b.getAttribute("y2"))),
   };
