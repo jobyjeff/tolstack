@@ -2818,6 +2818,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       purely proves the function, never that the page calls it — the overlay's
       "`[real]` test that asks the view-model instead of the page" entry above,
       one seam further out.
+      **Second sighting, 2026-11-05** (`the_dag_is_coloured_by_a_chosen_attribute_
+      and_spaced_to_taste`, REQUEST CHANGES): the shell's new `model tint` post,
+      the boot read and the write of the remembered view settings, and the
+      live width change could each be deleted in `topology_app.js` with every
+      tier green; only the pure helpers were pinned. Two tells: a new
+      `localStorage` key or a new posted scene verb with no `page.reload()` or
+      `__shellModelWords` assertion in the browser runner, and a method
+      commented "read by a test" that `git grep` finds no caller for
+      (`scene.js` `partBaseColor`). The scratch mutation run needs a SHORT
+      root (`%TEMP%\tsrev`): the scratchpad path overflows MAX_PATH on
+      `scripts/mutation_witnesses/`.
 - [ ] **A shell→scene message the diff starts sending reddens the ANNOTATE
       suites, which a tactical `--only "<its own suite>"` run never reaches.**
       New 2026-10-27 (`leaders_follow_the_active_study_across_the_seam`,
