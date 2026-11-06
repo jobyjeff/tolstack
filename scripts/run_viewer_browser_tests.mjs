@@ -8016,7 +8016,14 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
     // mount installation's machined detail is its own mesh in the same
     // place, and that copy is the one this check exists for.
     const BODY = "base";
-    const hid = await run(["hide-body", BODY]).catch(() => null);
+    // The rail lists the run's bodies a beat after the scene settles; ask
+    // until it knows the body (bounded), and say why when it never does.
+    let hid = null, hideErr = null;
+    for (let i = 0; i < 60 && !(hid && hid.occurrences > 0); i++) {
+      try { hid = await run(["hide-body", BODY]); hideErr = null; } catch (e) { hideErr = String(e); hid = null; }
+      if (!(hid && hid.occurrences > 0)) await page.waitForTimeout(500);
+    }
+    if (hideErr) console.log(`      hide-body ${BODY}: ${hideErr}`);
     await page.waitForTimeout(500);
     const hiddenKeys = await frameOf().evaluate(() => {
       const out = [];
@@ -8035,8 +8042,14 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
       bodyGone.filter((r) => onHiddenPath(r.key)).length === 0);
     await run(["show-body", BODY]).catch(() => null);
     await page.waitForTimeout(500);
+    const back = await drawnMeshes();
+    const id = (r) => r.sha + "|" + r.key;
+    const takenDown = atRest.filter((r) => onHiddenPath(r.key)).map(id);
+    const backIds = back.map(id);
+    const missing = takenDown.filter((k) => backIds.indexOf(k) === -1);
+    if (missing.length) console.log(`      not back after ticking ${BODY}: ${missing.join(", ")}`);
     push("[real] ...and ticking it again draws every one of them back",
-      (await drawnMeshes()).length === atRest.length);
+      takenDown.length > 0 && missing.length === 0);
 
     const none = await press3D("study", "rotor_fastener_grip_u2h");
     want = await wanted("study", topology.id, "rotor_fastener_grip_u2h");

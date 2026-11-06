@@ -285,6 +285,8 @@ async function cmdOpenPart(identifier) {
   // Opening/showing a part means "the solid part": a leftover ghost state
   // from an earlier `trace`/`ghost` would silently render it translucent.
   state.scene.setGhost(mesh.sha256, false);
+  // ...unless a sweep or a study owns the looks: then it arrives at rest's.
+  applyLooks();
   renderPartsPanel();
   // A part drawn anywhere but where the assembly puts it says so, the moment
   // it appears -- its panel row says it too, for as long as it is listed.
