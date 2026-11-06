@@ -334,9 +334,28 @@
       });
       slot.appendChild(bar);
     }
+    if (tree.legend && tree.legend.length) slot.appendChild(sceneLegend(tree.legend));
     slot.appendChild(sceneList(tree.rows, send));
     return slot;
   };
+
+  // The marks' legend, above the rows (handoff the_rail_reads_as_a_tree_of_
+  // bodies_joints_and_faces): each mark the annotator can put on a row, drawn
+  // as it is on the row, beside its word; the longer sense on hover.
+  function sceneLegend(items) {
+    var box = VA.el("div", "navtree__scenelegend");
+    items.forEach(function (item) {
+      var entry = VA.el("span", "navtree__scenelegenditem");
+      if (item.title) entry.setAttribute("title", item.title);
+      var mark = VA.el("span", "navtree__scenemark");
+      mark.setAttribute("data-mark", item.mark);
+      mark.setAttribute("aria-hidden", "true");
+      entry.appendChild(mark);
+      entry.appendChild(VA.el("span", "navtree__scenelegendword", item.text));
+      box.appendChild(entry);
+    });
+    return box;
+  }
 
   // Does any mirrored row (at any depth) carry a pressed button? The
   // annotator presses a row's Pick while a pick is armed, so this is how the
@@ -371,6 +390,10 @@
       (row.sceneHover ? " navtree__scenerow--hot" : "") +
       (row.wrap ? " navtree__scenerow--wrap" : ""));
     line.setAttribute("data-scene-key", row.key);
+    // What kind of thing the row is, and the state its mark is in
+    // (AA.RAIL_ROW_KINDS, AA.RAIL_MARKS): the look is the stylesheet's.
+    if (row.kind) line.setAttribute("data-kind", row.kind);
+    if (row.mark) line.setAttribute("data-mark", row.mark);
     if (row.attention) line.setAttribute("data-attention", "true");
     // A suggestion line (the annotator says which rows carry one) is drawn in
     // the suggestion colour.
@@ -381,10 +404,15 @@
       // candidate list (handoff a_joint_end_lists_its_candidate_faces_and_
       // says_why_each_is_there): the row's click is still the row's (it
       // selects), and only the twisty opens and closes the list under it.
-      var twisty = VA.el("button", "navtree__scenetwisty", row.open ? "▾" : "▸");
+      // The chevron is drawn by the stylesheet, the same as a disclosure's,
+      // so the button carries its words as its name rather than a glyph.
+      var twisty = VA.el("button", "navtree__scenetwisty");
       twisty.setAttribute("aria-expanded", row.open ? "true" : "false");
       twisty.setAttribute("data-scene-part", "twisty");
-      if (row.twisty) twisty.setAttribute("title", row.twisty);
+      if (row.twisty) {
+        twisty.setAttribute("title", row.twisty);
+        twisty.setAttribute("aria-label", row.twisty);
+      }
       twisty.onclick = function (event) {
         if (event) {
           if (event.preventDefault) event.preventDefault();
@@ -393,7 +421,18 @@
         send(row.key, VA.SCENE_ACTS.toggle);
       };
       line.appendChild(twisty);
+    } else if (typeof row.open === "boolean") {
+      // A disclosure's own twisty: the <summary> is what toggles, so this is
+      // only its picture, in the same column as a list's twisty button.
+      var fold = VA.el("span", "navtree__scenetwisty");
+      fold.setAttribute("aria-hidden", "true");
+      line.appendChild(fold);
+    } else {
+      line.appendChild(VA.el("span", "navtree__scenegap"));
     }
+    var glyph = VA.el("span", "navtree__scenemark");
+    glyph.setAttribute("aria-hidden", "true");
+    line.appendChild(glyph);
     var text = VA.el("span", "navtree__scenetext");
     text.appendChild(VA.el("span", "navtree__scenename", row.text));
     if (row.sub) text.appendChild(VA.el("span", "navtree__scenesub", row.sub));
@@ -452,8 +491,15 @@
 
   // A row's own checkbox and buttons, each a native control that hands its
   // gesture back rather than acting here. The checkbox does not flip on its
-  // own: the annotator's answer redraws it.
+  // own: the annotator's answer redraws it. The buttons sit together in one
+  // group and the checkbox last, so every checkbox in the tree is in one
+  // column at the rail's right edge whatever the row's depth.
   function sceneControls(line, row, send) {
+    if (row.buttons && row.buttons.length) {
+      var acts = VA.el("span", "navtree__sceneacts");
+      row.buttons.forEach(function (spec, i) { acts.appendChild(sceneButton(row, spec, i, send)); });
+      line.appendChild(acts);
+    }
     if (row.check) {
       var box = VA.el("input", "navtree__scenecheck");
       box.type = "checkbox";
@@ -471,19 +517,20 @@
       };
       line.appendChild(box);
     }
-    (row.buttons || []).forEach(function (spec, i) {
-      var button = VA.el("button", "navtree__scenebtn", spec.text);
-      if (spec.title) button.setAttribute("title", spec.title);
-      if (spec.pressed) button.setAttribute("aria-pressed", "true");
-      button.setAttribute("data-scene-part", "button-" + i);
-      button.onclick = function (event) {
-        if (event) {
-          if (event.preventDefault) event.preventDefault();
-          if (event.stopPropagation) event.stopPropagation();
-        }
-        send(row.key, VA.SCENE_ACTS.button, i);
-      };
-      line.appendChild(button);
-    });
+  }
+
+  function sceneButton(row, spec, i, send) {
+    var button = VA.el("button", "navtree__scenebtn", spec.text);
+    if (spec.title) button.setAttribute("title", spec.title);
+    if (spec.pressed) button.setAttribute("aria-pressed", "true");
+    button.setAttribute("data-scene-part", "button-" + i);
+    button.onclick = function (event) {
+      if (event) {
+        if (event.preventDefault) event.preventDefault();
+        if (event.stopPropagation) event.stopPropagation();
+      }
+      send(row.key, VA.SCENE_ACTS.button, i);
+    };
+    return button;
   }
 })(window.ViewerApp = window.ViewerApp || {});

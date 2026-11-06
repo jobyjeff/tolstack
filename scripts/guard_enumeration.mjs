@@ -1,4 +1,4 @@
-// THE ENUMERATION OF GUARDS -- the one place this repo answers "what guards
+﻿// THE ENUMERATION OF GUARDS -- the one place this repo answers "what guards
 // does the tree declare, and which of them is witnessed?"
 //
 // Until 2026-09-23 those were two hand-kept lists. A guard lived in
@@ -237,7 +237,8 @@ export const DECLARED_GUARDS = {
   // marks, the remembered view settings and the width, the view popover, the
   // sourcing legend's named tints, and the scene's tint verb from the page.
   // Each carries a spec. (Re-measured at the review merge on integration's
-  // 632: 642.)  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 632: 642.)
+  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
   // 2026-11-05: +2. Three added -- the brackets nest, a part's number and
   // description are two columns, every row's part cell selects its row; the
   // two crop-thumbnail guards became one (no row carries a crop; its crop is
@@ -257,7 +258,12 @@ export const DECLARED_GUARDS = {
   // |J| x band). The length-mode cycle check is renamed for its fourth mode
   // (unenrolled before, a spec now). Every one carries a spec.
   // Merged with integration (review of the_grid_and_the_dag_move_with_the_mechanism, round 2, 2026-11-06): re-pinned from the census of the merged tree.
-  fast: { declared: 655, enrollable: 655, names: "7d9f49fbee80" },
+  // the_rail_reads_as_a_tree_of_bodies_joints_and_faces, 2026-11-06: +1 -- a
+  // mirrored row wears its kind and mark, its twisty and glyph columns, the
+  // legend, and its control group before its checkbox. It carries a spec.
+  // Merged with integration at its 645 (rework, 2026-11-06): 645 + 1.
+  // Merged with integration (review of the rework, 2026-11-06): both sides +1 on 645 / 291.
+  fast: { declared: 656, enrollable: 656, names: "eeee061b0636" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -309,7 +315,12 @@ export const DECLARED_GUARDS = {
   // +1 -- the model verb's tint action. It carries a spec.
   // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the rider rule, with a spec.
   // (Re-pinned at the review merge onto integration's 291.)
-  annotate: { declared: 292, enrollable: 292, names: "afe4421834fe" },
+  // 2026-11-06 (the_rail_reads_as_a_tree_of_bodies_joints_and_faces): +3 -- a
+  // rail row's mark, an end's declared face, and the legend naming every
+  // mark. Each carries a spec.
+  // Merged with integration at its 291 (rework, 2026-11-06): 291 + 3.
+  // Merged with integration (review of the rework, 2026-11-06): both sides +1 on 645 / 291.
+  annotate: { declared: 295, enrollable: 295, names: "d1d837832adf" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -453,7 +464,14 @@ export const DECLARED_GUARDS = {
   // +2 -- on the kinematic page Play moves the pose, and a second click
   // pauses it where it stopped. Each carries a spec.
   // Merged with integration (review of the_grid_and_the_dag_move_with_the_mechanism, round 2, 2026-11-06): re-pinned from the census of the merged tree.
-  browser: { declared: 839, enrollable: 806, names: "04fd992426a3" },
+  // the_rail_reads_as_a_tree_of_bodies_joints_and_faces (rework, 2026-11-06):
+  // +7 -- on the live study the nav's rows carry their kind and mark, the
+  // end taken this session reads picked now, the legend names every mark,
+  // each level steps in a full indent, every kind draws a glyph, attention
+  // keeps a row's words in ink, and an isolated part stays on one line, its
+  // checkbox and buttons beside its name. Each carries a spec aimed at the
+  // wiring or the rule.
+  browser: { declared: 846, enrollable: 813, names: "8a4c959f321e" },
 };
 
 
@@ -476,7 +494,7 @@ export const CENSUS_LIMITS = {
     "equality -- the tier needs a real Chrome, and its declared names are " +
     "templates one suite or two may print, so `declared == executed` is false " +
     "there by construction. The other direction IS checked at the tail of every " +
-    "browser run (`ran ⊆ declared`, `ranNotDeclared`), so a guard written in a " +
+    "browser run (`ran âŠ† declared`, `ranNotDeclared`), so a guard written in a " +
     "shape the scan does not match is reported by name; what stays unseen is a " +
     "declared guard that no run reached",
   incomplete_run_pairs_one_way:
@@ -542,7 +560,7 @@ function declarationsIn(text, call, skipCall) {
     String.raw`)\(\s*(?:"((?:[^"\\\n]|\\.)*)"|\x60([^\x60]*)\x60)`, "gm");
   // A name continued by a literal of the OTHER quote kind (`"a " + `b ${x}``)
   // is not closed by SEAMS, so the first literal alone would read truncated.
-  // Found by the browser runner's `ran ⊆ declared` tail check: 13 printed names
+  // Found by the browser runner's `ran âŠ† declared` tail check: 13 printed names
   // the scan had cut at the seam.
   const continuation = /^\s*\+\s*(?:"((?:[^"\\\n]|\\.)*)"|\x60([^\x60]*)\x60)/;
   for (const m of text.matchAll(pattern)) {
@@ -691,7 +709,7 @@ function runTier(repoRoot, runner) {
  * THIS IS WHAT MAKES THE SCANNER FALSIFIABLE. Everything else here trusts
  * `declarationsIn` to have found every guard: the pin says how many the scan
  * found, never whether the scan is right. A guard written in a shape the regex
- * does not match -- `test('…')` in single quotes, or a name handed in by a
+ * does not match -- `test('â€¦')` in single quotes, or a name handed in by a
  * helper or a loop -- is invisible in BOTH directions at once: not censused,
  * therefore not enrollable, therefore never printed by `--unenrolled`.
  * Measured 2026-09-23: zero such declarations exist, which is a fact with a
@@ -774,7 +792,7 @@ export function pairExecuted(repoRoot = REPO) {
 }
 
 /**
- * `ran ⊆ declared` for a source that cannot be paired both ways: every name in
+ * `ran âŠ† declared` for a source that cannot be paired both ways: every name in
  * `ran` that the scan neither found as a declaration nor can account for as an
  * interpolated template.
  *

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an end declares its face when ITS node names a face part; the other end, an edge feature and an unknown edge do not",
+  "mutations": [
+    {
+      "contract": "An end's declared face is its OWN node's, read through the edge's from/to by the end's direction.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md",
+      "note": "Declared with the guard by handoff the_rail_reads_as_a_tree_of_bodies_joints_and_faces (2026-11-06). Reading the wrong end would mark the partner of a declared node as `face named`.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var id = via.direction === AA.DIRECTIONS[0] ? edge.from : edge.to;",
+      "replace": "    var id = edge.from;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a mirrored row wears its kind and its mark, every row has a twisty column and a glyph, the legend draws each mark beside its word, and a row's buttons are one group before its checkbox",
+  "mutations": [
+    {
+      "contract": "Every mirrored row carries its kind, so the stylesheet can give each kind its one look.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md",
+      "note": "Declared with the guard by handoff the_rail_reads_as_a_tree_of_bodies_joints_and_faces (2026-11-06). Without it every row in the nav looks alike again, which is the complaint this handoff answers.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (row.kind) line.setAttribute(\"data-kind\", row.kind);",
+      "replace": "    void row.kind;"
+    }
+  ]
+}
