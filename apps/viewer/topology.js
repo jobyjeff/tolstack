@@ -1577,9 +1577,15 @@
     var half = metrics.rowHeight / 2;
     var inBlock = function (row) { return !!(row && (row.pin || row.chord)); };
     // Whether another pin of the same block lies `step` rows away through
-    // the block's own rows: a chord can close after its block's last pin.
+    // the block's own rows: a chord can close after its block's last pin. A
+    // row of the next block is not the block's own, so two blocks back to
+    // back each keep their margin.
+    var blockOf = function (row) { return row.pin ? row.pin.block : row.chord.block; };
     var pinBeyond = function (i, step) {
-      for (var j = i + step; inBlock(rows[j]); j += step) if (rows[j].pin) return true;
+      var own = blockOf(rows[i]);
+      for (var j = i + step; inBlock(rows[j]) && blockOf(rows[j]) === own; j += step) {
+        if (rows[j].pin) return true;
+      }
       return false;
     };
     rows.forEach(function (row, i) {

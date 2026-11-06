@@ -16045,7 +16045,14 @@
                     return f.body === b.body && f.x1 <= b.x1 && f.x2 >= b.x2 &&
                            f.y1 <= b.y1 && f.y2 >= b.y2;
                   });
-                  ok(wraps, where + ": a " + b.body + " field wraps the block");
+                  var box = function (r) {
+                    return [r.x1, r.x2, r.y1, r.y2].map(Math.round).join(",");
+                  };
+                  ok(wraps, where + ": a " + b.body + " field wraps the block " + box(b) +
+                     "; its fields " + geo.bodies.filter(function (f) {
+                       return f.body === b.body;
+                     }).map(function (f) { return box(f) + " rows " + f.start + "-" + f.end; })
+                       .join(" | ") + "; block rows " + b.start + "-" + b.end);
                   checked += 1;
                 });
               });
