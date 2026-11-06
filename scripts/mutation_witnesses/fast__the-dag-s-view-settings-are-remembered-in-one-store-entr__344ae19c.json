@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the DAG's view settings are remembered in one store entry, a word outside a table reads as its default, and the width scales the column pitch only",
+  "mutations": [
+    {
+      "contract": "A remembered width outside VA.GRAPH_WIDTHS reads as narrow.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). An unknown width kept: VA.applyGraphWidth would still fall back, but the page's state would carry a word no picker offers.",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (VA.GRAPH_WIDTHS[saved.graphWidth]) out.graphWidth = saved.graphWidth;",
+      "replace": "        out.graphWidth = saved.graphWidth;"
+    }
+  ]
+}

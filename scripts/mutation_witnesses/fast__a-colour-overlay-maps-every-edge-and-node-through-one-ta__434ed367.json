@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a colour overlay maps every edge and node through one table of named schemes, and none is the one neutral ink",
+  "mutations": [
+    {
+      "contract": "The sourcing scheme tells a gap from an edge with no value.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). A gap folded into 'no value': the scheme's token is chosen by confidence alone.",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (e.kind === \"gap\") return \"ovl-src-gap\";\n",
+      "replace": ""
+    }
+  ]
+}

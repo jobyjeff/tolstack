@@ -755,7 +755,11 @@
   //   model select clear
   //   model anchors                   post the anchors message now, even
   //                                   unchanged (a shell that dropped its copy)
-  AA.MODEL_VERB_ACTIONS = Object.freeze(["lit", "unlit", "select", "anchors"]);
+  //   model tint <part>=<#rrggbb> ... each part in its body's colour, the
+  //                                   shell's DAG ink (the_dag_is_coloured_by_
+  //                                   a_chosen_attribute_and_spaced_to_taste)
+  //   model tint off                  every part back to its own colour
+  AA.MODEL_VERB_ACTIONS = Object.freeze(["lit", "unlit", "select", "anchors", "tint"]);
   AA.MODEL_SELECT_KINDS = Object.freeze(["node", "body", "clear"]);
   AA.parseModelVerb = function (args) {
     var list = (args || []).map(function (a) { return String(a); });
@@ -765,6 +769,17 @@
         ", got " + JSON.stringify(action == null ? null : action));
     }
     if (action === AA.MODEL_VERB_ACTIONS[3]) return { action: action };
+    if (action === AA.MODEL_VERB_ACTIONS[4]) {
+      if (list.length === 2 && list[1] === "off") return { action: action, tints: null };
+      if (list.length < 2) throw new Error("model tint takes part=#rrggbb pairs, or off");
+      var tints = {};
+      list.slice(1).forEach(function (pair) {
+        var m = /^([^=]+)=(#[0-9a-fA-F]{6})$/.exec(pair);
+        if (!m) throw new Error("model tint takes part=#rrggbb, got " + JSON.stringify(pair));
+        tints[m[1]] = m[2].toLowerCase();
+      });
+      return { action: action, tints: tints };
+    }
     if (action === AA.MODEL_VERB_ACTIONS[2]) {
       var kind = list[1];
       if (AA.MODEL_SELECT_KINDS.indexOf(kind) === -1) {

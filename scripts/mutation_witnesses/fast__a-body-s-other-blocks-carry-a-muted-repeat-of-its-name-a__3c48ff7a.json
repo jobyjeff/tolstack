@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a body's other blocks carry a muted repeat of its name, and only its named block folds it",
+  "mutations": [
+    {
+      "contract": "A body's unnamed blocks say whose they are.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). The 11-04 issue's unnamed second block of base and pitch_plate, back.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      else bodyNames.push(bodyRepeat(body, field));\n",
+      "replace": ""
+    }
+  ]
+}

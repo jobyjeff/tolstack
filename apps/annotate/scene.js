@@ -18,6 +18,11 @@ import * as THREE from "three";
 import { OrbitControls } from "./vendor/OrbitControls.js";
 
 const PALETTE = [0x5b8dd6, 0xd68a5b, 0x7bc47f, 0xc47bc4];
+// A body's colour in the scene (setPartTints): its DAG ink, mixed this far
+// into a neutral grey -- strong enough that a body reads as one colour, weak
+// enough that the pick and highlight tints painted over it stay louder.
+const BODY_TINT_NEUTRAL = 0x8a9099;
+const BODY_TINT_WEIGHT = 0.7;
 const HIGHLIGHT = [1.0, 0.55, 0.1];
 // Ghosted-part translucency (handoff study_3d_flyout): low enough that the
 // opaque bound-face marks read as THE content, high enough that the part's
@@ -502,6 +507,8 @@ export class AnnotateScene {
       sha256, manifest, faceIdPerTriangle,
       faceRanges: window.AnnotateApp.faceVertexRanges(manifest.faces),
       baseColors: colors.slice(),
+      // The part's own colour, before any body tint (setPartTints).
+      paletteColor: base.getHex(),
       // Which drawn occurrence this node is -- 0 for the part itself, 1.. for
       // its repeats -- so a pick can say where it landed.
       occurrence: 0,
@@ -534,6 +541,7 @@ export class AnnotateScene {
     if (rest && !Array.isArray(rest)) rest = rest.placements;
     mesh.userData.rest = rest && rest.length ? rest : null;
     mesh.userData.restKeys = mesh.userData.rest ? restKeys : null;
+    if (this._partTints && this._partTints.has(sha256)) this._paintBase(sha256, mesh);
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
     this._drawAt(sha256);
@@ -1340,6 +1348,46 @@ export class AnnotateScene {
     this.camera.lookAt(this.controls.target);
     this.controls.update();
     this.requestRender();
+  }
+
+  // Each part in its body's colour (the `model tint` verb): `tints` is a Map
+  // sha256 -> "#rrggbb", the whole set (a part left out goes back to its own
+  // colour). The body's ink is mixed into a neutral grey at BODY_TINT_WEIGHT,
+  // so a body reads as one colour while the pick, the inspect highlight and
+  // the sweep's tints -- which paint over the base -- stay louder than it.
+  // Kept by sha, so a part that loads later is drawn tinted.
+  setPartTints(tints) {
+    this._partTints = new Map(tints || []);
+    for (const [sha256, mesh] of this.parts) this._paintBase(sha256, mesh);
+    this.requestRender();
+  }
+
+  _paintBase(sha256, mesh) {
+    const hex = this._partTints && this._partTints.get(sha256);
+    const base = hex
+      ? new THREE.Color(BODY_TINT_NEUTRAL).lerp(new THREE.Color(hex), BODY_TINT_WEIGHT)
+      : new THREE.Color(mesh.userData.paletteColor);
+    const colors = mesh.userData.baseColors;
+    for (let i = 0; i < colors.length; i += 3) {
+      colors[i] = base.r; colors[i + 1] = base.g; colors[i + 2] = base.b;
+    }
+    // A part carrying the pick or a highlight keeps those faces until they
+    // are put back -- from the new base, by restoreColors.
+    const lit = (this._lastPick && this._lastPick.sha256 === sha256) ||
+      (this._tintedShas || []).indexOf(sha256) !== -1;
+    if (!lit) {
+      const attr = mesh.geometry.attributes.color;
+      attr.array.set(colors);
+      attr.needsUpdate = true;
+    }
+  }
+
+  // The base colour the part is drawn in now, as "#rrggbb" -- read by a test.
+  partBaseColor(sha256) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return null;
+    const c = mesh.userData.baseColors;
+    return "#" + new THREE.Color(c[0], c[1], c[2]).getHexString();
   }
 
   restoreColors(sha256) {

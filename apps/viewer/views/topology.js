@@ -173,6 +173,18 @@
       root.appendChild(menu);
     }
 
+    // The DAG's view settings (the_dag_is_coloured_by_a_chosen_attribute_and_
+    // spaced_to_taste): what colours the marks (VA.COLOUR_SCHEMES), which
+    // groups are filled (VA.GROUP_FILLS) and how far apart the columns are
+    // (VA.GRAPH_WIDTHS), in one popover like the groups'. `handlers.dagView`
+    // is {colourBy, groupFill, graphWidth, schemes, legend}; a change is
+    // reported as (setting, value).
+    if (handlers.onDagView && handlers.dagView) {
+      root.appendChild(dagViewMenu(handlers.dagView, handlers.onDagView));
+      var legend = overlayLegend(handlers.dagView.legend || []);
+      if (legend) root.appendChild(legend);
+    }
+
     // The study's own 3D affordance, only once a real study is selected --
     // "trace this in 3D" means nothing about the whole topology, only about
     // one human-lassoed chain. Two forms of the same capability (handoff
@@ -205,6 +217,70 @@
     }
     return root;
   };
+
+  // The view popover: three labelled pickers, each over its own table.
+  function dagViewMenu(view, onChange) {
+    var menu = VA.el("details", "tvgroups tvview");
+    menu.setAttribute("id", "dag-view");
+    var summary = VA.el("summary", "ghost tvpick__mode", "View");
+    summary.setAttribute("id", "dag-view-toggle");
+    menu.appendChild(summary);
+    var list = VA.el("div", "tvgroups__menu tvview__menu");
+    var picker = function (setting, label, options) {
+      var row = VA.el("label", "tvview__item");
+      row.appendChild(VA.el("span", "tvview__label", label));
+      var select = document.createElement("select");
+      select.setAttribute("data-view-setting", setting);
+      options.forEach(function (o) {
+        var opt = document.createElement("option");
+        opt.value = o.id;
+        opt.textContent = o.label;
+        if (o.id === view[setting]) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.value = view[setting];
+      select.onchange = function () { onChange(setting, select.value); };
+      row.appendChild(select);
+      list.appendChild(row);
+    };
+    picker("colourBy", "Colour by", (view.schemes || VA.COLOUR_SCHEMES).map(function (s) {
+      return { id: s.id, label: s.label };
+    }));
+    picker("groupFill", "Group fill", VA.GROUP_FILL_ORDER.map(function (id) {
+      return { id: id, label: VA.GROUP_FILLS[id].label };
+    }));
+    picker("graphWidth", "Graph width", VA.GRAPH_WIDTH_ORDER.map(function (id) {
+      return { id: id, label: VA.GRAPH_WIDTHS[id].label };
+    }));
+    menu.appendChild(list);
+    var away = function (e) {
+      if (!menu.isConnected) { document.removeEventListener("click", away); return; }
+      if (!menu.contains(e.target)) menu.removeAttribute("open");
+    };
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("click", away);
+    }
+    return menu;
+  }
+
+  // The overlay's key: one swatch per token the scheme drew, beside its words
+  // (text in the text ink; the swatch carries the colour). Nothing with no
+  // overlay on. Wraps under the toolbar's controls; each item's full words are
+  // its hover.
+  function overlayLegend(entries) {
+    if (!entries.length) return null;
+    var strip = VA.el("div", "tvovl");
+    strip.setAttribute("id", "dag-overlay-legend");
+    entries.forEach(function (entry) {
+      var item = VA.el("span", "tvovl__item");
+      item.setAttribute("title", entry.label);
+      var swatch = VA.el("span", "tvovl__swatch ovl " + entry.token);
+      item.appendChild(swatch);
+      item.appendChild(VA.el("span", "muted", entry.label));
+      strip.appendChild(item);
+    });
+    return strip;
+  }
 
   // --- the joint -------------------------------------------------------------
   //
@@ -370,8 +446,10 @@
     var groups = (ctx.studyGroups || []).filter(function (g) {
       return showKind(g.kind) && (!hiding || g.selected);
     });
-    var geometry = VA.railGeometry(layout, M, positions, { x: xTween, groups: groups });
+    var geometry = VA.railGeometry(layout, M, positions,
+      { x: xTween, groups: groups, topoProj: topoProj });
     geometry.showBodies = showKind("bodies");
+    geometry.showParts = showKind("parts");
     // A study group's hover lights its edges' bars and grid rows: each edge
     // leads under its groups' keys (hotState's `studyOfEdge`).
     groups.forEach(function (g) {
@@ -510,6 +588,9 @@
     zoomed.appendChild(head);
     var body = VA.el("div", "tv__body");
     if (bodyPad) body.style.paddingTop = bodyPad + "px";
+    // The view's colour overlay, built once per paint (VA.dagOverlay).
+    ctx.overlay = VA.dagOverlay(ctx.colourBy, topoProj,
+      { contributions: ctx.contributions || null, units: ctx.contributionUnits || null });
     body.appendChild(railsSvg(geometry, leaderGeo, index,
       marking ? lit.edges : {}, marking ? lit.nodes : {}, marking, ctx, fade,
       fadeLink, hot, layout, lit));
@@ -1721,6 +1802,19 @@
     // on its field in the band, else its first -- with a thin bridge in its
     // own tint from each field to the next (VA.bodyBridges).
     var named = VA.bodyLabelFields(geometry.bodies, layout && layout.rows, lit);
+    // Every group is a thin border in its kind's hue; which groups are ALSO
+    // filled is the view's group fill (VA.GROUP_FILLS). The fills go in one
+    // layer first, so every border -- a body's, a part's, a study's -- draws
+    // on top of every fill.
+    var fillMode = VA.GROUP_FILLS[ctx.groupFill] ? ctx.groupFill : "off";
+    var fills = VA.svg("g", "tv__fills");
+    under.appendChild(fills);
+    var fillRect = function (f, cls, r) {
+      fills.appendChild(VA.svg("rect", "tv__groupfill " + cls, {
+        x: f.x1, y: f.y1, width: Math.max(0, f.x2 - f.x1),
+        height: Math.max(0, f.y2 - f.y1), rx: r, ry: r,
+      }));
+    };
     if (geometry.showBodies !== false) {
       VA.bodyBridges((geometry.bodies || []).filter(function (field) {
         return !pillRows[field.start];
@@ -1745,8 +1839,36 @@
       });
       rect.setAttribute("data-body", field.body);
       under.appendChild(rect);
+      if (fillMode === "all") {
+        fillRect(field, "tv__groupfill--body tv__fill--t" + VA.bodyTint(ctx.topoProj, field.body) +
+          (flat ? " tv__groupfill--flat" : ""), 6);
+      }
       if (named[f]) bodyNames.push(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
+      // A body's other blocks carry a short, muted repeat of its name, so a
+      // block whose named one is off-screen still says whose it is. Not the
+      // fold control: that stays on the named block.
+      else bodyNames.push(bodyRepeat(body, field));
     });
+
+    // 0c''. the parts (VA.partSpans): the smallest group, a border in the
+    //       part hue inside its body's field, filled solid when the view's
+    //       group fill asks for parts.
+    if (geometry.showParts !== false) {
+      (geometry.parts || []).forEach(function (field) {
+        if (pillRows[field.start]) return;
+        var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
+        var rect = VA.svg("rect", "tv__partfield" + (flat ? " tv__partfield--flat" : ""), {
+          x: field.x1, y: field.y1, width: Math.max(0, field.x2 - field.x1),
+          height: Math.max(0, field.y2 - field.y1), rx: 4, ry: 4,
+        });
+        rect.setAttribute("data-part", field.part);
+        under.appendChild(rect);
+        if (fillMode !== "off") {
+          fillRect(field, "tv__groupfill--part tv__fill--t" + VA.bodyTint(ctx.topoProj, field.body) +
+            (flat ? " tv__groupfill--flat" : ""), 4);
+        }
+      });
+    }
 
     // 0c'. the study groups (a_study_is_a_translucent_group_on_the_dag): a
     //      see-through field per run of a study's rows, over the bodies and
@@ -1764,6 +1886,10 @@
         });
         rect.setAttribute("data-study-group", group.id);
         under.appendChild(hotHover(hot, rect, key));
+        if (fillMode === "all") {
+          fillRect(span, "tv__groupfill--study tv__groupfill--" + group.kind +
+            (group.selected ? " tv__groupfill--selected" : ""), 9);
+        }
         if (i) return;
         var label = VA.svg("text", "tv__studyname", { x: span.x1 + 6, y: span.y1 + 3 });
         label.textContent = fitText(group.title, Math.max(span.x2 - span.x1 - 8, 84));
@@ -1965,6 +2091,10 @@
     //    (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit).
     var formMarks = VA.formMarks(ctx.topoProj);
     var jointKinds = VA.nodeJointKinds(ctx.topoProj);
+    // The view's colour overlay (VA.dagOverlay): an "ovl <token>" class per
+    // edge and node, the ink the bar, the dot and the glyph wear. Lit and
+    // unlit stay weight; no overlay is the one neutral ink.
+    var overlay = ctx.overlay || { edges: {}, nodes: {} };
     var pills = {};
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
@@ -1976,6 +2106,7 @@
         if (mark.floored) classes.push("rail__bar--floored");
         if (marking) classes.push(inChain ? "rail__bar--on" : "rail__bar--off");
         if (folded[mark.id]) classes.push("rail__bar--folded");
+        if (overlay.edges[mark.id]) classes.push(overlay.edges[mark.id]);
         var otherVariant = !!(edge && edge.part && ctx.otherVariantParts &&
           ctx.otherVariantParts[edge.part]);
         if (otherVariant) classes.push("rail__bar--other-variant");
@@ -2083,6 +2214,7 @@
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
+      if (overlay.nodes[mark.id]) dotClasses.push(overlay.nodes[mark.id]);
       // An end of a joint is that joint's glyph. The dot is still drawn under
       // it, unpainted, as the node's target and its address (data-id): the
       // glyph is the picture and wears the same state classes, and leads
@@ -2199,15 +2331,21 @@
     return label;
   }
 
-  // A body's bridge (VA.bodyBridges): a thin stroke in the body's own tint,
-  // or the flat outline's grey when nothing lit is inside it.
+  // The muted repeat of a body's name on its other blocks: as much of the
+  // name as the block's width holds, the whole name on hover.
+  function bodyRepeat(body, field) {
+    var label = VA.svg("text", "tv__bodyrepeat", { x: field.x1 + 4, y: field.y1 + 9 });
+    label.textContent = fitText(body.name || body.id, Math.max(field.x2 - field.x1 - 8, 60));
+    label.appendChild(svgTitle(body.name || body.id));
+    label.setAttribute("data-body-repeat", body.id);
+    return label;
+  }
+
+  // A body's bridge (VA.bodyBridges): a thin stroke in the body group's hue,
+  // the same as its border, or the flat outline's when nothing lit is inside.
   function bodyBridge(bridge, ctx, flat) {
     var path = VA.svg("path", "tv__bodybridge" + (flat ? " tv__bodybridge--flat" : ""),
       { d: bridge.d });
-    if (!flat) {
-      path.setAttribute("style", "stroke: var(--tv-body-" +
-        VA.bodyTint(ctx.topoProj, bridge.body) + ")");
-    }
     path.setAttribute("data-body-bridge", bridge.body);
     return path;
   }
@@ -2234,8 +2372,9 @@
     var r = M.branchDot;
     var x1 = Math.min(mark.x, mark.x2) - r;
     var x2 = Math.max(mark.x, mark.x2) + r;
-    g.appendChild(VA.svg("rect", "tv__bodyfield tv__bodyfield--t" +
-      VA.bodyTint(ctx.topoProj, info.body) + " tv__pill__shape" +
+    var tint = VA.bodyTint(ctx.topoProj, info.body);
+    g.appendChild(VA.svg("rect", "tv__bodyfield tv__bodyfield--t" + tint +
+      " tv__fill--t" + tint + " tv__pill__shape" +
       (flat ? " tv__bodyfield--flat" : ""), {
         x: x1, y: mark.y - r - 1, width: x2 - x1, height: 2 * r + 2,
         rx: r + 1, ry: r + 1,
@@ -2434,13 +2573,13 @@
     box.appendChild(table);
     // What the sourcing chips say, under the rows they mark: below the last
     // row, so no leader's seam moves.
-    if (plan.rows.length && marking) box.appendChild(sourcingLegend());
+    if (plan.rows.length && marking) box.appendChild(sourcingLegend(plan, ctx.topoProj));
     return box;
   }
 
   // The sourcing legend: each confidence chip beside the words it means
   // (VA.CONFIDENCE_WORDS), and the one row tint that is not a body's.
-  function sourcingLegend() {
+  function sourcingLegend(plan, topoProj) {
     var strip = VA.el("div", "tvlegend");
     // As wide as the table above it, never wider: a wrapping strip in the
     // pane's shrink-to-fit box would otherwise lay out at its one-line width
@@ -2454,8 +2593,20 @@
       item.appendChild(VA.el("span", "muted", VA.CONFIDENCE_WORDS[c]));
       strip.appendChild(item);
     });
-    strip.appendChild(VA.el("span", "muted tvlegend__tint",
-      "a row's tint is its rigid body; a red wash marks an untraced value"));
+    // Every tint the rows wear, named (the_dag_is_coloured_by_a_chosen_
+    // attribute_and_spaced_to_taste: "no unnamed wash"): the two provenance
+    // washes, where a row wears one, and each body's tint beside its name.
+    var swatch = function (cls, words, title) {
+      var item = VA.el("span", "tvlegend__item");
+      if (title) item.setAttribute("title", title);
+      item.appendChild(VA.el("span", "tvlegend__swatch " + cls));
+      item.appendChild(VA.el("span", "muted", words));
+      strip.appendChild(item);
+    };
+    VA.gridLegendTints(plan, topoProj).forEach(function (tint) {
+      if (tint.wash) swatch("tvlegend__swatch--" + tint.wash, tint.label);
+      else swatch("tv__fill--t" + tint.tint, tint.label, tint.label + " (its rows' tint)");
+    });
     return strip;
   }
 
