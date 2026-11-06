@@ -4674,8 +4674,14 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       kinScrolled.rows > 0 && Math.abs(kinScrolled.headTop - kinScrolled.paneTop) < 3);
     await page.evaluate(() => window.scrollTo(0, 0));
     await settle(150);
-    await page.locator("#edge-length-toggle").click();
-    await settle(300);
+    // The kinematic page opens in the contribution mode (VA.edgeLengthModeFor,
+    // the_grid_and_the_dag_move_with_the_mechanism), so the toggle is cycled
+    // to tolerance width by its own label rather than by a click count.
+    for (let i = 0; i < 4 && !/Lengths: tolerance width/.test(
+      await page.locator("#edge-length-toggle").textContent()); i++) {
+      await page.locator("#edge-length-toggle").click();
+      await settle(300);
+    }
     await page.locator("#dag-fit").click();
     await settle(300);
     const kinTol = await kin();
