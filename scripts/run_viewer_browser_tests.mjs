@@ -7428,8 +7428,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
         contributors: count("#sweep-tree/edge="),
         chips: slot.querySelectorAll(".navtree__scenechip").length };
     }, studyItem);
+    // Bodies, then the links as bodies of their own (AA.sweepTreeSubjects).
     const railCounts = await inPane((w) => ({
-      bodies: w.__sweep.tree.bodies.length, joints: w.__sweep.tree.joints.length }));
+      bodies: w.AnnotateApp.sweepTreeSubjects(w.__sweep.tree).length, joints: w.__sweep.tree.joints.length }));
     push("[real] the mechanism tree is nested under the study's own nav row: " +
       "its bodies, its joints, the study's contributors and the type chips",
       treeCounts && railCounts && treeCounts.bodies === railCounts.bodies &&
@@ -9437,7 +9438,12 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
     push("[real] ...and a joint with a bound feature lights its bound faces too",
       pitchLink.faces === 2 && pitchLink.overlays > 0);
     await page.locator('#sweep-tree [data-joint="pitch_link"] > summary').click({ timeout: 5000 }).catch(() => {});
-    const feature = await hoverRow('#sweep-tree .tree-row[data-feature="pitch_link_length"]');
+    // The length's own row is gone since 2026-11-05 (its two ends are the
+    // joint's rows), so its hover is the verb the row used to post.
+    await leave();
+    await page.evaluate(() => window.AnnotateApp.exec(["hover", "feature", "pitch_link_length"]));
+    await page.waitForFunction(() => window.__lastHover, null, { timeout: 3000 }).catch(() => {});
+    const feature = await hovered();
     push("[real] hovering a bound feature lights both of its faces", feature.faces === 2 &&
       feature.overlays > 0);
     // pitch_link was opened (selected) above; a hover over one of its rows

@@ -1,0 +1,28 @@
+---
+type: bug
+priority: low
+status: open
+area: annotate/browser-check
+reporter: agent
+class: load_sensitive_check
+found_by: docs/sessions/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
+---
+
+# The annotate speed-control check reads index 0 at both speeds under load
+
+`node apps/annotate/run_browser_check.mjs`, in the "reduced motion playback
+timing" pass (`reducedMotionTimingPass`), failed on 2026-11-05 with:
+
+    FAIL  the speed control changes reduced-motion playback's rate
+          speed 1x -> index 0; speed 4x -> index 0
+
+The two 3000 ms runs just before it in the same pass moved normally, and both of
+their checks passed. The 500 ms runs use uncapped `requestAnimationFrame`
+(`rafIntervalMs: null`). On a box with several headless browser runs queued
+behind each other, the software-rasterised first frames can take longer than
+the whole 500 ms window, so neither speed advances at all. The branch that hit
+it (`the_rail_holds_still_and_takes_the_face_jeff_picked`) does not touch
+playback.
+
+Fix shape: give the speed pair the 3000 ms window, or pin `rafIntervalMs` the
+way the frame-rate pair does, so the check compares two runs that both moved.
