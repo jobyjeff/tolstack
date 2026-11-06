@@ -61,6 +61,14 @@ browser suites and witness gate. Once it had the slot, the rest ran in roughly 1
 `full-suite lock` header, so the record has none to quote. Same question as above: should a slot
 wait count against this tier?
 
+## Addendum 2026-11-06 (the_grid_and_the_dag_move_with_the_mechanism)
+
+Default tier on a worktree, plain `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`
+(this venv has no xdist, so `-n 16 --dist loadfile` is rejected: "unrecognized arguments").
+Measured **852 s** (14m12s): 1728 passed, 1 skipped, 3 failed. The browser slot was shared
+with other agents' runs during the measurement. The budget is 10 min, so this is over by
+4m12s (`dispatch suite-time record` printed that). `--durations` was not taken.
+
 ## Addendum 2026-11-06 (review of the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model)
 
 Review worktree, merged tree: `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` ->

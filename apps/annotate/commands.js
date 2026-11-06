@@ -577,6 +577,44 @@
     button: "button",
   });
 
+  // What KIND of thing a mirrored row is (handoff the_rail_reads_as_a_tree_
+  // of_bodies_joints_and_faces). Each kind has one look in the shell's nav --
+  // one glyph, one weight, one indent step per level -- keyed on the row's
+  // `data-kind` there (apps/viewer/topology.css), and
+  // tests/test_rail_row_looks_are_paired.py fails when that stylesheet styles
+  // a kind this table does not name. `action` is a list row that does one
+  // thing ("Pick another face…", "show all n"); `element` is bind mode's.
+  AA.RAIL_ROW_KINDS = Object.freeze({
+    body: "body",
+    part: "part",
+    joint: "joint",
+    end: "end",
+    candidate: "candidate",
+    action: "action",
+    contributor: "contributor",
+    element: "element",
+  });
+
+  // What a face-bearing row's mark says -- a joint end, a candidate face, a
+  // bind-mode element -- one colour each, named in the rail's legend
+  // (AA.RAIL_MARK_WORDS, sweep.js; AA.railMark picks one). Four are the
+  // scene's own face marks, so a row and the face it is about wear one hue:
+  // `bound`, `picked` (bound by a pick this session), `proposed` (an agent's
+  // open proposal: the scene's suggestion colour) and `contact` (the contact
+  // engine's touching faces). `declared` is an end whose topology node
+  // names its face's part and shape, still unpicked; `open` an end with
+  // nothing yet; `recheck` a binding whose part left the set or that needs
+  // confirming again. Paired against the stylesheet by the same test.
+  AA.RAIL_MARKS = Object.freeze({
+    picked: "picked",
+    bound: "bound",
+    proposed: "proposed",
+    contact: "contact",
+    declared: "declared",
+    open: "open",
+    recheck: "recheck",
+  });
+
   // The words the panel wears. A table, not inline strings, so the shared
   // ban-list scan reaches them.
   AA.PARTS_COPY = Object.freeze({

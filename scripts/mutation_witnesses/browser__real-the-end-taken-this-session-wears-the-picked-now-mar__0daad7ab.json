@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] the end taken this session wears the picked-now mark, filled in the scene's pick orange, and its partner does not",
+  "mutations": [
+    {
+      "contract": "An end Jeff bound in this session reads `picked now` in the nav, in the scene's pick orange.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md",
+      "note": "Declared with the guard at the rework of the_rail_reads_as_a_tree_of_bodies_joints_and_faces (2026-11-06), after its review found the wiring revertible with every tier green. The helper's session check is pinned in the annotate tier; this is the ids the app hands it.",
+      "file": "apps/annotate/app.js",
+      "find": "  return state.sessionEvents.map((e) => e.event_id);",
+      "replace": "  return [];"
+    }
+  ]
+}

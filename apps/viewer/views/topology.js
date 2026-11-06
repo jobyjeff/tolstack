@@ -74,7 +74,9 @@
     // VA.EDGE_LENGTH_MODES in that table's own `next` order. A display
     // preference like the two above: the grid's rows never move, only the
     // DAG stretches, and the leaders absorb the difference.
-    var lengthPreset = VA.EDGE_LENGTH_MODES[state.edgeLengthMode] ||
+    // The mode the pane draws (VA.edgeLengthModeFor), which the page hands
+    // in: a kinematic page's default is not the reader's stored choice.
+    var lengthPreset = VA.EDGE_LENGTH_MODES[handlers.edgeLengthMode || state.edgeLengthMode] ||
       VA.EDGE_LENGTH_MODES.uniform;
     var lengths = VA.el("button", "ghost tvpick__mode",
       "Lengths: " + lengthPreset.label);
@@ -408,7 +410,7 @@
     // place that holds both the pane and the plan.
     var fit = { plan: plan, inset: VA.DAG_FIT.topInset };
     var positions = VA.rowPositions(layout, topoProj,
-      ctx.edgeLengthMode || "uniform", M, fit);
+      ctx.edgeLengthMode || "uniform", M, fit, ctx.lengths || null);
     // Mid-respine (viewer_study_respine_animation): the frame is drawn from
     // the TARGET serialisation's layout and plan -- the structure the page is
     // moving to -- with the store interpolated back toward the one the
@@ -1082,6 +1084,192 @@
       else en.node.style[en.name] = text;
     }
   }
+
+  // --- the pose film (the_grid_and_the_dag_move_with_the_mechanism) ---------
+  //
+  // A kinematic page's DAG moves with the linkage: in the contribution length
+  // mode a bar's length is its contribution at the live pose, so every frame
+  // of play (or of a slider drag) is a different picture of the SAME rows.
+  // Rebuilding the pane per frame is what the tween handoff measured at
+  // 100+ ms and removed, so this is that handoff's engine pointed at poses
+  // instead of at a study change: the pane is rendered once per KEYFRAME pose
+  // into a detached root (no layout, no paint, nothing on screen moves), the
+  // numbers each render drew are kept, and a frame between two keyframes
+  // eases the LIVE nodes' own attributes from one set to the next. No node is
+  // built per frame. The text in the grid is the one thing a snapshot does
+  // not carry; VA.applyStackText writes it from the stack at the frame's own
+  // pose, so the numbers are exact at every frame and the drawing is exact at
+  // every keyframe (and at rest, where the page renders the pose itself).
+  //
+  //   root   the live pane, as the last renderTopoPane left it
+  //   ctxAt  pose -> the render context at that pose (no onPainted)
+  //   poses  the keyframe poses, ascending
+  //
+  // Returns { apply(pose), valid() }, or null when the keyframes are not one
+  // structure with the live pane (a bar crossing the floor gains a break
+  // mark, say): the page then repaints the pane instead, at most once a frame.
+  VA.poseFilm = function (root, ctxAt, poses) {
+    var builder = VA.poseFilmBuilder(root, ctxAt, poses);
+    return builder ? builder.finish() : null;
+  };
+
+  // The same film, one keyframe at a time: `step()` renders the next one (a
+  // detached render costs what a pane render's script costs -- ~0.3 s on a
+  // loaded box -- so a page builds its film in idle time after a paint, and
+  // the first frame of play does not pay for all of them at once), and
+  // `finish()` renders whatever is left and returns the film (or null).
+  VA.poseFilmBuilder = function (root, ctxAt, poses) {
+    if (!root || !root.querySelector || !poses || poses.length < 2) return null;
+    var scroller = root.querySelector(".tv__hscroll");
+    if (!scroller) return null;
+    var live = takeSnapshot(root);
+    var snaps = [];
+    var drawn = [];
+    var result;
+    var builder = {
+      valid: function () { return root.querySelector(".tv__hscroll") === scroller; },
+      done: function () { return snaps.length === poses.length; },
+      step: function () {
+        if (builder.done()) return false;
+        var keepRender = VA.lastTopoRender;
+        var keepHot = VA.lastTopoHot;
+        try {
+          var shadow = VA.el("div");
+          VA.renderTopoPane(shadow, ctxAt(poses[snaps.length]));
+          snaps.push(takeSnapshot(shadow));
+          drawn.push(VA.lastTopoRender);
+        } finally {
+          VA.lastTopoRender = keepRender;
+          VA.lastTopoHot = keepHot;
+        }
+        return true;
+      },
+      finish: function () {
+        if (result === undefined) {
+          while (builder.step()) { /* the keyframes not yet rendered */ }
+          result = assemble();
+        }
+        return result;
+      },
+    };
+    return builder;
+
+    function assemble() {
+    for (var s = 0; s < snaps.length; s++) {
+      if (snaps[s].length !== live.length) return null;
+      for (var i = 0; i < live.length; i++) {
+        if (snaps[s][i].tag !== live[i].tag) return null;
+      }
+    }
+    // Every property that differs between keyframes, on the LIVE node at the
+    // same place in the tree: eased where each keyframe's value is the same
+    // words around different numbers (a coordinate, a path), stepped to the
+    // nearer keyframe's where the words differ (a class, a hidden break mark),
+    // absent there meaning removed.
+    var plan = [];
+    live.forEach(function (base, i) {
+      var names = {};
+      snaps.forEach(function (snap) {
+        Object.keys(snap[i].attrs).forEach(function (k) { names["attr:" + k] = true; });
+        Object.keys(snap[i].style).forEach(function (k) { names["style:" + k] = true; });
+      });
+      Object.keys(names).forEach(function (key) {
+        var kind = key.slice(0, key.indexOf(":"));
+        var name = key.slice(key.indexOf(":") + 1);
+        var raw = snaps.map(function (snap) {
+          var bag = kind === "attr" ? snap[i].attrs : snap[i].style;
+          return Object.prototype.hasOwnProperty.call(bag, name) ? bag[name] : null;
+        });
+        if (raw.every(function (v) { return v === raw[0]; })) return;
+        var vals = raw.map(function (v) { return v === null ? null : tokens(v); });
+        var eased = name !== "class" && vals.every(function (v) {
+          return v && v.t === vals[0].t && v.n.length === vals[0].n.length;
+        });
+        plan.push({ node: base.node, kind: kind, name: name, raw: raw,
+                    vals: eased ? vals : null });
+      });
+    });
+    var film = {
+      poses: poses.slice(),
+      entries: plan.length,
+      valid: function () { return root.querySelector(".tv__hscroll") === scroller; },
+      apply: function (pose) {
+        var last = poses.length - 1;
+        var p = Math.min(Math.max(pose, poses[0]), poses[last]);
+        var k = 0;
+        while (k < last - 1 && p > poses[k + 1]) k++;
+        var span = poses[k + 1] - poses[k];
+        var u = span > 0 ? (p - poses[k]) / span : 0;
+        for (var n = 0; n < plan.length; n++) {
+          var en = plan[n];
+          var text = en.vals ? interpolated(en.vals[k], en.vals[k + 1], u)
+            : en.raw[u < 0.5 ? k : k + 1];
+          if (en.kind === "attr") {
+            if (text !== null) en.node.setAttribute(en.name, text);
+            else if (en.node.removeAttribute) en.node.removeAttribute(en.name);
+            else delete en.node.attributes[en.name];
+          } else {
+            en.node.style[en.name] = text === null ? "" : text;
+          }
+        }
+        // The page's seam reads what the pane drew: the picture on screen.
+        VA.lastTopoRender = blendValue(drawn[k], drawn[k + 1], u);
+        VA.pinTopoHead(root);
+        return p;
+      },
+    };
+    return film;
+    }
+  };
+
+  // The kinematic grid's numbers rewritten in place from `stack`
+  // (VA.kinematicStack at a pose), for a pane already drawn with the same
+  // rows: each term row's sensitivity and contribution, each sub-stack
+  // header's detail and numbers, and the foot's total. The words are the
+  // row builders' own (edgeRow, subStackRow, stackFoot); a fast-tier test
+  // renders one pose, rewrites it to another and holds every row's text to
+  // a fresh render of the second. Returns how many rows it wrote.
+  VA.applyStackText = function (root, stack) {
+    if (!root || !root.querySelectorAll || !stack) return 0;
+    var set = function (row, cls, text) {
+      var cell = row.querySelector(cls);
+      if (cell && cell.textContent !== text) cell.textContent = text;
+    };
+    var subs = {};
+    stack.entries.forEach(function (entry) { if (entry.kind === "sub") subs[entry.id] = entry; });
+    var written = 0;
+    root.querySelectorAll("tr").forEach(function (row) {
+      var kind = row.getAttribute("data-row-kind");
+      var term = kind === "edge" ? stack.terms[row.getAttribute("data-id")] : null;
+      if (term) {
+        set(row, "td.tvcell--sensitivity", term.sensitivity);
+        set(row, "td.tvcell--contribution", term.contribution +
+          (term.contribution && stack.units ? " " + stack.units : ""));
+        written++;
+        return;
+      }
+      var sub = kind === "substack" ? subs[row.getAttribute("data-substack")] : null;
+      if (sub) {
+        set(row, "span.tvsub__detail", sub.detail ? " · " + sub.detail : "");
+        set(row, "td.tvcell--sensitivity", sub.sensitivity);
+        set(row, "td.tvcell--contribution", sub.contribution);
+        written++;
+        return;
+      }
+      var cls = row.className || "";
+      if (cls.indexOf("tvtotal--worst_case") !== -1) {
+        var r = stack.result;
+        set(row, "td.tvtotal__label", r.label);
+        var label = row.querySelector("td.tvtotal__label");
+        if (label) label.setAttribute("title", r.label + " · " + r.rss);
+        set(row, "td.tvcell--nominal", r.nominal);
+        set(row, "td.tvcell--contribution", r.contribution + " " + (stack.units || "") +
+          " · " + r.rss);
+        written++;
+      }
+    });
+    return written;
+  };
 
   // The space put before the drawing, on the node that wears it.
   function applyBandPad(root, pad) {
@@ -2477,6 +2665,7 @@
     // would otherwise take the pointer off the pin it lands on.
     var chords = VA.svg("g", "tv__chords");
     over.appendChild(chords);
+    var posed = !!(VA.EDGE_LENGTH_MODES[ctx.edgeLengthMode] || {}).contributions;
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
@@ -2515,13 +2704,19 @@
         // A floored bar (scaled modes only) wears a drafting-style break
         // across its middle: this length is the minimum render length, not a
         // measured proportion, and a reader must be able to tell at a glance.
-        if (mark.floored) {
-          over.appendChild(fade(VA.svg("path", "rail__break", {
+        // In a mode whose lengths move with the pose (the contribution mode)
+        // every bar carries its break, hidden where it is not floored, so the
+        // drawing is one set of nodes at every pose and the pose film
+        // (VA.poseFilm) can move it rather than rebuild it.
+        if (mark.floored || posed) {
+          var brk = VA.svg("path", "rail__break", {
             d: "M " + (mark.x - 5) + " " + (mark.y + 3) +
                " L " + (mark.x + 5) + " " + (mark.y - 1) +
                " M " + (mark.x - 5) + " " + (mark.y + 1) +
                " L " + (mark.x + 5) + " " + (mark.y - 3),
-          }), "edge", mark.id));
+          });
+          if (!mark.floored) brk.setAttribute("visibility", "hidden");
+          over.appendChild(fade(brk, "edge", mark.id));
         }
 
         // The hover/click target, over the SAME length but solid and wide

@@ -427,8 +427,8 @@ has not been built.
 - **The grid is the study's stack** (2026-11-03,
   `the_kinematic_grid_is_a_stack_of_sub_stacks`). The grid beside the DAG is
   the study's one contributor table, the same rows and columns a chain study's
-  grid has, at ONE stop at a time (**Grid at** in the results pane picks it;
-  the first stop by default). It reads as a stack: a **Linkage at this pose**
+  grid has, at ONE pose at a time (the pose control, below; the first stop's
+  own point by default). It reads as a stack: a **Linkage at this pose**
   header over the direct terms, then **Stop position** over one sub-stack per
   sub-study at that stop — an authored chain, or a declared gap (dashed, "not
   yet authored", no total). A sub-stack's header carries its own total in its
@@ -449,6 +449,25 @@ has not been built.
   for a traced value); a legend under the grid names every mark, and the
   row's Preview has the citation, the note and the crop. The stop's own fold
   and its verdict are the grid's foot.
+- **The pose** (2026-11-05, `the_grid_and_the_dag_move_with_the_mechanism`).
+  One control over the envelope chart: **Play** (the sweep end to end and
+  back, at the 3D pane's own pace), a slider over the driver's travel — the
+  chart's own x axis, run the same way — the measure at the pose as a field
+  that takes a typed angle, and one button per stop that puts the pose on it.
+  The grid, the DAG, a cursor on the chart and the open 3D pane (told with its
+  own `seek`) all read that one pose. A pose is a fractional sweep point
+  (`VA.kinematicPose`): every number at it is the projection's own per-point
+  number — `contributors[].by_point[]`, `envelope[]` — read linearly between
+  the two points either side, never a fold. **On a stop's point the stack is
+  that stop's fold**; anywhere else the linkage terms, their sub-stack and the
+  foot are read at the pose (the foot is then the linkage alone, which is
+  what the envelope folds), and the stop position's rows stay at their stop
+  and say so (`· at the −7 deg stop`). A drag or a frame of play rewrites the
+  grid's numbers in place (`VA.applyStackText`) and eases the DAG between
+  keyframes rendered off screen (`VA.poseFilm`); the release, a typed angle,
+  a stop button or a pause renders the pose itself. `?kinematic=…&pose=30`
+  opens the page at 30 deg (the pose is written back into the URL when it
+  settles; `scripts/filmstrip.mjs --pose` and `--scenario pose-play` drive it).
 - **Rows reached from the page select in place.** A click on a term row —
   or on anything in the DAG — selects that edge here: the page stays the
   study, the DAG marks the edge, and the preview pane shows its citation and
@@ -1428,7 +1447,7 @@ Two implementation facts worth knowing before editing either file:
   fast guard plants the mirror and requires the same edge to light the same
   set.
 
-### Edge-length scaling: three modes, one keyed position store
+### Edge-length scaling: four modes, one keyed position store
 
 The toolbar's fourth button (`#edge-length-toggle`, `state.edgeLengthMode`,
 `VA.EDGE_LENGTH_MODES` in `topology.js`) cycles how much vertical extent a
@@ -1439,6 +1458,14 @@ dimension bar gets:
 * **tolerance width** — a bar's length ∝ its dimension's band (`max − min`,
   falling back to `2 × plus_minus` where min/max are absent).
 * **feature size** — a bar's length ∝ its dimension's nominal.
+* **contribution** — offered only where the page has contributions (a
+  kinematic study), and the default there: a linkage term's bar ∝ what it
+  contributes at the live pose (|sensitivity| × band,
+  `VA.kinematicPoseLengths`), against one yardstick for the whole sweep — the
+  largest contribution any linkage term reaches anywhere — so the DAG moves
+  as the linkage cycles and a length means the same at every pose. The stop
+  position's terms are the stop's, the same at every pose and an order of
+  magnitude larger, so this mode leaves them at the floor, marked.
 
 The scale is relative to the serialisation on screen: the largest value renders
 at `EDGE_LENGTH_SCALE.maxRows` row heights, everything else in proportion — the

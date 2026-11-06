@@ -1,0 +1,227 @@
+# Lessons: the grid and the DAG move with the mechanism (2026-11-06)
+
+Shots: `shots/the_grid_and_the_dag_move_with_the_mechanism/`. The film of one play cycle is
+`play_cycle.png`: 28 frames 250 ms apart in page time, from −7° up to +71° and back to −5°.
+Beside it is `play_cycle.json`, which records the angle, the chart cursor's x, one term's
+sensitivity and contribution, the foot, the grid's top and four bar ends at every frame. The
+click-around stills are `1_…` to `7_…`.
+
+## How J is read between sweep points
+
+A pose is a **fractional sweep point index**: 12.25 is a quarter of the way from point 12 to
+point 13 (`VA.kinematicPose`, `views/kinematic.js`). That is the 3D pane's own unit, its
+scrubber's `sweep.index`. Within one step the driver is linear in it, so the `seek <mm>` the
+page posts lands the pane on the same pose.
+
+Every number shown at a pose is a projection number, read linearly in the index between the
+two points either side of it:
+
+- each linkage term's **signed coefficient** comes from `contributors[].by_point[]`. Its sign
+  is the sign of the interpolated value, and the sensitivity column shows its magnitude.
+- each term's **magnitude** is interpolated from `by_point[].magnitude`. It is not recomputed
+  as |J| × band in JS. Interpolation is linear, so the shown terms still sum to the
+  interpolated `envelope[].worst_case_half` (the linkage sub-stack's total). Where a
+  coefficient keeps its sign between the two points, the interpolated magnitude equals
+  |interpolated J| × band exactly. The `[real]` three-bars test checks that at 30°.
+- the **foot** and the linkage sub-stack's total come from `envelope[]`.
+
+Nothing is folded in JS. A pose exactly on a stop's point **is that stop**: the stack is built
+from `stops[]`, i.e. `fold_at_stop`'s output, not from interpolated points. A `[real]` test
+checks that the interpolated values at both stop points print the per-stop fold's numbers
+term by term and in total, and that the stack at the stop pose equals the stop's own stack.
+
+## What the stop rows show at a non-stop pose
+
+The stop-position sub-stack and its sub-studies stay at the stop the grid was last shown at
+(`state.kinematicStop`). Their header says so: `9 terms · ±1.195 mm · at the −7 deg stop`.
+The foot then reads `blade pitch at 37.6 deg | ±0.204 deg · RSS ±0.122`. That total is the
+linkage alone, because off a stop the stop's axial chain is not in the loop and the
+envelope folds only the linkage. So the total drops from ±2.355 at −7° to ±0.263 one point
+later. That drop is physical, not a bug.
+
+A stop button moves the pose onto that stop. A pose that lands on the other stop's point
+switches the rows to that stop at the next settled render. A frame of play never changes
+rows: on the other stop's point it clears the pose's `stop` (`framePose`), and that is why
+`VA.kinematicStack` accepts a pose object as well as an index.
+
+## Did contribution become the kinematic default? Yes, with one change of plan
+
+`contribution` is a fourth `VA.EDGE_LENGTH_MODES` entry. A page offers it only when it has
+lengths to draw (`contributions: true`). It is the default there (`VA.edgeLengthModeFor`) and
+`state.edgeLengthMode` starts as `null`. Elsewhere the cycle skips it (`VA.nextEdgeLengthMode`).
+
+**The first version drew nothing that moved.** It used every contribution on screen as the
+yardstick, like the other modes. The stop terms are an order of magnitude bigger (the cover
+flange is ±0.864 deg; the largest linkage term is ±0.156), so every linkage bar sat under
+the one-row floor, and the linkage bars are the only ones that change with the pose. The
+shipped mode (`VA.kinematicPoseLengths`) draws the **linkage terms only**, against **one
+yardstick for the whole sweep**: the largest linkage contribution reached at any point. A
+bar is then the same length for the same contribution at every pose, and the DAG's motion
+shows the terms changing size (`pitch_plate_attach_height`: 0.156 → 0.112 → 0.149). Stop
+terms floor and are marked. The alternatives are filed for strategy:
+`docs/issues/ISSUE_20261106_the_contribution_length_mode_leaves_the_stop_position_terms_unscaled.md`.
+
+## The DAG per frame: the pose film
+
+The tween handoff's keyframe engine, applied to poses (`VA.poseFilm` / `VA.poseFilmBuilder`,
+`views/topology.js`):
+
+- The pane is rendered at 9 evenly spaced poses **into detached roots**. Their attributes
+  are paired with the live nodes by position in the tree, and each frame eases the live
+  nodes. No node is built per frame.
+- Grid text is not captured in a snapshot. `VA.applyStackText` writes it from the stack at
+  the frame's exact pose. A fast test renders pose A, rewrites it to pose B and compares
+  every row's text with a fresh render at B.
+- Two things had to be steady for the keyframes to pair. **Break marks**: in contribution
+  mode every bar carries its break mark, hidden where the bar is not floored. Otherwise a
+  bar crossing the floor adds a node and pairing fails; it did in the first fast test.
+  **Classes** (colour bins) and `visibility` step to the nearer keyframe instead of easing
+  (`ovl-c3.5` is not a class).
+- The keyframes are built **in idle time after each settled kinematic paint**
+  (`prebuildFilm`, one per `requestIdleCallback`). Building all 12 at the first frame of
+  play cost 3.3 s on this box, measured. It is now 9 keyframes, built in idle time.
+- When play stops, or a drag is released, the page renders the pose itself, so the resting
+  DOM is exact. Between keyframes, frames are linear in the pose. J curves gently (see the
+  hover curve), so the error is a pixel or two.
+
+**Frame count, honest status.** Measured with a real clock in `--real-time` filmstrip runs
+on this shared box with the film prebuilt: about 17 distinct poses in 5.9 s. Long animation
+frames show the normal frame's script at **24–28 ms**, the same as the tween handoff's
+~25 ms per frame. The frames that run long are render-bound: 450–630 ms with ~25 ms of
+script, the paint-only stalls that lesson also measured. `pinTopoHead`'s
+`getBoundingClientRect` forces the layout (61 ms on average, up to 331 ms). A quiet-box
+frame rate is **not measured here**. The deterministic evidence is the stepped-clock
+filmstrip (frames at fixed page-time steps, every number continuous) and the fast-tier
+tests.
+
+The grid's block **drifts down as the DAG grows**: in the play cycle the grid top runs from
+697 px to 731 px. This is centring (`VA.centreOffsets`) following the DAG's height, it
+changes gradually, and it is not a snap. I left it as is.
+
+## Other decisions
+
+- **One pose control**, over the chart because the results pane did not show it below the
+  chart without scrolling. Play, a slider over the driver's travel (the chart's own x
+  axis, run the same way), the angle field, and the stop buttons. They keep `div.kmstop` /
+  `button.kmstop__button`, which the browser tier and the witnesses read.
+- **Pace**: 24 points/s ping-pong, the 3D pane's own `AA.SWEEP_POINTS_PER_SECOND`. The two are
+  paired by `tests/test_kinematic_pose_pace.py`.
+- **The 3D pane is driven one way.** The page posts `pause` when its play starts and
+  `seek <mm>` every frame. The annotator was fenced, so its own transport does not move the
+  page:
+  `docs/issues/ISSUE_20261106_the_3d_panes_own_play_and_scrub_do_not_move_the_pages_pose.md`.
+- **The URL.** `?kinematic=<id>&pose=<angle>` is written when the pose settles. It is view
+  state, like `?pane=1`, and **not** in `VA.DEEP_LINK_PARAMS`: that list is the sibling repo's
+  contract, and its README table pairing reads `param=<id>`. Leaving the study drops the
+  pose. `scripts/filmstrip.mjs --pose <deg>` boots at a pose, and `--scenario pose-play`
+  films play.
+
+## Sites the pose reaches, and does not
+
+It reaches the grid (terms, sub-stack headers, foot), the DAG in contribution mode, the
+contribution colouring (at rest and stepped per keyframe in play), the chart cursor, the
+3D pane's scrubber and the URL. It does not reach the Preview pane's **In this study**
+block, which still prints each stop's numbers. Those are per-stop facts, and I left them.
+It also does not reach the sensitivity hover curve, which marks the stops and not the
+pose: `docs/issues/ISSUE_20261106_the_sensitivity_curve_card_does_not_mark_the_live_pose.md`.
+
+## Mistake to avoid
+
+I ran `git checkout <file>` meaning to check status, and it threw away an hour of
+uncommitted tests. The sources were still in scratch files, so I re-applied them. Commit
+before every exploratory command; WIP commits are cheap here.
+
+## Verification record
+
+All runs used projections built from this branch into
+`C:/workspace/tolstack/data/scratch/gridpose/` (gitignored). That root junctions the
+main checkout's `inbox`, `meshes`, `runs` and `sessions`, and the builders ran with
+`--data-root` and `--allow-older-tree`. The main checkout's own projection is stale for
+this tree, so the `[real]` tier refuses it.
+
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/gridpose`:
+  **653/653**, no tier skipped.
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` in this worktree: 852 s,
+  **1728 passed, 1 skipped, 3 failed**. The failures:
+  - `test_viewer_js_suite_is_green`: red by design in a worktree, because there is no
+    projection.
+  - two witness checks (a rotted anchor, and a lesson that was not written yet). Both are
+    fixed, and `tests/test_mutation_witnesses.py` passes on its own.
+
+  The run was over the 10-minute budget. The measurement is appended to the open
+  `suite_over_budget` issue.
+- Browser, `--only "kinematic"`: 24/26. The two reds are
+  `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`,
+  red on integration before this branch.
+- Browser, `--only "the DAG zoom, Fit and the grid header"`: 41/41, after this branch
+  fixed its tolerance-width check. The page now opens in contribution mode, so the check
+  cycles the toggle by its label.
+- Browser, `--only "3D pane follows the selection"`: 32/32.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration`: 32/51
+  witnessed, 9 left to the sweep by the 30-minute budget. **Every fast entry is
+  witnessed**, including the ten new specs. All 19 unwitnessed entries are browser
+  entries whose tier "was red before the mutation". Most of those are the kinematic
+  suite's two inherited reds. The DAG-zoom suite's entries were red because of the
+  tolerance-width check, fixed afterwards and green on its own; those entries were not
+  re-run.
+
+## Review round 1: Pause did not pause
+
+`REVIEW_20261106_the_grid_and_the_dag_move_with_the_mechanism.md` found it: the play
+button's handler read `ctx.playing`, a flag fixed when the page rendered. Play starts
+without a render and relabels the button in place (`VA.syncPoseControl`), so the second
+click still sent "play", `startPlay()` returned early, and the sweep kept cycling. The
+fast test clicked the button once; nothing clicked it twice.
+
+**The fix has two layers.** The button reads its own `aria-pressed`, which
+`syncPoseControl` keeps live (`views/kinematic.js`). The page's `onPlay` toggles on its
+own `posePlay` and not only on the argument it is sent (`topology_app.js`). Either layer
+alone stops the bug. The general lesson: **a control that is synced in place must not
+read a flag captured at render time**. The flag is right at the first click and wrong at
+the second.
+
+Tests:
+
+- The fast pose-control test now relabels the button with a frame of play and clicks it
+  again: `played == [true, false]`.
+- Two new `[real]` browser guards in "the DAG zoom, Fit and the grid header" on the real
+  study: Play moves the pose and relabels itself Pause; a second click says Play again
+  and the pose holds. The log line from the run was
+  `play/pause: -7.0 -> 10.5 (Pause) -> 12.9 (Play) -> 12.9`. Each guard carries a spec,
+  and the browser census pin rose by 2 (838 / 805).
+- The pause spec mutates the page's layer. Reverting only the button is no mutation the
+  browser check can see, because the page's layer still pauses. The spec's note says so.
+
+### Verification record, round 1 (tip `e075c83b`)
+
+Same scratch root as above, with its `docs` junction and the worktree's `node_modules`
+junction re-added for the runs and removed afterwards.
+
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/gridpose`:
+  **653/653**, no tier skipped. (The review's 648/653 were the five worksheet checks,
+  red because the scratch root's `docs` junction had been removed after round 0.)
+- Browser, `--only "the DAG zoom, Fit and the grid header"`: **43/43**, in 355 s.
+- Witnesses, `--only` on each of the five DAG-zoom entries `--changed-since` reaches,
+  which is what the review asked for:
+  - `f0dc4129` (pause): **WITNESSED**
+  - `9bd6a7b3` (play): **WITNESSED**
+  - `63389417` (groups): **WITNESSED**
+  - `30676e29` (scrolled header): **WITNESSED**
+  - `68054cae` (no box of its own): **WITNESSED**
+
+  That took 1771 s including waits for the slot. One earlier attempt at this loop was
+  stopped and re-run because its output filter dropped the verdict lines.
+- `node scripts/run_mutation_witness_tests.mjs --repo …/gridpose --changed-since
+  integration`: **35/49 witnessed, 49/63 reached in 31m14s, 14 left to the sweep**
+  (budget), exit 0.
+  - Every fast entry is witnessed.
+  - The 14 NOT WITNESSED are all in "kinematic study page (deep link, chart hover,
+    contributors, no projection)", red before any mutation because of the two inherited
+    checks in `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
+    Nothing is proved about them either way until that issue is fixed.
+  - Four of the DAG-zoom entries fell past the cap in this run. They are the ones
+    witnessed by `--only` above.
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` in this worktree, at
+  the tip: 434 s, **1730 passed, 1 skipped, 1 failed**. The failure is
+  `test_viewer_js_suite_is_green`, red by design in a worktree. Recorded with
+  `dispatch suite-time record`: inside budget.

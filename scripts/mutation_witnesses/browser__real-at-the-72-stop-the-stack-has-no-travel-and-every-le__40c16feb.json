@@ -6,10 +6,10 @@
     {
       "contract": "The stop picker changes the stop the grid's stack is shown at.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Ignores the pick.",
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Ignores the pick. Re-pointed 2026-11-06 (the_grid_and_the_dag_move_with_the_mechanism): a stop button now puts the pose on its stop, and ignoring the pick is dropping both.",
       "file": "apps/viewer/topology_app.js",
-      "find": "onStackStop: function (stopId) { state.kinematicStop = stopId; render(); },",
-      "replace": "onStackStop: function (stopId) { void stopId; render(); },"
+      "find": "            state.kinematicStop = stopId;\n            setPose(VA.kinematicStopPose(kinematicStudy, stopId));",
+      "replace": "            void stopId;"
     }
   ]
 }

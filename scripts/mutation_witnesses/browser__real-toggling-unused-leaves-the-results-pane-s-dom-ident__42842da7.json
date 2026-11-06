@@ -6,9 +6,9 @@
     {
       "contract": "The results pane offers the stop picker, and Unused leaves it as it was.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the picker. (A full repaint in place of the DAG-only one rebuilds an identical results pane, so it is no mutation this check can see.)",
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the picker. (A full repaint in place of the DAG-only one rebuilds an identical results pane, so it is no mutation this check can see.) Re-pointed 2026-11-06 (the_grid_and_the_dag_move_with_the_mechanism): the picker is the pose control now, and takes the chart its slider runs along.",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "      root.appendChild(stackStopPicker(study, ctx));",
+      "find": "      root.appendChild(stackStopPicker(study, ctx, chart));",
       "replace": "      void stackStopPicker;"
     }
   ]

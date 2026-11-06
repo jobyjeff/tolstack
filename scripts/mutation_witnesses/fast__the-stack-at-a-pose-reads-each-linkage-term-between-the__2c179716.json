@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the stack at a pose reads each linkage term between the two sweep points either side; the stop's position rows stay the stop's; the foot is the linkage at the pose",
+  "mutations": [
+    {
+      "contract": "Off a stop, the grid's linkage terms are read at the pose, not at the stop.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Drops the pose reading: every linkage term keeps the stop's own numbers.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      var read = poseRows && poseRows[row.edge];\n      if (!read) return row;\n",
+      "replace": "      return row;\n"
+    }
+  ]
+}

@@ -33,7 +33,7 @@ scenario   a built-in name, or the path of a module exporting a scenario:
                trigger(page, h) {},        // the thing being filmed (not awaited past its click)
                probe(page, h) {}           // optional: returns JSON, sampled per frame
              };
-           h = { REPO, DATA, VIEWER, base, navRow, click, bootKinematic, settled }
+           h = { REPO, DATA, VIEWER, base, navRow, click, bootKinematic, settled, pose }
 built-ins  {BUILTINS}
 options
   --frames N      frames to capture                     (default 8)
@@ -45,6 +45,8 @@ options
   --out DIR       folder the PNG and the probe JSON go to (default data/scratch/filmstrips)
   --name NAME     file stem                             (default the scenario name)
   --repo DIR      checkout holding data/projections/    (default ${MAIN_CHECKOUT})
+  --pose DEG      open the kinematic page at this pose: the measure there, as
+                  the page's own ?pose= carries it (e.g. --pose 30)
   --help          this text
 
 Time: a screenshot of the real page takes about a second, longer than the
@@ -103,14 +105,18 @@ async function readProjection(dataRoot, name) {
 }
 
 // The kinematic page on the REAL projection, the way the browser tier boots it.
-async function bootKinematic(page, base, dataRoot, study) {
+// `pose` (the measure, e.g. 30 for 30 deg) opens it posed there, through the
+// page's own ?pose= (VA.POSE_PARAM).
+async function bootKinematic(page, base, dataRoot, study, pose) {
   const [topologies, results, crops, kinematic] = await Promise.all(
     ["topologies.json", "results.json", "crops.json", "kinematic/kinematic_studies.json"]
       .map((n) => readProjection(dataRoot, n)));
   if (!topologies || !kinematic) {
     throw new Error(`no real projection under ${dataRoot} -- build it or pass --repo`);
   }
-  await page.goto(`${base}/apps/viewer/topology.html?kinematic=${study}`, { waitUntil: "load" });
+  const posed = pose === null || pose === undefined || pose === "" ? "" : `&pose=${pose}`;
+  await page.goto(`${base}/apps/viewer/topology.html?kinematic=${study}${posed}`,
+    { waitUntil: "load" });
   await page.evaluate(({ topologies, results, crops, kinematic }) => {
     const VA = window.ViewerApp;
     const Fake = function () {
@@ -160,7 +166,34 @@ function bandProbe() {
   };
 }
 
+// Where the pose is and what reads it, in one sample: the control, the
+// chart's cursor, one term's numbers, the foot, and a few lit bars' ends.
+function poseProbe() {
+  const q = (s) => document.querySelector(s);
+  const text = (s) => (q(s) ? q(s).textContent : null);
+  const term = '#topopane tr.tvrow[data-id="pitch_plate_attach_height"]';
+  return {
+    travel: q("#detail input.kmpose__slider") ? Number(q("#detail input.kmpose__slider").value) : null,
+    angle: q("#detail input.kmpose__angle") ? q("#detail input.kmpose__angle").value : null,
+    cursor: q("#detail line.kmchart__pose") ? Number(q("#detail line.kmchart__pose").getAttribute("x1")) : null,
+    sensitivity: text(term + " td.tvcell--sensitivity"),
+    contribution: text(term + " td.tvcell--contribution"),
+    total: text("#topopane tr.tvtotal--worst_case td.tvcell--contribution"),
+    gridTop: q("#topopane div.tv__rows") ? q("#topopane div.tv__rows").getBoundingClientRect().top : null,
+    bars: Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
+      .slice(0, 4).map((b) => Number(b.getAttribute("y2"))),
+  };
+}
+
 const BUILTINS = {
+  // Play on the kinematic page (the_grid_and_the_dag_move_with_the_mechanism):
+  // the grid's numbers, the DAG in the contribution mode, the chart's cursor
+  // and the control all move with the linkage. --pose sets where it starts.
+  "pose-play": {
+    async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS, h.pose); },
+    async trigger(page, h) { await h.click(page, "#detail button.kmpose__play"); },
+    probe: (page) => page.evaluate(poseProbe),
+  },
   // Blade pitch at the stops -> the cotter-hole chain study: a study change.
   respine: {
     async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS); },
@@ -251,7 +284,7 @@ async function composite(browser, frames, { width, columns }) {
 
 function parseArgs(argv) {
   const o = { frames: 8, interval: 40, columns: 4, width: 1600, viewport: "1600x1000",
-    out: null, name: null, repo: MAIN_CHECKOUT, scenario: null, help: false,
+    out: null, name: null, repo: MAIN_CHECKOUT, scenario: null, help: false, pose: null,
     "real-time": false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -305,7 +338,7 @@ async function main() {
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e)));
     const h = { REPO, DATA: normalize(opts.repo), VIEWER: join(REPO, "apps", "viewer"),
-      base, navRow, click, bootKinematic, settled };
+      base, navRow, click, bootKinematic, settled, pose: opts.pose };
     if (scenario.setup) await scenario.setup(page, h);
 
     // Frame 0 is the state before the trigger; the rest follow it, `interval`

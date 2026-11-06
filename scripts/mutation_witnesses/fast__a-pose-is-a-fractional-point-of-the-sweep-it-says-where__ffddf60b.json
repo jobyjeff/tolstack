@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a pose is a fractional point of the sweep: it says where it falls, what the driver and the measure are there, and the stop it is on",
+  "mutations": [
+    {
+      "contract": "A pose is a fractional point index: it says the two points either side and how far between.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Pins every pose to its lower point: the quarter-way pose reads as the point itself.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    var u = f - i0;\n",
+      "replace": "    var u = 0;\n"
+    }
+  ]
+}

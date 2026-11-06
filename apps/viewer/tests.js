@@ -316,6 +316,43 @@
         eq(slot.querySelector("span.navtree__scenesub").textContent, "moved to its body");
       });
 
+    await test("a mirrored row wears its kind and its mark, every row has a twisty column and " +
+      "a glyph, the legend draws each mark beside its word, and a row's buttons are one group " +
+      "before its checkbox", function () {
+        var slot = document.createElement("div");
+        VA.renderSceneTree(slot, {
+          legend: [{ mark: "bound", text: "bound", title: "a face is bound" },
+            { mark: "open", text: "no face yet", title: "nothing yet" }],
+          rows: [
+            { key: "b", text: "pitch plate · 2 parts", kind: "body", open: true,
+              check: { checked: true }, rows: [
+                { key: "b/p", text: "215177-001 pitch plate", kind: "part", check: { checked: true },
+                  buttons: [{ text: "Isolate" }, { text: "Remove" }] }] },
+            { key: "e", text: "pitch link upper ball", kind: "end", mark: "picked", activate: true,
+              buttons: [{ text: "Re-pick" }] },
+          ] }, { send: function () {} });
+        var legend = slot.querySelectorAll("span.navtree__scenelegenditem");
+        eq(legend.length, 2);
+        eq(legend[1].querySelector(".navtree__scenemark").getAttribute("data-mark"), "open");
+        eq(legend[1].textContent, "no face yet");
+        eq(legend[1].getAttribute("title"), "nothing yet");
+        var rows = slot.querySelectorAll("div.navtree__scenerow");
+        eq(Array.prototype.map.call(rows, function (r) { return r.getAttribute("data-kind"); }).join(" "),
+          "body part end");
+        eq(rows[2].getAttribute("data-mark"), "picked");
+        eq(rows[0].getAttribute("data-mark"), null, "a body wears no state mark");
+        Array.prototype.forEach.call(rows, function (r) {
+          eq(r.childNodes[0].className === "navtree__scenetwisty" || r.childNodes[0].className === "navtree__scenegap",
+            true, "the first column is the twisty's, on every row");
+          eq(r.childNodes[1].className, "navtree__scenemark");
+        });
+        var part = rows[1];
+        var kids = Array.prototype.map.call(part.childNodes, function (n) { return n.className; });
+        eq(kids.slice(-2).join(" "), "navtree__sceneacts navtree__scenecheck",
+          "the buttons are one group and the checkbox is the row's last control");
+        eq(part.querySelector("span.navtree__sceneacts").querySelectorAll("button.navtree__scenebtn").length, 2);
+      });
+
     await test("a mirrored row the annotator marks as a suggestion carries the mark, and " +
       "no other row does", function () {
         var slot = document.createElement("div");
@@ -11322,7 +11359,8 @@
       });
 
     await test("clicking the edge-length toggle calls its own handler, and " +
-      "the mode table's next-pointers cycle through all three and home",
+      "the mode table's next-pointers cycle through all four and home, skipping " +
+      "contribution on a page that has none",
       function () {
         var called = 0;
         var root = render(function (r) {
@@ -11333,10 +11371,22 @@
         edgeLengthToggle(root).onclick();
         eq(called, 1);
         // The cycle order is a fact of the table (topology_app.js follows the
-        // `next` pointers): uniform → tolerance → absolute → uniform.
+        // `next` pointers): uniform → tolerance → absolute → contribution →
+        // uniform, and a page with no contributions skips the last.
         eq(VA.EDGE_LENGTH_MODES.uniform.next, "tolerance");
         eq(VA.EDGE_LENGTH_MODES.tolerance.next, "absolute");
-        eq(VA.EDGE_LENGTH_MODES.absolute.next, "uniform");
+        eq(VA.EDGE_LENGTH_MODES.absolute.next, "contribution");
+        eq(VA.EDGE_LENGTH_MODES.contribution.next, "uniform");
+        eq(VA.nextEdgeLengthMode("absolute", true), "contribution");
+        eq(VA.nextEdgeLengthMode("absolute", false), "uniform");
+        eq(VA.nextEdgeLengthMode("contribution", true), "uniform");
+        // The default: contribution where the page has contributions (a
+        // kinematic study), uniform elsewhere; a choice the page cannot draw
+        // falls back to it.
+        eq(VA.edgeLengthModeFor(null, true), "contribution");
+        eq(VA.edgeLengthModeFor(null, false), "uniform");
+        eq(VA.edgeLengthModeFor("tolerance", true), "tolerance");
+        eq(VA.edgeLengthModeFor("contribution", false), "uniform");
       });
 
     // --- which leader style a fresh load draws --------------------------------
@@ -11511,7 +11561,8 @@
     function kinematicGrid(study, opts) {
       opts = opts || {};
       var topo = KIN_TOPOLOGIES.topologies[0];
-      var stack = VA.kinematicStack(study, topo, opts.stop || null, 3, opts.choices || {});
+      var stack = VA.kinematicStack(study, topo, opts.stop || null, 3, opts.choices || {},
+        opts.pose);
       var ctx = {
         topoProj: topo, study: null, crops: null, selection: opts.selection || null,
         detailImage: null, onSelect: opts.onSelect || function () {},
@@ -11803,6 +11854,203 @@
         eq(picked, ["high"], "a click on another stop picks it; on the shown one, nothing");
         eq(all(kinematicPage(), "div.kmstop").length, 0, "no picker without a page to tell");
         eq(root.textContent.indexOf("zero_sensitivity"), -1);
+      });
+
+    // --- the pose (the_grid_and_the_dag_move_with_the_mechanism) ------------
+    //
+    // A pose is a fractional point index on the sweep; every number the page
+    // shows at it is the projection's, read between the two points either
+    // side (VA.kinematicPose's header says how).
+
+    await test("a pose is a fractional point of the sweep: it says where it falls, what " +
+      "the driver and the measure are there, and the stop it is on", function () {
+        var pose = VA.kinematicPose(KIN_STUDY, 1.5);
+        eq([pose.i0, pose.i1, pose.u, pose.driver, pose.measure, pose.stop],
+           [1, 2, 0.5, 7.5, 23, null]);
+        eq(VA.kinematicPose(KIN_STUDY, 0).stop, "low");
+        eq(VA.kinematicPose(KIN_STUDY, 4).stop, "high");
+        eq(VA.kinematicPose(KIN_STUDY, 9).index, 4, "clamped onto the sweep");
+        eq(VA.kinematicPose(KIN_STUDY, -1).stop, "low");
+        eq(VA.kinematicPoseOfMeasure(KIN_STUDY, 23), 1.5, "a typed angle");
+        eq(VA.kinematicPoseOfDriver(KIN_STUDY, 7.5), 1.5);
+        eq(VA.kinematicPoseOfMeasure(KIN_STUDY, 99), 4, "past an end is that end");
+        eq(VA.kinematicStopPose(KIN_STUDY, "high"), 4);
+        eq(VA.kinematicPoseWords(KIN_STUDY, pose), "23.0 deg");
+        // A sweep that runs the other way (the live one's driver falls).
+        var reversed = { envelope: KIN_STUDY.envelope.map(function (p, i) {
+          return Object.assign({}, p, { driver_value: 20 - p.driver_value, index: i });
+        }) };
+        eq(VA.kinematicPoseOfDriver(reversed, 12.5), 1.5);
+      });
+
+    await test("the stack at a pose reads each linkage term between the two sweep points " +
+      "either side; the stop's position rows stay the stop's; the foot is the linkage " +
+      "at the pose", function () {
+        var n = function (v) { return VA.kinematicNumber(v, 3); };
+        var topo = KIN_TOPOLOGIES.topologies[0];
+        var stack = VA.kinematicStack(KIN_STUDY, topo, "low", 3, {}, 1.5);
+        eq(stack.pose.words, "23.0 deg");
+        // arm: −2.6 and −2.75 at points 1 and 2; strut: +0.3 and +0.5.
+        eq(stack.terms.arm_pin_to_tip.sensitivity, "−" + n(2.675));
+        eq(stack.terms.arm_pin_to_tip.contribution, "±" + n(0.2675));
+        eq(stack.terms.strut_length.sensitivity, n(0.4));
+        eq(stack.terms.strut_length.contribution, "±" + n(0.08));
+        // The gap row's sign is the signed coefficient's: +0.4 and −0.1.
+        eq(stack.terms.post_height.sensitivity, n(0.15));
+        eq(stack.terms.post_height.contribution, "", "a gap has no contribution anywhere");
+        eq(stack.entries[0].contribution, "±" + n(0.355), "the envelope at the pose");
+        eq(stack.result.label, "tip angle at 23.0 deg");
+        eq([stack.result.nominal, stack.result.contribution, stack.result.rss],
+           [n(23), "±" + n(0.355), "RSS ±" + n(0.235)]);
+        eq(stack.stop.label, "23.0 deg pose", "the share's hover names the pose");
+        // On a stop's point the stack IS the stop's, whichever stop was named.
+        var atHigh = VA.kinematicStack(KIN_STUDY, topo, "low", 3, {}, 4);
+        var high = VA.kinematicStack(KIN_STUDY, topo, "high", 3, {});
+        eq(atHigh.entries, high.entries);
+        eq(atHigh.result, high.result);
+        eq(atHigh.stop, high.stop);
+        // ...unless the page cleared the pose's stop (a frame of play drawn
+        // over the other stop's rows): then it is a reading like any other.
+        var cleared = Object.assign({}, VA.kinematicPose(KIN_STUDY, 4), { stop: null });
+        eq(VA.kinematicStack(KIN_STUDY, topo, "low", 3, {}, cleared).stop.id, "low");
+        // The contributions the DAG reads are the grid's own.
+        eq(VA.kinematicContributions(KIN_STUDY, "low", 1.5).arm_pin_to_tip,
+           VA.kinematicPoseRows(KIN_STUDY, VA.kinematicPose(KIN_STUDY, 1.5)).arm_pin_to_tip.magnitude);
+        eq(VA.kinematicContributions(KIN_STUDY, "low", 4),
+           VA.kinematicContributions(KIN_STUDY, "high"));
+      });
+
+    await test("a stack position row off its stop says it is the stop's", function () {
+        var study = withAStudyRef();
+        var topo = KIN_TOPOLOGIES.topologies[0];
+        var at = VA.kinematicStack(study, topo, "low", 3, {});
+        var off = VA.kinematicStack(study, topo, "low", 3, {}, 1.5);
+        var position = function (stack) {
+          return stack.entries.filter(function (e) { return e.id === "stop_position"; })[0];
+        };
+        ok(position(at) && position(at).detail.indexOf("at the") === -1);
+        has(position(off).detail, " · at the −7 deg stop");
+      });
+
+    await test("the grid's numbers rewritten in place for another pose read exactly as a " +
+      "fresh render at that pose", function () {
+        var text = function (root) {
+          return all(root, "tr").map(function (r) { return r.textContent; });
+        };
+        var moved = kinematicGrid(KIN_STUDY, { stop: "low", pose: 0.5 });
+        var target = kinematicGrid(KIN_STUDY, { stop: "low", pose: 2.25 });
+        ok(text(moved.root).join("|") !== text(target.root).join("|"), "the poses differ");
+        ok(VA.applyStackText(moved.root, target.stack) > 3);
+        eq(text(moved.root), text(target.root));
+      });
+
+    await test("the contribution length mode draws each bar at its contribution, and the " +
+      "pose film moves the live drawing to a keyframe's own picture without a rebuild",
+      function () {
+        var topo = KIN_TOPOLOGIES.topologies[0];
+        var lit = VA.kinematicLitSet(KIN_STUDY, topo);
+        var ctxAt = function (pose) {
+          var stack = VA.kinematicStack(KIN_STUDY, topo, "low", 3, {}, pose);
+          return { topoProj: topo, study: null, crops: null, selection: null,
+            detailImage: null, onSelect: function () {}, lit: lit, stack: stack,
+            kinematicStudy: KIN_STUDY, decimals: 3, openSubStacks: VA.stackOpenMap(stack),
+            edgeLengthMode: "contribution",
+            lengths: VA.kinematicPoseLengths(KIN_STUDY, pose) };
+        };
+        var geometry = function (root) {
+          return all(root, "line").concat(all(root, "circle")).map(function (node) {
+            // To the hundredth: an eased value is written at three decimals.
+            return ["y1", "y2", "cy"].map(function (k) {
+              var v = node.getAttribute(k);
+              return v === null ? "" : (Math.round(Number(v) * 100) / 100).toFixed(2);
+            }).join(",");
+          });
+        };
+        // The values the bars scale by are the linkage terms' contributions
+        // at the pose, against the largest any of them reaches anywhere.
+        var c = VA.kinematicPoseLengths(KIN_STUDY, 0.5);
+        eq(c.values.arm_pin_to_tip,
+           VA.kinematicContributions(KIN_STUDY, "low", 0.5).arm_pin_to_tip);
+        ok(Math.abs(c.max - 0.3) < 1e-12, "arm's 3.0 x 0.1 at the high stop");
+        eq(VA.edgeLengthValue({ id: "arm_pin_to_tip" }, "contribution", c.values),
+           c.values.arm_pin_to_tip);
+        eq(VA.edgeLengthValue({ id: "not_a_contributor", dimension: { nominal: 3 } },
+           "contribution", c.values), null, "no contribution, no length");
+        var slots = VA.rowPositions(topo.layout, topo,
+          "contribution", VA.RAIL_METRICS, null, c);
+        var arm = slots.edges.arm_pin_to_tip;
+        eq(arm.floored, false);
+        ok(Math.abs(arm.length - c.values.arm_pin_to_tip / 0.3 *
+           VA.RAIL_METRICS.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows) < 1e-9,
+           "a bar's length is its share of the sweep's yardstick");
+        var live = render(function (r) { VA.renderTopoPane(r, ctxAt(0.5)); });
+        var fresh = render(function (r) { VA.renderTopoPane(r, ctxAt(3)); });
+        ok(geometry(live).join("|") !== geometry(fresh).join("|"), "the pose moves the DAG");
+        var scroller = live.querySelector(".tv__hscroll");
+        var film = VA.poseFilm(live, ctxAt, [0.5, 1.75, 3]);
+        ok(film && film.entries > 0, "the keyframes pair and something moves");
+        film.apply(3);
+        eq(geometry(live), geometry(fresh));
+        ok(live.querySelector(".tv__hscroll") === scroller, "the same nodes, moved");
+        ok(film.valid());
+      });
+
+    await test("the pose control: play, a travel slider, the angle at the pose and a button " +
+      "per stop -- a drag reports unsettled moves, a release and a typed angle settle, and " +
+      "the chart's cursor marks the pose", function () {
+        var posed = [];
+        var played = [];
+        var pose = VA.kinematicPose(KIN_STUDY, 1.5);
+        var root = kinematicPage({ stackStop: "low", pose: pose,
+          onStackStop: function () {}, onPlay: function (on) { played.push(on); },
+          onPose: function (f, settled) { posed.push([f, settled]); } });
+        var slider = all(root, "input.kmpose__slider")[0];
+        var field = all(root, "input.kmpose__angle")[0];
+        eq([slider.getAttribute("min"), slider.getAttribute("max"), slider.value],
+           ["0", "20", "7.5"], "the slider runs over the driver, like the chart's x axis");
+        eq(field.value, "23.0");
+        slider.value = "12.5";
+        slider.oninput();
+        slider.onchange();
+        field.value = "53";
+        field.onchange();
+        eq(posed, [[2.5, false], [2.5, true], [3, true]]);
+        all(root, "button.kmpose__play")[0].onclick();
+        eq(played, [true]);
+        eq(all(root, "button.kmstop__button").map(function (b) {
+          return b.getAttribute("aria-pressed"); }), ["false", "false"], "off both stops");
+        var cursor = all(root, "line.kmchart__pose")[0];
+        var chart = VA.kinematicChart(KIN_STUDY, 3);
+        eq(Number(cursor.getAttribute("x1")), VA.kinematicChartX(chart.xScale, 7.5));
+        // A frame of play moves the marks in place.
+        VA.syncPoseControl(root, KIN_STUDY, VA.kinematicPose(KIN_STUDY, 4), true);
+        eq(Number(cursor.getAttribute("x1")), VA.kinematicChartX(chart.xScale, 20));
+        eq(slider.value, "20");
+        eq(all(root, "button.kmpose__play")[0].textContent, "Pause");
+        // Play started without a render, so the second click on the same button
+        // is a pause: it reads the live label, not the render-time ctx.playing.
+        all(root, "button.kmpose__play")[0].onclick();
+        eq(played, [true, false], "the second click pauses");
+        eq(all(root, "button.kmstop__button")[1].getAttribute("aria-pressed"), "true");
+        eq(all(kinematicPage({ stackStop: "low", onStackStop: function () {} }),
+           "input.kmpose__slider").length, 0, "no pose, no slider");
+      });
+
+    await test("the pose rides in the URL as the angle there, beside its study, and " +
+      "leaves with it", function () {
+        eq(VA.parsePoseParam("?kinematic=k&pose=23.5"), 23.5);
+        eq(VA.parsePoseParam("?pose=-7.0"), -7);
+        eq(VA.parsePoseParam("?pose="), null);
+        eq(VA.parsePoseParam("?pose=x"), null);
+        eq(VA.parsePoseParam("?kinematic=k"), null);
+        eq(VA.poseSearch("?mock=1&topology=t&study=s", "k", "23.0"),
+           "?mock=1&kinematic=k&pose=23.0");
+        eq(VA.poseSearch("?kinematic=k&pose=1.0&pane=1", "k", "2.0"),
+           "?pane=1&kinematic=k&pose=2.0");
+        eq(VA.poseSearch("?mock=1&kinematic=k&pose=2.0", null, null), "?mock=1");
+        eq(VA.poseSearch("?mock=1", null, null), "?mock=1", "nothing to take out");
+        eq(VA.parseDeepLink("?kinematic=k&pose=2.0"), { kinematic: "k" },
+           "view state, not a selection param");
       });
 
     await test("a kinematic grid row is its edge's: a click hands the edge to the page, " +
@@ -18501,6 +18749,73 @@
           return { root: root, stack: stack, topo: topo, rows: all(root, "tr.tvrow") };
         }
         var TRAVEL_STUDY = "vpa_pitch_linkage_travel_between_end_stops";
+
+        // The pose (the_grid_and_the_dag_move_with_the_mechanism), on the live
+        // study: at each stop's own point the reading between sweep points IS
+        // the per-stop fold (`stops[]`, tolerance_stack.kinematic.fold_at_stop)
+        // to the printed precision -- every linkage term's sign, sensitivity and
+        // contribution, and the linkage's sub-stack total.
+        await test("[real] at both stop poses the pose's reading of the sweep prints the " +
+          "per-stop fold's own numbers, term by term and in total", function () {
+            var decimals = realKinematic.display_decimals;
+            var n = function (v) { return VA.kinematicNumber(v, decimals); };
+            eq(realKinStudy.stops.length, 2);
+            realKinStudy.stops.forEach(function (stop) {
+              var pose = Object.assign({}, VA.kinematicPose(realKinStudy, stop.index),
+                                       { stop: null });
+              var rows = VA.kinematicPoseRows(realKinStudy, pose);
+              eq(stop.rows.length, 6, stop.id + ": the six linkage terms");
+              stop.rows.forEach(function (row) {
+                var read = rows[row.edge];
+                ok(read, stop.id + ": " + row.edge + " is read at the pose");
+                eq([read.sign, n(read.coefficient), n(read.magnitude)],
+                   [row.sign, n(row.coefficient), n(row.magnitude)], stop.id + " " + row.edge);
+              });
+              var fold = VA.kinematicPoseFold(realKinStudy, pose);
+              var linkage = stop.sub_stacks.filter(function (s) { return s.kind === "linkage"; })[0];
+              eq([n(fold.worst_case_half), n(fold.rss_half), n(fold.nominal_measure)],
+                 [n(linkage.worst_case_half), n(linkage.rss_half), n(stop.nominal_measure)],
+                 stop.id + ": the linkage's own fold");
+              // ...and the stack at the stop's pose is the stop's own stack.
+              var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+              eq(VA.kinematicStack(realKinStudy, topo, null, decimals, {}, stop.index).result,
+                 VA.kinematicStack(realKinStudy, topo, stop.id, decimals, {}).result);
+            });
+          });
+
+        await test("[real] in the contribution length mode three named bars are drawn at " +
+          "|sensitivity| x band at a pose between the stops, in proportion to each other",
+          function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var at = VA.kinematicPoseOfMeasure(realKinStudy, 30);
+            var pose = VA.kinematicPose(realKinStudy, at);
+            ok(pose.u > 0 && !pose.stop, "a pose between two sweep points, on no stop");
+            var lengths = VA.kinematicPoseLengths(realKinStudy, at);
+            var contributions = lengths.values;
+            var rows = VA.kinematicPoseRows(realKinStudy, pose);
+            var bands = {};
+            realKinStudy.stops[0].rows.forEach(function (row) { bands[row.edge] = row.band; });
+            var index = VA.topologyIndex(topo);
+            var named = ["pitch_link_length", "pitch_plate_attach_height", "tan_link_length"];
+            named.forEach(function (edge) {
+              var value = VA.edgeLengthValue(index.edges[edge], "contribution", contributions);
+              var expected = rows[edge].coefficient * bands[edge].half_range;
+              ok(Math.abs(value - expected) < 1e-12 * Math.max(1, expected),
+                 edge + ": " + value + " is |J| x band " + expected);
+              eq(value, VA.kinematicContributions(realKinStudy, "minus7", at)[edge],
+                 edge + ": the grid's and the colouring's contribution too");
+            });
+            var lit = VA.kinematicLitSet(realKinStudy, topo);
+            var layout = VA.bandLayout(topo.layout, lit, null);
+            var positions = VA.rowPositions(layout, topo, "contribution", VA.RAIL_METRICS, null,
+              lengths);
+            var length = function (edge) { return positions.edges[edge].length; };
+            var unfloored = named.filter(function (edge) { return !positions.edges[edge].floored; });
+            ok(unfloored.length >= 2, "at least two of the three are drawn to scale");
+            var a = unfloored[0], b = unfloored[1];
+            ok(Math.abs(length(a) / length(b) - contributions[a] / contributions[b]) < 1e-6,
+               a + " and " + b + " are in the proportion of their contributions");
+          });
 
         await test("[real] the live study's grid is its stack at the -7 stop: the six " +
           "linkage terms in chain order, the travel folded with what it contributes, " +
