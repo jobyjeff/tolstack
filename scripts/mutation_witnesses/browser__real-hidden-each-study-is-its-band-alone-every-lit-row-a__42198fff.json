@@ -6,10 +6,10 @@
     {
       "contract": "With the unlit model hidden the page draws the band alone.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Hidden draws the whole re-arranged walk.",
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Hidden draws the whole re-arranged walk. Re-pointed 2026-11-06 (a_part_with_many_interfaces_is_drawn_as_a_component_with_pins): the band is laid out of the walk the page draws, which is the gathered one when the page draws blocks and the projection's own otherwise.",
       "file": "apps/viewer/views/topology.js",
-      "find": "      ? VA.bandLayout(topoProj.layout, lit, hiding ? { only: true } : null)",
-      "replace": "      ? VA.bandLayout(topoProj.layout, lit, null)"
+      "find": "      ? VA.bandLayout(gathered, lit, hiding ? { only: true } : null)",
+      "replace": "      ? VA.bandLayout(gathered, lit, null)"
     }
   ]
 }
