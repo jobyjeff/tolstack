@@ -36,3 +36,11 @@ Jeff has already rejected that depth as too shallow.
 
 **Recommendation:** (a), as a single `--nest-step` token in `apps/viewer/style.css`
 `:root`, read by both, after the grid branch is on integration.
+
+> **2026-11-06, the handoff's rework:** the grid branch has landed on
+> `integration`, and this branch has merged it. Both numbers now live in one
+> tree: `--tree-step` (20px, `apps/viewer/topology.css`) and
+> `VA.GRID_BRACE.inset` (7, `apps/viewer/views/topology.js`).
+> `docs/sessions/lessons/shots/the_rail_reads_as_a_tree_of_bodies_joints_and_faces/07_rail_beside_grid_2560.png`
+> shows the rail beside the grid's bracketed rows at one zoom. The
+> recommendation, (a), is unchanged and now actionable.

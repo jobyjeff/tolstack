@@ -8754,6 +8754,128 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       "suggested, and no edge-feature row is listed",
       !!take && lower && lower.open === "true" && lower.on && !lower.attention && lowerFaces.length > 0 &&
       !after.rows.some((r) => /feature=pitch_link_length/.test(r.key)) && stillSweep);
+
+    // --- the rail reads as a tree (the_rail_reads_as_a_tree_of_bodies_
+    // joints_and_faces) ------------------------------------------------------
+    // What Jeff reads: each row says what it is and what state it is in, the
+    // legend names the states, the levels step in, and no state recolours a
+    // row's words. Read off the shell's tree, from the annotator's words, on
+    // the live study -- not from rows a test built by hand.
+    const look = await page.evaluate(({ upper, lower, joint }) => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      const scene = document.querySelector(".navtree__scene");
+      const rows = Array.from(scene.querySelectorAll(".navtree__scenerow[data-scene-key]"));
+      const find = (re, kind) => rows.find((n) => new RegExp(re).test(n.getAttribute("data-scene-key")) &&
+        n.getAttribute("data-kind") === kind);
+      const lead = (n) => n && n.firstElementChild ? n.firstElementChild.getBoundingClientRect().left : NaN;
+      const glyph = (n) => {
+        const s = n && getComputedStyle(n.querySelector(":scope > .navtree__scenemark"), "::before");
+        return s ? { content: s.content, width: parseFloat(s.width) || 0, fill: s.backgroundColor } : null;
+      };
+      const probe = (css) => {
+        const p = document.createElement("span");
+        p.style.color = css;
+        scene.appendChild(p);
+        const c = getComputedStyle(p).color;
+        p.remove();
+        return c;
+      };
+      const up = find(upper, "end");
+      const low = find(lower, "end");
+      const jointRow = find(joint, "joint");
+      const candidate = rows.find((n) => n.getAttribute("data-kind") === "candidate" &&
+        n.getBoundingClientRect().height > 0);
+      // A state the annotator calls attention, on a row on screen: its words
+      // stay ink (the old rule painted them --inferred; Jeff's "turned orange").
+      let attentionInk = null;
+      if (low) {
+        low.setAttribute("data-attention", "true");
+        attentionInk = getComputedStyle(low.querySelector(".navtree__scenename")).color;
+        low.removeAttribute("data-attention");
+      }
+      const marks = Object.keys(w.AnnotateApp.RAIL_MARKS);
+      return {
+        kinds: Array.from(new Set(rows.map((n) => n.getAttribute("data-kind")))),
+        unkinded: rows.filter((n) => !n.getAttribute("data-kind")).map((n) => n.getAttribute("data-scene-key")),
+        endMarks: rows.filter((n) => n.getAttribute("data-kind") === "end").map((n) => n.getAttribute("data-mark")),
+        marks,
+        upperMark: up && up.getAttribute("data-mark"),
+        lowerMark: low && low.getAttribute("data-mark"),
+        upperFill: glyph(up) && glyph(up).fill,
+        picked: probe("var(--mark-picked)"),
+        legend: Array.from(scene.querySelectorAll(".navtree__scenelegenditem > .navtree__scenemark"))
+          .map((n) => n.getAttribute("data-mark")),
+        step: [lead(low) - lead(jointRow), lead(candidate) - lead(low)].map((d) => (isNaN(d) ? null : d)),
+        glyphs: ["body", "part", "joint", "end", "candidate"].map((k) =>
+          glyph(rows.find((n) => n.getAttribute("data-kind") === k))),
+        attentionInk,
+        ink: probe("var(--ink)"),
+        inferred: probe("var(--inferred)"),
+      };
+    }, { upper: UPPER.source, lower: LOWER.source, joint: JOINT.source });
+    console.log(`    rail look: kinds ${look.kinds.join(" ")}; ends ${look.endMarks.join(" ")}; ` +
+      `legend ${look.legend.length}/${look.marks.length}; steps ${look.step.join(" ")}; ` +
+      `upper fill ${look.upperFill} (picked ${look.picked}); attention ink ${look.attentionInk} ` +
+      `(ink ${look.ink}, inferred ${look.inferred}); unkinded ${look.unkinded.length}; ` +
+      `glyphs ${JSON.stringify(look.glyphs.map((g) => g && [g.content, g.width]))}`);
+    push("[real] the scene tree's rows say what they are: body, part, joint, end and candidate rows " +
+      "each carry their kind, and every joint end carries a mark from the annotator's vocabulary",
+      ["body", "part", "joint", "end", "candidate"].every((k) => look.kinds.indexOf(k) !== -1) &&
+      look.unkinded.length === 0 && look.endMarks.length >= 2 &&
+      look.endMarks.every((m) => look.marks.indexOf(m) !== -1));
+    push("[real] the end taken this session wears the picked-now mark, filled in the scene's pick " +
+      "orange, and its partner does not",
+      look.upperMark === "picked" && look.upperFill === look.picked && look.lowerMark !== "picked");
+    push("[real] the legend draws every mark once, as the annotator names them",
+      look.legend.length === look.marks.length && look.marks.every((m) => look.legend.indexOf(m) !== -1));
+    // The step Jeff called "way too shallow" was 14px; a level now steps in by
+    // at least this much, from joint to end and from end to candidate.
+    const RAIL_MIN_STEP = 18;
+    push("[real] each level of the tree steps in by a full indent: an end from its joint, a " +
+      "candidate face from its end",
+      look.step.every((d) => d !== null && d >= RAIL_MIN_STEP));
+    push("[real] a body, a part, a joint, an end and a candidate face each draw a glyph",
+      look.glyphs.every((g) => g && g.content !== "none" && g.width > 0));
+    push("[real] a row the annotator marks for attention keeps its words in ink, not the provenance amber",
+      look.attentionInk === look.ink && look.ink !== look.inferred);
+
+    // A part whose Isolate is pressed stays one line: the armed-pick wrap
+    // (an armed row's buttons on a line of their own) is not a part's. The
+    // "random checkboxes floating in space" were that rule firing on a part.
+    // What is under test is the stylesheet's scoping, so the pressed state is
+    // set on the live part row's own Isolate, read, and taken off in one
+    // synchronous step: the annotator's own Isolate state does not stay put
+    // long enough in sweep mode to measure.
+    const BODY = "#sweep-tree/body=pitch_link";
+    at = await nav();
+    if (!at.rows.some((r) => r.key.indexOf(BODY + "/") === 0 && r.buttons.indexOf("Isolate") !== -1)) {
+      await click(BODY, ".navtree__scenetext");
+    }
+    await until((body) => Array.from(document.querySelectorAll('.navtree__scene [data-kind="part"]'))
+      .some((r) => r.getAttribute("data-scene-key").indexOf(body + "/") === 0 &&
+        r.getBoundingClientRect().height > 0), BODY, 15000);
+    const line = await page.evaluate((body) => {
+      const row = Array.from(document.querySelectorAll('.navtree__scene [data-kind="part"]'))
+        .find((r) => r.getAttribute("data-scene-key").indexOf(body + "/") === 0 &&
+          r.getBoundingClientRect().height > 0);
+      const iso = row && Array.from(row.querySelectorAll(":scope > .navtree__sceneacts > .navtree__scenebtn"))
+        .find((x) => x.textContent === "Isolate");
+      const check = row && row.querySelector(":scope > .navtree__scenecheck");
+      if (!iso || !check) return null;
+      const was = iso.getAttribute("aria-pressed");
+      iso.setAttribute("aria-pressed", "true");
+      const name = row.querySelector(".navtree__scenename").getBoundingClientRect();
+      const box = check.getBoundingClientRect();
+      const acts = row.querySelector(":scope > .navtree__sceneacts").getBoundingClientRect();
+      if (was === null) iso.removeAttribute("aria-pressed"); else iso.setAttribute("aria-pressed", was);
+      const mid = name.top + name.height / 2;
+      return { key: row.getAttribute("data-scene-key"), box: box.top <= mid && box.bottom >= mid,
+        acts: acts.top <= mid && acts.bottom >= mid };
+    }, BODY);
+    if (!(line && line.box && line.acts)) console.log(`    DIAG isolate: ${JSON.stringify(line)}`);
+    push("[real] a part whose Isolate is pressed stays on one line: neither its checkbox nor its " +
+      "buttons drop under its name", line && line.box && line.acts);
+
     push("[real] nothing above produced an uncaught error", errors.length === 0);
     return reportSuite(label, checks, errors);
   } catch (err) {

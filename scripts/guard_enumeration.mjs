@@ -445,7 +445,14 @@ export const DECLARED_GUARDS = {
   // no grid number and no part number clips, totals rows included; a pane
   // narrowed with no repaint takes its zoom box's floor with it. Each carries
   // a spec.
-  browser: { declared: 837, enrollable: 804, names: "2888e79c1f21" },
+  // the_rail_reads_as_a_tree_of_bodies_joints_and_faces (rework, 2026-11-06):
+  // +7 -- on the live study the nav's rows carry their kind and mark, the
+  // end taken this session reads picked now, the legend names every mark,
+  // each level steps in a full indent, every kind draws a glyph, attention
+  // keeps a row's words in ink, and an isolated part stays on one line, its
+  // checkbox and buttons beside its name. Each carries a spec aimed at the
+  // wiring or the rule.
+  browser: { declared: 844, enrollable: 811, names: "b7f1ad953414" },
 };
 
 

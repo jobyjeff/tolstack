@@ -300,9 +300,11 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    are the rules below, keyed on the annotator's words. */
 /* The tree's geometry and its two washes (the_rail_reads_as_a_tree_of_
    bodies_joints_and_faces). One indent step per level, wide enough that a
-   candidate face (level three) sits a clear 60px in from the body or joint
-   it hangs under: the step is the twisty's column plus room, and a hairline
-   guide runs down each level from its parent's twisty. */
+   candidate face, two levels under its joint (joint > end > face), sits a
+   clear two steps in from it: the step is the twisty's column plus room,
+   and a hairline guide runs down each level from its parent's twisty. The
+   rules that key on the annotator's words are scoped to this tree, so a
+   `data-kind` elsewhere on the page never wears a rail look. */
 .navtree__scene {
   --tree-step: 20px;
   --tree-twisty: 16px;
@@ -368,36 +370,37 @@ details[open] > .navtree__scenesummary .navtree__scenetwisty::before,
    candidate face a diamond, in the colour of their mark. An `action` row
    ("Pick another face…") has no glyph: its words are muted instead. */
 .navtree__scenemark::before { content: none; box-sizing: border-box; color: var(--muted); }
-[data-kind="body"] > .navtree__scenemark::before { content: ""; width: 9px; height: 9px;
+.navtree__scene [data-kind="body"] > .navtree__scenemark::before { content: ""; width: 9px; height: 9px;
   border-radius: 2px; background: currentColor; }
-[data-kind="part"] > .navtree__scenemark::before { content: ""; width: 7px; height: 7px;
+.navtree__scene [data-kind="part"] > .navtree__scenemark::before { content: ""; width: 7px; height: 7px;
   border-radius: 1px; border: 1.5px solid currentColor; }
-[data-kind="joint"] > .navtree__scenemark::before { content: ""; width: 9px; height: 9px;
+.navtree__scene [data-kind="joint"] > .navtree__scenemark::before { content: ""; width: 9px; height: 9px;
   border-radius: 50%; border: 2px solid currentColor; }
-[data-kind="contributor"] > .navtree__scenemark::before { content: ""; width: 9px; height: 5px;
+.navtree__scene [data-kind="contributor"] > .navtree__scenemark::before { content: ""; width: 9px; height: 5px;
   border-left: 1.5px solid currentColor; border-right: 1.5px solid currentColor;
   background: linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat; }
-[data-kind="end"] > .navtree__scenemark::before,
-[data-kind="element"] > .navtree__scenemark::before,
+.navtree__scene [data-kind="end"] > .navtree__scenemark::before,
+.navtree__scene [data-kind="element"] > .navtree__scenemark::before,
 .navtree__scenelegenditem > .navtree__scenemark::before { content: ""; width: 8px; height: 8px;
   border-radius: 50%; border: 1.5px solid var(--mark); background: var(--mark-fill); }
-[data-kind="candidate"] > .navtree__scenemark::before { content: ""; width: 7px; height: 7px;
+.navtree__scene [data-kind="candidate"] > .navtree__scenemark::before { content: ""; width: 7px; height: 7px;
   transform: rotate(45deg); border: 1.5px solid var(--mark); background: var(--mark-fill); }
 /* What each mark (AA.RAIL_MARKS) wears: its colour, and filled when a face
    is bound, open while one is only suggested or still wanted. */
-[data-mark] { --mark: var(--mark-open); --mark-fill: transparent; }
-[data-mark="bound"] { --mark: var(--mark-bound); --mark-fill: var(--mark-bound); }
-[data-mark="picked"] { --mark: var(--mark-picked); --mark-fill: var(--mark-picked); }
-[data-mark="proposed"] { --mark: var(--mark-proposed); }
-[data-mark="contact"] { --mark: var(--mark-contact); }
-[data-mark="declared"] { --mark: var(--mark-declared); }
-[data-mark="open"] { --mark: var(--mark-open); }
-[data-mark="recheck"] { --mark: var(--mark-recheck); --mark-fill: var(--mark-recheck); }
+.navtree__scene [data-mark] { --mark: var(--mark-open); --mark-fill: transparent; }
+.navtree__scene [data-mark="bound"] { --mark: var(--mark-bound); --mark-fill: var(--mark-bound); }
+.navtree__scene [data-mark="picked"] { --mark: var(--mark-picked); --mark-fill: var(--mark-picked); }
+.navtree__scene [data-mark="proposed"] { --mark: var(--mark-proposed); }
+.navtree__scene [data-mark="contact"] { --mark: var(--mark-contact); }
+.navtree__scene [data-mark="declared"] { --mark: var(--mark-declared); }
+.navtree__scene [data-mark="open"] { --mark: var(--mark-open); }
+.navtree__scene [data-mark="recheck"] { --mark: var(--mark-recheck); --mark-fill: var(--mark-recheck); }
 .navtree__scenelegenditem > .navtree__scenemark { height: auto; }
 /* Weight by level: a body and a joint are what the reader navigates by. */
-[data-kind="body"] .navtree__scenename, [data-kind="joint"] .navtree__scenename { font-weight: 600; }
-[data-kind="action"] .navtree__scenename { color: var(--muted); }
-[data-kind="action"]:hover .navtree__scenename { color: var(--ink); }
+.navtree__scene [data-kind="body"] .navtree__scenename,
+.navtree__scene [data-kind="joint"] .navtree__scenename { font-weight: 600; }
+.navtree__scene [data-kind="action"] .navtree__scenename { color: var(--muted); }
+.navtree__scene [data-kind="action"]:hover .navtree__scenename { color: var(--ink); }
 .navtree__scenetext { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .navtree__scenename, .navtree__scenesub {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
