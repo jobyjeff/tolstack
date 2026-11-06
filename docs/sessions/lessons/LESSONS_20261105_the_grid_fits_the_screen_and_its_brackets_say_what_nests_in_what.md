@@ -36,7 +36,13 @@
   study arrival never puts space to the drawing's left (`bandPad.left` is
   always 0). It scrolls sideways only when the band is off-screen.
 - **Fit leaves the grid a floor.** `VA.dagFitWidth(pane)` = max(pane −
-  (PART + DESCRIPTION + # + ELEMENT), 35% of pane).
+  (PART + DESCRIPTION + # + ELEMENT), 35% of pane). This applies to the
+  reader's own Fit (the control, or `0`), **not to a study's arrival**. I
+  first applied it on arrival too. The arrival's fit is measured off the
+  outgoing layout, so the floor there moved the transition's first frame and
+  ratcheted the zoom down a little on every study change. That turned five
+  browser suites red for reasons a reader would also feel. An arrival scales
+  down only to fit the pane, as on `integration`.
 
 ## Decision not in the handoff's words: deliverable 6
 
@@ -85,14 +91,17 @@ Measured with the nav at 300 and the Preview at its 560 default.
   the DAG 420 and the grid 1000. Everything is visible with no horizontal
   scroll, and every part, element and contribution cell is clickable (15/15
   with the folds open).
-- **1600 with the Preview open, kinematic study:** the pane is 737. Fit
-  takes the DAG to 246, so PART, DESCRIPTION, # and ELEMENT (490) are fully
-  on screen and every part cell takes the click (6/6, browser-checked). The
-  numbers and CONTRIBUTION are one sideways scroll away, and the DAG moves
-  out of view with that scroll rather than covering anything.
-- **Order of what gives:** first the DAG's fitted scale (down to 35% of the
-  pane), then the strip scrolls sideways. No column hides and the Preview is
-  not collapsed.
+- **1600 with the Preview open, kinematic study:** the pane is 737. On
+  arrival the DAG is 310 wide. PART, DESCRIPTION and # (270) are fully on
+  screen and ELEMENT is about 157px of its 220. Every part cell takes the
+  click (6/6, browser-checked). After Fit the DAG is 246 and all of
+  PART..ELEMENT (490) is on screen (`kin_1600_preview.png`, taken while the
+  floor still applied on arrival, shows that state). The numbers and
+  CONTRIBUTION are one sideways scroll away, and the DAG moves out of view
+  with that scroll rather than covering anything.
+- **Order of what gives:** first the DAG's fitted scale on Fit (down to 35%
+  of the pane), then the strip scrolls sideways. No column hides and the
+  Preview is not collapsed.
 - **Whole walk at 1600:** it still opens at zoom 1 (a 678px DAG), leaving
   59px of PART at rest. Those cells are clickable, and Fit brings the rest
   in. Filed as `ISSUE_20261105_the_whole_walk_opens_at_zoom_1_…`
