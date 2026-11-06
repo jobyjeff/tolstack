@@ -318,9 +318,9 @@ async function cmdIsolate(...identifiers) {
 }
 
 // isolate parts <part…> -- the viewer's study filter (handoff every_study_
-// opens_in_3d_showing_only_its_parts): the named parts solid, every other
-// installed part ghosted (hidden under the unlit word `hide`), the solid set
-// framed. Same snapshot and same `isolate off` as isolate; the one difference
+// opens_in_3d_showing_only_its_parts): the named parts ghost, every other
+// installed part faint (hidden under the unlit word `hide`), the named set
+// framed -- nothing solid until an action names it (applyLooks). Same snapshot and same `isolate off` as isolate; the one difference
 // is that the rest stays drawn. A scope none of whose parts has a mesh draws
 // nothing differently and says so in the head line.
 async function scopeToParts(identifiers) {
