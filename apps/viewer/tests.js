@@ -16010,9 +16010,10 @@
 
         await test("[real] drawn as blocks, every block wears its part's body and that " +
           "body's field wraps it, on the whole walk and on every study's band", function () {
-            // The pane's own derivation (views/topology.js's renderTopoPane).
-            // A contact face's row is on its first listed part's body, and
-            // the pitch plate's first pin is the hydraulic brake's face.
+            // The pane's own derivation (views/topology.js's renderTopoPane),
+            // but for the band's column search (below). A contact face's row
+            // is on its first listed part's body, and the pitch plate's first
+            // pin is the hydraulic brake's face.
             var M = VA.RAIL_METRICS;
             var kinStudies = (leaderKinematic && leaderKinematic.studies) || [];
             var checked = 0;
@@ -16028,11 +16029,13 @@
                 var lit = VA.kinematicLitSet(study, topoProj);
                 if (lit) views.push({ name: "kinematic " + study.id, lit: lit });
               });
+              var gathered = VA.gatherParts(topoProj.layout, topoProj);
               views.forEach(function (view) {
-                var gathered = VA.gatherParts(topoProj.layout, topoProj);
-                var walk = view.lit ? VA.blockColumns(VA.bandLayout(gathered, view.lit), topoProj,
-                                                      view.lit)
-                                    : gathered;
+                // The band's column search (VA.blockColumns) is left out: it
+                // moves columns only, and which body a block wears and which
+                // blocks sit back to back are the rows' (it would treble the
+                // tier; the browser tier's blocks suite draws the page's own).
+                var walk = view.lit ? VA.bandLayout(gathered, view.lit) : gathered;
                 var drawn = VA.blockLayout(
                   VA.spineRight(VA.collapseBodies(walk, null, topoProj, view.lit)), topoProj);
                 var geo = VA.railGeometry(drawn, M, VA.rowPositions(drawn, topoProj, "uniform", M),
