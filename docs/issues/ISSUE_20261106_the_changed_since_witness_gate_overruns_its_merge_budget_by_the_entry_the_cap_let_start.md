@@ -28,3 +28,15 @@ There are two ways to fix it:
   previous run.
 - Alternatively, record the gate against a budget that includes one entry of
   slack.
+
+## Addendum 2026-11-06 (review round 2, same branch)
+
+The same gate ran again after the round-2 merge of `integration`. It took 1875 s
+wall. The runner reported "34/43 witnessed, 43/60 reached in 30m50s; 17 left
+to the sweep" and exited 1. `suite-time record --tier merge` said **OVER BUDGET
+by 1m15s** again. The runner's own count is 50 s past the 30-minute cap, which
+is the entry that started just inside it. The exit 1 comes from nine
+kinematic-page entries whose baseline was red for the reason in
+`ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
+It has nothing to do with this overrun. An earlier round-2 run the same day
+took 2359 s (30m36s reached), and was recorded as **OVER BUDGET by 9m19s**. About 9 minutes of that fall outside the runner's own clock, which I take to be the wait for the browser slot. I did not measure it.
