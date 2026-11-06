@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
       "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Both ways out (the candidate row's own leave and the end row's) go through `hover clear`, so the clear branch is where a stuck wash would come from.",
       "file": "apps/annotate/app.js",
-      "find": "    state.washToken++;\n    state.scene.washFace(null);\n    window.__lastWash = null;\n    if (!state.sweep) return null;",
-      "replace": "    state.washToken++;\n    window.__lastWash = null;\n    if (!state.sweep) return null;"
+      "find": "    state.washToken++;\n    state.scene.washFace(null);\n    window.__lastWash = null;\n    dropWashAction();\n    if (!state.sweep) return null;",
+      "replace": "    state.washToken++;\n    window.__lastWash = null;\n    dropWashAction();\n    if (!state.sweep) return null;"
     }
   ]
 }

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the frames between keyframes move the live nodes and build none: a transition is three renders and a settle, whatever its length",
+  "mutations": [
+    {
+      "contract": "A tween frame moves the live nodes' attributes; it never re-renders the pane.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_tween_is_seen_and_zooms_out_before_it_zooms_in.md",
+      "note": "A frame that rebuilds the pane again: the render count grows with the frames.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      applySnapshotPlan(plan, w.k, w.u);\n      // What the next",
+      "replace": "      VA.renderTopoPane(root, ctx);\n      applySnapshotPlan(plan, w.k, w.u);\n      // What the next"
+    }
+  ]
+}

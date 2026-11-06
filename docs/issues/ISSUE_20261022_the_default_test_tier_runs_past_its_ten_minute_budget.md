@@ -131,6 +131,10 @@ and its mutation-witness gate, both of them under the browser slot, so most
 of the hour is contention and not suite growth. The suite prints no
 contention header lines. No `--durations` was taken.
 
+## Addendum 2026-11-05 (stack_wording_drops_filler_and_the_hover_says_the_same_thing)
+
+Default tier, worktree, plain `pytest -q` (the venv has no xdist, so `-n 16` is not available there): 737 s (12m17s), 1728 passed, 2 failed (provenance row, fixed; viewer JS suite red by design in a worktree), over budget by 2m17s.
+
 ## Reopened 2026-11-05 (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what)
 
 One record over budget: **4033 s (67 min)** against 10 min, `OVER BUDGET by

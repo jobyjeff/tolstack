@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: viewer/topology grid
 reporter: agent
+resolution: resolved 2026-11-06 by the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (review round 2, integration merged into the handoff branch) -- the grid's legend and rows kept; the legend-tints guard and its spec retired; --wash-untraced / --wash-nocite and the legend swatch rules deleted (nothing else read them); the --group-* fallbacks dropped
 found_by: docs/sessions/HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what.md
 ---
 

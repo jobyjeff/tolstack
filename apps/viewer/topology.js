@@ -1110,6 +1110,76 @@
     return preset;
   };
 
+  // --- the graph's width (the_dag_is_coloured_by_a_chosen_attribute_and_
+  // spaced_to_taste, 2026-11-05) ---------------------------------------------
+  //
+  // Jeff: "It's still pretty bunched up (too narrow) ... an option to space it
+  // out to med and wide". The column pitch, and nothing else: rows, glyphs and
+  // the jog zone keep their sizes. `narrow` is the pitch the DAG has always
+  // had. Mutates VA.RAIL_METRICS in place, like VA.applyRowDensity, so every
+  // holder of the object reads the new pitch with nothing to re-wire. A
+  // uniform scale of x keeps every crossing where it was (the lesson measures
+  // it), so this spaces the drawing out without re-laying it.
+  VA.GRAPH_WIDTHS = {
+    narrow: { gutter: 20, label: "Narrow" },
+    medium: { gutter: 30, label: "Medium" },
+    wide: { gutter: 42, label: "Wide" },
+  };
+  VA.GRAPH_WIDTH_ORDER = ["narrow", "medium", "wide"];
+
+  VA.applyGraphWidth = function (width) {
+    var preset = VA.GRAPH_WIDTHS[width] || VA.GRAPH_WIDTHS.narrow;
+    VA.RAIL_METRICS.gutter = preset.gutter;
+    return preset;
+  };
+
+  // --- group fill ------------------------------------------------------------
+  //
+  // A group is a thin bright border in its kind's hue (topology.css,
+  // `--group-*`); whether any group is ALSO filled is this setting: none, the
+  // parts only (the smallest group, drawn solid with every border on top), or
+  // every kind.
+  VA.GROUP_FILLS = {
+    off: { label: "None" },
+    parts: { label: "Parts" },
+    all: { label: "All groups" },
+  };
+  VA.GROUP_FILL_ORDER = ["off", "parts", "all"];
+
+  // The DAG's three view settings, remembered across sessions in one store
+  // entry (like the group kinds, VA.readGroupKinds): which colour scheme
+  // (VA.COLOUR_SCHEMES), which group fill, which width. An unreadable store,
+  // or a word outside its table, reads as that setting's default.
+  VA.DAG_VIEW_KEY = "tolstack.viewer.dagView";
+  VA.DAG_VIEW_DEFAULTS = { colourBy: "none", groupFill: "off", graphWidth: "narrow" };
+
+  VA.readDagView = function (store) {
+    var out = Object.assign({}, VA.DAG_VIEW_DEFAULTS);
+    try {
+      var raw = store && store.getItem(VA.DAG_VIEW_KEY);
+      var saved = raw ? JSON.parse(raw) : null;
+      if (saved && typeof saved === "object") {
+        if (VA.colourScheme(saved.colourBy)) out.colourBy = saved.colourBy;
+        if (VA.GROUP_FILLS[saved.groupFill]) out.groupFill = saved.groupFill;
+        if (VA.GRAPH_WIDTHS[saved.graphWidth]) out.graphWidth = saved.graphWidth;
+      }
+    } catch (err) {
+      // Unreadable: the defaults.
+    }
+    return out;
+  };
+
+  VA.writeDagView = function (store, view) {
+    try {
+      if (!store) return;
+      store.setItem(VA.DAG_VIEW_KEY, JSON.stringify({
+        colourBy: view.colourBy, groupFill: view.groupFill, graphWidth: view.graphWidth,
+      }));
+    } catch (err) {
+      // A browser that refuses to store it still draws it for this session.
+    }
+  };
+
   // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) --------
   //
   // A display preference like rowDensity: how much vertical extent each EDGE
@@ -1579,7 +1649,16 @@
   //: is not waiting for the answer, long enough that the eye can follow a row
   //: from where it was to where it went -- which is the whole point of
   //: animating it at all rather than repainting.
-  VA.RESPINE = { duration: 260 };
+  //: `fitDuration` is a landing that pulls the camera back to take in where it
+  //: was and where it is going before it goes in (fit, then focus); `fitShare`
+  //: is how much of it the pulling back takes and `fitAt` how far through the
+  //: respine the drawing is when the camera is furthest out; `fitSlack` is how
+  //: much smaller than the lower of the two scales the pulled-back one must be
+  //: before it is worth a phase of its own. Chosen by eye on
+  //: `node scripts/filmstrip.mjs`: long enough that each of the two moves is a
+  //: movement and not a jump, short enough that a click is not a wait.
+  VA.RESPINE = { duration: 700, fitDuration: 1100, fitShare: 0.45, fitAt: 0.5,
+                 fitSlack: 0.02 };
 
   // Ease-in-out cubic, clamped to [0, 1]. Eased once by the caller and handed
   // to everything below as a plain fraction, so the tween, the fades and the
@@ -2705,6 +2784,7 @@
   // one click from any other. Every kind a group can carry is named here.
   VA.GROUP_KINDS = [
     { id: "bodies",    label: "Bodies" },
+    { id: "parts",     label: "Parts" },
     { id: "chain",     label: "Chain studies" },
     { id: "kinematic", label: "Kinematic studies" },
   ];
@@ -2819,6 +2899,257 @@
       if (bodies[i].id === bodyId) return i % VA.BODY_TINTS;
     }
     return 0;
+  };
+
+  // Which body a part is carried by ({partId: bodyId}), off `bodies[].parts`.
+  VA.bodyOfPart = function (topoProj) {
+    var out = {};
+    ((topoProj && topoProj.bodies) || []).forEach(function (body) {
+      (body.parts || []).forEach(function (part) {
+        if (out[part] === undefined) out[part] = body.id;
+      });
+    });
+    return out;
+  };
+
+  // --- parts as groups ------------------------------------------------------
+  //
+  // The smallest group (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_
+  // to_taste): every maximal run of consecutive rows on one part, inside one
+  // body, as {part, body, start, end, lo, hi}. An edge row is on its `part`; a
+  // node row is on the part of the edge it continues (the row above, else the
+  // row below) when that part meets there, else on its only part. A run holds
+  // at least one edge: a part that is one face is its node's glyph, not a box.
+  VA.partSpans = function (rows, topoProj) {
+    rows = rows || [];
+    var edges = {};
+    var nodes = {};
+    ((topoProj && topoProj.edges) || []).forEach(function (e) { edges[e.id] = e; });
+    ((topoProj && topoProj.nodes) || []).forEach(function (n) { nodes[n.id] = n; });
+    var edgePart = function (row) {
+      if (!row || row.kind !== "edge" || row.collapsed) return null;
+      var e = edges[row.id];
+      return (e && e.part) || null;
+    };
+    var partOf = rows.map(function (row, i) {
+      if (row.collapsed) return null;
+      if (row.kind === "edge") return edgePart(row);
+      var meets = (nodes[row.id] && nodes[row.id].parts) || [];
+      var above = edgePart(rows[i - 1]);
+      if (above && meets.indexOf(above) !== -1) return above;
+      var below = edgePart(rows[i + 1]);
+      if (below && meets.indexOf(below) !== -1) return below;
+      return meets.length === 1 ? meets[0] : null;
+    });
+    var spans = [];
+    rows.forEach(function (row, i) {
+      var part = partOf[i];
+      if (!part) return;
+      var run = spans[spans.length - 1];
+      if (run && run.part === part && run.body === row.body && run.end === row.row - 1) {
+        run.end = row.row;
+        run.lo = Math.min(run.lo, row.column);
+        run.hi = Math.max(run.hi, row.column);
+        if (row.kind === "edge") run.edges++;
+      } else {
+        spans.push({ part: part, body: row.body, start: row.row, end: row.row,
+                     lo: row.column, hi: row.column, edges: row.kind === "edge" ? 1 : 0 });
+      }
+    });
+    return spans.filter(function (s) { return s.edges > 0; }).map(function (s) {
+      return { part: s.part, body: s.body, start: s.start, end: s.end, lo: s.lo, hi: s.hi };
+    });
+  };
+
+  // --- colour overlays (the_dag_is_coloured_by_a_chosen_attribute_and_
+  // spaced_to_taste) ----------------------------------------------------------
+  //
+  // Jeff: "color edges/nodes based on different attributes, similar to how FEA
+  // plots can have different overlays ... Make it extendable". One table of
+  // named schemes; each maps an edge and a node to a TOKEN (a class suffix
+  // topology.css turns into `--ovl`, the ink the bar, the dot and the glyph
+  // wear) or to null (the neutral edge ink). Lit and unlit stay weight. A
+  // seventh scheme is one entry here and its tokens in topology.css.
+  //
+  // `info` is VA.dagOverlay's, built once per paint: the topology, its maps,
+  // and what the page knows beyond it (a kinematic page's contributions).
+  //
+  // The palettes are argued, and their validator runs recorded, in
+  // docs/DESIGN_TYPE_AND_COLOUR.md and this handoff's lesson.
+
+  // How many steps the contribution ramp has (topology.css `--ovl-seq-0..`).
+  VA.CONTRIBUTION_STEPS = 5;
+  // How many shades a body's hue takes in the part scheme, so neighbouring
+  // parts of one body differ (topology.css `.ovl-s1`, `.ovl-s2`).
+  VA.PART_SHADES = 3;
+
+  VA.COLOUR_SCHEMES = [
+    { id: "none", label: "None" },
+    {
+      id: "body", label: "Body",
+      edge: function (info, e) {
+        var body = e.part ? info.bodyOfPart[e.part] : null;
+        return body ? "ovl-b" + VA.bodyTint(info.topoProj, body) : null;
+      },
+      node: function (info, n) {
+        var body = (n.parts || []).length ? info.bodyOfPart[n.parts[0]] : null;
+        return body ? "ovl-b" + VA.bodyTint(info.topoProj, body) : null;
+      },
+      legend: function (info) { return bodyLegend(info); },
+    },
+    {
+      id: "part", label: "Part",
+      edge: function (info, e) { return e.part ? partToken(info, e.part) : null; },
+      node: function (info, n) {
+        return (n.parts || []).length ? partToken(info, n.parts[0]) : null;
+      },
+      legend: function (info) { return bodyLegend(info); },
+    },
+    {
+      id: "interface", label: "Interface type",
+      edge: function (info, e) { return interfaceToken(e.interface); },
+      node: function (info, n) { return interfaceToken(info.jointKinds[n.id]); },
+      legend: function (info, used) {
+        return VA.NODE_GLYPH_PRECEDENCE.filter(function (kind) {
+          return used[interfaceToken(kind)];
+        }).map(function (kind) {
+          return { token: interfaceToken(kind), label: VA.INTERFACE_GLYPHS[kind].label };
+        });
+      },
+    },
+    {
+      id: "sourcing", label: "Sourcing",
+      edge: function (info, e) {
+        if (e.kind === "gap") return "ovl-src-gap";
+        if (VA.CONFIDENCES.indexOf(e.confidence) !== -1) return "ovl-conf--" + e.confidence;
+        return "ovl-src-none";
+      },
+      node: function () { return null; },
+      legend: function (info, used) {
+        var out = VA.CONFIDENCES.filter(function (c) { return used["ovl-conf--" + c]; })
+          .map(function (c) {
+            return { token: "ovl-conf--" + c, label: VA.CONFIDENCE_LABEL[c].toLowerCase() };
+          });
+        if (used["ovl-src-gap"]) out.push({ token: "ovl-src-gap", label: "gap" });
+        if (used["ovl-src-none"]) out.push({ token: "ovl-src-none", label: "no value" });
+        return out;
+      },
+    },
+    {
+      id: "contribution", label: "Contribution",
+      // |sensitivity| x band at the page's stop, on a kinematic page only.
+      available: function (options) { return !!(options && options.contributions); },
+      edge: function (info, e) {
+        var m = info.contributions[e.id];
+        if (!(typeof m === "number" && m > 0 && info.maxContribution > 0)) return null;
+        var step = Math.ceil(VA.CONTRIBUTION_STEPS * m / info.maxContribution) - 1;
+        return "ovl-seq-" + Math.max(0, Math.min(VA.CONTRIBUTION_STEPS - 1, step));
+      },
+      node: function () { return null; },
+      legend: function (info) {
+        var out = [];
+        for (var s = 0; s < VA.CONTRIBUTION_STEPS; s++) {
+          var hi = info.maxContribution * (s + 1) / VA.CONTRIBUTION_STEPS;
+          out.push({ token: "ovl-seq-" + s,
+                     label: "≤ ±" + VA.fmt(hi) + (info.units ? " " + info.units : "") });
+        }
+        return out;
+      },
+    },
+  ];
+
+  VA.colourScheme = function (id) {
+    for (var i = 0; i < VA.COLOUR_SCHEMES.length; i++) {
+      if (VA.COLOUR_SCHEMES[i].id === id) return VA.COLOUR_SCHEMES[i];
+    }
+    return null;
+  };
+
+  // The schemes this page can draw: a scheme with an `available` test only
+  // where it passes.
+  VA.availableColourSchemes = function (options) {
+    return VA.COLOUR_SCHEMES.filter(function (s) {
+      return !s.available || s.available(options);
+    });
+  };
+
+  function interfaceToken(kind) {
+    var i = kind ? VA.NODE_GLYPH_PRECEDENCE.indexOf(kind) : -1;
+    return i === -1 ? null : "ovl-i" + i;
+  }
+
+  function partToken(info, part) {
+    var body = info.bodyOfPart[part];
+    if (!body) return null;
+    var shade = info.partShade[part] || 0;
+    return "ovl-b" + VA.bodyTint(info.topoProj, body) + (shade ? " ovl-s" + shade : "");
+  }
+
+  function bodyLegend(info) {
+    return ((info.topoProj && info.topoProj.bodies) || []).map(function (body) {
+      return { token: "ovl-b" + VA.bodyTint(info.topoProj, body.id), label: body.name || body.id };
+    });
+  }
+
+  // One paint's overlay: {scheme, edges: {id: classes}, nodes: {id: classes},
+  // legend: [{token, label}]}. `classes` is "ovl <token>" -- the generic class
+  // the stylesheet's ink rules key on, and the scheme's token -- or absent for
+  // the neutral ink. `none`, an unknown id, or a scheme this page cannot draw
+  // is no overlay at all (empty maps, no legend). `options.contributions` is
+  // {edgeId: magnitude} (VA.kinematicContributions) and `options.units` its
+  // unit.
+  VA.dagOverlay = function (schemeId, topoProj, options) {
+    var scheme = VA.colourScheme(schemeId);
+    var out = { scheme: "none", edges: {}, nodes: {}, legend: [] };
+    if (!scheme || !scheme.edge || (scheme.available && !scheme.available(options))) return out;
+    var info = {
+      topoProj: topoProj,
+      bodyOfPart: VA.bodyOfPart(topoProj),
+      partShade: {},
+      jointKinds: VA.nodeJointKinds(topoProj),
+      contributions: (options && options.contributions) || {},
+      maxContribution: 0,
+      units: (options && options.units) || null,
+    };
+    ((topoProj && topoProj.bodies) || []).forEach(function (body) {
+      (body.parts || []).forEach(function (part, i) {
+        if (info.partShade[part] === undefined) info.partShade[part] = i % VA.PART_SHADES;
+      });
+    });
+    Object.keys(info.contributions).forEach(function (id) {
+      var m = info.contributions[id];
+      if (typeof m === "number" && m > info.maxContribution) info.maxContribution = m;
+    });
+    var used = {};
+    var put = function (into, id, token) {
+      if (!token) return;
+      into[id] = "ovl " + token;
+      used[token] = true;
+    };
+    ((topoProj && topoProj.edges) || []).forEach(function (e) { put(out.edges, e.id, scheme.edge(info, e)); });
+    ((topoProj && topoProj.nodes) || []).forEach(function (n) { put(out.nodes, n.id, scheme.node(info, n)); });
+    out.scheme = scheme.id;
+    out.legend = scheme.legend ? scheme.legend(info, used) : [];
+    return out;
+  };
+
+  // A kinematic study's contribution per edge at one stop ({edgeId:
+  // magnitude}, |sensitivity| x band in the study's own units): the stop's
+  // linkage terms and every sub-study's terms, as the projection states them.
+  // The first stop where `stopId` names none. Nothing is added up here.
+  VA.kinematicContributions = function (study, stopId) {
+    var stops = (study && study.stops) || [];
+    if (!stops.length) return null;
+    var stop = stops.filter(function (s) { return s.id === stopId; })[0] || stops[0];
+    var out = {};
+    var take = function (row) {
+      if (row && row.edge && typeof row.magnitude === "number") {
+        out[row.edge] = Math.max(out[row.edge] || 0, Math.abs(row.magnitude));
+      }
+    };
+    (stop.rows || []).forEach(take);
+    (stop.groups || []).forEach(function (g) { (g.children || []).forEach(take); });
+    return out;
   };
 
   // True when some edge drawn inside `bodyId` is lit: a container with no lit
@@ -3114,6 +3445,15 @@
       f.body = span.body;
       return f;
     });
+    // The parts (VA.partSpans): inside their body's field, a little narrower
+    // and inset a row's quarter, so the two borders never coincide.
+    out.parts = (options && options.topoProj ? VA.partSpans(rows, options.topoProj) : [])
+      .map(function (span) {
+        var f = field(span, pad - 3, 3);
+        f.part = span.part;
+        f.body = span.body;
+        return f;
+      });
     // The study groups, one entry per `options.groups` item (VA.studyGroups):
     // its spans, a little wider than a body field so the two read as nested.
     out.groups = ((options && options.groups) || []).map(function (group) {
@@ -3280,167 +3620,6 @@
     if (part.display_name && part.id) text += " · " + part.id;
     if (part.drawing) text += " · drawing " + part.drawing;
     return text;
-  };
-
-  // --- the element cell drops what the rest of the row already says --------
-  //
-  // Jeff, 2026-09-14: "nearly every row in the 'element' column starts with
-  // the same phrase as the 'component' column to the left, which then robs a
-  // bunch of the limited space, and then the meaningful content gets
-  // truncated" -- under component `blade_root`, three rows all rendered
-  // "blade-root clocking holes to th...". And again on 2026-09-15, wider:
-  // "the element column can just say 'grip length' (for the bolt) or 'length'
-  // for the plain bushing. The component's description and part number don't
-  // need to be repeated in every column."
-  //
-  // So two reductions, not one, and both are ONE FACT SAID ONCE PER ROW:
-  //
-  //   1. a whole CLAUSE that only restates the component (", NAS6403U11D",
-  //      "(214820-002)") or only restates the row's own value ("(.688 in)" --
-  //      the row has three number columns) is dropped, with its separator;
-  //   2. then any LEADING WORDS the component cell already carries are
-  //      dropped off the front ("plain bushing length" -> "length").
-  //
-  // DISPLAY ONLY. This never touches the document, the projection or any
-  // value: the full label still rides on the cell's own hover title and is
-  // what the preview pane prints, so nothing a reader can cite has been
-  // shortened. Nothing is reworded or reordered either -- every character of
-  // the output is a character of the input, in the input's order, which is
-  // what lets this be applied to authored prose without becoming an author.
-  // (Whether the authored `name` fields should themselves be shortened is
-  // ISSUE_20260914_element_and_edge_names_are_not_under_the_title_rule.md --
-  // an authoring question this display rule deliberately does not pre-empt.)
-  //
-  // Guards, each one a case off the five live topologies:
-  //   * a label with nothing to drop comes back unchanged, character for
-  //     character (pinned in apps/viewer/tests.js by walking the output's
-  //     characters against the input's, on the fixture and on every live row);
-  //   * a label that is ONLY its component's words comes back unchanged -- an
-  //     empty element cell would be a worse lie than a repetitive one;
-  //   * only LEADING words are dropped by rule 2, never words inside a
-  //     phrase: "cotter-hole centreline to bolt point", under a component
-  //     whose name contains "bolt", must not become "... to point";
-  //   * a clause is dropped only when EVERY token in it is already-said, so
-  //     "(A datum)", "(5X group)" and "(dimension M)" all survive;
-  //   * the component's words match whole and case/separator-insensitively,
-  //     so `NAS6403 grip-selection family` never eats `NAS6403U2H` -- the
-  //     dash number is the only thing separating that topology's nine rows
-  //     from each other.
-  function labelWords(text) {
-    return String(text === null || text === undefined ? "" : text)
-      .toLowerCase().split(/[\s\-_/,;:()[\]]+/).filter(Boolean);
-  }
-
-  // A unit says nothing the row's own number columns do not. A module-level
-  // vocabulary, never inline literals (repo rule): these words are read by
-  // the clause test below and by the test that pins the rule.
-  VA.LABEL_UNIT_WORDS = Object.freeze(["in", "in.", "inch", "inches",
-    "mm", "deg", "degree", "degrees", "rad", "radians"]);
-
-  function isNumberWord(word) {
-    return /^[+\-±]?[0-9]*\.?[0-9]+$/.test(word);
-  }
-
-  // The words the component cell to the left of this row actually PRINTS --
-  // its label and nothing else. Not the id and not the drawing: the whole
-  // justification for dropping a word is "the cell beside it already says
-  // this", so matching against a string the cell does not show would drop
-  // words the reader never saw twice ("bushing flange thickness" under a cell
-  // reading "part not identified", whose id happens to be
-  // `flanged_bushing_unidentified`). Accepts the projected part row, or a
-  // bare string -- which is the part id, the cell's own text until this
-  // handoff, and still what a caller with only an id on hand can pass.
-  function componentWords(part) {
-    if (!part) return [];
-    return labelWords(typeof part === "string" ? part : VA.componentLabel(part));
-  }
-
-  // The label split into (separator, clause) segments, on commas, semicolons,
-  // dashes, middots and bracketed groups. Concatenating every segment
-  // reproduces the input exactly -- which is what lets one clause be dropped
-  // without rewriting the ones around it, and a separator therefore travels
-  // with the clause that FOLLOWS it.
-  function labelSegments(text) {
-    var segments = [];
-    var re = /(\s*(?:,|;|--|—|·)\s*)|(\([^)]*\)|\[[^\]]*\])/g;
-    var sep = "";
-    var buf = "";
-    var at = 0;
-    var m;
-    var flush = function (nextSep) {
-      if (buf) segments.push({ sep: sep, text: buf });
-      sep = nextSep;
-      buf = "";
-    };
-    while ((m = re.exec(text)) !== null) {
-      buf += text.slice(at, m.index);
-      at = re.lastIndex;
-      if (m[1] !== undefined) {
-        flush(m[1]);
-        continue;
-      }
-      // A bracketed group is a clause of its own; the whitespace in front of
-      // it becomes that clause's separator, so dropping it takes the space.
-      var lead = /\s*$/.exec(buf)[0];
-      buf = buf.slice(0, buf.length - lead.length);
-      flush(lead);
-      buf = m[2];
-      flush("");
-    }
-    buf += text.slice(at);
-    flush("");
-    return segments;
-  }
-
-  VA.elementDisplayLabel = function (label, part) {
-    var text = String(label === null || label === undefined ? "" : label);
-    var component = componentWords(part);
-    var said = {};
-    component.forEach(function (word) { said[word] = true; });
-
-    // 1. the clauses that say nothing the rest of the row does not.
-    var kept = labelSegments(text).filter(function (segment) {
-      var words = labelWords(segment.text);
-      if (!words.length) return true;
-      return !words.every(function (word) {
-        return said[word] === true || isNumberWord(word) ||
-          VA.LABEL_UNIT_WORDS.indexOf(word) !== -1;
-      });
-    });
-    var out = kept.map(function (segment, index) {
-      return (index === 0 ? "" : segment.sep) + segment.text;
-    }).join("").trim();
-    if (!out) return text;
-
-    // 2. the leading words the component cell already carries.
-    //
-    // Consumed greedily word by word, but a cut is only TAKEN where it lands
-    // on a whitespace boundary or where the run has covered the component's
-    // whole name. That second clause is what keeps `blade_root` off
-    // "blade_rooting torque" -- one hyphen- or underscore-joined token is one
-    // word to a reader, so cutting inside one is only safe when the thing cut
-    // off is unmistakably the component's own name and not the front half of a
-    // longer word. (The first clause is what lets "blade-root clocking holes"
-    // lose both its words under a component cell reading "blade root".)
-    if (!component.length) return out;
-    var wanted = component.length;
-    var covered = {};
-    var coveredCount = 0;
-    var cut = 0;                 // characters consumed by the best cut so far
-    var at = 0;
-    for (;;) {
-      var head = /^[\s\-_/]*([^\s\-_/,;:()[\]]+)/.exec(out.slice(at));
-      if (!head) break;
-      var word = head[1].toLowerCase();
-      if (said[word] !== true) break;
-      at += head[0].length;
-      if (covered[word] !== true) { covered[word] = true; coveredCount += 1; }
-      var boundary = at >= out.length || /^\s/.test(out.slice(at));
-      if (!boundary && coveredCount < wanted) continue;
-      // Never leave the cell empty: a repetitive label beats a blank one.
-      if (labelWords(out.slice(at)).length) cut = at;
-    }
-    return cut ? out.slice(cut).replace(/^[\s\-_/]+/, "") || out : out;
   };
 
   // The whole plan of the merged-row grid, from the topology's whole-graph
@@ -4231,6 +4410,21 @@
       });
     });
     return parts;
+  };
+
+  // Each part in its body's colour, as the scene's `model tint` verb spells
+  // it (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste): one
+  // `part=#rrggbb` per part a body carries, the hex being that body's DAG ink
+  // (`inkOf(tint index)`, read off topology.css's `--tv-body-ink-*` by the
+  // page). `off` where there is no topology or no ink could be read.
+  VA.sceneTintCommand = function (topoProj, inkOf) {
+    var pairs = [];
+    ((topoProj && topoProj.bodies) || []).forEach(function (body) {
+      var hex = inkOf ? inkOf(VA.bodyTint(topoProj, body.id)) : null;
+      if (!/^#[0-9a-fA-F]{6}$/.test(hex || "")) return;
+      (body.parts || []).forEach(function (part) { pairs.push(part + "=" + hex.toLowerCase()); });
+    });
+    return ["model", "tint"].concat(pairs.length ? pairs : ["off"]);
   };
 
   VA.partScopeCommand = function (ids) {

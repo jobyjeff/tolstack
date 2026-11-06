@@ -285,6 +285,8 @@ async function cmdOpenPart(identifier) {
   // Opening/showing a part means "the solid part": a leftover ghost state
   // from an earlier `trace`/`ghost` would silently render it translucent.
   state.scene.setGhost(mesh.sha256, false);
+  // ...unless a sweep or a study owns the looks: then it arrives at rest's.
+  applyLooks();
   renderPartsPanel();
   // A part drawn anywhere but where the assembly puts it says so, the moment
   // it appears -- its panel row says it too, for as long as it is listed.
@@ -316,9 +318,9 @@ async function cmdIsolate(...identifiers) {
 }
 
 // isolate parts <part…> -- the viewer's study filter (handoff every_study_
-// opens_in_3d_showing_only_its_parts): the named parts solid, every other
-// installed part ghosted (hidden under the unlit word `hide`), the solid set
-// framed. Same snapshot and same `isolate off` as isolate; the one difference
+// opens_in_3d_showing_only_its_parts): the named parts ghost, every other
+// installed part faint (hidden under the unlit word `hide`), the named set
+// framed -- nothing solid until an action names it (applyLooks). Same snapshot and same `isolate off` as isolate; the one difference
 // is that the rest stays drawn. A scope none of whose parts has a mesh draws
 // nothing differently and says so in the head line.
 async function scopeToParts(identifiers) {
@@ -361,23 +363,105 @@ function cmdSceneView() {
   return state.scene.listOpenParts().map((sha) => {
     const mesh = state.meshList.find((m) => m.sha256 === sha);
     return { part: (mesh && mesh.part_id) || null, sha256: sha,
-      visible: state.scene.isVisible(sha), ghost: state.scene.isGhosted(sha) };
+      visible: state.scene.isVisible(sha), ghost: state.scene.isGhosted(sha),
+      look: state.scene.lookOf(sha) };
   });
 }
 
-// What the scope draws NOW: solid targets, the rest ghost or hidden by the
-// page's unlit word. Re-run when that word changes. An armed pick owns the
-// scene while armed (disarming restores what it found, this scope included).
+// What the scope draws NOW: its parts and the rest shown, or the rest hidden
+// by the page's unlit word; how each looks is lookOf's. Re-run when that word
+// changes. An armed pick owns the scene while armed (disarming restores what
+// it found, this scope included).
 function applyPartScope() {
   const scope = state.partScope;
   if (!scope || !scope.targets.length) return;
   if (state.sweep && state.sweep.armed) return;
-  const hideRest = state.model.unlit === AA.MODEL_UNLIT_STYLES[1];
-  const plan = AA.planPartScope(state.scene.listOpenParts(), scope.targets, hideRest);
-  plan.solid.forEach((sha) => { state.scene.setVisible(sha, true); state.scene.setGhost(sha, false); });
-  plan.ghost.forEach((sha) => { state.scene.setVisible(sha, true); state.scene.setGhost(sha, true); });
+  const plan = AA.planPartScope(state.scene.listOpenParts(), scope.targets, scopeHidesRest());
+  plan.ghost.concat(plan.faint).forEach((sha) => state.scene.setVisible(sha, true));
   plan.hide.forEach((sha) => state.scene.setVisible(sha, false));
+  applyLooks();
   renderPartsPanel();
+}
+
+function scopeHidesRest() {
+  return state.model.unlit === AA.MODEL_UNLIT_STYLES[1];
+}
+
+// Does the study scope keep this part off screen (the unlit word is hide and
+// the study does not cite it)?
+function scopeHides(sha) {
+  const scope = state.partScope;
+  return !!(scope && scope.targets.length && scopeHidesRest() && scope.targets.indexOf(sha) === -1);
+}
+
+// --- how a part looks (handoff everything_in_3d_is_transparent_until_an_
+// action_needs_a_face) -------------------------------------------------------
+//
+// THE ONE PLACE a part's look (AA.PART_LOOKS) is decided while a study scope
+// or a sweep owns the scene. Before it, four paths each set the material
+// their own way -- the study scope drew its parts solid, the sweep frame
+// ghosted them and cached that it had, an armed pick and a selected
+// suggestion each snapshotted and put back -- and whichever ran last won: the
+// kinematic study opened with the scope's solid parts kept solid by the
+// frame's cache, the mount housing in front of the mechanism.
+//
+// At rest every drawn part is translucent: a study's own parts ghost, the
+// rest faint. While an action is in view (actionInView) the parts it names
+// are solid, their neighbours ghost and the rest faint. "See-through parts"
+// unticked is the reader asking for solid parts at rest, and gets them.
+// Cheap to re-run: setLook touches a material only when its look changes.
+function applyLooks() {
+  if (!state.scene || !looksOwned()) return;
+  const open = state.scene.listOpenParts();
+  const action = actionInView();
+  const looks = action ? AA.planActionLooks(open, action.about, action.near) : null;
+  for (const sha of open) state.scene.setLook(sha, looks ? looks[sha] : restLook(sha));
+}
+
+// A study scope or a sweep owns the looks -- at rest, unless the reader's own
+// isolate or ghost verb (the parts panel's Isolate) has set them.
+function looksOwned() {
+  const scoped = !!(state.partScope && state.partScope.targets.length);
+  if (actionInView()) return true;
+  if (state.isolation && !scoped) return false;
+  return !!state.sweep || scoped;
+}
+
+function restLook(sha) {
+  const scope = state.partScope;
+  if (scope && scope.targets.length && scope.targets.indexOf(sha) === -1) return AA.PART_LOOKS[2];
+  return state.transparentParts ? AA.PART_LOOKS[1] : AA.PART_LOOKS[0];
+}
+
+// The action the scene is showing, as {about, near} lists of sha256 -- or
+// null at rest. One at a time, the most immediate first: an armed pick; the
+// pointer on a candidate row; a rail row selected; the edge the page has
+// highlighted (a grid row hovered or selected).
+function actionInView() {
+  const sweep = state.sweep;
+  if (!sweep) return null;
+  if (sweep.armed) return { about: sweep.armed.shas, near: sweep.armed.near };
+  return sweep.washAction || sweep.focus || sweep.highlightAction || null;
+}
+
+// The installed meshes of some topology part ids, deduplicated.
+function partShas(ids) {
+  const out = [];
+  for (const id of ids || []) {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    if (mesh && out.indexOf(mesh.sha256) === -1) out.push(mesh.sha256);
+  }
+  return out;
+}
+
+// An edge as an action: one end's parts (or both, with no end) about, the
+// other end's near.
+function edgeAction(topology, edge, direction) {
+  if (!direction) return { about: partShas(AA.edgePartIds(topology, edge.id)), near: [] };
+  const other = direction === AA.DIRECTIONS[0] ? AA.DIRECTIONS[1] : AA.DIRECTIONS[0];
+  const about = partShas(AA.pickEndPartIds(topology, edge.id, direction));
+  return { about, near: partShas(AA.pickEndPartIds(topology, edge.id, other))
+    .filter((sha) => about.indexOf(sha) === -1) };
 }
 
 // ghost <part…> -- isolate's translucent twin (handoff study_3d_flyout): show
@@ -695,6 +779,7 @@ function cmdHighlight(topologyId, edgeId, direction) {
     window.__lastHighlight = null;
     state.model.emphasis = null;
     applyModelStyle();
+    setHighlightAction(null);
     return null;
   }
   if (!topologyId || !edgeId) throw new Error("highlight needs <topology> <edge>, or clear");
@@ -706,6 +791,13 @@ function cmdHighlight(topologyId, edgeId, direction) {
   // line is drawn from anchors, which every edge has.
   state.model.emphasis = state.currentTopology && state.currentTopology.id === topologyId ? edgeId : null;
   applyModelStyle();
+  // In sweep mode the edge is an action on the scene: its parts solid, the
+  // rest dimmed, for as long as the page highlights it -- a grid row hovered,
+  // or the one selected. The camera stays: the same verb is the grid's hover.
+  const sweepTopo = sweepTopology();
+  const sweepEdge = sweepTopo && sweepTopo.id === topologyId &&
+    (sweepTopo.edges || []).find((e) => e.id === edgeId);
+  setHighlightAction(sweepEdge ? edgeAction(sweepTopo, sweepEdge, direction || null) : null);
   const open = new Set(state.scene.listOpenParts());
   const plan = AA.planHighlight(mergedIdentityProjection(), topologyId, edgeId,
     (sha) => open.has(sha), direction);
@@ -716,6 +808,15 @@ function cmdHighlight(topologyId, edgeId, direction) {
   }
   state.scene.highlightFace(plan.face.sha256, plan.face.faceId);
   return plan.face;
+}
+
+// The page's highlighted edge, as the scene's action (actionInView); null
+// lets go. Sweep mode only -- bind mode's highlight is a tint and no more.
+function setHighlightAction(action) {
+  const sweep = state.sweep;
+  if (!sweep) return;
+  sweep.highlightAction = action && action.about.length ? action : null;
+  applyLooks();
 }
 
 // deselect [face|element|all] -- select-face's and select-edge's undo
@@ -941,6 +1042,8 @@ function cmdTransparency(value) {
   state.scene.listOpenParts().forEach((sha) => {
     if (state.scene.isVisible(sha)) state.scene.setGhost(sha, on);
   });
+  // ...where a study or a sweep owns the looks, as its rule reads the setting.
+  applyLooks();
   renderHintPanel();
   return on;
 }
@@ -1764,53 +1867,29 @@ function applySweepFrame() {
         ? AA.sweepMeshMatrices(entries, sweep.frame) : null,
       sweep.layers.bodies ? entries.map((e) => e.key) : null);
     }
-    state.scene.setVisible(sha, !!sweep.layers.bodies);
-    // THE SAME "See-through parts" PREFERENCE the rest of this app honours,
-    // and for a sharper reason here: the stick figure is sweep mode's
-    // content and the bodies are what it is attached to, so an opaque
-    // 286-solid hub hides the thing a reader opened this mode to watch.
-    // Default on; a reader who wants solid bodies unticks the box they
-    // already know.
-    //
-    // Neither input below changes between frames of a playing sweep --
-    // `transparentParts` is a stored preference and a row's placements are
-    // the occurrence's as-modelled `placement_world`, which by definition
-    // does not move. Applying either one again every frame bumps the part's
-    // material version (setGhost) or reallocates a mesh and a material per
-    // part (setSweepGhost), so each is applied only on the frame its own
-    // input actually changes, tracked per mesh on the sweep itself -- a fresh
-    // object every time a sweep (re)starts, so there is nothing stale to
-    // reset.
+    state.scene.setVisible(sha, !!sweep.layers.bodies && !scopeHides(sha));
+    // An as-modelled row's placement is the occurrence's `placement_world`,
+    // which by definition does not move between frames, and setSweepGhost
+    // reallocates a mesh and a material per part -- so it is applied only on
+    // the frame its own input changes, tracked per mesh on the sweep itself
+    // (a fresh object every time a sweep (re)starts: nothing stale to reset).
     const applied = sweep.applied || (sweep.applied = {});
     const mine = applied[sha] || (applied[sha] = {});
-    const wantGhost = !!state.transparentParts;
-    if (mine.ghost !== wantGhost) {
-      state.scene.setGhost(sha, wantGhost);
-      mine.ghost = wantGhost;
-    }
     // The as-modelled copies are of what MOVES -- a still occurrence's copy
     // would sit exactly on top of it, saying nothing.
     const wantSweepGhost = !!sweep.layers.ghost && !!entries;
     if (mine.sweepGhost !== wantSweepGhost) {
-      state.scene.setSweepGhost(sha, wantSweepGhost
-        ? entries.filter((e) => e.subject).map((e) => e.placement) : null);
+      const moving = wantSweepGhost ? entries.filter((e) => e.subject) : [];
+      state.scene.setSweepGhost(sha, wantSweepGhost ? moving.map((e) => e.placement) : null,
+        moving.map((e) => e.key));
       mine.sweepGhost = wantSweepGhost;
     }
   }
-  // ...and the same preference on every OTHER visible part: a still part is
-  // context, and an opaque one in front of the plate hides the thing this
-  // mode was opened to watch exactly as an anchored one would. Cached the
-  // same way; leaving sweep mode puts each part's own state back.
-  const applied = sweep.applied || (sweep.applied = {});
-  for (const sha of state.scene.listOpenParts()) {
-    if (sweep.anchored.indexOf(sha) !== -1 || !state.scene.isVisible(sha)) continue;
-    const mine = applied[sha] || (applied[sha] = {});
-    const wantGhost = !!state.transparentParts;
-    if (mine.ghost !== wantGhost) {
-      state.scene.setGhost(sha, wantGhost);
-      mine.ghost = wantGhost;
-    }
-  }
+  // How every part looks -- anchored or still, the stick figure is this
+  // mode's content and an opaque 286-solid hub in front of it hides the thing
+  // a reader opened the mode to watch. lookOf decides; restating it every
+  // frame costs nothing (setLook touches a material only on a change).
+  applyLooks();
   applyModelFrame();
   // An armed pick's drawing outranks the per-frame visibility above (a
   // layer toggled while armed must not bring the other parts back solid).
@@ -2561,8 +2640,7 @@ function subjectOccurrences(name) {
 function subjectKnown(name) {
   const tree = state.sweep && state.sweep.tree;
   if (!tree || !name) return false;
-  return tree.bodies.some((b) => b.name === name) ||
-    tree.joints.some((j) => j.name === name && j.parts.length);
+  return AA.sweepTreeSubjects(tree).some((b) => b.name === name);
 }
 
 // Show or hide a list of occurrences, remembering which the rail hid so
@@ -2675,11 +2753,17 @@ async function cmdArm(what, direction) {
     restore.opened.push(t.sha256);
   }
   const names = AA.edgeEndNames(topology, edge);
+  // The neighbours an armed pick keeps in view (ghost, not faint): the end's
+  // other part, and the parts at the edge's other end -- what the face being
+  // picked sits against.
+  const near = targets.map((t) => t.sha256)
+    .concat(edgeAction(topology, edge, direction).near);
   sweep.armed = {
     topologyId: topology.id, edgeId: edge.id, direction,
     endName: names[direction] || edge.id,
     parts: targets, active: 0,
     shas: [targets[0].sha256],
+    near,
     partWords: AA.partRowWords(targets[0].mesh, state.partNames).text,
     others: AA.readArmOthers(prefStore()),
     line: "",
@@ -2730,14 +2814,15 @@ function switchArmedPart(i) {
 }
 
 // The occurrences of each target ({partId, sha256}) its BODY anchors: a
-// pitch arm is drawn five times and an end is on one of them. A part no body
-// lists is every occurrence of it. What an armed pick and a selected
+// pitch arm is drawn five times and an end is on one of them. A link is a
+// body here too (AA.sweepTreeSubjects): the pitch link is drawn five times
+// and the run poses blade 1's. A part no body lists is every occurrence of it. What an armed pick and a selected
 // suggestion both frame.
 function anchoredOccurrences(targets) {
   const sweep = state.sweep;
   const out = [];
   for (const t of targets) {
-    const body = t.partId ? (sweep.tree.bodies || []).find((b) => b.parts.indexOf(t.partId) !== -1) : null;
+    const body = t.partId ? AA.sweepTreeSubjects(sweep.tree).find((b) => b.parts.indexOf(t.partId) !== -1) : null;
     const scoped = body ? AA.sweepPartOccurrences(sweep.occurrences, body.name, t.sha256) : [];
     if (scoped.length) out.push(...scoped);
     else out.push({ sha256: t.sha256, key: null });
@@ -2745,22 +2830,22 @@ function anchoredOccurrences(targets) {
   return out;
 }
 
-// What every open part looks like while armed: the armed part solid and
-// shown, the rest ghosted faint or hidden (`others`), from what was shown.
+// What every open part shows while armed: the armed part shown, its
+// neighbours as they were, the rest as they were or hidden (`others`). How
+// each looks -- solid, ghost, faint -- is lookOf's (applyLooks).
 function applyArmDisplay() {
   const a = state.sweep && state.sweep.armed;
   if (!a) return;
   for (const entry of a.restore.parts.concat(a.restore.opened.map((sha) => ({ sha, visible: true })))) {
     if (a.shas.indexOf(entry.sha) !== -1) {
       state.scene.setVisible(entry.sha, true);
-      state.scene.setGhost(entry.sha, false);
-    } else if (a.others === AA.ARM_OTHERS_MODES[1]) {
+    } else if (a.others === AA.ARM_OTHERS_MODES[1] && a.near.indexOf(entry.sha) === -1) {
       state.scene.setVisible(entry.sha, false);
     } else {
       state.scene.setVisible(entry.sha, entry.visible);
-      state.scene.setGhost(entry.sha, true, true);
     }
   }
+  applyLooks();
 }
 
 // End the arm and put the scene back. `reason` is what the result says.
@@ -2770,11 +2855,10 @@ function disarmPick(reason) {
   if (!a) return { armed: false, reason: "not armed" };
   sweep.armed = null;
   state.scene.setPickFilter(null);
-  for (const entry of a.restore.parts) {
-    state.scene.setVisible(entry.sha, entry.visible);
-    state.scene.setGhost(entry.sha, entry.ghost);
-  }
+  for (const entry of a.restore.parts) state.scene.setVisible(entry.sha, entry.visible);
   for (const sha of a.restore.opened) state.scene.unloadPart(sha);
+  // Back to rest -- or to whatever action is still in view under the arm.
+  applyLooks();
   state.scene.setCameraState(a.restore.camera);
   renderSweepRail();
   renderDetail();
@@ -2860,11 +2944,11 @@ async function armedClick(pick, other) {
       part: mesh ? AA.partRowWords(mesh, state.partNames).text : a.partWords });
     const events = await writeAnswer(answer, a.edgeId, toast);
     disarmPick("bound");
-    state.sweep.lastBound = { topologyId: a.topologyId, edgeId: a.edgeId, direction: a.direction,
-      faceId: full.faceId, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
-    state.scene.markFace(full.sha256, full.faceId, "bound");
-    showToast(toast);
-    renderSweepRail();
+    // What follows is the rail Take's own (answeredAtEnd): the bound tint, the
+    // row's line, the toast, and the edge's other end opened next.
+    const topology = sweepTopology();
+    await answeredAtEnd(topology, topology.edges.find((e) => e.id === a.edgeId), a.direction,
+      { sha256: full.sha256, faceId: full.faceId }, events, toast);
     return { action: plan.action, faceId: full.faceId, supersedes: answer.supersedes,
       ratifies: answer.accept ? answer.accept.event_id : null,
       rejects: answer.reject.map((p) => p.event_id) };
@@ -2919,6 +3003,7 @@ function cmdHover(what, name, extra) {
     state.washToken++;
     state.scene.washFace(null);
     window.__lastWash = null;
+    dropWashAction();
     if (!state.sweep) return null;
   }
   const sweep = sweepState();
@@ -2983,6 +3068,12 @@ async function hoverFace(target) {
     if (token !== state.washToken) return null;
   }
   window.__lastWash = state.scene.washFace({ sha256: mesh.sha256, faceId: target.faceId });
+  // ...and in sweep mode the face's part is what the scene is about while
+  // the pointer rests there: solid, the rest dimmed. The camera stays.
+  if (state.sweep) {
+    state.sweep.washAction = { about: [mesh.sha256], near: [] };
+    applyLooks();
+  }
   return window.__lastWash;
 }
 
@@ -3415,6 +3506,14 @@ function clearCandidateWash() {
   state.washToken++;
   if (state.scene) state.scene.washFace(null);
   window.__lastWash = null;
+  dropWashAction();
+}
+
+// The washed face's part stops being the scene's action with its wash.
+function dropWashAction() {
+  if (!state.sweep || !state.sweep.washAction) return;
+  state.sweep.washAction = null;
+  applyLooks();
 }
 
 
@@ -3511,6 +3610,10 @@ function renderSweepRail() {
   state.scene.clearHover();
   window.__lastHover = null;
   clearCandidateWash();
+  // The rebuild keeps the rail where the reader left it: emptied, the rail
+  // is shorter than its scroll, and the browser clamps it.
+  const scroller = root.closest(".an__rail");
+  const scrolled = scroller ? scroller.scrollTop : 0;
   root.innerHTML = "";
   const tree = sweep.tree;
   const topology = sweepTopology();
@@ -3521,8 +3624,9 @@ function renderSweepRail() {
   const bodies = document.createElement("section");
   bodies.className = "an__tree-group";
   bodies.dataset.group = "bodies";
-  bodies.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.bodies + " (" + tree.bodies.length + ")"));
-  for (const body of tree.bodies) {
+  const subjects = AA.sweepTreeSubjects(tree);
+  bodies.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.bodies + " (" + subjects.length + ")"));
+  for (const body of subjects) {
     // A part picked in the scene opens the body it was picked on.
     if (selectedPart && selectedPart.subject === body.name) sweep.treeOpen["body:" + body.name] = true;
     const node = treeNode("body:" + body.name, AA.sweepBodyRowWords(body), body.open, null,
@@ -3549,23 +3653,21 @@ function renderSweepRail() {
     const holdsFeature = topology && joint.features.some((f) =>
       isSelectedFeature(topology, AA.sweepFeatureEdge(topology, f, joint.features)));
     if (holdsFeature) sweep.treeOpen["joint:" + joint.name] = true;
-    if (holds || (selectedPart && selectedPart.subject === joint.name)) {
-      sweep.treeOpen["joint:" + joint.name] = true;
-    }
+    // (A part picked on a link opens the link's body row, under Bodies.)
+    if (holds) sweep.treeOpen["joint:" + joint.name] = true;
     // Opening a joint is looking at it: it selects the joint (its bead is
     // drawn emphasised) and closing the selected one lets it go.
-    const node = treeNode("joint:" + joint.name, AA.sweepJointRowWords(joint), false, (open) => {
+    const node = treeNode("joint:" + joint.name, jointRowWords(joint, topology), false, (open) => {
       const isSelected = state.sweep.inspect && state.sweep.inspect.name === joint.name;
       if (open && !isSelected) railExec(["inspect", "joint", joint.name]);
       else if (!open && isSelected) railExec(["inspect", "clear"]);
     }, ["hover", "joint", joint.name]);
     node.dataset.joint = joint.name;
-    if (joint.parts.length) subjectCheckbox(node, joint.name);
     if (selectedJoint === joint.name || holds) node.classList.add("selected");
     if (topology && joint.features.length) {
       const list = document.createElement("ul");
       list.className = "an__tree-list";
-      for (const feature of joint.features) {
+      for (const feature of AA.sweepJointRowFeatures(topology, joint)) {
         const row = featureRow(topology, joint, feature);
         if (selectedPart && AA.featureReadMatches(AA.sweepFeatureEdge(topology, feature,
           joint.features), selectedPart.bindings)) row.classList.add("selected");
@@ -3573,18 +3675,31 @@ function renderSweepRail() {
       }
       node.appendChild(list);
     }
-    if (joint.parts.length) node.appendChild(treePartRows(joint.parts, joint.name));
+    // A link's own parts are its body row's, under Bodies: under a joint only
+    // its ends and their candidate faces.
     joints.appendChild(node);
   }
   root.appendChild(joints);
 
   if (sweep.study) root.appendChild(contributorsGroup(topology));
+  if (scroller) scroller.scrollTop = scrolled;
   if (selectedPart) {
     const row = root.querySelector('.part-row[data-sha="' + selectedPart.name + '"]' +
       (selectedPart.subject ? '[data-subject="' + CSS.escape(selectedPart.subject) + '"]' : ""));
     if (row) row.classList.add("selected");
   }
   applySceneHover();
+}
+
+// A joint row's words: its two ends' part numbers (AA.sweepJointEndParts),
+// through the installed meshes' labels where a part has one.
+function jointRowWords(joint, topology) {
+  const words = AA.sweepJointEndParts(joint, topology, AA.sweepTreeSubjects(state.sweep.tree)).map((id) => {
+    if (!id) return null;
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    return (mesh && AA.partNumberOf(mesh.label)) || AA.measureLabel(id);
+  });
+  return AA.sweepJointRowWords(joint, words);
 }
 
 // A body's (or a link's) own checkbox, in its summary line: every occurrence
@@ -3742,7 +3857,7 @@ function inspectFeature(target) {
     const node = target.direction ? (target.direction === AA.DIRECTIONS[1] ? edge.to : edge.from) : null;
     const solid = suggestion.kind === AA.SUGGESTION_KINDS[0];
     state.scene.setSuggestionFocus({ faces: lit, solid, node: solid ? node : null });
-    focusDim(lit.map((f) => f.sha256));
+    focusDim(lit.map((f) => f.sha256), edgeAction(topology, edge, null).about);
     state.scene.frameOccurrences(anchoredOccurrences(lit.map((f) => ({
       sha256: f.sha256, partId: endPartIdOf(topology, edge.id, target.direction, f.sha256) }))));
   }
@@ -3763,22 +3878,21 @@ function endPartIdOf(topology, edgeId, direction, sha256) {
   return null;
 }
 
-// The rest of the scene, dimmed while a suggestion is selected: every open
-// part but the lit ones goes see-through, and what each was is remembered so
-// clearSuggestionFocus puts exactly that back.
-function focusDim(shas) {
+// A selected suggestion is an action: the lit parts solid, the edge's other
+// parts ghost, the rest of the scene faint (lookOf), until
+// clearSuggestionFocus puts the scene back at rest.
+function focusDim(shas, near) {
   const sweep = state.sweep;
   if (!sweep) return;
-  undoFocusDim();
-  sweep.focusDim = state.scene.listOpenParts().map((sha) => ({ sha, ghost: state.scene.isGhosted(sha) }));
-  for (const entry of sweep.focusDim) state.scene.setGhost(entry.sha, shas.indexOf(entry.sha) === -1);
+  sweep.focus = { about: shas.slice(), near: (near || []).filter((sha) => shas.indexOf(sha) === -1) };
+  applyLooks();
 }
 
 function undoFocusDim() {
   const sweep = state.sweep;
-  if (!sweep || !sweep.focusDim) return;
-  for (const entry of sweep.focusDim) state.scene.setGhost(entry.sha, entry.ghost);
-  sweep.focusDim = null;
+  if (!sweep || !sweep.focus) return;
+  sweep.focus = null;
+  applyLooks();
 }
 
 // A selected suggestion, taken down: the solid face or outline, the
@@ -3825,7 +3939,14 @@ async function answeredAtEnd(topology, edge, direction, face, events, toast) {
     state.sweep.lastBound = { topologyId: topology.id, edgeId: edge.id, direction,
       faceId: face.faceId, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
     showToast(toast);
-    if (isSelectedFeature(topology, { edgeId: edge.id, direction })) {
+    const next = nextEndToPick(topology, edge, direction);
+    if (next) {
+      // The answered end's list folds and its partner's opens, selected: the
+      // second face of a two-end joint is the next pick, in place.
+      delete state.candidatesOpen[candidateKey(topology.id, edge.id, direction)];
+      state.candidatesOpen[candidateKey(topology.id, edge.id, next)] = true;
+      cmdInspect(AA.INSPECT_TARGETS[4], edge.id, next);
+    } else if (isSelectedFeature(topology, { edgeId: edge.id, direction })) {
       cmdInspect(AA.INSPECT_TARGETS[4], edge.id, direction);
     } else {
       renderSweepRail();
@@ -3834,6 +3955,28 @@ async function answeredAtEnd(topology, edge, direction, face, events, toast) {
     showToast(toast);
     await paintProposals();
   }
+}
+
+// After one end of an edge is answered on the sweep rail: the edge's other
+// end when it is a row of the same joint, still has no face, and has faces to
+// list -- or null.
+function nextEndToPick(topology, edge, direction) {
+  const other = AA.otherDirection(direction);
+  const joint = state.sweep.tree.joints.find((j) => AA.sweepJointRowFeatures(topology, j).some((f) => {
+    const via = AA.sweepFeatureEdge(topology, f, j.features);
+    return via.edgeId === edge.id && via.direction === direction;
+  }));
+  if (!joint) return null;
+  const row = joint.features.some((f) => {
+    const via = AA.sweepFeatureEdge(topology, f, joint.features);
+    return f.kind === "node" && via.edgeId === edge.id && via.direction === other;
+  });
+  if (!row) return null;
+  const record = AA.findBindingRecord(mergedIdentityProjection(), AA.topologyEdgeKey(topology.id, edge.id));
+  if (AA.endBindings(record, other).length) return null;
+  const via = { edgeId: edge.id, direction: other };
+  return AA.endCandidates(mergedIdentityProjection(), state.contactSuggestions, topology.id, via,
+    state.faceClasses).length ? other : null;
 }
 
 // take <edge> <from|to> <mesh> <face> -- a candidate row's Take (handoff
@@ -4293,6 +4436,18 @@ function cmdModel(...args) {
     applyModelStyle();
     applyPartScope();
     return { unlit: plan.unlit };
+  }
+  if (plan.action === AA.MODEL_VERB_ACTIONS[4]) {
+    // Each part in its body's colour (the shell's DAG ink): resolved to a
+    // mesh as `isolate parts` resolves them, and kept by the scene for a
+    // part that loads later. A part with no mesh is skipped, not an error.
+    const bySha = new Map();
+    for (const [id, hex] of Object.entries(plan.tints || {})) {
+      const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+      if (mesh && !bySha.has(mesh.sha256)) bySha.set(mesh.sha256, hex);
+    }
+    state.scene.setPartTints(bySha);
+    return { tinted: bySha.size };
   }
   const topology = state.currentTopology;
   if (plan.select) {

@@ -24,7 +24,7 @@
   "elements": [
     {
       "id": "straight_bushing",
-      "name": "straight bushing",
+      "name": "length",
       "role": "bushing",
       "nominal": 4.762,
       "min": 4.71,
@@ -44,7 +44,7 @@
     },
     {
       "id": "spherical_bearing",
-      "name": "spherical bearing width",
+      "name": "width",
       "role": "bearing",
       "nominal": 8.71,
       "min": 8.66,
@@ -179,7 +179,7 @@
     },
     {
       "id": "fastener_grip",
-      "name": "fastener grip (.812 in)",
+      "name": "grip length",
       "role": "fastener",
       "nominal": 20.6248,
       "min": 20.3708,

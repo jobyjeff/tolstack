@@ -76,7 +76,7 @@
   "elements": [
     {
       "id": "washer_ms21299c3",
-      "name": "washer thickness, MS21299C3 (.063 in), under the bolt head",
+      "name": "under-head washer thickness",
       "role": "washer",
       "nominal": 1.6002,
       "min": 1.6002,
@@ -113,7 +113,7 @@
     },
     {
       "id": "washer_nas1149v0332_tt",
-      "name": "washer thickness, NAS1149V0332H (.032 in), rotor balance-mass bolt",
+      "name": "balance-mass washer thickness",
       "role": "washer",
       "nominal": 0.8128,
       "min": 0.7112,
@@ -141,7 +141,7 @@
     },
     {
       "id": "fastener_grip_u2h",
-      "name": "NAS6403U2H grip length (.125 in) -- shortest of nine options",
+      "name": "U2H grip length",
       "role": "fastener",
       "nominal": 3.175,
       "min": 2.921,
@@ -168,7 +168,7 @@
     },
     {
       "id": "fastener_grip_u3h",
-      "name": "NAS6403U3H grip length (.188 in)",
+      "name": "U3H grip length",
       "role": "fastener",
       "nominal": 4.7752,
       "min": 4.5212,
@@ -194,7 +194,7 @@
     },
     {
       "id": "fastener_grip_u4h",
-      "name": "NAS6403U4H grip length (.250 in)",
+      "name": "U4H grip length",
       "role": "fastener",
       "nominal": 6.35,
       "min": 6.096,
@@ -220,7 +220,7 @@
     },
     {
       "id": "fastener_grip_u5h",
-      "name": "NAS6403U5H grip length (.312 in)",
+      "name": "U5H grip length",
       "role": "fastener",
       "nominal": 7.9248,
       "min": 7.6708,
@@ -246,7 +246,7 @@
     },
     {
       "id": "fastener_grip_u6h",
-      "name": "NAS6403U6H grip length (.375 in)",
+      "name": "U6H grip length",
       "role": "fastener",
       "nominal": 9.525,
       "min": 9.271,
@@ -272,7 +272,7 @@
     },
     {
       "id": "fastener_grip_u7h",
-      "name": "NAS6403U7H grip length (.438 in)",
+      "name": "U7H grip length",
       "role": "fastener",
       "nominal": 11.1252,
       "min": 10.8712,
@@ -298,7 +298,7 @@
     },
     {
       "id": "fastener_grip_u8h",
-      "name": "NAS6403U8H grip length (.500 in)",
+      "name": "U8H grip length",
       "role": "fastener",
       "nominal": 12.7,
       "min": 12.446,
@@ -324,7 +324,7 @@
     },
     {
       "id": "fastener_grip_u9h",
-      "name": "NAS6403U9H grip length (.562 in)",
+      "name": "U9H grip length",
       "role": "fastener",
       "nominal": 14.2748,
       "min": 14.0208,
@@ -350,7 +350,7 @@
     },
     {
       "id": "fastener_grip_u10h",
-      "name": "NAS6403U10H grip length (.625 in) -- longest of nine options",
+      "name": "U10H grip length",
       "role": "fastener",
       "nominal": 15.875,
       "min": 15.621,

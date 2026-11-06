@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the element cell prints the authored name whole, and its hover title is the same string",
+  "mutations": [
+    {
+      "contract": "An element cell's hover title is its own name, never a second wording.",
+      "issue": null,
+      "note": "Gives the hover a different string than the cell, which is the 2026-11-05 defect (cell 'datum A to ...', hover 'gas-spring mount datum A ...').",
+      "file": "apps/viewer/views/topology.js",
+      "find": "nameCell.setAttribute(\"title\", fullName);",
+      "replace": "nameCell.setAttribute(\"title\", \"part \" + fullName);"
+    }
+  ]
+}

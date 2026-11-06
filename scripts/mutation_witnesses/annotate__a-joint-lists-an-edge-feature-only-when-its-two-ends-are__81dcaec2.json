@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a joint lists an edge feature only when its two ends are not already the joint's own end rows",
+  "mutations": [
+    {
+      "contract": "An edge whose two ends are the joint's end rows is not listed as a third row.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md",
+      "note": "Keeping every feature brings back the pitch-link-length row Jeff met after his first Take.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      return f.kind !== \"edge\" ||\n",
+      "replace": "      return true ||\n"
+    }
+  ]
+}

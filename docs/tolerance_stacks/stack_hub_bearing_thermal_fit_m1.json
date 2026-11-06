@@ -59,7 +59,7 @@
   "elements": [
     {
       "id": "hub_bore_lower",
-      "name": "hub lower bearing-seat bore, M1 hub 212966-004",
+      "name": "hub lower bearing-seat bore",
       "role": "clamped_member",
       "nominal": 202.14,
       "min": 202.125,
@@ -86,7 +86,7 @@
     },
     {
       "id": "sleeve_bore_lower",
-      "name": "M1 lower sleeve bore, 214955-002",
+      "name": "lower sleeve bore",
       "role": "bushing",
       "nominal": 200.035,
       "min": 200.01,
@@ -113,7 +113,7 @@
     },
     {
       "id": "sleeve_wall_lower",
-      "name": "M1 lower sleeve radial wall thickness, 214955-002",
+      "name": "lower sleeve radial wall thickness",
       "role": "bushing",
       "nominal": 1.125,
       "min": 1.1,
@@ -140,7 +140,7 @@
     },
     {
       "id": "bearing_od_lower",
-      "name": "lower bearing outer-ring OD (214589-002, ID 160 / OD 200)",
+      "name": "lower bearing outer-ring OD",
       "role": "bearing",
       "nominal": 200.0,
       "min": 199.98,
@@ -183,7 +183,7 @@
     },
     {
       "id": "hub_bore_upper",
-      "name": "hub upper bearing-seat bore, M1 hub 212966-004",
+      "name": "hub upper bearing-seat bore",
       "role": "clamped_member",
       "nominal": 132.073,
       "min": 132.056,
@@ -210,7 +210,7 @@
     },
     {
       "id": "sleeve_bore_upper",
-      "name": "upper sleeve bore, 214959-002 (unchanged into M2)",
+      "name": "upper sleeve bore",
       "role": "bushing",
       "nominal": 129.968,
       "min": 129.943,
@@ -253,7 +253,7 @@
     },
     {
       "id": "sleeve_wall_upper",
-      "name": "upper sleeve radial wall thickness, 214959-002 (unchanged into M2)",
+      "name": "upper sleeve radial wall thickness",
       "role": "bushing",
       "nominal": 1.11,
       "min": 1.085,
@@ -296,7 +296,7 @@
     },
     {
       "id": "bearing_od_upper",
-      "name": "upper bearing outer-ring OD (214588-002, ID 95 / OD 130)",
+      "name": "upper bearing outer-ring OD",
       "role": "bearing",
       "nominal": 130.0,
       "min": 129.991,

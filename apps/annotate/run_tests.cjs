@@ -1675,18 +1675,34 @@ check("embedState names the mode and the subject in one line -- the run's mechan
     "Binding — Propeller pitch linkage");
   assertEqual(AA.embedState(null, null, null).title, "Binding");
 });
-check("isolate parts: the named parts are solid and every other installed part is ghosted, " +
-  "or hidden under the unlit word hide -- and a scope with no mesh says so in the head line", () => {
+check("isolate parts: the named parts are ghost and every other installed part faint, " +
+  "or hidden under the unlit word hide, and none is solid -- and a scope with no mesh says so in the head line", () => {
   assertEqual(AA.ISOLATE_PARTS_WORD, "parts");
   assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], false),
-    { solid: ["b"], ghost: ["a", "c"], hide: [] });
+    { ghost: ["b"], faint: ["a", "c"], hide: [] });
   assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], true),
-    { solid: ["b"], ghost: [], hide: ["a", "c"] });
-  assertEqual(AA.planPartScope(["a"], ["a"], false), { solid: ["a"], ghost: [], hide: [] });
+    { ghost: ["b"], faint: [], hide: ["a", "c"] });
+  assertEqual(AA.planPartScope(["a"], ["a"], false), { ghost: ["a"], faint: [], hide: [] });
   const topology = { id: "t", title: "Linkage" };
   assertEqual(AA.embedState(null, topology, null, true).title,
     "Binding — Linkage — no 3D model for these parts yet");
   assertEqual(AA.embedState(null, topology, null, false).title, "Binding — Linkage");
+});
+check("an action's looks: the parts it is about solid, their neighbours ghost, the rest faint", () => {
+  assertEqual(AA.PART_LOOKS, ["solid", "ghost", "faint"]);
+  assertEqual(AA.planActionLooks(["a", "b", "c", "d"], ["b"], ["c", "b"]),
+    { a: "faint", b: "solid", c: "ghost", d: "faint" });
+  assertEqual(AA.planActionLooks(["a"], [], []), { a: "faint" });
+});
+check("two occurrence keys overlap when one is installed inside the other, never as siblings", () => {
+  const mount = "217755-001/prd-e-03300520.1/215175-001.1";
+  const overlap = (a, b) => AA.assemblyPathsOverlap(a, b);
+  assertEqual([overlap(mount, mount), overlap(mount, mount + "/213667-001.1"),
+    overlap(mount + "/213667-001.1", mount)], [true, true, true],
+    "the same occurrence, and a detail inside its installation either way round");
+  assertEqual([overlap("p/213862-002.1", "p/213862-002.12"), overlap("p/213862-002.1", "p/213862-002.1x/a"),
+    overlap(null, mount), overlap(mount, null)], [false, false, false, false],
+    "sibling instances, a longer name, an unrecorded key");
 });
 // --- the sweep rail shows the mechanism (handoff the_sweep_rail_shows_the_
 // mechanism): the tree, the feature bindings, the stop and the contributors.
@@ -1755,10 +1771,36 @@ check("the mechanism tree lists the run's bodies with their parts, opens the mov
     { topology: "rail_topo", kind: "edge", id: "rod_len" }]);
   // No joins: the measured ends answer, and ground wins the tie for a still point.
   assertEqual(tree.joints[0].bodies, ["base", "base"]);
-  assertEqual(AA.sweepJointRowWords(rod), "rod · ball-ended link · arm ↔ base");
-  assertEqual(AA.sweepJointRowWords(tree.joints[0]), "hinge · hinge · base");
-  assertEqual(AA.sweepJointRowWords(tree.joints[3]), "odd · base");
+  assertEqual(rod.endNodes, ["n_top", "n_bot"], "the node each end's point is declared on");
+  assertEqual(tree.joints[0].endNodes, [null, null]);
+  // A row names the two parts it joins; an end with no part named is its body.
+  assertEqual(AA.sweepJointRowWords(rod, ["213668-002", "214700-002"]),
+    "213668-002 ball-ended link 214700-002");
+  assertEqual(AA.sweepJointRowWords(rod), "arm ball-ended link base");
+  assertEqual(AA.sweepJointRowWords(tree.joints[0]), "base hinge base");
+  // A joint with no type word: its own name stands between its ends.
+  assertEqual(AA.sweepJointRowWords(tree.joints[3]), "base odd base");
   assertEqual(AA.sweepBodyRowWords(tree.bodies[1]), "arm · 1 part");
+});
+
+check("a joint end's part is its node's part on the end's body, else the part on that " +
+  "body one topology edge away; nothing on the body is null", () => {
+  const tree = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc()));
+  const rod = tree.joints[1];
+  const topology = {
+    nodes: [{ id: "n_top", parts: ["rod_part"] }, { id: "n_bot", face: { part: "p1" }, parts: ["rod_part", "p1"] },
+      { id: "n_seat", parts: ["p3"] }],
+    edges: [{ id: "len", from: "n_bot", to: "n_top" }, { id: "seat", from: "n_seat", to: "n_top" }],
+  };
+  // n_top is on the rod, not on the arm: across `seat`, the arm's p3.
+  assertEqual(AA.sweepJointEndParts(rod, topology, AA.sweepTreeSubjects(tree)), ["p3", "p1"]);
+  assertEqual(AA.sweepJointEndParts(rod, { nodes: [], edges: [] }, AA.sweepTreeSubjects(tree)), [null, null]);
+});
+
+check("a run's links are bodies of their own, after the bodies, named by their joint", () => {
+  const tree = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc()));
+  assertEqual(AA.sweepTreeSubjects(tree).map((b) => [b.name, b.parts, !!b.link]),
+    [["base", ["p1", "p2"], false], ["arm", ["p3"], false], ["rod", ["rod_part"], true]]);
 });
 
 check("a node feature is bound through the edge to its joint's other node, at its own " +
@@ -1779,6 +1821,16 @@ check("a node feature is bound through the edge to its joint's other node, at it
   assertEqual(AA.sweepFeatureName(null, { kind: "node", id: "a_b" }), "a b");
 });
 
+check("a joint lists an edge feature only when its two ends are not already the " +
+  "joint's own end rows", () => {
+  const rod = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc())).joints[1];
+  // n_top and n_bot are both bound through rod_len, one per end: the length row goes.
+  assertEqual(AA.sweepJointRowFeatures(RAIL_TOPOLOGY, rod).map((f) => f.id), ["n_top", "n_bot"]);
+  // With only one of its ends a row, the edge is still listed.
+  const half = Object.assign({}, rod, { features: rod.features.filter((f) => f.id !== "n_bot") });
+  assertEqual(AA.sweepJointRowFeatures(RAIL_TOPOLOGY, half).map((f) => f.id), ["n_top", "rod_len"]);
+});
+
 check("a node feature's colour is the binding at its own end of the edge, and a " +
   "length's is its whole edge's", () => {
   const identity = { stack_keys: [{
@@ -1789,6 +1841,13 @@ check("a node feature's colour is the binding at its own end of the edge, and a 
     "rail_topo", { edgeId: "rod_len", direction });
   assertEqual(state("from"), AA.BINDING_STATES.BOUND);
   assertEqual(state("to"), AA.BINDING_STATES.UNBOUND, "the other end is not bound");
+  // ...and with an open proposal of its own it is still suggested, never an
+  // alert because its partner was taken first (Jeff, 2026-11-05: "turned orange").
+  const half = JSON.parse(JSON.stringify(identity));
+  half.stack_keys[0].proposals = [{ event_id: "p-to", verdict: "proposed", direction: "to",
+    confidence: "high", geometry_key: { source_step_sha256: "aa", face_id: 9 } }];
+  assertEqual(AA.sweepFeatureState(half, null, "rail_topo", { edgeId: "rod_len", direction: "to" }),
+    AA.BINDING_STATES.PROPOSED);
   assertEqual(state(null), AA.BINDING_STATES.BOUND);
   assertEqual(state("from", { e1: "needs_re_confirmation" }), AA.BINDING_STATES.NEEDS_RECONFIRMATION);
   // The fold's own shape for an owner-not-in-set key: no binding, one finding.
@@ -5463,6 +5522,17 @@ check("model: the model verb parses lit, unlit and select, and refuses anything 
   }
 });
 
+check("model: the tint verb takes each part's body colour as part=#rrggbb, or off, and refuses a malformed pair", () => {
+  assertEqual(AA.parseModelVerb(["tint", "pa=#5172B8", "pb=#41a87e"]),
+    { action: "tint", tints: { pa: "#5172b8", pb: "#41a87e" } }, "two parts, the hex lower-cased");
+  assertEqual(AA.parseModelVerb(["tint", "off"]), { action: "tint", tints: null }, "every part its own colour");
+  for (const args of [["tint"], ["tint", "pa"], ["tint", "pa=red"], ["tint", "pa=#123"]]) {
+    let err = null;
+    try { AA.parseModelVerb(args); } catch (e) { err = e.message; }
+    if (!err) throw new Error("accepted " + JSON.stringify(args));
+  }
+});
+
 check("model: the link ends are read off the run's own geometry features, for links only", () => {
   const artifact = {
     links: [{ joint: "rodlink" }],
@@ -5831,7 +5901,7 @@ if (!SWEEPS_DIR) {
       const link = tree.joints.find((j) => j.name === "pitch_link");
       const nodes = link.features.filter((f) => f.kind === "node").map((f) => f.id);
       assertEqual(nodes, ["pitch_link_upper_sphere_centre", "pitch_link_lower_sphere_centre"]);
-      console.log("      " + tree.joints.map(AA.sweepJointRowWords).join(" / "));
+      console.log("      " + tree.joints.map((j) => AA.sweepJointRowWords(j)).join(" / "));
     });
 
     // A joint is one node (handoff coaxial_ends_share_one_3d_node), on the

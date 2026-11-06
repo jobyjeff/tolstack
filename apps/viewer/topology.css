@@ -125,6 +125,61 @@
   --edge-ink: #b8c0cc;
   --edge-lit-w: 4px;
   --edge-unlit-w: 1.5px;
+  /* A gap's stroke (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_
+     taste): a dimmer ink and a long dash, so a lit gap reads as a broken line
+     rather than a row of hashes at zoom 1, and as a fainter line at the
+     fitted zoom. Under a colour overlay the gap keeps the dash and takes the
+     overlay's ink. */
+  --edge-gap-ink: #7d8592;
+  --edge-gap-dash: 10 6;
+  /* The bodies' inks: the SAME sixteen hues as --tv-body-*, slot for slot,
+     at stroke strength -- the "body" and "part" colour overlays, the overlay
+     legend's swatches, a part's solid fill and the 3D pane's body colour all
+     read these, so one palette is seen in the DAG, the grid and the scene.
+     Chosen with OKLCH L in 0.56-0.66 and validated as a categorical set on
+     --bg (adjacent CVD and normal-vision separation, >= 3:1 contrast); the
+     run is recorded in this handoff's lesson. */
+  --tv-body-ink-0: #5172b8;
+  --tv-body-ink-1: #41a87e;
+  --tv-body-ink-2: #a06700;
+  --tv-body-ink-3: #8956c2;
+  --tv-body-ink-4: #04a4bc;
+  --tv-body-ink-5: #ba417b;
+  --tv-body-ink-6: #71a342;
+  --tv-body-ink-7: #a669a8;
+  --tv-body-ink-8: #7d7900;
+  --tv-body-ink-9: #6d6ab5;
+  --tv-body-ink-10: #009d8e;
+  --tv-body-ink-11: #b6522d;
+  --tv-body-ink-12: #a85fc6;
+  --tv-body-ink-13: #509659;
+  --tv-body-ink-14: #009dea;
+  --tv-body-ink-15: #9f588c;
+
+  /* A group's border, one bright hue per KIND of group: a body, a part, a
+     chain study, a kinematic study. 1px at zoom 1. */
+  --group-body: #d7dde6;
+  --group-part: #6fd6c4;
+  --group-chain: #c3a6ff;
+  --group-kinematic: var(--accent);
+
+  /* The interface-type overlay, in VA.NODE_GLYPH_PRECEDENCE order (ball,
+     slide, pin, thread, flat faces, clearance) -- the reference categorical
+     order's dark steps, minus its green and red so no slot reads as a
+     provenance colour. The glyph's shape says the same thing. */
+  --ovl-if-0: #3987e5;
+  --ovl-if-1: #d95926;
+  --ovl-if-2: #199e70;
+  --ovl-if-3: #c98500;
+  --ovl-if-4: #d55181;
+  --ovl-if-5: #9085e9;
+  /* The contribution overlay: one hue, dark (small) to light (large) on the
+     dark page, VA.CONTRIBUTION_STEPS steps. */
+  --ovl-seq-0: #184f95;
+  --ovl-seq-1: #256abf;
+  --ovl-seq-2: #3987e5;
+  --ovl-seq-3: #6da7ec;
+  --ovl-seq-4: #9ec5f4;
 }
 
 /* Everything the drag of a grip should suppress while it is running
@@ -537,7 +592,57 @@ body { display: flex; flex-direction: column; }
 /* A gap crosses between parts and has no lane of its own — dashed, because it
    is the one edge kind no rail belongs to. A derived gap is a gap, and draws as
    one: that it carries no value is the grid's to say. */
-.rail__bar--gap { stroke-dasharray: 4 3; }
+.rail__bar--gap { stroke: var(--edge-gap-ink); stroke-dasharray: var(--edge-gap-dash); }
+
+/* A colour overlay (VA.COLOUR_SCHEMES, the view's "colour by"): a mark with
+   `ovl` wears `--ovl` -- its scheme token's ink -- on the stroke of a bar or
+   a dot and the ink of a glyph. Weight, the gap dash, dimming, hover and the
+   selection outline are unchanged. Text never wears it. */
+.ovl-b0 { --ovl-base: var(--tv-body-ink-0); --ovl: var(--ovl-base); }
+.ovl-b1 { --ovl-base: var(--tv-body-ink-1); --ovl: var(--ovl-base); }
+.ovl-b2 { --ovl-base: var(--tv-body-ink-2); --ovl: var(--ovl-base); }
+.ovl-b3 { --ovl-base: var(--tv-body-ink-3); --ovl: var(--ovl-base); }
+.ovl-b4 { --ovl-base: var(--tv-body-ink-4); --ovl: var(--ovl-base); }
+.ovl-b5 { --ovl-base: var(--tv-body-ink-5); --ovl: var(--ovl-base); }
+.ovl-b6 { --ovl-base: var(--tv-body-ink-6); --ovl: var(--ovl-base); }
+.ovl-b7 { --ovl-base: var(--tv-body-ink-7); --ovl: var(--ovl-base); }
+.ovl-b8 { --ovl-base: var(--tv-body-ink-8); --ovl: var(--ovl-base); }
+.ovl-b9 { --ovl-base: var(--tv-body-ink-9); --ovl: var(--ovl-base); }
+.ovl-b10 { --ovl-base: var(--tv-body-ink-10); --ovl: var(--ovl-base); }
+.ovl-b11 { --ovl-base: var(--tv-body-ink-11); --ovl: var(--ovl-base); }
+.ovl-b12 { --ovl-base: var(--tv-body-ink-12); --ovl: var(--ovl-base); }
+.ovl-b13 { --ovl-base: var(--tv-body-ink-13); --ovl: var(--ovl-base); }
+.ovl-b14 { --ovl-base: var(--tv-body-ink-14); --ovl: var(--ovl-base); }
+.ovl-b15 { --ovl-base: var(--tv-body-ink-15); --ovl: var(--ovl-base); }
+/* The part scheme: a body's hue in three shades (VA.PART_SHADES), so the
+   parts of one body differ while the body still reads as one hue. */
+.ovl-s1 { --ovl: color-mix(in srgb, var(--ovl-base) 62%, #ffffff); }
+.ovl-s2 { --ovl: color-mix(in srgb, var(--ovl-base) 70%, var(--bg)); }
+.ovl-i0 { --ovl: var(--ovl-if-0); }
+.ovl-i1 { --ovl: var(--ovl-if-1); }
+.ovl-i2 { --ovl: var(--ovl-if-2); }
+.ovl-i3 { --ovl: var(--ovl-if-3); }
+.ovl-i4 { --ovl: var(--ovl-if-4); }
+.ovl-i5 { --ovl: var(--ovl-if-5); }
+.ovl-seq-0 { --ovl: var(--ovl-seq-0); }
+.ovl-seq-1 { --ovl: var(--ovl-seq-1); }
+.ovl-seq-2 { --ovl: var(--ovl-seq-2); }
+.ovl-seq-3 { --ovl: var(--ovl-seq-3); }
+.ovl-seq-4 { --ovl: var(--ovl-seq-4); }
+/* The sourcing scheme: the provenance palette itself, the grid chip's colours. */
+.ovl-conf--traced { --ovl: var(--traced); }
+.ovl-conf--inferred { --ovl: var(--inferred); }
+.ovl-conf--untraced { --ovl: var(--untraced); }
+.ovl-conf--no_source_ref { --ovl: var(--nocite); }
+.ovl-src-gap { --ovl: var(--edge-gap-ink); }
+.ovl-src-none { --ovl: var(--muted); }
+.rail__bar.ovl { stroke: var(--ovl); }
+.rail__dot.ovl { stroke: var(--ovl); }
+.rail__dot.ovl.rail__dot--on { fill: color-mix(in srgb, var(--ovl) 35%, var(--panel)); }
+.rail__dot.ovl.rail__dot--selected { stroke: var(--accent); }
+.rail__node.ovl { color: var(--ovl); }
+.rail__node.ovl.rail__node--on { fill: color-mix(in srgb, var(--ovl) 35%, var(--panel)); }
+.rail__node.ovl.rail__node--selected { color: var(--accent); }
 
 /* A joint node (interface_glyphs.js, VA.nodeJointKinds): the joint's glyph in
    the node's own ink and fill, through the same states a plain dot has
@@ -566,58 +671,70 @@ body { display: flex; flex-direction: column; }
 .rail__glyph--form { stroke: var(--muted); }
 .rail__glyph--off, .rail__glyph--other-variant { opacity: .28; }
 
-/* A body's container (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): a region
-   tint like the leader bands, not a mark, so it claims nothing the fill rule
-   reserves (docs/DESIGN_TYPE_AND_COLOUR.md). Six very low-alpha tints of low
-   chroma, a body's place in the document's own list picking one, so two
-   neighbouring bodies are told apart and none can be read as a provenance
-   hue or as the accent. A body the current study does not reach is a flat
-   outline. pointer-events off: the field is wayfinding; its NAME is the one
-   control (it folds the body). */
-.tv__bodyfield { stroke: rgba(255, 255, 255, .07); stroke-width: 1; pointer-events: none; }
-.tv__bodyfield--t0 { fill: var(--tv-body-0); }
-.tv__bodyfield--t1 { fill: var(--tv-body-1); }
-.tv__bodyfield--t2 { fill: var(--tv-body-2); }
-.tv__bodyfield--t3 { fill: var(--tv-body-3); }
-.tv__bodyfield--t4 { fill: var(--tv-body-4); }
-.tv__bodyfield--t5 { fill: var(--tv-body-5); }
-.tv__bodyfield--t6 { fill: var(--tv-body-6); }
-.tv__bodyfield--t7 { fill: var(--tv-body-7); }
-.tv__bodyfield--t8 { fill: var(--tv-body-8); }
-.tv__bodyfield--t9 { fill: var(--tv-body-9); }
-.tv__bodyfield--t10 { fill: var(--tv-body-10); }
-.tv__bodyfield--t11 { fill: var(--tv-body-11); }
-.tv__bodyfield--t12 { fill: var(--tv-body-12); }
-.tv__bodyfield--t13 { fill: var(--tv-body-13); }
-.tv__bodyfield--t14 { fill: var(--tv-body-14); }
-.tv__bodyfield--t15 { fill: var(--tv-body-15); }
-.tv__bodyfield--flat { fill: none; stroke: rgba(255, 255, 255, .09); }
-/* A body is one container: where the walk splits it into fields, a thin
-   bridge in its own tint (set inline from VA.bodyTint) runs from each field to
-   the next (VA.bodyBridges), and the body is named once. */
-.tv__bodybridge { fill: none; stroke-width: 4; stroke-linecap: butt; pointer-events: none; }
-.tv__bodybridge--flat { stroke: rgba(255, 255, 255, .09); stroke-width: 1; }
+/* The groups (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"; the_dag_is_coloured_
+   by_a_chosen_attribute_and_spaced_to_taste): every group is a thin, bright
+   border in its KIND's hue -- body, part, chain study, kinematic study -- and
+   no fill. Whether any group is filled is the view's group fill
+   (VA.GROUP_FILLS): the fills are separate rects in one layer under every
+   border (.tv__groupfill), so a border always draws on top. A body the
+   current study does not reach is a dim border. pointer-events off: a field
+   is wayfinding; a body's NAME is the one control (it folds the body). */
+.tv__bodyfield { fill: none; stroke: var(--group-body); stroke-width: 1; pointer-events: none; }
+.tv__bodyfield--flat { stroke-opacity: .35; }
+.tv__partfield { fill: none; stroke: var(--group-part); stroke-width: 1; pointer-events: none; }
+.tv__partfield--flat { stroke-opacity: .35; }
+/* A fill's tint: the body's two strengths (--tv-body-* for a region tint,
+   --tv-body-ink-* for a solid part), slot for slot. */
+.tv__fill--t0 { --fill-tint: var(--tv-body-0); --fill-ink: var(--tv-body-ink-0); }
+.tv__fill--t1 { --fill-tint: var(--tv-body-1); --fill-ink: var(--tv-body-ink-1); }
+.tv__fill--t2 { --fill-tint: var(--tv-body-2); --fill-ink: var(--tv-body-ink-2); }
+.tv__fill--t3 { --fill-tint: var(--tv-body-3); --fill-ink: var(--tv-body-ink-3); }
+.tv__fill--t4 { --fill-tint: var(--tv-body-4); --fill-ink: var(--tv-body-ink-4); }
+.tv__fill--t5 { --fill-tint: var(--tv-body-5); --fill-ink: var(--tv-body-ink-5); }
+.tv__fill--t6 { --fill-tint: var(--tv-body-6); --fill-ink: var(--tv-body-ink-6); }
+.tv__fill--t7 { --fill-tint: var(--tv-body-7); --fill-ink: var(--tv-body-ink-7); }
+.tv__fill--t8 { --fill-tint: var(--tv-body-8); --fill-ink: var(--tv-body-ink-8); }
+.tv__fill--t9 { --fill-tint: var(--tv-body-9); --fill-ink: var(--tv-body-ink-9); }
+.tv__fill--t10 { --fill-tint: var(--tv-body-10); --fill-ink: var(--tv-body-ink-10); }
+.tv__fill--t11 { --fill-tint: var(--tv-body-11); --fill-ink: var(--tv-body-ink-11); }
+.tv__fill--t12 { --fill-tint: var(--tv-body-12); --fill-ink: var(--tv-body-ink-12); }
+.tv__fill--t13 { --fill-tint: var(--tv-body-13); --fill-ink: var(--tv-body-ink-13); }
+.tv__fill--t14 { --fill-tint: var(--tv-body-14); --fill-ink: var(--tv-body-ink-14); }
+.tv__fill--t15 { --fill-tint: var(--tv-body-15); --fill-ink: var(--tv-body-ink-15); }
+.tv__groupfill { stroke: none; pointer-events: none; }
+.tv__groupfill--body { fill: var(--fill-tint); }
+/* A part's fill is SOLID: its body's ink mixed into the page, opaque, so the
+   part reads as a block and the borders above it stay crisp. */
+.tv__groupfill--part { fill: color-mix(in srgb, var(--fill-ink) 24%, var(--bg)); }
+.tv__groupfill--flat { opacity: .4; }
+.tv__groupfill--study { --study-hue: var(--group-chain);
+  fill: color-mix(in srgb, var(--study-hue) 9%, transparent); }
+.tv__groupfill--kinematic { --study-hue: var(--group-kinematic); }
+.tv__groupfill--thermal { --study-hue: var(--muted); }
+.tv__groupfill--selected { fill: color-mix(in srgb, var(--study-hue) 16%, transparent); }
+/* A collapsed body's pill is a node, so it keeps its tint whatever the fill. */
+.tv__bodyfield.tv__pill__shape { pointer-events: none; fill: var(--fill-tint); }
+/* A body is one container: where the walk splits it into fields, a bridge in
+   the body border's hue runs from each field to the next (VA.bodyBridges);
+   the body is named on one field and its others carry a muted repeat. */
+.tv__bodybridge { fill: none; stroke: var(--group-body); stroke-width: 1;
+  stroke-dasharray: 2 2; stroke-linecap: butt; pointer-events: none; }
+.tv__bodybridge--flat { stroke-opacity: .35; }
 .tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }
-.tv__pill__shape { pointer-events: none; }
+.tv__bodyrepeat { font-size: var(--t-micro); fill: var(--muted); opacity: .6;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 
-/* A study's group (a_study_is_a_translucent_group_on_the_dag): a see-through
-   field over the grey body containers, one hue per kind of study, taken from
-   the palette's own tokens -- a chain study on --zero (the neutral axis hue,
-   no provenance claim), a kinematic one on --accent, a thermal fit (reserved:
-   the topology page carries none) on --muted. Low-alpha fill and a medium
-   stroke, so two groups that overlap both show; the selected study's is a
-   step stronger. The field takes the pointer (its hover lights the study's
-   rows); the title is the control that opens it. */
-.tv__studyfield { --study-hue: var(--zero); stroke-width: 1;
-  fill: color-mix(in srgb, var(--study-hue) 9%, transparent);
-  stroke: color-mix(in srgb, var(--study-hue) 40%, transparent); }
-.tv__studyfield--kinematic { --study-hue: var(--accent); }
+/* A study's group (a_study_is_a_translucent_group_on_the_dag): a border in
+   the study kind's hue around its rows, over the body and part borders; the
+   selected study's is a step heavier. The field takes the pointer over its
+   whole box (its hover lights the study's rows); the title opens it. */
+.tv__studyfield { --study-hue: var(--group-chain); stroke-width: 1; fill: none;
+  pointer-events: all; stroke: color-mix(in srgb, var(--study-hue) 75%, transparent); }
+.tv__studyfield--kinematic { --study-hue: var(--group-kinematic); }
 .tv__studyfield--thermal { --study-hue: var(--muted); }
-.tv__studyfield--selected { stroke-width: 1.5;
-  fill: color-mix(in srgb, var(--study-hue) 16%, transparent);
-  stroke: color-mix(in srgb, var(--study-hue) 70%, transparent); }
+.tv__studyfield--selected { stroke-width: 1.5; stroke: var(--study-hue); }
 .tv__studyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .tv__studyname:hover, .tv__studyname:focus { fill: var(--ink); outline: none; }
@@ -869,10 +986,9 @@ body { display: flex; flex-direction: column; }
    under its last, inset per level so an outer group is wider than what it
    holds (VA.gridBraces is the model, VA.braceGeometry the pixels). The hue is
    the DAG's colour for that KIND of group (`--group-*`, the DAG's group
-   borders, the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste);
-   until that palette is on the page each kind falls back to an ink this
-   sheet already has, never to a copied value. A part boundary inside a group
-   is a plain rule.
+   borders, the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste),
+   so a bracket and its group's border on the DAG are one hue. A part
+   boundary inside a group is a plain rule.
 
    An overlay over the table, inert and absolutely placed: a border on a cell
    would join the table's row-height sizing and walk a row off its leader. */
@@ -885,11 +1001,11 @@ body { display: flex; flex-direction: column; }
 .tvbrace--top { border-width: 1px 1px 0 1px; border-radius: 6px 6px 0 0; }
 .tvbrace--bottom { border-width: 0 1px 1px 1px; border-radius: 0 0 6px 6px; }
 .tvbrace--gap { border-style: dashed; }
-.tvbrace--kinematic { color: var(--group-kinematic, var(--accent)); }
-.tvbrace--chain { color: var(--group-chain, var(--ink)); }
-.tvbrace--body { color: var(--group-body, var(--muted)); }
+.tvbrace--kinematic { color: var(--group-kinematic); }
+.tvbrace--chain { color: var(--group-chain); }
+.tvbrace--body { color: var(--group-body); }
 .tvbrace__rule {
-  position: absolute; height: 0; border-top: 1px solid var(--group-part, var(--line));
+  position: absolute; height: 0; border-top: 1px solid var(--group-part);
 }
 .tvrow--substack { font-size: var(--t-dense); }
 .tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }
@@ -913,10 +1029,6 @@ body { display: flex; flex-direction: column; }
    `--lead`, set by views/topology.js's setHot from the same state that lights
    the DAG. See "one hover state, two surfaces" at the bottom of this file. */
 .tvrow--edge { font-size: var(--t-dense); }
-/* A component group's first row is the seam a leader points at; its line is
-   the divider above it (.tvrow--divide-*, VA.gridRowMarks) since
-   the_kinematic_grid_is_a_stack_of_sub_stacks -- one rule for every row
-   rather than a group line and a divider competing for the same shadow. */
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 .tvrow--derived { font-style: italic; }
 .tvrow--closes .tvcell--name::after {
@@ -1772,3 +1884,19 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
   border-radius: 4px; white-space: nowrap;
 }
 .tvgroups__item { display: block; padding: 3px 0; font-size: var(--t-dense); cursor: pointer; }
+
+/* The DAG's view popover (VA.COLOUR_SCHEMES, VA.GROUP_FILLS, VA.GRAPH_WIDTHS):
+   three labelled pickers on one grid. */
+.tvview__menu { display: grid; grid-template-columns: auto auto; gap: 6px 10px;
+  align-items: center; }
+.tvview__item { display: contents; font-size: var(--t-dense); }
+.tvview__label { color: var(--muted); }
+.tvview__item select { font: inherit; font-size: var(--t-dense); color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 1px 4px; }
+/* The overlay's key: a swatch in the scheme's ink beside muted words. */
+.tvovl { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center;
+  font-size: var(--t-micro); flex-basis: 100%; }
+.tvovl__item { display: inline-flex; align-items: center; gap: 5px; max-width: 22ch; }
+.tvovl__item > .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tvovl__swatch { flex: none; width: 10px; height: 10px; border-radius: 2px;
+  background: var(--ovl); }

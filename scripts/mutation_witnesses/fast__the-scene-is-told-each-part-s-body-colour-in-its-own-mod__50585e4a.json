@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the scene is told each part's body colour in its own model verb",
+  "mutations": [
+    {
+      "contract": "Only a #rrggbb ink is posted to the scene.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). Any non-empty computed value posted: an untrimmed custom property would reach the pane's parser and be refused.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (!/^#[0-9a-fA-F]{6}$/.test(hex || \"\")) return;",
+      "replace": "      if (!hex) return;"
+    }
+  ]
+}

@@ -25,8 +25,10 @@
 | Row geometry (row height, grip pixels) | `VA.RAIL_METRICS`, `VA.TOPO_GRIP` — **JS**, not CSS | `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs` |
 | The size of a drawn icon | `VA.WARNING_ICON_PX` — **JS**, not a type step | `apps/viewer/tests.js` (the attribute), `scripts/run_viewer_browser_tests.mjs` (the rendered box) |
 | The size of a joint glyph on the DAG | `VA.INTERFACE_GLYPH_PX` (`apps/viewer/interface_glyphs.js`), its design box, drawn at the row pitch; the form mark's `VA.FORM_GLYPH_PX` — **JS**, the same kind of picture | `apps/viewer/tests.js` (the glyphs it places) |
-| An edge's ink and its two weights, lit and unlit | `apps/viewer/topology.css` `:root`, `--edge-ink`, `--edge-lit-w`, `--edge-unlit-w` — the only channel a DAG edge has; confidence is the grid chip's | `scripts/run_viewer_browser_tests.mjs` (one ink, two weights, measured) |
-| The body tints | `apps/viewer/topology.css` `:root`, `--tv-body-*` — region tints like the leader bands, low chroma and never the accent; the DAG's `.tv__bodyfield--t*` (and a body's bridge) read them. Sixteen, **assigned**: a body's tint is its place in its topology's `bodies[]` (`VA.bodyTint`, `VA.BODY_TINTS`), so the first sixteen bodies never share one; neighbouring slots are far apart in hue | `apps/viewer/tests.js` (the live model's bodies fit the count) |
+| An edge's ink and its two weights, lit and unlit | `apps/viewer/topology.css` `:root`, `--edge-ink`, `--edge-lit-w`, `--edge-unlit-w`, and a gap's `--edge-gap-ink`/`--edge-gap-dash` — with no colour overlay, the only channel a DAG edge has; confidence is the grid chip's | `scripts/run_viewer_browser_tests.mjs` (one ink, one gap ink, two weights, measured) |
+| The colour overlays ("colour by") | `VA.COLOUR_SCHEMES` (`apps/viewer/topology.js`) — one table, each scheme mapping an edge and a node to a token; the tokens in `topology.css` `:root`: `--tv-body-ink-*` (body and part), `--ovl-if-*` (interface type), `--ovl-seq-*` (contribution), and the provenance hues themselves (sourcing). An overlay recolours a mark's ink only; weight stays lit/unlit and text never wears it | `apps/viewer/tests.js` (the scheme table, the ink on bar, dot and glyph) |
+| A group's border and fill | `topology.css` `:root`, `--group-*`, one hue per kind of group (body, part, chain study, kinematic study); a fill only where the view's group fill asks (`VA.GROUP_FILLS`), drawn under every border | `apps/viewer/tests.js` (no fill by default; fills under borders) |
+| The body tints | `apps/viewer/topology.css` `:root`, `--tv-body-*` — region tints like the leader bands, low chroma and never the accent; a DAG group's fill (`.tv__fill--t*`) reads them, and `--tv-body-ink-*` is the same sixteen hues at stroke strength (the body overlay, a part's solid fill, the 3D pane's body colour). Sixteen, **assigned**: a body's tint is its place in its topology's `bodies[]` (`VA.bodyTint`, `VA.BODY_TINTS`), so the first sixteen bodies never share one; neighbouring slots are far apart in hue | `apps/viewer/tests.js` (the live model's bodies fit the count) |
 | The grid's brackets | `VA.GRID_BRACE` (inset per level, cap step, curl) — **JS**, row geometry like `VA.RAIL_METRICS`; the hue per group kind is the DAG's `--group-*`, read by `.tvbrace--*` in `apps/viewer/topology.css`. A grid row's background carries nothing: no tint, no divider, no wash | `apps/viewer/tests.js` (the brackets nest; no row is tinted), `scripts/run_viewer_browser_tests.mjs` (no row painted, every bracket drawn) |
 
 **An icon is a picture, and its size is not a step on the scale.** The alert
@@ -146,7 +148,8 @@ one body, the heavier divider between bodies and wherever a sub-stack opens or
 closes, and one left rule down a sub-stack's header and rows (dashed for a
 declared gap). Dividers are inset shadows, never borders, so no mark moves a
 row off its leader's seam. The sourcing legend under the grid names each chip
-in reader words; it adds no colour.
+in reader words, and every tint a row wears — the provenance wash and each
+body's tint, by the body's name — beside a swatch; it adds no colour.
 
 ## Monospace
 

@@ -905,27 +905,12 @@ measured in every combination of them.
   `overflow-x` clips there — and a reader who had widened the preview pane,
   the jog zone or the column itself was pressing on a control the browser had
   already clipped away.
-* **The element label drops whatever the rest of the row already says.** Two
-  reductions, both of them *one fact said once per row*
-  (`VA.elementDisplayLabel`): the component cell's own words come off the front
-  — under component `blade_root`, rows that all read "blade-root clocking holes
-  to th…" now read "clocking holes to the …" — and a whole **clause** that only
-  restates the component or the row's own value is dropped with its separator,
-  so "fastener grip, NAS6403U11D (.688 in)" reads *fastener grip* beside a cell
-  saying "NAS6403U11D hex-head bolt" and three number columns. Jeff's own
-  example: *"the element column can just say 'grip length' (for the bolt) or
-  'length' for the plain bushing. The component's description and part number
-  don't need to be repeated in every column."*
-
-  Display only, and never a rewrite: every character of the output is a
-  character of the input in the input's order (pinned by walking the two,
-  on the fixture and on every live row), the full label is the cell's hover
-  text, and the preview pane prints it whole. A label with nothing to drop
-  comes back unchanged; one that is *only* its component's words keeps them,
-  because a blank cell would be a worse lie than a repetitive one. Whether the
-  authored `name` fields should themselves be shortened is a separate,
-  undecided authoring question
-  (`docs/issues/ISSUE_20260914_element_and_edge_names_are_not_under_the_title_rule.md`).
+* **The element cell and its hover are one phrase.** The cell prints the edge's
+  `name` as authored and its hover title is the same string; nothing shortens it
+  on the way (`VA.elementDisplayLabel` is gone). What an author may put in a
+  `name` is the rule in `docs/SOP_TOLERANCE_STACK.md`, "Titling an artifact" —
+  the span in the part's own words, no part name, because the component cell
+  beside it carries that.
 
 **The preview pane on the right is draggable too, and it is the one preference
 on this page that survives a reload.** A full-height divider on its left edge

@@ -75,7 +75,7 @@
   "elements": [
     {
       "id": "bushing_214820",
-      "name": "plain bushing length (214820-002)",
+      "name": "length",
       "role": "bushing",
       "nominal": 4.76,
       "min": 4.63,
@@ -106,7 +106,7 @@
     },
     {
       "id": "pitch_link_eye",
-      "name": "pitch-link eye: spherical bearing ball width (bearing identity UNCONFIRMED)",
+      "name": "ball width",
       "role": "bearing",
       "nominal": 7.14,
       "min": 7.09,
@@ -140,7 +140,7 @@
     },
     {
       "id": "flange_bushing_flange",
-      "name": "flanged bushing flange thickness (NAS77A3-015A)",
+      "name": "flange thickness",
       "role": "bushing",
       "nominal": 1.5748,
       "min": 1.4478,
@@ -174,7 +174,7 @@
     },
     {
       "id": "pitch_plate_flange",
-      "name": "pitch plate lug thickness (5X group)",
+      "name": "lug thickness",
       "role": "clamped_member",
       "nominal": 4.06,
       "min": 3.96,
@@ -211,7 +211,7 @@
     },
     {
       "id": "washer_nas1149v0332",
-      "name": "washer thickness, NAS1149V0332H (.032 in)",
+      "name": "thickness",
       "role": "washer",
       "nominal": 0.8128,
       "min": 0.7112,
@@ -239,7 +239,7 @@
     },
     {
       "id": "bolt_grip_11",
-      "name": "NAS6403U11D grip length (.688 in)",
+      "name": "grip length",
       "role": "fastener",
       "nominal": 17.4752,
       "min": 17.2212,
@@ -273,7 +273,7 @@
     },
     {
       "id": "bolt_length_11",
-      "name": "NAS6403U11D overall length, head bearing face to point (1.011 in)",
+      "name": "head bearing face to point",
       "role": "fastener",
       "nominal": 25.6794,
       "min": 25.2984,
@@ -307,7 +307,7 @@
     },
     {
       "id": "cotter_hole_from_point",
-      "name": "cotter-hole centreline to bolt point (dimension M)",
+      "name": "cotter-hole centreline to point",
       "role": "fastener",
       "nominal": 4.1656,
       "min": 3.9116,

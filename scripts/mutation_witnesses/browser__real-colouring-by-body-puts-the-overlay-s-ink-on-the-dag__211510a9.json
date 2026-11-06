@@ -1,0 +1,31 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] colouring by body puts the overlay's ink on the DAG's bars, and the choice survives a reload",
+  "mutations": [
+    {
+      "contract": "The chosen colour-by reaches the render.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05, review round 1). The render is always handed `none`.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        colourBy: state.dagView.colourBy,",
+      "replace": "        colourBy: \"none\","
+    },
+    {
+      "contract": "The view settings are written to the store.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05, review round 1). The store latch, write half: visible only to a reload.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          VA.writeDagView(widthStore(), state.dagView);",
+      "replace": "          void widthStore;"
+    },
+    {
+      "contract": "The view settings are read from the store at boot.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05, review round 1). The store latch, read half: the page boots on the defaults.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.dagView = VA.readDagView(widthStore());",
+      "replace": "    state.dagView = Object.assign({}, VA.DAG_VIEW_DEFAULTS);"
+    }
+  ]
+}

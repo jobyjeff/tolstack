@@ -393,10 +393,17 @@ async function checkEverything(browser, base) {
     const proto = Object.getPrototypeOf(window.__scene);
     const origGhost = proto.setGhost;
     const origSweepGhost = proto.setSweepGhost;
+    const origLook = proto.setLook;
     window.__ghostCalls = 0;
     window.__sweepGhostCalls = 0;
     proto.setGhost = function (...args) { window.__ghostCalls++; return origGhost.apply(this, args); };
     proto.setSweepGhost = function (...args) { window.__sweepGhostCalls++; return origSweepGhost.apply(this, args); };
+    // The look is restated every frame (app.js applyLooks); a restatement
+    // that changes the material is the cost this check is about.
+    proto.setLook = function (sha, look) {
+      if (this.lookOf(sha) !== look) window.__ghostCalls++;
+      return origLook.call(this, sha, look);
+    };
   });
   await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
   await page.evaluate(() => window.AnnotateApp.exec(["play"]));

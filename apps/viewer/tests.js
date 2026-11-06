@@ -4637,100 +4637,6 @@
            { zoneScale: 99 }).zoneScale, VA.JOG_ZONE_SCALE.max);
       });
 
-    await test("elementDisplayLabel drops the leading words the component cell " +
-      "already carries, and never blanks a cell", function () {
-        // Jeff's case, verbatim: under component `blade_root`, three rows all
-        // opened with "blade-root".
-        eq(VA.elementDisplayLabel("blade-root clocking holes to the hub", "blade_root"),
-           "clocking holes to the hub");
-        // Case- and separator-insensitive on BOTH sides.
-        eq(VA.elementDisplayLabel("Blade Root seat", "blade_root"), "seat");
-        eq(VA.elementDisplayLabel("blade_root_seat", "blade-root"), "seat");
-        // A word that merely starts the same way is not the component's name.
-        eq(VA.elementDisplayLabel("blade_rooting torque", "blade_root"),
-           "blade_rooting torque");
-        // No repeat at all: unchanged, character for character.
-        eq(VA.elementDisplayLabel("hub bore to the pin", "blade_root"),
-           "hub bore to the pin");
-        // A label that is ONLY its component's words keeps them -- an empty
-        // element cell would be a worse lie than a repetitive one.
-        eq(VA.elementDisplayLabel("blade-root", "blade_root"), "blade-root");
-        // A gap group has no part, so there is nothing to match against.
-        eq(VA.elementDisplayLabel("shank out", null), "shank out");
-        eq(VA.elementDisplayLabel("shank out", ""), "shank out");
-        eq(VA.elementDisplayLabel(null, "hub"), "");
-        // The part ROW is what the grid passes now, and the words matched are
-        // the ones the merged cell PRINTS -- its label, never its id or its
-        // drawing number. The rule's whole justification is "the cell beside
-        // it already says this", so a string the cell does not show must not
-        // license a drop.
-        eq(VA.elementDisplayLabel("bushing flange thickness",
-           { id: "flanged_bushing_unidentified", name: "part not identified" }),
-           "bushing flange thickness");
-        eq(VA.elementDisplayLabel("plain bushing length",
-           { id: "bushing_214820_002", name: "214820-002 plain bushing" }),
-           "length");
-        // Only LEADING words, never a word inside a phrase: this is why the
-        // rule consumes a run off the front rather than deleting every
-        // occurrence. "bolt point" is the tip of the bolt, not a repeat.
-        eq(VA.elementDisplayLabel("cotter-hole centreline to bolt point",
-           { id: "bolt_nas6403u11d", name: "NAS6403U11D hex-head bolt" }),
-           "cotter-hole centreline to bolt point");
-      });
-
-    // Jeff, 2026-09-15: "the element column can just say 'grip length' (for
-    // the bolt) or 'length' for the plain bushing. The component's description
-    // and part number don't need to be repeated in every column." A clause
-    // that only restates the component, or only restates the row's own value,
-    // goes -- with its separator, so what is left reads as written.
-    await test("elementDisplayLabel drops a clause that only restates the " +
-      "component or the row's own value, keeping every other clause verbatim",
-      function () {
-        var bolt = { id: "bolt_nas6403u11d", name: "NAS6403U11D hex-head bolt" };
-        var bushing = { id: "bushing_214820_002", name: "214820-002 plain bushing" };
-        var washer = { id: "washer_nas1149v0332h", name: "NAS1149V0332H flat washer" };
-        var plate = { id: "pitch_plate_215197", name: "215197 pitch plate" };
-
-        // The four live pitch-link rows, which is what Jeff was reading.
-        eq(VA.elementDisplayLabel("fastener grip, NAS6403U11D (.688 in)", bolt),
-           "fastener grip");
-        eq(VA.elementDisplayLabel("plain bushing length (214820-002)", bushing),
-           "length");
-        eq(VA.elementDisplayLabel("washer thickness, NAS1149V0332H (.032 in)", washer),
-           "thickness");
-        eq(VA.elementDisplayLabel("pitch plate lug thickness (5X group)", plate),
-           "lug thickness (5X group)");
-        // A middle clause dropped leaves the ones around it joined as authored.
-        eq(VA.elementDisplayLabel(
-           "NAS6403U11D overall length, head bearing face to point (1.011 in)", bolt),
-           "overall length, head bearing face to point");
-
-        // A clause survives unless EVERY token in it is already-said. These
-        // three are the ones that made a blanket word-removal unsafe.
-        eq(VA.elementDisplayLabel("hub flange (A datum) to deck",
-           { id: "hub", name: "propeller hub" }), "flange (A datum) to deck");
-        eq(VA.elementDisplayLabel("cotter-hole centreline to bolt point (dimension M)",
-           bolt), "cotter-hole centreline to bolt point (dimension M)");
-        // A dash number is not the family's name: the nine rotor-fastener rows
-        // are separated by nothing else, so the rule must not eat it.
-        eq(VA.elementDisplayLabel("NAS6403U2H grip length (.125 in) -- shortest of nine options",
-           { id: "fastener_family", name: "NAS6403 grip-selection family" }),
-           "NAS6403U2H grip length -- shortest of nine options");
-        // Units are a module-level vocabulary, not inline literals.
-        ok(VA.LABEL_UNIT_WORDS.indexOf("in") !== -1);
-        ok(VA.LABEL_UNIT_WORDS.indexOf("mm") !== -1);
-        // Nothing is ever reworded or reordered: every character of the output
-        // is a character of the input, in the input's order.
-        var input = "pitch plate lug thickness (5X group)";
-        var out = VA.elementDisplayLabel(input, plate);
-        var at = 0;
-        out.split("").forEach(function (ch) {
-          at = input.indexOf(ch, at);
-          ok(at !== -1, "output character " + JSON.stringify(ch) + " is not the input's");
-          at += 1;
-        });
-      });
-
     // --- names, references and the copy rules (viewer_component_names_and_
     //     reference_copy, 2026-09-15) ---------------------------------------
     //
@@ -7139,31 +7045,23 @@
            "anti-vacuity: the hover really lit a leg with marks on it");
       });
 
-    await test("the element cell drops its own component's name and keeps the " +
-      "full label one hover away", function () {
-        // A group whose rows all open with the component's name, which is
-        // Jeff's blade_root case in miniature.
+    await test("the element cell prints the authored name whole, and its hover " +
+      "title is the same string", function () {
         var mini = miniTopo(false);
         mini.edges.forEach(function (edge) { edge.part = "blade_root"; });
         mini.parts = [{ id: "blade_root", name: "blade root" }];
-        mini.edges[0].name = "blade-root clocking holes to the hub";
+        mini.edges[0].name = "clocking holes to hub bearing seat";
         var ctx = { topoProj: mini, study: null, crops: null,
                     selection: null, detailImage: null,
                     onSelect: function () {} };
         var root = render(function (r) { VA.renderTopoPane(r, ctx); });
         var cells = all(root, "td.tvcell--name");
         ok(cells.length > 0, "the mini topology has rows");
-        var first = cells[0];
-        eq(first.textContent, "clocking holes to the hub");
-        eq(first.getAttribute("title"), "blade-root clocking holes to the hub",
-           "the words are one hover away, never dropped");
-        // A label that does not repeat its component renders unchanged AND
-        // carries no title -- a tooltip repeating the cell is noise.
-        var plain = cells.filter(function (c) {
-          return c.textContent.indexOf("clocking") === -1;
-        })[0];
-        ok(plain, "a row whose label does not open with its component");
-        eq(plain.getAttribute("title"), null);
+        eq(cells[0].textContent, "clocking holes to hub bearing seat");
+        cells.forEach(function (cell, i) {
+          eq(cell.getAttribute("title"), cell.textContent,
+             "row " + i + ": one phrase at two lengths, never two wordings");
+        });
       });
 
     await test("a scaled length mode takes the height it needs: the window is " +
@@ -8390,34 +8288,108 @@
         var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var from = VA.lastTopoRender;
-        var real = VA.renderTopoPane;
         var caught = [];
         var clock = 0;
         var queue = [];
-        var frames = 0;
+        // The first frame paints; the second one -- running off the
+        // animation callback, outside every try/catch this page has -- blows
+        // up.
+        var armed = false;
+        studyCtx.onPainted = function () {
+          if (armed) throw new Error("seeded frame failure");
+        };
+        VA.animateTopoPane(root, studyCtx, from, {
+          now: function () { return clock; },
+          raf: function (fn) { queue.push(fn); },
+          duration: 100, reduced: false,
+          onError: function (err) { caught.push(String(err.message)); },
+        });
+        eq(queue.length, 1);
+        armed = true;
+        clock = 50;
+        queue.shift()();
+        eq(caught, ["seeded frame failure"]);
+        eq(queue.length, 0, "and it stops asking for frames");
+      });
+
+    await test("the frames between keyframes move the live nodes and build " +
+      "none: a transition is three renders and a settle, whatever its length",
+      function () {
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = VA.lastTopoRender;
+        var clock = 0;
+        var queue = [];
+        var builds = 0;
+        var real = VA.renderTopoPane;
+        var handle;
         try {
-          VA.renderTopoPane = function (r, c) {
-            frames++;
-            // The first frame paints; the second one — running off the
-            // animation callback, outside every try/catch this page has —
-            // blows up.
-            if (frames > 1) throw new Error("seeded frame failure");
-            return real(r, c);
-          };
-          VA.animateTopoPane(root, studyCtx, from, {
+          VA.renderTopoPane = function (r, c) { builds++; return real(r, c); };
+          handle = VA.animateTopoPane(root, studyCtx, from, {
             now: function () { return clock; },
             raf: function (fn) { queue.push(fn); },
-            duration: 100, reduced: false,
-            onError: function (err) { caught.push(String(err.message)); },
+            duration: 1000, reduced: false,
           });
-          eq(queue.length, 1);
-          clock = 50;
+          var afterSetup = builds;
+          var bar = root.querySelector("line.rail__barhit");
+          var ys = function () {
+            return all(root, "line.rail__barhit").map(function (n) {
+              return n.getAttribute("y1");
+            }).join(",");
+          };
+          var seen = [ys()];
+          for (var t = 100; t < 1000; t += 100) {
+            clock = t;
+            queue.shift()();
+            seen.push(ys());
+          }
+          eq(builds, afterSetup, "nine frames, no render among them");
+          ok(root.querySelector("line.rail__barhit") === bar,
+             "the same node moved");
+          ok(seen.filter(function (v, i) { return seen.indexOf(v) === i; }).length > 4,
+             "and it moved a step each frame: " + seen);
+          clock = 1000;
           queue.shift()();
+          eq(builds, afterSetup + 1, "the settled frame is the one plain render");
         } finally {
           VA.renderTopoPane = real;
         }
-        eq(caught, ["seeded frame failure"]);
-        eq(queue.length, 0, "and it stops asking for frames");
+        ok(handle.done, "and the handle says it landed");
+      });
+
+    await test("a landing that names a pulled-back scale runs two legs: out " +
+      "to it first, then in to the arrival", function () {
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = VA.lastTopoRender;
+        var clock = 0;
+        var queue = [];
+        var zooms = [];
+        var legs = [];
+        var landing = {
+          target: function () { studyCtx.zoom = 0.8; },
+          waypoint: function () { return 0.3; },
+          frame: function () {},
+          placed: function (e, w) {
+            legs.push(w.k);
+            zooms.push(VA.lastTopoRender.zoom);
+          },
+        };
+        VA.animateTopoPane(root, studyCtx, from, {
+          now: function () { return clock; },
+          raf: function (fn) { queue.push(fn); },
+          reduced: false, landing: landing,
+        });
+        var total = VA.RESPINE.fitDuration;
+        for (var t = total / 20; t < total && queue.length; t += total / 20) {
+          clock = t;
+          queue.shift()();
+        }
+        ok(Math.min.apply(null, zooms) < 0.35, "the scale went out to the fit: " + zooms);
+        ok(legs.indexOf(0) !== -1 && legs.indexOf(1) !== -1, "both legs ran: " + legs);
+        var low = zooms.indexOf(Math.min.apply(null, zooms));
+        ok(zooms[0] > 0.9 && zooms[zooms.length - 1] > zooms[low] + 0.2,
+           "it started in, went out, and came back in: " + zooms);
       });
 
     await test("prefers-reduced-motion jumps to the end state: one render, " +
@@ -12450,7 +12422,7 @@
         eq([VA.readGroupKinds(store, "t"), VA.readGroupKinds(store, "u")],
            [on(["bodies"]), on(["chain", "kinematic"])]);
         data[VA.GROUP_KINDS_KEY] = JSON.stringify({ t: ["nonsense", "chain"] });
-        eq(VA.readGroupKinds(store, "t"), on(["bodies", "kinematic"]),
+        eq(VA.readGroupKinds(store, "t"), on(["bodies", "parts", "kinematic"]),
            "a word outside the set is ignored");
         data[VA.GROUP_KINDS_KEY] = "{not json";
         eq(VA.readGroupKinds(store, "t"), on(kinds), "an unreadable store: all on");
@@ -12464,14 +12436,268 @@
         });
         var summary = all(toolbar, "summary").filter(function (b) {
           return b.getAttribute("id") === "group-kinds-toggle"; })[0];
-        eq(summary.textContent, "Groups (3 of 3)");
+        eq(summary.textContent, "Groups (4 of 4)");
         var boxes = all(toolbar, "input");
-        eq(boxes.length, 3);
-        boxes[1].checked = false;
-        boxes[1].onchange();
+        eq(boxes.length, 4);
+        boxes[2].checked = false;
+        boxes[2].onchange();
         eq(seen, [["chain", false]]);
-        eq(summary.textContent, "Groups (2 of 3)");
+        eq(summary.textContent, "Groups (3 of 4)");
       });
+
+    // --- groups as borders, colour overlays, the graph's width
+    //     (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste) ------
+
+    // Every element below `node` in document order (the DAG is drawn in
+    // layers, so order is the descendants', not the children's).
+    function svgOrder(root) {
+      var kids = [];
+      var walk = function (node) {
+        Array.prototype.slice.call(node.childNodes || []).forEach(function (n) {
+          if (n.nodeType !== 1) return;
+          kids.push(n);
+          walk(n);
+        });
+      };
+      walk(all(root, "svg.tv__rails")[0]);
+      return kids;
+    }
+
+    await test("a part's group is every run of rows on one part inside one body, " +
+      "holding an edge, and it sits inside its body's field", function () {
+        var proj = twoBodyProjection();
+        var spans = function (p) {
+          return VA.partSpans(p.layout.rows, p).map(function (s) {
+            return [s.part, s.body, s.start, s.end, s.lo, s.hi];
+          });
+        };
+        eq(spans(proj), [["pa", "A", 0, 2, 0, 0], ["pb", "B", 4, 8, 0, 1]]);
+        // A node two parts meet at goes with the edge it continues: b1 opens
+        // eB (now part pc) and b2, on pb only, goes with eB2 below it.
+        var p2 = twoBodyProjection();
+        p2.edges[2].part = "pc";
+        p2.nodes[2].parts = ["pb", "pc"];
+        p2.bodies[1].parts = ["pb", "pc"];
+        eq(spans(p2), [["pa", "A", 0, 2, 0, 0], ["pc", "B", 4, 5, 0, 0],
+                       ["pb", "B", 6, 8, 0, 1]]);
+        eq(VA.partSpans([{ row: 0, kind: "node", id: "a1", column: 0, body: "A" }], proj), [],
+           "a part that is one face is its node, not a box");
+        var geo = VA.railGeometry(proj.layout, VA.RAIL_METRICS, undefined, { topoProj: proj });
+        eq(VA.railGeometry(proj.layout, VA.RAIL_METRICS).parts, [], "no topology, no parts");
+        var part = geo.parts[0];
+        var body = geo.bodies[0];
+        ok(part.x1 > body.x1 && part.x2 < body.x2 && part.y1 > body.y1 && part.y2 < body.y2,
+           "inside its body's field: " + JSON.stringify([part, body]));
+      });
+
+    await test("every group is a border with no fill by default; the group fill " +
+      "adds parts, then every kind, in one layer under every border", function () {
+        var s = twoStudies("s1");
+        var paint = function (mode) {
+          return paintGroups(s.proj, s.groups, "both", mode ? { groupFill: mode } : {});
+        };
+        var fills = function (root, kind) {
+          return all(root, "rect.tv__groupfill").filter(function (n) {
+            return hasClass(n, "tv__groupfill--" + kind);
+          }).length;
+        };
+        var off = paint(null);
+        eq(all(off, "rect.tv__groupfill").length, 0, "no fill by default");
+        eq([all(off, "rect.tv__bodyfield").length, all(off, "rect.tv__partfield").length,
+            all(off, "rect.tv__studyfield").length], [2, 2, 3], "every border is drawn");
+        var parts = paint("parts");
+        eq([fills(parts, "part"), fills(parts, "body"), fills(parts, "study")], [2, 0, 0]);
+        var every = paint("all");
+        eq([fills(every, "part"), fills(every, "body"), fills(every, "study")], [2, 2, 3]);
+        var kids = svgOrder(every);
+        var lastFill = -1;
+        var firstBorder = Infinity;
+        kids.forEach(function (n, i) {
+          if (hasClass(n, "tv__groupfill")) lastFill = i;
+          if ((hasClass(n, "tv__bodyfield") || hasClass(n, "tv__partfield") ||
+               hasClass(n, "tv__studyfield") || hasClass(n, "tv__bodybridge")) &&
+              i < firstBorder) firstBorder = i;
+        });
+        ok(lastFill < firstBorder, "every fill under every border: " + lastFill + " / " + firstBorder);
+        eq(all(paint("nonsense"), "rect.tv__groupfill").length, 0, "an unknown fill is none");
+      });
+
+    await test("a body's other blocks carry a muted repeat of its name, and only " +
+      "its named block folds it", function () {
+        var proj = twoBodyProjection();
+        // Body A on both sides of the joint: two blocks, one body.
+        proj.layout.rows.forEach(function (r) { if (r.body === "B") r.body = "A"; });
+        var root = paintGroups(proj, []);
+        eq(all(root, "rect.tv__bodyfield").length, 2);
+        eq(all(root, "text.tv__bodyname").map(function (n) {
+          return n.getAttribute("data-body-toggle"); }), ["A"], "named once");
+        var repeats = all(root, "text.tv__bodyrepeat");
+        eq(repeats.map(function (n) { return n.getAttribute("data-body-repeat"); }), ["A"]);
+        eq(repeats[0].getAttribute("data-body-toggle"), null, "a repeat folds nothing");
+        ok(repeats[0].textContent.indexOf("body a") === 0 ||
+           repeats[0].textContent.indexOf("…") > 0, repeats[0].textContent);
+      });
+
+    await test("a colour overlay maps every edge and node through one table of " +
+      "named schemes, and none is the one neutral ink", function () {
+        var proj = twoBodyProjection();
+        proj.edges[1].interface = "spherical";
+        proj.edges[0].confidence = "traced";
+        proj.edges[2].confidence = "untraced";
+        var none = VA.dagOverlay("none", proj);
+        eq([none.scheme, Object.keys(none.edges).length, Object.keys(none.nodes).length,
+            none.legend.length], ["none", 0, 0, 0]);
+        eq(VA.dagOverlay("nonsense", proj).scheme, "none");
+        var body = VA.dagOverlay("body", proj);
+        eq(body.edges, { eA: "ovl ovl-b0", eB: "ovl ovl-b1", eB2: "ovl ovl-b1" },
+           "a gap is in no body, so it keeps the neutral ink");
+        eq([body.nodes.a1, body.nodes.b3], ["ovl ovl-b0", "ovl ovl-b1"]);
+        eq(body.legend.map(function (l) { return l.label; }), ["body a", "body b"]);
+        var p = twoBodyProjection();
+        p.bodies[1].parts = ["pb", "pc"];
+        p.edges[3].part = "pc";
+        eq(VA.dagOverlay("part", p).edges,
+           { eA: "ovl ovl-b0", eB: "ovl ovl-b1", eB2: "ovl ovl-b1 ovl-s1" },
+           "a body's hue, a shade per part");
+        var iface = VA.dagOverlay("interface", proj);
+        eq(iface.edges, { j: "ovl ovl-i0" });
+        eq([iface.nodes.a2, iface.nodes.b1, iface.nodes.a1], ["ovl ovl-i0", "ovl ovl-i0", undefined]);
+        eq(iface.legend.map(function (l) { return l.label; }),
+           [VA.INTERFACE_GLYPHS.spherical.label]);
+        var src = VA.dagOverlay("sourcing", proj);
+        eq(src.edges, { eA: "ovl ovl-conf--traced", j: "ovl ovl-src-gap",
+                        eB: "ovl ovl-conf--untraced", eB2: "ovl ovl-src-none" });
+        eq(src.legend.map(function (l) { return l.label; }), ["traced", "untraced", "gap", "no value"]);
+        VA.COLOUR_SCHEMES.forEach(function (s) {
+          ok(s.label && (s.id === "none" ||
+            (typeof s.edge === "function" && typeof s.node === "function")), s.id);
+        });
+      });
+
+    await test("the contribution overlay is a sequential ramp over |sensitivity| x " +
+      "band at the page's stop, offered on a kinematic page only", function () {
+        var proj = twoBodyProjection();
+        var ids = function (o) { return VA.availableColourSchemes(o).map(function (s) { return s.id; }); };
+        eq(ids(null).indexOf("contribution"), -1);
+        ok(ids({ contributions: {} }).indexOf("contribution") !== -1);
+        eq(VA.dagOverlay("contribution", proj).scheme, "none", "no contributions, no ramp");
+        var o = VA.dagOverlay("contribution", proj,
+          { contributions: { eA: 1, eB: 0.5, eB2: 0.01, j: 0 }, units: "deg" });
+        eq(o.edges, { eA: "ovl ovl-seq-4", eB: "ovl ovl-seq-2", eB2: "ovl ovl-seq-0" },
+           "a zero contribution is the neutral ink");
+        eq(o.legend.length, VA.CONTRIBUTION_STEPS);
+        var study = { stops: [
+          { id: "a", rows: [{ edge: "x", magnitude: 0.2 }, { edge: "y", magnitude: -0.1 }],
+            groups: [{ children: [{ edge: "z", magnitude: 0.3 }] }] },
+          { id: "b", rows: [{ edge: "x", magnitude: 9 }] }] };
+        eq(VA.kinematicContributions(study, "a"), { x: 0.2, y: 0.1, z: 0.3 });
+        eq(VA.kinematicContributions(study, "b"), { x: 9 });
+        eq(VA.kinematicContributions(study, "nope"), { x: 0.2, y: 0.1, z: 0.3 }, "the first stop");
+        eq(VA.kinematicContributions({ stops: [] }, "a"), null);
+      });
+
+    await test("the overlay's ink rides on the bar, the dot and the glyph, and with " +
+      "none nothing wears it", function () {
+        var s = twoStudies(null);
+        s.proj.edges[1].interface = "spherical";
+        var count = function (root, sel, cls) {
+          return all(root, sel).filter(function (n) { return hasClass(n, cls); }).length;
+        };
+        var body = paintGroups(s.proj, [], null, { colourBy: "body" });
+        eq([count(body, "line.rail__bar", "ovl-b0"), count(body, "line.rail__bar", "ovl-b1"),
+            count(body, "line.rail__bar", "ovl")], [1, 2, 3], "the gap keeps the neutral ink");
+        eq([count(body, "circle.rail__dot", "ovl-b0"), count(body, "circle.rail__dot", "ovl-b1")],
+           [2, 3]);
+        var iface = paintGroups(s.proj, [], null, { colourBy: "interface" });
+        var glyphs = all(iface, "use").filter(function (n) {
+          return n.getAttribute("data-glyph-node") === "a2"; });
+        eq(glyphs.length, 1);
+        ok(hasClass(glyphs[0], "ovl-i0"), "the joint's glyph wears the overlay");
+        eq(all(paintGroups(s.proj, [], null, {}), ".ovl").length, 0);
+      });
+
+    await test("the DAG's view settings are remembered in one store entry, a word " +
+      "outside a table reads as its default, and the width scales the column pitch only",
+      function () {
+        var data = {};
+        var store = { getItem: function (k) { return k in data ? data[k] : null; },
+                      setItem: function (k, v) { data[k] = String(v); } };
+        eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "never chosen");
+        var chosen = { colourBy: "sourcing", groupFill: "parts", graphWidth: "wide" };
+        VA.writeDagView(store, chosen);
+        eq(VA.readDagView(store), chosen);
+        data[VA.DAG_VIEW_KEY] = JSON.stringify({ colourBy: "rainbow", groupFill: "parts",
+                                                 graphWidth: "huge" });
+        eq(VA.readDagView(store), { colourBy: "none", groupFill: "parts", graphWidth: "narrow" });
+        data[VA.DAG_VIEW_KEY] = "{not json";
+        eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS);
+        eq(VA.readDagView(null), VA.DAG_VIEW_DEFAULTS);
+        VA.writeDagView(null, chosen);
+        var layout = twoBodyLayout();
+        var pitch = function () {
+          var xs = VA.railGeometry(layout, VA.RAIL_METRICS).rails.map(function (r) { return r.x; });
+          return Math.max.apply(null, xs) - Math.min.apply(null, xs);
+        };
+        var rowsY = function () {
+          return VA.railGeometry(layout, VA.RAIL_METRICS).marks.map(function (m) { return m.y; });
+        };
+        try {
+          eq(VA.applyGraphWidth("narrow").gutter, 20, "narrow is the pitch the DAG always had");
+          var narrow = pitch();
+          var ys = rowsY();
+          VA.applyGraphWidth("medium");
+          var medium = pitch();
+          VA.applyGraphWidth("wide");
+          var wide = pitch();
+          ok(narrow < medium && medium < wide, [narrow, medium, wide].join(" < "));
+          eq(wide / narrow, VA.GRAPH_WIDTHS.wide.gutter / VA.GRAPH_WIDTHS.narrow.gutter);
+          eq(rowsY(), ys, "no row moves");
+          eq(VA.applyGraphWidth("bogus").gutter, VA.GRAPH_WIDTHS.narrow.gutter);
+        } finally {
+          VA.applyGraphWidth("narrow");
+        }
+      });
+
+    await test("the view popover offers the three settings over their own tables and " +
+      "reports a change; the overlay's key is beside it, and absent with none", function () {
+        var proj = twoBodyProjection();
+        var seen = [];
+        var toolbar = function (colourBy, options) {
+          return render(function (r) {
+            VA.renderTopoToolbar(r, { mode: "topology", topologyId: proj.id, studyId: null }, proj, {
+              dagView: { colourBy: colourBy, groupFill: "off", graphWidth: "narrow",
+                         schemes: VA.availableColourSchemes(options),
+                         legend: VA.dagOverlay(colourBy, proj, options).legend },
+              onDagView: function (k, v) { seen.push([k, v]); },
+            });
+          });
+        };
+        var tb = toolbar("body", null);
+        var selects = all(tb, "select");
+        eq(selects.map(function (n) { return n.getAttribute("data-view-setting"); }),
+           ["colourBy", "groupFill", "graphWidth"]);
+        eq(all(selects[0], "option").map(function (o) { return o.value; }),
+           VA.availableColourSchemes(null).map(function (s) { return s.id; }));
+        eq(all(selects[1], "option").map(function (o) { return o.value; }), VA.GROUP_FILL_ORDER);
+        eq(all(selects[2], "option").map(function (o) { return o.value; }), VA.GRAPH_WIDTH_ORDER);
+        selects[2].value = "wide";
+        selects[2].onchange();
+        eq(seen, [["graphWidth", "wide"]]);
+        eq(all(tb, "span.tvovl__item").length, 2, "one key entry per body");
+        eq(all(toolbar("none", null), "div.tvovl").length, 0);
+        ok(all(all(toolbar("none", { contributions: {} }), "select")[0], "option")
+          .some(function (o) { return o.value === "contribution"; }), "kinematic page");
+      });
+
+    await test("the scene is told each part's body colour in its own model verb", function () {
+      var proj = twoBodyProjection();
+      eq(VA.sceneTintCommand(proj, function (i) { return ["#112233", "#AABBCC"][i]; }),
+         ["model", "tint", "pa=#112233", "pb=#aabbcc"]);
+      eq(VA.sceneTintCommand(proj, function () { return null; }), ["model", "tint", "off"]);
+      eq(VA.sceneTintCommand(proj, function () { return " #112233 "; }), ["model", "tint", "off"],
+         "the page trims the computed value; anything else is not a colour");
+      eq(VA.sceneTintCommand(null, null), ["model", "tint", "off"]);
+    });
 
     await test("the selected study's group is drawn last and a step stronger; hidden, " +
       "only it remains, whole", function () {
@@ -15467,62 +15693,6 @@
               " combinations = " + configurations + " configurations");
           });
 
-        await test("[real] the blade_root rows no longer open with " +
-          "'blade-root', and their full labels are one hover away", function () {
-            // Jeff's own example, on the document he was reading: "under
-            // component `blade_root`, three rows all render 'blade-root
-            // clocking holes to th...'".
-            var root = render(function (r) {
-              VA.renderTopoPane(r, {
-                topoProj: livePitch, study: null, crops: realCrops,
-                selection: null,
-                onSelect: function () {},
-              });
-            });
-            var plan = VA.gridPlan(VA.spineRight(livePitch.layout), livePitch);
-            var index = VA.topologyIndex(livePitch);
-            var cells = all(root, "td.tvcell--name");
-            eq(cells.length, plan.rows.length);
-
-            var bladeRoot = [];
-            plan.groups.forEach(function (group) {
-              if (group.part !== "blade_root") return;
-              for (var i = 0; i < group.count; i++) {
-                bladeRoot.push(cells[group.start + i]);
-              }
-            });
-            // Four since the 2026-10-26 fold: the linkage half adds the root
-            // bearing bore to the pitch-arm seat.
-            eq(bladeRoot.length, 4, "blade_root carries four rows");
-            bladeRoot.forEach(function (cell, i) {
-              ok(cell.textContent.toLowerCase().indexOf("blade") !== 0,
-                 "blade_root row " + i + " still opens with its component: " +
-                 cell.textContent);
-              ok(cell.textContent.length > 0, "and it is not blank");
-              // Nothing is lost: the title is the edge's own name, whole.
-              var id = plan.rows[0] && cell.getAttribute("title");
-              ok(id === null || id.toLowerCase().indexOf("blade") === 0,
-                 "the full label is the hover text");
-            });
-            // The cells opening with "clocking holes" are the ones Jeff saw
-            // truncated, now saying the thing that distinguishes them.
-            eq(bladeRoot.filter(function (c) {
-              return c.textContent.indexOf("clocking holes") === 0;
-            }).length, 3);
-            // And a row whose label does NOT repeat its component is
-            // untouched, so this is a trim and not a rewrite.
-            // "piston length" under a cell reading "actuator piston (output
-            // rod end)" is the same repeat one column over, and loses its
-            // leading word for the same reason -- with the full label on
-            // hover, which is what makes this a trim and not a rewrite.
-            var pistonLength = cells.filter(function (c) {
-              return c.textContent === "length" &&
-                c.getAttribute("title") === "piston length";
-            });
-            eq(pistonLength.length, 1);
-            ok(index.edges, "the index is built");
-          });
-
         await test("[real] pitch_system is variation-only, so 'feature size' " +
           "floors every edge and 'tolerance width' scales the real bands",
           function () {
@@ -17155,13 +17325,12 @@
             ok(cells > 30, "the walk must not be vacuous: " + cells + " cells");
           });
 
-        // Jeff's own two examples, stated as the SHAPE they are examples of:
-        // the element column carries the feature and nothing the row says
-        // elsewhere. Pinned over every live row rather than the two he named,
-        // because the rule is what has to hold.
-        await test("[real] no element cell repeats its component's words or " +
-          "its own value, and nothing a cell drops is lost", function () {
-            var trimmed = 0, untouched = 0;
+        // One phrase at two lengths (2026-11-05): the cell prints the edge's
+        // authored name and its hover title is that same string -- the part
+        // column carries the part, so no name is shortened on the way.
+        await test("[real] every element cell prints its edge's name whole and " +
+          "its hover title is the same string", function () {
+            var checked = 0;
             liveTopos.forEach(function (topoProj) {
               var index = VA.topologyIndex(topoProj);
               var plan = VA.gridPlan(VA.spineRight(topoProj.layout), topoProj);
@@ -17177,34 +17346,15 @@
               plan.rows.forEach(function (planRow, i) {
                 var edge = index.edges[planRow.id];
                 if (!edge) return;
-                var cell = cells[i];
                 var where = topoProj.id + "/" + planRow.id;
-                ok(cell.textContent.length > 0, where + ": never blank");
-                if (cell.textContent === edge.name) {
-                  eq(cell.getAttribute("title"), null, where +
-                    ": an untrimmed cell needs no hover title");
-                  untouched += 1;
-                  return;
-                }
-                // Nothing is lost: the full label is one hover away, and the
-                // preview pane prints it whole.
-                eq(cell.getAttribute("title"), edge.name, where +
-                  ": a trimmed cell carries the full label on hover");
-                // And nothing was reworded: every character of the cell is a
-                // character of the authored name, in order.
-                var at = 0;
-                cell.textContent.split("").forEach(function (ch) {
-                  at = edge.name.indexOf(ch, at);
-                  ok(at !== -1, where + ": the cell is not a substring-" +
-                    "composition of the authored name: " + cell.textContent);
-                  at += 1;
-                });
-                trimmed += 1;
+                ok(cells[i].textContent.length > 0, where + ": never blank");
+                eq(cells[i].textContent, edge.name, where + ": the cell is the name");
+                eq(cells[i].getAttribute("title"), edge.name,
+                   where + ": the hover is the same name");
+                checked += 1;
               });
             });
-            ok(trimmed > 20, "most live rows repeat something: " + trimmed);
-            ok(untouched > 0, "a row with nothing to drop must come back " +
-              "unchanged, or this is a rewrite and not a trim");
+            ok(checked > 20, "the walk must not be vacuous: " + checked);
           });
 
         await test("[real] no rendered surface of any live topology prints an " +

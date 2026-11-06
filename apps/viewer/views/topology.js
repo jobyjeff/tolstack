@@ -173,6 +173,18 @@
       root.appendChild(menu);
     }
 
+    // The DAG's view settings (the_dag_is_coloured_by_a_chosen_attribute_and_
+    // spaced_to_taste): what colours the marks (VA.COLOUR_SCHEMES), which
+    // groups are filled (VA.GROUP_FILLS) and how far apart the columns are
+    // (VA.GRAPH_WIDTHS), in one popover like the groups'. `handlers.dagView`
+    // is {colourBy, groupFill, graphWidth, schemes, legend}; a change is
+    // reported as (setting, value).
+    if (handlers.onDagView && handlers.dagView) {
+      root.appendChild(dagViewMenu(handlers.dagView, handlers.onDagView));
+      var legend = overlayLegend(handlers.dagView.legend || []);
+      if (legend) root.appendChild(legend);
+    }
+
     // The study's own 3D affordance, only once a real study is selected --
     // "trace this in 3D" means nothing about the whole topology, only about
     // one human-lassoed chain. Two forms of the same capability (handoff
@@ -205,6 +217,70 @@
     }
     return root;
   };
+
+  // The view popover: three labelled pickers, each over its own table.
+  function dagViewMenu(view, onChange) {
+    var menu = VA.el("details", "tvgroups tvview");
+    menu.setAttribute("id", "dag-view");
+    var summary = VA.el("summary", "ghost tvpick__mode", "View");
+    summary.setAttribute("id", "dag-view-toggle");
+    menu.appendChild(summary);
+    var list = VA.el("div", "tvgroups__menu tvview__menu");
+    var picker = function (setting, label, options) {
+      var row = VA.el("label", "tvview__item");
+      row.appendChild(VA.el("span", "tvview__label", label));
+      var select = document.createElement("select");
+      select.setAttribute("data-view-setting", setting);
+      options.forEach(function (o) {
+        var opt = document.createElement("option");
+        opt.value = o.id;
+        opt.textContent = o.label;
+        if (o.id === view[setting]) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.value = view[setting];
+      select.onchange = function () { onChange(setting, select.value); };
+      row.appendChild(select);
+      list.appendChild(row);
+    };
+    picker("colourBy", "Colour by", (view.schemes || VA.COLOUR_SCHEMES).map(function (s) {
+      return { id: s.id, label: s.label };
+    }));
+    picker("groupFill", "Group fill", VA.GROUP_FILL_ORDER.map(function (id) {
+      return { id: id, label: VA.GROUP_FILLS[id].label };
+    }));
+    picker("graphWidth", "Graph width", VA.GRAPH_WIDTH_ORDER.map(function (id) {
+      return { id: id, label: VA.GRAPH_WIDTHS[id].label };
+    }));
+    menu.appendChild(list);
+    var away = function (e) {
+      if (!menu.isConnected) { document.removeEventListener("click", away); return; }
+      if (!menu.contains(e.target)) menu.removeAttribute("open");
+    };
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("click", away);
+    }
+    return menu;
+  }
+
+  // The overlay's key: one swatch per token the scheme drew, beside its words
+  // (text in the text ink; the swatch carries the colour). Nothing with no
+  // overlay on. Wraps under the toolbar's controls; each item's full words are
+  // its hover.
+  function overlayLegend(entries) {
+    if (!entries.length) return null;
+    var strip = VA.el("div", "tvovl");
+    strip.setAttribute("id", "dag-overlay-legend");
+    entries.forEach(function (entry) {
+      var item = VA.el("span", "tvovl__item");
+      item.setAttribute("title", entry.label);
+      var swatch = VA.el("span", "tvovl__swatch ovl " + entry.token);
+      item.appendChild(swatch);
+      item.appendChild(VA.el("span", "muted", entry.label));
+      strip.appendChild(item);
+    });
+    return strip;
+  }
 
   // --- the joint -------------------------------------------------------------
   //
@@ -370,8 +446,10 @@
     var groups = (ctx.studyGroups || []).filter(function (g) {
       return showKind(g.kind) && (!hiding || g.selected);
     });
-    var geometry = VA.railGeometry(layout, M, positions, { x: xTween, groups: groups });
+    var geometry = VA.railGeometry(layout, M, positions,
+      { x: xTween, groups: groups, topoProj: topoProj });
     geometry.showBodies = showKind("bodies");
+    geometry.showParts = showKind("parts");
     // A study group's hover lights its edges' bars and grid rows: each edge
     // leads under its groups' keys (hotState's `studyOfEdge`).
     groups.forEach(function (g) {
@@ -510,6 +588,9 @@
     zoomed.appendChild(head);
     var body = VA.el("div", "tv__body");
     if (bodyPad) body.style.paddingTop = bodyPad + "px";
+    // The view's colour overlay, built once per paint (VA.dagOverlay).
+    ctx.overlay = VA.dagOverlay(ctx.colourBy, topoProj,
+      { contributions: ctx.contributions || null, units: ctx.contributionUnits || null });
     body.appendChild(railsSvg(geometry, leaderGeo, index,
       marking ? lit.edges : {}, marking ? lit.nodes : {}, marking, ctx, fade,
       fadeLink, hot, layout, lit));
@@ -684,49 +765,348 @@
       VA.renderTopoPane(root, ctx);
       return null;
     }
-    var duration = opts.duration === undefined ? VA.RESPINE.duration : opts.duration;
     var now = opts.now || function () { return Date.now(); };
     var raf = opts.raf || nextFrame;
-    var ghost = ghostOf(root);
+    // A landing that is not a study change has no outgoing picture to fade:
+    // the same rows, drawn again at another scale and place.
+    var ghost = opts.ghost === false ? null : ghostOf(root);
     var landing = opts.landing || null;
     if (landing) {
       VA.renderTopoPane(root, ctx);
       landing.target();
     }
-    var start = now();
+    var zoomFrom = landing && from.zoom ? from.zoom : ctx.zoom;
+    var zoomTo = ctx.zoom;
+    // Fit, then focus: a landing may name a scale at which BOTH the picture
+    // it leaves and the one it arrives at are in view, and the camera pulls
+    // back to it before it goes in (`landing.waypoint`, the page's: only it
+    // knows the window). The tween is then two segments with a keyframe
+    // between them, otherwise one.
+    var fitZoom = landing && landing.waypoint
+      ? landing.waypoint(from, zoomFrom, zoomTo) : null;
+    var keys = [{ e: 0, zoom: zoomFrom }];
+    if (fitZoom) keys.push({ e: VA.RESPINE.fitAt, zoom: fitZoom, mid: true });
+    keys.push({ e: 1, zoom: zoomTo });
+    var duration = opts.duration === undefined
+      ? (fitZoom ? VA.RESPINE.fitDuration : VA.RESPINE.duration)
+      : opts.duration;
+    var seg = function (t) {
+      // Which segment time t falls in, and how far through it, eased.
+      if (keys.length === 2) return { k: 0, u: VA.respineEase(t) };
+      var cut = VA.RESPINE.fitShare;
+      return t < cut ? { k: 0, u: VA.respineEase(t / cut) }
+                     : { k: 1, u: VA.respineEase((t - cut) / (1 - cut)) };
+    };
+    var tweenOf = function (key, withGhost) {
+      return { positions: previous, columns: from.columns, floor: from.floor,
+               width: from.width, links: from.links, e: key.e,
+               ghost: withGhost ? ghost : null };
+    };
+    var frameOf = function (w) {
+      return { k: w.k, u: w.u,
+               e: keys[w.k].e + (keys[w.k + 1].e - keys[w.k].e) * w.u };
+    };
     var handle = { cancel: function () { handle.cancelled = true; }, cancelled: false };
-    var step = function () {
-      if (handle.cancelled) return;
-      var t = duration > 0 ? (now() - start) / duration : 1;
-      var settling = !(t < 1);
-      var e = 1;
-      // The settled frame gets no tween argument at all, so the ghost is not
-      // re-appended and every number in the DOM is the target's own.
-      if (settling) {
-        handle.done = true;
-      } else {
-        e = VA.respineEase(t);
-        ctx.tween = { positions: previous, columns: from.columns,
-                      floor: from.floor, width: from.width, links: from.links,
-                      e: e, ghost: ghost };
-      }
+    var fail = function (err) {
+      handle.cancelled = true;
+      if (opts.onError) opts.onError(err);
+    };
+    // The settled frame: a plain render with no tween argument at all, so the
+    // ghost is gone and every number in the DOM is the target's own.
+    var settle = function () {
+      handle.done = true;
+      var w = { k: keys.length - 2, u: 1 };
+      ctx.zoom = zoomTo;
       try {
-        if (landing) landing.frame(e);
+        if (landing) landing.frame(1, w);
         VA.renderTopoPane(root, ctx);
-        if (landing) landing.placed(e);
+        if (landing) landing.placed(1, w);
       } catch (err) {
-        handle.cancelled = true;
-        if (opts.onError) opts.onError(err);
+        fail(err);
         return;
       } finally {
         delete ctx.tween;
       }
-      if (!settling) raf(step);
-      else if (handle.onSettled) handle.onSettled();
+      if (handle.onSettled) handle.onSettled();
     };
-    step();
+    handle.finish = function () {
+      if (handle.cancelled || handle.done) return;
+      handle.cancelled = true;
+      settle();
+    };
+
+    // Keyframes: the pane rendered once at each, its numbers kept. Every frame
+    // between two of them is then the live nodes' own attributes eased from
+    // one set to the next -- no node is built, so a frame costs what moving
+    // a thousand marks costs and not what drawing them does (measured: three
+    // rebuilt frames in a 260 ms transition, the rest of the time spent
+    // laying the rebuild out).
+    var snaps = [];
+    var drawn = [];
+    try {
+      // The live pane is the one rendered last, so it is what stays on
+      // screen: the keyframes run from the target back to the outgoing
+      // picture.
+      for (var i = keys.length - 1; i >= 0; i--) {
+        var key = keys[i];
+        ctx.zoom = key.zoom;
+        if (landing) {
+          landing.frame(key.e, { k: Math.min(i, keys.length - 2),
+                                 u: i === keys.length - 1 ? 1 : 0 });
+        }
+        if (i === keys.length - 1) delete ctx.tween;
+        else ctx.tween = tweenOf(key, i === 0);
+        VA.renderTopoPane(root, ctx);
+        drawn[i] = VA.lastTopoRender;
+        snaps[i] = takeSnapshot(root);
+        if (key.mid && landing && landing.midRendered) landing.midRendered();
+      }
+    } catch (err) {
+      fail(err);
+      return handle;
+    } finally {
+      delete ctx.tween;
+    }
+    var plan = pairSnapshots(snaps);
+    if (!plan) {
+      // The keyframes do not share a structure: fall back to rebuilding
+      // every frame, which is slower and always right.
+      return legacyFrames();
+    }
+    var final = drawn[drawn.length - 1];
+    var start = now();
+    var paint = function (w) {
+      var f = frameOf(w);
+      applySnapshotPlan(plan, w.k, w.u);
+      // What the next transition continues from is the picture on screen.
+      VA.lastTopoRender = blendDrawn(drawn[w.k], drawn[w.k + 1], w.u,
+        previous, final.positions, f.e);
+      if (ghost) ghost.style.opacity = String(1 - f.e);
+      if (landing) {
+        landing.frame(f.e, w);
+        applyBandPad(root, ctx.bandPad);
+        landing.placed(f.e, w);
+      }
+      VA.pinTopoHead(root);
+      if (ctx.onPainted) ctx.onPainted();
+    };
+    var step = function () {
+      if (handle.cancelled) return;
+      var t = duration > 0 ? (now() - start) / duration : 1;
+      if (!(t < 1)) { settle(); return; }
+      try {
+        paint(seg(t));
+      } catch (err) {
+        fail(err);
+        return;
+      }
+      raf(step);
+    };
+    // Frame 0 is the outgoing picture, drawn before anything yields to the
+    // browser, so a click never flashes an intermediate state.
+    try {
+      paint({ k: 0, u: 0 });
+    } catch (err) {
+      fail(err);
+      return handle;
+    }
+    raf(step);
     return handle;
+
+    // The slow path: every frame a full render, as every transition was
+    // before the keyframes. Kept for a set of renders that cannot be paired.
+    function legacyFrames() {
+      var t0 = now();
+      var legacyStep = function () {
+        if (handle.cancelled) return;
+        var t = duration > 0 ? (now() - t0) / duration : 1;
+        if (!(t < 1)) { settle(); return; }
+        var w = seg(t);
+        var f = frameOf(w);
+        ctx.tween = tweenOf({ e: f.e }, true);
+        ctx.zoom = zoomFrom + (zoomTo - zoomFrom) * f.e;
+        try {
+          if (landing) landing.frame(f.e, w);
+          VA.renderTopoPane(root, ctx);
+          if (landing) landing.placed(f.e, w);
+        } catch (err) {
+          fail(err);
+          return;
+        } finally {
+          delete ctx.tween;
+        }
+        raf(legacyStep);
+      };
+      legacyStep();
+      return handle;
+    }
   };
+
+  // --- the keyframe tween's mechanics ---------------------------------------
+
+  // The inline style properties a tween may move, besides every attribute: the
+  // rest of a node (its class, its text, its handlers) is the target's and
+  // does not change mid-flight.
+  var STYLE_PROPS = ["opacity", "top", "left", "width", "height", "marginTop",
+    "marginLeft", "paddingTop", "paddingLeft", "minWidth"];
+  var NUMBER = /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi;
+
+  function attributeNames(node) {
+    var a = node.attributes;
+    if (!a) return [];
+    if (typeof a.length === "number" && a.length > 0 && a[0] && a[0].name !== undefined) {
+      var out = [];
+      for (var i = 0; i < a.length; i++) out.push(a[i].name);
+      return out;
+    }
+    return Object.keys(a);
+  }
+
+  // Every element under the live pane's scroller, in document order, with the
+  // attributes and the style properties the tween may move.
+  function takeSnapshot(root) {
+    var scroller = root.querySelector(".tv__hscroll");
+    var nodes = [];
+    var walk = function (n) {
+      var kids = n.childNodes || [];
+      for (var i = 0; i < kids.length; i++) {
+        var c = kids[i];
+        if (c.nodeType !== 1) continue;
+        var attrs = {};
+        var names = attributeNames(c);
+        for (var j = 0; j < names.length; j++) {
+          if (names[j] === "style") continue;
+          attrs[names[j]] = String(c.getAttribute(names[j]));
+        }
+        var style = {};
+        if (c.style) {
+          for (var s = 0; s < STYLE_PROPS.length; s++) {
+            var v = c.style[STYLE_PROPS[s]];
+            if (v !== undefined && v !== null && v !== "") style[STYLE_PROPS[s]] = String(v);
+          }
+        }
+        nodes.push({ node: c, tag: c.tagName, attrs: attrs, style: style });
+        walk(c);
+      }
+    };
+    if (scroller) walk(scroller);
+    return nodes;
+  }
+
+  // "12.5px" -> { t: "\0px", n: [12.5] }: the numbers a value is made of and
+  // the text around them. Two values interpolate when their text is the same.
+  function tokens(value) {
+    var n = [];
+    var t = String(value).replace(NUMBER, function (m) { n.push(parseFloat(m)); return "\u0000"; });
+    return { t: t, n: n };
+  }
+
+  function formatNumber(x) {
+    var r = Math.round(x * 1000) / 1000;
+    return String(r === 0 ? 0 : r);
+  }
+
+  function interpolated(a, b, u) {
+    var i = 0;
+    return a.t.replace(/\u0000/g, function () {
+      var x = a.n[i] + (b.n[i] - a.n[i]) * u;
+      i++;
+      return formatNumber(x);
+    });
+  }
+
+  // For each moving property of each node, its values at every keyframe.
+  // Returns null when the keyframes are not the same picture structurally.
+  function pairSnapshots(snaps) {
+    var base = snaps[0];
+    for (var s = 1; s < snaps.length; s++) {
+      if (snaps[s].length !== base.length) return null;
+      for (var i = 0; i < base.length; i++) {
+        if (snaps[s][i].tag !== base[i].tag) return null;
+      }
+    }
+    var entries = [];
+    var add = function (i, kind, name, absent) {
+      var vals = [];
+      for (var s = 0; s < snaps.length; s++) {
+        var bag = kind === "attr" ? snaps[s][i].attrs : snaps[s][i].style;
+        var v = bag[name];
+        if (v === undefined) {
+          if (absent === null) return;
+          v = absent;
+        }
+        vals.push(tokens(v));
+      }
+      var changes = false;
+      for (var k = 1; k < vals.length; k++) {
+        if (vals[k].t !== vals[0].t || vals[k].n.length !== vals[0].n.length) return;
+        for (var m = 0; m < vals[0].n.length; m++) {
+          if (vals[k].n[m] !== vals[0].n[m]) changes = true;
+        }
+      }
+      if (changes) entries.push({ node: base[i].node, kind: kind, name: name, vals: vals });
+    };
+    for (var n = 0; n < base.length; n++) {
+      var seen = {};
+      var styled = {};
+      for (var q = 0; q < snaps.length; q++) {
+        Object.keys(snaps[q][n].attrs).forEach(function (key) { seen[key] = true; });
+        Object.keys(snaps[q][n].style).forEach(function (key) { styled[key] = true; });
+      }
+      Object.keys(seen).forEach(function (key) { add(n, "attr", key, null); });
+      Object.keys(styled).forEach(function (key) {
+        add(n, "style", key, key === "opacity" ? "1" : null);
+      });
+    }
+    return entries;
+  }
+
+  function applySnapshotPlan(entries, k, u) {
+    for (var i = 0; i < entries.length; i++) {
+      var en = entries[i];
+      var text = interpolated(en.vals[k], en.vals[k + 1], u);
+      if (en.kind === "attr") en.node.setAttribute(en.name, text);
+      else en.node.style[en.name] = text;
+    }
+  }
+
+  // The space put before the drawing, on the node that wears it.
+  function applyBandPad(root, pad) {
+    var sizer = root.querySelector ? root.querySelector(".tv__zoomsizer") : null;
+    if (!sizer || !sizer.style) return;
+    sizer.style.marginTop = pad && pad.top > 0 ? pad.top + "px" : "";
+    sizer.style.marginLeft = pad && pad.left > 0 ? pad.left + "px" : "";
+  }
+
+  function blendValue(a, b, u) {
+    if (typeof a === "number" && typeof b === "number") return a + (b - a) * u;
+    if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
+      return b.map(function (x, i) { return blendValue(a[i], x, u); });
+    }
+    if (a && b && typeof a === "object" && typeof b === "object" &&
+        !Array.isArray(a) && !Array.isArray(b)) {
+      var out = {};
+      Object.keys(b).forEach(function (key) {
+        out[key] = key in a ? blendValue(a[key], b[key], u) : b[key];
+      });
+      return out;
+    }
+    return b;
+  }
+
+  // What the pane drew at frame `u` of a segment, in the shape the next paint
+  // reads (VA.lastTopoRender): the scalars and maps blended between the two
+  // keyframes' own, and the position store re-derived at the frame's overall
+  // progress so an interruption continues from this picture.
+  function blendDrawn(a, b, u, previous, target, e) {
+    var out = Object.assign({}, b);
+    ["columns", "floor", "width", "zoom", "links", "seam"].forEach(function (key) {
+      if (a[key] !== undefined && b[key] !== undefined) out[key] = blendValue(a[key], b[key], u);
+    });
+    out.positions = VA.tweenPositions(previous, target, e);
+    out.tweening = true;
+    return out;
+  }
 
   // The outgoing paint, re-parented into an inert overlay rather than
   // re-drawn or cloned.
@@ -1682,9 +2062,9 @@
 
     // 0. the alternating bands (viewer_leader_grid_legibility): the region
     //    between two adjacent leaders, tinted in one of two neutral shades by
-    //    parity (VA.rowBandParity). The grid rows wear their body's tint
-    //    instead since the_kinematic_grid_is_a_stack_of_sub_stacks
-    //    (VA.gridRowMarks). Drawn
+    //    parity (VA.rowBandParity). The grid rows wear no tint since
+    //    the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what
+    //    (brackets say the grouping, VA.gridBraces). Drawn
     //    first so everything else sits on top of it, and hit-tested by
     //    nothing -- a band is wayfinding, not a target.
     leaderGeo.bands.forEach(function (band) {
@@ -1737,6 +2117,19 @@
     // on its field in the band, else its first -- with a thin bridge in its
     // own tint from each field to the next (VA.bodyBridges).
     var named = VA.bodyLabelFields(geometry.bodies, layout && layout.rows, lit);
+    // Every group is a thin border in its kind's hue; which groups are ALSO
+    // filled is the view's group fill (VA.GROUP_FILLS). The fills go in one
+    // layer first, so every border -- a body's, a part's, a study's -- draws
+    // on top of every fill.
+    var fillMode = VA.GROUP_FILLS[ctx.groupFill] ? ctx.groupFill : "off";
+    var fills = VA.svg("g", "tv__fills");
+    under.appendChild(fills);
+    var fillRect = function (f, cls, r) {
+      fills.appendChild(VA.svg("rect", "tv__groupfill " + cls, {
+        x: f.x1, y: f.y1, width: Math.max(0, f.x2 - f.x1),
+        height: Math.max(0, f.y2 - f.y1), rx: r, ry: r,
+      }));
+    };
     if (geometry.showBodies !== false) {
       VA.bodyBridges((geometry.bodies || []).filter(function (field) {
         return !pillRows[field.start];
@@ -1761,8 +2154,36 @@
       });
       rect.setAttribute("data-body", field.body);
       under.appendChild(rect);
+      if (fillMode === "all") {
+        fillRect(field, "tv__groupfill--body tv__fill--t" + VA.bodyTint(ctx.topoProj, field.body) +
+          (flat ? " tv__groupfill--flat" : ""), 6);
+      }
       if (named[f]) bodyNames.push(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
+      // A body's other blocks carry a short, muted repeat of its name, so a
+      // block whose named one is off-screen still says whose it is. Not the
+      // fold control: that stays on the named block.
+      else bodyNames.push(bodyRepeat(body, field));
     });
+
+    // 0c''. the parts (VA.partSpans): the smallest group, a border in the
+    //       part hue inside its body's field, filled solid when the view's
+    //       group fill asks for parts.
+    if (geometry.showParts !== false) {
+      (geometry.parts || []).forEach(function (field) {
+        if (pillRows[field.start]) return;
+        var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
+        var rect = VA.svg("rect", "tv__partfield" + (flat ? " tv__partfield--flat" : ""), {
+          x: field.x1, y: field.y1, width: Math.max(0, field.x2 - field.x1),
+          height: Math.max(0, field.y2 - field.y1), rx: 4, ry: 4,
+        });
+        rect.setAttribute("data-part", field.part);
+        under.appendChild(rect);
+        if (fillMode !== "off") {
+          fillRect(field, "tv__groupfill--part tv__fill--t" + VA.bodyTint(ctx.topoProj, field.body) +
+            (flat ? " tv__groupfill--flat" : ""), 4);
+        }
+      });
+    }
 
     // 0c'. the study groups (a_study_is_a_translucent_group_on_the_dag): a
     //      see-through field per run of a study's rows, over the bodies and
@@ -1780,6 +2201,10 @@
         });
         rect.setAttribute("data-study-group", group.id);
         under.appendChild(hotHover(hot, rect, key));
+        if (fillMode === "all") {
+          fillRect(span, "tv__groupfill--study tv__groupfill--" + group.kind +
+            (group.selected ? " tv__groupfill--selected" : ""), 9);
+        }
         if (i) return;
         var label = VA.svg("text", "tv__studyname", { x: span.x1 + 6, y: span.y1 + 3 });
         label.textContent = fitText(group.title, Math.max(span.x2 - span.x1 - 8, 84));
@@ -1981,6 +2406,10 @@
     //    (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit).
     var formMarks = VA.formMarks(ctx.topoProj);
     var jointKinds = VA.nodeJointKinds(ctx.topoProj);
+    // The view's colour overlay (VA.dagOverlay): an "ovl <token>" class per
+    // edge and node, the ink the bar, the dot and the glyph wear. Lit and
+    // unlit stay weight; no overlay is the one neutral ink.
+    var overlay = ctx.overlay || { edges: {}, nodes: {} };
     var pills = {};
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
@@ -1992,6 +2421,7 @@
         if (mark.floored) classes.push("rail__bar--floored");
         if (marking) classes.push(inChain ? "rail__bar--on" : "rail__bar--off");
         if (folded[mark.id]) classes.push("rail__bar--folded");
+        if (overlay.edges[mark.id]) classes.push(overlay.edges[mark.id]);
         var otherVariant = !!(edge && edge.part && ctx.otherVariantParts &&
           ctx.otherVariantParts[edge.part]);
         if (otherVariant) classes.push("rail__bar--other-variant");
@@ -2099,6 +2529,7 @@
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
+      if (overlay.nodes[mark.id]) dotClasses.push(overlay.nodes[mark.id]);
       // An end of a joint is that joint's glyph. The dot is still drawn under
       // it, unpainted, as the node's target and its address (data-id): the
       // glyph is the picture and wears the same state classes, and leads
@@ -2215,15 +2646,21 @@
     return label;
   }
 
-  // A body's bridge (VA.bodyBridges): a thin stroke in the body's own tint,
-  // or the flat outline's grey when nothing lit is inside it.
+  // The muted repeat of a body's name on its other blocks: as much of the
+  // name as the block's width holds, the whole name on hover.
+  function bodyRepeat(body, field) {
+    var label = VA.svg("text", "tv__bodyrepeat", { x: field.x1 + 4, y: field.y1 + 9 });
+    label.textContent = fitText(body.name || body.id, Math.max(field.x2 - field.x1 - 8, 60));
+    label.appendChild(svgTitle(body.name || body.id));
+    label.setAttribute("data-body-repeat", body.id);
+    return label;
+  }
+
+  // A body's bridge (VA.bodyBridges): a thin stroke in the body group's hue,
+  // the same as its border, or the flat outline's when nothing lit is inside.
   function bodyBridge(bridge, ctx, flat) {
     var path = VA.svg("path", "tv__bodybridge" + (flat ? " tv__bodybridge--flat" : ""),
       { d: bridge.d });
-    if (!flat) {
-      path.setAttribute("style", "stroke: var(--tv-body-" +
-        VA.bodyTint(ctx.topoProj, bridge.body) + ")");
-    }
     path.setAttribute("data-body-bridge", bridge.body);
     return path;
   }
@@ -2250,8 +2687,9 @@
     var r = M.branchDot;
     var x1 = Math.min(mark.x, mark.x2) - r;
     var x2 = Math.max(mark.x, mark.x2) + r;
-    g.appendChild(VA.svg("rect", "tv__bodyfield tv__bodyfield--t" +
-      VA.bodyTint(ctx.topoProj, info.body) + " tv__pill__shape" +
+    var tint = VA.bodyTint(ctx.topoProj, info.body);
+    g.appendChild(VA.svg("rect", "tv__bodyfield tv__bodyfield--t" + tint +
+      " tv__fill--t" + tint + " tv__pill__shape" +
       (flat ? " tv__bodyfield--flat" : ""), {
         x: x1, y: mark.y - r - 1, width: x2 - x1, height: 2 * r + 2,
         rx: r + 1, ry: r + 1,
@@ -2893,27 +3331,18 @@
     if (valueOnly) el.setAttribute("title", VA.edgeHoverTitle(edge, planRow.id));
     el.appendChild(VA.el("td", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
 
-    // The element label, with everything the rest of the row already says
-    // dropped out of it (VA.elementDisplayLabel, topology.js -- display only,
-    // nothing about the edge changes): the component's own words off the
-    // front, and any clause that only restates the component or the row's own
-    // value. Where anything was dropped the cell carries the FULL label as its
-    // hover title, so the words are one hover away and the preview pane prints
-    // them in full regardless.
-    //
-    // The PART ROW is passed, not its id: the rule matches against what the
-    // merged cell actually prints, which is the part's name now.
+    // The element name, as authored: the feature-to-feature span in the part's
+    // own words (docs/SOP_TOLERANCE_STACK.md, "Titling an artifact"). The part
+    // column beside it carries the part, so the name carries none and nothing
+    // here shortens it -- the cell and its hover title are one phrase, and the
+    // title is what a clipped cell reads in full.
     // The row's words and numbers are its record's (VA.elementRecords), the
     // one copy the Preview, the DAG's label and the 3D anchor read too.
     var record = VA.elementRecords(ctx.topoProj, VA.previewRecordOptions(ctx))[
       hotKey("edge", planRow.id)] || null;
     var fullName = record ? record.title : missing(planRow.id);
-    var shownName = edge && group
-      ? VA.elementDisplayLabel(fullName,
-          group.part ? (index.parts[group.part] || { id: group.part }) : null)
-      : fullName;
-    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : shownName);
-    if (!valueOnly && shownName !== fullName) nameCell.setAttribute("title", fullName);
+    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : fullName);
+    if (!valueOnly) nameCell.setAttribute("title", fullName);
     el.appendChild(nameCell);
 
     // The value cell, decomposed into three (deliverable 2): the old combined
