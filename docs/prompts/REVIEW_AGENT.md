@@ -5576,6 +5576,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       surface the browser check drives: the `[real]` shell check
       (`?kinematic=` + `#pane-handle`) is the one that sees what Jeff sees; a
       check on `.an__rail` in the bare annotator is not.
+- [ ] **A toggle whose handler reads a flag frozen at render, on a control the
+      page then updates in place without re-rendering.** Sighted 2026-11-06
+      (`the_grid_and_the_dag_move_with_the_mechanism`): `stackStopPicker`'s
+      Play button calls `ctx.onPlay(!ctx.playing)`; Play starts without a
+      `render()` and `VA.syncPoseControl` relabels the button "Pause", but
+      `ctx.playing` stays `false`, so Pause re-calls `startPlay` and play never
+      stops. The fast test clicked the button **once**. For any in-place-synced
+      control (`syncPoseControl`, `applyStackText`, a film), click it twice in a
+      real page and confirm the second click undoes the first.
 
 ## Architectural errors to check
 
