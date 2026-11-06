@@ -272,7 +272,11 @@ export const DECLARED_GUARDS = {
   // 2026-11-05 (a_two_row_cylinder_band_fits_as_a_cylinder): +3 -- a one-band
   // cylinder is a cylinder by its nodes, a one-band sphere is still refused,
   // and six nodes are too few. Each carries a spec.
-  annotate: { declared: 285, enrollable: 285, names: "7770fccde7f3" },
+  // 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face):
+  // +2 -- an action is looks (about solid, near ghost, rest faint), and two
+  // occurrence keys overlap on one assembly path; the isolate-parts guard
+  // renamed (its parts are ghost, not solid). Each carries a spec.
+  annotate: { declared: 287, enrollable: 287, names: "072167012571" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -386,7 +390,12 @@ export const DECLARED_GUARDS = {
   // renamed -- "the jog zone is measured against the product graph's own 61
   // leaders" lost its literal when the count moved to the plan; it carried no
   // spec under its old name either. (Comment added at review.)
-  browser: { declared: 823, enrollable: 790, names: "b45bdce52115" },
+  // 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face):
+  // +3 -- the kinematic study at rest is translucent mesh by mesh, a hidden
+  // body draws nothing on any part, and ticking it brings every copy back;
+  // five renamed (a study ghosts its parts, the armed pick keeps its
+  // neighbours ghost). Each carries a spec.
+  browser: { declared: 826, enrollable: 793, names: "2ff1f5cb33c5" },
 };
 
 
