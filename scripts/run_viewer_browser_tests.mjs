@@ -4722,17 +4722,25 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       });
       // Hover a leader's own hit path, at its middle, from the strip's left
       // edge (the rails scroll with the grid).
-      const hitAt = await page.evaluate(() => {
+      await page.evaluate(() => {
         const strip = document.querySelector("#topopane .tv__hscroll");
         if (strip) strip.scrollLeft = 0;
+      });
+      await settle(300);
+      const hitAt = await page.evaluate(() => {
         const hits = Array.from(document.querySelectorAll("#topopane path.rail__leaderhit"));
         for (const h of hits) {
           const pt = h.getPointAtLength(h.getTotalLength() / 2);
           const m = h.getScreenCTM();
           const x = m.a * pt.x + m.c * pt.y + m.e, y = m.b * pt.x + m.d * pt.y + m.f;
           if (y > window.__pinnedBottom() + 4 && y < window.innerHeight - 4 && x > 0 &&
-              x < window.innerWidth && document.elementFromPoint(x, y) === h) {
-            return { x, y, id: h.getAttribute("data-leader-id") };
+              x < window.innerWidth) {
+            // The jogs run close together and the 10px hit strokes overlap:
+            // whichever leader's hit path is on top takes the pointer.
+            const on = document.elementFromPoint(x, y);
+            if (on && on.classList && on.classList.contains("rail__leaderhit")) {
+              return { x, y, id: on.getAttribute("data-leader-id") };
+            }
           }
         }
         return null;
@@ -4750,7 +4758,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       }
       console.log(`      leaders: resting ${leaders.rest && leaders.rest.stroke}, token ${leaders.ink} ` +
         `(${leaders.contrast.toFixed(2)}:1 against the page, edges ${leaders.edgeContrast.toFixed(2)}:1), ` +
-        `hovered ${hot && hot.stroke}`);
+        `hovered ${hot && hot.stroke} at ${JSON.stringify(hitAt)}`);
       push("[real] a lit leader between the DAG and the grid rests in the one leader ink -- dimmer than " +
         "the edges' but still 3:1 against the page -- and a hovered one is drawn brighter than that",
         leaders.rest && leaders.rest.stroke === leaders.ink && leaders.contrast >= 3 &&
@@ -13600,7 +13608,7 @@ async function testSeamLeaders(browser, label, topologies) {
     const stateOf = (m, id) => (m.paths.find((p) => p.id === id) || {}).cls || "";
     let hovered = false;
     if (first) {
-      await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().hover();
+      await page.locator(`tr.tvrow[data-id="${first.id}"] td.tvcell--part`).first().hover();
       hovered = await seamShows([first.from, first.to], S[1]);
       m = await measure();
     }
@@ -13632,7 +13640,7 @@ async function testSeamLeaders(browser, label, topologies) {
     // Selection: a grid row click lights the triple and dims the rest.
     let clicked = false;
     if (first) {
-      await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().click();
+      await page.locator(`tr.tvrow[data-id="${first.id}"] td.tvcell--part`).first().click();
       await settled();
       clicked = await seamShows([first.from, first.to], S[0]);
       m = await measure();
@@ -14377,7 +14385,7 @@ async function testSeamLeaders(browser, label, topologies) {
         if (strip) strip.scrollLeft = keep;
       });
     };
-    await clearPoint(live, `#topopane tr.tvrow[data-id="${CONTRIBUTOR}"] td.tvcell--name`, "click");
+    await clearPoint(live, `#topopane tr.tvrow[data-id="${CONTRIBUTOR}"] td.tvcell--part`, "click");
     await backToSelection();
     const lit1 = await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;
@@ -14410,7 +14418,7 @@ async function testSeamLeaders(browser, label, topologies) {
 
     // Another contributor, then the pitch link's face picked in the scene --
     // `inspect part`, what a click on the mesh runs -- back to the same state.
-    await clearPoint(live, '#topopane tr.tvrow[data-id="pitch_link_length"] td.tvcell--name', "click");
+    await clearPoint(live, '#topopane tr.tvrow[data-id="pitch_link_length"] td.tvcell--part', "click");
     await backUp();
     await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;
