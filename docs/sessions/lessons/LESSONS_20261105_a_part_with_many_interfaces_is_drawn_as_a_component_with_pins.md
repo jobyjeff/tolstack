@@ -284,3 +284,49 @@ runs and removed afterwards (`cmd /c rmdir node_modules`).
 - `docs/issues/ISSUE_20261106_the_block_column_search_costs_half_a_second_on_a_studys_first_paint.md`
 - `docs/issues/ISSUE_20261106_a_part_the_kinematic_stack_visits_twice_is_two_blocks.md`
   (Q5's remainder, strategy)
+
+## Verification record (2026-11-06)
+
+Everything ran in **this worktree**. The declared inputs were bridged
+(`dispatch bridge-test-inputs`). The projections were built here by
+`scripts/rebuild_projections.ps1` from `e4ee54e8`, a clean commit. Every
+input the builders read is unchanged since then, and the tiers' own
+provenance gates agreed. `node_modules` was junctioned in from the main
+checkout for the browser runs and removed afterwards.
+
+- `node apps/viewer/run_tests.cjs`: **651/651**, `[real]` armed. This
+  includes 9 new block checks and the new `[real]` live-model check.
+- `node apps/annotate/run_tests.cjs`: **291/291**.
+- `venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  (single-process; this venv has no xdist):
+  - **1 failed, 1729 passed, 1 skipped, 2 deselected, in 590 s**, recorded
+    inside the default budget.
+  - The one failure was
+    `test_every_anchor_resolves_to_exactly_one_place`: the hidden-band spec's
+    anchor rotted when the band began to be laid out of the gathered walk. It
+    was fixed in `15dfc458`.
+  - After the fix, `tests/test_mutation_witnesses.py` alone passed
+    **44/44**. The full suite was not re-run after that fix.
+- `node scripts/run_viewer_browser_tests.mjs --repo <this worktree>`:
+  - **41/43 suites, in 1482 s**, recorded inside the merge budget.
+  - The two reds were already red on integration, and both are filed:
+    - "the DAG zoom, Fit and the grid header" →
+      `ISSUE_20261104_the_first_row_zoom_check_wheels_above_the_drawing.md`.
+      It printed the same "fit 0.55, max 0.55, drawing starts at 269".
+    - "kinematic study page", two checks →
+      `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
+  - Two sub-sections skip for want of live data, each naming its existing
+    issue: no live gap row, and no declared-region crop.
+  - That full run had the blocks suite as 15 checks. It was consolidated to
+    6 afterwards, and `--only "parts as blocks"` then gave **6/6**.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo <this worktree>`:
+  - "43/46 witnessed, 46/48 reached in 28m50s; 2 left to the sweep", and
+    42m39s of wall time, the rest spent waiting for the browser slot. Filed
+    as over budget:
+    `ISSUE_20261106_the_witness_gate_ran_43_minutes_wall_with_the_browser_slot_contended.md`.
+  - All 15 specs this branch added were witnessed, and so was the re-pointed
+    hover spec.
+  - The three not witnessed were "the tier was red before the mutation",
+    all in the two suites above with pre-existing reds.
+  - The re-pointed hidden-band spec was left to the sweep by the cap, then
+    witnessed with `--only`, in 2m55s.
