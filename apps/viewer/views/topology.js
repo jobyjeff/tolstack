@@ -1096,25 +1096,52 @@
   // structure with the live pane (a bar crossing the floor gains a break
   // mark, say): the page then repaints the pane instead, at most once a frame.
   VA.poseFilm = function (root, ctxAt, poses) {
+    var builder = VA.poseFilmBuilder(root, ctxAt, poses);
+    return builder ? builder.finish() : null;
+  };
+
+  // The same film, one keyframe at a time: `step()` renders the next one (a
+  // detached render costs what a pane render's script costs -- ~0.3 s on a
+  // loaded box -- so a page builds its film in idle time after a paint, and
+  // the first frame of play does not pay for all of them at once), and
+  // `finish()` renders whatever is left and returns the film (or null).
+  VA.poseFilmBuilder = function (root, ctxAt, poses) {
     if (!root || !root.querySelector || !poses || poses.length < 2) return null;
     var scroller = root.querySelector(".tv__hscroll");
     if (!scroller) return null;
     var live = takeSnapshot(root);
-    var keepRender = VA.lastTopoRender;
-    var keepHot = VA.lastTopoHot;
     var snaps = [];
     var drawn = [];
-    try {
-      poses.forEach(function (pose) {
-        var shadow = VA.el("div");
-        VA.renderTopoPane(shadow, ctxAt(pose));
-        snaps.push(takeSnapshot(shadow));
-        drawn.push(VA.lastTopoRender);
-      });
-    } finally {
-      VA.lastTopoRender = keepRender;
-      VA.lastTopoHot = keepHot;
-    }
+    var result;
+    var builder = {
+      valid: function () { return root.querySelector(".tv__hscroll") === scroller; },
+      done: function () { return snaps.length === poses.length; },
+      step: function () {
+        if (builder.done()) return false;
+        var keepRender = VA.lastTopoRender;
+        var keepHot = VA.lastTopoHot;
+        try {
+          var shadow = VA.el("div");
+          VA.renderTopoPane(shadow, ctxAt(poses[snaps.length]));
+          snaps.push(takeSnapshot(shadow));
+          drawn.push(VA.lastTopoRender);
+        } finally {
+          VA.lastTopoRender = keepRender;
+          VA.lastTopoHot = keepHot;
+        }
+        return true;
+      },
+      finish: function () {
+        if (result === undefined) {
+          while (builder.step()) { /* the keyframes not yet rendered */ }
+          result = assemble();
+        }
+        return result;
+      },
+    };
+    return builder;
+
+    function assemble() {
     for (var s = 0; s < snaps.length; s++) {
       if (snaps[s].length !== live.length) return null;
       for (var i = 0; i < live.length; i++) {
@@ -1179,6 +1206,7 @@
       },
     };
     return film;
+    }
   };
 
   // The kinematic grid's numbers rewritten in place from `stack`

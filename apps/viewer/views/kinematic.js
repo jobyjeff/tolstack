@@ -270,8 +270,9 @@
     // The precision the blade-angle field prints and steps at.
     angleDecimals: 1,
     // The DAG's pose film (VA.poseFilm): the pane rendered at this many evenly
-    // spaced poses, every frame between two of them eased from one to the next.
-    filmKeys: 12,
+    // spaced poses (every tenth point of the live 80-point sweep), every frame
+    // between two of them eased from one to the next.
+    filmKeys: 9,
   });
 
   // The pose in the URL: `?kinematic=<study>&pose=<measure>` -- the blade

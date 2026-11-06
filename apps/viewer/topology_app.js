@@ -3351,6 +3351,8 @@
     syncPaneHandle();
     followSelection();
     followSeam();
+    // A kinematic DAG that moves with the pose builds its film while idle.
+    if (state.mode === "kinematic" && (!respineHandle || respineHandle.done)) prebuildFilm();
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its
@@ -3538,18 +3540,31 @@
   function filmFor(study, topo, drawnStop, decimals, folds) {
     if (poseFilm !== null && poseFilmCtx === paneCtx &&
         (poseFilm === false || poseFilm.valid())) return poseFilm;
+    var builder = builderFor(study, topo, drawnStop, decimals, folds);
     poseFilmCtx = paneCtx;
-    poseFilm = false;
+    poseFilm = builder && builder.valid() ? builder.finish() || false : false;
+    return poseFilm;
+  }
+
+  // The film's builder for the pane on screen (VA.poseFilmBuilder), made once
+  // per paint, or null where this paint's DAG does not move with the pose.
+  var poseFilmBuilder = null;
+  var poseFilmBuilderCtx = null;
+
+  function builderFor(study, topo, drawnStop, decimals, folds) {
+    if (poseFilmBuilderCtx === paneCtx) return poseFilmBuilder;
+    poseFilmBuilderCtx = paneCtx;
+    poseFilmBuilder = null;
     var lengths = VA.EDGE_LENGTH_MODES[paneCtx.edgeLengthMode] || {};
     var scheme = VA.colourScheme ? VA.colourScheme(paneCtx.colourBy) : null;
-    if (!lengths.contributions && !(scheme && scheme.available)) return poseFilm;
+    if (!lengths.contributions && !(scheme && scheme.available)) return null;
     var count = VA.kinematicPoseCount(study);
     var keys = [];
     for (var k = 0; k < VA.KINEMATIC_POSE.filmKeys; k++) {
       keys.push((count - 1) * k / (VA.KINEMATIC_POSE.filmKeys - 1));
     }
     var ctx = paneCtx;
-    poseFilm = VA.poseFilm(nodes.pane, function (index) {
+    poseFilmBuilder = VA.poseFilmBuilder(nodes.pane, function (index) {
       var at = framePose(study, index, drawnStop);
       var stack = VA.kinematicStack(study, topo, drawnStop, decimals, folds, at);
       return Object.assign({}, ctx, {
@@ -3558,8 +3573,32 @@
         lengths: VA.kinematicPoseLengths(study, at),
         onPainted: null, onHot: null, tween: null,
       });
-    }, keys) || false;
-    return poseFilm;
+    }, keys);
+    return poseFilmBuilder;
+  }
+
+  // After a settled kinematic paint, the film's keyframes are rendered in
+  // idle time, one per idle slot, so Play and a drag start on a film that is
+  // already there (measured: twelve keyframes built at the first frame of
+  // play stalled it 3.3 s on a loaded box).
+  function prebuildFilm() {
+    var study = poseStudy();
+    var topo = currentTopology();
+    if (!study || !topo || !paneCtx || !paneCtx.stack) return;
+    var ctx = paneCtx;
+    var builder = builderFor(study, topo, paneCtx.stack.stop.id,
+      state.kinematic && state.kinematic.display_decimals,
+      VA.readSubStackFolds(widthStore(), study.id));
+    if (!builder) return;
+    var idle = typeof window !== "undefined" && window.requestIdleCallback
+      ? function (fn) { window.requestIdleCallback(fn, { timeout: 2000 }); }
+      : function (fn) { setTimeout(fn, 50); };
+    var next = function () {
+      if (paneCtx !== ctx || !builder.valid() || builder.done() || posePlay) return;
+      try { builder.step(); } catch (err) { return; }
+      idle(next);
+    };
+    idle(next);
   }
 
   // A pose for a frame: on a stop's point it is that stop only when the pane
