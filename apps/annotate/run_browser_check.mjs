@@ -1483,6 +1483,17 @@ async function realPass(browser, base) {
     JSON.stringify(bodies.filter((b) => b.state === "matched")
       .map((b) => [b.part, b.placements.map((p) => p.residual)])));
 
+  // The bodies the topology says ride with a posed one (the piston heads with
+  // the plate): each has a mesh and one recorded position, so each is a row
+  // that rides the plate's pose -- and the cover, which has no mesh installed,
+  // has no row rather than a guessed one.
+  const riding = bodies.filter((b) => b.state === "rides");
+  check("[real] both piston heads ride the pitch plate, and the cover with no mesh has no row",
+    riding.map((b) => b.part + "/" + b.subject).sort().join() ===
+      "piston_head_lower_214699_002/pitch_plate,piston_head_upper_214698_002/pitch_plate" &&
+      !bodies.some((b) => b.part === "piston_cover_214958_002"),
+    JSON.stringify(bodies.map((b) => [b.subject, b.part, b.state])));
+
   // SWEEP MODE ON TOP OF THE SAME RULE: away from the as-modelled pose, what
   // the run owns has moved and nothing else has.
   await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));

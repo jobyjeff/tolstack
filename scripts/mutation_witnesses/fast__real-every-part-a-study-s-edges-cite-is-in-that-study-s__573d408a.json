@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every part a study's edges cite is in that study's 3D part set -- the kinematic study and every chain study",
+  "mutations": [
+    {
+      "contract": "A lit edge's own part is in the study's 3D part set.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model.md",
+      "note": "Drops every structural edge's part from the scope, leaving only the joints' end parts.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (edge.part) { add(edge.part); return; }",
+      "replace": "      if (edge.part) { return; }"
+    }
+  ]
+}

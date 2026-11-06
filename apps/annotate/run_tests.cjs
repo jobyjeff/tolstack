@@ -5154,6 +5154,30 @@ check("sweep: a body carries what is recorded INSIDE its matched occurrence -- "
   }
 });
 
+check("sweep: a part the topology puts in a body rides it -- one recorded position " +
+  "needs no choosing, several are narrowed by the deepest shared path and a tie is " +
+  "a refusal, and a riding row moves with its body's pose", () => {
+  const o = (key) => ({ key, instance_name: key.split("/").pop() });
+  const claims = [{ key: "r/p/asm.3/P1.1/piston.1" }];
+  assertEqual(AA.sweepRideChoice([o("r/asm.3/head.1")], claims).chosen.map((c) => c.key),
+    ["r/asm.3/head.1"], "one position needs no choosing");
+  assertEqual(AA.sweepRideChoice([o("r/asm.3/head.1")], []).chosen, [],
+    "a body with nothing placed has nothing to ride");
+  const several = AA.sweepRideChoice([o("r/p/asm.3/bolt.1"), o("r/p/other.7/bolt.2")], claims);
+  assertEqual(several.chosen.map((c) => c.key), ["r/p/asm.3/bolt.1"],
+    "the one recorded beside the body's own part wins");
+  const tie = AA.sweepRideChoice([o("r/a.1/bolt.1"), o("r/b.2/bolt.2")], claims);
+  assertEqual([tie.chosen.length, typeof tie.reason], [0, "string"], "no shared path is a refusal, said in words");
+  const P = (tx) => [1, 0, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0];
+  const occ = AA.readMeshOccurrences([{ sha256: "head" }], { head: { extraction: { instances: [
+    { instance_name: "head.1", instance_path: ["r", "asm.3", "head.1"], placement_world: P(5) }] } } });
+  const drawn = AA.sweepDrawPlan([{ subject: "pitch_plate", part: "head", sha256: "head", state: "rides",
+    placements: [{ key: "r/asm.3/head.1", placement: P(5) }] }], occ);
+  const m = AA.sweepMeshMatrices(drawn.plan.head,
+    { poses: { pitch_plate: { quaternion: [0, 0, 0, 1], translation: [0, 0, 9] } } });
+  assertEqual([m[0][3], m[0][11]], [5, 9], "a riding part carries the body's pose");
+});
+
 check("sweep: the draw plan moves only what the run owns -- a mesh moved at one " +
   "occurrence keeps its others still, and a matched occurrence the mesh does " +
   "not record is drawn too", () => {
