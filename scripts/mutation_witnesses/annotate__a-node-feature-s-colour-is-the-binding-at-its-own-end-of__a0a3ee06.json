@@ -6,10 +6,10 @@
     {
       "contract": "A node feature is coloured by the binding at its own end of the edge; the other end being bound does not make it bound.",
       "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
-      "note": "Colouring a node by its edge's record shows a half-bound edge as bound at both ends.",
+      "note": "Colouring a node by its edge's record shows a half-bound edge as bound at both ends. Re-anchored 2026-11-05 (the_rail_holds_still_and_takes_the_face_jeff_picked): the branch now keeps an end with its own proposal suggested.",
       "file": "apps/annotate/sweep.js",
-      "find": "    if (all.length) return AA.BINDING_STATES.UNBOUND;",
-      "replace": "    if (all.length) return AA.elementBindingState(record, staleness);"
+      "find": "    if (all.length) {\n      return AA.endProposals(record, via.direction).length",
+      "replace": "    if (all.length) {\n      return AA.elementBindingState(record, staleness);\n      return AA.endProposals(record, via.direction).length"
     }
   ]
 }

@@ -2561,8 +2561,7 @@ function subjectOccurrences(name) {
 function subjectKnown(name) {
   const tree = state.sweep && state.sweep.tree;
   if (!tree || !name) return false;
-  return tree.bodies.some((b) => b.name === name) ||
-    tree.joints.some((j) => j.name === name && j.parts.length);
+  return AA.sweepTreeSubjects(tree).some((b) => b.name === name);
 }
 
 // Show or hide a list of occurrences, remembering which the rail hid so
@@ -2730,14 +2729,15 @@ function switchArmedPart(i) {
 }
 
 // The occurrences of each target ({partId, sha256}) its BODY anchors: a
-// pitch arm is drawn five times and an end is on one of them. A part no body
-// lists is every occurrence of it. What an armed pick and a selected
+// pitch arm is drawn five times and an end is on one of them. A link is a
+// body here too (AA.sweepTreeSubjects): the pitch link is drawn five times
+// and the run poses blade 1's. A part no body lists is every occurrence of it. What an armed pick and a selected
 // suggestion both frame.
 function anchoredOccurrences(targets) {
   const sweep = state.sweep;
   const out = [];
   for (const t of targets) {
-    const body = t.partId ? (sweep.tree.bodies || []).find((b) => b.parts.indexOf(t.partId) !== -1) : null;
+    const body = t.partId ? AA.sweepTreeSubjects(sweep.tree).find((b) => b.parts.indexOf(t.partId) !== -1) : null;
     const scoped = body ? AA.sweepPartOccurrences(sweep.occurrences, body.name, t.sha256) : [];
     if (scoped.length) out.push(...scoped);
     else out.push({ sha256: t.sha256, key: null });
@@ -2860,11 +2860,11 @@ async function armedClick(pick, other) {
       part: mesh ? AA.partRowWords(mesh, state.partNames).text : a.partWords });
     const events = await writeAnswer(answer, a.edgeId, toast);
     disarmPick("bound");
-    state.sweep.lastBound = { topologyId: a.topologyId, edgeId: a.edgeId, direction: a.direction,
-      faceId: full.faceId, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
-    state.scene.markFace(full.sha256, full.faceId, "bound");
-    showToast(toast);
-    renderSweepRail();
+    // What follows is the rail Take's own (answeredAtEnd): the bound tint, the
+    // row's line, the toast, and the edge's other end opened next.
+    const topology = sweepTopology();
+    await answeredAtEnd(topology, topology.edges.find((e) => e.id === a.edgeId), a.direction,
+      { sha256: full.sha256, faceId: full.faceId }, events, toast);
     return { action: plan.action, faceId: full.faceId, supersedes: answer.supersedes,
       ratifies: answer.accept ? answer.accept.event_id : null,
       rejects: answer.reject.map((p) => p.event_id) };
@@ -3511,6 +3511,10 @@ function renderSweepRail() {
   state.scene.clearHover();
   window.__lastHover = null;
   clearCandidateWash();
+  // The rebuild keeps the rail where the reader left it: emptied, the rail
+  // is shorter than its scroll, and the browser clamps it.
+  const scroller = root.closest(".an__rail");
+  const scrolled = scroller ? scroller.scrollTop : 0;
   root.innerHTML = "";
   const tree = sweep.tree;
   const topology = sweepTopology();
@@ -3521,8 +3525,9 @@ function renderSweepRail() {
   const bodies = document.createElement("section");
   bodies.className = "an__tree-group";
   bodies.dataset.group = "bodies";
-  bodies.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.bodies + " (" + tree.bodies.length + ")"));
-  for (const body of tree.bodies) {
+  const subjects = AA.sweepTreeSubjects(tree);
+  bodies.appendChild(treeHead(AA.SWEEP_RAIL_WORDS.bodies + " (" + subjects.length + ")"));
+  for (const body of subjects) {
     // A part picked in the scene opens the body it was picked on.
     if (selectedPart && selectedPart.subject === body.name) sweep.treeOpen["body:" + body.name] = true;
     const node = treeNode("body:" + body.name, AA.sweepBodyRowWords(body), body.open, null,
@@ -3549,23 +3554,21 @@ function renderSweepRail() {
     const holdsFeature = topology && joint.features.some((f) =>
       isSelectedFeature(topology, AA.sweepFeatureEdge(topology, f, joint.features)));
     if (holdsFeature) sweep.treeOpen["joint:" + joint.name] = true;
-    if (holds || (selectedPart && selectedPart.subject === joint.name)) {
-      sweep.treeOpen["joint:" + joint.name] = true;
-    }
+    // (A part picked on a link opens the link's body row, under Bodies.)
+    if (holds) sweep.treeOpen["joint:" + joint.name] = true;
     // Opening a joint is looking at it: it selects the joint (its bead is
     // drawn emphasised) and closing the selected one lets it go.
-    const node = treeNode("joint:" + joint.name, AA.sweepJointRowWords(joint), false, (open) => {
+    const node = treeNode("joint:" + joint.name, jointRowWords(joint, topology), false, (open) => {
       const isSelected = state.sweep.inspect && state.sweep.inspect.name === joint.name;
       if (open && !isSelected) railExec(["inspect", "joint", joint.name]);
       else if (!open && isSelected) railExec(["inspect", "clear"]);
     }, ["hover", "joint", joint.name]);
     node.dataset.joint = joint.name;
-    if (joint.parts.length) subjectCheckbox(node, joint.name);
     if (selectedJoint === joint.name || holds) node.classList.add("selected");
     if (topology && joint.features.length) {
       const list = document.createElement("ul");
       list.className = "an__tree-list";
-      for (const feature of joint.features) {
+      for (const feature of AA.sweepJointRowFeatures(topology, joint)) {
         const row = featureRow(topology, joint, feature);
         if (selectedPart && AA.featureReadMatches(AA.sweepFeatureEdge(topology, feature,
           joint.features), selectedPart.bindings)) row.classList.add("selected");
@@ -3573,18 +3576,31 @@ function renderSweepRail() {
       }
       node.appendChild(list);
     }
-    if (joint.parts.length) node.appendChild(treePartRows(joint.parts, joint.name));
+    // A link's own parts are its body row's, under Bodies: under a joint only
+    // its ends and their candidate faces.
     joints.appendChild(node);
   }
   root.appendChild(joints);
 
   if (sweep.study) root.appendChild(contributorsGroup(topology));
+  if (scroller) scroller.scrollTop = scrolled;
   if (selectedPart) {
     const row = root.querySelector('.part-row[data-sha="' + selectedPart.name + '"]' +
       (selectedPart.subject ? '[data-subject="' + CSS.escape(selectedPart.subject) + '"]' : ""));
     if (row) row.classList.add("selected");
   }
   applySceneHover();
+}
+
+// A joint row's words: its two ends' part numbers (AA.sweepJointEndParts),
+// through the installed meshes' labels where a part has one.
+function jointRowWords(joint, topology) {
+  const words = AA.sweepJointEndParts(joint, topology, AA.sweepTreeSubjects(state.sweep.tree)).map((id) => {
+    if (!id) return null;
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    return (mesh && AA.partNumberOf(mesh.label)) || AA.measureLabel(id);
+  });
+  return AA.sweepJointRowWords(joint, words);
 }
 
 // A body's (or a link's) own checkbox, in its summary line: every occurrence
@@ -3825,7 +3841,14 @@ async function answeredAtEnd(topology, edge, direction, face, events, toast) {
     state.sweep.lastBound = { topologyId: topology.id, edgeId: edge.id, direction,
       faceId: face.faceId, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
     showToast(toast);
-    if (isSelectedFeature(topology, { edgeId: edge.id, direction })) {
+    const next = nextEndToPick(topology, edge, direction);
+    if (next) {
+      // The answered end's list folds and its partner's opens, selected: the
+      // second face of a two-end joint is the next pick, in place.
+      delete state.candidatesOpen[candidateKey(topology.id, edge.id, direction)];
+      state.candidatesOpen[candidateKey(topology.id, edge.id, next)] = true;
+      cmdInspect(AA.INSPECT_TARGETS[4], edge.id, next);
+    } else if (isSelectedFeature(topology, { edgeId: edge.id, direction })) {
       cmdInspect(AA.INSPECT_TARGETS[4], edge.id, direction);
     } else {
       renderSweepRail();
@@ -3834,6 +3857,28 @@ async function answeredAtEnd(topology, edge, direction, face, events, toast) {
     showToast(toast);
     await paintProposals();
   }
+}
+
+// After one end of an edge is answered on the sweep rail: the edge's other
+// end when it is a row of the same joint, still has no face, and has faces to
+// list -- or null.
+function nextEndToPick(topology, edge, direction) {
+  const other = AA.otherDirection(direction);
+  const joint = state.sweep.tree.joints.find((j) => AA.sweepJointRowFeatures(topology, j).some((f) => {
+    const via = AA.sweepFeatureEdge(topology, f, j.features);
+    return via.edgeId === edge.id && via.direction === direction;
+  }));
+  if (!joint) return null;
+  const row = joint.features.some((f) => {
+    const via = AA.sweepFeatureEdge(topology, f, joint.features);
+    return f.kind === "node" && via.edgeId === edge.id && via.direction === other;
+  });
+  if (!row) return null;
+  const record = AA.findBindingRecord(mergedIdentityProjection(), AA.topologyEdgeKey(topology.id, edge.id));
+  if (AA.endBindings(record, other).length) return null;
+  const via = { edgeId: edge.id, direction: other };
+  return AA.endCandidates(mergedIdentityProjection(), state.contactSuggestions, topology.id, via,
+    state.faceClasses).length ? other : null;
 }
 
 // take <edge> <from|to> <mesh> <face> -- a candidate row's Take (handoff

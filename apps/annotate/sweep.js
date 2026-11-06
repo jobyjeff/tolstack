@@ -1373,6 +1373,14 @@
         });
         if (!known) features.push({ topology: f.topology, kind: kind, id: id });
       });
+      // The topology node each end's point is declared on (null when the run
+      // declares none): what names the end's part (AA.sweepJointEndParts).
+      var endNodes = AA.SWEEP_JOINT_END_PARAMETERS.map(function (parameter) {
+        var declared = mine.filter(function (f) {
+          return f.node && f.label.indexOf(prefix + parameter + "[") === 0;
+        })[0];
+        return declared ? declared.node : null;
+      });
       var ends = AA.SWEEP_JOINT_END_PARAMETERS.map(function (parameter, i) {
         var declared = mine.filter(function (f) {
           return f.body && f.label.indexOf(prefix + parameter + "[") === 0;
@@ -1386,7 +1394,7 @@
       });
       var type = Object.prototype.hasOwnProperty.call(types, name) ? types[name] : null;
       return { name: name, type: type, words: type ? AA.SWEEP_JOINT_TYPE_WORDS[type] : null,
-        bodies: ends, parts: linkParts[name] || [], features: features };
+        bodies: ends, endNodes: endNodes, parts: linkParts[name] || [], features: features };
     });
     return { bodies: bodies, joints: joints };
   };
@@ -1403,21 +1411,73 @@
     showBody: "show or hide this body where the mechanism draws it",
   });
 
+  // Every subject the run draws and moves, in rail order: the bodies, then
+  // each two-force member (a joint with `links[]` parts) as a body of its
+  // own -- the run poses a link by its two joint ends, so it is a body the
+  // run moves, listed under Bodies with the others (Jeff, 2026-11-05: "why is
+  // this body shown down here under the joint selector section"). A link's
+  // name is its joint's, which is also its key in the occurrence map.
+  AA.sweepTreeSubjects = function (tree) {
+    var links = ((tree && tree.joints) || []).filter(function (j) { return j.parts.length; })
+      .map(function (j) { return { name: j.name, ground: false, parts: j.parts, open: false, link: true }; });
+    return ((tree && tree.bodies) || []).concat(links);
+  };
+
   // One body row's text: its name and how many parts it carries.
   AA.sweepBodyRowWords = function (body) {
     var n = body.parts.length;
     return AA.measureLabel(body.name) + " · " + n + " part" + (n === 1 ? "" : "s");
   };
 
-  // One joint row's text: its name, its type in words, and the two bodies it
-  // joins. Every piece the artifact cannot answer is simply left out.
-  AA.sweepJointRowWords = function (joint) {
-    var parts = [AA.measureLabel(joint.name)];
-    if (joint.words) parts.push(joint.words);
-    var ends = joint.bodies.filter(Boolean).map(AA.measureLabel);
-    if (ends.length === 2 && ends[0] !== ends[1]) parts.push(ends[0] + " ↔ " + ends[1]);
-    else if (ends.length) parts.push(ends[0]);
-    return parts.join(" · ");
+  // The part at each end of a joint, [a, b] (topology part ids, or null): the
+  // part of the end's declared node that rides on the end's body; for a node
+  // on neither (a link's own ball centre), the part on that body one topology
+  // edge away -- the pitch link's upper centre meets the pitch plate across
+  // `pitch_plate_link_joint`. A node's declared face part comes first.
+  AA.sweepJointEndParts = function (joint, topology, subjects) {
+    var nodes = {};
+    ((topology && topology.nodes) || []).forEach(function (n) { nodes[n.id] = n; });
+    var partsOf = function (id) {
+      var n = nodes[id];
+      if (!n) return [];
+      return (n.face && n.face.part ? [n.face.part] : []).concat(n.parts || (n.part ? [n.part] : []));
+    };
+    var bodyParts = function (name) {
+      var b = (subjects || []).filter(function (x) { return x.name === name; })[0];
+      return b ? b.parts : [];
+    };
+    return [0, 1].map(function (i) {
+      var node = (joint.endNodes || [])[i];
+      var on = bodyParts(joint.bodies[i]);
+      if (!node) return null;
+      var own = partsOf(node).filter(function (p) { return on.indexOf(p) !== -1; })[0];
+      if (own) return own;
+      var across = null;
+      ((topology && topology.edges) || []).forEach(function (e) {
+        if (across || (e.from !== node && e.to !== node)) return;
+        across = partsOf(e.from === node ? e.to : e.from).filter(function (p) {
+          return on.indexOf(p) !== -1;
+        })[0] || null;
+      });
+      return across;
+    });
+  };
+
+  // One joint row's text: `<part> <joint word> <part>` -- the two parts it
+  // joins, by number (`213668-002 slide 214700-002`; Jeff, 2026-11-05, on
+  // "actuator driver base": "what does this even mean?"). `endWords` is
+  // [a, b], each end's part number (or its words) where the caller could
+  // resolve one; an end it could not is its body in words, and a joint with
+  // fewer than two ends to name leads with its own name.
+  AA.sweepJointRowWords = function (joint, endWords) {
+    var ends = [0, 1].map(function (i) {
+      var w = (endWords || [])[i];
+      if (w) return w;
+      return joint.bodies[i] ? AA.measureLabel(joint.bodies[i]) : null;
+    });
+    var known = ends.filter(Boolean);
+    if (known.length < 2) return [AA.measureLabel(joint.name), joint.words].concat(known).filter(Boolean).join(" ");
+    return known.join(" " + (joint.words || AA.measureLabel(joint.name)) + " ");
   };
 
   // Which edge a feature is bound THROUGH, and in which direction. A binding
@@ -1448,6 +1508,24 @@
       direction: edge.from === feature.id ? AA.DIRECTIONS[0] : AA.DIRECTIONS[1] };
   };
 
+  // The features a joint's rail rows list: every one, less an edge feature
+  // whose two ends are already rows of the joint (both of its nodes are, and
+  // each is bound through it) -- the pitch link's length IS its two sphere
+  // centres, so it is picked as two faces, one per end, and never as a third
+  // row whose Pick leaves the sweep for the bind form.
+  AA.sweepJointRowFeatures = function (topology, joint) {
+    var ends = {};
+    joint.features.forEach(function (f) {
+      if (f.kind !== "node") return;
+      var via = AA.sweepFeatureEdge(topology, f, joint.features);
+      if (via.edgeId && via.direction) ends[via.edgeId + "|" + via.direction] = true;
+    });
+    return joint.features.filter(function (f) {
+      return f.kind !== "edge" ||
+        !AA.DIRECTIONS.every(function (d) { return ends[f.id + "|" + d]; });
+    });
+  };
+
   // A feature's binding state, in AA.BINDING_STATES -- the element rows'
   // vocabulary, so the rows are coloured by the same rules. An edge feature
   // is its edge's state; a node feature is the state of the binding at ITS
@@ -1460,7 +1538,13 @@
     var all = record.bindings || [];
     var mine = all.filter(function (b) { return b && b.direction === via.direction; });
     if (mine.length) return AA.elementBindingState({ bindings: mine }, staleness);
-    if (all.length) return AA.BINDING_STATES.UNBOUND;
+    // The other end bound and this one not: still suggested where this end
+    // has its own open proposal (it was drawn as needing attention until
+    // 2026-11-05 -- the row that "turned orange" once its partner was taken).
+    if (all.length) {
+      return AA.endProposals(record, via.direction).length
+        ? AA.BINDING_STATES.PROPOSED : AA.BINDING_STATES.UNBOUND;
+    }
     // Nothing bound on the edge: the record's own state -- except that a
     // proposal at the OTHER end is not a suggestion at this one.
     var whole = AA.elementBindingState(record, staleness);
