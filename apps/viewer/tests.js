@@ -11971,6 +11971,10 @@
         eq(Number(cursor.getAttribute("x1")), VA.kinematicChartX(chart.xScale, 20));
         eq(slider.value, "20");
         eq(all(root, "button.kmpose__play")[0].textContent, "Pause");
+        // Play started without a render, so the second click on the same button
+        // is a pause: it reads the live label, not the render-time ctx.playing.
+        all(root, "button.kmpose__play")[0].onclick();
+        eq(played, [true, false], "the second click pauses");
         eq(all(root, "button.kmstop__button")[1].getAttribute("aria-pressed"), "true");
         eq(all(kinematicPage({ stackStop: "low", onStackStop: function () {} }),
            "input.kmpose__slider").length, 0, "no pose, no slider");

@@ -3291,8 +3291,8 @@
           },
           playing: !!posePlay,
           onPlay: function (on) {
-            if (on) { startPlay(); return; }
-            stopPlay();
+            if (on && !posePlay) { startPlay(); return; }
+            if (!stopPlay()) return;
             setPose(state.kinematicPose);
             render();
           },

@@ -1703,7 +1703,12 @@
       var play = VA.el("button", "ghost kmpose__play", ctx.playing ? "Pause" : "Play");
       play.setAttribute("aria-pressed", ctx.playing ? "true" : "false");
       play.setAttribute("title", "Cycle the sweep, end to end and back");
-      play.onclick = function () { if (ctx.onPlay) ctx.onPlay(!ctx.playing); };
+      // Its own aria-pressed, not ctx.playing: play starts without a render and
+      // VA.syncPoseControl relabels this button in place, so the render-time
+      // flag is stale by the second click.
+      play.onclick = function () {
+        if (ctx.onPlay) ctx.onPlay(play.getAttribute("aria-pressed") !== "true");
+      };
       box.appendChild(play);
       var slider = VA.el("input", "kmpose__slider");
       slider.setAttribute("type", "range");
