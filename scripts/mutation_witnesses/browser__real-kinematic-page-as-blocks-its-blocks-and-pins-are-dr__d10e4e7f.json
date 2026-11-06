@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "parts as blocks",
+  "expect_red": "[real] kinematic page, as blocks: its blocks and pins are drawn, every grid row has its mark, every leader starts on its dot and every joint end wears its glyph",
+  "mutations": [
+    {
+      "contract": "A block's pin is drawn as a pin.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The pin class is never written, so the page draws no pin.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      if (mark.pin) dotClasses.push(\"rail__dot--pin\");",
+      "replace": "      if (false) dotClasses.push(\"rail__dot--pin\");"
+    }
+  ]
+}

@@ -4293,13 +4293,11 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
     const kinDrift = (await correspondence()).drift;
     console.log(`      kinematic: ${kin.blocks.length} blocks, ${kin.pinCount} pins, ` +
       `${kin.litOnScreen}/${kin.lit} lit marks on screen, pin ${JSON.stringify(kin.pinHit)}`);
-    push("[real] kinematic page, as blocks: the page draws its blocks, its pins and " +
-      "nothing that throws", kin.blocks.length > 0 && kin.pinCount > 0 && !errors.length);
-    push("[real] ...every grid row has its mark and every leader starts on its dot",
-      kinDrift.length === 0);
-    push("[real] ...every joint end wears its glyph", glyphsOnJoints(kin));
-    push("[real] ...the lit set lands on screen", kin.litOnScreen > 0);
-    push("[real] ...every block is inside the aspect band at the uniform pitch", band(kin));
+    push("[real] kinematic page, as blocks: its blocks and pins are drawn, every grid " +
+      "row has its mark, every leader starts on its dot and every joint end wears its glyph",
+      kin.blocks.length > 0 && kin.pinCount > 0 && kinDrift.length === 0 && glyphsOnJoints(kin));
+    push("[real] ...the lit set lands on screen and every block is inside the aspect band",
+      kin.litOnScreen > 0 && band(kin));
     push("[real] ...a pin is what the pointer finds at its own centre",
       kin.pinHit && kin.pinHit.at === kin.pinHit.id);
 
@@ -4311,13 +4309,13 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
     const chainDrift = (await correspondence()).drift;
     console.log(`      cotter hole: ${chain.blocks.length} blocks, ${chain.litBars} lit bars ` +
       `for ${chain.edgeRows} grid rows, ${chain.litOnScreen}/${chain.lit} lit on screen`);
-    push("[real] a chain study, as blocks: every grid row has its mark and every leader " +
-      "starts on its dot", chain.blocks.length > 0 && chainDrift.length === 0);
-    push("[real] ...every chain edge is drawn lit, a bar or a chord, one per grid row",
-      chain.litBars === chain.edgeRows && chain.edgeRows > 0);
-    push("[real] ...the lit set lands on screen", chain.litOnScreen > 0);
-    push("[real] ...every joint end wears its glyph", glyphsOnJoints(chain));
-    push("[real] ...every block is inside the aspect band", band(chain));
+    push("[real] a chain study, as blocks: every grid row has its mark, every leader " +
+      "starts on its dot and every joint end wears its glyph",
+      chain.blocks.length > 0 && chainDrift.length === 0 && glyphsOnJoints(chain));
+    push("[real] ...every chain edge is drawn lit, a bar or a chord, one per grid row, on " +
+      "screen at landing, and every block is inside the aspect band",
+      chain.litBars === chain.edgeRows && chain.edgeRows > 0 && chain.litOnScreen > 0 &&
+      band(chain));
 
     await page.locator(navRow("topology", "vpa_pitch_linkage")).first().click();
     await settled();
@@ -4325,12 +4323,11 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
     const walk = await read();
     const parts = walk.blocks.map((b) => b.part);
     console.log(`      whole walk: ${walk.blocks.length} blocks over ${new Set(parts).size} parts`);
-    push("[real] the whole walk, as blocks: a part is one block",
-      parts.length > 0 && new Set(parts).size === parts.length);
-    push("[real] ...every grid row has its mark and every leader starts on its dot",
-      (await correspondence()).drift.length === 0);
-    push("[real] ...every block is inside the aspect band", band(walk));
-    push("[real] ...and nothing threw", errors.length === 0);
+    push("[real] the whole walk, as blocks: a part is one block, every grid row has its " +
+      "mark, every leader starts on its dot, every block is inside the aspect band, and " +
+      "nothing threw",
+      parts.length > 0 && new Set(parts).size === parts.length &&
+      (await correspondence()).drift.length === 0 && band(walk) && errors.length === 0);
   } catch (err) {
     return reportAbortedSuite(label, checks, errors, err);
   } finally {

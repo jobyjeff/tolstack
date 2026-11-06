@@ -421,7 +421,11 @@ export const DECLARED_GUARDS = {
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
   // the overlay on the bars and survives a reload. Each carries a spec.
-  browser: { declared: 836, enrollable: 803, names: "db826d6de861" },
+  // a_part_with_many_interfaces_is_drawn_as_a_component_with_pins,
+  // 2026-11-06: +7 -- the "parts as blocks" suite. Six carry a spec; its skip
+  // row (a constant true, printed only when the projections are absent) has
+  // none, like every other suite's.
+  browser: { declared: 843, enrollable: 810, names: "35759520f6b2" },
 };
 
 

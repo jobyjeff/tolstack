@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "parts as blocks",
+  "expect_red": "[real] a chain study, as blocks: every grid row has its mark, every leader starts on its dot and every joint end wears its glyph",
+  "mutations": [
+    {
+      "contract": "A chord is an addressable mark of its edge.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). A chord's hit path, which carries the edge's address, is never drawn.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        (mark.chord ? chords : over).appendChild(hit);",
+      "replace": "        if (!mark.chord) over.appendChild(hit);"
+    }
+  ]
+}

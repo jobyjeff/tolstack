@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "parts as blocks",
+  "expect_red": "[real] ...the lit set lands on screen and every block is inside the aspect band",
+  "mutations": [
+    {
+      "contract": "Every block on the page is inside the aspect band.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). A block a third as wide as it is tall.",
+      "file": "apps/viewer/topology.js",
+      "find": "  VA.BLOCK_ASPECT = { min: 0.5, max: 2, target: 0.55 };",
+      "replace": "  VA.BLOCK_ASPECT = { min: 0.5, max: 2, target: 0.3 };"
+    }
+  ]
+}

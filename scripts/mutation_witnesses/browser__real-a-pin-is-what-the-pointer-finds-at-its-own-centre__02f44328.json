@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "parts as blocks",
+  "expect_red": "[real] ...a pin is what the pointer finds at its own centre",
+  "mutations": [
+    {
+      "contract": "A chord's hit path is under every dot.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The chord's wide hit path is drawn over the pins it lands on, and takes the pointer off them.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        (mark.chord ? chords : over).appendChild(hit);",
+      "replace": "        over.appendChild(hit);"
+    }
+  ]
+}
