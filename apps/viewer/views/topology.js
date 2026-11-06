@@ -951,7 +951,8 @@
   // What Fit leaves the grid beside the DAG (deliverable 5: "at 1600 px wide
   // with the preview open, every row's part and element ... are clickable"):
   // PART, DESCRIPTION, # and ELEMENT, read off the array so a widened ELEMENT
-  // widens the floor. Fit scales the drawing down to leave it, never below
+  // widens the floor. Fit (the control and `0`; not a study's arrival, which
+  // only fits the pane) scales the drawing down to leave it, never below
   // `minShare` of the pane; past that the strip scrolls sideways.
   VA.TOPO_GRID_FLOOR = {
     columns: ["part", "description", "ord", "name"],

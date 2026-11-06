@@ -12640,15 +12640,6 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
 
     const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
     const study = pitch.studies.find((s) => s.status === "ok" && s.layout);
-    // One round trip first. A study's arrival scales the DAG down to leave
-    // the grid its floor beside it (VA.dagFitWidth, the_grid_fits_the_screen_
-    // and_its_brackets_say_what_nests_in_what), and an arrival only ever
-    // scales down, so from the second visit on the zoom holds still and the
-    // walk measured here is the one every transition below starts from.
-    await page.locator(navRow("study", study.id)).click();
-    await settled();
-    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
-    await settled();
     const walk = await geometry();
     push("[real] the walk is the default layout and it settled clean",
       clean(walk) && walk.rows.length === pitch.edges.length);
