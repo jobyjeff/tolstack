@@ -17930,6 +17930,34 @@
             eq(gridIds.length, 17, "the grid is the seventeen contributors and borrowed bands");
           });
 
+        await test("[real] every part a study's edges cite is in that study's 3D part set -- " +
+          "the kinematic study and every chain study", function () {
+            var topo = VA.findTopology(realKinTopologies, realKinStudy.topology);
+            var index = VA.topologyIndex(topo);
+            var cases = [{ id: realKinStudy.id, lit: VA.kinematicLitSet(realKinStudy, topo) }];
+            (topo.studies || []).forEach(function (study) {
+              cases.push({ id: study.id, lit: VA.studyLitSet(study, topo) });
+            });
+            var checked = 0;
+            cases.forEach(function (c) {
+              if (!c.lit) return;
+              var scope = VA.litPartIds(topo, c.lit);
+              Object.keys(c.lit.edges).forEach(function (edgeId) {
+                var part = index.edges[edgeId].part;
+                if (!part) return;
+                checked += 1;
+                ok(scope.indexOf(part) !== -1, c.id + ": " + edgeId + " cites " + part +
+                  ", which its 3D part set leaves out");
+              });
+            });
+            ok(checked > 40, "the pin read " + checked + " cited parts");
+            ["piston_head_lower_214699_002", "piston_head_upper_214698_002", "piston_cover_214958_002"]
+              .forEach(function (part) {
+                ok(VA.litPartIds(topo, cases[0].lit).indexOf(part) !== -1,
+                  "the kinematic study's 3D part set holds " + part);
+              });
+          });
+
         await test("[real] the live study lights its six contributors, the three " +
           "edges they borrow a band from and its two stop chains' nine, and every direct " +
           "one has a coefficient curve", function () {

@@ -231,7 +231,8 @@ export const DECLARED_GUARDS = {
   // body named once and bridged, a joint's ends as its glyph, the form mark
   // beside its bar, and the live model's one container per body with the
   // glyph census. Each carries a spec; the old names' specs are deleted.
-  fast: { declared: 632, enrollable: 632, names: "bf6e3f1d0009" },
+  // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the 3D part set pin, with a spec.
+  fast: { declared: 633, enrollable: 633, names: "a7a0517943d7" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -279,7 +280,9 @@ export const DECLARED_GUARDS = {
   // 2026-11-05 (the_rail_holds_still_and_takes_the_face_jeff_picked): +3 -- a
   // joint end's part, a run's links as bodies, and an edge feature not listed
   // as a joint's third row. Each carries a spec.
-  annotate: { declared: 290, enrollable: 290, names: "e787e59dc768" },
+  // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the rider rule, with a spec.
+  // (Re-pinned at the review merge onto integration's 290.)
+  annotate: { declared: 291, enrollable: 291, names: "e183a53c331f" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
