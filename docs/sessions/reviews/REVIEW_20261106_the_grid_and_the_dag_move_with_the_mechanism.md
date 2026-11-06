@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261105_the_grid_and_the_dag_move_with_the_mechanism.md
 reviewer: agent
 date: 2026-11-06
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review: the_grid_and_the_dag_move_with_the_mechanism
@@ -130,3 +130,108 @@ them.
   render-time flag on a control that is synced in place.
 - The review branch fast-forwarded to `682380e6`. The rework will push more
   commits to `handoff/…`, and the next review merges those on top.
+
+## Re-run 2026-11-06 (round 2): APPROVE
+
+Round 1 was REQUEST CHANGES with 1 blocker (Pause does not pause). It is closed
+below, along with both round-1 should-fixes. The rework is three commits on
+`handoff/…` (`c7ba3464`, `e075c83b`, `c50b40fd`).
+
+### Round 1's blocker: closed
+
+- **The fix.** The Play button now sends the opposite of its own live
+  `aria-pressed`, which `VA.syncPoseControl` keeps current. The page's `onPlay`
+  also toggles on `posePlay` and ignores a repeated "play". Either layer alone
+  would have stopped the bug. The pause spec mutates the page's layer, and the
+  spec says why reverting only the button is invisible to a browser check.
+- **Tests.** The fast pose-control test now clicks twice (`played == [true,
+  false]`). Two new `[real]` browser guards are enrolled with specs, and the
+  browser pin is +2.
+- **My own probe, re-run on the merged tree.** Play, then Pause: the angle held at
+  15.6 on all four frames, 300 ms apart, and the button went back to "Play". The
+  new browser check logged `play/pause: -7.0 -> 8.8 (Pause) -> 21.9 (Play) -> 21.9`.
+
+### Round 1's should-fixes: closed
+
+1. **Witnesses.** The five DAG-zoom entries were re-run with `--only` and all
+   witnessed. That is the lesson's round-1 record; I checked its counts. My own
+   gate run is below.
+2. **Full suite.** The lesson records a full run at the tip (1730 passed, 1
+   skipped, 1 worktree-expected failure). My post-merge run is below.
+
+### The merge (conflict carve-out)
+
+`integration` had moved by 20 commits. Two handoffs had landed:
+`the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what` and
+`the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model`.
+`git merge integration` conflicted in four files. Resolved in `085bc82f`:
+
+- **`scripts/run_viewer_browser_tests.mjs`.** HEAD added the Play/Pause block and
+  integration added the clipping and zoom-box-floor block, both at the same point.
+  I kept both. Play/Pause runs first, while the page is still on the kinematic
+  study; then integration's block, which visits three studies and returns to the
+  kinematic one, as it did before.
+- **`apps/viewer/README.md`.** The grid paragraph is integration's: brackets,
+  PART/DESCRIPTION, sourcing marks. HEAD still had the older wording there only
+  because it had not changed it. The new "The pose" bullet is the handoff's.
+- **`scripts/guard_enumeration.mjs`.** Both sides' history comments are kept. The
+  pins are re-derived by the census on the merged tree, not by adding the two
+  sides: fast `655 / 655 / 7d9f49fbee80` (integration's 646 + this handoff's 9)
+  and browser `839 / 806 / 04fd992426a3` (837 + 2).
+- **`docs/issues/ISSUE_20261105_the_default_test_tier_ran_18_minutes_on_a_worktree.md`.**
+  Both addenda are kept.
+
+I grepped the staged diff for conflict markers and there were none.
+
+### Tests on the merged tree
+
+Projections were rebuilt from `085bc82f` into the gitignored scratch root
+`C:/workspace/tolstack/data/scratch/gridpose`, which is the tactical agent's root
+re-used. I ran the six builders with `--data-root`; no `--allow-older-tree` was
+needed. I also copied `docs/` into the root. The freshness line pairs every
+projection with `085bc82fd2a3`.
+
+- **Viewer fast tier** (`node apps/viewer/run_tests.cjs --repo …/gridpose`):
+  **655/655**.
+- **Risky pytest subset** (the same thirteen files as round 1): **377 passed**.
+- **Browser, `--only "the DAG zoom, Fit and the grid header"`:** **45/45**. This
+  includes both new Play/Pause checks and integration's clipping check (233 cells,
+  none clipped).
+- **Browser, `--only "kinematic"`:** **25/27**. The two reds are
+  `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`
+  (open, priority high), which was red on `integration` before this branch.
+- **Browser, `--only "leaders across the seam"`:** **26/26**.
+- **Mutation witnesses, `--changed-since integration`:** 34/49 witnessed, 49/63
+  reached in 29m08s, 14 left to the sweep (budget). Recorded inside the merge-tier
+  budget. Of the 15 reached entries that were not witnessed:
+  - **14 entries (12 specs)** are in the kinematic suite, which was red before any
+    mutation because of the inherited issue above. I appended their names to that
+    issue, so the person who fixes it knows to re-run them.
+  - **1 entry** (`c0ebdc1b`, leaders across the seam) found its suite red during
+    the gate, while the slot was busy with other agents. Re-run alone, the suite
+    was green (26/26) and `--only` came back **WITNESSED** (3m26s).
+  - No reached entry outside the inherited red is unwitnessed.
+- **Full suite, post-merge, review worktree**
+  (`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`):
+  **1 failed, 1733 passed, 1 skipped, 2 deselected in 432.73 s**. Recorded inside
+  budget. The one failure is `test_viewer_js_suite_is_green`, red by design in a
+  worktree because there is no projection at the worktree path. Its tier ran
+  655/655 through `--repo` above. This repo's conftest prints no
+  `concurrent pytest processes` / `full-suite lock` header lines to quote.
+- **Production data.** The main checkout's `git status` (outside `data/`) and
+  `data/projections/viewer/` listing were identical before and after the full
+  run.
+
+### Verdict
+
+**APPROVE (round 2), 0 blockers.** Every unfixed finding has an owner:
+- the 3D pane's own transport:
+  `ISSUE_20261106_the_3d_panes_own_play_and_scrub_do_not_move_the_pages_pose.md`;
+- the floored stop terms:
+  `ISSUE_20261106_the_contribution_length_mode_leaves_the_stop_position_terms_unscaled.md`;
+- the hover curve's missing pose mark:
+  `ISSUE_20261106_the_sensitivity_curve_card_does_not_mark_the_live_pose.md`;
+- the inherited kinematic reds:
+  `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
+
+Round 1 found no design findings to file.
