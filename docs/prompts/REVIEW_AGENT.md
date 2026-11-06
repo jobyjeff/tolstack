@@ -2621,6 +2621,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`correspondence()`) rather than the click's effect passes in the state
       the click was supposed to leave *and* in the one it started from. Ask of
       every sleep: *what does this assertion read that the click changed?*
+      **Second shape, 2026-11-05 (`the_seam_and_rail_checks_wait_on_settled_state`):
+      a draw *counter* is not the draw's content.** `drawnAfter(before)` in
+      `testSeamLeaders` resolved on any seam draw after the gesture, including
+      one that read the state before it; the fix waits on the drawn path's
+      class (`seamShows`). The same counter wait survives at the resize and
+      unlit-hide sites of that suite — not yet seen red, check it if one goes.
+- [ ] **A hover held by a resting pointer across a DOM rebuild.** New
+      2026-11-05 (same handoff). A row replaced under a pointer that does not
+      move gets no `pointerenter` until the next move, so a "rest on it, the
+      light stays on" precondition goes false under load. The test-side fix
+      steps the pointer (`holdLight()` in `testThreeDPane`); that **masks a
+      product defect**, so require the issue for the product half alongside it
+      (`ISSUE_20261105_a_nav_scene_row_rebuilt_under_a_resting_pointer_drops_the_scenes_hover_light.md`).
 
 - [ ] **A section-scoped doc scan's "not vacuous" replay written *inside* the
       section by mistake.** New 2026-09-11 (`viewer_deep_link_contract_pairing`),
