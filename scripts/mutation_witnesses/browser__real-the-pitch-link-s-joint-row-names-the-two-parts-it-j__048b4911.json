@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] the pitch link's joint row names the two parts it joins: 215177-001 ball-ended link 215071-001",
+  "mutations": [
+    {
+      "contract": "A joint row's words are its two ends' part numbers around the joint word.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md",
+      "note": "Without the resolved numbers the row falls back to its bodies' names.",
+      "file": "apps/annotate/app.js",
+      "find": "  return AA.sweepJointRowWords(joint, words);\n",
+      "replace": "  return AA.sweepJointRowWords(joint);\n"
+    }
+  ]
+}

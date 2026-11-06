@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a run's links are bodies of their own, after the bodies, named by their joint",
+  "mutations": [
+    {
+      "contract": "A run's two-force members are rail subjects beside its bodies.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md",
+      "note": "Returning the bodies alone is the pre-2026-11-05 tree, where a link's parts hung under its joint.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return ((tree && tree.bodies) || []).concat(links);\n",
+      "replace": "    return ((tree && tree.bodies) || []);\n"
+    }
+  ]
+}
