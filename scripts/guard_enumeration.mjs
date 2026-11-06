@@ -272,10 +272,14 @@ export const DECLARED_GUARDS = {
   // 2026-11-05 (a_two_row_cylinder_band_fits_as_a_cylinder): +3 -- a one-band
   // cylinder is a cylinder by its nodes, a one-band sphere is still refused,
   // and six nodes are too few. Each carries a spec.
+  // 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face):
+  // +2 -- an action is looks (about solid, near ghost, rest faint), and two
+  // occurrence keys overlap on one assembly path; the isolate-parts guard
+  // renamed (its parts are ghost, not solid). Each carries a spec.
   // 2026-11-05 (the_rail_holds_still_and_takes_the_face_jeff_picked): +3 -- a
   // joint end's part, a run's links as bodies, and an edge feature not listed
   // as a joint's third row. Each carries a spec.
-  annotate: { declared: 288, enrollable: 288, names: "a52aeae91042" },
+  annotate: { declared: 290, enrollable: 290, names: "e787e59dc768" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -389,11 +393,16 @@ export const DECLARED_GUARDS = {
   // renamed -- "the jog zone is measured against the product graph's own 61
   // leaders" lost its literal when the count moved to the plan; it carried no
   // spec under its old name either. (Comment added at review.)
+  // 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face):
+  // +3 -- the kinematic study at rest is translucent mesh by mesh, a hidden
+  // body draws nothing on any part, and ticking it brings every copy back;
+  // five renamed (a study ghosts its parts, the armed pick keeps its
+  // neighbours ghost). Each carries a spec.
   // the_rail_holds_still_and_takes_the_face_jeff_picked, 2026-11-05: +7 --
   // the "annotate rail holds still" suite. Six carry a spec; its skip row (a
   // constant true, printed only when the projections are absent) has none,
   // like every other suite's.
-  browser: { declared: 830, enrollable: 797, names: "c5fec86498ce" },
+  browser: { declared: 833, enrollable: 800, names: "479f8091f792" },
 };
 
 

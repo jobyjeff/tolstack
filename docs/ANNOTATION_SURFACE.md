@@ -308,9 +308,10 @@ model/study) and the view filter which controls what's actually rendered").
   of what was drawn; `isolate off` (or `ghost off`) puts exactly that back.
   Leaving a context draws every open part of the new one and none outside it.
 - **A study's parts are one verb.** The viewer's open pane follows its page with
-  `isolate parts <part…>`: those parts solid, the rest of the installed assembly
-  ghosted (hidden under the unlit word `hide`), the solid set framed; a page
-  with no lit set sends `isolate off`. A study none of whose parts has a mesh
+  `isolate parts <part…>`: those parts ghost, the rest of the installed
+  assembly faint (hidden under the unlit word `hide`), the study's set framed —
+  a study is a scope, not an action, so nothing in it is solid ("How a part
+  looks", under the gesture table); a page with no lit set sends `isolate off`. A study none of whose parts has a mesh
   says so in the pane's head line. An armed pick still wins while armed.
 - **A view verb never changes the context**, and nothing about the context
   draws a part: a part added to the model is listed, not drawn.
@@ -679,7 +680,7 @@ table is the one statement of the gestures.**
 
 | gesture | what it does |
 |---|---|
-| **Pick** on a joint end's row | arms the pick (`arm <edge> <from\|to>`): the sweep goes to the as-modelled pose by itself, the end's part is drawn solid and every other part ghosted faint (or hidden — the armed row's toggle, remembered), the camera frames the occurrence the end's body anchors, and the row reads "at the as-modelled pose for picking" |
+| **Pick** on a joint end's row | arms the pick (`arm <edge> <from\|to>`): the sweep goes to the as-modelled pose by itself, the end's part is the action's (below) — the end's other part and the edge's other end are its neighbours, and the rest can be hidden instead of faint (the armed row's toggle, remembered) — the camera frames the occurrence the end's body anchors, and the row reads "at the as-modelled pose for picking" |
 | hover | pre-selects: the face under the pointer gets a yellow wash and its outline, the cursor becomes a crosshair, and the row's state line names it — face number, its surface class in the suggestion engine's words, the fitted radius where there is one |
 | hover off the part | nothing pre-selected, the default cursor |
 | left-click on a pre-selected face | binds it at that end (a `bound` event; a re-pick supersedes the end's one standing binding), the face takes the bound tint, a toast names the write, the row reads "bound · face N" (reviewer and time on hover), and the pick ends |
@@ -693,6 +694,31 @@ table is the one statement of the gestures.**
 | a click on a joint end's **row** | selects it (`inspect feature`): a bound end's face takes the pick tint; a suggested end's face is drawn solid in the suggestion colour, framed, the rest dimmed ("Proposals", below) |
 | **Accept** on a selected suggested row | binds the suggested face (`accept`) |
 | **Pick a different face** on a selected suggested row | arms the pick as **Pick** does; the click then turns the suggestion down and binds the face clicked |
+
+**How a part looks (2026-11-05).** Handoff
+`everything_in_3d_is_transparent_until_an_action_needs_a_face`, after Jeff
+found the kinematic study opening with its housings opaque in front of the
+mechanism. Every drawn part is translucent until an action names it. There
+are three looks (`AA.PART_LOOKS`; their opacities are `scene.js`'s
+`PART_LOOK_OPACITY`) and one place that decides which a part has
+(`app.js`'s `applyLooks`):
+
+| state | solid | ghost | faint |
+|---|---|---|---|
+| at rest | — | the parts the study cites (every part, outside a study) | every other part (hidden under the unlit word `hide`) |
+| an action in view | the parts it is about | their neighbours | everything else |
+
+The actions, most immediate first — one is in view at a time: an armed pick
+(about: the end's part; neighbours: the end's other part and the edge's other
+end), the pointer on a candidate row (about: the face's part), a joint end's
+row selected with a suggestion (about: the suggested face's part; neighbours:
+the edge's other parts), and the edge the page highlights — a grid row
+hovered or selected (about: the edge's parts). The pick and a selected
+suggestion frame the camera on what they are about; a hover and a grid row
+leave it where it is, since the page sends the same word for both and a
+camera that moves on hover moves out from under the pointer. Leaving the
+action puts the scene back at rest. Unticking **See-through parts** draws the
+rest state's ghosts solid; an action still dims what it is not about.
 
 **Taking a suggested face (2026-11-03).** Handoff
 `a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there`, after Jeff
@@ -767,7 +793,12 @@ the state line now.
   pitch arm, and the other four pitch arms stay. A part row inside a body is
   scoped the same way. The parts panel's row is still the mesh — every
   occurrence — and says how many (`×5`). Everything a rail checkbox hid comes
-  back when sweep mode ends.
+  back when sweep mode ends. **A hidden body draws nothing** (2026-11-05): an
+  assembly extracts an installation *and* the details inside it as separate
+  meshes in one place (the tangential link mount 215175-001 and its machined
+  215198-001), so an occurrence on the same assembly path as a hidden one —
+  the installation above it, the details below it — is hidden with it,
+  whichever part draws it, and so is its as-modelled ghost copy.
 - **What defines a joint.** A feature row's second line names its bound face
   (`face 110 of 214698-002`, the sha on hover) or says `no face bound`.
   Contributor rows carry the same **Pick** / **Re-pick** jump as feature rows,

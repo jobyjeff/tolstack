@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "every study opens in 3D showing only its parts",
+  "expect_red": "[real] the Unused control's hide word hides every part the study does not cite",
+  "mutations": [
+    {
+      "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md",
+      "note": "Renamed (it hid 'the ghosts') by handoff everything_in_3d_is_transparent_until_an_action_needs_a_face. Breaks the one place this guard's claim is decided.",
+      "file": "apps/annotate/app.js",
+      "find": "  return state.model.unlit === AA.MODEL_UNLIT_STYLES[1];",
+      "replace": "  return false;"
+    }
+  ]
+}

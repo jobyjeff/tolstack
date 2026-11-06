@@ -102,6 +102,20 @@ queue. The 105 not witnessed were all "the tier was red before the mutation", fr
 tier's six `[real]` reds (routed to `HANDOFF_20261104_the_viewer_real_tier_follows_the_slide_re_author`)
 and the `3D pane follows the selection` red. None of them is a decayed witness. This is the same
 shape as before: a capped run lands at about 30 m plus overhead.
+## Addendum 2026-11-05 — the viewer browser tier, same shape
+
+Review of `everything_in_3d_is_transparent_until_an_action_needs_a_face`:
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`,
+41/41, 1880 s wall, recorded OVER BUDGET by 1m20s on the merge tier. The log
+has 14 `waiting for browser slot` lines (two tactical sessions held it), so
+roughly 7 min of that is queue; the tier itself ran ~24 min, inside 30. The
+same session's default tier spent 774 s of 1212 s in one fixture's slot wait
+(`ISSUE_20261105_the_default_test_tier_ran_18_minutes_on_a_worktree.md`).
+
+Same review, witness gate: `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack`
+— runner reports `31/31 witnessed, 31/45 reached in 29m32s` (inside its own
+cap); wall 2155 s including slot queue, recorded OVER BUDGET by 5m55s. The
+recorder and the runner's budget measure different clocks — this issue's point.
 
 ## Addendum 2026-11-05 (review of the_rail_holds_still_and_takes_the_face_jeff_picked)
 

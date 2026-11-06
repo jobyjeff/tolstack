@@ -1,12 +1,12 @@
 {
   "tier": "browser",
   "suite": "every study opens in 3D showing only its parts",
-  "expect_red": "[real] a chain study with no bound face offers 3D and draws its own parts solid",
+  "expect_red": "[real] a chain study with no bound face offers 3D and draws its own parts ghost",
   "mutations": [
     {
       "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
-      "issue": null,
-      "note": "Keeps one solid part of a multi-part study: the two-part grip study stops matching the page's own part set.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md",
+      "note": "Renamed (it drew them solid) by handoff everything_in_3d_is_transparent_until_an_action_needs_a_face. Keeps one part of a multi-part study: the two-part grip study stops matching the page's own part set.",
       "file": "apps/annotate/app.js",
       "find": "const targets = Array.from(new Set(resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256)));",
       "replace": "const targets = Array.from(new Set(resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256))).slice(0, 1);"
