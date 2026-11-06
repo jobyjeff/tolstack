@@ -2287,6 +2287,13 @@
       // clamps what it cannot reach (a band near the top of a short drawing),
       // so the centre is as close as the page's own extents allow.
       var hr = hscroll.getBoundingClientRect();
+      // Sideways, the drawing stays at the strip's left edge, with the grid
+      // beside it: a band already on screen is not moved at all, and one
+      // off either edge (a reader zoomed in) is brought just inside it. It
+      // used to be centred in the pane, with space put before the drawing
+      // when the scroll could not reach -- which pushed the grid right by the
+      // same amount, up to two thirds of a 737px pane at 1600 wide
+      // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
       var bandOffset = function () {
         var r = box.getBoundingClientRect();
         var dx = 0;
@@ -2299,7 +2306,8 @@
             x1 = Math.min(x1, br.left); x2 = Math.max(x2, br.right);
             y1 = Math.min(y1, br.top); y2 = Math.max(y2, br.bottom);
           }
-          dx = (x1 + x2) / 2 - (hr.left + hr.width / 2);
+          if (x1 < hr.left + pad) dx = x1 - hr.left - pad;
+          else if (x2 > hr.right - pad) dx = Math.min(x2 - hr.right + pad, x1 - hr.left - pad);
           dyBand = (y1 + y2) / 2;
         }
         return { dx: dx, dy: dyBand - (topEdge + visible / 2) };
@@ -2309,14 +2317,15 @@
       var parked = hscroll.scrollLeft > 0;
       var off = bandOffset();
       scrollDag(parked ? 0 : off.dx, off.dy);
-      // Whatever the scroll could not reach -- a band that sits above or left
-      // of the centre with nothing further to scroll back to -- is taken up by
-      // space before the drawing. It is kept in state.bandPad so a repaint
-      // redraws it; the next study change drops it.
+      // Whatever the scroll could not reach -- a band that sits above the
+      // centre with nothing further to scroll back to -- is taken up by space
+      // above the drawing. It is kept in state.bandPad so a repaint redraws
+      // it; the next study change drops it. Never space to its LEFT: that is
+      // space between the pane's edge and the grid too.
       off = bandOffset();
       var sizer = box.parentNode;
       var top = off.dy < -0.5 ? -off.dy : 0;
-      var left = !parked && off.dx < -0.5 ? -off.dx : 0;
+      var left = 0;
       state.bandPad = { top: top, left: left, key: padKey() };
       state.landed = true;
       if (sizer && sizer.style) {
