@@ -73,3 +73,16 @@ through their hosts.
 ## Found on arrival
 
 Nothing (worktree clean).
+
+## Not shown: the feather/low-stop screenshots and the exploratory click-around
+
+Definition-of-done items **not met**. The probe (`tests/debug_piston_heads_ride.mjs`) reached the
+kinematic pane (at rest: all 47 parts ghosted, heads among them) but its `sweep` step never saw
+`__sweep.bodies` fill within 120–150 s on two runs, each of which had queued 15+ minutes for the
+browser slot behind other agents. I did not find out whether the stall is the probe (it runs the
+sweep from the viewer's embedded pane; the annotate tier's own `[real]` pass drives it standalone and
+may be the right harness) or the new rider code — **the rider code has therefore never run in a
+browser**. A reviewer should run `node apps/annotate/run_browser_check.mjs` with `--real <run>`
+(the new `[real]` check is in it) and the probe, in the main checkout after rebuilding projections
+from this branch, before trusting the motion. The unit test covers `sweepRideChoice` and the draw
+plan's pose composition only.
