@@ -397,7 +397,7 @@
     // place that holds both the pane and the plan.
     var fit = { plan: plan, inset: VA.DAG_FIT.topInset };
     var positions = VA.rowPositions(layout, topoProj,
-      ctx.edgeLengthMode || "uniform", M, fit, ctx.contributions || null);
+      ctx.edgeLengthMode || "uniform", M, fit, ctx.lengths || null);
     // Mid-respine (viewer_study_respine_animation): the frame is drawn from
     // the TARGET serialisation's layout and plan -- the structure the page is
     // moving to -- with the store interpolated back toward the one the

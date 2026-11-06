@@ -11899,7 +11899,7 @@
             detailImage: null, onSelect: function () {}, lit: lit, stack: stack,
             kinematicStudy: KIN_STUDY, decimals: 3, openSubStacks: VA.stackOpenMap(stack),
             edgeLengthMode: "contribution",
-            contributions: VA.kinematicContributions(KIN_STUDY, "low", pose) };
+            lengths: VA.kinematicPoseLengths(KIN_STUDY, pose) };
         };
         var geometry = function (root) {
           return all(root, "line").concat(all(root, "circle")).map(function (node) {
@@ -11910,12 +11910,23 @@
             }).join(",");
           });
         };
-        // The values the bars scale by are the contributions themselves.
-        var c = VA.kinematicContributions(KIN_STUDY, "low", 0.5);
-        eq(VA.edgeLengthValue({ id: "arm_pin_to_tip" }, "contribution", c),
-           c.arm_pin_to_tip);
+        // The values the bars scale by are the linkage terms' contributions
+        // at the pose, against the largest any of them reaches anywhere.
+        var c = VA.kinematicPoseLengths(KIN_STUDY, 0.5);
+        eq(c.values.arm_pin_to_tip,
+           VA.kinematicContributions(KIN_STUDY, "low", 0.5).arm_pin_to_tip);
+        ok(Math.abs(c.max - 0.3) < 1e-12, "arm's 3.0 x 0.1 at the high stop");
+        eq(VA.edgeLengthValue({ id: "arm_pin_to_tip" }, "contribution", c.values),
+           c.values.arm_pin_to_tip);
         eq(VA.edgeLengthValue({ id: "not_a_contributor", dimension: { nominal: 3 } },
-           "contribution", c), null, "no contribution, no length");
+           "contribution", c.values), null, "no contribution, no length");
+        var slots = VA.rowPositions(topo.layout, topo,
+          "contribution", VA.RAIL_METRICS, null, c);
+        var arm = slots.edges.arm_pin_to_tip;
+        eq(arm.floored, false);
+        ok(Math.abs(arm.length - c.values.arm_pin_to_tip / 0.3 *
+           VA.RAIL_METRICS.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows) < 1e-9,
+           "a bar's length is its share of the sweep's yardstick");
         var live = render(function (r) { VA.renderTopoPane(r, ctxAt(0.5)); });
         var fresh = render(function (r) { VA.renderTopoPane(r, ctxAt(3)); });
         ok(geometry(live).join("|") !== geometry(fresh).join("|"), "the pose moves the DAG");
@@ -18360,7 +18371,8 @@
             var at = VA.kinematicPoseOfMeasure(realKinStudy, 30);
             var pose = VA.kinematicPose(realKinStudy, at);
             ok(pose.u > 0 && !pose.stop, "a pose between two sweep points, on no stop");
-            var contributions = VA.kinematicContributions(realKinStudy, "minus7", at);
+            var lengths = VA.kinematicPoseLengths(realKinStudy, at);
+            var contributions = lengths.values;
             var rows = VA.kinematicPoseRows(realKinStudy, pose);
             var bands = {};
             realKinStudy.stops[0].rows.forEach(function (row) { bands[row.edge] = row.band; });
@@ -18371,11 +18383,13 @@
               var expected = rows[edge].coefficient * bands[edge].half_range;
               ok(Math.abs(value - expected) < 1e-12 * Math.max(1, expected),
                  edge + ": " + value + " is |J| x band " + expected);
+              eq(value, VA.kinematicContributions(realKinStudy, "minus7", at)[edge],
+                 edge + ": the grid's and the colouring's contribution too");
             });
             var lit = VA.kinematicLitSet(realKinStudy, topo);
             var layout = VA.bandLayout(topo.layout, lit, null);
             var positions = VA.rowPositions(layout, topo, "contribution", VA.RAIL_METRICS, null,
-              contributions);
+              lengths);
             var length = function (edge) { return positions.edges[edge].length; };
             var unfloored = named.filter(function (edge) { return !positions.edges[edge].floored; });
             ok(unfloored.length >= 2, "at least two of the three are drawn to scale");

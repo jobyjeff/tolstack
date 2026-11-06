@@ -1224,10 +1224,10 @@
     // (the_grid_and_the_dag_move_with_the_mechanism, 2026-11-05.) Jeff: "make
     // the dag itself animate ... a new view style where the length is
     // 'contribution' = tolerance X sensitivity". A bar's length is the
-    // contribution the page hands the pane (`ctx.contributions`,
-    // VA.kinematicContributions) -- |sensitivity| x band at the live pose --
-    // so the DAG moves as the linkage does. Only a page that HAS
-    // contributions offers it (`contributions: true`), and there it is the
+    // length the page hands the pane (`ctx.lengths`, VA.kinematicPoseLengths)
+    // -- |sensitivity| x band at the live pose, against one yardstick for the
+    // whole sweep -- so the DAG moves as the linkage does. Only a page that
+    // HAS lengths offers it (`contributions: true`), and there it is the
     // default (VA.edgeLengthModeFor).
     contribution: {
       label: "contribution",
@@ -1444,9 +1444,9 @@
   // feeds anything but a bar length. min/max are what the projection always
   // populates when a dimension exists; plus_minus is the fallback the handoff
   // names for the case where they are absent.
-  VA.edgeLengthValue = function (edge, mode, contributions) {
+  VA.edgeLengthValue = function (edge, mode, values) {
     if (VA.EDGE_LENGTH_MODES[mode] && VA.EDGE_LENGTH_MODES[mode].contributions) {
-      var c = edge && contributions ? contributions[edge.id] : undefined;
+      var c = edge && values ? values[edge.id] : undefined;
       return typeof c === "number" && isFinite(c) ? Math.abs(c) : null;
     }
     var d = edge && edge.dimension;
@@ -1555,9 +1555,11 @@
   // blocks' heights. There is no viewport in it: the window is not a budget
   // (VA.EDGE_LENGTH_SCALE).
   //
-  // `contributions` ({edgeId: number}) is what the contribution mode scales
-  // by (VA.edgeLengthValue); every other mode ignores it.
-  VA.rowPositions = function (layout, topoProj, mode, metrics, fit, contributions) {
+  // `lengths` ({values: {edgeId: number}, max}) is what the contribution mode
+  // scales by (VA.edgeLengthValue, VA.kinematicPoseLengths): `max`, where it
+  // is given, is the yardstick in place of the largest value on screen, so a
+  // length means the same at every pose. Every other mode ignores it.
+  VA.rowPositions = function (layout, topoProj, mode, metrics, fit, lengths) {
     metrics = metrics || VA.RAIL_METRICS;
     var rows = (layout && layout.rows) || [];
     var scaled = !!(VA.EDGE_LENGTH_MODES[mode] || {}).scaled;
@@ -1567,10 +1569,15 @@
     // The largest value in THIS serialisation (the whole walk, or a study's
     // chain) — the yardstick the mode's proportions are relative to.
     var vmax = 0;
-    if (scaled) {
+    var values = lengths ? lengths.values || null : null;
+    var yardstick = lengths && (VA.EDGE_LENGTH_MODES[mode] || {}).contributions &&
+      typeof lengths.max === "number" && lengths.max > 0 ? lengths.max : null;
+    if (yardstick !== null) {
+      vmax = yardstick;
+    } else if (scaled) {
       rows.forEach(function (row) {
         if (row.kind !== "edge") return;
-        var v = VA.edgeLengthValue(index.edges[row.id], mode, contributions);
+        var v = VA.edgeLengthValue(index.edges[row.id], mode, values);
         if (v !== null && v > vmax) vmax = v;
       });
     }
@@ -1580,7 +1587,7 @@
     rows.forEach(function (row) {
       if (row.kind !== "edge") return;
       if (!scaled) { ratios.push(0); return; }
-      var v = VA.edgeLengthValue(index.edges[row.id], mode, contributions);
+      var v = VA.edgeLengthValue(index.edges[row.id], mode, values);
       ratios.push(v !== null && vmax > 0 ? v / vmax : 0);
     });
 

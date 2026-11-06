@@ -3025,8 +3025,10 @@
           : null,
         units: kinematicStudy ? kinematicStudy.units || null : null,
       };
-      var lengthMode = VA.edgeLengthModeFor(state.edgeLengthMode,
-        !!overlayOptions.contributions);
+      // ...and the contribution length mode's bars (VA.kinematicPoseLengths).
+      var poseLengths = showKinematic && livePoseIndex !== null
+        ? VA.kinematicPoseLengths(kinematicStudy, livePoseIndex) : null;
+      var lengthMode = VA.edgeLengthModeFor(state.edgeLengthMode, !!poseLengths);
       var ctx = {
         groupKinds: groupKinds,
         colourBy: state.dagView.colourBy,
@@ -3084,6 +3086,7 @@
         selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: lengthMode,
+        lengths: poseLengths,
         // The lit-set rule's second reason: parts of a body tagged with a
         // variant the reader did not select (VA.otherVariantParts).
         otherVariantParts: VA.otherVariantParts(topoProj, state.tagFilter,
@@ -3170,8 +3173,7 @@
         // rewind().
         onFit: fitDag,
         onEdgeLength: function () {
-          state.edgeLengthMode = VA.nextEdgeLengthMode(lengthMode,
-            !!overlayOptions.contributions);
+          state.edgeLengthMode = VA.nextEdgeLengthMode(lengthMode, !!poseLengths);
           render();
         },
         // Leader style (viewer_leader_grid_legibility): same reasoning again
@@ -3552,6 +3554,7 @@
       return Object.assign({}, ctx, {
         stack: stack, openSubStacks: VA.stackOpenMap(stack),
         contributions: VA.kinematicContributions(study, drawnStop, at),
+        lengths: VA.kinematicPoseLengths(study, at),
         onPainted: null, onHot: null, tween: null,
       });
     }, keys) || false;
@@ -3582,6 +3585,7 @@
     // The pane's own ctx follows, so a repaint mid-play draws this pose.
     paneCtx.stack = stack;
     paneCtx.contributions = VA.kinematicContributions(study, drawnStop, pose);
+    paneCtx.lengths = VA.kinematicPoseLengths(study, pose);
     if (film) film.apply(pose.index);
     VA.applyStackText(nodes.pane, stack);
     VA.syncPoseControl(nodes.detail, study, VA.kinematicPose(study, index), !!posePlay);
