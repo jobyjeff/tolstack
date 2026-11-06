@@ -195,6 +195,21 @@
   --tv-divide-heavy-w: 2px;
   --tv-stack-rule: #9aa1ac;
   --tv-stack-rule-w: 3px;
+  /* The scene tree's marks (AA.RAIL_MARKS; the_rail_reads_as_a_tree_of_
+     bodies_joints_and_faces). Four are the 3D scene's own face marks
+     (apps/annotate/scene.js's MARK_COLORS: bound, picked, the suggestion
+     accent, contact), so a row and its face wear one hue, and
+     tests/test_rail_row_looks_are_paired.py holds them equal. They mean
+     binding state, in the scene's pane, and nothing else may wear them.
+     `declared` and `open` are inks, not hues: an end with a face still to
+     pick. `recheck` is the scene's warning red. */
+  --mark-bound: #35c26e;
+  --mark-picked: #ff8c1a;
+  --mark-proposed: var(--accent);
+  --mark-contact: #b48cf2;
+  --mark-declared: var(--ink);
+  --mark-open: var(--muted);
+  --mark-recheck: #ff6b5b;
 }
 
 /* Everything the drag of a grip should suppress while it is running
@@ -292,71 +307,144 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 /* --- the scene's tree, under the row it is showing (the_shell_seats_the_
    scene_beside_the_model) -----------------------------------------------
    The annotator's rail, drawn here while the 3D scene is open
-   (views/nav.js's renderSceneTree). Indented under its row like a study under
-   its topology, at the dense size; one clipped line per row with the whole
-   of it on hover; the second fact (a bound face, a part's position note)
-   muted under the name; a value right-aligned. The selected row wears the
-   nav's own `--on` treatment; the row the scene's pointer rests on, a wash. */
-.navtree__scene { padding: 2px 0 6px 12px; font-size: var(--t-dense); }
+   (views/nav.js's renderSceneTree), at the dense size; one clipped line per
+   row with the whole of it on hover; the second fact (a bound face, a part's
+   position note) muted under the name; a value right-aligned. The selected
+   row wears an accent spine; the row the scene's pointer rests on, a wash.
+   What a row IS (its glyph, its weight) and what STATE it is in (its mark)
+   are the rules below, keyed on the annotator's words. */
+/* The tree's geometry and its two washes (the_rail_reads_as_a_tree_of_
+   bodies_joints_and_faces). One indent step per level, wide enough that a
+   candidate face (level three) sits a clear 60px in from the body or joint
+   it hangs under: the step is the twisty's column plus room, and a hairline
+   guide runs down each level from its parent's twisty. */
+.navtree__scene {
+  --tree-step: 20px;
+  --tree-twisty: 16px;
+  --tree-mark: 12px;
+  --tree-row-hover: #20242c;
+  --tree-row-on: #202634;
+  padding: 2px 0 6px 4px; font-size: var(--t-dense);
+}
 .navtree__scenechips { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 6px; }
 .navtree__scenechip { font: inherit; font-size: var(--t-micro); color: var(--muted);
   background: none; border: 1px solid var(--line); border-radius: 10px;
   padding: 0 8px; cursor: pointer; }
 .navtree__scenechip[aria-pressed="true"] { color: var(--ink); border-color: var(--muted); }
+/* The marks' legend: each mark as a row wears it, beside its word. */
+.navtree__scenelegend { display: flex; flex-wrap: wrap; gap: 2px 12px; padding: 2px 4px 4px;
+  color: var(--muted); font-size: var(--t-micro); }
+.navtree__scenelegenditem { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .navtree__scenelist { list-style: none; margin: 0; padding: 0; }
-.navtree__scenelist .navtree__scenelist { padding-left: 14px; }
+.navtree__scenelist .navtree__scenelist {
+  margin-left: calc(4px + var(--tree-twisty) / 2);
+  padding-left: calc(var(--tree-step) - 4px - var(--tree-twisty) / 2 - 1px);
+  border-left: 1px solid var(--line);
+}
+/* A group's heading: room above it, not a rule. */
 .navtree__scenehead { display: flex; align-items: center; gap: 6px;
-  padding: 6px 8px 2px; color: var(--muted); font-size: var(--t-micro);
+  padding: 12px 8px 2px 4px; color: var(--muted); font-size: var(--t-micro);
   text-transform: uppercase; letter-spacing: .04em; }
+.navtree__sceneitem:first-child > .navtree__scenehead { padding-top: 4px; }
 .navtree__scenehead .navtree__scenetext { flex: 1 1 auto; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navtree__scenesummary { list-style: none; cursor: pointer; }
 .navtree__scenesummary::-webkit-details-marker { display: none; }
-.navtree__scenesummary > .navtree__scenerow::before {
-  content: "▸"; flex: none; color: var(--muted); width: 10px; }
-details[open] > .navtree__scenesummary > .navtree__scenerow::before { content: "▾"; }
-.navtree__scenerow { display: flex; align-items: center; gap: 6px;
-  padding: 2px 8px; border-radius: 6px; min-width: 0; }
-.navtree__scenerow:hover, .navtree__scenerow--hot { background: #20242c; }
+/* One row: [twisty][mark][name / state line][value][actions][checkbox]. The
+   twisty and the mark are fixed columns, so names at one depth start at one
+   x; the checkbox is the last column, so every checkbox is at the rail's
+   right edge whatever the depth. The slots are one name-line tall, so with a
+   state line under the name they stay on the name's line. */
+.navtree__scenerow { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start;
+  column-gap: 4px; padding: 2px 6px 2px 4px; border-radius: 4px; min-width: 0; line-height: 1.5; }
+.navtree__scenerow:hover, .navtree__scenerow--hot { background: var(--tree-row-hover); }
 .navtree__scenerow--act { cursor: pointer; }
-.navtree__scenerow--on { background: #202634; outline: 1px solid var(--accent); }
+.navtree__scenerow--on { background: var(--tree-row-on); box-shadow: inset 2px 0 0 var(--accent); }
 .navtree__scenerow:focus, .navtree__scenesummary:focus { outline: none; }
 .navtree__scenerow:focus-visible,
 .navtree__scenesummary:focus-visible > .navtree__scenerow { outline: 1px solid var(--accent); }
-/* A row the annotator says is not settled (an element or a surface whose
-   face is not bound, or needs confirming) reads amber -- the one state
-   colour, as the rail colours it. Which states those are is the
-   annotator's call (`attention` on the row), not a list kept here. */
-.navtree__scenerow[data-attention="true"] { color: var(--inferred); }
-.navtree__scenetext { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.navtree__scenegap, .navtree__scenetwisty, .navtree__scenemark {
+  flex: none; height: 1.5em; display: inline-flex; align-items: center; justify-content: center; }
+.navtree__scenegap, .navtree__scenetwisty { width: var(--tree-twisty); }
+.navtree__scenemark { width: var(--tree-mark); }
+/* The twisty: a drawn chevron, the same in front of a body, a joint and a
+   joint end's candidate list -- muted at rest, never a dot. */
+.navtree__scenetwisty { padding: 0; font: inherit; color: var(--muted);
+  background: none; border: 0; cursor: pointer; }
+.navtree__scenetwisty::before { content: ""; width: 5px; height: 5px;
+  border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); }
+details[open] > .navtree__scenesummary .navtree__scenetwisty::before,
+.navtree__scenetwisty[aria-expanded="true"]::before { transform: translateY(-2px) rotate(45deg); }
+.navtree__scenerow:hover > .navtree__scenetwisty, .navtree__scenetwisty:hover,
+.navtree__scenetwisty:focus-visible { color: var(--ink); }
+/* One glyph per kind (AA.RAIL_ROW_KINDS), drawn, never a font character: a
+   body is a filled square, a part an open one, a joint a ring, a contributor
+   a dimension bar; a joint end and a bind-mode element a dot, and a
+   candidate face a diamond, in the colour of their mark. An `action` row
+   ("Pick another face…") has no glyph: its words are muted instead. */
+.navtree__scenemark::before { content: none; box-sizing: border-box; color: var(--muted); }
+[data-kind="body"] > .navtree__scenemark::before { content: ""; width: 9px; height: 9px;
+  border-radius: 2px; background: currentColor; }
+[data-kind="part"] > .navtree__scenemark::before { content: ""; width: 7px; height: 7px;
+  border-radius: 1px; border: 1.5px solid currentColor; }
+[data-kind="joint"] > .navtree__scenemark::before { content: ""; width: 9px; height: 9px;
+  border-radius: 50%; border: 2px solid currentColor; }
+[data-kind="contributor"] > .navtree__scenemark::before { content: ""; width: 9px; height: 5px;
+  border-left: 1.5px solid currentColor; border-right: 1.5px solid currentColor;
+  background: linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat; }
+[data-kind="end"] > .navtree__scenemark::before,
+[data-kind="element"] > .navtree__scenemark::before,
+.navtree__scenelegenditem > .navtree__scenemark::before { content: ""; width: 8px; height: 8px;
+  border-radius: 50%; border: 1.5px solid var(--mark); background: var(--mark-fill); }
+[data-kind="candidate"] > .navtree__scenemark::before { content: ""; width: 7px; height: 7px;
+  transform: rotate(45deg); border: 1.5px solid var(--mark); background: var(--mark-fill); }
+/* What each mark (AA.RAIL_MARKS) wears: its colour, and filled when a face
+   is bound, open while one is only suggested or still wanted. */
+[data-mark] { --mark: var(--mark-open); --mark-fill: transparent; }
+[data-mark="bound"] { --mark: var(--mark-bound); --mark-fill: var(--mark-bound); }
+[data-mark="picked"] { --mark: var(--mark-picked); --mark-fill: var(--mark-picked); }
+[data-mark="proposed"] { --mark: var(--mark-proposed); }
+[data-mark="contact"] { --mark: var(--mark-contact); }
+[data-mark="declared"] { --mark: var(--mark-declared); }
+[data-mark="open"] { --mark: var(--mark-open); }
+[data-mark="recheck"] { --mark: var(--mark-recheck); --mark-fill: var(--mark-recheck); }
+.navtree__scenelegenditem > .navtree__scenemark { height: auto; }
+/* Weight by level: a body and a joint are what the reader navigates by. */
+[data-kind="body"] .navtree__scenename, [data-kind="joint"] .navtree__scenename { font-weight: 600; }
+[data-kind="action"] .navtree__scenename { color: var(--muted); }
+[data-kind="action"]:hover .navtree__scenename { color: var(--ink); }
+.navtree__scenetext { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .navtree__scenename, .navtree__scenesub {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.navtree__scenesub { color: var(--muted); font-size: var(--t-micro); }
-/* A row the annotator says carries a suggestion ("suggested · high",
-   "candidates · 3"): its state line in the suggestion colour, the colour the
-   scene draws a proposed face in. */
-.navtree__scenerow[data-suggestion="true"] .navtree__scenesub { color: var(--accent); }
+/* The state line under a name: metadata, so grey -- a suggestion's too; the
+   row's mark is what carries its colour. */
+.navtree__scenesub { color: var(--muted); font-size: var(--t-micro); line-height: 1.4; }
 .navtree__scenevalue { flex: none; color: var(--muted); font-size: var(--t-micro);
-  font-variant-numeric: tabular-nums; }
-.navtree__scenecheck { flex: none; margin: 0; }
-.navtree__scenebtn { flex: none; font: inherit; font-size: var(--t-micro);
-  color: var(--muted); background: none; border: 1px solid transparent;
-  border-radius: 4px; padding: 0 4px; cursor: pointer; }
-.navtree__scenerow:hover .navtree__scenebtn, .navtree__scenebtn:focus,
-.navtree__scenebtn[aria-pressed="true"] { color: var(--ink); border-color: var(--line); }
-/* A row with a pressed control is an armed pick (the annotator's Cancel and
-   its others toggle): the name and state line keep the first line and the
-   controls drop to their own, still at the right. */
-.navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) { flex-wrap: wrap; }
-.navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenetext { flex-basis: 100%; }
-.navtree__scenerow:has(> .navtree__scenebtn[aria-pressed="true"]) > .navtree__scenebtn:first-of-type { margin-left: auto; }
-.navtree__scenealert { flex: none; color: var(--inferred); display: inline-flex; }
-/* A joint end's candidate disclosure, in front of its row, and the
-   candidate rows under it, whose words wrap rather than clip (handoff
-   a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there). */
-.navtree__scenetwisty { flex: none; width: 12px; padding: 0; font: inherit; color: var(--muted);
-  background: none; border: 0; cursor: pointer; }
-.navtree__scenetwisty:hover, .navtree__scenetwisty:focus-visible { color: var(--ink); }
+  font-variant-numeric: tabular-nums; line-height: 1.5rem; }
+.navtree__scenecheck { flex: none; order: 1; margin: 0; height: 1.5em; cursor: pointer; }
+.navtree__scenealert { flex: none; color: var(--inferred); display: inline-flex; height: 1.5em;
+  align-items: center; }
+/* A row's actions: one group at the row's right, quiet until the row is
+   pointed at or focused, and laid OVER the end of the name rather than
+   beside it, so showing them moves nothing. On the selected row, or an
+   armed pick's, they are what the reader came for: a line of their own
+   under the name, at the right. */
+.navtree__sceneacts { display: flex; gap: 4px; flex: none; order: 2;
+  position: absolute; right: 6px; top: 2px; padding-left: 8px; opacity: 0;
+  background: var(--tree-row-hover); }
+.navtree__scenerow:has(> .navtree__scenecheck) > .navtree__sceneacts { right: 26px; }
+.navtree__scenerow:hover > .navtree__sceneacts, .navtree__scenerow:focus-within > .navtree__sceneacts,
+.navtree__scenerow--hot > .navtree__sceneacts { opacity: 1; }
+.navtree__scenerow--on > .navtree__sceneacts,
+.navtree__scenerow:not([data-kind="part"]):has(> .navtree__sceneacts > .navtree__scenebtn[aria-pressed="true"]) > .navtree__sceneacts {
+  position: static; opacity: 1; flex-basis: 100%; flex-wrap: wrap; justify-content: flex-end;
+  padding: 2px 0 0; background: none; }
+.navtree__scenebtn { flex: none; font: inherit; font-size: var(--t-micro); line-height: 1.5;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 4px; padding: 0 6px; cursor: pointer; }
+.navtree__scenebtn:hover, .navtree__scenebtn:focus-visible { border-color: var(--muted); outline: none; }
+.navtree__scenebtn[aria-pressed="true"] { border-color: var(--accent); }
+/* The candidate rows' words wrap rather than clip. */
 .navtree__scenerow--wrap .navtree__scenename,
 .navtree__scenerow--wrap .navtree__scenesub { white-space: normal; overflow-wrap: anywhere; }
 

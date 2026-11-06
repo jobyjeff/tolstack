@@ -1467,6 +1467,44 @@ check("a feature row's suggestion: an open proposal at its end, else the contact
   assertEqual(AA.endSuggestion(identity, contact, "rail_topo", { edgeId: "rod_len", direction: "from" }), null);
 });
 
+// --- the rail's marks (the_rail_reads_as_a_tree_of_bodies_joints_and_faces) --
+
+check("a rail row's mark: a binding this session wrote is `picked`, an older one `bound`; an " +
+  "unbound end says what it has to go on -- a proposal, contact faces, a declared face -- else `open`", () => {
+  const M = AA.RAIL_MARKS;
+  const S = AA.BINDING_STATES;
+  const mine = [{ event_id: "e2" }];
+  assertEqual(AA.railMark(S.BOUND, mine, ["e2"], null, false), M.picked);
+  assertEqual(AA.railMark(S.BOUND, mine, ["e9"], null, true), M.bound);
+  assertEqual(AA.railMark(S.OWNER_NOT_IN_SET, [], [], null, false), M.recheck);
+  assertEqual(AA.railMark(S.NEEDS_RECONFIRMATION, mine, ["e2"], null, false), M.recheck);
+  assertEqual(AA.railMark(S.PROPOSED, [], [], null, true), M.proposed);
+  assertEqual(AA.railMark(S.UNBOUND, [], [], { kind: AA.SUGGESTION_KINDS[0] }, true), M.proposed);
+  assertEqual(AA.railMark(S.UNBOUND, [], [], { kind: AA.SUGGESTION_KINDS[1], n: 2 }, true), M.contact);
+  assertEqual(AA.railMark(S.UNBOUND, [], [], null, true), M.declared);
+  assertEqual(AA.railMark(S.UNBOUND, [], [], null, false), M.open);
+  assertEqual(AA.candidateMark({ kind: AA.CANDIDATE_ROW_KINDS[0], bound: false }), M.proposed);
+  assertEqual(AA.candidateMark({ kind: AA.CANDIDATE_ROW_KINDS[1], bound: false }), M.contact);
+  assertEqual(AA.candidateMark({ kind: AA.CANDIDATE_ROW_KINDS[1], bound: true }), M.bound);
+});
+
+check("an end declares its face when ITS node names a face part; the other end, an edge " +
+  "feature and an unknown edge do not", () => {
+  const topology = { edges: [{ id: "len", from: "a", to: "b" }],
+    nodes: [{ id: "a", face: { part: "p1", surface: "cylindrical" } }, { id: "b" }] };
+  assertEqual(AA.endDeclaresFace(topology, { edgeId: "len", direction: AA.DIRECTIONS[0] }), true);
+  assertEqual(AA.endDeclaresFace(topology, { edgeId: "len", direction: AA.DIRECTIONS[1] }), false);
+  assertEqual(AA.endDeclaresFace(topology, { edgeId: "len", direction: null }), false);
+  assertEqual(AA.endDeclaresFace(topology, { edgeId: "nope", direction: AA.DIRECTIONS[0] }), false);
+});
+
+check("the rail's legend names every mark, once, in the words table's order", () => {
+  const legend = AA.railLegend();
+  assertEqual(legend.map((l) => l.mark).slice().sort(), Object.values(AA.RAIL_MARKS).slice().sort());
+  assertEqual(legend.map((l) => l.mark), Object.keys(AA.RAIL_MARK_WORDS));
+  assertEqual(legend.every((l) => l.text && l.title), true);
+});
+
 // --- a joint end's candidate list (a_joint_end_lists_its_candidate_faces_and_
 // says_why_each_is_there) -----------------------------------------------------
 const CAND_CONTACT = { topologies: [{ id: "rail_topo", edges: [{ edge: "rod_len", status: "ok",

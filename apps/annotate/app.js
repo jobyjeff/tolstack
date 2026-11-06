@@ -3205,6 +3205,11 @@ function featureRowBase(topology, joint, feature) {
   const suggestion = AA.endSuggestion(mergedIdentityProjection(), state.contactSuggestions,
     topology.id, via);
   const selected = isSelectedFeature(topology, via);
+  const record = via.edgeId ? AA.findBindingRecord(mergedIdentityProjection(),
+    AA.topologyEdgeKey(topology.id, via.edgeId)) : null;
+  railLook(li, AA.RAIL_ROW_KINDS.end, AA.railMark(bindingState,
+    via.direction ? AA.endBindings(record, via.direction) : (record && record.bindings) || [],
+    sessionEventIds(), suggestion, AA.endDeclaresFace(topology, via)));
   if (suggestion && suggestion.kind === AA.SUGGESTION_KINDS[0]) {
     const names = via.edgeId ? AA.edgeEndNames(topology, topology.edges.find((e) => e.id === via.edgeId)) : {};
     li.title += "\n" + AA.describeProposals({ proposals: suggestion.proposals }, names)
@@ -3328,6 +3333,27 @@ function featureRowBase(topology, joint, feature) {
   return li;
 }
 
+// A row's kind and, for a face-bearing row, its mark (AA.RAIL_ROW_KINDS,
+// AA.RAIL_MARKS) -- as classes, read back by the shell's mirror (railRow).
+// Not data- attributes: those are the mirror's row KEY, and a key that
+// changed with a row's look would be a different row to the shell.
+const RAIL_KIND_CLASS = "rail-kind--";
+const RAIL_MARK_CLASS = "rail-mark--";
+function railLook(node, kind, mark) {
+  node.classList.add(RAIL_KIND_CLASS + kind);
+  if (mark) node.classList.add(RAIL_MARK_CLASS + mark);
+}
+
+function railLookOf(node, prefix) {
+  const cls = Array.from(node.classList).find((c) => c.indexOf(prefix) === 0);
+  return cls ? cls.slice(prefix.length) : null;
+}
+
+// The ids of the events this session wrote: a binding among them is `picked`.
+function sessionEventIds() {
+  return state.sessionEvents.map((e) => e.event_id);
+}
+
 // Is this feature row the one `inspect feature` selected?
 function isSelectedFeature(topology, via) {
   const i = state.sweep && state.sweep.inspect;
@@ -3423,7 +3449,7 @@ function candidateList(key, ends, pickOther, pickTitle, repaint) {
 }
 
 // One face on the list: "face 3460 · round · r 47.5 mm", the reason under
-// it in the suggestion colour, the evidence (or who proposed it and why) on
+// it, muted, the evidence (or who proposed it and why) on
 // hover, and Take at the right. Resting on it washes the face in the scene.
 function candidateRow(end, row, surest) {
   const words = AA.CANDIDATE_LIST_WORDS;
@@ -3431,6 +3457,7 @@ function candidateRow(end, row, surest) {
   li.className = "tree-row tree-cand";
   li.dataset.kind = row.kind;
   li.dataset.face = String(row.faceId);
+  railLook(li, AA.RAIL_ROW_KINDS.candidate, AA.candidateMark(row));
   const name = AA.candidateRowWords(row);
   li.title = [name, row.reason, row.detail].filter(Boolean).join("\n");
   const text = document.createElement("span");
@@ -3440,7 +3467,9 @@ function candidateRow(end, row, surest) {
   head.textContent = name;
   text.appendChild(head);
   const reason = document.createElement("span");
-  reason.className = "tree-row__face tree-row__face--suggested";
+  // Muted: inside a list that is all suggestions the reason is the row's
+  // second fact, and its mark (railLook) carries whose suggestion it is.
+  reason.className = "tree-row__face";
   reason.textContent = [row.reason, row.bound ? words.bound : null].filter(Boolean).join(" · ");
   text.appendChild(reason);
   li.appendChild(text);
@@ -3467,6 +3496,7 @@ function candidateRow(end, row, surest) {
 function candidateAction(text, title, act) {
   const li = document.createElement("li");
   li.className = "tree-row tree-cand";
+  railLook(li, AA.RAIL_ROW_KINDS.action);
   li.title = title || text;
   const box = document.createElement("span");
   box.className = "tree-row__text";
@@ -3535,6 +3565,7 @@ function contributorsGroup(topology) {
   for (const row of AA.kinematicContributorRows(study, stop, topology, sweep.studyDecimals)) {
     const li = document.createElement("li");
     li.className = "tree-row tree-row--contributor";
+    railLook(li, AA.RAIL_ROW_KINDS.contributor);
     li.dataset.edge = row.edge;
     hoverOn(li, ["hover", "contributor", row.edge]);
     li.title = row.name + (row.magnitude ? " · " + row.magnitude : "");
@@ -3632,6 +3663,7 @@ function renderSweepRail() {
     const node = treeNode("body:" + body.name, AA.sweepBodyRowWords(body), body.open, null,
       ["hover", "body", body.name]);
     node.dataset.body = body.name;
+    railLook(node, AA.RAIL_ROW_KINDS.body);
     subjectCheckbox(node, body.name);
     node.appendChild(treePartRows(body.parts, body.name));
     bodies.appendChild(node);
@@ -3663,6 +3695,7 @@ function renderSweepRail() {
       else if (!open && isSelected) railExec(["inspect", "clear"]);
     }, ["hover", "joint", joint.name]);
     node.dataset.joint = joint.name;
+    railLook(node, AA.RAIL_ROW_KINDS.joint);
     if (selectedJoint === joint.name || holds) node.classList.add("selected");
     if (topology && joint.features.length) {
       const list = document.createElement("ul");
@@ -4712,6 +4745,10 @@ function renderElementList() {
     // and Jeff asked to keep it ("keep the *color* signal on the row"). What
     // came off is the WORDS: the badge used to print the raw state value.
     li.className = "el-row el-row--" + bindingState;
+    // The mark the shell's mirror draws: the edge as a whole (an element row
+    // is both ends), so no end's suggestion or declared face refines it.
+    railLook(li, AA.RAIL_ROW_KINDS.element, AA.railMark(bindingState,
+      (record && record.bindings) || [], sessionEventIds(), null, false));
     const rowText = edge.name || edge.id;
     li.title = rowText;
     const rowName = document.createElement("span");
@@ -5693,6 +5730,7 @@ function renderPartsPanel() {
 function buildPartRow(mesh, inModel, isolated, scope) {
   const li = document.createElement("li");
   li.className = "part-row";
+  railLook(li, AA.RAIL_ROW_KINDS.part);
   if (state.sweep) {
     li.dataset.sha = mesh.sha256;
     if (scope) li.dataset.subject = scope.subject;
@@ -5876,11 +5914,12 @@ function postEmbedState() {
 // "shown" is read off the layout (a closed <details>, a chip-hidden group,
 // bind furniture in sweep mode all have no boxes).
 //
-// A row: {key, text, title?, sub?, suggestion?, value?, state?, attention?, selected?, sceneHover?,
+// A row: {key, text, title?, kind?, mark?, sub?, suggestion?, value?, state?, attention?, selected?, sceneHover?,
 // open? (a disclosure), activate? (a click does something), check?
 // {checked, indeterminate, disabled, title}, buttons? [{text, title,
 // pressed}], alert? (the badge's words), rows? [...]}; a heading is {key,
-// head: text}.
+// head: text}. `kind` (AA.RAIL_ROW_KINDS) picks the row's look and `mark`
+// (AA.RAIL_MARKS) its state colour; `legend` names every mark.
 let embedNodes = new Map();
 let embedTreeSent = "";
 let embedTreeTimer = null;
@@ -5929,6 +5968,14 @@ function railControls(node, holder, row) {
   return { check, buttons };
 }
 
+// The row's kind and mark (railLook), when the rail gave it any.
+function railLookInto(node, row) {
+  const kind = railLookOf(node, RAIL_KIND_CLASS);
+  if (kind) row.kind = kind;
+  const mark = railLookOf(node, RAIL_MARK_CLASS);
+  if (mark) row.mark = mark;
+}
+
 function railRows(node, parentKey, seen) {
   const out = [];
   for (const child of node.children) {
@@ -5960,6 +6007,7 @@ function railRow(node, parentKey, seen) {
     const key = railKey(parentKey, node, words, seen);
     const row = { key, text: words, title: summary ? summary.title : "", open: node.open };
     if (node.classList.contains("selected")) row.selected = true;
+    railLookInto(node, row);
     const controls = summary ? railControls(node, summary, row) : {};
     embedNodes.set(key, { node, hover: summary, toggle: node, ...controls });
     const kids = [];
@@ -5985,6 +6033,7 @@ function railRow(node, parentKey, seen) {
       railText(node, ".tree-row__text > .tree-row__face") || railText(node, ".part-row__note") ||
       railText(node, ".el-row__proposal");
     if (sub) row.sub = sub;
+    railLookInto(node, row);
     // A suggestion line ("suggested · high", "candidates · 3") is drawn in
     // the suggestion colour; the shell is told THAT, not which words.
     if (node.querySelector(":scope > .tree-row__text > .tree-row__face--suggested, :scope > .el-row__proposal")) {
@@ -6055,7 +6104,7 @@ function embedTree() {
     rows.push(...railRows(root, "#" + root.id, seen));
   }
   return { type: "annotate:tree", mode: state.sweep ? "sweep" : "bind",
-    chips: state.sweep ? railChips() : [], rows };
+    chips: state.sweep ? railChips() : [], legend: rows.length ? AA.railLegend() : [], rows };
 }
 
 // Posted when what the rail shows changes (a MutationObserver on the rail,

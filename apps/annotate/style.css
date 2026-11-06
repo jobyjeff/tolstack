@@ -574,7 +574,7 @@ body {
    faces_and_says_why_each_is_there): a quiet disclosure in front of the row,
    and the list on its own lines under it, inside the row. A candidate's words
    wrap rather than clip -- the rail is narrow and the reason is the point. */
-.tree-row__twisty { flex: none; width: 10px; color: #9aa1ab; cursor: pointer; user-select: none; }
+.tree-row__twisty { flex: none; width: 16px; font-size: var(--t-dense); color: #9aa1ab; cursor: pointer; user-select: none; }
 .tree-row__twisty:hover, .tree-row__twisty:focus { color: #e8e8e8; outline: none; }
 .tree-row:has(> .tree-cands), .el-row:has(> .tree-cands) { flex-wrap: wrap; }
 .tree-cands { flex-basis: 100%; list-style: none; margin: 4px 0 0; padding: 0 0 0 10px; cursor: default; }

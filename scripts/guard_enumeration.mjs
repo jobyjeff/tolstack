@@ -238,7 +238,11 @@ export const DECLARED_GUARDS = {
   // sourcing legend's named tints, and the scene's tint verb from the page.
   // Each carries a spec. (Re-measured at the review merge on integration's
   // 632: 642.)
-  fast: { declared: 644, enrollable: 644, names: "243199eb9d55" },
+  // the_rail_reads_as_a_tree_of_bodies_joints_and_faces, 2026-11-06: +1 -- a
+  // mirrored row wears its kind and mark, its twisty and glyph columns, the
+  // legend, and its control group before its checkbox. It carries a spec.
+  // (Re-measured at the review merge on integration's 644: 645.)
+  fast: { declared: 645, enrollable: 645, names: "144ddec63e5b" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -288,7 +292,11 @@ export const DECLARED_GUARDS = {
   // as a joint's third row. Each carries a spec.
   // 2026-11-05 (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste):
   // +1 -- the model verb's tint action. It carries a spec.
-  annotate: { declared: 291, enrollable: 291, names: "d4a34457b11a" },
+  // 2026-11-06 (the_rail_reads_as_a_tree_of_bodies_joints_and_faces): +3 -- a
+  // rail row's mark, an end's declared face, and the legend naming every
+  // mark. Each carries a spec. (Re-measured at the review merge on integration's
+  // 291: 294.)
+  annotate: { declared: 294, enrollable: 294, names: "89587c9bb715" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
