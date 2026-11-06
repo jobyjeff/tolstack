@@ -235,3 +235,21 @@ projection with `085bc82fd2a3`.
   `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
 
 Round 1 found no design findings to file.
+
+### Landing: integration moved once more
+
+The first `git fetch . review/…:integration` was refused as a non-fast-forward.
+`the_rail_reads_as_a_tree_of_bodies_joints_and_faces` had landed in the meantime.
+Merging it again (`ca36a028`) conflicted only in the guard pins. I kept both
+sides' comments, and the census re-derived the pins: fast `656 / 656 /
+eeee061b0636` (647 + 9) and browser `846 / 813 / 8a4c959f321e` (844 + 2).
+
+Re-run on that tree:
+- viewer fast tier **656/656**, with the projections still paired with
+  `085bc82f` (no projection input moved);
+- the risky pytest subset, **377 passed**;
+- the DAG-zoom browser suite, **45/45**, logging `play/pause: -7.0 -> 13.5 (Pause)
+  -> 17.7 (Play) -> 17.7`.
+
+The full suite and the witness gate above were run on `085bc82f`, before this
+merge. The rail handoff's own review ran both on its side.
