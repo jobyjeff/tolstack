@@ -2801,27 +2801,18 @@
     if (valueOnly) el.setAttribute("title", VA.edgeHoverTitle(edge, planRow.id));
     el.appendChild(VA.el("td", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
 
-    // The element label, with everything the rest of the row already says
-    // dropped out of it (VA.elementDisplayLabel, topology.js -- display only,
-    // nothing about the edge changes): the component's own words off the
-    // front, and any clause that only restates the component or the row's own
-    // value. Where anything was dropped the cell carries the FULL label as its
-    // hover title, so the words are one hover away and the preview pane prints
-    // them in full regardless.
-    //
-    // The PART ROW is passed, not its id: the rule matches against what the
-    // merged cell actually prints, which is the part's name now.
+    // The element name, as authored: the feature-to-feature span in the part's
+    // own words (docs/SOP_TOLERANCE_STACK.md, "Titling an artifact"). The part
+    // column beside it carries the part, so the name carries none and nothing
+    // here shortens it -- the cell and its hover title are one phrase, and the
+    // title is what a clipped cell reads in full.
     // The row's words and numbers are its record's (VA.elementRecords), the
     // one copy the Preview, the DAG's label and the 3D anchor read too.
     var record = VA.elementRecords(ctx.topoProj, VA.previewRecordOptions(ctx))[
       hotKey("edge", planRow.id)] || null;
     var fullName = record ? record.title : missing(planRow.id);
-    var shownName = edge && group
-      ? VA.elementDisplayLabel(fullName,
-          group.part ? (index.parts[group.part] || { id: group.part }) : null)
-      : fullName;
-    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : shownName);
-    if (!valueOnly && shownName !== fullName) nameCell.setAttribute("title", fullName);
+    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : fullName);
+    if (!valueOnly) nameCell.setAttribute("title", fullName);
     // A term of a sub-stack indents one step per level under its header.
     if (term) nameCell.style.paddingLeft = (8 + 14 * term.depth) + "px";
     el.appendChild(nameCell);

@@ -526,7 +526,7 @@
   //
   // A PREFIX of the input or the whole of the input, never anything else:
   // nothing is reworded, recased, reordered or summarised, the same discipline
-  // VA.fieldLabel and VA.elementDisplayLabel keep, and the full text is always
+  // VA.fieldLabel keeps, and the full text is always
   // one click away in the same card. This is a placement decision, not the
   // viewer editing the record.
   //
@@ -554,7 +554,7 @@
   //
   // Separator only. Nothing is reworded, recased or reordered: every character
   // of the output is a character of the input in the input's order, minus the
-  // underscores, which is the same discipline VA.elementDisplayLabel keeps. A
+  // underscores, which is the same discipline VA.fieldLabel keeps. A
   // transform that guessed at expansions ("rev" -> "revision") would be the
   // viewer editing the record.
   VA.fieldLabel = function (key) {

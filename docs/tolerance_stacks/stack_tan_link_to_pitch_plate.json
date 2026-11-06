@@ -27,7 +27,7 @@
   "elements": [
     {
       "id": "flange_bushing_L",
-      "name": "flange bushing L thickness",
+      "name": "barrel L thickness",
       "role": "bushing",
       "nominal": 3.81,
       "min": 3.683,
@@ -56,7 +56,7 @@
     },
     {
       "id": "bushing_chamfer",
-      "name": "bushing chamfer size",
+      "name": "chamfer size",
       "role": "relief",
       "nominal": 0.762,
       "min": 0.635,
@@ -85,7 +85,7 @@
     },
     {
       "id": "flange_bushing_flange",
-      "name": "flange bushing flange thickness",
+      "name": "flange thickness",
       "role": "bushing",
       "nominal": 1.575,
       "min": 1.4478,
@@ -114,7 +114,7 @@
     },
     {
       "id": "straight_bushing",
-      "name": "straight bushing",
+      "name": "length",
       "role": "bushing",
       "nominal": 4.762,
       "min": 4.63,
@@ -168,7 +168,7 @@
     },
     {
       "id": "spherical_bearing",
-      "name": "spherical bearing width",
+      "name": "width",
       "role": "bearing",
       "nominal": 11.1,
       "min": 11.05,
@@ -197,7 +197,7 @@
     },
     {
       "id": "pitch_plate_flange",
-      "name": "pitch plate flange thickness",
+      "name": "flange thickness",
       "role": "clamped_member",
       "nominal": 4.06,
       "min": 3.98,
@@ -231,7 +231,7 @@
     },
     {
       "id": "washer_thin",
-      "name": "washer thickness (thin, .032 in)",
+      "name": "thin washer thickness",
       "role": "washer",
       "nominal": 0.8128,
       "min": 0.7112,
@@ -250,7 +250,7 @@
     },
     {
       "id": "washer_thick",
-      "name": "washer thickness (thick, .063 in)",
+      "name": "thick washer thickness",
       "role": "washer",
       "nominal": 1.6002,
       "min": 1.4478,
@@ -268,7 +268,7 @@
     },
     {
       "id": "thread_transition",
-      "name": "thread transition allowance (all fasteners)",
+      "name": "thread transition allowance",
       "role": "allowance",
       "nominal": 1.5875,
       "min": 0.0,
@@ -287,7 +287,7 @@
     },
     {
       "id": "fastener_grip_13",
-      "name": "fastener grip, -13 (.812 in)",
+      "name": "U13H grip length",
       "role": "fastener",
       "nominal": 20.6248,
       "min": 20.3708,
@@ -309,7 +309,7 @@
     },
     {
       "id": "fastener_grip_14",
-      "name": "fastener grip, -14 (.875 in)",
+      "name": "U14D grip length",
       "role": "fastener",
       "nominal": 22.225,
       "min": 21.971,

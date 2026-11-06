@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_element_names_follow_the_rule.py",
+  "expect_red": "test_no_element_or_edge_name_carries_filler",
+  "mutations": [
+    {
+      "contract": "An element or edge name carries no article, comma, dash clause or parenthesis.",
+      "issue": null,
+      "note": "Puts back the filler from the 2026-11-05 note ('datum A to its top face'), which the cell used to clip and the hover used to reword.",
+      "file": "docs/topologies/topology_vpa_pitch_linkage.json",
+      "find": "\"name\": \"datum A to top face\"",
+      "replace": "\"name\": \"datum A to its top face\""
+    }
+  ]
+}
