@@ -1055,15 +1055,13 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
 // so the point is found rather than
 // assumed, the way `railPoint` does for a rail.
 //
-// Vertically only, then sideways the way a reader would. `scrollIntoView`
-// alone also scrolls the grid's `.tv__hscroll` to bring a row wider than the
-// pane into view, and the rails are `position: sticky; left: 0` (topology.css)
-// -- so the cell slides UNDER them and every point of it is the rails'. With
-// the product graph's rails at 678px of a 737px pane (1600x1000, preview
-// open), that is where Playwright's own `click()` landed too. So the grid's
-// sideways scroll is put back, and only if the cell is still covered is the
-// grid scrolled until the cell starts just right of the rails, which is what a
-// reader does to reach a column the pane does not show.
+// Vertically only, then sideways the way a reader would: the grid's sideways
+// scroll is put back, and only if the cell is still not the browser's at any
+// point is the strip scrolled until the cell starts just inside the pane's
+// left edge, which is what a reader does to reach a column the pane does not
+// show. (Until the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_
+// what the rails were sticky and the cell was scrolled to just right of
+// them; the rails scroll with the grid now.)
 async function clearPoint(page, selector, action) {
   const point = await page.evaluate((selector) => {
     const node = document.querySelector(selector);
@@ -1083,10 +1081,9 @@ async function clearPoint(page, selector, action) {
     node.scrollIntoView({ block: "center" });
     if (hscroll) hscroll.scrollLeft = left;
     const found = own();
-    const rails = hscroll && hscroll.querySelector("svg.tv__rails");
-    if (found || !rails) return found;
+    if (found || !hscroll) return found;
     hscroll.scrollLeft += node.getBoundingClientRect().left -
-      rails.getBoundingClientRect().right;
+      hscroll.getBoundingClientRect().left - 8;
     return own();
   }, selector);
   if (!point) {
@@ -3130,6 +3127,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         const node = document.querySelectorAll(
           "svg.tv__rails line.rail__hit")[i];
         if (!node) return null;
+        // The rails scroll with the grid: a check above that reached a grid
+        // column left the strip scrolled, so start from its left edge.
+        const strip = document.querySelector("#topopane .tv__hscroll");
+        if (strip) strip.scrollLeft = 0;
         // A rail that starts below the fold has no point in the window at
         // all, and pitch_system's DAG is taller than any viewport this runs
         // at -- so the page is scrolled to put the rail's middle on screen
@@ -4718,8 +4719,11 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
           edgeContrast: (lum(edge) + 0.05) / (lum(bg) + 0.05),
         };
       });
-      // Hover a leader's own hit path, at its middle.
+      // Hover a leader's own hit path, at its middle, from the strip's left
+      // edge (the rails scroll with the grid).
       const hitAt = await page.evaluate(() => {
+        const strip = document.querySelector("#topopane .tv__hscroll");
+        if (strip) strip.scrollLeft = 0;
         const hits = Array.from(document.querySelectorAll("#topopane path.rail__leaderhit"));
         for (const h of hits) {
           const pt = h.getPointAtLength(h.getTotalLength() / 2);
@@ -4833,7 +4837,9 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         ["a node", "#topopane svg.tv__rails circle.rail__dot"],
         ["an edge", "#topopane svg.tv__rails line.rail__barhit"],
         ["a sub-stack's label", "#topopane svg.tv__rails text[data-substack-toggle]"],
-        ["a grid row", "#topopane tr.tvrow td"],
+        // A row's PART cell: its own click target, and narrow enough to be
+        // wholly in the pane (a header row's first cell spans four columns).
+        ["a grid row", "#topopane tr.tvrow td.tvcell--part"],
       ];
       const moved = [];
       const clickedOn = [];
@@ -4843,7 +4849,10 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         await page.evaluate((p) => {
           const hs = Array.from(document.querySelectorAll("#topopane .tv__hscroll"))
             .filter((n) => !n.closest(".tv__ghost"))[0];
-          hs.scrollLeft = p ? Math.min(100, Math.max(0, hs.scrollWidth - hs.clientWidth)) : 0;
+          // Parked a little way in: the rails scroll with the grid since
+          // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+          // so a deep park takes the drawing being clicked off the pane.
+          hs.scrollLeft = p ? Math.min(40, Math.max(0, hs.scrollWidth - hs.clientWidth)) : 0;
           window.scrollTo(0, 0);
         }, parked);
         await settle(300);
