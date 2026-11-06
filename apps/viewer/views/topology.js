@@ -74,7 +74,9 @@
     // VA.EDGE_LENGTH_MODES in that table's own `next` order. A display
     // preference like the two above: the grid's rows never move, only the
     // DAG stretches, and the leaders absorb the difference.
-    var lengthPreset = VA.EDGE_LENGTH_MODES[state.edgeLengthMode] ||
+    // The mode the pane draws (VA.edgeLengthModeFor), which the page hands
+    // in: a kinematic page's default is not the reader's stored choice.
+    var lengthPreset = VA.EDGE_LENGTH_MODES[handlers.edgeLengthMode || state.edgeLengthMode] ||
       VA.EDGE_LENGTH_MODES.uniform;
     var lengths = VA.el("button", "ghost tvpick__mode",
       "Lengths: " + lengthPreset.label);
@@ -395,7 +397,7 @@
     // place that holds both the pane and the plan.
     var fit = { plan: plan, inset: VA.DAG_FIT.topInset };
     var positions = VA.rowPositions(layout, topoProj,
-      ctx.edgeLengthMode || "uniform", M, fit);
+      ctx.edgeLengthMode || "uniform", M, fit, ctx.contributions || null);
     // Mid-respine (viewer_study_respine_animation): the frame is drawn from
     // the TARGET serialisation's layout and plan -- the structure the page is
     // moving to -- with the store interpolated back toward the one the
@@ -1069,6 +1071,138 @@
       else en.node.style[en.name] = text;
     }
   }
+
+  // --- the pose film (the_grid_and_the_dag_move_with_the_mechanism) ---------
+  //
+  // A kinematic page's DAG moves with the linkage: in the contribution length
+  // mode a bar's length is its contribution at the live pose, so every frame
+  // of play (or of a slider drag) is a different picture of the SAME rows.
+  // Rebuilding the pane per frame is what the tween handoff measured at
+  // 100+ ms and removed, so this is that handoff's engine pointed at poses
+  // instead of at a study change: the pane is rendered once per KEYFRAME pose
+  // into a detached root (no layout, no paint, nothing on screen moves), the
+  // numbers each render drew are kept, and a frame between two keyframes
+  // eases the LIVE nodes' own attributes from one set to the next. No node is
+  // built per frame. The text in the grid is the one thing a snapshot does
+  // not carry; VA.applyStackText writes it from the stack at the frame's own
+  // pose, so the numbers are exact at every frame and the drawing is exact at
+  // every keyframe (and at rest, where the page renders the pose itself).
+  //
+  //   root   the live pane, as the last renderTopoPane left it
+  //   ctxAt  pose -> the render context at that pose (no onPainted)
+  //   poses  the keyframe poses, ascending
+  //
+  // Returns { apply(pose), valid() }, or null when the keyframes are not one
+  // structure with the live pane (a bar crossing the floor gains a break
+  // mark, say): the page then repaints the pane instead, at most once a frame.
+  VA.poseFilm = function (root, ctxAt, poses) {
+    if (!root || !root.querySelector || !poses || poses.length < 2) return null;
+    var scroller = root.querySelector(".tv__hscroll");
+    if (!scroller) return null;
+    var live = takeSnapshot(root);
+    var keepRender = VA.lastTopoRender;
+    var keepHot = VA.lastTopoHot;
+    var snaps = [];
+    var drawn = [];
+    try {
+      poses.forEach(function (pose) {
+        var shadow = VA.el("div");
+        VA.renderTopoPane(shadow, ctxAt(pose));
+        snaps.push(takeSnapshot(shadow));
+        drawn.push(VA.lastTopoRender);
+      });
+    } finally {
+      VA.lastTopoRender = keepRender;
+      VA.lastTopoHot = keepHot;
+    }
+    for (var s = 0; s < snaps.length; s++) {
+      if (snaps[s].length !== live.length) return null;
+      for (var i = 0; i < live.length; i++) {
+        if (snaps[s][i].tag !== live[i].tag) return null;
+      }
+    }
+    var at = new Map();
+    snaps[0].forEach(function (entry, i) { at.set(entry.node, i); });
+    var plan = pairSnapshots(snaps) || [];
+    plan.forEach(function (en) { en.node = live[at.get(en.node)].node; });
+    var film = {
+      poses: poses.slice(),
+      entries: plan.length,
+      valid: function () { return root.querySelector(".tv__hscroll") === scroller; },
+      apply: function (pose) {
+        var last = poses.length - 1;
+        var p = Math.min(Math.max(pose, poses[0]), poses[last]);
+        var k = 0;
+        while (k < last - 1 && p > poses[k + 1]) k++;
+        var span = poses[k + 1] - poses[k];
+        var u = span > 0 ? (p - poses[k]) / span : 0;
+        for (var n = 0; n < plan.length; n++) {
+          var en = plan[n];
+          // A class is a set of words, not a number to ease: the nearer
+          // keyframe's own (a colour bin is ovl-c3 or ovl-c4, never 3.5).
+          var text = en.name === "class"
+            ? interpolated(en.vals[u < 0.5 ? k : k + 1], en.vals[u < 0.5 ? k : k + 1], 0)
+            : interpolated(en.vals[k], en.vals[k + 1], u);
+          if (en.kind === "attr") en.node.setAttribute(en.name, text);
+          else en.node.style[en.name] = text;
+        }
+        // The page's seam reads what the pane drew: the picture on screen.
+        VA.lastTopoRender = blendValue(drawn[k], drawn[k + 1], u);
+        VA.pinTopoHead(root);
+        return p;
+      },
+    };
+    return film;
+  };
+
+  // The kinematic grid's numbers rewritten in place from `stack`
+  // (VA.kinematicStack at a pose), for a pane already drawn with the same
+  // rows: each term row's sensitivity and contribution, each sub-stack
+  // header's detail and numbers, and the foot's total. The words are the
+  // row builders' own (edgeRow, subStackRow, stackFoot); a fast-tier test
+  // renders one pose, rewrites it to another and holds every row's text to
+  // a fresh render of the second. Returns how many rows it wrote.
+  VA.applyStackText = function (root, stack) {
+    if (!root || !root.querySelectorAll || !stack) return 0;
+    var set = function (row, cls, text) {
+      var cell = row.querySelector(cls);
+      if (cell && cell.textContent !== text) cell.textContent = text;
+    };
+    var subs = {};
+    stack.entries.forEach(function (entry) { if (entry.kind === "sub") subs[entry.id] = entry; });
+    var written = 0;
+    root.querySelectorAll("tr").forEach(function (row) {
+      var kind = row.getAttribute("data-row-kind");
+      var term = kind === "edge" ? stack.terms[row.getAttribute("data-id")] : null;
+      if (term) {
+        set(row, "td.tvcell--sensitivity", term.sensitivity);
+        set(row, "td.tvcell--contribution", term.contribution +
+          (term.contribution && stack.units ? " " + stack.units : ""));
+        written++;
+        return;
+      }
+      var sub = kind === "substack" ? subs[row.getAttribute("data-substack")] : null;
+      if (sub) {
+        set(row, "span.tvsub__detail", sub.detail ? " · " + sub.detail : "");
+        set(row, "td.tvcell--sensitivity", sub.sensitivity);
+        set(row, "td.tvcell--contribution", sub.contribution);
+        written++;
+        return;
+      }
+      var cls = row.className || "";
+      if (cls.indexOf("tvtotal--worst_case") !== -1) {
+        var r = stack.result;
+        set(row, "td.tvtotal__label", r.label);
+        var label = row.querySelector("td.tvtotal__label");
+        if (label) label.setAttribute("title", r.label + " · " + r.rss);
+        set(row, "td.tvcell--nominal", r.nominal);
+        set(row, "td.tvcell--contribution", r.contribution + " " + (stack.units || "") +
+          " · " + r.rss);
+        written++;
+      }
+    });
+    return written;
+  };
 
   // The space put before the drawing, on the node that wears it.
   function applyBandPad(root, pad) {

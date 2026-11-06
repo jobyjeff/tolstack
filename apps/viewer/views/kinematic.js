@@ -13,7 +13,10 @@
 // scripts/build_kinematic_projection.py folded through
 // tolerance_stack.kinematic -> fold(); the only thing done to a number here is
 // printing it at the precision the projection itself states
-// (`display_decimals`), and placing it on the chart.
+// (`display_decimals`), placing it on the chart, and -- at a pose between two
+// sweep points (VA.kinematicPose, 2026-11-05) -- reading it there: one
+// projection number at the two points either side, weighted by how far
+// between them the pose is. A reading of one number, never a fold of two.
 //
 // The chart is drawn LIVE, as inline SVG, from `envelope[]`. The builder's own
 // SVG beside the JSON is its evidence file and is deliberately not embedded:
@@ -238,6 +241,205 @@
         label: check.label,
       };
     });
+  };
+
+  // --- the pose (the_grid_and_the_dag_move_with_the_mechanism) -----------------
+  //
+  // Jeff, 2026-11-05: "drag the slider or enter a discrete blade angle and then
+  // see the tolerance stack at that pose". A pose is a place on the sweep, held
+  // as a FRACTIONAL POINT INDEX: 12.25 is a quarter of the way from point 12
+  // to point 13. That is the 3D pane's own unit (its scrubber's `sweep.index`,
+  // apps/annotate/sweep.js), and within one step of the sweep the driver is
+  // linear in it, so a pose and the driver value the pane is told agree.
+  //
+  // How a number is read at a pose: the projection carries every contributor
+  // at every point (`contributors[].by_point[]`, `study_refs[].children[]
+  // .by_point[]`) and the linkage fold at every point (`envelope[]`). At a
+  // pose, each of those numbers is read from the two points either side,
+  // linearly in the index -- the J of the handoff, "interpolated between sweep
+  // points as the sweep artifact allows". Nothing is read past the sweep's
+  // ends, and a pose exactly on a stop's point is that stop: its stack is the
+  // stop's own fold (`stops[]`), not a reading of the points.
+  VA.KINEMATIC_POSE = Object.freeze({
+    // How close to a stop's point a pose must be to BE the stop.
+    stopEps: 1e-6,
+    // Play's pace, in sweep points per second: the 3D pane's own
+    // (AA.SWEEP_POINTS_PER_SECOND, paired by tests/test_kinematic_pose_pace.py),
+    // so the two never drift when the page drives the pane.
+    pointsPerSecond: 24,
+    // The precision the blade-angle field prints and steps at.
+    angleDecimals: 1,
+    // The DAG's pose film (VA.poseFilm): the pane rendered at this many evenly
+    // spaced poses, every frame between two of them eased from one to the next.
+    filmKeys: 12,
+  });
+
+  // The pose in the URL: `?kinematic=<study>&pose=<measure>` -- the blade
+  // angle a reader would type, at the field's precision, so a lesson or a
+  // filmstrip can cite the exact pose it shows. View state, like `?pane=1`,
+  // and not one of the selection params a sibling repo links with
+  // (VA.DEEP_LINK_PARAMS, README "Deep links in").
+  VA.POSE_PARAM = "pose";
+
+  // location.search -> the pose's measure (a number), or null. Pure string
+  // work, the VA.parseDeepLink posture: first occurrence wins.
+  VA.parsePoseParam = function (search) {
+    var out = null;
+    String(search || "").replace(/^\?/, "").split("&").some(function (pair) {
+      var cut = pair.indexOf("=");
+      if (cut === -1 || pair.slice(0, cut) !== VA.POSE_PARAM) return false;
+      var value = Number(decodeURIComponent(pair.slice(cut + 1)));
+      out = pair.slice(cut + 1) !== "" && isFinite(value) ? value : null;
+      return true;
+    });
+    return out;
+  };
+
+  // The search a posed kinematic page writes: every selection param and any
+  // old pose dropped, `kinematic` and `pose` set -- or, with no study, just
+  // dropped (the page has left it). Other params (`mock`, `pane`) are kept,
+  // in their order.
+  VA.poseSearch = function (search, studyId, measureText) {
+    var kept = [];
+    var wrote = false;
+    String(search || "").replace(/^\?/, "").split("&").forEach(function (pair) {
+      if (!pair) return;
+      var cut = pair.indexOf("=");
+      var key = cut === -1 ? pair : pair.slice(0, cut);
+      if (key === VA.POSE_PARAM || VA.DEEP_LINK_PARAMS.indexOf(key) !== -1) {
+        wrote = true;
+        return;
+      }
+      kept.push(pair);
+    });
+    if (studyId && measureText !== null && measureText !== undefined) {
+      kept.push("kinematic=" + encodeURIComponent(studyId));
+      kept.push(VA.POSE_PARAM + "=" + encodeURIComponent(measureText));
+    } else if (!wrote) {
+      return String(search || "");
+    }
+    return kept.length ? "?" + kept.join("&") : "";
+  };
+
+  // How many points the study's sweep has (its envelope's length).
+  VA.kinematicPoseCount = function (study) {
+    return ((study && study.envelope) || []).length;
+  };
+
+  // A pose clamped onto the sweep, and where it falls: the two points either
+  // side (`i0`, `i1`), how far between them (`u`), the driver and the measure
+  // there, and the stop it is on, if any.
+  VA.kinematicPose = function (study, index) {
+    var env = (study && study.envelope) || [];
+    if (!env.length) return null;
+    var last = env.length - 1;
+    var f = Math.min(Math.max(Number(index) || 0, 0), last);
+    var i0 = Math.min(Math.floor(f), last);
+    var i1 = Math.min(i0 + 1, last);
+    var u = f - i0;
+    var at = function (key) {
+      var a = env[i0][key], b = env[i1][key];
+      return typeof a === "number" && typeof b === "number" ? a + (b - a) * u : null;
+    };
+    var stop = null;
+    (study.stops || []).forEach(function (s) {
+      if (!stop && typeof s.index === "number" &&
+          Math.abs(s.index - f) <= VA.KINEMATIC_POSE.stopEps) stop = s.id;
+    });
+    return { index: f, i0: i0, i1: i1, u: u, driver: at("driver_value"),
+             measure: at("nominal_measure"), stop: stop };
+  };
+
+  // A pose argument as the stack builders take it: a point index, or a pose
+  // VA.kinematicPose already made -- one whose `stop` the page has cleared
+  // because the pane on screen is drawn at another stop (topology_app.js's
+  // livePose: the two stops' stacks are different rows, and a frame of play
+  // never changes rows). Anything else is no pose.
+  VA.kinematicPoseArg = function (study, pose) {
+    if (typeof pose === "number") return VA.kinematicPose(study, pose);
+    return pose && typeof pose.index === "number" && typeof pose.i0 === "number" ? pose : null;
+  };
+
+  // The pose at a value of the sweep's measure (the blade angle a reader
+  // types) or of its driver: the first step of the sweep that brackets it,
+  // whichever way the sweep runs; past either end, that end.
+  function poseOf(study, key, value) {
+    var env = (study && study.envelope) || [];
+    var x = Number(value);
+    if (!env.length || !isFinite(x)) return null;
+    for (var i = 0; i < env.length - 1; i++) {
+      var a = env[i][key], b = env[i + 1][key];
+      if ((x - a) * (x - b) <= 0) {
+        return Math.abs(b - a) < 1e-12 ? i : i + (x - a) / (b - a);
+      }
+    }
+    var first = env[0][key], last = env[env.length - 1][key];
+    return Math.abs(x - first) <= Math.abs(x - last) ? 0 : env.length - 1;
+  }
+
+  VA.kinematicPoseOfMeasure = function (study, value) {
+    return poseOf(study, "nominal_measure", value);
+  };
+
+  VA.kinematicPoseOfDriver = function (study, value) {
+    return poseOf(study, "driver_value", value);
+  };
+
+  // A stop's own pose: its point.
+  VA.kinematicStopPose = function (study, stopId) {
+    var hit = null;
+    ((study && study.stops) || []).forEach(function (s) {
+      if (s.id === stopId && typeof s.index === "number") hit = s.index;
+    });
+    return hit;
+  };
+
+  // One per-point row read at the pose: its signed coefficient and its
+  // magnitude, each from the two points either side. The sign is the signed
+  // coefficient's; a magnitude either point lacks (a gap row's) stays absent.
+  function rowAtPose(points, pose) {
+    var byIndex = {};
+    (points || []).forEach(function (p) { byIndex[p.index] = p; });
+    var a = byIndex[pose.i0], b = byIndex[pose.i1];
+    if (!a || !b) return null;
+    var signed = function (p) { return p.sign < 0 ? -p.coefficient : p.coefficient; };
+    var s = signed(a) + (signed(b) - signed(a)) * pose.u;
+    var m = typeof a.magnitude === "number" && typeof b.magnitude === "number"
+      ? a.magnitude + (b.magnitude - a.magnitude) * pose.u : null;
+    return { sign: s < 0 ? -1 : 1, coefficient: Math.abs(s), magnitude: m };
+  }
+
+  // {edge: row read at the pose} for every linkage contributor.
+  VA.kinematicPoseRows = function (study, pose) {
+    var out = {};
+    if (!study || !pose) return out;
+    (study.contributors || []).forEach(function (c) {
+      var row = rowAtPose(c.by_point, pose);
+      if (row) out[c.edge] = row;
+    });
+    return out;
+  };
+
+  // The linkage fold read at the pose: the envelope's own numbers there.
+  VA.kinematicPoseFold = function (study, pose) {
+    var env = (study && study.envelope) || [];
+    if (!pose || !env.length) return null;
+    var a = env[pose.i0], b = env[pose.i1];
+    var out = {};
+    ["nominal_measure", "worst_case_min", "worst_case_max", "worst_case_half",
+     "rss_half"].forEach(function (key) {
+      out[key] = typeof a[key] === "number" && typeof b[key] === "number"
+        ? a[key] + (b[key] - a[key]) * pose.u : null;
+    });
+    return out;
+  };
+
+  // A pose in reader words: the measure there ("23.0 deg"), at the field's
+  // precision.
+  VA.kinematicPoseWords = function (study, pose) {
+    if (!pose || typeof pose.measure !== "number") return "";
+    return withUnit(VA.kinematicNumber(pose.measure, VA.KINEMATIC_POSE.angleDecimals),
+                    study.units);
   };
 
   // --- one stop's contributor table ----------------------------------------------
@@ -697,11 +899,31 @@
   // gap with none. `terms` indexes the term entries by edge; `result` is the
   // stop's own fold, for the grid's foot. Every number is the projection's,
   // printed at its precision; nothing is added up here.
-  VA.kinematicStack = function (study, topoProj, stopId, decimals, choices) {
+  //
+  // `poseIndex` (VA.kinematicPose; absent = the stop's own point) is the live
+  // pose. On a stop's point the stack IS that stop's, whichever stop
+  // `stopId` named. Anywhere else the linkage terms, their sub-stack's total
+  // and the foot are read at the pose (VA.kinematicPoseRows /
+  // VA.kinematicPoseFold) -- the foot is then the linkage alone, which is
+  // what the envelope folds -- while the stop position's rows stay at
+  // `stopId`'s own point and say so: they are the stop.
+  VA.kinematicStack = function (study, topoProj, stopId, decimals, choices, poseIndex) {
     if (!study || !(study.stops || []).length) return null;
+    var pose = VA.kinematicPoseArg(study, poseIndex);
+    if (pose && pose.stop) stopId = pose.stop;
     var stop = null;
     (study.stops || []).forEach(function (s) { if (s.id === stopId) stop = s; });
     stop = stop || study.stops[0];
+    // Off every stop: the numbers the linkage reads at the pose.
+    var live = pose && !pose.stop ? pose : null;
+    var poseRows = live ? VA.kinematicPoseRows(study, live) : null;
+    var poseFold = live ? VA.kinematicPoseFold(study, live) : null;
+    var atPose = function (row) {
+      var read = poseRows && poseRows[row.edge];
+      if (!read) return row;
+      return Object.assign({}, row, { sign: read.sign, coefficient: read.coefficient,
+        magnitude: typeof row.magnitude === "number" ? read.magnitude : row.magnitude });
+    };
     var lit = VA.kinematicLitSet(study, topoProj);
     var order = (lit && lit.order) || [];
     var rank = function (edge) {
@@ -739,8 +961,8 @@
         nominal: spec.nominal || "", min: spec.min || "", max: spec.max || "",
       };
     };
-    var linkageFold = subStack(stop, SUB_LINKAGE);
-    var linkageRows = (stop.rows || []).slice().sort(function (a, b) {
+    var linkageFold = poseFold || subStack(stop, SUB_LINKAGE);
+    var linkageRows = (stop.rows || []).map(atPose).sort(function (a, b) {
       return rank(a.edge) - rank(b.edge);
     });
     var linkageWords = VA.KINEMATIC_SUB_STACK_KINDS[SUB_LINKAGE].words;
@@ -767,7 +989,8 @@
       name: positionWords.charAt(0).toUpperCase() + positionWords.slice(1),
       detail: (positionFold.term_count || 0) + " terms" +
         (typeof position.worst_case_half === "number"
-          ? " · ±" + VA.fmt(position.worst_case_half) + " mm" : ""),
+          ? " · ±" + VA.fmt(position.worst_case_half) + " mm" : "") +
+        (live ? " · at the " + stopWords(study, stop) : ""),
       contribution: typeof positionFold.worst_case_half === "number"
         ? "±" + n(positionFold.worst_case_half) : "",
     }));
@@ -808,20 +1031,27 @@
     VA.kinematicVerdicts(study, decimals).forEach(function (v) {
       if (v.stop === stop.id) verdict = v;
     });
+    var foot = poseFold || stop;
     return {
-      stop: { id: stop.id, label: stop.label },
+      // Off a stop, the stop's label is the POSE's: the grid's contribution
+      // hover says where the share is taken ("at the 23.0 deg pose").
+      stop: { id: stop.id,
+              label: live ? VA.kinematicPoseWords(study, live) + " pose" : stop.label },
       stops: (study.stops || []).map(function (s) { return { id: s.id, label: s.label }; }),
+      pose: pose ? { index: pose.index, stop: pose.stop,
+                     words: VA.kinematicPoseWords(study, pose) } : null,
       coefficientUnit: unit,
       units: study.units || null,
       entries: entries,
       terms: terms,
       result: {
-        label: withUnit(measureWords(study), null) + " at the " + stopWords(study, stop),
-        nominal: n(stop.nominal_measure),
-        min: n(stop.worst_case_min),
-        max: n(stop.worst_case_max),
-        contribution: "±" + n(stop.worst_case_half),
-        rss: "RSS ±" + n(stop.rss_half),
+        label: withUnit(measureWords(study), null) + " at " +
+          (live ? VA.kinematicPoseWords(study, live) : "the " + stopWords(study, stop)),
+        nominal: n(foot.nominal_measure),
+        min: n(foot.worst_case_min),
+        max: n(foot.worst_case_max),
+        contribution: "±" + n(foot.worst_case_half),
+        rss: "RSS ±" + n(foot.rss_half),
         verdict: verdict,
         check: check,
       },
@@ -1229,11 +1459,20 @@
                  anchorEnd: X(stop.driver_value) > C.left + pw / 2 };
       }),
       bars: stopBars,
+      // The x axis as numbers, for a mark placed after the chart is drawn
+      // (the pose cursor, VA.kinematicChartX).
+      xScale: { from: x0, to: x1, left: C.left, width: pw },
       xLabel: (driver.label || "driver") + (driver.unit ? ", " + driver.unit : ""),
       yLabel: measureWords(study) + " from nominal" +
         (study.units ? ", " + study.units : ""),
       points: points,
     };
+  };
+
+  // A driver value's x on a chart (its `xScale`), in viewBox units.
+  VA.kinematicChartX = function (scale, value) {
+    var x = scale.left + (value - scale.from) / ((scale.to - scale.from) || 1) * scale.width;
+    return Math.round(x * 100) / 100;
   };
 
   // A tick's own precision: enough decimals to tell two ticks apart, which is
@@ -1321,12 +1560,12 @@
     }
 
     var chart = VA.kinematicChart(study, decimals);
-    if (chart) root.appendChild(chartFigure(chart));
+    if (chart) root.appendChild(chartFigure(chart, ctx.pose || null));
     var datum = chart ? VA.kinematicDatumNote(study) : null;
     if (datum) root.appendChild(VA.el("p", "muted kmchart__note", datum));
 
     if (ctx.onStackStop && (study.stops || []).length > 1) {
-      root.appendChild(stackStopPicker(study, ctx));
+      root.appendChild(stackStopPicker(study, ctx, chart));
     }
     root.appendChild(stopReadouts(study, decimals));
     root.appendChild(provenance(study));
@@ -1414,15 +1653,58 @@
     return table;
   }
 
-  // Which stop the grid beside the DAG shows its stack at: one quiet button
-  // per stop, the shown one pressed. The grid is the study's one contributor
-  // table (the_kinematic_grid_is_a_stack_of_sub_stacks), so this is the
-  // whole of what the results pane says about its rows.
-  function stackStopPicker(study, ctx) {
-    var box = VA.el("div", "kmstop");
-    box.appendChild(VA.el("span", "muted kmstop__label", "Grid at"));
+  // The pose control (the_grid_and_the_dag_move_with_the_mechanism): where on
+  // the sweep the grid, the DAG, this chart's cursor and the 3D pane are all
+  // read. Play, a slider over the driver's travel -- the chart's own x axis,
+  // run the same way -- the measure at the pose as a field that takes a
+  // typed angle, and one quiet button per stop that puts the pose on it (the
+  // one on the pose pressed). The page owns the pose (`ctx.pose`, and
+  // `ctx.onPose(index, settled)`): a drag reports every move unsettled and
+  // the release settled, and VA.syncPoseControl moves this control's marks
+  // while the page is the one moving the pose. A page with no pose to offer
+  // gets the stop buttons alone.
+  function stackStopPicker(study, ctx, chart) {
+    var box = VA.el("div", "kmstop kmpose");
+    var pose = ctx.pose || null;
+    var driver = (study.sweep && study.sweep.driver) || {};
+    if (pose && ctx.onPose && chart) {
+      var play = VA.el("button", "ghost kmpose__play", ctx.playing ? "Pause" : "Play");
+      play.setAttribute("aria-pressed", ctx.playing ? "true" : "false");
+      play.setAttribute("title", "Cycle the sweep, end to end and back");
+      play.onclick = function () { if (ctx.onPlay) ctx.onPlay(!ctx.playing); };
+      box.appendChild(play);
+      var slider = VA.el("input", "kmpose__slider");
+      slider.setAttribute("type", "range");
+      slider.setAttribute("min", String(chart.xScale.from));
+      slider.setAttribute("max", String(chart.xScale.to));
+      slider.setAttribute("step", "any");
+      slider.setAttribute("aria-label", driver.label || "driver");
+      slider.setAttribute("title", withUnit(driver.label || "driver", driver.unit));
+      slider.value = String(pose.driver);
+      var fromSlider = function (settled) {
+        var f = VA.kinematicPoseOfDriver(study, Number(slider.value));
+        if (f !== null) ctx.onPose(f, settled);
+      };
+      slider.oninput = function () { fromSlider(false); };
+      slider.onchange = function () { fromSlider(true); };
+      box.appendChild(slider);
+      var field = VA.el("input", "kmpose__angle num");
+      field.setAttribute("type", "number");
+      field.setAttribute("step", String(Math.pow(10, -VA.KINEMATIC_POSE.angleDecimals)));
+      field.setAttribute("aria-label", measureWords(study));
+      field.setAttribute("title", measureWords(study) + " at this pose");
+      field.value = VA.kinematicNumber(pose.measure, VA.KINEMATIC_POSE.angleDecimals);
+      field.onchange = function () {
+        var f = VA.kinematicPoseOfMeasure(study, Number(field.value));
+        if (f !== null) ctx.onPose(f, true);
+      };
+      box.appendChild(field);
+      if (study.units) box.appendChild(VA.el("span", "muted kmpose__unit", study.units));
+    } else {
+      box.appendChild(VA.el("span", "muted kmstop__label", "Grid at"));
+    }
     (study.stops || []).forEach(function (stop) {
-      var on = stop.id === ctx.stackStop;
+      var on = pose ? pose.stop === stop.id : stop.id === ctx.stackStop;
       var b = VA.el("button", "ghost kmstop__button" + (on ? " kmstop__button--on" : ""),
         stopWords(study, stop));
       b.setAttribute("data-stop", stop.id);
@@ -1433,6 +1715,38 @@
     });
     return box;
   }
+
+  // The pose control's and the chart cursor's marks moved to `pose`, in place
+  // (a frame of play, or the page answering a drag): nothing is rebuilt, and
+  // a field the reader is typing in is left alone.
+  VA.syncPoseControl = function (root, study, pose, playing) {
+    if (!root || !root.querySelector || !study || !pose) return;
+    var active = typeof document !== "undefined" ? document.activeElement : null;
+    var slider = root.querySelector("input.kmpose__slider");
+    if (slider && slider !== active) slider.value = String(pose.driver);
+    var field = root.querySelector("input.kmpose__angle");
+    if (field && field !== active) {
+      field.value = VA.kinematicNumber(pose.measure, VA.KINEMATIC_POSE.angleDecimals);
+    }
+    var play = root.querySelector("button.kmpose__play");
+    if (play && typeof playing === "boolean") {
+      play.textContent = playing ? "Pause" : "Play";
+      play.setAttribute("aria-pressed", playing ? "true" : "false");
+    }
+    root.querySelectorAll("button.kmstop__button").forEach(function (b) {
+      var on = b.getAttribute("data-stop") === pose.stop;
+      b.className = "ghost kmstop__button" + (on ? " kmstop__button--on" : "");
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    var cursor = root.querySelector("line.kmchart__pose");
+    var scale = null;
+    try { scale = cursor ? JSON.parse(cursor.getAttribute("data-scale")) : null; } catch (err) { scale = null; }
+    if (cursor && scale) {
+      var x = String(VA.kinematicChartX(scale, pose.driver));
+      cursor.setAttribute("x1", x);
+      cursor.setAttribute("x2", x);
+    }
+  };
 
   // A cell that opens a citation card on hover, focus or click -- the trigger
   // shape the topology rail's confidence chip uses. With no card host (a page
@@ -1519,7 +1833,7 @@
     });
   };
 
-  function chartFigure(chart) {
+  function chartFigure(chart, pose) {
     var figure = VA.el("figure", "kmchart");
     var svg = VA.svg("svg", "kmchart__svg", {
       viewBox: "0 0 " + chart.width + " " + chart.height,
@@ -1604,6 +1918,15 @@
     });
     svg.appendChild(VA.svg("rect", "kmchart__frame",
       { x: p.left, y: p.top, width: p.width, height: p.height }));
+    // The live pose: a line across the plot at the pose's driver value, moved
+    // with the linkage (VA.syncPoseControl). The stop bars stay where they are.
+    if (pose && typeof pose.driver === "number") {
+      var poseX = VA.kinematicChartX(chart.xScale, pose.driver);
+      var poseLine = VA.svg("line", "kmchart__pose",
+        { x1: poseX, x2: poseX, y1: p.top, y2: p.top + p.height });
+      poseLine.setAttribute("data-scale", JSON.stringify(chart.xScale));
+      svg.appendChild(poseLine);
+    }
 
     // The hover layer: a cursor line and two dots, moved to whichever point's
     // strip the pointer is in, and the tip beside it. Hidden until then.

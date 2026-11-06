@@ -1050,6 +1050,17 @@ body { display: flex; flex-direction: column; }
 .kmstop__label { font-size: var(--t-micro); }
 .kmstop__button { font-size: var(--t-dense); }
 .kmstop__button--on { color: var(--accent); border-color: var(--accent); }
+/* The pose control (the_grid_and_the_dag_move_with_the_mechanism): play, the
+   travel slider (the chart's x axis), the angle at the pose, the stops. One
+   row, wrapping on a narrow pane. */
+.kmpose { flex-wrap: wrap; }
+.kmpose__play { font-size: var(--t-dense); min-width: 56px; }
+.kmpose__slider { flex: 1 1 140px; min-width: 100px; accent-color: var(--accent); }
+.kmpose__angle {
+  width: 64px; font-size: var(--t-dense); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.kmpose__unit { font-size: var(--t-micro); }
 /* A row's hover tint is NOT a `:hover` rule any more -- it is `--hot` /
    `--lead`, set by views/topology.js's setHot from the same state that lights
    the DAG. See "one hover state, two surfaces" at the bottom of this file. */
@@ -1914,6 +1925,8 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 .kmchart__stoplabel { fill: var(--ink); font-size: var(--t-meta); }
 .kmchart__hit { fill: transparent; cursor: crosshair; }
 .kmchart__cursor { stroke: var(--muted); stroke-width: 1; pointer-events: none; }
+/* The live pose, moved with the linkage: the page's one accent on the chart. */
+.kmchart__pose { stroke: var(--accent); stroke-width: 1.5; pointer-events: none; }
 .kmchart__dot { fill: var(--ink); pointer-events: none; }
 .kmchart__tip {
   position: absolute; top: 18px; pointer-events: none;

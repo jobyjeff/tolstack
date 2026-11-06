@@ -1216,11 +1216,47 @@
     },
     absolute: {
       label: "feature size",
-      next: "uniform",
+      next: "contribution",
       scaled: true,
       title: "A bar's length is proportional to its dimension's nominal " +
         "size. Indicative, never measured.",
     },
+    // (the_grid_and_the_dag_move_with_the_mechanism, 2026-11-05.) Jeff: "make
+    // the dag itself animate ... a new view style where the length is
+    // 'contribution' = tolerance X sensitivity". A bar's length is the
+    // contribution the page hands the pane (`ctx.contributions`,
+    // VA.kinematicContributions) -- |sensitivity| x band at the live pose --
+    // so the DAG moves as the linkage does. Only a page that HAS
+    // contributions offers it (`contributions: true`), and there it is the
+    // default (VA.edgeLengthModeFor).
+    contribution: {
+      label: "contribution",
+      next: "uniform",
+      scaled: true,
+      contributions: true,
+      title: "A bar's length is proportional to what its dimension " +
+        "contributes at this pose: its tolerance band times its sensitivity. " +
+        "Indicative, never measured.",
+    },
+  };
+
+  // The mode the pane draws: the reader's choice where they made one this
+  // page can draw, else the page's default -- contribution where the page
+  // has contributions (a kinematic study), uniform everywhere else.
+  VA.edgeLengthModeFor = function (chosen, hasContributions) {
+    var mode = VA.EDGE_LENGTH_MODES[chosen];
+    if (mode && (!mode.contributions || hasContributions)) return chosen;
+    return hasContributions ? "contribution" : "uniform";
+  };
+
+  // The toolbar's next mode after `current`, skipping one this page cannot draw.
+  VA.nextEdgeLengthMode = function (current, hasContributions) {
+    var at = VA.edgeLengthModeFor(current, hasContributions);
+    var next = VA.EDGE_LENGTH_MODES[at].next;
+    while (VA.EDGE_LENGTH_MODES[next].contributions && !hasContributions) {
+      next = VA.EDGE_LENGTH_MODES[next].next;
+    }
+    return next;
   };
 
   // --- how a leader is DRAWN (viewer_leader_grid_legibility, 2026-09-14) --
@@ -1408,7 +1444,11 @@
   // feeds anything but a bar length. min/max are what the projection always
   // populates when a dimension exists; plus_minus is the fallback the handoff
   // names for the case where they are absent.
-  VA.edgeLengthValue = function (edge, mode) {
+  VA.edgeLengthValue = function (edge, mode, contributions) {
+    if (VA.EDGE_LENGTH_MODES[mode] && VA.EDGE_LENGTH_MODES[mode].contributions) {
+      var c = edge && contributions ? contributions[edge.id] : undefined;
+      return typeof c === "number" && isFinite(c) ? Math.abs(c) : null;
+    }
     var d = edge && edge.dimension;
     if (!d) return null;
     if (mode === "tolerance") {
@@ -1514,7 +1554,10 @@
   // and why it is measured across the leaders rather than across the two
   // blocks' heights. There is no viewport in it: the window is not a budget
   // (VA.EDGE_LENGTH_SCALE).
-  VA.rowPositions = function (layout, topoProj, mode, metrics, fit) {
+  //
+  // `contributions` ({edgeId: number}) is what the contribution mode scales
+  // by (VA.edgeLengthValue); every other mode ignores it.
+  VA.rowPositions = function (layout, topoProj, mode, metrics, fit, contributions) {
     metrics = metrics || VA.RAIL_METRICS;
     var rows = (layout && layout.rows) || [];
     var scaled = !!(VA.EDGE_LENGTH_MODES[mode] || {}).scaled;
@@ -1527,7 +1570,7 @@
     if (scaled) {
       rows.forEach(function (row) {
         if (row.kind !== "edge") return;
-        var v = VA.edgeLengthValue(index.edges[row.id], mode);
+        var v = VA.edgeLengthValue(index.edges[row.id], mode, contributions);
         if (v !== null && v > vmax) vmax = v;
       });
     }
@@ -1537,7 +1580,7 @@
     rows.forEach(function (row) {
       if (row.kind !== "edge") return;
       if (!scaled) { ratios.push(0); return; }
-      var v = VA.edgeLengthValue(index.edges[row.id], mode);
+      var v = VA.edgeLengthValue(index.edges[row.id], mode, contributions);
       ratios.push(v !== null && vmax > 0 ? v / vmax : 0);
     });
 
@@ -3137,9 +3180,16 @@
   // magnitude}, |sensitivity| x band in the study's own units): the stop's
   // linkage terms and every sub-study's terms, as the projection states them.
   // The first stop where `stopId` names none. Nothing is added up here.
-  VA.kinematicContributions = function (study, stopId) {
+  // `poseIndex` is the live pose (VA.kinematicPose, views/kinematic.js): on a
+  // stop's point that stop's, elsewhere the linkage terms read at the pose and
+  // the stop position's at `stopId` -- exactly the grid's own numbers
+  // (VA.kinematicStack).
+  VA.kinematicContributions = function (study, stopId, poseIndex) {
     var stops = (study && study.stops) || [];
     if (!stops.length) return null;
+    var pose = VA.kinematicPoseArg ? VA.kinematicPoseArg(study, poseIndex) : null;
+    if (pose && pose.stop) stopId = pose.stop;
+    var poseRows = pose && !pose.stop ? VA.kinematicPoseRows(study, pose) : {};
     var stop = stops.filter(function (s) { return s.id === stopId; })[0] || stops[0];
     var out = {};
     var take = function (row) {
@@ -3147,7 +3197,11 @@
         out[row.edge] = Math.max(out[row.edge] || 0, Math.abs(row.magnitude));
       }
     };
-    (stop.rows || []).forEach(take);
+    (stop.rows || []).forEach(function (row) {
+      var read = poseRows[row.edge];
+      take(read && typeof row.magnitude === "number"
+        ? { edge: row.edge, magnitude: read.magnitude } : row);
+    });
     (stop.groups || []).forEach(function (g) { (g.children || []).forEach(take); });
     return out;
   };

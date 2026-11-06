@@ -11303,7 +11303,8 @@
       });
 
     await test("clicking the edge-length toggle calls its own handler, and " +
-      "the mode table's next-pointers cycle through all three and home",
+      "the mode table's next-pointers cycle through all four and home, skipping " +
+      "contribution on a page that has none",
       function () {
         var called = 0;
         var root = render(function (r) {
@@ -11314,10 +11315,22 @@
         edgeLengthToggle(root).onclick();
         eq(called, 1);
         // The cycle order is a fact of the table (topology_app.js follows the
-        // `next` pointers): uniform → tolerance → absolute → uniform.
+        // `next` pointers): uniform → tolerance → absolute → contribution →
+        // uniform, and a page with no contributions skips the last.
         eq(VA.EDGE_LENGTH_MODES.uniform.next, "tolerance");
         eq(VA.EDGE_LENGTH_MODES.tolerance.next, "absolute");
-        eq(VA.EDGE_LENGTH_MODES.absolute.next, "uniform");
+        eq(VA.EDGE_LENGTH_MODES.absolute.next, "contribution");
+        eq(VA.EDGE_LENGTH_MODES.contribution.next, "uniform");
+        eq(VA.nextEdgeLengthMode("absolute", true), "contribution");
+        eq(VA.nextEdgeLengthMode("absolute", false), "uniform");
+        eq(VA.nextEdgeLengthMode("contribution", true), "uniform");
+        // The default: contribution where the page has contributions (a
+        // kinematic study), uniform elsewhere; a choice the page cannot draw
+        // falls back to it.
+        eq(VA.edgeLengthModeFor(null, true), "contribution");
+        eq(VA.edgeLengthModeFor(null, false), "uniform");
+        eq(VA.edgeLengthModeFor("tolerance", true), "tolerance");
+        eq(VA.edgeLengthModeFor("contribution", false), "uniform");
       });
 
     // --- which leader style a fresh load draws --------------------------------
