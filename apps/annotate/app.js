@@ -1657,7 +1657,7 @@ async function anchorSweepBodies() {
     name: b.name, ground: b.ground, riders: b.riders || [],
     parts: (artifact.bodies.filter((x) => x.name === b.name)[0] || {}).parts || [],
   })).concat((artifact.links || []).map((l) => ({
-    name: l.joint, ground: false, parts: l.parts || [],
+    name: l.joint, ground: false, link: true, parts: l.parts || [],
     riders: AA.SWEEP_JOINT_ENDS.map((end) => ({ joint: l.joint, end })),
   })));
 
@@ -1739,6 +1739,49 @@ async function anchorSweepBodies() {
         residual: placements.length ? placements[0].residual : null,
         reason: placements.length ? null : (refusal && refusal.reason),
       });
+    }
+  }
+
+  // The parts of the bodies the topology says ride with a body this run poses
+  // (`rides_with`: the piston heads with the plate, the cover with the mount;
+  // each is a body of its own on the DAG): they take the pose of the body they
+  // ride, or sit still with a ground one, wherever that body's own parts were
+  // placed. Only a part with a mesh and a recorded position gets a row -- the
+  // rest are the scene's own "no 3D model for these parts yet". A part already
+  // recorded INSIDE a placed occurrence is carried below.
+  const riders = new Map();
+  for (const b of ((sweepTopology() || {}).bodies) || []) {
+    if (!b.rides_with) continue;
+    riders.set(b.rides_with, (riders.get(b.rides_with) || []).concat(b.parts || []));
+  }
+  for (const subject of subjects) {
+    if (subject.link) continue;
+    const listed = new Set(subject.parts);
+    const claims = [];
+    for (const r of rows) {
+      if (r.subject === subject.name && r.state === "matched") claims.push(...r.placements);
+    }
+    for (const partId of riders.get(subject.name) || []) {
+      if (listed.has(partId)) continue;
+      const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
+      const own = mesh ? (occurrences.byMesh[mesh.sha256] || []) : [];
+      if (!own.length) continue;
+      if (rows.some((r) => r.sha256 === mesh.sha256 && r.subject === subject.name)) continue;
+      if (own.every((o) => claims.some((c) => AA.occurrenceWithin(o.key, c.key)))) continue;
+      if (subject.ground) {
+        rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
+          state: "ground", candidates: own.length, candidateKeys: own.map((o) => o.key),
+          placements: own.map((o) => ({ key: o.key, instance_name: o.instance_name,
+            placement: o.placement, residual: null })) });
+        continue;
+      }
+      const choice = AA.sweepRideChoice(own, claims);
+      rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
+        state: choice.chosen.length ? "rides" : "refused",
+        candidates: own.length, candidateKeys: own.map((o) => o.key),
+        placements: choice.chosen.map((o) => ({ key: o.key,
+          instance_name: o.instance_name, placement: o.placement, residual: null })),
+        residual: null, reason: choice.reason });
     }
   }
 
@@ -2528,6 +2571,10 @@ function sweepBodyWords(row) {
       " — " + AA.SWEEP_FEATURE_SOURCE_WORDS[row.featureSource] +
       ", out of " + row.candidates + " recorded position" +
       (row.candidates === 1 ? "" : "s");
+  }
+  if (row.state === "rides") {
+    return "moves with this body, as the model declares — drawn at " +
+      row.placements.map((p) => occurrenceWords(row, p)).join(" and ");
   }
   if (row.state === "refused") return row.reason + " — stick figure only";
   if (row.state === "carried") {
@@ -4178,6 +4225,7 @@ async function modelPartInfo(topology, partId, bias, occurrences, sweep) {
     r.state !== "carried" && r.placements && r.placements.length) : null;
   let subject = row ? row.subject : null;
   if (!subject && body && subjects[body.id]) subject = body.id;
+  if (!subject && body && body.rides_with && subjects[body.rides_with]) subject = body.rides_with;
   const origin = (subject && subjects[subject] && subjects[subject].anchor) || [0, 0, 0];
   const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
   if (!mesh) return { subject, section: null, origin, why: AA.MODEL_ORIGIN_WHY.noMesh };

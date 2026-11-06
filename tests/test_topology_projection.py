@@ -1396,6 +1396,17 @@ def test_every_body_of_the_product_model_is_one_block_of_the_walk(projection):
             assert r["body"] == span["body"]
 
 
+def test_every_projected_body_says_which_body_it_rides_with(projection):
+    """``rides_with`` is a key on every body row (``None`` for most), and the
+    three piston parts the 3D model poses with another body name it."""
+    bodies = projected(projection, "vpa_pitch_linkage")["bodies"]
+    assert all("rides_with" in b for b in bodies)
+    assert {b["id"]: b["rides_with"] for b in bodies if b["rides_with"]} == {
+        "piston_head_lower_214699_002": "pitch_plate",
+        "piston_head_upper_214698_002": "pitch_plate",
+        "piston_cover_214958_002": "base"}
+
+
 def test_a_topology_with_no_bodies_walks_exactly_as_before(topologies):
     """With no ``bodies[]`` nothing is deferred: every row's ``body`` is
     ``None``, no container is emitted, and the four bodiless topologies keep the

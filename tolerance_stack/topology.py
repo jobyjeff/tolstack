@@ -476,9 +476,16 @@ class Body:
     kind: str = "body"               # one of BODY_KINDS, above -- and checked
     note: Optional[str] = None
     tags: Dict[str, str] = field(default_factory=dict)  # {forge axis: value}
+    #: The id of another body this one moves with. The two stay two bodies --
+    #: a container each on the DAG, a stack's own edges between them -- and the
+    #: 3D model poses this one's parts with that one's. Checked against the
+    #: other bodies in :class:`Topology`. ``docs/DAG_TOPOLOGY.md``, "Bodies".
+    rides_with: Optional[str] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "tags", _clean_tags(f"body {self.id!r}", self.tags))
+        if self.rides_with is not None and self.rides_with == self.id:
+            raise TopologyError(f"body {self.id!r}: rides_with names the body itself")
         if self.kind not in BODY_KINDS:
             raise TopologyError(
                 f"body {self.id!r}: kind must be one of {BODY_KINDS}, got "
@@ -939,6 +946,18 @@ class Topology:
                         f"{self._body_of[part_id].id!r} and in body "
                         f"{body.id!r}. A part moves with one body.")
                 self._body_of[part_id] = body
+        for body in self.bodies:
+            host = self._bodies.get(body.rides_with) if body.rides_with else None
+            if body.rides_with and host is None:
+                raise TopologyError(
+                    f"topology {self.id!r}: body {body.id!r} rides with "
+                    f"{body.rides_with!r}, which the document does not declare")
+            if host is not None and (host.rides_with or host.kind == "link"):
+                raise TopologyError(
+                    f"topology {self.id!r}: body {body.id!r} rides with "
+                    f"{host.id!r}, which "
+                    f"{'is a link' if host.kind == 'link' else 'itself rides with ' + repr(host.rides_with)}"
+                    f"; name the body that is posed")
         unplaced = [p.id for p in self.parts if p.id not in self._body_of]
         if self.bodies and unplaced:
             raise TopologyError(

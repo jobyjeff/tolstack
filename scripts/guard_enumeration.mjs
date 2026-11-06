@@ -248,11 +248,14 @@ export const DECLARED_GUARDS = {
   // Merged with integration (review round 2, 2026-11-06): 644 + 2 - 1 -- the
   // sourcing legend's named tints is retired with its spec, since no grid row
   // wears a tint for it to name.
+  // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the 3D part set pin, with a spec.
+  // (Re-pinned at the review merge onto integration's 645.)
   // the_rail_reads_as_a_tree_of_bodies_joints_and_faces, 2026-11-06: +1 -- a
   // mirrored row wears its kind and mark, its twisty and glyph columns, the
   // legend, and its control group before its checkbox. It carries a spec.
   // Merged with integration at its 645 (rework, 2026-11-06): 645 + 1.
-  fast: { declared: 646, enrollable: 646, names: "f53bbbcbd504" },
+  // Merged with integration (review of the rework, 2026-11-06): both sides +1 on 645 / 291.
+  fast: { declared: 647, enrollable: 647, names: "1269aed4490d" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -302,11 +305,14 @@ export const DECLARED_GUARDS = {
   // as a joint's third row. Each carries a spec.
   // 2026-11-05 (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste):
   // +1 -- the model verb's tint action. It carries a spec.
+  // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the rider rule, with a spec.
+  // (Re-pinned at the review merge onto integration's 291.)
   // 2026-11-06 (the_rail_reads_as_a_tree_of_bodies_joints_and_faces): +3 -- a
   // rail row's mark, an end's declared face, and the legend naming every
   // mark. Each carries a spec.
   // Merged with integration at its 291 (rework, 2026-11-06): 291 + 3.
-  annotate: { declared: 294, enrollable: 294, names: "89587c9bb715" },
+  // Merged with integration (review of the rework, 2026-11-06): both sides +1 on 645 / 291.
+  annotate: { declared: 295, enrollable: 295, names: "d1d837832adf" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

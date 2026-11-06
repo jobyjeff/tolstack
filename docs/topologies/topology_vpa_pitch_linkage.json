@@ -404,7 +404,8 @@
       "parts": [
         "piston_head_lower_214699_002"
       ],
-      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+      "rides_with": "pitch_plate",
+      "note": "Moves with the pitch_plate body: it sits on the piston body's shoulder (`piston_body_head_seat`), and the piston body is a pitch-plate part. A body of its own, not folded into that one, because folding it widens the DAG's walk by a column and raises every kind of crossing in it (2026-11-05)."
     },
     {
       "id": "piston_head_upper_214698_002",
@@ -414,7 +415,8 @@
       "parts": [
         "piston_head_upper_214698_002"
       ],
-      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+      "rides_with": "pitch_plate",
+      "note": "Moves with the pitch_plate body: it stacks on the lower head (`piston_heads_seat`), and the lower head sits on the piston body, a pitch-plate part; 217755 records both heads under the piston body's own sub-assembly (P3-214700.3). A body of its own, not folded into that one, because folding it widens the DAG's walk by a column and raises every kind of crossing in it (2026-11-05)."
     },
     {
       "id": "piston_cover_214958_002",
@@ -424,7 +426,8 @@
       "parts": [
         "piston_cover_214958_002"
       ],
-      "note": "One part on its own: the linkage mechanism does not place it, and which body it moves with is not recorded."
+      "rides_with": "base",
+      "note": "Moves with the base body: its bottom flange sits against the gas-spring mount's flange (`piston_cover_mount_flange_seat`), and the mount is a base part. A body of its own, not folded into that one, because folding it widens the DAG's walk by a column and raises every kind of crossing in it (2026-11-05)."
     },
     {
       "id": "vpa_208510_007",
