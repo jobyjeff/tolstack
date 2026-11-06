@@ -208,10 +208,23 @@ linkage solver's sweeps already name and the DAG had no way to know:
   212956-005 assembly and move with it; linkage lists the assembly alone because
   its mesh already draws them.
 - **Read by the projections, never by `fold()`.** The topology projection
-  carries `bodies[]` per topology — `{id, name, kind, parts, note}`, every key
+  carries `bodies[]` per topology — `{id, name, kind, parts, note, tags, rides_with, joint_nodes}`, every key
   present — and the kinematic projection carries each contributor row's `body`:
   the body its edge's part moves with, `null` for a gap edge. The DAG draws
   each body as a container (next section).
+- **A body may ride with another** (2026-11-05,
+  `the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model`).
+  `"rides_with": "<body id>"` says a body moves with another that is posed and
+  stays a body of its own: the container, the walk and the stack's rows are
+  unchanged, and only the 3D model reads it, posing the rider's parts with the
+  host's (`apps/annotate/app.js`, `anchorSweepBodies`). The host is a declared
+  body that is not itself a rider and not a link. Prefer folding a part into
+  the body it moves with; a rider is for the part whose fold would reshape the
+  walk -- folding the piston heads and the cover into the pitch plate and the
+  base widened the product model's walk by a column and raised every kind of
+  crossing, so they ride instead. It is still a claim about motion, not a pose:
+  the 3D model puts a rider at the one recorded occurrence it has, or the one
+  recorded beside its host's own parts, and refuses a part it cannot place.
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
 

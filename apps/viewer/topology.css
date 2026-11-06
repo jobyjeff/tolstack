@@ -92,9 +92,9 @@
   --tv-lead: rgba(255, 255, 255, .125);
 
   /* The bodies' tints (the_kinematic_grid_is_a_stack_of_sub_stacks): ONE set,
-     filled into the DAG's body containers (.tv__bodyfield--t*) and painted
-     behind the grid rows of the same body (.tvrow--body-t*), so a row and the
-     field its bar sits in are one colour. Sixteen
+     filled into the DAG's body containers (.tv__bodyfield--t*). (The grid's
+     rows wore them too until 2026-11-05; its brackets say which rows are one
+     body now.) Sixteen
      (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit), one per
      body: a body's tint is its place in the document's `bodies[]`
      (VA.BODY_TINTS, VA.bodyTint), so no two of a topology's first sixteen
@@ -118,11 +118,6 @@
   --tv-body-13: rgba(147, 194, 151, .065);
   --tv-body-14: rgba(147, 175, 194, .07);
   --tv-body-15: rgba(194, 147, 179, .065);
-  /* The grid's structure marks: a hairline between two rows of one body, a
-     heavier rule between bodies and between sub-stacks, and one left rule down
-     a sub-stack's header and rows (dashed for a declared gap). Drawn as inset
-     box-shadows and gradients, never borders: a cell border joins the table's
-     row-height sizing and would move a row off its leader's seam. */
   /* An edge's one ink and its two weights (the_joint_is_the_node_and_an_
      edge_says_only_lit_or_unlit): lit -- or everything, with nothing lit --
      and unlit. Neutral, a step under the hover grey, so a bar is the rail it
@@ -137,11 +132,6 @@
      overlay's ink. */
   --edge-gap-ink: #7d8592;
   --edge-gap-dash: 10 6;
-  /* The two provenance washes a grid row wears (an untraced or uncited
-     value), written once: the rows and the sourcing legend's swatches read them. */
-  --wash-untraced: rgba(224, 82, 82, .1);
-  --wash-nocite: rgba(195, 85, 195, .12);
-
   /* The bodies' inks: the SAME sixteen hues as --tv-body-*, slot for slot,
      at stroke strength -- the "body" and "part" colour overlays, the overlay
      legend's swatches, a part's solid fill and the 3D pane's body colour all
@@ -190,11 +180,6 @@
   --ovl-seq-2: #3987e5;
   --ovl-seq-3: #6da7ec;
   --ovl-seq-4: #9ec5f4;
-  --tv-divide-hair: rgba(255, 255, 255, .06);
-  --tv-divide-heavy: #59606f;
-  --tv-divide-heavy-w: 2px;
-  --tv-stack-rule: #9aa1ac;
-  --tv-stack-rule-w: 3px;
 }
 
 /* Everything the drag of a grip should suppress while it is running
@@ -543,11 +528,19 @@ body { display: flex; flex-direction: column; }
 .tv__zoom { position: relative; width: max-content; }
 .tv__scroll--zoomgrab, .tv__scroll--zoomgrab * { cursor: grabbing; }
 .tv__body { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
-/* The rails stay put when the grid is scrolled sideways: a six-column grid is
-   wider than the pane, and rails that scrolled off the left would leave the
-   rows they align with pointing at nothing. */
+/* The rails scroll WITH the grid (the_grid_fits_the_screen_and_its_brackets_
+   say_what_nests_in_what). They were `position: sticky; left: 0` from
+   2026-09-09, for a grid that was always wider than the pane; the cost was
+   Jeff's 2026-11-05 note, "Clicking and dragging the dag horizontally causes
+   the grid view to move horizontally, it can even move behind the dag
+   canvas". A sticky box cannot be panned, so a sideways drag on the DAG moved
+   only the grid, under it. Now the drawing, its leaders and the grid are one
+   strip with one horizontal scroll: a drag on the DAG moves all three, a
+   leader never loses its row, and nothing sits behind anything. The grid
+   fits beside the DAG at the widths it is read at, so there is usually
+   nothing to scroll. */
 .tv__rails {
-  flex: none; display: block; position: sticky; left: 0; z-index: 1;
+  flex: none; display: block; position: relative; z-index: 1;
   background: var(--bg);
 }
 /* Sized to the table it holds, not to the flex line: under `.tv__body`'s
@@ -871,7 +864,7 @@ body { display: flex; flex-direction: column; }
   cursor: col-resize; z-index: 3; background: none; border: none; padding: 0;
   pointer-events: auto;
 }
-.tvgrip--jog { position: sticky; top: auto; }
+
 .tvgrip::before {
   content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px;
   width: 1px; background: var(--line);
@@ -983,54 +976,36 @@ body { display: flex; flex-direction: column; }
 .tvheadtable, .tvtable { table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 
 .tvrow { cursor: pointer; white-space: nowrap; }
-/* The rigid body a row belongs to (VA.gridRowMarks): the SAME tint the DAG's
-   container for that body is filled with. (Until
-   the_kinematic_grid_is_a_stack_of_sub_stacks a row wore its jog-zone band's
-   parity instead, VA.rowBandParity; the band polygons still do.)
+/* --- the brackets (the_grid_fits_the_screen_and_its_brackets_say_what_nests_
+   in_what) ------------------------------------------------------------------
+   Jeff, 2026-11-05, on the grid they replace: "extremely busy, everything is
+   nearly identical in color and has very little contrast etc, so it's hard to
+   infer meaning from anything." So a row's background says nothing at all --
+   no body tint, no divider, no red wash -- and the grouping is drawn: each
+   group is a pair of thin caps, a rounded cap over its first row and another
+   under its last, inset per level so an outer group is wider than what it
+   holds (VA.gridBraces is the model, VA.braceGeometry the pixels). The hue is
+   the DAG's colour for that KIND of group (`--group-*`, the DAG's group
+   borders, the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste),
+   so a bracket and its group's border on the DAG are one hue. A part
+   boundary inside a group is a plain rule.
 
-   The body tint is the row's background COLOUR and a provenance tint is a
-   background IMAGE, so the two compose instead of one winning -- and that is
-   load-bearing rather than clever. The first attempt gave both to
-   `background` and let the more specific provenance rule win, which reads
-   fine on the demo fixture and is nearly inert on the document this handoff
-   exists for: most of `pitch_system`'s rows are untraced, and every one of
-   them would have shown no band at all. Layered, an untraced row is still
-   unmistakably untraced AND still says which body it belongs to. The browser
-   tier measures both layers on every real row.
-
-   Hover is `background-color` for the same reason: as a shorthand it wiped
-   the provenance layer off whichever row the reader was pointing at. */
-.tvrow--body-t0 { background-color: var(--tv-body-0); }
-.tvrow--body-t1 { background-color: var(--tv-body-1); }
-.tvrow--body-t2 { background-color: var(--tv-body-2); }
-.tvrow--body-t3 { background-color: var(--tv-body-3); }
-.tvrow--body-t4 { background-color: var(--tv-body-4); }
-.tvrow--body-t5 { background-color: var(--tv-body-5); }
-.tvrow--body-t6 { background-color: var(--tv-body-6); }
-.tvrow--body-t7 { background-color: var(--tv-body-7); }
-.tvrow--body-t8 { background-color: var(--tv-body-8); }
-.tvrow--body-t9 { background-color: var(--tv-body-9); }
-.tvrow--body-t10 { background-color: var(--tv-body-10); }
-.tvrow--body-t11 { background-color: var(--tv-body-11); }
-.tvrow--body-t12 { background-color: var(--tv-body-12); }
-.tvrow--body-t13 { background-color: var(--tv-body-13); }
-.tvrow--body-t14 { background-color: var(--tv-body-14); }
-.tvrow--body-t15 { background-color: var(--tv-body-15); }
-/* The divider above a row (VA.gridRowMarks), on its cells. */
-.tvrow--divide-hair > .tvcell { box-shadow: inset 0 1px 0 var(--tv-divide-hair); }
-.tvrow--divide-body > .tvcell, .tvrow--divide-sub > .tvcell {
-  box-shadow: inset 0 var(--tv-divide-heavy-w) 0 var(--tv-divide-heavy);
+   An overlay over the table, inert and absolutely placed: a border on a cell
+   would join the table's row-height sizing and walk a row off its leader. */
+.tv__rows { position: relative; }
+.tvbraces { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.tvbrace {
+  position: absolute; box-sizing: border-box; border: 0 solid currentColor;
+  pointer-events: none;
 }
-/* The sub-stack rule down the row's first cell (a rowspanned component cell
-   spans only rows of one sub-stack: VA.gridPlan breaks its groups at a
-   header), layered over whichever divider the cell already wears. */
-.tvrow--ruled > .tvcell:first-child {
-  background-image: linear-gradient(var(--tv-stack-rule), var(--tv-stack-rule));
-  background-size: var(--tv-stack-rule-w) 100%; background-repeat: no-repeat;
-}
-.tvrow--gapstack > .tvcell:first-child {
-  background-image: repeating-linear-gradient(to bottom,
-    var(--tv-stack-rule) 0 4px, transparent 4px 7px);
+.tvbrace--top { border-width: 1px 1px 0 1px; border-radius: 6px 6px 0 0; }
+.tvbrace--bottom { border-width: 0 1px 1px 1px; border-radius: 0 0 6px 6px; }
+.tvbrace--gap { border-style: dashed; }
+.tvbrace--kinematic { color: var(--group-kinematic); }
+.tvbrace--chain { color: var(--group-chain); }
+.tvbrace--body { color: var(--group-body); }
+.tvbrace__rule {
+  position: absolute; height: 0; border-top: 1px solid var(--group-part);
 }
 .tvrow--substack { font-size: var(--t-dense); }
 .tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }
@@ -1043,7 +1018,7 @@ body { display: flex; flex-direction: column; }
   padding: 10px 8px; font-size: var(--t-micro);
 }
 .tvlegend__head { color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-.tvlegend__item { display: inline-flex; align-items: center; gap: 6px; }
+.tvlegend__item { display: inline-flex; align-items: center; gap: 4px; }
 .tvcell--curve { cursor: help; }
 /* The results pane's stop picker: which stop the grid's stack is shown at. */
 .kmstop { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
@@ -1066,22 +1041,7 @@ body { display: flex; flex-direction: column; }
    `--lead`, set by views/topology.js's setHot from the same state that lights
    the DAG. See "one hover state, two surfaces" at the bottom of this file. */
 .tvrow--edge { font-size: var(--t-dense); }
-/* A component group's first row is the seam a leader points at; its line is
-   the divider above it (.tvrow--divide-*, VA.gridRowMarks) since
-   the_kinematic_grid_is_a_stack_of_sub_stacks -- one rule for every row
-   rather than a group line and a divider competing for the same shadow. */
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
-/* Same tint the elements table uses: an untraced value has to survive a skim.
-   As a background IMAGE (a flat two-stop gradient is the only way CSS spells
-   "an image of one colour"), so it layers over the alternating band colour
-   above rather than replacing it -- see that rule for why both have to be
-   visible at once on this page's real documents. */
-.tvrow--edge.conf--untraced {
-  background-image: linear-gradient(var(--wash-untraced), var(--wash-untraced));
-}
-.tvrow--edge.conf--no_source_ref {
-  background-image: linear-gradient(var(--wash-nocite), var(--wash-nocite));
-}
 .tvrow--derived { font-style: italic; }
 .tvrow--closes .tvcell--name::after {
   content: " ↰ closes back to an interface above";
@@ -1101,21 +1061,11 @@ body { display: flex; flex-direction: column; }
      this override before. */
   border-bottom: none;
 }
-/* The merged component column (viewer_leader_line_grid): one cell per
-   contiguous same-part run, rowspanned over its tolerance sub-rows. Top-
-   aligned so the label sits at the seam its leader points at. */
-/* Monospaced until 2026-09-17, which said "code" about a column holding
-   "propeller hub", "pitch link", "blade root" and "— across a clearance —".
-   The part NUMBERS that share the column ("208510-007 variable pitch actuator")
-   were the argument for it, and `tabular-nums` keeps those aligned without
-   spending a whole column's legibility on them: at 11px the proportional face
-   fits noticeably more of a long part name before `.tvcell`'s ellipsis, which
-   is the complaint this column has drawn twice. */
-.tvcell--component {
-  color: var(--muted); font-size: var(--t-micro);
-  font-variant-numeric: tabular-nums;
-  vertical-align: top; cursor: default;
-}
+/* PART and DESCRIPTION (VA.partColumns): the part said once, on its first
+   row, muted -- it is the row's context, the element is its subject. The
+   number in tabular figures so a column of them aligns. */
+.tvcell--part, .tvcell--description { color: var(--muted); font-size: var(--t-micro); }
+.tvcell--part { font-variant-numeric: tabular-nums; }
 .tvcell--ord {
   text-align: right; color: var(--accent);
   font-family: ui-monospace, monospace; font-size: var(--t-micro);
@@ -1132,60 +1082,19 @@ body { display: flex; flex-direction: column; }
    most-repeated lesson) and walk every seam below it off its leader.
    Room for the grip so a long header label never runs under it. */
 .tvcell--resizable { padding-right: 10px; }
-/* The thumbnail column: the crop image itself where one resolved and loaded
-   (never a placeholder — an absent crop renders nothing), the same stateful
-   text trigger otherwise. The image is capped to the row's own pitch so a
-   thumbnail can never grow a row off its leader. */
-.tvcell--crop { padding: 0 4px; }
-/* The same clamp the chips cell's wrapper applies (and for the same reason —
-   a <tr>'s height is a floor): whatever the trigger renders as, text or
-   thumbnail, it can never grow the row off its leader's seam. */
-.tvcell__cropwrap {
-  display: flex; align-items: center;
-  height: var(--tv-row); overflow: hidden;
-}
-.tvcell--crop .crop-trigger--thumb {
-  margin: 0; padding: 0; border: none; background: none; display: block;
-  height: var(--tv-row); overflow: hidden;
-}
-.tvthumb {
-  display: block; height: calc(var(--tv-row) - 2px); max-width: 100%;
-  object-fit: contain; object-position: left center; margin-top: 1px;
-}
-/* No wrap, on purpose: a wrapped chip would grow past the row's own fixed
-   height, which a real <tr> treats as a floor rather than a cap the way the
-   old div row's `overflow: hidden` effectively capped it. Overflow clips
-   instead, same as every other cell in this row (`.tvcell`), and the same
-   trade the retired stack viewer's row already made. */
-/* Height pinned to the SAME variable the row's own inline height is set from
-   (topology_app.js's applyDensity), with overflow clipped: a real <tr>'s
-   `height` is a floor, not a cap, so nothing stops a chip taller than the
-   row — and `.chip`'s own padding+border (style.css) is sized for a
-   26px comfortable row, not 16px compact. The old div-flex row got this for
-   free from `align-items: stretch` + `overflow: hidden`; a table cell does
-   not, so this wrapper reproduces it by hand. */
-.tvcell__chipswrap {
-  display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
-  height: var(--tv-row); overflow: hidden;
-}
-/* The shared `.crop-trigger` (style.css) is sized for the stack view's
-   taller, block-stacked sourcing cell — `margin-top: 6px` alone is most of
-   why a crop-key'd row was drawn taller than its own `rowHeight`, since a
-   real <tr>'s inline `height` is a floor, not a cap, and nothing here clips
-   it. Shrunk to actually fit this row's fixed pitch, comfortable or compact.
-   (The trigger lives in the crop column now — viewer_leader_line_grid — but
-   the sizing constraint is the same one.) */
-.tvcell--crop .crop-trigger {
-  margin-top: 0; padding: 1px 6px; font-size: var(--t-micro); line-height: 1.2;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.tvcell--crop .crop-trigger.crop-trigger--thumb { padding: 0; }
-/* Part of its row since 2026-10-30, not a control of its own: the row's
-   hover is its hover, so it does not light on its own. */
-.tvcell--crop .crop-trigger:hover {
-  border-color: var(--line); color: inherit;
-}
-.tvcell--crop .crop-trigger--thumb:hover { border: none; }
+/* The sourcing mark (VA.rowSourcingMark): the nav's own triangle
+   (VA.warningIcon), in its state's colour and nothing else -- no box, no
+   word. A traced row has none. */
+.tvcell--sourcing { padding: 0; text-align: center; line-height: 0; }
+.tvmark { display: inline-flex; vertical-align: middle; line-height: 0; }
+.tvmark--untraced { color: var(--untraced); }
+.tvmark--no_source_ref { color: var(--nocite); }
+.tvmark--no_value { color: var(--muted); }
+.tvmark--inferred { color: var(--inferred); }
+.tvmark--no_tolerance { color: var(--zero); }
+.tvmark__head { color: var(--muted); vertical-align: middle; }
+/* A criterion's scope word, ahead of it in the same cell. */
+.tvtotal__criterion .chip--budget { margin-right: 6px; }
 .tvrow__weight { color: var(--accent); margin-right: 4px; }
 
 /* The grid's own chips. Outlined, all of them, under the one fill rule at the
@@ -2005,9 +1914,3 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 .tvovl__item > .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tvovl__swatch { flex: none; width: 10px; height: 10px; border-radius: 2px;
   background: var(--ovl); }
-/* The sourcing legend's tint swatches: the provenance washes the rows wear and
-   each body's row tint, as the rows paint them (over the page). */
-.tvlegend__swatch { flex: none; width: 14px; height: 10px; border-radius: 2px;
-  border: 1px solid var(--line); background-color: var(--fill-tint, transparent); }
-.tvlegend__swatch--untraced { background-color: var(--wash-untraced); }
-.tvlegend__swatch--no_source_ref { background-color: var(--wash-nocite); }

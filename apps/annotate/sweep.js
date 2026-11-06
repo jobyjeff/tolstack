@@ -1191,6 +1191,42 @@
     return out;
   };
 
+  // --- parts a body rides with because the topology says so ------------------
+  //
+  // linkage's body lists name the parts it poses; the topology's `bodies[]`
+  // name every part that moves with each (the piston heads with the plate,
+  // 2026-11-05). Such a part has no joint feature to earn a placement with and
+  // does not need one: the topology has already said which body it belongs to.
+  // What is left to decide is WHICH recorded occurrence, and only when the
+  // part is recorded more than once.
+  //
+  // `candidates` are the part's recorded occurrences ({key, ...}), `claims`
+  // the occurrences the SAME body was matched to ({key, ...}). One recorded
+  // occurrence needs no choosing. Several are narrowed to the ones recorded
+  // deepest alongside a claim -- sharing at least AA.SWEEP_RIDE_MIN_SHARED path
+  // segments, more than the others do -- and a tie is a refusal, never a guess.
+  AA.SWEEP_RIDE_MIN_SHARED = 3;
+  AA.sweepRideChoice = function (candidates, claims) {
+    var cands = candidates || [];
+    if (!cands.length) return { chosen: [], reason: "its 3D model records no position in the assembly" };
+    if (!(claims || []).length) return { chosen: [], reason: "no part of its body was placed to ride with" };
+    if (cands.length === 1) return { chosen: cands.slice(), reason: null };
+    var shared = function (a, b) {
+      var x = String(a).split("/"), y = String(b).split("/"), n = 0;
+      while (n < x.length && n < y.length && x[n] === y[n]) n++;
+      return n;
+    };
+    var depth = cands.map(function (o) {
+      return Math.max.apply(null, claims.map(function (c) { return shared(o.key, c.key); }));
+    });
+    var best = Math.max.apply(null, depth);
+    var chosen = cands.filter(function (o, i) { return depth[i] === best; });
+    if (best < AA.SWEEP_RIDE_MIN_SHARED || chosen.length === cands.length) {
+      return { chosen: [], reason: "its " + cands.length + " recorded positions do not say which one belongs to its body" };
+    }
+    return { chosen: chosen, reason: null };
+  };
+
   // Per mesh, what to draw at every frame: one entry per occurrence, each
   // {key, placement, subject} where `subject` is the body (or link) whose pose
   // carries it, or null for an occurrence this run does not move. Built ONCE
@@ -1204,7 +1240,7 @@
     var occ = occurrences || { all: [], byMesh: {} };
     var claims = [];
     (rows || []).forEach(function (row) {
-      if (row.state !== "matched") return;
+      if (row.state !== "matched" && row.state !== "rides") return;
       (row.placements || []).forEach(function (p) {
         claims.push({ sha256: row.sha256, key: p.key, placement: p.placement,
           subject: row.subject, part: row.part });

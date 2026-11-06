@@ -237,7 +237,18 @@ export const DECLARED_GUARDS = {
   // marks, the remembered view settings and the width, the view popover, the
   // sourcing legend's named tints, and the scene's tint verb from the page.
   // Each carries a spec. (Re-measured at the review merge on integration's
-  // 632: 642.)
+  // 632: 642.)  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: +2. Three added -- the brackets nest, a part's number and
+  // description are two columns, every row's part cell selects its row; the
+  // two crop-thumbnail guards became one (no row carries a crop; its crop is
+  // in the Preview). Renamed: the row-tint render check, the jog grip's seam,
+  // the bar's one channel, the gap row's mark and the live study's grid. Each
+  // carries a spec; the old names' specs are deleted.
+  // Merged with integration (review round 2, 2026-11-06): 644 + 2 - 1 -- the
+  // sourcing legend's named tints is retired with its spec, since no grid row
+  // wears a tint for it to name.
+  // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the 3D part set pin, with a spec.
+  // (Re-pinned at the review merge onto integration's 645.)
   // the_grid_and_the_dag_move_with_the_mechanism, 2026-11-06: +9, one renamed
   // -- a pose as a fractional point, the stack read at a pose, the stop rows
   // saying they are the stop's, the grid rewritten in place, the contribution
@@ -245,7 +256,8 @@ export const DECLARED_GUARDS = {
   // [real] checks (the stop poses print the per-stop fold; three bars at
   // |J| x band). The length-mode cycle check is renamed for its fourth mode
   // (unenrolled before, a spec now). Every one carries a spec.
-  fast: { declared: 653, enrollable: 653, names: "b43dc810b24e" },
+  // Merged with integration (review of the_grid_and_the_dag_move_with_the_mechanism, round 2, 2026-11-06): re-pinned from the census of the merged tree.
+  fast: { declared: 655, enrollable: 655, names: "7d9f49fbee80" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -295,7 +307,9 @@ export const DECLARED_GUARDS = {
   // as a joint's third row. Each carries a spec.
   // 2026-11-05 (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste):
   // +1 -- the model verb's tint action. It carries a spec.
-  annotate: { declared: 291, enrollable: 291, names: "d4a34457b11a" },
+  // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the rider rule, with a spec.
+  // (Re-pinned at the review merge onto integration's 291.)
+  annotate: { declared: 292, enrollable: 292, names: "afe4421834fe" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -421,11 +435,25 @@ export const DECLARED_GUARDS = {
   // the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
-  // the overlay on the bars and survives a reload. Each carries a spec.
+  // the overlay on the bars and survives a reload. Each carries a spec.  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: -1. Three crop-on-the-row checks became one (no grid row
+  // draws a crop) and one more went (an edge with no crop key's empty cell);
+  // one added -- at 1600x1000 every row's part cell takes the click. The
+  // sticky-rails checks are inverted and renamed (the rails scroll with the
+  // grid now), as are the row-tint, component-cell, thumbnail and stack
+  // checks. A study's landing keeps the band inside the pane rather than
+  // centring it sideways, so its two landing checks are renamed. The
+  // part-cell check, both scroll checks, the stack check and both landing
+  // checks carry a spec; the sticky spec is deleted.
+  // Merged with integration (review round 2, 2026-11-06): 836 - 1, then +2 --
+  // no grid number and no part number clips, totals rows included; a pane
+  // narrowed with no repaint takes its zoom box's floor with it. Each carries
+  // a spec.
   // the_grid_and_the_dag_move_with_the_mechanism, review round 1, 2026-11-06:
   // +2 -- on the kinematic page Play moves the pose, and a second click
   // pauses it where it stopped. Each carries a spec.
-  browser: { declared: 838, enrollable: 805, names: "d0b68d61981e" },
+  // Merged with integration (review of the_grid_and_the_dag_move_with_the_mechanism, round 2, 2026-11-06): re-pinned from the census of the merged tree.
+  browser: { declared: 839, enrollable: 806, names: "04fd992426a3" },
 };
 
 

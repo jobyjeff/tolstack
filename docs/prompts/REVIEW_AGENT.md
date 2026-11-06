@@ -652,6 +652,15 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A grid column narrowed to fit, measured against member rows only.**
+      `.tvcell` clips with an ellipsis, and the foot's `totalRow` number cells
+      carry no `title`. So a width chosen for the longest *member* value
+      silently hides the study's own RSS total, which is bold, dense and
+      longer. Open the diff's 3840 shots and look for `…` in a `.tvtotal` row
+      before you trust a width table
+      (`REVIEW_20261106_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what`,
+      `-5.785…` at 68px).
+
 - [ ] **A guard whose stated claim is wider than what it measures — promoted
       2026-09-30 by the triage sweep, on three sightings from three separate
       reviews in eight days.** This is now the most reliably recurring finding

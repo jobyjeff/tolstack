@@ -2439,10 +2439,15 @@
     // The DAG's lit span: only the DAG scales (2026-10-29), so the grid
     // beside it is not part of what a scale can fit.
     var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
-    // Both axes: the DAG's own width must fit the pane too, or Fit leaves the
-    // drawing wider than the box it is meant to fill.
+    // Both axes: the DAG's own width must fit the pane too. Fit -- the
+    // reader's own ask -- also leaves the grid its floor beside it
+    // (VA.dagFitWidth), so the drawing and PART..ELEMENT share the pane. A
+    // study's arrival does not: it is measured off the outgoing layout, and
+    // a floor applied there ratchets the zoom down a little on every arrival
+    // and moves the first frame of the transition.
     if (drawn.dagWidth > 0 && hscroll.clientWidth > 0) {
-      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.dagWidth));
+      var room = centre ? hscroll.clientWidth : VA.dagFitWidth(hscroll.clientWidth);
+      to = Math.min(to, VA.clampDagZoom((room - pad) / drawn.dagWidth));
     }
     // A study's arrival only ever scales DOWN, and only when the band does not
     // fit at the zoom the reader has: a zoom they chose is theirs until the
@@ -2465,6 +2470,13 @@
       // clamps what it cannot reach (a band near the top of a short drawing),
       // so the centre is as close as the page's own extents allow.
       var hr = hscroll.getBoundingClientRect();
+      // Sideways, the drawing stays at the strip's left edge, with the grid
+      // beside it: a band already on screen is not moved at all, and one
+      // off either edge (a reader zoomed in) is brought just inside it. It
+      // used to be centred in the pane, with space put before the drawing
+      // when the scroll could not reach -- which pushed the grid right by the
+      // same amount, up to two thirds of a 737px pane at 1600 wide
+      // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
       var bandOffset = function () {
         var r = box.getBoundingClientRect();
         var dx = 0;
@@ -2477,7 +2489,8 @@
             x1 = Math.min(x1, br.left); x2 = Math.max(x2, br.right);
             y1 = Math.min(y1, br.top); y2 = Math.max(y2, br.bottom);
           }
-          dx = (x1 + x2) / 2 - (hr.left + hr.width / 2);
+          if (x1 < hr.left + pad) dx = x1 - hr.left - pad;
+          else if (x2 > hr.right - pad) dx = Math.min(x2 - hr.right + pad, x1 - hr.left - pad);
           dyBand = (y1 + y2) / 2;
         }
         return { dx: dx, dy: dyBand - (topEdge + visible / 2) };
@@ -2487,14 +2500,15 @@
       var parked = hscroll.scrollLeft > 0;
       var off = bandOffset();
       scrollDag(parked ? 0 : off.dx, off.dy);
-      // Whatever the scroll could not reach -- a band that sits above or left
-      // of the centre with nothing further to scroll back to -- is taken up by
-      // space before the drawing. It is kept in state.bandPad so a repaint
-      // redraws it; the next study change drops it.
+      // Whatever the scroll could not reach -- a band that sits above the
+      // centre with nothing further to scroll back to -- is taken up by space
+      // above the drawing. It is kept in state.bandPad so a repaint redraws
+      // it; the next study change drops it. Never space to its LEFT: that is
+      // space between the pane's edge and the grid too.
       off = bandOffset();
       var sizer = box.parentNode;
       var top = off.dy < -0.5 ? -off.dy : 0;
-      var left = !parked && off.dx < -0.5 ? -off.dx : 0;
+      var left = 0;
       state.bandPad = { top: top, left: left, key: padKey() };
       state.landed = true;
       if (sizer && sizer.style) {
@@ -2576,7 +2590,12 @@
       scheduleSeamDraw();
     }, true);
     if (typeof ResizeObserver === "function") {
-      var observer = new ResizeObserver(scheduleSeamDraw);
+      var observer = new ResizeObserver(function () {
+        // The pane's width moved with no repaint (the 3D pane opened or
+        // closed, a divider dragged): its zoom box's floor moves with it.
+        if (nodes.pane) VA.sizeTopoZoomBox(nodes.pane);
+        scheduleSeamDraw();
+      });
       [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {
         if (n) observer.observe(n);
       });

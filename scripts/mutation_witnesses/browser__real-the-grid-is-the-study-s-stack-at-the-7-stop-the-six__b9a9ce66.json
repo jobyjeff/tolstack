@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] the grid is the study's stack at the -7 stop: the six linkage terms in chain order, the stop position's sub-stacks after them, each in its own bracket and no row tinted",
+  "mutations": [
+    {
+      "contract": "The DAG's band and the grid read the lit edges in the stack's order.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Re-enrolled under the guard's new name. Leaves the lit set unordered (the walk's order).",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    lit.order = VA.kinematicStackOrder(study, topoProj, lit);",
+      "replace": "    lit.order = null;"
+    },
+    {
+      "contract": "Every sub-stack of the live stack is drawn as a bracket.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). The grid stops drawing its bracket layer.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    box.appendChild(braceLayer(braces));",
+      "replace": ""
+    }
+  ]
+}
