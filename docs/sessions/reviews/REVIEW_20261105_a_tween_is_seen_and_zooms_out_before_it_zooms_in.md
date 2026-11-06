@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261105_a_tween_is_seen_and_zooms_out_before_it_zooms_in.md
 reviewer: agent
 date: 2026-11-05
-verdict: REQUEST CHANGES
-blockers: 3
+verdict: REQUEST CHANGES (round 2)
+blockers: 1
 ---
 
 # Review — a_tween_is_seen_and_zooms_out_before_it_zooms_in
@@ -59,3 +59,38 @@ doubt on the browser tier is void — it is exactly where this change lands.
   behind other agents' browsers for ~30 min during this review) and record the count.
 - Out of scope, not blocking: the pane-open band still moving ~410 px in the first frame is
   filed by the tactical agent as an issue.
+
+## Re-run 2026-11-06 (round 2)
+
+Rework `92c79d35` merged, then `integration` merged into the review branch. One conflict, in
+`scripts/guard_enumeration.mjs`: the `fast` pin. The handoff side said 637 (635 + 2), `integration`
+said 632 (it moved under the branch). I kept `integration`'s base and re-measured the merged tree:
+634 = 632 + the handoff's two guards, names `73d6b29d4699`. Census tests 44/44.
+
+Round-1 blockers 1 and 2 are **fixed** (runner-side: 80-frame sampler, path-length continuity metric,
+flyout-close settles). Blocker 3 (the "after" frame count) stays unmeasured; the lesson says so, so I
+am recording it as a **non-blocking gap** — re-measure on a quiet box.
+
+Merged-tree results (projections rebuilt from the merged tree into `data/scratch/tween_review_root`;
+the contact-suggestions projection there needed `--allow-older-tree` because the copy came from
+another agent's tree — scratch only):
+- viewer tier 634/634 (`[real]` armed); annotate 287/287.
+- browser tier 39/41. The two red suites are **not this handoff's**: plain `integration` (detached
+  worktree, same scratch root) fails the same three sub-checks — DAG zoom "first row is whole under
+  the pinned bars", kinematic "hovering a sensitivity…" and "clicking a term row…". Worth an issue
+  for whoever owns them; I did not file one.
+- `--changed-since integration --repo <root>`: 16/16 reached, 6 WITNESSED, 9 NOT WITNESSED because
+  the tier was red before the mutation (those suites are the inherited reds above — rerun at the
+  batch merge once they are green), and **1 NOT WITNESSED because the witness cannot see the
+  difference.**
+
+### Blocker (round 2)
+
+`browser__real-each-study-is-framed-once-the-re-arrange-settles-th__1139260e` — mutation
+`landingPending = true; -> false` in `apps/viewer/topology_app.js` no longer reddens "each study is
+framed once the re-arrange settles". The new keyframe engine runs `landing.target()` itself when
+`animateTopoPane` is given a landing, so a study arrival frames the band whether or not
+`landingPending` is set; the mutation no longer describes the defect. The handoff made this decay
+and it exits the witness tier non-zero. Repoint the spec at the line that now carries the
+arrival landing (or retire it with a stated reason, if the guard is covered by another entry), and
+show it WITNESSED with `--only`.
