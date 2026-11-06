@@ -195,3 +195,90 @@ array divided by the zoom. That is not done here, and it is filed
   the accent no longer marks the study's path on the DAG. The weight and the
   group border still mark it. That is the trade an overlay makes. With
   "None" it is the accent again.
+
+## Sites this reaches, and the ones it does not
+
+- **Reached:**
+  - the whole walk, a chain study and a kinematic page: the same `railsSvg`,
+    the same popover and the same overlay
+  - a collapsed body's pill, which keeps its tint whatever the group fill
+    setting
+  - the respine ghost: it is a re-parented old paint, so it carries the old
+    paint's classes
+  - the grid legend, on every lit page
+  - the 3D pane, embedded: the tint is posted with the lit set
+- **Not reached:**
+  - The annotator opened on its own. It has no shell and no `model tint`, so
+    it keeps its own palette. That is fine for a surface without a DAG.
+  - The grid rows themselves. They keep their region tint, and the overlay
+    deliberately recolours only DAG marks. Text never wears it.
+  - The 3D pane in sweep mode. It still paints moving parts in its sweep
+    tint, over the base colour. That was the handoff's fence: material
+    colour only.
+
+## Gotchas
+
+- **Do not pipe a heredoc into `python -c` with `</dev/null` missing.** A bare
+  `python -` or `cat >` with no input waits on stdin until the 2-minute
+  timeout. That happened three times here.
+- **A line you extend can be another spec's anchor.** Adding the tint command
+  to `syncSceneModel`'s `var model = [...]` rotted three witness specs. Adding
+  a near-copy of `bodySpans`' run-merging code (`last.lo = Math.min(...)`)
+  made a fourth spec's anchor match twice.
+  `tests/test_mutation_witnesses.py::test_every_anchor_resolves_to_exactly_one_place`
+  catches both cases. Run it before the full suite.
+- **The witness runner's `--changed-since` with no projection** reports every
+  reached `[real]` entry as not witnessed. With no `node_modules`, it reports
+  every browser entry as red before the mutation. Bridge the inputs, build
+  the projection here and junction `node_modules` before trusting it. Remove
+  the junction afterwards (`cmd /c rmdir node_modules`), so a worktree
+  cleanup cannot recurse into the main checkout's copy.
+
+## Found on arrival
+
+Nothing. The worktree was clean. I did not write to the main checkout.
+
+## Follow-ups filed
+
+- `docs/issues/ISSUE_20261105_traced_and_inferred_are_hard_to_tell_apart_under_protanopia.md`:
+  the provenance palette fails the CVD and normal-vision checks (strategy).
+- `docs/issues/ISSUE_20261105_a_gap_reads_as_a_gap_only_from_the_fitted_zoom_up.md`:
+  screen-pixel dashes (strategy).
+- `docs/issues/ISSUE_20261105_the_mount_without_a_launcher_witness_stays_green.md`:
+  a decayed witness that predates this branch (it is also not witnessed with
+  `integration`'s viewer code).
+- `docs/issues/ISSUE_20261105_the_default_tier_ran_12_minutes_beside_the_browser_tier.md`:
+  `suite_over_budget`.
+
+## Verification record (2026-11-05)
+
+Everything below ran in **this worktree**, with the declared inputs bridged
+(`dispatch bridge-test-inputs`). The projection was built here with
+`--data-root <worktree>/data` from commit `897c14d5`, which was clean.
+`node_modules` was junctioned from the main checkout for the browser runs.
+
+- `node apps/viewer/run_tests.cjs`: **645/645**, with the `[real]` tier armed.
+  The 10 new checks are included. Re-run after the last code change (a local
+  rename in `VA.partSpans`): 645/645.
+- `node apps/annotate/run_tests.cjs`: **286/286**, including the new tint-verb
+  check.
+- `venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`:
+  **1 failed, 1727 passed, 1 skipped, 2 deselected, in 763 s**. The run was
+  single-process, with the browser tier running beside it, and was recorded
+  as over budget. The one failure was
+  `test_every_anchor_resolves_to_exactly_one_place`: the rotted anchors
+  described under Gotchas, fixed in `15f826df`. After the fix,
+  `tests/test_mutation_witnesses.py` alone passes **44/44**. The full suite
+  was not re-run after that fix.
+- `node scripts/run_viewer_browser_tests.mjs --repo <this worktree>`:
+  **41/41 suites, in 1424 s**, recorded inside the merge budget. Two
+  sub-sections skip because the live data has nothing for them to check (no
+  live gap row, and no declared-region crop). Both skips name their existing
+  issue. The browser groups check now counts parts too ("Groups (4 of 4)").
+  The one-ink check now requires one non-gap ink and one separate gap ink.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo <this worktree>`:
+  **40 of the 41 entries it reached were witnessed**, in 46 m. 21 entries
+  were left to the sweep. All 11 new specs and the re-pointed one-ink
+  mutation were witnessed. The one miss is the pre-existing decay filed
+  above. The two anchors re-pointed after that run were witnessed with
+  `--only`, in 3m03s and 3m18s.
