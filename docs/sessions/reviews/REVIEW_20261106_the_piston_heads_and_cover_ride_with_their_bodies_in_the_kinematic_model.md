@@ -76,3 +76,63 @@ Run the [real] pass and the probe with a scratch root exactly as the overlay des
 (topology/viewer/parts projections built from the merged tree), and attach the feather- and
 low-stop shots. I used `data/scratch/review_piston/` (may be reused; it needs `docs/` and the
 `venv-win` junction, both present).
+
+## Rework brief (for the tactical agent — read this, then the two blockers above)
+
+Round 1 sent back. Your last commit (`d16222ba`) only records that the browser work did not
+happen; nothing in the diff changed, so both blockers stand. Do these, in order, and stop when
+each has evidence. Do not wait for the main checkout and do not rebuild its projections.
+
+**0. Use the review's scratch root — it already exists.**
+`C:\workspace\tolstack\data\scratch\review_piston\` holds `data/` (inbox, meshes copied;
+`projections/` built from the merged tree with `rides_with`), `docs/` and a `venv-win` junction.
+Merge `review/the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model` into your
+branch first (it carries the resolved `guard_enumeration.mjs` census: annotate 291, digest
+`e183a53c331f`). Your worktree has no `node_modules`: junction it to the main checkout's
+(`New-Item -ItemType Junction`), and — for the annotate runner, which reads `data/` from the
+worktree first — junction `data/projections/{topology,viewer,parts}` to the scratch root's
+(PowerShell, not `cmd mklink` with a variable). Remove the junctions before you commit.
+Browser runs take the one slot and queue; run each ONCE, in the background, and read the output
+file instead of re-running.
+
+**1. Make the red `[real]` check pass (blocker 1).**
+`node apps/annotate/run_browser_check.mjs --real vpa-pitch-p2-20261105-204957`
+fails "[real] both piston heads ride the pitch plate…": the sweep's body rows hold the base
+parts, plate, piston, blade, links and carried hardware, **no row for either head** (not even
+`refused`). Find out which of these it is, and say so in the lesson:
+ - `anchorSweepBodies`' rider loop never reaches the heads on a real run. Check, in order:
+   `sweepTopology()` (needs `state.sweep.artifact.topologyId` to name a topology in
+   `state.topologyProjection` — is it `vpa_pitch_linkage` for a P2 run?), whether `riders` is
+   populated, whether `AA.resolveMeshIdentifier` finds `asm217755_214699_002`/`_214698_002`,
+   whether `occurrences.byMesh` has them, and the two early `continue`s (`rows.some(…)`,
+   `own.every(…occurrenceWithin…)` — the heads are recorded as siblings of the piston body under
+   `P3-214700.3`, so the second may be swallowing them as "already carried");
+ - or the check is written against a run it cannot apply to (P2 vs the kinematic study's run).
+Fix the code or the check (and the unit test / witness spec if the rule changes), then show the
+real run poses both heads with the plate: a `rides` (or documented `carried`) row with
+placements, and the head's matrix moving between two sweep points. Re-run the two witness specs
+(`--only <spec>` with `--repo C:/workspace/tolstack/data/scratch/review_piston`).
+
+**2. Screenshots at the feather stop and the low stop (blocker 2).**
+Take them through the annotate `[real]` pass (it drives the sweep standalone and gets to
+`__sweep.bodies` in ~150–200 s); the viewer-embedded probe's `sweep` step is what stalled for you
+and is not the right harness. Put them in `docs/sessions/lessons/shots/<slug>/`, name them
+`2_feather_stop.png` / `3_low_stop.png`, and say in the lesson what each shows (head on the end
+stop at feather; cover stays with the mount; the cover is **not** drawn — no mesh, filed). Then
+do the handoff's exploratory click-around on the real projection and keep its shots too.
+
+**3. Say whether the two mock anchors failures are yours.**
+On the merged tree the mock annotate run (`node apps/annotate/run_browser_check.mjs`, no flags)
+fails "the mock's bound face moves its node onto the face's fitted point" and "the anchors
+message is computed for a drawn frame" (the two reduced-motion playback timing checks are
+load-sensitive; ignore them unless they reproduce on a quiet box). Run the same mock pass once
+on an `integration` checkout (a throwaway worktree of `integration`) and record both counts.
+If integration is green on those two, they are this diff's (suspects: the `modelPartInfo`
+fallback, the new `link: true` subject flag) and must be fixed.
+
+**Definition of done for round 2:** `[real]` annotate pass green including the piston check;
+two stop screenshots committed; baseline comparison recorded; viewer tier through `--repo` the
+scratch root still 633/633 (plus your changes); `node apps/annotate/run_tests.cjs` green;
+lesson updated (replace the "Not shown" section — it should no longer be true). Do **not** touch
+linkage, opacity rules or the grid, and do not rerun the full pytest suite unless you change
+Python; the review owns the post-merge run.
