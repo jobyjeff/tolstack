@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "annotate model in the scene (anchors, lines, the sweep, the anchors message)",
+  "expect_red": "[real] embedded on the kinematic page, the shell posts each body part's DAG ink and the scene draws a body's parts in one colour that is not their own",
+  "mutations": [
+    {
+      "contract": "The page posts each body part's DAG ink to the scene.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05, review round 1). The shell stops posting `model tint`.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      VA.sceneTintCommand(currentTopology(), bodyInk)];",
+      "replace": "      ];"
+    },
+    {
+      "contract": "The scene paints the tints it is told.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05, review round 1). The annotator resolves the tint word and never paints it.",
+      "file": "apps/annotate/app.js",
+      "find": "    state.scene.setPartTints(bySha);",
+      "replace": "    void bySha;"
+    }
+  ]
+}

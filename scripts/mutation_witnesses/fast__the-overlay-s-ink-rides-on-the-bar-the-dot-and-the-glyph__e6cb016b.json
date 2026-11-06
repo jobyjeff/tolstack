@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the overlay's ink rides on the bar, the dot and the glyph, and with none nothing wears it",
+  "mutations": [
+    {
+      "contract": "A bar wears its edge's overlay token.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). The overlay computed and never put on a bar: the edges stay white whatever is chosen.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        if (overlay.edges[mark.id]) classes.push(overlay.edges[mark.id]);\n",
+      "replace": ""
+    }
+  ]
+}

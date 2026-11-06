@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a landing that names a pulled-back scale runs two legs: out to it first, then in to the arrival",
+  "mutations": [
+    {
+      "contract": "A landing with a waypoint pulls the camera back before it goes in.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_tween_is_seen_and_zooms_out_before_it_zooms_in.md",
+      "note": "The waypoint is ignored: one leg, the scale never goes out.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (fitZoom) keys.push(",
+      "replace": "    if (false && fitZoom) keys.push("
+    }
+  ]
+}

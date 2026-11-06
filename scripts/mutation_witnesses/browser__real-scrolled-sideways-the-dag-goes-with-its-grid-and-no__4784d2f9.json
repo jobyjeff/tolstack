@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file:// respine",
+  "expect_red": "[real] scrolled sideways, the DAG goes with its grid, and nothing of it lies over the grid",
+  "mutations": [
+    {
+      "contract": "The rails scroll with the grid, so a scrolled grid never runs under the DAG.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Puts back `position: sticky; left: 0` on the rails, which slid the grid under them.",
+      "file": "apps/viewer/topology.css",
+      "find": "  flex: none; display: block; position: relative; z-index: 1;",
+      "replace": "  flex: none; display: block; position: sticky; left: 0; z-index: 1;"
+    }
+  ]
+}

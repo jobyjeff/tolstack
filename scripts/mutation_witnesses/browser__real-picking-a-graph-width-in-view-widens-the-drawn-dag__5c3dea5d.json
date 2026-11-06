@@ -1,0 +1,31 @@
+{
+  "tier": "browser",
+  "suite": "kinematic study page (deep link, chart hover, contributors, no projection)",
+  "expect_red": "[real] picking a graph width in View widens the drawn DAG at once, and the width survives a reload",
+  "mutations": [
+    {
+      "contract": "A width picked in View changes the live page.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05, review round 1). The choice is stored but the column pitch is not changed until the next boot.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          if (setting === \"graphWidth\") VA.applyGraphWidth(value);",
+      "replace": "          if (setting === \"graphWidth\") void value;"
+    },
+    {
+      "contract": "The view settings are written to the store.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05, review round 1). The store latch, write half: visible only to a reload.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          VA.writeDagView(widthStore(), state.dagView);",
+      "replace": "          void widthStore;"
+    },
+    {
+      "contract": "The view settings are read from the store at boot.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05, review round 1). The store latch, read half: the page boots on the defaults.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.dagView = VA.readDagView(widthStore());",
+      "replace": "    state.dagView = Object.assign({}, VA.DAG_VIEW_DEFAULTS);"
+    }
+  ]
+}

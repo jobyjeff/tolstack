@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part's group is every run of rows on one part inside one body, holding an edge, and it sits inside its body's field",
+  "mutations": [
+    {
+      "contract": "A node two parts meet at goes with the edge it continues, below as well as above.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). Only the row above decides: a node opening a new part's edge falls out of that part's box.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (below && meets.indexOf(below) !== -1) return below;\n",
+      "replace": ""
+    }
+  ]
+}

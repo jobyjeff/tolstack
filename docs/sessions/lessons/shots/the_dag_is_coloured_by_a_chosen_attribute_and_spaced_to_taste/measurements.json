@@ -1,0 +1,46 @@
+{
+  "data": "C:\\workspace\\tolstack-worktrees\\the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste",
+  "widths": {
+    "narrow": {
+      "svgWidth": 345.5650684931507,
+      "dagWidth": 420,
+      "zoom": 0.823,
+      "gutter": 20,
+      "rails": 63,
+      "links": 83,
+      "linkRail": 66,
+      "linkLink": 252,
+      "columns": 14
+    },
+    "medium": {
+      "svgWidth": 452.5256849315069,
+      "dagWidth": 550,
+      "zoom": 0.823,
+      "gutter": 30,
+      "rails": 63,
+      "links": 83,
+      "linkRail": 64,
+      "linkLink": 248,
+      "columns": 14
+    },
+    "wide": {
+      "svgWidth": 580.8784246575343,
+      "dagWidth": 706,
+      "zoom": 0.823,
+      "gutter": 42,
+      "rails": 63,
+      "links": 83,
+      "linkRail": 65,
+      "linkLink": 249,
+      "columns": 14
+    }
+  },
+  "zoom": {
+    "fitted": 0.208,
+    "floor": 0.12,
+    "close": 1.062
+  },
+  "scene": {
+    "messages": []
+  }
+}

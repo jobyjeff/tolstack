@@ -4470,6 +4470,18 @@ function cmdModel(...args) {
     applyPartScope();
     return { unlit: plan.unlit };
   }
+  if (plan.action === AA.MODEL_VERB_ACTIONS[4]) {
+    // Each part in its body's colour (the shell's DAG ink): resolved to a
+    // mesh as `isolate parts` resolves them, and kept by the scene for a
+    // part that loads later. A part with no mesh is skipped, not an error.
+    const bySha = new Map();
+    for (const [id, hex] of Object.entries(plan.tints || {})) {
+      const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+      if (mesh && !bySha.has(mesh.sha256)) bySha.set(mesh.sha256, hex);
+    }
+    state.scene.setPartTints(bySha);
+    return { tinted: bySha.size };
+  }
   const topology = state.currentTopology;
   if (plan.select) {
     const list = plan.select.kind === AA.MODEL_SELECT_KINDS[0] ? (topology && topology.nodes) : (topology && topology.bodies);
