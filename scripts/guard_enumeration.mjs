@@ -231,7 +231,7 @@ export const DECLARED_GUARDS = {
   // body named once and bridged, a joint's ends as its glyph, the form mark
   // beside its bar, and the live model's one container per body with the
   // glyph census. Each carries a spec; the old names' specs are deleted.
-  fast: { declared: 635, enrollable: 635, names: "bd9ce51d79e2" },
+  fast: { declared: 632, enrollable: 632, names: "bf6e3f1d0009" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
