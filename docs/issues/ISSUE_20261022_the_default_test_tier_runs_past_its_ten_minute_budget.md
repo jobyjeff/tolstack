@@ -130,3 +130,7 @@ Both reds depend on the checkout: `test_viewer_js_suite`, and the contact-sugges
 and its mutation-witness gate, both of them under the browser slot, so most
 of the hour is contention and not suite growth. The suite prints no
 contention header lines. No `--durations` was taken.
+
+## Addendum 2026-11-05 (stack_wording_drops_filler_and_the_hover_says_the_same_thing)
+
+Default tier, worktree, plain `pytest -q` (the venv has no xdist, so `-n 16` is not available there): 737 s (12m17s), 1728 passed, 2 failed (provenance row, fixed; viewer JS suite red by design in a worktree), over budget by 2m17s.
