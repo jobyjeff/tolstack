@@ -8415,9 +8415,14 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     await page.locator("#pane-handle").click();
     await until(() => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').length >= 5,
       null, 120000);
-    // The bodies resolved: the pitch link's own body row has its parts.
+    // The bodies resolved: the pitch link's own body row has its parts, and
+    // the run has placed its occurrences (anchoring takes seconds after that).
     await until(() => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/body=pitch_link/"]').length >= 2,
       null, 120000);
+    await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return w.__sweep && w.__sweep.occurrences && (w.__sweep.occurrences.pitch_link || []).length > 0;
+    }, null, 120000);
 
     // --- bodies live under Bodies -------------------------------------------
     const rail = await inPane((w) => ({
@@ -8455,9 +8460,11 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
           .getCenter(s.camera.position.clone()).distanceTo(s.controls.target) }));
       const mine = dist.filter((x) => posed.indexOf(x.key) !== -1);
       const others = dist.filter((x) => posed.indexOf(x.key) === -1);
-      return { posed: posed.length, drawn: dist.length,
+      return { posed: posed.length, drawn: dist.length, keys: posed, dist,
+        subjects: Object.keys(w.__sweep.occurrences), armedPart: w.__sweep.armed.parts[0].partId,
         near: mine.length === 1 && others.length > 0 && others.every((o) => mine[0].d < o.d) };
     }) : null;
+    if (!(framed && framed.near)) console.log('    DIAG framing: armed ' + armed + ' ' + JSON.stringify(framed));
     push("[real] a Pick on the pitch link's end frames the pitch link the run poses (blade 1's), " +
       "not the copies on the other blades",
       framed && framed.posed === 1 && framed.drawn > 1 && framed.near);
@@ -8984,15 +8991,16 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     const counts = await page.evaluate(() => ({
       bodies: document.querySelectorAll('#sweep-tree [data-group="bodies"] > details').length,
       joints: document.querySelectorAll('#sweep-tree [data-group="joints"] > details').length,
-      wantBodies: window.__sweep.artifact.bodies.length,
+      // A run's links are bodies of their own (2026-11-05, AA.sweepTreeSubjects).
+      wantBodies: window.__sweep.artifact.bodies.length + (window.__sweep.artifact.links || []).length,
       wantJoints: Object.keys(window.__sweep.artifact.points[0].joints).length,
       groups: [...document.querySelectorAll("#sweep-tree > [data-group]")].map((n) => n.dataset.group),
     }));
     push("[real] the tree's top level is bodies then joints, with the counts the run carries",
       counts.bodies === counts.wantBodies && counts.joints === counts.wantJoints &&
-      counts.wantBodies === 3 && counts.wantJoints === 5 &&
+      counts.wantBodies === 5 && counts.wantJoints === 5 &&
       counts.groups.slice(0, 2).join(",") === "bodies,joints" &&
-      (await headOf("bodies")).indexOf("(3)") !== -1 && (await headOf("joints")).indexOf("(5)") !== -1);
+      (await headOf("bodies")).indexOf("(5)") !== -1 && (await headOf("joints")).indexOf("(5)") !== -1);
 
     // --- the pitch link: open it, and it is selected ---------------------------
     await page.locator('#sweep-tree [data-joint="pitch_link"] > summary').click({ timeout: 5000 }).catch(() => {});
@@ -9248,7 +9256,10 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     await page.evaluate(() => window.AnnotateApp.exec(["arm", "off"]));
 
     // --- re-pick is the jump to bind mode ---------------------------------------
-    const row = page.locator('#sweep-tree [data-joint="pitch_link"] .tree-row[data-feature="pitch_link_length"]');
+    // On the bound edge's contributor row: since 2026-11-05 no joint lists the
+    // pitch link's length (its two ends are the joint's rows), and a
+    // contributor's Pick is the jump that remains.
+    const row = page.locator('#sweep-tree [data-group="contributors"] .tree-row[data-edge="pitch_link_length"]');
     await row.hover({ timeout: 5000 }).catch(() => {});
     await row.locator(".tree-row__repick").click({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction(() => !window.__sweep &&
@@ -9447,11 +9458,14 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
     const faceWords = await page.evaluate(() => [...document.querySelectorAll(
       '#sweep-tree [data-joint="pitch_link"] .tree-row[data-feature] .tree-row__face')]
       .map((n) => ({ id: n.closest(".tree-row").dataset.feature, text: n.textContent })));
-    const length = faceWords.find((f) => f.id === "pitch_link_length");
+    // The seeded binding is face 0 at the length's from end (the lower
+    // centre) and face 1 at its to end (the upper).
+    const lowerEnd = faceWords.find((f) => f.id === "pitch_link_lower_sphere_centre");
+    const upperEnd = faceWords.find((f) => f.id === "pitch_link_upper_sphere_centre");
     push("[real] a bound feature row says which face of which part defines it, and an " +
       "unbound one says none is bound",
-      length && /^face 0 of .+, face 1 of .+$/.test(length.text) &&
-      faceWords.every((f) => f.id === "pitch_link_length" || /^face \d+ of |^no face bound$/.test(f.text)));
+      lowerEnd && /^face 0 of .+$/.test(lowerEnd.text) && upperEnd && /^face 1 of .+$/.test(upperEnd.text) &&
+      faceWords.every((f) => /^face \d+ of |^no face bound$/.test(f.text)));
     const contributorPick = await page.evaluate(() => [...document.querySelectorAll(
       '#sweep-tree [data-group="contributors"] .tree-row')].every((n) =>
       n.querySelector(".tree-row__repick")));

@@ -6,10 +6,10 @@
     {
       "contract": "The tree lists every body the run carries.",
       "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
-      "note": "Losing the first body (ground) is the shape of an off-by-one the count reads directly.",
+      "note": "Losing the first body (ground) is the shape of an off-by-one the count reads directly. Re-anchored 2026-11-05 (the_rail_holds_still_and_takes_the_face_jeff_picked): the Bodies group now iterates AA.sweepTreeSubjects (bodies, then links).",
       "file": "apps/annotate/app.js",
-      "find": "  for (const body of tree.bodies) {",
-      "replace": "  for (const body of tree.bodies.slice(1)) {"
+      "find": "  for (const body of subjects) {",
+      "replace": "  for (const body of subjects.slice(1)) {"
     }
   ]
 }

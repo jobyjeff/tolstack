@@ -93,14 +93,15 @@ export default {
   },
   async trigger(page) {
     const wait = (ms) => page.waitForTimeout(ms);
+    const step = async (what, ...a) => console.log("  " + what + ": " + await press(page, ...a));
     await wait(1200);
-    await press(page, JOINT("tan_link"), ".navtree__scenetext");
-    await wait(2500);
-    await press(page, END("pitch_link_upper_sphere_centre"), ".navtree__scenetwisty");
-    await wait(2500);
-    await press(page, FACE("pitch_link_upper_sphere_centre"), ".navtree__scenebtn");
-    await wait(5000);
-    await press(page, FACE("pitch_link_lower_sphere_centre"), ".navtree__scenebtn");
+    await step("expand tan link", JOINT("tan_link"), ".navtree__scenetext");
+    await wait(3000);
+    await step("open upper list", END("pitch_link_upper_sphere_centre"), ".navtree__scenetwisty");
+    await wait(3000);
+    await step("take upper", FACE("pitch_link_upper_sphere_centre"), ".navtree__scenebtn");
+    await wait(6000);
+    await step("take lower", FACE("pitch_link_lower_sphere_centre"), ".navtree__scenebtn");
   },
   probe(page) {
     return page.evaluate(() => {
@@ -109,7 +110,9 @@ export default {
         .map((n) => n.getAttribute("data-scene-key"))
         .filter((k) => /^#sweep-tree\/joint=pitch_link\/[^/]*$/.test(k))
         .map((k) => k.replace(/^.*feature=/, ""));
-      return { scrollTop: box.scrollTop, ends };
+      const faces = Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
+        .map((n) => n.getAttribute("data-scene-key")).filter((k) => /joint=pitch_link\/.*\/face=/.test(k)).length;
+      return { scrollTop: box.scrollTop, ends, faces };
     });
   },
 };

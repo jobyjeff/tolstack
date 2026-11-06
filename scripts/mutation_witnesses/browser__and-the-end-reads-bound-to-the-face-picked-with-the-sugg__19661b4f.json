@@ -6,10 +6,10 @@
     {
       "contract": "After the write the row says what was bound.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
-      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). This mutation is the bug the guard first caught: the time read off an event variable that no longer exists, so the row never said bound.",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). This mutation is the bug the guard first caught: the time read off an event variable that no longer exists, so the row never said bound. Re-anchored 2026-11-05 (the_rail_holds_still_and_takes_the_face_jeff_picked): an armed click now records its bound end through answeredAtEnd, the rail Take's own path.",
       "file": "apps/annotate/app.js",
-      "find": "at: events[events.length - 1].created_at };\n    state.scene.markFace(full.sha256",
-      "replace": "at: event.created_at };\n    state.scene.markFace(full.sha256"
+      "find": "at: events[events.length - 1].created_at };\n    showToast(toast);\n    const next",
+      "replace": "at: event.created_at };\n    showToast(toast);\n    const next"
     }
   ]
 }
