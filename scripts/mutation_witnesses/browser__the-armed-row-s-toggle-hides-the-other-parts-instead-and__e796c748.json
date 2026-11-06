@@ -6,9 +6,9 @@
     {
       "contract": "The others toggle can hide the other parts.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
-      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Jeff asked for hide as well as ghost.",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Jeff asked for hide as well as ghost. Re-pointed 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face): the toggle now hides all but the pick's neighbours.",
       "file": "apps/annotate/app.js",
-      "find": "    } else if (a.others === AA.ARM_OTHERS_MODES[1]) {",
+      "find": "    } else if (a.others === AA.ARM_OTHERS_MODES[1] && a.near.indexOf(entry.sha) === -1) {",
       "replace": "    } else if (false) {"
     }
   ]

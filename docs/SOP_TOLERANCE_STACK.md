@@ -380,6 +380,30 @@ link" is the drawing's PITCH LINK). The id keeps whatever it was committed as,
 because deep links, crop keys, binding keys and projection keys stand on it;
 the viewer prints `display_name` and carries the id in the tooltip.
 
+**An element's `name` is the span, in the part's own words** (2026-11-05). The
+same rule for every stack element and topology edge, and the reason the cell and
+its hover show one string:
+
+> `<from feature> to <to feature>`, or a single word when the drawing calls it
+> one (`length`, `thickness`, `grip length`). Where the drawing names a datum,
+> use it: `datum A to top face`.
+
+- **No articles** — no `the`, `its`, `a` — and **no comma, dash or
+  parenthesis**: what follows one is the `note`, a value is the `dimension`, an
+  identifier is the `hardware_ref` or the part.
+- **No part name** where a part column or `hardware_ref` already carries it —
+  the topology grid has a component column, so `plain bushing length` is
+  `length` there. A linear stack that has no column naming the part keeps the
+  one word that says which (`lower sleeve bore`).
+- **Two elements of one part (or one stack) that would read the same take the
+  distinguishing feature word, never a number** — `thin washer thickness` and
+  `thick washer thickness`. A variant code the drawing itself prints (`U2H`,
+  `U14D`) is a feature word, not a count.
+
+`tests/test_element_names_follow_the_rule.py` reads every `name` in
+`docs/tolerance_stacks/stack_*.json` and the topology's edges against the
+mechanical half (the first bullet); the rest is the author's and the reviewer's.
+
 ## Step 2 — write the elements
 
 One `StackElement` per physical feature along the path, in physical order.
@@ -387,7 +411,7 @@ One `StackElement` per physical feature along the path, in physical order.
 ```json
 {
   "id": "bushing_chamfer",
-  "name": "bushing chamfer size",
+  "name": "chamfer size",
   "role": "relief",
   "nominal": 0.762, "min": 0.635, "max": 0.889,
   "lmc": 0.889, "mmc": 0.635,

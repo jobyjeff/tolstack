@@ -6,10 +6,10 @@
     {
       "contract": "Letting a suggestion go puts every part back as it was drawn before.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
-      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the restore the scene stays dimmed after an Accept.",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the restore the scene stays dimmed after an Accept. Re-pointed 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face): the dimming is the scene's action now (sweep.focus), not a snapshot.",
       "file": "apps/annotate/app.js",
-      "find": "  for (const entry of sweep.focusDim) state.scene.setGhost(entry.sha, entry.ghost);",
-      "replace": "  void sweep.focusDim;"
+      "find": "  sweep.focus = null;\n  applyLooks();",
+      "replace": "  applyLooks();"
     }
   ]
 }

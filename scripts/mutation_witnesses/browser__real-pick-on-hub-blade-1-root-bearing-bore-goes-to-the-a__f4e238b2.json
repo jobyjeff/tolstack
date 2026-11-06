@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] Pick on hub blade-1 root bearing bore goes to the as-modelled frame with no prompt, the hub alone is solid and pickable, its neighbours ghost and every other part faint",
+  "mutations": [
+    {
+      "contract": "The hub's bore is picked on the hub.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Jeff's reproduction: the edge it is bound through is the blade root's.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return own.length ? own : edgeParts;",
+      "replace": "    return edgeParts.length ? edgeParts : own;"
+    },
+    {
+      "contract": "Every part is translucent until an action names it, and a hidden body draws nothing (handoff everything_in_3d_is_transparent_until_an_action_needs_a_face).",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md",
+      "note": "Added by handoff everything_in_3d_is_transparent_until_an_action_needs_a_face (2026-11-05), which renamed the guard: the blade root, the end's other part, goes as faint as the rest.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (sweep.armed) return { about: sweep.armed.shas, near: sweep.armed.near };",
+      "replace": "  if (sweep.armed) return { about: sweep.armed.shas, near: [] };"
+    }
+  ]
+}
