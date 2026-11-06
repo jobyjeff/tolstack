@@ -228,12 +228,6 @@ try {
   const nav = await page.locator("#navtree").boundingBox();
   await page.screenshot({ path: join(OUT, `${String(++step).padStart(2, "0")}_rail_beside_grid.png`),
     clip: { x: nav.x, y: nav.y, width: Math.min(1600 - nav.x, 1100), height: nav.height } });
-  // With the 3D pane closed the grid has the room, at the same zoom: its
-  // sub-stack nesting beside the nav's (the nav keeps the study's tree only
-  // while the pane is open, so this one shows the grid's half).
-  await page.locator("#pane-handle").click().catch(() => {});
-  await settle(3000);
-  await shot("grid_same_zoom");
 } finally {
   server.close();
   await closeEveryBrowser();

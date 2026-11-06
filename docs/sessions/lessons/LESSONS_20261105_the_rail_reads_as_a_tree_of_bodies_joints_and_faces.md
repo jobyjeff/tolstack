@@ -61,9 +61,13 @@ side's offset with the bracket itself carrying the nesting. Matching it would
 bring back the depth Jeff called "way too shallow". So the two numbers differ
 for now, and how they should agree is filed for strategy:
 `docs/issues/ISSUE_20261106_the_rails_indent_step_and_the_grids_brace_inset_are_two_numbers.md`.
-The side-by-side shot is two shots. At 1600 px wide, with the 3D pane open, the
-grid is the 59 px slit that the grid handoff is fixing. `07_grid_same_zoom.png`
-shows the grid at the same zoom with the pane closed.
+**The side-by-side shot is not delivered.** `06_rail_beside_grid.png` puts the
+nav beside the pane at one zoom, but at 1600 px wide with the 3D pane open the
+grid is the 59 px slit that the grid handoff is fixing, so no grid rows are
+visible. The rail's tree only exists while the pane is open, so closing the
+pane removes it too. I tried a closed-pane shot, but the handle click left the
+pane open, so I dropped that shot. A real comparison needs the grid branch's
+layout, and that belongs with the indent issue above.
 
 ## The legend (marks, `AA.RAIL_MARKS`)
 
@@ -123,8 +127,7 @@ on the memory adapter). Every step writes a full-page PNG and a `_nav` crop.
 - `01_at_rest`, `02_all_joints_open`, `03_end_list_open_hover` (a candidate
   hovered, Take shown over it), `04_two_ends_bound` (both pitch link ends
   `picked now`, the lower one selected with its Re-pick on its own line),
-  `05_mid_pick` (Cancel / hide others on the armed row), `06_rail_beside_grid`,
-  `07_grid_same_zoom`.
+  `05_mid_pick` (Cancel / hide others on the armed row), `06_rail_beside_grid`.
 - `rail_walk.png` / `rail_walk.json`: the behaviour handoff's filmstrip
   re-filmed on the new look (`node scripts/filmstrip.mjs --scenario
   tests/debug_rail_walk_scenario.mjs --real-time --frames 8 --interval 2500
