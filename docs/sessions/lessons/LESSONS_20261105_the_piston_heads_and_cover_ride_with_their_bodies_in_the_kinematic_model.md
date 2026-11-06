@@ -74,15 +74,49 @@ through their hosts.
 
 Nothing (worktree clean).
 
-## Not shown: the feather/low-stop screenshots and the exploratory click-around
+## Not shown (superseded -- see "Re-run 2026-11-06" below; this was true of round 1)
 
-Definition-of-done items **not met**. The probe (`tests/debug_piston_heads_ride.mjs`) reached the
-kinematic pane (at rest: all 47 parts ghosted, heads among them) but its `sweep` step never saw
-`__sweep.bodies` fill within 120–150 s on two runs, each of which had queued 15+ minutes for the
-browser slot behind other agents. I did not find out whether the stall is the probe (it runs the
-sweep from the viewer's embedded pane; the annotate tier's own `[real]` pass drives it standalone and
-may be the right harness) or the new rider code — **the rider code has therefore never run in a
-browser**. A reviewer should run `node apps/annotate/run_browser_check.mjs` with `--real <run>`
-(the new `[real]` check is in it) and the probe, in the main checkout after rebuilding projections
-from this branch, before trusting the motion. The unit test covers `sweepRideChoice` and the draw
-plan's pose composition only.
+The feather/low-stop screenshots, the `[real]` check and the exploratory click-around had not been
+run in round 1. Round 2 ran the first two; the click-around is still open (below).
+
+## Re-run 2026-11-06 (round 2, after REQUEST CHANGES)
+
+Merged `review/...` first (resolved census: annotate 291). Worked in the review's scratch root
+(`data/scratch/review_piston`, projections built from the merged tree, junctioned into the worktree
+and removed before commit); main checkout's projections untouched.
+
+**Blocker 1 -- it was the harness, not the rider code.** `realPass` boots `?mock=1` and replaces the
+adapter's read methods, but not `readTopologyProjection`, so `sweepTopology()` resolved the run's
+`vpa_pitch_linkage` against the *mock's* topology, which has no `rides_with` -> `riders` empty -> no
+head row. Fix: `P.readTopologyProjection` now serves the real `topologies.json`
+(`apps/annotate/run_browser_check.mjs`). With it, the real P2 run poses both heads as `rides` rows
+on `pitch_plate` (`214699-002.1`, `214698-002.1`) and the cover has no row (no mesh); the existing
+check "[real] both piston heads ride the pitch plate..." is green, no product code changed.
+New check "[real] each piston head's drawn matrix keeps its offset to the piston body, and moves,
+between the low and the feather stop": green. Drawn translation z (mm): piston and both heads
+-23.334 at the last point, 41.132 at the first -- identical to the piston's, so the heads move with
+the plate. Witness spec for the rider rule re-run: 2/2 witnessed; `tests/test_mutation_witnesses.py`
+44 passed.
+
+**Blocker 2 -- shots** (`shots/<slug>/`, taken by the `[real]` pass, run vpa-pitch-p2-20261105-204957):
+`2_feather_stop.png` is the last sweep point (blade pitch 72.0 deg, actuator travel 0.0 mm) and
+`3_low_stop.png` the first (-6.99 deg, 64.47 mm). Honest limits: the scene is transparent, so the
+heads are not individually legible in a still -- the piston column visibly translates between the
+two, and the numeric check above is what pins the heads to it; I did not verify "lower head
+touching the end stop" by eye, and the **cover is not drawn** (no mesh; issue filed in round 1).
+Also: the earlier `1_pane_at_rest.png` named in round 1 is not tracked on this branch.
+
+**Item 3 -- the two mock anchors failures are not this diff's.** An `integration` checkout
+(throwaway worktree, removed) fails the same two ("the mock's bound face moves its node onto the
+face's fitted point", "the anchors message is computed for a drawn frame") and the reduced-motion
+playback timing checks (2 there; 1-2 here, load-sensitive). Counts: integration 105 PASS / 4 FAIL,
+this branch 104-105 PASS / 3-4 FAIL before the shared stop. Both also stop at the same place:
+`.an__sweep-bodies > summary` click times out on integration too (filed:
+`ISSUE_20261106_the_annotate_real_pass_cannot_click_the_bodies_disclosure_summary`), so later
+`[real]` checks (disclosure, fps) are unreachable on either tree; that is why "the `[real]` pass
+green" is **not** fully met: everything up to that click is green, including the piston checks.
+
+`node apps/annotate/run_tests.cjs`: 291/291. Viewer tier through `--repo` (633/633) and full pytest
+not re-run (no Python or viewer change in round 2). **Exploratory click-around not done** (the one
+browser slot was queued behind other agents for most of the session); the shots above are the only
+real-projection looks at the change.
