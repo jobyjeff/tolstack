@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part the walk visits twice is gathered into one run, every row once, and the result is still a walk",
+  "mutations": [
+    {
+      "contract": "A block part's rows are moved up to where the part first appears.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). Each row stays where the walk put it: nothing is gathered and the part is two runs.",
+      "file": "apps/viewer/topology.js",
+      "find": "      byPart[p].forEach(function (r) { order.push(r); });",
+      "replace": "      order.push(row); emitted[p] = false;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a block's pins are on its sides, one height each in walk order, inside the aspect band; a chord runs pin to pin and a rail-side pin is joined to its column",
+  "mutations": [
+    {
+      "contract": "A pin only its own part touches faces away from the rails.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). Every pin on the rail side.",
+      "file": "apps/viewer/topology.js",
+      "find": "        var side = pins.outside[row.id] ? \"left\" : \"right\";",
+      "replace": "        var side = \"left\";"
+    }
+  ]
+}

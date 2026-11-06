@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a leader leaves a block's pin, and the jog zone starts past the strip",
+  "mutations": [
+    {
+      "contract": "A pin's leader starts at the pin, in the strip.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The leader starts at the pin's column, where no dot is drawn.",
+      "file": "apps/viewer/topology.js",
+      "find": "      var nodeX = row.pin && layout.blocks ? pinX(layout, row, metrics, x)",
+      "replace": "      var nodeX = false ? pinX(layout, row, metrics, x)"
+    }
+  ]
+}

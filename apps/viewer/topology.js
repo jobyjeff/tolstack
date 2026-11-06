@@ -1576,6 +1576,12 @@
     // stretches to honour it.
     var half = metrics.rowHeight / 2;
     var inBlock = function (row) { return !!(row && (row.pin || row.chord)); };
+    // Whether another pin of the same block lies `step` rows away through
+    // the block's own rows: a chord can close after its block's last pin.
+    var pinBeyond = function (i, step) {
+      for (var j = i + step; inBlock(rows[j]); j += step) if (rows[j].pin) return true;
+      return false;
+    };
     rows.forEach(function (row, i) {
       var h = metrics.rowHeight;
       var floored = false;
@@ -1583,8 +1589,8 @@
       if (row.pin) {
         var prev = rows[i - 1];
         var next = rows[i + 1];
-        var first = !inBlock(prev);
-        var last = !inBlock(next);
+        var first = !pinBeyond(i, -1);
+        var last = !pinBeyond(i, 1);
         var above = scaled && prev && prev.chord ? 0 : half;
         var below = scaled && next && next.chord ? 0 : half;
         h = above + below + (first ? half : 0) + (last ? half : 0);
@@ -3848,8 +3854,8 @@
     out.marks.forEach(function (m) { if (m.kind === "node") nodeMark[m.id] = m; });
     var half = metrics.rowHeight / 2;
     ((layout && layout.blocks) || []).forEach(function (block, i) {
-      var top = slotY(block.start);
-      var bottom = slotY(block.end);
+      var top = Infinity;
+      var bottom = -Infinity;
       for (var r = block.start; r <= block.end; r++) {
         var m = marksByRow[r];
         if (m && m.pin) { top = Math.min(top, m.y); bottom = Math.max(bottom, m.y); }

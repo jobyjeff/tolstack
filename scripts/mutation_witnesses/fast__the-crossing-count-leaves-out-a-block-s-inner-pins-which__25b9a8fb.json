@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the crossing count leaves out a block's inner pins, which draw nothing across a rail",
+  "mutations": [
+    {
+      "contract": "An inner pin draws nothing across a rail.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared with the guard by handoff a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). Inner pins are counted as if a leader left their column.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (row.pin && row.pin.side === \"right\") return;",
+      "replace": "      if (false) return;"
+    }
+  ]
+}

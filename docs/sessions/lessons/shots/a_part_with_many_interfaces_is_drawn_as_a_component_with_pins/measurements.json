@@ -1,0 +1,642 @@
+{
+  "data": "C:\\workspace\\tolstack-worktrees\\a_part_with_many_interfaces_is_drawn_as_a_component_with_pins",
+  "pages": {
+    "walk": {
+      "rails": {
+        "svgWidth": 678,
+        "zoom": 1,
+        "rails": 59,
+        "links": 79,
+        "stubs": 0,
+        "chords": 0,
+        "leaders": 63,
+        "linkRail": 51,
+        "stubRail": 0,
+        "leaderChord": 0,
+        "blocks": []
+      },
+      "blocks": {
+        "svgWidth": 870,
+        "zoom": 1,
+        "rails": 34,
+        "links": 41,
+        "stubs": 52,
+        "chords": 52,
+        "leaders": 63,
+        "linkRail": 34,
+        "stubRail": 48,
+        "leaderChord": 11,
+        "blocks": [
+          {
+            "part": "hub",
+            "w": 172,
+            "h": 323,
+            "ratio": 0.53
+          },
+          {
+            "part": "gas_spring_mount_213668_002",
+            "w": 86,
+            "h": 154,
+            "ratio": 0.56
+          },
+          {
+            "part": "pitch_plate_215177_001",
+            "w": 172,
+            "h": 310,
+            "ratio": 0.55
+          },
+          {
+            "part": "gas_spring",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "tan_link_212956_005",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "spherical_bearing_tan_link",
+            "w": 72,
+            "h": 141,
+            "ratio": 0.51
+          },
+          {
+            "part": "spherical_bearing_tan_link_ms14103_3",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "pitch_link",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "spherical_bearing_pitch_link",
+            "w": 86,
+            "h": 167,
+            "ratio": 0.51
+          },
+          {
+            "part": "blade_root",
+            "w": 72,
+            "h": 128,
+            "ratio": 0.56
+          },
+          {
+            "part": "gas_spring_piston_214700_002",
+            "w": 86,
+            "h": 154,
+            "ratio": 0.56
+          },
+          {
+            "part": "bolt_nas6403u11d",
+            "w": 72,
+            "h": 141,
+            "ratio": 0.51
+          },
+          {
+            "part": "fastener_family",
+            "w": 43,
+            "h": 89,
+            "ratio": 0.48
+          },
+          {
+            "part": "bolt_nas6403u13h",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "flanged_bushing_tan_link",
+            "w": 57,
+            "h": 102,
+            "ratio": 0.56
+          },
+          {
+            "part": "bolt_nas6404u13d",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          }
+        ]
+      }
+    },
+    "kinematic": {
+      "rails": {
+        "svgWidth": 370.29357798165137,
+        "zoom": 0.882,
+        "rails": 63,
+        "links": 83,
+        "stubs": 0,
+        "chords": 0,
+        "leaders": 20,
+        "linkRail": 66,
+        "stubRail": 0,
+        "leaderChord": 0,
+        "blocks": []
+      },
+      "blocks": {
+        "svgWidth": 451.405504587156,
+        "zoom": 0.882,
+        "rails": 55,
+        "links": 70,
+        "stubs": 37,
+        "chords": 35,
+        "leaders": 20,
+        "linkRail": 32,
+        "stubRail": 7,
+        "leaderChord": 3,
+        "blocks": [
+          {
+            "part": "hub",
+            "w": 57,
+            "h": 102,
+            "ratio": 0.56
+          },
+          {
+            "part": "pitch_plate_215177_001",
+            "w": 72,
+            "h": 128,
+            "ratio": 0.56
+          },
+          {
+            "part": "pitch_link",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "pitch_plate_215177_001",
+            "w": 72,
+            "h": 128,
+            "ratio": 0.56
+          },
+          {
+            "part": "tan_link_212956_005",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "gas_spring_mount_213668_002",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "gas_spring_piston_214700_002",
+            "w": 57,
+            "h": 102,
+            "ratio": 0.56
+          },
+          {
+            "part": "hub",
+            "w": 72,
+            "h": 128,
+            "ratio": 0.56
+          },
+          {
+            "part": "gas_spring",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "spherical_bearing_tan_link",
+            "w": 57,
+            "h": 115,
+            "ratio": 0.5
+          },
+          {
+            "part": "spherical_bearing_pitch_link",
+            "w": 57,
+            "h": 115,
+            "ratio": 0.5
+          },
+          {
+            "part": "gas_spring_piston_214700_002",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "bolt_nas6403u11d",
+            "w": 72,
+            "h": 141,
+            "ratio": 0.51
+          },
+          {
+            "part": "fastener_family",
+            "w": 43,
+            "h": 89,
+            "ratio": 0.48
+          },
+          {
+            "part": "bolt_nas6403u13h",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "flanged_bushing_tan_link",
+            "w": 57,
+            "h": 102,
+            "ratio": 0.56
+          },
+          {
+            "part": "bolt_nas6404u13d",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          }
+        ]
+      }
+    },
+    "grip": {
+      "rails": {
+        "svgWidth": 324,
+        "zoom": 1,
+        "rails": 59,
+        "links": 79,
+        "stubs": 0,
+        "chords": 0,
+        "leaders": 4,
+        "linkRail": 47,
+        "stubRail": 0,
+        "leaderChord": 0,
+        "blocks": []
+      },
+      "blocks": {
+        "svgWidth": 516,
+        "zoom": 1,
+        "rails": 44,
+        "links": 69,
+        "stubs": 52,
+        "chords": 44,
+        "leaders": 4,
+        "linkRail": 48,
+        "stubRail": 39,
+        "leaderChord": 0,
+        "blocks": [
+          {
+            "part": "hub",
+            "w": 172,
+            "h": 323,
+            "ratio": 0.53
+          },
+          {
+            "part": "gas_spring_mount_213668_002",
+            "w": 86,
+            "h": 154,
+            "ratio": 0.56
+          },
+          {
+            "part": "pitch_plate_215177_001",
+            "w": 172,
+            "h": 310,
+            "ratio": 0.55
+          },
+          {
+            "part": "gas_spring",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "tan_link_212956_005",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "spherical_bearing_tan_link",
+            "w": 72,
+            "h": 141,
+            "ratio": 0.51
+          },
+          {
+            "part": "spherical_bearing_tan_link_ms14103_3",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "pitch_link",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "spherical_bearing_pitch_link",
+            "w": 86,
+            "h": 167,
+            "ratio": 0.51
+          },
+          {
+            "part": "blade_root",
+            "w": 72,
+            "h": 128,
+            "ratio": 0.56
+          },
+          {
+            "part": "gas_spring_piston_214700_002",
+            "w": 86,
+            "h": 154,
+            "ratio": 0.56
+          },
+          {
+            "part": "bolt_nas6403u11d",
+            "w": 72,
+            "h": 141,
+            "ratio": 0.51
+          },
+          {
+            "part": "fastener_family",
+            "w": 43,
+            "h": 89,
+            "ratio": 0.48
+          },
+          {
+            "part": "bolt_nas6403u13h",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "flanged_bushing_tan_link",
+            "w": 57,
+            "h": 102,
+            "ratio": 0.56
+          },
+          {
+            "part": "bolt_nas6404u13d",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          }
+        ]
+      }
+    },
+    "cotter": {
+      "rails": {
+        "svgWidth": 336,
+        "zoom": 1,
+        "rails": 61,
+        "links": 81,
+        "stubs": 0,
+        "chords": 0,
+        "leaders": 6,
+        "linkRail": 53,
+        "stubRail": 0,
+        "leaderChord": 0,
+        "blocks": []
+      },
+      "blocks": {
+        "svgWidth": 528,
+        "zoom": 1,
+        "rails": 39,
+        "links": 58,
+        "stubs": 51,
+        "chords": 50,
+        "leaders": 6,
+        "linkRail": 32,
+        "stubRail": 25,
+        "leaderChord": 0,
+        "blocks": [
+          {
+            "part": "hub",
+            "w": 172,
+            "h": 323,
+            "ratio": 0.53
+          },
+          {
+            "part": "gas_spring_mount_213668_002",
+            "w": 86,
+            "h": 154,
+            "ratio": 0.56
+          },
+          {
+            "part": "pitch_plate_215177_001",
+            "w": 143,
+            "h": 258,
+            "ratio": 0.55
+          },
+          {
+            "part": "gas_spring",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "tan_link_212956_005",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "spherical_bearing_tan_link",
+            "w": 72,
+            "h": 141,
+            "ratio": 0.51
+          },
+          {
+            "part": "spherical_bearing_tan_link_ms14103_3",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "pitch_link",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "spherical_bearing_pitch_link",
+            "w": 57,
+            "h": 102,
+            "ratio": 0.56
+          },
+          {
+            "part": "blade_root",
+            "w": 72,
+            "h": 128,
+            "ratio": 0.56
+          },
+          {
+            "part": "pitch_plate_215177_001",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "spherical_bearing_pitch_link",
+            "w": 43,
+            "h": 89,
+            "ratio": 0.48
+          },
+          {
+            "part": "bolt_nas6403u11d",
+            "w": 57,
+            "h": 115,
+            "ratio": 0.5
+          },
+          {
+            "part": "gas_spring_piston_214700_002",
+            "w": 86,
+            "h": 154,
+            "ratio": 0.56
+          },
+          {
+            "part": "fastener_family",
+            "w": 43,
+            "h": 89,
+            "ratio": 0.48
+          },
+          {
+            "part": "bolt_nas6403u13h",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          },
+          {
+            "part": "flanged_bushing_tan_link",
+            "w": 57,
+            "h": 102,
+            "ratio": 0.56
+          },
+          {
+            "part": "bolt_nas6404u13d",
+            "w": 43,
+            "h": 76,
+            "ratio": 0.57
+          }
+        ]
+      }
+    }
+  },
+  "lengthsControl": 0,
+  "lengthsAfterClick": "Lengths: uniform",
+  "scaled": {
+    "svgWidth": 451.405504587156,
+    "zoom": 0.882,
+    "rails": 55,
+    "links": 70,
+    "stubs": 37,
+    "chords": 35,
+    "leaders": 20,
+    "linkRail": 33,
+    "stubRail": 7,
+    "leaderChord": 5,
+    "blocks": [
+      {
+        "part": "hub",
+        "w": 57,
+        "h": 102,
+        "ratio": 0.56
+      },
+      {
+        "part": "pitch_plate_215177_001",
+        "w": 72,
+        "h": 138.4000000000001,
+        "ratio": 0.52
+      },
+      {
+        "part": "pitch_link",
+        "w": 43,
+        "h": 76,
+        "ratio": 0.57
+      },
+      {
+        "part": "pitch_plate_215177_001",
+        "w": 72,
+        "h": 138.4000000000001,
+        "ratio": 0.52
+      },
+      {
+        "part": "tan_link_212956_005",
+        "w": 43,
+        "h": 76,
+        "ratio": 0.57
+      },
+      {
+        "part": "gas_spring_mount_213668_002",
+        "w": 43,
+        "h": 81.19999999999823,
+        "ratio": 0.53
+      },
+      {
+        "part": "gas_spring_piston_214700_002",
+        "w": 57,
+        "h": 107.2000000000005,
+        "ratio": 0.53
+      },
+      {
+        "part": "hub",
+        "w": 72,
+        "h": 138.4000000000001,
+        "ratio": 0.52
+      },
+      {
+        "part": "gas_spring",
+        "w": 43,
+        "h": 76,
+        "ratio": 0.57
+      },
+      {
+        "part": "spherical_bearing_tan_link",
+        "w": 57,
+        "h": 115,
+        "ratio": 0.5
+      },
+      {
+        "part": "spherical_bearing_pitch_link",
+        "w": 57,
+        "h": 115,
+        "ratio": 0.5
+      },
+      {
+        "part": "gas_spring_piston_214700_002",
+        "w": 43,
+        "h": 76,
+        "ratio": 0.57
+      },
+      {
+        "part": "bolt_nas6403u11d",
+        "w": 72,
+        "h": 293.93200000000024,
+        "ratio": 0.24
+      },
+      {
+        "part": "fastener_family",
+        "w": 43,
+        "h": 749.6080000000011,
+        "ratio": 0.06
+      },
+      {
+        "part": "bolt_nas6403u13h",
+        "w": 43,
+        "h": 129.2479999999996,
+        "ratio": 0.33
+      },
+      {
+        "part": "flanged_bushing_tan_link",
+        "w": 57,
+        "h": 129.2479999999996,
+        "ratio": 0.44
+      },
+      {
+        "part": "bolt_nas6404u13d",
+        "w": 43,
+        "h": 129.2479999999996,
+        "ratio": 0.33
+      }
+    ]
+  },
+  "errors": []
+}
