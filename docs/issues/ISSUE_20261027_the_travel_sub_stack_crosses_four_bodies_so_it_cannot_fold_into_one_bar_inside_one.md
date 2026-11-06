@@ -53,3 +53,9 @@ and opens with the contributor table's group row`.
    It needs the walk re-derivation to accept a synthetic edge.
 
 Recommendation: 3 when a second `study_ref` arrives; 1 until then.
+
+## Addendum 2026-11-06 (a_part_with_many_interfaces_is_drawn_as_a_component_with_pins)
+
+Not changed by the blocks layout. Blocks are per part, and this sub-stack is a
+chain across parts in four bodies, so it is still four dashed fields. Still
+open, still strategy's.

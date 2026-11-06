@@ -182,6 +182,33 @@ plus a gutter (about 190 px at the narrow width, for the 11-pin blocks).
   Rewriting those to blocks would have tested blocks through fixtures built
   for rails. As a setting, both drawings are reachable and both are tested.
   Blocks is the page's default, so Jeff sees blocks.
+- **The browser tier starts every page on the rails, and the blocks have a
+  suite of their own.** The first full browser run with blocks as the
+  default was red in seven suites. The checks there assert facts about the
+  rail model: uniform height equals rows × row height, a bar is a `line`,
+  and the DAG leaves room beside it at 1600 px (the strip takes it). One
+  check was a real defect, found by the topology suite's hover abort: a
+  chord's 14 px hit path covered the pin it lands on. Chords now draw in
+  their own layer under every dot (`g.tv__chords`).
+
+  The runner's `newPage` wrapper now seeds `partDrawing: "rails"` unless the
+  page already has a choice. So every existing check keeps its value
+  unchanged; none was re-pinned. The new **"parts as blocks"** suite picks
+  blocks and holds the same contracts on the real model:
+  - the kinematic page, the cotter-hole study and the whole walk;
+  - every grid row has its mark and every leader starts on its dot
+    (`CORRESPONDENCE_IN_PAGE`, the oracle the 11-03 handoff measured with);
+  - every joint end wears its glyph;
+  - the lit set is drawn one-for-one with the grid and is on screen at
+    landing;
+  - every block is inside the band;
+  - a part is one block on the walk;
+  - a pin is what the pointer finds at its centre.
+
+  The cost: the legacy suites no longer see the default drawing. What they
+  hold about the blocks page is whatever the blocks suite re-asserts, and
+  nothing else. The 1600 px room check is the one to watch (brief Q7's slit):
+  with blocks, the DAG is wider by the strip.
 - **Pins on two sides, not four.** The rails come from the left and the
   grid is on the right, so a top or bottom pin's leader would run along the
   block's own border, and two pins on one edge would share a height, which
