@@ -231,7 +231,13 @@ export const DECLARED_GUARDS = {
   // body named once and bridged, a joint's ends as its glyph, the form mark
   // beside its bar, and the live model's one container per body with the
   // glyph census. Each carries a spec; the old names' specs are deleted.
-  fast: { declared: 635, enrollable: 635, names: "bd9ce51d79e2" },
+  // the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, 2026-11-05:
+  // +10 -- a part's group, borders with no fill by default, a body's repeat
+  // name, the overlay table, the contribution ramp, the overlay's ink on the
+  // marks, the remembered view settings and the width, the view popover, the
+  // sourcing legend's named tints, and the scene's tint verb from the page.
+  // Each carries a spec.
+  fast: { declared: 645, enrollable: 645, names: "9be7581fe27f" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -272,7 +278,9 @@ export const DECLARED_GUARDS = {
   // 2026-11-05 (a_two_row_cylinder_band_fits_as_a_cylinder): +3 -- a one-band
   // cylinder is a cylinder by its nodes, a one-band sphere is still refused,
   // and six nodes are too few. Each carries a spec.
-  annotate: { declared: 285, enrollable: 285, names: "7770fccde7f3" },
+  // 2026-11-05 (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste):
+  // +1 -- the model verb's tint action. It carries a spec.
+  annotate: { declared: 286, enrollable: 286, names: "135af0f62490" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
