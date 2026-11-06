@@ -240,3 +240,18 @@ None. The design deviation noted in round 1 (a part gets a rule rather than
 caps) is stated in the lesson and the code. It is not a defect.
 
 **Verdict: APPROVE (round 2).**
+
+### Post-merge full suite (on `c77ef7cc`, the landed integration tip, in the review worktree)
+
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider -rfs`
+(serial, because there is no xdist here): **1 failed, 1729 passed, 1 skipped,
+2 deselected, 431 s.** `suite-time record --tier default` says it is inside
+budget. This repo's conftest prints no contention header lines.
+
+- **The failure** is the deliberate worktree red,
+  `test_viewer_js_suite_is_green`, because there is no projection in a
+  worktree. That tier ran 645/645 through `--repo` before the merge, on
+  identical code.
+- **The skip** is `test_fit_bound_features.py:424`: a bearing re-extraction
+  that is not installed. It is unrelated to this diff.
+- **Data pollution:** none. `git status -- data` in the main checkout is clean.
