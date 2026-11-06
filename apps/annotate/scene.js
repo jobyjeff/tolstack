@@ -75,6 +75,10 @@ const PRESELECT_OPACITY = 0.6;
 // than GHOST_OPACITY, because here the other parts are only where-am-I context
 // and the part being picked on has to read as the one solid thing on screen.
 const ARMED_GHOST_OPACITY = 0.07;
+// The opacity of each of AA.PART_LOOKS (commands.js says what each look
+// means, app.js's lookOf which one a part has): the one table a part's
+// translucency is read from.
+const PART_LOOK_OPACITY = { solid: 1, ghost: GHOST_OPACITY, faint: ARMED_GHOST_OPACITY };
 const HOVER_RENDER_ORDER = 5;
 // How much larger a hovered joint's bead is drawn: less than the selected
 // joint's SWEEP_EMPHASIS_SCALE, for the same reason the tint is pale.
@@ -528,6 +532,8 @@ export class AnnotateScene {
       shown: true,
       hiddenKeys: new Set(),
       key: null,
+      // How it is drawn, one of AA.PART_LOOKS: its material as loaded.
+      look: "solid",
     };
     // Placed BEFORE it joins the scene: the side-by-side row this replaced
     // put every part somewhere first and nowhere meaningful, and a part that
@@ -603,6 +609,17 @@ export class AnnotateScene {
   // checkbox hides the one pitch arm blade 1 carries and leaves the four the
   // run does not move. A key this part is not drawn at is remembered anyway,
   // so it applies the moment a sweep or a rest list draws it.
+  //
+  // A hidden key reaches every OTHER part too (handoff everything_in_3d_is_
+  // transparent_until_an_action_needs_a_face): an installation and its
+  // machined detail are both extracted from the assembly and both drawn, in
+  // one place -- 215175-001's 40-solid mount installation and 215198-001, the
+  // detail inside it -- so hiding the one left the other standing there, a
+  // translucent copy of what the reader had just hidden. So an occurrence
+  // whose key is on the same assembly path (AA.assemblyPathsOverlap: the
+  // installation above the hidden one, the details below it) is hidden with
+  // it, whichever part draws it. A null key is a part's one unrecorded
+  // occurrence and hides that part's alone.
   setOccurrencesVisible(sha256, keys, visible) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
@@ -610,15 +627,31 @@ export class AnnotateScene {
       if (visible) mesh.userData.hiddenKeys.delete(key);
       else mesh.userData.hiddenKeys.add(key);
     }
-    this._applyVisibility(sha256);
+    for (const sha of this.parts.keys()) this._applyVisibility(sha);
     this.requestRender();
     return true;
   }
 
-  // Is this occurrence drawn? The part shown and the key not hidden.
+  // Is this occurrence drawn? The part shown and nothing hidden on its path.
   isOccurrenceVisible(sha256, key) {
     const mesh = this.parts.get(sha256);
-    return !!mesh && mesh.userData.shown && !mesh.userData.hiddenKeys.has(key);
+    return !!mesh && mesh.userData.shown && !this._occurrenceHidden(mesh, key, this._hiddenPaths());
+  }
+
+  // Every recorded key a checkbox has hidden, on any part.
+  _hiddenPaths() {
+    const out = [];
+    for (const mesh of this.parts.values()) {
+      for (const key of mesh.userData.hiddenKeys) if (key != null) out.push(key);
+    }
+    return out;
+  }
+
+  _occurrenceHidden(mesh, key, paths) {
+    if (mesh.userData.hiddenKeys.has(key == null ? null : key)) return true;
+    if (key == null) return false;
+    const AA = window.AnnotateApp;
+    return paths.some((path) => AA.assemblyPathsOverlap(path, key));
   }
 
   // Every drawn node's key, in draw order -- the read side a test uses to
@@ -631,9 +664,15 @@ export class AnnotateScene {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;
     const shown = mesh.userData.shown;
-    const hidden = mesh.userData.hiddenKeys;
+    const paths = this._hiddenPaths();
     for (const node of this._occurrenceNodes(sha256)) {
-      node.visible = shown && !(node.userData.key != null && hidden.has(node.userData.key));
+      node.visible = shown && !this._occurrenceHidden(mesh, node.userData.key, paths);
+    }
+    // The ghost layer's as-modelled copies are copies of an occurrence too:
+    // a hidden one leaves none behind. (The part's own show/hide is the
+    // bodies layer's and never reached them, so it still does not.)
+    for (const copy of (this._sweep && this._sweep.ghosts.get(sha256)) || []) {
+      copy.visible = !this._occurrenceHidden(mesh, copy.userData.key, paths);
     }
   }
 
@@ -723,20 +762,39 @@ export class AnnotateScene {
     }
   }
 
-  // Ghost rendering (handoff study_3d_flyout): the whole part goes translucent
-  // so the opaque bound-face marks trace the chain over it. depthWrite stays
-  // off while ghosted so the marks (and other parts) show through cleanly.
-  // `faint` draws it at ARMED_GHOST_OPACITY instead -- an armed pick's
-  // context parts.
-  setGhost(sha256, on, faint) {
+  // How a part is drawn: one of AA.PART_LOOKS, at PART_LOOK_OPACITY. A
+  // translucent look (handoff study_3d_flyout) lets the opaque bound-face
+  // marks trace the chain over the part; depthWrite stays off while it is
+  // translucent so the marks (and other parts) show through cleanly. The
+  // material is touched only when the look CHANGES, so the app can restate
+  // every part's look on every frame of a playing sweep for nothing.
+  setLook(sha256, look) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
-    mesh.material.transparent = !!on;
-    mesh.material.opacity = on ? (faint ? ARMED_GHOST_OPACITY : GHOST_OPACITY) : 1;
-    mesh.material.depthWrite = !on;
+    if (!Object.prototype.hasOwnProperty.call(PART_LOOK_OPACITY, look)) {
+      throw new Error("unknown part look \"" + look + "\" -- known: " +
+        Object.keys(PART_LOOK_OPACITY).join(", "));
+    }
+    if (mesh.userData.look === look) return true;
+    mesh.userData.look = look;
+    const opacity = PART_LOOK_OPACITY[look];
+    mesh.material.transparent = opacity < 1;
+    mesh.material.opacity = opacity;
+    mesh.material.depthWrite = opacity === 1;
     mesh.material.needsUpdate = true;
     this.requestRender();
     return true;
+  }
+
+  lookOf(sha256) {
+    const mesh = this.parts.get(sha256);
+    return mesh ? mesh.userData.look : null;
+  }
+
+  // setLook in two flags: translucent or not, and `faint` for the fainter of
+  // the two translucent looks.
+  setGhost(sha256, on, faint) {
+    return this.setLook(sha256, on ? (faint ? "faint" : "ghost") : "solid");
   }
 
   isGhosted(sha256) {
@@ -2289,7 +2347,7 @@ export class AnnotateScene {
   // A translucent copy of an anchored part at its as-modelled placement --
   // the `ghost` layer, which is what makes "how far has this moved" a thing
   // a reader can see rather than compute.
-  setSweepGhost(sha256, placements) {
+  setSweepGhost(sha256, placements, keys) {
     if (!this._sweep) return false;
     this.requestRender();
     const list = normalisePlacements(placements);
@@ -2306,17 +2364,20 @@ export class AnnotateScene {
     const parent = this.parts.get(sha256);
     if (!parent) return false;
     const made = [];
-    for (const placement of list) {
+    list.forEach((placement, i) => {
       const ghost = new THREE.Mesh(parent.geometry, new THREE.MeshStandardMaterial({
         color: 0xffffff, transparent: true, opacity: SWEEP_GHOST_OPACITY,
         depthWrite: false, side: THREE.DoubleSide, roughness: 0.9,
       }));
       ghost.matrixAutoUpdate = false;
+      // The occurrence it is a copy of, so hiding that takes the copy down.
+      ghost.userData.key = keys && keys[i] != null ? keys[i] : null;
       applyPlacement4(ghost, placement);
       this.scene.add(ghost);
       made.push(ghost);
-    }
+    });
     this._sweep.ghosts.set(sha256, made);
+    this._applyVisibility(sha256);
     return true;
   }
 

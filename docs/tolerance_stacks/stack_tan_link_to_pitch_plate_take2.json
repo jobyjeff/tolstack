@@ -26,7 +26,7 @@
   "elements": [
     {
       "id": "straight_bushing",
-      "name": "straight bushing",
+      "name": "length",
       "role": "bushing",
       "nominal": 4.762,
       "min": 4.63,
@@ -45,7 +45,7 @@
     },
     {
       "id": "spherical_bearing",
-      "name": "spherical bearing width",
+      "name": "width",
       "role": "bearing",
       "nominal": 11.1,
       "min": 11.05,
@@ -74,7 +74,7 @@
     },
     {
       "id": "flange_bushing_flange",
-      "name": "flange bushing flange thickness",
+      "name": "flange thickness",
       "role": "bushing",
       "nominal": 1.575,
       "min": 1.4478,
@@ -103,7 +103,7 @@
     },
     {
       "id": "flange_bushing_L",
-      "name": "flange bushing L thickness",
+      "name": "barrel L thickness",
       "role": "bushing",
       "nominal": 3.81,
       "min": 3.683,
@@ -132,7 +132,7 @@
     },
     {
       "id": "bushing_chamfer",
-      "name": "bushing chamfer size",
+      "name": "chamfer size",
       "role": "relief",
       "nominal": 0.762,
       "min": 0.635,
@@ -161,7 +161,7 @@
     },
     {
       "id": "fastener_grip_13",
-      "name": "fastener grip, -13 (.812 in)",
+      "name": "grip length",
       "role": "fastener",
       "nominal": 20.6248,
       "min": 20.3708,
@@ -183,7 +183,7 @@
     },
     {
       "id": "nut_minor_diameter",
-      "name": "nut minor diameter (.19-32 UNJF)",
+      "name": "nut minor diameter",
       "role": "nut_geometry",
       "nominal": 4.15,
       "min": 4.05,

@@ -236,8 +236,9 @@ export const DECLARED_GUARDS = {
   // name, the overlay table, the contribution ramp, the overlay's ink on the
   // marks, the remembered view settings and the width, the view popover, the
   // sourcing legend's named tints, and the scene's tint verb from the page.
-  // Each carries a spec.
-  fast: { declared: 645, enrollable: 645, names: "9be7581fe27f" },
+  // Each carries a spec. (Re-measured at the review merge on integration's
+  // 632: 642.)
+  fast: { declared: 642, enrollable: 642, names: "62f2c4ca1e61" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -278,9 +279,13 @@ export const DECLARED_GUARDS = {
   // 2026-11-05 (a_two_row_cylinder_band_fits_as_a_cylinder): +3 -- a one-band
   // cylinder is a cylinder by its nodes, a one-band sphere is still refused,
   // and six nodes are too few. Each carries a spec.
+  // 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face):
+  // +2 -- an action is looks (about solid, near ghost, rest faint), and two
+  // occurrence keys overlap on one assembly path; the isolate-parts guard
+  // renamed (its parts are ghost, not solid). Each carries a spec.
   // 2026-11-05 (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste):
   // +1 -- the model verb's tint action. It carries a spec.
-  annotate: { declared: 286, enrollable: 286, names: "135af0f62490" },
+  annotate: { declared: 288, enrollable: 288, names: "2e6dd59585f3" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -394,11 +399,16 @@ export const DECLARED_GUARDS = {
   // renamed -- "the jog zone is measured against the product graph's own 61
   // leaders" lost its literal when the count moved to the plan; it carried no
   // spec under its old name either. (Comment added at review.)
+  // 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face):
+  // +3 -- the kinematic study at rest is translucent mesh by mesh, a hidden
+  // body draws nothing on any part, and ticking it brings every copy back;
+  // five renamed (a study ghosts its parts, the armed pick keeps its
+  // neighbours ghost). Each carries a spec.
   // the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
   // the overlay on the bars and survives a reload. Each carries a spec.
-  browser: { declared: 826, enrollable: 793, names: "f64d34a0024f" },
+  browser: { declared: 829, enrollable: 796, names: "138128052db2" },
 };
 
 

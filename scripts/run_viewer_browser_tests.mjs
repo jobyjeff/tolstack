@@ -7929,10 +7929,14 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
 //
 // On LIVE data, the pane booted as testThreeDPane boots it. For each study kind
 // the row's own 3D control opens the pane and the scene is read back through the
-// annotator's read-only `scene-view`: the solid set is exactly the parts the
+// annotator's read-only `scene-view`: the ghost set is exactly the parts the
 // page's own rule names for the study (VA.litPartIds, run in the page over the
-// projection), every other installed part is ghosted, and switching studies with
-// the pane open re-filters. The Unused control's hide word hides the ghosts.
+// projection), every other installed part is faint, nothing is solid, and
+// switching studies with the pane open re-filters. The Unused control's hide
+// word hides the faint ones. On the kinematic study the three.js scene itself
+// is read too -- every drawn mesh's opacity at rest -- and a body's checkbox
+// unticked must leave nothing of the body drawn, on any part (handoff
+// everything_in_3d_is_transparent_until_an_action_needs_a_face).
 async function testEveryStudyOpensIn3D(browser, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -7965,8 +7969,9 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
     const read = (view) => {
       const names = (rows) => rows.map((r) => r.part || r.sha256).sort();
       return { open: view.length,
-        solid: names(view.filter((r) => r.visible && !r.ghost)),
-        ghost: names(view.filter((r) => r.visible && r.ghost)),
+        solid: names(view.filter((r) => r.visible && r.look === "solid")),
+        ghost: names(view.filter((r) => r.visible && r.look === "ghost")),
+        faint: names(view.filter((r) => r.visible && r.look === "faint")),
         hidden: names(view.filter((r) => !r.visible)) };
     };
     for (let i = 0; i < 150 && stable < 3; i++) {
@@ -8017,32 +8022,100 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
     push("[real] a chain study with bound faces offers 3D, and its row opens the pane",
       bound && await page.locator("#annotate-flyout").evaluate((n) => n.open));
     let want = await wanted("study", topology.id, "pitch_link_cotter_hole_clearance");
-    let now = await scene((n) => same(n.solid, want));
-    push("[real] its scene is solid on exactly the study's parts and ghosts the rest",
-      same(now.solid, want) && want.length > 0 && now.ghost.length > 0 && now.hidden.length === 0);
+    let now = await scene((n) => same(n.ghost, want));
+    push("[real] its scene ghosts exactly the study's parts, draws the rest faint and nothing solid",
+      same(now.ghost, want) && want.length > 0 && now.faint.length > 0 && now.solid.length === 0 &&
+      now.hidden.length === 0);
 
     const kin3D = await press3D("kinematic", kin.id);
     want = await wanted("kinematic", kin.topology, null);
-    now = await scene((n) => same(n.solid, want));
+    now = await scene((n) => same(n.ghost, want));
     push("[real] a kinematic study offers 3D, and switching to it re-filters the open pane",
-      kin3D && same(now.solid, want) && want.length > 0 && now.ghost.length > 0);
+      kin3D && same(now.ghost, want) && want.length > 0 && now.faint.length > 0);
+
+    // Every mesh the renderer would draw, read off the three.js scene rather
+    // than the app's report of it: the part itself or one of its repeats (an
+    // overlay, a bead or a leader is not a part), with its opacity and key.
+    const drawnMeshes = () => frameOf().evaluate(() => {
+      const sc = window.__scene;
+      const ofGeometry = new Map();
+      for (const [sha, m] of sc.parts) ofGeometry.set(m.geometry, sha);
+      const rows = [];
+      sc.scene.traverseVisible((o) => {
+        const sha = o.isMesh ? ofGeometry.get(o.geometry) : null;
+        if (!sha || !(o === sc.parts.get(sha) || o.userData.occurrence)) return;
+        rows.push({ sha, key: o.userData.key == null ? null : o.userData.key,
+          opacity: o.material.transparent ? o.material.opacity : 1 });
+      });
+      return rows;
+    });
+    const wantShas = await frameOf().evaluate(({ want }) => window.__scene.listOpenParts()
+      .filter((sha) => want.indexOf((window.__scene.parts.get(sha).userData.manifest || {}).part_id) !== -1),
+    { want });
+    const atRest = await drawnMeshes();
+    const restOk = atRest.length > 0 && atRest.every((r) =>
+      Math.abs(r.opacity - (wantShas.indexOf(r.sha) !== -1 ? 0.22 : 0.07)) < 1e-6);
+    console.log(`      kinematic at rest: ${atRest.length} drawn meshes, ` +
+      `${atRest.filter((r) => r.opacity >= 1).length} opaque`);
+    push("[real] at rest on the kinematic study every drawn mesh is translucent -- its study's " +
+      "parts at the ghost opacity, every other at the faint one",
+      kin3D && restOk && atRest.some((r) => r.opacity > 0.1) && atRest.some((r) => r.opacity < 0.1));
+
+    // The base body's checkbox: nothing of it drawn, on ANY part -- the
+    // mount installation's machined detail is its own mesh in the same
+    // place, and that copy is the one this check exists for.
+    const BODY = "base";
+    // The rail lists the run's bodies a beat after the scene settles; ask
+    // until it knows the body (bounded), and say why when it never does.
+    let hid = null, hideErr = null;
+    for (let i = 0; i < 60 && !(hid && hid.occurrences > 0); i++) {
+      try { hid = await run(["hide-body", BODY]); hideErr = null; } catch (e) { hideErr = String(e); hid = null; }
+      if (!(hid && hid.occurrences > 0)) await page.waitForTimeout(500);
+    }
+    if (hideErr) console.log(`      hide-body ${BODY}: ${hideErr}`);
+    await page.waitForTimeout(500);
+    const hiddenKeys = await frameOf().evaluate(() => {
+      const out = [];
+      for (const m of window.__scene.parts.values()) for (const k of m.userData.hiddenKeys) out.push(k);
+      return out;
+    });
+    const onHiddenPath = (key) => key != null && hiddenKeys.some((h) => h != null &&
+      (key === h || key.startsWith(h + "/") || h.startsWith(key + "/")));
+    const bodyGone = await drawnMeshes();
+    const twinsTaken = atRest.filter((r) => onHiddenPath(r.key) && hiddenKeys.indexOf(r.key) === -1).length;
+    console.log(`      ${BODY} hidden: ${hiddenKeys.length} keys, ${atRest.length - bodyGone.length} ` +
+      `drawn meshes taken down, ${twinsTaken} of them another part's copy`);
+    push("[real] a hidden body contributes zero drawn occurrences -- its parts, and every other " +
+      "part's copy of them on the same assembly path",
+      !!hid && hid.occurrences > 0 && hiddenKeys.length > 0 && twinsTaken > 0 &&
+      bodyGone.filter((r) => onHiddenPath(r.key)).length === 0);
+    await run(["show-body", BODY]).catch(() => null);
+    await page.waitForTimeout(500);
+    const back = await drawnMeshes();
+    const id = (r) => r.sha + "|" + r.key;
+    const takenDown = atRest.filter((r) => onHiddenPath(r.key)).map(id);
+    const backIds = back.map(id);
+    const missing = takenDown.filter((k) => backIds.indexOf(k) === -1);
+    if (missing.length) console.log(`      not back after ticking ${BODY}: ${missing.join(", ")}`);
+    push("[real] ...and ticking it again draws every one of them back",
+      takenDown.length > 0 && missing.length === 0);
 
     const none = await press3D("study", "rotor_fastener_grip_u2h");
     want = await wanted("study", topology.id, "rotor_fastener_grip_u2h");
-    now = await scene((n) => same(n.solid, want));
-    push("[real] a chain study with no bound face offers 3D and draws its own parts solid",
-      none && same(now.solid, want) && want.length > 0 && now.ghost.length > 0);
+    now = await scene((n) => same(n.ghost, want));
+    push("[real] a chain study with no bound face offers 3D and draws its own parts ghost",
+      none && same(now.ghost, want) && want.length > 0 && now.faint.length > 0 && now.solid.length === 0);
 
     const top = await press3D("topology", null);
     want = await wanted("topology", topology.id, null);
-    now = await scene((n) => same(n.solid, want));
-    push("[real] the topology row offers 3D and draws every one of its parts solid",
-      top && same(now.solid, want) && want.length > 0);
+    now = await scene((n) => same(n.ghost, want));
+    push("[real] the topology row offers 3D and draws every one of its parts ghost",
+      top && same(now.ghost, want) && want.length > 0 && now.solid.length === 0);
 
     await run(["model", "unlit", "hide"]);
-    now = await scene((n) => n.ghost.length === 0);
-    push("[real] the Unused control's hide word hides the ghosts entirely",
-      now.ghost.length === 0 && now.hidden.length > 0 && now.solid.length > 0);
+    now = await scene((n) => n.faint.length === 0);
+    push("[real] the Unused control's hide word hides every part the study does not cite",
+      now.faint.length === 0 && now.hidden.length > 0 && now.ghost.length > 0);
     await run(["model", "unlit", "dim"]);
 
     await run(["isolate", "parts", "no_such_part_anywhere"]);
@@ -8420,7 +8493,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       selected: !!(li && li.classList.contains("selected")),
       focus: s.suggestionFocus(),
       drawn: mesh ? s.drawnPlacements(sha).length : 0,
-      bracketGhost: s.isGhosted(bracket), triangleGhost: s.isGhosted(sha),
+      bracketGhost: s.isGhosted(bracket), triangleGhost: s.isGhosted(sha), bracketLook: s.lookOf(bracket),
       targetToPart: centre ? centre.distanceTo(s.controls.target) : null,
       armed: !!(window.__sweep && window.__sweep.armed),
       writes: (window.__mockWrites || []).map((w) => ({ filename: w.filename, event: w.event })),
@@ -8466,7 +8539,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       /_accepted\.json$/.test(accepted.writes[0].filename));
     push("...the row reads bound, the solid face and the dimming come down, and Pick is back",
       accepted.line === "bound · face 0" && !accepted.suggestedColour &&
-      !accepted.focus.faces.length && !accepted.bracketGhost === !rest.bracketGhost &&
+      !accepted.focus.faces.length && accepted.bracketLook === rest.bracketLook &&
       accepted.buttons.indexOf("Re-pick") !== -1);
   } catch (err) {
     await page.close();
@@ -9050,11 +9123,12 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       const meshes = window.__sweep && window.__sweep.armed ? window.__sweep.armed.partWords : "";
       return { home: window.__sweep.index === window.__sweep.asModelledIndex, filter, meshes,
         solid: filter.every((sha) => !s.isGhosted(sha)), othersFaint: others.length > 0 &&
-          others.every((sha) => s.isGhosted(sha) && s.parts.get(sha).material.opacity < 0.15),
+          others.every((sha) => s.lookOf(sha) === (window.__sweep.armed.near.indexOf(sha) !== -1
+            ? "ghost" : "faint")) && others.some((sha) => s.lookOf(sha) === "faint"),
         row: (document.querySelector("#sweep-tree .tree-row--armed .tree-row__face") || {}).textContent || "" };
     });
     push("[real] Pick on hub blade-1 root bearing bore goes to the as-modelled frame with no " +
-      "prompt, the hub alone is solid and pickable, and every other part is ghosted faint",
+      "prompt, the hub alone is solid and pickable, its neighbours ghost and every other part faint",
       armedBore.home && armedBore.filter.length === 1 && /hub/.test(armedBore.meshes) &&
       armedBore.solid && armedBore.othersFaint && /^picking on /.test(armedBore.row));
     // A face pre-selected while armed is named with its class and radius once

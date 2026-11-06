@@ -4633,100 +4633,6 @@
            { zoneScale: 99 }).zoneScale, VA.JOG_ZONE_SCALE.max);
       });
 
-    await test("elementDisplayLabel drops the leading words the component cell " +
-      "already carries, and never blanks a cell", function () {
-        // Jeff's case, verbatim: under component `blade_root`, three rows all
-        // opened with "blade-root".
-        eq(VA.elementDisplayLabel("blade-root clocking holes to the hub", "blade_root"),
-           "clocking holes to the hub");
-        // Case- and separator-insensitive on BOTH sides.
-        eq(VA.elementDisplayLabel("Blade Root seat", "blade_root"), "seat");
-        eq(VA.elementDisplayLabel("blade_root_seat", "blade-root"), "seat");
-        // A word that merely starts the same way is not the component's name.
-        eq(VA.elementDisplayLabel("blade_rooting torque", "blade_root"),
-           "blade_rooting torque");
-        // No repeat at all: unchanged, character for character.
-        eq(VA.elementDisplayLabel("hub bore to the pin", "blade_root"),
-           "hub bore to the pin");
-        // A label that is ONLY its component's words keeps them -- an empty
-        // element cell would be a worse lie than a repetitive one.
-        eq(VA.elementDisplayLabel("blade-root", "blade_root"), "blade-root");
-        // A gap group has no part, so there is nothing to match against.
-        eq(VA.elementDisplayLabel("shank out", null), "shank out");
-        eq(VA.elementDisplayLabel("shank out", ""), "shank out");
-        eq(VA.elementDisplayLabel(null, "hub"), "");
-        // The part ROW is what the grid passes now, and the words matched are
-        // the ones the merged cell PRINTS -- its label, never its id or its
-        // drawing number. The rule's whole justification is "the cell beside
-        // it already says this", so a string the cell does not show must not
-        // license a drop.
-        eq(VA.elementDisplayLabel("bushing flange thickness",
-           { id: "flanged_bushing_unidentified", name: "part not identified" }),
-           "bushing flange thickness");
-        eq(VA.elementDisplayLabel("plain bushing length",
-           { id: "bushing_214820_002", name: "214820-002 plain bushing" }),
-           "length");
-        // Only LEADING words, never a word inside a phrase: this is why the
-        // rule consumes a run off the front rather than deleting every
-        // occurrence. "bolt point" is the tip of the bolt, not a repeat.
-        eq(VA.elementDisplayLabel("cotter-hole centreline to bolt point",
-           { id: "bolt_nas6403u11d", name: "NAS6403U11D hex-head bolt" }),
-           "cotter-hole centreline to bolt point");
-      });
-
-    // Jeff, 2026-09-15: "the element column can just say 'grip length' (for
-    // the bolt) or 'length' for the plain bushing. The component's description
-    // and part number don't need to be repeated in every column." A clause
-    // that only restates the component, or only restates the row's own value,
-    // goes -- with its separator, so what is left reads as written.
-    await test("elementDisplayLabel drops a clause that only restates the " +
-      "component or the row's own value, keeping every other clause verbatim",
-      function () {
-        var bolt = { id: "bolt_nas6403u11d", name: "NAS6403U11D hex-head bolt" };
-        var bushing = { id: "bushing_214820_002", name: "214820-002 plain bushing" };
-        var washer = { id: "washer_nas1149v0332h", name: "NAS1149V0332H flat washer" };
-        var plate = { id: "pitch_plate_215197", name: "215197 pitch plate" };
-
-        // The four live pitch-link rows, which is what Jeff was reading.
-        eq(VA.elementDisplayLabel("fastener grip, NAS6403U11D (.688 in)", bolt),
-           "fastener grip");
-        eq(VA.elementDisplayLabel("plain bushing length (214820-002)", bushing),
-           "length");
-        eq(VA.elementDisplayLabel("washer thickness, NAS1149V0332H (.032 in)", washer),
-           "thickness");
-        eq(VA.elementDisplayLabel("pitch plate lug thickness (5X group)", plate),
-           "lug thickness (5X group)");
-        // A middle clause dropped leaves the ones around it joined as authored.
-        eq(VA.elementDisplayLabel(
-           "NAS6403U11D overall length, head bearing face to point (1.011 in)", bolt),
-           "overall length, head bearing face to point");
-
-        // A clause survives unless EVERY token in it is already-said. These
-        // three are the ones that made a blanket word-removal unsafe.
-        eq(VA.elementDisplayLabel("hub flange (A datum) to deck",
-           { id: "hub", name: "propeller hub" }), "flange (A datum) to deck");
-        eq(VA.elementDisplayLabel("cotter-hole centreline to bolt point (dimension M)",
-           bolt), "cotter-hole centreline to bolt point (dimension M)");
-        // A dash number is not the family's name: the nine rotor-fastener rows
-        // are separated by nothing else, so the rule must not eat it.
-        eq(VA.elementDisplayLabel("NAS6403U2H grip length (.125 in) -- shortest of nine options",
-           { id: "fastener_family", name: "NAS6403 grip-selection family" }),
-           "NAS6403U2H grip length -- shortest of nine options");
-        // Units are a module-level vocabulary, not inline literals.
-        ok(VA.LABEL_UNIT_WORDS.indexOf("in") !== -1);
-        ok(VA.LABEL_UNIT_WORDS.indexOf("mm") !== -1);
-        // Nothing is ever reworded or reordered: every character of the output
-        // is a character of the input, in the input's order.
-        var input = "pitch plate lug thickness (5X group)";
-        var out = VA.elementDisplayLabel(input, plate);
-        var at = 0;
-        out.split("").forEach(function (ch) {
-          at = input.indexOf(ch, at);
-          ok(at !== -1, "output character " + JSON.stringify(ch) + " is not the input's");
-          at += 1;
-        });
-      });
-
     // --- names, references and the copy rules (viewer_component_names_and_
     //     reference_copy, 2026-09-15) ---------------------------------------
     //
@@ -7143,31 +7049,23 @@
            "anti-vacuity: the hover really lit a leg with marks on it");
       });
 
-    await test("the element cell drops its own component's name and keeps the " +
-      "full label one hover away", function () {
-        // A group whose rows all open with the component's name, which is
-        // Jeff's blade_root case in miniature.
+    await test("the element cell prints the authored name whole, and its hover " +
+      "title is the same string", function () {
         var mini = miniTopo(false);
         mini.edges.forEach(function (edge) { edge.part = "blade_root"; });
         mini.parts = [{ id: "blade_root", name: "blade root" }];
-        mini.edges[0].name = "blade-root clocking holes to the hub";
+        mini.edges[0].name = "clocking holes to hub bearing seat";
         var ctx = { topoProj: mini, study: null, crops: null,
                     selection: null, detailImage: null,
                     onSelect: function () {} };
         var root = render(function (r) { VA.renderTopoPane(r, ctx); });
         var cells = all(root, "td.tvcell--name");
         ok(cells.length > 0, "the mini topology has rows");
-        var first = cells[0];
-        eq(first.textContent, "clocking holes to the hub");
-        eq(first.getAttribute("title"), "blade-root clocking holes to the hub",
-           "the words are one hover away, never dropped");
-        // A label that does not repeat its component renders unchanged AND
-        // carries no title -- a tooltip repeating the cell is noise.
-        var plain = cells.filter(function (c) {
-          return c.textContent.indexOf("clocking") === -1;
-        })[0];
-        ok(plain, "a row whose label does not open with its component");
-        eq(plain.getAttribute("title"), null);
+        eq(cells[0].textContent, "clocking holes to hub bearing seat");
+        cells.forEach(function (cell, i) {
+          eq(cell.getAttribute("title"), cell.textContent,
+             "row " + i + ": one phrase at two lengths, never two wordings");
+        });
       });
 
     await test("a scaled length mode takes the height it needs: the window is " +
@@ -15658,62 +15556,6 @@
               " combinations = " + configurations + " configurations");
           });
 
-        await test("[real] the blade_root rows no longer open with " +
-          "'blade-root', and their full labels are one hover away", function () {
-            // Jeff's own example, on the document he was reading: "under
-            // component `blade_root`, three rows all render 'blade-root
-            // clocking holes to th...'".
-            var root = render(function (r) {
-              VA.renderTopoPane(r, {
-                topoProj: livePitch, study: null, crops: realCrops,
-                selection: null,
-                onSelect: function () {},
-              });
-            });
-            var plan = VA.gridPlan(VA.spineRight(livePitch.layout), livePitch);
-            var index = VA.topologyIndex(livePitch);
-            var cells = all(root, "td.tvcell--name");
-            eq(cells.length, plan.rows.length);
-
-            var bladeRoot = [];
-            plan.groups.forEach(function (group) {
-              if (group.part !== "blade_root") return;
-              for (var i = 0; i < group.count; i++) {
-                bladeRoot.push(cells[group.start + i]);
-              }
-            });
-            // Four since the 2026-10-26 fold: the linkage half adds the root
-            // bearing bore to the pitch-arm seat.
-            eq(bladeRoot.length, 4, "blade_root carries four rows");
-            bladeRoot.forEach(function (cell, i) {
-              ok(cell.textContent.toLowerCase().indexOf("blade") !== 0,
-                 "blade_root row " + i + " still opens with its component: " +
-                 cell.textContent);
-              ok(cell.textContent.length > 0, "and it is not blank");
-              // Nothing is lost: the title is the edge's own name, whole.
-              var id = plan.rows[0] && cell.getAttribute("title");
-              ok(id === null || id.toLowerCase().indexOf("blade") === 0,
-                 "the full label is the hover text");
-            });
-            // The cells opening with "clocking holes" are the ones Jeff saw
-            // truncated, now saying the thing that distinguishes them.
-            eq(bladeRoot.filter(function (c) {
-              return c.textContent.indexOf("clocking holes") === 0;
-            }).length, 3);
-            // And a row whose label does NOT repeat its component is
-            // untouched, so this is a trim and not a rewrite.
-            // "piston length" under a cell reading "actuator piston (output
-            // rod end)" is the same repeat one column over, and loses its
-            // leading word for the same reason -- with the full label on
-            // hover, which is what makes this a trim and not a rewrite.
-            var pistonLength = cells.filter(function (c) {
-              return c.textContent === "length" &&
-                c.getAttribute("title") === "piston length";
-            });
-            eq(pistonLength.length, 1);
-            ok(index.edges, "the index is built");
-          });
-
         await test("[real] pitch_system is variation-only, so 'feature size' " +
           "floors every edge and 'tolerance width' scales the real bands",
           function () {
@@ -17328,13 +17170,12 @@
             ok(cells > 30, "the walk must not be vacuous: " + cells + " cells");
           });
 
-        // Jeff's own two examples, stated as the SHAPE they are examples of:
-        // the element column carries the feature and nothing the row says
-        // elsewhere. Pinned over every live row rather than the two he named,
-        // because the rule is what has to hold.
-        await test("[real] no element cell repeats its component's words or " +
-          "its own value, and nothing a cell drops is lost", function () {
-            var trimmed = 0, untouched = 0;
+        // One phrase at two lengths (2026-11-05): the cell prints the edge's
+        // authored name and its hover title is that same string -- the part
+        // column carries the part, so no name is shortened on the way.
+        await test("[real] every element cell prints its edge's name whole and " +
+          "its hover title is the same string", function () {
+            var checked = 0;
             liveTopos.forEach(function (topoProj) {
               var index = VA.topologyIndex(topoProj);
               var plan = VA.gridPlan(VA.spineRight(topoProj.layout), topoProj);
@@ -17350,34 +17191,15 @@
               plan.rows.forEach(function (planRow, i) {
                 var edge = index.edges[planRow.id];
                 if (!edge) return;
-                var cell = cells[i];
                 var where = topoProj.id + "/" + planRow.id;
-                ok(cell.textContent.length > 0, where + ": never blank");
-                if (cell.textContent === edge.name) {
-                  eq(cell.getAttribute("title"), null, where +
-                    ": an untrimmed cell needs no hover title");
-                  untouched += 1;
-                  return;
-                }
-                // Nothing is lost: the full label is one hover away, and the
-                // preview pane prints it whole.
-                eq(cell.getAttribute("title"), edge.name, where +
-                  ": a trimmed cell carries the full label on hover");
-                // And nothing was reworded: every character of the cell is a
-                // character of the authored name, in order.
-                var at = 0;
-                cell.textContent.split("").forEach(function (ch) {
-                  at = edge.name.indexOf(ch, at);
-                  ok(at !== -1, where + ": the cell is not a substring-" +
-                    "composition of the authored name: " + cell.textContent);
-                  at += 1;
-                });
-                trimmed += 1;
+                ok(cells[i].textContent.length > 0, where + ": never blank");
+                eq(cells[i].textContent, edge.name, where + ": the cell is the name");
+                eq(cells[i].getAttribute("title"), edge.name,
+                   where + ": the hover is the same name");
+                checked += 1;
               });
             });
-            ok(trimmed > 20, "most live rows repeat something: " + trimmed);
-            ok(untouched > 0, "a row with nothing to drop must come back " +
-              "unchanged, or this is a rewrite and not a trim");
+            ok(checked > 20, "the walk must not be vacuous: " + checked);
           });
 
         await test("[real] no rendered surface of any live topology prints an " +

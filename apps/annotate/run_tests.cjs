@@ -1675,18 +1675,34 @@ check("embedState names the mode and the subject in one line -- the run's mechan
     "Binding — Propeller pitch linkage");
   assertEqual(AA.embedState(null, null, null).title, "Binding");
 });
-check("isolate parts: the named parts are solid and every other installed part is ghosted, " +
-  "or hidden under the unlit word hide -- and a scope with no mesh says so in the head line", () => {
+check("isolate parts: the named parts are ghost and every other installed part faint, " +
+  "or hidden under the unlit word hide, and none is solid -- and a scope with no mesh says so in the head line", () => {
   assertEqual(AA.ISOLATE_PARTS_WORD, "parts");
   assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], false),
-    { solid: ["b"], ghost: ["a", "c"], hide: [] });
+    { ghost: ["b"], faint: ["a", "c"], hide: [] });
   assertEqual(AA.planPartScope(["a", "b", "c"], ["b"], true),
-    { solid: ["b"], ghost: [], hide: ["a", "c"] });
-  assertEqual(AA.planPartScope(["a"], ["a"], false), { solid: ["a"], ghost: [], hide: [] });
+    { ghost: ["b"], faint: [], hide: ["a", "c"] });
+  assertEqual(AA.planPartScope(["a"], ["a"], false), { ghost: ["a"], faint: [], hide: [] });
   const topology = { id: "t", title: "Linkage" };
   assertEqual(AA.embedState(null, topology, null, true).title,
     "Binding — Linkage — no 3D model for these parts yet");
   assertEqual(AA.embedState(null, topology, null, false).title, "Binding — Linkage");
+});
+check("an action's looks: the parts it is about solid, their neighbours ghost, the rest faint", () => {
+  assertEqual(AA.PART_LOOKS, ["solid", "ghost", "faint"]);
+  assertEqual(AA.planActionLooks(["a", "b", "c", "d"], ["b"], ["c", "b"]),
+    { a: "faint", b: "solid", c: "ghost", d: "faint" });
+  assertEqual(AA.planActionLooks(["a"], [], []), { a: "faint" });
+});
+check("two occurrence keys overlap when one is installed inside the other, never as siblings", () => {
+  const mount = "217755-001/prd-e-03300520.1/215175-001.1";
+  const overlap = (a, b) => AA.assemblyPathsOverlap(a, b);
+  assertEqual([overlap(mount, mount), overlap(mount, mount + "/213667-001.1"),
+    overlap(mount + "/213667-001.1", mount)], [true, true, true],
+    "the same occurrence, and a detail inside its installation either way round");
+  assertEqual([overlap("p/213862-002.1", "p/213862-002.12"), overlap("p/213862-002.1", "p/213862-002.1x/a"),
+    overlap(null, mount), overlap(mount, null)], [false, false, false, false],
+    "sibling instances, a longer name, an unrecorded key");
 });
 // --- the sweep rail shows the mechanism (handoff the_sweep_rail_shows_the_
 // mechanism): the tree, the feature bindings, the stop and the contributors.

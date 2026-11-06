@@ -1340,7 +1340,7 @@
   "edges": [
     {
       "id": "pitch_link_length",
-      "name": "pitch link length between spherical-bearing centres",
+      "name": "length",
       "kind": "structural",
       "part": "pitch_link",
       "from": "pitch_link_lower_sphere_centre",
@@ -1379,7 +1379,7 @@
     },
     {
       "id": "pitch_link_bearing_ball_centre_offset",
-      "name": "MS14101-3 ball centre offset from its outer-race seat",
+      "name": "ball centre to outer-race seat",
       "kind": "structural",
       "part": "spherical_bearing_pitch_link",
       "from": "pitch_link_bearing_seat",
@@ -1388,7 +1388,7 @@
     },
     {
       "id": "pitch_link_bearing_bore_to_ball_centre",
-      "name": "MS14101-3 ball bore axis to ball centre",
+      "name": "bore axis to ball centre",
       "kind": "structural",
       "part": "spherical_bearing_pitch_link",
       "from": "pitch_link_bearing_bore_axis",
@@ -1397,7 +1397,7 @@
     },
     {
       "id": "pitch_arm_radius",
-      "name": "pitch arm radius, blade root clamp face to link bore",
+      "name": "clamp face to link bore",
       "kind": "structural",
       "part": "pitch_arm",
       "from": "pitch_arm_root_seat",
@@ -1406,7 +1406,7 @@
     },
     {
       "id": "blade_root_bearing_to_pitch_arm_seat",
-      "name": "blade root bearing bore to pitch arm clamp face",
+      "name": "bearing bore to pitch arm clamp face",
       "kind": "structural",
       "part": "blade_root",
       "from": "hub_blade1_root_bearing_bore",
@@ -1415,7 +1415,7 @@
     },
     {
       "id": "hub_blade_axis_offset",
-      "name": "hub spindle axis to blade-1 root bearing axis offset",
+      "name": "spindle axis to blade-1 root bearing axis",
       "kind": "structural",
       "part": "hub",
       "from": "hub_spindle_bore_axis",
@@ -1424,7 +1424,7 @@
     },
     {
       "id": "pitch_plate_attach_radius",
-      "name": "pitch plate spindle axis to pitch-link attachment bore, radius",
+      "name": "spindle axis to pitch-link bore radius",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
@@ -1433,7 +1433,7 @@
     },
     {
       "id": "pitch_plate_attach_height",
-      "name": "pitch plate spindle axis to pitch-link attachment bore, height",
+      "name": "spindle axis to pitch-link bore height",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
@@ -1442,7 +1442,7 @@
     },
     {
       "id": "pitch_plate_gas_spring_offset",
-      "name": "pitch plate spindle axis to gas-spring attachment bore",
+      "name": "spindle axis to gas-spring bore",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
@@ -1451,7 +1451,7 @@
     },
     {
       "id": "pitch_plate_tan_link_attach_radius",
-      "name": "pitch plate spindle axis to tangential-link attachment bore",
+      "name": "spindle axis to tangential-link bore",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
@@ -1495,7 +1495,7 @@
     },
     {
       "id": "gas_spring_installed_length",
-      "name": "gas-spring mounting flange to rod-end bore",
+      "name": "mounting flange to rod-end bore",
       "kind": "structural",
       "part": "gas_spring",
       "from": "gas_spring_mount_flange",
@@ -1557,7 +1557,7 @@
     },
     {
       "id": "pitch_plate_slide_bushings_to_piston_body",
-      "name": "gas-spring mount bushings to piston body -- the pitch plate's slide",
+      "name": "gas-spring mount bushings to piston body",
       "kind": "gap",
       "interface": "cylindrical_slide",
       "from": "gas_spring_mount_bushing_bore",
@@ -1566,7 +1566,7 @@
     },
     {
       "id": "piston_body_id_datum_to_od",
-      "name": "piston body ID datum to its outer cylinder, coaxiality",
+      "name": "ID datum to outer cylinder",
       "kind": "structural",
       "part": "gas_spring_piston_214700_002",
       "from": "pitch_plate_pilot_in_piston_id",
@@ -1584,7 +1584,7 @@
     },
     {
       "id": "tan_link_length",
-      "name": "tangential link length between spherical-bearing centres",
+      "name": "length",
       "kind": "structural",
       "part": "tan_link_212956_005",
       "from": "tan_link_lower_sphere_centre",
@@ -1624,7 +1624,7 @@
     },
     {
       "id": "tan_link_ms14101_ball_centre_offset",
-      "name": "MS14101-3 ball centre offset from its seat, tangential link",
+      "name": "ball centre to seat",
       "kind": "structural",
       "part": "spherical_bearing_tan_link",
       "from": "tan_link_ms14101_seat",
@@ -1633,7 +1633,7 @@
     },
     {
       "id": "tan_link_ms14103_ball_centre_offset",
-      "name": "MS14103-3 ball centre offset from its seat, tangential link",
+      "name": "ball centre to seat",
       "kind": "structural",
       "part": "spherical_bearing_tan_link_ms14103_3",
       "from": "tan_link_ms14103_seat",
@@ -1660,7 +1660,7 @@
     },
     {
       "id": "gas_spring_mount_height",
-      "name": "gas-spring mount base face to bushing bore",
+      "name": "base face to bushing bore",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
       "from": "gas_spring_mount_hub_face",
@@ -1669,7 +1669,7 @@
     },
     {
       "id": "hub_spindle_to_gas_spring_mount_face",
-      "name": "hub spindle bore axis to gas-spring mount seat",
+      "name": "spindle bore axis to gas-spring mount seat",
       "kind": "structural",
       "part": "hub",
       "from": "hub_spindle_bore_axis",
@@ -1678,7 +1678,7 @@
     },
     {
       "id": "tan_link_mount_height",
-      "name": "tangential link mount base face to attachment bore",
+      "name": "base face to attachment bore",
       "kind": "structural",
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_hub_face",
@@ -1687,7 +1687,7 @@
     },
     {
       "id": "hub_spindle_to_tan_link_mount_face",
-      "name": "hub spindle bore axis to tangential link mount seat",
+      "name": "spindle bore axis to tangential link mount seat",
       "kind": "structural",
       "part": "hub",
       "from": "hub_spindle_bore_axis",
@@ -1696,7 +1696,7 @@
     },
     {
       "id": "pitch_link_lower_centre_is_this_bearing",
-      "name": "MS14101-3 ball centre to the pitch link's lower joint centre",
+      "name": "MS14101-3 ball centre to pitch link lower joint centre",
       "kind": "gap",
       "interface": "pin_in_bore",
       "from": "pitch_link_bearing_ball_centre",
@@ -1705,7 +1705,7 @@
     },
     {
       "id": "pitch_link_upper_centre_is_this_bearing",
-      "name": "MS14101-3 ball centre to the pitch link's upper joint centre",
+      "name": "MS14101-3 ball centre to pitch link upper joint centre",
       "kind": "gap",
       "interface": "pin_in_bore",
       "from": "pitch_link_bearing_ball_centre",
@@ -1714,7 +1714,7 @@
     },
     {
       "id": "tan_link_mount_end_centre_is_this_bearing",
-      "name": "MS14101-3 ball centre to the tangential link's mount-end joint centre",
+      "name": "MS14101-3 ball centre to tangential link mount-end joint centre",
       "kind": "gap",
       "interface": "pin_in_bore",
       "from": "tan_link_ms14101_ball_centre",
@@ -1723,7 +1723,7 @@
     },
     {
       "id": "tan_link_plate_end_centre_is_this_bearing",
-      "name": "MS14103-3 ball centre to the tangential link's plate-end joint centre",
+      "name": "MS14103-3 ball centre to tangential link plate-end joint centre",
       "kind": "gap",
       "interface": "pin_in_bore",
       "from": "tan_link_ms14103_ball_centre",
@@ -1732,7 +1732,7 @@
     },
     {
       "id": "piston_head_lower_thickness",
-      "name": "lower piston head thickness",
+      "name": "thickness",
       "kind": "structural",
       "part": "piston_head_lower_214699_002",
       "from": "endstop_feather_contact",
@@ -1774,7 +1774,7 @@
     },
     {
       "id": "piston_head_upper_thickness",
-      "name": "upper piston head height, lower face to step face",
+      "name": "lower face to step face",
       "kind": "structural",
       "part": "piston_head_upper_214698_002",
       "from": "piston_heads_seat",
@@ -1817,7 +1817,7 @@
     },
     {
       "id": "piston_cover_flange_to_end_stop",
-      "name": "piston cover bottom flange to internal end-stop shoulder",
+      "name": "bottom flange to internal end-stop shoulder",
       "kind": "structural",
       "part": "piston_cover_214958_002",
       "from": "piston_cover_mount_flange_seat",
@@ -1859,7 +1859,7 @@
     },
     {
       "id": "gas_spring_mount_flange_to_end_stop",
-      "name": "gas-spring mount cover flange to end-stop surface",
+      "name": "cover flange to end-stop surface",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
       "from": "piston_cover_mount_flange_seat",
@@ -1918,7 +1918,7 @@
     },
     {
       "id": "travel_between_end_stops",
-      "name": "travel between the two end stops",
+      "name": "travel between end stops",
       "kind": "gap",
       "interface": "clearance",
       "from": "piston_head_upper_step_face",
@@ -1927,7 +1927,7 @@
     },
     {
       "id": "gas_spring_mount_hub_face_to_cover_seat",
-      "name": "gas-spring mount base face to cover flange",
+      "name": "base face to cover flange",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
       "from": "gas_spring_mount_hub_face",
@@ -1936,7 +1936,7 @@
     },
     {
       "id": "gas_spring_mount_datum_a_to_end_stop",
-      "name": "gas-spring mount datum A to its top face, the feather-direction stop",
+      "name": "datum A to top face",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
       "from": "tan_link_mount_gas_spring_seat",
@@ -1995,7 +1995,7 @@
     },
     {
       "id": "hub_lower_to_top_bearing_flange",
-      "name": "hub lower bearing flange (A datum) to top bearing flange",
+      "name": "datum A to top bearing flange",
       "kind": "structural",
       "part": "hub",
       "from": "hub_lower_bearing_flange",
@@ -2019,7 +2019,7 @@
     },
     {
       "id": "hub_top_flange_to_top_deck",
-      "name": "hub top bearing flange to hub top deck",
+      "name": "top bearing flange to top deck",
       "kind": "structural",
       "part": "hub",
       "from": "hub_top_bearing_flange",
@@ -2043,7 +2043,7 @@
     },
     {
       "id": "hub_top_deck_to_tan_link_mount_seat",
-      "name": "hub top deck to tangential link mount seat",
+      "name": "top deck to tangential link mount seat",
       "kind": "structural",
       "part": "hub",
       "from": "hub_top_deck",
@@ -2067,7 +2067,7 @@
     },
     {
       "id": "hub_top_deck_to_vpa_mount",
-      "name": "hub top deck to actuator mounting face",
+      "name": "top deck to actuator mounting face",
       "kind": "structural",
       "part": "hub",
       "from": "hub_top_deck",
@@ -2089,7 +2089,7 @@
     },
     {
       "id": "hub_blade_root_seat_position",
-      "name": "hub A datum to blade root seat position",
+      "name": "datum A to blade root seat position",
       "kind": "structural",
       "part": "hub",
       "from": "hub_lower_bearing_flange",
@@ -2136,7 +2136,7 @@
     },
     {
       "id": "hub_ring_gear_seat_position",
-      "name": "hub A datum to ring gear seat position",
+      "name": "datum A to ring gear seat position",
       "kind": "structural",
       "part": "hub",
       "from": "hub_lower_bearing_flange",
@@ -2158,7 +2158,7 @@
     },
     {
       "id": "vpa_mount_to_end_stop_feature",
-      "name": "actuator mounting face to the end-stop feature",
+      "name": "actuator mounting face to end-stop feature",
       "kind": "structural",
       "part": "vpa_208510_007",
       "from": "hub_vpa_mount",
@@ -2180,7 +2180,7 @@
     },
     {
       "id": "end_stop_clearance",
-      "name": "piston end to end-stop feature -- the end stop",
+      "name": "piston end to end-stop feature",
       "kind": "gap",
       "interface": "clearance",
       "from": "vpa_end_stop_feature",
@@ -2223,7 +2223,7 @@
     },
     {
       "id": "piston_length",
-      "name": "piston length",
+      "name": "length",
       "kind": "structural",
       "part": "vpa_piston",
       "from": "piston_end_stop_face",
@@ -2262,7 +2262,7 @@
     },
     {
       "id": "pitch_plate_flange_to_link_hole",
-      "name": "pitch plate piston flange (A datum) to pitch link hole position",
+      "name": "datum A to pitch link hole position",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "piston_rod_end_bore",
@@ -2305,7 +2305,7 @@
     },
     {
       "id": "pitch_plate_flange_to_gas_spring_bushing",
-      "name": "pitch plate piston flange to gas-spring bushing position",
+      "name": "piston flange to gas-spring bushing position",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "piston_rod_end_bore",
@@ -2329,7 +2329,7 @@
     },
     {
       "id": "pitch_plate_flange_to_brake_attachment",
-      "name": "pitch plate piston flange to hydraulic brake attachment",
+      "name": "piston flange to hydraulic brake attachment",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "piston_rod_end_bore",
@@ -2351,7 +2351,7 @@
     },
     {
       "id": "pitch_arm_link_hole_to_clocking_hole",
-      "name": "pitch arm link hole to blade-root clocking holes",
+      "name": "link hole to blade-root clocking holes",
       "kind": "structural",
       "part": "pitch_arm",
       "from": "pitch_arm_link_bore",
@@ -2381,7 +2381,7 @@
     },
     {
       "id": "blade_root_clocking_to_oml",
-      "name": "clocking holes to the blade outer mould line",
+      "name": "clocking holes to blade outer mould line",
       "kind": "structural",
       "part": "blade_root",
       "from": "pitch_arm_blade_root_clocking",
@@ -2403,7 +2403,7 @@
     },
     {
       "id": "blade_root_clocking_to_hub_seat",
-      "name": "clocking holes to the hub bearing seat",
+      "name": "clocking holes to hub bearing seat",
       "kind": "structural",
       "part": "blade_root",
       "from": "pitch_arm_blade_root_clocking",
@@ -2427,7 +2427,7 @@
     },
     {
       "id": "blade_root_clocking_to_ring_gear_mesh",
-      "name": "clocking holes to the ring gear",
+      "name": "clocking holes to ring gear",
       "kind": "structural",
       "part": "blade_root",
       "from": "pitch_arm_blade_root_clocking",
@@ -2452,7 +2452,7 @@
     },
     {
       "id": "ring_gear_mesh_to_hub_seat",
-      "name": "ring gear pitch line to its hub seat",
+      "name": "pitch line to hub seat",
       "kind": "structural",
       "part": "ring_gear",
       "from": "blade_root_ring_gear_mesh",
@@ -2473,7 +2473,7 @@
     },
     {
       "id": "gas_spring_body_height",
-      "name": "gas-spring bushing to its mounting flange",
+      "name": "bushing to mounting flange",
       "kind": "structural",
       "part": "gas_spring",
       "from": "pitch_plate_gas_spring_bushing",
@@ -2533,7 +2533,7 @@
     },
     {
       "id": "gas_spring_mechanical_stroke",
-      "name": "gas spring mechanical stroke (full extension to full retraction)",
+      "name": "full extension to full retraction",
       "kind": "structural",
       "part": "gas_spring",
       "from": "gas_spring_full_extension_stop",
@@ -2561,7 +2561,7 @@
     },
     {
       "id": "gas_spring_mount_position",
-      "name": "gas-spring mount flange to its seat on the tangential link mount",
+      "name": "flange to tangential link mount seat",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
       "from": "gas_spring_mount_flange",
@@ -2616,7 +2616,7 @@
     },
     {
       "id": "tan_link_mount_overall_height",
-      "name": "tangential link mount height",
+      "name": "overall height",
       "kind": "structural",
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_gas_spring_seat",
@@ -2655,7 +2655,7 @@
     },
     {
       "id": "hydraulic_brake_body_height",
-      "name": "hydraulic brake attachment to its hub mount",
+      "name": "attachment to hub mount",
       "kind": "structural",
       "part": "hydraulic_brake",
       "from": "pitch_plate_brake_attachment",
@@ -2676,7 +2676,7 @@
     },
     {
       "id": "hub_top_deck_to_brake_mount",
-      "name": "hub top deck to hydraulic brake mounting face",
+      "name": "top deck to hydraulic brake mounting face",
       "kind": "structural",
       "part": "hub",
       "from": "hub_top_deck",
@@ -2698,7 +2698,7 @@
     },
     {
       "id": "bushing_214820",
-      "name": "plain bushing length (214820-002)",
+      "name": "length",
       "kind": "structural",
       "part": "bushing_214820_002",
       "from": "head_bearing_face_pitch_link",
@@ -2710,7 +2710,7 @@
     },
     {
       "id": "pitch_link_eye",
-      "name": "pitch-link eye: spherical bearing ball width (bearing identity UNCONFIRMED)",
+      "name": "ball width",
       "kind": "structural",
       "part": "spherical_bearing_pitch_link",
       "from": "bushing_eye_face",
@@ -2723,7 +2723,7 @@
     },
     {
       "id": "flange_bushing_flange_pitch_link",
-      "name": "flanged bushing flange thickness (NAS77A3-015A)",
+      "name": "flange thickness",
       "kind": "structural",
       "part": "flanged_bushing_nas77a3_015a",
       "from": "eye_flange_face",
@@ -2736,7 +2736,7 @@
     },
     {
       "id": "pitch_plate_flange",
-      "name": "pitch plate lug thickness (5X group)",
+      "name": "lug thickness",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "flange_lug_face",
@@ -2748,7 +2748,7 @@
     },
     {
       "id": "washer_nas1149v0332",
-      "name": "washer thickness, NAS1149V0332H (.032 in)",
+      "name": "thickness",
       "kind": "structural",
       "part": "washer_nas1149v0332h",
       "from": "pitch_plate_washer_face",
@@ -2760,7 +2760,7 @@
     },
     {
       "id": "fastener_grip_pitch_link",
-      "name": "fastener grip, NAS6403U11D (.688 in)",
+      "name": "grip length",
       "kind": "structural",
       "part": "bolt_nas6403u11d",
       "from": "head_bearing_face_pitch_link",
@@ -2773,7 +2773,7 @@
     },
     {
       "id": "bolt_length_11",
-      "name": "NAS6403U11D overall length, head bearing face to point (1.011 in)",
+      "name": "head bearing face to point",
       "kind": "structural",
       "part": "bolt_nas6403u11d",
       "from": "head_bearing_face_pitch_link",
@@ -2786,7 +2786,7 @@
     },
     {
       "id": "cotter_hole_from_point",
-      "name": "cotter-hole centreline to bolt point (dimension M)",
+      "name": "cotter-hole centreline to point",
       "kind": "structural",
       "part": "bolt_nas6403u11d",
       "from": "cotter_hole_centerline",
@@ -2798,7 +2798,7 @@
     },
     {
       "id": "shank_out_pitch_link",
-      "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
+      "name": "shank out",
       "kind": "gap",
       "interface": "clearance",
       "from": "washer_far_face_pitch_link",
@@ -2807,7 +2807,7 @@
     },
     {
       "id": "thread_region",
-      "name": "thread run-out and point region beyond the full-diameter shank",
+      "name": "thread run-out and point region",
       "kind": "structural",
       "part": "bolt_nas6403u11d",
       "from": "shank_full_dia_end_pitch_link",
@@ -2816,7 +2816,7 @@
     },
     {
       "id": "washer_ms21299c3",
-      "name": "washer thickness, MS21299C3 (.063 in)",
+      "name": "thickness",
       "kind": "structural",
       "part": "washer_ms21299c3",
       "from": "head_bearing_face_rotor",
@@ -2828,7 +2828,7 @@
     },
     {
       "id": "washer_nas1149v0332_tt",
-      "name": "washer thickness, NAS1149V0332H (.032 in), rotor balance-mass bolt",
+      "name": "thickness",
       "kind": "structural",
       "part": "washer_nas1149v0332_tt",
       "from": "washer_junction_face",
@@ -2840,7 +2840,7 @@
     },
     {
       "id": "fastener_grip_u2h",
-      "name": "NAS6403U2H grip length (.125 in) -- shortest of nine options",
+      "name": "U2H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2852,7 +2852,7 @@
     },
     {
       "id": "fastener_grip_u3h",
-      "name": "NAS6403U3H grip length (.188 in)",
+      "name": "U3H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2864,7 +2864,7 @@
     },
     {
       "id": "fastener_grip_u4h",
-      "name": "NAS6403U4H grip length (.250 in)",
+      "name": "U4H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2876,7 +2876,7 @@
     },
     {
       "id": "fastener_grip_u5h",
-      "name": "NAS6403U5H grip length (.312 in)",
+      "name": "U5H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2888,7 +2888,7 @@
     },
     {
       "id": "fastener_grip_u6h",
-      "name": "NAS6403U6H grip length (.375 in)",
+      "name": "U6H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2900,7 +2900,7 @@
     },
     {
       "id": "fastener_grip_u7h",
-      "name": "NAS6403U7H grip length (.438 in)",
+      "name": "U7H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2912,7 +2912,7 @@
     },
     {
       "id": "fastener_grip_u8h",
-      "name": "NAS6403U8H grip length (.500 in)",
+      "name": "U8H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2924,7 +2924,7 @@
     },
     {
       "id": "fastener_grip_u9h",
-      "name": "NAS6403U9H grip length (.562 in)",
+      "name": "U9H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2936,7 +2936,7 @@
     },
     {
       "id": "fastener_grip_u10h",
-      "name": "NAS6403U10H grip length (.625 in) -- longest of nine options",
+      "name": "U10H grip length",
       "kind": "structural",
       "part": "fastener_family",
       "from": "head_bearing_face_rotor",
@@ -2948,7 +2948,7 @@
     },
     {
       "id": "shank_out_rotor",
-      "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
+      "name": "shank out",
       "kind": "gap",
       "interface": "clearance",
       "from": "washer_far_face_rotor",
@@ -2957,7 +2957,7 @@
     },
     {
       "id": "straight_bushing_tan_link",
-      "name": "straight bushing length",
+      "name": "length",
       "kind": "structural",
       "part": "straight_bushing_214820_002",
       "from": "head_bearing_face_tan_link",
@@ -2969,7 +2969,7 @@
     },
     {
       "id": "spherical_bearing_tan_link",
-      "name": "spherical bearing width",
+      "name": "width",
       "kind": "structural",
       "part": "spherical_bearing_tan_link",
       "from": "bushing_bearing_face",
@@ -2981,7 +2981,7 @@
     },
     {
       "id": "flange_bushing_flange_tan_link",
-      "name": "flange bushing flange thickness",
+      "name": "flange thickness",
       "kind": "structural",
       "part": "flanged_bushing_tan_link",
       "from": "bearing_flanged_bushing_face",
@@ -2993,7 +2993,7 @@
     },
     {
       "id": "flange_bushing_L",
-      "name": "flange bushing L (barrel) thickness",
+      "name": "barrel L thickness",
       "kind": "structural",
       "part": "flanged_bushing_tan_link",
       "from": "flanged_bushing_internal_step",
@@ -3005,7 +3005,7 @@
     },
     {
       "id": "bushing_chamfer",
-      "name": "bushing chamfer size",
+      "name": "chamfer size",
       "kind": "structural",
       "part": "flanged_bushing_tan_link",
       "from": "flanged_bushing_effective_far_face",
@@ -3018,7 +3018,7 @@
     },
     {
       "id": "fastener_grip_13",
-      "name": "fastener grip, NAS6403U13H (.812 in)",
+      "name": "grip length",
       "kind": "structural",
       "part": "bolt_nas6403u13h",
       "from": "head_bearing_face_tan_link",
@@ -3031,7 +3031,7 @@
     },
     {
       "id": "protrusion",
-      "name": "worst-case protrusion -- full-diameter shank beyond the modelled clamped stack",
+      "name": "shank protrusion",
       "kind": "gap",
       "interface": "clearance",
       "from": "flanged_bushing_effective_far_face",
@@ -3040,7 +3040,7 @@
     },
     {
       "id": "under_head_chamfer_washer",
-      "name": "under head chamfer washer thickness",
+      "name": "thickness",
       "kind": "structural",
       "part": "washer_ms21299c4k",
       "from": "head_bearing_face_vpa_out",
@@ -3052,7 +3052,7 @@
     },
     {
       "id": "pitch_flange_thickness",
-      "name": "pitch flange thickness",
+      "name": "flange thickness",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "washer_flange_face",
@@ -3064,7 +3064,7 @@
     },
     {
       "id": "bushing_flange_thickness",
-      "name": "bushing flange thickness",
+      "name": "flange thickness",
       "kind": "structural",
       "part": "flanged_bushing_unidentified",
       "from": "flange_bushing_flange_face",
@@ -3076,7 +3076,7 @@
     },
     {
       "id": "spherical_bearing_vpa_out",
-      "name": "spherical bearing width",
+      "name": "width",
       "kind": "structural",
       "part": "spherical_bearing_in_vpa",
       "from": "bushing_flange_bearing_face",
@@ -3088,7 +3088,7 @@
     },
     {
       "id": "straight_bushing_vpa_out",
-      "name": "straight bushing length",
+      "name": "length",
       "kind": "structural",
       "part": "plain_bushing_214943_002",
       "from": "bearing_bushing_face",
@@ -3100,7 +3100,7 @@
     },
     {
       "id": "fastener_grip_vpa_out",
-      "name": "fastener grip (.812 in)",
+      "name": "grip length",
       "kind": "structural",
       "part": "bolt_nas6404u13d",
       "from": "head_bearing_face_vpa_out",
@@ -3113,7 +3113,7 @@
     },
     {
       "id": "shank_out_vpa_out",
-      "name": "shank out -- full-diameter shank beyond the clamped stack",
+      "name": "shank out",
       "kind": "gap",
       "interface": "clearance",
       "from": "bushing_far_face",
@@ -3122,7 +3122,7 @@
     },
     {
       "id": "piston_body_shoulder_to_top",
-      "name": "piston body shoulder to top face",
+      "name": "shoulder to top face",
       "kind": "structural",
       "part": "gas_spring_piston_214700_002",
       "from": "piston_body_head_seat",
@@ -3162,7 +3162,7 @@
     },
     {
       "id": "piston_body_flange_to_top",
-      "name": "piston body flange to top face",
+      "name": "flange to top face",
       "kind": "structural",
       "part": "gas_spring_piston_214700_002",
       "from": "piston_body_plate_flange",
@@ -3202,7 +3202,7 @@
     },
     {
       "id": "piston_head_lower_face_flatness",
-      "name": "lower piston head lower face, mount contact to body seat",
+      "name": "lower face mount contact to body seat",
       "kind": "structural",
       "part": "piston_head_lower_214699_002",
       "from": "endstop_feather_contact",
