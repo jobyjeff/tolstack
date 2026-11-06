@@ -128,3 +128,14 @@ from every hunk, so they are left to the scheduled sweep. Recorded as merge tier
 1009 s.
 
 **Verdict: APPROVE.**
+
+## Landing
+
+At landing, `integration` had moved again: it now carried the
+`a_two_row_cylinder_band_fits_as_a_cylinder` merge, which touches annotate
+`face_geometry.js`, `feature_geometry.py`, the topology, and three witness
+specs. It does not touch `run_viewer_browser_tests.mjs`. That merge
+(`git merge integration`) was clean, the overlay included, and left no
+markers. The fast-forward landed before I re-ran the risky subset. I re-ran
+it on the landed tree straight afterwards: `tests/test_mutation_witnesses.py`
+**44 passed**.
