@@ -1697,7 +1697,16 @@
   //: is not waiting for the answer, long enough that the eye can follow a row
   //: from where it was to where it went -- which is the whole point of
   //: animating it at all rather than repainting.
-  VA.RESPINE = { duration: 260 };
+  //: `fitDuration` is a landing that pulls the camera back to take in where it
+  //: was and where it is going before it goes in (fit, then focus); `fitShare`
+  //: is how much of it the pulling back takes and `fitAt` how far through the
+  //: respine the drawing is when the camera is furthest out; `fitSlack` is how
+  //: much smaller than the lower of the two scales the pulled-back one must be
+  //: before it is worth a phase of its own. Chosen by eye on
+  //: `node scripts/filmstrip.mjs`: long enough that each of the two moves is a
+  //: movement and not a jump, short enough that a click is not a wait.
+  VA.RESPINE = { duration: 700, fitDuration: 1100, fitShare: 0.45, fitAt: 0.5,
+                 fitSlack: 0.02 };
 
   // Ease-in-out cubic, clamped to [0, 1]. Eased once by the caller and handed
   // to everything below as a plain fraction, so the tween, the fades and the
@@ -4299,82 +4308,176 @@
     return { rows: rows, groups: groups, leaders: leaders, internal: internal };
   };
 
-  // Every tint a grid's rows wear, for its sourcing legend: the provenance
-  // washes some row wears (an untraced or uncited value,
-  // VA.UNVERIFIED_CONFIDENCES), then each body's tint in the order its rows
-  // first appear. [{wash, label}] and [{body, tint, label}].
-  VA.gridLegendTints = function (plan, topoProj) {
-    var edges = {};
-    ((topoProj && topoProj.edges) || []).forEach(function (e) { edges[e.id] = e; });
-    var names = {};
-    ((topoProj && topoProj.bodies) || []).forEach(function (b) { names[b.id] = b.name || b.id; });
-    var washes = {};
-    var bodies = [];
-    ((plan && plan.rows) || []).forEach(function (row) {
-      if (row.header) return;
-      var edge = edges[row.id];
-      var c = row.term && row.term.confidence ? row.term.confidence : edge ? edge.confidence : null;
-      if (edge && VA.UNVERIFIED_CONFIDENCES.indexOf(c) !== -1) washes[c] = true;
-      if (row.body !== null && row.body !== undefined && bodies.indexOf(row.body) === -1) {
-        bodies.push(row.body);
+  // The grid's brackets (the_grid_fits_the_screen_and_its_brackets_say_what_
+  // nests_in_what). Jeff, 2026-11-05: "use brackets (imagine [] or {} or ()
+  // turned horizontally) as the dividers between parts, bodies etc. Larger
+  // groups (bodies, studies) can be wider horizontally than smaller groups
+  // (parts), so it's clear which are nested inside of the others." They
+  // replace the body tints, the dividers and the sub-stack rule
+  // (the_kinematic_grid_is_a_stack_of_sub_stacks), which left every row
+  // "nearly identical in color".
+  //
+  // `braces`, outermost first: { kind, id, level, start, end, gap }.
+  //   kind   a VA.GRID_BRACE_KINDS word -- the hue, which is the DAG's own
+  //          colour for that kind of group (topology.css, `--group-*`);
+  //   level  how deep it nests, 0 = outermost -- what the inset is made of;
+  //   start, end  plan row indices, inclusive; `end` may run past the plan's
+  //          rows into the foot (the study's brace holds its totals).
+  // `rules`: { row, level } -- a part boundary inside a group, drawn as a
+  // plain rule ABOVE `row`. A part is the smallest group and most hold one
+  // row, so a pair of caps inside a 16px row would be all bracket.
+  //
+  // What nests: the study (when there is one) > a sub-stack and the
+  // sub-stacks inside it > a rigid body > a part. A body gets a brace only
+  // where it spans more than one part -- a one-part body is said by its
+  // part's rule -- and a body that crosses a sub-stack boundary is two runs,
+  // one per sub-stack. Pure: the geometry is views/topology.js's.
+  VA.GRID_BRACE_KINDS = Object.freeze(["kinematic", "chain", "body", "part"]);
+
+  VA.gridBraces = function (plan, opts) {
+    opts = opts || {};
+    var rows = (plan && plan.rows) || [];
+    var groups = (plan && plan.groups) || [];
+    var braces = [];
+    var rules = [];
+    if (!rows.length) return { braces: braces, rules: rules, cover: {} };
+    var base = 0;
+    if (opts.study) {
+      braces.push({ kind: opts.study, id: "study", level: 0, start: 0,
+                    end: rows.length - 1 + (opts.foot || 0), gap: false });
+      base = 1;
+    }
+    // Sub-stacks: a header row opens one, and every row beneath it whose
+    // sub-stack chain reaches it extends it.
+    var subs = {};
+    var subParent = {};
+    var containerOf = function (row) {
+      if (row.header) return row.header.parent || null;
+      return row.term ? row.term.parent || null : null;
+    };
+    var levelIn = function (container) {
+      return container && subs[container] ? subs[container].level + 1 : base;
+    };
+    rows.forEach(function (row, i) {
+      if (row.header) {
+        var entry = row.header;
+        var brace = { kind: entry.depth === 0 ? "kinematic" : "chain", id: entry.id,
+                      level: levelIn(entry.parent || null), start: i, end: i,
+                      gap: !!entry.gap };
+        subs[entry.id] = brace;
+        subParent[entry.id] = entry.parent || null;
+        braces.push(brace);
+      }
+      var sid = row.header ? row.header.id : (row.term ? row.term.parent : null);
+      while (sid && subs[sid]) {
+        subs[sid].end = i;
+        sid = subParent[sid];
       }
     });
-    return VA.UNVERIFIED_CONFIDENCES.filter(function (c) { return washes[c]; })
-      .map(function (c) {
-        return { wash: c, label: VA.CONFIDENCE_LABEL[c].toLowerCase() + " row" };
-      })
-      .concat(bodies.map(function (body) {
-        return { body: body, tint: VA.bodyTint(topoProj, body), label: names[body] || body };
-      }));
+    // Bodies, then parts, inside the innermost sub-stack each row sits in.
+    var partStart = {};
+    groups.forEach(function (g) { if (!g.header) partStart[g.start] = true; });
+    var bodyAt = {};
+    var i = 0;
+    while (i < rows.length) {
+      var row = rows[i];
+      if (row.header || row.body === null || row.body === undefined) { i++; continue; }
+      var j = i;
+      var parts = 0;
+      while (j < rows.length && !rows[j].header && rows[j].body === row.body &&
+             containerOf(rows[j]) === containerOf(row)) {
+        if (partStart[j] || j === i) parts++;
+        j++;
+      }
+      if (parts > 1) {
+        var body = { kind: "body", id: String(row.body), level: levelIn(containerOf(row)),
+                     start: i, end: j - 1, gap: false };
+        braces.push(body);
+        for (var k = i; k < j; k++) bodyAt[k] = body;
+      }
+      i = j;
+    }
+    groups.forEach(function (g) {
+      var k = g.start;
+      if (g.header || k === 0 || rows[k - 1].header) return;
+      if (containerOf(rows[k - 1]) !== containerOf(rows[k])) return;
+      // A body's own caps already part the rows on either side of it.
+      if (bodyAt[k] !== bodyAt[k - 1]) return;
+      rules.push({ row: k, level: bodyAt[k] ? bodyAt[k].level + 1
+                                            : levelIn(containerOf(rows[k])) });
+    });
+    braces.sort(function (a, b) { return a.level - b.level || a.start - b.start; });
+    // How many brackets hold each row: where its first words start.
+    var cover = {};
+    braces.forEach(function (b) {
+      for (var r = b.start; r <= Math.min(b.end, rows.length - 1); r++) {
+        cover[r] = Math.max(cover[r] || 0, b.level + 1);
+      }
+    });
+    return { braces: braces, rules: rules, cover: cover };
   };
 
-  // What each grid row wears, as class names keyed by row id
-  // (the_kinematic_grid_is_a_stack_of_sub_stacks). Jeff, 2026-10-29: "Grid
-  // view itself should have visual indication of sub-stacks, rigid bodies,
-  // etc, accomplished with the line weights/colors of the dividers and/or the
-  // background colors." So:
-  //
-  //   * the row's BODY tint -- `tvrow--body-t<n>`, the same index (VA.bodyTint)
-  //     as that body's ink when the DAG is coloured by body, and its
-  //     container's fill when Group fill is `all`, so a row and its body's
-  //     bars are one colour; a sub-stack header, which is no body's, wears
-  //     none;
-  //   * the divider ABOVE it -- `tvrow--divide-sub` where a sub-stack starts
-  //     or ends, `tvrow--divide-body` where the body changes, a hairline
-  //     (`tvrow--divide-hair`) between two rows of one body; the first row
-  //     has none.
-  //
-  // The weights and tints are tokens in topology.css's :root. Pure.
-  VA.gridRowMarks = function (plan, topoProj) {
-    var out = {};
-    var prev = null;
-    ((plan && plan.rows) || []).forEach(function (row) {
-      var cls = [];
-      if (row.header) cls.push("tvrow--body-none");
-      else if (row.body !== null && row.body !== undefined) {
-        cls.push("tvrow--body-t" + VA.bodyTint(topoProj, row.body));
-      } else cls.push("tvrow--body-none");
-      if (prev) {
-        var parent = function (r) { return r.term ? r.term.parent : null; };
-        // A header opens a sub-stack; its first row is one block with it; a
-        // row whose sub-stack differs from the row above closes one.
-        if (row.header) {
-          cls.push("tvrow--divide-sub");
-        } else if (prev.header) {
-          cls.push("tvrow--divide-hair");
-        } else if (parent(row) !== parent(prev)) {
-          cls.push("tvrow--divide-sub");
-        } else if (row.body !== prev.body) {
-          cls.push("tvrow--divide-body");
-        } else {
-          cls.push("tvrow--divide-hair");
-        }
-      }
-      if (row.header || (row.term && row.term.parent)) cls.push("tvrow--ruled");
-      out[row.id] = cls.join(" ");
-      prev = row;
-    });
-    return out;
+  // A row's one sourcing mark (deliverable 3): the pill cluster's worst word,
+  // as one small icon in that state's colour, or nothing for a value read off
+  // its document. In precedence order -- a row says the worst thing about its
+  // number, and the Preview says the rest. The four confidences' words are
+  // viewer.js's (VA.CONFIDENCE_WORDS); a value with no confidence at all and
+  // a band nobody wrote down are the two states the chips said besides.
+  VA.SOURCING_MARKS = Object.freeze(["untraced", "no_source_ref", "no_value", "inferred",
+                                     "no_tolerance"]);
+  // The state a row with no mark is in, for the legend.
+  VA.SOURCING_UNMARKED = "traced";
+
+  VA.sourcingMarkWords = function (key) {
+    if (key === "no_value") return "no value on record yet";
+    if (key === "no_tolerance") return VA.ATTENTION.no_tolerance.text;
+    return VA.CONFIDENCE_WORDS[key] || key;
+  };
+
+  // `confidence` is the row's (a kinematic term's is its band's); `edge` the
+  // topology's edge, for its zero-width band; `noBand` a kinematic term with
+  // no band on file. Null for a traced value with a band.
+  VA.rowSourcingMark = function (confidence, edge, noBand) {
+    // A term with no band on file contributes nothing, whatever its edge's
+    // own citation says: that is the first thing to know about it.
+    var key = null;
+    if (noBand) key = "no_value";
+    // A confidence that has a mark of its own wears it (`traced` has none).
+    else if (VA.SOURCING_MARKS.indexOf(confidence) !== -1) key = confidence;
+    else if (confidence === null || confidence === undefined) key = "no_value";
+    else if (edge && edge.zero_width) key = "no_tolerance";
+    if (!key) return null;
+    var words = VA.sourcingMarkWords(key);
+    if (key !== "no_tolerance" && edge && edge.zero_width) {
+      words += " · " + VA.ATTENTION.no_tolerance.text;
+    }
+    return { key: key, words: words };
+  };
+
+  // The PART and DESCRIPTION columns (deliverable 2), out of the part record.
+  // Jeff, 2026-11-05: "half of the Component column start with
+  // PN/Description, and the other half are Description/PN ... consider making
+  // them two separate columns." The number is the record's: the part's
+  // `drawing`, else the part-number token in its own name
+  // (`NAS6403U11D hex-head bolt`). The description is the name with its
+  // part-number token taken out, whichever way round the name puts it. The
+  // two can differ: the pitch plate's record is the installation 215177-001
+  // and its title-block name is the detail's (`Pitch plate 215735-001/-002`),
+  // so the row says 215177-001 and the cell's title keeps the whole name. A
+  // part with neither has no number -- absent is absent -- and a gap has no
+  // part.
+  var PART_NUMBER = /\b(\d{6}-\d{3}(?:\/-\d{3})*|(?:NAS|MS|AN)\d[A-Z0-9-]*)\b/;
+
+  VA.partColumns = function (part) {
+    if (!part) return { number: "", description: VA.GAP_COMPONENT_LABEL };
+    var label = VA.componentLabel(part);
+    var hit = PART_NUMBER.exec(label);
+    var number = part.drawing || (hit ? hit[0] : "");
+    if (!hit) return { number: number, description: label };
+    var rest = (label.slice(0, hit.index) + " " + label.slice(hit.index + hit[0].length))
+      .replace(/\(\s*\)/g, "").replace(/\s+/g, " ").trim()
+      .replace(/^[,·\-\s]+|[,·\-\s]+$/g, "");
+    return { number: number, description: rest || label };
   };
 
   // A stack entry's row id: its edge for a term, `sub:<id>` for a header.

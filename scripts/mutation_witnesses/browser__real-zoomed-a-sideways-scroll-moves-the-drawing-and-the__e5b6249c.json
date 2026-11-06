@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] zoomed, a sideways scroll moves the drawing and the grid together, and the grid never runs under the drawing",
+  "mutations": [
+    {
+      "contract": "A sideways drag on a zoomed DAG moves the drawing, not only the grid under it.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Puts back `position: sticky; left: 0` on the rails.",
+      "file": "apps/viewer/topology.css",
+      "find": "  flex: none; display: block; position: relative; z-index: 1;",
+      "replace": "  flex: none; display: block; position: sticky; left: 0; z-index: 1;"
+    }
+  ]
+}

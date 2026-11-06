@@ -4,12 +4,12 @@
   "expect_red": "[real] a study change moves the DAG as one continuous frame: the space before it and the scroll are part of the transition, with no snap at either end, both ways",
   "mutations": [
     {
-      "contract": "The space a study arrival puts before the drawing is part of the transition: its first frame wears the pad the reader was looking at and its last wears the one it lands in.",
+      "contract": "A study arrival never puts space to the drawing's left: that space is between the pane's edge and the grid too.",
       "issue": null,
-      "note": "Declared by handoff the_dag_holds_still_and_the_filter_bar_stays_put (2026-11-03). The transition frames draw with no pad at all, which is the 10-29 landing: the drawing jumps left on the first frame and back to centre on the last.",
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Puts a fixed left pad back. It replaces the 11-03 mutation that drew the transition with no pad: with no left pad ever, and no top pad on this route (pad 0 -> 0), that mutation changed nothing this check reads.",
       "file": "apps/viewer/topology_app.js",
-      "find": "        ctx.bandPad = { top: lerp(start.pad.top, end.pad.top, e),\n                        left: lerp(start.pad.left, end.pad.left, e) };",
-      "replace": "        ctx.bandPad = null;"
+      "find": "      var left = 0;",
+      "replace": "      var left = 40;"
     }
   ]
 }

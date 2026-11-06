@@ -60,3 +60,24 @@ browser suites and witness gate. Once it had the slot, the rest ran in roughly 1
 `--durations` was taken. This repo's conftest prints no `concurrent pytest processes` /
 `full-suite lock` header, so the record has none to quote. Same question as above: should a slot
 wait count against this tier?
+
+## Addendum 2026-11-06 (review of the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model)
+
+Review worktree, merged tree: `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` ->
+`1 failed (the worktree-expected test_viewer_js_suite), 1732 passed, 1 skipped, 2 deselected in
+1118.43s`; recorded OVER BUDGET. No `--durations` taken (I did not re-run an 18-minute suite to get
+one while other agents are queued). The same ledger shows the pattern is now the norm, not a spike:
+tolstack default-tier rows for 2026-11-06 read 539, 737, 477, **4033**, 1213, **4210**, 1372 s, and
+the one run made in the main checkout alone read **407 s**. Three of the worktree runs sat for
+the better part of an hour on one fixture -- the
+`test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[signal-False]` slot wait named
+above -- so **every `pytest -q` in every worktree queues behind whoever holds the one browser slot,
+and the slot is held for 15+ minutes at a time by browser tiers and witness gates**. In this
+review alone a single annotate browser run waited >15 min for the slot twice. A queue of reviews
+and tactical sessions each needing the slot twice (suite + browser tiers) drains at one holder
+at a time, which matches Jeff's "agents stuck in the test-suite queue for hours, trickling
+through". Proposed first move (the open question already in this issue, now with a cost): make
+the default tier not wait on the slot at all -- skip or mark `slow` the Chrome-launching
+`test_browser_runner.py` cases outside the main checkout, or give them a bounded wait -- and keep
+that one test in the merge tier. Second: the venv has no `pytest-xdist`, so the documented
+`-n 16 --dist loadfile` spelling does not run here.

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] drawn as blocks, every block wears its part's body and that body's field wraps it, on the whole walk and on every study's band",
+  "mutations": [
+    {
+      "contract": "A block's body is its part's, not its first row's.",
+      "issue": "docs/sessions/reviews/REVIEW_20261106_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared by the round-1 rework of a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The defect the review found: a contact face's row is on its first listed part's body, so the pitch plate's block wore the hydraulic brake's.",
+      "file": "apps/viewer/topology.js",
+      "find": "      var block = { part: run.part, body: bodyOf[run.part], start: run.start,",
+      "replace": "      var block = { part: run.part, body: rows[run.start].body, start: run.start,"
+    }
+  ]
+}

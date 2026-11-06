@@ -6,10 +6,10 @@
     {
       "contract": "A study arrival through the respine frames the band once the transition settles.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Nothing runs on settle, so the band is wherever the page happened to be scrolled.",
+      "note": "Declared with the guard by handoff the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below (2026-10-28). Nothing runs on settle, so the band is wherever the page happened to be scrolled. Re-pointed 2026-11-06: the keyframe engine runs landing.target() itself, so landingPending no longer carries a study arrival; the arrival's framing is the landing's measured end, and this leaves it where the reader already was.",
       "file": "apps/viewer/topology_app.js",
-      "find": "        landingPending = true;\n      }",
-      "replace": "        landingPending = false;\n      }"
+      "find": "        if (!known) end = measureLanding(start, lit);\n",
+      "replace": "        if (!known) end = start;\n"
     }
   ]
 }

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the jog grip rides the seam, wherever the pane is: the seam scrolls with the strip, so there is nothing to clamp it into",
+  "mutations": [
+    {
+      "contract": "The jog grip sits on the seam at every pane width.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Clamps it short of a wide DAG's seam, as the sticky-era inset did.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return railWidth - VA.TOPO_GRIP.half;",
+      "replace": "    return Math.min(railWidth, 200) - VA.TOPO_GRIP.half;"
+    }
+  ]
+}
