@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261105_the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model.md
 reviewer: agent
 date: 2026-11-06
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the piston heads and cover ride with their bodies
@@ -136,3 +136,32 @@ scratch root still 633/633 (plus your changes); `node apps/annotate/run_tests.cj
 lesson updated (replace the "Not shown" section — it should no longer be true). Do **not** touch
 linkage, opacity rules or the grid, and do not rerun the full pytest suite unless you change
 Python; the review owns the post-merge run.
+
+## Re-run 2026-11-06 (round 2) — APPROVE
+
+Round 1 was REQUEST CHANGES, 2 blockers; both are closed.
+
+- **Blocker 1 was the harness, not the rider code.** `realPass` replaced the mock adapter's reads but
+  not `readTopologyProjection`, so the run's topology resolved against the mock's, which has no
+  `rides_with`. The rework serves the real `topologies.json`; no product code changed. I re-ran
+  `node apps/annotate/run_browser_check.mjs --real vpa-pitch-p2-20261105-204957` on the merged tree in
+  my scratch root: both heads are `rides` rows on `pitch_plate`; "[real] both piston heads ride the
+  pitch plate…" PASS; the new "[real] each piston head's drawn matrix keeps its offset to the piston
+  body, and moves…" PASS (heads at the piston's own z at both stops: -23.334 feather, 41.132 low).
+- **Blocker 2:** `2_feather_stop.png` and `3_low_stop.png` are committed and show the stops
+  (the panel reads "19 of 19 parts placed", up from 17). The heads are not individually legible in
+  a still (transparent scene); the numeric check carries that claim.
+- The mock-pass failures (two anchors checks, two reduced-motion timing checks) reproduce on an
+  `integration` checkout per the author's baseline, and again in my run: not this diff's. The real
+  pass then stops at the `.an__sweep-bodies > summary` click on both trees (filed by the author);
+  checks after it are unreachable on either, which is a pre-existing limit, not a regression.
+- Subset after round 2: `tests/test_mutation_witnesses.py test_tolerance_stack.py test_provenance.py
+  test_claims_registry.py test_topology.py test_topology_projection.py` — 472 passed. Round 2 changed
+  only `run_browser_check.mjs` and docs, so the round-1 full-suite run (1732 passed + the worktree
+  `test_viewer_js_suite` red, viewer tier 633/633 via `--repo`, witnesses 5/5) stands.
+
+**Filed, not blocking:** `ISSUE_20261106_piston_heads_ride_has_no_exploratory_click_around_and_no_still_that_shows_the_heads`
+(the click-around the handoff owes was not done). Already filed by the author: the cover's missing
+mesh, the DAG-walk cost of folding (revisit `rides_with` if the walk improves), and the bodies
+summary click. The slot-queue over-budget measurement is appended to
+`ISSUE_20261105_the_default_test_tier_ran_18_minutes_on_a_worktree.md`.
