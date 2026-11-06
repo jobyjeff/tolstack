@@ -1566,13 +1566,14 @@
     var within = [];
     var dagHeight = 0;
     var ei = 0;
-    // A block (VA.blockLayout) is compact: each pin a half row, half a row of
-    // margin above the first and below the last. Uniform, a chord takes no
-    // height of its own, so the block is (pins + 1) half rows tall whatever
-    // its part's dimensions. Scaled, a chord keeps its proportional slot and
-    // a pin either side of it gives up its half of the half row, so two pins
-    // a chord joins are exactly the chord's length apart -- the length the
-    // mode promises -- and the block stretches to honour it.
+    // A block (VA.blockLayout) is compact: each pin a row (a joint's glyph
+    // is a row tall), half a row of margin above the first and below the
+    // last. Uniform, a chord takes no height of its own, so the block is
+    // (pins + 1) rows tall whatever its part's dimensions. Scaled, a chord
+    // keeps its proportional slot and a pin either side of it gives up its
+    // half of the row, so two pins a chord joins are exactly the chord's
+    // length apart -- the length the mode promises -- and the block
+    // stretches to honour it.
     var half = metrics.rowHeight / 2;
     var inBlock = function (row) { return !!(row && (row.pin || row.chord)); };
     rows.forEach(function (row, i) {
@@ -1584,10 +1585,10 @@
         var next = rows[i + 1];
         var first = !inBlock(prev);
         var last = !inBlock(next);
-        var above = scaled && prev && prev.chord ? 0 : half / 2;
-        var below = scaled && next && next.chord ? 0 : half / 2;
-        h = above + below + (first ? half / 2 : 0) + (last ? half / 2 : 0);
-        at = above + (first ? half / 2 : 0);
+        var above = scaled && prev && prev.chord ? 0 : half;
+        var below = scaled && next && next.chord ? 0 : half;
+        h = above + below + (first ? half : 0) + (last ? half : 0);
+        at = above + (first ? half : 0);
       } else if (row.chord && !scaled) {
         h = 0;
         ei++;
@@ -3029,7 +3030,7 @@
   VA.BLOCK_MIN_PINS = 2;
   // A block's width over its height, at the uniform pitch: inside 1:2 to 2:1
   // for every pin count (the browser tier measures the drawn ones).
-  VA.BLOCK_ASPECT = { min: 0.5, max: 2, target: 0.75 };
+  VA.BLOCK_ASPECT = { min: 0.5, max: 2, target: 0.55 };
 
   VA.partPins = function (topoProj) {
     var nodes = (topoProj && topoProj.nodes) || [];
@@ -3280,6 +3281,34 @@
       if (last && last.part === p && last.end === row.row - 1) last.end = row.row;
       else runs.push({ part: p, start: row.row, end: row.row });
     });
+    // A run is cut at a chord whose other pin is not in it (the band put that
+    // pin elsewhere): that chord keeps its bar and rail, and a block holds
+    // only its pins and the chords between them, so its height is its pins'.
+    // Cut until no run holds such a chord.
+    var lands = function (run, e) {
+      var n = 0;
+      for (var q = run.start; q <= run.end; q++) {
+        if (rows[q].kind === "node" &&
+            (rows[q].id === rows[e].entered_at || rows[q].id === rows[e].left_at)) n++;
+      }
+      return n;
+    };
+    for (var cut = true; cut;) {
+      cut = false;
+      var next = [];
+      runs.forEach(function (run) {
+        for (var e = run.start; e <= run.end; e++) {
+          if (rows[e].kind === "edge" && lands(run, e) < 2) {
+            if (e > run.start) next.push({ part: run.part, start: run.start, end: e - 1 });
+            if (e < run.end) next.push({ part: run.part, start: e + 1, end: run.end });
+            cut = true;
+            return;
+          }
+        }
+        next.push(run);
+      });
+      runs = next;
+    }
     var blocks = [];
     var mark = {};
     runs.forEach(function (run) {
@@ -3297,16 +3326,9 @@
         block[side] += 1;
       });
       for (var e = run.start; e <= run.end; e++) {
-        if (rows[e].kind === "edge") {
-          // Only a chord whose two pins are both in this run is drawn inside
-          // it; one whose other pin the band put elsewhere keeps its rail.
-          var lands = 0;
-          for (var q = run.start; q <= run.end; q++) {
-            if (rows[q].kind === "node" &&
-                (rows[q].id === rows[e].entered_at || rows[q].id === rows[e].left_at)) lands++;
-          }
-          if (lands === 2) mark[e] = { chord: { block: i } };
-        }
+        // Every edge left in a run is a chord with both its pins in it (the
+        // cut above).
+        if (rows[e].kind === "edge") mark[e] = { chord: { block: i } };
       }
       blocks.push(block);
     });
@@ -3324,12 +3346,10 @@
   };
 
   // A block's drawn width at `metrics`: its height at the uniform pitch (a
-  // pin a half row, half a row of margin) times VA.BLOCK_ASPECT.target, at
-  // least one row. A length mode stretches the height and not this.
+  // pin a row, a row of margin in all) times VA.BLOCK_ASPECT.target. A length
+  // mode stretches the height and not this.
   VA.blockWidth = function (block, metrics) {
-    var h = metrics.rowHeight / 2;
-    return Math.max(metrics.rowHeight,
-      Math.round(VA.BLOCK_ASPECT.target * (block.pins + 1) * h));
+    return Math.round(VA.BLOCK_ASPECT.target * (block.pins + 1) * metrics.rowHeight);
   };
 
   // How much room the block strip takes right of the spine: a gutter and the
@@ -3838,7 +3858,7 @@
       out.blocks.push({ index: i, part: block.part, body: block.body,
                         start: block.start, end: block.end, pins: block.pins,
                         x1: left, x2: left + VA.blockWidth(block, metrics),
-                        y1: top - half, y2: bottom + half });
+                        y1: top - 2 * half + 1, y2: bottom + 2 * half - 1 });
     });
     out.marks.forEach(function (m) {
       var row = rows[m.row];
@@ -3886,11 +3906,14 @@
         top = Math.min(top, t);
         bottom = Math.max(bottom, t + h);
       }
-      // A block in the span's rows widens it to the block's right side, so a
-      // body or a study still wraps the component it holds.
+      // A block of this body's in the span's rows widens it to the block's
+      // right side, so a body still wraps the component it holds. A study's
+      // group is not widened: across the strip it would stripe every block
+      // whose rows it only partly covers.
       var x2 = columnX(span.hi, metrics, x) + padding;
       out.blocks.forEach(function (b) {
-        if (b.start <= span.end && b.end >= span.start) x2 = Math.max(x2, b.x2 + padding);
+        if (span.body !== undefined && span.part === undefined && b.body === span.body &&
+            b.start <= span.end && b.end >= span.start) x2 = Math.max(x2, b.x2 + padding);
       });
       return { start: span.start, end: span.end, lo: span.lo, hi: span.hi,
                x1: columnX(span.lo, metrics, x) - padding,

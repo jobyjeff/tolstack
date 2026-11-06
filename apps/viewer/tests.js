@@ -12308,6 +12308,27 @@
         ok(geo.width >= geo.blocks[0].x2, "the drawing is as wide as its strip");
       });
 
+    await test("a block holds only its pins and the chords between them: a chord whose " +
+      "other pin is elsewhere cuts the run and keeps its rail", function () {
+        var proj = splitPartProjection();
+        var rows = VA.gatherParts(proj.layout, proj).rows.slice();
+        var c = rows.filter(function (r) { return r.id === "c"; })[0];
+        rows.splice(rows.indexOf(c), 1);
+        var ew = rows.filter(function (r) { return r.id === "ew"; })[0];
+        rows.splice(rows.indexOf(ew), 0, c);
+        var laid = VA.layWalk(rows);
+        var layout = VA.blockLayout({ columns: laid.columns, rows: laid.rows, rails: laid.rails,
+                                      links: laid.links }, proj);
+        var p = layout.blocks.filter(function (b) { return b.part === "P"; });
+        eq(p.length, 1);
+        eq(p[0].pins, 3, "p1, p2 and p3; c is elsewhere");
+        var e3 = layout.rows.filter(function (r) { return r.id === "e3"; })[0];
+        ok(!e3.chord, "e3 is a bar on its column");
+        ok(layout.rails.some(function (r) { return r.end === e3.row || r.start === e3.row ||
+          (r.start < e3.row && r.end > e3.row); }), "with its rail");
+        ok(e3.row < p[0].start || e3.row > p[0].end, "outside the block");
+      });
+
     await test("in a scaled length mode two pins a chord joins are the chord's own length " +
       "apart, and the block stretches for it", function () {
         var proj = splitPartProjection();
