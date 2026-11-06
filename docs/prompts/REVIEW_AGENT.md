@@ -5528,6 +5528,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Leader and band literals in the browser tier went stale twice in one day
       while the fast tier moved. Compare what is drawn with `VA.gridPlan`, and
       leave the number to the fast tier.
+- [ ] **A second writer of a scene property beside one that caches "what I
+      last applied".** New 2026-11-05
+      (`everything_in_3d_is_transparent_until_an_action_needs_a_face`): the
+      sweep frame skipped `setGhost` when its per-mesh cache said "already
+      ghost", so the study scope's later `solid` stuck, and which won was a
+      load-order race (9 opaque parts in one run, none in the next). Now one
+      resolver (`app.js` `applyLooks`) and an idempotent `scene.setLook`. When
+      a diff sets a part's look, visibility or colour directly, ask whether it
+      bypasses `applyLooks`; when it adds a cache, ask who else writes the
+      cached property.
+- [ ] **An occurrence hidden by key, with another part drawn at the same
+      place.** Same handoff: an installation mesh and its machined detail are
+      both extracted and drawn in one place (`215175-001` / `215198-001`), so
+      hiding one left the other standing. `scene._occurrenceHidden` hides by
+      assembly path (`AA.assemblyPathsOverlap`). A new hide/show path in
+      `scene.js` must go through it, not `hiddenKeys.has` alone.
 
 ## Architectural errors to check
 

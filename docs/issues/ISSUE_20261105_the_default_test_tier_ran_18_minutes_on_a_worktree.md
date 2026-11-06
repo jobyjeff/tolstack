@@ -31,3 +31,19 @@ Two things this measurement does **not** settle, stated so nobody over-reads it:
 
 Next step: one run alone, `-q --durations=15`, on a quiet box, and start from
 that pareto.
+
+## Addendum 2026-11-05 (review of the same handoff, post-merge run)
+
+Review worktree, merged tree:
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs --durations=15`
+-> `1 failed (the worktree-expected test_viewer_js_suite), 1727 passed, 1 skipped, 2 deselected in 1211.78s`;
+recorded OVER BUDGET by 10m13s. The pareto settles most of it: **774 s of the
+1212 s is one fixture setup**,
+`tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[signal-False]`
+waiting on the machine's browser slot, which two other tactical sessions held
+at the time. Without that queue the run is ~7.3 min. Next largest:
+`test_feature_geometry.py::test_real_both_readers_classify_every_installed_face_the_same`
+119 s, `test_annotate_js_suite.py` 34 s, `test_mutation_witnesses.py` setup 34 s.
+So the first question for whoever takes this is whether a slot wait should
+count against the default tier's budget at all (cf.
+`ISSUE_20261029_a_witness_gate_recorded_over_budget_counts_its_browser_slot_queue.md`).
