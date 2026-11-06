@@ -422,7 +422,10 @@ export const DECLARED_GUARDS = {
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
   // the overlay on the bars and survives a reload. Each carries a spec.
-  browser: { declared: 836, enrollable: 803, names: "db826d6de861" },
+  // the_grid_and_the_dag_move_with_the_mechanism, review round 1, 2026-11-06:
+  // +2 -- on the kinematic page Play moves the pose, and a second click
+  // pauses it where it stopped. Each carries a spec.
+  browser: { declared: 838, enrollable: 805, names: "d0b68d61981e" },
 };
 
 

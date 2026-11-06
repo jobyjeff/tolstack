@@ -4693,6 +4693,31 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     push("[real] and Fit still brings the lit set into the window in that mode",
       kinTol.litTop >= kinTol.paneTop - 2 && kinTol.litBottom <= kinTol.paneBottom + 2);
 
+    // Play then Pause on the real page (the_grid_and_the_dag_move_with_the_mechanism,
+    // review round 1): play relabels its button in place with no render, so
+    // the second click must read the live state and stop the sweep there.
+    {
+      const playButton = "#detail button.kmpose__play";
+      const angle = () => page.locator("#detail input.kmpose__angle").inputValue();
+      const before = await angle();
+      await page.locator(playButton).click();
+      await settle(800);
+      const playing = { label: await page.locator(playButton).textContent(), angle: await angle() };
+      await page.locator(playButton).click();
+      await settle(300);
+      const paused = { label: await page.locator(playButton).textContent(), angle: await angle(),
+        pressed: await page.locator(playButton).getAttribute("aria-pressed") };
+      await settle(800);
+      const later = await angle();
+      console.log(`      play/pause: ${before} -> ${playing.angle} (${playing.label}) -> ` +
+        `${paused.angle} (${paused.label}) -> ${later}`);
+      push("[real] on the kinematic page Play moves the pose and relabels itself Pause",
+        playing.label === "Pause" && playing.angle !== before);
+      push("[real] and a second click pauses: the button says Play again and the " +
+        "pose stays where it stopped",
+        paused.label === "Play" && paused.pressed === "false" && later === paused.angle);
+    }
+
     // --- the DAG holds still (the_dag_holds_still_and_the_filter_bar_stays_put) --
     // On the real projection, from the kinematic page this suite is on: a study
     // change and the way back, each sampled at fixed steps of page time.
