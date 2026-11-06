@@ -26,3 +26,7 @@ The row's choice predates this handoff, from
 `the_kinematic_grid_is_a_stack_of_sub_stacks`. The likely fix is for the
 Preview's chip to show the band edge's confidence when `record.bandEdge` is
 set, with the swept edge's own state beside it.
+
+> **Note, 2026-11-06 (review round 2).** The shot cited above was deleted from
+> the tree when round 2 retook the shots. It survives in history:
+> `git show 047f9d9e:docs/sessions/lessons/shots/the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what/kin_1600_preview.png`.
