@@ -1121,10 +1121,34 @@
         if (snaps[s][i].tag !== live[i].tag) return null;
       }
     }
-    var at = new Map();
-    snaps[0].forEach(function (entry, i) { at.set(entry.node, i); });
-    var plan = pairSnapshots(snaps) || [];
-    plan.forEach(function (en) { en.node = live[at.get(en.node)].node; });
+    // Every property that differs between keyframes, on the LIVE node at the
+    // same place in the tree: eased where each keyframe's value is the same
+    // words around different numbers (a coordinate, a path), stepped to the
+    // nearer keyframe's where the words differ (a class, a hidden break mark),
+    // absent there meaning removed.
+    var plan = [];
+    live.forEach(function (base, i) {
+      var names = {};
+      snaps.forEach(function (snap) {
+        Object.keys(snap[i].attrs).forEach(function (k) { names["attr:" + k] = true; });
+        Object.keys(snap[i].style).forEach(function (k) { names["style:" + k] = true; });
+      });
+      Object.keys(names).forEach(function (key) {
+        var kind = key.slice(0, key.indexOf(":"));
+        var name = key.slice(key.indexOf(":") + 1);
+        var raw = snaps.map(function (snap) {
+          var bag = kind === "attr" ? snap[i].attrs : snap[i].style;
+          return Object.prototype.hasOwnProperty.call(bag, name) ? bag[name] : null;
+        });
+        if (raw.every(function (v) { return v === raw[0]; })) return;
+        var vals = raw.map(function (v) { return v === null ? null : tokens(v); });
+        var eased = name !== "class" && vals.every(function (v) {
+          return v && v.t === vals[0].t && v.n.length === vals[0].n.length;
+        });
+        plan.push({ node: base.node, kind: kind, name: name, raw: raw,
+                    vals: eased ? vals : null });
+      });
+    });
     var film = {
       poses: poses.slice(),
       entries: plan.length,
@@ -1138,13 +1162,15 @@
         var u = span > 0 ? (p - poses[k]) / span : 0;
         for (var n = 0; n < plan.length; n++) {
           var en = plan[n];
-          // A class is a set of words, not a number to ease: the nearer
-          // keyframe's own (a colour bin is ovl-c3 or ovl-c4, never 3.5).
-          var text = en.name === "class"
-            ? interpolated(en.vals[u < 0.5 ? k : k + 1], en.vals[u < 0.5 ? k : k + 1], 0)
-            : interpolated(en.vals[k], en.vals[k + 1], u);
-          if (en.kind === "attr") en.node.setAttribute(en.name, text);
-          else en.node.style[en.name] = text;
+          var text = en.vals ? interpolated(en.vals[k], en.vals[k + 1], u)
+            : en.raw[u < 0.5 ? k : k + 1];
+          if (en.kind === "attr") {
+            if (text !== null) en.node.setAttribute(en.name, text);
+            else if (en.node.removeAttribute) en.node.removeAttribute(en.name);
+            else delete en.node.attributes[en.name];
+          } else {
+            en.node.style[en.name] = text === null ? "" : text;
+          }
         }
         // The page's seam reads what the pane drew: the picture on screen.
         VA.lastTopoRender = blendValue(drawn[k], drawn[k + 1], u);
@@ -2529,6 +2555,7 @@
     // unlit stay weight; no overlay is the one neutral ink.
     var overlay = ctx.overlay || { edges: {}, nodes: {} };
     var pills = {};
+    var posed = !!(VA.EDGE_LENGTH_MODES[ctx.edgeLengthMode] || {}).contributions;
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
@@ -2562,13 +2589,19 @@
         // A floored bar (scaled modes only) wears a drafting-style break
         // across its middle: this length is the minimum render length, not a
         // measured proportion, and a reader must be able to tell at a glance.
-        if (mark.floored) {
-          over.appendChild(fade(VA.svg("path", "rail__break", {
+        // In a mode whose lengths move with the pose (the contribution mode)
+        // every bar carries its break, hidden where it is not floored, so the
+        // drawing is one set of nodes at every pose and the pose film
+        // (VA.poseFilm) can move it rather than rebuild it.
+        if (mark.floored || posed) {
+          var brk = VA.svg("path", "rail__break", {
             d: "M " + (mark.x - 5) + " " + (mark.y + 3) +
                " L " + (mark.x + 5) + " " + (mark.y - 1) +
                " M " + (mark.x - 5) + " " + (mark.y + 1) +
                " L " + (mark.x + 5) + " " + (mark.y - 3),
-          }), "edge", mark.id));
+          });
+          if (!mark.floored) brk.setAttribute("visibility", "hidden");
+          over.appendChild(fade(brk, "edge", mark.id));
         }
 
         // The hover/click target, over the SAME length but solid and wide
