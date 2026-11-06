@@ -1057,8 +1057,9 @@ body { display: flex; flex-direction: column; }
 .kmpose__play { font-size: var(--t-dense); min-width: 56px; }
 .kmpose__slider { flex: 1 1 140px; min-width: 100px; accent-color: var(--accent); }
 .kmpose__angle {
-  width: 64px; font-size: var(--t-dense); text-align: right;
-  font-variant-numeric: tabular-nums;
+  width: 64px; font: inherit; font-size: var(--t-dense); text-align: right;
+  font-variant-numeric: tabular-nums; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 3px; padding: 1px 4px;
 }
 .kmpose__unit { font-size: var(--t-micro); }
 /* A row's hover tint is NOT a `:hover` rule any more -- it is `--hot` /

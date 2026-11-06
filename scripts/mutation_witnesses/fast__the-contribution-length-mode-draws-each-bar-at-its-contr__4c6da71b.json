@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the contribution length mode draws each bar at its contribution, and the pose film moves the live drawing to a keyframe's own picture without a rebuild",
+  "mutations": [
+    {
+      "contract": "A frame of the pose film eases the live nodes to the frame's place between its keyframes.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Never eases: every frame shows the lower keyframe's picture, so the last pose is never reached.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "          var text = en.vals ? interpolated(en.vals[k], en.vals[k + 1], u)\n",
+      "replace": "          var text = en.vals ? interpolated(en.vals[k], en.vals[k + 1], 0)\n"
+    }
+  ]
+}

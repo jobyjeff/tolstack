@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] in the contribution length mode three named bars are drawn at |sensitivity| x band at a pose between the stops, in proportion to each other",
+  "mutations": [
+    {
+      "contract": "A bar's length in the contribution mode is |sensitivity| x band at the pose.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Doubles every value: the bars stay in proportion but none is its contribution.",
+      "file": "apps/viewer/topology.js",
+      "find": "      return typeof c === \"number\" && isFinite(c) ? Math.abs(c) : null;\n",
+      "replace": "      return typeof c === \"number\" && isFinite(c) ? 2 * Math.abs(c) : null;\n"
+    }
+  ]
+}

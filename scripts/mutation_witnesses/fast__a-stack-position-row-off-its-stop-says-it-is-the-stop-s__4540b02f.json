@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a stack position row off its stop says it is the stop's",
+  "mutations": [
+    {
+      "contract": "Off its stop the stop-position sub-stack says it is evaluated at its stop.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Removes the words; the row still reads the stop's numbers, now unexplained.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "        (live ? \" · at the \" + stopWords(study, stop) : \"\"),\n",
+      "replace": "        \"\",\n"
+    }
+  ]
+}

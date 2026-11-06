@@ -238,7 +238,14 @@ export const DECLARED_GUARDS = {
   // sourcing legend's named tints, and the scene's tint verb from the page.
   // Each carries a spec. (Re-measured at the review merge on integration's
   // 632: 642.)
-  fast: { declared: 644, enrollable: 644, names: "243199eb9d55" },
+  // the_grid_and_the_dag_move_with_the_mechanism, 2026-11-06: +9, one renamed
+  // -- a pose as a fractional point, the stack read at a pose, the stop rows
+  // saying they are the stop's, the grid rewritten in place, the contribution
+  // mode and the pose film, the pose control, the pose in the URL, and two
+  // [real] checks (the stop poses print the per-stop fold; three bars at
+  // |J| x band). The length-mode cycle check is renamed for its fourth mode
+  // (unenrolled before, a spec now). Every one carries a spec.
+  fast: { declared: 653, enrollable: 653, names: "b43dc810b24e" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
