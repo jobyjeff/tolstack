@@ -103,7 +103,45 @@ printed it; `tests/test_mutation_witnesses.py` then 44/44). Merge commit
 
 ## Browser tier
 
-(Filled in below once the run finishes.)
+`node scripts/run_viewer_browser_tests.mjs --repo <this review worktree>`,
+merged tree `6b007cdc`, 2391 s wall, box contended (two other tolstack
+worktrees were queued on the slot): **30/43 suites**.
+
+- **Every suite the diff touches is green.** That covers `parts as blocks` 6/6
+  (kinematic: 17 blocks, 47 pins, 44/44 lit on screen; cotter hole: 18
+  blocks, 7 lit bars for 7 grid rows; whole walk: 16 blocks over 16 parts),
+  topology file:// and http 205/205, `the DAG zoom, Fit and the grid header`
+  41/41 (red on the tactical's run, green here), height budget 19/19,
+  respine 44/44, the real render path 11/11, and no nav click wedges 16/16.
+- **13 reds, all in served-root, annotate, 3D-pane, typography and
+  kinematic-study suites:** served mode, the 8 annotate suites, the two 3D
+  suites, typography, kinematic study page, and leaders across the seam.
+  These areas are outside the diff. I re-ran them with `--only` after copying
+  the main checkout's non-viewer projections (`topology`, `spec_library`,
+  `feature-geometry`, `feature-identity/bindings.json`) into the worktree.
+  They stayed red. Most are timeouts. The rest are annotate errors (`not in
+  sweep mode — load a run first`, null `.artifact` / `.key`).
+- **I could not attribute these reds.** The tactical's run had green annotate
+  suites. Since then, `integration` merged the tween handoff and a new sweep
+  run arrived (`data/inbox/linkage-sweeps/*-20261105-204957.json`). A
+  hand-timed served boot took 3.7 s on rails and 6.0 s on blocks, under the
+  suite's 15 s wait. The runner seeds rails, so blocks cannot be what times
+  out. I did not file an issue: this verdict sends the work back, and the
+  round-2 review will run the tier again. **If they are still red on round 2,
+  file them then, or show they are red on `integration` alone.**
+- The witness gate (`--changed-since`) was not run. The verdict is not
+  APPROVE, and the merge it gates is not happening.
+
+Not run: the post-merge full `pytest -q`, which belongs to the merge that
+APPROVE would make. Nothing was merged into `integration`, and both branches
+are left in place.
+
+## Found on arrival
+
+Nothing. The review worktree was clean, and nothing was written to the main
+checkout. `node_modules` was junctioned in for the browser runs and removed
+afterwards. The bridged inputs, and the projections built here, are in the
+worktree's gitignored `data/`.
 
 ## Note for the rework
 
