@@ -5275,6 +5275,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       them "against". When the selection filter makes a heuristic's miss
       unrecoverable (the other part can't be picked), recount the claim
       against `docs/topologies/*.json` in one script.
+- [ ] **A contact face's part (or body) taken from `parts[0]` / the first row,
+      where the new code decided ownership another way.** Second sighting
+      2026-11-06 (`a_part_with_many_interfaces_is_drawn_as_a_component_with_pins`):
+      `VA.partPins` gives a contact face to the part with more faces, but a
+      block's `body` was `rows[run.start].body` — the node's `parts[0]` body
+      (`topology.js` ~3424). On the live walk 2 of 16 blocks (the pitch plate,
+      the gas-spring piston) wore another body, so the wrong body field
+      widened over the block and its own did not wrap it. Ask: *where does
+      every attribute of the new grouping come from — the rule that formed
+      it, or whichever row happens to be first?* One script over
+      `VA.bodyOfPart` settles it.
 - [ ] **A projection field read off another repo's directory listing sits
       outside the provenance stamp.** Same review: the kinematic builder's
       `gap_rows[].drawings[].on_file` lists drawing-checker's
