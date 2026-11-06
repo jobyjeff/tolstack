@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what.md
 reviewer: agent
 date: 2026-11-06
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what
@@ -152,3 +152,91 @@ than a conflict resolution is.
 
 I added one **Recurring bugs** entry: a width budget measured against member
 rows only clips the totals.
+
+## Re-run 2026-11-06 (round 2)
+
+Round 1 was REQUEST CHANGES with 2 blockers. Both are closed. The rework is
+`f9e8ca5c`..`d1c289ac`.
+
+**Blocker 1, totals clipped: closed.**
+- Every column was re-measured against the longest thing it prints, totals
+  rows included. The number columns are now 84px, PART 112, SENSITIVITY 92
+  and CONTRIBUTION 270, for a 1146px total.
+- `grip_u10h_3840_grid.png` shows the longest RSS bounds whole
+  (`-13.735566`, `-13.188434`). `kin_3840_grid_crop.png` shows
+  `±2.355 deg · RSS ±1.034` and every part number whole.
+- Words that still clip (DESCRIPTION, ELEMENT, a check's label) carry their
+  full text on hover.
+- A new browser check, "no grid number and no part number clips", holds this
+  for totals rows. Its spec `c6c298c8` was witnessed with `--only`.
+- The lesson's width table was rewritten from the measurements, which closes
+  the round-1 should-fix.
+
+**Blocker 2, routed issue: closed.**
+- `ISSUE_20261104_at_1600_wide_…_59px_slit.md` no longer carries `handoff:`
+  and stays `triaged`. Its `resolution:` line says what this handoff
+  changed and what is left.
+- The round-1 continuation issue was folded into it.
+
+**Round-2 note: merged.**
+- The author merged `integration` (`f9e8ca5c`) and carried out their own
+  collision plan. The DAG-colour branch's legend-tint guard was retired with
+  its spec `067d94ed`, because no grid row wears a tint any more. The washes
+  are deleted and the `--group-*` fallbacks dropped. Pins were re-measured:
+  fast 645, browser 837/804.
+- The collision issue is `resolved`.
+- I grepped the merge for conflict-marker lines and found none.
+
+**Nit: closed.** `VA.partColumns` now prefers the record's `drawing`. The
+lesson names the one part where it differs from the display name (the pitch
+plate shows the installation number `215177-001`, with the detail number on
+hover).
+
+**Also in the rework:** a phantom 560px sideways scroll at 3840 once the 3D
+pane opens. It is fixed (`VA.sizeTopoZoomBox`), and spec `ff2762ea` was
+witnessed. Two harness races that the wider columns exposed are each
+explained in the lesson's Gotchas.
+
+### Tests
+
+- **Merge.** `git merge handoff/<slug>` was clean. `integration` (`dd8e0407`)
+  was already contained in the handoff branch. The merged tree differs from
+  `d1c289ac` only in this report and the overlay line, so the code under
+  test is byte-identical to the author's tip.
+- **Pre-merge risky subset**, in the review worktree:
+  - `node apps/viewer/run_tests.cjs --repo <tactical worktree>/data/scratch/root`:
+    **645/645**, no SKIP lines. That scratch root's projections were rebuilt
+    from this branch.
+  - `pytest -q` over `test_js_python_vocabulary`,
+    `test_js_vocabulary_is_generated`, `test_viewer_readme_doc_facts`,
+    `test_viewer_deep_link_contract`, `test_app_type_scale`,
+    `test_mutation_witnesses`, `test_architecture_inventory`,
+    `test_claims_registry`, `test_tolerance_stack`, `test_provenance` and
+    `test_thermal_exception_list`: **359 passed**.
+- **Browser and witness tiers: not re-run.** The code is identical to the
+  tip the author ran them on:
+  - The browser tier was 40/42 suites. Both reds are integration's
+    known-stale kinematic edge names,
+    `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`
+    (high, on integration).
+  - The witness gate was 34/43. All nine misses had a red baseline from that
+    same issue. The run was over budget, which is appended to the open
+    budget issue.
+  - Every one of this branch's own specs was witnessed individually.
+  - The merge introduced no code of its own, so there is nothing new for
+    either tier to see.
+
+### Inline fix
+
+- I appended a dated note to
+  `ISSUE_20261105_a_borrowed_band_term_says_no_value_in_its_preview_and_untraced_on_its_row.md`.
+  Its cited shot `kin_1600_preview.png` was deleted when round 2 retook the
+  shots, so the note points at the commit that still holds it (`047f9d9e`).
+  It is a path string only.
+
+### Unfixed should-fixes
+
+None. The design deviation noted in round 1 (a part gets a rule rather than
+caps) is stated in the lesson and the code. It is not a defect.
+
+**Verdict: APPROVE (round 2).**
