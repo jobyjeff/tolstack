@@ -1,6 +1,6 @@
 ---
 type: chore
-priority: low
+priority: med
 status: open
 area: tests
 reporter: agent
