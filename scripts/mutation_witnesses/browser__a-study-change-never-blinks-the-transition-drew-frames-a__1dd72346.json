@@ -6,10 +6,10 @@
     {
       "contract": "Every frame of a respine draws the DAG; the pane is never emptied between the old layout and the new.",
       "issue": null,
-      "note": "Declared by handoff the_rearrange_animates_and_centres_the_active_study (2026-10-29), the amended form of 'no element removed and re-added'. Transition frames empty the pane (re-pointed 2026-11-05 at the keyframe tween's frame, the per-frame render being gone).",
+      "note": "Declared by handoff the_rearrange_animates_and_centres_the_active_study (2026-10-29), the amended form of 'no element removed and re-added'. Transition frames empty the pane (re-pointed 2026-11-05 at the keyframe tween's frame, the per-frame render being gone). The mutation drops the dots rather than clearing the root: clearing made the next hook throw, and the failure path lands the transition in the same task, so no sampled frame ever saw the empty pane.",
       "file": "apps/viewer/views/topology.js",
       "find": "      applySnapshotPlan(plan, w.k, w.u);\n      // What the next",
-      "replace": "      if (w.u > 0.2) VA.clear(root); else applySnapshotPlan(plan, w.k, w.u);\n      // What the next"
+      "replace": "      applySnapshotPlan(plan, w.k, w.u);\n      if (w.u > 0.2) Array.prototype.slice.call(root.querySelectorAll(\"circle.rail__dot\")).forEach(function (n) { n.parentNode.removeChild(n); });\n      // What the next"
     }
   ]
 }
