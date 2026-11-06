@@ -122,3 +122,12 @@ selected`, and it took both of the suite's selected entries down with it
 The suite was 32/32 in three other runs: `--only`, inside a full 41/41
 browser run (1409 s), and in each entry's `--only` re-run, where both were
 WITNESSED. The red run overlapped a full browser-tier run on the box.
+
+## Addendum 2026-11-05 (the_seam_and_rail_checks_wait_on_settled_state)
+
+This issue's fix shape is on that branch (`b726612c`). The `bodyRow` lookup is
+now a `waitForFunction` for a body row with an enabled checkbox (60 s), not a
+single read. The four checks were green in three loaded full runs and in six
+`--only` runs beside a pytest run. That is not proof against a 1-in-N flake,
+but the null-row cause can no longer reach the checks. Left `deferred` for
+triage to disposition.

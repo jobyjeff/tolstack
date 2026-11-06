@@ -32,3 +32,14 @@ One sub-check, "[real] ...and leaving it takes the light down", red in a full
 from that handoff's worktree (33/37 suites; the other three reds were that
 handoff's own and are fixed). The suite alone, twice right after: 32/32 both
 times.
+
+## Addendum 2026-11-05 (the_seam_and_rail_checks_wait_on_settled_state)
+
+The four nav-body checks get the fix recorded on
+`ISSUE_20261029_four_3d_pane_nav_gesture_checks_fail_together_when_the_bodies_resolve_late.md`
+(the body row is waited for). The 10-30 sighting, `[real] ...and leaving it
+takes the light down`, was reproduced and measured on that branch: `held
+false` 1 in 4 and `chip null` 2 in 5 beside pytest, then 0 in 11 after its
+precondition was held with a resting pointer. Its product half is filed as
+`ISSUE_20261105_a_nav_scene_row_rebuilt_under_a_resting_pointer_drops_the_scenes_hover_light.md`.
+Left `deferred` for triage to disposition.
