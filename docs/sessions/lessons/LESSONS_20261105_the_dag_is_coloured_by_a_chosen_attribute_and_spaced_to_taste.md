@@ -136,3 +136,62 @@ in dark mode against the page's `--bg` `#16181d`.
 - **Contribution bins are equal fifths of the page's maximum**, recomputed
   for each stop. Two stops' colours are therefore not comparable, and each
   stop's legend states its own bounds.
+
+## The widths, measured (kinematic study, blade pitch at the end stops)
+
+Each width was measured on the live drawing at the page's landing zoom of
+0.823, which every width shares (`measurements.json`). "Pane" is the rails
+SVG, which includes the leader jog zone. "DAG" is the drawing at zoom 1. The
+crossings were counted on the drawn geometry: each of the 83 links was
+sampled to a 40-point polyline and tested against each of the 63 rails and
+each other link. A hit within 1.5 px of either path's own end does not count.
+
+| width | column pitch | DAG at zoom 1 | pane at 0.823 | link × rail | link × link |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| narrow | 20 px | 420 px | 346 px | 66 | 252 |
+| medium | 30 px | 550 px | 453 px | 64 | 248 |
+| wide | 42 px | 706 px | 581 px | 65 | 249 |
+
+**The crossings do not move with the width, and that is by construction.**
+The width setting scales x and nothing else, and a scale keeps every
+intersection. The ±2 spread is sampling noise: a 40-point chord of a curve
+lands on either side of a rail it only grazes. The link × link figure is
+inflated by close links that run collinear on one column, where every
+sampled chord "crosses". It is useful only for comparing the widths with
+each other, not as a count of crossings a reader sees. The width spreads the
+clutter Jeff described but does not untangle it. Untangling belongs to the
+layout, and `a_part_with_many_interfaces_is_drawn_as_a_component_with_pins`
+owns that.
+
+## Gap stroke, at the floor, fitted and at 1
+
+Shots: `4_gap_floor.png` (zoom 0.12), `4_gap_fitted.png` (0.208, the whole
+topology fitted at 1600 px) and `4_gap_zoom1.png` (1.06).
+
+- **At zoom 1**, a lit gap is a broken line of 10 px dashes in the dimmer
+  ink. It reads as "not a solid bar", and the 4 × 3 hashes are gone.
+- **At 0.208 and at 0.12**, a dash is 1–2 px long, so a gap reads as a
+  fainter line. The only thing separating it from a solid edge there is the
+  ink, which is dimmer. At 0.12 the whole drawing is a thumbnail and nothing
+  is legible at the mark level, the gap included.
+
+If a gap has to read as a gap at the floor, the next lever is a dash in
+screen pixels: `vector-effect: non-scaling-stroke` together with a dash
+array divided by the zoom. That is not done here, and it is filed
+(`ISSUE_20261105_a_gap_reads_as_a_gap_only_from_the_fitted_zoom_up.md`).
+
+## What the click-around found
+
+- The popover re-opens after each change, which is the intended behaviour so
+  a reader can try settings in a row. In a screenshot it covers the key strip
+  under the toolbar. The shot script closes it before each shot.
+- The key strip's body names are the bodies' own names, and several of them
+  are part numbers ("214699-002 lower…"). Each one is cut to 22 characters,
+  and its hover shows the full name.
+- The 3D pane (`5_scene_body_tints.png`) shows the base in its blue ink and
+  the blade and pitch arm in green. Hovering and the sweep's colours still
+  paint over them.
+- With the body overlay on, a lit joint end's ring takes its body's ink, so
+  the accent no longer marks the study's path on the DAG. The weight and the
+  group border still mark it. That is the trade an overlay makes. With
+  "None" it is the accent again.

@@ -2936,12 +2936,12 @@
     rows.forEach(function (row, i) {
       var part = partOf[i];
       if (!part) return;
-      var last = spans[spans.length - 1];
-      if (last && last.part === part && last.body === row.body && last.end === row.row - 1) {
-        last.end = row.row;
-        last.lo = Math.min(last.lo, row.column);
-        last.hi = Math.max(last.hi, row.column);
-        if (row.kind === "edge") last.edges++;
+      var run = spans[spans.length - 1];
+      if (run && run.part === part && run.body === row.body && run.end === row.row - 1) {
+        run.end = row.row;
+        run.lo = Math.min(run.lo, row.column);
+        run.hi = Math.max(run.hi, row.column);
+        if (row.kind === "edge") run.edges++;
       } else {
         spans.push({ part: part, body: row.body, start: row.row, end: row.row,
                      lo: row.column, hi: row.column, edges: row.kind === "edge" ? 1 : 0 });
