@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every group is a border with no fill by default; the group fill adds parts, then every kind, in one layer under every border",
+  "mutations": [
+    {
+      "contract": "No group is filled unless the view's group fill asks.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). Every group filled by default: the boxes Jeff asked to be see-through.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var fillMode = VA.GROUP_FILLS[ctx.groupFill] ? ctx.groupFill : \"off\";",
+      "replace": "    var fillMode = VA.GROUP_FILLS[ctx.groupFill] ? ctx.groupFill : \"all\";"
+    }
+  ]
+}

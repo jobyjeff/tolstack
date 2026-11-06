@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "model: the tint verb takes each part's body colour as part=#rrggbb, or off, and refuses a malformed pair",
+  "mutations": [
+    {
+      "contract": "`model tint off` puts every part back to its own colour.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). off parsed as a pair and refused: the shell could never take the body colour off.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      if (list.length === 2 && list[1] === \"off\") return { action: action, tints: null };\n",
+      "replace": ""
+    }
+  ]
+}
