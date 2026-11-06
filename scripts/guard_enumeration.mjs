@@ -1,4 +1,4 @@
-// THE ENUMERATION OF GUARDS -- the one place this repo answers "what guards
+﻿// THE ENUMERATION OF GUARDS -- the one place this repo answers "what guards
 // does the tree declare, and which of them is witnessed?"
 //
 // Until 2026-09-23 those were two hand-kept lists. A guard lived in
@@ -238,11 +238,21 @@ export const DECLARED_GUARDS = {
   // sourcing legend's named tints, and the scene's tint verb from the page.
   // Each carries a spec. (Re-measured at the review merge on integration's
   // 632: 642.)
+  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: +2. Three added -- the brackets nest, a part's number and
+  // description are two columns, every row's part cell selects its row; the
+  // two crop-thumbnail guards became one (no row carries a crop; its crop is
+  // in the Preview). Renamed: the row-tint render check, the jog grip's seam,
+  // the bar's one channel, the gap row's mark and the live study's grid. Each
+  // carries a spec; the old names' specs are deleted.
+  // Merged with integration (review round 2, 2026-11-06): 644 + 2 - 1 -- the
+  // sourcing legend's named tints is retired with its spec, since no grid row
+  // wears a tint for it to name.
   // the_rail_reads_as_a_tree_of_bodies_joints_and_faces, 2026-11-06: +1 -- a
   // mirrored row wears its kind and mark, its twisty and glyph columns, the
   // legend, and its control group before its checkbox. It carries a spec.
-  // (Re-measured at the review merge on integration's 644: 645.)
-  fast: { declared: 645, enrollable: 645, names: "144ddec63e5b" },
+  // Merged with integration at its 645 (rework, 2026-11-06): 645 + 1.
+  fast: { declared: 646, enrollable: 646, names: "f53bbbcbd504" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -294,8 +304,8 @@ export const DECLARED_GUARDS = {
   // +1 -- the model verb's tint action. It carries a spec.
   // 2026-11-06 (the_rail_reads_as_a_tree_of_bodies_joints_and_faces): +3 -- a
   // rail row's mark, an end's declared face, and the legend naming every
-  // mark. Each carries a spec. (Re-measured at the review merge on integration's
-  // 291: 294.)
+  // mark. Each carries a spec.
+  // Merged with integration at its 291 (rework, 2026-11-06): 291 + 3.
   annotate: { declared: 294, enrollable: 294, names: "89587c9bb715" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
@@ -422,8 +432,28 @@ export const DECLARED_GUARDS = {
   // the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
-  // the overlay on the bars and survives a reload. Each carries a spec.
-  browser: { declared: 836, enrollable: 803, names: "db826d6de861" },
+  // the overlay on the bars and survives a reload. Each carries a spec.  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: -1. Three crop-on-the-row checks became one (no grid row
+  // draws a crop) and one more went (an edge with no crop key's empty cell);
+  // one added -- at 1600x1000 every row's part cell takes the click. The
+  // sticky-rails checks are inverted and renamed (the rails scroll with the
+  // grid now), as are the row-tint, component-cell, thumbnail and stack
+  // checks. A study's landing keeps the band inside the pane rather than
+  // centring it sideways, so its two landing checks are renamed. The
+  // part-cell check, both scroll checks, the stack check and both landing
+  // checks carry a spec; the sticky spec is deleted.
+  // Merged with integration (review round 2, 2026-11-06): 836 - 1, then +2 --
+  // no grid number and no part number clips, totals rows included; a pane
+  // narrowed with no repaint takes its zoom box's floor with it. Each carries
+  // a spec.
+  // the_rail_reads_as_a_tree_of_bodies_joints_and_faces (rework, 2026-11-06):
+  // +7 -- on the live study the nav's rows carry their kind and mark, the
+  // end taken this session reads picked now, the legend names every mark,
+  // each level steps in a full indent, every kind draws a glyph, attention
+  // keeps a row's words in ink, and an isolated part stays on one line, its
+  // checkbox and buttons beside its name. Each carries a spec aimed at the
+  // wiring or the rule.
+  browser: { declared: 844, enrollable: 811, names: "b7f1ad953414" },
 };
 
 
@@ -446,7 +476,7 @@ export const CENSUS_LIMITS = {
     "equality -- the tier needs a real Chrome, and its declared names are " +
     "templates one suite or two may print, so `declared == executed` is false " +
     "there by construction. The other direction IS checked at the tail of every " +
-    "browser run (`ran ⊆ declared`, `ranNotDeclared`), so a guard written in a " +
+    "browser run (`ran âŠ† declared`, `ranNotDeclared`), so a guard written in a " +
     "shape the scan does not match is reported by name; what stays unseen is a " +
     "declared guard that no run reached",
   incomplete_run_pairs_one_way:
@@ -512,7 +542,7 @@ function declarationsIn(text, call, skipCall) {
     String.raw`)\(\s*(?:"((?:[^"\\\n]|\\.)*)"|\x60([^\x60]*)\x60)`, "gm");
   // A name continued by a literal of the OTHER quote kind (`"a " + `b ${x}``)
   // is not closed by SEAMS, so the first literal alone would read truncated.
-  // Found by the browser runner's `ran ⊆ declared` tail check: 13 printed names
+  // Found by the browser runner's `ran âŠ† declared` tail check: 13 printed names
   // the scan had cut at the seam.
   const continuation = /^\s*\+\s*(?:"((?:[^"\\\n]|\\.)*)"|\x60([^\x60]*)\x60)/;
   for (const m of text.matchAll(pattern)) {
@@ -661,7 +691,7 @@ function runTier(repoRoot, runner) {
  * THIS IS WHAT MAKES THE SCANNER FALSIFIABLE. Everything else here trusts
  * `declarationsIn` to have found every guard: the pin says how many the scan
  * found, never whether the scan is right. A guard written in a shape the regex
- * does not match -- `test('…')` in single quotes, or a name handed in by a
+ * does not match -- `test('â€¦')` in single quotes, or a name handed in by a
  * helper or a loop -- is invisible in BOTH directions at once: not censused,
  * therefore not enrollable, therefore never printed by `--unenrolled`.
  * Measured 2026-09-23: zero such declarations exist, which is a fact with a
@@ -744,7 +774,7 @@ export function pairExecuted(repoRoot = REPO) {
 }
 
 /**
- * `ran ⊆ declared` for a source that cannot be paired both ways: every name in
+ * `ran âŠ† declared` for a source that cannot be paired both ways: every name in
  * `ran` that the scan neither found as a declaration nor can account for as an
  * interpolated template.
  *

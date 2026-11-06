@@ -51,8 +51,11 @@ candidates: depth and the glyph already carry their level.
 `--tree-step` (20px) per level, declared once on `.navtree__scene`. A nested
 list hangs a 1px `--line` guide from the centre of its parent's twisty column
 (`--tree-twisty`, 16px), so the step is the twisty's half-width plus padding.
-At level 3 a candidate face sits 60px in from its joint. Before, the step was
-14px with no guide, under a 12px slot pad.
+A candidate face sits **40px** in from its joint: group headings are flat
+items, so joint → end → face is two nested lists, two steps. (The first
+version of this lesson and the CSS comment said 60px. The review caught it,
+and the browser check now measures both steps on the live study: 20px and
+20px.) Before, the step was 14px with no guide, under a 12px slot pad.
 
 **Against the grid:** the grid's brackets are on the parallel branch
 `the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what`, not on this
@@ -191,3 +194,70 @@ on the memory adapter). Every step writes a full-page PNG and a `_nav` crop.
     standalone rerun. Re-run alone, the entry was WITNESSED (2m57s).
 - **The `node_modules` junction** was removed before handing back
   (`cmd /c rmdir node_modules`).
+
+## Rework after review (2026-11-06)
+
+`docs/sessions/reviews/REVIEW_20261106_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md`
+requested changes for one blocker. Every visual deliverable could be reverted
+with every gated tier green: the helpers were pinned, but the wiring that
+carries them to Jeff's page (`railLookInto`, `legend:`) and the stylesheet's
+rule bodies were not. What changed:
+
+- **Seven `[real]` checks on the live kinematic study** were added in the
+  shell's tree, in `annotate rail holds still`. They run after the Take, with
+  the joint open, one end picked and the other end's candidates listed. Each
+  has a spec aimed at its wiring line or its rule, and all seven are
+  WITNESSED:
+
+  | check | the spec's mutation |
+  |---|---|
+  | rows carry their kind, and every end carries a mark | the list-item `railLookInto(node, row)` call deleted |
+  | the end taken this session is `picked`, filled in pick orange | `sessionEventIds()` returns `[]` |
+  | the legend draws every mark once | `legend: []` |
+  | each level steps in at least 18px (measured: 20 and 20) | `--tree-step: 14px` |
+  | each kind draws a glyph | the body's `::before` content set to `none` |
+  | an attention row's words stay ink | the old `data-attention` → `--inferred` rule restored |
+  | an Isolate'd part stays one line | the armed wrap's `:not([data-kind="part"])` removed |
+
+- **Gotcha, the Isolate check:** the first version clicked the real Isolate
+  and measured once `aria-pressed` read true. Mutated, it still passed: by
+  the time of the read, the pressed state had cleared, and the rule never
+  fired. Also, the checkbox's `order: 1` keeps it on the name's line
+  regardless, so what the part exclusion actually stops is the button group
+  dropping to its own line. The check now sets the pressed state, measures
+  and restores, all in one synchronous evaluate, and it asserts both the
+  checkbox and the buttons. That is what turned it WITNESSED.
+- **Gotcha, the evaluate that reads every row** must be null-safe. With
+  kinds removed, `find(…, "end")` returned nothing, and the throw aborted the
+  suite before the push. The runner then reported "never reached the
+  witness" rather than a red.
+- **Scoped selectors:** every `[data-kind]` / `[data-mark]` rule is now under
+  `.navtree__scene`.
+- **The indent arithmetic** is corrected above, to 40px from a joint to its
+  candidate face.
+- **The side-by-side shot is delivered.** The grid branch landed and is
+  merged here, and at 2560 wide the grid has room for its rows:
+  `07_rail_beside_grid_2560.png`.
+
+### Rework verification (2026-11-06, from the worktree, on b71f62e2)
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` gave
+  `1 failed, 1733 passed, 1 skipped, 2 deselected in 437.11s` (wall 438 s,
+  recorded as `default`, inside budget). The one failure is the worktree's
+  `tests/test_viewer_js_suite.py`, as before.
+- `node apps/viewer/run_tests.cjs` gave 529/529 (node-fs tier skipped in the
+  worktree). `node apps/annotate/run_tests.cjs` gave 294/294.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack
+  --only "annotate rail holds still"` gave 14/14 on the final code. The full
+  browser tier was not re-run. The only browser suite this rework touched is
+  that one, and the merged-in integration changes are integration's own.
+- Each of the seven new specs was WITNESSED with `node
+  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only
+  <spec>`. The kinds and isolate specs were witnessed on the final code. The
+  other five were witnessed before the null-safety and isolate edits, which
+  touched neither their checks' conditions nor their mutations' anchors.
+- The `--changed-since integration` gate was not re-run on the rework. The
+  reviewer's post-merge run covers it.
+- Guard pins after merging integration: fast 646, annotate 294, browser
+  844/811 (`b7f1ad953414`).
+- The `node_modules` junction was removed again before hand-back.

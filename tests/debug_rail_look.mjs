@@ -228,6 +228,13 @@ try {
   const nav = await page.locator("#navtree").boundingBox();
   await page.screenshot({ path: join(OUT, `${String(++step).padStart(2, "0")}_rail_beside_grid.png`),
     clip: { x: nav.x, y: nav.y, width: Math.min(1600 - nav.x, 1100), height: nav.height } });
+  // At 1600 with the pane open the grid is a slit; at 2560 it has room for
+  // its rows, so the rail's step and the grid's brackets read side by side.
+  await page.setViewportSize({ width: 2560, height: 1000 });
+  await settle(3000);
+  await scrollTo(/^#sweep-tree\/joint=pitch_link$/, 120);
+  await settle();
+  await page.screenshot({ path: join(OUT, `${String(++step).padStart(2, "0")}_rail_beside_grid_2560.png`) });
 } finally {
   server.close();
   await closeEveryBrowser();

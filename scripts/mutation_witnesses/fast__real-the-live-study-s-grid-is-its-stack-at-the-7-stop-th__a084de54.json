@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] the live study's grid is its stack at the -7 stop: the six linkage terms in chain order, the travel folded with what it contributes, the gap after it, each in its own bracket and no row tinted",
+  "mutations": [
+    {
+      "contract": "The linkage reads from the blade end into the stop chains.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Re-enrolled under the guard's new name. Reads the linkage walk forwards.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    walked.reverse().forEach(place);",
+      "replace": "    walked.forEach(place);"
+    }
+  ]
+}

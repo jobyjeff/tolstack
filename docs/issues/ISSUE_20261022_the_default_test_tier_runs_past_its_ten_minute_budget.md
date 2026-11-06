@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: med
-status: resolved
+status: open
 area: tests
 reporter: agent
 class: suite_over_budget
@@ -134,3 +134,29 @@ contention header lines. No `--durations` was taken.
 ## Addendum 2026-11-05 (stack_wording_drops_filler_and_the_hover_says_the_same_thing)
 
 Default tier, worktree, plain `pytest -q` (the venv has no xdist, so `-n 16` is not available there): 737 s (12m17s), 1728 passed, 2 failed (provenance row, fixed; viewer JS suite red by design in a worktree), over budget by 2m17s.
+
+## Reopened 2026-11-05 (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what)
+
+One record over budget: **4033 s (67 min)** against 10 min, `OVER BUDGET by
+57m13s`. Command:
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider`,
+run single-process in the worktree (`-n 16 --dist loadfile` is refused here:
+no xdist). Result: 1721 passed, 7 failed, 1 skipped.
+
+This is almost certainly queueing, not test cost. The output sat at 23 dots
+for most of the hour while four agents' browser runs, mine among them, held
+the machine's one browser slot. The pytest tests that start Chrome ask for
+the `browser_slot` fixture and wait their turn, and the wall clock counts the
+wait. The same morning's batch-merge candidate measured 503 s. I did not pass
+`--durations=15`, so I have no per-test pareto for this run. The class matches
+`ISSUE_20261029_a_witness_gate_recorded_over_budget_counts_its_browser_slot_queue.md`
+(the witness gate): a recorded wall time that includes the slot queue cannot
+tell a slow suite from a busy machine.
+
+
+Same branch, re-run 2026-11-06 with the browser slot free: 407 s,
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider`
+in the handoff worktree: `1 failed, 1727 passed, 1 skipped, 2 deselected`.
+`suite-time record`: inside budget. The failure is the worktree-only
+`test_viewer_js_suite` (its tier passed 637/637 through `--repo`). So the 4033 s
+above was the slot queue, not the suite.
