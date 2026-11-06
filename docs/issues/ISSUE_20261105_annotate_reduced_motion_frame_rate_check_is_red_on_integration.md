@@ -29,5 +29,17 @@ rounding loses distance. Start by reading the check's slow arm and
 `tickSweep`'s reduced-motion path side by side; do not "fix" it by widening
 the tolerance before knowing which.
 
+**Addendum, same day — both reduced-motion checks flip run to run.** Five
+complete runs (three on the branch, two on the `integration` copy; a sixth
+aborted on the box at 4 fps): the frame-rate check above was red in four, and
+green on the second integration run; its sibling `the speed control changes reduced-motion
+playback's rate` (500 ms, 1x vs 4x) was red in three, one of them the
+integration copy (`speed 1x -> index 0; speed 4x -> index 0`, where a passing
+run reads `-> index 2`). The same 3000 ms fast arm reached index 48, 56, 58 and
+63 at ~140 fps. So these are wall-clock windows the box's load moves, not a
+deterministic defect — a check of reduced-motion pacing that steps the page's
+clock (`scripts/virtual_clock.mjs`, as `scripts/filmstrip.mjs` does) instead of
+sleeping would stop guessing.
+
 The other two reds in the same run are already
 `docs/issues/ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration.md`.

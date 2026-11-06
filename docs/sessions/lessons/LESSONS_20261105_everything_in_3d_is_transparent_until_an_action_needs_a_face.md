@@ -45,7 +45,9 @@ three times on this study: `machined_213668` (a base part) sits inside the
 structural: a hidden key hides every occurrence on the same assembly path —
 the installation above it, the details below it — whichever part draws it
 (`AA.assemblyPathsOverlap`, `scene._occurrenceHidden`). Hiding base now takes
-down 9 drawn meshes, 6 of them another part's copy. The sweep ghost layer's
+down 6 drawn meshes that are another part's copy (the browser check's own
+count; the hand probe, whose scene had finished loading the hub too, saw 9
+meshes go in all). The sweep ghost layer's
 as-modelled copies now carry their occurrence key and hide the same way (they
 never did); a null key in a hide list now hides that part's unrecorded
 occurrence (it was ignored).
@@ -101,6 +103,15 @@ suggestion > page highlight.
 - A probe that hovers a nav row before clicking leaves the pointer resting
   there, and the pane draws a hover wash (0.45) on a part — it read as an
   opaque blade in the first screenshots. Park the pointer before reading.
+
+- **`open-part` in sweep mode now arrives at the rest look** (`applyLooks`
+  after its solid reset). The browser tier's suggestion suite read a bracket
+  `show`n in sweep mode as solid "at rest" and ghost after the action ended —
+  the old per-frame cache had never ghosted it either. A part opened by hand
+  in sweep mode is a part at rest.
+- **The real check's `hide-body` races the rail**: the scene settles before
+  the sweep rail lists the run's bodies, and the verb throws until it does.
+  The check retries for up to 30 s and prints the error if it never lands.
 
 ## Verification
 
