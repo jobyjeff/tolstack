@@ -70,6 +70,12 @@ over 48 meshes. **115 faces change, all `other` → `cylindrical`**, in 21
 distinct geometries over 12 parts. None comes from `planar` or `spherical`,
 and none leaves `cylindrical`.
 
+> **Correction, 2026-11-05 (review).** The store has **47** meshes, not 48:
+> `data/meshes/` has 48 entries, and one of them is the tracked `README.md`.
+> The review re-ran the old and new `fit_part_faces` over every sha directory
+> and reproduced every other figure in this paragraph: 36,294 faces, 115
+> changes, all `other` → `cylindrical`, across 12 parts.
+
 Columns: r and arc are from the refined fit. "facet worst" is
 `worst_axis_deg`. "facet-axis spread" is the max residual / r about the facet
 axis. "node spread" is the max residual in mm about the refined axis.

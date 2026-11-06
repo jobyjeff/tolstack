@@ -4873,6 +4873,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       with JS, the fitter reads with Python). Ask: *is the thing paired the
       inputs or the answers?* A threshold pairing says the two were given the
       same numbers, never that they return the same word.
+      **The other half (2026-11-05, `a_two_row_cylinder_band_fits_as_a_cylinder`):**
+      the output pairing (`test_real_both_readers_classify_every_installed_face_the_same`)
+      catches a change made to *one* reader only. A gate deleted from **both**
+      readers passes it. So a new gate written into both readers needs its own
+      synthetic fixture, and you should mutate it on one side and then on both.
+      The node test's arc gate and facet-radial pre-gate survived exactly that.
+      And a DoD that names real faces ("487/521 fit cylindrical") needs a
+      `[real]` pin on those faces, not only a look-alike fixture.
 
 - [ ] **A guard weakened for a condition the committed data no longer has —
       the data moved back, the test comment did not.** Same handoff.
