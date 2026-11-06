@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/browser
 reporter: agent
 class: flaky_browser_check
 found_by: docs/sessions/HANDOFF_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md
 handoff: docs/sessions/HANDOFF_20261105_the_seam_and_rail_checks_wait_on_settled_state.md
+resolution: handoff completed 2026-11-05 -- closed automatically by dispatch when handoff `the_seam_and_rail_checks_wait_on_settled_state` moved to completed/; not independently verified.
 ---
 
 # The seam leaders' screenshot-row checks are intermittent

@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: tests/browser (annotate rail filter suite)
 reporter: agent
 class: timing_assertion_under_load
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261105_triage_sweep.md
 handoff: docs/sessions/HANDOFF_20261105_the_seam_and_rail_checks_wait_on_settled_state.md
+resolution: handoff completed 2026-11-05 -- closed automatically by dispatch when handoff `the_seam_and_rail_checks_wait_on_settled_state` moved to completed/; not independently verified.
 ---
 
 # The rail filter's "a real click on the face tints it" check fails again in a loaded full run, after the 10-29 deadline raise
