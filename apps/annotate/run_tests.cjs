@@ -5463,6 +5463,17 @@ check("model: the model verb parses lit, unlit and select, and refuses anything 
   }
 });
 
+check("model: the tint verb takes each part's body colour as part=#rrggbb, or off, and refuses a malformed pair", () => {
+  assertEqual(AA.parseModelVerb(["tint", "pa=#5172B8", "pb=#41a87e"]),
+    { action: "tint", tints: { pa: "#5172b8", pb: "#41a87e" } }, "two parts, the hex lower-cased");
+  assertEqual(AA.parseModelVerb(["tint", "off"]), { action: "tint", tints: null }, "every part its own colour");
+  for (const args of [["tint"], ["tint", "pa"], ["tint", "pa=red"], ["tint", "pa=#123"]]) {
+    let err = null;
+    try { AA.parseModelVerb(args); } catch (e) { err = e.message; }
+    if (!err) throw new Error("accepted " + JSON.stringify(args));
+  }
+});
+
 check("model: the link ends are read off the run's own geometry features, for links only", () => {
   const artifact = {
     links: [{ joint: "rodlink" }],

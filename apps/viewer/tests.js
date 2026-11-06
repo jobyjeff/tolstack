@@ -12432,7 +12432,7 @@
         eq([VA.readGroupKinds(store, "t"), VA.readGroupKinds(store, "u")],
            [on(["bodies"]), on(["chain", "kinematic"])]);
         data[VA.GROUP_KINDS_KEY] = JSON.stringify({ t: ["nonsense", "chain"] });
-        eq(VA.readGroupKinds(store, "t"), on(["bodies", "kinematic"]),
+        eq(VA.readGroupKinds(store, "t"), on(["bodies", "parts", "kinematic"]),
            "a word outside the set is ignored");
         data[VA.GROUP_KINDS_KEY] = "{not json";
         eq(VA.readGroupKinds(store, "t"), on(kinds), "an unreadable store: all on");
@@ -12446,14 +12446,286 @@
         });
         var summary = all(toolbar, "summary").filter(function (b) {
           return b.getAttribute("id") === "group-kinds-toggle"; })[0];
-        eq(summary.textContent, "Groups (3 of 3)");
+        eq(summary.textContent, "Groups (4 of 4)");
         var boxes = all(toolbar, "input");
-        eq(boxes.length, 3);
-        boxes[1].checked = false;
-        boxes[1].onchange();
+        eq(boxes.length, 4);
+        boxes[2].checked = false;
+        boxes[2].onchange();
         eq(seen, [["chain", false]]);
-        eq(summary.textContent, "Groups (2 of 3)");
+        eq(summary.textContent, "Groups (3 of 4)");
       });
+
+    // --- groups as borders, colour overlays, the graph's width
+    //     (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste) ------
+
+    // Every element below `node` in document order (the DAG is drawn in
+    // layers, so order is the descendants', not the children's).
+    function svgOrder(root) {
+      var kids = [];
+      var walk = function (node) {
+        Array.prototype.slice.call(node.childNodes || []).forEach(function (n) {
+          if (n.nodeType !== 1) return;
+          kids.push(n);
+          walk(n);
+        });
+      };
+      walk(all(root, "svg.tv__rails")[0]);
+      return kids;
+    }
+
+    await test("a part's group is every run of rows on one part inside one body, " +
+      "holding an edge, and it sits inside its body's field", function () {
+        var proj = twoBodyProjection();
+        var spans = function (p) {
+          return VA.partSpans(p.layout.rows, p).map(function (s) {
+            return [s.part, s.body, s.start, s.end, s.lo, s.hi];
+          });
+        };
+        eq(spans(proj), [["pa", "A", 0, 2, 0, 0], ["pb", "B", 4, 8, 0, 1]]);
+        // A node two parts meet at goes with the edge it continues: b1 opens
+        // eB (now part pc) and b2, on pb only, goes with eB2 below it.
+        var p2 = twoBodyProjection();
+        p2.edges[2].part = "pc";
+        p2.nodes[2].parts = ["pb", "pc"];
+        p2.bodies[1].parts = ["pb", "pc"];
+        eq(spans(p2), [["pa", "A", 0, 2, 0, 0], ["pc", "B", 4, 5, 0, 0],
+                       ["pb", "B", 6, 8, 0, 1]]);
+        eq(VA.partSpans([{ row: 0, kind: "node", id: "a1", column: 0, body: "A" }], proj), [],
+           "a part that is one face is its node, not a box");
+        var geo = VA.railGeometry(proj.layout, VA.RAIL_METRICS, undefined, { topoProj: proj });
+        eq(VA.railGeometry(proj.layout, VA.RAIL_METRICS).parts, [], "no topology, no parts");
+        var part = geo.parts[0];
+        var body = geo.bodies[0];
+        ok(part.x1 > body.x1 && part.x2 < body.x2 && part.y1 > body.y1 && part.y2 < body.y2,
+           "inside its body's field: " + JSON.stringify([part, body]));
+      });
+
+    await test("every group is a border with no fill by default; the group fill " +
+      "adds parts, then every kind, in one layer under every border", function () {
+        var s = twoStudies("s1");
+        var paint = function (mode) {
+          return paintGroups(s.proj, s.groups, "both", mode ? { groupFill: mode } : {});
+        };
+        var fills = function (root, kind) {
+          return all(root, "rect.tv__groupfill").filter(function (n) {
+            return hasClass(n, "tv__groupfill--" + kind);
+          }).length;
+        };
+        var off = paint(null);
+        eq(all(off, "rect.tv__groupfill").length, 0, "no fill by default");
+        eq([all(off, "rect.tv__bodyfield").length, all(off, "rect.tv__partfield").length,
+            all(off, "rect.tv__studyfield").length], [2, 2, 3], "every border is drawn");
+        var parts = paint("parts");
+        eq([fills(parts, "part"), fills(parts, "body"), fills(parts, "study")], [2, 0, 0]);
+        var every = paint("all");
+        eq([fills(every, "part"), fills(every, "body"), fills(every, "study")], [2, 2, 3]);
+        var kids = svgOrder(every);
+        var lastFill = -1;
+        var firstBorder = Infinity;
+        kids.forEach(function (n, i) {
+          if (hasClass(n, "tv__groupfill")) lastFill = i;
+          if ((hasClass(n, "tv__bodyfield") || hasClass(n, "tv__partfield") ||
+               hasClass(n, "tv__studyfield") || hasClass(n, "tv__bodybridge")) &&
+              i < firstBorder) firstBorder = i;
+        });
+        ok(lastFill < firstBorder, "every fill under every border: " + lastFill + " / " + firstBorder);
+        eq(all(paint("nonsense"), "rect.tv__groupfill").length, 0, "an unknown fill is none");
+      });
+
+    await test("a body's other blocks carry a muted repeat of its name, and only " +
+      "its named block folds it", function () {
+        var proj = twoBodyProjection();
+        // Body A on both sides of the joint: two blocks, one body.
+        proj.layout.rows.forEach(function (r) { if (r.body === "B") r.body = "A"; });
+        var root = paintGroups(proj, []);
+        eq(all(root, "rect.tv__bodyfield").length, 2);
+        eq(all(root, "text.tv__bodyname").map(function (n) {
+          return n.getAttribute("data-body-toggle"); }), ["A"], "named once");
+        var repeats = all(root, "text.tv__bodyrepeat");
+        eq(repeats.map(function (n) { return n.getAttribute("data-body-repeat"); }), ["A"]);
+        eq(repeats[0].getAttribute("data-body-toggle"), null, "a repeat folds nothing");
+        ok(repeats[0].textContent.indexOf("body a") === 0 ||
+           repeats[0].textContent.indexOf("…") > 0, repeats[0].textContent);
+      });
+
+    await test("a colour overlay maps every edge and node through one table of " +
+      "named schemes, and none is the one neutral ink", function () {
+        var proj = twoBodyProjection();
+        proj.edges[1].interface = "spherical";
+        proj.edges[0].confidence = "traced";
+        proj.edges[2].confidence = "untraced";
+        var none = VA.dagOverlay("none", proj);
+        eq([none.scheme, Object.keys(none.edges).length, Object.keys(none.nodes).length,
+            none.legend.length], ["none", 0, 0, 0]);
+        eq(VA.dagOverlay("nonsense", proj).scheme, "none");
+        var body = VA.dagOverlay("body", proj);
+        eq(body.edges, { eA: "ovl ovl-b0", eB: "ovl ovl-b1", eB2: "ovl ovl-b1" },
+           "a gap is in no body, so it keeps the neutral ink");
+        eq([body.nodes.a1, body.nodes.b3], ["ovl ovl-b0", "ovl ovl-b1"]);
+        eq(body.legend.map(function (l) { return l.label; }), ["body a", "body b"]);
+        var p = twoBodyProjection();
+        p.bodies[1].parts = ["pb", "pc"];
+        p.edges[3].part = "pc";
+        eq(VA.dagOverlay("part", p).edges,
+           { eA: "ovl ovl-b0", eB: "ovl ovl-b1", eB2: "ovl ovl-b1 ovl-s1" },
+           "a body's hue, a shade per part");
+        var iface = VA.dagOverlay("interface", proj);
+        eq(iface.edges, { j: "ovl ovl-i0" });
+        eq([iface.nodes.a2, iface.nodes.b1, iface.nodes.a1], ["ovl ovl-i0", "ovl ovl-i0", undefined]);
+        eq(iface.legend.map(function (l) { return l.label; }),
+           [VA.INTERFACE_GLYPHS.spherical.label]);
+        var src = VA.dagOverlay("sourcing", proj);
+        eq(src.edges, { eA: "ovl ovl-conf--traced", j: "ovl ovl-src-gap",
+                        eB: "ovl ovl-conf--untraced", eB2: "ovl ovl-src-none" });
+        eq(src.legend.map(function (l) { return l.label; }), ["traced", "untraced", "gap", "no value"]);
+        VA.COLOUR_SCHEMES.forEach(function (s) {
+          ok(s.label && (s.id === "none" ||
+            (typeof s.edge === "function" && typeof s.node === "function")), s.id);
+        });
+      });
+
+    await test("the contribution overlay is a sequential ramp over |sensitivity| x " +
+      "band at the page's stop, offered on a kinematic page only", function () {
+        var proj = twoBodyProjection();
+        var ids = function (o) { return VA.availableColourSchemes(o).map(function (s) { return s.id; }); };
+        eq(ids(null).indexOf("contribution"), -1);
+        ok(ids({ contributions: {} }).indexOf("contribution") !== -1);
+        eq(VA.dagOverlay("contribution", proj).scheme, "none", "no contributions, no ramp");
+        var o = VA.dagOverlay("contribution", proj,
+          { contributions: { eA: 1, eB: 0.5, eB2: 0.01, j: 0 }, units: "deg" });
+        eq(o.edges, { eA: "ovl ovl-seq-4", eB: "ovl ovl-seq-2", eB2: "ovl ovl-seq-0" },
+           "a zero contribution is the neutral ink");
+        eq(o.legend.length, VA.CONTRIBUTION_STEPS);
+        var study = { stops: [
+          { id: "a", rows: [{ edge: "x", magnitude: 0.2 }, { edge: "y", magnitude: -0.1 }],
+            groups: [{ children: [{ edge: "z", magnitude: 0.3 }] }] },
+          { id: "b", rows: [{ edge: "x", magnitude: 9 }] }] };
+        eq(VA.kinematicContributions(study, "a"), { x: 0.2, y: 0.1, z: 0.3 });
+        eq(VA.kinematicContributions(study, "b"), { x: 9 });
+        eq(VA.kinematicContributions(study, "nope"), { x: 0.2, y: 0.1, z: 0.3 }, "the first stop");
+        eq(VA.kinematicContributions({ stops: [] }, "a"), null);
+      });
+
+    await test("the overlay's ink rides on the bar, the dot and the glyph, and with " +
+      "none nothing wears it", function () {
+        var s = twoStudies(null);
+        s.proj.edges[1].interface = "spherical";
+        var count = function (root, sel, cls) {
+          return all(root, sel).filter(function (n) { return hasClass(n, cls); }).length;
+        };
+        var body = paintGroups(s.proj, [], null, { colourBy: "body" });
+        eq([count(body, "line.rail__bar", "ovl-b0"), count(body, "line.rail__bar", "ovl-b1"),
+            count(body, "line.rail__bar", "ovl")], [1, 2, 3], "the gap keeps the neutral ink");
+        eq([count(body, "circle.rail__dot", "ovl-b0"), count(body, "circle.rail__dot", "ovl-b1")],
+           [2, 3]);
+        var iface = paintGroups(s.proj, [], null, { colourBy: "interface" });
+        var glyphs = all(iface, "use").filter(function (n) {
+          return n.getAttribute("data-glyph-node") === "a2"; });
+        eq(glyphs.length, 1);
+        ok(hasClass(glyphs[0], "ovl-i0"), "the joint's glyph wears the overlay");
+        eq(all(paintGroups(s.proj, [], null, {}), ".ovl").length, 0);
+      });
+
+    await test("the DAG's view settings are remembered in one store entry, a word " +
+      "outside a table reads as its default, and the width scales the column pitch only",
+      function () {
+        var data = {};
+        var store = { getItem: function (k) { return k in data ? data[k] : null; },
+                      setItem: function (k, v) { data[k] = String(v); } };
+        eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "never chosen");
+        var chosen = { colourBy: "sourcing", groupFill: "parts", graphWidth: "wide" };
+        VA.writeDagView(store, chosen);
+        eq(VA.readDagView(store), chosen);
+        data[VA.DAG_VIEW_KEY] = JSON.stringify({ colourBy: "rainbow", groupFill: "parts",
+                                                 graphWidth: "huge" });
+        eq(VA.readDagView(store), { colourBy: "none", groupFill: "parts", graphWidth: "narrow" });
+        data[VA.DAG_VIEW_KEY] = "{not json";
+        eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS);
+        eq(VA.readDagView(null), VA.DAG_VIEW_DEFAULTS);
+        VA.writeDagView(null, chosen);
+        var layout = twoBodyLayout();
+        var pitch = function () {
+          var xs = VA.railGeometry(layout, VA.RAIL_METRICS).rails.map(function (r) { return r.x; });
+          return Math.max.apply(null, xs) - Math.min.apply(null, xs);
+        };
+        var rowsY = function () {
+          return VA.railGeometry(layout, VA.RAIL_METRICS).marks.map(function (m) { return m.y; });
+        };
+        try {
+          eq(VA.applyGraphWidth("narrow").gutter, 20, "narrow is the pitch the DAG always had");
+          var narrow = pitch();
+          var ys = rowsY();
+          VA.applyGraphWidth("medium");
+          var medium = pitch();
+          VA.applyGraphWidth("wide");
+          var wide = pitch();
+          ok(narrow < medium && medium < wide, [narrow, medium, wide].join(" < "));
+          eq(wide / narrow, VA.GRAPH_WIDTHS.wide.gutter / VA.GRAPH_WIDTHS.narrow.gutter);
+          eq(rowsY(), ys, "no row moves");
+          eq(VA.applyGraphWidth("bogus").gutter, VA.GRAPH_WIDTHS.narrow.gutter);
+        } finally {
+          VA.applyGraphWidth("narrow");
+        }
+      });
+
+    await test("the view popover offers the three settings over their own tables and " +
+      "reports a change; the overlay's key is beside it, and absent with none", function () {
+        var proj = twoBodyProjection();
+        var seen = [];
+        var toolbar = function (colourBy, options) {
+          return render(function (r) {
+            VA.renderTopoToolbar(r, { mode: "topology", topologyId: proj.id, studyId: null }, proj, {
+              dagView: { colourBy: colourBy, groupFill: "off", graphWidth: "narrow",
+                         schemes: VA.availableColourSchemes(options),
+                         legend: VA.dagOverlay(colourBy, proj, options).legend },
+              onDagView: function (k, v) { seen.push([k, v]); },
+            });
+          });
+        };
+        var tb = toolbar("body", null);
+        var selects = all(tb, "select");
+        eq(selects.map(function (n) { return n.getAttribute("data-view-setting"); }),
+           ["colourBy", "groupFill", "graphWidth"]);
+        eq(all(selects[0], "option").map(function (o) { return o.value; }),
+           VA.availableColourSchemes(null).map(function (s) { return s.id; }));
+        eq(all(selects[1], "option").map(function (o) { return o.value; }), VA.GROUP_FILL_ORDER);
+        eq(all(selects[2], "option").map(function (o) { return o.value; }), VA.GRAPH_WIDTH_ORDER);
+        selects[2].value = "wide";
+        selects[2].onchange();
+        eq(seen, [["graphWidth", "wide"]]);
+        eq(all(tb, "span.tvovl__item").length, 2, "one key entry per body");
+        eq(all(toolbar("none", null), "div.tvovl").length, 0);
+        ok(all(all(toolbar("none", { contributions: {} }), "select")[0], "option")
+          .some(function (o) { return o.value === "contribution"; }), "kinematic page");
+      });
+
+    await test("the sourcing legend names every tint the grid's rows wear: the washes " +
+      "a row wears and each body's tint by its name", function () {
+        var proj = twoBodyProjection();
+        proj.edges[0].confidence = "untraced";
+        var plan = { rows: [{ id: "eA", body: "A" }, { id: "eB", body: "B" },
+                            { id: "h", header: {} }, { id: "eB2", body: "B" }] };
+        eq(VA.gridLegendTints(plan, proj), [
+          { wash: "untraced", label: "untraced row" },
+          { body: "A", tint: 0, label: "body a" },
+          { body: "B", tint: 1, label: "body b" }]);
+        eq(VA.gridLegendTints({ rows: [] }, proj), []);
+        var root = paintGroups(proj, [], null, { lit: VA.litSetOfEdges(proj, ["eA", "eB"]) });
+        var legend = all(root, "div.tvlegend")[0];
+        ok(legend, "a lit page has its legend");
+        eq(all(legend, "span.tvlegend__swatch").length, 3, "the wash and both bodies");
+        eq(legend.textContent.indexOf("wash"), -1, "no unnamed wash");
+      });
+
+    await test("the scene is told each part's body colour in its own model verb", function () {
+      var proj = twoBodyProjection();
+      eq(VA.sceneTintCommand(proj, function (i) { return ["#112233", "#AABBCC"][i]; }),
+         ["model", "tint", "pa=#112233", "pb=#aabbcc"]);
+      eq(VA.sceneTintCommand(proj, function () { return null; }), ["model", "tint", "off"]);
+      eq(VA.sceneTintCommand(proj, function () { return " #112233 "; }), ["model", "tint", "off"],
+         "the page trims the computed value; anything else is not a colour");
+      eq(VA.sceneTintCommand(null, null), ["model", "tint", "off"]);
+    });
 
     await test("the selected study's group is drawn last and a step stronger; hidden, " +
       "only it remains, whole", function () {

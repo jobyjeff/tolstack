@@ -1874,7 +1874,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       };
       return {
         count: bars.length,
-        inks: [...new Set(bars.map((n) => getComputedStyle(n).stroke))],
+        inks: [...new Set(bars.filter((n) => !n.classList.contains("rail__bar--gap"))
+          .map((n) => getComputedStyle(n).stroke))],
+        gapInks: [...new Set(bars.filter((n) => n.classList.contains("rail__bar--gap"))
+          .map((n) => getComputedStyle(n).stroke))],
         dashedNonGap: bars.filter((n) => !n.classList.contains("rail__bar--gap") &&
           getComputedStyle(n).strokeDasharray !== "none").length,
         plainGap: bars.filter((n) => n.classList.contains("rail__bar--gap") &&
@@ -1883,8 +1886,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         lit: widthWith("rail__bar--on"), unlit: widthWith("rail__bar--off"),
       };
     });
+    // With no colour overlay (the default) a bar's ink says nothing but
+    // "bar"; a gap's is its own dimmer one, the same on every gap
+    // (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste).
     push("every DAG bar is one ink and two weights, and only a gap is dashed",
       strokes.count > 0 && strokes.inks.length === 1 && strokes.inks[0] !== "none" &&
+      strokes.gapInks.length === 1 && strokes.gapInks[0] !== strokes.inks[0] &&
       strokes.lit > strokes.unlit && strokes.dashedNonGap === 0 &&
       strokes.gaps > 0 && strokes.plainGap === 0);
     if (strokes.inks.length !== 1 || !(strokes.lit > strokes.unlit)) {
@@ -4927,6 +4934,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     const groupsNow = () => page.evaluate(() => ({
       button: document.querySelector("#group-kinds-toggle").textContent,
       bodies: document.querySelectorAll("#topopane rect.tv__bodyfield").length,
+      parts: document.querySelectorAll("#topopane rect.tv__partfield").length,
       chain: document.querySelectorAll("#topopane rect.tv__studyfield--chain").length,
       kinematic: document.querySelectorAll("#topopane rect.tv__studyfield--kinematic").length,
       studies: document.querySelectorAll("#topopane rect.tv__studyfield").length,
@@ -4935,7 +4943,8 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     }));
     const groupsBoth = await groupsNow();
     push("[real] a study opens with its bodies AND every study's group drawn, the " +
-      "selected one marked", groupsBoth.button === "Groups (3 of 3)" && groupsBoth.bodies > 0 &&
+      "selected one marked", groupsBoth.button === "Groups (4 of 4)" &&
+      groupsBoth.parts > 0 && groupsBoth.bodies > 0 &&
       groupsBoth.studies >= groupsBoth.names && groupsBoth.names > 1 && groupsBoth.selected >= 1);
     await page.locator("#group-kinds-toggle").click();
     const tick = async (kind) => {
@@ -4944,18 +4953,21 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       return groupsNow();
     };
     const noBodies = await tick("bodies");
+    const noParts = await tick("parts");
     const noChain = await tick("chain");
     const noKin = await tick("kinematic");
     push("[real] each Groups checkbox hides exactly its own kind's containers and the " +
       "popover stays open while it is ticked",
       noBodies.bodies === 0 && noBodies.studies === groupsBoth.studies &&
+      noBodies.parts === groupsBoth.parts && noParts.parts === 0 &&
       noChain.chain === 0 && noChain.kinematic === groupsBoth.kinematic &&
-      noKin.kinematic === 0 && noKin.studies === 0 && noKin.button === "Groups (0 of 3)" &&
+      noKin.kinematic === 0 && noKin.studies === 0 && noKin.button === "Groups (0 of 4)" &&
       await page.locator("#group-kinds").getAttribute("open") !== null);
-    await tick("bodies"); await tick("chain"); await tick("kinematic");
+    await tick("bodies"); await tick("parts"); await tick("chain"); await tick("kinematic");
     const back = await groupsNow();
     push("[real] ticking them all again restores every container",
-      back.bodies === groupsBoth.bodies && back.studies === groupsBoth.studies);
+      back.bodies === groupsBoth.bodies && back.parts === groupsBoth.parts &&
+      back.studies === groupsBoth.studies);
     if (process.env.GROUPS_SHOTS) {
       await page.screenshot({ path: join(process.env.GROUPS_SHOTS, "kinematic_groups.png") });
     }
