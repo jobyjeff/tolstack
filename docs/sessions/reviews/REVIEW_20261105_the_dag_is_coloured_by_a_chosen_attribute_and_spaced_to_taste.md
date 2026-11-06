@@ -3,8 +3,9 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md
 reviewer: agent
 date: 2026-11-05
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE
+blockers: 0
+round: 2
 ---
 
 # Review — the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste
@@ -161,7 +162,91 @@ visible only to the browser tier.
 sighting of "one line from being silently reverted", with the two tells it
 showed and the MAX_PATH note for the scratch mutation root.
 
-## Note for the round-2 reviewer
+## Round 2 (2026-11-06)
+
+The handoff branch gained `708645f4` (the fix) and `0ceb77c4` (the lesson's
+round-1 record). I merged it into the review branch. `integration` moved three
+times during the round: the stack-wording and everything-in-3d landings, then
+the rail landing, then board and issue moves. I merged each one (`62720506`,
+`5ec4c176`, `372353a0`). Two of those merges conflicted, both only on the
+guard pins in `scripts/guard_enumeration.mjs`. I resolved them by
+re-measuring the merged tree (`enumerateGuards` + `guardNameDigest`), and the
+counts add exactly: fast 632 + 10 = **642**, annotate 290 + 1 = **291**,
+browser 833 + 3 = **836** declared / 803 enrollable.
+
+### The blocker is resolved
+
+There are three browser checks on the real kinematic page, and all three
+passed on the final merged tree:
+
+| check | spec | measured |
+| --- | --- | --- |
+| the shell posts `model tint` and the scene paints one colour per body, never the part's own | 2 mutations: the page's post, the annotator's `setPartTints` call | 23 tinted parts, 8 bodies |
+| a graph width picked in View widens the live DAG and survives a reload | 3 mutations: `applyGraphWidth` on change, the store write, the store read | 420 → 706 → 706 after a reload |
+| colour-by `body` puts `.ovl` on the bars and the key, and survives a reload | 3 mutations: the render handed `none`, the store write, the store read | PASS |
+
+They read `partBaseColor`, so its "read by a test" comment is now true. Each
+mutation edits the wiring line that round 1 deleted by hand. Both halves of
+the store latch are mutated, as the overlay's "TWO mutations" entry asks. The
+should-fix is also done: `gridLegendTints` now sits above `gridRowMarks`'s
+comment, and the comment's stale "is filled with" bullet now names the two
+places the index is used.
+
+### Verification on the final merged tree (`372353a0`)
+
+Inputs were bridged, `node_modules` junctioned, and projections rebuilt from
+`372353a0` with `behind_trunk=0`.
+
+| what | result |
+| --- | --- |
+| `node apps/viewer/run_tests.cjs` | **642/642**, no SKIP |
+| `node apps/annotate/run_tests.cjs` | **291/291**, no SKIP |
+| full `pytest -q -p no:cacheprovider`, **including `tests/test_browser_runner.py`** (owed from round 1) | **1730 passed, 1 skipped, 2 deselected** in 1372 s |
+| browser tier, full | **40/42**. `[suite file://]` and `[suite http]` passed 511/511 each, which pays round 1's debt. DAG zoom 41/41. The reds are below |
+| browser `--only "leaders across the seam"`, alone | **26/26** |
+| doc/claims/witness pytest subset after the report and overlay edits (29 files) | **1227 passed, 1 failed**. The failure is `test_mutation_witness_shadow_concurrency.py::test_two_different_repo_roots_both_still_succeed`. Its `copytree` writes `LESSONS_20261103_every_study_opens_in_3d_…_pane_already_open.png` (`4c0b7c62`) to a 263-char destination under `pytest-12900\…`, and that path does not depend on this tree. This is the filed, deferred `ISSUE_20261104_a_lesson_screenshot_name_overflows_max_path_in_the_shadow_concurrency_test.md`. The same test passed in the full run above |
+| mutation witness `--only "embedded on the kinematic page, the shell posts each"` (the scene-tint spec) | **2/2 witnessed**: the page's post (2m29s) and the annotator's `setPartTints` call (1m26s) |
+| mutation witness `--changed-since integration --repo <worktree>` | **40/41 witnessed**, 41 of 71 selected entries reached inside the 30-min cap, 30 left to the sweep (budget). The one miss is `fast__the-mount-without-a-launcher…__df8f9095`, the pre-existing decay the tactical agent filed (`ISSUE_20261105_the_mount_without_a_launcher_witness_stays_green.md`, `class: decayed_witness`). It shows the same verdict with `apps/viewer` taken from `integration`. The cap reached the new tint verb's annotate spec (witnessed). The 8 new browser mutations fell to the sweep. The tactical run witnessed each of them with `--only`, and my own `--only` on the scene-tint spec is below |
+
+**The two red kinematic-page checks are integration's, not this branch's.**
+`[real] hovering a sensitivity…` and `[real] clicking a term row selects
+pitch_plate_attach_height…` match `/tangential link mount/` and
+`/pitch-link attachment bore, height/`. `2e97a77a` (stack wording) renamed
+both edges. I reproduced both reds on a detached worktree at integration
+`5f9a95bf`, with its own projections and bridged inputs (22/24, these two),
+then deleted it. Filed as
+`ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`
+(high). Landing this branch neither adds nor removes those reds.
+
+**Leaders across the seam** went red on one sub-check in each loaded full
+run, a different one each time: the 1920×1080 resize, then the scene-pick
+selection. It was 26/26 both times it ran alone. I read it as load.
+
+**One false lead, recorded so the next reviewer skips it.** The first round-2
+browser run also had a reproducible red, `[real] at scroll 0 the DAG's first
+row is whole…`: the wheel never zoomed (0.55 → 0.55). It was **not** the
+branch. Master had moved one commit past the tree, so every projection was
+stamped `behind_trunk=1`. The viewer then drew its "Data is older than the
+latest code" banner and pushed the DAG down 81 px (it started at y=269
+instead of 188). The check's wheel aim is at y=200, which then landed above
+the drawing. Merging the integration sync that carried that master commit
+cleared it (41/41, drawing back at 188). A temporary console probe in the
+runner located the banner. It was reverted before any commit.
+
+### Verdict, round 2: APPROVE
+
+The blocker is fixed, and its fix is witnessed. The should-fix is done, and
+the nits stand as noted. Every remaining red is accounted for. Two are
+integration's, filed with a reproduction on integration's own tip. One was
+load, and it passed alone. The witness gate's one miss is a decay filed before
+this review. Landed on `integration` as a fast-forward of the review branch.
+
+Filed this round:
+`ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`
+(high). Overlay: the stale-banner layout trap, under "A new warning that is
+always on".
+
+## Note for the round-2 reviewer (written in round 1)
 
 The review branch already holds both merges. Re-merge the handoff branch,
 re-run the browser tier (and confirm the new checks are in its 41+ count),

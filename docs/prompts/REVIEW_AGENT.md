@@ -1119,6 +1119,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       review also softened a pair-mismatch alarm that asserted the two projections
       "do not describe the same stacks" when an ancestor build is the ordinary case
       — an alarm may only claim what its data proves.
+      **The true-positive direction moves the layout too (2026-11-06,
+      `the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste` round 2).**
+      The review branch was one commit behind `master`, so every projection was
+      stamped `behind_trunk=1` and the stale-data banner drew. That pushed the
+      DAG 81 px down, below the wheel aim of `[real] at scroll 0 the DAG's first
+      row is whole…`, and the check went reproducibly red with the zoom stuck at
+      Fit. Neither parent showed it. So **merge the latest `integration`, which
+      carries the master syncs, and confirm the stamps print `behind_trunk=0`
+      BEFORE the browser tier.** A geometry red that neither parent reproduces
+      is checked against that line first.
 - [ ] **A new file in `scripts/` or `tolerance_stack/` and an unchanged inventory
       in `ARCHITECTURE.md`.** That file's tree block (line ~23) names every script
       by hand, so it goes stale silently. `viewer_projection_provenance` added
