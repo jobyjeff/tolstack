@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md
 reviewer: agent
 date: 2026-11-06
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_rail_reads_as_a_tree_of_bodies_joints_and_faces
@@ -160,3 +160,98 @@ orange matches the scene's. I am filing nothing on design.
   (836 / 803 on integration now) and need specs.
 - The overlay entry "The whole deliverable is one line…" gained this third
   sighting and its grep tell.
+
+## Round 2 — the rework (2026-11-06): APPROVE
+
+Rework commits `31f14d05` (integration synced in), `b71f62e2` (the fix) and
+`5cb254e2` (the lesson's verification record). I merged them into the review
+branch as `f9096d74`. Integration had moved on since the rework's sync (the
+piston-heads landing), so I merged it in as well, as `60287f21`.
+
+### The round-1 findings
+
+- **Blocker 1: resolved.** Seven `[real]` checks in
+  `testAnnotateRailHoldsStill` read the shell's tree on the live kinematic
+  study, after the Take. Each has a spec aimed at the wiring or the rule:
+  - the list-item `railLookInto` call;
+  - `sessionEventIds()`;
+  - `legend:`;
+  - `--tree-step`;
+  - the body's `::before`;
+  - the restored `data-attention` → `--inferred` rule;
+  - the Isolate wrap's `:not([data-kind="part"])`.
+
+  That covers each of the four reverts I made in round one, plus the two
+  places that round one named as unpinned. The checks measure what Jeff
+  sees, using computed styles, bounding rects and a colour probe, rather than
+  rows a test built by hand. The Isolate check's gotcha is written up
+  honestly: the first version passed when mutated, and setting the pressed
+  state synchronously is what fixed it.
+  - **Minor, no action needed:** the `<details>` summary's own
+    `railLookInto` call, which gives bodies and joints their kind, has no
+    spec of its own. The kinds check would still go red without it, because
+    `body` and `joint` would then be missing from `kinds`.
+- **Should-fix 2: resolved.** The lesson and the `topology.css` comment now
+  say two steps, 40px. The live run measured `steps 20 20`.
+- **Nit 3: resolved.** Every `[data-kind]` / `[data-mark]` rule is scoped
+  under `.navtree__scene`.
+- **Nit 4: resolved.** `07_rail_beside_grid_2560.png` shows the glyphed rail
+  beside a grid with room for its rows.
+
+### Merge conflicts (mine to resolve)
+
+- **Handoff merge.** The `DECLARED_GUARDS` comments conflicted. I took the
+  rework's pins, which matched the census on that tree: 646 / 294 / 844–811.
+- **Integration merge.** Both sides added a fast guard and an annotate guard.
+  I kept both comment sets and pinned what the merged tree measured:
+  - fast **647** = 645 + 1 (piston heads) + 1 (rail), names `1269aed4490d`;
+  - annotate **295** = 291 + 1 + 3, names `d1d837832adf`;
+  - browser 844 / 811, unchanged.
+- **Line endings.** The handoff's pin comment carried two lone CR characters,
+  which ran two comment lines together (`642.)  // the_grid…`). I normalised
+  them to LF.
+
+### What I ran, on `60287f21`
+
+- `pytest -q` (worktree): `1 failed, 1736 passed, 1 skipped, 2 deselected`.
+  The one failure is the deliberate worktree red, `test_viewer_js_suite.py`.
+- `node apps/annotate/run_tests.cjs`: **295/295**.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`:
+  **529/530**. The one red is the projection-freshness check, because the
+  main checkout's projections were built from an older tree. I did not
+  rebuild the shared projections from an unlanded branch
+  (`ISSUE_20260930_a_rebuild_from_an_unlanded_branch_…`).
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack
+  --only "annotate rail holds still"`: **14/14**.
+  - Kinds: body, part, joint, end, candidate, action, contributor. No row
+    is left without a kind.
+  - Legend: 7/7.
+  - Steps: 20px and 20px.
+  - The picked end's fill is `rgb(255, 140, 26)`, which equals
+    `--mark-picked`.
+  - The attention row's words are ink, not `--inferred`.
+  - All five glyphs are drawn.
+- `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
+  --changed-since integration`: it reached 18 of 45 entries in 26m57s and
+  exited 1.
+  - 13 entries were WITNESSED.
+  - 5 fast entries reported "red before the mutation". The baseline's only
+    red was the stale-projection freshness check above. None of the five is a
+    `[real]` guard, so I re-ran each with `--only` against the worktree's own
+    tree: all **5 WITNESSED**.
+  - That makes 18 of the 18 reached entries WITNESSED. The other 27 are the
+    sweep's under the budget rule.
+  - Those 27 include the seven new rail specs. The rework witnessed each of
+    them with `--only`. Each anchor still matches exactly once in the merged
+    tree, and the suite they redden is 14/14 green here.
+
+No new findings, and no new issues filed.
+
+After the board move, I ran the tests that read sessions, issues and claims:
+`700 passed, 1 failed`. The one failure is
+`test_two_different_repo_roots_both_still_succeed`. It is `@pytest.mark.sweep`
+(deselected by default, and I reached it only by naming its file), and it
+fails with WinError 3 on a September lesson PNG that this branch does not
+touch. That is the MAX_PATH overflow already filed as
+`ISSUE_20261104_a_lesson_screenshot_name_overflows_max_path_in_the_shadow_concurrency_test.md`.
+It is not from this branch.
