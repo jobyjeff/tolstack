@@ -14137,6 +14137,14 @@ async function testSeamLeaders(browser, label, topologies) {
     const sceneLit = await inPane((w) => Object.keys(w.__model.lit || {}).sort());
     push("the scene is told the page's lit set and its dim-or-hide word, in its own model verb",
       told && JSON.stringify(sceneLit) === JSON.stringify(edges.map((e) => e.id).sort()));
+    // The hovers above scroll this narrow strip sideways to bring a part cell
+    // whole into view, and the DAG scrolls with the grid
+    // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what): the
+    // re-laid, narrower drawing would put every dot behind the strip's left
+    // edge, where a leader is rightly dropped. Back at the left edge, the
+    // toggle's re-draw is the only thing this check reads.
+    await page.evaluate(() => { document.querySelector("#topopane .tv__hscroll").scrollLeft = 0; });
+    await settled();
     const beforeHide = await draws();
     await page.locator("#unlit-style-toggle").click();
     await settled();
