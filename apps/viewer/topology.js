@@ -3929,22 +3929,6 @@
     return { rows: rows, groups: groups, leaders: leaders, internal: internal };
   };
 
-  // What each grid row wears, as class names keyed by row id
-  // (the_kinematic_grid_is_a_stack_of_sub_stacks). Jeff, 2026-10-29: "Grid
-  // view itself should have visual indication of sub-stacks, rigid bodies,
-  // etc, accomplished with the line weights/colors of the dividers and/or the
-  // background colors." So:
-  //
-  //   * the row's BODY tint -- `tvrow--body-t<n>`, the same index the DAG's
-  //     container for that body is filled with (VA.bodyTint), so a row and
-  //     the field its bar sits in are one colour; a sub-stack header, which
-  //     is no body's, wears none;
-  //   * the divider ABOVE it -- `tvrow--divide-sub` where a sub-stack starts
-  //     or ends, `tvrow--divide-body` where the body changes, a hairline
-  //     (`tvrow--divide-hair`) between two rows of one body; the first row
-  //     has none.
-  //
-  // The weights and tints are tokens in topology.css's :root. Pure.
   // Every tint a grid's rows wear, for its sourcing legend: the provenance
   // washes some row wears (an untraced or uncited value,
   // VA.UNVERIFIED_CONFIDENCES), then each body's tint in the order its rows
@@ -3974,6 +3958,23 @@
       }));
   };
 
+  // What each grid row wears, as class names keyed by row id
+  // (the_kinematic_grid_is_a_stack_of_sub_stacks). Jeff, 2026-10-29: "Grid
+  // view itself should have visual indication of sub-stacks, rigid bodies,
+  // etc, accomplished with the line weights/colors of the dividers and/or the
+  // background colors." So:
+  //
+  //   * the row's BODY tint -- `tvrow--body-t<n>`, the same index (VA.bodyTint)
+  //     as that body's ink when the DAG is coloured by body, and its
+  //     container's fill when Group fill is `all`, so a row and its body's
+  //     bars are one colour; a sub-stack header, which is no body's, wears
+  //     none;
+  //   * the divider ABOVE it -- `tvrow--divide-sub` where a sub-stack starts
+  //     or ends, `tvrow--divide-body` where the body changes, a hairline
+  //     (`tvrow--divide-hair`) between two rows of one body; the first row
+  //     has none.
+  //
+  // The weights and tints are tokens in topology.css's :root. Pure.
   VA.gridRowMarks = function (plan, topoProj) {
     var out = {};
     var prev = null;

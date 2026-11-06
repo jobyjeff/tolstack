@@ -394,7 +394,11 @@ export const DECLARED_GUARDS = {
   // renamed -- "the jog zone is measured against the product graph's own 61
   // leaders" lost its literal when the count moved to the plan; it carried no
   // spec under its old name either. (Comment added at review.)
-  browser: { declared: 823, enrollable: 790, names: "b45bdce52115" },
+  // the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
+  // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
+  // a graph width widens the live DAG and survives a reload, a colour-by puts
+  // the overlay on the bars and survives a reload. Each carries a spec.
+  browser: { declared: 826, enrollable: 793, names: "f64d34a0024f" },
 };
 
 

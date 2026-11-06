@@ -7165,6 +7165,43 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
     await exec(["model", "unlit", "dim"]);
     await exec(["model", "lit", "all"]);
 
+    // --- 4b. each part in its body's DAG ink ----------------------------------
+    // The shell posts `model tint` with every body part's ink, read off its own
+    // `--tv-body-ink-*` (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_
+    // _to_taste, review round 1), and the scene paints it: the parts of one
+    // body share a base colour that is not their own, and two bodies differ.
+    const wantTint = await page.evaluate((topo) => {
+      const VA = window.ViewerApp;
+      const css = getComputedStyle(document.documentElement);
+      return VA.sceneTintCommand(topo, (n) => css.getPropertyValue("--tv-body-ink-" + n).trim());
+    }, topology);
+    const tinted = await until((w, want) => {
+      const said = (w.__shellModelWords || []).filter((c) => c[1] === "tint").pop();
+      return said && said.join() === want.join() && w.__scene._partTints &&
+        w.__scene._partTints.size > 0;
+    }, wantTint, 30000);
+    const paint = await inPane((w) => {
+      const out = [];
+      for (const [sha, hex] of w.__scene._partTints || []) {
+        const mesh = w.__scene.parts.get(sha);
+        if (!mesh) continue;
+        out.push({ hex, base: w.__scene.partBaseColor(sha),
+          own: "#" + mesh.userData.paletteColor.toString(16).padStart(6, "0") });
+      }
+      return out;
+    }) || [];
+    const baseOf = {};
+    for (const p of paint) (baseOf[p.hex] = baseOf[p.hex] || new Set()).add(p.base);
+    const inks = Object.keys(baseOf);
+    const bases = inks.map((h) => Array.from(baseOf[h])[0]);
+    const saidInks = new Set(wantTint.slice(2).map((pair) => pair.split("=")[1]));
+    console.log(`      [${label}] tinted parts in the scene: ${paint.length}, bodies ${inks.length}`);
+    push("[real] embedded on the kinematic page, the shell posts each body part's DAG ink and " +
+      "the scene draws a body's parts in one colour that is not their own",
+      tinted && wantTint[2] !== "off" && paint.length > 0 &&
+      paint.every((p) => p.base !== p.own && saidInks.has(p.hex)) &&
+      inks.every((h) => baseOf[h].size === 1) && new Set(bases).size === inks.length);
+
     // --- 5. selection shows why -----------------------------------------------
     await exec(["model", "select", "node", "tan_link_mount_bore"]);
     await shot("4_selected_tan_link_mount_bore.png");
@@ -12280,6 +12317,55 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
           await page.locator("#detail").innerText()) &&
         await page.locator('#topopane tr.tvrow--selected[data-id="pitch_plate_attach_height"]')
           .count() === 1);
+
+      // The View popover is the page's, not only its helpers'
+      // (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
+      // round 1): a width picked there widens the drawn DAG at once, and it
+      // and a colour-by are still the page's after a reload. The width is
+      // read unscaled (lastTopoRender.dagWidth), so a refit zoom cannot hide it.
+      const dagWidth = () => page.evaluate(() => {
+        const r = window.ViewerApp.lastTopoRender;
+        return r ? r.dagWidth : 0;
+      });
+      const viewSetting = (setting) => page.locator(
+        `#dag-view select[data-view-setting="${setting}"]`).inputValue().catch(() => null);
+      const pickView = async (setting, value) => {
+        await page.locator("#dag-view-toggle").click({ timeout: 5000 }).catch(() => {});
+        await page.locator(`#dag-view select[data-view-setting="${setting}"]`)
+          .selectOption(value, { timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(400);
+      };
+      const reboot = async () => {
+        await boot("?kinematic=" + STUDY, realKinematic);
+        await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(600);
+      };
+      const narrowWidth = await dagWidth();
+      await pickView("graphWidth", "wide");
+      const wideWidth = await dagWidth();
+      await reboot();
+      const reloadedWidth = await dagWidth();
+      console.log(`      [${label}] DAG width narrow ${Math.round(narrowWidth)}, wide ` +
+        `${Math.round(wideWidth)}, after a reload ${Math.round(reloadedWidth)}`);
+      push("[real] picking a graph width in View widens the drawn DAG at once, and the width " +
+        "survives a reload",
+        narrowWidth > 0 && wideWidth > narrowWidth * 1.5 &&
+        Math.abs(reloadedWidth - wideWidth) < 1 && await viewSetting("graphWidth") === "wide");
+      const overlaidBars = () => page.locator("#topopane .rail__bar.ovl").count();
+      const plainBars = await overlaidBars();
+      await pickView("colourBy", "body");
+      const liveBars = await overlaidBars();
+      await reboot();
+      const reloadedBars = await overlaidBars();
+      push("[real] colouring by body puts the overlay's ink on the DAG's bars, and the choice " +
+        "survives a reload",
+        plainBars === 0 && liveBars > 0 && reloadedBars === liveBars &&
+        await viewSetting("colourBy") === "body" &&
+        await page.locator("#dag-overlay-legend .tvovl__item").count() > 0);
+      // Back to the defaults, so the boots below draw what they always drew.
+      await page.evaluate(() => {
+        try { localStorage.removeItem(window.ViewerApp.DAG_VIEW_KEY); } catch (e) { /* none */ }
+      });
 
       await boot("", null);
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
