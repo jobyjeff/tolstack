@@ -1554,6 +1554,68 @@
     return whole;
   };
 
+  // The mark a face-bearing rail row wears (AA.RAIL_MARKS), one per row:
+  // its binding state, refined by what only the rail knows -- a binding
+  // written by THIS session is `picked`, and an end with nothing standing
+  // says what it has to go on (an agent's proposal, the contact engine's
+  // faces, its node's declared face) or `open`. `bindings` are the row's own
+  // (its end's, or the whole edge's for an edge feature), `sessionIds` the
+  // event ids this session wrote, `suggestion` AA.endSuggestion's.
+  AA.railMark = function (bindingState, bindings, sessionIds, suggestion, declared) {
+    var M = AA.RAIL_MARKS;
+    var S = AA.BINDING_STATES;
+    if (bindingState === S.BOUND) {
+      var mine = (bindings || []).some(function (b) {
+        return b && (sessionIds || []).indexOf(b.event_id) !== -1;
+      });
+      return mine ? M.picked : M.bound;
+    }
+    if (bindingState === S.OWNER_NOT_IN_SET || bindingState === S.NEEDS_RECONFIRMATION) return M.recheck;
+    if (bindingState === S.PROPOSED || (suggestion && suggestion.kind === AA.SUGGESTION_KINDS[0])) return M.proposed;
+    if (suggestion && suggestion.kind === AA.SUGGESTION_KINDS[1]) return M.contact;
+    return declared ? M.declared : M.open;
+  };
+
+  // Does the node at this END of the edge declare its face (`face.part`, the
+  // annotator_reads_a_nodes_declared_face shape)? An edge feature has no one
+  // end, so no.
+  AA.endDeclaresFace = function (topology, via) {
+    if (!topology || !via || !via.edgeId || !via.direction) return false;
+    var edge = (topology.edges || []).find(function (e) { return e.id === via.edgeId; });
+    if (!edge) return false;
+    var id = via.direction === AA.DIRECTIONS[0] ? edge.from : edge.to;
+    var node = (topology.nodes || []).find(function (n) { return n.id === id; });
+    return !!(node && node.face && node.face.part);
+  };
+
+  // The mark a candidate face's row wears: whose suggestion it is, or bound
+  // when it is the face the end already has.
+  AA.candidateMark = function (row) {
+    if (row.bound) return AA.RAIL_MARKS.bound;
+    return row.kind === AA.CANDIDATE_ROW_KINDS[0] ? AA.RAIL_MARKS.proposed : AA.RAIL_MARKS.contact;
+  };
+
+  //: The rail's legend: each mark's word, and its hover, in legend order.
+  AA.RAIL_MARK_WORDS = Object.freeze({
+    bound: Object.freeze({ text: "bound", title: "a face is bound at this end" }),
+    picked: Object.freeze({ text: "picked now", title: "bound by a face picked in this session" }),
+    proposed: Object.freeze({ text: "agent's suggestion", title: "an agent proposed a face here; Accept or pick another" }),
+    contact: Object.freeze({ text: "touching face", title: "a face that touches the mating part in the assembly" }),
+    declared: Object.freeze({ text: "face named", title: "the topology names this end's part and surface; pick the face" }),
+    open: Object.freeze({ text: "no face yet", title: "nothing bound or suggested at this end" }),
+    recheck: Object.freeze({ text: "check again", title: "the bound face's part left the set, or the binding needs confirming" }),
+  });
+
+  // The legend the rail sends the shell: [{mark, text, title}] in the
+  // table's order, every mark always (a legend that grows and shrinks with
+  // what is on screen would move the rail under the reader).
+  AA.railLegend = function () {
+    return Object.keys(AA.RAIL_MARK_WORDS).map(function (mark) {
+      return { mark: AA.RAIL_MARKS[mark], text: AA.RAIL_MARK_WORDS[mark].text,
+        title: AA.RAIL_MARK_WORDS[mark].title };
+    });
+  };
+
   // What a feature row has to SUGGEST at its end (handoff a_rail_row_with_a_
   // proposal_says_so_and_accepts_it_in_place), or null:
   //

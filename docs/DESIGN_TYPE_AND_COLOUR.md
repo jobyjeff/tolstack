@@ -28,6 +28,9 @@
 | An edge's ink and its two weights, lit and unlit | `apps/viewer/topology.css` `:root`, `--edge-ink`, `--edge-lit-w`, `--edge-unlit-w` — the only channel a DAG edge has; confidence is the grid chip's | `scripts/run_viewer_browser_tests.mjs` (one ink, two weights, measured) |
 | The body tints, and the grid's dividers and sub-stack rule | `apps/viewer/topology.css` `:root`, `--tv-body-*`, `--tv-divide-*`, `--tv-stack-rule*` — region tints like the leader bands, low chroma and never the accent; the DAG's `.tv__bodyfield--t*` (and a body's bridge) and the grid's `.tvrow--body-t*` read the same tokens. Sixteen, **assigned**: a body's tint is its place in its topology's `bodies[]` (`VA.bodyTint`, `VA.BODY_TINTS`), so the first sixteen bodies never share one; neighbouring slots are far apart in hue | `apps/viewer/tests.js` (a row's tint is its body's; the live model's bodies fit the count) |
 
+| The scene tree's indent step, twisty and glyph columns | `apps/viewer/topology.css` `.navtree__scene`, `--tree-step`, `--tree-twisty`, `--tree-mark` | — (one declaration each; every nested level reads them) |
+| The scene tree's mark colours | `apps/viewer/topology.css` `:root`, `--mark-*` — four are the 3D scene's own face marks (`MARK_COLORS`, `apps/annotate/scene.js`) | `tests/test_rail_row_looks_are_paired.py` (the colours, and the kinds and marks the stylesheet keys on) |
+
 **An icon is a picture, and its size is not a step on the scale.** The alert
 mark both apps wear (`VA.warningIcon`, 2026-09-22 -- the nav rail's rows, both
 stack tables' source columns, the banner's stale-data line and the annotator's
@@ -146,6 +149,27 @@ closes, and one left rule down a sub-stack's header and rows (dashed for a
 declared gap). Dividers are inset shadows, never borders, so no mark moves a
 row off its leader's seam. The sourcing legend under the grid names each chip
 in reader words; it adds no colour.
+
+**A tree says what a row is by its glyph and its depth, and what state it is
+in by its mark — never by recolouring its words** (2026-11-06,
+the_rail_reads_as_a_tree_of_bodies_joints_and_faces). Jeff, on the scene tree
+in the nav: "no meaningful styling cues to give contrast between different
+element/object types, the indention for nested elements is way too shallow.
+Random checkboxes floating in space." So each kind of row the annotator sends
+(`AA.RAIL_ROW_KINDS`) has one drawn glyph in one fixed column after the
+twisty's, in neutral ink; each level is one indent step with a hairline guide
+from its parent's twisty; the two navigating levels (body, joint) are the only
+semibold rows. A face-bearing row's state (`AA.RAIL_MARKS`) is the colour of
+its glyph — filled once a face is bound, open while one is only suggested or
+still wanted — and the legend at the top of the tree names every mark. A
+row's words stay ink and its state line stays grey, a suggestion's included:
+a whole row turning amber was the "turned orange" Jeff could not decode.
+Controls belong to rows: every checkbox is the row's last column, so they
+line up at the tree's right edge at any depth; a row's buttons are one group,
+shown over the end of the name when the row is pointed at (so showing them
+moves nothing) and on a line of their own under it when the row is selected
+or its pick is armed. Glyphs are drawn, not font characters, for the reason
+the warning icon is (above).
 
 ## Monospace
 

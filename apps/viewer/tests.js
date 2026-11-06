@@ -316,6 +316,43 @@
         eq(slot.querySelector("span.navtree__scenesub").textContent, "moved to its body");
       });
 
+    await test("a mirrored row wears its kind and its mark, every row has a twisty column and " +
+      "a glyph, the legend draws each mark beside its word, and a row's buttons are one group " +
+      "before its checkbox", function () {
+        var slot = document.createElement("div");
+        VA.renderSceneTree(slot, {
+          legend: [{ mark: "bound", text: "bound", title: "a face is bound" },
+            { mark: "open", text: "no face yet", title: "nothing yet" }],
+          rows: [
+            { key: "b", text: "pitch plate · 2 parts", kind: "body", open: true,
+              check: { checked: true }, rows: [
+                { key: "b/p", text: "215177-001 pitch plate", kind: "part", check: { checked: true },
+                  buttons: [{ text: "Isolate" }, { text: "Remove" }] }] },
+            { key: "e", text: "pitch link upper ball", kind: "end", mark: "picked", activate: true,
+              buttons: [{ text: "Re-pick" }] },
+          ] }, { send: function () {} });
+        var legend = slot.querySelectorAll("span.navtree__scenelegenditem");
+        eq(legend.length, 2);
+        eq(legend[1].querySelector(".navtree__scenemark").getAttribute("data-mark"), "open");
+        eq(legend[1].textContent, "no face yet");
+        eq(legend[1].getAttribute("title"), "nothing yet");
+        var rows = slot.querySelectorAll("div.navtree__scenerow");
+        eq(Array.prototype.map.call(rows, function (r) { return r.getAttribute("data-kind"); }).join(" "),
+          "body part end");
+        eq(rows[2].getAttribute("data-mark"), "picked");
+        eq(rows[0].getAttribute("data-mark"), null, "a body wears no state mark");
+        Array.prototype.forEach.call(rows, function (r) {
+          eq(r.childNodes[0].className === "navtree__scenetwisty" || r.childNodes[0].className === "navtree__scenegap",
+            true, "the first column is the twisty's, on every row");
+          eq(r.childNodes[1].className, "navtree__scenemark");
+        });
+        var part = rows[1];
+        var kids = part.childNodes.map(function (n) { return n.className; });
+        eq(kids.slice(-2).join(" "), "navtree__sceneacts navtree__scenecheck",
+          "the buttons are one group and the checkbox is the row's last control");
+        eq(part.querySelector("span.navtree__sceneacts").querySelectorAll("button.navtree__scenebtn").length, 2);
+      });
+
     await test("a mirrored row the annotator marks as a suggestion carries the mark, and " +
       "no other row does", function () {
         var slot = document.createElement("div");

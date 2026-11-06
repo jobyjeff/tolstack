@@ -8467,7 +8467,7 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
         on: n.classList.contains("navtree__scenerow--on"),
         attention: n.getAttribute("data-attention") === "true",
         open: (n.querySelector(":scope > .navtree__scenetwisty") || { getAttribute: () => null }).getAttribute("aria-expanded"),
-        buttons: Array.from(n.querySelectorAll(":scope > .navtree__scenebtn")).map((b) => b.textContent) })) };
+        buttons: Array.from(n.querySelectorAll(":scope > .navtree__sceneacts > .navtree__scenebtn")).map((b) => b.textContent) })) };
   });
   const rowOf = (rows, re) => rows.find((r) => re.test(r.key)) || null;
   const click = (key, sel) => page.evaluate(([k, sel]) => {

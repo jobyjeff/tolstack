@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the rail's legend names every mark, once, in the words table's order",
+  "mutations": [
+    {
+      "contract": "The legend sends every mark, always, so it never grows or shrinks under the reader.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md",
+      "note": "Declared with the guard by handoff the_rail_reads_as_a_tree_of_bodies_joints_and_faces (2026-11-06). A legend filtered to the marks on screen would move the rail when a state changes.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return Object.keys(AA.RAIL_MARK_WORDS).map(function (mark) {",
+      "replace": "    return Object.keys(AA.RAIL_MARK_WORDS).slice(1).map(function (mark) {"
+    }
+  ]
+}
