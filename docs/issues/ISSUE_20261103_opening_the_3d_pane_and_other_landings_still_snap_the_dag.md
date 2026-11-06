@@ -1,14 +1,14 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: triaged
 area: viewer/dag-landing
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261103_the_dag_holds_still_and_the_filter_bar_stays_put.md
 class: layout_motion
-defer_until: 2026-12-05
-resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
+handoff: docs/sessions/HANDOFF_20261105_a_tween_is_seen_and_zooms_out_before_it_zooms_in.md
+resolution: strategy 2026-11-05: routed into HANDOFF_20261105_a_tween_is_seen_and_zooms_out_before_it_zooms_in (Jeff's note 20261105T164140_sm8hkc)
 ---
 
 # Three landings still move the DAG in one step, and the pinned filter bar is two rows tall in a narrow column

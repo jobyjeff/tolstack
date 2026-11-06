@@ -7,7 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261104_the_browser_tier_reds_left_after_the_slide_re_author.md
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
-resolution: triage 2026-11-05: folded into the layout brief as an addendum (Q7/Q8) rather than a new brief
+handoff: docs/sessions/HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what.md
+resolution: strategy 2026-11-05: routed into HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (Jeff's note 20261105T164140_sm8hkc)
 ---
 
 # At 1600×1000 the product graph's rails leave the grid a 59px slit, and no grid row can be clicked
