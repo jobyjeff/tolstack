@@ -199,6 +199,31 @@ FIT_TOLERANCES: Dict[str, float] = {
     # A cylinder read from too narrow an arc has a well-determined axis
     # DIRECTION and a badly-determined axis POSITION.
     "cylinder_min_arc_deg": 10.0,
+    # A face whose facet normals FAIL cylinder_axis_deg can still be a cylinder:
+    # a facet's normal tilts off the axis by its own chord sagitta, and short
+    # fan triangles at a trimmed boundary tilt by degrees (the pitch plate's
+    # Ø41.04 pilot boss, faces 487/521: 3.46, on nodes that are on one cylinder
+    # to 1e-6 mm). That tilt is set by the deflection; the NODES are on the
+    # surface exactly. So after the sphere has refused such a face, the
+    # cylinder is asked again of the nodes alone (refine_cylinder), and it
+    # answers only when they sit on it to the float32 resolution of the face's
+    # own coordinates -- this many units of |p|max * 2^-23, a count with no
+    # length in it.
+    #
+    # Measured 2026-11-05 over every face the facet test refuses (16434 of
+    # 36294 store-wide; LESSONS_20261105_a_two_row_cylinder_band_fits_as_a_cylinder):
+    # exact nodes rounded to float32 put a cylinder at ~0.7 units by the
+    # arithmetic, observed 0.06-0.6 on the clearly-round faces, and the
+    # design-round radii (8.000, 36.500, 61.090) reach 2.51. From 3 up the
+    # radii stop being round (12.914, 38.015, 4.070 ...) -- surfaces NEAR a
+    # cylinder, which is what "other" is for. The distribution has no gap, so
+    # this is a judgement on named faces rather than a derivation, and it is
+    # the strict side of it.
+    "cylinder_node_ulps": 3.0,
+    # ...and the nodes have to OVER-determine it: a cylinder has five degrees
+    # of freedom, so six nodes always sit on one to almost nothing. Eight
+    # leaves three to disagree; the smallest face the rule admits has eight.
+    "cylinder_node_min_vertices": 8,
     # A sphere's vertices are all at one radius from one centre, to the same
     # fraction a cylinder's are: the error source is identical and a second
     # number would be a second thing to argue about.
@@ -277,6 +302,8 @@ JS_TOLERANCE_NAMES = {
     "cylinder_axis_deg": "cylinderAxisDeg",
     "cylinder_radial_fraction": "cylinderRadialFraction",
     "cylinder_min_arc_deg": "cylinderMinArcDeg",
+    "cylinder_node_ulps": "cylinderNodeUlps",
+    "cylinder_node_min_vertices": "cylinderNodeMinVertices",
     "sphere_radial_fraction": "sphereRadialFraction",
     "sphere_min_triangles_per_vertex": "sphereMinTrianglesPerVertex",
     "sphere_normal_deg": "sphereNormalDeg",
@@ -936,6 +963,78 @@ def fit_cylinder(vertices: Sequence[Vec], axis: Optional[Vec] = None,
     }
 
 
+#: How many Gauss-Newton steps :func:`refine_cylinder` takes at most. Not a
+#: tolerance -- the steps converge in two or three from a facet axis, and the
+#: best step is kept whatever the count -- so it is not in FIT_TOLERANCES.
+CYLINDER_REFINE_STEPS = 6
+
+
+def refine_cylinder(vertices: Sequence[Vec], axis: Vec,
+                    centroid_extent: Optional[Tuple[Vec, float]] = None,
+                    ) -> Optional[Dict[str, Any]]:
+    """The cylinder through the VERTICES, starting from ``axis`` and tilting it
+    until the nodes sit at one radius -- a geometric fit, where
+    :func:`fit_cylinder` takes the axis it is handed as given.
+
+    Why a second axis: the facet axis is the direction the facet NORMALS never
+    point in, and a facet's normal is tilted off the true axis by its own chord
+    sagitta, which the tessellation deflection sets. Where a trimmed boundary
+    leaves short fan triangles, that tilt reaches degrees (the pitch plate's
+    pilot boss, faces 487/521: 3.46 degrees on a face whose nodes are on one
+    cylinder to 1e-6 mm). The NODES are on the surface exactly, so an axis read
+    from them is deflection-independent.
+
+    Each step is one linearised solve in the circle's centre, its radius and
+    two small tilts of the axis, then a fresh :func:`fit_cylinder` about the
+    tilted axis; the step with the smallest worst residual is returned. ``None``
+    when the start does not fit or a step's system is singular (a flat ring has
+    no axial spread to tilt against).
+    """
+    centroid_extent = centroid_extent or _centroid_and_extent(vertices)
+    centroid = centroid_extent[0]
+    best = fit_cylinder(vertices, axis, centroid_extent)
+    current = best
+    for _ in range(CYLINDER_REFINE_STEPS):
+        if current is None:
+            break
+        a = tuple(current["axis"])
+        abs_axis = [abs(c) for c in a]
+        seed = [0.0, 0.0, 0.0]
+        seed[abs_axis.index(min(abs_axis))] = 1.0
+        u = _unit(_cross(a, tuple(seed)))
+        v = _unit(_cross(a, u))
+        p = _sub(tuple(current["axis_point"]), centroid)
+        cx, cy, r = _dot(p, u), _dot(p, v), current["radius"]
+        jtj = [[0.0] * 5 for _ in range(5)]
+        jtd = [0.0] * 5
+        for point in vertices:
+            rel = _sub(point, centroid)
+            dx, dy, h = _dot(rel, u) - cx, _dot(rel, v) - cy, _dot(rel, a)
+            dist = math.hypot(dx, dy)
+            if not dist > 0:
+                continue
+            ex, ey = dx / dist, dy / dist
+            row = (-ex, -ey, -1.0, -ex * h, -ey * h)
+            d = dist - r
+            for i in range(5):
+                jtd[i] -= row[i] * d
+                for j in range(i, 5):
+                    jtj[i][j] += row[i] * row[j]
+        for i in range(5):
+            for j in range(i):
+                jtj[i][j] = jtj[j][i]
+        step = _solve(jtj, jtd)
+        if step is None:
+            break
+        tilted = _unit(tuple(a[k] + step[3] * u[k] + step[4] * v[k] for k in range(3)))
+        current = fit_cylinder(vertices, tilted, centroid_extent)
+        if current and current["max_residual"] < best["max_residual"]:
+            best = current
+        if math.hypot(step[3], step[4]) < 1e-12:
+            break
+    return best
+
+
 def fit_sphere(vertices: Sequence[Vec],
                centroid_extent: Optional[Tuple[Vec, float]] = None,
                ) -> Optional[Dict[str, Any]]:
@@ -1132,10 +1231,20 @@ def fit_face(mesh: Mesh, face_id: int,
     if stats.axis is None:
         return refuse("no axis could be read")
     if stats.worst_axis_deg > tol["cylinder_axis_deg"]:
-        # Not a plane and not a cylinder: a sphere is the last shape asked, and
-        # this is the only branch that reaches it. A sphere's facet normals span
-        # two dimensions, so there is no axis they all stand perpendicular to.
-        return _sphere_or_other(result, answer, refuse, sphere, extent, tol)
+        # Not a plane and not a cylinder by its facets: a sphere is asked next,
+        # and this is the only branch that reaches it. A sphere's facet normals
+        # span two dimensions, so there is no axis they all stand perpendicular
+        # to. The sphere answers FIRST, so no face that is a sphere today can
+        # become a cylinder by the node test after it.
+        verdict = _sphere_or_other(result, answer, refuse, sphere, extent, tol)
+        if verdict.surface == "spherical":
+            return verdict
+        exact = _cylinder_by_nodes(vertices, cylinder, stats.axis, centroid_extent, tol)
+        if exact is None:
+            return verdict
+        fits["cylindrical"] = exact
+        result.why = None
+        return answer("cylindrical")
     if not cylinder:
         return refuse("the cross-section is too flat to be a circle")
     if cylinder["max_residual"] > tol["cylinder_radial_fraction"] * cylinder["radius"]:
@@ -1143,6 +1252,40 @@ def fit_face(mesh: Mesh, face_id: int,
     if cylinder["arc_deg"] < tol["cylinder_min_arc_deg"]:
         return refuse("too narrow an arc to place an axis")
     return answer("cylindrical")
+
+
+#: One unit of float32 resolution at a coordinate of magnitude 1: a stored
+#: position ``p`` is within half of ``|p| * FLOAT32_RESOLUTION`` of the double
+#: OCC computed. What ``cylinder_node_ulps`` counts in.
+FLOAT32_RESOLUTION = 2.0 ** -23
+
+
+def _cylinder_by_nodes(vertices: Sequence[Vec], facet_cylinder: Optional[Dict[str, Any]],
+                       axis: Vec, centroid_extent: Tuple[Vec, float],
+                       tol: Dict[str, float]) -> Optional[Dict[str, Any]]:
+    """The cylinder the nodes sit on, or ``None`` -- asked only of a face whose
+    facets failed ``cylinder_axis_deg`` and whose sphere was refused. See
+    ``cylinder_node_ulps`` for the measurement; no reason sentence of its own,
+    because a face it does not answer keeps the sphere's.
+
+    The cylinder about the FACET axis has to pass the ordinary radial test
+    first, so the facet-normal test is the only one this ever overrides -- and
+    the refinement runs on a third of the faces it otherwise would (every face
+    it admits passes it, the worst at 1.8 percent)."""
+    if len(vertices) < tol["cylinder_node_min_vertices"]:
+        return None
+    if (not facet_cylinder or facet_cylinder["max_residual"]
+            > tol["cylinder_radial_fraction"] * facet_cylinder["radius"]):
+        return None
+    fit = refine_cylinder(vertices, axis, centroid_extent)
+    if not fit:
+        return None
+    magnitude = max(abs(c) for v in vertices for c in v)
+    if fit["max_residual"] > tol["cylinder_node_ulps"] * magnitude * FLOAT32_RESOLUTION:
+        return None
+    if fit["arc_deg"] < tol["cylinder_min_arc_deg"]:
+        return None
+    return fit
 
 
 def _sphere_or_other(result: "FaceFit", answer, refuse, sphere, extent: float,

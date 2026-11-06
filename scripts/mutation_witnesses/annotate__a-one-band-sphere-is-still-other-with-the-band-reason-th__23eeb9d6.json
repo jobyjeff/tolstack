@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a ONE-BAND sphere is still OTHER, with the band reason -- the node test refuses two circles of different radii",
+  "mutations": [
+    {
+      "contract": "The node test admits a face only when its nodes sit on one cylinder to the float32 resolution of its coordinates (cylinderNodeUlps). Two coaxial circles 0.55 percent apart pass the ordinary 2 percent radial test, so that resolution bound is the only thing between a one-band sphere and a cylinder.",
+      "issue": null,
+      "note": "The mutation deletes the resolution bound and keeps every other gate, which is the version that trusts the 2 percent radial test the facet path already uses.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "    if (fit.maxResidual > tol.cylinderNodeUlps * magnitude * FLOAT32_RESOLUTION) return null;\n",
+      "replace": ""
+    }
+  ]
+}

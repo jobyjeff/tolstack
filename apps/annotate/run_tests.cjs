@@ -3260,6 +3260,57 @@ check("a sphere read from ONE BAND of quads is OTHER, and says which refusal " +
   assertEqual(classify([cone])[0].surface, "other", "a cone band classified as a sphere");
 });
 
+// One band of quads whose top row sits half a step round from its bottom row
+// -- how the pitch plate's pilot boss (faces 487/521) is tessellated, and
+// tests/test_feature_geometry.py's staggered_band. Every triangle has two nodes
+// on one row, so over a short band its normal tilts off the axis by degrees.
+function staggeredBand(rowRadius, rowZ, segments, arcDeg, z0) {
+  const step = (arcDeg * Math.PI / 180) / segments;
+  const base = z0 === undefined ? 100 : z0;
+  const verts = [];
+  for (let i = 0; i <= segments; i++) {
+    verts.push([rowRadius(0) * Math.cos(i * step), rowRadius(0) * Math.sin(i * step), base + rowZ(0)]);
+  }
+  const t = verts.length;
+  for (let i = 0; i < segments; i++) {
+    verts.push([rowRadius(1) * Math.cos((i + 0.5) * step), rowRadius(1) * Math.sin((i + 0.5) * step),
+      base + rowZ(1)]);
+  }
+  const tris = [];
+  for (let i = 0; i < segments; i++) tris.push([i, i + 1, t + i]);
+  for (let i = 0; i < segments - 1; i++) tris.push([t + i, i + 1, t + i + 1]);
+  return { verts, tris };
+}
+
+check("a ONE-BAND cylinder whose facets tilt past cylinderAxisDeg is a cylinder " +
+  "by its nodes, at its own radius and axis", () => {
+  const [c] = classify([staggeredBand(() => 20.52, (k) => 0.5 * k, 10, 73)]);
+  assertEqual(c.surface, "cylindrical", "a staggered cylinder band answered " + c.why);
+  if (!(c.axisSpreadDeg > AA.FACE_CLASSIFY.cylinderAxisDeg)) {
+    throw new Error("the fixture's facets pass the facet-axis test, so this proves nothing");
+  }
+  if (Math.abs(c.radius - 20.52) > 1e-4) throw new Error("radius read as " + c.radius);
+  if (Math.abs(Math.abs(c.axis[2]) - 1) > 1e-9) throw new Error("axis read as " + c.axis);
+});
+
+check("a ONE-BAND sphere is still OTHER, with the band reason -- the node test " +
+  "refuses two circles of different radii", () => {
+  const polar = [80 * Math.PI / 180, 82 * Math.PI / 180];
+  const [c] = classify([staggeredBand((k) => 20 * Math.sin(polar[k]),
+    (k) => 20 * Math.cos(polar[k]), 10, 73)]);
+  assertEqual(c.surface, "other", "a one-band sphere answered " + c.surface);
+  assertEqual(c.why, "one band of quads, which lies on a sphere whatever shape it is",
+    "a one-band sphere was refused for another reason");
+});
+
+check("six nodes are too few to prove a cylinder by its nodes alone", () => {
+  const band = staggeredBand(() => 20.52, (k) => 0.5 * k, 3, 21.9);
+  if (!(band.verts.length < AA.FACE_CLASSIFY.cylinderNodeMinVertices)) {
+    throw new Error("the fixture has enough nodes");
+  }
+  assertEqual(classify([band])[0].surface, "other", "a six-node band answered cylindrical");
+});
+
 check("fitSphere recovers a sphere exactly, and refuses a plane rather than " +
   "guessing a centre somewhere behind it", () => {
   const points = [];

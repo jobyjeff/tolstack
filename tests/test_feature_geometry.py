@@ -218,6 +218,103 @@ def test_fit_plane_and_fit_cylinder_agree_with_their_own_shapes():
     assert cylinder["arc_deg"] == pytest.approx(180.0, abs=1.0)
 
 
+def staggered_band(row_radius, row_z, segments, arc_deg, z0=100.0):
+    """One band of quads whose top row sits half a step round from its bottom
+    row -- the way the pitch plate's pilot boss (faces 487/521) is tessellated.
+    ``row_radius``/``row_z`` take the row index (0, 1), so the same builder
+    makes a cylinder band and a band of any surface of revolution.
+
+    Every triangle has two nodes on one row and one on the other, so its normal
+    tilts off the axis by that row's chord sagitta over the band height: over a
+    short band that is degrees, which is exactly what the facet-axis test
+    cannot tell from a cone. Returned as a one-face :class:`fg.Mesh`, its
+    positions stored as float32 like every installed mesh, at ``z0`` so their
+    float32 resolution is a real part's.
+    """
+    import array
+    step = math.radians(arc_deg) / segments
+    bottom = [(row_radius(0) * math.cos(i * step), row_radius(0) * math.sin(i * step),
+               z0 + row_z(0)) for i in range(segments + 1)]
+    top = [(row_radius(1) * math.cos((i + 0.5) * step), row_radius(1) * math.sin((i + 0.5) * step),
+            z0 + row_z(1)) for i in range(segments)]
+    points = bottom + top
+    t = len(bottom)
+    triangles = [(i, i + 1, t + i) for i in range(segments)]
+    triangles += [(t + i, i + 1, t + i + 1) for i in range(segments - 1)]
+    area = 0.0
+    for a, b, c in triangles:
+        area += 0.5 * fg._norm(fg._cross(fg._sub(points[b], points[a]), fg._sub(points[c], points[a])))
+    manifest = {"faces": [{"face_id": 0, "n_vertices": len(points),
+                           "n_triangles": len(triangles), "area_native2": area}]}
+    return fg.Mesh(
+        sha256="0" * 64, directory=Path("."), manifest=manifest,
+        positions=array.array("f", [c for p in points for c in p]),
+        indices=array.array("I", [i for tri in triangles for i in tri]),
+        face_ids=array.array("I", [0] * len(triangles)))
+
+
+def test_a_one_band_cylinder_is_a_cylinder_by_its_nodes():
+    """The pilot-boss case, built by hand: two rows at ONE radius, staggered, so
+    the facets tilt off the axis by more than ``cylinder_axis_deg`` and the
+    face used to fall through to the sphere and its band refusal. The nodes
+    are on one cylinder to float32, and that is what answers now -- at the
+    radius and about the axis the band was built with."""
+    mesh = staggered_band(lambda k: 20.52, lambda k: 0.5 * k, 10, 73.0)
+    stats = fg.face_triangle_stats(mesh, 0)
+    assert stats.worst_axis_deg > fg.FIT_TOLERANCES["cylinder_axis_deg"], (
+        "the fixture's facets no longer fail the facet-axis test, so this would "
+        "pass on the ordinary cylinder branch and prove nothing")
+    fit = fg.fit_face(mesh, 0)
+    assert fit.surface == "cylindrical", fit.why
+    assert fit.why is None
+    assert fit.geometry["radius"] == pytest.approx(20.52, abs=1e-4)
+    assert abs(fit.geometry["axis"][2]) == pytest.approx(1.0, abs=1e-9)
+    assert fit.geometry["axis_point"][:2] == pytest.approx([0.0, 0.0], abs=1e-4)
+    # ...and the sphere was asked first and refused it as a band, as before.
+    assert fit.fits["spherical"]["triangles_per_vertex"] < 1.0
+
+
+def test_a_one_band_sphere_is_still_refused_and_says_why():
+    """The same staggered band laid on a SPHERE (polar angle 80 to 82 degrees):
+    two coaxial circles of different radii. The sphere fits it exactly and is
+    refused by the band rule; the node test is then asked and refuses too,
+    because no cylinder holds two circles 0.55 percent apart -- inside the
+    ordinary 2 percent radial test, so this is the node test refusing it and
+    not that one. The face keeps the sphere's reason."""
+    polar = (math.radians(80.0), math.radians(82.0))
+    mesh = staggered_band(lambda k: 20.0 * math.sin(polar[k]),
+                          lambda k: 20.0 * math.cos(polar[k]), 10, 73.0)
+    stats = fg.face_triangle_stats(mesh, 0)
+    assert stats.worst_axis_deg > fg.FIT_TOLERANCES["cylinder_axis_deg"]
+    facet = fg.fit_cylinder(fg.face_vertices(mesh, 0), stats.axis)
+    assert facet["max_residual"] <= fg.FIT_TOLERANCES["cylinder_radial_fraction"] * facet["radius"], (
+        "the fixture fails the ordinary radial test, so the node test is never asked")
+    fit = fg.fit_face(mesh, 0)
+    assert fit.surface == "other"
+    assert fit.why == "one band of quads, which lies on a sphere whatever shape it is"
+
+
+def test_six_nodes_are_too_few_to_prove_a_cylinder():
+    """Five degrees of freedom: six nodes sit on SOME cylinder to almost nothing
+    whatever they are, so the node test needs ``cylinder_node_min_vertices``."""
+    mesh = staggered_band(lambda k: 20.52, lambda k: 0.5 * k, 3, 21.9)
+    assert len(fg.face_vertices(mesh, 0)) < fg.FIT_TOLERANCES["cylinder_node_min_vertices"]
+    assert fg.face_triangle_stats(mesh, 0).worst_axis_deg > fg.FIT_TOLERANCES["cylinder_axis_deg"]
+    assert fg.fit_face(mesh, 0).surface == "other"
+
+
+def test_refine_cylinder_recovers_the_axis_from_a_tilted_start():
+    """The refinement itself: from an axis 2 degrees off, the nodes of a real
+    cylinder pull it back to the true one and the radius with it."""
+    points = [(5.0 * math.cos(a), 5.0 * math.sin(a), z)
+              for a in (math.radians(d) for d in range(0, 120, 10)) for z in (0.0, 3.0, 6.0)]
+    start = fg._unit((math.sin(math.radians(2.0)), 0.0, math.cos(math.radians(2.0))))
+    fit = fg.refine_cylinder(points, start)
+    assert fit["radius"] == pytest.approx(5.0, abs=1e-9)
+    assert abs(fit["axis"][2]) == pytest.approx(1.0, abs=1e-12)
+    assert fit["max_residual"] < 1e-9
+
+
 def test_fit_circle2_refuses_collinear_points():
     xs = [math.cos(2 * math.pi * i / 12) * 7 + 4 for i in range(12)]
     ys = [math.sin(2 * math.pi * i / 12) * 7 - 2 for i in range(12)]
