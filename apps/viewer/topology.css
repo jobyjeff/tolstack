@@ -690,6 +690,14 @@ body { display: flex; flex-direction: column; }
 .tv__bodyfield--flat { stroke-opacity: .35; }
 .tv__partfield { fill: none; stroke: var(--group-part); stroke-width: 1; pointer-events: none; }
 .tv__partfield--flat { stroke-opacity: .35; }
+/* A part with many interfaces is a component (VA.blockLayout): its outline in
+   the part hue, a little heavier than a group's border because it is the part
+   itself, unfilled like every group. Its chords are bars drawn as curves, and
+   a stub is its pin's piece of rail. */
+.tv__block { fill: none; stroke: var(--group-part); stroke-width: 1.5; pointer-events: none; }
+.tv__block--flat { stroke-opacity: .35; }
+.rail__bar--chord, .rail__barhit--chord { fill: none; }
+.rail__stub { fill: none; stroke: var(--rail-even); }
 /* A fill's tint: the body's two strengths (--tv-body-* for a region tint,
    --tv-body-ink-* for a solid part), slot for slot. */
 .tv__fill--t0 { --fill-tint: var(--tv-body-0); --fill-ink: var(--tv-body-ink-0); }

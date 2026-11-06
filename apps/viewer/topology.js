@@ -1146,12 +1146,25 @@
   };
   VA.GROUP_FILL_ORDER = ["off", "parts", "all"];
 
-  // The DAG's three view settings, remembered across sessions in one store
+  // How a part with many interfaces is drawn (a_part_with_many_interfaces_
+  // is_drawn_as_a_component_with_pins, 2026-11-06): as one block with its
+  // interfaces as pins (VA.blockLayout), or as its rows on the rails, the
+  // walk exactly as the builder laid it. Blocks is the page's default; a
+  // caller that names neither (a pure render) draws the rails.
+  VA.PART_DRAWINGS = {
+    blocks: { label: "Blocks" },
+    rails: { label: "On the rails" },
+  };
+  VA.PART_DRAWING_ORDER = ["blocks", "rails"];
+
+  // The DAG's four view settings, remembered across sessions in one store
   // entry (like the group kinds, VA.readGroupKinds): which colour scheme
-  // (VA.COLOUR_SCHEMES), which group fill, which width. An unreadable store,
+  // (VA.COLOUR_SCHEMES), which group fill, which width, how a part with
+  // many interfaces is drawn (VA.PART_DRAWINGS). An unreadable store,
   // or a word outside its table, reads as that setting's default.
   VA.DAG_VIEW_KEY = "tolstack.viewer.dagView";
-  VA.DAG_VIEW_DEFAULTS = { colourBy: "none", groupFill: "off", graphWidth: "narrow" };
+  VA.DAG_VIEW_DEFAULTS = { colourBy: "none", groupFill: "off", graphWidth: "narrow",
+                           partDrawing: "blocks" };
 
   VA.readDagView = function (store) {
     var out = Object.assign({}, VA.DAG_VIEW_DEFAULTS);
@@ -1162,6 +1175,7 @@
         if (VA.colourScheme(saved.colourBy)) out.colourBy = saved.colourBy;
         if (VA.GROUP_FILLS[saved.groupFill]) out.groupFill = saved.groupFill;
         if (VA.GRAPH_WIDTHS[saved.graphWidth]) out.graphWidth = saved.graphWidth;
+        if (VA.PART_DRAWINGS[saved.partDrawing]) out.partDrawing = saved.partDrawing;
       }
     } catch (err) {
       // Unreadable: the defaults.
@@ -1174,6 +1188,7 @@
       if (!store) return;
       store.setItem(VA.DAG_VIEW_KEY, JSON.stringify({
         colourBy: view.colourBy, groupFill: view.groupFill, graphWidth: view.graphWidth,
+        partDrawing: view.partDrawing,
       }));
     } catch (err) {
       // A browser that refuses to store it still draws it for this session.
@@ -1452,7 +1467,7 @@
   // With no leaders at all there is nothing to centre across and nothing that
   // could be misaligned either, so the two blocks' own heights are the
   // fallback — that is also the only case where a taller GRID moves the DAG.
-  VA.centreOffsets = function (rows, heights, plan, metrics) {
+  VA.centreOffsets = function (rows, heights, plan, metrics, within) {
     if (!plan) return { dag: 0, grid: 0 };
     var gridHeight = plan.rows.length * metrics.rowHeight;
     var shift;
@@ -1462,7 +1477,7 @@
       var top = 0;
       var nodeY = {};
       rows.forEach(function (row, i) {
-        if (row.kind === "node") nodeY[row.row] = top + heights[i] / 2;
+        if (row.kind === "node") nodeY[row.row] = top + (within ? within[i] : heights[i] / 2);
         top += heights[i];
       });
       var lo = null, hi = null;
@@ -1546,12 +1561,37 @@
     // Pass one: every slot's height, and therefore the DAG's own extent.
     var heights = [];
     var flooredAt = [];
+    // Where in its slot a row's mark sits, from the slot's top; the middle
+    // but for a block's pins (VA.blockLayout).
+    var within = [];
     var dagHeight = 0;
     var ei = 0;
-    rows.forEach(function (row) {
+    // A block (VA.blockLayout) is compact: each pin a half row, half a row of
+    // margin above the first and below the last. Uniform, a chord takes no
+    // height of its own, so the block is (pins + 1) half rows tall whatever
+    // its part's dimensions. Scaled, a chord keeps its proportional slot and
+    // a pin either side of it gives up its half of the half row, so two pins
+    // a chord joins are exactly the chord's length apart -- the length the
+    // mode promises -- and the block stretches to honour it.
+    var half = metrics.rowHeight / 2;
+    var inBlock = function (row) { return !!(row && (row.pin || row.chord)); };
+    rows.forEach(function (row, i) {
       var h = metrics.rowHeight;
       var floored = false;
-      if (row.kind === "edge") {
+      var at = null;
+      if (row.pin) {
+        var prev = rows[i - 1];
+        var next = rows[i + 1];
+        var first = !inBlock(prev);
+        var last = !inBlock(next);
+        var above = scaled && prev && prev.chord ? 0 : half / 2;
+        var below = scaled && next && next.chord ? 0 : half / 2;
+        h = above + below + (first ? half / 2 : 0) + (last ? half / 2 : 0);
+        at = above + (first ? half / 2 : 0);
+      } else if (row.chord && !scaled) {
+        h = 0;
+        ei++;
+      } else if (row.kind === "edge") {
         if (scaled) {
           var proportional = ratios[ei] * maxLen;
           if (proportional < floor) {
@@ -1565,6 +1605,7 @@
       }
       heights.push(h);
       flooredAt.push(floored);
+      within.push(at === null ? h / 2 : at);
       dagHeight += h;
     });
 
@@ -1573,7 +1614,7 @@
     // offsets are 0, and this is exactly the pre-fit store.
     var plan = fit && fit.plan;
     var gridHeight = (plan ? plan.rows.length : 0) * metrics.rowHeight;
-    var centre = VA.centreOffsets(rows, heights, plan, metrics);
+    var centre = VA.centreOffsets(rows, heights, plan, metrics, within);
     // The pane asks for the room above the first row (VA.DAG_FIT.topInset) by
     // naming it on `fit`; a caller that does not gets the classic store.
     var inset = (fit && fit.inset) || 0;
@@ -1596,7 +1637,7 @@
       // row INDEX is not comparable between the walk and a study's chain --
       // row 3 of one is not row 3 of the other -- so the respine tween pairs
       // the two stores by the element each slot belongs to, not by its key.
-      var slot = { top: y, height: h, y: y + h / 2, floored: flooredAt[i],
+      var slot = { top: y, height: h, y: y + within[i], floored: flooredAt[i],
                    id: row.id, kind: row.kind };
       out.byRow[row.row] = slot;
       if (row.kind === "node") out.nodes[row.id] = slot.y;
@@ -2166,13 +2207,16 @@
   // topology this reproduces the projection's own `rails` and `links`
   // exactly (the fast tier pins that), which is what makes it safe to use on
   // a walk the projection never laid out: the hidden one below.
-  VA.walkRailsAndLinks = function (rows) {
+  //
+  // `skip(row)` leaves an edge row out: a chord inside a part's block
+  // (VA.blockLayout) is drawn pin to pin, so it has no rail and no link.
+  VA.walkRailsAndLinks = function (rows, skip) {
     var nodeRow = {};
     rows.forEach(function (row) { if (row.kind === "node") nodeRow[row.id] = row.row; });
     var runs = [];
     var links = [];
     rows.forEach(function (row) {
-      if (row.kind !== "edge") return;
+      if (row.kind !== "edge" || (skip && skip(row))) return;
       var entered = rows[nodeRow[row.entered_at]];
       if (!entered) return;
       runs.push({ column: row.column, start: entered.row, end: row.row });
@@ -2561,6 +2605,9 @@
     });
     rows.forEach(function (row) {
       if (row.kind !== "node") return;
+      // A block's inner pin (VA.blockLayout) is in the strip with no stub:
+      // nothing it draws crosses a rail.
+      if (row.pin && row.pin.side === "right") return;
       rails.forEach(function (rail) {
         if (rail.column < row.column && rail.start <= row.row && row.row <= rail.end) {
           counts.leader += 1;
@@ -2951,6 +2998,324 @@
       return { part: s.part, body: s.body, start: s.start, end: s.end, lo: s.lo, hi: s.hi };
     });
   };
+
+  // --- a part with many interfaces is a component with pins (a_part_with_
+  // many_interfaces_is_drawn_as_a_component_with_pins, 2026-11-06) ----------
+  //
+  // Jeff: "model the part in the dag similar to a component in a circuit
+  // diagram, as a rectangle with nodes along the perimeter for each
+  // interface ... clustered together into a shape with relatively square
+  // aspect ratio". Three pure steps:
+  //
+  //   1. VA.partPins: which part each node is a pin of. A node on one part is
+  //      that part's; a contact face between two parts is a pin of the one
+  //      with more interfaces (the pitch plate, not the washer on it), the
+  //      first listed on a tie. A part with VA.BLOCK_MIN_PINS pins or more is
+  //      a block; its edges between two of its own pins are its CHORDS.
+  //   2. VA.gatherParts: the walk with each block's pins and chords moved up
+  //      to where the part first appears, re-laid as a walk (VA.layWalk), so
+  //      a part the depth-first walk visited three times is one run and one
+  //      block (brief Q5). Applied to the projection's walk BEFORE the band,
+  //      so the grid -- built off the drawn walk, as ever -- and the leaders
+  //      follow it, and a kinematic band's own stack order still wins.
+  //   3. VA.blockLayout: the drawn walk with every run of one block's rows
+  //      marked -- pins and chords -- and its rails and links re-derived
+  //      without the chords. railGeometry then draws each run as a rectangle
+  //      in the BLOCK STRIP, between the spine and the jog zone: a pin whose
+  //      part meets anything else faces the rails (left side) and is joined to
+  //      its column by a short stub; a pin only its own part touches is on the
+  //      right side. Every pin has its own height, in walk order, so the
+  //      leaders keep the one premise they rest on (VA.leaderGeometry).
+  VA.BLOCK_MIN_PINS = 2;
+  // A block's width over its height, at the uniform pitch: inside 1:2 to 2:1
+  // for every pin count (the browser tier measures the drawn ones).
+  VA.BLOCK_ASPECT = { min: 0.5, max: 2, target: 0.75 };
+
+  VA.partPins = function (topoProj) {
+    var nodes = (topoProj && topoProj.nodes) || [];
+    var count = {};
+    nodes.forEach(function (n) {
+      (n.parts || []).forEach(function (p) { count[p] = (count[p] || 0) + 1; });
+    });
+    var owner = {};
+    nodes.forEach(function (n) {
+      var best = null;
+      (n.parts || []).forEach(function (p) {
+        if (best === null || count[p] > count[best]) best = p;
+      });
+      if (best !== null) owner[n.id] = best;
+    });
+    var pins = {};
+    Object.keys(owner).forEach(function (id) {
+      (pins[owner[id]] = pins[owner[id]] || []).push(id);
+    });
+    var blocks = {};
+    Object.keys(pins).forEach(function (p) {
+      if (pins[p].length >= VA.BLOCK_MIN_PINS) blocks[p] = true;
+    });
+    var chords = {};
+    var outside = {};
+    ((topoProj && topoProj.edges) || []).forEach(function (e) {
+      var p = e.part;
+      if (p && blocks[p] && owner[e.from] === p && owner[e.to] === p) {
+        chords[e.id] = p;
+        return;
+      }
+      outside[e.from] = true;
+      outside[e.to] = true;
+    });
+    var out = { owner: {}, blocks: blocks, chords: chords, outside: {} };
+    Object.keys(owner).forEach(function (id) {
+      if (blocks[owner[id]]) {
+        out.owner[id] = owner[id];
+        out.outside[id] = !!outside[id];
+      }
+    });
+    return out;
+  };
+
+  // The block part a row belongs to: a pin's part, a chord's part, else null.
+  function blockPartOf(row, pins) {
+    if (!row || row.collapsed) return null;
+    return (row.kind === "node" ? pins.owner[row.id] : pins.chords[row.id]) || null;
+  }
+
+  // The columns of a re-laid walk, re-ordered while a move lowers `score`
+  // (crossings, VA.layoutCrossings, of the walk as it will be drawn): the
+  // walk's own column order (the builder's order_columns) does not survive a
+  // re-lay, and this is its local search -- every swap of two columns and
+  // every move of one column to another place, until neither helps. The
+  // trunk's column is not held at 0: the crossings' leader term already
+  // prefers the rails most leaders leave from nearest the grid, which is all
+  // "the spine on the right" was for, and holding it cost 21 crossings on the
+  // product model (the lesson's table). A local minimum, like the builder's
+  // own past its exact width.
+  function improveColumns(laid, score) {
+    var best = laid;
+    var bestScore = score(best);
+    var n = best.columns;
+    var identity = function () {
+      var order = [];
+      for (var c = 0; c < n; c++) order.push(c);
+      return order;
+    };
+    var tryOrder = function (order) {
+      var next = relabel(best, order);
+      var s = score(next);
+      if (s < bestScore) { best = next; bestScore = s; return true; }
+      return false;
+    };
+    for (var pass = 0; pass < 12; pass++) {
+      var moved = false;
+      for (var a = 0; a < n; a++) {
+        for (var b = 0; b < n; b++) {
+          if (a === b) continue;
+          var swap = identity();
+          swap[a] = b;
+          swap[b] = a;
+          if (a < b && tryOrder(swap)) moved = true;
+          // Column `a` moved to place `b`, the ones between shifted over.
+          var seq = identity();
+          seq.splice(b, 0, seq.splice(a, 1)[0]);
+          var move = [];
+          seq.forEach(function (col, place) { move[col] = place; });
+          if (tryOrder(move)) moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    return best;
+  }
+
+  // A walk laid out without its chords (`laid`), with them put back in
+  // `order`'s places: every row renumbered, a close re-pointed at its node's
+  // new row, and each chord on the column of the pin it hangs from, running
+  // down to its other pin. Its rails are re-derived; VA.blockLayout drops the
+  // chords' own again once it knows which runs are blocks.
+  function withChords(laid, order, pins) {
+    var placed = {};
+    laid.rows.forEach(function (row) { placed[slotKey(row.kind, row.id)] = row; });
+    var at = {};
+    order.forEach(function (row, i) { at[slotKey(row.kind, row.id)] = i; });
+    var rowOf = function (kind, id) { return at[slotKey(kind, id)]; };
+    var rows = order.map(function (row, i) {
+      var key = slotKey(row.kind, row.id);
+      if (placed[key]) {
+        var copy = assign(placed[key], { row: i });
+        if (copy.kind === "edge" && copy.closes_row !== null && copy.closes_row !== undefined) {
+          copy.closes_row = rowOf("node", laid.rows[copy.closes_row].id);
+        }
+        return copy;
+      }
+      return null;
+    });
+    for (var i = 0; i < order.length; i++) {
+      if (rows[i]) continue;
+      var row = order[i];
+      var a = rowOf("node", row.entered_at);
+      var b = rowOf("node", row.left_at);
+      if (a === undefined || b === undefined) return null;
+      var from = Math.min(a, b);
+      var to = Math.max(a, b);
+      if (from > i) return null;
+      var column = rows[from].column;
+      rows[i] = assign(row, {
+        row: i, column: column,
+        entered_at: order[from].id, left_at: order[to].id,
+      });
+      rows[i].closes_row = to < i ? to : null;
+      rows[i].closes_column = to < i ? rows[to].column : null;
+    }
+    var structure = VA.walkRailsAndLinks(rows);
+    return { rows: rows, rails: structure.rails, links: structure.links,
+             columns: laid.columns };
+  }
+
+  var gatherMemo = { layout: null, topoProj: null, out: null };
+
+  VA.gatherParts = function (layout, topoProj) {
+    if (!layout || !topoProj) return layout;
+    if (gatherMemo.layout === layout && gatherMemo.topoProj === topoProj) {
+      return gatherMemo.out;
+    }
+    var pins = VA.partPins(topoProj);
+    var rows = layout.rows || [];
+    var byPart = {};
+    rows.forEach(function (row) {
+      var p = blockPartOf(row, pins);
+      if (p) (byPart[p] = byPart[p] || []).push(row);
+    });
+    var order = [];
+    var emitted = {};
+    var moved = false;
+    rows.forEach(function (row) {
+      var p = blockPartOf(row, pins);
+      if (!p) { order.push(row); return; }
+      if (emitted[p]) return;
+      emitted[p] = true;
+      byPart[p].forEach(function (r) { order.push(r); });
+    });
+    order.forEach(function (row, i) { if (row.row !== i) moved = true; });
+    var out = layout;
+    if (moved) {
+      // Laid out without the chords, which are drawn inside their block and
+      // so need no column: a chord laid as a rail holds a column through the
+      // block's rows for nothing, and every branch beside it pays a column
+      // further out. Put back afterwards, each at its first pin's column.
+      var chordless = order.filter(function (row) {
+        return !(row.kind === "edge" && pins.chords[row.id]);
+      });
+      var laid = VA.layWalk(chordless, { prefer: function (row) { return row.column; } });
+      if (laid) laid = withChords(laid, order, pins);
+      if (laid) {
+        laid = improveColumns(laid, function (option) {
+          return VA.layoutCrossings(VA.blockLayout(option, topoProj, pins)).total;
+        });
+        out = {};
+        Object.keys(layout).forEach(function (key) { out[key] = layout[key]; });
+        out.rows = laid.rows;
+        out.rails = laid.rails;
+        out.links = laid.links;
+        out.columns = laid.columns;
+      }
+    }
+    gatherMemo = { layout: layout, topoProj: topoProj, out: out };
+    return out;
+  };
+
+  // The drawn walk with its blocks marked. Every maximal run of one block
+  // part's rows holding at least two of its pins is a block,
+  // `layout.blocks[i] = {part, body, start, end, pins, left, right}`; each of
+  // its node rows carries `pin: {block, side, index}` (index = its place on
+  // that side, top down) and each chord row `chord: {block}`. A run with one
+  // pin (the band split a part) draws as it always did. Rails and links are
+  // re-derived without the chords. Applied last, after the mirror. Pure.
+  VA.blockLayout = function (layout, topoProj, pins) {
+    if (!layout || !topoProj) return layout;
+    pins = pins || VA.partPins(topoProj);
+    var rows = layout.rows || [];
+    var runs = [];
+    rows.forEach(function (row) {
+      var p = blockPartOf(row, pins);
+      var last = runs[runs.length - 1];
+      if (!p) return;
+      if (last && last.part === p && last.end === row.row - 1) last.end = row.row;
+      else runs.push({ part: p, start: row.row, end: row.row });
+    });
+    var blocks = [];
+    var mark = {};
+    runs.forEach(function (run) {
+      var pinRows = [];
+      for (var r = run.start; r <= run.end; r++) {
+        if (rows[r].kind === "node") pinRows.push(rows[r]);
+      }
+      if (pinRows.length < VA.BLOCK_MIN_PINS) return;
+      var i = blocks.length;
+      var block = { part: run.part, body: rows[run.start].body, start: run.start,
+                    end: run.end, pins: pinRows.length, left: 0, right: 0 };
+      pinRows.forEach(function (row) {
+        var side = pins.outside[row.id] ? "left" : "right";
+        mark[row.row] = { pin: { block: i, side: side, index: block[side] } };
+        block[side] += 1;
+      });
+      for (var e = run.start; e <= run.end; e++) {
+        if (rows[e].kind === "edge") {
+          // Only a chord whose two pins are both in this run is drawn inside
+          // it; one whose other pin the band put elsewhere keeps its rail.
+          var lands = 0;
+          for (var q = run.start; q <= run.end; q++) {
+            if (rows[q].kind === "node" &&
+                (rows[q].id === rows[e].entered_at || rows[q].id === rows[e].left_at)) lands++;
+          }
+          if (lands === 2) mark[e] = { chord: { block: i } };
+        }
+      }
+      blocks.push(block);
+    });
+    if (!blocks.length) return layout;
+    var out = {};
+    Object.keys(layout).forEach(function (key) { out[key] = layout[key]; });
+    out.rows = rows.map(function (row) {
+      return mark[row.row] ? assign(row, mark[row.row]) : row;
+    });
+    var structure = VA.walkRailsAndLinks(out.rows, function (row) { return !!row.chord; });
+    out.rails = structure.rails;
+    out.links = structure.links;
+    out.blocks = blocks;
+    return out;
+  };
+
+  // A block's drawn width at `metrics`: its height at the uniform pitch (a
+  // pin a half row, half a row of margin) times VA.BLOCK_ASPECT.target, at
+  // least one row. A length mode stretches the height and not this.
+  VA.blockWidth = function (block, metrics) {
+    var h = metrics.rowHeight / 2;
+    return Math.max(metrics.rowHeight,
+      Math.round(VA.BLOCK_ASPECT.target * (block.pins + 1) * h));
+  };
+
+  // How much room the block strip takes right of the spine: a gutter and the
+  // widest block, or nothing when the drawn walk has no block.
+  VA.blockStripWidth = function (layout, metrics) {
+    var blocks = (layout && layout.blocks) || [];
+    if (!blocks.length) return 0;
+    var widest = 0;
+    blocks.forEach(function (b) { widest = Math.max(widest, VA.blockWidth(b, metrics)); });
+    return metrics.gutter + widest;
+  };
+
+  // The strip's left edge: a gutter right of the spine's drawn column.
+  function stripLeft(layout, metrics, x) {
+    return columnX((layout && layout.columns ? layout.columns - 1 : 0), metrics, x) +
+      metrics.gutter;
+  }
+
+  // A pin row's drawn x: its block's left or right side.
+  function pinX(layout, row, metrics, x) {
+    var block = layout.blocks[row.pin.block];
+    var left = stripLeft(layout, metrics, x);
+    return row.pin.side === "left" ? left : left + VA.blockWidth(block, metrics);
+  }
 
   // --- colour overlays (the_dag_is_coloured_by_a_chosen_attribute_and_
   // spaced_to_taste) ----------------------------------------------------------
@@ -3360,11 +3725,13 @@
     };
     var out = {
       width: columnX((layout && layout.columns ? layout.columns - 1 : 0),
-                     metrics, x) + metrics.left,
+                     metrics, x) + metrics.left + VA.blockStripWidth(layout, metrics),
       height: positions.height,
       rails: [],
       marks: [],
       links: [],
+      blocks: [],
+      stubs: [],
     };
 
     (layout && layout.rails || []).forEach(function (rail) {
@@ -3404,7 +3771,62 @@
         mark.y2 = slot.top + slot.height - 1;
         mark.floored = !!slot.floored;
       }
+      if (row.pin) {
+        mark.pin = row.pin.side;
+        mark.block = row.pin.block;
+        mark.columnX = mark.x;
+        mark.x = pinX(layout, row, metrics, x);
+      }
       out.marks.push(mark);
+    });
+
+    // The blocks (VA.blockLayout): a rectangle per block in the strip, from
+    // half a row above its first pin to half a row below its last; each
+    // chord re-drawn pin to pin, and each rail-side pin joined to the column
+    // its rails reach it on by a stub.
+    var marksByRow = {};
+    out.marks.forEach(function (m) { marksByRow[m.row] = m; });
+    var nodeMark = {};
+    out.marks.forEach(function (m) { if (m.kind === "node") nodeMark[m.id] = m; });
+    var half = metrics.rowHeight / 2;
+    ((layout && layout.blocks) || []).forEach(function (block, i) {
+      var top = slotY(block.start);
+      var bottom = slotY(block.end);
+      for (var r = block.start; r <= block.end; r++) {
+        var m = marksByRow[r];
+        if (m && m.pin) { top = Math.min(top, m.y); bottom = Math.max(bottom, m.y); }
+      }
+      var left = stripLeft(layout, metrics, x);
+      out.blocks.push({ index: i, part: block.part, body: block.body,
+                        start: block.start, end: block.end, pins: block.pins,
+                        x1: left, x2: left + VA.blockWidth(block, metrics),
+                        y1: top - half, y2: bottom + half });
+    });
+    out.marks.forEach(function (m) {
+      var row = rows[m.row];
+      if (!row || !row.chord) return;
+      var a = nodeMark[row.entered_at];
+      var b = nodeMark[row.left_at];
+      if (!a || !b) return;
+      var block = out.blocks[row.chord.block];
+      m.chord = chordPath(a, b, block);
+      m.x = m.chord.mx;
+      m.y = m.chord.my;
+      m.y1 = Math.min(a.y, b.y);
+      m.y2 = Math.max(a.y, b.y);
+    });
+    out.marks.forEach(function (m) {
+      if (m.pin !== "left") return;
+      var touched = (layout.rails || []).some(function (rail) {
+        return rail.column === m.column && rail.start <= m.row && m.row <= rail.end;
+      }) || (layout.links || []).some(function (link) {
+        return (link.row === m.row && link.from_column === m.column) ||
+          (link.to_row === m.row && link.to_column === m.column);
+      });
+      if (!touched) return;
+      out.stubs.push({ id: m.id, row: m.row, column: m.column,
+                       x1: m.columnX, x2: m.x, y: m.y,
+                       d: "M " + m.columnX + " " + m.y + " H " + m.x });
     });
 
     // A body's container (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): the
@@ -3426,9 +3848,15 @@
         top = Math.min(top, t);
         bottom = Math.max(bottom, t + h);
       }
+      // A block in the span's rows widens it to the block's right side, so a
+      // body or a study still wraps the component it holds.
+      var x2 = columnX(span.hi, metrics, x) + padding;
+      out.blocks.forEach(function (b) {
+        if (b.start <= span.end && b.end >= span.start) x2 = Math.max(x2, b.x2 + padding);
+      });
       return { start: span.start, end: span.end, lo: span.lo, hi: span.hi,
                x1: columnX(span.lo, metrics, x) - padding,
-               x2: columnX(span.hi, metrics, x) + padding,
+               x2: x2,
                y1: top + inset, y2: bottom - inset };
     };
     out.bodies = VA.bodySpans(rows).map(function (span) {
@@ -3438,7 +3866,13 @@
     });
     // The parts (VA.partSpans): inside their body's field, a little narrower
     // and inset a row's quarter, so the two borders never coincide.
+    // A part drawn as a block is its block's border, not a second one.
     out.parts = (options && options.topoProj ? VA.partSpans(rows, options.topoProj) : [])
+      .filter(function (span) {
+        return !out.blocks.some(function (b) {
+          return b.part === span.part && b.start <= span.end && b.end >= span.start;
+        });
+      })
       .map(function (span) {
         var f = field(span, pad - 3, 3);
         f.part = span.part;
@@ -3501,6 +3935,26 @@
       if (rows[i] && rows[i].column === column) return rows[i];
     }
     return null;
+  }
+
+  // A chord inside a block, pin `a` to pin `b`: two pins on one side are
+  // joined by a curve bowing into the block, as far in as the pins are apart
+  // (at most most of the width), so nested chords on one side nest rather
+  // than lie on top of each other; pins on opposite sides by an S across it.
+  // `mx`/`my` is the curve's midpoint, where its label and break sit.
+  function chordPath(a, b, block) {
+    var width = block.x2 - block.x1;
+    if (a.pin === b.pin) {
+      var inward = a.pin === "left" ? 1 : -1;
+      var bow = inward * Math.min(width * 0.8, Math.max(4, Math.abs(b.y - a.y) * 0.6));
+      return { d: "M " + a.x + " " + a.y + " C " + (a.x + bow) + " " + a.y + " " +
+                  (b.x + bow) + " " + b.y + " " + b.x + " " + b.y,
+               mx: a.x + bow * 0.75, my: (a.y + b.y) / 2 };
+    }
+    var mid = (a.x + b.x) / 2;
+    return { d: "M " + a.x + " " + a.y + " C " + mid + " " + a.y + " " +
+                mid + " " + b.y + " " + b.x + " " + b.y,
+             mx: mid, my: (a.y + b.y) / 2 };
   }
 
   // A fan-out at a fork: out of the node's dot, across to the new column, down
@@ -3924,7 +4378,8 @@
     var columns = zone.columns;
     var count = plan.leaders.length;
     var naturalZone = zone.naturalZone;
-    var zoneLeft = columnX(columns - 1, metrics, x) + metrics.left;
+    var zoneLeft = columnX(columns - 1, metrics, x) + metrics.left +
+      VA.blockStripWidth(layout, metrics);
     var width = x ? x.width : zone.width;
     // The DAG's zoom (a_leader_starts_at_the_mark_it_names_on_every_tier,
     // 2026-10-29): the DAG is drawn at `k` about its own top-left -- x from the
@@ -3962,7 +4417,10 @@
     var ends = plan.leaders.map(function (leader) {
       var row = rowsByLayoutRow[leader.layoutRow] || { column: 0, branch: false };
       var dotR = row.branch ? metrics.branchDot : metrics.dot;
-      var end = atK(columnX(row.column, metrics, x) + dotR + 1.5,
+      // A block's pin is on its block's side, in the strip (VA.blockLayout).
+      var nodeX = row.pin && layout.blocks ? pinX(layout, row, metrics, x)
+        : columnX(row.column, metrics, x);
+      var end = atK(nodeX + dotR + 1.5,
         positions.nodes[leader.id] !== undefined
           ? positions.nodes[leader.id]
           : VA.railY(leader.layoutRow, metrics));
@@ -4342,7 +4800,8 @@
   function zoneMetrics(layout, plan, metrics, zoneScale) {
     var columns = (layout && layout.columns) || 1;
     var count = (plan && plan.leaders) ? plan.leaders.length : 0;
-    var zoneLeft = VA.railX(columns - 1, metrics) + metrics.left;
+    var zoneLeft = VA.railX(columns - 1, metrics) + metrics.left +
+      VA.blockStripWidth(layout, metrics);
     var naturalZone = metrics.leaderPad * 2 +
       (count ? (count - 1) * metrics.leaderLane : 0);
     var scale = VA.clampJogZoneScale(zoneScale === undefined ? 1 : zoneScale);
