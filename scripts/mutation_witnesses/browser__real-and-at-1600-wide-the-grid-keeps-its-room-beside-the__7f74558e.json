@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "The blocks' strip is as wide as its widest block and a gutter, and no wider.",
-      "issue": "docs/sessions/reviews/REVIEW_20261106_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
       "note": "Declared by the round-1 rework of a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). A strip 600px wider pushes a study's grid out of the 737px pane at 1600.",
       "file": "apps/viewer/topology.js",
       "find": "    return metrics.gutter + widest;",

@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "A block's body is its part's, so its own body's field is drawn around it.",
-      "issue": "docs/sessions/reviews/REVIEW_20261106_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
       "note": "Declared by the round-1 rework of a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The review's blocker: the pitch plate's block wore the hydraulic brake's body, so that field widened over it and its own did not wrap it.",
       "file": "apps/viewer/topology.js",
       "find": "      var block = { part: run.part, body: bodyOf[run.part], start: run.start,",

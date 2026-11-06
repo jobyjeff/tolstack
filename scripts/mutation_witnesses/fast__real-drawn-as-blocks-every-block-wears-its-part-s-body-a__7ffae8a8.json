@@ -5,7 +5,7 @@
   "mutations": [
     {
       "contract": "A block's body is its part's, not its first row's.",
-      "issue": "docs/sessions/reviews/REVIEW_20261106_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
       "note": "Declared by the round-1 rework of a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The defect the review found: a contact face's row is on its first listed part's body, so the pitch plate's block wore the hydraulic brake's.",
       "file": "apps/viewer/topology.js",
       "find": "      var block = { part: run.part, body: bodyOf[run.part], start: run.start,",
@@ -13,7 +13,7 @@
     },
     {
       "contract": "Two blocks back to back each keep their margin, so a block's body field reaches its bottom.",
-      "issue": "docs/sessions/reviews/REVIEW_20261106_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
       "note": "Found by this guard in the round-1 rework: on the cotter-hole band the pitch plate's block sits directly above another block, its last pin saw the next block's pin as its own and gave up its bottom margin, and the block's rect ran 13 px past its body's field.",
       "file": "apps/viewer/topology.js",
       "find": "      for (var j = i + step; inBlock(rows[j]) && blockOf(rows[j]) === own; j += step) {",
