@@ -149,3 +149,10 @@ wait. The same morning's batch-merge candidate measured 503 s. I did not pass
 (the witness gate): a recorded wall time that includes the slot queue cannot
 tell a slow suite from a busy machine.
 
+
+Same branch, re-run 2026-11-06 with the browser slot free: 407 s,
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider`
+in the handoff worktree: `1 failed, 1727 passed, 1 skipped, 2 deselected`.
+`suite-time record`: inside budget. The failure is the worktree-only
+`test_viewer_js_suite` (its tier passed 637/637 through `--repo`). So the 4033 s
+above was the slot queue, not the suite.
