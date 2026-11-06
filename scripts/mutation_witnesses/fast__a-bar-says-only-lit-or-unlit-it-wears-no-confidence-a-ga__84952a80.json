@@ -1,12 +1,12 @@
 {
   "tier": "fast",
   "suite": null,
-  "expect_red": "a bar says only lit or unlit: it wears no confidence, a gap is dashed, and the grid's chip is where its sourcing is",
+  "expect_red": "a bar says only lit or unlit: it wears no confidence, a gap is dashed, and the grid's mark is where its sourcing is",
   "mutations": [
     {
-      "contract": "A DAG bar carries no confidence class: its sourcing is the grid's chip.",
+      "contract": "A DAG bar carries no confidence class: its sourcing is the grid's mark.",
       "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
-      "note": "Puts back exactly the line the handoff removed: the confidence channel on the stroke.",
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Re-enrolled under the guard's new name; puts back the confidence channel on the stroke.",
       "file": "apps/viewer/views/topology.js",
       "find": "        var classes = [\"rail__bar\"];\n        if (edge && edge.kind === \"gap\") classes.push(\"rail__bar--gap\");",
       "replace": "        var classes = [\"rail__bar\"];\n        if (edge) classes.push(VA.confidenceClass(edge.confidence));\n        if (edge && edge.kind === \"gap\") classes.push(\"rail__bar--gap\");"
@@ -14,7 +14,7 @@
     {
       "contract": "Every gap bar, and only a gap bar, is dashed.",
       "issue": "docs/sessions/lessons/LESSONS_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md",
-      "note": "Dashes the wrong kind: the count of dashed bars no longer equals the gaps.",
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Re-enrolled under the guard's new name; dashes the wrong kind.",
       "file": "apps/viewer/views/topology.js",
       "find": "        if (edge && edge.kind === \"gap\") classes.push(\"rail__bar--gap\");",
       "replace": "        if (edge && edge.kind === \"structural\") classes.push(\"rail__bar--gap\");"

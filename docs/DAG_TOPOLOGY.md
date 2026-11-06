@@ -253,6 +253,12 @@ Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symb
   tint (`VA.bodyBridges`) and its name is drawn once, on the field in the band
   or else its first (2026-11-04, `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`).
   A body none of whose edges the current study lights is a flat outline.
+  Since 2026-11-05 (`the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste`)
+  every group — a body, a **part** (each run of a part's rows inside its body,
+  `VA.partSpans`), a study — is a thin border in its kind's hue with no fill;
+  the view's group fill adds a solid fill to parts, or a fill to every kind.
+  A body's other blocks carry a muted repeat of its name, and the bridge
+  between them is drawn in the body border's hue.
 - **Collapsible.** Clicking a body's name folds it to one wide node with its
   name and its joint-node count; the edges that leave it attach to that node's
   rim. A body in two blocks folds to a pill in each — one row per block, since

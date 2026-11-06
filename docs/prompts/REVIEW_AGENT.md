@@ -652,6 +652,15 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A grid column narrowed to fit, measured against member rows only.**
+      `.tvcell` clips with an ellipsis, and the foot's `totalRow` number cells
+      carry no `title`. So a width chosen for the longest *member* value
+      silently hides the study's own RSS total, which is bold, dense and
+      longer. Open the diff's 3840 shots and look for `…` in a `.tvtotal` row
+      before you trust a width table
+      (`REVIEW_20261106_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what`,
+      `-5.785…` at 68px).
+
 - [ ] **A guard whose stated claim is wider than what it measures — promoted
       2026-09-30 by the triage sweep, on three sightings from three separate
       reviews in eight days.** This is now the most reliably recurring finding
@@ -1119,6 +1128,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       review also softened a pair-mismatch alarm that asserted the two projections
       "do not describe the same stacks" when an ancestor build is the ordinary case
       — an alarm may only claim what its data proves.
+      **The true-positive direction moves the layout too (2026-11-06,
+      `the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste` round 2).**
+      The review branch was one commit behind `master`, so every projection was
+      stamped `behind_trunk=1` and the stale-data banner drew. That pushed the
+      DAG 81 px down, below the wheel aim of `[real] at scroll 0 the DAG's first
+      row is whole…`, and the check went reproducibly red with the zoom stuck at
+      Fit. Neither parent showed it. So **merge the latest `integration`, which
+      carries the master syncs, and confirm the stamps print `behind_trunk=0`
+      BEFORE the browser tier.** A geometry red that neither parent reproduces
+      is checked against that line first.
 - [ ] **A new file in `scripts/` or `tolerance_stack/` and an unchanged inventory
       in `ARCHITECTURE.md`.** That file's tree block (line ~23) names every script
       by hand, so it goes stale silently. `viewer_projection_provenance` added
@@ -2818,6 +2837,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       purely proves the function, never that the page calls it — the overlay's
       "`[real]` test that asks the view-model instead of the page" entry above,
       one seam further out.
+      **Second sighting, 2026-11-05** (`the_dag_is_coloured_by_a_chosen_attribute_
+      and_spaced_to_taste`, REQUEST CHANGES): the shell's new `model tint` post,
+      the boot read and the write of the remembered view settings, and the
+      live width change could each be deleted in `topology_app.js` with every
+      tier green; only the pure helpers were pinned. Two tells: a new
+      `localStorage` key or a new posted scene verb with no `page.reload()` or
+      `__shellModelWords` assertion in the browser runner, and a method
+      commented "read by a test" that `git grep` finds no caller for
+      (`scene.js` `partBaseColor`). The scratch mutation run needs a SHORT
+      root (`%TEMP%\tsrev`): the scratchpad path overflows MAX_PATH on
+      `scripts/mutation_witnesses/`.
 - [ ] **A shell→scene message the diff starts sending reddens the ANNOTATE
       suites, which a tactical `--only "<its own suite>"` run never reaches.**
       New 2026-10-27 (`leaders_follow_the_active_study_across_the_seam`,

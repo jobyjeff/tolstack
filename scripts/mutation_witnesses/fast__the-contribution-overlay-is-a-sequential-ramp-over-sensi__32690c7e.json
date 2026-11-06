@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the contribution overlay is a sequential ramp over |sensitivity| x band at the page's stop, offered on a kinematic page only",
+  "mutations": [
+    {
+      "contract": "A sub-study's terms contribute at the stop too.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). Only the linkage terms are read: every position-stack edge would draw in the neutral ink.",
+      "file": "apps/viewer/topology.js",
+      "find": "    (stop.groups || []).forEach(function (g) { (g.children || []).forEach(take); });\n",
+      "replace": ""
+    }
+  ]
+}

@@ -1055,15 +1055,12 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
 // so the point is found rather than
 // assumed, the way `railPoint` does for a rail.
 //
-// Vertically only, then sideways the way a reader would. `scrollIntoView`
-// alone also scrolls the grid's `.tv__hscroll` to bring a row wider than the
-// pane into view, and the rails are `position: sticky; left: 0` (topology.css)
-// -- so the cell slides UNDER them and every point of it is the rails'. With
-// the product graph's rails at 678px of a 737px pane (1600x1000, preview
-// open), that is where Playwright's own `click()` landed too. So the grid's
-// sideways scroll is put back, and only if the cell is still covered is the
-// grid scrolled until the cell starts just right of the rails, which is what a
-// reader does to reach a column the pane does not show.
+// Vertically only, then sideways the way a reader would: the grid's sideways
+// scroll is put back, and only if the cell is still not the browser's at any
+// point is the strip scrolled, as little as brings the cell in, which is what
+// a reader does to reach a column the pane does not show. (Until the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_
+// what the rails were sticky and the cell was scrolled to just right of
+// them; the rails scroll with the grid now.)
 async function clearPoint(page, selector, action) {
   const point = await page.evaluate((selector) => {
     const node = document.querySelector(selector);
@@ -1083,10 +1080,11 @@ async function clearPoint(page, selector, action) {
     node.scrollIntoView({ block: "center" });
     if (hscroll) hscroll.scrollLeft = left;
     const found = own();
-    const rails = hscroll && hscroll.querySelector("svg.tv__rails");
-    if (found || !rails) return found;
-    hscroll.scrollLeft += node.getBoundingClientRect().left -
-      rails.getBoundingClientRect().right;
+    if (found || !hscroll) return found;
+    // As little as it takes to bring the cell's first 40px in, so as much of
+    // the drawing as can stays on screen beside it.
+    const edge = hscroll.getBoundingClientRect().right - 8;
+    hscroll.scrollLeft += Math.max(0, node.getBoundingClientRect().left + 40 - edge);
     return own();
   }, selector);
   if (!point) {
@@ -1128,44 +1126,35 @@ const BANDS_IN_PAGE = () => {
     }
   });
   if (fills[0] === fills[1]) bad.push("both band tints resolve to one colour");
-  // Every row's own background COLOUR, against its BODY's tint
-  // (the_kinematic_grid_is_a_stack_of_sub_stacks): rows of one body paint one
-  // colour, rows of two bodies two, and a row of no body none. The untraced
-  // wash is a background IMAGE layered over it, so an untraced row shows both
-  // -- and if the two rules ever go back to competing for one `background`,
-  // the untraced rows lose their body and this goes red.
-  const byTint = {};
+  // A row's background says nothing (the_grid_fits_the_screen_and_its_
+  // brackets_say_what_nests_in_what): no body tint, no divider, no untraced
+  // wash. Its body and its sub-stacks are the brackets over it, one pair of
+  // caps per VA.gridBraces entry, and its sourcing is its mark -- so an
+  // untraced row is still unmistakable, on its mark, and the count of those
+  // is what the real checks floor.
   let tinted = 0;
   let provenanceLayers = 0;
   plan.rows.forEach((planRow, r) => {
     const row = rows[r];
     if (!row) { bad.push(`plan row ${planRow.id} has no <tr>`); return; }
-    const want = planRow.body === null || planRow.body === undefined ? "tvrow--body-none"
-      : "tvrow--body-t" + VA.bodyTint(proj, planRow.body);
-    if (!row.classList.contains(want)) bad.push(`row ${planRow.id} does not wear ${want}`);
-    if (row.classList.contains("tvrow--band-a") || row.classList.contains("tvrow--band-b")) {
-      bad.push(`row ${planRow.id} still wears a band parity`);
+    if (/tvrow--body-|tvrow--divide-|tvrow--band-|conf--/.test(row.getAttribute("class") || "")) {
+      bad.push(`row ${planRow.id} still wears a tint class: ${row.getAttribute("class")}`);
     }
-    const colour = getComputedStyle(row).backgroundColor;
-    (byTint[want] = byTint[want] || new Set()).add(colour);
-    if (want === "tvrow--body-none" && colour !== "rgba(0, 0, 0, 0)") {
-      bad.push(`row ${planRow.id} is in no body and still painted ${colour}`);
+    const style = getComputedStyle(row);
+    if (style.backgroundColor !== "rgba(0, 0, 0, 0)" &&
+        !row.classList.contains("tvrow--hot") && !row.classList.contains("tvrow--lead")) {
+      bad.push(`row ${planRow.id} is painted ${style.backgroundColor}`);
+    }
+    if (style.backgroundImage && style.backgroundImage !== "none") {
+      bad.push(`row ${planRow.id} wears a background image`);
     }
     tinted++;
-    const provenance = /conf--untraced|conf--no_source_ref/
-      .test(row.getAttribute("class") || "");
-    const image = getComputedStyle(row).backgroundImage;
-    if (provenance && (!image || image === "none")) {
-      bad.push(`untraced row ${planRow.id} lost its provenance tint to its body's`);
-    }
-    if (provenance) provenanceLayers++;
+    if (row.querySelector("span.tvmark--untraced, span.tvmark--no_source_ref")) provenanceLayers++;
   });
-  const colours = {};
-  Object.keys(byTint).forEach((k) => {
-    if (byTint[k].size > 1) bad.push(`${k} rows painted ${byTint[k].size} different backgrounds`);
-    const c = Array.from(byTint[k])[0];
-    if (k !== "tvrow--body-none" && colours[c]) bad.push(`${k} and ${colours[c]} resolve to one colour`);
-    colours[c] = k;
+  const braces = VA.gridBraces(plan, { study: null });
+  braces.braces.forEach((brace) => {
+    const caps = document.querySelectorAll(`#topopane div.tvbrace[data-brace="${brace.id}"]`);
+    if (caps.length < 2) bad.push(`bracket ${brace.id} has ${caps.length} caps`);
   });
   return {
     bad, tinted, provenanceLayers, bands: bands.length, drawn: drawn.length,
@@ -1287,7 +1276,7 @@ const CARD_SCROLL_VIEWPORT = { width: 1600, height: 560 };
 const CARD_CAP_VIEWPORT = { width: 1600, height: 440 };
 // The one trigger every card-layout contract below is measured on: the demo
 // mechanism's one resolved crop, whose edge card is the tall one.
-const CARD_TRIGGER = "tr.tvrow[data-id='base_thickness'] button.crop-trigger";
+const CARD_TRIGGER = "tr.tvrow[data-id='base_thickness'] td.tvcell--name";
 
 // A rail BAR is a vertical <line>: its bounding box is zero pixels WIDE, and
 // playwright calls a zero-area element "not visible" and refuses
@@ -1874,7 +1863,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       };
       return {
         count: bars.length,
-        inks: [...new Set(bars.map((n) => getComputedStyle(n).stroke))],
+        inks: [...new Set(bars.filter((n) => !n.classList.contains("rail__bar--gap"))
+          .map((n) => getComputedStyle(n).stroke))],
+        gapInks: [...new Set(bars.filter((n) => n.classList.contains("rail__bar--gap"))
+          .map((n) => getComputedStyle(n).stroke))],
         dashedNonGap: bars.filter((n) => !n.classList.contains("rail__bar--gap") &&
           getComputedStyle(n).strokeDasharray !== "none").length,
         plainGap: bars.filter((n) => n.classList.contains("rail__bar--gap") &&
@@ -1883,8 +1875,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         lit: widthWith("rail__bar--on"), unlit: widthWith("rail__bar--off"),
       };
     });
+    // With no colour overlay (the default) a bar's ink says nothing but
+    // "bar"; a gap's is its own dimmer one, the same on every gap
+    // (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste).
     push("every DAG bar is one ink and two weights, and only a gap is dashed",
       strokes.count > 0 && strokes.inks.length === 1 && strokes.inks[0] !== "none" &&
+      strokes.gapInks.length === 1 && strokes.gapInks[0] !== strokes.inks[0] &&
       strokes.lit > strokes.unlit && strokes.dashedNonGap === 0 &&
       strokes.gaps > 0 && strokes.plainGap === 0);
     if (strokes.inks.length !== 1 || !(strokes.lit > strokes.unlit)) {
@@ -1896,9 +1892,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // consecutive pair changes part), and five of its six interfaces are part
     // boundaries — base_datum's one edge makes it internal, so it must NOT
     // have a leader.
-    push("the grid holds one row per edge, in component groups",
+    push("the grid holds one row per edge, each with its own part cell",
       await page.locator("tr.tvrow").count() === 6 &&
-      await page.locator("td.tvcell--component").count() === 6);
+      await page.locator("td.tvcell--part").count() === 6);
     push("five leaders for five part boundaries, none for the internal node",
       await page.locator("path.rail__leader").count() === 5 &&
       await page.locator('path.rail__leaderhit[data-leader-id="base_datum"]').count() === 0);
@@ -1972,16 +1968,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("circle.rail__dot--selected").count() === 1 &&
       await page.locator("tr.tvrow--selected").count() === 0);
 
-    // The thumbnail column (viewer_leader_line_grid): the one resolved demo
-    // crop shows the actual image once fetched; the unresolvable one stays a
-    // word with no image, ever.
-    await page.waitForSelector("img.tvthumb", { timeout: 5000 });
-    push("the resolved crop renders as a real inline thumbnail",
-      await page.locator("tr.tvrow[data-id='base_thickness'] img.tvthumb").count() === 1);
-    push("an unresolvable crop stays a word, never a placeholder image",
-      await page.locator("tr.tvrow[data-id='post_height'] img").count() === 0 &&
-      /no crop/.test(await page.locator("tr.tvrow[data-id='post_height'] span.crop-trigger")
-        .textContent()));
+    // No crop on a row (the_grid_fits_the_screen_and_its_brackets_say_what_
+    // nests_in_what): the crop is the Preview's, at the pane's width.
+    push("no grid row draws a crop image or a crop word",
+      await page.locator("#topopane tr.tvrow img").count() === 0 &&
+      await page.locator("#topopane tr.tvrow .crop-trigger").count() === 0);
 
     // --- the Preview: one record behind every mark (a_preview_pane_replaces_
     // the_hover_popups_and_one_record_backs_every_mark) ------------------------
@@ -2202,12 +2193,6 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.keyboard.press("Escape");
     await page.mouse.move(4, 4);
 
-    // An edge with no crop_key (authored inline, or a derived gap) gets no
-    // thumbnail cell content at all — showing one would read as a stale index
-    // rather than what it is.
-    push("an edge with no crop_key gets no crop word or thumbnail",
-      await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] .crop-trigger")
-        .count() === 0);
     // Whatever the clicks above scrolled is put back: the checks below measure
     // from the pane's and the page's resting scroll.
     await page.evaluate(() => {
@@ -2310,12 +2295,17 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           mid(hs.left, hs.right),
         dy: mid(Math.min(...bars.map((b) => b.top)), Math.max(...bars.map((b) => b.bottom))) -
           mid(top, window.innerHeight),
+        inside: bars.every((b) => b.left >= hs.left - 1 && b.right <= hs.right + 1),
         scrollY: window.scrollY, mutations: window.__respineMutations,
       };
     });
     console.log("      landing: " + JSON.stringify(landed));
-    push("a study arrival lands with the active band centred in the window, within 4 px",
-      landed.bars > 0 && Math.abs(landed.dx) <= 4 && Math.abs(landed.dy) <= 4);
+    // Sideways the band is only kept inside the pane, never centred: centring
+    // put space before the drawing, which pushed the grid right by as much
+    // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
+    push("a study arrival lands with the active band centred in the window's height, " +
+      "within 4 px, and inside the pane sideways",
+      landed.bars > 0 && landed.inside && Math.abs(landed.dy) <= 4);
     const churn = landed.mutations.removedIds.filter((id) => landed.mutations.addedIds.includes(id));
     console.log(`      transition churn: ${churn.length} ids removed and re-added of ` +
       `${landed.mutations.removedIds.length} removed`);
@@ -2337,12 +2327,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const hs = document.querySelector("#topopane .tv__hscroll").getBoundingClientRect();
       const mid = (a, b) => (a + b) / 2;
       return { bars: bars.length, ghost: document.querySelectorAll("#topopane .tv__ghost").length,
-        dx: mid(Math.min(...bars.map((b) => b.left)), Math.max(...bars.map((b) => b.right))) -
-          mid(hs.left, hs.right) };
+        inside: bars.every((b) => b.left >= hs.left - 1 && b.right <= hs.right + 1),
+        dy: mid(Math.min(...bars.map((b) => b.top)), Math.max(...bars.map((b) => b.bottom))) -
+          mid(window.__pinnedBottom(), window.innerHeight) };
     });
     await page.emulateMedia({ reducedMotion: "no-preference" });
-    push("with reduced motion the band still lands centred, with no ghost of the old layout",
-      reduced.bars > 0 && reduced.ghost === 0 && Math.abs(reduced.dx) <= 4);
+    push("with reduced motion the band still lands centred in the window's height and inside " +
+      "the pane, with no ghost of the old layout",
+      reduced.bars > 0 && reduced.ghost === 0 && reduced.inside && Math.abs(reduced.dy) <= 4);
     await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
@@ -2730,18 +2722,22 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           const VA = window.ViewerApp;
           const proj = VA.findTopology(VA.demoTopologyFixture().topologies, topologyId);
           const plan = VA.gridPlan(proj.layout, proj);
-          const cells = Array.from(document.querySelectorAll("td.tvcell--component"));
+          // One part cell per row, its words on each group's first row only
+          // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
+          const rows = Array.from(document.querySelectorAll("#topopane tr.tvrow--edge"));
           const leaders = Array.from(document.querySelectorAll("path.rail__leaderhit"));
           const bad = [];
-          if (cells.length !== plan.groups.length) {
-            bad.push(`groups: ${cells.length} cells vs ${plan.groups.length} planned`);
+          if (rows.length !== plan.rows.length) {
+            bad.push(`rows: ${rows.length} drawn vs ${plan.rows.length} planned`);
           }
           plan.groups.forEach((g, i) => {
-            const cell = cells[i];
-            if (!cell) return;
-            const span = cell.getAttribute("rowspan");
-            if ((span === null ? 1 : Number(span)) !== g.count) {
-              bad.push(`group ${i} (${g.label}): rowspan ${span} vs count ${g.count}`);
+            for (let k = 0; k < g.count; k++) {
+              const row = rows[g.start + k];
+              const cell = row && row.querySelector("td.tvcell--description");
+              if (!cell) { bad.push(`group ${i} row ${k}: no description cell`); continue; }
+              if ((k === 0) !== (cell.textContent !== "")) {
+                bad.push(`group ${i} (${g.label}) row ${k}: "${cell.textContent}"`);
+              }
             }
           });
           if (leaders.length !== plan.leaders.length) {
@@ -3139,6 +3135,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         const node = document.querySelectorAll(
           "svg.tv__rails line.rail__hit")[i];
         if (!node) return null;
+        // The rails scroll with the grid: a check above that reached a grid
+        // column left the strip scrolled, so start from its left edge.
+        const strip = document.querySelector("#topopane .tv__hscroll");
+        if (strip) strip.scrollLeft = 0;
         // A rail that starts below the fold has no point in the window at
         // all, and pitch_system's DAG is taller than any viewport this runs
         // at -- so the page is scrolled to put the rail's middle on screen
@@ -3394,8 +3394,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // case with enough bands for "ride a band across the jog zone" to mean
       // anything.
       const realBands = await page.evaluate(BANDS_IN_PAGE);
-      push("[real] pitch_system's bands are tinted by parity and its rows by their body, " +
-        "and its untraced rows keep their provenance tint as well",
+      push("[real] pitch_system's bands are tinted by parity, its rows wear no tint, " +
+        "and its untraced rows say so on their mark",
         // One band more than the plan has leaders, every one drawn. These
         // were literals (62 bands off 61 leaders) and went stale twice in a
         // day -- 6d23015d took the graph to 62 leaders and b4b641db to 63 --
@@ -4107,7 +4107,10 @@ const FRAME_PROBE = () => {
 // frames, which a frozen clock never delivers), and each sample follows exactly
 // `ms` of page time after the last -- so "no jump between two frames" is a fact
 // about the page and not a race against how fast this machine draws.
-async function sampleTransition(page, selector, { frames = 40, ms = 20 } = {}) {
+// `frames` runs past VA.RESPINE.fitDuration (the longest transition) at `ms` a
+// step, so a tween that is still going at the last sample is a failure of the
+// tween and not of the sampling.
+async function sampleTransition(page, selector, { frames = 80, ms = 20 } = {}) {
   await page.evaluate(CLOCK);
   await page.evaluate(() => window.__clock.freeze());
   const before = await page.evaluate(FRAME_PROBE);
@@ -4153,13 +4156,19 @@ function judgeContinuity({ before, samples }) {
   if (moving.some((f) => f.padLeft < lo || f.padLeft > hi)) {
     problems.push(`pad left the segment ${S}..${E}`);
   }
+  // A transition that pulls back before it goes in travels OUT and back, so its
+  // net travel can be near zero: a step is judged against the whole path walked.
   const steps = (key, floor) => {
     const run = [...moving, last];
-    const travel = Math.abs(run[run.length - 1][key] - run[0][key]);
+    let path = 0;
     let worst = 0;
-    for (let i = 1; i < run.length; i++) worst = Math.max(worst, Math.abs(run[i][key] - run[i - 1][key]));
-    return worst > Math.max(floor, 0.5 * travel)
-      ? `${key} took ${worst.toFixed(0)}px of ${travel.toFixed(0)} in one frame` : null;
+    for (let i = 1; i < run.length; i++) {
+      const d = Math.abs(run[i][key] - run[i - 1][key]);
+      path += d;
+      worst = Math.max(worst, d);
+    }
+    return worst > Math.max(floor, 0.5 * path)
+      ? `${key} took ${worst.toFixed(0)}px of ${path.toFixed(0)} in one frame` : null;
   };
   problems.push(...[steps("bandCx", 12), steps("scrollY", 40)].filter(Boolean));
   if (Math.abs(moving[0].scrollY - before.scrollY) > 60) {
@@ -4396,9 +4405,11 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     await page.locator("#edge-length-toggle").click();
     await settle(250);
 
-    // --- the rails stay put when a zoomed grid is scrolled sideways ------------
-    // `.tv__rails` is `position: sticky; left: 0`: the claim is that it still
-    // holds the pane's left edge at a scale other than 1.
+    // --- one horizontal scroll: a zoomed DAG and its grid move together -------
+    // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what.) The
+    // rails were `position: sticky; left: 0` and a sideways scroll slid the
+    // grid under them; now the drawing scrolls with the grid, and the grid's
+    // first column starts at the drawing's right edge at every scroll.
     {
       await page.keyboard.press("0");
       await settle(200);
@@ -4410,22 +4421,24 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         const h = document.querySelector("#topopane .tv__hscroll");
         h.scrollLeft = Math.min(h.scrollWidth - h.clientWidth, 300);
       });
-      // The scroll event is what moves the rails at a scale other than 1.
       await settle(150);
       const sticky = await page.evaluate(() => {
         const h = document.querySelector("#topopane .tv__hscroll");
         const svg = document.querySelector("#topopane svg.tv__rails");
         const g = svg.querySelector("g.tv__dag");
+        const part = document.querySelector("#topopane td.tvcell--part");
         const k = g ? g.getScreenCTM().a / svg.getScreenCTM().a : 1;
         return { k, overflow: h.scrollWidth - h.clientWidth, scrolled: h.scrollLeft,
-                 drift: svg.getBoundingClientRect().left - h.getBoundingClientRect().left };
+                 drift: svg.getBoundingClientRect().left - h.getBoundingClientRect().left,
+                 seam: part.getBoundingClientRect().left - svg.getBoundingClientRect().right };
       });
       console.log(`      zoomed to ${sticky.k.toFixed(2)}: scrolled ` +
-        `${Math.round(sticky.scrolled)}px of ${Math.round(sticky.overflow)}, rails drift ` +
-        `${sticky.drift.toFixed(2)}px`);
-      push("[real] zoomed, the grid scrolls sideways and the rails stay on the " +
-        "pane's left edge",
-        sticky.k !== 1 && sticky.scrolled > 50 && Math.abs(sticky.drift) < 1.5);
+        `${Math.round(sticky.scrolled)}px of ${Math.round(sticky.overflow)}, rails moved ` +
+        `${sticky.drift.toFixed(2)}px, grid ${sticky.seam.toFixed(2)}px off the drawing's edge`);
+      push("[real] zoomed, a sideways scroll moves the drawing and the grid together, " +
+        "and the grid never runs under the drawing",
+        sticky.k !== 1 && sticky.scrolled > 50 &&
+        Math.abs(sticky.drift + sticky.scrolled) < 1.5 && Math.abs(sticky.seam) < 1.5);
       await page.evaluate(() => { document.querySelector("#topopane .tv__hscroll").scrollLeft = 0; });
     }
 
@@ -4443,7 +4456,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         // what Fit fits (2026-10-29).
         const dag = Array.from(svg.querySelectorAll("g.tv__dag"))
           .map((g) => g.getBoundingClientRect()).filter((b) => b.height > 0);
-        const cell = document.querySelector("#topopane td.tvcell--component");
+        const cell = document.querySelector("#topopane td.tvcell--part");
         const c = cell ? cell.getBoundingClientRect() : null;
         const bar = { bottom: window.__pinnedBottom() };
         const pane = document.querySelector("#topopane").getBoundingClientRect();
@@ -4671,6 +4684,82 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     push("[real] and Fit still brings the lit set into the window in that mode",
       kinTol.litTop >= kinTol.paneTop - 2 && kinTol.litBottom <= kinTol.paneBottom + 2);
 
+    // --- no number clips (the_grid_fits_the_screen_and_its_brackets_say_what_
+    // nests_in_what, review round 1: its first width budget was measured on
+    // member rows only and cut the M10 grip's RSS total to `-13.735…` with
+    // nothing on hover). On the studies whose totals and part numbers are the
+    // longest the projection prints: no number cell and no part cell
+    // overflows, and any cell that does carries its whole text as a title.
+    {
+      const CLIP_STUDIES = [["study", "rotor_fastener_grip_u10h"],
+        ["study", "vpa_pitch_linkage_feather_stop_axial_position"],
+        ["kinematic", "vpa_pitch_linkage_blade_pitch_at_the_stops"]];
+      const clipped = [];
+      let cells = 0;
+      for (const [kind, id] of CLIP_STUDIES) {
+        await page.locator(navRow(kind, id)).first().click();
+        await settle(1800);
+        for (let i = 0; i < 6; i++) {
+          const opened = await page.evaluate(() => {
+            const shut = [...document.querySelectorAll("#topopane .tvsub__caret")]
+              .filter((c) => c.textContent === "▸");
+            shut.forEach((c) => c.click());
+            return shut.length;
+          });
+          if (!opened) break;
+          await settle(900);
+        }
+        const r = await page.evaluate(() => {
+          const tds = [...document.querySelectorAll("#topopane table.tvtable td")];
+          return { n: tds.filter((td) => td.textContent.trim()).length,
+            bad: tds.filter((td) => td.scrollWidth > td.clientWidth + 0.5).filter((td) =>
+              td.classList.contains("num") || td.classList.contains("tvcell--part") ||
+              !(td.getAttribute("title") || (td.querySelector("[title]") || {}).title))
+              .map((td) => `${td.className.replace(/^tvcell /, "")} ${JSON.stringify(td.textContent.trim())} ` +
+                `${td.scrollWidth}/${td.clientWidth}`)
+              // A header word is never cut either: it names the column.
+              .concat([...document.querySelectorAll("#topopane th")]
+                .filter((th) => th.scrollWidth > th.clientWidth + 0.5)
+                .map((th) => `header ${JSON.stringify(th.textContent.trim())} ` +
+                  `${th.scrollWidth}/${th.clientWidth}`)) };
+        });
+        cells += r.n;
+        r.bad.forEach((b) => clipped.push(`${id}: ${b}`));
+      }
+      console.log(`      clipping: ${cells} cells on ${CLIP_STUDIES.length} studies; ` +
+        `clipped without a title, or a number: ${clipped.length ? clipped.join("; ") : "none"}`);
+      push("[real] no grid number and no part number clips, totals rows included, and a cell " +
+        "that does clip says its whole text on hover",
+        cells > 100 && clipped.length === 0);
+
+      // The pane narrows with no repaint -- what opening the 3D pane does --
+      // and its zoom box's floor narrows with it: a floor left at the old
+      // width was 560px of sideways scroll at 3840 with nothing in it.
+      const floor = async () => page.evaluate(() => {
+        const pane = document.querySelector("#topopane");
+        const zoom = pane.querySelector(".tv__zoom");
+        return { pane: pane.clientWidth, floor: parseFloat(zoom.style.minWidth) || 0 };
+      });
+      const wide = await floor();
+      await page.evaluate((w) => {
+        document.querySelector("#topopane").style.maxWidth = w + "px";
+      }, Math.round(wide.pane * 0.6));
+      await settle(400);
+      const narrow = await floor();
+      await page.evaluate(() => { document.querySelector("#topopane").style.maxWidth = ""; });
+      await settle(400);
+      const back = await floor();
+      console.log(`      zoom box floor: ${wide.floor} in ${wide.pane}; narrowed ${narrow.floor} in ` +
+        `${narrow.pane}; back ${back.floor} in ${back.pane}`);
+      push("[real] the pane narrowed with no repaint takes its zoom box's floor with it, and back",
+        narrow.pane < wide.pane - 50 && Math.abs(narrow.floor - narrow.pane) <= 1 &&
+        Math.abs(back.floor - back.pane) <= 1 && Math.abs(wide.floor - wide.pane) <= 1);
+      await page.locator(navRow("kinematic", "vpa_pitch_linkage_blade_pitch_at_the_stops")).first().click();
+      await settle(1800);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await settle(300);
+    }
+
     // --- the DAG holds still (the_dag_holds_still_and_the_filter_bar_stays_put) --
     // On the real projection, from the kinematic page this suite is on: a study
     // change and the way back, each sampled at fixed steps of page time.
@@ -4689,7 +4778,11 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         (a.ok ? "" : " -- " + a.why) + `; back: ${b.ok ? "ok" : b.why}`);
       push("[real] a study change moves the DAG as one continuous frame: the space before it and the " +
         "scroll are part of the transition, with no snap at either end, both ways",
-        a.ok && b.ok && toChain.before.padLeft > 0);
+        // Never space to the drawing's LEFT since the_grid_fits_the_screen_and_
+        // its_brackets_say_what_nests_in_what (it pushed the grid right by as
+        // much); the non-vacuity is that the change really was a transition.
+        a.ok && b.ok && toChain.samples.some((f) => f.tweening) &&
+        toChain.samples.every((f) => !f.padLeft));
     }
 
     // --- the leaders between the tiers rest in one dimmed ink; a hovered one does not
@@ -4719,7 +4812,13 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
           edgeContrast: (lum(edge) + 0.05) / (lum(bg) + 0.05),
         };
       });
-      // Hover a leader's own hit path, at its middle.
+      // Hover a leader's own hit path, at its middle, from the strip's left
+      // edge (the rails scroll with the grid).
+      await page.evaluate(() => {
+        const strip = document.querySelector("#topopane .tv__hscroll");
+        if (strip) strip.scrollLeft = 0;
+      });
+      await settle(300);
       const hitAt = await page.evaluate(() => {
         const hits = Array.from(document.querySelectorAll("#topopane path.rail__leaderhit"));
         for (const h of hits) {
@@ -4727,8 +4826,13 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
           const m = h.getScreenCTM();
           const x = m.a * pt.x + m.c * pt.y + m.e, y = m.b * pt.x + m.d * pt.y + m.f;
           if (y > window.__pinnedBottom() + 4 && y < window.innerHeight - 4 && x > 0 &&
-              x < window.innerWidth && document.elementFromPoint(x, y) === h) {
-            return { x, y, id: h.getAttribute("data-leader-id") };
+              x < window.innerWidth) {
+            // The jogs run close together and the 10px hit strokes overlap:
+            // whichever leader's hit path is on top takes the pointer.
+            const on = document.elementFromPoint(x, y);
+            if (on && on.classList && on.classList.contains("rail__leaderhit")) {
+              return { x, y, id: on.getAttribute("data-leader-id") };
+            }
           }
         }
         return null;
@@ -4746,7 +4850,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       }
       console.log(`      leaders: resting ${leaders.rest && leaders.rest.stroke}, token ${leaders.ink} ` +
         `(${leaders.contrast.toFixed(2)}:1 against the page, edges ${leaders.edgeContrast.toFixed(2)}:1), ` +
-        `hovered ${hot && hot.stroke}`);
+        `hovered ${hot && hot.stroke} at ${JSON.stringify(hitAt)}`);
       push("[real] a lit leader between the DAG and the grid rests in the one leader ink -- dimmer than " +
         "the edges' but still 3:1 against the page -- and a hovered one is drawn brighter than that",
         leaders.rest && leaders.rest.stroke === leaders.ink && leaders.contrast >= 3 &&
@@ -4834,7 +4938,9 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         ["a node", "#topopane svg.tv__rails circle.rail__dot"],
         ["an edge", "#topopane svg.tv__rails line.rail__barhit"],
         ["a sub-stack's label", "#topopane svg.tv__rails text[data-substack-toggle]"],
-        ["a grid row", "#topopane tr.tvrow td"],
+        // A row's PART cell: its own click target, and narrow enough to be
+        // wholly in the pane (a header row's first cell spans four columns).
+        ["a grid row", "#topopane tr.tvrow td.tvcell--part"],
       ];
       const moved = [];
       const clickedOn = [];
@@ -4844,7 +4950,10 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         await page.evaluate((p) => {
           const hs = Array.from(document.querySelectorAll("#topopane .tv__hscroll"))
             .filter((n) => !n.closest(".tv__ghost"))[0];
-          hs.scrollLeft = p ? Math.min(100, Math.max(0, hs.scrollWidth - hs.clientWidth)) : 0;
+          // Parked a little way in: the rails scroll with the grid since
+          // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+          // so a deep park takes the drawing being clicked off the pane.
+          hs.scrollLeft = p ? Math.min(40, Math.max(0, hs.scrollWidth - hs.clientWidth)) : 0;
           window.scrollTo(0, 0);
         }, parked);
         await settle(300);
@@ -4927,6 +5036,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     const groupsNow = () => page.evaluate(() => ({
       button: document.querySelector("#group-kinds-toggle").textContent,
       bodies: document.querySelectorAll("#topopane rect.tv__bodyfield").length,
+      parts: document.querySelectorAll("#topopane rect.tv__partfield").length,
       chain: document.querySelectorAll("#topopane rect.tv__studyfield--chain").length,
       kinematic: document.querySelectorAll("#topopane rect.tv__studyfield--kinematic").length,
       studies: document.querySelectorAll("#topopane rect.tv__studyfield").length,
@@ -4935,7 +5045,8 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     }));
     const groupsBoth = await groupsNow();
     push("[real] a study opens with its bodies AND every study's group drawn, the " +
-      "selected one marked", groupsBoth.button === "Groups (3 of 3)" && groupsBoth.bodies > 0 &&
+      "selected one marked", groupsBoth.button === "Groups (4 of 4)" &&
+      groupsBoth.parts > 0 && groupsBoth.bodies > 0 &&
       groupsBoth.studies >= groupsBoth.names && groupsBoth.names > 1 && groupsBoth.selected >= 1);
     await page.locator("#group-kinds-toggle").click();
     const tick = async (kind) => {
@@ -4944,18 +5055,21 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       return groupsNow();
     };
     const noBodies = await tick("bodies");
+    const noParts = await tick("parts");
     const noChain = await tick("chain");
     const noKin = await tick("kinematic");
     push("[real] each Groups checkbox hides exactly its own kind's containers and the " +
       "popover stays open while it is ticked",
       noBodies.bodies === 0 && noBodies.studies === groupsBoth.studies &&
+      noBodies.parts === groupsBoth.parts && noParts.parts === 0 &&
       noChain.chain === 0 && noChain.kinematic === groupsBoth.kinematic &&
-      noKin.kinematic === 0 && noKin.studies === 0 && noKin.button === "Groups (0 of 3)" &&
+      noKin.kinematic === 0 && noKin.studies === 0 && noKin.button === "Groups (0 of 4)" &&
       await page.locator("#group-kinds").getAttribute("open") !== null);
-    await tick("bodies"); await tick("chain"); await tick("kinematic");
+    await tick("bodies"); await tick("parts"); await tick("chain"); await tick("kinematic");
     const back = await groupsNow();
     push("[real] ticking them all again restores every container",
-      back.bodies === groupsBoth.bodies && back.studies === groupsBoth.studies);
+      back.bodies === groupsBoth.bodies && back.parts === groupsBoth.parts &&
+      back.studies === groupsBoth.studies);
     if (process.env.GROUPS_SHOTS) {
       await page.screenshot({ path: join(process.env.GROUPS_SHOTS, "kinematic_groups.png") });
     }
@@ -5344,10 +5458,14 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
     for (const topology of realProjection.topologies) {
       await page.locator(navRow("topology", topology.id)).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-      const withCrop = page.locator("tr.tvrow .crop-trigger").first();
+      // A row whose edge has a crop key: its Preview holds the crop (the grid
+      // shows none since the_grid_fits_the_screen_and_its_brackets_say_what_
+      // nests_in_what).
+      const keyed = (topology.edges || []).filter((e) => e.crop_key).map((e) => e.id);
+      const withCrop = page.locator(keyed.map((id) => `tr.tvrow[data-id="${id}"]`).join(", ") ||
+        "tr.tvrow--none").first();
       if (await withCrop.count() === 0) continue;
-      await page.locator("tr.tvrow .crop-trigger").first()
-        .evaluate((b) => b.closest("tr").click());
+      await withCrop.evaluate((tr) => tr.click());
       await launcher.waitFor({ timeout: 5000 }).then(() => { launchable = true; })
         .catch(() => {});
       if (launchable) break;
@@ -5879,20 +5997,30 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       // the Preview, with the REAL crop PNG rendered (a_preview_pane_replaces_
       // the_hover_popups_and_one_record_backs_every_mark; the edge card until
       // 2026-10-30).
-      await page.waitForSelector("img.tvthumb", { timeout: 15000 });
-      const keyedRow = await page.evaluate(() => {
-        const img = document.querySelector("tr.tvrow img.tvthumb");
-        let row = img;
-        while (row && row.tagName !== "TR") row = row.parentElement;
-        return row ? row.getAttribute("data-id") : null;
-      });
-      push("[real] a pitch_system crop renders as an inline thumbnail at all",
-        !!keyedRow);
+      // The grid shows no crop since the_grid_fits_the_screen_and_its_
+      // brackets_say_what_nests_in_what, so the crop-bearing row is found off
+      // the projection: the first of the study's rows whose edge has a crop
+      // key and whose Preview, hovered, shows the real PNG.
+      const keyedIds = (realProjection.topologies || []).flatMap((t) => t.edges || [])
+        .filter((e) => e.crop_key).map((e) => e.id);
+      const onPage = await page.evaluate((ids) => ids.filter((id) =>
+        document.querySelector(`#topopane tr.tvrow[data-id="${id}"]`)), keyedIds);
       const previewOf = (key) => page.waitForFunction((key) => {
         const p = document.querySelector(".detail__preview");
         return !!p && p.getAttribute("data-preview-key") === key &&
           !!p.querySelector(".detail__previewbody img.detail__crop-img, .detail__previewbody .detail__side");
       }, key, { timeout: 15000 }).then(() => true).catch(() => false);
+      let keyedRow = null;
+      for (const id of onPage.slice(0, 6)) {
+        await clearPoint(page, `tr.tvrow[data-id='${id}'] td.tvcell--nominal`, "hover");
+        if (await previewOf("edge|" + id) && await page.locator(
+          ".detail__preview .detail__previewbody img.detail__crop-img").count() >= 1) {
+          keyedRow = id;
+          break;
+        }
+      }
+      push("[real] a pitch_system crop renders in a row's Preview at all",
+        !!keyedRow);
       const previewText = () => page.locator(".detail__preview .detail__previewbody").textContent();
       if (keyedRow) {
         await clearPoint(page, `tr.tvrow[data-id='${keyedRow}'] td.tvcell--nominal`, "hover");
@@ -5964,6 +6092,11 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       await page.locator(
         "[data-nav-kind='topology'][data-nav-id='vpa_pitch_linkage']").click();
       await page.waitForSelector("tr.tvrow[data-id='fastener_grip_vpa_out']", { timeout: 15000 });
+      // The arrival lands first: the cell is past the strip's right edge, and
+      // a landing still under way puts the strip's sideways scroll back after
+      // clearPoint has brought the cell in, so the click meets another row.
+      await page.waitForFunction(() => window.ViewerApp.lastTopoRender &&
+        !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 10000 }).catch(() => {});
       await clearPoint(page, "tr.tvrow[data-id='fastener_grip_vpa_out'] td.tvcell--nominal", "click");
       // FROZEN, not merely shown: the pointer is on the row as it clicks, so
       // the row previews at once, and the selection's own repaint lands a
@@ -6303,6 +6436,10 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     await page.waitForFunction(
       () => !document.body.classList.contains("flyout-open"),
       null, { timeout: 5000 }).catch(() => {});
+    // Closing glides the drawing back to where the band was centred for the
+    // restored width (the same transition a study change takes), so the page is
+    // measured once that has landed.
+    await paneSettled();
     const paneClosed = await page.locator("#topopane").boundingBox();
     const railsClosed = await rails();
     push("closing the flyout puts the page back exactly -- the nav rail, the " +
@@ -7152,6 +7289,43 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
       posted && posted.join() === "pitch_link_length");
     await exec(["model", "unlit", "dim"]);
     await exec(["model", "lit", "all"]);
+
+    // --- 4b. each part in its body's DAG ink ----------------------------------
+    // The shell posts `model tint` with every body part's ink, read off its own
+    // `--tv-body-ink-*` (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_
+    // _to_taste, review round 1), and the scene paints it: the parts of one
+    // body share a base colour that is not their own, and two bodies differ.
+    const wantTint = await page.evaluate((topo) => {
+      const VA = window.ViewerApp;
+      const css = getComputedStyle(document.documentElement);
+      return VA.sceneTintCommand(topo, (n) => css.getPropertyValue("--tv-body-ink-" + n).trim());
+    }, topology);
+    const tinted = await until((w, want) => {
+      const said = (w.__shellModelWords || []).filter((c) => c[1] === "tint").pop();
+      return said && said.join() === want.join() && w.__scene._partTints &&
+        w.__scene._partTints.size > 0;
+    }, wantTint, 30000);
+    const paint = await inPane((w) => {
+      const out = [];
+      for (const [sha, hex] of w.__scene._partTints || []) {
+        const mesh = w.__scene.parts.get(sha);
+        if (!mesh) continue;
+        out.push({ hex, base: w.__scene.partBaseColor(sha),
+          own: "#" + mesh.userData.paletteColor.toString(16).padStart(6, "0") });
+      }
+      return out;
+    }) || [];
+    const baseOf = {};
+    for (const p of paint) (baseOf[p.hex] = baseOf[p.hex] || new Set()).add(p.base);
+    const inks = Object.keys(baseOf);
+    const bases = inks.map((h) => Array.from(baseOf[h])[0]);
+    const saidInks = new Set(wantTint.slice(2).map((pair) => pair.split("=")[1]));
+    console.log(`      [${label}] tinted parts in the scene: ${paint.length}, bodies ${inks.length}`);
+    push("[real] embedded on the kinematic page, the shell posts each body part's DAG ink and " +
+      "the scene draws a body's parts in one colour that is not their own",
+      tinted && wantTint[2] !== "off" && paint.length > 0 &&
+      paint.every((p) => p.base !== p.own && saidInks.has(p.hex)) &&
+      inks.every((h) => baseOf[h].size === 1) && new Set(bases).size === inks.length);
 
     // --- 5. selection shows why -----------------------------------------------
     await exec(["model", "select", "node", "tan_link_mount_bore"]);
@@ -11480,20 +11654,16 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
     push("Escape closes it and the page's scroll comes back",
       !afterClose.open && afterClose.overflow !== "hidden");
 
-    // 8. the GRID's route. Its inline thumbnail is the one crop image on this
-    // page that is not a cropFigure and carries no launcher of its own;
-    // clicking it keeps its row's Preview (a_preview_pane_replaces_the_hover_
-    // popups_and_one_record_backs_every_mark -- the edge card until
-    // 2026-10-30), and the Preview's figure is where the launcher lives. The
+    // 8. the GRID's route. The grid shows no crop since the_grid_fits_the_
+    // screen_and_its_brackets_say_what_nests_in_what: clicking a row keeps
+    // its Preview, and the Preview's figure is where the launcher lives. The
     // click is what lets the pointer travel to it: a hover alone hands the
     // Preview back the moment the pointer leaves the row.
-    const trigger = `${row} span.crop-trigger--thumb`;
-    await page.waitForSelector(trigger, { timeout: 15000 });
-    push("the grid's own inline thumbnail carries no launcher — it is not a " +
-      "cropFigure, and clicking it keeps the Preview that is",
-      await page.locator(`${row} button.cropfig__launch`).count() === 0);
+    push("the grid's row carries no crop and no launcher of its own",
+      await page.locator(`${row} button.cropfig__launch`).count() === 0 &&
+      await page.locator(`${row} img`).count() === 0);
     await page.keyboard.press("Escape");
-    await page.locator(trigger).click();
+    await page.locator(`${row} td.tvcell--name`).click();
     const cardLauncher = page.locator(
       ".detail__preview[data-preview-state='frozen'] .detail__previewbody button.cropfig__launch").first();
     await cardLauncher.waitFor({ timeout: 10000 });
@@ -11505,7 +11675,7 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
     }, null, { timeout: 10000 });
     const fromCard = await measure();
     push("the Preview's launcher opens the same lightbox, on the same rect " +
-      "— so the grid thumbnail reaches full size in two clicks",
+      "— so a grid row's crop reaches full size in two clicks",
       agrees(fromCard && fromCard.frac, target.entry.highlights[0].frac));
 
     // 9. the Fit button gets a lost reader back, and the clamp means there is
@@ -12251,7 +12421,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
           bounds: document.querySelectorAll("#detail line.kmchart__bound").length,
           wedges: document.querySelectorAll("#detail polygon.kmchart__region").length +
             document.querySelectorAll("#detail rect.kmchart__band").length,
-          anchorGap: !!(anchor && anchor.querySelector(".chip--gap")),
+          anchorGap: !!(anchor && anchor.querySelector(".tvmark--no_value")),
           labels: [...document.querySelectorAll("#detail text.kmchart__barlabel")]
             .map((n) => n.textContent),
           note: (document.querySelector("#detail p.kmchart__note") || {}).textContent || "",
@@ -12435,10 +12605,11 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         const bg = (n) => getComputedStyle(n).backgroundColor;
         return {
           ids: rows.map((r) => r.getAttribute("data-id")),
-          tints: rows.filter((r) => r.classList.contains("tvrow--edge")).map((r) =>
-            [...r.classList].filter((c) => /^tvrow--body-t/.test(c))[0] || ""),
+          tints: rows.filter((r) => /tvrow--body-|conf--/.test(r.className)).length,
           painted: rows.filter((r) => r.classList.contains("tvrow--edge"))
-            .every((r) => bg(r) !== "rgba(0, 0, 0, 0)"),
+            .some((r) => bg(r) !== "rgba(0, 0, 0, 0)"),
+          braces: [...new Set([...document.querySelectorAll("#topopane div.tvbrace")]
+            .map((n) => n.getAttribute("data-brace")))],
           heads: [...document.querySelectorAll("#topopane .tvhead, #topopane th, #topopane [class*='tvhead']")]
             .map((n) => n.textContent.trim().toLowerCase()),
           legend: (document.querySelector("#topopane .tvlegend") || {}).textContent || "",
@@ -12448,18 +12619,64 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         };
       });
       console.log("      stack rows " + JSON.stringify(stack.ids));
+      console.log("      brackets " + JSON.stringify(stack.braces));
       push("[real] the grid is the study's stack at the -7 stop: the six linkage terms in " +
-        "chain order, the stop position's sub-stacks after them, each row in its body's tint",
+        "chain order, the stop position's sub-stacks after them, each in its own bracket " +
+        "and no row tinted",
         JSON.stringify(stack.ids) === JSON.stringify(["sub:linkage"].concat(LINKAGE,
           ["sub:stop_position", "sub:vpa_pitch_linkage_feather_stop_axial_position",
            "sub:vpa_pitch_linkage_travel_between_end_stops",
            "sub:vpa_pitch_linkage_hub_to_feather_stop"])) &&
-        stack.tints.join(" ") ===
-          "tvrow--body-t1 tvrow--body-t3 tvrow--body-t2 tvrow--body-t2 tvrow--body-t4 tvrow--body-t0" &&
-        stack.painted &&
+        stack.tints === 0 && !stack.painted &&
+        ["study", "linkage", "stop_position", "vpa_pitch_linkage_feather_stop_axial_position",
+         "vpa_pitch_linkage_travel_between_end_stops", "vpa_pitch_linkage_hub_to_feather_stop"]
+          .every((id) => stack.braces.indexOf(id) !== -1) &&
         /±0\.82 mm → ±1\.417 deg at the −7 deg stop/.test(stack.travel) &&
-        /traced/.test(stack.legend) && /UNTRACED/.test(stack.legend) &&
+        /no document behind it/.test(stack.legend) && /no mark: read off/.test(stack.legend) &&
         await page.locator("#topopane col.tvcol--sensitivity").count() > 0);
+
+      // Every row's PART cell is a place to click, at 1600x1000 with the
+      // Preview open (the_grid_fits_the_screen_and_its_brackets_say_what_
+      // nests_in_what, definition of done; ISSUE_20261104_at_1600_wide_the_
+      // product_graphs_rails_leave_the_grid_a_59px_slit). Pointed at as a
+      // reader would -- the cell's own centre, no scroll -- and clicked: the
+      // Preview must be that row's.
+      {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        const ids = await page.evaluate(() => [...document.querySelectorAll("#topopane tr.tvrow--edge")]
+          .map((r) => r.getAttribute("data-id")));
+        const missed = [];
+        for (const id of ids) {
+          const at = await page.evaluate((id) => {
+            const cell = document.querySelector(`#topopane tr.tvrow[data-id="${id}"] td.tvcell--part`);
+            cell.scrollIntoView({ block: "center", inline: "nearest" });
+            const b = cell.getBoundingClientRect();
+            const x = b.left + b.width / 2, y = b.top + b.height / 2;
+            const hit = document.elementFromPoint(x, y);
+            return { x, y, ok: !!hit && hit.closest("tr") === cell.closest("tr"),
+                     preview: !!document.querySelector("#detail") };
+          }, id);
+          if (!at.ok) { missed.push(id + " (covered)"); continue; }
+          await page.mouse.click(at.x, at.y);
+          // FROZEN, not just previewed: a hover alone previews the row, and
+          // the claim is that the click lands on it.
+          const kept = await page.waitForFunction((id) => {
+            const p = document.querySelector(".detail__preview");
+            return !!p && p.getAttribute("data-preview-key") === "edge|" + id &&
+              p.getAttribute("data-preview-state") === "frozen";
+          }, id, { timeout: 5000 }).then(() => true).catch(() => false);
+          if (!kept) missed.push(id + " (no preview)");
+        }
+        const scrolled = await page.evaluate(() =>
+          document.querySelector("#topopane .tv__hscroll").scrollLeft);
+        console.log(`      part cells: ${ids.length - missed.length}/${ids.length} clickable, ` +
+          `sideways scroll ${scrolled}` + (missed.length ? " -- " + missed.join(", ") : ""));
+        push("[real] at 1600x1000 with the Preview open, every grid row's part cell is " +
+          "on screen, takes the click and previews its row",
+          ids.length >= 6 && missed.length === 0 && scrolled === 0 &&
+          await page.locator("#detail").isVisible());
+        await page.keyboard.press("Escape");
+      }
 
       // The travel folds: four children open under its header, the motion
       // ratio at the -7 stop as their sensitivity (1.728 deg/mm), and the
@@ -12534,6 +12751,55 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
           await page.locator("#detail").innerText()) &&
         await page.locator('#topopane tr.tvrow--selected[data-id="pitch_plate_attach_height"]')
           .count() === 1);
+
+      // The View popover is the page's, not only its helpers'
+      // (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
+      // round 1): a width picked there widens the drawn DAG at once, and it
+      // and a colour-by are still the page's after a reload. The width is
+      // read unscaled (lastTopoRender.dagWidth), so a refit zoom cannot hide it.
+      const dagWidth = () => page.evaluate(() => {
+        const r = window.ViewerApp.lastTopoRender;
+        return r ? r.dagWidth : 0;
+      });
+      const viewSetting = (setting) => page.locator(
+        `#dag-view select[data-view-setting="${setting}"]`).inputValue().catch(() => null);
+      const pickView = async (setting, value) => {
+        await page.locator("#dag-view-toggle").click({ timeout: 5000 }).catch(() => {});
+        await page.locator(`#dag-view select[data-view-setting="${setting}"]`)
+          .selectOption(value, { timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(400);
+      };
+      const reboot = async () => {
+        await boot("?kinematic=" + STUDY, realKinematic);
+        await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(600);
+      };
+      const narrowWidth = await dagWidth();
+      await pickView("graphWidth", "wide");
+      const wideWidth = await dagWidth();
+      await reboot();
+      const reloadedWidth = await dagWidth();
+      console.log(`      [${label}] DAG width narrow ${Math.round(narrowWidth)}, wide ` +
+        `${Math.round(wideWidth)}, after a reload ${Math.round(reloadedWidth)}`);
+      push("[real] picking a graph width in View widens the drawn DAG at once, and the width " +
+        "survives a reload",
+        narrowWidth > 0 && wideWidth > narrowWidth * 1.5 &&
+        Math.abs(reloadedWidth - wideWidth) < 1 && await viewSetting("graphWidth") === "wide");
+      const overlaidBars = () => page.locator("#topopane .rail__bar.ovl").count();
+      const plainBars = await overlaidBars();
+      await pickView("colourBy", "body");
+      const liveBars = await overlaidBars();
+      await reboot();
+      const reloadedBars = await overlaidBars();
+      push("[real] colouring by body puts the overlay's ink on the DAG's bars, and the choice " +
+        "survives a reload",
+        plainBars === 0 && liveBars > 0 && reloadedBars === liveBars &&
+        await viewSetting("colourBy") === "body" &&
+        await page.locator("#dag-overlay-legend .tvovl__item").count() > 0);
+      // Back to the defaults, so the boots below draw what they always drew.
+      await page.evaluate(() => {
+        try { localStorage.removeItem(window.ViewerApp.DAG_VIEW_KEY); } catch (e) { /* none */ }
+      });
 
       await boot("", null);
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -13072,46 +13338,23 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       console.log("    pane content " + scrolledWalk.scrollWidth +
         "px in a " + scrolledWalk.clientWidth + "px pane: nothing to scroll");
     }
-    // The sticky claim, and this is the only place in either tier where it is
-    // worth anything: `.tv__rails { position: sticky; left: 0 }` holds the
-    // DAG against the pane's VISIBLE left edge, and at scrollLeft 0 that is
-    // true of a pane with no sticky on it at all.
-    //
-    // It holds for the WHOLE scroll since topology_grid_scroll_and_grips
-    // (2026-09-16), and until then it did not, which is what these two checks
-    // are for. A sticky box is bounded by its CONTAINING BLOCK, and that is
-    // `.tv__body` -- which used to be the pane's own width rather than its
-    // content's, because the grid table overflowed out of `.tv__rows` instead
-    // of widening the flex row. So the SVG could be pushed right by at most
-    // (paneWidth - dagWidth) = 552 of the real pitch_system's 666, and a
-    // reader who scrolled further dragged the DAG back off the left edge --
-    // 103.5px of it, at this viewport
-    // (ISSUE_20260915_the_sticky_rails_stop_sticking_once_the_grid_is_
-    // scrolled_past_the_dags_own_width). `.tv__body { width: max-content }`
-    // is the fix; the second check below is the one that was measuring the
-    // defect and now measures its absence, at the ONE scroll position where
-    // the old shape and the new one disagree most.
+    // The rails scroll WITH the grid since the_grid_fits_the_screen_and_its_
+    // brackets_say_what_nests_in_what (they were `position: sticky; left: 0`,
+    // and a sideways scroll slid the grid under them -- Jeff: "it can even
+    // move behind the dag canvas"). So the claim is the opposite one now:
+    // scrolled anywhere, the drawing moves with its grid and no mark of it
+    // lies over a column.
     const stickyWalk = await paneBoxes("sticky");
-    push("[real] scrolled sideways, the DAG stays pinned to the pane's " +
-      "VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a " +
-      "scrolled reader's rails beside their own rows",
+    push("[real] scrolled sideways, the DAG goes with its grid, and nothing " +
+      "of it lies over the grid",
       stickyWalk.scrollLeft > 0 && stickyWalk.drawn > 20 &&
-      stickyWalk.dagLeft >= -1);
-    if (!(stickyWalk.dagLeft >= -1)) {
-      console.log("    at scrollLeft " + stickyWalk.scrollLeft +
-        " the leftmost drawn box is " + stickyWalk.dagLeft +
-        "px from the pane's left edge");
-    }
-    push("[real] and it holds PAST the room the DAG leaves beside it, all " +
-      "the way to the far end — the sticky's containing block is the " +
-      "content's width now, not the pane's (topology_grid_scroll_and_grips)",
-      scrolledWalk.scrollLeft > scrolledWalk.clientWidth - scrolledWalk.dagWidth &&
-      scrolledWalk.dagLeft >= -1);
-    console.log("    the DAG leaves " +
-      (scrolledWalk.clientWidth - scrolledWalk.dagWidth) + "px of room beside " +
-      "it and the scroll runs to " + scrolledWalk.scrollLeft +
-      "; at the far end the DAG is " + scrolledWalk.dagLeft +
-      "px from the pane's left edge");
+      stickyWalk.dagPastGrid <= 1);
+    push("[real] and at the far end too",
+      scrolledWalk.scrollLeft > 0 && scrolledWalk.dagPastGrid <= 1);
+    console.log("    scrolled to " + stickyWalk.scrollLeft + " and " +
+      scrolledWalk.scrollLeft + ": the DAG's furthest mark is " +
+      stickyWalk.dagPastGrid + " / " + scrolledWalk.dagPastGrid +
+      "px past the grid's left edge");
     // And the respine out of that scrolled pane. The question the issue asked
     // was whether the browser's scrollLeft CLAMP is felt as a sideways jump
     // when the DAG shrinks under a reader parked at the right end. Until
@@ -13127,7 +13370,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // frame, and the clamped landing -- so the arm states what a reader gets
     // rather than what the renderer happened to leave behind.
     //
-    // Re-parked first: the sticky measurement above left the pane at
+    // Re-parked first: the measurement above left the pane at
     // (clientWidth - dagWidth - 20), which is not the far end and would make
     // "carried, then clamped" unfalsifiable.
     const parked = await paneBoxes("end");
@@ -13142,14 +13385,9 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
         "so the cross-fade is one table resolving into another rather than " +
         "two slices of it stacked",
         Math.abs(scrolledFrame.ghostScrollLeft - scrolledFrame.scrollLeft) <= 1);
-      // `dagPastGrid` is deliberately NOT asserted here, unlike the
-      // unscrolled arms: a sticky DAG over a scrolled grid is SUPPOSED to
-      // overlap the columns that have slid under it -- that is what
-      // `.tv__rails`'s own background is for -- so the claim those arms make
-      // at scrollLeft 0 is not a claim about this one.
-      push("[real] and the frame in flight is drawn from the pane's visible " +
-        "left edge, with the grid scrolled under the sticky DAG",
-        scrolledFrame.drawn > 20 && scrolledFrame.dagLeft >= -1);
+      push("[real] and the frame in flight lies beside its grid, never over it, " +
+        "scrolled as it is",
+        scrolledFrame.drawn > 20 && scrolledFrame.dagPastGrid <= 1);
     }
     await settled();
     const afterScroll = await paneBoxes(false);
@@ -13160,7 +13398,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       afterScroll.scrollLeft ===
         Math.min(parked.scrollLeft,
                  afterScroll.scrollWidth - afterScroll.clientWidth) &&
-      afterScroll.dagLeft >= -1);
+      afterScroll.dagPastGrid <= 1);
     console.log("    scrolled respine: scrollLeft " + parked.scrollLeft +
       " -> " + (scrolledFrame ? scrolledFrame.scrollLeft : "?") + " -> " +
       afterScroll.scrollLeft + " (pane content " + parked.scrollWidth +
@@ -13828,7 +14066,7 @@ async function testSeamLeaders(browser, label, topologies) {
     const stateOf = (m, id) => (m.paths.find((p) => p.id === id) || {}).cls || "";
     let hovered = false;
     if (first) {
-      await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().hover();
+      await page.locator(`tr.tvrow[data-id="${first.id}"] td.tvcell--part`).first().hover();
       hovered = await seamShows([first.from, first.to], S[1]);
       m = await measure();
     }
@@ -13860,7 +14098,7 @@ async function testSeamLeaders(browser, label, topologies) {
     // Selection: a grid row click lights the triple and dims the rest.
     let clicked = false;
     if (first) {
-      await page.locator(`tr.tvrow[data-id="${first.id}"]`).first().click();
+      await page.locator(`tr.tvrow[data-id="${first.id}"] td.tvcell--part`).first().click();
       await settled();
       clicked = await seamShows([first.from, first.to], S[0]);
       m = await measure();
@@ -13904,6 +14142,14 @@ async function testSeamLeaders(browser, label, topologies) {
     const sceneLit = await inPane((w) => Object.keys(w.__model.lit || {}).sort());
     push("the scene is told the page's lit set and its dim-or-hide word, in its own model verb",
       told && JSON.stringify(sceneLit) === JSON.stringify(edges.map((e) => e.id).sort()));
+    // The hovers above scroll this narrow strip sideways to bring a part cell
+    // whole into view, and the DAG scrolls with the grid
+    // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what): the
+    // re-laid, narrower drawing would put every dot behind the strip's left
+    // edge, where a leader is rightly dropped. Back at the left edge, the
+    // toggle's re-draw is the only thing this check reads.
+    await page.evaluate(() => { document.querySelector("#topopane .tv__hscroll").scrollLeft = 0; });
+    await settled();
     const beforeHide = await draws();
     await page.locator("#unlit-style-toggle").click();
     await settled();
@@ -14227,7 +14473,12 @@ async function testSeamLeaders(browser, label, topologies) {
         return null;
       }
       for (const block of ["center", "start", "end"]) {
+        // Vertically only: the rails scroll with the grid, and a sideways
+        // scroll to a wide row takes the dots the leaders start from with it.
+        const strip = row.closest(".tv__hscroll");
+        const keep = strip ? strip.scrollLeft : 0;
         row.scrollIntoView({ block, inline: "nearest" });
+        if (strip) strip.scrollLeft = keep;
         await frame();
         const r = row.getBoundingClientRect();
         const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails").getBoundingClientRect();
@@ -14446,7 +14697,12 @@ async function testSeamLeaders(browser, label, topologies) {
       // rails, where a pointer lands on a leader rather than on the row.
       await live.evaluate((E) => {
         const row = document.querySelector(`#topopane .tv__hscroll tr.tvrow[data-id="${E}"]`);
-        if (row) row.scrollIntoView({ block: "center" });
+        if (!row) return;
+        // Vertically only (the rails scroll with the grid; see above).
+        const strip = row.closest(".tv__hscroll");
+        const keep = strip ? strip.scrollLeft : 0;
+        row.scrollIntoView({ block: "center" });
+        if (strip) strip.scrollLeft = keep;
       }, E);
       // Read where it is once it has stopped moving (two frames agree).
       await liveUntil((E) => {
@@ -14588,11 +14844,14 @@ async function testSeamLeaders(browser, label, topologies) {
       await live.mouse.move(800, 20);
       await live.evaluate(() => {
         const row = document.querySelector("#topopane .tv__hscroll tr.tvrow--selected");
+        const strip = row && row.closest(".tv__hscroll");
+        const keep = strip ? strip.scrollLeft : 0;
         if (row) row.scrollIntoView({ block: "center" });
         else window.scrollTo(0, 0);
+        if (strip) strip.scrollLeft = keep;
       });
     };
-    await clearPoint(live, `#topopane tr.tvrow[data-id="${CONTRIBUTOR}"] td.tvcell--name`, "click");
+    await clearPoint(live, `#topopane tr.tvrow[data-id="${CONTRIBUTOR}"] td.tvcell--part`, "click");
     await backToSelection();
     const lit1 = await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;
@@ -14625,7 +14884,7 @@ async function testSeamLeaders(browser, label, topologies) {
 
     // Another contributor, then the pitch link's face picked in the scene --
     // `inspect part`, what a click on the mesh runs -- back to the same state.
-    await clearPoint(live, '#topopane tr.tvrow[data-id="pitch_link_length"] td.tvcell--name', "click");
+    await clearPoint(live, '#topopane tr.tvrow[data-id="pitch_link_length"] td.tvcell--part', "click");
     await backUp();
     await liveUntil((ends) => {
       const d = window.ViewerApp.lastSeamDraw;

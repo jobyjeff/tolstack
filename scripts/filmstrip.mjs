@@ -179,6 +179,23 @@ const BUILTINS = {
     },
     probe: (page) => page.evaluate(bandProbe),
   },
+  // The 3D pane opening beside the drawing of a chain study (a landing that is
+  // not a study change): the band keeps its place as the page narrows.
+  "pane-open": {
+    async setup(page, h) {
+      await h.bootKinematic(page, h.base, h.DATA, STOPS);
+      await page.locator(h.navRow("study", COTTER)).click();
+      await h.settled(page, 1500);
+    },
+    async trigger(page, h) { await h.click(page, "#study-3d"); },
+    probe: (page) => page.evaluate(bandProbe),
+  },
+  // A click on a grid row: selection changes, the drawing must hold still.
+  "row-click": {
+    async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS); },
+    async trigger(page, h) { await h.click(page, "#topopane tr.tvrow--edge"); },
+    probe: (page) => page.evaluate(bandProbe),
+  },
   // A click on a node of the kinematic page: the drawing must not move.
   click: {
     async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS); },

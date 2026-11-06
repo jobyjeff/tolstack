@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] no grid number and no part number clips, totals rows included, and a cell that does clip says its whole text on hover",
+  "mutations": [
+    {
+      "contract": "A number column is as wide as the longest number it prints, a totals row's RSS bound included.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what, review round 2 (2026-11-06). Puts MIN back at round 1's 68px, which cut the M10 grip's RSS bound to `-13.735…`; the cell's new title does not excuse a clipped number.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    { cls: \"min\", label: \"min\", width: 84 },",
+      "replace": "    { cls: \"min\", label: \"min\", width: 68 },"
+    }
+  ]
+}

@@ -88,6 +88,11 @@
     // either -- one inconsistent preference would be the surprise, not the
     // feature.
     jogZoneScale: 1,
+    // The DAG's view settings -- colour overlay, group fill, graph width
+    // (VA.readDagView, topology.js) -- remembered across sessions in one
+    // store entry, read at boot. Display preferences: selectTopology() never
+    // resets them.
+    dagView: Object.assign({}, VA.DAG_VIEW_DEFAULTS),
     // How wide the right preview pane is, in px, or null for "whatever
     // topology.css declares" (Jeff, 2026-09-15: "the right preview pane is
     // resizable. It's too narrow"). The ONE preference on this page that
@@ -219,6 +224,8 @@
       paneHandle: document.getElementById("pane-handle"),
     };
     applyDensity();
+    state.dagView = VA.readDagView(widthStore());
+    VA.applyGraphWidth(state.dagView.graphWidth);
     state.detailWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
     wireDetailDivider();
@@ -276,7 +283,12 @@
       sceneSelectPosted = null;
       forgetSeamAnchors(false);
       // The page is back to the width the band was centred for.
-      if (state.landed) { dropBandPad(); fitDagTo(true, true); }
+      if (state.landed) {
+        var g = beginGlide();
+        dropBandPad();
+        fitDagTo(true, true);
+        endGlide(g);
+      }
       scheduleSeamDraw();
     });
     wirePaneHover();
@@ -1506,6 +1518,12 @@
   // `params` null (a stack page asks the pane for nothing) opens the annotator
   // on no element at all.
   function launchAnnotate(params) {
+    var g = beginGlide();
+    launchAnnotateNow(params);
+    endGlide(g);
+  }
+
+  function launchAnnotateNow(params) {
     if (!state.annotateMount) return;
     dropBandPad();
     // An explicit launch -- a row's 3D control, the model row -- is what the
@@ -1979,9 +1997,24 @@
   // verb), and a selected node is selected in its layer too -- an edge is
   // highlighted through the `highlight` a kinematic page already posts
   // (followSelection). Each only when it changed, and only to a loaded scene.
+  // A body's DAG ink as "#rrggbb", off topology.css's `--tv-body-ink-<n>`
+  // (VA.sceneTintCommand); null where the page has no computed style.
+  function bodyInk(tint) {
+    try {
+      var v = window.getComputedStyle(document.documentElement)
+        .getPropertyValue("--tv-body-ink-" + tint);
+      return v ? v.trim() : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
   function syncSceneModel() {
     if (!nodes.flyout || !nodes.flyout.open || !flyoutLoaded) return;
-    var model = [VA.sceneLitCommand(pageLitSet()), ["model", "unlit", state.unlitStyle]];
+    // ...and each part in its body's DAG ink, so one palette is seen in the
+    // DAG, the grid and the scene.
+    var model = [VA.sceneLitCommand(pageLitSet()), ["model", "unlit", state.unlitStyle],
+      VA.sceneTintCommand(currentTopology(), bodyInk)];
     var key = JSON.stringify(model);
     if (key !== sceneModelPosted && model.every(postToPane)) sceneModelPosted = key;
     var scope = VA.partScopeCommand(VA.litPartIds(currentTopology(), pageLitSet()));
@@ -2104,6 +2137,7 @@
   // is. The content coordinate under the pointer is read BEFORE the scale
   // changes and put back after, on both axes.
   function zoomDagAt(to, clientX, clientY) {
+    settleTween();
     var box = zoomBox();
     var hscroll = paneHscroll();
     if (!box || !hscroll) return;
@@ -2136,7 +2170,14 @@
   // and the key also go back to the drawing's left edge; the framing a study
   // arrival does (`keepSideways`) leaves the reader's sideways scroll where
   // it was, as every other re-paint of this pane does.
-  function fitDag() { fitDagTo(false, false); }
+  function fitDag() { settleTween(); fitDagTo(false, false); }
+
+  // The reader's own hand on the drawing (a wheel, Fit) takes over from a
+  // transition in flight: it lands where it was going first, and the reader's
+  // change is made on that.
+  function settleTween() {
+    if (respineHandle && !respineHandle.done && respineHandle.finish) respineHandle.finish();
+  }
 
   // `centre` is a study arrival's landing (the centre branch of fitDagTo); `keepSideways`
   // is the older framing that only leaves the sideways scroll alone.
@@ -2222,39 +2263,133 @@
 
   function lerp(a, b, e) { return a + (b - a) * e; }
 
+  // The window the drawing is looked at through: what the pane shows of the
+  // page, as fitDagTo measures it.
+  function viewport() {
+    var hs = paneHscroll();
+    if (!hs || !nodes.pane || !nodes.pane.getBoundingClientRect) return null;
+    var bounded = paneScroller();
+    var topEdge = bounded ? nodes.pane.getBoundingClientRect().top
+      : VA.stickyOffsets().top;
+    var visible = bounded ? nodes.pane.clientHeight
+      : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
+    return { topEdge: topEdge, visible: visible, width: hs.clientWidth };
+  }
+
   // The hooks VA.animateTopoPane calls (`landing`). `ctx` is this paint's own:
-  // the pad goes on it before each frame, the scroll is placed after it.
-  function landingHooks(ctx, start, lit) {
-    var end = null;
+  // the pad goes on it before each frame, the scroll is placed after it. A
+  // frame is named by its segment `w` ({ k, u }: how far through which leg of
+  // the camera's path), because a landing that has to pull back first has two
+  // legs -- start to the pulled-back frame, then on to the arrival -- and the
+  // pad and the scroll follow the same path the scale does.
+  function landingHooks(ctx, start, lit, known) {
+    var end = known || null;
+    var mid = null;
+    var legs = function (w) {
+      var path = mid ? [start, mid, end] : [start, end];
+      return [path[w.k], path[w.k + 1]];
+    };
     var hooks = {
       target: function () {
-        end = measureLanding(start, lit);
+        if (!known) end = measureLanding(start, lit);
         // fitDagTo may have scaled the drawing down to fit the band.
         ctx.zoom = state.dagZoom;
         tweenLanded = true;
         pendingLanding = hooks;
       },
-      frame: function (e) {
-        ctx.bandPad = { top: lerp(start.pad.top, end.pad.top, e),
-                        left: lerp(start.pad.left, end.pad.left, e) };
+      // The scale at which the lit set the reader is leaving AND the one they
+      // are arriving at are both in view -- when that is smaller than the
+      // lower of the two scales they would otherwise see, so that going
+      // straight there would take the one or the other out of the window
+      // part-way. Null when going straight is already in view.
+      waypoint: function (from, zoomFrom, zoomTo) {
+        var vp = viewport();
+        var to = VA.lastTopoRender;
+        if (!lit || !vp || !from || !from.span || !to || !to.span) return null;
+        var top = Math.min(from.span.top, to.span.top);
+        var bottom = Math.max(from.span.bottom, to.span.bottom);
+        var z = VA.dagFitScale(top, bottom, vp.visible, FIT_PAD);
+        var wide = Math.max(from.dagWidth || 0, to.dagWidth || 0);
+        if (wide > 0 && vp.width > 0) {
+          z = Math.min(z, VA.clampDagZoom((vp.width - FIT_PAD) / wide));
+        }
+        if (!(z < Math.min(zoomFrom, zoomTo) - VA.RESPINE.fitSlack)) return null;
+        mid = { pad: { top: lerp(start.pad.top, end.pad.top, 0.5),
+                       left: lerp(start.pad.left, end.pad.left, 0.5) },
+                scrollX: lerp(start.scrollX, end.scrollX, 0.5),
+                scrollY: lerp(start.scrollY, end.scrollY === null ? start.scrollY : end.scrollY, 0.5),
+                union: { top: top, bottom: bottom }, zoom: z };
+        return z;
       },
-      placed: function (e) {
+      // The pulled-back frame is on screen: scroll so the two lit sets' union
+      // is centred in the window, as far as the page can reach.
+      midRendered: function () {
+        var box = zoomBox();
+        var drawn = VA.lastTopoRender;
+        var vp = viewport();
+        if (!mid || !box || !drawn || !drawn.span || !vp) return;
+        var r = box.getBoundingClientRect();
+        var yCentre = (mid.union.top + mid.union.bottom) / 2;
+        var seen = r.top + drawn.span.at(mid.zoom).top + mid.zoom * (yCentre - drawn.span.top);
+        mid.scrollY = Math.max(0, dagScrollY() + seen - (vp.topEdge + vp.visible / 2));
+      },
+      frame: function (e, w) {
+        var l = legs(w || { k: 0, u: e });
+        var u = w ? w.u : e;
+        ctx.bandPad = { top: lerp(l[0].pad.top, l[1].pad.top, u),
+                        left: lerp(l[0].pad.left, l[1].pad.left, u) };
+      },
+      placed: function (e, w) {
+        var l = legs(w || { k: 0, u: e });
+        var u = w ? w.u : e;
         var hs = paneHscroll();
         if (hs) {
-          hs.scrollLeft = lerp(start.scrollX, end.scrollX, e);
+          hs.scrollLeft = lerp(l[0].scrollX, l[1].scrollX, u);
           // The ghost shows the same window as the live pane over it.
           var ghost = nodes.pane.querySelector ? nodes.pane.querySelector(".tv__ghost .tv__hscroll") : null;
           if (ghost) ghost.scrollLeft = hs.scrollLeft;
         }
-        if (end.scrollY !== null) setDagScroll(lerp(start.scrollY, end.scrollY, e));
+        if (end.scrollY !== null) setDagScroll(lerp(l[0].scrollY, l[1].scrollY, u));
         if (e >= 1 && pendingLanding === hooks) pendingLanding = null;
       },
       // A paint that is not a transition cut this one short: the scroll goes
       // where the landing was going (the pad already did, through state).
-      finish: function () { if (end) hooks.placed(1); },
+      finish: function () { if (end) hooks.placed(1, { k: mid ? 1 : 0, u: 1 }); },
     };
     return hooks;
   }
+  // The breathing room Fit keeps at each end of the lit span.
+  var FIT_PAD = 12;
+  // Every other landing -- the 3D pane opening or closing beside the drawing --
+  // goes through the same transition a study change does. The change is made
+  // as it always was, synchronously, and the frame it left (`beginGlide`, taken
+  // BEFORE it) and the frame it arrived at (`endGlide`, after) are then
+  // travelled between instead of stepped across: pad, scroll and scale, on the
+  // keyframe tween, with no outgoing picture to fade (the rows are the same).
+  function beginGlide() {
+    settleTween();
+    return { from: VA.lastTopoRender, start: dagFrame() };
+  }
+
+  function endGlide(g) {
+    if (!g || !g.from || !g.from.positions || !paneCtx || !nodes.pane) return;
+    var end = dagFrame();
+    var moved = Math.abs(end.pad.top - g.start.pad.top) > 0.5 ||
+      Math.abs(end.pad.left - g.start.pad.left) > 0.5 ||
+      Math.abs(end.scrollX - g.start.scrollX) > 0.5 ||
+      Math.abs(end.scrollY - g.start.scrollY) > 0.5 ||
+      state.dagZoom !== g.from.zoom;
+    if (!moved) return;
+    var ctx = Object.assign({}, paneCtx, { zoom: state.dagZoom,
+      bandPad: state.bandPad ? { top: state.bandPad.top, left: state.bandPad.left } : null,
+      tween: null });
+    var hooks = landingHooks(ctx, g.start, true, end);
+    respineHandle = VA.animateTopoPane(nodes.pane, ctx, g.from, {
+      onError: renderCrash, landing: hooks, ghost: false });
+    tweenLanded = false;
+  }
+  // The context the pane was last painted from: a glide repaints from it.
+  var paneCtx = null;
   var pendingLanding = null;
   // Set when this paint's transition has taken the landing on itself.
   var tweenLanded = false;
@@ -2265,18 +2400,22 @@
     var drawn = VA.lastTopoRender;
     if (!box || !hscroll || !drawn || !drawn.span || !box.getBoundingClientRect) return;
     var bounded = paneScroller();
-    var topEdge = bounded ? nodes.pane.getBoundingClientRect().top
-      : VA.stickyOffsets().top;
-    var visible = bounded ? nodes.pane.clientHeight
-      : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
-    var pad = 12;
+    var vp = viewport();
+    var topEdge = vp.topEdge;
+    var visible = vp.visible;
+    var pad = FIT_PAD;
     // The DAG's lit span: only the DAG scales (2026-10-29), so the grid
     // beside it is not part of what a scale can fit.
     var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
-    // Both axes: the DAG's own width must fit the pane too, or Fit leaves the
-    // drawing wider than the box it is meant to fill.
+    // Both axes: the DAG's own width must fit the pane too. Fit -- the
+    // reader's own ask -- also leaves the grid its floor beside it
+    // (VA.dagFitWidth), so the drawing and PART..ELEMENT share the pane. A
+    // study's arrival does not: it is measured off the outgoing layout, and
+    // a floor applied there ratchets the zoom down a little on every arrival
+    // and moves the first frame of the transition.
     if (drawn.dagWidth > 0 && hscroll.clientWidth > 0) {
-      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.dagWidth));
+      var room = centre ? hscroll.clientWidth : VA.dagFitWidth(hscroll.clientWidth);
+      to = Math.min(to, VA.clampDagZoom((room - pad) / drawn.dagWidth));
     }
     // A study's arrival only ever scales DOWN, and only when the band does not
     // fit at the zoom the reader has: a zoom they chose is theirs until the
@@ -2299,6 +2438,13 @@
       // clamps what it cannot reach (a band near the top of a short drawing),
       // so the centre is as close as the page's own extents allow.
       var hr = hscroll.getBoundingClientRect();
+      // Sideways, the drawing stays at the strip's left edge, with the grid
+      // beside it: a band already on screen is not moved at all, and one
+      // off either edge (a reader zoomed in) is brought just inside it. It
+      // used to be centred in the pane, with space put before the drawing
+      // when the scroll could not reach -- which pushed the grid right by the
+      // same amount, up to two thirds of a 737px pane at 1600 wide
+      // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
       var bandOffset = function () {
         var r = box.getBoundingClientRect();
         var dx = 0;
@@ -2311,7 +2457,8 @@
             x1 = Math.min(x1, br.left); x2 = Math.max(x2, br.right);
             y1 = Math.min(y1, br.top); y2 = Math.max(y2, br.bottom);
           }
-          dx = (x1 + x2) / 2 - (hr.left + hr.width / 2);
+          if (x1 < hr.left + pad) dx = x1 - hr.left - pad;
+          else if (x2 > hr.right - pad) dx = Math.min(x2 - hr.right + pad, x1 - hr.left - pad);
           dyBand = (y1 + y2) / 2;
         }
         return { dx: dx, dy: dyBand - (topEdge + visible / 2) };
@@ -2321,14 +2468,15 @@
       var parked = hscroll.scrollLeft > 0;
       var off = bandOffset();
       scrollDag(parked ? 0 : off.dx, off.dy);
-      // Whatever the scroll could not reach -- a band that sits above or left
-      // of the centre with nothing further to scroll back to -- is taken up by
-      // space before the drawing. It is kept in state.bandPad so a repaint
-      // redraws it; the next study change drops it.
+      // Whatever the scroll could not reach -- a band that sits above the
+      // centre with nothing further to scroll back to -- is taken up by space
+      // above the drawing. It is kept in state.bandPad so a repaint redraws
+      // it; the next study change drops it. Never space to its LEFT: that is
+      // space between the pane's edge and the grid too.
       off = bandOffset();
       var sizer = box.parentNode;
       var top = off.dy < -0.5 ? -off.dy : 0;
-      var left = !parked && off.dx < -0.5 ? -off.dx : 0;
+      var left = 0;
       state.bandPad = { top: top, left: left, key: padKey() };
       state.landed = true;
       if (sizer && sizer.style) {
@@ -2410,7 +2558,12 @@
       scheduleSeamDraw();
     }, true);
     if (typeof ResizeObserver === "function") {
-      var observer = new ResizeObserver(scheduleSeamDraw);
+      var observer = new ResizeObserver(function () {
+        // The pane's width moved with no repaint (the 3D pane opened or
+        // closed, a divider dragged): its zoom box's floor moves with it.
+        if (nodes.pane) VA.sizeTopoZoomBox(nodes.pane);
+        scheduleSeamDraw();
+      });
       [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {
         if (n) observer.observe(n);
       });
@@ -2846,8 +2999,19 @@
       // this topology, else every kind. Every study of the topology has a
       // group to offer; the pane filters them by kind.
       var groupKinds = topoProj ? VA.readGroupKinds(widthStore(), topoProj.id) : null;
+      // The colour overlay's inputs beyond the topology: a kinematic page's
+      // contribution per edge at its stop (VA.kinematicContributions).
+      var overlayOptions = {
+        contributions: showKinematic
+          ? VA.kinematicContributions(kinematicStudy, state.kinematicStop) : null,
+        units: kinematicStudy ? kinematicStudy.units || null : null,
+      };
       var ctx = {
         groupKinds: groupKinds,
+        colourBy: state.dagView.colourBy,
+        groupFill: state.dagView.groupFill,
+        contributions: overlayOptions.contributions,
+        contributionUnits: overlayOptions.units,
         studyGroups: topoProj
           ? VA.studyGroups(topoProj, state.kinematic,
               showKinematic ? state.kinematicId : state.studyId) : [],
@@ -2937,6 +3101,23 @@
       };
       var toolbarHandlers = {
         groupKinds: groupKinds,
+        // The view popover (VA.COLOUR_SCHEMES, VA.GROUP_FILLS,
+        // VA.GRAPH_WIDTHS) and the overlay's key beside it.
+        dagView: Object.assign({}, state.dagView, {
+          schemes: VA.availableColourSchemes(overlayOptions),
+          legend: VA.dagOverlay(state.dagView.colourBy, topoProj, overlayOptions).legend,
+        }),
+        // Every setting re-renders: the width moves the leaders and the
+        // grid's seam, the overlay its key. The popover is put back open.
+        onDagView: function (setting, value) {
+          state.dagView[setting] = value;
+          VA.writeDagView(widthStore(), state.dagView);
+          if (setting === "graphWidth") VA.applyGraphWidth(value);
+          render();
+          var menu = typeof document !== "undefined" && document.getElementById &&
+            document.getElementById("dag-view");
+          if (menu && menu.setAttribute) menu.setAttribute("open", "");
+        },
         // One kind's checkbox: the pane repaints, nothing else on the page
         // depends on which containers are drawn.
         onGroupKind: function (kind, on) {
@@ -3004,6 +3185,7 @@
         syncSceneModel();
       };
       if (showTopology) VA.renderTopoJoint(nodes.topojoint, topoProj, study);
+      paneCtx = ctx;
       if (respineStart && respineStart.topologyId === topoProj.id) {
         // `onError` puts an animation frame's throw on the SAME seam every
         // other render on this page uses: a frame runs off a rAF callback,
