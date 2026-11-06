@@ -3127,6 +3127,44 @@
     return best;
   }
 
+  // A drawn walk's columns searched for the fewest crossings it will draw
+  // with its blocks (improveColumns, scored through VA.blockLayout): what a
+  // band re-laid out of the gathered walk (VA.bandLayout) needs as much as the
+  // walk did. Memoised on the walk it was handed and the lit set's edges, so
+  // a repaint of the same page does not search again.
+  var searchMemo = { key: null, out: null };
+  VA.blockColumns = function (layout, topoProj, lit) {
+    if (!layout || !topoProj || !(layout.columns > 1)) return layout;
+    var key = [topoProj.id, layout.rows.length,
+               lit ? Object.keys(lit.edges || {}).sort().join(",") : "",
+               lit && lit.order ? lit.order.join(",") : "",
+               layout.rows.map(function (r) { return r.id; }).join(",")].join("|");
+    if (searchMemo.key === key) return searchMemo.out;
+    var pins = VA.partPins(topoProj);
+    var score = function (option) {
+      return VA.layoutCrossings(VA.blockLayout(option, topoProj, pins)).total;
+    };
+    // Two starts, the band's own columns and their mirror image: the search
+    // is local, and on the product model the second start is the better one
+    // for some studies (the lesson's table).
+    var start = { rows: layout.rows, rails: layout.rails, links: layout.links,
+                  columns: layout.columns };
+    var flipped = [];
+    for (var c = 0; c < layout.columns; c++) flipped.push(layout.columns - 1 - c);
+    var laid = null;
+    [start, relabel(start, flipped)].forEach(function (seed) {
+      var found = improveColumns(seed, score);
+      if (!laid || score(found) < score(laid)) laid = found;
+    });
+    var out = {};
+    Object.keys(layout).forEach(function (k) { out[k] = layout[k]; });
+    out.rows = laid.rows;
+    out.rails = laid.rails;
+    out.links = laid.links;
+    searchMemo = { key: key, out: out };
+    return out;
+  };
+
   // A walk laid out without its chords (`laid`), with them put back in
   // `order`'s places: every row renumbered, a close re-pointed at its node's
   // new row, and each chord on the column of the pin it hangs from, running

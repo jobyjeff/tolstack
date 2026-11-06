@@ -374,6 +374,9 @@
     var walk = marking
       ? VA.bandLayout(gathered, lit, hiding ? { only: true } : null)
       : gathered;
+    // The band re-lays the gathered walk, so its columns are searched again
+    // for what the blocks will draw (VA.blockColumns).
+    if (blocks && marking) walk = VA.blockColumns(walk, topoProj, lit);
     var layout = VA.spineRight(VA.collapseBodies(
       walk, ctx.collapsedBodies || null, topoProj, lit));
     if (blocks) layout = VA.blockLayout(layout, topoProj);
