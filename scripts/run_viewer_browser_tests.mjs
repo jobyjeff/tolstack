@@ -8444,7 +8444,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       selected: !!(li && li.classList.contains("selected")),
       focus: s.suggestionFocus(),
       drawn: mesh ? s.drawnPlacements(sha).length : 0,
-      bracketGhost: s.isGhosted(bracket), triangleGhost: s.isGhosted(sha),
+      bracketGhost: s.isGhosted(bracket), triangleGhost: s.isGhosted(sha), bracketLook: s.lookOf(bracket),
       targetToPart: centre ? centre.distanceTo(s.controls.target) : null,
       armed: !!(window.__sweep && window.__sweep.armed),
       writes: (window.__mockWrites || []).map((w) => ({ filename: w.filename, event: w.event })),
@@ -8490,7 +8490,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       /_accepted\.json$/.test(accepted.writes[0].filename));
     push("...the row reads bound, the solid face and the dimming come down, and Pick is back",
       accepted.line === "bound · face 0" && !accepted.suggestedColour &&
-      !accepted.focus.faces.length && !accepted.bracketGhost === !rest.bracketGhost &&
+      !accepted.focus.faces.length && accepted.bracketLook === rest.bracketLook &&
       accepted.buttons.indexOf("Re-pick") !== -1);
   } catch (err) {
     await page.close();
