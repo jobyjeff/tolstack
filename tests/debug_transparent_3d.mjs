@@ -49,8 +49,6 @@ async function drawn(page) {
     const sc = window.__scene;
     const bySha = new Map();
     for (const [sha, m] of sc.parts) bySha.set(m.geometry, sha);
-    const labels = {};
-    for (const m of (window.AnnotateApp.exec ? [] : [])) labels[m] = m;
     const rows = [];
     sc.scene.traverseVisible((o) => {
       if (!o.isMesh) return;
@@ -122,7 +120,6 @@ try {
   console.log("GONE ON HIDE", JSON.stringify(b.filter((x) => a.indexOf(x) === -1), null, 1));
   // Whatever still drawn sits where a hidden base occurrence sat: world boxes.
   console.log("SAME PLACE AS BASE", JSON.stringify(await frameOf(page).evaluate(() => {
-    const T = window.THREE || null;
     const sc = window.__scene;
     const box = (o) => { o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
       return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z].map((v) => Math.round(v)); };
@@ -159,7 +156,6 @@ try {
   await page.waitForTimeout(1500);
   console.log("AFTER LOOKS", JSON.stringify(await looks()));
   await shot(page, "after_the_pick");
-  const topo = await frameOf(page).evaluate(() => null);
   console.log("HIGHLIGHT", JSON.stringify(await run(page, ["highlight", "vpa_pitch_linkage", "pitch_link_length"])));
   await page.waitForTimeout(1000);
   console.log("HIGHLIGHT LOOKS", JSON.stringify(await looks()));
