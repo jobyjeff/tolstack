@@ -147,3 +147,47 @@ on the memory adapter). Every step writes a full-page PNG and a `_nav` crop.
   `railLookInto` between the `<details>` row's two lines and broke
   `browser__real-a-joint-selected-in-the-scene-is-selected-in-the-na__554d823a`'s
   anchor, so I moved it below them.
+
+## Verification record (2026-11-06, from the worktree, on 4c665682 plus docs)
+
+- **Full suite:** `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`
+  gave `1 failed, 1733 passed, 1 skipped, 2 deselected in 517.77s` (wall 518 s,
+  recorded as `default`, inside budget). The one failure is
+  `tests/test_viewer_js_suite.py`, the worktree's deliberate red: no
+  projection under the worktree's `data/`. `tests/test_app_type_scale.py` and
+  `tests/test_rail_row_looks_are_paired.py` are green in it.
+- **Fast tiers:** `node apps/viewer/run_tests.cjs` gave 516/516 (node-fs tier
+  skipped in the worktree). `node apps/annotate/run_tests.cjs` gave 293/293.
+- **Annotate browser check:** `node apps/annotate/run_browser_check.mjs` gave
+  96/99 in 2337 s. The three failures are the known deferred ones: the mock's
+  anchor geometry and the anchors message (ISSUE_20261028), and the
+  reduced-motion speed control.
+- **Viewer browser TRUTH tier:**
+  `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` gave
+  39/42 in 3054 s (recorded as `merge`, over budget, filed
+  `docs/issues/ISSUE_20261106_the_viewer_browser_tier_ran_51_minutes_against_the_merge_budget.md`).
+  All three failures were mine, and all three are fixed:
+  - **`suite file://` and `suite http`:** my new kind/mark test called
+    `.map` on `childNodes`. The fake DOM hands back an array, and a real
+    browser hands back a NodeList. Each suite is now 502/502 on `--only`.
+  - **The bind-mode rail snapshot:** element and part rows now carry
+    `rail-kind--*` / `rail-mark--*` classes, so the snapshot moved. I rewrote
+    it with `--write-bind-rail-snapshot`, and its diff is only those classes.
+    The sweep-rail suite is 24/24 without the write flag.
+- **Witness gate:** `node scripts/run_mutation_witness_tests.mjs
+  --changed-since integration --repo C:/workspace/tolstack` reached 27 of 38
+  entries in 28m49s, witnessed 21, and left 11 to the sweep. Six came back
+  NOT WITNESSED, all because a baseline was red, not because a guard failed:
+  - **Five fast entries** (`d442f0db`, `a6c0094f`, `13efc637`, `d7d247f8`,
+    `ed8e4a27`): the fast tier's `[real]` half refuses the main checkout's
+    projection (built from `eb3059ff`/`ee7ccf3c`), and rebuilding it from a
+    worktree is not allowed. I witnessed each by hand in the worktree:
+    apply the declared mutation, run `node apps/viewer/run_tests.cjs`, see the
+    named check FAIL with a green baseline, then restore the file. All five
+    were witnessed.
+  - **`browser__real-and-leaving-it-takes-the-light-down__3c44a05c`:** its
+    suite's baseline was red once on a different check, "[real] clicking a
+    contributor row…". That check passed in the full tier run and in a
+    standalone rerun. Re-run alone, the entry was WITNESSED (2m57s).
+- **The `node_modules` junction** was removed before handing back
+  (`cmd /c rmdir node_modules`).
