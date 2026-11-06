@@ -134,7 +134,7 @@ before every exploratory command; WIP commits are cheap here.
 ## Verification record
 
 All runs used projections built from this branch into
-`C:\workspace	olstack\data\scratch\gridpose\` (gitignored). That root junctions the
+`C:/workspace/tolstack/data/scratch/gridpose/` (gitignored). That root junctions the
 main checkout's `inbox`, `meshes`, `runs` and `sessions`, and the builders ran with
 `--data-root` and `--allow-older-tree`. The main checkout's own projection is stale for
 this tree, so the `[real]` tier refuses it.
