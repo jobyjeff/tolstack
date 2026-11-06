@@ -89,3 +89,15 @@ its conjuncts on a red, so the next sighting names its cause.
   name reused across the two (`bodyRow`) is a module-level SyntaxError. The
   whole tier then exits before any suite runs, and a `grep` on its output
   prints nothing.
+
+## Mutation witnesses (final tree)
+
+- `node scripts/run_mutation_witness_tests.mjs --changed-since master --repo C:/workspace/tolstack`:
+  **10/10 witnessed**, 17m35s, exit 0. The 10 include the re-anchored
+  `b1a6d21a#2`. The earlier run on this branch, before the 3D pane's leave fix,
+  was 5/8: its clean run was red on `...and leaving it takes the light down`,
+  which is how that flake was found.
+- `--only`, for the guards this diff reaches that the hunk selection did not:
+  hover `c0ebdc1b`, 1600 `47704003`, 1920 `7e1e49f0`, leave `3c44a05c`, and the
+  nav gestures `f978b14a`, `5db2d567`, `889565d3`, `7f496d4b`. **All
+  WITNESSED.**
