@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part's number and its description are two columns, out of the part record, whichever way round its name puts them",
+  "mutations": [
+    {
+      "contract": "A part whose name carries no number takes its drawing's.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Drops the drawing fallback.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (!hit) return { number: part.drawing || \"\", description: label };",
+      "replace": "    if (!hit) return { number: \"\", description: label };"
+    }
+  ]
+}

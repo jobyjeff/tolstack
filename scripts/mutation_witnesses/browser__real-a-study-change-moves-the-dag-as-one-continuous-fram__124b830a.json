@@ -10,6 +10,14 @@
       "file": "apps/viewer/topology_app.js",
       "find": "        ctx.bandPad = { top: lerp(start.pad.top, end.pad.top, e),\n                        left: lerp(start.pad.left, end.pad.left, e) };",
       "replace": "        ctx.bandPad = null;"
+    },
+    {
+      "contract": "A study arrival never puts space to the drawing's left: that space is between the pane's edge and the grid too.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Puts a fixed left pad back.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      var left = 0;",
+      "replace": "      var left = 40;"
     }
   ]
 }

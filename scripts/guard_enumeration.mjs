@@ -231,7 +231,14 @@ export const DECLARED_GUARDS = {
   // body named once and bridged, a joint's ends as its glyph, the form mark
   // beside its bar, and the live model's one container per body with the
   // glyph census. Each carries a spec; the old names' specs are deleted.
-  fast: { declared: 635, enrollable: 635, names: "bd9ce51d79e2" },
+  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: +2. Three added -- the brackets nest, a part's number and
+  // description are two columns, every row's part cell selects its row; the
+  // two crop-thumbnail guards became one (no row carries a crop; its crop is
+  // in the Preview). Renamed: the row-tint render check, the jog grip's seam,
+  // the bar's one channel, the gap row's mark and the live study's grid. Each
+  // carries a spec; the old names' specs are deleted.
+  fast: { declared: 637, enrollable: 637, names: "23ff56dc1e63" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -386,7 +393,15 @@ export const DECLARED_GUARDS = {
   // renamed -- "the jog zone is measured against the product graph's own 61
   // leaders" lost its literal when the count moved to the plan; it carried no
   // spec under its old name either. (Comment added at review.)
-  browser: { declared: 823, enrollable: 790, names: "b45bdce52115" },
+  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: -1. Three crop-on-the-row checks became one (no grid row
+  // draws a crop) and one more went (an edge with no crop key's empty cell);
+  // one added -- at 1600x1000 every row's part cell takes the click. The
+  // sticky-rails checks are inverted and renamed (the rails scroll with the
+  // grid now), as are the row-tint, component-cell, thumbnail and stack
+  // checks. The part-cell check, both scroll checks and the stack check carry
+  // a spec; the sticky spec is deleted.
+  browser: { declared: 822, enrollable: 789, names: "1b85d74248f0" },
 };
 
 
