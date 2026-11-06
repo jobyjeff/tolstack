@@ -6092,6 +6092,11 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       await page.locator(
         "[data-nav-kind='topology'][data-nav-id='vpa_pitch_linkage']").click();
       await page.waitForSelector("tr.tvrow[data-id='fastener_grip_vpa_out']", { timeout: 15000 });
+      // The arrival lands first: the cell is past the strip's right edge, and
+      // a landing still under way puts the strip's sideways scroll back after
+      // clearPoint has brought the cell in, so the click meets another row.
+      await page.waitForFunction(() => window.ViewerApp.lastTopoRender &&
+        !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 10000 }).catch(() => {});
       await clearPoint(page, "tr.tvrow[data-id='fastener_grip_vpa_out'] td.tvcell--nominal", "click");
       // FROZEN, not merely shown: the pointer is on the row as it clicks, so
       // the row previews at once, and the selection's own repaint lands a
