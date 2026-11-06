@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: low
-status: deferred
+status: triaged
 area: annotate/scene
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261103_the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit.md
 class: scene_dag_parity
-defer_until: 2026-12-05
-resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
+handoff: docs/sessions/HANDOFF_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md
+resolution: strategy 2026-11-05: routed into HANDOFF_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (Jeff's note 20261105T164140_sm8hkc)
 ---
 
 # The 3D scene does not colour a body with its DAG tint

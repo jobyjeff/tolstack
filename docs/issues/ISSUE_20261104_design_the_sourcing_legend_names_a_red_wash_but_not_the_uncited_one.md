@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: triaged
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261103_the_kinematic_grid_is_a_stack_of_sub_stacks.md
 class: design_polish
-defer_until: 2026-12-05
-resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
+handoff: docs/sessions/HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what.md
+resolution: strategy 2026-11-05: routed into HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (Jeff's note 20261105T164140_sm8hkc)
 ---
 
 # Design: the sourcing legend names a red wash, but not the uncited one

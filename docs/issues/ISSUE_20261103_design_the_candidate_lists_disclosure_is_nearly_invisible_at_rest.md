@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: triaged
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md
 class: design_polish
-defer_until: 2026-12-05
-resolution: triage 2026-11-05: low deferred by default (30d; class row has no program, so a date)
+handoff: docs/sessions/HANDOFF_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md
+resolution: strategy 2026-11-05: routed into HANDOFF_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces (Jeff's note 20261105T164140_sm8hkc)
 ---
 
 # Design: the candidate list's disclosure is nearly invisible at rest, and every reason line is in the accent colour
