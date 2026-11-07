@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md
 reviewer: agent
 date: 2026-11-06
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — a_part_with_many_interfaces_is_drawn_as_a_component_with_pins
@@ -147,3 +147,84 @@ worktree's gitignored `data/`.
 
 Re-merge `integration` before handing back: the fast pin will conflict again
 if anything else lands; re-measure from the merged tree, never take a side.
+
+## Round 2 — the rework (2026-11-06): APPROVE
+
+Handoff tip `bf4fe564`. The rework is 9 commits plus two merges of
+`integration`, and `integration` (`3aa74f0f`) is contained in it. Merged into
+the review branch as `0d197e0e`. There was one conflict, the fast pin in
+`scripts/guard_enumeration.mjs`. I took the handoff side, because it already
+carries integration's 656 and the review branch adds no guard. The census then
+held on the merged tree (`tests/test_mutation_witnesses.py` green, fast tier
+666/666 against the pin 666, `a269e9c6fa4a`). Apart from this report and the
+overlay entry, the merged tree is the handoff tip.
+
+### The blocker
+
+- **Fixed.** `VA.blockLayout` takes `body: bodyOf[run.part]`. `railGeometry`
+  also re-homes a block's pin and chord rows onto the block's body before it
+  builds the body fields.
+- **Measured.** I re-ran my round-1 script (`blockbody.cjs`) over projections
+  rebuilt from `0d197e0e`. **0 of 16 blocks mismatch**, down from 2. The walk
+  arithmetic is unchanged: 136 → 120 on 14 columns, with pins 2×7, 3, 4×3,
+  5×3 and 11×2.
+- **A second defect, found by the new check (`2debeae5`).** Two blocks back to
+  back shared a margin: `pinBeyond` walked into the next block. On the
+  cotter-hole band this put the pitch-plate block 13 px past its field. It now
+  stops at its own block.
+- **The guards.** The fast check `[real] … every block wears its part's body
+  and that body's field wraps it` runs on every band without the column
+  search. That is fine, because the body and the margins are decided by the
+  rows, and the browser suite checks the drawn page. Its spec carries both
+  mutations, and **both were witnessed** at the gate (21 s and 25 s).
+
+### Should-fixes and nits
+
+- **2. The blocks suite now sees the default drawing's contracts.** It has
+  three new sub-checks, each with a spec:
+  - every block is inside its part's body's field;
+  - at 1600 px the grid keeps its room beside the strip;
+  - every pin on screen is under the pointer at its own centre.
+
+  This also closes the `pinHit`-first-pin-only nit.
+- **3. The hover shot was retaken.** `pitch_plate_block_hover_pin.png` hovers
+  a lit rail-side pin, with its leader and label lit, and the pitch-plate
+  block now sits inside the "pitch plate and gas-spring piston" field.
+- **4. Filed** as
+  `ISSUE_20261106_a_rail_side_pins_leader_crosses_its_own_blocks_chords.md`.
+- **Unaddressed:** the `rail__dot--pin` CSS-hook comment nit. It does not
+  block.
+
+### Tests (merged tree, review worktree, inputs bridged, projections rebuilt from `0d197e0e` first)
+
+- **Fast tiers:** `node apps/viewer/run_tests.cjs` **666/666**, `[real]`
+  armed. `node apps/annotate/run_tests.cjs` **295/295**.
+- **pytest risky subset** (mutation witnesses and census, vocabularies, README
+  facts, deep links, type scale, freshness, architecture, claims, topology and
+  topology projection, rail look pairing, pose pace): **418 passed**.
+- **Browser tier, full: 41/43 in one run.** The 13 round-1 reds are all
+  green, among them served mode, the 8 annotate suites, the 3D suites and
+  typography. "parts as blocks" is **8/8**.
+- **The two browser reds:**
+  - "kinematic study page", 2 sub-checks:
+    `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
+    These are integration's, open and filed, and the same two on the
+    tactical's record.
+  - "leaders across the seam", 1 sub-check (`a row the scene marks
+    selected …`): the known intermittent check. `--only` twice on the same
+    tree gave 1/1 and 1/1. The check was auto-closed as resolved, so the
+    recurrence is appended to
+    `ISSUE_20261104_the_scene_tree_pick_leaders_check_is_flaky.md`.
+- **Witness gate.** `--changed-since integration --repo <this worktree>`
+  gave **47/49 witnessed**, 49/52 reached in 32m47s, with 3 left to the sweep
+  (budget). It exited 1 on two entries. Both are other handoffs' specs in the
+  "kinematic study page" suite (`211510a9#1`, `d19f46ad`), unproved because
+  that suite was red before the mutation. That is the same known gap as the
+  kinematic-page issue's round-2 addendum, and the tactical's 46/48 had it
+  too. Every spec this branch added or changed that the gate reached was
+  witnessed.
+
+### Verdict
+
+APPROVE. The merge into `integration` lands as a fast-forward to the review
+branch tip. The post-merge full `pytest -q` record follows below.

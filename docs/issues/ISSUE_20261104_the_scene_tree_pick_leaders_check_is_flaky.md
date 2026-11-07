@@ -47,3 +47,14 @@ more likely without causing it.
 `seam__leader--selected` in `VA.lastSeamDraw.states`), or for a draw whose
 count is taken *after* `tr.tvrow--selected` is seen, rather than for any draw
 after the post.
+
+## Recurrence, 2026-11-06 (after the automatic close)
+
+Status is left `resolved` because the handoff closed it. Re-open it if this
+happens again. The same sub-check went red once more, in the round-2 review of
+`a_part_with_many_interfaces_is_drawn_as_a_component_with_pins`. That was the
+full browser tier on the merged review tree `0d197e0e`: 41/43, with this red
+and the kinematic page's two filed reds. Then `--only "leaders across the
+seam"` ran twice on the same tree with no change, and it was green both times
+(1/1, 1/1). The close was automatic, and nobody verified it. The settled-state
+handoff made the flake rarer. It did not remove it.
