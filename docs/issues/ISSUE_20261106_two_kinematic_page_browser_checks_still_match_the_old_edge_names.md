@@ -63,3 +63,22 @@ mutation"):
 - `browser__the-nav-s-kinematic-row-brings-the-page-back-after-a-top__3f89b311`
 
 Once the two checks are fixed, re-run these with `--only`.
+
+## Addendum 2026-11-06 (triage sweep batch merge, `found_by: dispatch/docs/sessions/lessons/LESSONS_20261106_triage_sweep.md`)
+
+This red is **now on master**. The batch merge fast-forwarded master
+`66159c33` → `405bad81` (the pre-merge master did not contain `2e97a77a`),
+which makes it `merged-with-known-red`. The browser tier ran in the main
+checkout after the actuator rebuild stamped `master @ 405bad818750`:
+`node scripts/run_viewer_browser_tests.mjs` gave **42/43**, 1640 s. The only
+failing suite was `kinematic study page (deep link, chart hover,
+contributors, no projection)`, at 25/27, and these two sub-checks were the reds:
+
+- `[real] hovering a sensitivity shows its curve across the sweep, both signs of the mount height's on its axis`
+- `[real] clicking a term row selects pitch_plate_attach_height in place: the page stays the study, the model marks it, the preview pane shows it`
+
+Every other tier was green on the candidate: default (1738 passed, 1 skipped),
+viewer (666/666), annotate (295/295), and the witness gate (51/51 reached).
+The merge went ahead because this red is explained (the test matches stale
+prose and the product is fine) and filed, and because holding the merge would
+have aged 204 commits. The fix is still unstaged.

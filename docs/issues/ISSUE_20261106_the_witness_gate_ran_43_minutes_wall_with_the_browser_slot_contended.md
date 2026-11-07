@@ -59,3 +59,27 @@ Both suites were recorded over budget again, and pytest joins this issue.
   - An earlier run in this rework took 1109 s (over by 8m29s). It overlapped
     this worktree's own browser tier and a fast tier slowed by a `[real]`
     check, since made cheaper (the lesson's round-1 gotchas).
+
+## Addendum 2026-11-06 (triage sweep batch merge, `found_by: dispatch/docs/sessions/lessons/LESSONS_20261106_triage_sweep.md`)
+
+The batch merge's witness gate ran in the main checkout after the
+fast-forward to `405bad81`. The spelling was
+`node scripts/run_mutation_witness_tests.mjs --changed-since 66159c330b04c8b928170f98401c415d33afd3b3`.
+That sha is the pre-merge master; after the fast-forward, `master` names HEAD.
+
+- **Wall:** 2523 s (42m03s). `suite-time record --tier merge` said
+  **OVER BUDGET by 12m03s**.
+- **The runner's own figure:** "51/51 witnessed, 51/332 reached in 29m35s;
+  281 left to the sweep", exit 0. The selection was 332 of 825 entries, the
+  diff of 204 commits. The cap held, and every entry it reached was an
+  `annotate`, `fast` or `python` entry. No browser entry ran.
+- **Outside the runner's clock:** about 12.5 min. The log has no slot-queue
+  line. This sweep's own browser tier had finished and released the slot just
+  before. I did not establish whether the gap is another agent's slot hold, or
+  selection and startup over a 204-commit diff. Whichever it is, the wall
+  figure overstates the gate in the same way as the measurements above.
+- **Top entries** (the runner's per-spec timing): 70 s
+  `annotate__a-closed-band-of-quads-is-other-too-it-lands-exactly-on__a273ff9c`,
+  60 s `fast__a-bar-says-only-lit-or-unlit-it-wears-no-confidence-a-ga__84952a80#1`,
+  then about a dozen `annotate__*` entries at 38 to 41 s each (each one is a
+  full annotate-tier re-run).
