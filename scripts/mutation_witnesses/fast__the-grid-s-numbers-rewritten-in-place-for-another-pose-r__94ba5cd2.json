@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the grid's numbers rewritten in place for another pose read exactly as a fresh render at that pose",
+  "mutations": [
+    {
+      "contract": "A frame of play rewrites every term's sensitivity in place.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Skips the sensitivity: the column freezes at the pose the pane was drawn at.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        set(row, \"td.tvcell--sensitivity\", term.sensitivity);\n",
+      "replace": "        void term.sensitivity;\n"
+    }
+  ]
+}

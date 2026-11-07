@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the pose rides in the URL as the angle there, beside its study, and leaves with it",
+  "mutations": [
+    {
+      "contract": "A posed URL names the kinematic study and nothing else the deep link would also read.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Keeps the old selection params beside the new kinematic one, which the deep link then reports as ignored.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      if (key === VA.POSE_PARAM || VA.DEEP_LINK_PARAMS.indexOf(key) !== -1) {\n",
+      "replace": "      if (key === VA.POSE_PARAM) {\n"
+    }
+  ]
+}

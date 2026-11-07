@@ -1485,9 +1485,11 @@ def project_part(part: Any, meshes: Sequence[Dict[str, str]],
 
 
 def project_body(topology: Topology, body: Any) -> Dict[str, Any]:
-    """One authored body, every key present (``note`` ``None`` when unwritten)."""
+    """One authored body, every key present (``note`` and ``rides_with`` ``None``
+    when unwritten)."""
     return {"id": body.id, "name": body.name, "kind": body.kind,
             "parts": list(body.parts), "note": body.note, "tags": dict(body.tags),
+            "rides_with": body.rides_with,
             # Where this body meets another (`Topology.joint_nodes`): the count
             # a collapsed body carries on its face.
             "joint_nodes": topology.joint_nodes(body.id)}

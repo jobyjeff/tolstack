@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] on the kinematic page Play moves the pose and relabels itself Pause",
+  "mutations": [
+    {
+      "contract": "Play on the kinematic page's pose control starts the sweep cycling.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_grid_and_the_dag_move_with_the_mechanism, review round 1 (2026-11-06). The page's play handler drops its start.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "            if (on && !posePlay) { startPlay(); return; }",
+      "replace": "            if (on && !posePlay) { return; }"
+    }
+  ]
+}

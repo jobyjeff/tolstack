@@ -6,17 +6,17 @@
     {
       "contract": "The page draws its envelope chart.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the chart. Carried over from the guard's earlier name.",
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the chart. Carried over from the guard's earlier name. Re-pointed 2026-11-06 (the_grid_and_the_dag_move_with_the_mechanism): the chart takes the pose, the picker the chart.",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "    if (chart) root.appendChild(chartFigure(chart));\n",
+      "find": "    if (chart) root.appendChild(chartFigure(chart, ctx.pose || null));\n",
       "replace": ""
     },
     {
       "contract": "The results pane offers the stop the grid's stack is shown at.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the picker.",
+      "note": "Declared with the guard by handoff the_kinematic_grid_is_a_stack_of_sub_stacks (2026-11-03). Drops the picker. Re-pointed 2026-11-06 (the_grid_and_the_dag_move_with_the_mechanism): the chart takes the pose, the picker the chart.",
       "file": "apps/viewer/views/kinematic.js",
-      "find": "      root.appendChild(stackStopPicker(study, ctx));",
+      "find": "      root.appendChild(stackStopPicker(study, ctx, chart));",
       "replace": "      void stackStopPicker;"
     }
   ]

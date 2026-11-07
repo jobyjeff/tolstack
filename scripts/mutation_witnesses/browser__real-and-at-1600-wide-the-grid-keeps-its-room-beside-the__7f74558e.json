@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "parts as blocks",
+  "expect_red": "[real] ...and at 1600 wide the grid keeps its room beside the strip: on both studies every row's part cell is in the pane and what the pointer finds there, and on no page is a number or part cell clipped",
+  "mutations": [
+    {
+      "contract": "The blocks' strip is as wide as its widest block and a gutter, and no wider.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared by the round-1 rework of a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). A strip 600px wider pushes a study's grid out of the 737px pane at 1600.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return metrics.gutter + widest;",
+      "replace": "    return metrics.gutter + widest + 600;"
+    }
+  ]
+}

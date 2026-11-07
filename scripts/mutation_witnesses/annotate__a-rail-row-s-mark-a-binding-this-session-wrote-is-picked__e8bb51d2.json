@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a rail row's mark: a binding this session wrote is `picked`, an older one `bound`; an unbound end says what it has to go on -- a proposal, contact faces, a declared face -- else `open`",
+  "mutations": [
+    {
+      "contract": "A binding this session wrote is marked `picked`, in the scene's pick colour, apart from older bindings.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md",
+      "note": "Declared with the guard by handoff the_rail_reads_as_a_tree_of_bodies_joints_and_faces (2026-11-06). Without the session check every bound end reads the same and the legend's `picked now` names nothing.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      return mine ? M.picked : M.bound;",
+      "replace": "      return M.bound;"
+    }
+  ]
+}

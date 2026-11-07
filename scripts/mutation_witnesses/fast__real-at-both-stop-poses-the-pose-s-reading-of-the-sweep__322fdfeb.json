@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] at both stop poses the pose's reading of the sweep prints the per-stop fold's own numbers, term by term and in total",
+  "mutations": [
+    {
+      "contract": "At a stop's own point the pose reading prints the per-stop fold's numbers.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Reads both sides from the upper point: at the low stop (point 0) every term reads point 1's.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    var a = byIndex[pose.i0], b = byIndex[pose.i1];\n",
+      "replace": "    var a = byIndex[pose.i1], b = byIndex[pose.i1];\n"
+    }
+  ]
+}

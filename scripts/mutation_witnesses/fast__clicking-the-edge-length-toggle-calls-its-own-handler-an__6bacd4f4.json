@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "clicking the edge-length toggle calls its own handler, and the mode table's next-pointers cycle through all four and home, skipping contribution on a page that has none",
+  "mutations": [
+    {
+      "contract": "The length modes cycle uniform, tolerance, feature size, contribution and home.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_grid_and_the_dag_move_with_the_mechanism.md",
+      "note": "Cuts contribution out of the cycle: a kinematic page could never get back to its default.",
+      "file": "apps/viewer/topology.js",
+      "find": "      next: \"contribution\",\n",
+      "replace": "      next: \"uniform\",\n"
+    }
+  ]
+}

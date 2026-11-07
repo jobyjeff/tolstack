@@ -1006,6 +1006,53 @@ def test_a_body_is_a_set_of_declared_parts_and_every_part_has_exactly_one():
     assert both.body_of("b").id == "x" and both.body("x").kind == "link"
 
 
+def test_a_body_may_ride_with_another_that_is_posed():
+    """``rides_with`` (2026-11-05): two bodies, one pose -- each refusal shown."""
+    host = Body(id="x", name="x", parts=("a",))
+    rider = Body(id="y", name="y", parts=("b",), rides_with="x")
+    assert _two_part_topology([host, rider]).body("y").rides_with == "x"
+    assert host.rides_with is None
+    with pytest.raises(TopologyError, match="names the body itself"):
+        Body(id="y", name="y", parts=("b",), rides_with="y")
+    with pytest.raises(TopologyError, match="rides with 'nope', which the document does not declare"):
+        _two_part_topology([host, Body(id="y", name="y", parts=("b",), rides_with="nope")])
+    with pytest.raises(TopologyError, match="which itself rides with 'x'"):
+        _two_part_topology([Body(id="x", name="x", parts=("a",), rides_with="y"), rider])
+    with pytest.raises(TopologyError, match="is a link"):
+        _two_part_topology([Body(id="x", name="x", parts=("a",), kind="link"), rider])
+
+
+#: The bodies that move with another and the body each moves with, declared on
+#: the product model: the three piston parts the stop stacks cite, which the
+#: linkage solver does not pose (`the_piston_heads_and_cover_ride_with_their_
+#: bodies_in_the_kinematic_model`). Folding them into their hosts would have
+#: made them parts of those bodies, but raised the DAG walk's width and every
+#: kind of crossing in it (`test_topology_projection.py`), so they stay bodies.
+BODIES_THAT_RIDE = {
+    "piston_head_lower_214699_002": "pitch_plate",
+    "piston_head_upper_214698_002": "pitch_plate",
+    "piston_cover_214958_002": "base",
+}
+
+
+def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on(pitch_system):
+    """The lower head sits on the piston body (a pitch-plate part) and the upper
+    head stacks on the lower; the cover's flange sits on the gas-spring mount (a
+    base part). Read off the topology's own node names, so a renamed seat fails
+    here instead of drifting. Every one of the three is recorded under the same
+    ``P3-214700.3`` sub-assembly as the piston body in 217755 (the mesh
+    provenance), which is the assembly evidence the stack's nodes cannot give for
+    the upper head."""
+    assert {b.id: b.rides_with for b in pitch_system.bodies if b.rides_with} == BODIES_THAT_RIDE
+    assert pitch_system.body_of("gas_spring_piston_214700_002").id == "pitch_plate"
+    assert pitch_system.body_of("gas_spring_mount_213668_002").id == "base"
+    for node_id, bodies in (
+            ("piston_body_head_seat", {"pitch_plate", "piston_head_lower_214699_002"}),
+            ("piston_heads_seat", {"piston_head_lower_214699_002", "piston_head_upper_214698_002"}),
+            ("piston_cover_mount_flange_seat", {"base", "piston_cover_214958_002"})):
+        assert set(pitch_system.node_bodies(node_id)) == bodies, node_id
+
+
 def test_the_pitch_system_declares_a_body_round_every_part(pitch_system):
     """The one topology that declares bodies, and the shape it declares."""
     assert pitch_system.bodies, "vpa_pitch_linkage declares no bodies"

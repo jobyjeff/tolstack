@@ -1340,6 +1340,9 @@ async function realPass(browser, base) {
       P.readMeshBuffer = async (sha, name) =>
         fetch(`${base}/meshes/${sha}/${name}`).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
       P.readPartMeshAliases = async () => json("/__aliases.json");
+      // The topology a run names must be the REAL one: `rides_with` (the
+      // piston heads with the plate) is read off it, and the mock has none.
+      P.readTopologyProjection = async () => json("/projections/viewer/topologies.json");
       return true;
     };
     const timer = setInterval(() => { if (install()) clearInterval(timer); }, 1);
@@ -1482,6 +1485,49 @@ async function realPass(browser, base) {
       .every((b) => b.placements.every((p) => p.residual <= 1.0)),
     JSON.stringify(bodies.filter((b) => b.state === "matched")
       .map((b) => [b.part, b.placements.map((p) => p.residual)])));
+
+  // The bodies the topology says ride with a posed one (the piston heads with
+  // the plate): each has a mesh and one recorded position, so each is a row
+  // that rides the plate's pose -- and the cover, which has no mesh installed,
+  // has no row rather than a guessed one.
+  const riding = bodies.filter((b) => b.state === "rides");
+  check("[real] both piston heads ride the pitch plate, and the cover with no mesh has no row",
+    riding.map((b) => b.part + "/" + b.subject).sort().join() ===
+      "piston_head_lower_214699_002/pitch_plate,piston_head_upper_214698_002/pitch_plate" &&
+      !bodies.some((b) => b.part === "piston_cover_214958_002"),
+    JSON.stringify(bodies.map((b) => [b.subject, b.part, b.state])));
+
+  // And they MOVE with it: at the two ends of the sweep (the feather stop is
+  // the last point, the low stop the first) each head's drawn matrix sits
+  // the same rigid distance from the piston body's at both ends (a rider keeps
+  // its offset to its host) while the head itself has moved. Shot at both ends.
+  const rideShas = riding.map((b) => b.sha256);
+  const pistonSha = (bodies.find((b) => b.part === "gas_spring_piston_214700_002") || {}).sha256;
+  const rideAt = async (index) => {
+    await page.evaluate((i) => window.AnnotateApp.exec(["seek", "#" + i]), index);
+    await framesRendered(page, 2);
+    await page.waitForTimeout(350);
+    return page.evaluate(([shas, piston]) => {
+      const scene = window.__scene;
+      const shift = (sha) => {
+        const d = scene.drawnPlacements(sha)[0], r = scene.parts.get(sha).userData.rest[0];
+        return d && r ? [d[12], d[13], d[14]] : null;
+      };
+      return { piston: shift(piston), heads: shas.map(shift) };
+    }, [rideShas, pistonSha]);
+  };
+  const lastIndex = await page.evaluate(() => window.__sweep.artifact.points.length - 1);
+  const atFeather = await rideAt(lastIndex);
+  if (SHOTS) await page.screenshot({ path: join(SHOTS, "2_feather_stop.png"), timeout: 240000 });
+  const atLow = await rideAt(0);
+  if (SHOTS) await page.screenshot({ path: join(SHOTS, "3_low_stop.png"), timeout: 240000 });
+  const gap = (a, b) => (a && b ? Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) : NaN);
+  console.log("      ride: feather " + JSON.stringify(atFeather) + " low " + JSON.stringify(atLow));
+  check("[real] each piston head's drawn matrix keeps its offset to the piston body, and moves, between the low and the feather stop",
+    rideShas.length === 2 && !!pistonSha &&
+      atFeather.heads.every((h, i) => Math.abs(gap(h, atFeather.piston) - gap(atLow.heads[i], atLow.piston)) < 1e-3) &&
+      atFeather.heads.every((h, i) => gap(h, atLow.heads[i]) > 1e-3),
+    JSON.stringify({ atFeather, atLow }));
 
   // SWEEP MODE ON TOP OF THE SAME RULE: away from the as-modelled pose, what
   // the run owns has moved and nothing else has.

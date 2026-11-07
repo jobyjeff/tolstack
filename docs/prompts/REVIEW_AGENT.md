@@ -652,6 +652,15 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A grid column narrowed to fit, measured against member rows only.**
+      `.tvcell` clips with an ellipsis, and the foot's `totalRow` number cells
+      carry no `title`. So a width chosen for the longest *member* value
+      silently hides the study's own RSS total, which is bold, dense and
+      longer. Open the diff's 3840 shots and look for `…` in a `.tvtotal` row
+      before you trust a width table
+      (`REVIEW_20261106_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what`,
+      `-5.785…` at 68px).
+
 - [ ] **A guard whose stated claim is wider than what it measures — promoted
       2026-09-30 by the triage sweep, on three sightings from three separate
       reviews in eight days.** This is now the most reliably recurring finding
@@ -2839,6 +2848,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`scene.js` `partBaseColor`). The scratch mutation run needs a SHORT
       root (`%TEMP%\tsrev`): the scratchpad path overflows MAX_PATH on
       `scripts/mutation_witnesses/`.
+      **Third sighting, 2026-11-06** (`the_rail_reads_as_a_tree_of_bodies_
+      joints_and_faces`, REQUEST CHANGES), on the annotator → shell mirror: the
+      fast test fed `VA.renderSceneTree` hand-built rows, and a pytest paired
+      the JS vocabularies with the stylesheet's selector *sets*. Deleting
+      `app.js`'s two `railLookInto` calls, sending `legend: []`, a 20→8px
+      `--tree-step` and re-adding the "orange" attention rule were all green.
+      Tell: `git grep` the new attributes/classes (`data-kind`, `scenemark`,
+      `scenelegend`) in the browser runner; zero hits = nothing sees the page.
+      A selector-set pairing pins words, not rule bodies or the wiring.
+      Copy `docs/` into the scratch root too, or five annotate `[real]` checks
+      go red on ENOENT.
 - [ ] **A shell→scene message the diff starts sending reddens the ANNOTATE
       suites, which a tactical `--only "<its own suite>"` run never reaches.**
       New 2026-10-27 (`leaders_follow_the_active_study_across_the_seam`,
@@ -5587,6 +5607,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       surface the browser check drives: the `[real]` shell check
       (`?kinematic=` + `#pane-handle`) is the one that sees what Jeff sees; a
       check on `.an__rail` in the bare annotator is not.
+- [ ] **A toggle whose handler reads a flag frozen at render, on a control the
+      page then updates in place without re-rendering.** Sighted 2026-11-06
+      (`the_grid_and_the_dag_move_with_the_mechanism`): `stackStopPicker`'s
+      Play button calls `ctx.onPlay(!ctx.playing)`; Play starts without a
+      `render()` and `VA.syncPoseControl` relabels the button "Pause", but
+      `ctx.playing` stays `false`, so Pause re-calls `startPlay` and play never
+      stops. The fast test clicked the button **once**. For any in-place-synced
+      control (`syncPoseControl`, `applyStackText`, a film), click it twice in a
+      real page and confirm the second click undoes the first.
 
 ## Architectural errors to check
 

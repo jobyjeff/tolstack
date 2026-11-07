@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part's number and its description are two columns, out of the part record, whichever way round its name puts them",
+  "mutations": [
+    {
+      "contract": "A part's number is its record's drawing, before any part-number token in its name.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Drops the drawing fallback. Re-pointed in review round 2 (2026-11-06): the record's drawing now comes first, and the mutation puts the name's token first again.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var number = part.drawing || (hit ? hit[0] : \"\");",
+      "replace": "    var number = hit ? hit[0] : part.drawing || \"\";"
+    }
+  ]
+}

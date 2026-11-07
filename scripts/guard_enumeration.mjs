@@ -1,4 +1,4 @@
-// THE ENUMERATION OF GUARDS -- the one place this repo answers "what guards
+﻿// THE ENUMERATION OF GUARDS -- the one place this repo answers "what guards
 // does the tree declare, and which of them is witnessed?"
 //
 // Until 2026-09-23 those were two hand-kept lists. A guard lived in
@@ -238,15 +238,43 @@ export const DECLARED_GUARDS = {
   // sourcing legend's named tints, and the scene's tint verb from the page.
   // Each carries a spec. (Re-measured at the review merge on integration's
   // 632: 642.)
+  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: +2. Three added -- the brackets nest, a part's number and
+  // description are two columns, every row's part cell selects its row; the
+  // two crop-thumbnail guards became one (no row carries a crop; its crop is
+  // in the Preview). Renamed: the row-tint render check, the jog grip's seam,
+  // the bar's one channel, the gap row's mark and the live study's grid. Each
+  // carries a spec; the old names' specs are deleted.
+  // Merged with integration (review round 2, 2026-11-06): 644 + 2 - 1 -- the
+  // sourcing legend's named tints is retired with its spec, since no grid row
+  // wears a tint for it to name.
+  // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the 3D part set pin, with a spec.
+  // (Re-pinned at the review merge onto integration's 645.)
+  // the_grid_and_the_dag_move_with_the_mechanism, 2026-11-06: +9, one renamed
+  // -- a pose as a fractional point, the stack read at a pose, the stop rows
+  // saying they are the stop's, the grid rewritten in place, the contribution
+  // mode and the pose film, the pose control, the pose in the URL, and two
+  // [real] checks (the stop poses print the per-stop fold; three bars at
+  // |J| x band). The length-mode cycle check is renamed for its fourth mode
+  // (unenrolled before, a spec now). Every one carries a spec.
+  // Merged with integration (review of the_grid_and_the_dag_move_with_the_mechanism, round 2, 2026-11-06): re-pinned from the census of the merged tree.
+  // the_rail_reads_as_a_tree_of_bodies_joints_and_faces, 2026-11-06: +1 -- a
+  // mirrored row wears its kind and mark, its twisty and glyph columns, the
+  // legend, and its control group before its checkbox. It carries a spec.
+  // Merged with integration at its 645 (rework, 2026-11-06): 645 + 1.
+  // Merged with integration (review of the rework, 2026-11-06): both sides +1 on 645 / 291.
   // a_part_with_many_interfaces_is_drawn_as_a_component_with_pins, 2026-11-06:
   // +9, one renamed -- the live model's blocks, a part's pins and chords, the gathered walk, a block's
   // sides and aspect, the cut at a split chord, the scaled pin spacing, a
   // pin's leader, the crossing count's inner pins and the page's blocks; the
   // view popover offers four settings now. Each carries a spec; the old
   // name's spec is deleted.
-  // (Re-pinned at the review merge onto integration's 644 -- the tween
-  // handoff's +2 landed underneath: 653.)
-  fast: { declared: 653, enrollable: 653, names: "53645de7f814" },
+  // Review round 1 (REQUEST CHANGES, block body): +1 -- every block wears its
+  // part's body and that body's field wraps it, with a spec. Re-measured on
+  // the merge with integration's 646: 656.
+  // Merged with integration again before hand-back (review round 1 rework,
+  // 2026-11-06): integration's 656 + this branch's 10 = 666, measured.
+  fast: { declared: 666, enrollable: 666, names: "a269e9c6fa4a" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -296,7 +324,14 @@ export const DECLARED_GUARDS = {
   // as a joint's third row. Each carries a spec.
   // 2026-11-05 (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste):
   // +1 -- the model verb's tint action. It carries a spec.
-  annotate: { declared: 291, enrollable: 291, names: "d4a34457b11a" },
+  // 2026-11-05 (the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model): +1, the rider rule, with a spec.
+  // (Re-pinned at the review merge onto integration's 291.)
+  // 2026-11-06 (the_rail_reads_as_a_tree_of_bodies_joints_and_faces): +3 -- a
+  // rail row's mark, an end's declared face, and the legend naming every
+  // mark. Each carries a spec.
+  // Merged with integration at its 291 (rework, 2026-11-06): 291 + 3.
+  // Merged with integration (review of the rework, 2026-11-06): both sides +1 on 645 / 291.
+  annotate: { declared: 295, enrollable: 295, names: "d1d837832adf" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -422,12 +457,42 @@ export const DECLARED_GUARDS = {
   // the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste, review
   // round 1, 2026-11-05: +3 -- the scene draws each body part in its DAG ink,
   // a graph width widens the live DAG and survives a reload, a colour-by puts
-  // the overlay on the bars and survives a reload. Each carries a spec.
+  // the overlay on the bars and survives a reload. Each carries a spec.  // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what,
+  // 2026-11-05: -1. Three crop-on-the-row checks became one (no grid row
+  // draws a crop) and one more went (an edge with no crop key's empty cell);
+  // one added -- at 1600x1000 every row's part cell takes the click. The
+  // sticky-rails checks are inverted and renamed (the rails scroll with the
+  // grid now), as are the row-tint, component-cell, thumbnail and stack
+  // checks. A study's landing keeps the band inside the pane rather than
+  // centring it sideways, so its two landing checks are renamed. The
+  // part-cell check, both scroll checks, the stack check and both landing
+  // checks carry a spec; the sticky spec is deleted.
+  // Merged with integration (review round 2, 2026-11-06): 836 - 1, then +2 --
+  // no grid number and no part number clips, totals rows included; a pane
+  // narrowed with no repaint takes its zoom box's floor with it. Each carries
+  // a spec.
+  // the_grid_and_the_dag_move_with_the_mechanism, review round 1, 2026-11-06:
+  // +2 -- on the kinematic page Play moves the pose, and a second click
+  // pauses it where it stopped. Each carries a spec.
+  // Merged with integration (review of the_grid_and_the_dag_move_with_the_mechanism, round 2, 2026-11-06): re-pinned from the census of the merged tree.
+  // the_rail_reads_as_a_tree_of_bodies_joints_and_faces (rework, 2026-11-06):
+  // +7 -- on the live study the nav's rows carry their kind and mark, the
+  // end taken this session reads picked now, the legend names every mark,
+  // each level steps in a full indent, every kind draws a glyph, attention
+  // keeps a row's words in ink, and an isolated part stays on one line, its
+  // checkbox and buttons beside its name. Each carries a spec aimed at the
+  // wiring or the rule.
   // a_part_with_many_interfaces_is_drawn_as_a_component_with_pins,
   // 2026-11-06: +7 -- the "parts as blocks" suite. Six carry a spec; its skip
   // row (a constant true, printed only when the projections are absent) has
   // none, like every other suite's.
-  browser: { declared: 843, enrollable: 810, names: "35759520f6b2" },
+  // (Re-measured on the merge with integration's 837, review round 1: 844.)
+  // Review round 1 (REQUEST CHANGES, block body): +2 in "parts as blocks" --
+  // every block inside its own body's field, and the grid's room at 1600
+  // beside the strip. Each carries a spec.
+  // Merged with integration again before hand-back (review round 1 rework,
+  // 2026-11-06): integration's 846 + this branch's 9 = 855, measured.
+  browser: { declared: 855, enrollable: 822, names: "016c2d789905" },
 };
 
 
@@ -450,7 +515,7 @@ export const CENSUS_LIMITS = {
     "equality -- the tier needs a real Chrome, and its declared names are " +
     "templates one suite or two may print, so `declared == executed` is false " +
     "there by construction. The other direction IS checked at the tail of every " +
-    "browser run (`ran ⊆ declared`, `ranNotDeclared`), so a guard written in a " +
+    "browser run (`ran âŠ† declared`, `ranNotDeclared`), so a guard written in a " +
     "shape the scan does not match is reported by name; what stays unseen is a " +
     "declared guard that no run reached",
   incomplete_run_pairs_one_way:
@@ -516,7 +581,7 @@ function declarationsIn(text, call, skipCall) {
     String.raw`)\(\s*(?:"((?:[^"\\\n]|\\.)*)"|\x60([^\x60]*)\x60)`, "gm");
   // A name continued by a literal of the OTHER quote kind (`"a " + `b ${x}``)
   // is not closed by SEAMS, so the first literal alone would read truncated.
-  // Found by the browser runner's `ran ⊆ declared` tail check: 13 printed names
+  // Found by the browser runner's `ran âŠ† declared` tail check: 13 printed names
   // the scan had cut at the seam.
   const continuation = /^\s*\+\s*(?:"((?:[^"\\\n]|\\.)*)"|\x60([^\x60]*)\x60)/;
   for (const m of text.matchAll(pattern)) {
@@ -665,7 +730,7 @@ function runTier(repoRoot, runner) {
  * THIS IS WHAT MAKES THE SCANNER FALSIFIABLE. Everything else here trusts
  * `declarationsIn` to have found every guard: the pin says how many the scan
  * found, never whether the scan is right. A guard written in a shape the regex
- * does not match -- `test('…')` in single quotes, or a name handed in by a
+ * does not match -- `test('â€¦')` in single quotes, or a name handed in by a
  * helper or a loop -- is invisible in BOTH directions at once: not censused,
  * therefore not enrollable, therefore never printed by `--unenrolled`.
  * Measured 2026-09-23: zero such declarations exist, which is a fact with a
@@ -748,7 +813,7 @@ export function pairExecuted(repoRoot = REPO) {
 }
 
 /**
- * `ran ⊆ declared` for a source that cannot be paired both ways: every name in
+ * `ran âŠ† declared` for a source that cannot be paired both ways: every name in
  * `ran` that the scan neither found as a declaration nor can account for as an
  * interpolated template.
  *

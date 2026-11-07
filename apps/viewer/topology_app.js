@@ -51,11 +51,13 @@
     // the description moved to hover. A display preference like rowDensity,
     // not a fact about a topology, so selectTopology() never resets it either.
     edgeValueOnly: false,
-    // "uniform" | "tolerance" | "absolute" (VA.EDGE_LENGTH_MODES, topology.js)
-    // — how much vertical extent a dimension bar gets. A display preference
-    // like rowDensity, not a fact about a topology, so selectTopology() never
+    // A VA.EDGE_LENGTH_MODES key (topology.js) — how much vertical extent a
+    // dimension bar gets — or null until the reader picks one, which draws
+    // the page's own default (VA.edgeLengthModeFor: contribution on a
+    // kinematic page, uniform elsewhere). A display preference like
+    // rowDensity, not a fact about a topology, so selectTopology() never
     // resets it either.
-    edgeLengthMode: "uniform",
+    edgeLengthMode: null,
     // The DAG's zoom (VA.DAG_ZOOM, topology.js): per page state, never stored.
     // 1 is the drawing at its own size; the wheel, Fit and `0` move it.
     dagZoom: 1,
@@ -73,6 +75,11 @@
     // Which stop a kinematic page's grid shows its stack at (a stop id), or
     // null for the study's first. In-session, like the unlit style.
     kinematicStop: null,
+    // Where on the sweep a kinematic page is read (VA.kinematicPose: a
+    // fractional point index), or null for the stop's own point. The grid,
+    // the DAG, the chart's cursor and the 3D pane all read it; `?pose=<angle>`
+    // carries it in the URL (VA.POSE_PARAM).
+    kinematicPose: null,
     // How far the jog zone has been dragged open, as a multiple of its own
     // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
     // a pixel width precisely BECAUSE it outlives the topology it was set on:
@@ -166,6 +173,9 @@
   // yanks the selection back to what the URL said.
   var pendingDeepLink = null;
   var paneWanted = false;
+  // The `?pose=` the page was opened with (VA.parsePoseParam), until the
+  // first load applies it.
+  var poseWanted = null;
   var bootLoaded = false;
   // Which transport `adapter` is -- one of VA.TRANSPORT (storage/adapter.js),
   // never a literal spelled here -- for the banner's own plain-words line
@@ -367,6 +377,9 @@
     // AA.shellUrl): open the 3D pane on whatever the link selected, once the
     // selection is applied and the mount is known.
     paneWanted = /[?&]pane=1(&|$)/.test(window.location.search);
+    // ?pose=<angle> -- a kinematic page's pose, as the measure there (the
+    // blade angle), applied once the study it is a pose of is known.
+    poseWanted = VA.parsePoseParam(window.location.search);
 
     chooseAdapter(mock).then(function (picked) {
       adapter = picked.adapter;
@@ -551,6 +564,10 @@
         if (linked.mode === "kinematic") {
           selectKinematic(linked.kinematicId);
           state.selection = linked.selection;
+          if (poseWanted !== null) {
+            setPose(VA.kinematicPoseOfMeasure(
+              VA.findKinematicStudy(state.kinematic, linked.kinematicId), poseWanted));
+          }
         } else if (linked.mode === "topology") {
           selectTopology(linked.topologyId);
           state.studyId = linked.studyId;
@@ -616,7 +633,11 @@
   // kinematic study's own (VA.kinematicLitSet).
   function selectKinematic(studyId) {
     var study = VA.findKinematicStudy(state.kinematic, studyId);
-    if (state.kinematicId !== studyId) state.kinematicStop = null;
+    if (state.kinematicId !== studyId) {
+      state.kinematicStop = null;
+      state.kinematicPose = null;
+      stopPlay();
+    }
     state.mode = "kinematic";
     state.kinematicId = studyId;
     state.topologyId = study ? study.topology : null;
@@ -1492,7 +1513,13 @@
     // (VA.annotateParamsFor keeps returning the sweep), and a selected edge
     // is HIGHLIGHTED there instead: the same `highlight` a hover posts, never
     // a `goto`, which would take the scene out of the sweep.
-    if (state.mode === "kinematic") schedulePaneHover(selectedPaneTarget());
+    if (state.mode === "kinematic") {
+      schedulePaneHover(selectedPaneTarget());
+      // ...and posed where the page is read (syncPanePose).
+      var study = poseStudy();
+      var at = poseIndex(study);
+      if (at !== null) syncPanePose(study, VA.kinematicPose(study, at));
+    }
   }
 
   // The edge a kinematic page has selected, as a hover target: what the
@@ -1719,7 +1746,12 @@
       // still where the scene draws its nodes.
       postToPane(["model", "anchors"]);
       // The scene has just (re)loaded what it shows: it is told the page's
-      // lit set and dim-or-hide word again, whatever it was told before.
+      // lit set and dim-or-hide word again, whatever it was told before --
+      // and the pose (syncPanePose).
+      panePosePosted = null;
+      if (state.mode === "kinematic" && poseIndex(poseStudy()) !== null) {
+        syncPanePose(poseStudy(), VA.kinematicPose(poseStudy(), poseIndex(poseStudy())));
+      }
       sceneModelPosted = null;
       sceneSelectPosted = null;
       syncSceneModel();
@@ -2407,10 +2439,15 @@
     // The DAG's lit span: only the DAG scales (2026-10-29), so the grid
     // beside it is not part of what a scale can fit.
     var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
-    // Both axes: the DAG's own width must fit the pane too, or Fit leaves the
-    // drawing wider than the box it is meant to fill.
+    // Both axes: the DAG's own width must fit the pane too. Fit -- the
+    // reader's own ask -- also leaves the grid its floor beside it
+    // (VA.dagFitWidth), so the drawing and PART..ELEMENT share the pane. A
+    // study's arrival does not: it is measured off the outgoing layout, and
+    // a floor applied there ratchets the zoom down a little on every arrival
+    // and moves the first frame of the transition.
     if (drawn.dagWidth > 0 && hscroll.clientWidth > 0) {
-      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.dagWidth));
+      var room = centre ? hscroll.clientWidth : VA.dagFitWidth(hscroll.clientWidth);
+      to = Math.min(to, VA.clampDagZoom((room - pad) / drawn.dagWidth));
     }
     // A study's arrival only ever scales DOWN, and only when the band does not
     // fit at the zoom the reader has: a zoom they chose is theirs until the
@@ -2433,6 +2470,13 @@
       // clamps what it cannot reach (a band near the top of a short drawing),
       // so the centre is as close as the page's own extents allow.
       var hr = hscroll.getBoundingClientRect();
+      // Sideways, the drawing stays at the strip's left edge, with the grid
+      // beside it: a band already on screen is not moved at all, and one
+      // off either edge (a reader zoomed in) is brought just inside it. It
+      // used to be centred in the pane, with space put before the drawing
+      // when the scroll could not reach -- which pushed the grid right by the
+      // same amount, up to two thirds of a 737px pane at 1600 wide
+      // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
       var bandOffset = function () {
         var r = box.getBoundingClientRect();
         var dx = 0;
@@ -2445,7 +2489,8 @@
             x1 = Math.min(x1, br.left); x2 = Math.max(x2, br.right);
             y1 = Math.min(y1, br.top); y2 = Math.max(y2, br.bottom);
           }
-          dx = (x1 + x2) / 2 - (hr.left + hr.width / 2);
+          if (x1 < hr.left + pad) dx = x1 - hr.left - pad;
+          else if (x2 > hr.right - pad) dx = Math.min(x2 - hr.right + pad, x1 - hr.left - pad);
           dyBand = (y1 + y2) / 2;
         }
         return { dx: dx, dy: dyBand - (topEdge + visible / 2) };
@@ -2455,14 +2500,15 @@
       var parked = hscroll.scrollLeft > 0;
       var off = bandOffset();
       scrollDag(parked ? 0 : off.dx, off.dy);
-      // Whatever the scroll could not reach -- a band that sits above or left
-      // of the centre with nothing further to scroll back to -- is taken up by
-      // space before the drawing. It is kept in state.bandPad so a repaint
-      // redraws it; the next study change drops it.
+      // Whatever the scroll could not reach -- a band that sits above the
+      // centre with nothing further to scroll back to -- is taken up by space
+      // above the drawing. It is kept in state.bandPad so a repaint redraws
+      // it; the next study change drops it. Never space to its LEFT: that is
+      // space between the pane's edge and the grid too.
       off = bandOffset();
       var sizer = box.parentNode;
       var top = off.dy < -0.5 ? -off.dy : 0;
-      var left = !parked && off.dx < -0.5 ? -off.dx : 0;
+      var left = 0;
       state.bandPad = { top: top, left: left, key: padKey() };
       state.landed = true;
       if (sizer && sizer.style) {
@@ -2544,7 +2590,12 @@
       scheduleSeamDraw();
     }, true);
     if (typeof ResizeObserver === "function") {
-      var observer = new ResizeObserver(scheduleSeamDraw);
+      var observer = new ResizeObserver(function () {
+        // The pane's width moved with no repaint (the 3D pane opened or
+        // closed, a divider dragged): its zoom box's floor moves with it.
+        if (nodes.pane) VA.sizeTopoZoomBox(nodes.pane);
+        scheduleSeamDraw();
+      });
       [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {
         if (n) observer.observe(n);
       });
@@ -2933,10 +2984,13 @@
     // right-hand pane (2026-10-28). A study whose topology the projection does
     // not carry has no model to draw.
     var showDag = showTopology || (showKinematic && !!topoProj);
+    var livePoseIndex = showKinematic ? poseIndex(kinematicStudy) : null;
+    // A pose this page wrote into the URL leaves with the study.
+    if (!showKinematic && poseUrlWritten) writePoseUrl(null, null);
     var kinematicStack = showKinematic && topoProj
       ? VA.kinematicStack(kinematicStudy, topoProj, state.kinematicStop,
           state.kinematic && state.kinematic.display_decimals,
-          VA.readSubStackFolds(widthStore(), state.kinematicId))
+          VA.readSubStackFolds(widthStore(), state.kinematicId), livePoseIndex)
       : null;
 
     nodes.toolbar.style.display = showDag ? "" : "none";
@@ -2982,11 +3036,18 @@
       var groupKinds = topoProj ? VA.readGroupKinds(widthStore(), topoProj.id) : null;
       // The colour overlay's inputs beyond the topology: a kinematic page's
       // contribution per edge at its stop (VA.kinematicContributions).
+      // ...at the live pose (VA.kinematicContributions), which the
+      // contribution length mode draws its bars from too.
       var overlayOptions = {
         contributions: showKinematic
-          ? VA.kinematicContributions(kinematicStudy, state.kinematicStop) : null,
+          ? VA.kinematicContributions(kinematicStudy, state.kinematicStop, livePoseIndex)
+          : null,
         units: kinematicStudy ? kinematicStudy.units || null : null,
       };
+      // ...and the contribution length mode's bars (VA.kinematicPoseLengths).
+      var poseLengths = showKinematic && livePoseIndex !== null
+        ? VA.kinematicPoseLengths(kinematicStudy, livePoseIndex) : null;
+      var lengthMode = VA.edgeLengthModeFor(state.edgeLengthMode, !!poseLengths);
       var ctx = {
         groupKinds: groupKinds,
         colourBy: state.dagView.colourBy,
@@ -3044,7 +3105,8 @@
         config: VA.CONFIG,
         selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
-        edgeLengthMode: state.edgeLengthMode,
+        edgeLengthMode: lengthMode,
+        lengths: poseLengths,
         // The lit-set rule's second reason: parts of a body tagged with a
         // variant the reader did not select (VA.otherVariantParts).
         otherVariantParts: VA.otherVariantParts(topoProj, state.tagFilter,
@@ -3083,6 +3145,9 @@
       };
       var toolbarHandlers = {
         groupKinds: groupKinds,
+        // The length mode the pane draws, which is the page's default until
+        // the reader picks one (VA.edgeLengthModeFor).
+        edgeLengthMode: lengthMode,
         // The view popover (VA.COLOUR_SCHEMES, VA.GROUP_FILLS,
         // VA.GRAPH_WIDTHS) and the overlay's key beside it.
         dagView: Object.assign({}, state.dagView, {
@@ -3122,14 +3187,14 @@
           render();
         },
         // Edge-length scaling (viewer_edge_length_scaling): cycle through the
-        // three modes in VA.EDGE_LENGTH_MODES' own `next` order. Same
+        // modes in VA.EDGE_LENGTH_MODES' own `next` order (VA.nextEdgeLengthMode skips
+        // contribution on a page with no lengths to draw). Same
         // reasoning as density again — WHICH rows are on screen never
         // changes, only how tall the DAG's slots are — so render(), not
         // rewind().
         onFit: fitDag,
         onEdgeLength: function () {
-          var mode = VA.EDGE_LENGTH_MODES[state.edgeLengthMode];
-          state.edgeLengthMode = mode ? mode.next : "uniform";
+          state.edgeLengthMode = VA.nextEdgeLengthMode(lengthMode, !!poseLengths);
           render();
         },
         // Leader style (viewer_leader_grid_legibility): same reasoning again
@@ -3223,9 +3288,34 @@
           topologies: state.topologies,
           selection: state.selection,
           // Which stop the grid's stack is shown at, and the control that
-          // picks it.
+          // picks it -- which puts the pose on that stop.
           stackStop: kinematicStack ? kinematicStack.stop.id : null,
-          onStackStop: function (stopId) { state.kinematicStop = stopId; render(); },
+          onStackStop: function (stopId) {
+            stopPlay();
+            state.kinematicStop = stopId;
+            setPose(VA.kinematicStopPose(kinematicStudy, stopId));
+            render();
+          },
+          // The pose control (VA.kinematicPose): where the page is read, a
+          // drag's moves (unsettled) and its release or a typed angle
+          // (settled), and play.
+          pose: livePoseIndex !== null ? VA.kinematicPose(kinematicStudy, livePoseIndex) : null,
+          onPose: function (index, settled) {
+            stopPlay();
+            if (settled) {
+              setPose(index);
+              render();
+            } else {
+              livePose(index);
+            }
+          },
+          playing: !!posePlay,
+          onPlay: function (on) {
+            if (on && !posePlay) { startPlay(); return; }
+            if (!stopPlay()) return;
+            setPose(state.kinematicPose);
+            render();
+          },
           annotateMount: state.annotateMount,
           onAttach3d: launchAnnotate,
           onCardShow: showCard,
@@ -3281,6 +3371,8 @@
     syncPaneHandle();
     followSelection();
     followSeam();
+    // A kinematic DAG that moves with the pose builds its film while idle.
+    if (state.mode === "kinematic" && (!respineHandle || respineHandle.done)) prebuildFilm();
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its
@@ -3381,12 +3473,234 @@
     var choices = VA.readSubStackFolds(widthStore(), study.id);
     if (open === undefined) {
       var shown = VA.stackOpenMap(VA.kinematicStack(study, currentTopology(),
-        state.kinematicStop, state.kinematic && state.kinematic.display_decimals, choices));
+        state.kinematicStop, state.kinematic && state.kinematic.display_decimals, choices,
+        poseIndex(study)));
       open = !shown[id];
     }
     choices[id] = !!open;
     VA.writeSubStackFolds(widthStore(), study.id, choices);
     render();
+  }
+
+  // --- the pose (the_grid_and_the_dag_move_with_the_mechanism) ---------------
+  //
+  // One pose per kinematic page (state.kinematicPose), and four readers of it:
+  // the grid's numbers, the DAG (in the contribution length mode its bars are
+  // the contributions at the pose; a contribution colouring reads them too),
+  // the chart's cursor and the 3D pane, which is told the pose's driver value
+  // with its own `seek`. A settled pose -- a typed angle, a slider's release,
+  // a stop button, a pause -- is a plain render(). A MOVING one -- a drag, a
+  // frame of play -- is livePose(): the grid's text rewritten in place
+  // (VA.applyStackText), the DAG eased between keyframes rendered off screen
+  // (VA.poseFilm), the control's marks moved (VA.syncPoseControl). No pane
+  // rebuild per frame: that is what the tween handoff measured and removed.
+  var posePlay = null;
+  var poseFilm = null;
+  var poseFilmCtx = null;
+  var panePosePosted = null;
+  // The URL as the page was opened, so a pose written into it can be taken
+  // back out when the page leaves the study.
+  var poseUrlWritten = false;
+
+  function poseStudy() {
+    return state.mode === "kinematic"
+      ? VA.findKinematicStudy(state.kinematic, state.kinematicId) : null;
+  }
+
+  // The pose the page is read at: the one the reader set, else the shown
+  // stop's own point.
+  function poseIndex(study) {
+    if (!study || !VA.kinematicPoseCount(study)) return null;
+    if (typeof state.kinematicPose === "number") return state.kinematicPose;
+    var stops = study.stops || [];
+    if (!stops.length) return null;
+    return VA.kinematicStopPose(study, state.kinematicStop || stops[0].id);
+  }
+
+  // A settled pose: held, its stop taken as the grid's when it is on one, and
+  // written into the URL (VA.poseSearch) so a link -- a lesson's, a
+  // filmstrip's -- can cite it.
+  function setPose(index) {
+    var study = poseStudy();
+    state.kinematicPose = typeof index === "number" ? index : null;
+    var pose = study && state.kinematicPose !== null
+      ? VA.kinematicPose(study, state.kinematicPose) : null;
+    if (pose && pose.stop) state.kinematicStop = pose.stop;
+    writePoseUrl(study, pose);
+  }
+
+  function writePoseUrl(study, pose) {
+    if (typeof window === "undefined" || !window.history || !window.history.replaceState ||
+        !window.location) return;
+    var search = VA.poseSearch(window.location.search, study ? study.id : null,
+      study && pose ? VA.kinematicNumber(pose.measure, VA.KINEMATIC_POSE.angleDecimals) : null);
+    if (search === window.location.search) return;
+    poseUrlWritten = !!(study && pose);
+    try {
+      window.history.replaceState(window.history.state, "",
+        window.location.pathname + search + (window.location.hash || ""));
+    } catch (err) {
+      // A page that cannot rewrite its URL (file://, a sandbox) still poses.
+    }
+  }
+
+  // The 3D pane told the pose: its driver value, through the pane's own
+  // `seek` -- posted only when it moved, and again after the pane reloads
+  // what it shows (wirePaneState forgets what was posted).
+  function syncPanePose(study, pose) {
+    if (state.mode !== "kinematic" || !pose || typeof pose.driver !== "number") return;
+    var text = String(pose.driver);
+    if (text === panePosePosted) return;
+    if (postToPane(["seek", text])) panePosePosted = text;
+  }
+
+  // The DAG's pose film for the pane on screen, built the first time a pose
+  // moves after a paint (VA.poseFilm), or false where this paint's DAG does
+  // not move with the pose or its keyframes would not pair.
+  function filmFor(study, topo, drawnStop, decimals, folds) {
+    if (poseFilm !== null && poseFilmCtx === paneCtx &&
+        (poseFilm === false || poseFilm.valid())) return poseFilm;
+    var builder = builderFor(study, topo, drawnStop, decimals, folds);
+    poseFilmCtx = paneCtx;
+    poseFilm = builder && builder.valid() ? builder.finish() || false : false;
+    return poseFilm;
+  }
+
+  // The film's builder for the pane on screen (VA.poseFilmBuilder), made once
+  // per paint, or null where this paint's DAG does not move with the pose.
+  var poseFilmBuilder = null;
+  var poseFilmBuilderCtx = null;
+
+  function builderFor(study, topo, drawnStop, decimals, folds) {
+    if (poseFilmBuilderCtx === paneCtx) return poseFilmBuilder;
+    poseFilmBuilderCtx = paneCtx;
+    poseFilmBuilder = null;
+    var lengths = VA.EDGE_LENGTH_MODES[paneCtx.edgeLengthMode] || {};
+    var scheme = VA.colourScheme ? VA.colourScheme(paneCtx.colourBy) : null;
+    if (!lengths.contributions && !(scheme && scheme.available)) return null;
+    var count = VA.kinematicPoseCount(study);
+    var keys = [];
+    for (var k = 0; k < VA.KINEMATIC_POSE.filmKeys; k++) {
+      keys.push((count - 1) * k / (VA.KINEMATIC_POSE.filmKeys - 1));
+    }
+    var ctx = paneCtx;
+    poseFilmBuilder = VA.poseFilmBuilder(nodes.pane, function (index) {
+      var at = framePose(study, index, drawnStop);
+      var stack = VA.kinematicStack(study, topo, drawnStop, decimals, folds, at);
+      return Object.assign({}, ctx, {
+        stack: stack, openSubStacks: VA.stackOpenMap(stack),
+        contributions: VA.kinematicContributions(study, drawnStop, at),
+        lengths: VA.kinematicPoseLengths(study, at),
+        onPainted: null, onHot: null, tween: null,
+      });
+    }, keys);
+    return poseFilmBuilder;
+  }
+
+  // After a settled kinematic paint, the film's keyframes are rendered in
+  // idle time, one per idle slot, so Play and a drag start on a film that is
+  // already there (measured: twelve keyframes built at the first frame of
+  // play stalled it 3.3 s on a loaded box).
+  function prebuildFilm() {
+    var study = poseStudy();
+    var topo = currentTopology();
+    if (!study || !topo || !paneCtx || !paneCtx.stack) return;
+    var ctx = paneCtx;
+    var builder = builderFor(study, topo, paneCtx.stack.stop.id,
+      state.kinematic && state.kinematic.display_decimals,
+      VA.readSubStackFolds(widthStore(), study.id));
+    if (!builder) return;
+    var idle = typeof window !== "undefined" && window.requestIdleCallback
+      ? function (fn) { window.requestIdleCallback(fn, { timeout: 2000 }); }
+      : function (fn) { setTimeout(fn, 50); };
+    var next = function () {
+      if (paneCtx !== ctx || !builder.valid() || builder.done() || posePlay) return;
+      try { builder.step(); } catch (err) { return; }
+      idle(next);
+    };
+    idle(next);
+  }
+
+  // A pose for a frame: on a stop's point it is that stop only when the pane
+  // on screen is drawn at it -- the two stops' stacks are different rows, and
+  // a frame of play never changes rows. The settled render that follows does.
+  function framePose(study, index, drawnStop) {
+    var pose = VA.kinematicPose(study, index);
+    return pose && pose.stop && pose.stop !== drawnStop
+      ? Object.assign({}, pose, { stop: null }) : pose;
+  }
+
+  // A moving pose, one frame of it.
+  function livePose(index) {
+    var study = poseStudy();
+    var topo = currentTopology();
+    if (!study || !topo || !paneCtx || !paneCtx.stack) return;
+    state.kinematicPose = index;
+    var drawnStop = paneCtx.stack.stop.id;
+    var pose = framePose(study, index, drawnStop);
+    var decimals = state.kinematic && state.kinematic.display_decimals;
+    var folds = VA.readSubStackFolds(widthStore(), study.id);
+    var stack = VA.kinematicStack(study, topo, drawnStop, decimals, folds, pose);
+    var film = filmFor(study, topo, drawnStop, decimals, folds);
+    // The pane's own ctx follows, so a repaint mid-play draws this pose.
+    paneCtx.stack = stack;
+    paneCtx.contributions = VA.kinematicContributions(study, drawnStop, pose);
+    paneCtx.lengths = VA.kinematicPoseLengths(study, pose);
+    if (film) film.apply(pose.index);
+    VA.applyStackText(nodes.pane, stack);
+    VA.syncPoseControl(nodes.detail, study, VA.kinematicPose(study, index), !!posePlay);
+    scheduleSeamDraw();
+    syncPanePose(study, pose);
+  }
+
+  // Play: the sweep end to end and back at the 3D pane's own pace
+  // (VA.KINEMATIC_POSE.pointsPerSecond), from wherever the pose is. Reduced
+  // motion moves by whole points at the same pace. Any settled pose, a study
+  // change or a pause ends it, and the pause renders the pose it stopped at.
+  function startPlay() {
+    var study = poseStudy();
+    if (!study || posePlay) return;
+    var last = VA.kinematicPoseCount(study) - 1;
+    if (last < 1) return;
+    var at = poseIndex(study);
+    posePlay = { at: at, direction: at >= last ? -1 : 1, lastTick: null };
+    // The pane's own transport would fight this one.
+    postToPane(["pause"]);
+    VA.syncPoseControl(nodes.detail, study, VA.kinematicPose(study, at), true);
+    var tick = function (now) {
+      var play = posePlay;
+      if (!play || poseStudy() !== study) return;
+      var dt = play.lastTick === null ? 0 : Math.min((now - play.lastTick) / 1000, 0.25);
+      play.lastTick = now;
+      var next = play.at + VA.KINEMATIC_POSE.pointsPerSecond * dt * play.direction;
+      if (next > last) { next = last - (next - last); play.direction = -1; }
+      if (next < 0) { next = -next; play.direction = 1; }
+      play.at = Math.min(Math.max(next, 0), last);
+      try {
+        livePose(VA.prefersReducedMotion() ? Math.round(play.at) : play.at);
+      } catch (err) {
+        posePlay = null;
+        renderCrash(err);
+        return;
+      }
+      poseFrame(tick);
+    };
+    poseFrame(tick);
+  }
+
+  // Ends play, leaving the pose where it got to; true when it was playing.
+  function stopPlay() {
+    if (!posePlay) return false;
+    posePlay = null;
+    return true;
+  }
+
+  function poseFrame(fn) {
+    if (typeof window !== "undefined" && window.requestAnimationFrame) {
+      window.requestAnimationFrame(fn);
+    } else {
+      setTimeout(function () { fn(Date.now()); }, 16);
+    }
   }
 
   function rewind() {

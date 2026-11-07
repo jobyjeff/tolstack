@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "parts as blocks",
+  "expect_red": "[real] on the kinematic page, the chain study and the whole walk, as blocks, every block sits inside its own body's field",
+  "mutations": [
+    {
+      "contract": "A block's body is its part's, so its own body's field is drawn around it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md",
+      "note": "Declared by the round-1 rework of a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06). The review's blocker: the pitch plate's block wore the hydraulic brake's body, so that field widened over it and its own did not wrap it.",
+      "file": "apps/viewer/topology.js",
+      "find": "      var block = { part: run.part, body: bodyOf[run.part], start: run.start,",
+      "replace": "      var block = { part: run.part, body: rows[run.start].body, start: run.start,"
+    }
+  ]
+}

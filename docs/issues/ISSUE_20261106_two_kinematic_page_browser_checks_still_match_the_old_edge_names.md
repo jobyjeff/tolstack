@@ -39,3 +39,27 @@ everything-in-3d-is-transparent review's 41/41 ran on a tree without
 `data-id` plus the name read from the projection, so a later rename cannot
 redden it again. Each check's mutation spec should still witness it after the
 change.
+
+## Addendum 2026-11-06 (review of the_grid_and_the_dag_move_with_the_mechanism, round 2)
+
+While this suite is red, the witness gate proves nothing for any spec in it.
+At the merged tree `085bc82f`, `--changed-since integration` reached 14 such
+entries (12 specs), and every one came back NOT WITNESSED ("the tier was red before the
+mutation"):
+
+- `browser__real-at-the-72-stop-the-stack-has-no-travel-and-every-le__40c16feb`
+- `browser__real-colouring-by-body-puts-the-overlay-s-ink-on-the-dag__211510a9#1`
+- `browser__real-colouring-by-body-puts-the-overlay-s-ink-on-the-dag__211510a9#2`
+- `browser__real-hovering-a-stop-s-limit-opens-its-citation-card-s46__f38e2fa9`
+- `browser__real-on-the-first-screen-the-verdicts-beside-the-model-t__d19f46ad`
+- `browser__real-picking-a-graph-width-in-view-widens-the-drawn-dag__5c3dea5d#1`
+- `browser__real-picking-a-graph-width-in-view-widens-the-drawn-dag__5c3dea5d#2`
+- `browser__real-the-plot-draws-each-stop-as-an-error-bar-at-its-own__e9fdd0f6`
+- `browser__real-the-study-page-reads-one-verdict-chip-per-stop__8aa72944`
+- `browser__real-the-toolbar-s-unused-toggle-hides-the-unlit-model-a__38a0757c`
+- `browser__real-the-travel-is-one-folded-sub-stack-that-opens-onto__dca7f56b#1`
+- `browser__real-toggling-unused-leaves-the-results-pane-s-dom-ident__42842da7`
+- `browser__the-kinematic-page-draws-the-model-and-its-stack-in-the__437d3e8b`
+- `browser__the-nav-s-kinematic-row-brings-the-page-back-after-a-top__3f89b311`
+
+Once the two checks are fixed, re-run these with `--only`.

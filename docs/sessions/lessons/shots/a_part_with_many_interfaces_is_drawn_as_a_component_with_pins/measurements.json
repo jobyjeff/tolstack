@@ -23,15 +23,15 @@
         "stubs": 52,
         "chords": 52,
         "leaders": 63,
-        "linkRail": 34,
+        "linkRail": 33,
         "stubRail": 48,
         "leaderChord": 11,
         "blocks": [
           {
             "part": "hub",
             "w": 172,
-            "h": 323,
-            "ratio": 0.53
+            "h": 310,
+            "ratio": 0.55
           },
           {
             "part": "gas_spring_mount_213668_002",
@@ -60,8 +60,8 @@
           {
             "part": "spherical_bearing_tan_link",
             "w": 72,
-            "h": 141,
-            "ratio": 0.51
+            "h": 128,
+            "ratio": 0.56
           },
           {
             "part": "spherical_bearing_tan_link_ms14103_3",
@@ -78,8 +78,8 @@
           {
             "part": "spherical_bearing_pitch_link",
             "w": 86,
-            "h": 167,
-            "ratio": 0.51
+            "h": 154,
+            "ratio": 0.56
           },
           {
             "part": "blade_root",
@@ -96,14 +96,14 @@
           {
             "part": "bolt_nas6403u11d",
             "w": 72,
-            "h": 141,
-            "ratio": 0.51
+            "h": 128,
+            "ratio": 0.56
           },
           {
             "part": "fastener_family",
             "w": 43,
-            "h": 89,
-            "ratio": 0.48
+            "h": 76,
+            "ratio": 0.57
           },
           {
             "part": "bolt_nas6403u13h",
@@ -148,7 +148,7 @@
         "stubs": 37,
         "chords": 35,
         "leaders": 20,
-        "linkRail": 32,
+        "linkRail": 30,
         "stubRail": 7,
         "leaderChord": 3,
         "blocks": [
@@ -209,14 +209,14 @@
           {
             "part": "spherical_bearing_tan_link",
             "w": 57,
-            "h": 115,
-            "ratio": 0.5
+            "h": 102,
+            "ratio": 0.56
           },
           {
             "part": "spherical_bearing_pitch_link",
             "w": 57,
-            "h": 115,
-            "ratio": 0.5
+            "h": 102,
+            "ratio": 0.56
           },
           {
             "part": "gas_spring_piston_214700_002",
@@ -227,14 +227,14 @@
           {
             "part": "bolt_nas6403u11d",
             "w": 72,
-            "h": 141,
-            "ratio": 0.51
+            "h": 128,
+            "ratio": 0.56
           },
           {
             "part": "fastener_family",
             "w": 43,
-            "h": 89,
-            "ratio": 0.48
+            "h": 76,
+            "ratio": 0.57
           },
           {
             "part": "bolt_nas6403u13h",
@@ -279,15 +279,15 @@
         "stubs": 52,
         "chords": 44,
         "leaders": 4,
-        "linkRail": 48,
+        "linkRail": 50,
         "stubRail": 39,
         "leaderChord": 0,
         "blocks": [
           {
             "part": "hub",
             "w": 172,
-            "h": 323,
-            "ratio": 0.53
+            "h": 310,
+            "ratio": 0.55
           },
           {
             "part": "gas_spring_mount_213668_002",
@@ -316,8 +316,8 @@
           {
             "part": "spherical_bearing_tan_link",
             "w": 72,
-            "h": 141,
-            "ratio": 0.51
+            "h": 128,
+            "ratio": 0.56
           },
           {
             "part": "spherical_bearing_tan_link_ms14103_3",
@@ -334,8 +334,8 @@
           {
             "part": "spherical_bearing_pitch_link",
             "w": 86,
-            "h": 167,
-            "ratio": 0.51
+            "h": 154,
+            "ratio": 0.56
           },
           {
             "part": "blade_root",
@@ -352,14 +352,14 @@
           {
             "part": "bolt_nas6403u11d",
             "w": 72,
-            "h": 141,
-            "ratio": 0.51
+            "h": 128,
+            "ratio": 0.56
           },
           {
             "part": "fastener_family",
             "w": 43,
-            "h": 89,
-            "ratio": 0.48
+            "h": 76,
+            "ratio": 0.57
           },
           {
             "part": "bolt_nas6403u13h",
@@ -404,15 +404,15 @@
         "stubs": 51,
         "chords": 50,
         "leaders": 6,
-        "linkRail": 32,
+        "linkRail": 33,
         "stubRail": 25,
         "leaderChord": 0,
         "blocks": [
           {
             "part": "hub",
             "w": 172,
-            "h": 323,
-            "ratio": 0.53
+            "h": 310,
+            "ratio": 0.55
           },
           {
             "part": "gas_spring_mount_213668_002",
@@ -441,8 +441,8 @@
           {
             "part": "spherical_bearing_tan_link",
             "w": 72,
-            "h": 141,
-            "ratio": 0.51
+            "h": 128,
+            "ratio": 0.56
           },
           {
             "part": "spherical_bearing_tan_link_ms14103_3",
@@ -477,14 +477,14 @@
           {
             "part": "spherical_bearing_pitch_link",
             "w": 43,
-            "h": 89,
-            "ratio": 0.48
+            "h": 76,
+            "ratio": 0.57
           },
           {
             "part": "bolt_nas6403u11d",
             "w": 57,
-            "h": 115,
-            "ratio": 0.5
+            "h": 102,
+            "ratio": 0.56
           },
           {
             "part": "gas_spring_piston_214700_002",
@@ -495,8 +495,8 @@
           {
             "part": "fastener_family",
             "w": 43,
-            "h": 89,
-            "ratio": 0.48
+            "h": 76,
+            "ratio": 0.57
           },
           {
             "part": "bolt_nas6403u13h",
@@ -518,6 +518,20 @@
           }
         ]
       }
+    }
+  },
+  "hover": {
+    "id": "pitch_plate_link_attach_bore",
+    "x": 561.0785522460938,
+    "y": 390.6856994628906,
+    "leftPins": 4,
+    "blocks": 2,
+    "lit": {
+      "rails": 2,
+      "stubs": 2,
+      "leaders": 1,
+      "bars": 1,
+      "rows": 1
     }
   },
   "lengthsControl": 0,
@@ -591,14 +605,14 @@
       {
         "part": "spherical_bearing_tan_link",
         "w": 57,
-        "h": 115,
-        "ratio": 0.5
+        "h": 102,
+        "ratio": 0.56
       },
       {
         "part": "spherical_bearing_pitch_link",
         "w": 57,
-        "h": 115,
-        "ratio": 0.5
+        "h": 102,
+        "ratio": 0.56
       },
       {
         "part": "gas_spring_piston_214700_002",
@@ -609,14 +623,14 @@
       {
         "part": "bolt_nas6403u11d",
         "w": 72,
-        "h": 293.93200000000024,
-        "ratio": 0.24
+        "h": 234.4960000000001,
+        "ratio": 0.31
       },
       {
         "part": "fastener_family",
         "w": 43,
-        "h": 749.6080000000011,
-        "ratio": 0.06
+        "h": 76,
+        "ratio": 0.57
       },
       {
         "part": "bolt_nas6403u13h",

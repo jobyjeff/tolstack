@@ -74,7 +74,9 @@
     // VA.EDGE_LENGTH_MODES in that table's own `next` order. A display
     // preference like the two above: the grid's rows never move, only the
     // DAG stretches, and the leaders absorb the difference.
-    var lengthPreset = VA.EDGE_LENGTH_MODES[state.edgeLengthMode] ||
+    // The mode the pane draws (VA.edgeLengthModeFor), which the page hands
+    // in: a kinematic page's default is not the reader's stored choice.
+    var lengthPreset = VA.EDGE_LENGTH_MODES[handlers.edgeLengthMode || state.edgeLengthMode] ||
       VA.EDGE_LENGTH_MODES.uniform;
     var lengths = VA.el("button", "ghost tvpick__mode",
       "Lengths: " + lengthPreset.label);
@@ -408,7 +410,7 @@
     // place that holds both the pane and the plan.
     var fit = { plan: plan, inset: VA.DAG_FIT.topInset };
     var positions = VA.rowPositions(layout, topoProj,
-      ctx.edgeLengthMode || "uniform", M, fit);
+      ctx.edgeLengthMode || "uniform", M, fit, ctx.lengths || null);
     // Mid-respine (viewer_study_respine_animation): the frame is drawn from
     // the TARGET serialisation's layout and plan -- the structure the page is
     // moving to -- with the store interpolated back toward the one the
@@ -1083,6 +1085,192 @@
     }
   }
 
+  // --- the pose film (the_grid_and_the_dag_move_with_the_mechanism) ---------
+  //
+  // A kinematic page's DAG moves with the linkage: in the contribution length
+  // mode a bar's length is its contribution at the live pose, so every frame
+  // of play (or of a slider drag) is a different picture of the SAME rows.
+  // Rebuilding the pane per frame is what the tween handoff measured at
+  // 100+ ms and removed, so this is that handoff's engine pointed at poses
+  // instead of at a study change: the pane is rendered once per KEYFRAME pose
+  // into a detached root (no layout, no paint, nothing on screen moves), the
+  // numbers each render drew are kept, and a frame between two keyframes
+  // eases the LIVE nodes' own attributes from one set to the next. No node is
+  // built per frame. The text in the grid is the one thing a snapshot does
+  // not carry; VA.applyStackText writes it from the stack at the frame's own
+  // pose, so the numbers are exact at every frame and the drawing is exact at
+  // every keyframe (and at rest, where the page renders the pose itself).
+  //
+  //   root   the live pane, as the last renderTopoPane left it
+  //   ctxAt  pose -> the render context at that pose (no onPainted)
+  //   poses  the keyframe poses, ascending
+  //
+  // Returns { apply(pose), valid() }, or null when the keyframes are not one
+  // structure with the live pane (a bar crossing the floor gains a break
+  // mark, say): the page then repaints the pane instead, at most once a frame.
+  VA.poseFilm = function (root, ctxAt, poses) {
+    var builder = VA.poseFilmBuilder(root, ctxAt, poses);
+    return builder ? builder.finish() : null;
+  };
+
+  // The same film, one keyframe at a time: `step()` renders the next one (a
+  // detached render costs what a pane render's script costs -- ~0.3 s on a
+  // loaded box -- so a page builds its film in idle time after a paint, and
+  // the first frame of play does not pay for all of them at once), and
+  // `finish()` renders whatever is left and returns the film (or null).
+  VA.poseFilmBuilder = function (root, ctxAt, poses) {
+    if (!root || !root.querySelector || !poses || poses.length < 2) return null;
+    var scroller = root.querySelector(".tv__hscroll");
+    if (!scroller) return null;
+    var live = takeSnapshot(root);
+    var snaps = [];
+    var drawn = [];
+    var result;
+    var builder = {
+      valid: function () { return root.querySelector(".tv__hscroll") === scroller; },
+      done: function () { return snaps.length === poses.length; },
+      step: function () {
+        if (builder.done()) return false;
+        var keepRender = VA.lastTopoRender;
+        var keepHot = VA.lastTopoHot;
+        try {
+          var shadow = VA.el("div");
+          VA.renderTopoPane(shadow, ctxAt(poses[snaps.length]));
+          snaps.push(takeSnapshot(shadow));
+          drawn.push(VA.lastTopoRender);
+        } finally {
+          VA.lastTopoRender = keepRender;
+          VA.lastTopoHot = keepHot;
+        }
+        return true;
+      },
+      finish: function () {
+        if (result === undefined) {
+          while (builder.step()) { /* the keyframes not yet rendered */ }
+          result = assemble();
+        }
+        return result;
+      },
+    };
+    return builder;
+
+    function assemble() {
+    for (var s = 0; s < snaps.length; s++) {
+      if (snaps[s].length !== live.length) return null;
+      for (var i = 0; i < live.length; i++) {
+        if (snaps[s][i].tag !== live[i].tag) return null;
+      }
+    }
+    // Every property that differs between keyframes, on the LIVE node at the
+    // same place in the tree: eased where each keyframe's value is the same
+    // words around different numbers (a coordinate, a path), stepped to the
+    // nearer keyframe's where the words differ (a class, a hidden break mark),
+    // absent there meaning removed.
+    var plan = [];
+    live.forEach(function (base, i) {
+      var names = {};
+      snaps.forEach(function (snap) {
+        Object.keys(snap[i].attrs).forEach(function (k) { names["attr:" + k] = true; });
+        Object.keys(snap[i].style).forEach(function (k) { names["style:" + k] = true; });
+      });
+      Object.keys(names).forEach(function (key) {
+        var kind = key.slice(0, key.indexOf(":"));
+        var name = key.slice(key.indexOf(":") + 1);
+        var raw = snaps.map(function (snap) {
+          var bag = kind === "attr" ? snap[i].attrs : snap[i].style;
+          return Object.prototype.hasOwnProperty.call(bag, name) ? bag[name] : null;
+        });
+        if (raw.every(function (v) { return v === raw[0]; })) return;
+        var vals = raw.map(function (v) { return v === null ? null : tokens(v); });
+        var eased = name !== "class" && vals.every(function (v) {
+          return v && v.t === vals[0].t && v.n.length === vals[0].n.length;
+        });
+        plan.push({ node: base.node, kind: kind, name: name, raw: raw,
+                    vals: eased ? vals : null });
+      });
+    });
+    var film = {
+      poses: poses.slice(),
+      entries: plan.length,
+      valid: function () { return root.querySelector(".tv__hscroll") === scroller; },
+      apply: function (pose) {
+        var last = poses.length - 1;
+        var p = Math.min(Math.max(pose, poses[0]), poses[last]);
+        var k = 0;
+        while (k < last - 1 && p > poses[k + 1]) k++;
+        var span = poses[k + 1] - poses[k];
+        var u = span > 0 ? (p - poses[k]) / span : 0;
+        for (var n = 0; n < plan.length; n++) {
+          var en = plan[n];
+          var text = en.vals ? interpolated(en.vals[k], en.vals[k + 1], u)
+            : en.raw[u < 0.5 ? k : k + 1];
+          if (en.kind === "attr") {
+            if (text !== null) en.node.setAttribute(en.name, text);
+            else if (en.node.removeAttribute) en.node.removeAttribute(en.name);
+            else delete en.node.attributes[en.name];
+          } else {
+            en.node.style[en.name] = text === null ? "" : text;
+          }
+        }
+        // The page's seam reads what the pane drew: the picture on screen.
+        VA.lastTopoRender = blendValue(drawn[k], drawn[k + 1], u);
+        VA.pinTopoHead(root);
+        return p;
+      },
+    };
+    return film;
+    }
+  };
+
+  // The kinematic grid's numbers rewritten in place from `stack`
+  // (VA.kinematicStack at a pose), for a pane already drawn with the same
+  // rows: each term row's sensitivity and contribution, each sub-stack
+  // header's detail and numbers, and the foot's total. The words are the
+  // row builders' own (edgeRow, subStackRow, stackFoot); a fast-tier test
+  // renders one pose, rewrites it to another and holds every row's text to
+  // a fresh render of the second. Returns how many rows it wrote.
+  VA.applyStackText = function (root, stack) {
+    if (!root || !root.querySelectorAll || !stack) return 0;
+    var set = function (row, cls, text) {
+      var cell = row.querySelector(cls);
+      if (cell && cell.textContent !== text) cell.textContent = text;
+    };
+    var subs = {};
+    stack.entries.forEach(function (entry) { if (entry.kind === "sub") subs[entry.id] = entry; });
+    var written = 0;
+    root.querySelectorAll("tr").forEach(function (row) {
+      var kind = row.getAttribute("data-row-kind");
+      var term = kind === "edge" ? stack.terms[row.getAttribute("data-id")] : null;
+      if (term) {
+        set(row, "td.tvcell--sensitivity", term.sensitivity);
+        set(row, "td.tvcell--contribution", term.contribution +
+          (term.contribution && stack.units ? " " + stack.units : ""));
+        written++;
+        return;
+      }
+      var sub = kind === "substack" ? subs[row.getAttribute("data-substack")] : null;
+      if (sub) {
+        set(row, "span.tvsub__detail", sub.detail ? " · " + sub.detail : "");
+        set(row, "td.tvcell--sensitivity", sub.sensitivity);
+        set(row, "td.tvcell--contribution", sub.contribution);
+        written++;
+        return;
+      }
+      var cls = row.className || "";
+      if (cls.indexOf("tvtotal--worst_case") !== -1) {
+        var r = stack.result;
+        set(row, "td.tvtotal__label", r.label);
+        var label = row.querySelector("td.tvtotal__label");
+        if (label) label.setAttribute("title", r.label + " · " + r.rss);
+        set(row, "td.tvcell--nominal", r.nominal);
+        set(row, "td.tvcell--contribution", r.contribution + " " + (stack.units || "") +
+          " · " + r.rss);
+        written++;
+      }
+    });
+    return written;
+  };
+
   // The space put before the drawing, on the node that wears it.
   function applyBandPad(root, pad) {
     var sizer = root.querySelector ? root.querySelector(".tv__zoomsizer") : null;
@@ -1174,6 +1362,19 @@
     }
   };
 
+  // The zoom box is at least as wide as the pane, so a narrow drawing still
+  // lays out across it. Measured now, not at the last paint: opening the 3D
+  // pane narrows this one without a repaint, and a floor left at the old
+  // width is that much phantom sideways scroll
+  // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what, 560px
+  // at 3840 with the 3D pane open).
+  VA.sizeTopoZoomBox = function (root) {
+    var zoomed = root && root.querySelector ? root.querySelector(".tv__zoom") : null;
+    if (!zoomed) return;
+    var paneWidth = typeof root.clientWidth === "number" ? root.clientWidth : 0;
+    zoomed.style.minWidth = paneWidth > 0 ? paneWidth + "px" : "100%";
+  };
+
   // One scale onto a painted pane. The DAG is drawn at its zoom (railsSvg),
   // so a scale the pane was not painted at repaints it (`topoRezoom`, set by
   // renderTopoPane); one it was painted at only records itself and re-syncs
@@ -1189,8 +1390,7 @@
       return k;
     }
     zoomed.setAttribute("data-zoom", String(k));
-    var paneWidth = typeof root.clientWidth === "number" ? root.clientWidth : 0;
-    zoomed.style.minWidth = paneWidth > 0 ? paneWidth + "px" : "100%";
+    VA.sizeTopoZoomBox(root);
     VA.syncTopoScroll(root);
     if (!skipPin) VA.pinTopoHead(root);
     return k;
@@ -1290,37 +1490,45 @@
   // are given inline — a second place these could drift is exactly the "three
   // places" trap this file already documents once for row height.
   //
-  // `component` is the merged column (viewer_leader_line_grid): one cell per
-  // contiguous same-part run, spanning its tolerance sub-rows via rowspan. It
-  // replaced the per-row "part / interface" column — the part is said once per
-  // group now, and the interfaces left the grid for the leaders. `crop` is the
-  // thumbnail column: the actual crop image where one is resolved and fetched,
-  // the same trigger button otherwise, and NOTHING where no crop index covers
-  // the edge — an image placeholder would read as "not built yet" when the
-  // truth is "no document to crop".
+  // The width budget (the_grid_fits_the_screen_and_its_brackets_say_what_
+  // nests_in_what). Jeff, 2026-11-05: "the table is too wide to fit on screen
+  // even on my 4k monitor, the sourcing and crop columns are obscured when the
+  // 3d and/or preview panel has reasonable size". It was 1218px; it is 1000.
+  // The crop column left for the Preview (where the crop is legible), the
+  // pill cluster became one icon, and the number columns are as wide as the
+  // longest number this repo prints (`−32.185`) at the meta size.
+  //
+  // `part` and `description` are the old merged COMPONENT column split in two
+  // (VA.partColumns): Jeff, "half of the Component column start with
+  // PN/Description, and the other half are Description/PN". Each row has its
+  // own cells, so every row's part cell is a place to click; the words are
+  // said on a part's first row only, and the brackets
+  // (VA.gridBraces) carry the grouping.
   var COLUMNS = [
-    { cls: "component", label: "component", width: 120 },
-    { cls: "ord", label: "#", width: 38 },
-    { cls: "name", label: "element", width: 210, resizable: true },
-    { cls: "nominal", label: "nominal", width: 80 },
-    { cls: "min", label: "min", width: 80 },
-    { cls: "max", label: "max", width: 80 },
+    // Each width is measured against the longest thing its column prints on
+    // the real projection, in a totals row (dense, bold) as well as a member
+    // row: a number never clips, and words clip only with their hover title.
+    // `NAS1149V0332H` inside its brackets' indent is 109px.
+    { cls: "part", label: "part", width: 112 },
+    { cls: "description", label: "description", width: 140 },
+    { cls: "ord", label: "#", width: 30 },
+    { cls: "name", label: "element", width: 220, resizable: true },
+    // A totals row's RSS bound, `-13.735566` (the M10 grip), is 82px.
+    { cls: "nominal", label: "nominal", width: 84 },
+    { cls: "min", label: "min", width: 84 },
+    { cls: "max", label: "max", width: 84 },
     // The sweep's sensitivity on a kinematic page (`coefficient`, signed, in
     // the measure's units per the band's); a chain study's ratio, 1 for an
     // unscaled edge -- so the two kinds of study share one column set
-    // (the_kinematic_grid_is_a_stack_of_sub_stacks). Its 70px came out of
-    // component, element and contribution, so the table is as wide as it was
-    // and nothing the pane measures moves.
-    { cls: "sensitivity", label: "sensitivity", width: 70 },
-    { cls: "contribution", label: "contribution", width: 170 },
-    // 260, not the 200 it was until viewer_study_verdicts_and_gaps: this cell
-    // clips rather than wraps (`.tvcell__chipswrap`, topology.css — a <tr>'s
-    // height is a floor, so a wrapped chip would grow the row off its leader's
-    // seam), and the row's loud "what is wrong with this number" badges now sit
-    // in it ahead of the citation chip. At 200 a badged row clipped its own
-    // citation chip, which is the trigger for the citation card.
-    { cls: "chips", label: "sourcing", width: 260 },
-    { cls: "crop", label: "crop", width: 110 },
+    // (the_kinematic_grid_is_a_stack_of_sub_stacks). Its header word, set in
+    // the header's capitals, is the column's widest text.
+    { cls: "sensitivity", label: "sensitivity", width: 92 },
+    // A chain row prints its weight and its signed band, and a stack's total
+    // its fold and its RSS (`±2.355 deg · RSS ±1.034`). The longest is a
+    // kinematic term's `+ 1.953125 × -0.029297 … 0.029297 deg`, 264px.
+    { cls: "contribution", label: "contribution", width: 270 },
+    // One mark, no words (VA.rowSourcingMark); its header is the mark too.
+    { cls: "sourcing", label: "", title: "sourcing", width: 30 },
   ];
 
   // The array IS the width, and since viewer_leader_grid_legibility it is the
@@ -1337,6 +1545,29 @@
   // and the mutator below is deliberately general anyway: a second resizable
   // column is a flag, not a mechanism.
   VA.TOPO_COLUMNS = COLUMNS;
+
+  // What Fit leaves the grid beside the DAG (deliverable 5: "at 1600 px wide
+  // with the preview open, every row's part and element ... are clickable"):
+  // PART, DESCRIPTION, # and ELEMENT, read off the array so a widened ELEMENT
+  // widens the floor. Fit (the control and `0`; not a study's arrival, which
+  // only fits the pane) scales the drawing down to leave it, never below
+  // `minShare` of the pane; past that the strip scrolls sideways.
+  VA.TOPO_GRID_FLOOR = {
+    columns: ["part", "description", "ord", "name"],
+    minShare: 0.35,
+    width: function () {
+      return COLUMNS.filter(function (c) {
+        return VA.TOPO_GRID_FLOOR.columns.indexOf(c.cls) !== -1;
+      }).reduce(function (sum, c) { return sum + c.width; }, 0);
+    },
+  };
+
+  // The width Fit may give the DAG in a pane `paneWidth` wide.
+  VA.dagFitWidth = function (paneWidth) {
+    if (!(paneWidth > 0)) return paneWidth;
+    return Math.max(paneWidth - VA.TOPO_GRID_FLOOR.width(),
+                    paneWidth * VA.TOPO_GRID_FLOOR.minShare);
+  };
   VA.TOPO_COLUMN_WIDTH = { min: 80, max: 900 };
 
   // --- the preview pane's width (Jeff, 2026-09-15: "it's too narrow") -------
@@ -1626,6 +1857,9 @@
     var columnGrips = [];
     COLUMNS.forEach(function (c) {
       var th = VA.el("th", "tvcell tvcell--" + c.cls, c.label);
+      // A label the column clips is read in full on hover.
+      if (c.title || c.label) th.setAttribute("title", c.title || c.label);
+      if (c.cls === "sourcing") th.appendChild(VA.warningIcon("tvmark__head"));
       boundary += c.width;
       if (c.resizable) {
         th.className += " tvcell--resizable";
@@ -1651,9 +1885,7 @@
     var jogGrip = resizeGrip("jog",
       "Drag to spread the leader lines out.", ctx,
       { kind: "jog", naturalZone: leaderGeo.naturalZone });
-    // A sticky INSET, not a content coordinate: the seam this grip marks is
-    // itself sticky, so it is a fixed distance from the pane's visible left
-    // edge at every scroll (VA.jogGripInset).
+    // On the seam, which scrolls with the strip (VA.jogGripInset).
     jogGrip.style.left = VA.jogGripInset(railWidth, paneWidth) + "px";
     lanes.push(gripLane(jogGrip));
     lanes.forEach(function (lane) { head.appendChild(lane); });
@@ -1680,29 +1912,18 @@
   // centred on a boundary is that boundary less `half`.
   VA.TOPO_GRIP = { width: 7, half: 3 };
 
-  // Where the jog grip sits, measured from the pane's VISIBLE left edge.
+  // Where the jog grip sits: on the seam between the SVG and the grid, less
+  // the hairline's own offset, in the strip's content coordinates.
   //
-  // Normally the seam: `.tv__rails` is `position: sticky; left: 0`, so the
-  // SVG's right edge is `railWidth` from that edge whatever the horizontal
-  // scroll is, and a grip pinned at the same inset rides it exactly.
-  //
-  // Clamped when the DAG is wider than the pane shows, which a reader reaches
-  // by dragging the preview pane open (at VA.TOPO_PANE_WIDTH.max the grid gets
-  // ~298px, narrower than pitch_system's own 316px DAG) or by dragging the jog
-  // zone out. There the seam is off the pane's right edge and no scroll brings
-  // it back -- the rails are sticky, so they do not move out of the way -- and
-  // a grip left out there is a control the reader can see the effect of and
-  // never reach. Clamped, it stops naming its seam exactly; unclamped, it
-  // stops being a control at all. `2 * width` keeps it one grip clear of the
-  // ELEMENT grip's own right-hand pin (VA.columnGripLeft's own clamp, which
-  // lands at `paneWidth - width`) so the two never land on the same pixel.
-  //
-  // 0 for `paneWidth` means "nothing laid out to clamp against" -- the DOM
-  // shim the fast tier renders into, which reports no widths at all.
-  VA.jogGripInset = function (railWidth, paneWidth) {
-    var seam = railWidth - VA.TOPO_GRIP.half;
-    if (!paneWidth || paneWidth <= 0) return seam;
-    return Math.max(0, Math.min(seam, paneWidth - 2 * VA.TOPO_GRIP.width));
+  // It was a sticky inset clamped into the visible pane while the rails were
+  // `position: sticky` (2026-09-16): a seam held at the pane's left edge could
+  // sit off its right edge with no scroll able to bring it back. The rails
+  // scroll with the grid now (the_grid_fits_the_screen_and_its_brackets_say_
+  // what_nests_in_what), so the seam is reached the way the rest of the strip
+  // is, and a clamped grip would only stop naming it. `paneWidth` is kept for
+  // the callers' sake and no longer read.
+  VA.jogGripInset = function (railWidth) {
+    return railWidth - VA.TOPO_GRIP.half;
   };
 
   // Where a resizable column's grip sits, in the SCROLLPORT'S own coordinates
@@ -2059,9 +2280,9 @@
 
     // 0. the alternating bands (viewer_leader_grid_legibility): the region
     //    between two adjacent leaders, tinted in one of two neutral shades by
-    //    parity (VA.rowBandParity). The grid rows wear their body's tint
-    //    instead since the_kinematic_grid_is_a_stack_of_sub_stacks
-    //    (VA.gridRowMarks). Drawn
+    //    parity (VA.rowBandParity). The grid rows wear no tint since
+    //    the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what
+    //    (brackets say the grouping, VA.gridBraces). Drawn
     //    first so everything else sits on top of it, and hit-tested by
     //    nothing -- a band is wayfinding, not a target.
     leaderGeo.bands.forEach(function (band) {
@@ -2194,6 +2415,7 @@
         height: Math.max(0, block.y2 - block.y1), rx: 3, ry: 3,
       });
       rect.setAttribute("data-block", block.part);
+      if (block.body !== undefined) rect.setAttribute("data-block-body", block.body);
       rect.setAttribute("aria-label", (part && part.name) || block.part);
       under.appendChild(rect);
       if (fillMode !== "off") {
@@ -2443,6 +2665,7 @@
     // would otherwise take the pointer off the pin it lands on.
     var chords = VA.svg("g", "tv__chords");
     over.appendChild(chords);
+    var posed = !!(VA.EDGE_LENGTH_MODES[ctx.edgeLengthMode] || {}).contributions;
     geometry.marks.forEach(function (mark) {
       if (mark.kind === "edge") {
         var edge = index.edges[mark.id];
@@ -2481,13 +2704,19 @@
         // A floored bar (scaled modes only) wears a drafting-style break
         // across its middle: this length is the minimum render length, not a
         // measured proportion, and a reader must be able to tell at a glance.
-        if (mark.floored) {
-          over.appendChild(fade(VA.svg("path", "rail__break", {
+        // In a mode whose lengths move with the pose (the contribution mode)
+        // every bar carries its break, hidden where it is not floored, so the
+        // drawing is one set of nodes at every pose and the pose film
+        // (VA.poseFilm) can move it rather than rebuild it.
+        if (mark.floored || posed) {
+          var brk = VA.svg("path", "rail__break", {
             d: "M " + (mark.x - 5) + " " + (mark.y + 3) +
                " L " + (mark.x + 5) + " " + (mark.y - 1) +
                " M " + (mark.x - 5) + " " + (mark.y + 1) +
                " L " + (mark.x + 5) + " " + (mark.y - 3),
-          }), "edge", mark.id));
+          });
+          if (!mark.floored) brk.setAttribute("visibility", "hidden");
+          over.appendChild(fade(brk, "edge", mark.id));
         }
 
         // The hover/click target, over the SAME length but solid and wide
@@ -2555,6 +2784,8 @@
       var node = index.nodes[mark.id];
       var dotClasses = ["rail__dot"];
       if (mark.branch) dotClasses.push("rail__dot--branch");
+      // A hook for the browser tier's blocks suite, not a style: a pin is
+      // drawn as any other dot, and no stylesheet rule names this class.
       if (mark.pin) dotClasses.push("rail__dot--pin");
       if (node && node.kind === "datum_feature") dotClasses.push("rail__dot--datum");
       if (marking) dotClasses.push(chainNodes[mark.id] ? "rail__dot--on" : "rail__dot--off");
@@ -2896,23 +3127,6 @@
     var table = VA.el("table", "tvtable");
     table.style.width = tableWidth() + "px";
     table.appendChild(colgroup());
-    var tbody = VA.el("tbody");
-    // What each row wears (VA.gridRowMarks): its body's tint, the same one
-    // the DAG's container for that body is filled with, and the divider
-    // above it -- a hairline inside a body, a heavier rule between bodies and
-    // between sub-stacks.
-    var marks = VA.gridRowMarks(plan, ctx.topoProj);
-    plan.groups.forEach(function (group) {
-      for (var i = 0; i < group.count; i++) {
-        var planRow = plan.rows[group.start + i];
-        var row = group.header
-          ? subStackRow(planRow, ctx, marks[planRow.id], hot)
-          : edgeRow(planRow, group, i === 0, index, chain, marking, ctx,
-                    marks[planRow.id], hot);
-        tbody.appendChild(fade(row, "edge", planRow.id));
-      }
-    });
-    table.appendChild(tbody);
     // The balance sheet's bottom block (viewer_summary_balance_sheet): the
     // rolled-up numbers as rows of THIS table, under the members they are the
     // total of, in the same columns. Only where a study is actually
@@ -2921,45 +3135,140 @@
     // (VA.renderTopoTotals's error block). A kinematic page's is its stop's.
     var foot = ctx.stack ? stackFoot(ctx.stack)
       : totalsFoot(marking ? ctx.study : null);
+    // The brackets (VA.gridBraces), over the rows they group and taking no
+    // layout of their own: every row is exactly `rowHeight` tall, so a
+    // group's top and bottom edge are row counts, and nothing a leader's seam
+    // reads moves. A row's first words start inside its innermost bracket.
+    var study = !marking ? null : ctx.stack ? "kinematic" : ctx.study ? "chain" : null;
+    var braces = VA.gridBraces(plan, {
+      study: study, foot: foot ? foot.childNodes.length : 0,
+    });
+    var tbody = VA.el("tbody");
+    plan.groups.forEach(function (group) {
+      for (var i = 0; i < group.count; i++) {
+        var planRow = plan.rows[group.start + i];
+        var indent = braceIndent(braces.cover[group.start + i] || 0);
+        var row = group.header
+          ? subStackRow(planRow, ctx, hot, indent)
+          : edgeRow(planRow, group, i === 0, index, chain, marking, ctx, hot, indent);
+        tbody.appendChild(fade(row, "edge", planRow.id));
+      }
+    });
+    table.appendChild(tbody);
     if (foot) table.appendChild(foot);
     box.appendChild(table);
-    // What the sourcing chips say, under the rows they mark: below the last
+    box.appendChild(braceLayer(braces));
+    // What the sourcing marks say, under the rows they mark: below the last
     // row, so no leader's seam moves.
-    if (plan.rows.length && marking) box.appendChild(sourcingLegend(plan, ctx.topoProj));
+    if (plan.rows.length && marking) box.appendChild(sourcingLegend());
     return box;
   }
 
-  // The sourcing legend: each confidence chip beside the words it means
-  // (VA.CONFIDENCE_WORDS), and the one row tint that is not a body's.
-  function sourcingLegend(plan, topoProj) {
+  // The brackets' geometry (VA.gridBraces is the model). Every group is a
+  // pair of caps -- `╭──╮` on its first row's top edge, `╰──╯` on its last
+  // row's bottom edge -- inset `inset` px a side per level, so an outer group
+  // is wider than the groups inside it. The curl is the caps' height: it
+  // stays inside the space a row leaves above and below its text, so a cap
+  // never runs through a word. Caps of several groups on one edge step apart
+  // by `step`, outermost on the outside.
+  VA.GRID_BRACE = { inset: 7, step: 2, text: 14, curlMax: 6 };
+
+  // Where a row's first words start: clear of the left stubs of the `cover`
+  // brackets around it.
+  function braceIndent(cover) {
+    return 4 + cover * VA.GRID_BRACE.inset;
+  }
+
+  VA.braceGeometry = function (model, rowHeight, width) {
+    var g = VA.GRID_BRACE;
+    var curl = Math.max(2, Math.min(g.curlMax, Math.floor((rowHeight - g.text) / 2)));
+    var tops = {};
+    var bottoms = {};
+    var caps = [];
+    model.braces.forEach(function (b) {
+      var x = 2 + b.level * g.inset;
+      var w = Math.max(0, width - 2 * x);
+      var t = tops[b.start] || 0;
+      var u = bottoms[b.end] || 0;
+      tops[b.start] = t + 1;
+      bottoms[b.end] = u + 1;
+      var y0 = b.start * rowHeight + 1 + t * g.step;
+      var y1 = (b.end + 1) * rowHeight - 1 - u * g.step;
+      caps.push({ kind: b.kind, gap: b.gap, side: "top", id: b.id,
+                  left: x, top: y0, width: w, height: curl });
+      caps.push({ kind: b.kind, gap: b.gap, side: "bottom", id: b.id,
+                  left: x, top: y1 - curl, width: w, height: curl });
+    });
+    var rules = model.rules.map(function (r) {
+      var x = 2 + r.level * g.inset;
+      return { left: x, top: r.row * rowHeight, width: Math.max(0, width - 2 * x) };
+    });
+    return { caps: caps, rules: rules, curl: curl };
+  };
+
+  function braceLayer(model) {
+    var layer = VA.el("div", "tvbraces");
+    layer.setAttribute("aria-hidden", "true");
+    var geo = VA.braceGeometry(model, M.rowHeight, tableWidth());
+    var place = function (node, box) {
+      node.style.left = box.left + "px";
+      node.style.top = box.top + "px";
+      node.style.width = box.width + "px";
+      if (box.height !== undefined) node.style.height = box.height + "px";
+      layer.appendChild(node);
+    };
+    geo.caps.forEach(function (cap) {
+      var node = VA.el("div", "tvbrace tvbrace--" + cap.side + " tvbrace--" + cap.kind +
+        (cap.gap ? " tvbrace--gap" : ""));
+      node.setAttribute("data-brace", cap.id);
+      place(node, cap);
+    });
+    geo.rules.forEach(function (rule) { place(VA.el("div", "tvbrace__rule"), rule); });
+    return layer;
+  }
+
+  // The sourcing legend: every mark beside the words it means
+  // (VA.sourcingMarkWords), and what a row with no mark is.
+  function sourcingLegend() {
     var strip = VA.el("div", "tvlegend");
     // As wide as the table above it, never wider: a wrapping strip in the
     // pane's shrink-to-fit box would otherwise lay out at its one-line width
     // and widen the pane's sideways scroll.
     strip.style.width = tableWidth() + "px";
     strip.appendChild(VA.el("span", "tvlegend__head", "sourcing"));
-    VA.CONFIDENCES.forEach(function (c) {
+    VA.SOURCING_MARKS.forEach(function (key) {
       var item = VA.el("span", "tvlegend__item");
-      item.appendChild(VA.chip(VA.confidenceClass(c), VA.CONFIDENCE_LABEL[c],
-        VA.CONFIDENCE_WORDS[c]));
-      item.appendChild(VA.el("span", "muted", VA.CONFIDENCE_WORDS[c]));
+      item.setAttribute("data-mark", key);
+      item.appendChild(sourcingMark({ key: key, words: VA.sourcingMarkWords(key) }));
+      item.appendChild(VA.el("span", "muted", VA.sourcingMarkWords(key)));
       strip.appendChild(item);
     });
-    // Every tint the rows wear, named (the_dag_is_coloured_by_a_chosen_
-    // attribute_and_spaced_to_taste: "no unnamed wash"): the two provenance
-    // washes, where a row wears one, and each body's tint beside its name.
-    var swatch = function (cls, words, title) {
-      var item = VA.el("span", "tvlegend__item");
-      if (title) item.setAttribute("title", title);
-      item.appendChild(VA.el("span", "tvlegend__swatch " + cls));
-      item.appendChild(VA.el("span", "muted", words));
-      strip.appendChild(item);
-    };
-    VA.gridLegendTints(plan, topoProj).forEach(function (tint) {
-      if (tint.wash) swatch("tvlegend__swatch--" + tint.wash, tint.label);
-      else swatch("tv__fill--t" + tint.tint, tint.label, tint.label + " (its rows' tint)");
-    });
+    var none = VA.el("span", "tvlegend__item");
+    none.setAttribute("data-mark", VA.SOURCING_UNMARKED);
+    none.appendChild(VA.el("span", "muted",
+      "no mark: " + VA.CONFIDENCE_WORDS[VA.SOURCING_UNMARKED]));
+    strip.appendChild(none);
     return strip;
+  }
+
+  // One mark: the nav's warning triangle in the state's colour, the state's
+  // words on hover.
+  function sourcingMark(mark) {
+    var node = VA.el("span", "tvmark tvmark--" + mark.key);
+    node.setAttribute("title", mark.words);
+    node.setAttribute("aria-label", mark.words);
+    node.setAttribute("data-mark", mark.key);
+    node.appendChild(VA.warningIcon());
+    return node;
+  }
+
+  // The sourcing cell: the row's mark or nothing. The mark node rides on the
+  // cell (`cell.mark`) for a caller that makes it a card trigger.
+  function sourcingCell(mark) {
+    var cell = VA.el("td", "tvcell tvcell--sourcing");
+    cell.mark = mark ? sourcingMark(mark) : null;
+    if (cell.mark) cell.appendChild(cell.mark);
+    return cell;
   }
 
   // A sub-stack's header row (VA.kinematicStack's `sub` entry): ▸ or ▾, its
@@ -2967,18 +3276,18 @@
   // sensitivity and what it contributes here. A click opens or closes it, on
   // the page's one fold state (`ctx.onToggleSubStack`), which the DAG's
   // dashed field for the same sub-study reads too.
-  function subStackRow(planRow, ctx, mark, hot) {
+  function subStackRow(planRow, ctx, hot, indent) {
     var entry = planRow.header;
     var el = baseRow("substack", ctx, planRow.id);
-    el.className += " tvrow--depth-" + entry.depth + (entry.gap ? " tvrow--gapstack" : "") +
-      (mark ? " " + mark : "");
+    el.className += " tvrow--depth-" + entry.depth + (entry.gap ? " tvrow--gapstack" : "");
     el.setAttribute("data-substack", entry.id);
     var foldable = entry.count > 0 && !!ctx.onToggleSubStack;
     var toggle = function () { if (foldable) ctx.onToggleSubStack(entry.id, !entry.open); };
     el.onclick = toggle;
     var name = VA.el("td", "tvcell tvcell--name tvsub__name");
-    name.setAttribute("colspan", "3");
-    name.style.paddingLeft = (8 + 14 * entry.depth) + "px";
+    // Over PART, DESCRIPTION, # and ELEMENT, starting inside its own bracket.
+    name.setAttribute("colspan", "4");
+    name.style.paddingLeft = indent + "px";
     if (entry.count > 0) {
       var caret = VA.el("span", "tvsub__caret", entry.open ? "▾" : "▸");
       name.appendChild(caret);
@@ -2994,22 +3303,19 @@
     el.appendChild(VA.el("td", "tvcell tvcell--sensitivity num", entry.sensitivity));
     el.appendChild(VA.el("td", "tvcell tvcell--contribution num tvsub__total",
       entry.contribution));
-    var chips = chipsCell("chips");
-    if (entry.gap) {
-      // The gap's chip opens the card that says what would resolve it
+    var cell = sourcingCell(entry.gap
+      ? { key: "no_value", words: entry.detail || VA.sourcingMarkWords("no_value") } : null);
+    if (entry.gap && ctx.onCardShow && ctx.kinematicStudy) {
+      // The gap's mark opens the card that says what would resolve it
       // (VA.kinematicGapCard).
-      var gapChip = VA.chip("chip--gap", "gap", entry.detail);
-      if (ctx.onCardShow && ctx.kinematicStudy) {
-        gapChip.className += " cardtrig";
-        gapChip.onmouseenter = function () {
-          ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy,
-            { study: entry.id, name: entry.name }, ctx.topoProj), gapChip);
-        };
-      }
-      chips.wrap.appendChild(gapChip);
+      var gapMark = cell.mark;
+      gapMark.className += " cardtrig";
+      gapMark.onmouseenter = function () {
+        ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy,
+          { study: entry.id, name: entry.name }, ctx.topoProj), gapMark);
+      };
     }
-    el.appendChild(chips.cell);
-    el.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    el.appendChild(cell);
     el.setAttribute("tabindex", "0");
     el.setAttribute("aria-label", entry.name);
     el.onkeydown = function (event) {
@@ -3036,8 +3342,7 @@
     total.appendChild(VA.el("td", "tvcell tvcell--sensitivity num"));
     total.appendChild(VA.el("td", "tvcell tvcell--contribution num",
       r.contribution + " " + (stack.units || "") + " · " + r.rss));
-    total.appendChild(VA.el("td", "tvcell tvcell--chips"));
-    total.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    total.appendChild(sourcingCell(null));
     foot.appendChild(total);
     var v = r.verdict;
     if (v) {
@@ -3051,12 +3356,8 @@
       var margin = VA.el("td", "tvcell num tvtotal__margin", v.marginText);
       margin.setAttribute("colspan", "4");
       tr.appendChild(margin);
-      tr.appendChild(VA.el("td", "tvcell tvcell--contribution num tvtotal__criterion",
-        v.limitText || ""));
-      var chips = chipsCell("chips");
-      if (v.scopeChip) chips.wrap.appendChild(VA.chip("chip--budget", v.scopeChip, v.scopeTitle));
-      tr.appendChild(chips.cell);
-      tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+      tr.appendChild(criterionCell(v.limitText || "", v.scopeChip, v.scopeTitle));
+      tr.appendChild(sourcingCell(null));
       foot.appendChild(tr);
     }
     return foot;
@@ -3115,8 +3416,12 @@
     var tr = VA.el("tr", "tvtotal " + cls);
     tr.style.height = M.rowHeight + "px";
     if (section) {
-      var cell = VA.el("td", "tvcell tvcell--component tvtotal__section",
+      // Over PART and DESCRIPTION.
+      var cell = VA.el("td", "tvcell tvcell--part tvtotal__section",
         sectionLabel);
+      cell.setAttribute("colspan", "2");
+      // Inside the study's own bracket, the one group a foot row sits in.
+      cell.style.paddingLeft = braceIndent(1) + "px";
       if (section > 1) cell.setAttribute("rowspan", String(section));
       tr.appendChild(cell);
     }
@@ -3129,14 +3434,19 @@
     var label = VA.el("td", "tvcell tvcell--name tvtotal__label", total.label);
     label.setAttribute("title", total.title);
     tr.appendChild(label);
-    tr.appendChild(VA.el("td", "tvcell tvcell--nominal num", total.center));
-    tr.appendChild(VA.el("td", "tvcell tvcell--min num", total.min));
-    tr.appendChild(VA.el("td", "tvcell tvcell--max num", total.max));
-    tr.appendChild(VA.el("td", "tvcell tvcell--sensitivity num"));
-    tr.appendChild(VA.el("td", "tvcell tvcell--contribution num",
-      total.half + " " + total.units));
-    tr.appendChild(VA.el("td", "tvcell tvcell--chips"));
-    tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    // Each number carries itself as its title: the columns are measured to
+    // hold every total, and a total wider than that is still readable whole.
+    var num = function (cls, text) {
+      var cell = VA.el("td", "tvcell tvcell--" + cls + " num", text);
+      if (text) cell.setAttribute("title", text);
+      tr.appendChild(cell);
+    };
+    num("nominal", total.center);
+    num("min", total.min);
+    num("max", total.max);
+    num("sensitivity", "");
+    num("contribution", total.half + " " + total.units);
+    tr.appendChild(sourcingCell(null));
     return tr;
   }
 
@@ -3172,14 +3482,8 @@
     margin.setAttribute("colspan", "4");
     margin.setAttribute("title", row.marginText);
     tr.appendChild(margin);
-    tr.appendChild(VA.el("td", "tvcell tvcell--contribution num tvtotal__criterion",
-      row.criterionText || ""));
-    var chips = chipsCell("chips");
-    if (row.scopeChip) {
-      chips.wrap.appendChild(VA.chip("chip--budget", row.scopeChip, row.scopeTitle));
-    }
-    tr.appendChild(chips.cell);
-    tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    tr.appendChild(criterionCell(row.criterionText || "", row.scopeChip, row.scopeTitle));
+    tr.appendChild(sourcingCell(null));
     return tr;
   }
 
@@ -3190,9 +3494,19 @@
     label.setAttribute("colspan", "6");
     if (verdict) label.setAttribute("title", verdict.title);
     tr.appendChild(label);
-    tr.appendChild(VA.el("td", "tvcell tvcell--chips"));
-    tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    tr.appendChild(sourcingCell(null));
     return tr;
+  }
+
+  // A check's criterion, in the column a member row's contribution sits in,
+  // with its scope (`BUDGET`) as the cell's first word: the sourcing column
+  // it used to sit in is one icon wide now. The whole of it on hover.
+  function criterionCell(text, scope, scopeTitle) {
+    var cell = VA.el("td", "tvcell tvcell--contribution num tvtotal__criterion");
+    if (scope) cell.appendChild(VA.chip("chip--budget", scope, scopeTitle));
+    cell.appendChild(VA.el("span", null, text));
+    cell.setAttribute("title", (scope ? scope + " · " : "") + text);
+    return cell;
   }
 
   // Every row is exactly `rowHeight` tall, set inline from the same constant the
@@ -3231,51 +3545,38 @@
     return el;
   }
 
-  // The sourcing cell's chips need their own flex row: setting `display: flex`
-  // directly on a <td> pulls it out of the table's box generation in some
-  // browsers, so the flex container is a plain div one layer inside the cell
-  // instead — the same "wrap the cell's content in a div" shape every other
-  // cell in this repo's tables already uses.
-  function chipsCell(cls) {
-    var cell = VA.el("td", "tvcell tvcell--" + cls);
-    var wrap = VA.el("div", "tvcell__chipswrap");
-    cell.appendChild(wrap);
-    return { cell: cell, wrap: wrap };
+  // The PART and DESCRIPTION cells (VA.partColumns): one pair per row, so
+  // every row's part cell is part of the row and selects it, with the words
+  // on a part's first row only -- the part is said once and its bracket or
+  // rule says where it ends. Whatever the column clips is on hover, and the
+  // Preview of any of its rows has the part's name, drawing and picture.
+  function partCells(el, group, first, indent, index) {
+    var words = first ? VA.partColumns(group.part === null ? null
+      : (index.parts[group.part] || { id: group.part })) : null;
+    var number = VA.el("td", "tvcell tvcell--part", words ? words.number : "");
+    number.style.paddingLeft = indent + "px";
+    var description = VA.el("td", "tvcell tvcell--description",
+      words ? words.description : "");
+    if (words && (group.title || group.label)) {
+      number.setAttribute("title", group.title || group.label);
+      description.setAttribute("title", group.title || group.label);
+    }
+    el.appendChild(number);
+    el.appendChild(description);
   }
 
-  // The merged component cell: one per group, spanning the group's sub-rows.
-  // The part's name as text, or the gap wording for a clearance. Clicking it
-  // selects nothing: it is a grouping, not a row. It opened the part's hover
-  // card until 2026-10-30; the part's name, drawing and picture are now in
-  // the Preview of any of its rows (the record's `part`), so the cell is a
-  // label again and whatever the column clips is readable in full on hover.
-  function componentCell(group) {
-    var cell = VA.el("td", "tvcell tvcell--component", group.label);
-    if (group.count > 1) cell.setAttribute("rowspan", String(group.count));
-    cell.onclick = function (event) {
-      if (event && event.stopPropagation) event.stopPropagation();
-    };
-    if (group.title || group.label) cell.setAttribute("title", group.title || group.label);
-    return cell;
-  }
-
-  function edgeRow(planRow, group, first, index, chain, marking, ctx, mark,
-                   hot) {
+  function edgeRow(planRow, group, first, index, chain, marking, ctx, hot, indent) {
     var edge = index.edges[planRow.id];
     var hit = chain[planRow.id];
     var term = planRow.term || null;
     var el = baseRow("edge", ctx, planRow.id);
-    // The row's body tint and its divider (VA.gridRowMarks). The body's tint
-    // is the row's background COLOUR, the weakest rule on it: an untraced or
-    // uncited row's provenance wash (.tvrow--edge.conf--*, topology.css) is
-    // an IMAGE layered over it, so both still show.
-    if (mark) el.className += " " + mark;
     if (term) el.className += " tvrow--depth-" + term.depth;
     if (first) el.className += " tvrow--group-start";
     // A kinematic term's sourcing is its band's (VA.kinematicStack's
-    // `confidence`); every other row's is its edge's own.
+    // `confidence`); every other row's is its edge's own. It is the row's
+    // mark (VA.rowSourcingMark), not a tint: the brackets are the only thing
+    // a row's background says.
     var confidence = term && term.confidence ? term.confidence : edge ? edge.confidence : null;
-    if (edge) el.className += " " + VA.confidenceClass(confidence);
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
     if (edge && edge.zero_width) el.className += " tvrow--zero-width";
@@ -3290,7 +3591,7 @@
     if (planRow.closes) el.className += " tvrow--closes";
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
 
-    if (first) el.appendChild(componentCell(group));
+    partCells(el, group, first, indent, index);
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a
@@ -3316,8 +3617,6 @@
     var fullName = record ? record.title : missing(planRow.id);
     var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : fullName);
     if (!valueOnly) nameCell.setAttribute("title", fullName);
-    // A term of a sub-stack indents one step per level under its header.
-    if (term) nameCell.style.paddingLeft = (8 + 14 * term.depth) + "px";
     el.appendChild(nameCell);
 
     // The value cell, decomposed into three (deliverable 2): the old combined
@@ -3383,58 +3682,24 @@
     }
     el.appendChild(contribution);
 
-    var chips = chipsCell("chips");
-    if (edge) {
-      // What this row has to admit about itself, FIRST and loud
-      // (viewer_study_verdicts_and_gaps, deliverable 2): a study-level badge
-      // that cannot be traced to its rows sends the reader hunting through 43
-      // of them. Everyday words — the confidence chip beside it keeps the
-      // repo's own vocabulary and is the citation card's trigger; this says
-      // the same thing in the words a reader brought with them. It is also
-      // where the old "zero-width band" chip went: two chips on one row saying
-      // one thing in two vocabularies is the redundancy, not the loudness.
-      VA.edgeAttention(edge).forEach(function (flag) {
-        chips.wrap.appendChild(
-          VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
-      });
-      // The row's statement about its citation. It opened the citation's
-      // hover card until 2026-10-30; the full reference is the Preview's now,
-      // one hover away on this same row.
-      var confChip = VA.chip(VA.confidenceClass(confidence),
-        confidence === null ? "no value"
-          : (VA.CONFIDENCE_LABEL[confidence] || confidence),
-        VA.CONFIDENCE_WORDS[confidence] || null);
-      var sourceRef = edge.dimension && edge.dimension.source_ref;
-      chips.wrap.appendChild(VA.markGeneralNote(confChip, sourceRef));
-      if (edge.kind === "gap") {
-        chips.wrap.appendChild(VA.chip("chip--gap", "gap",
-          "its two interfaces share no part — a real distance across a clearance"));
-      }
-      // A kinematic term with no band on file says so, and its chip opens the
-      // card that names what would resolve it (VA.kinematicGapCard).
-      if (term && term.flag) {
-        var noBand = VA.chip("chip--gap", term.flag, null);
-        if (ctx.onCardShow && ctx.kinematicStudy) {
-          noBand.className += " cardtrig";
-          noBand.onmouseenter = function () {
-            ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy,
-              { edge: planRow.id, name: fullName }, ctx.topoProj), noBand);
-          };
-        }
-        chips.wrap.appendChild(noBand);
-      }
-      if (edge.value_source === "derived") {
-        chips.wrap.appendChild(VA.chip("chip--derived", "DERIVED",
-          VA.VALUE_SOURCES.derived.title));
-      }
-      if (edge.transform && edge.transform.kind !== "identity") {
-        chips.wrap.appendChild(VA.chip("chip--transform", edge.transform.kind,
-          "this edge carries a non-identity DEFAULT transform: " +
-          VA.transformText(edge.transform)));
-      }
+    // The row's one mark (deliverable 3): the worst thing its sourcing has to
+    // say, in that state's colour, or nothing. The words behind every chip
+    // this cell used to carry -- the citation, the note, DERIVED, the gap,
+    // the transform -- are the Preview's, one hover away on this same row.
+    var mark = edge ? VA.rowSourcingMark(confidence, edge, !!(term && term.flag)) : null;
+    var markCell = sourcingCell(mark);
+    // A kinematic term with no band on file: its mark opens the card that
+    // names what would resolve it (VA.kinematicGapCard).
+    if (mark && term && term.flag && ctx.onCardShow && ctx.kinematicStudy) {
+      var noBand = markCell.mark;
+      noBand.className += " cardtrig";
+      noBand.setAttribute("title", term.flag);
+      noBand.onmouseenter = function () {
+        ctx.onCardShow(VA.kinematicGapCard(ctx.kinematicStudy,
+          { edge: planRow.id, name: fullName }, ctx.topoProj), noBand);
+      };
     }
-    el.appendChild(chips.cell);
-    el.appendChild(edgeCropCell(edge, ctx));
+    el.appendChild(markCell);
     // The grid half of the shared hover state. Registered last, because every
     // branch above appends to `el.className` and the base this rewrites from
     // has to be the finished string. The row LEADS for its own edge and for
@@ -3453,48 +3718,6 @@
     });
     hotHover(hot, el, hotKey("edge", planRow.id));
     return nameRow(el, ctx, "edge", planRow.id, fullName);
-  }
-
-  // The thumbnail cell (viewer_leader_line_grid): only where a crop index
-  // actually covers this edge. An edge authored inline in the topology, or a
-  // derived gap, has no crop index to check — the Preview's crop section
-  // states the reason in full; a "no crop" marker here for those would read
-  // as a stale index rather than what it is. When the crop is resolved AND
-  // its PNG has been fetched (ctx.cropImages, topology_app.js's cache), the
-  // cell shows the thumbnail — the actual crop of the tolerance annotation,
-  // inline on the row; until then, or for a crop that cannot resolve, a short
-  // word, never a placeholder image.
-  //
-  // It opened the edge's hover card on hover and click until 2026-10-30
-  // (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark).
-  // It is part of its row now: hovering it previews the row, whose Preview
-  // shows this same crop at a legible size, and clicking it keeps that Preview.
-  function edgeCropCell(edge, ctx) {
-    var cell = VA.el("td", "tvcell tvcell--crop");
-    // The same clamp wrapper the chips cell uses, for the same reason: a real
-    // <tr>'s height is a floor, not a cap, and content one pixel taller than
-    // compact's 16px pitch would grow the row off its leader's seam —
-    // exactly the drift the browser tier's correspondence check measures.
-    var wrap = VA.el("div", "tvcell__cropwrap");
-    cell.appendChild(wrap);
-    if (!edge || !edge.crop_key) return cell;
-    var entry = VA.cropForKey(ctx.crops, edge.crop_key);
-    var resolved = entry.status === "resolved";
-    var image = resolved && ctx.cropImages ? ctx.cropImages[entry.png] : null;
-    var node = VA.el("span", "crop-trigger crop-trigger--" + entry.status +
-      (image && image.url ? " crop-trigger--thumb" : ""));
-    if (image && image.url) {
-      var img = VA.el("img", "tvthumb");
-      img.setAttribute("src", image.url);
-      img.setAttribute("alt", "crop of " + entry.pdf_name + " sheet " + entry.page);
-      node.appendChild(img);
-    } else {
-      node.textContent = resolved ? "drawing crop" : "no crop — " + entry.status;
-    }
-    node.setAttribute("title", resolved ? VA.cropProvenanceLine(entry) : (entry.reason || ""));
-    node.cropEntry = entry;
-    wrap.appendChild(node);
-    return cell;
   }
 
   function isSelected(ctx, kind, id) {
