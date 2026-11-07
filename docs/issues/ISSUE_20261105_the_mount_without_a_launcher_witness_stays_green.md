@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests/mutation-witnesses
 reporter: agent
 class: decayed_witness
 found_by: docs/sessions/HANDOFF_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md
+defer_until: 2026-12-06
+resolution: deferred 2026-11-06 (triage) -- low defers by default; decayed_witness has no program; 30 days
 ---
 
 # The "mount without a launcher" witness stays green under its mutation

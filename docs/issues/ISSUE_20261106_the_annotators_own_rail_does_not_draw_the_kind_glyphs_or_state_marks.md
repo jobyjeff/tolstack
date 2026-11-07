@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: annotate/rail
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md
+defer_until: 2026-12-06
+class: reading_surface_copy
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # The annotator's own rail does not draw the kind glyphs, the state marks or the legend

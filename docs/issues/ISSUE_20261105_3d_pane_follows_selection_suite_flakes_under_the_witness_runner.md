@@ -1,12 +1,14 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/browser-tier
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261105_a_tween_is_seen_and_zooms_out_before_it_zooms_in.md
 class: flaky_check
+defer_until: 2026-12-06
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # "3D pane follows the selection" fails a different sub-check on some witness-runner runs

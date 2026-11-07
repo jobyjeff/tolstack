@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: annotate/browser-check
 reporter: agent
-class: load_sensitive_check
+class: timing_assertion_under_load
 found_by: docs/sessions/active/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
+handoff: docs/sessions/HANDOFF_20261106_the_annotate_pacing_checks_step_a_virtual_clock.md
+resolution: triaged 2026-11-06 (triage) -- folded into the class-scoped the_annotate_pacing_checks_step_a_virtual_clock
 ---
 
 # The annotate speed-control check reads index 0 at both speeds under load

@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer nav scene tree / annotator hover
 reporter: agent
 class: hover_lost_on_rebuild
 found_by: docs/sessions/HANDOFF_20261105_the_seam_and_rail_checks_wait_on_settled_state.md
+defer_until: 2026-12-06
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # A nav scene row rebuilt under a resting pointer drops the scene's hover light until the pointer moves

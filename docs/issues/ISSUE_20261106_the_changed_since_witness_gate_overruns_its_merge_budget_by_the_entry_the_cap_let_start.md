@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests
 reporter: agent
 class: suite_over_budget
 found_by: docs/sessions/active/HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what.md
+defer_until: 2026-12-06
+resolution: deferred 2026-11-06 (triage) -- low defers by default; suite_over_budget has no program; 30 days
 ---
 
 # The `--changed-since` witness gate overruns its merge budget by the entry the cap let start

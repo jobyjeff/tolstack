@@ -1,10 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: topology/kinematic-study
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
+handoff: docs/sessions/HANDOFF_20261106_the_kinematic_study_reads_the_republished_sweep_and_its_checks_match_by_id.md
+resolution: triaged 2026-11-06 (triage) -- folded into the_kinematic_study_reads_the_republished_sweep_and_its_checks_match_by_id (same study file and browser suite)
 ---
 
 # The kinematic study still folds the P2 run whose slide joins the hub

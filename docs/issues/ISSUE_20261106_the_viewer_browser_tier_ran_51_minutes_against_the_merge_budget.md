@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: tests
 reporter: agent
 class: suite_over_budget
 found_by: docs/sessions/active/HANDOFF_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md
+defer_until: 2026-11-20
+resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # The viewer browser TRUTH tier ran 50 m 54 s, recorded against the merge budget

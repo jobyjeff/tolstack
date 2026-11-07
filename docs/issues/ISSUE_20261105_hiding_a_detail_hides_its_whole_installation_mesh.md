@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: apps/annotate (scene occurrence visibility)
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md
+defer_until: 2026-12-06
+class: three_d_visibility_policy
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # Hiding a detail hides its whole installation mesh

@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md
+defer_until: 2026-12-06
+class: reading_surface_copy
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # Design: the colour-overlay inks include greens and reds the provenance palette uses for state

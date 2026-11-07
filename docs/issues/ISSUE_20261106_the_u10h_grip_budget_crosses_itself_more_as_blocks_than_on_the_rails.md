@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/dag-layout
 reporter: agent
 class: dag_layout_policy
 found_by: docs/sessions/HANDOFF_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md
+defer_until: class:dag_layout_policy
+resolution: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief)
 ---
 
 # The U10H grip budget crosses itself more as blocks than on the rails

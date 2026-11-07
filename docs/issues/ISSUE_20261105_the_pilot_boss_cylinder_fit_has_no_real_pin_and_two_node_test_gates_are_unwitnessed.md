@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: feature_geometry/fit
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_a_two_row_cylinder_band_fits_as_a_cylinder.md
+defer_until: 2026-11-20
+class: guard_cannot_fail
+resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # The pilot boss's cylinder fit has no `[real]` pin, and two of the node test's gates are unwitnessed

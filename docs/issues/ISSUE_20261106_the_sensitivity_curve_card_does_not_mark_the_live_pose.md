@@ -1,10 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/kinematic
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_the_grid_and_the_dag_move_with_the_mechanism.md
+defer_until: 2026-12-06
+class: pose_sync
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # The sensitivity hover curve marks the stops, not the live pose

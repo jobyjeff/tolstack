@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261105_the_rail_reads_as_a_tree_of_bodies_joints_and_faces.md
+defer_until: 2026-12-06
+class: unpaired_hand_copy
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # The rail's indent step and the grid's brace inset are two numbers on two branches

@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: closed
 area: tests
 reporter: agent
 class: suite_over_budget
 found_by: docs/sessions/HANDOFF_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md
+resolution: closed 2026-11-06 (triage) -- duplicate of ISSUE_20261022_the_default_test_tier_runs_past_its_ten_minute_budget.md (one suite_over_budget issue per repo per tier); that issue's 11-06 addendum cites this measurement
 ---
 
 # The default tier ran 12m43s, over its 10-minute budget, with the browser tier running beside it

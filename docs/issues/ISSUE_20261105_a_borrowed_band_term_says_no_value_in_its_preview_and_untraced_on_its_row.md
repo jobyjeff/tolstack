@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/preview
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what.md
+defer_until: 2026-12-06
+class: reading_surface_copy
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # A borrowed-band term says "no value" in its Preview and "untraced" on its row

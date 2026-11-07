@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: apps/viewer + apps/annotate (kinematic page highlight, 3D pane camera)
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md
+defer_until: 2026-12-06
+class: three_d_visibility_policy
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # A selected grid row isolates its parts, but the camera does not frame them

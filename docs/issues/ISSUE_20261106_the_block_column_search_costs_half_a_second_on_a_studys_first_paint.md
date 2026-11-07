@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/performance
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md
+defer_until: 2026-12-06
+class: unclaimed_perf_headroom
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # The block column search costs half a second on a study's first paint

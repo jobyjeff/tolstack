@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/dag lengths
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261105_the_grid_and_the_dag_move_with_the_mechanism.md
+defer_until: 2026-12-06
+class: check_semantics
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # The contribution length mode draws the linkage to scale and floors the stop's own terms

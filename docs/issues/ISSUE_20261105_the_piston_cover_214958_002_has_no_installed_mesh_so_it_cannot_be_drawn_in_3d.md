@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: meshes/extraction
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model.md
+defer_until: 2026-11-20
+class: vpa_part_facts_missing
+resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # The piston cover (214958-002) has no installed mesh, so it cannot be drawn in 3D

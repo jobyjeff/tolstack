@@ -1,9 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: apps/annotate/run_browser_check.mjs
 reporter: agent
+defer_until: 2026-12-06
+class: flaky_check
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # The annotate `[real]` pass times out clicking `.an__sweep-bodies > summary`

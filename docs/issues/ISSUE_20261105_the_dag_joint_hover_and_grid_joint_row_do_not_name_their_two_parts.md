@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: viewer/dag-joints
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
+defer_until: 2026-11-20
+class: reading_surface_copy
+resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # The DAG's joint hover and the grid's joint row do not name their two parts yet

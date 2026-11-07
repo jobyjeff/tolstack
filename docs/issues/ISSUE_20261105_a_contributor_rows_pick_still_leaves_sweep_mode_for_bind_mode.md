@@ -1,12 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: annotate/sweep-rail
 reporter: agent
 audience: strategy
 class: armed_pick_reach
 found_by: docs/sessions/active/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
+defer_until: 2026-12-06
+resolution: deferred 2026-11-06 (triage) -- low defers by default; armed_pick_reach's program has landed, so a date
 ---
 
 # A contributor row's Pick still leaves sweep mode for bind mode

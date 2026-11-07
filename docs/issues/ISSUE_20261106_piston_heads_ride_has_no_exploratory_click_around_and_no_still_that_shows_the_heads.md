@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261105_the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model.md
+defer_until: 2026-12-06
+class: decayed_witness
+resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # The piston-heads handoff shipped without its exploratory click-around, and no still shows a head

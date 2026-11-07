@@ -1,12 +1,14 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/dag-landing
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261105_a_tween_is_seen_and_zooms_out_before_it_zooms_in.md
 class: layout_motion
+defer_until: 2026-12-06
+resolution: deferred 2026-11-06 (triage) -- low defers by default; layout_motion has no program; 30 days
 ---
 
 # Opening the 3D pane still jumps the drawing by the page layout (~410 px), then glides

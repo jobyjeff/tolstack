@@ -1,12 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261105_the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model.md
 class: dag_layout_policy
+defer_until: class:dag_layout_policy
+resolution: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief)
 ---
 
 # Folding the piston heads and cover into their bodies widens and tangles the DAG walk

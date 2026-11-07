@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: closed
 area: tests
 reporter: agent
 class: suite_over_budget
 found_by: docs/sessions/HANDOFF_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md
+resolution: closed 2026-11-06 (triage) -- duplicate of ISSUE_20261022_the_default_test_tier_runs_past_its_ten_minute_budget.md (one suite_over_budget issue per repo per tier); that issue's 11-06 addendum cites this measurement
 ---
 
 # The default test tier ran 18 m 46 s on a worktree (budget 10 min)
