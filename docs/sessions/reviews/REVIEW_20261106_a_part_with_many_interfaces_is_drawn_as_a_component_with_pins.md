@@ -228,3 +228,10 @@ overlay entry, the merged tree is the handoff tip.
 
 APPROVE. The merge into `integration` lands as a fast-forward to the review
 branch tip. The post-merge full `pytest -q` record follows below.
+
+### Post-merge full suite
+
+`pytest -q -p no:cacheprovider` on `4a1b8fab`, which is now `integration`'s
+tip. Run in the review worktree, with inputs bridged and projections built
+from `0d197e0e`; that build's code is identical, since the commits after it
+are docs only. **1738 passed, 1 skipped, 2 deselected in 628 s.** Green.
