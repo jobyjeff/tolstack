@@ -4352,8 +4352,24 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
     push("[real] kinematic page, as blocks: its blocks and pins are drawn, every grid " +
       "row has its mark, every leader starts on its dot and every joint end wears its glyph",
       kin.blocks.length > 0 && kin.pinCount > 0 && kinDrift.length === 0 && glyphsOnJoints(kin));
+    // The kinematic page opens in the contribution mode
+    // (VA.edgeLengthModeFor), a scaled one, where a chord's length wins and
+    // a block stretches past the band by design. The band is a uniform
+    // promise, so it is held with the toggle cycled to uniform by its label.
+    for (let i = 0; i < 5 && !/Lengths: uniform/.test(
+      await page.locator("#edge-length-toggle").textContent()); i++) {
+      await page.locator("#edge-length-toggle").click();
+      await settled();
+    }
+    await page.waitForTimeout(300);
+    const kinUniform = await read();
+    const uniform = /Lengths: uniform/.test(
+      await page.locator("#edge-length-toggle").textContent());
+    console.log(`      kinematic, ${uniform ? "uniform" : "NOT uniform"}: block aspects ` +
+      kinUniform.blocks.map((b) => b.ratio.toFixed(2)).sort()[0] + "-" +
+      kinUniform.blocks.map((b) => b.ratio.toFixed(2)).sort().slice(-1)[0]);
     push("[real] ...the lit set lands on screen and every block is inside the aspect band",
-      kin.litOnScreen > 0 && band(kin));
+      kin.litOnScreen > 0 && uniform && kinUniform.blocks.length > 0 && band(kinUniform));
     push("[real] ...a pin is what the pointer finds at its own centre",
       kin.pins > 0 && kin.pinMissed.length === 0);
 
