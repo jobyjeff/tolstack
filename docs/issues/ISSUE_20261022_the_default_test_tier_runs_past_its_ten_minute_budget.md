@@ -160,3 +160,50 @@ in the handoff worktree: `1 failed, 1727 passed, 1 skipped, 2 deselected`.
 `suite-time record`: inside budget. The failure is the worktree-only
 `test_viewer_js_suite` (its tier passed 637/637 through `--repo`). So the 4033 s
 above was the slot queue, not the suite.
+
+## Addendum 2026-11-06 (triage sweep batch merge, `found_by: dispatch/docs/sessions/lessons/LESSONS_20261106_triage_sweep.md`)
+
+Merge candidate at `405bad81` (integration tip, fast-forward of master
+`66159c33`), run in the throwaway worktree `C:\workspace\tolstack-batchmerge`
+with bridged inputs and a freshly rebuilt candidate projection:
+
+- **Measured:** 638 s (10m38s) against the 10-min default budget,
+  `suite-time record`: `OVER BUDGET by 0m38s`. pytest's own figure: 636.95 s.
+- **Command:** `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q --durations=15`
+  (cwd = candidate worktree; single process, venv has no xdist).
+- **Result:** 1738 passed, 1 skipped, 2 deselected. The one skip is
+  `tests/test_fit_bound_features.py:424` (the 2026-10-01 pitch-link bearing
+  re-extraction is not installed), a data-state skip.
+- **Contention:** for its first ~60 s the viewer and annotate node tiers
+  (`node apps/viewer/run_tests.cjs`, `node apps/annotate/run_tests.cjs`) ran
+  beside it in the same worktree. No browser runner of this sweep was
+  running, but other agents' sessions may have been. Compared with 11-05's
+  503 s for 1724 tests, the suite gained 14 tests and about 135 s.
+- **Top 15 (`--durations=15`):**
+
+  | s | phase | test |
+  | ---: | --- | --- |
+  | 119.96 | call | tests/test_feature_geometry.py::test_real_both_readers_classify_every_installed_face_the_same |
+  | 75.08 | call | tests/test_mutation_witness_shadow_concurrency.py::test_a_stale_lock_pid_dead_is_cleared_with_a_message |
+  | 71.13 | setup | tests/test_mutation_witnesses.py::test_the_scan_and_the_run_agree_on_which_guards_exist |
+  | 61.92 | call | tests/test_mutation_witness_shadow_concurrency.py::test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale |
+  | 33.08 | call | tests/test_annotate_js_suite.py::test_annotate_js_suite_is_green |
+  | 28.76 | call | tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green |
+  | 21.67 | call | tests/test_mutation_witnesses.py::test_closing_the_concatenation_seam_is_load_bearing |
+  | 16.31 | call | tests/test_mutation_witnesses.py::test_passing_over_the_skip_arm_is_load_bearing |
+  | 10.32 | call | tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[signal-False] |
+  | 10.17 | call | tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[exit-False] |
+  | 7.51 | call | tests/test_topology_projection.py::test_the_column_order_never_makes_a_topology_cross_itself_more |
+  | 7.39 | setup | tests/test_topology_projection.py::test_the_l1_topology_is_a_ring_and_draws_as_two_rails |
+  | 7.12 | call | tests/test_topology_projection.py::test_a_topology_with_no_bodies_walks_exactly_as_before |
+  | 6.99 | call | tests/test_topology_projection.py::test_the_rotor_fasteners_close_links_are_not_a_column_order_problem |
+  | 6.06 | call | tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[throw-True] |
+
+  The top four tests (feature-geometry real-mesh classification and the two
+  mutation-witness lock-recovery tests) take about 328 s, roughly half the
+  tier.
+
+Two later issues in the same class are still open and measure the same tier:
+`ISSUE_20261105_the_default_test_tier_ran_18_minutes_on_a_worktree.md` and
+`ISSUE_20261105_the_default_tier_ran_12_minutes_beside_the_browser_tier.md`.
+Triage should fold them into this one, per the one-issue-per-repo-per-tier rule.
