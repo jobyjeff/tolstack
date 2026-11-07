@@ -486,3 +486,59 @@ Results:
       made cheaper);
     - the body-field browser check;
     - the room browser check.
+
+## Second merge before hand-back (2026-11-06)
+
+`integration` moved while the rework was being verified: it landed
+`the_rail_reads_as_a_tree_of_bodies_joints_and_faces` and
+`the_grid_and_the_dag_move_with_the_mechanism` (91 files). It was merged
+again at `3aa74f0f`, which is a fresh, measured re-merge, as the review
+asked.
+- **`apps/viewer/views/topology.js`:** this branch's chords layer and
+  integration's `posed` flag were added on the same line. Both were kept.
+- **Guard pins:** re-measured on the merged tree.
+  - fast: integration's 656 plus this branch's 10 = **666**;
+  - browser: integration's 846 plus this branch's 9 = **855** (822
+    enrollable);
+  - annotate: integration's own **295**.
+
+**One check needed changing after the merge.** Since the pose landed, the
+kinematic page opens in the contribution mode
+(`VA.edgeLengthModeFor`). That mode is scaled, so a chord's length wins and
+a block stretches past the aspect band by design. "...every block is inside
+the aspect band" now:
+- cycles the length toggle to uniform by its label, the same way
+  integration's own kinematic check does;
+- holds the band there, where the aspects are 0.56–0.57;
+- was WITNESSED again with `--only`.
+
+On a fresh load, the room at 1600 is as the round-1 table says, except that
+the kinematic page's DAG is now narrower (273 px on the rails, 354 px as
+blocks), and its part cells stay in the pane. The suite reports the whole
+walk at 98/99 part cells because it reaches the walk from a study, after the
+study's arrival framing. On a fresh load the walk still opens with no part
+cell in the pane.
+
+### Verification record on the second merge
+
+This tree is `bfb9eb80` plus the band-check commit. The projections were
+rebuilt from `bfb9eb80` (clean), and `node_modules` was junctioned in and
+removed afterwards.
+
+- **`node apps/viewer/run_tests.cjs`: 666/666**, `[real]` armed.
+- **`node apps/annotate/run_tests.cjs`: 295/295.**
+- **Full `pytest -q -p no:cacheprovider`: 1738 passed, 1 skipped,
+  2 deselected, in 712 s**, recorded over budget by 1m52s.
+- **Browser tier: 41/43 in 1587 s**, recorded inside budget.
+  - "parts as blocks" was red on the kinematic band check, fixed as above;
+    `--only "parts as blocks"` then gave **8/8**.
+  - "kinematic study page" is the same two pre-existing, filed reds.
+- **Witness gate, `--changed-since integration`: 46/48 witnessed, 48/52
+  reached in 29m19s, 4 left to the sweep (budget)**, in 1790 s of wall time,
+  recorded inside budget.
+  - Every fast entry was witnessed, this branch's included.
+  - The two not witnessed are in the "kinematic study page" suite, red
+    before the mutation. That is integration's known gap
+    (`ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`
+    and its round-2 addendum: that suite's red leaves its witness entries
+    unproved).
