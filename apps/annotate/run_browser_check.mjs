@@ -27,6 +27,7 @@ import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep, resolve } from "node:path";
+import { CLOCK } from "../../scripts/virtual_clock.mjs";
 import { takeTheBrowserSlot, loadPlaywright, launchBrowser }
   from "../../scripts/browser_runner.mjs";
 
@@ -1097,44 +1098,36 @@ async function proposalPass(browser, base, verb) {
 
 // Reduced-motion playback, driven from the wall clock rather than the frame
 // clock (ISSUE_20261001_reduced_motion_playback_advances_one_point_per_
-// animation_frame_so_it_ignores_the_speed_control). The real display's frame
-// rate is not ours to choose in headless Chrome -- CPU throttling via CDP
-// (`Emulation.setCPUThrottlingRate`) was tried first and did not reliably
-// move the measured `requestAnimationFrame` cadence under SwiftShader here,
-// so this drives the SAME question deterministically instead: an init script
-// replaces `requestAnimationFrame` with a `setTimeout` at a CHOSEN interval,
-// before the app's own scripts run. That is exactly the composition under
-// test (tickSweep reads real elapsed time via `now` on every callback,
-// however often the callback fires) with the one uncontrollable variable --
-// what rate the display actually gives -- pinned to a number this check
-// picks, so "a throttled tab" and "a 144 Hz display" become two interval
-// values rather than two hard-to-reproduce environments.
+// animation_frame_so_it_ignores_the_speed_control). The display's frame rate
+// is not ours to choose, and neither is the box's load, so BOTH are pinned:
+// the page's clock is frozen (scripts/virtual_clock.mjs) and stepped by hand,
+// `step(rafIntervalMs)` being one animation frame that far after the last.
+// "A throttled tab" and "a 144 Hz display" are then two step sizes over the
+// same simulated time, and nothing here sleeps on wall time -- the earlier
+// setTimeout-based requestAnimationFrame measured how busy the machine was
+// (the same 3000 ms arm reached index 48, 56, 58 and 63). That is exactly the
+// composition under test: tickSweep reads elapsed time from the callback's
+// timestamp, however often the callback fires.
 async function playReducedMotionFor(browser, base, { ms, speed, rafIntervalMs }) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  if (rafIntervalMs) {
-    await page.addInitScript((interval) => {
-      const timers = new Map();
-      let nextId = 1;
-      window.requestAnimationFrame = (cb) => {
-        const id = nextId++;
-        timers.set(id, setTimeout(() => { timers.delete(id); cb(performance.now()); }, interval));
-        return id;
-      };
-      window.cancelAnimationFrame = (id) => {
-        const t = timers.get(id);
-        if (t != null) { clearTimeout(t); timers.delete(id); }
-      };
-    }, rafIntervalMs);
-  }
+  await page.addInitScript(CLOCK);
   await page.goto(`${base}?embedded=1&mock=1&sweep=synthetic-demo-sweep`);
   await page.waitForFunction(() => window.__sweep && window.__sweep.frame, null,
     { timeout: 20000 });
   await page.evaluate(() => window.AnnotateApp.exec(["seek", "#0"]));
   await page.evaluate((v) => window.AnnotateApp.exec(["speed", String(v)]), speed);
+  // Freeze, then wait for the app's frame loop to have re-queued itself on the
+  // stepped clock (the callback that was pending on the real one fires once
+  // and lands there), and only then play: the first stepped frame is what
+  // sets the baseline, so no real timestamp reaches the integration.
+  await page.evaluate(() => window.__clock.freeze());
+  await page.waitForFunction(() => window.__clock.pending() > 0, null, { polling: 20, timeout: 5000 });
   await page.evaluate(() => window.AnnotateApp.exec(["play"]));
-  await page.waitForTimeout(ms);
-  const result = await page.evaluate(() => ({ index: window.__sweep.index, fps: window.__sweep.fps }));
+  const result = await page.evaluate(({ total, interval }) => {
+    for (let t = 0; t < total; t += interval) window.__clock.step(interval);
+    return { index: window.__sweep.index, fps: window.__sweep.fps };
+  }, { total: ms, interval: rafIntervalMs });
   await page.evaluate(() => window.AnnotateApp.exec(["pause"]));
   await page.close();
   return result;
@@ -1164,8 +1157,8 @@ async function reducedMotionTimingPass(browser, base) {
   console.log(`      reduced motion, 1x, 3000ms: ${fast.fps.toFixed(1)} fps -> index ` +
     `${fast.index}; ${slow.fps.toFixed(1)} fps -> index ${slow.index}`);
 
-  const speed1 = await playReducedMotionFor(browser, base, { ms: 500, speed: 1, rafIntervalMs: null });
-  const speed4 = await playReducedMotionFor(browser, base, { ms: 500, speed: 4, rafIntervalMs: null });
+  const speed1 = await playReducedMotionFor(browser, base, { ms: 500, speed: 1, rafIntervalMs: 16 });
+  const speed4 = await playReducedMotionFor(browser, base, { ms: 500, speed: 4, rafIntervalMs: 16 });
   check("the speed control changes reduced-motion playback's rate",
     speed4.index > speed1.index * 2.5,
     `speed 1x -> index ${speed1.index}; speed 4x -> index ${speed4.index}`);
