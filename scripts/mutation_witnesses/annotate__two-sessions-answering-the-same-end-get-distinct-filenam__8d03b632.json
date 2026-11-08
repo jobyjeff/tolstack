@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "two sessions answering the same end get distinct filenames",
+  "mutations": [
+    {
+      "contract": "The next event number is one past the highest seq known.",
+      "issue": "docs/sessions/lessons/LESSONS_20261106_annotator_event_files_number_from_the_folder.md",
+      "note": "Numbering at the highest seq itself reuses a filename already in the inbox.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    return max + 1;",
+      "replace": "    return max;"
+    }
+  ]
+}

@@ -449,9 +449,33 @@ check("buildOwnerNotInSetEvent carries no geometry_key or direction", () => {
   if ("direction" in event) throw new Error("owner_not_in_set event must carry no direction");
 });
 
-check("nextEventFilename increments past the highest existing number", () => {
-  assertEqual(AA.nextEventFilename(["0001_a.json", "0003_b.json"], "c"), "0004_c.json");
-  assertEqual(AA.nextEventFilename([], "first"), "0001_first.json");
+check("nextEventSeq numbers from seq when built_from_events are ids", () => {
+  const proj = {
+    built_from_events: ["proposal-0001-a-from", "proposal-0002-a-to", "annotate-9-a"],
+    stack_keys: [
+      { history: ["annotate-9-a"], bindings: [{ event_id: "annotate-9-a", seq: 56 }],
+        proposals: [{ event_id: "proposal-0001-a-from", seq: 62 }] },
+    ],
+  };
+  assertEqual(AA.nextEventSeq(proj, []), 63);
+  assertEqual(AA.nextEventSeq(proj, [{ event_id: "x", seq: 63 }]), 64);
+  assertEqual(AA.nextEventSeq({ built_from_events: ["a", "b", "c"], stack_keys: [] }, []), 4);
+  assertEqual(AA.nextEventSeq(null, []), 1);
+  assertEqual(AA.eventFilename(63, "c"), "0063_c.json");
+});
+check("two sessions answering the same end get distinct filenames", async () => {
+  const proj = { built_from_events: ["proposal-0001-a-from"], stack_keys: [
+    { proposals: [{ event_id: "proposal-0001-a-from", seq: 62 }] }] };
+  const adapter = new AA.MemoryAdapter({});
+  await adapter.connect();
+  // session A numbers from the projection; session B has the same stale
+  // projection and so asks for the very same filename.
+  const name = AA.eventFilename(AA.nextEventSeq(proj, []), "end");
+  const first = await adapter.writeFeatureIdentityEvent(name, { a: 1 });
+  const second = await adapter.writeFeatureIdentityEvent(name, { a: 2 });
+  assertEqual(first, "0063_end.json");
+  assertEqual(second, "0064_end.json");
+  assertEqual(adapter.written.length, 2);
 });
 
 // --- storage/memory.js: the write-capable mock, and the "hide the write
@@ -464,13 +488,12 @@ check("MemoryAdapter captures a write rather than persisting it", async () => {
   assertEqual(adapter.written.length, 1);
   assertEqual(adapter.written[0].filename, "0001_x.json");
 });
-check("MemoryAdapter refuses to overwrite an existing filename (append-only)", async () => {
+check("MemoryAdapter never overwrites: an existing filename is bumped to the next number", async () => {
   const adapter = new AA.MemoryAdapter({});
   await adapter.connect();
   await adapter.writeFeatureIdentityEvent("0001_x.json", { a: 1 });
-  let threw = false;
-  try { await adapter.writeFeatureIdentityEvent("0001_x.json", { a: 2 }); } catch (_) { threw = true; }
-  if (!threw) throw new Error("expected the second write to the same filename to throw");
+  assertEqual(await adapter.writeFeatureIdentityEvent("0001_x.json", { a: 2 }), "0002_x.json");
+  assertEqual(adapter.written[0].event.a, 1);
 });
 check("MemoryAdapter with writable:false cannot write -- canWrite() is false", async () => {
   const adapter = new AA.MemoryAdapter({ writable: false });

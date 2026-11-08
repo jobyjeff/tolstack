@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "nextEventSeq numbers from seq when built_from_events are ids",
+  "mutations": [
+    {
+      "contract": "The next seq is read off the full events a projection embeds, not from the id list.",
+      "issue": "docs/sessions/lessons/LESSONS_20261106_annotator_event_files_number_from_the_folder.md",
+      "note": "Without the walk a projection of ids numbers from its event count and can reuse a seq.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      if (typeof node.event_id === \"string\" && typeof node.seq === \"number\") max = Math.max(max, node.seq);",
+      "replace": ""
+    }
+  ]
+}

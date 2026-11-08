@@ -73,10 +73,11 @@
 //   readSweepRun(runId): Promise<object|null>
 //        -- data/inbox/linkage-sweeps/<run-id>.json. The schema is checked by
 //           AA.readSweepArtifact, not here: a transport's job is bytes.
-//   writeFeatureIdentityEvent(filename, eventObject): Promise<void>
-//        -- data/inbox/feature-identity/<filename>, JSON.stringify'd. Throws
-//           if canWrite() is false or the file already exists (append-only:
-//           a write must never overwrite a prior event).
+//   writeFeatureIdentityEvent(filename, eventObject): Promise<string>
+//        -- data/inbox/feature-identity/<filename>, JSON.stringify'd; resolves
+//           to the name written. Throws if canWrite() is false. Append-only: a
+//           write never overwrites -- an existing name is bumped to the next
+//           free number (AA.bumpEventFilename).
 (function (AA) {
   "use strict";
 
