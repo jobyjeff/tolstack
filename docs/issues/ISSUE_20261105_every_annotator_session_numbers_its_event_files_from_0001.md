@@ -1,12 +1,12 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: annotate/write-path
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md
 handoff: docs/sessions/HANDOFF_20261106_annotator_event_files_number_from_the_folder.md
-resolution: triaged 2026-11-06 (triage) -- staged annotator_event_files_number_from_the_folder
+resolution: triaged 2026-11-06 (triage) -- staged annotator_event_files_number_from_the_folder -- handoff completed 2026-11-08 -- closed automatically by dispatch when handoff `annotator_event_files_number_from_the_folder` moved to completed/; not independently verified.
 ---
 
 # Every annotator session numbers its feature-identity event files from 0001
