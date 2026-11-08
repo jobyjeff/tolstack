@@ -5616,6 +5616,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       stops. The fast test clicked the button **once**. For any in-place-synced
       control (`syncPoseControl`, `applyStackText`, a film), click it twice in a
       real page and confirm the second click undoes the first.
+- [ ] **A record read under one stack key and answered under another.** New
+      2026-11-08 (`model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`):
+      `AA.identityReadThrough` shows v1's bindings and proposals under v2's
+      `topology_id`, but `cmdTake` / the armed click key the new `bound`
+      event to v2 while `supersedes` names the v1 event, and
+      `feature_identity._apply_supersedes` / `_answered_proposals` refuse a
+      cross-key `supersedes`/`ratifies`/`rejects` — one click makes the log
+      unfoldable. For any alias, read-through or re-keying of feature-identity
+      records, walk **every** answer path (accept, reject, take, armed click)
+      and fold its JS-built events through the Python loader.
 
 ## Architectural errors to check
 
