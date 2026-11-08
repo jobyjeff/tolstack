@@ -30,3 +30,6 @@ resolution: closed 2026-11-06 (triage) -- duplicate of ISSUE_20261022_the_defaul
 No `--durations=15` breakdown was taken. Re-measure alone with
 `--durations=15` before acting on this. If the tier is under budget when run
 alone, close this issue as contention.
+
+## Addendum 2026-11-08 (the_annotate_pacing_checks_step_a_virtual_clock)
+`venv-win/Scripts/python.exe -m pytest -q` (serial; `-n` is not installed in the main venv), worktree, ran 666 s (11m06s) beside a concurrent annotate browser loop: 1737 passed, 1 skipped, 1 expected worktree red. Over the 10-minute budget by 1m06s.

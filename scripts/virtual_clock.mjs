@@ -41,6 +41,9 @@ export const CLOCK = () => {
       const due = queue; queue = [];
       for (const [, fn] of due) fn(perf);
     },
+    // Callbacks waiting for the next step (a script that must not step before
+    // the page has asked for a frame).
+    pending() { return queue.length; },
     thaw() { frozen = false; for (const [, fn] of queue) realRaf(fn); queue = []; },
   };
 };
