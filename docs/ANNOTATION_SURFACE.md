@@ -109,9 +109,14 @@ value: scripts/extract_assembly_parts.py, scripts/tessellate_parts.py
 ### The projection
 
 A model that reuses another's ids (`ids_from`, `DAG_TOPOLOGY.md`, "Models")
-reads that model's records on the edge ids both have, as its own, until it has
-a record of its own; every binding reader in the app asks through
-`mergedIdentityProjection`, which applies it (`AA.identityReadThrough`).
+reads that model's record on every edge id both have, as its own; every
+binding reader in the app asks through `mergedIdentityProjection`, which
+applies it (`AA.identityReadThrough`). **Every write on such an id goes under
+the source model's key** — the bind dialog, Take, the armed click, *not in
+set*, and Accept, Reject and a correction, which already copy the key of the
+event they answer — so a re-pick's `supersedes` never points across keys,
+which the fold refuses. Each write path asks `identityWriteKey`
+(`apps/annotate/app.js`), which asks `AA.identityKey`.
 
 `scripts/build_feature_identity_projection.py` folds
 `data/inbox/feature-identity/` into

@@ -160,7 +160,7 @@
     // "Models") plays that model's runs -- every node a run names is its node
     // too -- so a studyless one gets the model row on the other's newest run.
     ((topologies && topologies.topologies) || []).forEach(function (t) {
-      var from = VA.topologyIdsFrom(t);
+      var from = t.ids_from || null;
       var model = from ? VA.findKinematicModel(projection, from) : null;
       if (!model || (byId[t.id] && (byId[t.id].studies.length || byId[t.id].model))) return;
       group(t.id).model = modelRow(model);

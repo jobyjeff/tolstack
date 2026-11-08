@@ -11742,6 +11742,7 @@
       two.id = "model_two";
       two.title = "Model two";
       two.studies = [];
+      two.ids_from = one.id;
       two.topology = Object.assign({}, two.topology, { id: "model_two", ids_from: one.id });
       return Object.assign({}, KIN_TOPOLOGIES, { topologies: [two, one] });
     }
@@ -11784,8 +11785,8 @@
         var groups = VA.kinematicNav(withModel, topologies);
         var two = groups.filter(function (g) { return g.topologyId === "model_two"; })[0];
         eq(two.model.runId, "run-new");
-        eq(VA.topologyIdsFrom(topologies.topologies[0]), topologies.topologies[1].id);
-        eq(VA.topologyIdsFrom(topologies.topologies[1]), null);
+        var one = groups.filter(function (g) { return g.topologyId === topologies.topologies[1].id; })[0];
+        ok(!one || !one.model, "the model it reuses ids from has no studyless row of its own here");
       });
 
     await test("the boot opens the model the reader last chose while the projection " +

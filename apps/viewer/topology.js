@@ -5457,15 +5457,6 @@
              kinematic: groups.filter(function (g) { return !claimed[g.topologyId]; }) };
   };
 
-  // The model whose node and edge ids this topology reuses -- its authored
-  // `ids_from` (docs/DAG_TOPOLOGY.md, "Models") -- or null. A binding or a
-  // sweep published against that model names this one's features too.
-  VA.topologyIdsFrom = function (topology) {
-    var raw = topology && topology.topology;
-    var id = raw && raw.ids_from;
-    return typeof id === "string" && id ? id : null;
-  };
-
   // --- what the element record (element_record.js) reads about a part -----
   //
   // The hover cards these served -- edge, component, node -- were retired on

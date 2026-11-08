@@ -3008,7 +3008,7 @@ async function armedClick(pick, other) {
     // the proposal down and binds this one, in that order, in this one click.
     const answer = AA.planAnswer(AA.ANSWER_VERBS[2], {
       pick: { geometryKey: AA.geometryKeyOfPick(full), direction: a.direction,
-        stackKey: AA.topologyEdgeKey(a.topologyId, a.edgeId) },
+        stackKey: identityWriteKey(a.topologyId, a.edgeId) },
       open: AA.endProposals(record, a.direction),
       standing: AA.endBindings(record, a.direction),
     });
@@ -4113,8 +4113,8 @@ async function cmdTake(edgeId, direction, meshId, faceText) {
     face = manifest && manifest.faces ? manifest.faces[faceId] || null : null;
   }
   if (!face) throw new Error("part \"" + meshId + "\" has no face " + faceText);
-  const stackKey = AA.topologyEdgeKey(topology.id, edge.id);
-  const record = AA.findBindingRecord(mergedIdentityProjection(), stackKey);
+  const record = AA.findBindingRecord(mergedIdentityProjection(), AA.topologyEdgeKey(topology.id, edge.id));
+  const stackKey = identityWriteKey(topology, edge.id);
   const standing = AA.endBindings(record, direction);
   const pick = { sha256: mesh.sha256, faceId, record: face };
   const plan = AA.planArmedClick(pick, null, standing);
@@ -4711,6 +4711,15 @@ function setSceneEmptyState(missingParts, message) {
 // (AA.identityReadThrough). Every reader of a binding asks here.
 function mergedIdentityProjection() {
   return AA.identityReadThrough(sessionIdentityProjection(), state.currentTopology);
+}
+
+// The key an event about `edgeId` is WRITTEN under, opened on `topology` (a
+// topology object or id): its own, or -- on an id it shares with the model it
+// reuses ids from -- that model's (AA.identityKey). Every write path asks here.
+function identityWriteKey(topology, edgeId) {
+  const topologies = (state.topologyProjection && state.topologyProjection.topologies) || [];
+  const t = typeof topology === "string" ? topologies.find((x) => x.id === topology) || { id: topology } : topology;
+  return AA.identityKey(t, edgeId, topologies);
 }
 
 function sessionIdentityProjection() {
@@ -5391,7 +5400,7 @@ function buildBindForm(edge, pick, bind, onChoose) {
         seq,
         createdAt: nowIso(),
         recordedBy: AA.humanActor(AA.CONFIG.reviewer),
-        stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
+        stackKey: identityWriteKey(state.currentTopology, edge.id),
         geometryKey: AA.geometryKeyOfPick(pick),
         direction: selected,
         compositionNote: composition.input.value || null,
@@ -5701,7 +5710,7 @@ function buildOwnerNotInSetFields(edge) {
         seq,
         createdAt: nowIso(),
         recordedBy: AA.humanActor(AA.CONFIG.reviewer),
-        stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
+        stackKey: identityWriteKey(state.currentTopology, edge.id),
         note: noteField.input.value || null,
       });
       await writeIdentityEvent(AA.eventFilename(seq, slugify(edge.id) + "_owner_not_in_set"), event,

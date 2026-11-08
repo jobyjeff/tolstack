@@ -181,8 +181,6 @@
     };
   };
 
-  // The topology a run's feature joins name: the most-named id when several
-  // appear, null when none does. An id nobody names is never invented.
   // Which open topology a run plays on. A run opened from a kinematic study
   // plays on the run's own topology (the study's contributors are its
   // edges). Otherwise a run published against the model the open topology
@@ -195,6 +193,8 @@
     return AA.topologyIdsFrom(current) === runTopologyId ? current.id : runTopologyId;
   };
 
+  // The topology a run's feature joins name: the most-named id when several
+  // appear, null when none does. An id nobody names is never invented.
   AA.sweepTopologyId = function (doc) {
     var features = (doc && doc.geometry && Array.isArray(doc.geometry.features))
       ? doc.geometry.features : [];

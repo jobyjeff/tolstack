@@ -615,3 +615,104 @@ def test_proposal_and_answer_fields_round_trip():
     assert FeatureIdentityEvent.from_dict(_accept("a1", 2, p).as_dict()).ratifies == "p1"
     assert FeatureIdentityEvent.from_dict(_reject("r1", 2, p).as_dict()).rejects == "p1"
     assert "confidence" not in _bound("b", 1, 1, "from").as_dict()
+
+
+# ---------------------------------------------------------------------------
+# A model that reuses another's ids writes on the source model's key
+# ---------------------------------------------------------------------------
+
+# The annotator's own modules, loaded as apps/annotate/run_tests.cjs loads
+# them, then every answer path run against a read-through record: v2 open,
+# v1's record read as v2's (AA.identityReadThrough), the key each event is
+# written under from AA.identityKey -- exactly what app.js does on each path.
+_ANSWER_PATHS_JS = r"""
+const vm = require("vm"), fs = require("fs"), path = require("path");
+const here = path.join(process.argv[1], "apps", "annotate");
+const box = { console }; box.window = box; vm.createContext(box);
+for (const f of ["../viewer/storage/adapter.js", "../viewer/vocab.gen.js", "config.js",
+                 "binding_state.js", "commands.js", "face_geometry.js", "suggestions.js", "sweep.js"]) {
+  vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), box, { filename: f });
+}
+const AA = box.AnnotateApp;
+const input = JSON.parse(fs.readFileSync(0, "utf8"));
+const v1 = { id: "v1", ids_from: null, edges: [{ id: "shared" }] };
+const v2 = { id: "v2", ids_from: "v1", edges: [{ id: "shared" }, { id: "new_edge" }] };
+const read = AA.identityReadThrough(input.projection, v2);
+const record = AA.findBindingRecord(read, AA.topologyEdgeKey("v2", "shared"));
+const stackKey = AA.identityKey(v2, "shared", [v2, v1]);
+const face = (id) => ({ sourceStepSha256: "f".repeat(64), faceId: id, areaNative2: 1.0,
+                        centroidNative: [0, 0, 0] });
+let seq = input.next_seq;
+const write = (name, plan) => {
+  const events = AA.buildAnswerEvents(plan, { eventId: "v2-" + name, seq,
+    createdAt: "2026-11-08T00:00:00Z", recordedBy: AA.humanActor("tester") });
+  return [name, events];
+};
+const open = AA.endProposals(record, "to");
+const out = [
+  write("accept", AA.planAnswer("accept", { proposal: open[0], standing: AA.endBindings(record, "to") })),
+  write("reject", AA.planAnswer("reject", { proposal: open[0] })),
+  write("take_a_different_face", AA.planAnswer("pick", { pick: { geometryKey: face(7), direction: "from",
+    stackKey }, open: AA.endProposals(record, "from"), standing: AA.endBindings(record, "from") })),
+  write("take_with_open_proposals", AA.planAnswer("pick", { pick: { geometryKey: face(8), direction: "to",
+    stackKey }, open, standing: AA.endBindings(record, "to") })),
+];
+process.stdout.write(JSON.stringify({ new_edge_key: AA.identityKey(v2, "new_edge", [v2, v1]),
+                                      paths: Object.fromEntries(out) }));
+"""
+
+
+def test_every_answer_on_a_shared_id_writes_events_the_fold_accepts():
+    """Under ``ids_from`` (docs/DAG_TOPOLOGY.md, "Models") a v2 edge that
+    reuses a v1 id reads v1's record. Every event an answer there writes
+    -- accept, reject, take a different face, take with proposals open --
+    names events on that record (``supersedes``, ``ratifies``, ``rejects``),
+    and the fold refuses a pointer across keys. So each is written on v1's
+    key, and folding the log plus that answer must succeed and leave v2 no
+    record of its own on the shared id. The review of 2026-11-08 found Take
+    and the armed click writing v2's key: one click and the log could not be
+    rebuilt."""
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    assert node, "node is not on PATH, so the annotator's answer paths were not run"
+
+    def key(topology_id: str) -> StackKey:
+        return StackKey(kind="topology_edge", topology_id=topology_id, edge_id="shared")
+
+    def face(face_id: int) -> GeometryKey:
+        return GeometryKey(source_step_sha256="f" * 64, face_id=face_id, area_native2=1.0,
+                           centroid_native=(0.0, 0.0, 0.0))
+
+    from tolerance_stack.feature_geometry import SURFACE_CLASSES
+
+    base = [
+        FeatureIdentityEvent(event_id="v1-bound-from", seq=1, created_at="2026-11-01T00:00:00Z",
+                             recorded_by="human:tester", stack_key=key("v1"), verdict="bound",
+                             geometry_key=face(1), direction="from", note="synthetic"),
+        FeatureIdentityEvent(event_id="v1-proposed-to", seq=2, created_at="2026-11-01T00:00:00Z",
+                             recorded_by="agent:test", stack_key=key("v1"), verdict="proposed",
+                             geometry_key=face(2), direction="to", confidence=PROPOSAL_CONFIDENCES[0],
+                             basis="synthetic", surface_class=SURFACE_CLASSES[0], note="synthetic"),
+    ]
+    stdin = json.dumps({"projection": build_projection(base).as_dict(), "next_seq": 3})
+    proc = subprocess.run([node, "-e", _ANSWER_PATHS_JS, str(Path(__file__).resolve().parent.parent)],
+                          input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert proc.returncode == 0, proc.stderr
+    written = json.loads(proc.stdout)
+
+    assert written["new_edge_key"]["topology_id"] == "v2", "an edge only v2 has keeps v2's key"
+    assert set(written["paths"]) == {"accept", "reject", "take_a_different_face",
+                                     "take_with_open_proposals"}
+    for name, dicts in written["paths"].items():
+        events = [FeatureIdentityEvent.from_dict(d) for d in dicts]
+        assert events, f"{name} wrote nothing"
+        assert {e.stack_key.topology_id for e in events} == {"v1"}, (
+            f"{name} wrote on {[e.stack_key.topology_id for e in events]}, not the source model's key")
+        projection = build_projection(base + events)  # raises on a pointer across keys
+        assert projection.for_stack_key(key("v2")) is None, f"{name} gave v2 a record of its own"
+    taken = build_projection(base + [FeatureIdentityEvent.from_dict(d)
+                                     for d in written["paths"]["take_a_different_face"]])
+    assert [b.geometry_key.face_id for b in taken.for_stack_key(key("v1")).bindings
+            if b.direction == "from"] == [7], "the re-pick replaced v1's binding at that end"

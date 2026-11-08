@@ -106,6 +106,7 @@ from tolerance_stack.topology import (  # noqa: E402
     VARIANT_AXIS,
     check_study,
     forge_axes,
+    in_model_order,
     load_study,
     load_topology,
     summarize,
@@ -1619,6 +1620,10 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         "id": topology.id,
         "title": topology.title,
         "description": topology.description,
+        # The model whose ids this one reuses, or None (docs/DAG_TOPOLOGY.md,
+        # "Models"): its bindings are read here and a sweep published against
+        # it plays here.
+        "ids_from": topology.ids_from,
         "units": topology.units,
         "source_file": as_posix_rel(path),
         # The authored document, verbatim, exactly as `results.json` embeds a
@@ -1726,7 +1731,7 @@ def build(topologies_dir: Path,
         "topologies": [
             project_topology(path, raw, topology, studies.get(topology.id, []),
                              meshes, aliases, hardware)
-            for path, raw, topology in topologies
+            for path, raw, topology in in_model_order(topologies)
         ],
         "orphan_studies": orphans,
     }

@@ -925,12 +925,21 @@ class Topology:
     schema stays ``/v0``; but all-or-nothing: a document that declares one
     body declares a body for every part. Read by the projections, never by
     ``fold``/``traverse``/``summarize``.
+
+    ``ids_from``, added 2026-11-08 (handoff ``model_v2_is_the_end_stop_linkage_
+    in_five_bodies_and_the_nav_switches_models``), names the model whose node
+    and edge ids this one reuses (``docs/DAG_TOPOLOGY.md``, "Models"). A
+    shared id names one feature, so it has one feature-identity key -- the
+    source model's (:func:`identity_topology_id`) -- and a model is listed
+    ahead of the model it reuses (:func:`in_model_order`). Optional and
+    additive, so the schema stays ``/v0``; never read by ``fold``.
     """
 
     id: str
     title: str
     units: str
     description: Optional[str] = None
+    ids_from: Optional[str] = None
     parts: List[Part] = field(default_factory=list)
     nodes: List[Node] = field(default_factory=list)
     edges: List[Edge] = field(default_factory=list)
@@ -941,6 +950,11 @@ class Topology:
     notes: List[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        if self.ids_from is not None and (not isinstance(self.ids_from, str)
+                                          or not self.ids_from or self.ids_from == self.id):
+            raise TopologyError(
+                f"topology {self.id!r}: ids_from names the model whose ids this "
+                f"one reuses -- another topology's id -- got {self.ids_from!r}")
         self._parts = _unique("part", self.parts)
         self._nodes = _unique("node", self.nodes)
         self._edges = _unique("edge", self.edges)
@@ -1770,6 +1784,7 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None,
         title=data["title"],
         units=data["units"],
         description=data.get("description"),
+        ids_from=data.get("ids_from"),
         parts=[Part.from_dict(p) for p in data.get("parts", [])],
         nodes=[Node.from_dict(n) for n in data.get("nodes", [])],
         edges=edges,
@@ -1779,6 +1794,53 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None,
         provenance=data.get("provenance", {}),
         notes=data.get("notes", []),
     )
+
+
+def identity_topology_id(topology: Topology, edge_id: str,
+                         topologies: Dict[str, Topology]) -> str:
+    """The topology id a feature-identity key on ``edge_id`` carries.
+
+    An edge id a model shares with the model it reuses ids from
+    (``ids_from``) names one feature in both, so it has ONE key, the source
+    model's: every event about it -- proposed, bound, rejected, superseding --
+    is written there, whichever model was open, and a model never has a
+    record of its own on a shared id. Any other edge is keyed to its own
+    topology. The annotator applies the same rule before it writes
+    (``apps/annotate/binding_state.js``, ``AA.identityKey``).
+    """
+    source = topologies.get(topology.ids_from) if topology.ids_from else None
+    if source is not None and edge_id in source._edges:
+        return source.id
+    return topology.id
+
+
+def in_model_order(topologies: Iterable[Any]) -> List[Any]:
+    """``topologies`` with every model ahead of the model it reuses ids from.
+
+    The nav opens the first model when the reader has chosen none, so a
+    model that supersedes another by reusing its ids is the default. Each
+    item is a :class:`Topology` or a tuple ending in one; otherwise the given
+    (file-name) order is kept.
+    """
+    items = list(topologies)
+
+    def topo(item: Any) -> Topology:
+        return item[-1] if isinstance(item, tuple) else item
+
+    position = {topo(item).id: i for i, item in enumerate(items)}
+
+    def rank(item: Any) -> Tuple[int, int]:
+        t, hops = topo(item), 0
+        seen = {t.id}
+        # The model a chain of ids_from ends at keeps its place; each model
+        # reusing it sits one place ahead per hop.
+        while t.ids_from and t.ids_from in position and t.ids_from not in seen:
+            seen.add(t.ids_from)
+            t = topo(items[position[t.ids_from]])
+            hops += 1
+        return (position[t.id], -hops)
+
+    return sorted(items, key=rank)
 
 
 def load_study(path: str | Path,

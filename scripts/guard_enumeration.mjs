@@ -331,7 +331,10 @@ export const DECLARED_GUARDS = {
   // mark. Each carries a spec.
   // Merged with integration at its 291 (rework, 2026-11-06): 291 + 3.
   // Merged with integration (review of the rework, 2026-11-06): both sides +1 on 645 / 291.
-  annotate: { declared: 300, enrollable: 300, names: "76d27058a01f" },
+  // 2026-11-08 (model_v2_is_the_end_stop_linkage_..., review rework): +1 -- an
+  // event on a shared id is written on the source model's key; the read-through
+  // check renamed (it no longer yields to a record of its own). Both carry a spec.
+  annotate: { declared: 301, enrollable: 301, names: "6d2a3586c0d5" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
