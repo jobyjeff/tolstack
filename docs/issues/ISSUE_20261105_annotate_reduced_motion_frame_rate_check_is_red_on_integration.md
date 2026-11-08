@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/annotate (sweep playback, browser check)
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md
 handoff: docs/sessions/HANDOFF_20261106_the_annotate_pacing_checks_step_a_virtual_clock.md
 class: timing_assertion_under_load
-resolution: triaged 2026-11-06 (triage) -- class-scoped handoff the_annotate_pacing_checks_step_a_virtual_clock (timing_assertion_under_load, 4 new arrivals since 11-05)
+resolution: triaged 2026-11-06 (triage) -- class-scoped handoff the_annotate_pacing_checks_step_a_virtual_clock (timing_assertion_under_load, 4 new arrivals since 11-05) -- handoff completed 2026-11-08 -- closed automatically by dispatch when handoff `the_annotate_pacing_checks_step_a_virtual_clock` moved to completed/; not independently verified.
 ---
 
 # The annotate browser check's reduced-motion frame-rate check is red on integration
