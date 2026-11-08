@@ -11588,6 +11588,71 @@
         eq(VA.kinematicNumber(null, 3), "—");
       });
 
+    // A projection row's display record, as tolerance_stack.kinematic.row_display
+    // builds it (a_kinematic_row_shows_the_numbers_the_fold_uses_or_refuses).
+    var DISPLAY_LINK = {
+      refused: false, reason: null, zone: "band", units: "mm", nominal: 105.99051337042064,
+      vector: null, min: 105.96051337042064, max: 106.02051337042064,
+      nominal_source: { kind: "skeleton", sweep: "vpa-pitch-p2-20261105-204957",
+                        keys: ["pitch_link.length"] },
+      band_from: null, band: { min: -0.03, max: 0.03, half_range: 0.03, id: "pitch_link_length" },
+      sensitivity: 1.57, contribution: 0.047 };
+
+    await test("a kinematic row prints the skeleton's nominal and nominal plus band, at two " +
+      "decimals, and says where the nominal came from", function () {
+        var v = VA.kinematicRowValues(DISPLAY_LINK);
+        eq([v.nominal, v.min, v.max], ["105.99", "105.96", "106.02"]);
+        has(v.nominalTitle, "measured on the kinematic skeleton, sweep vpa-pitch-p2-20261105-204957");
+        var cited = Object.assign({}, DISPLAY_LINK, {
+          nominal: 61.4, min: 61.35, max: 61.45,
+          band: { min: -0.05, max: 0.05, half_range: 0.05, id: "tan_link_length" },
+          nominal_source: { kind: "cited", sweep: "vpa-pitch-p2-20261105-204957",
+                            keys: ["tan_link.length"], edge: "tan_link_length",
+                            skeleton: 61.450366676345126, skeleton_offset: 0.050366676345126 } });
+        var c = VA.kinematicRowValues(cited);
+        eq([c.nominal, c.min, c.max], ["61.40", "61.35", "61.45"]);
+        has(c.nominalTitle, "The skeleton measures 61.4504 mm (+0.0504 from nominal, at the band's edge)");
+        var sphere = VA.kinematicRowValues(Object.assign({}, DISPLAY_LINK, {
+          zone: "sphere", nominal: 0, vector: [83, -35.355, 35.355], min: 0, max: 0.015 }));
+        eq([sphere.nominal, sphere.min, sphere.max], ["centre", "0.000", "0.015"]);
+        has(sphere.nominalTitle, "centre (83.00, -35.35, 35.35) mm measured on the kinematic skeleton");
+        var refused = VA.kinematicRowValues({ refused: true, reason: "no geometry key" });
+        eq([refused.refused, refused.nominal, refused.min, refused.max],
+           [true, "no value", "no value", "no value"]);
+        eq(refused.nominalTitle, "no geometry key");
+        eq(VA.kinematicRowValues(null), null);
+      });
+
+    await test("a refused kinematic row has no sensitivity and no contribution, and the " +
+      "linkage total and the verdict read incomplete with the count", function () {
+        var study = JSON.parse(JSON.stringify(KIN_STUDY));
+        study.stops.forEach(function (stop) {
+          stop.refused_count = 1;
+          stop.rows.forEach(function (row, i) {
+            row.display = i === 0 ? { refused: true, reason: "no geometry key" } : DISPLAY_LINK;
+          });
+        });
+        var grid = kinematicGrid(study, { stop: "low" });
+        var first = grid.stack.entries.filter(function (e) { return e.kind === "term"; });
+        var refusedTerms = first.filter(function (e) { return e.refused; });
+        eq(refusedTerms.length, 1);
+        eq([refusedTerms[0].sensitivity, refusedTerms[0].contribution], ["", ""]);
+        var row = grid.rows.filter(function (r) {
+          return r.getAttribute("data-id") === refusedTerms[0].edge;
+        })[0];
+        eq(row.querySelector("td.tvcell--nominal").textContent, "no value");
+        eq(row.querySelector("td.tvcell--sensitivity").textContent, "");
+        eq(row.querySelector("td.tvcell--contribution").textContent, "");
+        has(grid.stack.entries[0].contribution, "incomplete · 1 refused");
+        has(grid.stack.result.contribution, "incomplete · 1 refused");
+        var verdict = VA.kinematicVerdicts(study, 3)[0];
+        eq([verdict.verdict, verdict.incomplete], ["incomplete", true]);
+        has(verdict.title, "1 row could not name their numbers");
+        // the same study with nothing refused keeps its numbers and its verdict
+        var clean = JSON.parse(JSON.stringify(KIN_STUDY));
+        eq(VA.kinematicVerdicts(clean, 3)[0].verdict, VA.kinematicVerdicts(KIN_STUDY, 3)[0].verdict);
+      });
+
     await test("the kinematic nav groups studies under their topology's name and " +
       "offers a model row only to a topology with runs and no study", function () {
         var groups = VA.kinematicNav(KIN, KIN_TOPOLOGIES);
@@ -18749,6 +18814,43 @@
           return { root: root, stack: stack, topo: topo, rows: all(root, "tr.tvrow") };
         }
         var TRAVEL_STUDY = "vpa_pitch_linkage_travel_between_end_stops";
+
+        // a_kinematic_row_shows_the_numbers_the_fold_uses_or_refuses: every
+        // linkage row of the live study prints the skeleton's nominal and the
+        // band the fold used, none is blank beside a contribution, and the one
+        // cited row says what the skeleton measures.
+        await test("[real] every linkage row prints a measured nominal and its band, the " +
+          "borrowed band names its lender, and no value cell is blank beside a contribution",
+          function () {
+            realKinStudy.stops.forEach(function (stop) {
+              var grid = realKinGrid(stop.id);
+              var cells = function (edge) {
+                var row = grid.rows.filter(function (r) {
+                  return r.getAttribute("data-id") === edge;
+                })[0];
+                ok(row, stop.id + ": " + edge + " has a grid row");
+                return { row: row, text: ["nominal", "min", "max"].map(function (c) {
+                  return row.querySelector("td.tvcell--" + c).textContent;
+                }) };
+              };
+              eq(cells("pitch_link_length").text, ["105.99", "105.96", "106.02"]);
+              eq(cells("tan_link_length").text, ["61.40", "61.35", "61.45"]);
+              eq(cells("pitch_plate_attach_height").text, ["79.67", "79.57", "79.77"]);
+              has(cells("tan_link_length").row.querySelector("td.tvcell--nominal")
+                .getAttribute("title"), "The skeleton measures 61.4504 mm (+0.0504 from nominal, at the band's edge)");
+              has(cells("pitch_plate_attach_height").row.querySelector("td.tvcell--name")
+                .getAttribute("title"), "(dimension_ref)");
+              grid.rows.forEach(function (row) {
+                if (row.getAttribute("data-row-kind") !== "edge") return;
+                if (!row.querySelector("td.tvcell--contribution").textContent) return;
+                ["nominal", "min", "max"].forEach(function (c) {
+                  ok(row.querySelector("td.tvcell--" + c).textContent !== "",
+                     stop.id + ": " + row.getAttribute("data-id") + " " + c + " is not blank");
+                });
+              });
+              eq(stop.refused_count, 0);
+            });
+          });
 
         // The pose (the_grid_and_the_dag_move_with_the_mechanism), on the live
         // study: at each stop's own point the reading between sweep points IS

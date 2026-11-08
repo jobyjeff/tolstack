@@ -1229,6 +1229,13 @@
   // row builders' own (edgeRow, subStackRow, stackFoot); a fast-tier test
   // renders one pose, rewrites it to another and holds every row's text to
   // a fresh render of the second. Returns how many rows it wrote.
+  // The foot's contribution cell: the worst case and RSS, or -- when rows
+  // refused to name their numbers -- only the words saying it is incomplete.
+  VA.stackFootText = function (result, stack) {
+    if (result.refused) return result.contribution;
+    return result.contribution + " " + (stack.units || "") + " · " + result.rss;
+  };
+
   VA.applyStackText = function (root, stack) {
     if (!root || !root.querySelectorAll || !stack) return 0;
     var set = function (row, cls, text) {
@@ -1263,8 +1270,7 @@
         var label = row.querySelector("td.tvtotal__label");
         if (label) label.setAttribute("title", r.label + " · " + r.rss);
         set(row, "td.tvcell--nominal", r.nominal);
-        set(row, "td.tvcell--contribution", r.contribution + " " + (stack.units || "") +
-          " · " + r.rss);
+        set(row, "td.tvcell--contribution", VA.stackFootText(r, stack));
         written++;
       }
     });
@@ -3341,7 +3347,7 @@
     total.appendChild(VA.el("td", "tvcell tvcell--max num"));
     total.appendChild(VA.el("td", "tvcell tvcell--sensitivity num"));
     total.appendChild(VA.el("td", "tvcell tvcell--contribution num",
-      r.contribution + " " + (stack.units || "") + " · " + r.rss));
+      VA.stackFootText(r, stack)));
     total.appendChild(sourcingCell(null));
     foot.appendChild(total);
     var v = r.verdict;
@@ -3616,7 +3622,14 @@
       hotKey("edge", planRow.id)] || null;
     var fullName = record ? record.title : missing(planRow.id);
     var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : fullName);
-    if (!valueOnly) nameCell.setAttribute("title", fullName);
+    // A kinematic term whose band is another edge's says whose, on hover.
+    var shown = term && term.values || null;
+    var lender = shown && shown.bandFrom && shown.bandFrom.edge !== planRow.id
+      ? shown.bandFrom : null;
+    var lenderName = lender && index.edges[lender.edge] ? index.edges[lender.edge].name : null;
+    var nameTitle = fullName + (lender
+      ? "\nband from " + (lenderName || lender.edge) + " (dimension_ref)" : "");
+    if (!valueOnly) nameCell.setAttribute("title", nameTitle);
     el.appendChild(nameCell);
 
     // The value cell, decomposed into three (deliverable 2): the old combined
@@ -3624,13 +3637,25 @@
     // Each number is still printed AS TRANSCRIBED (VA.fmt: no toFixed, no band
     // derived from the limits) — splitting the cell changes nothing about what
     // is printed, only how many columns it occupies.
+    // A kinematic term prints the record the fold's own term built
+    // (VA.kinematicRowValues), never its edge's record: the edge may have no
+    // band of its own, or a convention's 0.
     var values = record && record.values;
-    el.appendChild(VA.el("td", "tvcell tvcell--nominal num",
-      values ? VA.fmt(values.nominal) : ""));
-    el.appendChild(VA.el("td", "tvcell tvcell--min num",
-      values ? VA.fmt(values.min) : ""));
-    el.appendChild(VA.el("td", "tvcell tvcell--max num",
-      values ? VA.fmt(values.max) : ""));
+    var valueCell = function (name, text, title) {
+      var cell = VA.el("td", "tvcell tvcell--" + name + " num", text);
+      if (title) cell.setAttribute("title", title);
+      if (shown && shown.refused) cell.className += " muted";
+      el.appendChild(cell);
+    };
+    if (shown) {
+      valueCell("nominal", shown.nominal, shown.nominalTitle);
+      valueCell("min", shown.min, shown.minTitle);
+      valueCell("max", shown.max, shown.maxTitle);
+    } else {
+      valueCell("nominal", values ? VA.fmt(values.nominal) : "");
+      valueCell("min", values ? VA.fmt(values.min) : "");
+      valueCell("max", values ? VA.fmt(values.max) : "");
+    }
 
     // The sensitivity: a kinematic term's sweep coefficient, a chain row's
     // signed ratio -- one column, both kinds of study.
@@ -3643,7 +3668,7 @@
       if (term.muted) sensitivity.className += " muted";
       // ...and on hover, its curve across the whole sweep (VA.kinematicCurve),
       // in the page's one popover. Drawn the first time it is asked for.
-      if (term.curve && ctx.onCardShow && ctx.kinematicStudy) {
+      if (term.curve && !term.refused && ctx.onCardShow && ctx.kinematicStudy) {
         var curveCard = null;
         sensitivity.className += " tvcell--curve";
         sensitivity.onmouseenter = function () {

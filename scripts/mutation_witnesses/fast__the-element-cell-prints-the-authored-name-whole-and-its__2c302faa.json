@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Gives the hover a different string than the cell, which is the 2026-11-05 defect (cell 'datum A to ...', hover 'gas-spring mount datum A ...').",
       "file": "apps/viewer/views/topology.js",
-      "find": "nameCell.setAttribute(\"title\", fullName);",
-      "replace": "nameCell.setAttribute(\"title\", \"part \" + fullName);"
+      "find": "nameCell.setAttribute(\"title\", nameTitle);",
+      "replace": "nameCell.setAttribute(\"title\", \"part \" + nameTitle);"
     }
   ]
 }

@@ -193,6 +193,9 @@ def project_point(point: PointResult) -> Dict[str, Any]:
         # it: the fold is variation only, so its own `nominal` is the 0.0 the
         # bands are authored about.
         "nominal_measure": point.nominal,
+        # Rows that cannot name their numbers (no band, or no measured
+        # nominal): the fold above is over the rest, so it is incomplete.
+        "refused_count": point.refused_count,
         **rounded(point.interval.as_dict()),
     }
 
@@ -244,6 +247,7 @@ def project_stop(study, sweep, stop) -> Dict[str, Any]:
         "groups": [group.as_dict() for group in point.groups] + stack_groups,
         "sub_stacks": [
             {"kind": SUB_STACK_KINDS[0], "term_count": sum(1 for r in point.rows if r.term),
+             "refused_count": point.refused_count,
              **rounded(point.interval.as_dict())},
             {"kind": SUB_STACK_KINDS[1], "term_count": stack_terms,
              "studies": [g.ref.study_id for g in stack.groups],

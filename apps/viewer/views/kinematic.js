@@ -183,6 +183,11 @@
     return unit ? text + " " + unit : text;
   }
 
+  // The words every incomplete total carries: how many rows refused.
+  function refusedWords(count) {
+    return count + (count === 1 ? " row" : " rows") + " could not name their numbers";
+  }
+
   function measureWords(study) {
     return String(study.measure || "measure").replace(/_/g, " ");
   }
@@ -220,14 +225,16 @@
     return (study.checks || []).map(function (check) {
       var row = VA.studyCheckRow(check);
       var stop = stops[check.stop];
+      var refused = stop ? stop.refused_count || 0 : 0;
       return {
+        refused: refused,
         checkId: check.check_id,
         stop: check.stop,
         stopLabel: stop ? stop.label : check.stop,
-        verdict: row.verdict,
-        title: row.title,
+        verdict: refused ? "incomplete" : row.verdict,
+        title: refused ? refusedWords(refused) + " — " + row.title : row.title,
         says: row.says,
-        incomplete: row.incomplete,
+        incomplete: row.incomplete || refused > 0,
         scopeChip: row.scopeChip,
         scopeTitle: row.scopeTitle,
         marginText: "margin " + withUnit(
@@ -241,6 +248,60 @@
         label: check.label,
       };
     });
+  };
+
+  // --- a row's numbers, as the fold used them (a_kinematic_row_shows_the_numbers...) ---
+  //
+  // A linkage row prints the record the projection built from the term the fold
+  // took (`row.display`, tolerance_stack.kinematic.row_display): the nominal the
+  // skeleton measures, that nominal plus the band, and where each came from. A
+  // row that cannot name them is a refusal: `no value`, the reason on hover,
+  // and no sensitivity or contribution. Nothing here is computed from anything
+  // but that record.
+  VA.KINEMATIC_NOMINAL_DECIMALS = 2;
+  var NOMINAL_EDGE_RATIO = 0.05;
+
+  VA.kinematicRowValues = function (display) {
+    if (!display) return null;
+    var n = function (v) { return VA.kinematicNumber(v, VA.KINEMATIC_NOMINAL_DECIMALS); };
+    if (display.refused) {
+      return { refused: true, reason: display.reason || "no measured nominal",
+               nominal: "no value", min: "no value", max: "no value",
+               nominalTitle: display.reason || "no measured nominal",
+               minTitle: display.reason || "", maxTitle: display.reason || "" };
+    }
+    var unit = display.units ? " " + display.units : "";
+    var source = display.nominal_source || {};
+    // A ball's nominal is a point, too wide for a number cell: the word here,
+    // the coordinates on hover.
+    var nominal = display.vector ? "centre" : n(display.nominal);
+    var title;
+    if (source.kind === "cited") {
+      var offset = source.skeleton_offset;
+      var half = display.band ? display.band.half_range : null;
+      var ratio = half ? Math.abs(offset) / half : null;
+      var where = ratio === null ? "" : ratio < 1 - NOMINAL_EDGE_RATIO ? ", inside the band"
+        : ratio <= 1 + NOMINAL_EDGE_RATIO ? ", at the band's edge" : ", outside the band";
+      title = "cited on edge " + source.edge + " (a drawing wins). The skeleton measures " +
+        VA.kinematicNumber(source.skeleton, 4) + unit + " (" +
+        (offset > 0 ? "+" : "") + VA.kinematicNumber(offset, 4) + " from nominal" + where +
+        "), sweep " + source.sweep;
+    } else {
+      title = "measured on the kinematic skeleton, sweep " + source.sweep;
+      if (display.vector) {
+        title = "centre (" + display.vector.map(n).join(", ") + ")" + unit + " " + title;
+      }
+    }
+    var bandTitle = display.vector
+      ? "a ball of radius " + VA.kinematicNumber(display.max, 3) + unit + " about the measured centre"
+      : "nominal " + (display.nominal_source.kind === "cited" ? "(cited)" : "(measured)") +
+        " plus the band " + n(display.band.min) + " … " + n(display.band.max) + unit;
+    // A ball's radius is a tolerance, not a length: it keeps the precision a
+    // 0.015 mm zone needs.
+    var r = display.vector ? function (v) { return VA.kinematicNumber(v, 3); } : n;
+    return { refused: false, reason: null, nominal: nominal, min: r(display.min),
+             max: r(display.max), nominalTitle: title, minTitle: bandTitle,
+             maxTitle: bandTitle, bandFrom: display.band_from || null };
   };
 
   // --- the pose (the_grid_and_the_dag_move_with_the_mechanism) -----------------
@@ -968,10 +1029,16 @@
     var entries = [];
     var terms = {};
     var term = function (row, depth, parent, curve) {
+      var values = VA.kinematicRowValues(row.display);
+      var refused = !!(values && values.refused);
       var entry = {
         kind: "term", edge: row.edge, depth: depth, parent: parent,
-        sensitivity: (row.sign < 0 ? "−" : "") + n(row.coefficient),
-        contribution: typeof row.magnitude === "number" ? "±" + n(row.magnitude) : "",
+        // A refusal row has no sensitivity and no contribution: a confident
+        // number over a missing input is what this row refuses to be.
+        values: values,
+        refused: refused,
+        sensitivity: refused ? "" : (row.sign < 0 ? "−" : "") + n(row.coefficient),
+        contribution: !refused && typeof row.magnitude === "number" ? "±" + n(row.magnitude) : "",
         muted: row.kind === "zero_sensitivity",
         // A contributor with no band on file: the gap words, on its chip.
         flag: row.kind === "gap" ? VA.KINEMATIC_ROW_KINDS.gap.flag : null,
@@ -997,12 +1064,16 @@
       return rank(a.edge) - rank(b.edge);
     });
     var linkageWords = VA.KINEMATIC_SUB_STACK_KINDS[SUB_LINKAGE].words;
+    var linkageRefused = linkageRows.filter(function (r) {
+      return !!(r.display && r.display.refused);
+    }).length;
     entries.push(sub({
       id: SUB_LINKAGE, depth: 0, count: linkageRows.length,
       name: linkageWords.charAt(0).toUpperCase() + linkageWords.slice(1),
       detail: linkageRows.length + " terms",
-      contribution: typeof linkageFold.worst_case_half === "number"
-        ? "±" + n(linkageFold.worst_case_half) : "",
+      contribution: linkageRefused ? "incomplete · " + linkageRefused + " refused"
+        : typeof linkageFold.worst_case_half === "number"
+          ? "±" + n(linkageFold.worst_case_half) : "",
     }));
     linkageRows.forEach(function (row) {
       entries.push(term(row, 1, SUB_LINKAGE, curves[row.edge]));
@@ -1063,6 +1134,7 @@
       if (v.stop === stop.id) verdict = v;
     });
     var foot = poseFold || stop;
+    var refusedAtFoot = linkageRefused;
     return {
       // Off a stop, the stop's label is the POSE's: the grid's contribution
       // hover says where the share is taken ("at the 23.0 deg pose").
@@ -1076,13 +1148,15 @@
       entries: entries,
       terms: terms,
       result: {
+        refused: refusedAtFoot,
         label: withUnit(measureWords(study), null) + " at " +
           (live ? VA.kinematicPoseWords(study, live) : "the " + stopWords(study, stop)),
         nominal: n(foot.nominal_measure),
         min: n(foot.worst_case_min),
         max: n(foot.worst_case_max),
-        contribution: "±" + n(foot.worst_case_half),
-        rss: "RSS ±" + n(foot.rss_half),
+        contribution: refusedAtFoot ? "incomplete · " + refusedAtFoot + " refused"
+          : "±" + n(foot.worst_case_half),
+        rss: refusedAtFoot ? "" : "RSS ±" + n(foot.rss_half),
         verdict: verdict,
         check: check,
       },

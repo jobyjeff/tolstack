@@ -96,6 +96,9 @@
       "parameters": [
         "pitch_link.length"
       ],
+      "geometry": [
+        "pitch_link.length"
+      ],
       "feature": {
         "edge": "pitch_link_length"
       },
@@ -109,6 +112,11 @@
     {
       "edge": "pitch_arm_radius",
       "parameters": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "geometry": [
         "pitch_link.point_b[0]",
         "pitch_link.point_b[1]",
         "pitch_link.point_b[2]"
@@ -129,6 +137,9 @@
       "parameters": [
         "pitch_link.point_a[2]"
       ],
+      "geometry": [
+        "pitch_link.point_a[2]"
+      ],
       "feature": {
         "node": "pitch_link_upper_sphere_centre",
         "component": "z",
@@ -144,6 +155,9 @@
     {
       "edge": "tan_link_length",
       "parameters": [
+        "tan_link.length"
+      ],
+      "geometry": [
         "tan_link.length"
       ],
       "feature": {
@@ -190,6 +204,9 @@
       "parameters": [
         "tan_link.point_a[2]"
       ],
+      "geometry": [
+        "tan_link.point_a[2]"
+      ],
       "feature": {
         "node": "tan_link_lower_sphere_centre",
         "component": "z",
@@ -205,6 +222,11 @@
     {
       "edge": "pitch_plate_tan_link_attach_radius",
       "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
         "tan_link.point_b[0]",
         "tan_link.point_b[1]",
         "tan_link.point_b[2]"

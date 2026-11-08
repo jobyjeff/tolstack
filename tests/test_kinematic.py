@@ -1575,3 +1575,118 @@ def test_the_annotators_config_names_the_read_set_the_builder_writes():
     assert line("contactSuggestions",
                 ("data",) + builder.CONTACT_SUGGESTIONS_PROJECTION.parts) in annotate
     assert f'"{builder.MESH_ALIASES_NAME}"]' in annotate
+
+
+# --------------------------------------------------------------------------- #
+# 9. a row shows the numbers the fold used, or refuses                         #
+#    (a_kinematic_row_shows_the_numbers_the_fold_uses_or_refuses, 2026-11-08)  #
+# --------------------------------------------------------------------------- #
+
+def _worst_case_from_displays(rows):
+    """The worst-case interval re-summed from the displayed records alone."""
+    lo = hi = 0.0
+    for row in rows:
+        d = row.display
+        if d["refused"] or row.term is None:
+            continue
+        ends = (d["sensitivity"] * d["band"]["min"], d["sensitivity"] * d["band"]["max"])
+        lo += min(ends)
+        hi += max(ends)
+    return lo, hi
+
+
+def test_a_row_prints_the_skeletons_nominal_and_the_band_the_fold_used():
+    study, sweep = load_fixture()
+    rows = {r.contributor.edge: r for r in fold_at(study, sweep, 0).rows}
+    link = rows["link_length"].display
+    assert not link["refused"]
+    assert link["nominal"] == 100.0                      # geometry.values, not the band's 0
+    assert (link["min"], link["max"]) == pytest.approx((99.9, 100.3))
+    assert link["nominal_source"] == {
+        "kind": "skeleton", "sweep": sweep.run_id, "keys": ["link.length"]}
+    assert link["sensitivity"] == pytest.approx(2.0)
+    assert link["contribution"] == pytest.approx(0.4)    # coefficient 2 x half range 0.2
+    sphere = rows["plate_attach_position"].display
+    assert sphere["vector"] == [1.0, 2.0, 3.0]
+    assert (sphere["min"], sphere["max"]) == (0.0, pytest.approx(0.02))
+
+
+@pytest.mark.parametrize("point", [0, 1, 2])
+def test_the_displayed_bands_re_sum_to_the_fold_so_a_displayed_only_edit_reddens(point):
+    study, sweep = load_fixture()
+    result = fold_at(study, sweep, point)
+    lo, hi = _worst_case_from_displays(result.rows)
+    assert (lo, hi) == pytest.approx((result.interval.min, result.interval.max), abs=1e-12)
+    for row in result.rows:
+        if row.term is not None:
+            assert row.display["band"]["min"] == row.term.element.min
+            assert row.display["band"]["max"] == row.term.element.max
+            assert row.display["sensitivity"] == row.term.sign * row.term.coefficient
+    # The witness: a display whose band was edited without the term it came
+    # from no longer re-sums to the fold.
+    edited = [{**r.display, "band": {**r.display["band"], "max": r.display["band"]["max"] + 1}}
+              if r.term is not None and r.display["band"] else r.display for r in result.rows]
+    drift = sum(d["sensitivity"] * d["band"]["max"] for d in edited if not d["refused"])
+    assert drift != pytest.approx(result.interval.max, abs=1e-6)
+
+
+def test_a_term_with_no_geometry_key_is_a_refusal_row_and_the_totals_say_incomplete(tmp_path):
+    def drop_the_key(data):
+        del data["contributors"][0]["geometry"]
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=drop_the_key)
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    result = fold_at(study, sweep, 0)
+    row = next(r for r in result.rows if r.contributor.edge == "link_length")
+    d = row.display
+    assert d["refused"] and "geometry key" in d["reason"]
+    assert (d["nominal"], d["min"], d["max"]) == (None, None, None)
+    assert d["sensitivity"] is None and d["contribution"] is None
+    assert result.refused_count == 1
+    assert builder.project_point(result)["refused_count"] == 1
+    assert row.term is not None                  # the fold still took it: hence "incomplete"
+    spec = study.checks[0]["check_id"] if study.checks else None
+    if spec:
+        assert check_at_stop(study, sweep, spec).complete is False
+
+
+def test_a_geometry_key_the_sweep_lacks_is_a_refusal_naming_it(tmp_path):
+    def rename(data):
+        data["contributors"][0]["geometry"] = ["link.no_such_length"]
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=rename)
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    d = fold_at(study, sweep, 0).rows[0].display if False else next(
+        r for r in fold_at(study, sweep, 0).rows if r.contributor.edge == "link_length").display
+    assert d["refused"] and "link.no_such_length" in d["reason"]
+
+
+def test_a_gap_row_is_a_refusal_row_with_no_sensitivity_shown(tmp_path):
+    def unband(data):
+        data["contributors"][1]["dimension_ref"]["edge"] = "plate_attach_unbanded"
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=unband)
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    gap = next(r for r in fold_at(study, sweep, 0).rows if r.kind == "gap")
+    assert gap.display["refused"] and gap.display["sensitivity"] is None
+    assert gap.display["contribution"] is None
+    assert fold_at(study, sweep, 0).refused_count == 1
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_every_linkage_row_prints_its_skeleton_nominal_and_no_row_is_blank():
+    study, sweep = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    for stop in study.stops:
+        rows = {r.contributor.edge: r.display for r in fold_at_stop(study, sweep, stop.id).point.rows}
+        assert not any(d["refused"] for d in rows.values())
+        link = rows["pitch_link_length"]
+        assert (round(link["nominal"], 2), round(link["min"], 2), round(link["max"], 2)) == (
+            105.99, 105.96, 106.02)
+        tan = rows["tan_link_length"]
+        assert (round(tan["nominal"], 2), round(tan["min"], 2), round(tan["max"], 2)) == (
+            61.40, 61.35, 61.45)
+        assert tan["nominal_source"]["kind"] == "cited"
+        assert tan["nominal_source"]["skeleton"] == pytest.approx(61.4504, abs=5e-5)
+        assert tan["nominal_source"]["skeleton_offset"] == pytest.approx(0.0504, abs=5e-5)
+        plate = rows["pitch_plate_attach_height"]
+        assert plate["band_from"]["edge"] == "pitch_plate_flange_to_link_hole"
+        assert (plate["min"], plate["max"]) == pytest.approx(
+            (plate["nominal"] - 0.1, plate["nominal"] + 0.1))
+        assert plate["sensitivity"] is not None and plate["nominal"] == pytest.approx(79.666)

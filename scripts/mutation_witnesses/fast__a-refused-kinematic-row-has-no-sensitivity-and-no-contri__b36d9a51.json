@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a refused kinematic row has no sensitivity and no contribution, and the linkage total and the verdict read incomplete with the count",
+  "mutations": [
+    {
+      "contract": "A row that cannot name its numbers shows no sensitivity or contribution.",
+      "issue": null,
+      "note": "Prints the sensitivity of a refused row anyway.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "sensitivity: refused ? \"\" : (row.sign < 0",
+      "replace": "sensitivity: (row.sign < 0"
+    }
+  ]
+}
