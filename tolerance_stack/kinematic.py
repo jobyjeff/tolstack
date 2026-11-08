@@ -375,6 +375,7 @@ class Sweep:
     jacobian: Dict[str, List[List[float]]]
     max_finite_difference_disagreement: Optional[float]
     features: Optional[Dict[str, Dict[str, Any]]]
+    geometry: Dict[str, float] = field(default_factory=dict)
 
     def parameter_index(self, label: str) -> int:
         try:
@@ -454,6 +455,11 @@ def load_sweep(path: str | Path) -> Sweep:
                     f"geometry.names has {name!r}; the two lists are parallel")
             features[label] = dict(entry)
 
+    geometry_values: Dict[str, float] = {}
+    for name, value in zip(geometry.get("names") or (), geometry.get("values") or ()):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            geometry_values[name] = float(value)
+
     return Sweep(
         path=path,
         run_id=data.get("run_id"),
@@ -471,6 +477,7 @@ def load_sweep(path: str | Path) -> Sweep:
         max_finite_difference_disagreement=sensitivity.get(
             "max_finite_difference_disagreement"),
         features=features,
+        geometry=geometry_values,
     )
 
 
@@ -492,6 +499,15 @@ class Contributor:
     (:meth:`~tolerance_stack.topology.Topology.body_of`), ``None`` for a gap
     edge or a topology that declares no bodies -- read off the topology at
     load, never authored here.
+
+    ``geometry`` is the authored list of ``geometry.names`` labels whose sweep
+    values are this term's nominal as the kinematic skeleton measures it
+    (:func:`_resolve_nominal`): ``measured`` is those values, ``None`` -- with
+    ``refusal`` saying why -- when the study names no key or the sweep lacks
+    one. The fold never reads either: its bands stay about 0.0 and only the
+    *display* adds the nominal. ``cited_nominal`` is the nominal of the
+    contributor's own topology edge when that edge cites a real one (a drawing's
+    basic dimension), which the row prints in the skeleton's place.
     """
 
     edge: str
@@ -506,9 +522,16 @@ class Contributor:
     gap: Optional[str] = None
     note: Optional[str] = None
     body: Optional[str] = None
+    geometry: Tuple[str, ...] = ()
+    measured: Optional[Tuple[float, ...]] = None
+    measured_run: Optional[str] = None
+    cited_nominal: Optional[float] = None
+    cited_from: Optional[str] = None
+    refusal: Optional[str] = None
 
     def __post_init__(self) -> None:
         self.parameters = tuple(self.parameters)
+        self.geometry = tuple(self.geometry)
         if self.zone not in ZONE_KINDS:
             raise KinematicStudyError(
                 f"contributor {self.edge!r}: zone must be one of {ZONE_KINDS}, "
@@ -771,6 +794,40 @@ def _resolve_band(study_id: str, contributor: Contributor, raw: Dict[str, Any],
             f"kinematic study {study_id!r}: contributor {contributor.edge!r} is a "
             f"{contributor.zone!r} zone, whose band is a radius, and {dim.id!r} is "
             f"not symmetric ({dim.min!r}..{dim.max!r})")
+
+
+def _resolve_nominal(study_id: str, contributor: Contributor, raw: Dict[str, Any],
+                     topology: Topology, sweep: Sweep) -> None:
+    """Fill ``measured`` from the sweep's own ``geometry`` -- or say why not.
+
+    A refused row is data, not a load error: the study still builds and the
+    grid shows the row as a refusal (:func:`row_display`). A gap row has no
+    band, which is its own refusal.
+    """
+    contributor.geometry = tuple(raw.get("geometry") or ())
+    contributor.measured_run = sweep.run_id
+    if contributor.is_gap:
+        contributor.refusal = f"no band on file: {contributor.gap}"
+        return
+    expected = ZONE_PARAMETER_COUNTS[contributor.zone]
+    missing = [k for k in contributor.geometry if k not in sweep.geometry]
+    if len(contributor.geometry) != expected:
+        contributor.refusal = (
+            f"the study names {len(contributor.geometry)} geometry key(s) for this "
+            f"{contributor.zone} term, which reads {expected}: nothing says which "
+            f"sweep geometry value is its nominal")
+    elif missing:
+        contributor.refusal = (
+            f"sweep {sweep.run_id} has no geometry value {missing[0]!r}")
+    else:
+        contributor.measured = tuple(sweep.geometry[k] for k in contributor.geometry)
+    # A drawing's basic dimension wins where one exists: the term's own edge
+    # in the topology, when its band is about a real nominal.
+    if contributor.zone == "band" and contributor.feature.get("edge"):
+        own = topology.edge(contributor.feature["edge"]).dimension
+        if own is not None and own.nominal != 0.0:
+            contributor.cited_nominal = own.nominal
+            contributor.cited_from = own.id
 
 
 def parameter_unit(sweep: Sweep, label: str) -> Tuple[Optional[str], Optional[str]]:
@@ -1061,6 +1118,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
             study_id, topology, contributor, sweep)
         _resolve_band(study_id, contributor, raw, tdir, cache)
         _check_band_units(study_id, contributor, sweep)
+        _resolve_nominal(study_id, contributor, raw, topology, sweep)
         contributors.append(contributor)
     if not contributors and not study_refs:
         raise KinematicStudyError(f"kinematic study {study_id!r} names no contributors")
@@ -1201,11 +1259,26 @@ class ContributorRow:
             return None
         return self.coefficient * dim.half_range
 
+    @property
+    def refused(self) -> bool:
+        return self.contributor.measured is None or self.contributor.is_gap
+
+    @property
+    def display(self) -> Dict[str, Any]:
+        """What the grid prints for this row -- built from the term the fold took.
+
+        One record carrying ``nominal``, ``band``, ``source``, ``sensitivity`` and
+        ``contribution`` (:func:`row_display`), so the grid cannot show one band
+        and fold another.
+        """
+        return row_display(self)
+
     def as_dict(self) -> Dict[str, Any]:
         c = self.contributor
         dim = c.dimension
         src: Optional[SourceRef] = dim.source_ref if dim is not None else None
         return {
+            "display": self.display,
             "edge": c.edge,
             "kind": self.kind,
             "parameters": list(c.parameters),
@@ -1227,6 +1300,66 @@ class ContributorRow:
             "gap": c.gap,
             "note": c.note,
         }
+
+
+def row_display(row: "ContributorRow") -> Dict[str, Any]:
+    """The one record a kinematic grid row prints, refused or not.
+
+    The band is read off the :class:`~tolerance_stack.stack.Term` the fold
+    consumed (``row.term.element``), and ``sensitivity`` / ``contribution`` off
+    that term's own ``sign`` / ``coefficient`` and the band's half range -- never
+    off a second copy -- so a reader sees the numbers the fold used. A row that
+    cannot name its numbers (no band, or no measured nominal) is ``refused``:
+    its ``reason`` is the words, its values and its sensitivity and
+    contribution are ``None``, and the study's totals count it
+    (:attr:`PointResult.refused_count`).
+
+    The nominal is the skeleton's (``measured``) unless the term's own edge
+    cites one (``cited_nominal``, which wins; the skeleton's reading then rides
+    along as ``skeleton`` with its offset, a warning and never a gate). A
+    ``sphere``/``disk`` zone's nominal is the measured vector and its band a
+    radius: ``min``/``max`` read ``0`` .. ``radius``.
+    """
+    c = row.contributor
+    out: Dict[str, Any] = {
+        "refused": False, "reason": None, "zone": c.zone, "units": c.band_units,
+        "nominal": None, "vector": None, "min": None, "max": None,
+        "nominal_source": None, "band_from": None, "band": None,
+        "sensitivity": None, "contribution": None}
+    if c.is_gap or c.measured is None:
+        out["refused"] = True
+        out["reason"] = c.refusal or "no measured nominal"
+        return out
+    # The band the fold used: the folded term's element when there is one.
+    element = row.term.element if row.term is not None else c.dimension
+    out["band"] = {"min": element.min, "max": element.max, "half_range": element.half_range,
+                   "id": element.id}
+    if c.dimension_ref is not None:
+        out["band_from"] = dict(c.dimension_ref)
+    source = {"kind": "skeleton", "sweep": c.measured_run, "keys": list(c.geometry)}
+    if c.zone == "band":
+        (measured,) = c.measured
+        nominal = c.cited_nominal if c.cited_nominal is not None else measured
+        if c.cited_nominal is not None:
+            source = {"kind": "cited", "sweep": c.measured_run, "keys": list(c.geometry),
+                      "edge": c.cited_from, "skeleton": measured,
+                      "skeleton_offset": measured - c.cited_nominal}
+        out["nominal"] = nominal
+        out["min"] = nominal + element.min
+        out["max"] = nominal + element.max
+    else:
+        out["vector"] = list(c.measured)
+        out["nominal"] = 0.0
+        out["min"] = 0.0
+        out["max"] = element.max
+    out["nominal_source"] = source
+    if row.term is not None:
+        out["sensitivity"] = row.term.sign * row.term.coefficient
+        out["contribution"] = row.term.coefficient * element.half_range
+    else:
+        out["sensitivity"] = row.sign * row.coefficient
+        out["contribution"] = row.coefficient * element.half_range
+    return out
 
 
 @dataclass(frozen=True)
@@ -1323,6 +1456,11 @@ class PointResult:
     @property
     def gap_count(self) -> int:
         return sum(1 for r in self.rows if r.kind == "gap")
+
+    @property
+    def refused_count(self) -> int:
+        """Rows that cannot name their numbers (a gap's, or one with no measured nominal)."""
+        return sum(1 for r in self.rows if r.refused)
 
 
 def fold_at(study: KinematicStudy, sweep: Sweep, point: int) -> PointResult:
@@ -1571,6 +1709,7 @@ def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckRe
     point = at_stop.point
     units = sweep.units.get(study.measure)
     open_refs = at_stop.open_refs
+    refused = [r for r in point.rows if r.refused]
     limit = spec.get("limit")
     if limit is None:
         interval = at_stop.interval
@@ -1586,10 +1725,13 @@ def check_at_stop(study: KinematicStudy, sweep: Sweep, check_id: str) -> CheckRe
         criterion=spec.get("criterion", ">= 0"),
         units=units,
         guidance=spec.get("guidance"),
-        complete=bool(spec.get("complete", True)) and not open_refs,
+        complete=bool(spec.get("complete", True)) and not open_refs and not refused,
         excluded_terms=tuple(spec.get("excluded_terms") or ()) + tuple(
             f"{r.study_id} (a study_ref on {r.parameter}): {r.completeness['reason']}"
-            for r in open_refs),
+            for r in open_refs) + tuple(
+            f"{r.contributor.edge} (refused): {r.contributor.refusal}" for r in refused
+            if not any(r.contributor.edge in named
+                       for named in spec.get("excluded_terms") or ())),
     )
 
 

@@ -1632,7 +1632,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvverdict--pass { color: #fff; background: var(--pass); border-color: var(--pass); }
 .tvverdict--marginal { color: #0b1020; background: var(--marginal); border-color: var(--marginal); }
 .tvverdict--fail { color: #fff; background: var(--fail); border-color: var(--fail); }
-.tvverdict--none, .tvverdict--error, .tvverdict--unknown {
+.tvverdict--none, .tvverdict--error, .tvverdict--unknown, .tvverdict--incomplete {
   color: var(--muted); border-color: var(--muted); border-style: dashed;
   background: none; text-transform: none; font-weight: 600;
 }
