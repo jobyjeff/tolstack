@@ -4928,30 +4928,14 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     push("[real] and Fit still brings the lit set into the window in that mode",
       kinTol.litTop >= kinTol.paneTop - 2 && kinTol.litBottom <= kinTol.paneBottom + 2);
 
-    // Play then Pause on the real page (the_grid_and_the_dag_move_with_the_mechanism,
-    // review round 1): play relabels its button in place with no render, so
-    // the second click must read the live state and stop the sweep there.
-    {
-      const playButton = "#detail button.kmpose__play";
-      const angle = () => page.locator("#detail input.kmpose__angle").inputValue();
-      const before = await angle();
-      await page.locator(playButton).click();
-      await settle(800);
-      const playing = { label: await page.locator(playButton).textContent(), angle: await angle() };
-      await page.locator(playButton).click();
-      await settle(300);
-      const paused = { label: await page.locator(playButton).textContent(), angle: await angle(),
-        pressed: await page.locator(playButton).getAttribute("aria-pressed") };
-      await settle(800);
-      const later = await angle();
-      console.log(`      play/pause: ${before} -> ${playing.angle} (${playing.label}) -> ` +
-        `${paused.angle} (${paused.label}) -> ${later}`);
-      push("[real] on the kinematic page Play moves the pose and relabels itself Pause",
-        playing.label === "Pause" && playing.angle !== before);
-      push("[real] and a second click pauses: the button says Play again and the " +
-        "pose stays where it stopped",
-        paused.label === "Play" && paused.pressed === "false" && later === paused.angle);
-    }
+    // The page carries no transport of its own
+    // (the_linkage_play_control_is_the_only_one_and_it_moves_everything): play,
+    // step and scrub are the 3D pane's, and the pane's own play is driven in
+    // testAnnotateRailHoldsStill, against the real shell.
+    push("[real] the kinematic page has a pose read-out and no Play button or travel slider of its own",
+      await page.locator("#detail input.kmpose__angle").count() === 1 &&
+      await page.locator("#detail button.kmpose__play").count() === 0 &&
+      await page.locator("#detail input.kmpose__slider").count() === 0);
 
     // --- no number clips (the_grid_fits_the_screen_and_its_brackets_say_what_
     // nests_in_what, review round 1: its first width budget was measured on
@@ -8965,6 +8949,72 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;
       return w.__sweep && w.__sweep.occurrences && (w.__sweep.occurrences.pitch_link || []).length > 0;
     }, null, 120000);
+
+    // --- the pane's transport moves the page's pose ---------------------------
+    // (the_linkage_play_control_is_the_only_one_and_it_moves_everything) One pose,
+    // owned by the pane: playing it moves the grid's numbers, the chart's cursor
+    // and the angle read-out with the linkage, a pause holds all of them on the
+    // frame it stopped on, and a seek lands all of them on that frame.
+    {
+      const sample = () => page.evaluate(() => {
+        const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+        const cursor = document.querySelector("#detail line.kmchart__pose");
+        return {
+          pane: w.__sweep.index,
+          angle: document.querySelector("#detail input.kmpose__angle").value,
+          cursor: cursor ? Number(cursor.getAttribute("x1")) : null,
+          grid: Array.from(document.querySelectorAll("#topopane td.tvcell--contribution"))
+            .slice(0, 8).map((n) => n.textContent).join("|"),
+          bar: (document.querySelector("#topopane line.rail__bar--on") || { getAttribute: () => null })
+            .getAttribute("y2"),
+        };
+      });
+      const exec = (command) => page.evaluate((c) =>
+        document.querySelector("#annotate-flyout iframe").contentWindow.AnnotateApp.exec(c), command);
+      const angleAt = (i) => page.evaluate((m) => window.ViewerApp.kinematicNumber(
+        m, window.ViewerApp.KINEMATIC_POSE.angleDecimals), study.envelope[i].nominal_measure);
+      await exec(["pause"]);
+      await exec(["seek", "#0"]);
+      await page.waitForTimeout(500);
+      const rest = await sample();
+      await exec(["play"]);
+      // Eight readings over ~4 s of play: on a loaded box the page can stall
+      // for a beat, so "moves" is several distinct values, not two different ones.
+      const played = [];
+      for (let i = 0; i < 8; i++) {
+        await page.waitForTimeout(500);
+        played.push(await sample());
+      }
+      const b = played[played.length - 1];
+      await exec(["pause"]);
+      // The page settles on the frame the pane stopped on (a render, which can
+      // take a beat on a loaded box): read once three samples agree, then again
+      // after a wait. A pane that did not pause never agrees with itself.
+      let c = await sample();
+      for (let i = 0, still = 0; i < 40 && still < 3; i++) {
+        await page.waitForTimeout(400);
+        const next = await sample();
+        still = JSON.stringify(next) === JSON.stringify(c) ? still + 1 : 0;
+        c = next;
+      }
+      await page.waitForTimeout(900);
+      const d = await sample();
+      const N = Math.min(5, study.envelope.length - 1);
+      await exec(["seek", "#" + N]);
+      await page.waitForTimeout(600);
+      const e = await sample();
+      const want = await angleAt(N);
+      console.log("      pane play: " + [rest, ...played, c, d, e].map((x) =>
+        `[pane ${Number(x.pane).toFixed(2)} angle ${x.angle} cursor ${x.cursor}]`).join(" "));
+      push("[real] playing the pane's own transport moves the page's angle, chart cursor and " +
+        "grid numbers with the linkage",
+        ["angle", "cursor", "grid", "pane"].every((k) =>
+          new Set(played.map((x) => x[k])).size >= 3) && b.angle !== rest.angle);
+      push("[real] and a pause in the pane holds the page on the frame it stopped on",
+        d.angle === c.angle && d.cursor === c.cursor && d.grid === c.grid && d.pane === c.pane);
+      push("[real] and a seek in the pane lands the page's angle on that frame",
+        e.angle === want && e.pane === N);
+    }
 
     // --- bodies live under Bodies -------------------------------------------
     const rail = await inPane((w) => ({

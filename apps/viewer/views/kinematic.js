@@ -333,10 +333,6 @@
   VA.KINEMATIC_POSE = Object.freeze({
     // How close to a stop's point a pose must be to BE the stop.
     stopEps: 1e-6,
-    // Play's pace, in sweep points per second: the 3D pane's own
-    // (AA.SWEEP_POINTS_PER_SECOND, paired by tests/test_kinematic_pose_pace.py),
-    // so the two never drift when the page drives the pane.
-    pointsPerSecond: 24,
     // The precision the blade-angle field prints and steps at.
     angleDecimals: 1,
     // The DAG's pose film (VA.poseFilm): the pane rendered at this many evenly
@@ -1655,6 +1651,7 @@
       return root;
     }
     root.appendChild(verdictStrip(study, decimals, ctx));
+    if (ctx.poseNote) root.appendChild(VA.el("p", "muted kmhead__pose", ctx.poseNote));
 
     var driver = (study.sweep && study.sweep.driver) || {};
     root.appendChild(VA.el("p", "muted kmhead__driver",
@@ -1768,55 +1765,30 @@
     return table;
   }
 
-  // The pose control (the_grid_and_the_dag_move_with_the_mechanism): where on
+  // The pose read-out (the_grid_and_the_dag_move_with_the_mechanism): where on
   // the sweep the grid, the DAG, this chart's cursor and the 3D pane are all
-  // read. Play, a slider over the driver's travel -- the chart's own x axis,
-  // run the same way -- the measure at the pose as a field that takes a
-  // typed angle, and one quiet button per stop that puts the pose on it (the
-  // one on the pose pressed). The page owns the pose (`ctx.pose`, and
-  // `ctx.onPose(index, settled)`): a drag reports every move unsettled and
-  // the release settled, and VA.syncPoseControl moves this control's marks
-  // while the page is the one moving the pose. A page with no pose to offer
-  // gets the stop buttons alone.
+  // read -- the measure at the pose as a field that takes a typed angle, and
+  // one quiet button per stop that puts the pose on it (the one on the pose
+  // pressed). The transport -- play, step, scrub -- is the 3D pane's alone
+  // (the_linkage_play_control_is_the_only_one_and_it_moves_everything); the
+  // field only sets the same pose (`ctx.onPose(index)`), and
+  // VA.syncPoseControl moves its marks while the pane is moving it. A page
+  // with no pose to offer gets the stop buttons alone.
   function stackStopPicker(study, ctx, chart) {
     var box = VA.el("div", "kmstop kmpose");
     var pose = ctx.pose || null;
-    var driver = (study.sweep && study.sweep.driver) || {};
     if (pose && ctx.onPose && chart) {
-      var play = VA.el("button", "ghost kmpose__play", ctx.playing ? "Pause" : "Play");
-      play.setAttribute("aria-pressed", ctx.playing ? "true" : "false");
-      play.setAttribute("title", "Cycle the sweep, end to end and back");
-      // Its own aria-pressed, not ctx.playing: play starts without a render and
-      // VA.syncPoseControl relabels this button in place, so the render-time
-      // flag is stale by the second click.
-      play.onclick = function () {
-        if (ctx.onPlay) ctx.onPlay(play.getAttribute("aria-pressed") !== "true");
-      };
-      box.appendChild(play);
-      var slider = VA.el("input", "kmpose__slider");
-      slider.setAttribute("type", "range");
-      slider.setAttribute("min", String(chart.xScale.from));
-      slider.setAttribute("max", String(chart.xScale.to));
-      slider.setAttribute("step", "any");
-      slider.setAttribute("aria-label", driver.label || "driver");
-      slider.setAttribute("title", withUnit(driver.label || "driver", driver.unit));
-      slider.value = String(pose.driver);
-      var fromSlider = function (settled) {
-        var f = VA.kinematicPoseOfDriver(study, Number(slider.value));
-        if (f !== null) ctx.onPose(f, settled);
-      };
-      slider.oninput = function () { fromSlider(false); };
-      slider.onchange = function () { fromSlider(true); };
-      box.appendChild(slider);
       var field = VA.el("input", "kmpose__angle num");
       field.setAttribute("type", "number");
       field.setAttribute("step", String(Math.pow(10, -VA.KINEMATIC_POSE.angleDecimals)));
       field.setAttribute("aria-label", measureWords(study));
       field.setAttribute("title", measureWords(study) + " at this pose");
       field.value = VA.kinematicNumber(pose.measure, VA.KINEMATIC_POSE.angleDecimals);
+      // The one way the page itself sets the pose: it moves the pane's pose
+      // (a `seek`) like its scrub does -- the transport is the pane's.
       field.onchange = function () {
         var f = VA.kinematicPoseOfMeasure(study, Number(field.value));
-        if (f !== null) ctx.onPose(f, true);
+        if (f !== null) ctx.onPose(f);
       };
       box.appendChild(field);
       if (study.units) box.appendChild(VA.el("span", "muted kmpose__unit", study.units));
@@ -1839,19 +1811,12 @@
   // The pose control's and the chart cursor's marks moved to `pose`, in place
   // (a frame of play, or the page answering a drag): nothing is rebuilt, and
   // a field the reader is typing in is left alone.
-  VA.syncPoseControl = function (root, study, pose, playing) {
+  VA.syncPoseControl = function (root, study, pose) {
     if (!root || !root.querySelector || !study || !pose) return;
     var active = typeof document !== "undefined" ? document.activeElement : null;
-    var slider = root.querySelector("input.kmpose__slider");
-    if (slider && slider !== active) slider.value = String(pose.driver);
     var field = root.querySelector("input.kmpose__angle");
     if (field && field !== active) {
       field.value = VA.kinematicNumber(pose.measure, VA.KINEMATIC_POSE.angleDecimals);
-    }
-    var play = root.querySelector("button.kmpose__play");
-    if (play && typeof playing === "boolean") {
-      play.textContent = playing ? "Pause" : "Play";
-      play.setAttribute("aria-pressed", playing ? "true" : "false");
     }
     root.querySelectorAll("button.kmstop__button").forEach(function (b) {
       var on = b.getAttribute("data-stop") === pose.stop;

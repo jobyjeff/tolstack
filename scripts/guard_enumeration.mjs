@@ -274,7 +274,12 @@ export const DECLARED_GUARDS = {
   // the merge with integration's 646: 656.
   // Merged with integration again before hand-back (review round 1 rework,
   // 2026-11-06): integration's 656 + this branch's 10 = 666, measured.
-  fast: { declared: 672, enrollable: 672, names: "c9bb369819bf" },
+  // Review merge (the_linkage_play_control_is_the_only_one_and_it_moves_everything,
+  // 2026-11-08): the branch swapped guards one for one (count unchanged), so the
+  // count is integration's 669 and the names digest is re-measured on the merge.
+  // Review merge of model_v2_is_the_end_stop_linkage_... with that (2026-11-08):
+  // integration's 669 (names swapped) + this branch's 3, digest re-measured.
+  fast: { declared: 672, enrollable: 672, names: "c6b7e89ec8b5" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -334,7 +339,8 @@ export const DECLARED_GUARDS = {
   // 2026-11-08 (model_v2_is_the_end_stop_linkage_..., review rework): +1 -- an
   // event on a shared id is written on the source model's key; the read-through
   // check renamed (it no longer yields to a record of its own). Both carry a spec.
-  annotate: { declared: 301, enrollable: 301, names: "6d2a3586c0d5" },
+  // Review merge with integration (2026-11-08): integration's 297 + this branch's 5.
+  annotate: { declared: 302, enrollable: 302, names: "10971c663fa6" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -495,7 +501,7 @@ export const DECLARED_GUARDS = {
   // beside the strip. Each carries a spec.
   // Merged with integration again before hand-back (review round 1 rework,
   // 2026-11-06): integration's 846 + this branch's 9 = 855, measured.
-  browser: { declared: 855, enrollable: 822, names: "016c2d789905" },
+  browser: { declared: 857, enrollable: 824, names: "2e18d19c3891" },
 };
 
 

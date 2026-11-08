@@ -166,34 +166,7 @@ function bandProbe() {
   };
 }
 
-// Where the pose is and what reads it, in one sample: the control, the
-// chart's cursor, one term's numbers, the foot, and a few lit bars' ends.
-function poseProbe() {
-  const q = (s) => document.querySelector(s);
-  const text = (s) => (q(s) ? q(s).textContent : null);
-  const term = '#topopane tr.tvrow[data-id="pitch_plate_attach_height"]';
-  return {
-    travel: q("#detail input.kmpose__slider") ? Number(q("#detail input.kmpose__slider").value) : null,
-    angle: q("#detail input.kmpose__angle") ? q("#detail input.kmpose__angle").value : null,
-    cursor: q("#detail line.kmchart__pose") ? Number(q("#detail line.kmchart__pose").getAttribute("x1")) : null,
-    sensitivity: text(term + " td.tvcell--sensitivity"),
-    contribution: text(term + " td.tvcell--contribution"),
-    total: text("#topopane tr.tvtotal--worst_case td.tvcell--contribution"),
-    gridTop: q("#topopane div.tv__rows") ? q("#topopane div.tv__rows").getBoundingClientRect().top : null,
-    bars: Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
-      .slice(0, 4).map((b) => Number(b.getAttribute("y2"))),
-  };
-}
-
 const BUILTINS = {
-  // Play on the kinematic page (the_grid_and_the_dag_move_with_the_mechanism):
-  // the grid's numbers, the DAG in the contribution mode, the chart's cursor
-  // and the control all move with the linkage. --pose sets where it starts.
-  "pose-play": {
-    async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS, h.pose); },
-    async trigger(page, h) { await h.click(page, "#detail button.kmpose__play"); },
-    probe: (page) => page.evaluate(poseProbe),
-  },
   // Blade pitch at the stops -> the cotter-hole chain study: a study change.
   respine: {
     async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS); },

@@ -450,24 +450,28 @@ has not been built.
   row's Preview has the citation, the note and the crop. The stop's own fold
   and its verdict are the grid's foot.
 - **The pose** (2026-11-05, `the_grid_and_the_dag_move_with_the_mechanism`).
-  One control over the envelope chart: **Play** (the sweep end to end and
-  back, at the 3D pane's own pace), a slider over the driver's travel — the
-  chart's own x axis, run the same way — the measure at the pose as a field
-  that takes a typed angle, and one button per stop that puts the pose on it.
-  The grid, the DAG, a cursor on the chart and the open 3D pane (told with its
-  own `seek`) all read that one pose. A pose is a fractional sweep point
+  The transport is the 3D pane's alone (2026-11-08,
+  `the_linkage_play_control_is_the_only_one_and_it_moves_everything`): its ◀ ▶ ▶|
+  and scrub own the clock and the one pose, and the pane posts
+  `{type: "annotate:pose", run, index, driver, playing}` on every frame, seek
+  and step (`AA.embedPose`). The page has no transport of its own — over the
+  envelope chart it carries the measure at the pose as a field that takes a
+  typed angle (it pauses the pane and `seek`s it there) and one button per
+  stop that puts the pose on it. The grid, the DAG and a cursor on the chart
+  all read that one pose, a frame of play at a time. A pane on another run
+  than the study's is refused (one muted line on the page, a console warning). A pose is a fractional sweep point
   (`VA.kinematicPose`): every number at it is the projection's own per-point
   number — `contributors[].by_point[]`, `envelope[]` — read linearly between
   the two points either side, never a fold. **On a stop's point the stack is
   that stop's fold**; anywhere else the linkage terms, their sub-stack and the
   foot are read at the pose (the foot is then the linkage alone, which is
   what the envelope folds), and the stop position's rows stay at their stop
-  and say so (`· at the −7 deg stop`). A drag or a frame of play rewrites the
+  and say so (`· at the −7 deg stop`). A frame of the pane's play or a scrub rewrites the
   grid's numbers in place (`VA.applyStackText`) and eases the DAG between
-  keyframes rendered off screen (`VA.poseFilm`); the release, a typed angle,
-  a stop button or a pause renders the pose itself. `?kinematic=…&pose=30`
+  keyframes rendered off screen (`VA.poseFilm`); a typed angle, a stop
+  button, a pause or a scrub gone quiet renders the pose itself. `?kinematic=…&pose=30`
   opens the page at 30 deg (the pose is written back into the URL when it
-  settles; `scripts/filmstrip.mjs --pose` and `--scenario pose-play` drive it).
+  settles; `scripts/filmstrip.mjs --pose` opens a scenario at one).
 - **Rows reached from the page select in place.** A click on a term row —
   or on anything in the DAG — selects that edge here: the page stays the
   study, the DAG marks the edge, and the preview pane shows its citation and

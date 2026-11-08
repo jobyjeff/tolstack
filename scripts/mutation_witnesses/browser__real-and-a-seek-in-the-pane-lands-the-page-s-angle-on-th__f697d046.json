@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] and a seek in the pane lands the page's angle on that frame",
+  "mutations": [
+    {
+      "contract": "A scrub or seek in the pane moves the page's pose to the same frame.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md",
+      "note": "A paused pane's seek is ignored by the page.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "Math.abs(state.kinematicPose - index) > 1e-6",
+      "replace": "Math.abs(state.kinematicPose - index) > 1e9"
+    }
+  ]
+}
