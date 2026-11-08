@@ -183,6 +183,18 @@
 
   // The topology a run's feature joins name: the most-named id when several
   // appear, null when none does. An id nobody names is never invented.
+  // Which open topology a run plays on. A run opened from a kinematic study
+  // plays on the run's own topology (the study's contributors are its
+  // edges). Otherwise a run published against the model the open topology
+  // reuses ids from (`ids_from`, docs/DAG_TOPOLOGY.md, "Models") plays on the
+  // open one -- every node its joins name is that one's node too -- rather
+  // than switching the scene back to the model it was published against.
+  AA.sweepPlaysOn = function (runTopologyId, fromStudy, current) {
+    if (fromStudy || !runTopologyId || !current) return runTopologyId;
+    if (current.id === runTopologyId) return runTopologyId;
+    return AA.topologyIdsFrom(current) === runTopologyId ? current.id : runTopologyId;
+  };
+
   AA.sweepTopologyId = function (doc) {
     var features = (doc && doc.geometry && Array.isArray(doc.geometry.features))
       ? doc.geometry.features : [];
@@ -1115,6 +1127,64 @@
     };
   };
 
+  // --- one declared occurrence (2026-11-08) ---------------------------------
+  //
+  // Handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_
+  // switches_models. A topology `part` may name ONE recorded occurrence
+  // (`occurrence`, an instance path joined with "/"; docs/ANNOTATION_
+  // SURFACE.md, "Where a part is drawn"), and then that part is drawn there
+  // and nowhere else, in sweep mode and out of it. A part without one keeps
+  // the every-occurrence rule above, so a topology that declares none is
+  // drawn exactly as before.
+
+  // {mesh sha256: occurrence key} for the topology's parts that declare one,
+  // each resolved to its mesh the way the scene resolves it.
+  AA.occurrencePins = function (topology, meshes, aliases) {
+    var pins = {};
+    ((topology && topology.parts) || []).forEach(function (part) {
+      if (!part || typeof part.occurrence !== "string" || !part.occurrence) return;
+      var mesh = AA.resolveMeshIdentifier(meshes, part.id, aliases);
+      if (mesh) pins[mesh.sha256] = part.occurrence;
+    });
+    return pins;
+  };
+
+  // The occurrence table (AA.readMeshOccurrences) with each pinned mesh cut
+  // to its one declared occurrence: its own record at that path, or -- when
+  // the path is recorded on another mesh, as blade 1's design pitch link is
+  // on the instrumented one's -- that record, drawn with this mesh. A path no
+  // mesh records leaves the part with no position, which it then says.
+  // `pinned` carries the pins, for the sweep's candidate filter.
+  AA.pinnedOccurrences = function (occurrences, pins) {
+    var occ = occurrences || { all: [], byMesh: {}, productOf: {} };
+    var shas = Object.keys(pins || {});
+    if (!shas.length) return occ;
+    var byMesh = {};
+    Object.keys(occ.byMesh || {}).forEach(function (sha) { byMesh[sha] = occ.byMesh[sha]; });
+    var dropped = {};
+    shas.forEach(function (sha) {
+      var key = pins[sha];
+      var mine = (byMesh[sha] || []).filter(function (o) { return o.key === key; });
+      if (!mine.length) {
+        var other = (occ.all || []).filter(function (o) { return o.key === key; })[0];
+        if (other) {
+          var copy = {};
+          Object.keys(other).forEach(function (f) { copy[f] = other[f]; });
+          copy.mesh = sha;
+          mine = [copy];
+        }
+      }
+      (byMesh[sha] || []).forEach(function (o) { if (o.key !== key) dropped[sha + "|" + o.key] = true; });
+      byMesh[sha] = mine;
+    });
+    return {
+      all: (occ.all || []).filter(function (o) { return !dropped[o.mesh + "|" + o.key]; }),
+      byMesh: byMesh,
+      productOf: occ.productOf || {},
+      pinned: pins,
+    };
+  };
+
   // The two honest notes a part's position can need, in the README's
   // absent-state style: plain words, the state first, what is drawn second.
   AA.ASSEMBLY_POSITION_WORDS = Object.freeze({
@@ -1248,12 +1318,20 @@
     });
     var carried = AA.sweepCarriedOccurrences(occ.all, claims);
     var moving = {};
+    var listed = {};
+    claims.forEach(function (c) { listed[c.sha256] = true; });
     claims.concat(carried).forEach(function (m) {
       (moving[m.sha256] = moving[m.sha256] || []).push(m);
     });
     var plan = {};
     Object.keys(moving).forEach(function (sha) {
-      var own = AA.restPlacements((occ.byMesh || {})[sha], limit);
+      // Under a topology that declares occurrences (AA.pinnedOccurrences), a
+      // mesh nobody listed -- one only CARRIED inside a moving occurrence,
+      // the tangential link's inner 213863-004 -- is drawn where it is
+      // carried and not at its other recorded places too.
+      var own = occ.pinned && !listed[sha] && !(sha in occ.pinned)
+        ? AA.restPlacements([], limit)
+        : AA.restPlacements((occ.byMesh || {})[sha], limit);
       var entries = own.keys.map(function (key, i) {
         return { key: key, placement: own.placements[i], subject: null };
       });

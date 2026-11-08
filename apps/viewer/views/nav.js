@@ -77,13 +77,38 @@
       root.appendChild(VA.el("p", "muted", "No topologies or stacks in the projection."));
       return root;
     }
-    var ul = VA.el("ul", "navtree__list");
-    topologies.forEach(function (t) { ul.appendChild(topologyItem(t, state, handlers)); });
-    looseStacks.forEach(function (s) { ul.appendChild(stackItem(s, state, handlers)); });
-    root.appendChild(ul);
+    // The models first, under their own heading (2026-11-08,
+    // model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_
+    // models): a model is the top node, and only the open one lists what is
+    // under it -- its studies and its kinematic studies -- so choosing a model
+    // switches everything below. With one model, or none open, every model
+    // lists its own.
+    if (topologies.length) {
+      var openId = topologies.some(function (t) { return t.id === state.topologyId; })
+        ? state.topologyId : null;
+      var models = VA.el("ul", "navtree__list");
+      topologies.forEach(function (t) {
+        var open = topologies.length < 2 || openId === null || t.id === openId;
+        models.appendChild(topologyItem(t, state, handlers, open));
+      });
+      root.appendChild(section("models", "Models", models));
+    }
+    if (looseStacks.length) {
+      var stacks = VA.el("ul", "navtree__list");
+      looseStacks.forEach(function (s) { stacks.appendChild(stackItem(s, state, handlers)); });
+      root.appendChild(topologies.length ? section("stacks", "Stacks", stacks) : stacks);
+    }
     if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));
     return root;
   };
+
+  // One titled block of the rail: a small heading over its list.
+  function section(kind, heading, list) {
+    var box = VA.el("div", "navtree__section navtree__section--" + kind);
+    box.appendChild(VA.el("h2", "navtree__heading", heading));
+    box.appendChild(list);
+    return box;
+  }
 
   // The 3D control every study row wears where the scene is mounted
   // (handoff every_study_opens_in_3d_showing_only_its_parts): it selects the
@@ -103,14 +128,15 @@
     row.appendChild(button);
   }
 
-  // The kinematic studies (handoff the_viewer_shows_a_kinematic_study): a
-  // section of its own, under one small heading, because a kinematic study is
-  // not a chain on a topology's walk and nesting it under the topology row
-  // would offer it as one. Grouped under the topology's NAME -- a plain label,
-  // not a second way into the topology the row above already is. Absent
-  // entirely when there is no kinematic projection (VA.kinematicNav, empty).
+  // The kinematic studies (handoff the_viewer_shows_a_kinematic_study). Since
+  // 2026-11-08 they hang under their model, after its chain studies and under
+  // a muted label of their own (a kinematic study is not a chain on the walk,
+  // and the label keeps the rail from offering it as one). This section is
+  // left for a group whose model the topology projection does not list --
+  // grouped under the topology's NAME, a plain label. Absent entirely when
+  // there is no such group (VA.navTree's `kinematic`).
   //
-  // A topology with published sweep runs and no study yet gets one model row,
+  // A model with published sweep runs and no study yet gets one model row,
   // which opens the 3D scene in sweep mode on its newest run.
   function kinematicSection(groups, state, handlers) {
     var section = VA.el("div", "navtree__section navtree__section--kinematic");
@@ -123,35 +149,7 @@
       head.setAttribute("title", group.title);
       li.appendChild(head);
       var children = VA.el("ul", "navtree__children");
-      group.studies.forEach(function (s) {
-        var active = state.mode === "kinematic" && state.kinematicId === s.id;
-        var row = VA.el("div", "navtree__row navtree__row--study" +
-          (active ? " navtree__row--on" : "") +
-          (s.failed ? " navtree__row--warn" : ""));
-        row.appendChild(label(s.title, s.description, null));
-        statusIcon(s.navStatus, s.title, row, handlers);
-        row.setAttribute("data-nav-kind", "kinematic");
-        row.setAttribute("data-nav-id", s.id);
-        row.onclick = function () { handlers.onKinematic(s.id); };
-        threeDControl(row, handlers, function () { handlers.onKinematic(s.id); });
-        var item = VA.el("li", "navtree__item", row);
-        if (active) sceneSlot(item, handlers);
-        children.appendChild(item);
-      });
-      if (group.model) {
-        var model = group.model;
-        var mrow = VA.el("div", "navtree__row navtree__row--study navtree__row--model");
-        mrow.appendChild(label("Kinematic model", null,
-          "the mechanism moving through its newest sweep" +
-          (model.ts ? " (" + String(model.ts).slice(0, 10) + ")" : "") +
-          ", in the 3D scene"));
-        mrow.setAttribute("data-nav-kind", "kinematic-model");
-        mrow.setAttribute("data-nav-id", group.topologyId);
-        mrow.onclick = function () {
-          handlers.onKinematicModel(group.topologyId, model.runId);
-        };
-        children.appendChild(VA.el("li", "navtree__item", mrow));
-      }
+      kinematicRows(group, state, handlers).forEach(function (row) { children.appendChild(row); });
       li.appendChild(children);
       ul.appendChild(li);
     });
@@ -159,7 +157,42 @@
     return section;
   }
 
-  function topologyItem(t, state, handlers) {
+  // One kinematic group's rows, as list items: each study, then the model row.
+  function kinematicRows(group, state, handlers) {
+    var items = [];
+    group.studies.forEach(function (s) {
+      var active = state.mode === "kinematic" && state.kinematicId === s.id;
+      var row = VA.el("div", "navtree__row navtree__row--study" +
+        (active ? " navtree__row--on" : "") +
+        (s.failed ? " navtree__row--warn" : ""));
+      row.appendChild(label(s.title, s.description, null));
+      statusIcon(s.navStatus, s.title, row, handlers);
+      row.setAttribute("data-nav-kind", "kinematic");
+      row.setAttribute("data-nav-id", s.id);
+      row.onclick = function () { handlers.onKinematic(s.id); };
+      threeDControl(row, handlers, function () { handlers.onKinematic(s.id); });
+      var item = VA.el("li", "navtree__item", row);
+      if (active) sceneSlot(item, handlers);
+      items.push(item);
+    });
+    if (group.model) {
+      var model = group.model;
+      var mrow = VA.el("div", "navtree__row navtree__row--study navtree__row--model");
+      mrow.appendChild(label("Kinematic model", null,
+        "the mechanism moving through its newest sweep" +
+        (model.ts ? " (" + String(model.ts).slice(0, 10) + ")" : "") +
+        ", in the 3D scene"));
+      mrow.setAttribute("data-nav-kind", "kinematic-model");
+      mrow.setAttribute("data-nav-id", group.topologyId);
+      mrow.onclick = function () {
+        handlers.onKinematicModel(group.topologyId, model.runId);
+      };
+      items.push(VA.el("li", "navtree__item", mrow));
+    }
+    return items;
+  }
+
+  function topologyItem(t, state, handlers, open) {
     var inThisTopology = state.mode === "topology" && state.topologyId === t.id;
     var li = VA.el("li", "navtree__item");
     var row = VA.el("div", "navtree__row navtree__row--topology" +
@@ -173,6 +206,7 @@
     threeDControl(row, handlers, function () { handlers.onTopology(t.id); });
     li.appendChild(row);
     if (inThisTopology && !state.studyId) sceneSlot(li, handlers);
+    if (open === false) return li;
 
     // One chip row per axis the tags use, over the study list: a value chip is
     // on or off, any chip on in an axis keeps its studies (OR), every axis with
@@ -223,6 +257,11 @@
       if (active) sceneSlot(item, handlers);
       children.appendChild(item);
     });
+    var kinematic = t.kinematic ? kinematicRows(t.kinematic, state, handlers) : [];
+    if (kinematic.length && t.kinematic.studies.length) {
+      children.appendChild(VA.el("li", "navtree__item navtree__group", "Kinematic studies"));
+    }
+    kinematic.forEach(function (item) { children.appendChild(item); });
     if (children.childNodes.length) li.appendChild(children);
     return li;
   }

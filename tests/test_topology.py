@@ -95,6 +95,12 @@ L1_STUDY = (REPO_ROOT / "tests" / "fixtures" / "topologies_before_the_fold"
             / "study_vpa_output_shank_out.json")
 L1_STACK = STACKS_DIR / "stack_vpa_output_to_pitch_plate.json"
 L2_TOPOLOGY = TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json"
+#: Model v2 (2026-11-08, handoff ``model_v2_is_the_end_stop_linkage_in_five_
+#: bodies_and_the_nav_switches_models``): the same five mechanism bodies, one
+#: blade, and the two end stops -- the second topology that declares bodies.
+MODEL_V2 = TOPOLOGIES_DIR / "topology_vpa_end_stop_v2.json"
+#: Every topology that declares bodies, and so carries linkage's five.
+BODIED_TOPOLOGIES = (L2_TOPOLOGY, MODEL_V2)
 #: ``topology_pitch_system.json`` as it was the day it was folded into
 #: ``L2_TOPOLOGY`` (2026-10-26), frozen for the tests that replay a figure
 #: measured on that graph. Not a committed topology: nothing studies it.
@@ -967,6 +973,13 @@ BODY_PARTS_LINKAGE_DOES_NOT_LIST = {
         "flanged_bushing_unidentified", "plain_bushing_214943_002"},
 }
 
+#: Model v2 carries no hardware (its own notes say what it leaves out), so its
+#: one declared difference is the tangential link's two bearings, as v1's.
+BODY_PARTS_LINKAGE_DOES_NOT_LIST_BY_TOPOLOGY = {
+    L2_TOPOLOGY.stem: BODY_PARTS_LINKAGE_DOES_NOT_LIST,
+    MODEL_V2.stem: {"tan_link": BODY_PARTS_LINKAGE_DOES_NOT_LIST["tan_link"]},
+}
+
 
 def _two_part_topology(bodies):
     return Topology(
@@ -1035,7 +1048,8 @@ BODIES_THAT_RIDE = {
 }
 
 
-def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on(pitch_system):
+@pytest.mark.parametrize("path", BODIED_TOPOLOGIES, ids=lambda p: p.stem)
+def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on(path):
     """The lower head sits on the piston body (a pitch-plate part) and the upper
     head stacks on the lower; the cover's flange sits on the gas-spring mount (a
     base part). Read off the topology's own node names, so a renamed seat fails
@@ -1043,6 +1057,7 @@ def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on(pitch_system):
     ``P3-214700.3`` sub-assembly as the piston body in 217755 (the mesh
     provenance), which is the assembly evidence the stack's nodes cannot give for
     the upper head."""
+    pitch_system = load_topology(path)
     assert {b.id: b.rides_with for b in pitch_system.bodies if b.rides_with} == BODIES_THAT_RIDE
     assert pitch_system.body_of("gas_spring_piston_214700_002").id == "pitch_plate"
     assert pitch_system.body_of("gas_spring_mount_213668_002").id == "base"
@@ -1053,17 +1068,20 @@ def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on(pitch_system):
         assert set(pitch_system.node_bodies(node_id)) == bodies, node_id
 
 
-def test_the_pitch_system_declares_a_body_round_every_part(pitch_system):
-    """The one topology that declares bodies, and the shape it declares."""
-    assert pitch_system.bodies, "vpa_pitch_linkage declares no bodies"
-    for part in pitch_system.parts:
-        assert pitch_system.body_of(part.id) is not None
-    kinds = {b.id: b.kind for b in pitch_system.bodies}
+@pytest.mark.parametrize("path", BODIED_TOPOLOGIES, ids=lambda p: p.stem)
+def test_the_pitch_system_declares_a_body_round_every_part(path):
+    """The two topologies that declare bodies -- one per model since
+    2026-11-08 -- and the shape each declares."""
+    topology = load_topology(path)
+    assert topology.bodies, f"{topology.id} declares no bodies"
+    for part in topology.parts:
+        assert topology.body_of(part.id) is not None
+    kinds = {b.id: b.kind for b in topology.bodies}
     assert {k for k, v in kinds.items() if v == "link"} == {"pitch_link", "tan_link"}
     # Every topology that does not declare them still loads, and none do.
-    for path in topology_files():
-        if path != L2_TOPOLOGY:
-            assert load_topology(path).bodies == []
+    for other in topology_files():
+        if other not in BODIED_TOPOLOGIES:
+            assert load_topology(other).bodies == []
 
 
 def _linkage_part_lists(source: str) -> dict:
@@ -1082,7 +1100,8 @@ def _linkage_part_lists(source: str) -> dict:
 
 @pytest.mark.skipif(not LINKAGE_VPA_PY.exists(),
                     reason=f"the linkage repo is not at {LINKAGE_VPA_PY}")
-def test_the_mechanism_bodies_are_linkages_own(pitch_system):
+@pytest.mark.parametrize("path", BODIED_TOPOLOGIES, ids=lambda p: p.stem)
+def test_the_mechanism_bodies_are_linkages_own(path):
     """The five bodies linkage poses carry linkage's part lists, compared whole.
 
     ``kind`` follows the list it came from: ``BODY_PARTS`` are bodies,
@@ -1090,6 +1109,7 @@ def test_the_mechanism_bodies_are_linkages_own(pitch_system):
     Linkage reading this file instead of keeping its own lists is linkage's
     change to make, later.
     """
+    pitch_system = load_topology(path)
     theirs = _linkage_part_lists(LINKAGE_VPA_PY.read_text(encoding="utf-8"))
     assert set(theirs) == {"BODY_PARTS", "LINK_PARTS"}, (
         f"read {sorted(theirs)} out of linkage/vpa.py")
@@ -1102,7 +1122,7 @@ def test_the_mechanism_bodies_are_linkages_own(pitch_system):
         f"{sorted(ours)} of them")
     for body_id, (kind, parts) in expected.items():
         our_kind, our_parts = ours[body_id]
-        extra = BODY_PARTS_LINKAGE_DOES_NOT_LIST.get(body_id, set())
+        extra = BODY_PARTS_LINKAGE_DOES_NOT_LIST_BY_TOPOLOGY[path.stem].get(body_id, set())
         assert our_kind == kind, f"{body_id}: {our_kind!r} here, {kind!r} in linkage"
         assert our_parts == parts | extra, (
             f"{body_id}: {sorted(our_parts)} here, {sorted(parts)} in linkage, "
@@ -2133,6 +2153,8 @@ def test_check_study_expresses_a_check_with_no_external_limit():
 #: derived-only check would go green the moment the last one was dropped.
 TOPOLOGY_PART_REVISIONS = {
     ("topology_vpa_pitch_linkage.json", "gas_spring_mount_213668_002"):
+        ("213668-002", "A.1"),
+    ("topology_vpa_end_stop_v2.json", "gas_spring_mount_213668_002"):
         ("213668-002", "A.1"),
 }
 

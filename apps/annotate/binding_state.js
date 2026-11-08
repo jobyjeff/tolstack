@@ -137,6 +137,49 @@
   }
   AA.stackKeyEquals = stackKeyEquals;
 
+  // The model whose node and edge ids a topology reuses -- its authored
+  // `ids_from` (docs/DAG_TOPOLOGY.md, "Models") -- or null.
+  AA.topologyIdsFrom = function (topology) {
+    var raw = topology && topology.topology;
+    var id = raw && raw.ids_from;
+    return typeof id === "string" && id ? id : null;
+  };
+
+  // The bindings a topology READS: its own, plus -- for a model that reuses
+  // another's ids -- that model's records on every edge id this one also
+  // has, answered under this topology's id, for each edge this one has no
+  // record of its own for (so a bind made here wins from then on). Read only:
+  // an event written here is keyed to this topology. A topology with no
+  // `ids_from` gets the projection back untouched.
+  AA.identityReadThrough = function (identityProjection, topology) {
+    var from = AA.topologyIdsFrom(topology);
+    if (!identityProjection || !from) return identityProjection;
+    var rows = identityProjection.stack_keys || [];
+    var edges = {};
+    (topology.edges || []).forEach(function (e) { edges[e.id] = true; });
+    var own = {};
+    rows.forEach(function (row) {
+      var k = row && row.stack_key;
+      if (k && k.kind === "topology_edge" && k.topology_id === topology.id) own[k.edge_id] = true;
+    });
+    var read = [];
+    rows.forEach(function (row) {
+      var k = row && row.stack_key;
+      if (!k || k.kind !== "topology_edge" || k.topology_id !== from) return;
+      if (!edges[k.edge_id] || own[k.edge_id]) return;
+      var copy = {};
+      Object.keys(row).forEach(function (field) { copy[field] = row[field]; });
+      copy.stack_key = AA.topologyEdgeKey(topology.id, k.edge_id);
+      copy.read_from = from;
+      read.push(copy);
+    });
+    if (!read.length) return identityProjection;
+    var out = {};
+    Object.keys(identityProjection).forEach(function (field) { out[field] = identityProjection[field]; });
+    out.stack_keys = rows.concat(read);
+    return out;
+  };
+
   // `identityProjection` is data/projections/feature-identity/bindings.json,
   // parsed -- its `stack_keys` array, one entry per StackKeyBindings.as_dict().
   AA.findBindingRecord = function (identityProjection, key) {

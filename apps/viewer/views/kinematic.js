@@ -147,14 +147,23 @@
             checks: study.checks || [] }) }),
       });
     });
+    var modelRow = function (model) {
+      var newest = (model.runs || [])[0] || {};
+      return { runId: model.newest_run_id, mechanism: newest.mechanism || null,
+               ts: newest.ts || null };
+    };
     (projection.models || []).forEach(function (model) {
       if (byId[model.topology] && byId[model.topology].studies.length) return;
-      var newest = (model.runs || [])[0] || {};
-      group(model.topology).model = {
-        runId: model.newest_run_id,
-        mechanism: newest.mechanism || null,
-        ts: newest.ts || null,
-      };
+      group(model.topology).model = modelRow(model);
+    });
+    // A model that reuses another's ids (`ids_from`, docs/DAG_TOPOLOGY.md,
+    // "Models") plays that model's runs -- every node a run names is its node
+    // too -- so a studyless one gets the model row on the other's newest run.
+    ((topologies && topologies.topologies) || []).forEach(function (t) {
+      var from = VA.topologyIdsFrom(t);
+      var model = from ? VA.findKinematicModel(projection, from) : null;
+      if (!model || (byId[t.id] && (byId[t.id].studies.length || byId[t.id].model))) return;
+      group(t.id).model = modelRow(model);
     });
     return groups;
   };

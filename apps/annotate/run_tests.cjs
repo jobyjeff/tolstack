@@ -5327,6 +5327,119 @@ check("sweep: the draw plan moves only what the run owns -- a mesh moved at one 
   assertEqual([link[0][11], link[1][3], link[1][11]], [0, 30, 7], "a link rides its reconstructed pose");
 });
 
+// --- one declared occurrence, and a model that reuses another's ids --------
+// (handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_
+// switches_models, 2026-11-08)
+
+check("a part that declares an occurrence is drawn there alone -- its own record, " +
+  "or another mesh's record at that path -- and a part that declares none keeps " +
+  "every occurrence", () => {
+  const P = (tx) => [1, 0, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0];
+  const occ = AA.readMeshOccurrences(
+    [{ sha256: "arm", part_id: "m_arm" }, { sha256: "link", part_id: "m_link" },
+     { sha256: "instr", part_id: "m_instr" }, { sha256: "hub", part_id: "m_hub" }], {
+    arm: { extraction: { instances: [
+      { instance_name: "arm.1", instance_path: ["r", "b.1", "arm.1"], placement_world: P(10) },
+      { instance_name: "arm.1", instance_path: ["r", "b.2", "arm.1"], placement_world: P(20) },
+    ] } },
+    link: { extraction: { instances: [
+      { instance_name: "link.2", instance_path: ["r", "link.2"], placement_world: P(40) },
+    ] } },
+    instr: { extraction: { instances: [
+      { instance_name: "link.1", instance_path: ["r", "link.1"], placement_world: P(30) },
+    ] } },
+    hub: { extraction: { instances: [
+      { instance_name: "hub.1", instance_path: ["r", "hub.1"], placement_world: P(0) },
+    ] } },
+  });
+  const meshes = [{ sha256: "arm", part_id: "m_arm" }, { sha256: "link", part_id: "m_link" },
+    { sha256: "instr", part_id: "m_instr" }, { sha256: "hub", part_id: "m_hub" }];
+  const aliases = [{ topology_part: "pitch_arm", mesh_part_id: "m_arm" },
+    { topology_part: "pitch_link", mesh_part_id: "m_link" },
+    { topology_part: "hub", mesh_part_id: "m_hub" }];
+  const topology = { parts: [
+    { id: "pitch_arm", occurrence: "r/b.1/arm.1" },
+    { id: "pitch_link", occurrence: "r/link.1" },
+    { id: "hub" },
+  ] };
+  const pins = AA.occurrencePins(topology, meshes, aliases);
+  assertEqual(pins, { arm: "r/b.1/arm.1", link: "r/link.1" }, "each declared part, by its mesh");
+  const pinned = AA.pinnedOccurrences(occ, pins);
+  assertEqual(AA.restPlacements(pinned.byMesh.arm).placements, [P(10)], "the arm at blade 1 alone");
+  assertEqual(AA.restPlacements(pinned.byMesh.link).placements, [P(30)],
+    "the design link at the path the instrumented mesh records");
+  assertEqual(pinned.byMesh.link[0].mesh, "link", "drawn with the design mesh");
+  assertEqual(AA.restPlacements(pinned.byMesh.hub).placements, [P(0)], "an undeclared part keeps its own");
+  assertEqual(pinned.all.map((o) => o.mesh + " " + o.key).sort(),
+    ["arm r/b.1/arm.1", "hub r/hub.1", "instr r/link.1"],
+    "the pinned meshes' other records are gone from the candidates; another mesh's stay");
+  assertEqual(AA.pinnedOccurrences(occ, {}), occ, "no declaration, the table untouched");
+  const lost = AA.pinnedOccurrences(occ, { arm: "r/b.9/arm.1" });
+  assertEqual(AA.assemblyPositionNote(AA.restPlacements(lost.byMesh.arm)),
+    AA.ASSEMBLY_POSITION_WORDS.none, "a path nothing records is said, not drawn somewhere");
+});
+
+check("under a topology that declares occurrences, a mesh only carried inside a " +
+  "moving occurrence is drawn where it is carried; with none declared it keeps its " +
+  "still places", () => {
+  const P = (tx) => [1, 0, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0];
+  const occ = AA.readMeshOccurrences([{ sha256: "tl" }, { sha256: "inner" }], {
+    tl: { extraction: { instances: [
+      { instance_name: "tl.1", instance_path: ["r", "tl.1"], placement_world: P(1) },
+      { instance_name: "tl.2", instance_path: ["r", "tl.2"], placement_world: P(2) },
+    ] } },
+    inner: { extraction: { instances: [
+      { instance_name: "in.1", instance_path: ["r", "tl.1", "in.1"], placement_world: P(1) },
+      { instance_name: "in.1", instance_path: ["r", "tl.2", "in.1"], placement_world: P(2) },
+    ] } },
+  });
+  const rows = [{ subject: "tan_link", part: "tan_link", sha256: "tl", state: "matched",
+    placements: [{ key: "r/tl.1", placement: P(1) }] }];
+  const free = AA.sweepDrawPlan(rows, occ);
+  assertEqual(free.plan.inner.map((e) => [e.key, e.subject]),
+    [["r/tl.1/in.1", "tan_link"], ["r/tl.2/in.1", null]], "every recorded place, as before");
+  const pinned = AA.sweepDrawPlan(rows, AA.pinnedOccurrences(occ, { tl: "r/tl.1" }));
+  assertEqual(pinned.plan.tl.map((e) => [e.key, e.subject]), [["r/tl.1", "tan_link"]],
+    "the declared link, once");
+  assertEqual(pinned.plan.inner.map((e) => [e.key, e.subject]), [["r/tl.1/in.1", "tan_link"]],
+    "what rides inside it, once");
+});
+
+check("a model that reuses another's ids reads that model's bindings on the edges " +
+  "both have, under its own id, until it has a record of its own", () => {
+  const key = (t, e) => AA.topologyEdgeKey(t, e);
+  const projection = { staleness: {}, stack_keys: [
+    { stack_key: key("v1", "shared"), bindings: [{ event_id: "a", direction: "from" }] },
+    { stack_key: key("v1", "only_v1"), bindings: [{ event_id: "b", direction: "from" }] },
+    { stack_key: key("v1", "rebound"), bindings: [{ event_id: "c", direction: "to" }] },
+    { stack_key: key("v2", "rebound"), bindings: [{ event_id: "d", direction: "to" }] },
+  ] };
+  const v2 = { id: "v2", topology: { ids_from: "v1" },
+    edges: [{ id: "shared" }, { id: "rebound" }, { id: "new_edge" }] };
+  const read = AA.identityReadThrough(projection, v2);
+  assertEqual(AA.findBindingRecord(read, key("v2", "shared")).bindings[0].event_id, "a",
+    "a v1 binding on a shared edge answers for v2");
+  assertEqual(AA.findBindingRecord(read, key("v2", "shared")).read_from, "v1", "and says where from");
+  assertEqual(AA.findBindingRecord(read, key("v2", "only_v1")), null, "an edge v2 lacks reads nothing");
+  assertEqual(AA.findBindingRecord(read, key("v2", "rebound")).bindings[0].event_id, "d",
+    "v2's own record wins");
+  assertEqual(AA.findBindingRecord(read, key("v2", "new_edge")), null, "a new edge is unbound");
+  assertEqual(projection.stack_keys.length, 4, "the projection itself is not edited");
+  assertEqual(AA.identityReadThrough(projection, { id: "v1", edges: [] }), projection,
+    "a topology with no ids_from gets the projection back");
+  assertEqual(AA.topologyIdsFrom(v2), "v1");
+});
+
+check("a run published against the model the open one reuses ids from plays on the " +
+  "open one -- unless a kinematic study opened it", () => {
+  const v2 = { id: "v2", topology: { ids_from: "v1" } };
+  assertEqual(AA.sweepPlaysOn("v1", false, v2), "v2", "plays on v2");
+  assertEqual(AA.sweepPlaysOn("v1", true, v2), "v1", "a study's run stays on the study's model");
+  assertEqual(AA.sweepPlaysOn("v1", false, { id: "other", topology: {} }), "v1", "unrelated: unchanged");
+  assertEqual(AA.sweepPlaysOn("v1", false, null), "v1", "nothing open: unchanged");
+  assertEqual(AA.sweepPlaysOn(null, false, v2), null, "a run that names none stays none");
+});
+
 check("a pick resolves to the part's own (sha256, face id) whichever occurrence " +
   "it lands on, so the event it writes is the one it always wrote", () => {
   const sha = AA.FIXTURES.demoSha;

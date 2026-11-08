@@ -11673,8 +11673,9 @@
         eq(VA.kinematicNav(null, KIN_TOPOLOGIES), []);
       });
 
-    await test("the nav renders a Kinematic studies section when the projection " +
-      "is there, and nothing at all when it is not", function () {
+    await test("the nav hangs a model's kinematic studies under the model, keeps a " +
+      "section only for a group no listed model claims, and says nothing kinematic " +
+      "when there is no projection", function () {
         var state = { mode: "kinematic", kinematicId: KIN_STUDY.id };
         var clicked = [];
         var handlers = {
@@ -11689,12 +11690,14 @@
             state, handlers);
         });
         var heading = all(root, "h2.navtree__heading");
-        eq(heading.length, 1);
-        eq(heading[0].textContent, "Kinematic studies");
+        eq(heading.map(function (h) { return h.textContent; }),
+           ["Models", "Kinematic studies"]);
         var rows = all(root, "div.navtree__row").filter(function (row) {
           return row.getAttribute("data-nav-kind") === "kinematic";
         });
         eq(rows.length, 1);
+        ok(insideOf(all(root, "div.navtree__section--models")[0], rows[0]),
+          "the study hangs under its model, in the Models section");
         ok(hasClass(rows[0], "navtree__row--on"), "the open study is marked current");
         has(rows[0].textContent, "Tip angle at the stops");
         // One mark, the chain studies' scheme: a budget-scoped verdict asks
@@ -11706,6 +11709,8 @@
         });
         eq(model.length, 1);
         eq(model[0].textContent, "Kinematic model");
+        ok(insideOf(all(root, "div.navtree__section--kinematic")[0], model[0]),
+          "a topology the projection does not list keeps the old section");
         model[0].click();
         eq(clicked, [["study", KIN_STUDY.id], ["model", "studyless", "run-new"]]);
 
@@ -11713,8 +11718,94 @@
           VA.renderNavTree(r, VA.navTree(KIN_TOPOLOGIES, FIXTURE.results, null),
             { mode: "topology" }, handlers);
         });
-        eq(all(bare, "h2.navtree__heading").length, 0);
+        eq(all(bare, "h2.navtree__heading").map(function (h) { return h.textContent; }),
+           ["Models"]);
         eq(bare.textContent.indexOf("Kinematic"), -1);
+      });
+
+    // --- models (model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_
+    // switches_models, 2026-11-08) ------------------------------------------
+    function insideOf(ancestor, node) {
+      for (var n = node; n; n = n.parentNode) if (n === ancestor) return true;
+      return false;
+    }
+
+    function navRowsOf(root, kind) {
+      return all(root, "div.navtree__row").filter(function (r) {
+        return r.getAttribute("data-nav-kind") === kind;
+      });
+    }
+
+    function twoModels() {
+      var one = KIN_TOPOLOGIES.topologies[0];
+      var two = JSON.parse(JSON.stringify(one));
+      two.id = "model_two";
+      two.title = "Model two";
+      two.studies = [];
+      two.topology = Object.assign({}, two.topology, { id: "model_two", ids_from: one.id });
+      return Object.assign({}, KIN_TOPOLOGIES, { topologies: [two, one] });
+    }
+
+    await test("with two models only the open one lists what is under it, and " +
+      "choosing the other switches the whole list", function () {
+        var topologies = twoModels();
+        var tree = VA.navTree(topologies, null, KIN);
+        var seen = [];
+        var handlers = { onTopology: function (id) { seen.push(id); },
+          onStudy: function () {}, onStack: function () {}, onKinematic: function () {},
+          onKinematicModel: function () {} };
+        var studyRows = function (root) {
+          return all(root, "div.navtree__row").filter(function (r) {
+            var kind = r.getAttribute("data-nav-kind");
+            return kind === "study" || kind === "kinematic";
+          }).length;
+        };
+        var onTwo = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: "model_two" }, handlers);
+        });
+        var models = navRowsOf(onTwo, "topology").map(function (r) {
+          return r.getAttribute("data-nav-id"); });
+        eq(models, ["model_two", topologies.topologies[1].id], "every model is listed, in order");
+        eq(studyRows(onTwo), 0, "the open model has no study, and the other's are folded away");
+        var onOne = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology",
+            topologyId: topologies.topologies[1].id }, handlers);
+        });
+        ok(studyRows(onOne) > 0, "the other model lists its studies once it is open");
+        navRowsOf(onTwo, "topology")[1].click();
+        eq(seen, [topologies.topologies[1].id]);
+      });
+
+    await test("a studyless model that reuses another's ids gets the model row on " +
+      "that model's newest run", function () {
+        var topologies = twoModels();
+        var withModel = Object.assign({}, KIN, { models: [{ topology: topologies.topologies[1].id,
+          newest_run_id: "run-new", runs: [{ run_id: "run-new" }] }] });
+        var groups = VA.kinematicNav(withModel, topologies);
+        var two = groups.filter(function (g) { return g.topologyId === "model_two"; })[0];
+        eq(two.model.runId, "run-new");
+        eq(VA.topologyIdsFrom(topologies.topologies[0]), topologies.topologies[1].id);
+        eq(VA.topologyIdsFrom(topologies.topologies[1]), null);
+      });
+
+    await test("the boot opens the model the reader last chose while the projection " +
+      "still lists it, and the first model otherwise", function () {
+        var topologies = twoModels();
+        var store = (function () {
+          var data = {};
+          return { getItem: function (k) { return k in data ? data[k] : null; },
+                   setItem: function (k, v) { data[k] = String(v); } };
+        })();
+        eq(VA.bootModel(topologies, VA.readStoredModel(store)), "model_two");
+        VA.writeStoredModel(store, topologies.topologies[1].id);
+        eq(VA.bootModel(topologies, VA.readStoredModel(store)), topologies.topologies[1].id);
+        VA.writeStoredModel(store, "retired_model");
+        eq(VA.bootModel(topologies, VA.readStoredModel(store)), "model_two");
+        var throwing = { getItem: function () { throw new Error("no"); },
+                         setItem: function () { throw new Error("no"); } };
+        eq(VA.readStoredModel(throwing), null);
+        VA.writeStoredModel(throwing, "x");
+        eq(VA.bootModel(null, null), null);
       });
 
     await test("resolveDeepLink opens a kinematic study by id, lets it win over " +

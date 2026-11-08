@@ -584,9 +584,11 @@
           ? VA.findTopology(state.topologies, state.topologyId)
           : VA.findStack(state.stacksResults, state.selectedStackId);
       if (!stillValid) {
-        var topologies = (state.topologies && state.topologies.topologies) || [];
-        if (topologies.length) {
-          selectTopology(topologies[0].id);
+        // The model the reader last opened, else the projection's first
+        // (VA.bootModel); a deep link above has already won.
+        var model = VA.bootModel(state.topologies, VA.readStoredModel(widthStore()));
+        if (model) {
+          selectTopology(model);
         } else {
           var loose = VA.looseStacks(state.topologies, state.stacksResults);
           if (loose.length) selectStack(loose[0].id);
@@ -601,6 +603,7 @@
   function selectTopology(topologyId) {
     state.mode = "topology";
     state.topologyId = topologyId;
+    VA.writeStoredModel(widthStore(), topologyId);
     // A study id from the previous topology means nothing on this one, and a
     // selection pointing at its nodes means less than nothing — an id that
     // happens to exist in both would show the wrong element under the right
@@ -641,6 +644,7 @@
     state.mode = "kinematic";
     state.kinematicId = studyId;
     state.topologyId = study ? study.topology : null;
+    VA.writeStoredModel(widthStore(), state.topologyId);
     state.selection = null;
     state.studyId = null;
     state.detailImage = null;

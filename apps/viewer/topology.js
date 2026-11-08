@@ -3825,6 +3825,38 @@
     }
   };
 
+  // The model the reader last opened, so a reload lands where they left it
+  // (2026-11-08; the same discipline as the collapsed bodies above: `store`
+  // injected, every access wrapped). `VA.bootModel` is the one place the boot
+  // reads it: the remembered id when the projection still lists it, else the
+  // projection's first. A deep link is applied before the boot asks.
+  VA.MODEL_KEY = "tolstack.viewer.model";
+
+  VA.readStoredModel = function (store) {
+    try {
+      var id = store && store.getItem(VA.MODEL_KEY);
+      return typeof id === "string" && id ? id : null;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  VA.writeStoredModel = function (store, topologyId) {
+    try {
+      if (store && topologyId) store.setItem(VA.MODEL_KEY, topologyId);
+    } catch (err) {
+      // A browser that refuses to store it still switches for this session.
+    }
+  };
+
+  VA.bootModel = function (topologies, remembered) {
+    var list = (topologies && topologies.topologies) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === remembered) return remembered;
+    }
+    return list.length ? list[0].id : null;
+  };
+
   // A shallow copy of `base` with `over`'s own keys written over it. ES5 by
   // house style (this page loads as a classic script, no build step), and
   // Object.assign is what it would be otherwise.
@@ -5380,7 +5412,16 @@
   // `kinematic` (handoff the_viewer_shows_a_kinematic_study) is the third
   // projection, and optional: its section is VA.kinematicNav's
   // (views/kinematic.js), and an absent projection is an absent section.
+  //
+  // Since 2026-11-08 (model_v2_is_the_end_stop_linkage_in_five_bodies_and_
+  // the_nav_switches_models) a topology is a MODEL, the top node of the nav,
+  // and its kinematic studies hang under it with its chain studies
+  // (`kinematic`, its VA.kinematicNav group or null). `kinematic` on the tree
+  // is left with only the groups no listed model claims.
   VA.navTree = function (topologies, results, kinematic) {
+    var groups = VA.kinematicNav ? VA.kinematicNav(kinematic, topologies) : [];
+    var groupOf = {};
+    groups.forEach(function (g) { groupOf[g.topologyId] = g; });
     var topoNodes = ((topologies && topologies.topologies) || []).map(function (t) {
       // One index per topology, not one per study: VA.studyAttention resolves
       // each chain row to its edge, and rebuilding the index inside the map
@@ -5407,10 +5448,22 @@
                    verdict: VA.studyVerdict(s),
                    attention: VA.studyAttention(s, index) };
         }),
+        kinematic: groupOf[t.id] || null,
       };
     });
+    var claimed = {};
+    topoNodes.forEach(function (n) { claimed[n.id] = true; });
     return { topologies: topoNodes, looseStacks: VA.looseStacks(topologies, results),
-             kinematic: VA.kinematicNav ? VA.kinematicNav(kinematic, topologies) : [] };
+             kinematic: groups.filter(function (g) { return !claimed[g.topologyId]; }) };
+  };
+
+  // The model whose node and edge ids this topology reuses -- its authored
+  // `ids_from` (docs/DAG_TOPOLOGY.md, "Models") -- or null. A binding or a
+  // sweep published against that model names this one's features too.
+  VA.topologyIdsFrom = function (topology) {
+    var raw = topology && topology.topology;
+    var id = raw && raw.ids_from;
+    return typeof id === "string" && id ? id : null;
   };
 
   // --- what the element record (element_record.js) reads about a part -----

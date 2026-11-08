@@ -367,6 +367,19 @@ class Part:
     #: drawing").
     display_name: Optional[str] = None
     naming_note: Optional[str] = None
+    #: The one recorded assembly occurrence the 3D model draws this part at --
+    #: an instance path joined with ``/``, in the mesh sidecar's own terms
+    #: (``provenance.json`` ``extraction.instances[].instance_path``). ``None``
+    #: keeps the every-occurrence rule. ``docs/ANNOTATION_SURFACE.md``, "Where
+    #: a part is drawn".
+    occurrence: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.occurrence is not None and (
+                not isinstance(self.occurrence, str) or not self.occurrence.strip()):
+            raise TopologyError(
+                f"part {self.id!r}: occurrence must be an instance path, got "
+                f"{self.occurrence!r}")
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Part":

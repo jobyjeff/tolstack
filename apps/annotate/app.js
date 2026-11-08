@@ -1350,6 +1350,7 @@ async function cmdSweep(target, studyId) {
   }
   const paired = AA.sweepStudyFor(study, artifact.runId);
   study = paired.study;
+  artifact.topologyId = AA.sweepPlaysOn(artifact.topologyId, !!study, state.currentTopology);
 
   if (state.sweep) leaveSweep();
   const structure = AA.sweepStructure(artifact);
@@ -1569,12 +1570,36 @@ async function loadOccurrences() {
   return state.occurrences;
 }
 
+// The occurrence table as `topology` draws it: every recorded occurrence,
+// with each part that declares one (`occurrence`, AA.pinnedOccurrences) cut
+// to it. The current topology's when none is named; null before the store is
+// read.
+function occurrencesFor(topology) {
+  if (!state.occurrences) return null;
+  const pins = AA.occurrencePins(topology === undefined ? state.currentTopology : topology,
+    state.meshList, state.partMeshAliases);
+  return AA.pinnedOccurrences(state.occurrences, pins);
+}
+
 // Where one part sits when nothing moves it -- the scene asks this once per
 // part it opens (scene.placementsFor), so every opened part, in every mode,
-// is drawn at every position the assembly records for it.
+// is drawn at every position the assembly records for it -- or at the one the
+// open topology declares.
 function restOf(sha256) {
-  const occ = state.occurrences;
+  const occ = occurrencesFor();
   return AA.restPlacements(occ ? occ.byMesh[sha256] : null);
+}
+
+// Every open part put back at the rest placements the now-current topology
+// gives it: a topology that declares an occurrence draws that part once, and
+// switching away draws it everywhere again.
+function reseatOpenParts() {
+  if (!state.scene || !state.occurrences) return;
+  for (const sha of state.scene.listOpenParts()) {
+    const rest = restOf(sha);
+    state.scene.setRestPlacements(sha, rest.placements.length ? rest.placements : null,
+      rest.placements.length ? rest.keys : null);
+  }
 }
 
 // The note a part's position needs, or null when it needs none.
@@ -1640,7 +1665,8 @@ async function anchorSweepBodies() {
   if (!sweep) return [];
   const artifact = sweep.artifact;
   const asModelled = artifact.points[artifact.points.length - 1];
-  const occurrences = await loadOccurrences();
+  await loadOccurrences();
+  const occurrences = occurrencesFor(sweepTopology() || state.currentTopology);
   // This runs off the render path and takes seconds; a reader may leave the
   // run, or load another, before it lands. Every await below re-checks, and a
   // superseded run stops -- otherwise it would go on opening parts for a
@@ -1673,9 +1699,11 @@ async function anchorSweepBodies() {
         rows.push({ subject: subject.name, part: partId, state: "no-mesh" });
         continue;
       }
+      // A part the topology pins to one occurrence earns that one or none.
+      const pin = occurrences.pinned && occurrences.pinned[mesh.sha256];
       const candidateOccurrences = AA.sweepCandidateOccurrences(
         occurrences.byMesh[mesh.sha256], occurrences.all,
-        occurrences.productOf[mesh.sha256]);
+        occurrences.productOf[mesh.sha256]).filter((o) => !pin || o.key === pin);
       if (!candidateOccurrences.length) {
         rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
           state: "no-occurrence" });
@@ -4303,7 +4331,8 @@ async function buildModel() {
   }
   const sweep = state.sweep;
   const bias = AA.readAnchorBias(topology);
-  const occurrences = await loadOccurrences();
+  await loadOccurrences();
+  const occurrences = occurrencesFor(topology);
   if (generation !== model.generation) return null;
   const parts = {};
   for (const part of topology.parts || []) {
@@ -4676,7 +4705,15 @@ function setSceneEmptyState(missingParts, message) {
 
 // --- topology/study/element navigation (the state these commands mutate) --
 
+// The bindings as the current topology reads them: the projection, this
+// session's events folded in, and -- for a model that reuses another's ids
+// (`ids_from`) -- that model's records on the edges both have
+// (AA.identityReadThrough). Every reader of a binding asks here.
 function mergedIdentityProjection() {
+  return AA.identityReadThrough(sessionIdentityProjection(), state.currentTopology);
+}
+
+function sessionIdentityProjection() {
   if (state.sessionEvents.length === 0) return state.identityProjection;
   const base = state.identityProjection ? JSON.parse(JSON.stringify(state.identityProjection)) : { stack_keys: [] };
   for (const event of state.sessionEvents) {
@@ -4718,6 +4755,7 @@ function selectTopology(topologyId) {
   else { renderElementList(); resetContext(false); }
   state.model.emphasis = null;
   state.model.selected = null;
+  reseatOpenParts();
   buildModel().catch((err) => setBanner(err.message, "error"));
 }
 

@@ -136,6 +136,11 @@
       "topology_part": "piston_head_upper_214698_002",
       "mesh_part_id": "asm217755_214698_002",
       "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_pitch_linkage.json's part carries drawing 214698-002; the mesh's provenance.json (data/meshes/8899ea5d72976178936505e1ffd4dad837eb52452305a2ae7ce680aceb2c73f8/provenance.json) records product_name '214698-002', one solid, instance 214698-002.1 under P3-214700.3 (rotorkit run assembly_extract_20261015T012912Z)."
+    },
+    {
+      "topology_part": "piston_cover_214958_002",
+      "mesh_part_id": "asm217755_214958_002",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_end_stop_v2.json's (and topology_vpa_pitch_linkage.json's) part carries drawing 214958-002, the piston cover Jeff named in forge note 20261016T144810_kk46rp; the mesh's provenance.json (data/meshes/9791e92a036acc70d349cb700b6ed468f0e88748e1fdef7b7baef22f4bd2af8e/provenance.json) records product_name '214958-002' at XCAF label 0:1:1:1499 of the 217755-001 A.1 assembly, one solid, ONE instance 214958-002.1 under prd-e-03300520.1 -- the sub-assembly that also holds the tangential link mount 215175-001.1 (rotorkit run assembly_extract_20261108T092425Z, handoff the_piston_cover_214958_002_is_extracted_from_217755)."
     }
   ]
 }
