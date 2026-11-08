@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
 reviewer: agent
 date: 2026-11-08
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models
@@ -142,3 +142,85 @@ No post-merge full suite: the verdict is REQUEST CHANGES, so nothing lands on
 
 Added a **Recurring bugs** entry, "A record read under one stack key and
 answered under another", for B1's class.
+
+## Re-run 2026-11-08 — round 2: APPROVE
+
+Round 1 was REQUEST CHANGES, 1 blocker (B1). The rework is `d0863681` + its
+lesson `3f459ea9`, merged into `review/…` as `008b3007`; `integration` had not
+moved (`git merge integration`: already up to date), no conflicts.
+
+### B1 — closed
+
+A shared id under `ids_from` now has **one** feature-identity key, the source
+model's, on every write path:
+
+- annotator: `identityWriteKey` → `AA.identityKey` in `cmdTake`, the armed
+  click, the bind dialog and *not in set*; Accept, Reject and a correction
+  already copy the key of the event they answer (v1's), so all paths agree;
+- Python: `tolerance_stack.topology.identity_topology_id`, used by
+  `scripts/propose_bindings.py`, so an agent proposing on v2 writes v1's key;
+- the per-edge `own` rule is gone from `AA.identityReadThrough`, so the
+  "binding `from` hides `to`" case cannot arise (v2 never gets a record of its
+  own on a shared id).
+
+I read each path against `feature_identity._answered_proposals` and the
+supersedes check: every `supersedes`/`ratifies`/`rejects` now names an event
+on the same key. The test I asked for exists and runs the real thing —
+`tests/test_feature_identity.py::test_every_answer_on_a_shared_id_writes_events_the_fold_accepts`
+loads the annotator's modules in node, runs accept, reject, take-a-different-face
+and take-with-proposals against a read-through record, and folds each through
+`build_projection`. It has a python-tier witness, and the author recorded it
+failing under the mutation (`take_a_different_face wrote on ['v2']`).
+Documented in `DAG_TOPOLOGY.md` "Models" and `ANNOTATION_SURFACE.md`.
+
+### Nits — all three closed
+
+- the `sweep.js` comment is back on `AA.sweepTopologyId`;
+- v2 is the default by rule: the builder lists a model ahead of the model it
+  reuses ids from (`in_model_order`). I traced the sort key: v2 ranks
+  `(1, -1)`, v1 `(1, 0)`. The cycle guard holds. The test uses ids that sort
+  the wrong way, so it can fail;
+- the viewer's duplicate reader is gone. The projection carries `ids_from` at
+  the top level. The annotator keeps its own (it is a separate page).
+
+### Tests on the merged tree (`008b3007`)
+
+Armed: `dispatch bridge-test-inputs C:/workspace/tolstack . --also node_modules`
+(all 7 declared inputs + node_modules `linked`), then
+`scripts/rebuild_projections.ps1` into the review worktree's own
+`data/projections/`. All four provenance stamps read `sha12=008b3007c0ee
+dirty=False behind_trunk=0`, so the `[real]` tiers judged this tree.
+
+- **Full suite** `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs`:
+  **1869 passed, 1 skipped, 2 deselected** (the pre-existing
+  `test_fit_bound_features.py:424` skip). That includes `test_viewer_js_suite.py`
+  with its `[real]` tier armed. This repo's conftest prints no contention
+  header lines. Wall time was **2161 s**, recorded `OVER BUDGET by 26m01s`.
+  It was contended: the witness gate below ran beside it the whole time, and
+  the same tree ran in 553 s alone on the tactical branch. I appended the
+  measurement to the open `ISSUE_20261022_the_default_test_tier_runs_past_its_ten_minute_budget.md`
+  rather than filing a twin.
+- `node apps/annotate/run_tests.cjs`: **301/301**, `[real]` checks ran.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration`:
+  **35/37 witnessed**, 37 of 50 reached in 29m44s, and 13 left to the sweep
+  (budget). The two misses, `…synthetic-binding-moves-exactly-one-node…__389dc6f7`
+  and `…spindle-coaxiality-pair-is-one-dot…__2a3ef74c`, were both "tier red
+  before mutation". Re-run alone with `--only`, both were **witnessed** (3m13s,
+  4m15s). So they are batch flakes, not decays. 389dc6f7 also missed in the
+  tactical batch, so I filed
+  `ISSUE_20261108_the_synthetic_binding_witness_is_red_before_mutation_inside_a_changed_since_batch_and_green_alone.md`.
+- `node scripts/run_viewer_browser_tests.mjs`: **42/43**, 1623 s. `topology
+  http` failed in the batch. Re-run alone (`--only "topology http"`) it passed
+  209/209 on the same tree. My output filter kept only the check-level lines,
+  so the failing sub-check from the batch is not recorded. Treat it as
+  batch-only and unexplained rather than understood.
+- Not run by me: the annotate `run_browser_check.mjs` mock pass. The
+  exploratory click-around and the shots are the tactical agent's
+  (lesson, "The shots"), which I read but did not repeat.
+- Not polluting: projections were written into the review worktree's own
+  gitignored `data/projections/`, and the shared inputs were bridged
+  read-only.
+
+### Verdict
+
+**APPROVE (round 2), 0 blockers.** No should-fix is left unfixed.

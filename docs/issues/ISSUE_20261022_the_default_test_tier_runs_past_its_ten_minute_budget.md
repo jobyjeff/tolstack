@@ -208,3 +208,6 @@ Two later issues in the same class are still open and measure the same tier:
 `ISSUE_20261105_the_default_test_tier_ran_18_minutes_on_a_worktree.md` and
 `ISSUE_20261105_the_default_tier_ran_12_minutes_beside_the_browser_tier.md`.
 Triage should fold them into this one, per the one-issue-per-repo-per-tier rule.
+
+## Addendum 2026-11-08 (review of model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models)
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs` (serial), review worktree with candidate inputs bridged and projections rebuilt from the merge sha: **2161 s (36m01s)**, 1869 passed, 1 skipped, recorded `OVER BUDGET by 26m01s`. **Contended, so this is not a clean measurement:** `run_mutation_witness_tests.mjs --changed-since integration` (29m44s, browser entries under the slot) ran beside it the whole time. The same tree ran 553 s alone on the tactical branch (its lesson's rework record). No `--durations` taken; evidence for "contention, not suite growth".
