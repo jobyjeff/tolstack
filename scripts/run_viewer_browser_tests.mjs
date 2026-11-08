@@ -5934,13 +5934,34 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     for (const stack of realResults.stacks) {
       if (stack.worksheet_file) withWorksheet.add("stack:" + stack.id);
     }
-    const rows = (await page.evaluate(() =>
+    // Only the open model lists its studies (2026-11-08), so the rail's rows
+    // are gathered with each model open in turn, in the order a reader meets
+    // them, and `clickRow` opens a study's model before clicking the study.
+    const listRows = () => page.evaluate(() =>
       Array.prototype.map.call(
         document.querySelectorAll("#navtree [data-nav-kind]"),
         (row) => ({ kind: row.getAttribute("data-nav-kind"),
                     id: row.getAttribute("data-nav-id"),
-                    topologyId: row.getAttribute("data-topology-id") }))
-    )).map((row) => Object.assign(row, {
+                    topologyId: row.getAttribute("data-topology-id") })));
+    const clickRow = async (row) => {
+      if (row.kind === "study" &&
+          await page.locator(`#navtree ${navRow(row.kind, row.id)}`).count() === 0) {
+        await page.locator(`#navtree ${navRow("topology", row.topologyId)}`).click();
+      }
+      await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
+    };
+    const gathered = [];
+    const seenRow = new Set();
+    const modelIds = (await listRows()).filter((r) => r.kind === "topology").map((r) => r.id);
+    for (const modelId of modelIds) {
+      await page.locator(`#navtree ${navRow("topology", modelId)}`).click();
+      await page.waitForTimeout(300);
+      for (const row of await listRows()) {
+        const key = row.kind + ":" + row.id;
+        if (!seenRow.has(key)) { seenRow.add(key); gathered.push(row); }
+      }
+    }
+    const rows = gathered.map((row) => Object.assign(row, {
       reads: withWorksheet.has(
         row.kind === "study" ? "study:" + row.topologyId + "/" + row.id
           : row.kind + ":" + row.id),
@@ -5956,7 +5977,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     const unbannered = [];
     const blank = [];
     for (const row of rows) {
-      await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
+      await clickRow(row);
       try {
         await page.waitForSelector(
           `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
@@ -6029,13 +6050,13 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
         window.__WORKSHEET_MARKER__ = "# " + marker + "\n\nits prose.\n";
         window.__WORKSHEETS_FAIL__ = false;
       }, STALE_MARKER);
-      await page.locator(`#navtree ${navRow(readers[0].kind, readers[0].id)}`).click();
+      await clickRow(readers[0]);
       await page.waitForSelector(
         `#navtree ${navRow(readers[0].kind, readers[0].id)}.navtree__row--on`,
         { timeout: 4000 });
       afterRead = await openSheet();
       await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = true; });
-      await page.locator(`#navtree ${navRow(readers[1].kind, readers[1].id)}`).click();
+      await clickRow(readers[1]);
       await page.waitForSelector(
         `#navtree ${navRow(readers[1].kind, readers[1].id)}.navtree__row--on`,
         { timeout: 4000 });
@@ -6067,10 +6088,10 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     const reader = rows.find((row) => row.reads);
     let cleared = false;
     try {
-      await page.locator(`#navtree ${navRow(reader.kind, reader.id)}`).click();
+      await clickRow(reader);
       await page.waitForSelector(".banner__error", { timeout: 4000 });
       await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = false; });
-      await page.locator(`#navtree ${navRow(reader.kind, reader.id)}`).click();
+      await clickRow(reader);
       await page.waitForSelector(
         `#navtree ${navRow(reader.kind, reader.id)}.navtree__row--on`, { timeout: 4000 });
       cleared = (await page.locator(".banner__error").count()) === 0;
@@ -6088,7 +6109,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     // -- the containment must not be paying for itself with a false alarm.
     const noisy = [];
     for (const row of rows) {
-      await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
+      await clickRow(row);
       try {
         await page.waitForSelector(
           `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
@@ -6841,7 +6862,9 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       push("[real] SKIPPED -- no data/projections/viewer/topologies.json " +
         "(gitignored, main checkout only; pass --repo)", true);
     } else {
-      await page.goto(url + "/apps/viewer/topology.html", { waitUntil: "load" });
+      // v1's study, so v1 is opened: since 2026-11-08 the default model is
+      // studyless v2, and only the open model lists its studies.
+      await page.goto(url + "/apps/viewer/topology.html?topology=vpa_pitch_linkage", { waitUntil: "load" });
       await page.waitForSelector('[data-nav-kind="study"]', { timeout: 20000 });
       const liveStudy = "pitch_system_blade_angle_average";
       const liveRow = page.locator(navRow("study", liveStudy));
@@ -8409,7 +8432,9 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
   };
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   try {
-    await page.goto(url + "/apps/viewer/topology.html", { waitUntil: "load" });
+    // The studies below are v1's; v1 is opened by link (the default model is
+    // studyless v2 since 2026-11-08, and only the open model lists studies).
+    await page.goto(url + "/apps/viewer/topology.html?topology=vpa_pitch_linkage", { waitUntil: "load" });
     await page.waitForSelector('[data-nav-kind="study"]', { timeout: 30000 });
 
     const bound = await press3D("study", "pitch_link_cotter_hole_clearance");
@@ -8501,7 +8526,7 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
     push("[real] a chain study with no bound face offers 3D and draws its own parts ghost",
       none && same(now.ghost, want) && want.length > 0 && now.faint.length > 0 && now.solid.length === 0);
 
-    const top = await press3D("topology", null);
+    const top = await press3D("topology", topology.id);
     want = await wanted("topology", topology.id, null);
     now = await scene((n) => same(n.ghost, want));
     push("[real] the topology row offers 3D and draws every one of its parts ghost",
@@ -13199,7 +13224,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await boot("", null);
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
       push("[real] with no kinematic projection the nav has no kinematic section",
-        await page.locator("h2.navtree__heading").count() === 0 &&
+        await page.locator("h2.navtree__heading", { hasText: "Kinematic" }).count() === 0 &&
         await page.locator('[data-nav-kind="kinematic"]').count() === 0);
       // The stale-pair alarm is the STAMPS' to raise (a projection behind
       // trunk raises it on every boot), so the link is held to adding none
