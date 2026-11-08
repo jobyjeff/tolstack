@@ -68,7 +68,7 @@ import build_topology_projection as btp  # noqa: E402 -- resolved from scripts/
 
 from tolerance_stack import feature_geometry as fg  # noqa: E402
 from tolerance_stack import feature_identity as fi  # noqa: E402
-from tolerance_stack.topology import load_topology  # noqa: E402
+from tolerance_stack.topology import identity_topology_id, load_topology  # noqa: E402
 
 TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
 EVENTS_SUBDIR = Path("inbox") / "feature-identity"
@@ -187,7 +187,10 @@ def check(proposal: Proposal, ctx: Context, planned: Sequence[fi.FeatureIdentity
         raise Refused("wrong_shape", f"{node_id!r} asks for a {rule['surface']} face "
                       f"({why}), and face {proposal.face_id} is {surface}")
 
-    key = fi.StackKey(kind="topology_edge", topology_id=proposal.topology, edge_id=proposal.edge)
+    # A shared id under ids_from has one key, the source model's
+    # (docs/DAG_TOPOLOGY.md, "Models"): proposed under v2, written under v1.
+    key = fi.StackKey(kind="topology_edge", edge_id=proposal.edge,
+                      topology_id=identity_topology_id(topology, proposal.edge, ctx.topologies))
     record = ctx.projection.for_stack_key(key)
     face_key = (proposal.sha256, proposal.face_id)
     if record and face_key in record.rejected_faces():

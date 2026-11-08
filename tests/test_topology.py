@@ -72,6 +72,8 @@ from tolerance_stack.topology import (
     Transform,
     UnitMismatch,
     check_study,
+    identity_topology_id,
+    in_model_order,
     load_study,
     load_topology,
     summarize,
@@ -1118,10 +1120,55 @@ def test_a_model_that_reuses_anothers_ids_means_the_same_feature_by_each(path):
 
 def test_model_v2_is_the_projections_first_model():
     """The nav opens the projection's first model when the reader has chosen
-    none (``VA.bootModel``), and the builder lists topologies by file name --
-    so v2 is first because its name sorts first. A new topology that sorts
-    ahead of it moves the default, and that is a decision, not a side effect."""
-    assert topology_files()[0] == MODEL_V2
+    none (``VA.bootModel``). The builder lists a model ahead of the model it
+    reuses ids from (``in_model_order``) and keeps file-name order otherwise,
+    so v2 is first because it supersedes v1 -- not because its name sorts
+    first."""
+    ordered = in_model_order([load_topology(p) for p in topology_files()])
+    assert ordered[0].id == load_topology(MODEL_V2).id
+
+
+def _bare(topology_id, ids_from=None, edges=("shared",)):
+    nodes = [Node(id="a", name="a", kind="datum_feature", parts=["p"]),
+             Node(id="b", name="b", kind="datum_feature", parts=["p"])]
+    return Topology(id=topology_id, title=topology_id, units="mm", ids_from=ids_from,
+                    parts=[Part(id="p", name="p")], nodes=nodes,
+                    edges=[Edge(id=e, name=e, kind="structural", from_node="a", to_node="b", part="p")
+                           for e in edges])
+
+
+def test_a_model_is_listed_ahead_of_the_model_it_reuses_ids_from():
+    """Whatever the file names: z reuses a's ids, so z comes first; an
+    unrelated model keeps its place."""
+    a, m, z = _bare("a"), _bare("m"), _bare("z", ids_from="a")
+    assert [t.id for t in in_model_order([a, m, z])] == ["z", "a", "m"]
+    assert [t.id for t in in_model_order([a, m])] == ["a", "m"]
+    assert [x[0] for x in in_model_order([("pa", a), ("pz", z)])] == ["pz", "pa"], (
+        "the builder's (path, raw, topology) rows sort by their topology")
+
+
+def test_a_shared_id_has_one_identity_key_the_source_models():
+    """``identity_topology_id``: an edge id a model shares with the model it
+    reuses ids from is keyed to that model; an id only it has, or any id of a
+    model with no ``ids_from``, keeps its own. The annotator's
+    ``AA.identityKey`` applies the same rule before it writes."""
+    v1 = _bare("v1")
+    v2 = _bare("v2", ids_from="v1", edges=("shared", "new_edge"))
+    both = {"v1": v1, "v2": v2}
+    assert identity_topology_id(v2, "shared", both) == "v1"
+    assert identity_topology_id(v2, "new_edge", both) == "v2"
+    assert identity_topology_id(v1, "shared", both) == "v1"
+    assert identity_topology_id(v2, "shared", {"v2": v2}) == "v2", "source absent: never a guess"
+    live = {t.id: t for t in (load_topology(p) for p in topology_files())}
+    v2_live = live[load_topology(MODEL_V2).id]
+    assert identity_topology_id(v2_live, "pitch_link_length", live) == v2_live.ids_from
+    assert identity_topology_id(v2_live, "pitch_plate_pilot_in_piston", live) == v2_live.id
+
+
+@pytest.mark.parametrize("bad", ["", "v2", 7])
+def test_ids_from_names_another_topology(bad):
+    with pytest.raises(TopologyError, match="ids_from"):
+        _bare("v2", ids_from=bad)
 
 
 def _linkage_part_lists(source: str) -> dict:

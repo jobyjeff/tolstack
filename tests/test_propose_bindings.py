@@ -141,6 +141,27 @@ def test_the_cli_writes_one_and_a_dry_run_writes_none(store, capsys):
 # ---------------------------------------------------------------------------
 
 
+def test_a_proposal_made_on_a_model_that_reuses_ids_is_keyed_to_the_source_model(store):
+    """A shared id under ``ids_from`` has one key, the source model's
+    (``topology.identity_topology_id``): proposed under the reusing model, it
+    is written under the source's, so the human's answer and any later
+    re-pick stay on one record. An id only the reusing model has keeps its
+    own key."""
+    data, topologies = store
+    raw = json.loads((topologies / "topology_fixture.json").read_text(encoding="utf-8"))
+    raw.update(id="fixture_v2", title="Fixture v2", ids_from="fixture",
+               edges=[e for e in raw["edges"] if e["id"] == "shank_in_hole"]
+               + [dict(e, id="plate_thickness_v2_only") for e in raw["edges"] if e["id"] == "plate_thickness"])
+    (topologies / "topology_fixture_v2.json").write_text(json.dumps(raw), encoding="utf-8")
+    ((_, shared),) = pb.propose_all([row(topology="fixture_v2")], ctx(store), ACTOR)
+    assert shared.stack_key.topology_id == "fixture"
+    ((_, own),) = pb.propose_all([row(topology="fixture_v2", edge="plate_thickness_v2_only",
+                                      sha256=PLATE, face_id=PLATE_TOP_FACE)], ctx(store), ACTOR)
+    assert own.stack_key.topology_id == "fixture_v2"
+    assert refusal_of(store, row(topology="fixture")) == "already_there", (
+        "the same face on the same end, proposed under the source model, is the one proposal")
+
+
 def test_a_diameter_on_a_flat_face_is_refused(store):
     assert refusal_of(store, row(face_id=BOLT_FLAT_FACE)) == "wrong_shape"
     assert events_in(store) == []

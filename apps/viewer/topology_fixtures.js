@@ -130,6 +130,7 @@
         "id": "demo_mechanism",
         "title": "Demo mechanism",
         "description": "A fork, a loop, a gap and a linear-rotary coupling -- every state the rails and the grid have to render.",
+        "ids_from": null,
         "units": "mm",
         "source_file": "docs/topologies/topology_demo_mechanism.json",
         "topology": {

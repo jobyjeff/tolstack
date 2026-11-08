@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_feature_identity.py",
+  "expect_red": "test_every_answer_on_a_shared_id_writes_events_the_fold_accepts",
+  "mutations": [
+    {
+      "contract": "Every annotator answer on an edge id a model shares under ids_from writes events on the source model's key, which the Python fold accepts.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08, review rework). Writes the open model's own key: Take and the re-pick then name a v1 event from a v2-keyed one, the review's blocker.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    return AA.topologyEdgeKey(shared ? from : topology.id, edgeId);\n",
+      "replace": "    return AA.topologyEdgeKey(topology.id, edgeId);\n"
+    }
+  ]
+}

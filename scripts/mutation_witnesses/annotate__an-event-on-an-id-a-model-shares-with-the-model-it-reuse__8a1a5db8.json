@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an event on an id a model shares with the model it reuses ids from is written on that model's key; an id only it has keeps its own",
+  "mutations": [
+    {
+      "contract": "An event on an edge id a model shares with the model it reuses ids from is written on the source model's key.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08, review rework). Writes the open model's own key, which is the v2-keyed re-pick superseding a v1 event that the fold refuses.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    return AA.topologyEdgeKey(shared ? from : topology.id, edgeId);\n",
+      "replace": "    return AA.topologyEdgeKey(topology.id, edgeId);\n"
+    }
+  ]
+}

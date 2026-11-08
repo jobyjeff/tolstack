@@ -137,36 +137,44 @@
   }
   AA.stackKeyEquals = stackKeyEquals;
 
-  // The model whose node and edge ids a topology reuses -- its authored
-  // `ids_from` (docs/DAG_TOPOLOGY.md, "Models") -- or null.
+  // The model whose ids `topology` reuses -- the projection's `ids_from`
+  // (docs/DAG_TOPOLOGY.md, "Models") -- or null.
   AA.topologyIdsFrom = function (topology) {
-    var raw = topology && topology.topology;
-    var id = raw && raw.ids_from;
+    var id = topology && topology.ids_from;
     return typeof id === "string" && id ? id : null;
   };
 
+  // The stack key every event about `edgeId` is written under, opened on
+  // `topology`. An edge id a model shares with the model it reuses ids from
+  // names ONE feature, so it has one key, the source model's -- whichever
+  // model is open -- and every bind, re-pick, accept and reject on it lands
+  // on the record the fold already has (tolerance_stack.topology.
+  // identity_topology_id is the same rule; a v2-keyed event superseding a
+  // v1-keyed one is refused by the fold). `topologies` is the projection's
+  // list; with the source model absent from it the edge keeps its own key.
+  AA.identityKey = function (topology, edgeId, topologies) {
+    var from = AA.topologyIdsFrom(topology);
+    var source = from ? (topologies || []).filter(function (t) { return t && t.id === from; })[0] : null;
+    var shared = source && (source.edges || []).some(function (e) { return e.id === edgeId; });
+    return AA.topologyEdgeKey(shared ? from : topology.id, edgeId);
+  };
+
   // The bindings a topology READS: its own, plus -- for a model that reuses
-  // another's ids -- that model's records on every edge id this one also
-  // has, answered under this topology's id, for each edge this one has no
-  // record of its own for (so a bind made here wins from then on). Read only:
-  // an event written here is keyed to this topology. A topology with no
-  // `ids_from` gets the projection back untouched.
+  // another's ids -- that model's record on every edge id this one also has,
+  // answered under this topology's id. Every write on such an edge goes to
+  // the source model's key (AA.identityKey), so the copy is the one record
+  // there is: this session's events fold into it, and it carries both ends.
+  // A topology with no `ids_from` gets the projection back untouched.
   AA.identityReadThrough = function (identityProjection, topology) {
     var from = AA.topologyIdsFrom(topology);
     if (!identityProjection || !from) return identityProjection;
     var rows = identityProjection.stack_keys || [];
     var edges = {};
     (topology.edges || []).forEach(function (e) { edges[e.id] = true; });
-    var own = {};
-    rows.forEach(function (row) {
-      var k = row && row.stack_key;
-      if (k && k.kind === "topology_edge" && k.topology_id === topology.id) own[k.edge_id] = true;
-    });
     var read = [];
     rows.forEach(function (row) {
       var k = row && row.stack_key;
-      if (!k || k.kind !== "topology_edge" || k.topology_id !== from) return;
-      if (!edges[k.edge_id] || own[k.edge_id]) return;
+      if (!k || k.kind !== "topology_edge" || k.topology_id !== from || !edges[k.edge_id]) return;
       var copy = {};
       Object.keys(row).forEach(function (field) { copy[field] = row[field]; });
       copy.stack_key = AA.topologyEdgeKey(topology.id, k.edge_id);
@@ -176,7 +184,7 @@
     if (!read.length) return identityProjection;
     var out = {};
     Object.keys(identityProjection).forEach(function (field) { out[field] = identityProjection[field]; });
-    out.stack_keys = rows.concat(read);
+    out.stack_keys = read.concat(rows);
     return out;
   };
 

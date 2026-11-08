@@ -466,14 +466,22 @@ page reopens on the model the reader last chose.
 
 **`ids_from` — a model that reuses another's ids.** v2 declares
 `"ids_from": "vpa_pitch_linkage"`: every node and edge id it shares with v1
-names the same feature there. Two readers act on it, both in the 3D surface
-and both read-only: a `feature-identity/v0` binding keyed to v1 on an edge id
-v2 also has is read as v2's until v2 has a record of its own
-(`apps/annotate/binding_state.js`, `AA.identityReadThrough`), and a linkage
-sweep published against v1 plays on v2 when v2 is open (`AA.sweepPlaysOn`), so
-the P2 run binds without a republish. Nothing writes through it: a bind made on
-v2 is keyed to v2. `tests/test_topology.py` holds every shared id to the same
-kind, ends and parts in both documents.
+names the same feature there, so **a shared id has one `feature-identity/v0`
+key, v1's.** Every event about it — an agent's proposal, a bind, a re-pick, an
+accept, a reject, a correction — is written under v1's key whichever model is
+open (`tolerance_stack.topology.identity_topology_id`; the annotator's
+`AA.identityKey` and `scripts/propose_bindings.py` both apply it). The fold
+refuses a `supersedes` that points across keys, so a v2-keyed re-pick of a
+v1 binding would leave the log unrebuildable; the one key is what rules that
+out (review of 2026-11-08). An edge id only v2 has keeps v2's key. On the
+read side the 3D surface shows v1's record on a shared id as v2's, both ends
+of it (`AA.identityReadThrough`), and a linkage sweep published against v1
+plays on v2 when v2 is open (`AA.sweepPlaysOn`), so the P2 run binds without a
+republish. The builder lists a model ahead of the model it reuses ids from
+(`in_model_order`), which is why v2 is the nav's default.
+`tests/test_topology.py` holds every shared id to the same kind, ends and
+parts in both documents, and `tests/test_feature_identity.py` folds the events
+every annotator answer path writes on a shared id through the Python rules.
 
 ### Naming a topology or a study
 

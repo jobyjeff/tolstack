@@ -5405,37 +5405,48 @@ check("under a topology that declares occurrences, a mesh only carried inside a 
     "what rides inside it, once");
 });
 
-check("a model that reuses another's ids reads that model's bindings on the edges " +
-  "both have, under its own id, until it has a record of its own", () => {
+check("a model that reuses another's ids reads that model's record on every edge " +
+  "both have, under its own id, both ends and this session's events with it", () => {
   const key = (t, e) => AA.topologyEdgeKey(t, e);
   const projection = { staleness: {}, stack_keys: [
-    { stack_key: key("v1", "shared"), bindings: [{ event_id: "a", direction: "from" }] },
-    { stack_key: key("v1", "only_v1"), bindings: [{ event_id: "b", direction: "from" }] },
-    { stack_key: key("v1", "rebound"), bindings: [{ event_id: "c", direction: "to" }] },
-    { stack_key: key("v2", "rebound"), bindings: [{ event_id: "d", direction: "to" }] },
+    { stack_key: key("v1", "shared"), bindings: [{ event_id: "a", direction: "from" },
+      { event_id: "b", direction: "to" }] },
+    { stack_key: key("v1", "only_v1"), bindings: [{ event_id: "c", direction: "from" }] },
+    { stack_key: key("v2", "shared"), bindings: [{ event_id: "d", direction: "to" }] },
   ] };
-  const v2 = { id: "v2", topology: { ids_from: "v1" },
-    edges: [{ id: "shared" }, { id: "rebound" }, { id: "new_edge" }] };
+  const v2 = { id: "v2", ids_from: "v1",
+    edges: [{ id: "shared" }, { id: "new_edge" }] };
   const read = AA.identityReadThrough(projection, v2);
-  assertEqual(AA.findBindingRecord(read, key("v2", "shared")).bindings[0].event_id, "a",
-    "a v1 binding on a shared edge answers for v2");
-  assertEqual(AA.findBindingRecord(read, key("v2", "shared")).read_from, "v1", "and says where from");
+  const shared = AA.findBindingRecord(read, key("v2", "shared"));
+  assertEqual(shared.bindings.map((b) => b.event_id), ["a", "b"],
+    "v1's record answers for v2, both ends, and a stray v2 row on a shared id does not hide it");
+  assertEqual(shared.read_from, "v1", "and says where from");
   assertEqual(AA.findBindingRecord(read, key("v2", "only_v1")), null, "an edge v2 lacks reads nothing");
-  assertEqual(AA.findBindingRecord(read, key("v2", "rebound")).bindings[0].event_id, "d",
-    "v2's own record wins");
   assertEqual(AA.findBindingRecord(read, key("v2", "new_edge")), null, "a new edge is unbound");
-  assertEqual(projection.stack_keys.length, 4, "the projection itself is not edited");
+  assertEqual(projection.stack_keys.length, 3, "the projection itself is not edited");
   assertEqual(AA.identityReadThrough(projection, { id: "v1", edges: [] }), projection,
     "a topology with no ids_from gets the projection back");
   assertEqual(AA.topologyIdsFrom(v2), "v1");
 });
 
+check("an event on an id a model shares with the model it reuses ids from is written " +
+  "on that model's key; an id only it has keeps its own", () => {
+  const v1 = { id: "v1", ids_from: null, edges: [{ id: "shared" }] };
+  const v2 = { id: "v2", ids_from: "v1", edges: [{ id: "shared" }, { id: "new_edge" }] };
+  assertEqual(AA.identityKey(v2, "shared", [v2, v1]), AA.topologyEdgeKey("v1", "shared"));
+  assertEqual(AA.identityKey(v2, "new_edge", [v2, v1]), AA.topologyEdgeKey("v2", "new_edge"));
+  assertEqual(AA.identityKey(v1, "shared", [v2, v1]), AA.topologyEdgeKey("v1", "shared"),
+    "a model with no ids_from writes its own");
+  assertEqual(AA.identityKey(v2, "shared", [v2]), AA.topologyEdgeKey("v2", "shared"),
+    "the source model absent from the projection: its own key, never a guess");
+});
+
 check("a run published against the model the open one reuses ids from plays on the " +
   "open one -- unless a kinematic study opened it", () => {
-  const v2 = { id: "v2", topology: { ids_from: "v1" } };
+  const v2 = { id: "v2", ids_from: "v1" };
   assertEqual(AA.sweepPlaysOn("v1", false, v2), "v2", "plays on v2");
   assertEqual(AA.sweepPlaysOn("v1", true, v2), "v1", "a study's run stays on the study's model");
-  assertEqual(AA.sweepPlaysOn("v1", false, { id: "other", topology: {} }), "v1", "unrelated: unchanged");
+  assertEqual(AA.sweepPlaysOn("v1", false, { id: "other", ids_from: null }), "v1", "unrelated: unchanged");
   assertEqual(AA.sweepPlaysOn("v1", false, null), "v1", "nothing open: unchanged");
   assertEqual(AA.sweepPlaysOn(null, false, v2), null, "a run that names none stays none");
 });
