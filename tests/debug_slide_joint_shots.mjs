@@ -16,7 +16,7 @@ const OUT = normalize(join(HERE, "..", "docs", "sessions", "shots_20261103_the_s
 const BASE = process.argv[2] || "http://127.0.0.1:8000/tolstack";
 const SHOTS = [
   ["1_kinematic_study_scene.png",
-   BASE + "/annotate/index.html?sweep=vpa-pitch-p2-20261016-235852&kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops"],
+   BASE + "/annotate/index.html?sweep=vpa-pitch-p2-20261105-204957&kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops"],
 ];
 const { chromium } = await loadPlaywright();
 let browser = null;

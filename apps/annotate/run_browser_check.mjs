@@ -740,7 +740,7 @@ async function railResizePass(browser, base) {
 // as-modelled frame is. Real topology projection, real runs; SKIPs honestly
 // when this machine has neither.
 async function railRealPass(browser, base) {
-  const run = "vpa-pitch-p2-20261016-235852";
+  const run = "vpa-pitch-p2-20261105-204957";
   const have = DATA_ROOTS.some((r) =>
     existsSync(join(r, "data", "inbox", "linkage-sweeps", `${run}.json`)) &&
     existsSync(join(r, "data", "projections", "viewer", "topologies.json")));

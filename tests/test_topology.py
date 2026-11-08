@@ -2209,7 +2209,7 @@ LINKAGE_TOPOLOGY = TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json"
 
 #: The sweep the kinematic study reads, in the main checkout's gitignored inbox.
 LINKAGE_SWEEP = Path(r"C:\workspace\tolstack\data\inbox\linkage-sweeps"
-                     r"\vpa-pitch-p2-20261016-235852.json")
+                     r"\vpa-pitch-p2-20261105-204957.json")
 
 #: Which of linkage's swept joints each gap edge stands at, read off the
 #: sweep's own ``links[]`` (a ``distance`` joint is the link between two ball
@@ -2222,7 +2222,7 @@ SWEPT_JOINT_EDGES = {
     "pitch_plate_link_joint": "pitch_link",
     "tan_link_mount_joint": "tan_link",
     "tan_link_plate_joint": "tan_link",
-    "hub_to_pitch_plate_spindle_coaxiality": "plate_slide",
+    "pitch_plate_slide_bushings_to_piston_body": "plate_slide",
 }
 
 

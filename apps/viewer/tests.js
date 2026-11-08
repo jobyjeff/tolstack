@@ -244,8 +244,8 @@
     await test("annotateLink opens sweep mode on a run with the run alone -- the " +
       "kinematic model row's launch", function () {
         eq(VA.annotateLink({ topologyId: "vpa_pitch_linkage",
-          sweep: "vpa-pitch-p2-20261016-235852" }),
-          "../annotate/index.html?sweep=vpa-pitch-p2-20261016-235852");
+          sweep: "vpa-pitch-p2-20261105-204957" }),
+          "../annotate/index.html?sweep=vpa-pitch-p2-20261105-204957");
         eq(VA.annotateLink({ sweep: "a b" }), "../annotate/index.html?sweep=a%20b");
       });
 
@@ -423,8 +423,8 @@
         // A sweep launch is the run alone, on both carriers: the run names its
         // own topology, and the annotator selects it from there.
         eq(VA.annotateExecCommands({ topologyId: "vpa_pitch_linkage",
-          sweep: "vpa-pitch-p2-20261016-235852" }),
-          [["sweep", "vpa-pitch-p2-20261016-235852"]]);
+          sweep: "vpa-pitch-p2-20261105-204957" }),
+          [["sweep", "vpa-pitch-p2-20261105-204957"]]);
       });
 
     // --- the 3D pane follows the selection (the_3d_pane_opens_in_the_mode_

@@ -52,7 +52,7 @@ import build_kinematic_projection as builder  # noqa: E402
 REAL_STUDY = (REPO_ROOT / "docs" / "topologies"
               / "kinematic_study_vpa_pitch_linkage_blade_pitch_at_the_stops.json")
 REAL_DATA = Path(r"C:\workspace\tolstack\data")
-REAL_RUN = REAL_DATA / "inbox" / "linkage-sweeps" / "vpa-pitch-p2-20261016-235852.json"
+REAL_RUN = REAL_DATA / "inbox" / "linkage-sweeps" / "vpa-pitch-p2-20261105-204957.json"
 
 
 def load_fixture():
